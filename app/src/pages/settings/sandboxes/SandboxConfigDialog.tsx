@@ -8,7 +8,6 @@ import {
   Button,
   ComboBox,
   ComboBoxItem,
-  ContextualHelp,
   Dialog,
   DialogCloseButton,
   DialogContent,
@@ -146,6 +145,21 @@ type SandboxConfigDialogContentProps = (
 ) & { onClose: () => void };
 
 const NOT_SUPPORTED_COPY = "Not supported by the selected backend.";
+
+// Shared flex sizing for env-var row inputs so the Name and source fields
+// share remaining space evenly. This prevents column widths from shifting
+// when the user toggles between literal "value" and "secret_ref" kinds.
+const envVarFieldFillCSS = css`
+  flex: 1;
+  min-width: 0;
+`;
+
+// Stable min-width for the Kind selector so the row doesn't shift laterally
+// when the user toggles between "Value" and "Secret" (the two labels have
+// different lengths). Sized to fit the longer label plus dropdown chevron.
+const envVarKindFieldCSS = css`
+  min-width: 7rem;
+`;
 
 function defaultConfigName(provider: ProviderRow): string {
   return getIdentifier(provider.backend.displayName);
@@ -486,21 +500,16 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                   step={1}
                   isInvalid={fieldState.invalid}
                 >
-                  <Label>
-                    <Flex direction="row" gap="size-50" alignItems="center">
-                      <span>Timeout (seconds)</span>
-                      <ContextualHelp variant="info">
-                        <Text>
-                          Maximum execution time in seconds. Defaults to 300; we
-                          recommend 60–600 for most evaluators.
-                        </Text>
-                      </ContextualHelp>
-                    </Flex>
-                  </Label>
+                  <Label>Timeout (seconds)</Label>
                   <Input />
                   {fieldState.error ? (
                     <FieldError>{fieldState.error.message}</FieldError>
-                  ) : null}
+                  ) : (
+                    <Text slot="description" size="S" color="text-700">
+                      Total time allowed for sandbox setup and execution.
+                      Defaults to 300s.
+                    </Text>
+                  )}
                 </NumberField>
               )}
             />
@@ -650,53 +659,57 @@ function EnvVarRow({
   );
 
   const kindField = (
-    <Controller
-      name={`envVars.${index}.kind`}
-      control={form.control}
-      render={({ field }) => (
-        <Select
-          {...field}
-          onChange={(v) => {
-            field.onChange(v);
-            if (v === "literal") {
-              form.setValue(`envVars.${index}.secret_key`, "");
-              previousSecretKeyRef.current = "";
-            }
-            if (v === "secret_ref") {
-              form.setValue(`envVars.${index}.value`, "");
-            }
-          }}
-        >
-          <Label>Kind</Label>
-          <Button>
-            <SelectValue />
-            <SelectChevronUpDownIcon />
-          </Button>
-          <Popover>
-            <ListBox>
-              <ListBoxItem id="literal">Value</ListBoxItem>
-              <ListBoxItem id="secret_ref">Secret</ListBoxItem>
-            </ListBox>
-          </Popover>
-        </Select>
-      )}
-    />
+    <div css={envVarKindFieldCSS}>
+      <Controller
+        name={`envVars.${index}.kind`}
+        control={form.control}
+        render={({ field }) => (
+          <Select
+            {...field}
+            onChange={(v) => {
+              field.onChange(v);
+              if (v === "literal") {
+                form.setValue(`envVars.${index}.secret_key`, "");
+                previousSecretKeyRef.current = "";
+              }
+              if (v === "secret_ref") {
+                form.setValue(`envVars.${index}.value`, "");
+              }
+            }}
+          >
+            <Label>Kind</Label>
+            <Button>
+              <SelectValue />
+              <SelectChevronUpDownIcon />
+            </Button>
+            <Popover>
+              <ListBox>
+                <ListBoxItem id="literal">Value</ListBoxItem>
+                <ListBoxItem id="secret_ref">Secret</ListBoxItem>
+              </ListBox>
+            </Popover>
+          </Select>
+        )}
+      />
+    </div>
   );
   const nameField = (
-    <Controller
-      name={`envVars.${index}.name`}
-      control={form.control}
-      rules={{ required: "Name is required" }}
-      render={({ field, fieldState }) => (
-        <TextField {...field} isInvalid={fieldState.invalid}>
-          <Label>Name</Label>
-          <Input placeholder="MY_VAR" />
-          {fieldState.error ? (
-            <FieldError>{fieldState.error.message}</FieldError>
-          ) : null}
-        </TextField>
-      )}
-    />
+    <div css={envVarFieldFillCSS}>
+      <Controller
+        name={`envVars.${index}.name`}
+        control={form.control}
+        rules={{ required: "Name is required" }}
+        render={({ field, fieldState }) => (
+          <TextField {...field} isInvalid={fieldState.invalid}>
+            <Label>Name</Label>
+            <Input placeholder="MY_VAR" />
+            {fieldState.error ? (
+              <FieldError>{fieldState.error.message}</FieldError>
+            ) : null}
+          </TextField>
+        )}
+      />
+    </div>
   );
   const removeButton = (
     <Button
@@ -724,16 +737,18 @@ function EnvVarRow({
     return (
       <Flex gap="size-100" alignItems="end">
         {kindField}
-        <Suspense
-          fallback={<SecretKeyInputFallback index={index} form={form} />}
-        >
-          <SecretKeyComboBox
-            index={index}
-            form={form}
-            onSecretKeySelected={handleSecretKeySelected}
-          />
-        </Suspense>
         {nameField}
+        <div css={envVarFieldFillCSS}>
+          <Suspense
+            fallback={<SecretKeyInputFallback index={index} form={form} />}
+          >
+            <SecretKeyComboBox
+              index={index}
+              form={form}
+              onSecretKeySelected={handleSecretKeySelected}
+            />
+          </Suspense>
+        </div>
         {removeButton}
       </Flex>
     );
@@ -743,16 +758,18 @@ function EnvVarRow({
     <Flex gap="size-100" alignItems="end">
       {kindField}
       {nameField}
-      <Controller
-        name={`envVars.${index}.value`}
-        control={form.control}
-        render={({ field }) => (
-          <TextField {...field}>
-            <Label>Value</Label>
-            <Input placeholder="value" />
-          </TextField>
-        )}
-      />
+      <div css={envVarFieldFillCSS}>
+        <Controller
+          name={`envVars.${index}.value`}
+          control={form.control}
+          render={({ field }) => (
+            <TextField {...field}>
+              <Label>Value</Label>
+              <Input placeholder="value" />
+            </TextField>
+          )}
+        />
+      </div>
       {removeButton}
     </Flex>
   );
@@ -771,7 +788,7 @@ function SecretKeyInputFallback({
       control={form.control}
       render={({ field }) => (
         <TextField {...field}>
-          <Label>Secret Key</Label>
+          <Label>Secret</Label>
           <Input placeholder="Loading..." />
         </TextField>
       )}
@@ -812,11 +829,14 @@ function SecretKeyComboBox({
     <Controller
       name={`envVars.${index}.secret_key`}
       control={form.control}
-      rules={{ required: "Secret key is required" }}
+      rules={{ required: "Secret is required" }}
       render={({ field, fieldState }) => (
         <ComboBox
-          label="Secret Key"
+          label="Secret"
           placeholder="Select a secret"
+          // Phoenix's ComboBox size scale is offset from TextField's: ComboBox
+          // "L" matches TextField "M" (both → --global-input-height-m). Use "L"
+          // so this picker visually aligns with the sibling Name TextField.
           size="L"
           selectedKey={field.value || null}
           onSelectionChange={(key) => {

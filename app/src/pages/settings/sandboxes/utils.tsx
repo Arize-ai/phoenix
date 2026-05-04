@@ -13,6 +13,7 @@ import { isPlainObject } from "@phoenix/utils/jsonUtils";
 
 import type {
   BackendInfo,
+  SandboxConfig,
   SandboxConfigFormValues,
   SandboxProvider,
 } from "./types";
@@ -20,6 +21,79 @@ import type {
 type Language =
   | SandboxProvider["language"]
   | BackendInfo["supportedLanguages"][number];
+
+/**
+ * Status pill for a config row: a "union" of backend health and the
+ * config/provider enabled toggles.
+ *
+ * Precedence (top wins): config-disabled > provider-disabled > backend status.
+ *
+ * Why user toggles win over backend health: a disabled config is "off" by
+ * explicit user intent — its backend health is moot until re-enabled, and
+ * any backend issue stays visible in the providers section above. Showing
+ * "Disabled" matches the toggle UI in the actions column.
+ */
+export function ConfigStatusText({
+  config,
+  provider,
+  backend,
+}: {
+  config: Pick<SandboxConfig, "enabled">;
+  provider: Pick<SandboxProvider, "enabled">;
+  backend: Pick<BackendInfo, "status" | "statusDetail" | "dependencyHints">;
+}) {
+  if (!config.enabled) {
+    return (
+      <DisabledStatusText
+        label="Disabled"
+        tooltip="Toggle this config on to make it available."
+      />
+    );
+  }
+  if (!provider.enabled) {
+    return (
+      <DisabledStatusText
+        label="Provider disabled"
+        tooltip="Enable the provider in the Sandbox Providers section above."
+      />
+    );
+  }
+  return (
+    <StatusText
+      status={backend.status}
+      detail={backend.statusDetail}
+      dependencyHints={backend.dependencyHints}
+    />
+  );
+}
+
+function DisabledStatusText({
+  label,
+  tooltip,
+}: {
+  label: string;
+  tooltip: string;
+}) {
+  return (
+    <TooltipTrigger delay={100}>
+      <TriggerWrap>
+        <Text
+          color="text-700"
+          css={css`
+            text-decoration: underline dotted;
+            text-underline-offset: 2px;
+            cursor: help;
+          `}
+        >
+          {label}
+        </Text>
+      </TriggerWrap>
+      <RichTooltip width={320}>
+        <Text>{tooltip}</Text>
+      </RichTooltip>
+    </TooltipTrigger>
+  );
+}
 
 export function StatusText({
   status,

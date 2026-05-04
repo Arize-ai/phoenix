@@ -1,8 +1,12 @@
 """
 Modal sandbox backend.
 
-Requires the ``modal`` package (optional extra).
-Import is deferred to avoid top-level failures when the extra is absent.
+Requires the ``modal`` package (optional extra). The SDK import is lazy (in
+``ModalSandboxBackend.__init__`` and ``_create_sandbox``) so the module remains
+importable when the extra is absent. Adapter availability is gated by
+``ModalAdapter.probe_dependencies`` at registration time, which surfaces a
+missing extra as ``status=NOT_INSTALLED`` instead of a runtime error during
+evaluation.
 
 Authentication: Modal SDK reads MODAL_TOKEN_ID and MODAL_TOKEN_SECRET from
 ``os.environ``. When DB-stored secrets are resolved for these keys, the
@@ -172,6 +176,11 @@ class ModalAdapter(SandboxAdapter):
             description="Token secret issued by `modal token new`.",
         ),
     ]
+
+    @classmethod
+    def probe_dependencies(cls) -> None:
+        """Verify ``modal`` is installed; ImportError → NOT_INSTALLED."""
+        import modal  # noqa: F401
 
     def build_backend(
         self,
