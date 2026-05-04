@@ -145,6 +145,67 @@ console.log(relevanceResult);
 // Output: { label: "relevant", score: 1, explanation: "..." }
 ```
 
+### Pairwise Evaluation
+
+Use `PairwiseEvaluator` when you need to compare two model outputs side by side. It randomizes presentation order by default to reduce position bias, supports ties, and stores the A/B position mapping in `metadata`.
+
+```typescript
+import { createPairwiseEvaluator, winRate } from "@arizeai/phoenix-evals";
+import { openai } from "@ai-sdk/openai";
+
+const evaluator = createPairwiseEvaluator({
+  name: "pairwise_quality",
+  model: openai("gpt-4o"),
+  promptTemplate: `
+You are comparing two assistant responses for overall quality.
+
+Evaluate the responses using the following criteria:
+- correctness and factual accuracy
+- completeness and relevance to the user input
+- clarity, helpfulness, and appropriate level of detail
+- safety and instruction following
+
+User input:
+{{input}}
+
+Response A:
+{{item_1}}
+
+Response B:
+{{item_2}}
+
+Choose the response with better overall quality. If both responses are similarly good or
+similarly flawed, choose tie.
+`,
+  groups: ["output", "reference"],
+  ordering: "random", // "random" | "both" | "fixed"
+});
+
+const result = await evaluator.evaluate({
+  output: "Paris is the capital of France.",
+  reference: "The capital is Paris, located on the Seine.",
+  input: "What is the capital of France?",
+});
+
+const summary = winRate({ scores: [result] });
+console.log(
+  summary.rate,
+  summary.wins,
+  summary.losses,
+  summary.ties,
+  summary.n
+);
+```
+
+#### Prompt template requirements
+
+`PairwiseEvaluator` validates prompt templates at construction. A template must:
+
+- Use `{{item_1}}` and `{{item_2}}` for the (randomized) compared items — never reference your group keys (e.g. `{{output}}`) directly.
+- Label the items as `Response A` and `Response B` (case-insensitive). The judge replies with `A` / `B` positionally; that letter is mapped back to your group keys after the call.
+
+Reserved group names that cannot be used in `groups`: `tie`, `item_1`, `item_2`, `response_1`, `response_2`. Forbidden template variables: `response_a`, `response_b`, `item_a`, `item_b`, plus the literal group names you chose.
+
 ### Data Mapping
 
 When your data structure doesn't match what an evaluator expects, use `bindEvaluator` to map your fields to the evaluator's expected input format:

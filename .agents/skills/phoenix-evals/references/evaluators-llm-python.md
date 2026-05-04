@@ -57,6 +57,38 @@ Answer (relevant/irrelevant):""",
 )
 ```
 
+## PairwiseEvaluator
+
+Use `PairwiseEvaluator` to compare exactly two outputs. Prompt templates must use
+`{{item_1}}` and `{{item_2}}` for the randomized positions, and must not reference
+the group names directly.
+
+```python
+from phoenix.evals import LLM, PairwiseEvaluator
+
+pairwise = PairwiseEvaluator(
+    name="helpfulness_pairwise",
+    llm=LLM(provider="openai", model="gpt-4o"),
+    prompt_template="""Compare responses for helpfulness.
+<question>{{input}}</question>
+<response-a>{{item_1}}</response-a>
+<response-b>{{item_2}}</response-b>
+Choose A, B, or tie.""",
+    groups=("candidate", "baseline"),
+    ordering="random",  # "random" | "both" | "fixed"
+)
+
+score = pairwise.evaluate({
+    "input": "How do I reset my password?",
+    "candidate": "Go to settings, then account, then reset password.",
+    "baseline": "Use settings.",
+})[0]
+```
+
+`ordering="both"` runs the judge twice with swapped positions and returns a tie
+when the two passes disagree. `Score.metadata` records `presented_first`,
+per-pass judge choices, rationales, and tie reason.
+
 ## Input Mapping
 
 Column names must match template variables. Rename columns or use `bind_evaluator`:

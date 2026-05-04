@@ -1,12 +1,14 @@
 from importlib.metadata import version
 
 from . import llm, metrics, templating, tracing, utils
+from .aggregation import PairwiseWinRate, win_rate
 from .evaluators import (
     ClassificationEvaluator,
     EvalInput,
     Evaluator,
     KindType,
     LLMEvaluator,
+    PairwiseEvaluator,
     Score,
     ToolSchema,
     async_evaluate_dataframe,
@@ -26,6 +28,8 @@ __all__ = [
     "EvalInput",
     "Evaluator",
     "LLMEvaluator",
+    "PairwiseEvaluator",
+    "PairwiseWinRate",
     "Score",
     "ToolSchema",
     "KindType",
@@ -33,6 +37,7 @@ __all__ = [
     "create_evaluator",
     "async_evaluate_dataframe",
     "evaluate_dataframe",
+    "win_rate",
     "metrics",
     "templating",
     "llm",

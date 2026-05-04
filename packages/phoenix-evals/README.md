@@ -101,6 +101,64 @@ regex_result = MatchesRegex(pattern=r"^\d{4}-\d{2}-\d{2}$").evaluate({
 })
 ```
 
+## Pairwise Evaluation
+
+Use `PairwiseEvaluator` when you need to compare two model outputs side by side. The evaluator randomizes presentation order by default to reduce position bias, supports ties, and records the position mapping in `Score.metadata`.
+
+```python
+from phoenix.evals import LLM, PairwiseEvaluator
+from phoenix.evals.aggregation import win_rate
+
+llm = LLM(provider="openai", model="gpt-4o")
+
+pairwise = PairwiseEvaluator(
+    name="pairwise_quality",
+    llm=llm,
+    prompt_template="""
+You are comparing two assistant responses for overall quality.
+
+Evaluate the responses using the following criteria:
+- correctness and factual accuracy
+- completeness and relevance to the user input
+- clarity, helpfulness, and appropriate level of detail
+- safety and instruction following
+
+User input:
+{{input}}
+
+Response A:
+{{item_1}}
+
+Response B:
+{{item_2}}
+
+Choose the response with better overall quality. If both responses are similarly good or
+similarly flawed, choose tie.
+""",
+    groups=("output", "reference"),
+    ordering="random",  # "random" | "both" | "fixed"
+)
+
+scores = pairwise.evaluate({
+    "output": "Paris is the capital of France.",
+    "reference": "The capital is Paris, located on the Seine.",
+    "input": "What is the capital of France?",
+})
+scores[0].pretty_print()
+
+summary = win_rate(scores)
+print(summary.rate, summary.wins, summary.losses, summary.ties, summary.n)
+```
+
+### Prompt template requirements
+
+`PairwiseEvaluator` validates prompt templates at construction. A template must:
+
+- Use `{{item_1}}` and `{{item_2}}` for the (randomized) compared items — never reference your group keys (e.g. `{{output}}`) directly.
+- Label the items as `Response A` and `Response B` (case-insensitive). The judge replies with `A` / `B` positionally; that letter is mapped back to your group keys after the call.
+
+Reserved group names that cannot be used in `groups=`: `tie`, `item_1`, `item_2`, `response_1`, `response_2`. Forbidden template variables: `response_a`, `response_b`, `item_a`, `item_b`, plus the literal group names you chose.
+
 ## LLM Providers
 
 The `LLM` class supports multiple AI providers:
