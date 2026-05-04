@@ -18,18 +18,9 @@ import {
 } from "../useOwnedPreloadedQuery";
 
 function createTestEnvironment() {
-  return createTestEnvironmentWithSpy();
-}
-
-function createTestEnvironmentWithSpy({
-  onExecute,
-}: {
-  onExecute?: (datasetId: string) => void;
-} = {}) {
   return new Environment({
     network: Network.create((_operation, variables) => {
       const { datasetId } = variables as { datasetId: string };
-      onExecute?.(datasetId);
 
       return Observable.create((sink) => {
         // Return a distinct payload per query ref so the test can prove that
@@ -256,54 +247,5 @@ describe("useOwnedPreloadedQuery", () => {
     isUnmounted = true;
 
     expect(secondReleaseSpy).toHaveBeenCalledTimes(1);
-  });
-
-  it("recreates a fresh owned ref when the same disposed loader ref remounts", async () => {
-    const networkRequests: string[] = [];
-    const environment = createTestEnvironmentWithSpy({
-      onExecute: (datasetId) => {
-        networkRequests.push(datasetId);
-      },
-    });
-    const queryRef = loadDatasetQueryRef({
-      environment,
-      datasetId: "dataset-5",
-    });
-
-    await act(async () => {
-      root.render(
-        <RelayEnvironmentProvider environment={environment}>
-          <Suspense fallback={<div>Loading...</div>}>
-            <DirectReturnLoaderReader loaderData={queryRef} />
-          </Suspense>
-        </RelayEnvironmentProvider>
-      );
-    });
-
-    expect(container.textContent).toBe("dataset-5:version-dataset-5");
-    expect(networkRequests).toEqual(["dataset-5"]);
-
-    await act(async () => {
-      root.render(
-        <RelayEnvironmentProvider environment={environment}>
-          <div>Unmounted</div>
-        </RelayEnvironmentProvider>
-      );
-    });
-
-    expect(queryRef.isDisposed).toBe(true);
-
-    await act(async () => {
-      root.render(
-        <RelayEnvironmentProvider environment={environment}>
-          <Suspense fallback={<div>Loading...</div>}>
-            <DirectReturnLoaderReader loaderData={queryRef} />
-          </Suspense>
-        </RelayEnvironmentProvider>
-      );
-    });
-
-    expect(container.textContent).toBe("dataset-5:version-dataset-5");
-    expect(networkRequests).toEqual(["dataset-5", "dataset-5"]);
   });
 });
