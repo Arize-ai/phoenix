@@ -36,17 +36,11 @@ function getAssistantProjectName() {
   );
 }
 
-async function installAgentDefaults({
-  page,
-  userInstructions,
-}: {
-  page: Page;
-  userInstructions: string;
-}) {
+async function installAgentDefaults({ page }: { page: Page }) {
   const assistantProvider = getAssistantProvider();
   const assistantModel = getAssistantModel();
   await page.addInitScript(
-    ({ provider, modelName, instructions }) => {
+    ({ provider, modelName }) => {
       localStorage.clear();
       localStorage.setItem(
         "arize-phoenix-feature-flags",
@@ -67,7 +61,7 @@ async function installAgentDefaults({
               invocationParameters: [],
               supportedInvocationParameters: [],
             },
-            userInstructions: instructions,
+            userInstructions: "",
             observability: {
               storeLocalTraces: true,
               exportRemoteTraces: false,
@@ -81,7 +75,6 @@ async function installAgentDefaults({
     {
       provider: assistantProvider,
       modelName: assistantModel,
-      instructions: userInstructions,
     }
   );
 }
@@ -102,8 +95,8 @@ export class PxiDriver {
     this.request = request;
   }
 
-  async open({ userInstructions }: { userInstructions: string }) {
-    await installAgentDefaults({ page: this.page, userInstructions });
+  async open() {
+    await installAgentDefaults({ page: this.page });
     await this.page.goto("/projects");
     await this.page.getByRole("button", { name: "Open agent chat" }).click();
     await expect(

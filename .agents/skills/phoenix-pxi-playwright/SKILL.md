@@ -27,7 +27,7 @@ The current harness provides these abstractions:
 - `constants.ts`: default assistant and judge model/project constants.
 - `types.ts`: shared PXI harness types such as `PxiTurn`.
 - `utils.ts`: pure utilities for API response validation and span/tool parsing.
-- `pxi.open({ userInstructions })`: opens PXI with optional user instructions.
+- `pxi.open()`: opens PXI for the test session.
 - `pxi.acknowledgeConsent()`: accepts PXI consent for the test session.
 - `pxi.askAndWait(prompt)`: sends a user prompt and waits for the assistant turn.
 - `pxi.expectNoAgentError()`: asserts the visible PXI session did not surface an agent error.
@@ -55,7 +55,6 @@ import { expect, test } from "./fixtures";
 import { getRequiredJudgeApiKeyEnv } from "./judge";
 import { assertPxiOutcome, evaluatePxiOutcome } from "./outcome";
 
-const AGENT_USER_INSTRUCTIONS = "Use the relevant Phoenix tools for this task.";
 const USER_PROMPT = "Ask PXI to do one user-visible task.";
 const JUDGE_RUBRIC = [
   "The answer satisfies the user request.",
@@ -88,7 +87,7 @@ test.describe("PXI scenario", () => {
       `${JUDGE_API_KEY_ENV} is required for the PXI E2E judge.`
     );
 
-    await pxi.open({ userInstructions: AGENT_USER_INSTRUCTIONS });
+    await pxi.open();
     await pxi.acknowledgeConsent();
 
     const turn = await pxi.askAndWait(USER_PROMPT);

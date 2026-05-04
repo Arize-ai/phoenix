@@ -3,8 +3,6 @@ import { expect, test } from "./fixtures";
 import { getRequiredJudgeApiKeyEnv } from "./judge";
 import { assertPxiOutcome, evaluatePxiOutcome } from "./outcome";
 
-const AGENT_USER_INSTRUCTIONS = "";
-
 const USER_PROMPT = "How do I change the default project name";
 
 const JUDGE_RUBRIC = [
@@ -46,7 +44,7 @@ test.describe("PXI docs smoke", () => {
       "This MVP PXI E2E test currently supports OPENAI assistant runs."
     );
 
-    await pxi.open({ userInstructions: AGENT_USER_INSTRUCTIONS });
+    await pxi.open();
     await pxi.acknowledgeConsent();
 
     const turn = await pxi.askAndWait(USER_PROMPT);
