@@ -1,17 +1,16 @@
 import { expect, test as base } from "@playwright/test";
 import type { APIRequestContext, Page, TestInfo } from "@playwright/test";
 
-export type PxiTurn = {
-  calledTools: string[];
-  assistantText: string;
-  traceId: string;
-  durationMs: number;
-};
+import {
+  DEFAULT_ASSISTANT_MODEL,
+  DEFAULT_ASSISTANT_PROJECT_NAME,
+  DEFAULT_ASSISTANT_PROVIDER,
+  DEFAULT_JUDGE_MODEL,
+} from "./constants";
+import type { PxiTurn } from "./types";
+import { expectOK, getSpanToolName } from "./utils";
 
-const DEFAULT_ASSISTANT_PROVIDER = "OPENAI";
-const DEFAULT_ASSISTANT_MODEL = "gpt-4.1-mini";
-const DEFAULT_ASSISTANT_PROJECT_NAME = "assistant_agent";
-const DEFAULT_JUDGE_MODEL = "openai/gpt-4.1";
+export type { PxiTurn } from "./types";
 
 function getAssistantProvider() {
   return process.env.PXI_E2E_ASSISTANT_PROVIDER ?? DEFAULT_ASSISTANT_PROVIDER;
@@ -85,35 +84,6 @@ async function installAgentDefaults({
       instructions: userInstructions,
     }
   );
-}
-
-async function expectOK(
-  response: Awaited<ReturnType<APIRequestContext["get"]>>
-) {
-  if (!response.ok()) {
-    throw new Error(
-      `Phoenix API request failed: ${response.status()} ${await response.text()}`
-    );
-  }
-  return response.json() as Promise<{ data: unknown }>;
-}
-
-function getSpanToolName(span: unknown): string | null {
-  if (typeof span !== "object" || span === null) {
-    return null;
-  }
-  const candidate = span as {
-    name?: unknown;
-    attributes?: Record<string, unknown>;
-  };
-  const attributeName = candidate.attributes?.["tool.name"];
-  if (typeof attributeName === "string" && attributeName.length > 0) {
-    return attributeName;
-  }
-  if (typeof candidate.name === "string" && candidate.name.length > 0) {
-    return candidate.name;
-  }
-  return null;
 }
 
 export class PxiDriver {

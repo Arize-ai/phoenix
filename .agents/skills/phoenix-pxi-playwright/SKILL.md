@@ -13,6 +13,8 @@ Use this skill when authoring or maintaining Playwright specs for PXI, Phoenix's
 
 - Read the existing example spec first: `app/tests/pxi/docs-smoke.spec.ts`.
 - Reuse the shared fixture and driver from `app/tests/pxi/fixtures.ts`.
+- Reuse shared constants from `app/tests/pxi/constants.ts` and shared types from `app/tests/pxi/types.ts`.
+- Put pure parsing/API helpers in `app/tests/pxi/utils.ts` rather than in specs or fixture classes.
 - Reuse the generic AI SDK judge from `app/tests/pxi/judge.ts`.
 - Reuse experiment persistence from `app/tests/pxi/experimentPersistence.ts`.
 - Do not create a bespoke PXI driver, duplicate experiment client, or duplicate PXI tool schemas in a spec.
@@ -22,6 +24,9 @@ Use this skill when authoring or maintaining Playwright specs for PXI, Phoenix's
 The current harness provides these abstractions:
 
 - `test` and `expect` from `./fixtures`: PXI-aware Playwright fixture exports.
+- `constants.ts`: default assistant and judge model/project constants.
+- `types.ts`: shared PXI harness types such as `PxiTurn`.
+- `utils.ts`: pure utilities for API response validation and span/tool parsing.
 - `pxi.open({ userInstructions })`: opens PXI with optional user instructions.
 - `pxi.acknowledgeConsent()`: accepts PXI consent for the test session.
 - `pxi.askAndWait(prompt)`: sends a user prompt and waits for the assistant turn.
@@ -29,6 +34,8 @@ The current harness provides these abstractions:
 - `pxi.expectDocsToolCalled(turn)`: asserts the PXI turn used runtime docs tooling via Phoenix-observed tool spans.
 - `pxi.getMetadata()`: collects PXI metadata for persistence.
 - `judge({ model, system, prompt, assistantText, rubric })`: evaluates an assistant answer with AI SDK `generateText` and structured `Output.object`.
+- `evaluatePxiOutcome({ assertions, judgeInput })`: runs deterministic assertions and LLM judging while preserving failed post-turn outcomes for experiment persistence.
+- `assertPxiOutcome(outcome)`: fails the Playwright test after persistence, preferring the original deterministic assertion failure when one exists.
 - `persistPxiExperiment({ request, record })`: stores the PXI interaction, judge result, and metadata as a Phoenix experiment.
 
 ## Authoring Workflow
@@ -36,8 +43,8 @@ The current harness provides these abstractions:
 1. Put the scenario prompt, PXI user instructions, and judge rubric in the spec file so the test is readable top-to-bottom.
 2. Drive PXI through the real UI with `pxi.open`, `pxi.acknowledgeConsent`, and `pxi.askAndWait`.
 3. Add deterministic assertions before judge assertions, such as expected text, no agent error, or expected tool use.
-4. Use `judge` for semantic outcome checks only after deterministic assertions pass.
-5. Persist the run with `persistPxiExperiment` so failures and quality drift can be inspected in Phoenix.
+4. After `pxi.askAndWait` returns a turn, persist both passing and failing outcomes. Do not let deterministic assertion failures skip experiment persistence.
+5. Use `evaluatePxiOutcome` instead of writing per-spec `try/catch` blocks. It runs `judge` even when deterministic Playwright assertions fail, then combines the judge explanation with a sanitized, truncated Playwright assertion message in the persisted failed evaluation.
 6. Run the targeted spec with isolated ports before reporting success.
 
 ## Spec Pattern
@@ -45,7 +52,8 @@ The current harness provides these abstractions:
 ```ts
 import { persistPxiExperiment } from "./experimentPersistence";
 import { expect, test } from "./fixtures";
-import { getRequiredJudgeApiKeyEnv, judge } from "./judge";
+import { getRequiredJudgeApiKeyEnv } from "./judge";
+import { assertPxiOutcome, evaluatePxiOutcome } from "./outcome";
 
 const AGENT_USER_INSTRUCTIONS = "Use the relevant Phoenix tools for this task.";
 const USER_PROMPT = "Ask PXI to do one user-visible task.";
@@ -84,14 +92,17 @@ test.describe("PXI scenario", () => {
     await pxi.acknowledgeConsent();
 
     const turn = await pxi.askAndWait(USER_PROMPT);
-    await pxi.expectNoAgentError();
-    expect(turn.assistantText).toContain("deterministic expected text");
-
-    const judgeResult = await judge({
-      system: "You are judging a Phoenix PXI E2E answer.",
-      prompt: USER_PROMPT,
-      assistantText: turn.assistantText,
-      rubric: JUDGE_RUBRIC,
+    const outcome = await evaluatePxiOutcome({
+      assertions: async () => {
+        await pxi.expectNoAgentError();
+        expect(turn.assistantText).toContain("deterministic expected text");
+      },
+      judgeInput: {
+        system: "You are judging a Phoenix PXI E2E answer.",
+        prompt: USER_PROMPT,
+        assistantText: turn.assistantText,
+        rubric: JUDGE_RUBRIC,
+      },
     });
 
     await persistPxiExperiment({
@@ -102,13 +113,13 @@ test.describe("PXI scenario", () => {
         calledTools: turn.calledTools,
         url: page.url(),
         durationMs: turn.durationMs,
-        judgeResult,
+        judgeResult: outcome.judgeResult,
         playwrightProject: testInfo.project.name,
         ...pxi.getMetadata(),
       },
     });
 
-    expect(judgeResult.label, judgeResult.explanation).toBe("pass");
+    assertPxiOutcome(outcome);
   });
 });
 ```
@@ -138,6 +149,8 @@ Real PXI specs require external model credentials. Keep tests skipped by default
 - Override with `PXI_E2E_EXPERIMENT_BASE_URL`.
 - Use `PXI_E2E_EXPERIMENT_BEARER_TOKEN` only when persisting to an authenticated Phoenix target.
 - Persist the complete test record: prompt, assistant text, called tools, duration, judge result, Playwright project, URL, and PXI metadata.
+- Persist failed post-turn outcomes too. If PXI returned an answer, the experiment run should exist even when deterministic assertions or judge checks fail.
+- Let `evaluatePxiOutcome` strip ANSI escape sequences and truncate Playwright assertion messages before they are added to `judgeResult.explanation`; raw Playwright error messages are terminal-formatted and too noisy for Phoenix experiment tables.
 
 ## Extending The Harness
 

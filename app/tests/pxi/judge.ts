@@ -3,7 +3,7 @@ import { openai } from "@ai-sdk/openai";
 import { generateText, Output, type LanguageModel } from "ai";
 import { z } from "zod";
 
-type JudgeOutcome = {
+export type JudgeOutcome = {
   label: "pass" | "fail";
   score: number;
   explanation: string;

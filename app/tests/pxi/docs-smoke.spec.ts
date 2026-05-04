@@ -1,12 +1,11 @@
 import { persistPxiExperiment } from "./experimentPersistence";
 import { expect, test } from "./fixtures";
-import { getRequiredJudgeApiKeyEnv, judge } from "./judge";
+import { getRequiredJudgeApiKeyEnv } from "./judge";
+import { assertPxiOutcome, evaluatePxiOutcome } from "./outcome";
 
-const AGENT_USER_INSTRUCTIONS =
-  "Use the Phoenix documentation tools when the user asks about Phoenix documentation.";
+const AGENT_USER_INSTRUCTIONS = "";
 
-const USER_PROMPT =
-  "Use the Phoenix documentation to answer: for traces sent by a Phoenix SDK or OpenTelemetry instrumentation, what environment variable sets the project name? Include the relevant Phoenix docs link.";
+const USER_PROMPT = "How do I change the default project name";
 
 const JUDGE_RUBRIC = [
   "The answer is grounded in Phoenix documentation.",
@@ -51,15 +50,18 @@ test.describe("PXI docs smoke", () => {
     await pxi.acknowledgeConsent();
 
     const turn = await pxi.askAndWait(USER_PROMPT);
-    await pxi.expectNoAgentError();
-    pxi.expectDocsToolCalled(turn);
-    expect(turn.assistantText).toContain("PHOENIX_PROJECT_NAME");
-
-    const judgeResult = await judge({
-      system: JUDGE_SYSTEM,
-      prompt: USER_PROMPT,
-      assistantText: turn.assistantText,
-      rubric: JUDGE_RUBRIC,
+    const outcome = await evaluatePxiOutcome({
+      assertions: async () => {
+        await pxi.expectNoAgentError();
+        pxi.expectDocsToolCalled(turn);
+        expect(turn.assistantText).toContain("PHOENIX_PROJECT_NAME");
+      },
+      judgeInput: {
+        system: JUDGE_SYSTEM,
+        prompt: USER_PROMPT,
+        assistantText: turn.assistantText,
+        rubric: JUDGE_RUBRIC,
+      },
     });
 
     const metadata = pxi.getMetadata();
@@ -71,12 +73,12 @@ test.describe("PXI docs smoke", () => {
         calledTools: turn.calledTools,
         url: page.url(),
         durationMs: turn.durationMs,
-        judgeResult,
+        judgeResult: outcome.judgeResult,
         playwrightProject: testInfo.project.name,
         ...metadata,
       },
     });
 
-    expect(judgeResult.label, judgeResult.explanation).toBe("pass");
+    assertPxiOutcome(outcome);
   });
 });
