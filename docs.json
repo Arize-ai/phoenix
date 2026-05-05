@@ -1184,6 +1184,8 @@
               {
                 "group": "05.2026",
                 "pages": [
+                  "docs/phoenix/release-notes/05-2026/05-05-2026-vendor-provider-tools",
+                  "docs/phoenix/release-notes/05-2026/05-05-2026-rest-api-improvements",
                   "docs/phoenix/release-notes/05-2026/05-01-2026-tanstack-ai-tracing"
                 ]
               },

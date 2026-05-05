@@ -7,6 +7,30 @@ description: The latest from the Phoenix team.
 GitHub
 </Card>
 
+<Update label="05.05.2026">
+## [05.05.2026: Provider Tools](/docs/phoenix/release-notes/05-2026/05-05-2026-vendor-provider-tools)
+**Available in arize-phoenix 15.4.0+**
+
+Phoenix prompts now support **provider tools** — built-in, vendor-hosted capabilities like web search, file search, code execution, computer use, and grounding. Paste the provider's tool JSON into the Playground and Phoenix forwards it verbatim to the underlying model.
+
+- **Anthropic** — `web_search`, `web_fetch`, `code_execution`, `tool_search_tool`, `bash`, `text_editor`, `computer`, `memory`
+- **OpenAI Responses API** — `web_search`, `file_search`, `code_interpreter`, `computer`, `tool_search`
+- **Google Gemini** — `google_search` grounding
+- **Amazon Bedrock** — Nova `nova_grounding`
+- **Round-trip preservation** — provider tools survive storage, GraphQL, and SDK export untouched
+</Update>
+
+<Update label="05.05.2026">
+## [05.05.2026: REST API Improvements](/docs/phoenix/release-notes/05-2026/05-05-2026-rest-api-improvements)
+**Available in arize-phoenix 15.4.0+**
+
+Cumulative token counts now appear directly on trace and session payloads, and three new filter-based DELETE endpoints close the rollback loop for annotation cleanup.
+
+- **Token counts** — `token_count_prompt`, `token_count_completion`, `token_count_total` on `/traces` and `/sessions`
+- **Bulk delete annotations** — `DELETE /v1/projects/{id}/{span,trace,session}_annotations` with filters by `name`, `identifier`, `annotator_kind`, and time window
+- **Safety guard** — every delete request must supply a bounded time window or set `delete_all=true`
+</Update>
+
 <Update label="05.01.2026">
 ## [05.01.2026: TanStack AI Tracing](/docs/phoenix/release-notes/05-2026/05-01-2026-tanstack-ai-tracing)
 **Available in @arizeai/openinference-tanstack-ai 0.1.0+**

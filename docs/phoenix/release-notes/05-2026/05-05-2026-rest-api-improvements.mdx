@@ -1,0 +1,78 @@
+---
+title: "05.05.2026 REST API Improvements"
+description: "Cumulative token counts on trace and session payloads, plus filter-based bulk DELETE for annotations."
+---
+
+# Token Counts in Trace and Session Payloads
+
+May 5, 2026
+
+**Available in arize-phoenix 15.4.0+**
+
+Trace and session REST responses now include cumulative token usage directly in the payload, so external clients can read aggregate consumption without falling back to GraphQL or recomputing from raw OpenInference attributes.
+
+Three new integer fields are returned on every trace and session:
+
+- **`token_count_prompt`** — cumulative prompt tokens across all spans
+- **`token_count_completion`** — cumulative completion tokens across all spans
+- **`token_count_total`** — derived sum of prompt and completion
+
+```python
+from phoenix.client import Client
+
+client = Client()
+traces = client.traces.get_traces(project_identifier="my-project")
+for trace in traces:
+    print(trace["trace_id"], trace["token_count_prompt"], trace["token_count_completion"])
+```
+
+```typescript
+import { createClient } from "@arizeai/phoenix-client";
+import { getTraces } from "@arizeai/phoenix-client/traces";
+
+const client = createClient();
+const { traces } = await getTraces({ client, project: "my-project" });
+
+for (const trace of traces) {
+  console.log(trace.trace_id, trace.token_count_prompt, trace.token_count_completion);
+}
+```
+
+The `/spans` endpoint is unchanged — per-span token counts continue to surface under `attributes["llm.token_count.prompt"]` and `attributes["llm.token_count.completion"]`.
+
+# Bulk Delete Annotations by Filter
+
+May 5, 2026
+
+**Available in arize-phoenix 15.4.0+**
+
+Three new project-scoped DELETE endpoints remove annotations matching an explicit filter set — closing the rollback loop for callers that tag their annotations with a custom `identifier` on creation.
+
+| Method | Path |
+|---|---|
+| DELETE | `/v1/projects/{project_identifier}/span_annotations` |
+| DELETE | `/v1/projects/{project_identifier}/trace_annotations` |
+| DELETE | `/v1/projects/{project_identifier}/session_annotations` |
+
+Filter by any combination of `name`, `identifier`, `annotator_kind`, and a `[start_time, end_time)` window. To prevent accidental unbounded sweeps, every request must satisfy a guard:
+
+- Either supply both `start_time` and `end_time` (bounded window), **or**
+- Set `delete_all=true` to explicitly opt into an unbounded sweep
+
+Half-bounded ranges and naked filter-only requests are rejected with 422.
+
+```bash
+# Delete all annotations created by an evaluator within a time window
+curl -X DELETE "https://phoenix.example.com/v1/projects/my-project/span_annotations?identifier=eval-run-42&start_time=2026-05-01T00:00:00Z&end_time=2026-05-05T00:00:00Z" \
+  -H "Authorization: Bearer $PHOENIX_API_KEY"
+```
+
+- **Idempotent** — zero matches returns `204 No Content`, same as a successful delete
+- **Project-scoped** — every query carries a parent-FK predicate, so rows in other projects are unreachable
+- **Auth-aware** — non-admin callers under authentication only delete annotations they own; admins delete all matching rows
+
+<CardGroup cols={2}>
+  <Card title="REST API Reference" icon="code" href="/docs/phoenix/sdk-api-reference/rest-api">
+    Full endpoint catalog and parameter details.
+  </Card>
+</CardGroup>

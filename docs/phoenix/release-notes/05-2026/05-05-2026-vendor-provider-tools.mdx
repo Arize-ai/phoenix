@@ -1,0 +1,57 @@
+---
+title: "05.05.2026 Provider Tools"
+description: "Attach built-in, vendor-hosted tools — web search, file search, code execution, grounding — to any Phoenix prompt."
+---
+
+**Available in arize-phoenix 15.4.0+**
+
+Phoenix prompts now support **provider tools**: built-in capabilities the model vendor hosts itself. Paste the provider's tool JSON into the Playground tool editor and Phoenix forwards it verbatim through storage, GraphQL, and SDK export — so the prompt runs against the underlying provider exactly as defined. Function tools and provider tools can be mixed on the same prompt version.
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/provider_tools.png" alt="Phoenix Playground side-by-side comparison: gemini-2.5-flash-lite answering 'Who won Euro 2024?' with google_search grounding (Spain beat England 2-1) versus without (model says the tournament hasn't been played yet)" />
+</Frame>
+
+## Supported providers
+
+- **Anthropic** — `web_search`, `web_fetch`, `code_execution`, `tool_search_tool`, `bash`, `text_editor`, `computer`, `memory`
+- **OpenAI Responses API** — `web_search`, `file_search`, `code_interpreter`, `computer`, `tool_search`
+- **Google Gemini** — `google_search` grounding
+- **Amazon Bedrock** — Nova `nova_grounding`
+
+## Adding a provider tool
+
+In the Playground, click **Add tool** and paste the provider's JSON. For example, Anthropic web search:
+
+```json
+{
+  "type": "web_search_20250305",
+  "name": "web_search",
+  "max_uses": 5
+}
+```
+
+Or Google Gemini grounding:
+
+```json
+{
+  "google_search": {}
+}
+```
+
+On save, Phoenix inspects the JSON: function-tool shapes are stored as function tools; everything else is preserved as a raw provider tool.
+
+## Behavior
+
+- **Provider switching drops provider tools** — provider-specific JSON does not translate across vendors. Function tools survive provider changes.
+- **"Open in Playground" replays exactly** — captured traces preserve the original tool payload.
+- **SDK round-trip** — `@arizeai/phoenix-client` and `arize-phoenix-client` preserve provider tools when exporting prompts to OpenAI, Anthropic, and AI SDK shapes.
+- **Evaluator output tools remain function tools.**
+
+<CardGroup cols={2}>
+  <Card title="Use Provider Tools" icon="book" href="/docs/phoenix/prompt-engineering/how-to-prompts/use-provider-tools">
+    Per-provider JSON shapes, source-of-truth links, and Playground walkthrough.
+  </Card>
+  <Card title="Prompts Concepts" icon="lightbulb" href="/docs/phoenix/prompt-engineering/concepts-prompts/prompts-concepts">
+    How function tools and provider tools fit into the Phoenix prompt model.
+  </Card>
+</CardGroup>
