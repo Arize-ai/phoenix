@@ -33,14 +33,14 @@ import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import { AgentConsentGate } from "./AgentConsentGate";
 import { AgentContextPills } from "./AgentContextPills";
-import {
-  ElicitationDraftProvider,
-  type PendingElicitationDraft,
-} from "./ElicitationDraftContext";
 import { AgentModelMenu } from "./AgentModelMenu";
 import { ChatEmptyState, type EmptyStateQuickAction } from "./ChatEmptyState";
 import { ChatLantern } from "./ChatLantern";
 import { AssistantMessage, UserMessage } from "./ChatMessage";
+import {
+  ElicitationDraftProvider,
+  type PendingElicitationDraft,
+} from "./ElicitationDraftContext";
 import { useAgentChat } from "./useAgentChat";
 
 export type { EmptyStateQuickAction } from "./ChatEmptyState";
@@ -316,9 +316,9 @@ export function ChatView({
               {showsEmptyState && (
                 <ChatEmptyState
                   key={theme}
-                subtext={emptyStateSubtext}
-                quickActions={emptyStateQuickActions}
-                onQuickAction={handleQuickAction}
+                  subtext={emptyStateSubtext}
+                  quickActions={emptyStateQuickActions}
+                  onQuickAction={handleQuickAction}
                 />
               )}
               {messages.map((message, index) => {
@@ -344,79 +344,79 @@ export function ChatView({
         </div>
         <div className="chat__input">
           {!hasAcknowledgedConsent ? (
-          <PromptInput status={status} isDisabled mode="elicitation">
-            <AgentConsentGate />
-          </PromptInput>
-        ) : pendingElicitation ? (
-          <PromptInput status={status} isDisabled mode="elicitation">
-            <ElicitationCarousel
-              key={pendingElicitation.toolCallId}
-              questions={pendingElicitation.questions}
-              onProgressStateChange={(draftState) => {
-                setElicitationDraft({
-                  toolCallId: pendingElicitation.toolCallId,
-                  ...draftState,
-                });
-              }}
-              onSubmit={(output) => {
-                setElicitationDraft({
-                  toolCallId: pendingElicitation.toolCallId,
-                  answers: output.answers,
-                  freeformTexts: output.freeformTexts,
-                  currentIndex: Math.max(
-                    0,
-                    pendingElicitation.questions.length - 1
-                  ),
-                });
-                void scrollToBottom();
-                handleElicitationSubmit(output);
-              }}
-              onCancel={() => {
-                setElicitationDraft(null);
-                handleElicitationCancel();
-              }}
-            />
-          </PromptInput>
-        ) : (
-          <PromptInput
-            onSubmit={(text) => {
-              void scrollToBottom();
-              sendMessage({ text });
-            }}
-            status={status}
-            value={inputValue}
-            onValueChange={setInputValue}
-          >
-            <AgentContextPills />
-            <PromptInputBody>
-              <PromptInputTextarea
-                ref={textareaRef}
-                placeholder="Send a message..."
+            <PromptInput status={status} isDisabled mode="elicitation">
+              <AgentConsentGate />
+            </PromptInput>
+          ) : pendingElicitation ? (
+            <PromptInput status={status} isDisabled mode="elicitation">
+              <ElicitationCarousel
+                key={pendingElicitation.toolCallId}
+                questions={pendingElicitation.questions}
+                onProgressStateChange={(draftState) => {
+                  setElicitationDraft({
+                    toolCallId: pendingElicitation.toolCallId,
+                    ...draftState,
+                  });
+                }}
+                onSubmit={(output) => {
+                  setElicitationDraft({
+                    toolCallId: pendingElicitation.toolCallId,
+                    answers: output.answers,
+                    freeformTexts: output.freeformTexts,
+                    currentIndex: Math.max(
+                      0,
+                      pendingElicitation.questions.length - 1
+                    ),
+                  });
+                  void scrollToBottom();
+                  handleElicitationSubmit(output);
+                }}
+                onCancel={() => {
+                  setElicitationDraft(null);
+                  handleElicitationCancel();
+                }}
               />
-            </PromptInputBody>
-            <PromptInputFooter>
-              <PromptInputTools>
-                <AgentModelMenu
-                  value={modelMenuValue}
-                  onChange={onModelChange}
-                  placement="top start"
-                  shouldFlip
-                  variant="quiet"
+            </PromptInput>
+          ) : (
+            <PromptInput
+              onSubmit={(text) => {
+                void scrollToBottom();
+                sendMessage({ text });
+              }}
+              status={status}
+              value={inputValue}
+              onValueChange={setInputValue}
+            >
+              <AgentContextPills />
+              <PromptInputBody>
+                <PromptInputTextarea
+                  ref={textareaRef}
+                  placeholder="Send a message..."
                 />
-              </PromptInputTools>
+              </PromptInputBody>
+              <PromptInputFooter>
+                <PromptInputTools>
+                  <AgentModelMenu
+                    value={modelMenuValue}
+                    onChange={onModelChange}
+                    placement="top start"
+                    shouldFlip
+                    variant="quiet"
+                  />
+                </PromptInputTools>
 
-              <PromptInputActions>
-                <PromptInputSubmit
-                  onPress={() => {
-                    void stop();
-                  }}
-                />
-              </PromptInputActions>
-            </PromptInputFooter>
-          </PromptInput>
-        )}
-        {children ? <div className="chat__children">{children}</div> : null}
-      </div>
+                <PromptInputActions>
+                  <PromptInputSubmit
+                    onPress={() => {
+                      void stop();
+                    }}
+                  />
+                </PromptInputActions>
+              </PromptInputFooter>
+            </PromptInput>
+          )}
+          {children ? <div className="chat__children">{children}</div> : null}
+        </div>
       </div>
     </ElicitationDraftProvider>
   );
