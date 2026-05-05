@@ -7,6 +7,12 @@ import { isNumber, isString, throttle } from "lodash";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { PreloadedQuery } from "react-relay";
 import { graphql, usePaginationFragment, usePreloadedQuery } from "react-relay";
+import {
+  Group,
+  Panel,
+  Separator,
+  useDefaultLayout,
+} from "react-resizable-panels";
 import type { To } from "react-router";
 import { useLocation, useSearchParams } from "react-router";
 
@@ -24,6 +30,7 @@ import {
 } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
+import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
@@ -367,26 +374,6 @@ const panelContentCSS = css`
   overflow: hidden;
 `;
 
-const turnsViewCSS = css`
-  flex: 1 1 auto;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(220px, 28%) minmax(0, 1fr);
-  overflow: hidden;
-`;
-
-const turnsListPanelCSS = css`
-  min-width: 0;
-  border-right: 1px solid var(--global-border-color-default);
-  overflow: hidden;
-`;
-
-const turnDetailsPanelCSS = css`
-  min-width: 0;
-  height: 100%;
-  overflow: auto;
-`;
-
 export function SessionDetailsTraceList({
   queryRef,
   sessionView,
@@ -491,6 +478,11 @@ export function SessionDetailsTraceList({
   );
 
   const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
+    id: "session-details-layout",
+    panelIds: ["session-turns", "session-turn-details"],
+    storage: localStorage,
+  });
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedTraceId = searchParams.get(SELECTED_TRACE_ID_PARAM);
 
@@ -541,8 +533,16 @@ export function SessionDetailsTraceList({
   );
 
   return (
-    <div css={turnsViewCSS}>
-      <div css={turnsListPanelCSS}>
+    <Group
+      orientation="horizontal"
+      defaultLayout={defaultLayout}
+      onLayoutChanged={onLayoutChanged}
+      css={css`
+        flex: 1 1 auto;
+        overflow: hidden;
+      `}
+    >
+      <Panel id="session-turns" defaultSize="20%" minSize="10%">
         <div css={panelContentCSS}>
           <SessionViewTabs
             sessionView={sessionView}
@@ -552,45 +552,51 @@ export function SessionDetailsTraceList({
             {turnListPanel}
           </SessionViewTabs>
         </div>
-      </div>
-      <div
-        css={turnDetailsPanelCSS}
-        onScroll={(e) =>
-          debouncedFetchMoreOnBottomReached(e.target as HTMLDivElement)
-        }
-      >
-        {sessionRootSpans.map(({ traceId, rootSpan }) => (
-          <div
-            key={rootSpan.spanId}
-            css={turnDetailRowCSS}
-            data-selected={traceId === selectedTraceId || undefined}
-            ref={(el) => {
-              if (el) {
-                rowRefs.current.set(traceId, el);
-              } else {
-                rowRefs.current.delete(traceId);
-              }
-            }}
-          >
+      </Panel>
+      <Separator css={compactResizeHandleCSS} />
+      <Panel id="session-turn-details">
+        <div
+          css={css`
+            height: 100%;
+            overflow: auto;
+          `}
+          onScroll={(e) =>
+            debouncedFetchMoreOnBottomReached(e.target as HTMLDivElement)
+          }
+        >
+          {sessionRootSpans.map(({ traceId, rootSpan }) => (
+            <div
+              key={rootSpan.spanId}
+              css={turnDetailRowCSS}
+              data-selected={traceId === selectedTraceId || undefined}
+              ref={(el) => {
+                if (el) {
+                  rowRefs.current.set(traceId, el);
+                } else {
+                  rowRefs.current.delete(traceId);
+                }
+              }}
+            >
+              <View
+                borderBottomColor="default"
+                borderBottomWidth="thin"
+                padding="size-200"
+              >
+                <SessionTurnDetail traceId={traceId} rootSpan={rootSpan} />
+              </View>
+            </div>
+          ))}
+          {isLoadingNext && (
             <View
               borderBottomColor="default"
-              borderBottomWidth="thin"
+              borderBottomWidth={"thin"}
               padding="size-200"
             >
-              <SessionTurnDetail traceId={traceId} rootSpan={rootSpan} />
+              <Loading />
             </View>
-          </div>
-        ))}
-        {isLoadingNext && (
-          <View
-            borderBottomColor="default"
-            borderBottomWidth={"thin"}
-            padding="size-200"
-          >
-            <Loading />
-          </View>
-        )}
-      </div>
-    </div>
+          )}
+        </div>
+      </Panel>
+    </Group>
   );
 }
