@@ -6,6 +6,9 @@ from pydantic_ai.tools import ToolDefinition
 
 SET_TIME_RANGE_TOOL_NAME = "set_time_range"
 
+# Drift warning: the ``timeRangeKey`` enum below must stay in sync with:
+#   - ``parseSetTimeRangeInput`` in app/src/agent/extensions/toolRegistry.ts
+#   - ``TimeRangeKey`` in app/src/components/datetime/types.ts
 _SET_TIME_RANGE_PARAMETERS: dict[str, Any] = {
     "type": "object",
     "properties": {

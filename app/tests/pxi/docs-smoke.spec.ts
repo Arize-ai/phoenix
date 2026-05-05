@@ -55,7 +55,8 @@ test.describe("PXI docs smoke", () => {
     const outcome = await evaluatePxiOutcome({
       assertions: async () => {
         await pxi.expectNoAgentError();
-        await pxi.expectBackendToolSpanCalled(turn);
+        const calledTools = await pxi.expectBackendToolSpanCalled(turn);
+        turn.calledTools = calledTools;
         pxi.expectDocsToolCalled(turn);
         expect(turn.assistantText).toContain("PHOENIX_PROJECT_NAME");
       },

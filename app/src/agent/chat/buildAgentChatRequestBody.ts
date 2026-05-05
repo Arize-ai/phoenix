@@ -1,7 +1,7 @@
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import type { AgentCapabilities } from "@phoenix/agent/extensions/capabilities";
 import type { AgentObservabilitySettings } from "@phoenix/store/agentStore";
-import { getTimeZone } from "@phoenix/utils/timeUtils";
+import { getTimeZone, toLocalISOWithOffset } from "@phoenix/utils/timeUtils";
 
 import type { AgentUIMessage } from "./types";
 
@@ -64,18 +64,7 @@ function buildCurrentAppContext(): AgentContext {
   const timeZone = getTimeZone();
   return {
     type: "app",
-    currentDateTime: new Intl.DateTimeFormat("sv-SE", {
-      timeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    })
-      .format(now)
-      .replace(" ", "T"),
+    currentDateTime: toLocalISOWithOffset(now, timeZone),
     timeZone,
   };
 }

@@ -129,6 +129,21 @@ _MAX_CONDITION_CHARS = 512
 _PHOENIX_UI_CONTEXT_TAG = "phoenix_ui_context"
 
 
+def _collapse_and_defang(value: str) -> str:
+    """Collapse whitespace to a single line and neutralize the closing
+    ``</phoenix_ui_context>`` tag so a crafted value cannot escape the
+    context sandbox.
+
+    This is the shared base for all client-supplied strings injected into
+    the per-turn ``<phoenix_ui_context>`` block.
+    """
+    collapsed = value.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+    collapsed = collapsed.replace("\t", " ").strip()
+    closing_tag = f"</{_PHOENIX_UI_CONTEXT_TAG}>"
+    safe_closing = f"[/{_PHOENIX_UI_CONTEXT_TAG}]"
+    return collapsed.replace(closing_tag, safe_closing)
+
+
 def _sanitize_condition(condition: str) -> str:
     """Sanitize a user-controlled span filter expression for safe inclusion
     in the per-turn context message.
@@ -138,15 +153,24 @@ def _sanitize_condition(condition: str) -> str:
     line, (b) neutralize any literal ``</phoenix_ui_context>`` substring that
     would otherwise close our wrapper tag, and (c) truncate to a fixed cap.
     """
-    collapsed = condition.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
-    collapsed = collapsed.replace("\t", " ").strip()
-    # Defang the closing wrapper tag so a crafted condition cannot escape the
-    # <phoenix_ui_context> sandbox.
-    closing_tag = f"</{_PHOENIX_UI_CONTEXT_TAG}>"
-    safe_closing = f"[/{_PHOENIX_UI_CONTEXT_TAG}]"
-    collapsed = collapsed.replace(closing_tag, safe_closing)
+    collapsed = _collapse_and_defang(condition)
     if len(collapsed) > _MAX_CONDITION_CHARS:
         collapsed = collapsed[:_MAX_CONDITION_CHARS] + "… [truncated]"
+    return collapsed
+
+
+_MAX_SHORT_FIELD_CHARS = 128
+
+
+def _sanitize_short_field(value: str) -> str:
+    """Sanitize a short client-supplied field (e.g. date/time, timezone).
+
+    Same whitespace and tag treatment as ``_sanitize_condition`` but with a
+    tighter length cap appropriate for structured values.
+    """
+    collapsed = _collapse_and_defang(value)
+    if len(collapsed) > _MAX_SHORT_FIELD_CHARS:
+        collapsed = collapsed[:_MAX_SHORT_FIELD_CHARS] + "… [truncated]"
     return collapsed
 
 
@@ -171,10 +195,9 @@ def build_phoenix_context_user_message_content(
     has_context = False
 
     if resolved.app is not None:
-        body_lines.append(
-            "- Current browser date/time: "
-            f"{resolved.app.current_date_time} ({resolved.app.time_zone})"
-        )
+        safe_dt = _sanitize_short_field(resolved.app.current_date_time)
+        safe_tz = _sanitize_short_field(resolved.app.time_zone)
+        body_lines.append(f"- Current browser date/time: {safe_dt} ({safe_tz})")
         has_context = True
 
     if resolved.project is not None:

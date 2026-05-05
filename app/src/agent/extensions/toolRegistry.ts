@@ -181,6 +181,17 @@ const setSpansFilterAgentTool = createRegisteredAgentTool<SetSpansFilterInput>({
   },
 });
 
+/**
+ * Parse and validate the set_time_range tool input.
+ *
+ * **Drift warning:** The allowed `timeRangeKey` values here must stay in sync
+ * with the server-side enum in
+ * `src/phoenix/server/agents/tools/external/set_time_range.py`
+ * (`_SET_TIME_RANGE_PARAMETERS["properties"]["timeRangeKey"]["enum"]`)
+ * and the shared TypeScript type `TimeRangeKey` in
+ * `app/src/components/datetime/types.ts`. If the allowed presets change,
+ * all three locations need updating.
+ */
 function parseSetTimeRangeInput(input: unknown): SetTimeRangeInput | null {
   if (typeof input !== "object" || input === null) return null;
   const candidate = input as {

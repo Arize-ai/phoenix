@@ -183,7 +183,7 @@ export class PxiDriver {
     };
   }
 
-  async expectBackendToolSpanCalled(turn: PxiTurn) {
+  async expectBackendToolSpanCalled(turn: PxiTurn): Promise<string[]> {
     await expect
       .poll(
         async () => (await this.getToolNamesForTrace(turn.traceId)).length,
@@ -194,9 +194,7 @@ export class PxiDriver {
       )
       .toBeGreaterThan(0);
     const backendCalledTools = await this.getToolNamesForTrace(turn.traceId);
-    turn.calledTools = [
-      ...new Set([...turn.calledTools, ...backendCalledTools]),
-    ];
+    return [...new Set([...turn.calledTools, ...backendCalledTools])];
   }
 
   async expectNoAgentError() {
