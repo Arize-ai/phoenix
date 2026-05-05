@@ -19,6 +19,11 @@ process.env["PHOENIX_SQL_DATABASE_URL"] = "sqlite:///:memory:";
 // The rate-limit.spec.ts test will re-enable it for its specific test
 process.env["PHOENIX_DISABLE_RATE_LIMIT"] = "True";
 
+if (process.env["PXI_E2E"] === "true") {
+  process.env["PHOENIX_DANGEROUSLY_ENABLE_AGENTS"] = "True";
+  process.env["PHOENIX_ALLOW_EXTERNAL_RESOURCES"] = "True";
+}
+
 console.log("Phoenix test server starting...");
 console.log("PHOENIX_SECRET: ", process.env["PHOENIX_SECRET"]);
 console.log("PHOENIX_WORKING_DIR: ", process.env["PHOENIX_WORKING_DIR"]);

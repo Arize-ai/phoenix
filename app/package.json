@@ -26,12 +26,14 @@
     "lint:fix": "oxlint --fix",
     "preinstall": "npx only-allow pnpm",
     "pretest:e2e": "pnpm build",
+    "pretest:e2e:pxi": "pnpm build",
     "pretest:e2e:ui": "pnpm build",
     "prod": "pnpm run build:static && pnpm run build && pnpm run prod:server",
     "prod:server": "source ./.env && uv run phoenix serve",
     "storybook": "storybook dev -p 6007",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:e2e:pxi": "PXI_E2E=true PHOENIX_PORT=16006 PHOENIX_GRPC_PORT=14317 playwright test tests/pxi --project=chromium --reporter=list",
     "test:e2e:ui": "playwright test --ui",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
@@ -106,6 +108,7 @@
   "devDependencies": {
     "@ai-sdk/anthropic": "^3.0.69",
     "@ai-sdk/mcp": "1.0.26",
+    "@ai-sdk/openai": "3.0.46",
     "@arizeai/phoenix-client": "^6.6.2",
     "@arizeai/phoenix-evals": "^1.0.2",
     "@chromatic-com/storybook": "^5.0.2",

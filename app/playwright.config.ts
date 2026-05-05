@@ -11,6 +11,10 @@ import { defineConfig, devices } from "@playwright/test";
 // Skip WebKit for CI because of recurring issues with caching binaries.
 const isCI = !!process.env.CI;
 const skipWebKit = process.env.CI_PLAYWRIGHT_SKIP_WEBKIT === "true";
+const baseURL =
+  process.env.PLAYWRIGHT_BASE_URL ??
+  `http://localhost:${process.env.PHOENIX_PORT ?? "6006"}`;
+const pxiTestIgnore = process.env.PXI_E2E === "true" ? [] : ["**/pxi/**"];
 
 const projects: Project[] = [
   {
@@ -25,7 +29,7 @@ const projects: Project[] = [
     },
     dependencies: ["setup"],
     // The test below runs last in the 'rate limit' project so that we don't lock ourselves out
-    testIgnore: ["**/*.rate-limit.spec.ts", "**/*.setup.ts"],
+    testIgnore: ["**/*.rate-limit.spec.ts", "**/*.setup.ts", ...pxiTestIgnore],
   },
   {
     name: "firefox",
@@ -35,7 +39,7 @@ const projects: Project[] = [
     },
     dependencies: ["setup"],
     // The test below runs last in the 'rate limit' project so that we don't lock ourselves out
-    testIgnore: ["**/*.rate-limit.spec.ts", "**/*.setup.ts"],
+    testIgnore: ["**/*.rate-limit.spec.ts", "**/*.setup.ts", ...pxiTestIgnore],
   },
 ];
 
@@ -48,7 +52,7 @@ if (!skipWebKit) {
     },
     dependencies: ["setup"],
     // The test below runs last in the 'rate limit' project so that we don't lock ourselves out
-    testIgnore: ["**/*.rate-limit.spec.ts", "**/*.setup.ts"],
+    testIgnore: ["**/*.rate-limit.spec.ts", "**/*.setup.ts", ...pxiTestIgnore],
   });
 }
 
@@ -83,7 +87,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: "http://localhost:6006",
+    baseURL,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: "on-first-retry",
@@ -98,7 +102,7 @@ export default defineConfig({
   /* Run your local dev server before starting the tests */
   webServer: {
     command: "pnpm run dev:server:test",
-    url: "http://localhost:6006",
+    url: baseURL,
     reuseExistingServer: !isCI,
     timeout: isCI ? 240_000 : 120_000,
   },
