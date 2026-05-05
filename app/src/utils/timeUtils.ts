@@ -58,9 +58,20 @@ export function toLocalISOWithOffset(date: Date, timeZone: string): string {
       return acc;
     }, {});
 
-  const datePart = `${parts.year}-${parts.month}-${parts.day}`;
-  // Intl may render midnight as "24" in some engines; normalise to "00".
-  const hour = parts.hour === "24" ? "00" : parts.hour;
+  let { year, month, day } = parts;
+  let hour = parts.hour;
+  // Intl may render midnight as "24" on the previous day in some engines;
+  // normalise to "00" and advance the calendar day so datePart and the
+  // offset calculation stay correct.
+  if (hour === "24") {
+    hour = "00";
+    const d = new Date(`${year}-${month}-${day}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + 1);
+    year = String(d.getUTCFullYear());
+    month = String(d.getUTCMonth() + 1).padStart(2, "0");
+    day = String(d.getUTCDate()).padStart(2, "0");
+  }
+  const datePart = `${year}-${month}-${day}`;
   const timePart = `${hour}:${parts.minute}:${parts.second}`;
 
   // Derive the UTC offset by comparing the wall-clock epoch to the real epoch.

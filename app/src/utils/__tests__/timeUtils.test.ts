@@ -41,4 +41,41 @@ describe("toLocalISOWithOffset", () => {
       /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/
     );
   });
+
+  it('advances the date when Intl renders midnight as hour "24"', () => {
+    // Some engines render midnight as "24:00:00" on the previous day.
+    // Mock formatToParts to simulate this: midnight May 6 UTC shown as
+    // 24:00:00 on May 5.
+    const OriginalDTF = Intl.DateTimeFormat;
+
+    // Replace the global with a subclass that simulates the "24" convention:
+    // midnight May 6 is rendered as May 5, 24:00:00.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (Intl as any).DateTimeFormat = class extends OriginalDTF {
+      formatToParts(date?: number | Date): Intl.DateTimeFormatPart[] {
+        return super.formatToParts(date).map((p) => {
+          if (p.type === "hour") return { ...p, value: "24" };
+          // Roll day back to simulate the "24" convention (previous day).
+          if (p.type === "day") {
+            return {
+              ...p,
+              value: String(Number(p.value) - 1).padStart(2, "0"),
+            };
+          }
+          return p;
+        });
+      }
+    };
+
+    try {
+      // Midnight May 6 UTC — with the mock, formatToParts returns day "05"
+      // and hour "24", so the function must advance to May 6 and use "00".
+      const date = new Date("2026-05-06T00:00:00Z");
+      const result = toLocalISOWithOffset(date, "UTC");
+      expect(result).toBe("2026-05-06T00:00:00+00:00");
+    } finally {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (Intl as any).DateTimeFormat = OriginalDTF;
+    }
+  });
 });
