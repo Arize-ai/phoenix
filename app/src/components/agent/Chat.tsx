@@ -2,7 +2,6 @@ import { css, keyframes } from "@emotion/react";
 import type { ChatStatus } from "ai";
 import {
   type CSSProperties,
-  useEffect,
   type ReactNode,
   useRef,
   type PropsWithChildren,
@@ -46,6 +45,17 @@ import { useAgentChat } from "./useAgentChat";
 export type { EmptyStateQuickAction } from "./ChatEmptyState";
 
 const CHAT_SIDEBAR_INSET_CSS = "var(--global-dimension-size-200)";
+
+function createPendingElicitationDraft(
+  toolCallId: string
+): PendingElicitationDraft {
+  return {
+    toolCallId,
+    answers: {},
+    freeformTexts: {},
+    currentIndex: 0,
+  };
+}
 
 const chatInputFadeUp = keyframes`
   from {
@@ -273,25 +283,11 @@ export function ChatView({
   );
   const showsEmptyState = messages.length === 0;
   const chatClassName = showsEmptyState ? "chat--empty chat--empty-bleed" : "";
-
-  useEffect(() => {
-    if (!pendingElicitation) {
-      return;
-    }
-
-    setElicitationDraft((currentDraft) => {
-      if (currentDraft?.toolCallId === pendingElicitation.toolCallId) {
-        return currentDraft;
-      }
-
-      return {
-        toolCallId: pendingElicitation.toolCallId,
-        answers: {},
-        freeformTexts: {},
-        currentIndex: 0,
-      };
-    });
-  }, [pendingElicitation]);
+  const resolvedElicitationDraft =
+    pendingElicitation &&
+    elicitationDraft?.toolCallId !== pendingElicitation.toolCallId
+      ? createPendingElicitationDraft(pendingElicitation.toolCallId)
+      : elicitationDraft;
 
   const handleQuickAction = (prompt: string) => {
     setInputValue(prompt);
@@ -299,7 +295,7 @@ export function ChatView({
   };
 
   return (
-    <ElicitationDraftProvider draft={elicitationDraft}>
+    <ElicitationDraftProvider draft={resolvedElicitationDraft}>
       <div
         css={chatCSS}
         className={chatClassName}
