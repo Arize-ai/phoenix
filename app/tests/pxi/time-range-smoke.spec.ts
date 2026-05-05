@@ -6,21 +6,20 @@ import { expect, test } from "./fixtures";
 import { getRequiredJudgeApiKeyEnv } from "./judge";
 import { assertPxiOutcome, evaluatePxiOutcome } from "./outcome";
 
-const EXPERIMENT_EXAMPLE = PXI_EXPERIMENT_EXAMPLES.docsSmoke;
+const EXPERIMENT_EXAMPLE = PXI_EXPERIMENT_EXAMPLES.timeRangeSmoke;
 const USER_PROMPT = EXPERIMENT_EXAMPLE.prompt;
 
 const JUDGE_RUBRIC = [
-  "The answer is grounded in Phoenix documentation.",
-  "The answer identifies PHOENIX_PROJECT_NAME as the environment variable for setting the Phoenix tracing project name.",
-  "The answer includes a canonical arize.com/docs/phoenix documentation link.",
-  "The answer does not invent or recommend a different environment variable.",
+  "The answer confirms that the Phoenix app time range was set to Last Hour.",
+  "The answer does not claim the time range was changed to a different preset or custom range.",
+  "The answer does not invent unsupported data observations or trace results.",
 ];
 
 const JUDGE_SYSTEM =
   "You are judging a Phoenix PXI E2E answer. Return a label, score, and brief explanation.";
 
-test.describe("PXI docs smoke", () => {
-  test("answers tracing project env var using runtime Mintlify MCP docs", async ({
+test.describe("PXI time range smoke", () => {
+  test("sets the visible app time range using the external tool", async ({
     browserName,
     page,
     pxi,
@@ -45,19 +44,25 @@ test.describe("PXI docs smoke", () => {
     );
     test.skip(
       (process.env.PXI_E2E_ASSISTANT_PROVIDER ?? "OPENAI") !== "OPENAI",
-      "This MVP PXI E2E test currently supports OPENAI assistant runs."
+      "This PXI E2E smoke test currently supports OPENAI assistant runs."
     );
 
     await pxi.open();
     await pxi.acknowledgeConsent();
+    await expect(
+      page.getByRole("button", { name: /Last 7 Days/ }).first()
+    ).toBeVisible();
 
     const turn = await pxi.askAndWait(USER_PROMPT);
+    const calledTools = [...turn.calledTools];
     const outcome = await evaluatePxiOutcome({
       assertions: async () => {
         await pxi.expectNoAgentError();
-        await pxi.expectBackendToolSpanCalled(turn);
-        pxi.expectDocsToolCalled(turn);
-        expect(turn.assistantText).toContain("PHOENIX_PROJECT_NAME");
+        await expect(page.getByText("set_time_range").first()).toBeVisible();
+        calledTools.push("set_time_range");
+        await expect(
+          page.getByRole("button", { name: /Last Hour/ }).first()
+        ).toBeVisible();
       },
       judgeInput: {
         system: JUDGE_SYSTEM,
@@ -73,7 +78,7 @@ test.describe("PXI docs smoke", () => {
       record: {
         example: EXPERIMENT_EXAMPLE,
         assistantText: turn.assistantText,
-        calledTools: turn.calledTools,
+        calledTools: [...new Set(calledTools)],
         url: page.url(),
         durationMs: turn.durationMs,
         judgeResult: outcome.judgeResult,

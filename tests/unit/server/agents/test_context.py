@@ -8,6 +8,7 @@ from pydantic_ai.messages import (
 )
 
 from phoenix.server.agents.context import (
+    AppContext,
     ProjectContext,
     ResolvedContexts,
     SpanContext,
@@ -20,6 +21,18 @@ from phoenix.server.agents.context import (
 class TestBuildPhoenixContextUserMessageContent:
     def test_returns_none_when_no_contexts(self) -> None:
         assert build_phoenix_context_user_message_content(ResolvedContexts()) is None
+
+    def test_renders_app_clock_context(self) -> None:
+        resolved = ResolvedContexts(
+            app=AppContext(
+                type="app",
+                current_date_time="2026-05-05T09:30:00",
+                time_zone="America/Los_Angeles",
+            )
+        )
+        content = build_phoenix_context_user_message_content(resolved)
+        assert content is not None
+        assert "Current browser date/time: 2026-05-05T09:30:00 (America/Los_Angeles)" in content
 
     def test_renders_project_trace_and_span_with_format_labels(self) -> None:
         resolved = ResolvedContexts(

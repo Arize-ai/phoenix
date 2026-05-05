@@ -8,7 +8,7 @@ import {
   DEFAULT_JUDGE_MODEL,
 } from "./constants";
 import type { PxiTurn } from "./types";
-import { expectOK, getSpanToolName } from "./utils";
+import { expectOK, getSpanToolName, getUiMessageToolNames } from "./utils";
 
 export type { PxiTurn } from "./types";
 
@@ -101,7 +101,7 @@ export class PxiDriver {
     await this.page.getByRole("button", { name: "Open agent chat" }).click();
     await expect(
       this.page.getByRole("heading", {
-        name: "I'm PXI, your Phoenix assistant",
+        name: "Meet PXI, your Phoenix assistant",
       })
     ).toBeVisible();
   }
@@ -167,27 +167,36 @@ export class PxiDriver {
       if (!assistantText) {
         return null;
       }
-      return { assistantText, traceId };
+      return { assistantText, parts: latestAssistant?.parts ?? [], traceId };
     });
     const turn = (await turnHandle.jsonValue()) as {
       assistantText: string;
+      parts: unknown[];
       traceId: string;
     };
+    const calledTools = await this.getToolNamesForTrace(turn.traceId);
+    const uiCalledTools = getUiMessageToolNames(turn.parts);
+    return {
+      ...turn,
+      calledTools: [...new Set([...calledTools, ...uiCalledTools])],
+      durationMs: Date.now() - startedAt,
+    };
+  }
+
+  async expectBackendToolSpanCalled(turn: PxiTurn) {
     await expect
       .poll(
         async () => (await this.getToolNamesForTrace(turn.traceId)).length,
         {
           message:
-            "Expected persisted PXI trace to include a backend TOOL span for the docs request.",
+            "Expected persisted PXI trace to include a backend TOOL span for the PXI request.",
         }
       )
       .toBeGreaterThan(0);
-    const calledTools = await this.getToolNamesForTrace(turn.traceId);
-    return {
-      ...turn,
-      calledTools,
-      durationMs: Date.now() - startedAt,
-    };
+    const backendCalledTools = await this.getToolNamesForTrace(turn.traceId);
+    turn.calledTools = [
+      ...new Set([...turn.calledTools, ...backendCalledTools]),
+    ];
   }
 
   async expectNoAgentError() {
