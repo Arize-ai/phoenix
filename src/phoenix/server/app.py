@@ -35,6 +35,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.utils import is_body_allowed_for_status_code
 from grpc.aio import ServerInterceptor
 from grpc_interceptor import AsyncServerInterceptor
+from pydantic_ai.mcp import MCPServerStreamableHTTP
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from starlette.datastructures import URL, Secret
@@ -79,6 +80,7 @@ from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.facilitator import Facilitator
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.types import AnnotationPrecursor
+from phoenix.server.agents.chat_v2.mintlify_docs import build_mintlify_docs_toolset
 from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
 from phoenix.server.api.context import Context, DataLoaders
 from phoenix.server.api.dataloaders import (
@@ -652,6 +654,7 @@ def _lifespan(
     scaffolder_config: Optional[ScaffolderConfig] = None,
     grpc_interceptors: Iterable[ServerInterceptor] = (),
     welcome_message: str | None = None,
+    docs_mcp_toolset: Optional[MCPServerStreamableHTTP] = None,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[dict[str, Any]]:
@@ -691,6 +694,8 @@ def _lifespan(
             await stack.enter_async_context(generative_model_store)
             await stack.enter_async_context(db_disk_usage_monitor)
             await stack.enter_async_context(experiment_runner)
+            if docs_mcp_toolset is not None:
+                await stack.enter_async_context(docs_mcp_toolset)
             if scaffolder_config:
                 scaffolder = Scaffolder(
                     config=scaffolder_config,
@@ -1183,6 +1188,11 @@ def create_app(
         middlewares.append(Middleware(PrometheusMiddleware))
     grpc_interceptors: list[ServerInterceptor] = []
     grpc_interceptors.append(DbDiskUsageInterceptor(db))
+    docs_mcp_toolset = (
+        build_mintlify_docs_toolset()
+        if get_env_dangerously_enable_agents() and get_env_allow_external_resources()
+        else None
+    )
     app = FastAPI(
         title="Arize-Phoenix REST API",
         version=REST_API_VERSION,
@@ -1207,6 +1217,7 @@ def create_app(
             startup_callbacks=startup_callbacks_list,
             scaffolder_config=scaffolder_config,
             welcome_message=welcome_message,
+            docs_mcp_toolset=docs_mcp_toolset,
         ),
         middleware=middlewares,
         exception_handlers={
@@ -1296,6 +1307,7 @@ def create_app(
     app.state.decrypt = encryption_service.decrypt
     app.state.redactor = redactor
     app.state.span_queue_is_full = lambda: bulk_inserter.is_full
+    app.state.docs_mcp_toolset = docs_mcp_toolset
     app = _add_get_secret_method(app=app, secret=secret)
     app = _add_get_token_store_method(app=app, token_store=token_store)
     if tracer_provider:

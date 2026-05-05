@@ -94,7 +94,7 @@ def create_chat_v2_router(authentication_enabled: bool) -> APIRouter:
             deps_type=ChatDependencies,
             output_type=[str, DeferredToolRequests],
             instructions=[AGENT_STATIC_SYSTEM_PROMPT, _build_dynamic_instructions],
-            toolsets=[lambda ctx: build_chat_v2_toolsets(ctx.deps.contexts)],
+            toolsets=[lambda ctx: build_chat_v2_toolsets(ctx.deps)],
         )
         adapter: VercelAIAdapter[ChatDependencies, ChatOutput] = VercelAIAdapter(
             agent=agent,
@@ -106,6 +106,7 @@ def create_chat_v2_router(authentication_enabled: bool) -> APIRouter:
             db=request.app.state.db,
             contexts=resolve_contexts(body.contexts),
             capabilities=body.capabilities,
+            docs_mcp_toolset=request.app.state.docs_mcp_toolset,
         )
         return adapter.streaming_response(
             adapter.run_stream(deps=deps, on_complete=_log_run_complete)
