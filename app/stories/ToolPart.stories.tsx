@@ -3,6 +3,10 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { useEffect, useRef } from "react";
 
 import {
+  ElicitationDraftProvider,
+  type PendingElicitationDraft,
+} from "@phoenix/components/agent/ElicitationDraftContext";
+import {
   ToolPart,
   type ToolPartType,
 } from "@phoenix/components/agent/ToolPart";
@@ -12,12 +16,52 @@ const containerCSS = css`
   width: 100%;
 `;
 
+const storyNoteCSS = css`
+  margin-bottom: var(--ac-global-dimension-size-200);
+  padding: var(--ac-global-dimension-size-150);
+  border: 1px solid var(--ac-global-color-grey-300);
+  border-radius: var(--ac-global-rounding-small);
+  background: var(--ac-global-color-grey-100);
+  color: var(--ac-global-text-color-900);
+  font-size: 12px;
+  line-height: 1.5;
+
+  strong {
+    display: block;
+    margin-bottom: var(--ac-global-dimension-size-50);
+    font-weight: 600;
+  }
+`;
+
 function OpenByDefault({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     ref.current?.querySelector("details")?.setAttribute("open", "");
   }, []);
   return <div ref={ref}>{children}</div>;
+}
+
+function withElicitationDraft(draft: PendingElicitationDraft) {
+  return (Story: () => React.ReactNode) => (
+    <ElicitationDraftProvider draft={draft}>
+      <Story />
+    </ElicitationDraftProvider>
+  );
+}
+
+function ToolPartStoryNote({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div css={storyNoteCSS}>
+      <strong>{title}</strong>
+      <div>{children}</div>
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -155,6 +199,7 @@ const approvalRequestedPart = makePart({
 
 const askUserAwaitingPart = makePart({
   toolName: "ask_user",
+  toolCallId: "ask-user-awaiting",
   state: "input-available",
   input: {
     questions: [
@@ -189,6 +234,7 @@ const askUserAwaitingPart = makePart({
 
 const askUserAnsweredPart = makePart({
   toolName: "ask_user",
+  toolCallId: "ask-user-answered",
   state: "output-available",
   input: {
     questions: [
@@ -211,12 +257,160 @@ const askUserAnsweredPart = makePart({
   },
 });
 
-const askUserMalformedPart = makePart({
+const askUserInvalidInputPart = makePart({
   toolName: "ask_user",
-  state: "input-available",
+  toolCallId: "ask-user-invalid-input",
+  state: "output-error",
   input: {
     questions: [],
   },
+  errorText:
+    "Invalid ask_user tool input. Expected { questions: ElicitationQuestion[] }.",
+});
+
+const askUserDraftInProgressPart = makePart({
+  toolName: "ask_user",
+  toolCallId: "ask-user-draft-progress",
+  state: "input-available",
+  input: {
+    questions: [
+      {
+        id: "q-provider",
+        type: "single",
+        prompt: "Which provider should we configure?",
+        options: [
+          { id: "openai", label: "OpenAI" },
+          { id: "anthropic", label: "Anthropic" },
+        ],
+        allow_skip: false,
+        allow_freeform: false,
+      },
+      {
+        id: "q-context",
+        type: "freeform",
+        prompt: "Add any deployment constraints.",
+        allow_skip: false,
+        allow_freeform: false,
+      },
+      {
+        id: "q-region",
+        type: "single",
+        prompt: "Which region should we target?",
+        options: [
+          { id: "us", label: "US" },
+          { id: "eu", label: "EU" },
+        ],
+        allow_skip: false,
+        allow_freeform: false,
+      },
+    ],
+  },
+});
+
+const askUserDraftInProgress = {
+  toolCallId: "ask-user-draft-progress",
+  answers: {
+    "q-provider": ["anthropic"],
+  },
+  freeformTexts: {},
+  currentIndex: 1,
+} satisfies PendingElicitationDraft;
+
+const askUserBlankCustomPart = makePart({
+  toolName: "ask_user",
+  toolCallId: "ask-user-blank-custom",
+  state: "input-available",
+  input: {
+    questions: [
+      {
+        id: "q-runtime",
+        type: "single",
+        prompt: "Which runtime should we target?",
+        options: [{ id: "python", label: "Python" }],
+        allow_skip: false,
+        allow_freeform: true,
+      },
+    ],
+  },
+});
+
+const askUserBlankCustomDraft = {
+  toolCallId: "ask-user-blank-custom",
+  answers: {
+    "q-runtime": ["__freeform__"],
+  },
+  freeformTexts: {},
+  currentIndex: 0,
+} satisfies PendingElicitationDraft;
+
+const askUserSkippedPart = makePart({
+  toolName: "ask_user",
+  toolCallId: "ask-user-skipped",
+  state: "output-available",
+  input: {
+    questions: [
+      {
+        id: "q-confirm",
+        type: "single",
+        prompt: "Should we also set up production monitoring?",
+        options: [
+          { id: "yes", label: "Yes" },
+          { id: "no", label: "No" },
+        ],
+        allow_skip: true,
+        allow_freeform: false,
+      },
+    ],
+  },
+  output: {
+    answers: {},
+    freeformTexts: {},
+  },
+});
+
+const askUserCancelledPart = makePart({
+  toolName: "ask_user",
+  toolCallId: "ask-user-cancelled",
+  state: "output-error",
+  input: {
+    questions: [
+      {
+        id: "q-auth",
+        type: "single",
+        prompt: "Which auth provider should we configure?",
+        options: [
+          { id: "oidc", label: "OIDC" },
+          { id: "saml", label: "SAML" },
+        ],
+        allow_skip: false,
+        allow_freeform: false,
+      },
+    ],
+  },
+  errorText: "User cancelled the question.",
+});
+
+const askUserResumeFailedPart = makePart({
+  toolName: "ask_user",
+  toolCallId: "ask-user-resume-failed",
+  state: "output-error",
+  input: {
+    questions: [
+      {
+        id: "q-region",
+        type: "single",
+        prompt: "Which region should we deploy to?",
+        options: [
+          { id: "us", label: "US" },
+          { id: "eu", label: "EU" },
+        ],
+        allow_skip: false,
+        allow_freeform: false,
+      },
+    ],
+  },
+  errorText:
+    "This pending question could not be resumed after reopening the conversation.",
 });
 
 // ---------------------------------------------------------------------------
@@ -326,14 +520,74 @@ export const AskUserAwaiting: Story = {
   args: { part: askUserAwaitingPart },
 };
 
+/** An ask_user tool showing in-progress draft answers and pending questions. */
+export const AskUserDraftInProgress: Story = {
+  args: { part: askUserDraftInProgressPart },
+  decorators: [withElicitationDraft(askUserDraftInProgress)],
+};
+
 /** An ask_user tool with answers received. */
 export const AskUserAnswered: Story = {
   args: { part: askUserAnsweredPart },
 };
 
-/** An ask_user tool with malformed input (empty questions array). */
-export const AskUserMalformed: Story = {
-  args: { part: askUserMalformedPart },
+/** An ask_user tool with a custom option selected but left blank. */
+export const AskUserBlankCustom: Story = {
+  args: { part: askUserBlankCustomPart },
+  decorators: [withElicitationDraft(askUserBlankCustomDraft)],
+};
+
+/** An ask_user tool with a final skipped answer. */
+export const AskUserSkipped: Story = {
+  args: { part: askUserSkippedPart },
+};
+
+/** An ask_user tool that errored because the model emitted invalid input. */
+export const AskUserInvalidInput: Story = {
+  args: { part: askUserInvalidInputPart },
+  render: (args) => (
+    <>
+      <ToolPartStoryNote title="Origin: Tool Registry Error Path">
+        This mirrors the registered tool validation path. The tool registry
+        emits an <code>output-error</code> result when <code>ask_user</code>
+        input fails schema parsing, such as an empty <code>questions</code>
+        array.
+      </ToolPartStoryNote>
+      <ToolPart {...args} />
+    </>
+  ),
+};
+
+/** An ask_user tool that errored because the user cancelled the prompt. */
+export const AskUserCancelled: Story = {
+  args: { part: askUserCancelledPart },
+  render: (args) => (
+    <>
+      <ToolPartStoryNote title="Origin: Chat-Side Cancel Flow">
+        This comes from the client chat flow, not the registry. When the user
+        cancels the elicitation carousel, <code>useAgentChat</code> writes back
+        an <code>output-error</code> tool result with the cancellation message.
+      </ToolPartStoryNote>
+      <ToolPart {...args} />
+    </>
+  ),
+};
+
+/** A simulated ask_user recovery failure after the conversation was reopened. */
+export const AskUserResumeFailed: Story = {
+  args: { part: askUserResumeFailedPart },
+  render: (args) => (
+    <>
+      <ToolPartStoryNote title="Origin: Representable UI State Only">
+        This failure is representable in the UI but is not currently emitted by
+        production code. It documents a plausible recovery error if a
+        conversation is reopened after an <code>ask_user</code> call was left
+        unresolved and the ephemeral pending elicitation state cannot be
+        reconstructed.
+      </ToolPartStoryNote>
+      <ToolPart {...args} />
+    </>
+  ),
 };
 
 /** A docs search tool that completed with results. */
