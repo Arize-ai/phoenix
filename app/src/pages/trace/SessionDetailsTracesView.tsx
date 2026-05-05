@@ -688,6 +688,7 @@ const traceRowHeaderCSS = css`
   padding: var(--global-dimension-static-size-200);
   background: transparent;
   border: none;
+  /* Reserve space for the selected-state indicator so rows do not shift when selected. */
   border-left: 4px solid transparent;
   width: 100%;
   text-align: left;
