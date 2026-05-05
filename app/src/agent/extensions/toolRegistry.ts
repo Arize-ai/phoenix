@@ -131,6 +131,22 @@ export type SetTimeRangeInput = {
   endTime?: string;
 };
 
+/**
+ * **Drift warning:** These allowed `timeRangeKey` values must stay in sync with
+ * the server-side enum in
+ * `src/phoenix/server/agents/tools/external/set_time_range.py`
+ * (`_SET_TIME_RANGE_PARAMETERS["properties"]["timeRangeKey"]["enum"]`) and
+ * the shared TypeScript type `TimeRangeKey` in
+ * `app/src/components/datetime/types.ts`.
+ */
+const TIME_RANGE_KEYS = ["15m", "1h", "12h", "1d", "7d", "30d", "custom"];
+
+function isValidTimeRangeKey(value: unknown): value is TimeRangeKey {
+  return typeof value === "string" && TIME_RANGE_KEYS.includes(value);
+}
+
+const setTimeRangeInvalidInputErrorText = `Invalid ${SET_TIME_RANGE_TOOL_NAME} input. Expected { timeRangeKey: ${TIME_RANGE_KEYS.map((key) => `"${key}"`).join(" | ")}, startTime?: string, endTime?: string }.`;
+
 function parseSetSpansFilterInput(input: unknown): SetSpansFilterInput | null {
   if (typeof input !== "object" || input === null) return null;
   const candidate = input as {
@@ -181,17 +197,7 @@ const setSpansFilterAgentTool = createRegisteredAgentTool<SetSpansFilterInput>({
   },
 });
 
-/**
- * Parse and validate the set_time_range tool input.
- *
- * **Drift warning:** The allowed `timeRangeKey` values here must stay in sync
- * with the server-side enum in
- * `src/phoenix/server/agents/tools/external/set_time_range.py`
- * (`_SET_TIME_RANGE_PARAMETERS["properties"]["timeRangeKey"]["enum"]`)
- * and the shared TypeScript type `TimeRangeKey` in
- * `app/src/components/datetime/types.ts`. If the allowed presets change,
- * all three locations need updating.
- */
+/** Parse and validate the set_time_range tool input. */
 function parseSetTimeRangeInput(input: unknown): SetTimeRangeInput | null {
   if (typeof input !== "object" || input === null) return null;
   const candidate = input as {
@@ -199,15 +205,7 @@ function parseSetTimeRangeInput(input: unknown): SetTimeRangeInput | null {
     startTime?: unknown;
     endTime?: unknown;
   };
-  if (
-    candidate.timeRangeKey !== "15m" &&
-    candidate.timeRangeKey !== "1h" &&
-    candidate.timeRangeKey !== "12h" &&
-    candidate.timeRangeKey !== "1d" &&
-    candidate.timeRangeKey !== "7d" &&
-    candidate.timeRangeKey !== "30d" &&
-    candidate.timeRangeKey !== "custom"
-  ) {
+  if (!isValidTimeRangeKey(candidate.timeRangeKey)) {
     return null;
   }
   if (
@@ -234,7 +232,7 @@ function parseSetTimeRangeInput(input: unknown): SetTimeRangeInput | null {
 const setTimeRangeAgentTool = createRegisteredAgentTool<SetTimeRangeInput>({
   name: SET_TIME_RANGE_TOOL_NAME,
   parseInput: parseSetTimeRangeInput,
-  invalidInputErrorText: `Invalid ${SET_TIME_RANGE_TOOL_NAME} input. Expected { timeRangeKey: "15m" | "1h" | "12h" | "1d" | "7d" | "30d" | "custom", startTime?: string, endTime?: string }.`,
+  invalidInputErrorText: setTimeRangeInvalidInputErrorText,
   execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
     const action =
       agentStore.getState().registeredClientActions[SET_TIME_RANGE_TOOL_NAME];
