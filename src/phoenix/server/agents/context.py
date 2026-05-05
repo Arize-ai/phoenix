@@ -109,10 +109,8 @@ class ToolExecutionEnv:
     db: "DbSessionFactory"
 
 
-def resolve_contexts(items: list[ChatContext] | None) -> ResolvedContexts:
+def resolve_contexts(items: list[ChatContext]) -> ResolvedContexts:
     resolved = ResolvedContexts()
-    if not items:
-        return resolved
     for item in items:
         if isinstance(item, AppContext):
             resolved.app = item
