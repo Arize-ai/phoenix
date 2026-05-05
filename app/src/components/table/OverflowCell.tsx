@@ -1,8 +1,12 @@
 import { css } from "@emotion/react";
-import type { PropsWithChildren, RefObject } from "react";
+import type { CSSProperties, PropsWithChildren, RefObject } from "react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 
 import { Icon, Icons } from "@phoenix/components";
+
+// Ignore subpixel line-height rounding so a 1px scroll/client-height mismatch
+// does not show an expand button for content that visually fits.
+const OVERFLOW_TOLERANCE_PX = 1;
 
 const containerCSS = css`
   position: relative;
@@ -10,11 +14,19 @@ const containerCSS = css`
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
+
+  &[data-expanded-behavior="grow"] {
+    flex: 0 1 auto;
+  }
 `;
 
 const contentCSS = css`
   height: 100%;
   overflow: hidden;
+
+  &[data-expanded-behavior="grow"] {
+    height: auto;
+  }
 
   // When collapsed, prevent all nested elements from scrolling
   &:not([data-expanded="true"]) {
@@ -26,6 +38,10 @@ const contentCSS = css`
 
   &[data-expanded="true"] {
     overflow: auto;
+  }
+
+  &[data-expanded="true"][data-expanded-behavior="grow"] {
+    overflow: visible;
   }
 `;
 
@@ -44,8 +60,16 @@ const expandButtonCSS = css`
   background: linear-gradient(
     to bottom,
     transparent 0%,
-    var(--global-background-color-default) 80%,
-    var(--global-background-color-default) 100%
+    var(
+        --overflow-cell-overlay-background-color,
+        var(--global-background-color-default)
+      )
+      80%,
+    var(
+        --overflow-cell-overlay-background-color,
+        var(--global-background-color-default)
+      )
+      100%
   );
   cursor: pointer;
   border: none;
@@ -66,6 +90,16 @@ const expandButtonCSS = css`
 export interface OverflowCellProps extends PropsWithChildren {
   height: number;
   /**
+   * How expanded content behaves.
+   * - "scroll": use a fixed-height container and scroll within it when expanded
+   * - "grow": use a collapsed max height, then grow to full content height
+   */
+  expandedBehavior?: "scroll" | "grow";
+  /**
+   * Background color used by the gradient overlay.
+   */
+  overlayBackgroundColor?: string;
+  /**
    * Controlled expanded state. If provided, the component will use this value
    * instead of managing its own internal state.
    */
@@ -80,6 +114,8 @@ export interface OverflowCellProps extends PropsWithChildren {
 export const OverflowCell = memo(function OverflowCell({
   children,
   height,
+  expandedBehavior = "scroll",
+  overlayBackgroundColor = "var(--global-background-color-default)",
   isExpanded: controlledExpanded,
   onExpandedChange,
 }: OverflowCellProps) {
@@ -98,15 +134,32 @@ export const OverflowCell = memo(function OverflowCell({
     }
     onExpandedChange?.(true);
   }, [isControlled, onExpandedChange]);
+  const shouldGrowWhenExpanded = expandedBehavior === "grow" && isExpanded;
+  const containerStyle = {
+    "--overflow-cell-overlay-background-color": overlayBackgroundColor,
+    ...(expandedBehavior === "scroll"
+      ? { height }
+      : shouldGrowWhenExpanded
+        ? {}
+        : { maxHeight: height }),
+  } as CSSProperties & {
+    "--overflow-cell-overlay-background-color": string;
+  };
 
   return (
     <div
       ref={containerRef}
       css={containerCSS}
-      style={{ height }}
+      style={containerStyle}
       className="overflow-cell"
+      data-expanded-behavior={expandedBehavior}
     >
-      <div ref={contentRef} css={contentCSS} data-expanded={isExpanded}>
+      <div
+        ref={contentRef}
+        css={contentCSS}
+        data-expanded={isExpanded}
+        data-expanded-behavior={expandedBehavior}
+      >
         {children}
       </div>
       {isOverflowing && !isExpanded && (
@@ -142,7 +195,9 @@ function useIsOverflowing(
     if (!content || !container) return;
 
     const checkOverflow = () => {
-      setIsOverflowing(content.scrollHeight > container.clientHeight);
+      setIsOverflowing(
+        content.scrollHeight > container.clientHeight + OVERFLOW_TOLERANCE_PX
+      );
     };
 
     checkOverflow();

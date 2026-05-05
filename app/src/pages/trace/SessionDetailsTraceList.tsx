@@ -32,6 +32,7 @@ import {
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
+import { OverflowCell } from "@phoenix/components/table";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
@@ -107,6 +108,8 @@ const inputMessageWrapCSS = css`
   max-width: 70%;
 `;
 
+const SESSION_TURN_MESSAGE_MAX_HEIGHT = 280;
+
 type RootSpanMessageProps = {
   /**
    * Optional content rendered opposite the message label in the header,
@@ -122,6 +125,9 @@ function RootSpanMessage({ extra, label, role, value }: RootSpanMessageProps) {
   const isInput = role === "HUMAN";
   const styles = useChatMessageStyles(isInput ? "user" : "assistant");
   const defaultLabel = isInput ? "INPUT" : "OUTPUT";
+  const overlayBackgroundColor = isInput
+    ? "var(--global-color-gray-100)"
+    : "var(--global-color-blue-100)";
   return (
     <Flex
       direction="column"
@@ -148,7 +154,13 @@ function RootSpanMessage({ extra, label, role, value }: RootSpanMessageProps) {
         width="100%"
         {...styles}
       >
-        <DynamicContent value={value} />
+        <OverflowCell
+          height={SESSION_TURN_MESSAGE_MAX_HEIGHT}
+          expandedBehavior="grow"
+          overlayBackgroundColor={overlayBackgroundColor}
+        >
+          <DynamicContent value={value} />
+        </OverflowCell>
       </View>
     </Flex>
   );

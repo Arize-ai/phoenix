@@ -19,7 +19,7 @@ A cell component that handles overflowing content with an expandable interface.
 
 - Shows a gradient overlay and "expand" button when content exceeds the specified height
 - Supports both uncontrolled (internal state) and controlled modes
-- When expanded, content becomes scrollable
+- Supports fixed-height cells and max-height regions that grow to full height when expanded
         `,
       },
     },
@@ -27,7 +27,17 @@ A cell component that handles overflowing content with an expandable interface.
   argTypes: {
     height: {
       control: { type: "number" },
-      description: "The fixed height of the cell in pixels",
+      description: "The fixed or maximum collapsed height in pixels",
+    },
+    expandedBehavior: {
+      control: { type: "radio" },
+      options: ["scroll", "grow"],
+      description:
+        "Whether expanded content scrolls internally or grows to full height",
+    },
+    overlayBackgroundColor: {
+      control: { type: "text" },
+      description: "Background color used by the expand gradient overlay",
     },
     isExpanded: {
       control: { type: "boolean" },
@@ -150,6 +160,18 @@ export const SmallHeight: Story = {
 export const LargeHeight: Story = {
   args: {
     height: 200,
+    children: <Text>{longContent}</Text>,
+  },
+};
+
+/**
+ * Uses a collapsed max height, then grows to the full content height when expanded.
+ * This is useful outside of table cells where nested scrolling should be avoided.
+ */
+export const MaxHeightGrow: Story = {
+  args: {
+    height: 120,
+    expandedBehavior: "grow",
     children: <Text>{longContent}</Text>,
   },
 };
