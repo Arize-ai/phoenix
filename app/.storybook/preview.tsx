@@ -1,10 +1,11 @@
 import type { DocsContainerProps } from "@storybook/addon-docs/blocks";
 import { DocsContainer } from "@storybook/addon-docs/blocks";
 import type { Preview } from "@storybook/react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { MemoryRouter } from "react-router";
 import { addons as previewAddons } from "storybook/preview-api";
-import { themes } from "storybook/theming";
+import { CacheProvider, createCache, themes } from "storybook/theming";
+import { create } from "storybook/theming/create";
 
 import type { ProviderTheme } from "../src/contexts";
 import { PreferencesProvider, ThemeProvider } from "../src/contexts";
@@ -12,6 +13,31 @@ import { GlobalStyles } from "../src/GlobalStyles";
 
 export const THEME_CHANGE_EVENT = "phoenix:system-theme-change";
 export const THEME_MODE_CHANGE_EVENT = "phoenix:theme-mode-change";
+
+/**
+ * Phoenix design system background colors (gray-75)
+ * @see app/src/GlobalStyles.tsx --global-background-color-default
+ */
+const PHOENIX_BACKGROUND = {
+  light: "rgb(253, 253, 253)", // light theme gray-75
+  dark: "rgb(14, 14, 14)", // dark theme gray-75
+} as const;
+
+const lightDocsTheme = create({
+  ...themes.light,
+  base: "light",
+  appBg: PHOENIX_BACKGROUND.light,
+  appContentBg: PHOENIX_BACKGROUND.light,
+  appPreviewBg: PHOENIX_BACKGROUND.light,
+});
+
+const darkDocsTheme = create({
+  ...themes.dark,
+  base: "dark",
+  appBg: PHOENIX_BACKGROUND.dark,
+  appContentBg: PHOENIX_BACKGROUND.dark,
+  appPreviewBg: PHOENIX_BACKGROUND.dark,
+});
 
 const darkModeQuery = "(prefers-color-scheme: dark)";
 const previewInset = "var(--global-dimension-size-500)";
@@ -24,11 +50,7 @@ const getSystemTheme = (): ProviderTheme =>
   window.matchMedia(darkModeQuery).matches ? "dark" : "light";
 
 function getStorySurfaceLayout(layout: unknown): StorySurfaceLayout {
-  if (
-    layout === "centered" ||
-    layout === "padded" ||
-    layout === "fullscreen"
-  ) {
+  if (layout === "centered" || layout === "padded" || layout === "fullscreen") {
     return layout;
   }
   return "padded";
@@ -133,6 +155,12 @@ function getStoryContentStyle(
   };
 }
 
+function createDocsEmotionCache(theme: ProviderTheme) {
+  return createCache({
+    key: `phoenix-docs-${theme}`,
+  });
+}
+
 /**
  * Hook that tracks the OS/browser color scheme preference.
  * Optionally emits a Storybook channel event so the manager can sync its theme.
@@ -172,25 +200,41 @@ function useSystemTheme(emitToChannel = false): ProviderTheme {
   return theme;
 }
 
-/** Resolves the toolbar theme mode to a Storybook docs theme. */
-function useDocsTheme(themeMode: string) {
-  const systemTheme = useSystemTheme();
-  if (themeMode === "light") return themes.light;
-  if (themeMode === "dark") return themes.dark;
+/** Resolves the effective theme for docs page. */
+function getEffectiveTheme(
+  themeMode: string,
+  systemTheme: ProviderTheme
+): ProviderTheme {
+  if (themeMode === "light") return "light";
+  if (themeMode === "dark") return "dark";
   // "auto" or "both" - use system theme
-  return systemTheme === "dark" ? themes.dark : themes.light;
+  return systemTheme;
+}
+
+/** Resolves the toolbar theme mode to a Storybook docs theme. */
+function getDocsTheme(themeMode: string, systemTheme: ProviderTheme) {
+  if (themeMode === "light") return lightDocsTheme;
+  if (themeMode === "dark") return darkDocsTheme;
+  // "auto" or "both" - use system theme
+  return systemTheme === "dark" ? darkDocsTheme : lightDocsTheme;
 }
 
 /**
  * Custom DocsContainer that respects the toolbar theme selector while also
- * responding to system theme changes when "auto" is selected.
+ * responding to system theme changes when "auto" or "both" is selected.
  *
  * Since useGlobals can't be used outside decorators, we listen for theme mode
  * changes via the Storybook channel (emitted by the decorator).
  */
 function ThemedDocsContainer(props: DocsContainerProps) {
   const [themeMode, setThemeMode] = useState("auto");
-  const docsTheme = useDocsTheme(themeMode);
+  const systemTheme = useSystemTheme();
+  const effectiveTheme = getEffectiveTheme(themeMode, systemTheme);
+  const docsTheme = getDocsTheme(themeMode, systemTheme);
+  const docsCache = useMemo(
+    () => createDocsEmotionCache(effectiveTheme),
+    [effectiveTheme]
+  );
 
   useEffect(() => {
     const channel = previewAddons.getChannel();
@@ -199,7 +243,16 @@ function ThemedDocsContainer(props: DocsContainerProps) {
     return () => channel.off(THEME_MODE_CHANGE_EVENT, handler);
   }, []);
 
-  return <DocsContainer {...props} theme={docsTheme} />;
+  // Directly set background color on body to bypass Storybook theme caching
+  useEffect(() => {
+    document.body.style.backgroundColor = PHOENIX_BACKGROUND[effectiveTheme];
+  }, [effectiveTheme]);
+
+  return (
+    <CacheProvider value={docsCache}>
+      <DocsContainer {...props} theme={docsTheme} />
+    </CacheProvider>
+  );
 }
 
 /**
@@ -281,6 +334,9 @@ const preview: Preview = {
         date: /Date$/i,
       },
     },
+    backgrounds: {
+      disable: true,
+    },
     docs: {
       container: ThemedDocsContainer,
     },
@@ -317,17 +373,6 @@ const preview: Preview = {
   globalTypes: {
     theme: {
       description: "Global theme for components",
-      toolbar: {
-        title: "Theme",
-        icon: "paintbrush",
-        items: [
-          { value: "auto", title: "Auto" },
-          { value: "light", title: "Light" },
-          { value: "dark", title: "Dark" },
-          { value: "both", title: "Both" },
-        ],
-        dynamicTitle: true,
-      },
     },
   },
   initialGlobals: {
