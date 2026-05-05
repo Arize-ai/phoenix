@@ -11,7 +11,7 @@ import { openAIToolDefinitionSchema } from "./openai/toolSchemas";
 import { phoenixMessageSchema } from "./phoenixPrompt/messageSchemas";
 import { phoenixToolCallSchema } from "./phoenixPrompt/toolCallSchemas";
 import { phoenixToolChoiceSchema } from "./phoenixPrompt/toolChoiceSchemas";
-import { phoenixToolDefinitionSchema } from "./phoenixPrompt/toolSchemas";
+import { phoenixToolFunctionDefinitionSchema } from "./phoenixPrompt/toolSchemas";
 import { vercelAIChatPartToolCallSchema } from "./vercel/messagePartSchemas";
 import { vercelAIMessageSchema } from "./vercel/messageSchemas";
 import { vercelAIToolChoiceSchema } from "./vercel/toolChoiceSchemas";
@@ -87,7 +87,7 @@ export type LlmProviderToolChoice = z.infer<typeof llmProviderToolChoiceSchema>;
 export const llmProviderToolDefinitionSchema = z.union([
   openAIToolDefinitionSchema,
   anthropicToolDefinitionSchema,
-  phoenixToolDefinitionSchema,
+  phoenixToolFunctionDefinitionSchema,
 ]);
 
 export type LlmProviderToolDefinition = z.infer<

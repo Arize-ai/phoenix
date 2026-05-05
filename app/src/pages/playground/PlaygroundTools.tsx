@@ -8,7 +8,7 @@ import {
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 
 import { PlaygroundTool } from "./PlaygroundTool";
-import { getFunctionToolName } from "./playgroundUtils";
+import { isFunctionTool } from "./playgroundUtils";
 import type { PlaygroundInstanceProps } from "./types";
 
 interface PlaygroundToolsProps extends PlaygroundInstanceProps {}
@@ -29,11 +29,14 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
     throw new Error(`Playground instance ${instanceId} does not have tools`);
   }
 
-  const toolNames = useMemo(
+  // ToolChoiceSelector only offers SPECIFIC_FUNCTION on real function tools —
+  // raw vendor tools like web_search aren't user-callable by name.
+  const functionToolNames = useMemo(
     () =>
       tools
-        .map((tool) => getFunctionToolName(tool))
-        .filter((name): name is NonNullable<typeof name> => name != null),
+        .filter(isFunctionTool)
+        .map((tool) => tool.definition?.name)
+        .filter((name): name is string => name != null),
     [tools]
   );
 
@@ -67,7 +70,7 @@ export function PlaygroundTools(props: PlaygroundToolsProps) {
                 dirty: true,
               });
             }}
-            toolNames={toolNames}
+            toolNames={functionToolNames}
           />
           <Flex direction={"column"} gap="size-200">
             {tools.map((tool) => {

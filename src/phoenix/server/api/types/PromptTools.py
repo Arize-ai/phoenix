@@ -30,7 +30,13 @@ class PromptToolFunctionDefinition:
         )
 
 
-@strawberry.type
+@strawberry.type(
+    description=(
+        "A normalized function tool: a JSON-Schema-typed function the model can "
+        "call by name. Phoenix knows the shape of `function` and converts it to "
+        "each provider's native function-tool format at request time."
+    )
+)
 class PromptToolFunction:
     function: PromptToolFunctionDefinition
 
@@ -39,7 +45,14 @@ class PromptToolFunction:
         return cls(function=PromptToolFunctionDefinition.from_orm(t.function))
 
 
-@strawberry.type
+@strawberry.type(
+    description=(
+        "A vendor passthrough tool: an opaque JSON object that Phoenix forwards "
+        "to the target provider SDK without normalization. Used for built-in "
+        "tools like OpenAI Responses' `web_search`, Anthropic's `computer_use`, "
+        "or any provider-specific tool whose shape Phoenix doesn't model."
+    )
+)
 class PromptToolRaw:
     raw: JSON
 

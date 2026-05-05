@@ -54,6 +54,16 @@ export function PromptTools({
   const items: ToolDefinitionItem[] = useMemo(() => {
     if (!toolsData) return [];
     return toolsData.tools.map((tool, i) => {
+      const fallbackName = `Tool ${i + 1}`;
+      if (tool.__typename === "PromptToolFunction") {
+        const fn = tool.function;
+        const definition = { type: "function", function: fn };
+        return {
+          name: fn.name || fallbackName,
+          description: fn.description || undefined,
+          definition: safelyStringifyJSON(definition, null, 2).json || "{}",
+        };
+      }
       if (tool.__typename === "PromptToolRaw") {
         const definition = tool.raw;
         const name =
@@ -61,26 +71,21 @@ export function PromptTools({
             ? definition.name
             : typeof definition.type === "string"
               ? definition.type
-              : `Tool ${i + 1}`;
+              : fallbackName;
         return {
           name,
           description: undefined,
           definition: safelyStringifyJSON(definition, null, 2).json || "{}",
         };
       }
-      if (tool.__typename !== "PromptToolFunction") {
-        return {
-          name: `Tool ${i + 1}`,
-          description: undefined,
-          definition: "{}",
-        };
-      }
-      const fn = tool.function;
-      const definition = { type: "function", function: fn };
+      // eslint-disable-next-line no-console
+      console.warn(
+        `PromptTools: unknown tool __typename "${tool.__typename}" at index ${i}; client may need rebuild`
+      );
       return {
-        name: fn.name || `Tool ${i + 1}`,
-        description: fn.description || undefined,
-        definition: safelyStringifyJSON(definition, null, 2).json || "{}",
+        name: `Unknown tool (${fallbackName})`,
+        description: "Unsupported tool type — refresh after the client rebuild",
+        definition: "{}",
       };
     });
   }, [toolsData]);

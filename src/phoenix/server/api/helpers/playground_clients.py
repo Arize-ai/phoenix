@@ -653,6 +653,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
             ResponseTextConfigParam,
         )
         from openai.types.responses.tool_choice_function_param import ToolChoiceFunctionParam
+        from openai.types.responses.tool_param import ToolParam
 
         params = ResponseCreateParamsBase(
             input=self._to_openai_response_input_item_param(messages),
@@ -677,10 +678,10 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
             if tools.disable_parallel_tool_calls:
                 params["parallel_tool_calls"] = False
             elif tools.tools:
-                resp_tool_list: list[FunctionToolParam] = []
+                resp_tool_list: list[ToolParam] = []
                 for tool in tools.tools:
                     if tool.type == "raw":
-                        resp_tool_list.append(cast(FunctionToolParam, tool.raw))
+                        resp_tool_list.append(cast(ToolParam, tool.raw))
                         continue
                     assert tool.type == "function"
                     f = tool.function

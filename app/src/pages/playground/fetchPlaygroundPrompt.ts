@@ -4,20 +4,16 @@ import type {
   GenerativeProviderKey,
   OpenAIApiType,
 } from "@phoenix/components/playground/model/__generated__/ModelSupportedParamsFetcherQuery.graphql";
-import {
-  DEFAULT_MODEL_NAME,
-  DEFAULT_OPENAI_API_TYPE,
-} from "@phoenix/constants/generativeConstants";
+import { DEFAULT_MODEL_NAME } from "@phoenix/constants/generativeConstants";
 import type { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
 import type { fetchPlaygroundPromptSupportedInvocationParametersQuery } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPromptSupportedInvocationParametersQuery.graphql";
 import type { ChatPromptVersionInput } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
 import { toCamelCase } from "@phoenix/pages/playground/invocationParameterUtils";
 import {
   applyProviderInvocationParameterConstraints,
+  deriveToolsAndOpenAIApiType,
   getChatRole,
-  inferOpenAIApiTypeFromTools,
   normalizeInvocationParameters,
-  promptToolFromGraphQL,
   toCanonicalToolChoice,
   toolToPromptToolInput,
 } from "@phoenix/pages/playground/playgroundUtils";
@@ -252,20 +248,17 @@ export const promptVersionToInstance = ({
         }),
       } as const)
     : undefined;
-  const tools = (promptVersion.tools?.tools ?? [])
-    .map(promptToolFromGraphQL)
-    .filter((tool): tool is NonNullable<typeof tool> => tool != null);
-  const isOpenAIProvider = provider === "OPENAI" || provider === "AZURE_OPENAI";
-  const openaiApiType = isOpenAIProvider
-    ? (inferOpenAIApiTypeFromTools(tools) ?? DEFAULT_OPENAI_API_TYPE)
-    : null;
+  const { tools, openaiApiType } = deriveToolsAndOpenAIApiType(
+    promptVersion.tools?.tools,
+    provider
+  );
   return {
     ...newInstance,
     model: {
       ...newInstance.model,
       modelName,
       provider,
-      ...(openaiApiType != null ? { openaiApiType } : {}),
+      openaiApiType,
       customProvider: promptVersion.customProvider
         ? {
             id: promptVersion.customProvider.id,
@@ -729,15 +722,10 @@ export const fetchPlaygroundPromptAsInstance = async ({
   });
   const latestPromptVersion = response?.prompt?.version ?? null;
   if (latestPromptVersion && latestPromptVersion.templateType === "CHAT") {
-    const isOpenAIProvider =
-      latestPromptVersion.modelProvider === "OPENAI" ||
-      latestPromptVersion.modelProvider === "AZURE_OPENAI";
-    const promptTools = (latestPromptVersion.tools?.tools ?? [])
-      .map(promptToolFromGraphQL)
-      .filter((tool): tool is NonNullable<typeof tool> => tool != null);
-    const openaiApiType = isOpenAIProvider
-      ? (inferOpenAIApiTypeFromTools(promptTools) ?? DEFAULT_OPENAI_API_TYPE)
-      : null;
+    const { openaiApiType } = deriveToolsAndOpenAIApiType(
+      latestPromptVersion.tools?.tools,
+      latestPromptVersion.modelProvider
+    );
     const supportedInvocationParameters =
       await fetchSupportedInvocationParameters({
         modelName: latestPromptVersion.modelName,

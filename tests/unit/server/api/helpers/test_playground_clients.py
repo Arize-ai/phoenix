@@ -480,7 +480,7 @@ class TestAnthropicStreamingClient:
             ],
         )
 
-        params = client._anthropic_message_params(
+        params, _ = client._anthropic_message_params(
             messages=[
                 create_playground_message(
                     ChatCompletionMessageRole.USER,

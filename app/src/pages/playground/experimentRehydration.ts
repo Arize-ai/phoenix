@@ -8,7 +8,6 @@
 import { fetchQuery, graphql } from "relay-runtime";
 
 import type { GenerativeProviderKey } from "@phoenix/components/playground/model/__generated__/ModelSupportedParamsFetcherQuery.graphql";
-import { DEFAULT_OPENAI_API_TYPE } from "@phoenix/constants/generativeConstants";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import type {
   TextPart,
@@ -40,11 +39,7 @@ import {
   fetchSupportedInvocationParameters,
   objectToInvocationParameters,
 } from "./fetchPlaygroundPrompt";
-import {
-  getChatRole,
-  inferOpenAIApiTypeFromTools,
-  promptToolFromGraphQL,
-} from "./playgroundUtils";
+import { deriveToolsAndOpenAIApiType, getChatRole } from "./playgroundUtils";
 
 const EXPERIMENT_REHYDRATION_QUERY = graphql`
   query experimentRehydrationQuery($experimentId: ID!) {
@@ -252,10 +247,7 @@ function taskConfigToPlaygroundProps(
       : [];
 
   // --- Tools ---
-  const toolsList = prompt.tools?.tools ?? [];
-  const tools = toolsList
-    .map(promptToolFromGraphQL)
-    .filter((tool): tool is NonNullable<typeof tool> => tool != null);
+  const { tools } = deriveToolsAndOpenAIApiType(prompt.tools?.tools, provider);
 
   // --- Tool Choice ---
   const rawToolChoice = prompt.tools?.toolChoice;
@@ -392,15 +384,10 @@ export async function fetchExperimentPlaygroundProps(
   if (!job?.taskConfig) return null;
 
   const prompt = job.taskConfig.prompt;
-  const isOpenAIProvider =
-    prompt.modelProvider === "OPENAI" ||
-    prompt.modelProvider === "AZURE_OPENAI";
-  const promptTools = (prompt.tools?.tools ?? [])
-    .map(promptToolFromGraphQL)
-    .filter((tool): tool is NonNullable<typeof tool> => tool != null);
-  const openaiApiType = isOpenAIProvider
-    ? (inferOpenAIApiTypeFromTools(promptTools) ?? DEFAULT_OPENAI_API_TYPE)
-    : null;
+  const { openaiApiType } = deriveToolsAndOpenAIApiType(
+    prompt.tools?.tools,
+    prompt.modelProvider
+  );
 
   const supportedInvocationParameters =
     (await fetchSupportedInvocationParameters({

@@ -7,9 +7,26 @@ import {
   safelyConvertToolDefinitionToProvider,
 } from "../../schemas/llm/converters";
 import { findToolDefinitionName } from "../../schemas/llm/utils";
+import type { PromptToolRaw } from "../../types/prompts";
 import { isPromptToolRaw } from "../../types/prompts";
 import { formatPromptMessages } from "../../utils/formatPromptMessages";
 import type { Variables, toSDKParamsBase } from "./types";
+
+/**
+ * Best-effort name for a vendor-passthrough (raw) tool. Vercel AI SDK keys its
+ * `tools` record by tool name, so we need a stable string identifier even when
+ * the raw payload doesn't carry a conventional `name` field — fall back to
+ * `type` (e.g. "web_search") which the Responses-style SDKs use as the key.
+ */
+const getRawToolName = (tool: PromptToolRaw): string | null => {
+  if (typeof tool.raw.name === "string") {
+    return tool.raw.name;
+  }
+  if (typeof tool.raw.type === "string") {
+    return tool.raw.type;
+  }
+  return null;
+};
 
 export type PartialAIParams = {
   messages: ModelMessage[];
@@ -68,17 +85,13 @@ export const toAI = <V extends Variables>({
       return vercelAIMessage;
     });
 
+    const toolsList = prompt.tools?.tools ?? [];
     let tools: ToolSet | undefined;
-    const toolsList = prompt.tools?.tools;
-    if (toolsList && Array.isArray(toolsList) && toolsList.length > 0) {
+    if (toolsList.length > 0) {
       const toolsRecord: Record<string, unknown> = {};
       for (const tool of toolsList) {
         const name = isPromptToolRaw(tool)
-          ? typeof tool.raw.name === "string"
-            ? tool.raw.name
-            : typeof tool.raw.type === "string"
-              ? tool.raw.type
-              : null
+          ? getRawToolName(tool)
           : findToolDefinitionName(tool);
         invariant(name, "Tool definition name is not valid");
         const converted = isPromptToolRaw(tool)
@@ -90,10 +103,9 @@ export const toAI = <V extends Variables>({
         invariant(converted, "Tool definition is not valid");
         toolsRecord[name] = converted;
       }
-      tools =
-        Object.keys(toolsRecord).length > 0
-          ? (toolsRecord as ToolSet)
-          : undefined;
+      if (Object.keys(toolsRecord).length > 0) {
+        tools = toolsRecord as ToolSet;
+      }
     }
 
     let toolChoice: PartialAIParams["toolChoice"];

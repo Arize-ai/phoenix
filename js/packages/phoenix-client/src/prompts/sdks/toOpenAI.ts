@@ -75,30 +75,31 @@ export const toOpenAI = <V extends Variables = Variables>({
       return openAIMessage;
     });
 
-    const toolsList = prompt.tools?.tools;
-    let tools: ChatCompletionCreateParams["tools"] | undefined = Array.isArray(
-      toolsList
-    )
-      ? (toolsList.map((tool) => {
-          if (isPromptToolRaw(tool)) {
-            return tool.raw;
-          }
-          const openAIToolDefinition = safelyConvertToolDefinitionToProvider({
-            toolDefinition: tool,
-            targetProvider: "OPENAI",
-          });
-          invariant(openAIToolDefinition, "Tool definition is not valid");
-          return openAIToolDefinition;
-        }) as unknown as ChatCompletionCreateParams["tools"])
-      : undefined;
-    tools = (tools?.length ?? 0) > 0 ? tools : undefined;
+    const toolsList = prompt.tools?.tools ?? [];
+    // Cast: raw tools are `Record<string, unknown>` straight from the prompt
+    // store. We trust the upstream caller to have stored a shape OpenAI's
+    // SDK accepts; no validation here.
+    const tools =
+      toolsList.length === 0
+        ? undefined
+        : (toolsList.map((tool) => {
+            if (isPromptToolRaw(tool)) {
+              return tool.raw;
+            }
+            const openAIToolDefinition = safelyConvertToolDefinitionToProvider({
+              toolDefinition: tool,
+              targetProvider: "OPENAI",
+            });
+            invariant(openAIToolDefinition, "Tool definition is not valid");
+            return openAIToolDefinition;
+          }) as unknown as ChatCompletionCreateParams["tools"]);
 
-    let tool_choice: OpenaiToolChoice | undefined =
-      safelyConvertToolChoiceToProvider({
-        toolChoice: prompt?.tools?.tool_choice,
-        targetProvider: "OPENAI",
-      }) || undefined;
-    tool_choice = tools?.length ? tool_choice : undefined;
+    const tool_choice: OpenaiToolChoice | undefined = tools
+      ? (safelyConvertToolChoiceToProvider({
+          toolChoice: prompt?.tools?.tool_choice,
+          targetProvider: "OPENAI",
+        }) ?? undefined)
+      : undefined;
 
     const response_format = prompt.response_format
       ? phoenixResponseFormatToOpenAI.parse(prompt.response_format)

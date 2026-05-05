@@ -16,9 +16,9 @@ import { JSONToolEditor } from "@phoenix/pages/playground/PlaygroundToolType/JSO
 import type { Tool } from "@phoenix/store";
 
 import {
-  getFunctionToolName,
   getToolDefinitionDisplay,
   getToolName,
+  isFunctionTool,
   toolFromEditorJSON,
 } from "./playgroundUtils";
 import type { PlaygroundInstanceProps } from "./types";
@@ -78,9 +78,9 @@ export function PlaygroundTool({
   }, [tool]);
 
   const updateTool = useCallback(
-    (display: unknown) => {
+    (value: unknown) => {
       const nextTool = toolFromEditorJSON({
-        display,
+        value,
         id: tool.id,
         editorType: tool.editorType,
       });
@@ -98,7 +98,9 @@ export function PlaygroundTool({
 
   const deleteTool = useCallback(() => {
     const newTools = instanceTools.filter((t) => t.id !== toolId);
-    const deletedFunctionToolName = getFunctionToolName(tool);
+    const deletedFunctionToolName = isFunctionTool(tool)
+      ? (tool.definition?.name ?? null)
+      : null;
     const deletingToolChoice =
       toolChoice?.type === "SPECIFIC_FUNCTION" &&
       deletedFunctionToolName != null &&

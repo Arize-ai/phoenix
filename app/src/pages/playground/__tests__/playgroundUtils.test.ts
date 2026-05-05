@@ -5,6 +5,7 @@ import type { LlmProviderToolCall } from "@phoenix/schemas/toolCallSchemas";
 import type { PlaygroundInput, PlaygroundInstance } from "@phoenix/store";
 import { _resetInstanceId, _resetMessageId } from "@phoenix/store";
 import type { CanonicalToolDefinition } from "@phoenix/store/playground";
+import type { Tool } from "@phoenix/store/playground";
 
 import {
   INPUT_MESSAGES_PARSING_ERROR,
@@ -38,9 +39,15 @@ import {
   getToolsFromAttributes,
   getResponseFormatFromAttributes,
   getToolChoiceFromAttributes,
+  getToolName,
   getVariablesMapFromInstances,
+  inferOpenAIApiTypeFromRawToolDefinitions,
+  inferOpenAIApiTypeFromTools,
+  isOpenAIResponsesSpan,
   processAttributeToolCalls,
+  promptToolFromGraphQL,
   toolFromEditorJSON,
+  toolToPromptToolInput,
   transformSpanAttributesToPlaygroundInstance,
 } from "../playgroundUtils";
 import type { PlaygroundSpan } from "../spanPlaygroundPageLoader";
@@ -1653,9 +1660,388 @@ describe("getToolsFromAttributes", () => {
   });
 });
 
+describe("getToolName", () => {
+  it("returns the function definition name for function tools", () => {
+    expect(
+      getToolName({
+        kind: "function",
+        id: 1,
+        editorType: "json",
+        definition: {
+          name: "get_weather",
+          description: null,
+          parameters: {},
+          strict: null,
+        },
+      })
+    ).toBe("get_weather");
+  });
+
+  it("prefers raw.name over raw.type", () => {
+    expect(
+      getToolName({
+        kind: "raw",
+        id: 1,
+        editorType: "json",
+        raw: { name: "lookup", type: "web_search" },
+      })
+    ).toBe("lookup");
+  });
+
+  it("falls back to raw.type when raw.name is missing", () => {
+    expect(
+      getToolName({
+        kind: "raw",
+        id: 1,
+        editorType: "json",
+        raw: { type: "web_search" },
+      })
+    ).toBe("web_search");
+  });
+
+  it("returns null when neither raw.name nor raw.type is a string", () => {
+    expect(
+      getToolName({
+        kind: "raw",
+        id: 1,
+        editorType: "json",
+        raw: { name: 0, type: 1 },
+      })
+    ).toBeNull();
+  });
+});
+
+describe("promptToolFromGraphQL", () => {
+  it("converts a PromptToolFunction tool", () => {
+    const result = promptToolFromGraphQL({
+      __typename: "PromptToolFunction",
+      function: {
+        name: "get_weather",
+        description: "Get the weather",
+        parameters: { type: "object" },
+        strict: true,
+      },
+    });
+    expect(result).toMatchObject({
+      kind: "function",
+      editorType: "json",
+      definition: {
+        name: "get_weather",
+        description: "Get the weather",
+        parameters: { type: "object" },
+        strict: true,
+      },
+    });
+  });
+
+  it("converts a PromptToolRaw tool", () => {
+    const result = promptToolFromGraphQL({
+      __typename: "PromptToolRaw",
+      raw: { type: "web_search" },
+    });
+    expect(result).toMatchObject({
+      kind: "raw",
+      editorType: "json",
+      raw: { type: "web_search" },
+    });
+  });
+
+  it("returns null when raw is not an object", () => {
+    expect(
+      promptToolFromGraphQL({
+        __typename: "PromptToolRaw",
+        raw: "not an object",
+      })
+    ).toBeNull();
+  });
+
+  it("returns null for the %other variant", () => {
+    expect(promptToolFromGraphQL({ __typename: "%other" })).toBeNull();
+  });
+});
+
+describe("toolToPromptToolInput", () => {
+  it("wraps function tools as { function: ... }", () => {
+    expect(
+      toolToPromptToolInput({
+        kind: "function",
+        id: 1,
+        editorType: "json",
+        definition: {
+          name: "get_weather",
+          description: "Weather",
+          parameters: { type: "object" },
+          strict: true,
+        },
+      })
+    ).toEqual({
+      function: {
+        name: "get_weather",
+        description: "Weather",
+        parameters: { type: "object" },
+        strict: true,
+      },
+    });
+  });
+
+  it("wraps raw tools as { raw: ... }", () => {
+    expect(
+      toolToPromptToolInput({
+        kind: "raw",
+        id: 1,
+        editorType: "json",
+        raw: { type: "web_search", search_context_size: "medium" },
+      })
+    ).toEqual({
+      raw: { type: "web_search", search_context_size: "medium" },
+    });
+  });
+});
+
+describe("inferOpenAIApiTypeFromTools", () => {
+  const fnTool: Tool = {
+    kind: "function",
+    id: 1,
+    editorType: "json",
+    definition: { name: "f", description: null, parameters: {}, strict: null },
+  };
+  const rawChatCompletionsFunctionTool: Tool = {
+    kind: "raw",
+    id: 2,
+    editorType: "json",
+    raw: { type: "function", function: { name: "f" } },
+  };
+  const rawResponsesFunctionTool: Tool = {
+    kind: "raw",
+    id: 5,
+    editorType: "json",
+    raw: { type: "function", name: "f", parameters: { type: "object" } },
+  };
+  const rawWebSearch: Tool = {
+    kind: "raw",
+    id: 3,
+    editorType: "json",
+    raw: { type: "web_search" },
+  };
+  const rawChatCompletionsCustomTool: Tool = {
+    kind: "raw",
+    id: 6,
+    editorType: "json",
+    raw: { type: "custom", custom: { name: "x", description: "y" } },
+  };
+  const rawWithoutType: Tool = {
+    kind: "raw",
+    id: 4,
+    editorType: "json",
+    raw: { name: "anything" },
+  };
+
+  it("returns null for an empty tool list", () => {
+    expect(inferOpenAIApiTypeFromTools([])).toBeNull();
+  });
+
+  it("returns null when every tool is a normalized function tool", () => {
+    expect(inferOpenAIApiTypeFromTools([fnTool, fnTool])).toBeNull();
+  });
+
+  it("returns null when raw tools are still in Chat-Completions function shape", () => {
+    expect(
+      inferOpenAIApiTypeFromTools([fnTool, rawChatCompletionsFunctionTool])
+    ).toBeNull();
+  });
+
+  it("returns null for raw tools that don't carry a string type", () => {
+    expect(inferOpenAIApiTypeFromTools([rawWithoutType])).toBeNull();
+  });
+
+  it("returns RESPONSES when any raw tool has a non-function type", () => {
+    expect(inferOpenAIApiTypeFromTools([fnTool, rawWebSearch])).toBe(
+      "RESPONSES"
+    );
+    expect(inferOpenAIApiTypeFromTools([rawWebSearch])).toBe("RESPONSES");
+  });
+
+  it("returns RESPONSES when a raw function tool is in flat Responses shape", () => {
+    expect(inferOpenAIApiTypeFromTools([rawResponsesFunctionTool])).toBe(
+      "RESPONSES"
+    );
+    expect(
+      inferOpenAIApiTypeFromTools([fnTool, rawResponsesFunctionTool])
+    ).toBe("RESPONSES");
+  });
+
+  it("does NOT classify Chat Completions custom tools as Responses", () => {
+    expect(
+      inferOpenAIApiTypeFromTools([rawChatCompletionsCustomTool])
+    ).toBeNull();
+    expect(
+      inferOpenAIApiTypeFromTools([fnTool, rawChatCompletionsCustomTool])
+    ).toBeNull();
+  });
+});
+
+describe("inferOpenAIApiTypeFromRawToolDefinitions", () => {
+  it("returns null for an empty list", () => {
+    expect(inferOpenAIApiTypeFromRawToolDefinitions([])).toBeNull();
+  });
+
+  it("returns null for nested Chat Completions function tools", () => {
+    expect(
+      inferOpenAIApiTypeFromRawToolDefinitions([
+        { type: "function", function: { name: "f", parameters: {} } },
+      ])
+    ).toBeNull();
+  });
+
+  it("returns RESPONSES for flat Responses function tools", () => {
+    expect(
+      inferOpenAIApiTypeFromRawToolDefinitions([
+        { type: "function", name: "f", parameters: { type: "object" } },
+      ])
+    ).toBe("RESPONSES");
+  });
+
+  it("returns RESPONSES for builtin tool types", () => {
+    expect(
+      inferOpenAIApiTypeFromRawToolDefinitions([{ type: "web_search" }])
+    ).toBe("RESPONSES");
+    expect(
+      inferOpenAIApiTypeFromRawToolDefinitions([
+        { type: "file_search", vector_store_ids: ["vs_1"] },
+      ])
+    ).toBe("RESPONSES");
+    expect(
+      inferOpenAIApiTypeFromRawToolDefinitions([
+        { type: "computer_use_preview" },
+      ])
+    ).toBe("RESPONSES");
+  });
+
+  it("does NOT classify Chat Completions custom tools as Responses", () => {
+    expect(
+      inferOpenAIApiTypeFromRawToolDefinitions([
+        { type: "custom", custom: { name: "x", description: "y" } },
+      ])
+    ).toBeNull();
+  });
+
+  it("returns RESPONSES when a mixed list contains any Responses-shaped tool", () => {
+    expect(
+      inferOpenAIApiTypeFromRawToolDefinitions([
+        { type: "function", function: { name: "f", parameters: {} } },
+        { type: "web_search" },
+      ])
+    ).toBe("RESPONSES");
+  });
+
+  it("returns null for tools without a string type", () => {
+    expect(
+      inferOpenAIApiTypeFromRawToolDefinitions([{ name: "no-type" }])
+    ).toBeNull();
+    expect(
+      inferOpenAIApiTypeFromRawToolDefinitions([
+        { type: 42, function: { name: "f" } },
+      ])
+    ).toBeNull();
+  });
+
+  it("returns null for non-objects", () => {
+    expect(
+      inferOpenAIApiTypeFromRawToolDefinitions([null, "string", 1, true])
+    ).toBeNull();
+  });
+});
+
+describe("isOpenAIResponsesSpan", () => {
+  const wrap = (toolJsonSchemas: readonly unknown[]) => ({
+    llm: {
+      tools: toolJsonSchemas.map((json_schema) => ({ tool: { json_schema } })),
+    },
+  });
+
+  it("returns false when parsedAttributes is not an object", () => {
+    expect(isOpenAIResponsesSpan(null)).toBe(false);
+    expect(isOpenAIResponsesSpan("not an object")).toBe(false);
+    expect(isOpenAIResponsesSpan(42)).toBe(false);
+  });
+
+  it("returns false when llm is missing or not an object", () => {
+    expect(isOpenAIResponsesSpan({})).toBe(false);
+    expect(isOpenAIResponsesSpan({ llm: null })).toBe(false);
+    expect(isOpenAIResponsesSpan({ llm: "string" })).toBe(false);
+  });
+
+  it("returns false when llm.tools is missing or not an array", () => {
+    expect(isOpenAIResponsesSpan({ llm: {} })).toBe(false);
+    expect(isOpenAIResponsesSpan({ llm: { tools: "string" } })).toBe(false);
+  });
+
+  it("returns false when each tool entry has no usable wrapper", () => {
+    expect(isOpenAIResponsesSpan({ llm: { tools: [null, "string", 1] } })).toBe(
+      false
+    );
+    expect(isOpenAIResponsesSpan({ llm: { tools: [{ tool: null }] } })).toBe(
+      false
+    );
+    expect(
+      isOpenAIResponsesSpan({ llm: { tools: [{ tool: "not-object" }] } })
+    ).toBe(false);
+  });
+
+  it("returns false when json_schema is not a string", () => {
+    expect(
+      isOpenAIResponsesSpan(wrap([42, null, { type: "web_search" }]))
+    ).toBe(false);
+  });
+
+  it("returns false when json_schema is malformed JSON", () => {
+    expect(isOpenAIResponsesSpan(wrap(["{not-json"]))).toBe(false);
+  });
+
+  it("returns false for a span with only Chat Completions function tools", () => {
+    const ccFn = JSON.stringify({
+      type: "function",
+      function: { name: "f", parameters: {} },
+    });
+    expect(isOpenAIResponsesSpan(wrap([ccFn, ccFn]))).toBe(false);
+  });
+
+  it("returns false for a span with only Chat Completions custom tools", () => {
+    const customTool = JSON.stringify({
+      type: "custom",
+      custom: { name: "x", description: "y" },
+    });
+    expect(isOpenAIResponsesSpan(wrap([customTool]))).toBe(false);
+  });
+
+  it("returns true when any tool is a builtin Responses type", () => {
+    const ccFn = JSON.stringify({
+      type: "function",
+      function: { name: "f", parameters: {} },
+    });
+    const webSearch = JSON.stringify({ type: "web_search" });
+    expect(isOpenAIResponsesSpan(wrap([ccFn, webSearch]))).toBe(true);
+  });
+
+  it("returns true when any tool is a flat Responses function", () => {
+    const flatFn = JSON.stringify({
+      type: "function",
+      name: "f",
+      parameters: { type: "object" },
+    });
+    expect(isOpenAIResponsesSpan(wrap([flatFn]))).toBe(true);
+  });
+
+  it("ignores entries that fail to parse and classifies based on the rest", () => {
+    const malformed = "{not-json";
+    const webSearch = JSON.stringify({ type: "web_search" });
+    expect(isOpenAIResponsesSpan(wrap([malformed, webSearch]))).toBe(true);
+  });
+});
+
 describe("toolFromEditorJSON", () => {
   it("should convert function-shaped editor JSON into a function tool", () => {
-    const display = {
+    const value = {
       type: "function",
       function: {
         name: "get_weather",
@@ -1668,7 +2054,7 @@ describe("toolFromEditorJSON", () => {
       },
     };
 
-    expect(toolFromEditorJSON({ display, id: 1, editorType: "json" })).toEqual({
+    expect(toolFromEditorJSON({ value, id: 1, editorType: "json" })).toEqual({
       kind: "function",
       id: 1,
       editorType: "json",
@@ -1686,12 +2072,12 @@ describe("toolFromEditorJSON", () => {
   });
 
   it("should convert function-shaped editor JSON with unknown wrapper fields into a raw tool", () => {
-    const display = {
+    const value = {
       type: "function",
       function: {
         name: "get_weather",
         description: "Get weather",
-        blah: "blah",
+        unknown: "unknown",
         parameters: {
           type: "object",
           properties: { location: { type: "string" } },
@@ -1700,32 +2086,32 @@ describe("toolFromEditorJSON", () => {
       },
     };
 
-    expect(toolFromEditorJSON({ display, id: 1, editorType: "json" })).toEqual({
+    expect(toolFromEditorJSON({ value, id: 1, editorType: "json" })).toEqual({
       kind: "raw",
       id: 1,
       editorType: "json",
-      raw: display,
+      raw: value,
     });
   });
 
   it("should convert non-function object editor JSON into a raw tool", () => {
-    const display = {
+    const value = {
       type: "web_search",
       search_context_size: "medium",
     };
 
-    expect(toolFromEditorJSON({ display, id: 1, editorType: "json" })).toEqual({
+    expect(toolFromEditorJSON({ value, id: 1, editorType: "json" })).toEqual({
       kind: "raw",
       id: 1,
       editorType: "json",
-      raw: display,
+      raw: value,
     });
   });
 
   it("should ignore non-object editor JSON", () => {
     expect(
       toolFromEditorJSON({
-        display: "not an object",
+        value: "not an object",
         id: 1,
         editorType: "json",
       })

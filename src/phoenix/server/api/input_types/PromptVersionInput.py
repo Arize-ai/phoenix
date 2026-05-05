@@ -60,15 +60,32 @@ class PromptToolFunctionDefinitionInput:
         )
 
 
-@strawberry.input(one_of=True)
+@strawberry.input(
+    one_of=True,
+    description=(
+        "A single tool on a prompt — set exactly one of `function` or `raw`. "
+        "`function` is a normalized JSON-Schema-typed function tool that Phoenix "
+        "converts to each provider's native format. `raw` is a vendor passthrough "
+        "tool: an opaque JSON object forwarded to the provider SDK as-is (e.g. "
+        "OpenAI Responses `web_search`, Anthropic `computer_use`)."
+    ),
+)
 class PromptToolInput:
-    function: Optional[PromptToolFunctionDefinitionInput] = UNSET
-    raw: Optional[JSON] = UNSET
+    function: Optional[PromptToolFunctionDefinitionInput] = strawberry.field(
+        default=UNSET,
+        description="Normalized function tool — provider-agnostic, converted at request time.",
+    )
+    raw: Optional[JSON] = strawberry.field(
+        default=UNSET,
+        description="Vendor passthrough tool — opaque JSON forwarded to the provider SDK.",
+    )
 
     def to_orm(self) -> PromptToolFunction | PromptToolRaw:
         if self.function:
             return PromptToolFunction(type="function", function=self.function.to_orm())
-        if isinstance(self.raw, dict):
+        if self.raw:
+            if not isinstance(self.raw, dict):
+                raise BadRequest("PromptToolInput.raw must be a JSON object")
             return PromptToolRaw(type="raw", raw=self.raw)
         raise BadRequest("PromptToolInput: no field is set")
 

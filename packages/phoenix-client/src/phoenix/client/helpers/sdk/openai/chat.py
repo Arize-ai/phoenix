@@ -14,6 +14,7 @@ from typing import (
     Sequence,
     TypedDict,
     Union,
+    cast,
     overload,
 )
 
@@ -660,11 +661,14 @@ class _ToolKwargsConversion:
         ans: _ToolKwargs = {}
         if not obj:
             return ans
-        tools_value = obj["tools"]
-        tools: list[ChatCompletionToolParam] = []
-        for tool in tools_value:
+        tools: list[ChatCompletionToolUnionParam] = []
+        for tool in obj["tools"]:
             if tool["type"] == "function":
                 tools.append(_FunctionToolConversion.to_openai(tool))
+            elif tool["type"] == "raw":
+                tools.append(cast("ChatCompletionToolUnionParam", dict(tool["raw"])))
+            elif TYPE_CHECKING:
+                assert_never(tool)
         if not tools:
             return ans
         ans["tools"] = tools
@@ -682,10 +686,19 @@ class _ToolKwargsConversion:
     ) -> Optional[v1.PromptTools]:
         if not obj or "tools" not in obj:
             return None
-        tools: list[v1.PromptToolFunction] = []
+        tools: list[Union[v1.PromptToolFunction, v1.PromptToolRaw]] = []
         for tool in obj["tools"]:
             if tool["type"] == "function":
                 tools.append(_FunctionToolConversion.from_openai(tool))
+            else:
+                # Custom / vendor tools (web_search_options, etc.) — round-trip
+                # through PromptToolRaw so we don't lose them on a save/reload.
+                tools.append(
+                    v1.PromptToolRaw(
+                        type="raw",
+                        raw=dict(cast(Mapping[str, Any], tool)),
+                    )
+                )
         if not tools:
             return None
         ans = v1.PromptTools(type="tools", tools=tools)
