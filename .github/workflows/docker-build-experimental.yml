@@ -4,7 +4,7 @@ permissions:
 on:
   push:
     branches:
-      - feat/version-12
+      - version-sandboxes
 
 jobs:
   push_to_registry:
