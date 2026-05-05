@@ -4,6 +4,7 @@ import {
 } from "@arizeai/openinference-semantic-conventions";
 import { css } from "@emotion/react";
 import { isNumber, isString, throttle } from "lodash";
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { PreloadedQuery } from "react-relay";
 import { graphql, usePaginationFragment, usePreloadedQuery } from "react-relay";
@@ -101,32 +102,54 @@ const getSessionTraceUrl = ({
   };
 };
 
+const inputMessageWrapCSS = css`
+  width: fit-content;
+  max-width: 70%;
+`;
+
 function RootSpanMessage({
+  endContent,
   label,
   role,
   value,
 }: {
+  endContent?: ReactNode;
   label?: string;
   role: "HUMAN" | "AI";
   value: unknown;
 }) {
-  const styles = useChatMessageStyles(role === "HUMAN" ? "user" : "assistant");
-  const defaultLabel = role === "HUMAN" ? "INPUT" : "OUTPUT";
+  const isInput = role === "HUMAN";
+  const styles = useChatMessageStyles(isInput ? "user" : "assistant");
+  const defaultLabel = isInput ? "INPUT" : "OUTPUT";
   return (
-    <View
-      alignSelf={role === "HUMAN" ? "start" : "end"}
-      borderRadius={"medium"}
-      borderColor="default"
-      borderWidth={"thin"}
-      padding="size-200"
-      maxWidth={"70%"}
-      {...styles}
+    <Flex
+      direction="column"
+      gap="size-50"
+      alignSelf={isInput ? "end" : "stretch"}
+      alignItems={isInput ? "end" : "start"}
+      width={isInput ? undefined : "100%"}
+      css={isInput ? inputMessageWrapCSS : undefined}
     >
-      <Flex direction={"column"} gap={"size-50"}>
+      <Flex
+        direction="row"
+        justifyContent={isInput ? "end" : "space-between"}
+        alignItems="center"
+        width="100%"
+      >
         <Text color="text-700">{label ?? defaultLabel}</Text>
-        <DynamicContent value={value} />
+        {endContent}
       </Flex>
-    </View>
+      <View
+        borderRadius={"medium"}
+        borderColor="default"
+        borderWidth={"thin"}
+        padding="size-200"
+        width="100%"
+        {...styles}
+      >
+        <DynamicContent value={value} />
+      </View>
+    </Flex>
   );
 }
 
@@ -145,7 +168,7 @@ function RootSpanStartTime({ rootSpan }: RootSpanProps) {
   const startDate = new Date(rootSpan.startTime);
 
   return (
-    <Text color="text-700" marginStart="size-200" size="XS">
+    <Text color="text-700" size="XS">
       {fullTimeFormatter(startDate)}
     </Text>
   );
@@ -158,21 +181,19 @@ function RootSpanTraceLink({
   const location = useLocation();
 
   return (
-    <Flex direction="row" justifyContent="end">
-      <LinkButton
-        size="S"
-        variant="quiet"
-        leadingVisual={<Icon svg={<Icons.Trace />} />}
-        to={getSessionTraceUrl({
-          pathname: location.pathname,
-          search: location.search,
-          traceId,
-          spanNodeId: rootSpan.id,
-        })}
-      >
-        Trace
-      </LinkButton>
-    </Flex>
+    <LinkButton
+      size="S"
+      variant="quiet"
+      leadingVisual={<Icon svg={<Icons.Trace />} />}
+      to={getSessionTraceUrl({
+        pathname: location.pathname,
+        search: location.search,
+        traceId,
+        spanNodeId: rootSpan.id,
+      })}
+    >
+      Trace
+    </LinkButton>
   );
 }
 
@@ -227,7 +248,7 @@ function SessionTurnDetail({
 
   return (
     <Flex direction="column" gap="size-200">
-      <Flex direction="column" gap="size-100">
+      <Flex direction="column" gap="size-100" alignItems="end">
         <RootSpanMessage
           label={inputLabel}
           role="HUMAN"
@@ -236,8 +257,13 @@ function SessionTurnDetail({
         <RootSpanStartTime rootSpan={rootSpan} />
       </Flex>
       <Flex direction="column" gap="size-100">
-        <RootSpanTraceLink traceId={traceId} rootSpan={rootSpan} />
-        <RootSpanMessage role="AI" value={rootSpan.output?.value} />
+        <RootSpanMessage
+          endContent={
+            <RootSpanTraceLink traceId={traceId} rootSpan={rootSpan} />
+          }
+          role="AI"
+          value={rootSpan.output?.value}
+        />
         <RootSpanOutputMetadata rootSpan={rootSpan} />
       </Flex>
     </Flex>
