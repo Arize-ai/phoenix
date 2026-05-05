@@ -145,7 +145,7 @@ function RootSpanStartTime({ rootSpan }: RootSpanProps) {
   const startDate = new Date(rootSpan.startTime);
 
   return (
-    <Text color="text-700" size="XS">
+    <Text color="text-700" marginStart="size-200" size="XS">
       {fullTimeFormatter(startDate)}
     </Text>
   );
@@ -251,6 +251,21 @@ type SessionTurnRow = {
 
 type IndexedSessionTurnRow = SessionTurnRow & { index: number };
 
+function RootSpanPreviewLine({ value }: { value?: string | null }) {
+  if (!value) {
+    return null;
+  }
+  return (
+    <Flex minWidth={0}>
+      <Truncate maxWidth="100%" title={value}>
+        <Text color="text-700" size="XS">
+          {value}
+        </Text>
+      </Truncate>
+    </Flex>
+  );
+}
+
 const turnListCSS = css`
   height: 100%;
   max-height: 100%;
@@ -320,38 +335,45 @@ function SessionTurnList({
                 alignItems="center"
                 gap="size-100"
               >
-                <Flex
-                  direction="row"
-                  gap="size-100"
-                  alignItems="center"
-                  flex={1}
-                  minWidth={0}
-                >
-                  <Text fontFamily="mono" color="text-500">
-                    {paddedIndex}
-                  </Text>
-                  <Flex flex={1} minWidth={0}>
-                    <Truncate maxWidth="100%" title={row.rootSpan.name}>
-                      <Text weight="heavy">{row.rootSpan.name}</Text>
-                    </Truncate>
-                  </Flex>
-                </Flex>
+                <Text fontFamily="mono" color="text-500">
+                  {paddedIndex}
+                </Text>
                 <Text color="text-700" size="XS">
                   {fullTimeFormatter(new Date(row.rootSpan.startTime))}
                 </Text>
               </Flex>
-              <Flex direction="row" gap="size-100" alignItems="center" wrap>
-                <TokenCount size="S">
-                  {row.rootSpan.cumulativeTokenCountTotal ?? 0}
-                </TokenCount>
-                {row.rootSpan.trace.costSummary?.total?.cost != null ? (
-                  <TokenCosts size="S">
-                    {row.rootSpan.trace.costSummary.total.cost}
-                  </TokenCosts>
-                ) : null}
-                {row.rootSpan.latencyMs != null ? (
-                  <LatencyText latencyMs={row.rootSpan.latencyMs} size="S" />
-                ) : null}
+              <Flex direction="row" gap="size-200" alignItems="start">
+                <Flex direction="column" gap="size-100" flex={1} minWidth={0}>
+                  <Flex minWidth={0}>
+                    <Truncate maxWidth="100%" title={row.rootSpan.name}>
+                      <Text weight="heavy">{row.rootSpan.name}</Text>
+                    </Truncate>
+                  </Flex>
+                  <Flex direction="row" gap="size-100" alignItems="center" wrap>
+                    <TokenCount size="S">
+                      {row.rootSpan.cumulativeTokenCountTotal ?? 0}
+                    </TokenCount>
+                    {row.rootSpan.trace.costSummary?.total?.cost != null ? (
+                      <TokenCosts size="S">
+                        {row.rootSpan.trace.costSummary.total.cost}
+                      </TokenCosts>
+                    ) : null}
+                    {row.rootSpan.latencyMs != null ? (
+                      <LatencyText
+                        latencyMs={row.rootSpan.latencyMs}
+                        size="S"
+                      />
+                    ) : null}
+                  </Flex>
+                </Flex>
+                <Flex direction="column" gap="size-50" flex={1} minWidth={0}>
+                  <RootSpanPreviewLine
+                    value={row.rootSpan.input?.truncatedValue}
+                  />
+                  <RootSpanPreviewLine
+                    value={row.rootSpan.output?.truncatedValue}
+                  />
+                </Flex>
               </Flex>
             </Flex>
           </ListBoxItem>
@@ -427,10 +449,12 @@ export function SessionDetailsTraceList({
                 }
                 input {
                   value
+                  truncatedValue
                   mimeType
                 }
                 output {
                   value
+                  truncatedValue
                   mimeType
                 }
                 cumulativeTokenCountTotal
