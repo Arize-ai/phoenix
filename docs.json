@@ -13,6 +13,9 @@
   "background": {
     "decoration": "gradient"
   },
+  "interaction": {
+    "drilldown": false
+  },
   "fonts": {
     "heading": {
       "family": "Roboto"
