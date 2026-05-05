@@ -51,21 +51,6 @@ _FINISH_REASON_MAP: dict[
 }
 
 
-def _anthropic_model_settings_for_cache(model: "Model") -> Any | None:
-    """Return Anthropic cache settings when the selected model is Anthropic-backed."""
-    model_cls = type(model)
-    if not model_cls.__module__.startswith("pydantic_ai.models.anthropic"):
-        return None
-
-    from pydantic_ai.models.anthropic import AnthropicModelSettings
-
-    return AnthropicModelSettings(
-        anthropic_cache=True,
-        anthropic_cache_instructions=True,
-        anthropic_cache_tool_definitions=True,
-    )
-
-
 def _latest_nonzero_cache_tokens(
     *,
     current_read: int,
@@ -454,7 +439,6 @@ async def stream_text(
         allow_text_output=not output_tool_defs,
         instruction_parts=body.instruction_parts,
     )
-    model_settings = _anthropic_model_settings_for_cache(model)
 
     chunk_types = dict(
         PartDeltaEvent=PartDeltaEvent,
@@ -600,7 +584,7 @@ async def stream_text(
                 yield _sse(StartStepChunk())
 
                 try:
-                    async with model.request_stream(messages, model_settings, params) as stream:
+                    async with model.request_stream(messages, None, params) as stream:
                         async for chunk in _encode_stream(
                             stream,
                             accumulator=accumulator,

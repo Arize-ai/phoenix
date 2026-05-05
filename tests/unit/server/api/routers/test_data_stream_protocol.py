@@ -5,7 +5,6 @@ from pydantic_ai.usage import RequestUsage
 from phoenix.server.api.routers.chat_tracing import StreamAccumulator
 from phoenix.server.api.routers.data_stream_protocol import (
     ChatBody,
-    _anthropic_model_settings_for_cache,
     _backend_tool_loop_limit_error,
     _build_trace_messages,
     _latest_nonzero_cache_tokens,
@@ -107,27 +106,6 @@ class TestParseChatBody:
         assert system_part.content.startswith("Runtime capability state for this conversation:")
         assert "GraphQL mutations are enabled" in system_part.content
         assert body.capabilities.graphql_mutations is True
-
-
-class TestAnthropicModelSettingsForCache:
-    def test_returns_cache_settings_for_anthropic_model(self) -> None:
-        AnthropicModel = type(
-            "AnthropicModel",
-            (),
-            {"__module__": "pydantic_ai.models.anthropic"},
-        )
-
-        settings = _anthropic_model_settings_for_cache(AnthropicModel())
-
-        assert settings is not None
-        assert settings["anthropic_cache"] is True
-        assert settings["anthropic_cache_instructions"] is True
-        assert settings["anthropic_cache_tool_definitions"] is True
-
-    def test_returns_none_for_non_anthropic_model(self) -> None:
-        OtherModel = type("OtherModel", (), {"__module__": "pydantic_ai.models.openai"})
-
-        assert _anthropic_model_settings_for_cache(OtherModel()) is None
 
 
 class TestLatestNonzeroCacheTokens:

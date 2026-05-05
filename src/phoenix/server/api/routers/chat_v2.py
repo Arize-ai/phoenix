@@ -109,6 +109,13 @@ def create_chat_v2_router(authentication_enabled: bool) -> APIRouter:
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
+        logger.info(
+            "chat-v2 model: %s.%s settings=%r",
+            type(model).__module__,
+            type(model).__qualname__,
+            getattr(model, "settings", None),
+        )
+
         agent: Agent[ChatDependencies, ChatOutput] = Agent(
             model,
             deps_type=ChatDependencies,
