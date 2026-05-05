@@ -238,12 +238,7 @@ class CodeEvaluator(Evaluator, Node):
         )
         if language_id is None:
             return None
-        async with info.context.db() as session:
-            from sqlalchemy import select
-
-            row = await session.scalar(
-                select(models.Language).where(models.Language.id == language_id)
-            )
+        row = await info.context.data_loaders.language_by_id.load(language_id)
         return Language(row.name) if row is not None else None
 
     @strawberry.field
@@ -732,18 +727,17 @@ class DatasetEvaluator(Node):
         info: Info[Context, None],
     ) -> Evaluator:
         record = await self._get_record(info)
-        async with info.context.db.read() as session:
-            evaluator = await session.get(models.Evaluator, record.evaluator_id)
-            if evaluator is None:
-                raise NotFound(f"Evaluator not found: {record.evaluator_id}")
-            if isinstance(evaluator, models.LLMEvaluator):
-                return LLMEvaluator(id=evaluator.id)
-            elif isinstance(evaluator, models.CodeEvaluator):
-                return CodeEvaluator(id=evaluator.id)
-            elif isinstance(evaluator, models.BuiltinEvaluator):
-                return BuiltInEvaluator(id=evaluator.id)
-            else:
-                raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
+        evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
+        if evaluator is None:
+            raise NotFound(f"Evaluator not found: {record.evaluator_id}")
+        if isinstance(evaluator, models.LLMEvaluator):
+            return LLMEvaluator(id=evaluator.id)
+        elif isinstance(evaluator, models.CodeEvaluator):
+            return CodeEvaluator(id=evaluator.id)
+        elif isinstance(evaluator, models.BuiltinEvaluator):
+            return BuiltInEvaluator(id=evaluator.id)
+        else:
+            raise ValueError(f"Unknown evaluator type: {type(evaluator)}")
 
     @strawberry.field
     async def description(
@@ -760,18 +754,17 @@ class DatasetEvaluator(Node):
         record = await self._get_record(info)
         if record.description is not None:
             return record.description
-        async with info.context.db.read() as session:
-            evaluator = await session.get(models.Evaluator, record.evaluator_id)
-            if evaluator is None:
-                return None
-            if isinstance(evaluator, models.BuiltinEvaluator):
-                builtin = get_builtin_evaluator_by_key(evaluator.key)
-                return builtin.description if builtin else None
-            elif isinstance(evaluator, models.LLMEvaluator):
-                return evaluator.description
-            elif isinstance(evaluator, models.CodeEvaluator):
-                return evaluator.description
+        evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
+        if evaluator is None:
             return None
+        if isinstance(evaluator, models.BuiltinEvaluator):
+            builtin = get_builtin_evaluator_by_key(evaluator.key)
+            return builtin.description if builtin else None
+        elif isinstance(evaluator, models.LLMEvaluator):
+            return evaluator.description
+        elif isinstance(evaluator, models.CodeEvaluator):
+            return evaluator.description
+        return None
 
     @strawberry.field
     async def output_configs(
@@ -788,25 +781,24 @@ class DatasetEvaluator(Node):
         configs = record.output_configs
         if configs is None:
             # Fall back to the base evaluator's stored configs
-            async with info.context.db.read() as session:
-                evaluator = await session.get(models.Evaluator, record.evaluator_id)
-                if evaluator is None:
+            evaluator = await info.context.data_loaders.evaluator_by_id.load(record.evaluator_id)
+            if evaluator is None:
+                return []
+            if isinstance(evaluator, models.LLMEvaluator):
+                configs = list(evaluator.output_configs)
+            elif isinstance(evaluator, models.CodeEvaluator):
+                configs = [
+                    config
+                    for config in evaluator.output_configs
+                    if isinstance(config, (CategoricalOutputConfig, ContinuousOutputConfig))
+                ]
+            elif isinstance(evaluator, models.BuiltinEvaluator):
+                builtin = get_builtin_evaluator_by_key(evaluator.key)
+                if builtin is None:
                     return []
-                if isinstance(evaluator, models.LLMEvaluator):
-                    configs = list(evaluator.output_configs)
-                elif isinstance(evaluator, models.CodeEvaluator):
-                    configs = [
-                        config
-                        for config in evaluator.output_configs
-                        if isinstance(config, (CategoricalOutputConfig, ContinuousOutputConfig))
-                    ]
-                elif isinstance(evaluator, models.BuiltinEvaluator):
-                    builtin = get_builtin_evaluator_by_key(evaluator.key)
-                    if builtin is None:
-                        return []
-                    configs = list(builtin().output_configs)
-                else:
-                    return []
+                configs = list(builtin().output_configs)
+            else:
+                return []
         configs_list: list[OutputConfigType] = configs if configs is not None else []
         return [
             _to_gql_output_config(

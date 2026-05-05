@@ -20,6 +20,7 @@ from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.server.api.context import Context
+from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.sandbox import (
     SANDBOX_ADAPTER_METADATA,
     MissingSecretError,
@@ -211,7 +212,10 @@ class SandboxConfig(Node):
     @strawberry.field
     async def provider(self, info: Info[Context, None]) -> SandboxProvider:
         record = await self._get_record(info)
-        return SandboxProvider(id=record.sandbox_provider_id)
+        provider = await info.context.data_loaders.sandbox_provider_by_id.load(
+            record.sandbox_provider_id
+        )
+        return SandboxProvider(id=record.sandbox_provider_id, db_record=provider)
 
     @strawberry.field
     async def created_at(self, info: Info[Context, None]) -> datetime:
@@ -248,7 +252,7 @@ class SandboxConfig(Node):
 @strawberry.input
 class CreateSandboxConfigInput:
     sandbox_provider_id: GlobalID
-    name: str
+    name: Identifier
     description: Optional[str] = None
     config: Optional[JSON] = None
     timeout: Optional[int] = None
@@ -258,6 +262,7 @@ class CreateSandboxConfigInput:
 @strawberry.input
 class UpdateSandboxConfigInput:
     id: GlobalID
+    name: Optional[Identifier] = strawberry.UNSET
     description: Optional[str] = strawberry.UNSET
     config: Optional[JSON] = strawberry.UNSET
     timeout: Optional[int] = strawberry.UNSET
@@ -269,6 +274,24 @@ class UpdateSandboxProviderInput:
     id: GlobalID
     config: Optional[JSON] = strawberry.UNSET
     enabled: Optional[bool] = strawberry.UNSET
+
+
+@strawberry.input
+class DeleteSandboxConfigInput:
+    id: GlobalID
+
+
+@strawberry.input
+class SetSandboxCredentialInput:
+    backend_type: str
+    key: str
+    value: str
+
+
+@strawberry.input
+class DeleteSandboxCredentialInput:
+    backend_type: str
+    key: str
 
 
 # ---------------------------------------------------------------------------
