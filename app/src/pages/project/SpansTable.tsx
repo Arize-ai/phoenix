@@ -531,7 +531,7 @@ export function SpansTable(props: SpansTableProps) {
   const columns: ColumnDef<TableRow>[] = [
     {
       id: "select",
-      maxSize: 32,
+      maxSize: 24,
       header: ({ table }) => (
         <IndeterminateCheckboxCell
           {...{
@@ -557,7 +557,7 @@ export function SpansTable(props: SpansTableProps) {
       accessorKey: "statusCode",
       enableSorting: false,
       minSize: 50,
-      maxSize: 75,
+      maxSize: 50,
       cell: ({ getValue }) => {
         const statusCode = getValue() as SpanStatusCode;
         return <SpanStatusCodeIcon statusCode={statusCode} />;

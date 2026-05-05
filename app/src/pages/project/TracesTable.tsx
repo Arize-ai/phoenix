@@ -607,7 +607,7 @@ export function TracesTable(props: TracesTableProps) {
     () => [
       {
         id: "select",
-        maxSize: 32,
+        maxSize: 24,
         header: ({ table }) => (
           <IndeterminateCheckboxCell
             {...{
@@ -638,7 +638,7 @@ export function TracesTable(props: TracesTableProps) {
         accessorKey: "statusCode",
         enableSorting: false,
         minSize: 50,
-        maxSize: 75,
+        maxSize: 50,
         cell: ({ getValue, row }) => {
           if (row.original.__additionalRow) {
             return null;

@@ -18,3 +18,4 @@ export * from "./TraceTokenCosts";
 export * from "./TraceTokenCostsDetails";
 export * from "./SessionTokenCosts";
 export * from "./SessionTokenCostsDetails";
+export * from "./SpanStatusBadge";
