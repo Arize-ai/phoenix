@@ -55,8 +55,8 @@ mutation UpdateSandboxConfig($input: UpdateSandboxConfigInput!) {
 """
 
 _DELETE = """
-mutation DeleteSandboxConfig($id: ID!) {
-    deleteSandboxConfig(id: $id) {
+mutation DeleteSandboxConfig($input: DeleteSandboxConfigInput!) {
+    deleteSandboxConfig(input: $input) {
         deletedId
     }
 }
@@ -275,7 +275,7 @@ class TestDeleteSandboxConfig:
         config_id = sandbox_config.id
         config_gid = _config_global_id(config_id)
 
-        result = await gql_client.execute(_DELETE, variables={"id": config_gid})
+        result = await gql_client.execute(_DELETE, variables={"input": {"id": config_gid}})
         assert result.data and not result.errors
         assert result.data["deleteSandboxConfig"]["deletedId"] == config_gid
 
@@ -289,7 +289,9 @@ class TestDeleteSandboxConfig:
         gql_client: AsyncGraphQLClient,
         seed_sandbox_providers: None,
     ) -> None:
-        result = await gql_client.execute(_DELETE, variables={"id": _config_global_id(99999)})
+        result = await gql_client.execute(
+            _DELETE, variables={"input": {"id": _config_global_id(99999)}}
+        )
         assert result.errors
 
 

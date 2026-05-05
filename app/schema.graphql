@@ -600,7 +600,7 @@ input CreateChatPromptVersionInput {
 }
 
 input CreateCodeEvaluatorInput {
-  name: String!
+  name: Identifier!
   sourceCode: String!
   language: Language!
   description: String = null
@@ -747,7 +747,7 @@ input CreatePromptVersionTagInput {
 
 input CreateSandboxConfigInput {
   sandboxProviderId: ID!
-  name: String!
+  name: Identifier!
   description: String = null
   config: JSON = null
   timeout: Int = null
@@ -1239,9 +1239,18 @@ input DeletePromptVersionTagInput {
   promptVersionTagId: ID!
 }
 
+input DeleteSandboxConfigInput {
+  id: ID!
+}
+
 type DeleteSandboxConfigPayload {
   deletedId: ID!
   query: Query!
+}
+
+input DeleteSandboxCredentialInput {
+  backendType: String!
+  key: String!
 }
 
 type DeleteSandboxCredentialPayload {
@@ -2263,10 +2272,10 @@ type Mutation {
   unsetPromptLabels(input: UnsetPromptLabelsInput!): PromptLabelAssociationMutationPayload!
   createSandboxConfig(input: CreateSandboxConfigInput!): CreateSandboxConfigPayload!
   updateSandboxConfig(input: UpdateSandboxConfigInput!): UpdateSandboxConfigPayload!
-  deleteSandboxConfig(id: ID!): DeleteSandboxConfigPayload!
+  deleteSandboxConfig(input: DeleteSandboxConfigInput!): DeleteSandboxConfigPayload!
   updateSandboxProvider(input: UpdateSandboxProviderInput!): UpdateSandboxProviderPayload!
-  setSandboxCredential(backendType: String!, key: String!, value: String!): SetSandboxCredentialPayload!
-  deleteSandboxCredential(backendType: String!, key: String!): DeleteSandboxCredentialPayload!
+  setSandboxCredential(input: SetSandboxCredentialInput!): SetSandboxCredentialPayload!
+  deleteSandboxCredential(input: DeleteSandboxCredentialInput!): DeleteSandboxCredentialPayload!
   upsertOrDeleteSecrets(input: UpsertOrDeleteSecretsMutationInput!): UpsertOrDeleteSecretsMutationPayload!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
   createSpanNote(annotationInput: CreateSpanNoteInput!): SpanAnnotationMutationPayload!
@@ -3270,6 +3279,12 @@ input SetPromptVersionTagInput {
   description: String = null
 }
 
+input SetSandboxCredentialInput {
+  backendType: String!
+  key: String!
+  value: String!
+}
+
 type SetSandboxCredentialPayload {
   backendType: String!
   key: String!
@@ -3992,7 +4007,7 @@ input UpdateAnnotationInput {
 
 input UpdateCodeEvaluatorInput {
   id: ID!
-  name: String
+  name: Identifier
   sourceCode: String
   language: Language
   description: String
@@ -4044,6 +4059,7 @@ type UpdateModelMutationPayload {
 
 input UpdateSandboxConfigInput {
   id: ID!
+  name: Identifier
   description: String
   config: JSON
   timeout: Int

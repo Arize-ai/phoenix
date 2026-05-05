@@ -55,12 +55,8 @@ class _PermissiveTestConfig(BaseModel):
 
 
 _SET_CRED_MUTATION = """
-  mutation SetSandboxCredential(
-    $backendType: String!
-    $key: String!
-    $value: String!
-  ) {
-    setSandboxCredential(backendType: $backendType, key: $key, value: $value) {
+  mutation SetSandboxCredential($input: SetSandboxCredentialInput!) {
+    setSandboxCredential(input: $input) {
       backendType
       key
     }
@@ -151,9 +147,11 @@ class TestRebuildWithNewValue:
                 result = await gql_client.execute(
                     query=_SET_CRED_MUTATION,
                     variables={
-                        "backendType": backend_type,
-                        "key": cred_key,
-                        "value": "v2-plaintext",
+                        "input": {
+                            "backendType": backend_type,
+                            "key": cred_key,
+                            "value": "v2-plaintext",
+                        }
                     },
                     operation_name="SetSandboxCredential",
                 )
@@ -222,9 +220,11 @@ class TestSharedSpecInvalidation:
                 result = await gql_client.execute(
                     query=_SET_CRED_MUTATION,
                     variables={
-                        "backendType": py_adapter.key,
-                        "key": shared_spec_key,
-                        "value": "rotated",
+                        "input": {
+                            "backendType": py_adapter.key,
+                            "key": shared_spec_key,
+                            "value": "rotated",
+                        }
                     },
                     operation_name="SetSandboxCredential",
                 )
