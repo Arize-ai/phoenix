@@ -1,11 +1,10 @@
 import logging
-from dataclasses import dataclass
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from pydantic.types import Discriminator
-from pydantic_ai import Agent, AgentRunResult, RunContext
+from pydantic_ai import Agent, AgentRunResult, DeferredToolRequests, RunContext
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
 from pydantic_ai.ui.vercel_ai.request_types import (
     RegenerateMessage,
@@ -16,9 +15,10 @@ from starlette.responses import Response
 
 from phoenix.server.agents.capabilities import AgentCapabilities
 from phoenix.server.agents.chat_params import ChatSearchParamsModel
+from phoenix.server.agents.chat_v2.dependencies import ChatDependencies
+from phoenix.server.agents.chat_v2.toolsets import CHAT_V2_TOOLSETS
 from phoenix.server.agents.context import (
     ChatContext,
-    ResolvedContexts,
     resolve_contexts,
 )
 from phoenix.server.agents.exceptions import AgentError
@@ -28,15 +28,8 @@ from phoenix.server.agents.prompts import (
     build_agent_dynamic_system_prompt,
 )
 from phoenix.server.bearer_auth import is_authenticated
-from phoenix.server.types import DbSessionFactory
 
-
-@dataclass
-class ChatDependencies:
-    user: Any
-    db: DbSessionFactory
-    contexts: ResolvedContexts
-    capabilities: AgentCapabilities
+ChatOutput = str | DeferredToolRequests
 
 
 class _ChatMessageMixin(BaseModel):
@@ -96,12 +89,14 @@ def create_chat_v2_router(authentication_enabled: bool) -> APIRouter:
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
-        agent: Agent[ChatDependencies, str] = Agent(
+        agent: Agent[ChatDependencies, ChatOutput] = Agent(
             model,
             deps_type=ChatDependencies,
+            output_type=[str, DeferredToolRequests],
             instructions=[AGENT_STATIC_SYSTEM_PROMPT, _build_dynamic_instructions],
+            toolsets=CHAT_V2_TOOLSETS,
         )
-        adapter: VercelAIAdapter[ChatDependencies, str] = VercelAIAdapter(
+        adapter: VercelAIAdapter[ChatDependencies, ChatOutput] = VercelAIAdapter(
             agent=agent,
             run_input=body,
             accept=request.headers.get("accept"),
