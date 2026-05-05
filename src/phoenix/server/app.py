@@ -99,6 +99,7 @@ from phoenix.server.api.dataloaders import (
     DocumentEvaluationsDataLoader,
     DocumentEvaluationSummaryDataLoader,
     DocumentRetrievalMetricsDataLoader,
+    EvaluatorByIdDataLoader,
     ExperimentAnnotationSummaryDataLoader,
     ExperimentDatasetSplitsDataLoader,
     ExperimentErrorRatesDataLoader,
@@ -125,6 +126,7 @@ from phoenix.server.api.dataloaders import (
     PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
     SandboxConfigsByProviderDataLoader,
+    SandboxProviderByIdDataLoader,
     SecretsDataLoader,
     SessionAnnotationsBySessionDataLoader,
     SessionIODataLoader,
@@ -814,6 +816,7 @@ def create_graphql_router(
                 document_annotation_fields=TableFieldsDataLoader(db, models.DocumentAnnotation),
                 document_evaluations=DocumentEvaluationsDataLoader(db),
                 document_retrieval_metrics=DocumentRetrievalMetricsDataLoader(db),
+                evaluator_by_id=EvaluatorByIdDataLoader(db),
                 annotation_summaries=AnnotationSummaryDataLoader(
                     db,
                     cache_map=(
@@ -886,6 +889,7 @@ def create_graphql_router(
                     cache_map=cache_for_dataloaders.record_count if cache_for_dataloaders else None,
                 ),
                 sandbox_configs_by_provider=SandboxConfigsByProviderDataLoader(db),
+                sandbox_provider_by_id=SandboxProviderByIdDataLoader(db),
                 secret_fields=TableFieldsDataLoader(db, models.Secret),
                 secrets=SecretsDataLoader(db),
                 session_annotations_by_session=SessionAnnotationsBySessionDataLoader(db),
