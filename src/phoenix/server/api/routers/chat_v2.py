@@ -16,7 +16,7 @@ from starlette.responses import Response
 from phoenix.server.agents.capabilities import AgentCapabilities
 from phoenix.server.agents.chat_params import ChatSearchParamsModel
 from phoenix.server.agents.chat_v2.dependencies import ChatDependencies
-from phoenix.server.agents.chat_v2.toolsets import CHAT_V2_TOOLSETS
+from phoenix.server.agents.chat_v2.toolsets import build_chat_v2_toolsets
 from phoenix.server.agents.context import (
     ChatContext,
     resolve_contexts,
@@ -94,7 +94,7 @@ def create_chat_v2_router(authentication_enabled: bool) -> APIRouter:
             deps_type=ChatDependencies,
             output_type=[str, DeferredToolRequests],
             instructions=[AGENT_STATIC_SYSTEM_PROMPT, _build_dynamic_instructions],
-            toolsets=CHAT_V2_TOOLSETS,
+            toolsets=[lambda ctx: build_chat_v2_toolsets(ctx.deps)],
         )
         adapter: VercelAIAdapter[ChatDependencies, ChatOutput] = VercelAIAdapter(
             agent=agent,
