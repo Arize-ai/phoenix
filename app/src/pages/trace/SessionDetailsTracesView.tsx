@@ -1,6 +1,13 @@
 import { css } from "@emotion/react";
 import { throttle } from "lodash";
-import { Suspense, useCallback, useMemo, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { PreloadedQuery } from "react-relay";
 import {
   graphql,
@@ -32,7 +39,10 @@ import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
 import { TokenCount } from "@phoenix/components/trace/TokenCount";
 import { TraceTreeProvider } from "@phoenix/components/trace/TraceTree";
 import { TraceTreeSkeleton } from "@phoenix/components/trace/TraceTreeSkeleton";
-import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import {
+  SELECTED_SPAN_NODE_ID_PARAM,
+  SELECTED_TRACE_ID_PARAM,
+} from "@phoenix/constants/searchParams";
 import { useTimeFormatters } from "@phoenix/hooks";
 import type {
   SessionDetailsTracesView_traces$data,
@@ -47,6 +57,8 @@ import { ConnectedTraceTree } from "./ConnectedTraceTree";
 import { SessionViewTabs } from "./SessionViewTabs";
 import type { SessionView } from "./SessionViewTabs";
 import { SpanDetails } from "./SpanDetails";
+
+const INITIAL_SELECTED_TRACE_MAX_PAGES = 3;
 
 export const sessionDetailsTracesViewQuery = graphql`
   query SessionDetailsTracesViewQuery($id: ID!, $first: Int!) {
@@ -66,7 +78,21 @@ type SessionTraceRow = NonNullable<
   >;
 };
 
-type SpanClickHandler = (span: { id: string }) => void;
+type SpanClickHandler = ({
+  traceId,
+  spanNodeId,
+}: {
+  traceId: string;
+  spanNodeId: string;
+}) => void;
+
+type TraceSelectHandler = ({
+  traceId,
+  spanNodeId,
+}: {
+  traceId: string;
+  spanNodeId: string;
+}) => void;
 
 export function SessionDetailsTracesView({
   queryRef,
@@ -140,6 +166,11 @@ export function SessionDetailsTracesView({
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedSpanNodeId = searchParams.get(SELECTED_SPAN_NODE_ID_PARAM);
+  const selectedTraceId = searchParams.get(SELECTED_TRACE_ID_PARAM);
+  const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const initialSelectedTraceIdRef = useRef(selectedTraceId);
+  const hasScrolledInitialSelectionRef = useRef(false);
+  const initialSelectedTracePagesLoadedRef = useRef(0);
 
   const toggleExpanded = (id: string) => {
     setExpandedIds((prev) => {
@@ -153,15 +184,64 @@ export function SessionDetailsTracesView({
     });
   };
 
-  const handleSpanClick: SpanClickHandler = (span) => {
+  const handleTraceSelect: TraceSelectHandler = ({ traceId, spanNodeId }) => {
     setSearchParams(
       (params) => {
-        params.set(SELECTED_SPAN_NODE_ID_PARAM, span.id);
+        params.set(SELECTED_TRACE_ID_PARAM, traceId);
+        params.set(SELECTED_SPAN_NODE_ID_PARAM, spanNodeId);
         return params;
       },
       { replace: true }
     );
   };
+
+  const handleSpanClick: SpanClickHandler = ({ traceId, spanNodeId }) => {
+    handleTraceSelect({ traceId, spanNodeId });
+  };
+
+  // The URL can preselect a trace before its paginated row is loaded. Page a
+  // bounded amount until that row exists, then expand it once and scroll it into view.
+  useEffect(() => {
+    const initialSelectedTraceId = initialSelectedTraceIdRef.current;
+    if (
+      initialSelectedTraceId == null ||
+      hasScrolledInitialSelectionRef.current
+    ) {
+      return;
+    }
+    const initialSelectedTrace = traces.find(
+      (trace) => trace.traceId === initialSelectedTraceId
+    );
+    if (initialSelectedTrace == null) {
+      if (isLoadingNext) {
+        return;
+      }
+      if (
+        hasNext &&
+        initialSelectedTracePagesLoadedRef.current <
+          INITIAL_SELECTED_TRACE_MAX_PAGES
+      ) {
+        initialSelectedTracePagesLoadedRef.current += 1;
+        loadNext(SESSION_DETAILS_PAGE_SIZE);
+        return;
+      }
+      hasScrolledInitialSelectionRef.current = true;
+      return;
+    }
+    const el = rowRefs.current.get(initialSelectedTraceId);
+    if (el) {
+      setExpandedIds((prev) => {
+        if (prev.has(initialSelectedTrace.id)) {
+          return prev;
+        }
+        const next = new Set(prev);
+        next.add(initialSelectedTrace.id);
+        return next;
+      });
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      hasScrolledInitialSelectionRef.current = true;
+    }
+  }, [hasNext, isLoadingNext, loadNext, traces]);
 
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: "session-traces-view-layout",
@@ -204,9 +284,12 @@ export function SessionDetailsTracesView({
             <TraceRowList
               traces={traces}
               expandedIds={expandedIds}
+              selectedTraceId={selectedTraceId}
               selectedSpanNodeId={selectedSpanNodeId}
               onToggleExpanded={toggleExpanded}
+              onTraceSelect={handleTraceSelect}
               onSpanClick={handleSpanClick}
+              rowRefs={rowRefs}
               isLoadingNext={isLoadingNext}
               onScroll={(e) =>
                 throttledFetchMoreOnBottomReached(e.target as HTMLDivElement)
@@ -226,17 +309,23 @@ export function SessionDetailsTracesView({
 function TraceRowList({
   traces,
   expandedIds,
+  selectedTraceId,
   selectedSpanNodeId,
   onToggleExpanded,
+  onTraceSelect,
   onSpanClick,
+  rowRefs,
   isLoadingNext,
   onScroll,
 }: {
   traces: SessionTraceRow[];
   expandedIds: Set<string>;
+  selectedTraceId: string | null;
   selectedSpanNodeId: string | null;
   onToggleExpanded: (id: string) => void;
+  onTraceSelect: TraceSelectHandler;
   onSpanClick: SpanClickHandler;
+  rowRefs: { current: Map<string, HTMLDivElement> };
   isLoadingNext: boolean;
   onScroll: (e: React.UIEvent<HTMLDivElement>) => void;
 }) {
@@ -255,10 +344,24 @@ function TraceRowList({
               key={trace.id}
               trace={trace}
               index={index}
+              isSelected={trace.traceId === selectedTraceId}
               isExpanded={expandedIds.has(trace.id)}
               selectedSpanNodeId={selectedSpanNodeId}
               onToggleExpanded={() => onToggleExpanded(trace.id)}
+              onTraceSelect={() =>
+                onTraceSelect({
+                  traceId: trace.traceId,
+                  spanNodeId: trace.rootSpan.id,
+                })
+              }
               onSpanClick={onSpanClick}
+              setTraceRowRef={({ traceId, el }) => {
+                if (el) {
+                  rowRefs.current.set(traceId, el);
+                } else {
+                  rowRefs.current.delete(traceId);
+                }
+              }}
             />
           ))}
           {isLoadingNext && (
@@ -279,25 +382,46 @@ function TraceRowList({
 function TraceRow({
   trace,
   index,
+  isSelected,
   isExpanded,
   selectedSpanNodeId,
   onToggleExpanded,
+  onTraceSelect,
   onSpanClick,
+  setTraceRowRef,
 }: {
   trace: SessionTraceRow;
   index: number;
+  isSelected: boolean;
   isExpanded: boolean;
   selectedSpanNodeId: string | null;
   onToggleExpanded: () => void;
+  onTraceSelect: () => void;
   onSpanClick: SpanClickHandler;
+  setTraceRowRef: ({
+    traceId,
+    el,
+  }: {
+    traceId: string;
+    el: HTMLDivElement | null;
+  }) => void;
 }) {
   return (
-    <div css={traceRowCSS} data-testid="session-trace-row">
+    <div
+      css={traceRowCSS}
+      data-selected={isSelected || undefined}
+      data-testid="session-trace-row"
+      ref={(el) => {
+        setTraceRowRef({ traceId: trace.traceId, el });
+      }}
+    >
       <TraceRowHeader
         trace={trace}
         index={index}
+        isSelected={isSelected}
         isExpanded={isExpanded}
         onToggleExpanded={onToggleExpanded}
+        onTraceSelect={onTraceSelect}
       />
       {isExpanded ? (
         <TraceTreeContainer
@@ -314,20 +438,33 @@ function TraceRow({
 function TraceRowHeader({
   trace,
   index,
+  isSelected,
   isExpanded,
   onToggleExpanded,
+  onTraceSelect,
 }: {
   trace: SessionTraceRow;
   index: number;
+  isSelected: boolean;
   isExpanded: boolean;
   onToggleExpanded: () => void;
+  onTraceSelect: () => void;
 }) {
   return (
     <button
       type="button"
       css={traceRowHeaderCSS}
       aria-expanded={isExpanded}
-      onClick={onToggleExpanded}
+      onClick={() => {
+        if (!isSelected) {
+          onTraceSelect();
+          if (!isExpanded) {
+            onToggleExpanded();
+          }
+          return;
+        }
+        onToggleExpanded();
+      }}
       data-testid="session-trace-row-header"
     >
       <TraceRowChevron isExpanded={isExpanded} />
@@ -440,7 +577,7 @@ function TraceTreeContainer({
           traceId={traceId}
           projectId={projectId}
           selectedSpanNodeId={selectedSpanNodeId}
-          onSpanClick={onSpanClick}
+          onSpanClick={({ spanNodeId }) => onSpanClick({ traceId, spanNodeId })}
         />
       </Suspense>
     </div>
@@ -506,7 +643,8 @@ function LazyTraceTree({
       <ConnectedTraceTree
         trace={trace}
         selectedSpanNodeId={selectedSpanNodeId ?? ""}
-        onSpanClick={onSpanClick}
+        scrollSelectedSpanIntoView={false}
+        onSpanClick={(span) => onSpanClick({ traceId, spanNodeId: span.id })}
       />
     </TraceTreeProvider>
   );
@@ -534,6 +672,12 @@ const traceRowCSS = css`
   display: flex;
   flex-direction: column;
   border-bottom: 1px solid var(--global-border-color-default);
+
+  &[data-selected="true"] > button {
+    background: var(--global-list-item-selected-background-color);
+    color: var(--global-text-color-900);
+    border-left-color: var(--global-list-item-selected-border-color);
+  }
 `;
 
 const traceRowHeaderCSS = css`
@@ -544,11 +688,14 @@ const traceRowHeaderCSS = css`
   padding: var(--global-dimension-static-size-200);
   background: transparent;
   border: none;
+  /* Reserve space for the selected-state indicator so rows do not shift when selected. */
+  border-left: 4px solid transparent;
   width: 100%;
   text-align: left;
   cursor: pointer;
   color: inherit;
   font: inherit;
+  box-sizing: border-box;
 
   &:hover {
     background: var(--global-list-item-hover-background-color);
