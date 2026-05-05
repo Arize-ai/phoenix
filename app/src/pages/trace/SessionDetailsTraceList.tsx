@@ -7,12 +7,6 @@ import { isNumber, isString, throttle } from "lodash";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { PreloadedQuery } from "react-relay";
 import { graphql, usePaginationFragment, usePreloadedQuery } from "react-relay";
-import {
-  Group,
-  Panel,
-  Separator,
-  useDefaultLayout,
-} from "react-resizable-panels";
 import type { To } from "react-router";
 import { useLocation, useSearchParams } from "react-router";
 
@@ -30,7 +24,6 @@ import {
 } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
-import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
@@ -102,13 +95,16 @@ const getSessionTraceUrl = ({
 };
 
 function RootSpanMessage({
+  label,
   role,
   value,
 }: {
+  label?: string;
   role: "HUMAN" | "AI";
   value: unknown;
 }) {
   const styles = useChatMessageStyles(role === "HUMAN" ? "user" : "assistant");
+  const defaultLabel = role === "HUMAN" ? "INPUT" : "OUTPUT";
   return (
     <View
       alignSelf={role === "HUMAN" ? "start" : "end"}
@@ -120,7 +116,7 @@ function RootSpanMessage({
       {...styles}
     >
       <Flex direction={"column"} gap={"size-50"}>
-        <Text color="text-700">{role}</Text>
+        <Text color="text-700">{label ?? defaultLabel}</Text>
         <DynamicContent value={value} />
       </Flex>
     </View>
@@ -137,102 +133,101 @@ type RootSpanProps = {
   rootSpan: SessionTraceRootSpan;
 };
 
-function RootSpanDetails({
-  traceId,
-  rootSpan,
-  index,
-}: RootSpanProps & { traceId: string; index: number }) {
-  const location = useLocation();
+function RootSpanStartTime({ rootSpan }: RootSpanProps) {
   const { fullTimeFormatter } = useTimeFormatters();
-  const startDate = useMemo(() => {
-    return new Date(rootSpan.startTime);
-  }, [rootSpan.startTime]);
+  const startDate = new Date(rootSpan.startTime);
 
-  const user = useMemo(
-    () => getUserFromRootSpanAttributes(rootSpan.attributes),
-    [rootSpan.attributes]
-  );
   return (
-    <View height={"100%"}>
-      <Flex
-        direction={"column"}
-        justifyContent={"space-between"}
-        height={"100%"}
-      >
-        <Flex direction={"column"} gap="size-200">
-          <Flex direction={"row"} justifyContent={"space-between"}>
-            <Text>Trace #{index + 1}</Text>
-            <Link
-              to={getSessionTraceUrl({
-                pathname: location.pathname,
-                search: location.search,
-                traceId,
-                spanNodeId: rootSpan.id,
-              })}
-            >
-              <Flex alignItems={"center"}>
-                View Trace
-                <Icon svg={<Icons.ArrowIosForwardOutline />} />
-              </Flex>
-            </Link>
-          </Flex>
-          <Flex direction={"row"} justifyContent={"space-between"}>
-            {user != null ? <Text color="text-700">user: {user}</Text> : null}
-            <Text color="text-700" flex={"end"} marginStart={"auto"}>
-              {fullTimeFormatter(startDate)}
-            </Text>
-          </Flex>
-          <Flex direction={"row"} gap={"size-100"}>
-            <SpanCumulativeTokenCount
-              tokenCountTotal={rootSpan.cumulativeTokenCountTotal || 0}
-              nodeId={rootSpan.id}
-            />
-            {rootSpan.trace.costSummary?.total?.cost != null && (
-              <TraceTokenCosts
-                totalCost={rootSpan.trace.costSummary.total.cost}
-                nodeId={rootSpan.trace.id}
-              />
-            )}
-            {rootSpan.latencyMs != null ? (
-              <LatencyText latencyMs={rootSpan.latencyMs} />
-            ) : (
-              "--"
-            )}
-          </Flex>
-        </Flex>
-        <Flex
-          direction={"row"}
-          justifyContent={"space-between"}
-          alignItems="end"
-        >
-          <Flex direction={"column"} gap={"size-100"} maxWidth={"50%"}>
-            <Text>Feedback</Text>
-            <Flex gap={"size-50"} direction={"column"}>
-              <AnnotationSummaryGroupTokens
-                span={rootSpan}
-                renderEmptyState={() => "--"}
-              />
-            </Flex>
-          </Flex>
-          <span>
-            <EditSpanAnnotationsButton
-              size="S"
-              spanNodeId={rootSpan.id}
-              projectId={rootSpan.project.id}
-              buttonText="Annotate"
-            />
-          </span>
-        </Flex>
-      </Flex>
-    </View>
+    <Text color="text-700" size="XS">
+      {fullTimeFormatter(startDate)}
+    </Text>
   );
 }
 
-function RootSpanInputOutput({ rootSpan }: RootSpanProps) {
+function RootSpanOutputHeader({
+  traceId,
+  rootSpan,
+}: RootSpanProps & { traceId: string }) {
+  const location = useLocation();
+
   return (
-    <Flex direction={"column"} gap={"size-100"}>
-      <RootSpanMessage role={"HUMAN"} value={rootSpan.input?.value} />
-      <RootSpanMessage role={"AI"} value={rootSpan.output?.value} />
+    <Flex direction="row" justifyContent="end">
+      <Link
+        to={getSessionTraceUrl({
+          pathname: location.pathname,
+          search: location.search,
+          traceId,
+          spanNodeId: rootSpan.id,
+        })}
+      >
+        <Flex alignItems="center">
+          View Trace
+          <Icon svg={<Icons.ArrowIosForwardOutline />} />
+        </Flex>
+      </Link>
+    </Flex>
+  );
+}
+
+function RootSpanOutputMetadata({ rootSpan }: RootSpanProps) {
+  return (
+    <Flex
+      direction="row"
+      justifyContent="space-between"
+      alignItems="center"
+      gap="size-200"
+      wrap
+    >
+      <Flex direction="row" alignItems="center" gap="size-100" wrap>
+        <SpanCumulativeTokenCount
+          tokenCountTotal={rootSpan.cumulativeTokenCountTotal || 0}
+          nodeId={rootSpan.id}
+        />
+        {rootSpan.trace.costSummary?.total?.cost != null && (
+          <TraceTokenCosts
+            totalCost={rootSpan.trace.costSummary.total.cost}
+            nodeId={rootSpan.trace.id}
+          />
+        )}
+        {rootSpan.latencyMs != null ? (
+          <LatencyText latencyMs={rootSpan.latencyMs} />
+        ) : null}
+        <AnnotationSummaryGroupTokens span={rootSpan} />
+      </Flex>
+      <span>
+        <EditSpanAnnotationsButton
+          size="S"
+          spanNodeId={rootSpan.id}
+          projectId={rootSpan.project.id}
+          buttonText="Annotate"
+        />
+      </span>
+    </Flex>
+  );
+}
+
+function SessionTurnDetail({
+  traceId,
+  rootSpan,
+}: RootSpanProps & { traceId: string }) {
+  const user = getUserFromRootSpanAttributes(rootSpan.attributes);
+  const inputLabel = user != null ? `USER: ${user}` : "INPUT";
+
+  return (
+    <Flex direction="column" gap="size-200">
+      <Flex direction="column" gap="size-100">
+        <RootSpanMessage
+          label={inputLabel}
+          role="HUMAN"
+          value={rootSpan.input?.value}
+        />
+        <RootSpanStartTime rootSpan={rootSpan} />
+      </Flex>
+      <Flex direction="column" gap="size-100">
+        <RootSpanOutputHeader traceId={traceId} rootSpan={rootSpan} />
+        <RootSpanMessage role="AI" value={rootSpan.output?.value} />
+        <RootSpanOutputMetadata rootSpan={rootSpan} />
+      </Flex>
     </Flex>
   );
 }
@@ -367,6 +362,26 @@ const panelContentCSS = css`
   overflow: hidden;
 `;
 
+const turnsViewCSS = css`
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(220px, 28%) minmax(0, 1fr);
+  overflow: hidden;
+`;
+
+const turnsListPanelCSS = css`
+  min-width: 0;
+  border-right: 1px solid var(--global-border-color-default);
+  overflow: hidden;
+`;
+
+const turnDetailsPanelCSS = css`
+  min-width: 0;
+  height: 100%;
+  overflow: auto;
+`;
+
 export function SessionDetailsTraceList({
   queryRef,
   sessionView,
@@ -471,11 +486,6 @@ export function SessionDetailsTraceList({
   );
 
   const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
-    id: "session-details-layout",
-    storage: localStorage,
-  });
-
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedTraceId = searchParams.get(SELECTED_TRACE_ID_PARAM);
 
@@ -526,16 +536,8 @@ export function SessionDetailsTraceList({
   );
 
   return (
-    <Group
-      orientation="horizontal"
-      defaultLayout={defaultLayout}
-      onLayoutChanged={onLayoutChanged}
-      css={css`
-        flex: 1 1 auto;
-        overflow: hidden;
-      `}
-    >
-      <Panel id="session-turns" defaultSize="20%" minSize="10%">
+    <div css={turnsViewCSS}>
+      <div css={turnsListPanelCSS}>
         <div css={panelContentCSS}>
           <SessionViewTabs
             sessionView={sessionView}
@@ -545,63 +547,45 @@ export function SessionDetailsTraceList({
             {turnListPanel}
           </SessionViewTabs>
         </div>
-      </Panel>
-      <Separator css={compactResizeHandleCSS} />
-      <Panel id="session-turn-details">
-        <div
-          css={css`
-            height: 100%;
-            overflow: auto;
-          `}
-          onScroll={(e) =>
-            debouncedFetchMoreOnBottomReached(e.target as HTMLDivElement)
-          }
-        >
-          {sessionRootSpans.map(({ traceId, rootSpan }, index) => (
-            <div
-              key={rootSpan.spanId}
-              css={turnDetailRowCSS}
-              data-selected={traceId === selectedTraceId || undefined}
-              ref={(el) => {
-                if (el) {
-                  rowRefs.current.set(traceId, el);
-                } else {
-                  rowRefs.current.delete(traceId);
-                }
-              }}
-            >
-              <View borderBottomColor="default" borderBottomWidth={"thin"}>
-                <Flex direction={"row"}>
-                  <View
-                    borderRightWidth={"thin"}
-                    borderEndColor="default"
-                    padding="size-200"
-                    flex={"1 1 auto"}
-                  >
-                    <RootSpanInputOutput rootSpan={rootSpan} />
-                  </View>
-                  <View width={350} padding="size-200" flex="none">
-                    <RootSpanDetails
-                      traceId={traceId}
-                      rootSpan={rootSpan}
-                      index={index}
-                    />
-                  </View>
-                </Flex>
-              </View>
-            </div>
-          ))}
-          {isLoadingNext && (
+      </div>
+      <div
+        css={turnDetailsPanelCSS}
+        onScroll={(e) =>
+          debouncedFetchMoreOnBottomReached(e.target as HTMLDivElement)
+        }
+      >
+        {sessionRootSpans.map(({ traceId, rootSpan }) => (
+          <div
+            key={rootSpan.spanId}
+            css={turnDetailRowCSS}
+            data-selected={traceId === selectedTraceId || undefined}
+            ref={(el) => {
+              if (el) {
+                rowRefs.current.set(traceId, el);
+              } else {
+                rowRefs.current.delete(traceId);
+              }
+            }}
+          >
             <View
               borderBottomColor="default"
-              borderBottomWidth={"thin"}
+              borderBottomWidth="thin"
               padding="size-200"
             >
-              <Loading />
+              <SessionTurnDetail traceId={traceId} rootSpan={rootSpan} />
             </View>
-          )}
-        </div>
-      </Panel>
-    </Group>
+          </div>
+        ))}
+        {isLoadingNext && (
+          <View
+            borderBottomColor="default"
+            borderBottomWidth={"thin"}
+            padding="size-200"
+          >
+            <Loading />
+          </View>
+        )}
+      </div>
+    </div>
   );
 }
