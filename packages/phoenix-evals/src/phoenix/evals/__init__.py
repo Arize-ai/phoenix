@@ -1,6 +1,6 @@
 from importlib.metadata import version
 
-from . import llm, metrics, templating, tracing, utils
+from . import llm, metrics, tracing, utils
 from .evaluators import (
     ClassificationEvaluator,
     EvalInput,
@@ -19,6 +19,20 @@ from .llm import LLM, phoenix_prompt_to_prompt_template
 from .utils import download_benchmark_dataset
 
 __version__ = version("arize-phoenix-evals")
+
+
+def __getattr__(name: str) -> object:
+    """Lazily load the deprecated ``templating`` submodule (PEP 562).
+
+    Deferring the import means the ``DeprecationWarning`` only fires when a
+    caller explicitly accesses ``phoenix.evals.templating``, not on every
+    ``import phoenix.evals``.
+    """
+    if name == "templating":
+        from . import templating
+
+        return templating
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 __all__ = [
