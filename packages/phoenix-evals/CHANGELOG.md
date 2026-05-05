@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v3.0.0...arize-phoenix-evals-v3.1.0) (2026-05-04)
+
+
+### Features
+
+* **agents:** Move PXI prompt assembly server-side and cache prompts ([#12959](https://github.com/Arize-ai/phoenix/issues/12959)) ([f223f92](https://github.com/Arize-ai/phoenix/commit/f223f922420a25152f2ef9624be35b21e6003e89))
+* **evals:** tighten prompt-message handling and add adapter tests ([#12838](https://github.com/Arize-ai/phoenix/issues/12838)) ([fbb5270](https://github.com/Arize-ai/phoenix/commit/fbb52701361fb638405aa8732a76ea774a6cd929))
+
+
+### Bug Fixes
+
+* **evals:** replace hardcoded model capability lists with runtime fallback ([#12709](https://github.com/Arize-ai/phoenix/issues/12709)) ([69a2ade](https://github.com/Arize-ai/phoenix/commit/69a2ade1405a78b10d7778e8d8ba24229d2fb405))
+
+
+### Documentation
+
+* add LinkedIn social links alongside X/Bluesky ([#12993](https://github.com/Arize-ai/phoenix/issues/12993)) ([5d14f23](https://github.com/Arize-ai/phoenix/commit/5d14f23598202c062530466a9dbdc9a1a033d6c8))
+
 ## [3.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-evals-v2.13.0...arize-phoenix-evals-v3.0.0) (2026-04-07)
 
 
