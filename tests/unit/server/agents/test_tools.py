@@ -106,6 +106,7 @@ class TestResolveTools:
 
         assert "ask_user" in names
         assert "bash" in names
+        assert "set_time_range" in names
         assert dispatch == {}
 
     def test_resolves_external_tools_without_env_when_context_does_not_enable_tools(self) -> None:
@@ -118,6 +119,7 @@ class TestResolveTools:
 
         assert "ask_user" in names
         assert "bash" in names
+        assert "set_time_range" in names
         assert "set_spans_filter" not in names
         assert dispatch == {}
 
@@ -151,8 +153,29 @@ class TestResolveTools:
 
         assert "ask_user" in names
         assert "bash" in names
+        assert "set_time_range" in names
         assert "set_spans_filter" in names
         assert dispatch == {}
+
+    def test_set_time_range_schema_accepts_presets_and_custom(self) -> None:
+        defs, _ = resolve_tools(ResolvedContexts())
+        tool = next(t for t in defs if t.name == "set_time_range")
+        schema = tool.parameters_json_schema
+        properties = schema.get("properties", {})
+
+        assert tool.kind == "external"
+        assert schema.get("required") == ["timeRangeKey"]
+        assert properties["timeRangeKey"]["enum"] == [
+            "15m",
+            "1h",
+            "12h",
+            "1d",
+            "7d",
+            "30d",
+            "custom",
+        ]
+        assert "startTime" in properties
+        assert "endTime" in properties
 
     def test_resolved_tool_names_are_unique(self, db: DbSessionFactory) -> None:
         defs, _ = resolve_tools(ResolvedContexts(), ToolExecutionEnv(user=None, db=db))

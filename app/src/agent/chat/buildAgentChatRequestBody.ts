@@ -1,6 +1,7 @@
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import type { AgentCapabilities } from "@phoenix/agent/extensions/capabilities";
 import type { AgentObservabilitySettings } from "@phoenix/store/agentStore";
+import { getTimeZone, toLocalISOWithOffset } from "@phoenix/utils/timeUtils";
 
 import type { AgentUIMessage } from "./types";
 
@@ -52,6 +53,23 @@ type BuildAgentChatRequestBodyResult = Record<string, unknown> & {
 };
 
 /**
+ * Build request-only browser clock context for resolving relative time phrases.
+ *
+ * This is intentionally generated at send time instead of stored in agent
+ * state: it changes every turn and should not appear as user-visible page
+ * context.
+ */
+function buildCurrentAppContext(): AgentContext {
+  const now = new Date();
+  const timeZone = getTimeZone();
+  return {
+    type: "app",
+    currentDateTime: toLocalISOWithOffset(now, timeZone),
+    timeZone,
+  };
+}
+
+/**
  * Merges the AI SDK transport payload with PXI chat metadata. Tool definitions
  * are intentionally omitted because the server is the model-facing authority.
  *
@@ -71,6 +89,9 @@ export function buildAgentChatRequestBody({
   hasRemoteCollector,
   contexts,
 }: BuildAgentChatRequestBodyOptions): BuildAgentChatRequestBodyResult {
+  // Prepend volatile app context so server-rendered per-turn context includes
+  // the current browser-local clock alongside stable route/mounted contexts.
+  const requestContexts = [buildCurrentAppContext(), ...contexts];
   return {
     ...body,
     id,
@@ -80,7 +101,7 @@ export function buildAgentChatRequestBody({
     traceNameSuffix: "Turn",
     ingestTraces: observability.storeLocalTraces,
     exportRemoteTraces: observability.exportRemoteTraces && hasRemoteCollector,
-    contexts,
+    contexts: requestContexts,
     capabilities,
     ...(sessionId ? { sessionId } : {}),
   };

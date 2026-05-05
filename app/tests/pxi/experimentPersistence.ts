@@ -1,12 +1,33 @@
 import type { APIRequestContext } from "@playwright/test";
 
 const DATASET_NAME = "PXI E2E Agent Tests";
-const EXAMPLE_ID = "pxi-docs-smoke:tracing-project-env-var-v1";
 const EXPERIMENT_BASE_URL =
-  process.env.PXI_E2E_EXPERIMENT_BASE_URL ??
-  process.env.PLAYWRIGHT_BASE_URL ??
-  `http://localhost:${process.env.PHOENIX_PORT ?? "6006"}`;
+  process.env.PXI_E2E_EXPERIMENT_BASE_URL ?? "http://localhost:6006";
 const EXPERIMENT_BEARER_TOKEN = process.env.PXI_E2E_EXPERIMENT_BEARER_TOKEN;
+
+export const PXI_EXPERIMENT_EXAMPLES = {
+  docsSmoke: {
+    id: "pxi-docs-smoke:tracing-project-env-var-v1",
+    prompt: "How do I change the default project name",
+    expectedOutput: "Answer names PHOENIX_PROJECT_NAME and cites Phoenix docs.",
+    experimentNamePrefix: "pxi-e2e-docs-smoke",
+    experimentDescription:
+      "PXI docs smoke test driven through the Phoenix frontend.",
+  },
+  timeRangeSmoke: {
+    id: "pxi-time-range-smoke:last-hour-v1",
+    prompt:
+      'Set the Phoenix app time range to Last Hour using timeRangeKey "1h", then briefly confirm that it is set.',
+    expectedOutput:
+      "PXI sets the Phoenix app time range selector to Last Hour.",
+    experimentNamePrefix: "pxi-e2e-time-range-smoke",
+    experimentDescription:
+      "PXI time range smoke test driven through the Phoenix frontend.",
+  },
+} as const;
+
+type PxiExperimentExample =
+  (typeof PXI_EXPERIMENT_EXAMPLES)[keyof typeof PXI_EXPERIMENT_EXAMPLES];
 
 type JudgeResult = {
   label: "pass" | "fail";
@@ -15,7 +36,7 @@ type JudgeResult = {
 };
 
 type ExperimentRecord = {
-  prompt: string;
+  example: PxiExperimentExample;
   assistantText: string;
   transcript?: unknown;
   calledTools: string[];
@@ -53,6 +74,10 @@ function getExperimentHeaders() {
   };
 }
 
+function getDatasetExamples() {
+  return Object.values(PXI_EXPERIMENT_EXAMPLES);
+}
+
 export async function persistPxiExperiment({
   request,
   record,
@@ -60,6 +85,7 @@ export async function persistPxiExperiment({
   request: APIRequestContext;
   record: ExperimentRecord;
 }) {
+  const datasetExamples = getDatasetExamples();
   const datasetResponse = await expectOK(
     await request.post(getExperimentUrl("/v1/datasets/upload?sync=true"), {
       headers: getExperimentHeaders(),
@@ -68,15 +94,15 @@ export async function persistPxiExperiment({
         name: DATASET_NAME,
         description:
           "PXI Playwright E2E scenarios persisted from browser-driven tests.",
-        inputs: [{ prompt: record.prompt }],
-        outputs: [
-          {
-            expected:
-              "Answer names PHOENIX_PROJECT_NAME and cites Phoenix docs.",
-          },
-        ],
-        metadata: [{ kind: "pxi-playwright-e2e" }],
-        example_ids: [EXAMPLE_ID],
+        inputs: datasetExamples.map((example) => ({ prompt: example.prompt })),
+        outputs: datasetExamples.map((example) => ({
+          expected: example.expectedOutput,
+        })),
+        metadata: datasetExamples.map((example) => ({
+          kind: "pxi-playwright-e2e",
+          scenario: example.id,
+        })),
+        example_ids: datasetExamples.map((example) => example.id),
       },
     })
   );
@@ -100,7 +126,7 @@ export async function persistPxiExperiment({
     return (
       typeof example === "object" &&
       example !== null &&
-      (example as { id?: unknown }).id === EXAMPLE_ID
+      (example as { id?: unknown }).id === record.example.id
     );
   }) as { node_id?: unknown } | undefined;
   if (typeof datasetExample?.node_id !== "string") {
@@ -114,9 +140,8 @@ export async function persistPxiExperiment({
       {
         headers: getExperimentHeaders(),
         data: {
-          name: `pxi-e2e-docs-smoke-${timestamp}`,
-          description:
-            "PXI docs smoke test driven through the Phoenix frontend.",
+          name: `${record.example.experimentNamePrefix}-${timestamp}`,
+          description: record.example.experimentDescription,
           repetitions: 1,
           metadata: {
             assistantModel: record.assistantModel,
@@ -144,7 +169,7 @@ export async function persistPxiExperiment({
         data: {
           dataset_example_id: datasetExample.node_id,
           output: {
-            prompt: record.prompt,
+            prompt: record.example.prompt,
             assistantText: record.assistantText,
             transcript: record.transcript,
             calledTools: record.calledTools,

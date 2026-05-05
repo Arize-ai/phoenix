@@ -28,6 +28,11 @@ describe("buildAgentChatRequestBody", () => {
       existing: true,
       traceNameSuffix: "Turn",
     });
+    expect(body.contexts[0]).toMatchObject({
+      type: "app",
+      currentDateTime: expect.any(String),
+      timeZone: expect.any(String),
+    });
     expect(body).not.toHaveProperty("system");
   });
 });

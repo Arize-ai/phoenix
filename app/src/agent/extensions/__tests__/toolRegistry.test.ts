@@ -1,4 +1,7 @@
-import { handleRegisteredAgentToolCall } from "@phoenix/agent/extensions/toolRegistry";
+import {
+  handleRegisteredAgentToolCall,
+  SET_TIME_RANGE_TOOL_NAME,
+} from "@phoenix/agent/extensions/toolRegistry";
 import { createAgentStore } from "@phoenix/store/agentStore";
 
 describe("toolRegistry", () => {
@@ -114,6 +117,33 @@ describe("toolRegistry", () => {
             type: "freeform",
           }),
         ],
+      })
+    );
+  });
+
+  it("dispatches set_time_range to the registered client action", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const action = vi.fn().mockResolvedValue({ ok: true, output: "updated" });
+    store.getState().registerClientAction(SET_TIME_RANGE_TOOL_NAME, action);
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-5",
+        toolName: SET_TIME_RANGE_TOOL_NAME,
+        input: { timeRangeKey: "1h" },
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(action).toHaveBeenCalledWith({ timeRangeKey: "1h" });
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-available",
+        tool: SET_TIME_RANGE_TOOL_NAME,
+        output: "updated",
       })
     );
   });

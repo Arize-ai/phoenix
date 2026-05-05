@@ -100,8 +100,18 @@ export type AgentSpanContext = {
     }
 );
 
+/** Per-turn app-level browser clock context. */
+export type AgentAppContext = {
+  type: "app";
+  /** Current date/time formatted in the user's browser timezone. */
+  currentDateTime: string;
+  /** IANA timezone name from the user's browser, e.g. America/Los_Angeles. */
+  timeZone: string;
+};
+
 /** Discriminated union of every context type the agent understands. */
 export type AgentContext =
+  | AgentAppContext
   | AgentProjectContext
   | AgentTraceContext
   | AgentSpanContext;
@@ -114,6 +124,8 @@ export type AgentContext =
  */
 export function agentContextKey(context: AgentContext): string {
   switch (context.type) {
+    case "app":
+      return "app";
     case "project":
       return `project:${context.projectNodeId}`;
     case "trace":
