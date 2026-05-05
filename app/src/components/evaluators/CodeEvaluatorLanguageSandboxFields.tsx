@@ -15,6 +15,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
+import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
 
 export type SandboxConfigOption = {
@@ -23,6 +24,7 @@ export type SandboxConfigOption = {
   description?: string | null;
   providerLabel: string;
   providerLanguage: CodeEvaluatorLanguage;
+  providerBackendType: string;
   timeout?: number | null;
   config?: unknown;
   supportsEnvVars?: boolean;
@@ -150,17 +152,23 @@ export const CodeEvaluatorSandboxField = ({
             key={item.id}
             textValue={item.name}
           >
-            <Flex direction="column" gap="size-25">
-              <Text>{item.name}</Text>
-              {item.description ? (
-                <Text color="text-700" size="XS">
-                  {item.description}
-                </Text>
-              ) : (
-                <Text color="text-700" size="XS">
-                  {item.providerLabel}
-                </Text>
-              )}
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <SandboxProviderIcon
+                backendType={item.providerBackendType}
+                height={18}
+              />
+              <Flex direction="column" gap="size-25">
+                <Text>{item.name}</Text>
+                {item.description ? (
+                  <Text color="text-700" size="XS">
+                    {item.description}
+                  </Text>
+                ) : (
+                  <Text color="text-700" size="XS">
+                    {item.providerLabel}
+                  </Text>
+                )}
+              </Flex>
             </Flex>
           </ComboBoxItem>
         )}
@@ -232,6 +240,7 @@ export const mapSandboxConfigOptions = (
         description: config.description,
         providerLanguage: provider.language,
         providerLabel: backendTypeLabel(provider.backendType),
+        providerBackendType: provider.backendType,
         timeout: config.timeout,
         config: config.config,
         supportsEnvVars: backend?.supportsEnvVars,

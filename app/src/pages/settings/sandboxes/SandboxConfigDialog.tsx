@@ -37,8 +37,14 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
+import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
+import {
+  getIdentifier,
+  transformIdentifierInput,
+  validateIdentifier,
+} from "@phoenix/utils/identifierUtils";
 
 import type { SandboxConfigDialogCreateSandboxConfigMutation } from "./__generated__/SandboxConfigDialogCreateSandboxConfigMutation.graphql";
 import type { SandboxConfigDialogSecretsQuery } from "./__generated__/SandboxConfigDialogSecretsQuery.graphql";
@@ -52,7 +58,7 @@ import type {
   SandboxProvider,
 } from "./types";
 import { DEFAULT_SANDBOX_TIMEOUT_SECONDS } from "./types";
-import { formValuesToConfigPatch, languageLabel } from "./utils";
+import { formValuesToConfigPatch, LanguageWithIcon } from "./utils";
 
 type SandboxConfigDialogTriggerProps =
   | { mode: "create"; providers: ProviderRow[]; defaultProvider?: ProviderRow }
@@ -143,7 +149,7 @@ function shouldShowLocalDenoTrustWarning() {
 }
 
 function defaultConfigName(provider: ProviderRow): string {
-  return `${provider.backend.displayName}`;
+  return getIdentifier(provider.backend.displayName);
 }
 
 function configToFormValues(config: SandboxConfig["config"]): {
@@ -399,10 +405,27 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                         key={item.provider.id}
                         textValue={`${item.backend.displayName}`}
                       >
-                        <Flex direction="column" gap="size-25">
+                        <Flex
+                          direction="row"
+                          gap="size-100"
+                          alignItems="center"
+                          width="100%"
+                        >
+                          <SandboxProviderIcon
+                            backendType={item.backend.backendType}
+                            height={18}
+                          />
                           <Text>{item.backend.displayName}</Text>
-                          <Text color="text-700" size="S">
-                            {languageLabel(item.provider.language)} provider
+                          <Text
+                            color="text-700"
+                            size="S"
+                            css={css`
+                              margin-inline-start: auto;
+                            `}
+                          >
+                            <LanguageWithIcon
+                              language={item.provider.language}
+                            />
                           </Text>
                         </Flex>
                       </ComboBoxItem>
@@ -416,12 +439,23 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                 name="name"
                 control={form.control}
                 rules={{
-                  required: mode === "create" ? "Name is required" : false,
+                  required: "Name is required",
+                  validate: validateIdentifier,
                 }}
                 render={({ field, fieldState }) => (
-                  <TextField {...field} isInvalid={fieldState.invalid}>
+                  <TextField
+                    {...field}
+                    onChange={(value) =>
+                      field.onChange(transformIdentifierInput(value))
+                    }
+                    isInvalid={fieldState.invalid}
+                  >
                     <Label>Name</Label>
                     <Input />
+                    <Text slot="description" size="S" color="text-700">
+                      Lowercase letters, digits, dashes, and underscores. Must
+                      start and end with a letter or digit.
+                    </Text>
                     {fieldState.error ? (
                       <FieldError>{fieldState.error.message}</FieldError>
                     ) : null}
