@@ -102,7 +102,7 @@ dev = [
   "httpx",
   "jsonpath-ng",
   "ldap3",
-  "litellm>1.61.15,<1.82.7",  # Pinned: 1.82.7-1.82.8 compromised (supply chain attack, 2026-03)
+  "litellm>=1.83.14,<1.84",  # >=1.83.14 fixes CVE-2026-42208 (SQLi), MCP stdio RCE, SSTI, OIDC bypass, password hash exposure, privilege escalation; excludes 1.82.7-1.82.8 supply chain compromise; <1.84 caps the minor
   "mypy==1.19.1",
   "mypy-boto3-bedrock-runtime",
   "nest-asyncio",  # for executor testing
@@ -358,6 +358,15 @@ exclude-newer = "3 days"
 # Exempt our own workspace packages from the `exclude-newer` window so freshly
 # published versions are immediately resolvable.
 exclude-newer-package = { arize-phoenix-client = "2099-12-31T00:00:00Z", arize-phoenix-evals = "2099-12-31T00:00:00Z", arize-phoenix-otel = "2099-12-31T00:00:00Z" }
+# litellm 1.83.x hard-pins `openai==2.24.0` and `python-dotenv==1.0.1`, which
+# conflict with pydantic-ai (needs openai>=2.29.0) and fastmcp (needs
+# python-dotenv>=1.1.0). Override the over-restrictive pins so resolution
+# succeeds; phoenix uses litellm purely as a client library and does not
+# exercise the pinned-version code paths.
+override-dependencies = [
+  "openai>=2.30.0",
+  "python-dotenv>=1.1.0",
+]
 
 [tool.uv.workspace]
 members = ["packages/*"]
