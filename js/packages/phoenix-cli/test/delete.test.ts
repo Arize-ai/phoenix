@@ -49,14 +49,16 @@ function makeFetchMock(
     const status = resp.status ?? (resp.ok ? 200 : 500);
     const url =
       requestOrUrl instanceof Request ? requestOrUrl.url : requestOrUrl;
+    const body = resp.body ?? {};
+    const text = JSON.stringify(body);
     return Promise.resolve({
       ok: resp.ok,
       status,
       statusText: resp.ok ? "OK" : "Error",
       url,
       headers: new Headers(),
-      json: () => Promise.resolve(resp.body ?? {}),
-      text: () => Promise.resolve(""),
+      json: () => Promise.resolve(body),
+      text: () => Promise.resolve(text),
     });
   });
 }
