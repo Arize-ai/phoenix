@@ -28,6 +28,7 @@ from .document_evaluation_summaries import (
 )
 from .document_evaluations import DocumentEvaluationsDataLoader
 from .document_retrieval_metrics import DocumentRetrievalMetricsDataLoader
+from .evaluator_by_id import EvaluatorByIdDataLoader
 from .experiment_annotation_summaries import ExperimentAnnotationSummaryDataLoader
 from .experiment_dataset_splits import ExperimentDatasetSplitsDataLoader
 from .experiment_error_rates import ExperimentErrorRatesDataLoader
@@ -58,6 +59,7 @@ from .prompt_version_sequence_number import PromptVersionSequenceNumberDataLoade
 from .prompt_versions import PromptVersionDataLoader
 from .record_counts import RecordCountCache, RecordCountDataLoader
 from .sandbox_configs_by_provider import SandboxConfigsByProviderDataLoader
+from .sandbox_provider_by_id import SandboxProviderByIdDataLoader
 from .secrets import SecretsDataLoader
 from .session_annotations_by_session import SessionAnnotationsBySessionDataLoader
 from .session_io import SessionIODataLoader
@@ -120,6 +122,7 @@ __all__ = [
     "DocumentEvaluationSummaryDataLoader",
     "DocumentEvaluationsDataLoader",
     "DocumentRetrievalMetricsDataLoader",
+    "EvaluatorByIdDataLoader",
     "ExperimentAnnotationSummaryDataLoader",
     "ExperimentErrorRatesDataLoader",
     "ExperimentJobsDataLoader",
@@ -145,6 +148,7 @@ __all__ = [
     "PromptVersionSequenceNumberDataLoader",
     "RecordCountDataLoader",
     "SandboxConfigsByProviderDataLoader",
+    "SandboxProviderByIdDataLoader",
     "SecretsDataLoader",
     "SessionAnnotationsBySessionDataLoader",
     "SessionIODataLoader",

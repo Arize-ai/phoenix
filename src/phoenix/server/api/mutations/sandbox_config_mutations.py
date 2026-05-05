@@ -17,20 +17,26 @@ from typing import Any, cast
 
 import strawberry
 from pydantic import ValidationError
+from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
+from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.auth import IsAdminIfAuthEnabled, IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.exceptions import BadRequest, NotFound
+from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SandboxConfig import (
     CreateSandboxConfigInput,
+    DeleteSandboxConfigInput,
+    DeleteSandboxCredentialInput,
     SandboxConfig,
+    SetSandboxCredentialInput,
     UpdateSandboxConfigInput,
     UpdateSandboxProviderInput,
     sandbox_config_from_input,
@@ -184,33 +190,46 @@ class SandboxConfigMutationMixin:
         """Create a new named sandbox configuration under an existing provider."""
         from sqlalchemy import select
 
-        async with info.context.db() as session:
-            provider_id = from_global_id_with_expected_type(
-                input.sandbox_provider_id,
-                expected_type_name=SandboxProviderType.__name__,
-            )
-            provider = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.id == provider_id)
-            )
-            if provider is None:
-                raise NotFound(f"SandboxProvider not found: {provider_id}")
+        try:
+            validated_name = IdentifierModel.model_validate(str(input.name))
+        except ValidationError as exc:
+            raise BadRequest(f"Invalid sandbox config name: {exc}")
+        if input.timeout is not None and input.timeout <= 0:
+            raise BadRequest("timeout must be a positive integer")
 
-            values = sandbox_config_from_input(input, provider_id=provider_id)
-            config_dict = values.get("config", {}) or {}
-            _check_env_var_collision(config_dict.get("env_vars"), provider.backend_type)
-            _check_reserved_top_level_keys(config_dict, provider.backend_type)
-            adapter = _SANDBOX_ADAPTERS.get(provider.backend_type)
-            if adapter is not None:
-                try:
-                    config_dict = adapter.validate_config(config_dict)
-                except (ValueError, ValidationError) as exc:
-                    raise BadRequest(str(exc))
-            values["config"] = config_dict
+        try:
+            async with info.context.db() as session:
+                provider_id = from_global_id_with_expected_type(
+                    input.sandbox_provider_id,
+                    expected_type_name=SandboxProviderType.__name__,
+                )
+                provider = await session.scalar(
+                    select(models.SandboxProvider).where(models.SandboxProvider.id == provider_id)
+                )
+                if provider is None:
+                    raise NotFound(f"SandboxProvider not found: {provider_id}")
 
-            row = models.SandboxConfig(**values)
-            session.add(row)
-            await session.flush()
-            await session.refresh(row)
+                values = sandbox_config_from_input(input, provider_id=provider_id)
+                values["name"] = validated_name.root
+                config_dict = values.get("config", {}) or {}
+                _check_env_var_collision(config_dict.get("env_vars"), provider.backend_type)
+                _check_reserved_top_level_keys(config_dict, provider.backend_type)
+                adapter = _SANDBOX_ADAPTERS.get(provider.backend_type)
+                if adapter is not None:
+                    try:
+                        config_dict = adapter.validate_config(config_dict)
+                    except (ValueError, ValidationError) as exc:
+                        raise BadRequest(str(exc))
+                values["config"] = config_dict
+
+                row = models.SandboxConfig(**values)
+                session.add(row)
+                await session.flush()
+                await session.refresh(row)
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+            raise Conflict(
+                f"A sandbox config with name {input.name!r} already exists for this provider"
+            )
 
         return CreateSandboxConfigPayload(
             sandbox_config=to_gql_sandbox_config(row),
@@ -228,63 +247,83 @@ class SandboxConfigMutationMixin:
         """Update fields on an existing SandboxConfig."""
         from sqlalchemy import select
 
-        async with info.context.db() as session:
-            config_id = from_global_id_with_expected_type(
-                input.id,
-                expected_type_name=SandboxConfig.__name__,
-            )
-            row = await session.scalar(
-                select(models.SandboxConfig).where(models.SandboxConfig.id == config_id)
-            )
-            if row is None:
-                raise NotFound(f"SandboxConfig not found: {config_id}")
+        validated_name: str | None = None
+        if input.name is not strawberry.UNSET and input.name is not None:
+            try:
+                validated_name = IdentifierModel.model_validate(str(input.name)).root
+            except ValidationError as exc:
+                raise BadRequest(f"Invalid sandbox config name: {exc}")
+        if (
+            input.timeout is not strawberry.UNSET
+            and input.timeout is not None
+            and input.timeout <= 0
+        ):
+            raise BadRequest("timeout must be a positive integer")
 
-            if input.description is not strawberry.UNSET:
-                row.description = input.description
-            if input.config is not strawberry.UNSET:
-                stored_config = dict(row.config) if row.config else {}
-                config_dict: dict[str, Any] = (
-                    dict(cast(dict[str, Any], input.config)) if input.config is not None else {}
+        try:
+            async with info.context.db() as session:
+                config_id = from_global_id_with_expected_type(
+                    input.id,
+                    expected_type_name=SandboxConfig.__name__,
                 )
-                provider = await session.scalar(
-                    select(models.SandboxProvider).where(
-                        models.SandboxProvider.id == row.sandbox_provider_id
+                row = await session.scalar(
+                    select(models.SandboxConfig).where(models.SandboxConfig.id == config_id)
+                )
+                if row is None:
+                    raise NotFound(f"SandboxConfig not found: {config_id}")
+
+                if validated_name is not None:
+                    row.name = validated_name
+                if input.description is not strawberry.UNSET:
+                    row.description = input.description
+                if input.config is not strawberry.UNSET:
+                    stored_config = dict(row.config) if row.config else {}
+                    config_dict: dict[str, Any] = (
+                        dict(cast(dict[str, Any], input.config)) if input.config is not None else {}
                     )
-                )
-                if provider is not None:
-                    _check_env_var_collision(config_dict.get("env_vars"), provider.backend_type)
-                    _check_reserved_top_level_keys(config_dict, provider.backend_type)
-                    adapter = _SANDBOX_ADAPTERS.get(provider.backend_type)
-                    if adapter is not None:
-                        try:
-                            config_dict = adapter.validate_config(
-                                config_dict, stored_config=stored_config
-                            )
-                        except (ValueError, ValidationError) as exc:
-                            raise BadRequest(str(exc))
-                row.config = config_dict
-            if input.timeout is not strawberry.UNSET:
-                row.timeout = input.timeout if input.timeout is not None else 300
-            if input.enabled is not strawberry.UNSET and input.enabled is not None:
-                row.enabled = input.enabled
+                    provider = await session.scalar(
+                        select(models.SandboxProvider).where(
+                            models.SandboxProvider.id == row.sandbox_provider_id
+                        )
+                    )
+                    if provider is not None:
+                        _check_env_var_collision(config_dict.get("env_vars"), provider.backend_type)
+                        _check_reserved_top_level_keys(config_dict, provider.backend_type)
+                        adapter = _SANDBOX_ADAPTERS.get(provider.backend_type)
+                        if adapter is not None:
+                            try:
+                                config_dict = adapter.validate_config(
+                                    config_dict, stored_config=stored_config
+                                )
+                            except (ValueError, ValidationError) as exc:
+                                raise BadRequest(str(exc))
+                    row.config = config_dict
+                if input.timeout is not strawberry.UNSET:
+                    row.timeout = input.timeout if input.timeout is not None else 300
+                if input.enabled is not strawberry.UNSET and input.enabled is not None:
+                    row.enabled = input.enabled
 
-            await session.flush()
-            await session.refresh(row)
+                await session.flush()
+                await session.refresh(row)
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError):
+            raise Conflict("A sandbox config with that name already exists for this provider")
 
         return UpdateSandboxConfigPayload(
             sandbox_config=to_gql_sandbox_config(row),
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsAdminIfAuthEnabled, IsLocked]
+    )  # type: ignore
     async def delete_sandbox_config(
         self,
         info: Info[Context, None],
-        id: GlobalID,
+        input: DeleteSandboxConfigInput,
     ) -> DeleteSandboxConfigPayload:
         """Delete a SandboxConfig by GlobalID."""
         config_id = from_global_id_with_expected_type(
-            id,
+            input.id,
             expected_type_name=SandboxConfig.__name__,
         )
         async with info.context.db() as session:
@@ -293,9 +332,11 @@ class SandboxConfigMutationMixin:
                 raise NotFound(f"SandboxConfig not found: {config_id}")
             await session.delete(row)
 
-        return DeleteSandboxConfigPayload(deleted_id=id, query=Query())
+        return DeleteSandboxConfigPayload(deleted_id=input.id, query=Query())
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsAdminIfAuthEnabled, IsLocked]
+    )  # type: ignore
     async def update_sandbox_provider(
         self,
         info: Info[Context, None],
@@ -344,13 +385,13 @@ class SandboxConfigMutationMixin:
     async def set_sandbox_credential(
         self,
         info: Info[Context, None],
-        backend_type: str,
-        key: str,
-        value: str,
+        input: SetSandboxCredentialInput,
     ) -> SetSandboxCredentialPayload:
         """Encrypt and upsert a sandbox provider credential into the secrets table."""
+        backend_type = input.backend_type
+        key = input.key
         _validate_sandbox_credential_key(backend_type, key)
-        value = value.strip()
+        value = input.value.strip()
         if not value:
             raise BadRequest("Credential value cannot be empty")
         encrypted = info.context.encrypt(value.encode("utf-8"))
@@ -380,10 +421,11 @@ class SandboxConfigMutationMixin:
     async def delete_sandbox_credential(
         self,
         info: Info[Context, None],
-        backend_type: str,
-        key: str,
+        input: DeleteSandboxCredentialInput,
     ) -> DeleteSandboxCredentialPayload:
         """Delete a sandbox provider credential from the secrets table."""
+        backend_type = input.backend_type
+        key = input.key
         _validate_sandbox_credential_key(backend_type, key)
         import sqlalchemy as sa
 

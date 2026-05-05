@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a6b3d670fa7cfbced0aeac60e60cd4a2>>
+ * @generated SignedSource<<2e1337aeb865c6851eda732fd0164190>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,8 +10,11 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type DeleteSandboxConfigButtonDeleteSandboxConfigMutation$variables = {
+export type DeleteSandboxConfigInput = {
   id: string;
+};
+export type DeleteSandboxConfigButtonDeleteSandboxConfigMutation$variables = {
+  input: DeleteSandboxConfigInput;
 };
 export type DeleteSandboxConfigButtonDeleteSandboxConfigMutation$data = {
   readonly deleteSandboxConfig: {
@@ -31,14 +34,14 @@ var v0 = [
   {
     "defaultValue": null,
     "kind": "LocalArgument",
-    "name": "id"
+    "name": "input"
   }
 ],
 v1 = [
   {
     "kind": "Variable",
-    "name": "id",
-    "variableName": "id"
+    "name": "input",
+    "variableName": "input"
   }
 ],
 v2 = {
@@ -281,16 +284,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "63768ec92cb19d23d3d2ca6ad9e02b21",
+    "cacheID": "b5869c76782b1e2831c96b530f81241a",
     "id": null,
     "metadata": {},
     "name": "DeleteSandboxConfigButtonDeleteSandboxConfigMutation",
     "operationKind": "mutation",
-    "text": "mutation DeleteSandboxConfigButtonDeleteSandboxConfigMutation(\n  $id: ID!\n) {\n  deleteSandboxConfig(id: $id) {\n    deletedId\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
+    "text": "mutation DeleteSandboxConfigButtonDeleteSandboxConfigMutation(\n  $input: DeleteSandboxConfigInput!\n) {\n  deleteSandboxConfig(input: $input) {\n    deletedId\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "31b1ce9a2f9da67df083832d678f5d0a";
+(node as any).hash = "814f1d281ae079e2a14d869109431b60";
 
 export default node;
