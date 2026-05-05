@@ -486,7 +486,7 @@
           "annotations"
         ],
         "summary": "Delete span annotations in a project that match the supplied filter.",
-        "description": "Hard-delete span annotations within the named project that match the\nsupplied filter.\n\n- At least one of `name`, `identifier`, `annotator_kind`, `created_after`,\n  or `created_before` must be supplied. Requests with no filter are\n  rejected with 422 \u2014 the v1 API does not support a \"delete all\" path.\n- All supplied filters are combined with AND. `name` and `identifier`,\n  when present, must be non-empty.\n- `created_after` is inclusive (`>=`); `created_before` is exclusive\n  (`<`). When both are supplied, `created_after` must be strictly earlier\n  than `created_before` (else 422). Naive datetimes are interpreted as\n  UTC.\n- The endpoint is idempotent: a request that matches no rows still\n  returns 204.\n- When authentication is enabled, non-admin callers can only delete rows\n  they own (`user_id == current_user.id`); admins delete all matching\n  rows.",
+        "description": "Hard-delete span annotations within the named project that match the\nsupplied filter.\n\n- The request must either supply both `start_time` AND `end_time`\n  to bound the delete to a `[start_time, end_time)` time window,\n  OR set `delete_all=true` to acknowledge an unbounded sweep. A request\n  that satisfies neither is rejected with 422.\n- `name`, `identifier`, and `annotator_kind` are optional narrowing\n  filters; on their own they do NOT authorize the request \u2014 they only\n  narrow within an already-authorized request (bounded time range or\n  `delete_all=true`).\n- All supplied filters are combined with AND. `name` and `identifier`,\n  when present, must be non-empty.\n- `start_time` is inclusive (`>=`); `end_time` is exclusive\n  (`<`). When both are supplied, `start_time` must be strictly earlier\n  than `end_time` (else 422). A half-bounded range (only one of\n  the two) does NOT satisfy the gate and is rejected unless\n  `delete_all=true` is also set. Naive datetimes are interpreted as UTC.\n- The endpoint is idempotent: a request that matches no rows still\n  returns 204.\n- When authentication is enabled, non-admin callers can only delete rows\n  they own (`user_id == current_user.id`); admins delete all matching\n  rows.",
         "operationId": "deleteSpanAnnotations",
         "parameters": [
           {
@@ -562,7 +562,7 @@
             "description": "Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind."
           },
           {
-            "name": "created_after",
+            "name": "start_time",
             "in": "query",
             "required": false,
             "schema": {
@@ -576,12 +576,12 @@
                 }
               ],
               "description": "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC.",
-              "title": "Created After"
+              "title": "Start Time"
             },
             "description": "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC."
           },
           {
-            "name": "created_before",
+            "name": "end_time",
             "in": "query",
             "required": false,
             "schema": {
@@ -595,9 +595,21 @@
                 }
               ],
               "description": "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC.",
-              "title": "Created Before"
+              "title": "End Time"
             },
             "description": "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC."
+          },
+          {
+            "name": "delete_all",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Opt-in flag that authorizes the request without a bounded `[start_time, end_time)` time window. When `false` (default) or absent, the request must supply both `start_time` AND `end_time` to bound the delete. When `true`, the time-range bound is waived and any other filters (`name`, `identifier`, `annotator_kind`) still narrow the delete within the project \u2014 e.g. `delete_all=true&name=X` deletes all annotations named X regardless of time.",
+              "default": false,
+              "title": "Delete All"
+            },
+            "description": "Opt-in flag that authorizes the request without a bounded `[start_time, end_time)` time window. When `false` (default) or absent, the request must supply both `start_time` AND `end_time` to bound the delete. When `true`, the time-range bound is waived and any other filters (`name`, `identifier`, `annotator_kind`) still narrow the delete within the project \u2014 e.g. `delete_all=true&name=X` deletes all annotations named X regardless of time."
           }
         ],
         "responses": {
@@ -823,7 +835,7 @@
           "annotations"
         ],
         "summary": "Delete trace annotations in a project that match the supplied filter.",
-        "description": "Hard-delete trace annotations within the named project that match the\nsupplied filter.\n\n- At least one of `name`, `identifier`, `annotator_kind`, `created_after`,\n  or `created_before` must be supplied. Requests with no filter are\n  rejected with 422 \u2014 the v1 API does not support a \"delete all\" path.\n- All supplied filters are combined with AND. `name` and `identifier`,\n  when present, must be non-empty.\n- `created_after` is inclusive (`>=`); `created_before` is exclusive\n  (`<`). When both are supplied, `created_after` must be strictly earlier\n  than `created_before` (else 422). Naive datetimes are interpreted as\n  UTC.\n- The endpoint is idempotent: a request that matches no rows still\n  returns 204.\n- When authentication is enabled, non-admin callers can only delete rows\n  they own (`user_id == current_user.id`); admins delete all matching\n  rows.",
+        "description": "Hard-delete trace annotations within the named project that match the\nsupplied filter.\n\n- The request must either supply both `start_time` AND `end_time`\n  to bound the delete to a `[start_time, end_time)` time window,\n  OR set `delete_all=true` to acknowledge an unbounded sweep. A request\n  that satisfies neither is rejected with 422.\n- `name`, `identifier`, and `annotator_kind` are optional narrowing\n  filters; on their own they do NOT authorize the request \u2014 they only\n  narrow within an already-authorized request (bounded time range or\n  `delete_all=true`).\n- All supplied filters are combined with AND. `name` and `identifier`,\n  when present, must be non-empty.\n- `start_time` is inclusive (`>=`); `end_time` is exclusive\n  (`<`). When both are supplied, `start_time` must be strictly earlier\n  than `end_time` (else 422). A half-bounded range (only one of\n  the two) does NOT satisfy the gate and is rejected unless\n  `delete_all=true` is also set. Naive datetimes are interpreted as UTC.\n- The endpoint is idempotent: a request that matches no rows still\n  returns 204.\n- When authentication is enabled, non-admin callers can only delete rows\n  they own (`user_id == current_user.id`); admins delete all matching\n  rows.",
         "operationId": "deleteTraceAnnotations",
         "parameters": [
           {
@@ -899,7 +911,7 @@
             "description": "Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind."
           },
           {
-            "name": "created_after",
+            "name": "start_time",
             "in": "query",
             "required": false,
             "schema": {
@@ -913,12 +925,12 @@
                 }
               ],
               "description": "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC.",
-              "title": "Created After"
+              "title": "Start Time"
             },
             "description": "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC."
           },
           {
-            "name": "created_before",
+            "name": "end_time",
             "in": "query",
             "required": false,
             "schema": {
@@ -932,9 +944,21 @@
                 }
               ],
               "description": "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC.",
-              "title": "Created Before"
+              "title": "End Time"
             },
             "description": "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC."
+          },
+          {
+            "name": "delete_all",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Opt-in flag that authorizes the request without a bounded `[start_time, end_time)` time window. When `false` (default) or absent, the request must supply both `start_time` AND `end_time` to bound the delete. When `true`, the time-range bound is waived and any other filters (`name`, `identifier`, `annotator_kind`) still narrow the delete within the project \u2014 e.g. `delete_all=true&name=X` deletes all annotations named X regardless of time.",
+              "default": false,
+              "title": "Delete All"
+            },
+            "description": "Opt-in flag that authorizes the request without a bounded `[start_time, end_time)` time window. When `false` (default) or absent, the request must supply both `start_time` AND `end_time` to bound the delete. When `true`, the time-range bound is waived and any other filters (`name`, `identifier`, `annotator_kind`) still narrow the delete within the project \u2014 e.g. `delete_all=true&name=X` deletes all annotations named X regardless of time."
           }
         ],
         "responses": {
@@ -1160,7 +1184,7 @@
           "annotations"
         ],
         "summary": "Delete session annotations in a project that match the supplied filter.",
-        "description": "Hard-delete session annotations within the named project that match the\nsupplied filter.\n\n- At least one of `name`, `identifier`, `annotator_kind`, `created_after`,\n  or `created_before` must be supplied. Requests with no filter are\n  rejected with 422 \u2014 the v1 API does not support a \"delete all\" path.\n- All supplied filters are combined with AND. `name` and `identifier`,\n  when present, must be non-empty.\n- `created_after` is inclusive (`>=`); `created_before` is exclusive\n  (`<`). When both are supplied, `created_after` must be strictly earlier\n  than `created_before` (else 422). Naive datetimes are interpreted as\n  UTC.\n- The endpoint is idempotent: a request that matches no rows still\n  returns 204.\n- When authentication is enabled, non-admin callers can only delete rows\n  they own (`user_id == current_user.id`); admins delete all matching\n  rows.",
+        "description": "Hard-delete session annotations within the named project that match the\nsupplied filter.\n\n- The request must either supply both `start_time` AND `end_time`\n  to bound the delete to a `[start_time, end_time)` time window,\n  OR set `delete_all=true` to acknowledge an unbounded sweep. A request\n  that satisfies neither is rejected with 422.\n- `name`, `identifier`, and `annotator_kind` are optional narrowing\n  filters; on their own they do NOT authorize the request \u2014 they only\n  narrow within an already-authorized request (bounded time range or\n  `delete_all=true`).\n- All supplied filters are combined with AND. `name` and `identifier`,\n  when present, must be non-empty.\n- `start_time` is inclusive (`>=`); `end_time` is exclusive\n  (`<`). When both are supplied, `start_time` must be strictly earlier\n  than `end_time` (else 422). A half-bounded range (only one of\n  the two) does NOT satisfy the gate and is rejected unless\n  `delete_all=true` is also set. Naive datetimes are interpreted as UTC.\n- The endpoint is idempotent: a request that matches no rows still\n  returns 204.\n- When authentication is enabled, non-admin callers can only delete rows\n  they own (`user_id == current_user.id`); admins delete all matching\n  rows.",
         "operationId": "deleteSessionAnnotations",
         "parameters": [
           {
@@ -1236,7 +1260,7 @@
             "description": "Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind."
           },
           {
-            "name": "created_after",
+            "name": "start_time",
             "in": "query",
             "required": false,
             "schema": {
@@ -1250,12 +1274,12 @@
                 }
               ],
               "description": "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC.",
-              "title": "Created After"
+              "title": "Start Time"
             },
             "description": "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC."
           },
           {
-            "name": "created_before",
+            "name": "end_time",
             "in": "query",
             "required": false,
             "schema": {
@@ -1269,9 +1293,21 @@
                 }
               ],
               "description": "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC.",
-              "title": "Created Before"
+              "title": "End Time"
             },
             "description": "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC."
+          },
+          {
+            "name": "delete_all",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Opt-in flag that authorizes the request without a bounded `[start_time, end_time)` time window. When `false` (default) or absent, the request must supply both `start_time` AND `end_time` to bound the delete. When `true`, the time-range bound is waived and any other filters (`name`, `identifier`, `annotator_kind`) still narrow the delete within the project \u2014 e.g. `delete_all=true&name=X` deletes all annotations named X regardless of time.",
+              "default": false,
+              "title": "Delete All"
+            },
+            "description": "Opt-in flag that authorizes the request without a bounded `[start_time, end_time)` time window. When `false` (default) or absent, the request must supply both `start_time` AND `end_time` to bound the delete. When `true`, the time-range bound is waived and any other filters (`name`, `identifier`, `annotator_kind`) still narrow the delete within the project \u2014 e.g. `delete_all=true&name=X` deletes all annotations named X regardless of time."
           }
         ],
         "responses": {

@@ -870,7 +870,7 @@ async def test_delete_annotations_without_bound_or_delete_all_returns_422(
     httpx_client: httpx.AsyncClient,
 ) -> None:
     """The destructive-delete gate: a request that is neither time-bounded
-    (both `created_after` and `created_before`) nor authorized via
+    (both `start_time` and `end_time`) nor authorized via
     `delete_all=true` must be rejected with 422 and a message naming both
     resolutions.
     """
@@ -882,5 +882,5 @@ async def test_delete_annotations_without_bound_or_delete_all_returns_422(
     assert response.status_code == 422
     assert response.text == (
         "Delete is unbounded. Set delete_all=true to acknowledge, or "
-        "supply both created_after and created_before to bound the time range."
+        "supply both start_time and end_time to bound the time range."
     )

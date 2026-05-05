@@ -770,18 +770,18 @@ _DELETE_FILTER_DESCRIPTIONS: dict[str, str] = {
         "Optional annotator kind. When provided, narrows the delete to annotations produced by "
         "this annotator kind."
     ),
-    "created_after": (
+    "start_time": (
         "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted "
         "as UTC."
     ),
-    "created_before": (
+    "end_time": (
         "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted "
         "as UTC."
     ),
     "delete_all": (
         "Opt-in flag that authorizes the request without a bounded "
-        "`[created_after, created_before)` time window. When `false` (default) or absent, the "
-        "request must supply both `created_after` AND `created_before` to bound the delete. "
+        "`[start_time, end_time)` time window. When `false` (default) or absent, the "
+        "request must supply both `start_time` AND `end_time` to bound the delete. "
         "When `true`, the time-range bound is waived and any other filters (`name`, "
         "`identifier`, `annotator_kind`) still narrow the delete within the project — e.g. "
         "`delete_all=true&name=X` deletes all annotations named X regardless of time."
@@ -792,8 +792,8 @@ _DELETE_DESCRIPTION_TEMPLATE = """
 Hard-delete {kind} annotations within the named project that match the
 supplied filter.
 
-- The request must either supply both `created_after` AND `created_before`
-  to bound the delete to a `[created_after, created_before)` time window,
+- The request must either supply both `start_time` AND `end_time`
+  to bound the delete to a `[start_time, end_time)` time window,
   OR set `delete_all=true` to acknowledge an unbounded sweep. A request
   that satisfies neither is rejected with 422.
 - `name`, `identifier`, and `annotator_kind` are optional narrowing
@@ -802,9 +802,9 @@ supplied filter.
   `delete_all=true`).
 - All supplied filters are combined with AND. `name` and `identifier`,
   when present, must be non-empty.
-- `created_after` is inclusive (`>=`); `created_before` is exclusive
-  (`<`). When both are supplied, `created_after` must be strictly earlier
-  than `created_before` (else 422). A half-bounded range (only one of
+- `start_time` is inclusive (`>=`); `end_time` is exclusive
+  (`<`). When both are supplied, `start_time` must be strictly earlier
+  than `end_time` (else 422). A half-bounded range (only one of
   the two) does NOT satisfy the gate and is rejected unless
   `delete_all=true` is also set. Naive datetimes are interpreted as UTC.
 - The endpoint is idempotent: a request that matches no rows still
@@ -817,14 +817,14 @@ supplied filter.
 
 def _validate_delete_filters(
     *,
-    created_after: Optional[datetime],
-    created_before: Optional[datetime],
+    start_time: Optional[datetime],
+    end_time: Optional[datetime],
     delete_all: bool,
 ) -> tuple[Optional[datetime], Optional[datetime]]:
-    """Enforce the delete-bound gate (`(created_after AND created_before) OR
-    delete_all=True`) and the `created_after < created_before` invariant.
+    """Enforce the delete-bound gate (`(start_time AND end_time) OR
+    delete_all=True`) and the `start_time < end_time` invariant.
     Normalize tz-naive datetimes to UTC for SQL comparison. Returns the
-    normalized (created_after, created_before) pair.
+    normalized (start_time, end_time) pair.
 
     The gate subsumes the prior ≥1-filter rule: other filters (`name`,
     `identifier`, `annotator_kind`) only narrow within an already-authorized
@@ -833,27 +833,27 @@ def _validate_delete_filters(
     handler signatures. A half-bounded time range fails the gate unless
     `delete_all=True` is also set.
     """
-    fully_bounded = created_after is not None and created_before is not None
+    fully_bounded = start_time is not None and end_time is not None
     if not delete_all and not fully_bounded:
         raise HTTPException(
             status_code=422,
             detail=(
                 "Delete is unbounded. Set delete_all=true to acknowledge, or "
-                "supply both created_after and created_before to bound the time range."
+                "supply both start_time and end_time to bound the time range."
             ),
         )
-    normalized_after = normalize_datetime(created_after, timezone.utc)
-    normalized_before = normalize_datetime(created_before, timezone.utc)
+    normalized_start = normalize_datetime(start_time, timezone.utc)
+    normalized_end = normalize_datetime(end_time, timezone.utc)
     if (
-        normalized_after is not None
-        and normalized_before is not None
-        and normalized_after >= normalized_before
+        normalized_start is not None
+        and normalized_end is not None
+        and normalized_start >= normalized_end
     ):
         raise HTTPException(
             status_code=422,
-            detail="`created_after` must be strictly earlier than `created_before`.",
+            detail="`start_time` must be strictly earlier than `end_time`.",
         )
-    return normalized_after, normalized_before
+    return normalized_start, normalized_end
 
 
 def _build_annotation_filter_predicates(
@@ -923,22 +923,22 @@ async def delete_span_annotations(
         Optional[Literal["LLM", "CODE", "HUMAN"]],
         Query(description=_DELETE_FILTER_DESCRIPTIONS["annotator_kind"]),
     ] = None,
-    created_after: Annotated[
+    start_time: Annotated[
         Optional[datetime],
-        Query(description=_DELETE_FILTER_DESCRIPTIONS["created_after"]),
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["start_time"]),
     ] = None,
-    created_before: Annotated[
+    end_time: Annotated[
         Optional[datetime],
-        Query(description=_DELETE_FILTER_DESCRIPTIONS["created_before"]),
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["end_time"]),
     ] = None,
     delete_all: Annotated[
         bool,
         Query(description=_DELETE_FILTER_DESCRIPTIONS["delete_all"]),
     ] = False,
 ) -> None:
-    created_after, created_before = _validate_delete_filters(
-        created_after=created_after,
-        created_before=created_before,
+    start_time, end_time = _validate_delete_filters(
+        start_time=start_time,
+        end_time=end_time,
         delete_all=delete_all,
     )
     user_id_for_filter = _resolve_non_admin_user_id(request)
@@ -960,8 +960,8 @@ async def delete_span_annotations(
             name=name,
             identifier=identifier,
             annotator_kind=annotator_kind,
-            created_after=created_after,
-            created_before=created_before,
+            created_after=start_time,
+            created_before=end_time,
             user_id_for_filter=user_id_for_filter,
         )
         predicate.append(models.SpanAnnotation.span_rowid.in_(span_rowids_in_project))
@@ -1010,22 +1010,22 @@ async def delete_trace_annotations(
         Optional[Literal["LLM", "CODE", "HUMAN"]],
         Query(description=_DELETE_FILTER_DESCRIPTIONS["annotator_kind"]),
     ] = None,
-    created_after: Annotated[
+    start_time: Annotated[
         Optional[datetime],
-        Query(description=_DELETE_FILTER_DESCRIPTIONS["created_after"]),
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["start_time"]),
     ] = None,
-    created_before: Annotated[
+    end_time: Annotated[
         Optional[datetime],
-        Query(description=_DELETE_FILTER_DESCRIPTIONS["created_before"]),
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["end_time"]),
     ] = None,
     delete_all: Annotated[
         bool,
         Query(description=_DELETE_FILTER_DESCRIPTIONS["delete_all"]),
     ] = False,
 ) -> None:
-    created_after, created_before = _validate_delete_filters(
-        created_after=created_after,
-        created_before=created_before,
+    start_time, end_time = _validate_delete_filters(
+        start_time=start_time,
+        end_time=end_time,
         delete_all=delete_all,
     )
     user_id_for_filter = _resolve_non_admin_user_id(request)
@@ -1045,8 +1045,8 @@ async def delete_trace_annotations(
             name=name,
             identifier=identifier,
             annotator_kind=annotator_kind,
-            created_after=created_after,
-            created_before=created_before,
+            created_after=start_time,
+            created_before=end_time,
             user_id_for_filter=user_id_for_filter,
         )
         predicate.append(models.TraceAnnotation.trace_rowid.in_(trace_rowids_in_project))
@@ -1095,22 +1095,22 @@ async def delete_session_annotations(
         Optional[Literal["LLM", "CODE", "HUMAN"]],
         Query(description=_DELETE_FILTER_DESCRIPTIONS["annotator_kind"]),
     ] = None,
-    created_after: Annotated[
+    start_time: Annotated[
         Optional[datetime],
-        Query(description=_DELETE_FILTER_DESCRIPTIONS["created_after"]),
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["start_time"]),
     ] = None,
-    created_before: Annotated[
+    end_time: Annotated[
         Optional[datetime],
-        Query(description=_DELETE_FILTER_DESCRIPTIONS["created_before"]),
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["end_time"]),
     ] = None,
     delete_all: Annotated[
         bool,
         Query(description=_DELETE_FILTER_DESCRIPTIONS["delete_all"]),
     ] = False,
 ) -> None:
-    created_after, created_before = _validate_delete_filters(
-        created_after=created_after,
-        created_before=created_before,
+    start_time, end_time = _validate_delete_filters(
+        start_time=start_time,
+        end_time=end_time,
         delete_all=delete_all,
     )
     user_id_for_filter = _resolve_non_admin_user_id(request)
@@ -1130,8 +1130,8 @@ async def delete_session_annotations(
             name=name,
             identifier=identifier,
             annotator_kind=annotator_kind,
-            created_after=created_after,
-            created_before=created_before,
+            created_after=start_time,
+            created_before=end_time,
             user_id_for_filter=user_id_for_filter,
         )
         predicate.append(
