@@ -63,11 +63,7 @@ export default defineConfig(() => {
       },
     },
     test: {
-      include: [
-        "../__tests__/*.test.ts",
-        "**/__tests__/*.test.ts",
-        "**/__tests__/*.test.tsx",
-      ],
+      include: ["../__tests__/*.test.{ts,tsx}", "**/__tests__/*.test.{ts,tsx}"],
       exclude: ["../node_modules/**"],
       environment: "jsdom",
       setupFiles: ["./vitest.setup.ts"],

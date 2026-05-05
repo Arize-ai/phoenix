@@ -3,6 +3,11 @@ import {
   getBashToolInput,
 } from "@phoenix/agent/tools/bash";
 
+import {
+  ToolPartCodeBlock,
+  ToolPartLabel,
+  ToolPartMeta,
+} from "./ToolPartPrimitives";
 import type { ToolInvocationPart } from "./toolPartTypes";
 import { stringifyToolValue } from "./toolPartTypes";
 
@@ -16,50 +21,43 @@ export function getBashToolPreview(part: ToolInvocationPart): string {
 }
 
 /**
- * Expanded detail view for a bash tool invocation showing the command,
- * exit code, duration, stdout, and stderr.
+ * Expanded detail view for a bash tool invocation showing the command
+ * and stdout output.
  */
 export function BashToolDetails({ part }: { part: ToolInvocationPart }) {
   const bashInput = getBashToolInput(part.input);
   const bashResult = getBashToolCommandDisplayResult(part.output);
   const command = bashInput?.command ?? stringifyToolValue(part.input);
+  const stdout = bashResult?.stdout || "";
+
+  const metaItems = [
+    { label: "Exit code", value: bashResult?.exitCode ?? 0 },
+    ...(bashResult?.durationText
+      ? [{ label: "Duration", value: bashResult.durationText }]
+      : []),
+  ];
 
   return (
-    <>
-      <span className="tool-part__label">Command</span>
-      <pre>{command || "(empty)"}</pre>
+    <div className="tool-part__body">
+      <ToolPartLabel>Command</ToolPartLabel>
+      <ToolPartCodeBlock>{command}</ToolPartCodeBlock>
       {part.state === "output-available" ? (
         <>
-          <span className="tool-part__label">Exit code</span>
-          <pre>{bashResult?.exitCode ?? "0"}</pre>
-          {bashResult?.durationText ? (
+          {stdout ? (
             <>
-              <span className="tool-part__label">Duration</span>
-              <pre>{bashResult.durationText}</pre>
+              <ToolPartLabel>Output</ToolPartLabel>
+              <ToolPartCodeBlock>{stdout}</ToolPartCodeBlock>
             </>
           ) : null}
-          <span className="tool-part__label">Stdout</span>
-          <pre>
-            {bashResult?.stdout || "(no output)"}
-            {bashResult?.stdoutBytesText
-              ? `\n\n[${bashResult.stdoutBytesText}]`
-              : ""}
-          </pre>
-          <span className="tool-part__label">Stderr</span>
-          <pre>
-            {bashResult?.stderr || "(no output)"}
-            {bashResult?.stderrBytesText
-              ? `\n\n[${bashResult.stderrBytesText}]`
-              : ""}
-          </pre>
+          <ToolPartMeta items={metaItems} />
         </>
       ) : null}
       {part.state === "output-error" ? (
         <>
-          <span className="tool-part__label">Error</span>
-          <pre>{part.errorText}</pre>
+          <ToolPartLabel variant="danger">Error</ToolPartLabel>
+          <ToolPartCodeBlock>{part.errorText ?? ""}</ToolPartCodeBlock>
         </>
       ) : null}
-    </>
+    </div>
   );
 }

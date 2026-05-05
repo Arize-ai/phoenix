@@ -36,11 +36,26 @@ import { AgentModelMenu } from "./AgentModelMenu";
 import { ChatEmptyState, type EmptyStateQuickAction } from "./ChatEmptyState";
 import { ChatLantern } from "./ChatLantern";
 import { AssistantMessage, UserMessage } from "./ChatMessage";
+import {
+  ElicitationDraftProvider,
+  type PendingElicitationDraft,
+} from "./ElicitationDraftContext";
 import { useAgentChat } from "./useAgentChat";
 
 export type { EmptyStateQuickAction } from "./ChatEmptyState";
 
 const CHAT_SIDEBAR_INSET_CSS = "var(--global-dimension-size-200)";
+
+function createPendingElicitationDraft(
+  toolCallId: string
+): PendingElicitationDraft {
+  return {
+    toolCallId,
+    answers: {},
+    freeformTexts: {},
+    currentIndex: 0,
+  };
+}
 
 const chatInputFadeUp = keyframes`
   from {
@@ -261,11 +276,18 @@ export function ChatView({
   const { contentRef, scrollRef, scrollToBottom } = useStickToBottom();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [inputValue, setInputValue] = useState("");
+  const [elicitationDraft, setElicitationDraft] =
+    useState<PendingElicitationDraft | null>(null);
   const hasAcknowledgedConsent = useAgentContext(
     (state) => state.observability.hasAcknowledgedConsent
   );
   const showsEmptyState = messages.length === 0;
   const chatClassName = showsEmptyState ? "chat--empty chat--empty-bleed" : "";
+  const resolvedElicitationDraft =
+    pendingElicitation &&
+    elicitationDraft?.toolCallId !== pendingElicitation.toolCallId
+      ? createPendingElicitationDraft(pendingElicitation.toolCallId)
+      : elicitationDraft;
 
   const handleQuickAction = (prompt: string) => {
     setInputValue(prompt);
@@ -273,105 +295,126 @@ export function ChatView({
   };
 
   return (
-    <div
-      css={chatCSS}
-      className={chatClassName}
-      style={
-        {
-          "--chat-sidebar-inset": CHAT_SIDEBAR_INSET_CSS,
-        } as CSSProperties
-      }
-    >
-      <ChatLantern isVisible={showsEmptyState} />
-      <div className="chat__scroll-frame">
-        <div className="chat__scroll" ref={scrollRef}>
-          <div className="chat__messages" ref={contentRef}>
-            {showsEmptyState && (
-              <ChatEmptyState
-                key={theme}
-                subtext={emptyStateSubtext}
-                quickActions={emptyStateQuickActions}
-                onQuickAction={handleQuickAction}
-              />
-            )}
-            {messages.map((message, index) => {
-              if (message.role === "user") {
-                return <UserMessage key={message.id} parts={message.parts} />;
-              }
-              // Only the last assistant message can still be streaming — hide
-              // its actions until the chat reports it is settled.
-              const isLast = index === messages.length - 1;
-              const showActions = !isLast || status === "ready";
-              return (
-                <AssistantMessage
-                  key={message.id}
-                  message={message}
-                  showActions={showActions}
+    <ElicitationDraftProvider draft={resolvedElicitationDraft}>
+      <div
+        css={chatCSS}
+        className={chatClassName}
+        style={
+          {
+            "--chat-sidebar-inset": CHAT_SIDEBAR_INSET_CSS,
+          } as CSSProperties
+        }
+      >
+        <ChatLantern isVisible={showsEmptyState} />
+        <div className="chat__scroll-frame">
+          <div className="chat__scroll" ref={scrollRef}>
+            <div className="chat__messages" ref={contentRef}>
+              {showsEmptyState && (
+                <ChatEmptyState
+                  key={theme}
+                  subtext={emptyStateSubtext}
+                  quickActions={emptyStateQuickActions}
+                  onQuickAction={handleQuickAction}
                 />
-              );
-            })}
-            {status === "submitted" && <Loading />}
-            {error && <ErrorMessage error={error} />}
+              )}
+              {messages.map((message, index) => {
+                if (message.role === "user") {
+                  return <UserMessage key={message.id} parts={message.parts} />;
+                }
+                // Only the last assistant message can still be streaming — hide
+                // its actions until the chat reports it is settled.
+                const isLast = index === messages.length - 1;
+                const showActions = !isLast || status === "ready";
+                return (
+                  <AssistantMessage
+                    key={message.id}
+                    message={message}
+                    showActions={showActions}
+                  />
+                );
+              })}
+              {status === "submitted" && <Loading />}
+              {error && <ErrorMessage error={error} />}
+            </div>
           </div>
         </div>
-      </div>
-      <div className="chat__input">
-        {!hasAcknowledgedConsent ? (
-          <PromptInput status={status} isDisabled mode="elicitation">
-            <AgentConsentGate />
-          </PromptInput>
-        ) : pendingElicitation ? (
-          <PromptInput status={status} isDisabled mode="elicitation">
-            <ElicitationCarousel
-              questions={pendingElicitation.questions}
-              onSubmit={(output) => {
-                void scrollToBottom();
-                handleElicitationSubmit(output);
-              }}
-              onCancel={handleElicitationCancel}
-            />
-          </PromptInput>
-        ) : (
-          <PromptInput
-            onSubmit={(text) => {
-              void scrollToBottom();
-              sendMessage({ text });
-            }}
-            status={status}
-            value={inputValue}
-            onValueChange={setInputValue}
-          >
-            <AgentContextPills />
-            <PromptInputBody>
-              <PromptInputTextarea
-                ref={textareaRef}
-                placeholder="Send a message..."
+        <div className="chat__input">
+          {!hasAcknowledgedConsent ? (
+            <PromptInput status={status} isDisabled mode="elicitation">
+              <AgentConsentGate />
+            </PromptInput>
+          ) : pendingElicitation ? (
+            <PromptInput status={status} isDisabled mode="elicitation">
+              <ElicitationCarousel
+                key={pendingElicitation.toolCallId}
+                questions={pendingElicitation.questions}
+                onProgressStateChange={(draftState) => {
+                  setElicitationDraft({
+                    toolCallId: pendingElicitation.toolCallId,
+                    ...draftState,
+                  });
+                }}
+                onSubmit={(output) => {
+                  setElicitationDraft({
+                    toolCallId: pendingElicitation.toolCallId,
+                    answers: output.answers,
+                    freeformTexts: output.freeformTexts,
+                    currentIndex: Math.max(
+                      0,
+                      pendingElicitation.questions.length - 1
+                    ),
+                  });
+                  void scrollToBottom();
+                  handleElicitationSubmit(output);
+                }}
+                onCancel={() => {
+                  setElicitationDraft(null);
+                  handleElicitationCancel();
+                }}
               />
-            </PromptInputBody>
-            <PromptInputFooter>
-              <PromptInputTools>
-                <AgentModelMenu
-                  value={modelMenuValue}
-                  onChange={onModelChange}
-                  placement="top start"
-                  shouldFlip
-                  variant="quiet"
+            </PromptInput>
+          ) : (
+            <PromptInput
+              onSubmit={(text) => {
+                void scrollToBottom();
+                sendMessage({ text });
+              }}
+              status={status}
+              value={inputValue}
+              onValueChange={setInputValue}
+            >
+              <AgentContextPills />
+              <PromptInputBody>
+                <PromptInputTextarea
+                  ref={textareaRef}
+                  placeholder="Send a message..."
                 />
-              </PromptInputTools>
+              </PromptInputBody>
+              <PromptInputFooter>
+                <PromptInputTools>
+                  <AgentModelMenu
+                    value={modelMenuValue}
+                    onChange={onModelChange}
+                    placement="top start"
+                    shouldFlip
+                    variant="quiet"
+                  />
+                </PromptInputTools>
 
-              <PromptInputActions>
-                <PromptInputSubmit
-                  onPress={() => {
-                    void stop();
-                  }}
-                />
-              </PromptInputActions>
-            </PromptInputFooter>
-          </PromptInput>
-        )}
-        {children ? <div className="chat__children">{children}</div> : null}
+                <PromptInputActions>
+                  <PromptInputSubmit
+                    onPress={() => {
+                      void stop();
+                    }}
+                  />
+                </PromptInputActions>
+              </PromptInputFooter>
+            </PromptInput>
+          )}
+          {children ? <div className="chat__children">{children}</div> : null}
+        </div>
       </div>
-    </div>
+    </ElicitationDraftProvider>
   );
 }
 
