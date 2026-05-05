@@ -1,15 +1,29 @@
 import { css } from "@emotion/react";
 
+const buildFadingGradient = ({
+  direction,
+}: {
+  direction: "to right" | "to bottom";
+}) => `
+  linear-gradient(
+    ${direction},
+    transparent,
+    var(--global-border-color-default) clamp(48px, 15%, 128px),
+    var(--global-border-color-default) 50%,
+    var(--global-border-color-default) calc(100% - clamp(48px, 15%, 128px)),
+    transparent
+  )
+`;
+
 /**
  * Adds a fading 1px divider on a given edge of an element via a `::after`
  * pseudo-element. Automatically adapts to light and dark themes via
- * `--global-color-gray-900-rgb` (black in light, white in dark).
+ * `--global-border-color-default`.
  *
  * The element must form a stacking context — `position: relative` is included.
  *
- * Tune the intensity per-surface with CSS custom properties:
- *   `--faded-divider-opacity`       flanking gradient stops (default 0.06)
- *   `--faded-divider-opacity-peak`  center gradient stop (default 0.12)
+ * The clamp() constraints ensure the fade looks good in narrow containers
+ * (where 15% would be too small) and wide containers (where 15% would be too generous).
  */
 function makeFadedDividerCSS(edge: "top" | "bottom" | "left" | "right") {
   const isHorizontal = edge === "top" || edge === "bottom";
@@ -21,14 +35,10 @@ function makeFadedDividerCSS(edge: "top" | "bottom" | "left" | "right") {
       ${edge}: 0;
       ${isHorizontal ? "left: 0; right: 0;" : "top: 0; bottom: 0;"}
       ${isHorizontal ? "height: 1px;" : "width: 1px;"}
-      background: linear-gradient(
-        ${isHorizontal ? "to right" : "to bottom"},
-        transparent,
-        rgba(var(--global-color-gray-900-rgb), var(--faded-divider-opacity, 0.06)) 15%,
-        rgba(var(--global-color-gray-900-rgb), var(--faded-divider-opacity-peak, 0.12)) 50%,
-        rgba(var(--global-color-gray-900-rgb), var(--faded-divider-opacity, 0.06)) 85%,
-        transparent
-      );
+      background: ${buildFadingGradient({
+        direction: isHorizontal ? "to right" : "to bottom",
+      })};
+      opacity: 0.8;
     }
   `;
 }

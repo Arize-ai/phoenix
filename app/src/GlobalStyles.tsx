@@ -930,6 +930,7 @@ const baseTokensCSS = (theme: Theme) => css`
     --highlight-background: var(--global-color-primary-100);
     --hover-background: var(--global-color-gray-100);
     --focus-ring-color: var(--global-color-primary-500);
+    --focus-ring-offset: var(--global-dimension-static-size-25);
 
     --text-color-placeholder: var(--global-color-gray-400);
 
@@ -1180,12 +1181,6 @@ const borderAndGridCSS = (theme: Theme) => css`
   .theme--${theme} {
     --global-border-size-thin: var(--global-dimension-static-size-10);
     --global-border-size-thick: var(--global-dimension-static-size-25);
-    --global-border-size-thicker: var(--global-dimension-static-size-50);
-    --global-border-size-thickest: var(--global-dimension-static-size-100);
-    --global-border-offset-thin: var(--global-dimension-static-size-25);
-    --global-border-offset-thick: var(--global-dimension-static-size-50);
-    --global-border-offset-thicker: var(--global-dimension-static-size-100);
-    --global-border-offset-thickest: var(--global-dimension-static-size-200);
     --global-grid-baseline: var(--global-dimension-static-size-100);
     --global-grid-gutter-xsmall: var(--global-dimension-static-size-200);
     --global-grid-gutter-small: var(--global-dimension-static-size-300);
@@ -1236,16 +1231,6 @@ const messageTokensCSS = (theme: Theme) => css`
   }
 `;
 
-const agentChatCSS = (theme: Theme) => css`
-  :root,
-  .theme--${theme} {
-    // Opacity of the flanking gradient stops (15% and 85%)
-    --faded-divider-opacity: ${theme === "dark" ? "0.09" : "0.06"};
-    // Opacity of the center gradient stop (50%) — tune per theme to match border-color-default
-    --faded-divider-opacity-peak: ${theme === "dark" ? "0.14" : "0.09"};
-  }
-`;
-
 export const derivedCSS = (theme: Theme) =>
   css(
     baseTokensCSS(theme),
@@ -1266,8 +1251,7 @@ export const derivedCSS = (theme: Theme) =>
     resizeHandleCSS(theme),
     badgeSizingCSS(theme),
     promptInputCSS(theme),
-    messageTokensCSS(theme),
-    agentChatCSS(theme)
+    messageTokensCSS(theme)
   );
 
 const appGlobalStylesCSS = css`

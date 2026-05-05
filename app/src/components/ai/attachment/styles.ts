@@ -205,7 +205,7 @@ export const attachmentRemoveCSS = css`
   &[data-focus-visible] {
     opacity: 1;
     outline: var(--global-border-size-thick) solid var(--focus-ring-color);
-    outline-offset: var(--global-border-offset-thin);
+    outline-offset: var(--focus-ring-offset);
   }
 
   .icon-wrap {
