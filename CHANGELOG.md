@@ -1,5 +1,26 @@
 # Changelog
 
+## [15.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.2.0...arize-phoenix-v15.3.0) (2026-05-05)
+
+
+### Features
+
+* **agent:** remove user instructions from PXI ([#13010](https://github.com/Arize-ai/phoenix/issues/13010)) ([6062d64](https://github.com/Arize-ai/phoenix/commit/6062d649f18ec7c927a72d8c2c2a71337d2ac2f5))
+* chat empty state shader ([#12990](https://github.com/Arize-ai/phoenix/issues/12990)) ([5c643d9](https://github.com/Arize-ai/phoenix/commit/5c643d93d8be1bd0531a2d00122ffd8c5d8dbeb4))
+
+
+### Bug Fixes
+
+* **api:** include dataset metadata in experiment CSV export ([#12897](https://github.com/Arize-ai/phoenix/issues/12897)) ([64cb481](https://github.com/Arize-ai/phoenix/commit/64cb481e10759a77eeea9fa32aca02369978d077))
+* **deps:** update arize-phoenix-client to 2.4.0 ([#12799](https://github.com/Arize-ai/phoenix/issues/12799)) ([1300763](https://github.com/Arize-ai/phoenix/commit/130076345832c8419ad33ecbd73424ba6bdaf19c))
+* **deps:** update arize-phoenix-otel to 0.16.1 ([#12997](https://github.com/Arize-ai/phoenix/issues/12997)) ([7bff140](https://github.com/Arize-ai/phoenix/commit/7bff140b03cda5fb130cfc4a1f2d8e9d94e53907))
+
+
+### Documentation
+
+* add LinkedIn social links alongside X/Bluesky ([#12993](https://github.com/Arize-ai/phoenix/issues/12993)) ([5d14f23](https://github.com/Arize-ai/phoenix/commit/5d14f23598202c062530466a9dbdc9a1a033d6c8))
+* document all REST API endpoints and index them in llms.txt ([#12999](https://github.com/Arize-ai/phoenix/issues/12999)) ([2ec728a](https://github.com/Arize-ai/phoenix/commit/2ec728ac30b0412e4a4a9407c7a92469917fded1))
+
 ## [15.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.1.0...arize-phoenix-v15.2.0) (2026-05-03)
 
 
