@@ -14,7 +14,7 @@ import {
   Flex,
   Icon,
   Icons,
-  Link,
+  LinkButton,
   ListBox,
   ListBoxItem,
   Loading,
@@ -144,7 +144,7 @@ function RootSpanStartTime({ rootSpan }: RootSpanProps) {
   );
 }
 
-function RootSpanOutputHeader({
+function RootSpanTraceLink({
   traceId,
   rootSpan,
 }: RootSpanProps & { traceId: string }) {
@@ -152,7 +152,10 @@ function RootSpanOutputHeader({
 
   return (
     <Flex direction="row" justifyContent="end">
-      <Link
+      <LinkButton
+        size="S"
+        variant="quiet"
+        leadingVisual={<Icon svg={<Icons.Trace />} />}
         to={getSessionTraceUrl({
           pathname: location.pathname,
           search: location.search,
@@ -160,48 +163,50 @@ function RootSpanOutputHeader({
           spanNodeId: rootSpan.id,
         })}
       >
-        <Flex alignItems="center">
-          View Trace
-          <Icon svg={<Icons.ArrowIosForwardOutline />} />
-        </Flex>
-      </Link>
+        Trace
+      </LinkButton>
     </Flex>
   );
 }
 
 function RootSpanOutputMetadata({ rootSpan }: RootSpanProps) {
   return (
-    <Flex
-      direction="row"
-      justifyContent="space-between"
-      alignItems="center"
-      gap="size-200"
-      wrap
-    >
-      <Flex direction="row" alignItems="center" gap="size-100" wrap>
-        <SpanCumulativeTokenCount
-          tokenCountTotal={rootSpan.cumulativeTokenCountTotal || 0}
-          nodeId={rootSpan.id}
-        />
-        {rootSpan.trace.costSummary?.total?.cost != null && (
-          <TraceTokenCosts
-            totalCost={rootSpan.trace.costSummary.total.cost}
-            nodeId={rootSpan.trace.id}
+    <Flex direction="column" gap="size-100">
+      <Flex
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        gap="size-200"
+        wrap
+      >
+        <Flex direction="row" alignItems="center" gap="size-100" wrap>
+          <SpanCumulativeTokenCount
+            tokenCountTotal={rootSpan.cumulativeTokenCountTotal || 0}
+            nodeId={rootSpan.id}
           />
-        )}
-        {rootSpan.latencyMs != null ? (
-          <LatencyText latencyMs={rootSpan.latencyMs} />
-        ) : null}
-        <AnnotationSummaryGroupTokens span={rootSpan} />
+          {rootSpan.trace.costSummary?.total?.cost != null && (
+            <TraceTokenCosts
+              totalCost={rootSpan.trace.costSummary.total.cost}
+              nodeId={rootSpan.trace.id}
+            />
+          )}
+          {rootSpan.latencyMs != null ? (
+            <LatencyText latencyMs={rootSpan.latencyMs} />
+          ) : null}
+        </Flex>
+        <span>
+          <EditSpanAnnotationsButton
+            size="S"
+            spanNodeId={rootSpan.id}
+            projectId={rootSpan.project.id}
+            buttonText="Annotate"
+          />
+        </span>
       </Flex>
-      <span>
-        <EditSpanAnnotationsButton
-          size="S"
-          spanNodeId={rootSpan.id}
-          projectId={rootSpan.project.id}
-          buttonText="Annotate"
-        />
-      </span>
+      <AnnotationSummaryGroupTokens
+        span={rootSpan}
+        renderEmptyState={() => null}
+      />
     </Flex>
   );
 }
@@ -224,7 +229,7 @@ function SessionTurnDetail({
         <RootSpanStartTime rootSpan={rootSpan} />
       </Flex>
       <Flex direction="column" gap="size-100">
-        <RootSpanOutputHeader traceId={traceId} rootSpan={rootSpan} />
+        <RootSpanTraceLink traceId={traceId} rootSpan={rootSpan} />
         <RootSpanMessage role="AI" value={rootSpan.output?.value} />
         <RootSpanOutputMetadata rootSpan={rootSpan} />
       </Flex>
