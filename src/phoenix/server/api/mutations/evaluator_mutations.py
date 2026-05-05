@@ -312,7 +312,7 @@ class DeleteDatasetEvaluatorsPayload:
 
 @strawberry.input
 class CreateCodeEvaluatorInput:
-    name: str
+    name: Identifier
     source_code: str
     language: Language
     description: Optional[str] = None
@@ -324,7 +324,7 @@ class CreateCodeEvaluatorInput:
 @strawberry.input
 class UpdateCodeEvaluatorInput:
     id: GlobalID
-    name: Optional[str] = UNSET
+    name: Optional[Identifier] = UNSET
     source_code: Optional[str] = UNSET
     language: Optional[Language] = UNSET
     description: Optional[str] = UNSET

@@ -34,6 +34,7 @@ if TYPE_CHECKING:
         DocumentEvaluationsDataLoader,
         DocumentEvaluationSummaryDataLoader,
         DocumentRetrievalMetricsDataLoader,
+        EvaluatorByIdDataLoader,
         ExperimentAnnotationSummaryDataLoader,
         ExperimentDatasetSplitsDataLoader,
         ExperimentErrorRatesDataLoader,
@@ -60,6 +61,7 @@ if TYPE_CHECKING:
         PromptVersionSequenceNumberDataLoader,
         RecordCountDataLoader,
         SandboxConfigsByProviderDataLoader,
+        SandboxProviderByIdDataLoader,
         SecretsDataLoader,
         SessionAnnotationsBySessionDataLoader,
         SessionIODataLoader,
@@ -142,6 +144,7 @@ class DataLoaders:
     document_evaluation_summaries: DocumentEvaluationSummaryDataLoader
     document_evaluations: DocumentEvaluationsDataLoader
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
+    evaluator_by_id: EvaluatorByIdDataLoader
     experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
     experiment_dataset_splits: ExperimentDatasetSplitsDataLoader
     experiment_error_rates: ExperimentErrorRatesDataLoader
@@ -184,6 +187,7 @@ class DataLoaders:
     project_session_fields: TableFieldsDataLoader
     record_counts: RecordCountDataLoader
     sandbox_configs_by_provider: SandboxConfigsByProviderDataLoader
+    sandbox_provider_by_id: SandboxProviderByIdDataLoader
     secret_fields: TableFieldsDataLoader
     secrets: SecretsDataLoader
     session_annotations_by_session: SessionAnnotationsBySessionDataLoader
