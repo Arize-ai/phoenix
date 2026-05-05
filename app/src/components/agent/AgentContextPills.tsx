@@ -25,6 +25,10 @@ function truncate(value: string, max: number): string {
 
 function contextLabel(context: AgentContext): string {
   switch (context.type) {
+    case "app":
+      // App context is request-only clock metadata injected at send time, not
+      // user-visible page context, so it should never render as a pill.
+      return "";
     case "project":
       return "Project";
     case "trace":
@@ -80,6 +84,9 @@ export function AgentContextPills() {
   }
 
   const items = contexts.flatMap((context) => {
+    if (context.type === "app") {
+      return [];
+    }
     const filterPill = spanFilterAttachmentData(context);
     return filterPill
       ? [toAttachmentData(context), filterPill]

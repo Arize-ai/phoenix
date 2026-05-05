@@ -138,6 +138,9 @@ from phoenix.server.agents.tools.external.ask_user import (  # noqa: E402
 from phoenix.server.agents.tools.external.bash import (  # noqa: E402
     BASH_TOOL_DEFINITION,
 )
+from phoenix.server.agents.tools.external.set_time_range import (  # noqa: E402
+    SET_TIME_RANGE_TOOL_DEFINITION,
+)
 from phoenix.server.agents.tools.set_spans_filter import (  # noqa: E402
     build_set_spans_filter_tool,
 )
@@ -145,4 +148,8 @@ from phoenix.server.agents.tools.set_spans_filter import (  # noqa: E402
 CONTEXTUAL_TOOLS: list[ContextualTool] = [
     build_set_spans_filter_tool(),
 ]
-EXTERNAL_TOOLS: list["ToolDefinition"] = [ASK_USER_TOOL_DEFINITION, BASH_TOOL_DEFINITION]
+EXTERNAL_TOOLS: list["ToolDefinition"] = [
+    ASK_USER_TOOL_DEFINITION,
+    BASH_TOOL_DEFINITION,
+    SET_TIME_RANGE_TOOL_DEFINITION,
+]
