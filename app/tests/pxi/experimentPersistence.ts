@@ -3,7 +3,9 @@ import type { APIRequestContext } from "@playwright/test";
 const DATASET_NAME = "PXI E2E Agent Tests";
 const EXAMPLE_ID = "pxi-docs-smoke:tracing-project-env-var-v1";
 const EXPERIMENT_BASE_URL =
-  process.env.PXI_E2E_EXPERIMENT_BASE_URL ?? "http://localhost:6006";
+  process.env.PXI_E2E_EXPERIMENT_BASE_URL ??
+  process.env.PLAYWRIGHT_BASE_URL ??
+  `http://localhost:${process.env.PHOENIX_PORT ?? "6006"}`;
 const EXPERIMENT_BEARER_TOKEN = process.env.PXI_E2E_EXPERIMENT_BEARER_TOKEN;
 
 type JudgeResult = {

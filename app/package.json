@@ -26,6 +26,7 @@
     "lint:fix": "oxlint --fix",
     "preinstall": "npx only-allow pnpm",
     "pretest:e2e": "pnpm build",
+    "pretest:e2e:pxi": "pnpm build",
     "pretest:e2e:ui": "pnpm build",
     "prod": "pnpm run build:static && pnpm run build && pnpm run prod:server",
     "prod:server": "source ./.env && uv run phoenix serve",
