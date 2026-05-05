@@ -16,7 +16,9 @@ def test_importing_phoenix_evals_does_not_warn_about_deprecated_templating() -> 
         warnings.simplefilter("always", DeprecationWarning)
         importlib.import_module("phoenix.evals")
 
-    assert not any("phoenix.evals.templating module is deprecated" in str(w.message) for w in caught)
+    assert not any(
+        "phoenix.evals.templating module is deprecated" in str(w.message) for w in caught
+    )
 
 
 def test_accessing_templating_still_warns_and_returns_module() -> None:
