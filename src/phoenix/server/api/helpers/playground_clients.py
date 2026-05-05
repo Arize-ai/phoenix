@@ -992,7 +992,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
                 span.set_attributes(
                     dict(_ResponsesApiAttributes._get_attributes_from_response(completed_response))
                 )
-            if text_chunks or tool_call_chunks:
+            elif text_chunks or tool_call_chunks:
                 span.set_attributes(dict(_llm_output_messages(text_chunks, tool_call_chunks)))
             return
 
@@ -1211,7 +1211,7 @@ class OpenAIBaseStreamingClient(PlaygroundStreamingClient["AsyncOpenAI"]):
             span.set_attributes(
                 dict(_ResponsesApiAttributes._get_attributes_from_response(completed_response))
             )
-        if text_chunks or tool_call_chunks:
+        elif text_chunks or tool_call_chunks:
             span.set_attributes(dict(_llm_output_messages(text_chunks, tool_call_chunks)))
 
     def _to_openai_chat_completion_message_param(
@@ -1665,6 +1665,10 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
             inference_config["temperature"] = invocation_parameters["temperature"]
         if "top_p" in invocation_parameters and isinstance(invocation_parameters["top_p"], float):
             inference_config["topP"] = invocation_parameters["top_p"]
+        if "stop_sequences" in invocation_parameters and isinstance(
+            invocation_parameters["stop_sequences"], list
+        ):
+            inference_config["stopSequences"] = invocation_parameters["stop_sequences"]
         if inference_config:
             request["inferenceConfig"] = inference_config
 
@@ -2377,7 +2381,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         tools: PromptTools | None,
         response_format: PromptResponseFormat | None,
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
-    ) -> "MessageCreateParamsBase":
+    ) -> tuple["MessageCreateParamsBase", dict[str, Any] | None]:
         from anthropic.types import JSONOutputFormatParam, OutputConfigParam, ToolParam
         from anthropic.types.message_create_params import MessageCreateParamsBase
         from anthropic.types.thinking_config_param import ThinkingConfigParam
@@ -2435,10 +2439,11 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                     tool_list.append(t)
                 params["tools"] = tool_list
 
+        output_config: OutputConfigParam | None = None
         if response_format:
             if response_format.type == "json_schema":
                 js = response_format.json_schema
-                params["output_config"] = OutputConfigParam(
+                output_config = OutputConfigParam(
                     format=JSONOutputFormatParam(
                         type="json_schema",
                         schema=js.schema_ if js.schema_ else {},
@@ -2460,24 +2465,45 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
                 invocation_parameters["top_p"], float
             ):
                 params["top_p"] = invocation_parameters["top_p"]
-            if "top_k" in invocation_parameters and isinstance(invocation_parameters["top_k"], int):
-                params["top_k"] = invocation_parameters["top_k"]
+            if "output_config" in invocation_parameters and isinstance(
+                invocation_parameters["output_config"], dict
+            ):
+                oc_in = invocation_parameters["output_config"]
+                if output_config is None:
+                    output_config = OutputConfigParam()
+                if "effort" in oc_in:
+                    output_config["effort"] = oc_in["effort"]
             if "thinking" in invocation_parameters and isinstance(
                 invocation_parameters["thinking"], dict
             ):
-                params["thinking"] = cast(ThinkingConfigParam, invocation_parameters["thinking"])
+                thinking_in = invocation_parameters["thinking"]
+                thinking_type = thinking_in.get("type")
+                if thinking_type in ("disabled", "enabled", "adaptive"):
+                    params["thinking"] = cast(ThinkingConfigParam, dict(thinking_in))
 
-        return params
+        if output_config is not None:
+            params["output_config"] = output_config
+
+        extra_body: dict[str, Any] | None = None
+        if "extra_body" in invocation_parameters and isinstance(
+            invocation_parameters["extra_body"], dict
+        ):
+            extra_body = invocation_parameters["extra_body"]
+
+        return params, extra_body
 
     def _anthropic_record_message_request_on_span(
         self,
         span: OTelSpan,
         params: "MessageCreateParamsBase",
+        extra_body: dict[str, Any] | None = None,
     ) -> None:
         if "tools" in params:
             for i, tool_param in enumerate(params["tools"]):
                 span.set_attribute(f"llm.tools.{i}.tool.json_schema", safe_json_dumps(tool_param))
-        input_value = dict(params)
+        input_value: dict[str, Any] = dict(params)
+        if extra_body:
+            input_value["extra_body"] = extra_body
         span.set_attribute(SpanAttributes.INPUT_VALUE, safe_json_dumps(input_value))
         span.set_attribute(SpanAttributes.INPUT_MIME_TYPE, OpenInferenceMimeTypeValues.JSON.value)
         input_value.pop("messages", None)
@@ -2495,14 +2521,14 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
         span: OTelSpan,
     ) -> AsyncMessageStreamManager[Any]:
-        params = self._anthropic_message_params(
+        params, extra_body = self._anthropic_message_params(
             messages=messages,
             tools=tools,
             response_format=response_format,
             invocation_parameters=invocation_parameters,
         )
-        self._anthropic_record_message_request_on_span(span, params)
-        stream_manager = client.messages.stream(**params)
+        self._anthropic_record_message_request_on_span(span, params, extra_body)
+        stream_manager = client.messages.stream(**params, extra_body=extra_body)
         return stream_manager
 
     def _anthropic_apply_usage_to_span(self, span: OTelSpan, usage: Usage) -> None:
@@ -2543,14 +2569,14 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
             async with AsyncExitStack() as stack:
                 client = await stack.enter_async_context(self._client_factory())
                 client._client = _HttpxClient(client._client, span=span)
-                params = self._anthropic_message_params(
+                params, extra_body = self._anthropic_message_params(
                     messages=messages,
                     tools=tools,
                     response_format=response_format,
                     invocation_parameters=invocation_parameters,
                 )
-                self._anthropic_record_message_request_on_span(span, params)
-                message = await client.messages.create(**params)
+                self._anthropic_record_message_request_on_span(span, params, extra_body)
+                message = await client.messages.create(**params, extra_body=extra_body)
                 if message.usage:
                     self._anthropic_apply_usage_to_span(span, message.usage)
                 span.set_attribute(OUTPUT_VALUE, message.model_dump_json(exclude_none=True))

@@ -1,8 +1,8 @@
-import { usePreloadedQuery } from "react-relay";
 import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
 import { Flex, View } from "@phoenix/components";
+import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { PromptConfigLoaderData } from "@phoenix/pages/prompt/promptConfigLoader";
 import { promptConfigLoaderQuery } from "@phoenix/pages/prompt/promptConfigLoader";
 
@@ -12,10 +12,10 @@ import { PromptVersionTagsConfigCard } from "./PromptVersionTagsConfigCard";
 export function PromptConfigPage() {
   const loaderData = useLoaderData<PromptConfigLoaderData>();
   invariant(loaderData, "loaderData is required");
-  const data = usePreloadedQuery<PromptConfigLoaderQuery>(
-    promptConfigLoaderQuery,
-    loaderData.queryRef
-  );
+  const data = useOwnedPreloadedQuery<PromptConfigLoaderQuery>({
+    query: promptConfigLoaderQuery,
+    queryRef: loaderData.queryRef,
+  });
 
   return (
     <Flex direction="row" height="100%">

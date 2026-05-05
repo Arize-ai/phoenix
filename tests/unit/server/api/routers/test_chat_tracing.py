@@ -37,9 +37,17 @@ class _FakeEventQueue:
 class _FakeUsage:
     """Mimics pydantic-ai's RequestUsage for testing."""
 
-    def __init__(self, input_tokens: int = 0, output_tokens: int = 0) -> None:
+    def __init__(
+        self,
+        input_tokens: int = 0,
+        output_tokens: int = 0,
+        cache_read_tokens: int = 0,
+        cache_write_tokens: int = 0,
+    ) -> None:
         self.input_tokens = input_tokens
         self.output_tokens = output_tokens
+        self.cache_read_tokens = cache_read_tokens
+        self.cache_write_tokens = cache_write_tokens
 
 
 def _make_tracer(db: DbSessionFactory) -> Tracer:
@@ -207,6 +215,8 @@ class TestSpanHierarchy:
         assert attrs["llm"]["token_count"]["prompt"] == 10
         assert attrs["llm"]["token_count"]["completion"] == 5
         assert attrs["llm"]["token_count"]["total"] == 15
+        assert attrs["llm"]["token_count"]["prompt_details"]["cache_read"] == 0
+        assert attrs["llm"]["token_count"]["prompt_details"]["cache_write"] == 0
 
         # Input messages should be on the LLM span.
         input_msgs = attrs["llm"]["input_messages"]
@@ -226,6 +236,34 @@ class TestSpanHierarchy:
         assert parsed["type"] == "function"
         assert parsed["function"]["name"] == "search"
         assert parsed["function"]["description"] == "Search the web"
+
+    def test_llm_span_records_cache_token_details(self, db: DbSessionFactory) -> None:
+        from pydantic_ai.messages import ModelRequest, UserPromptPart
+
+        tracer = _make_tracer(db)
+        messages = [ModelRequest(parts=[UserPromptPart(content="Hi")])]
+
+        agent_span = create_agent_span(tracer, input_messages=messages)
+        llm_span = create_llm_span(tracer, parent_span=agent_span, input_messages=messages)
+        finalize_llm_span(
+            llm_span,
+            output_content="Hello!",
+            usage=_FakeUsage(
+                input_tokens=10,
+                output_tokens=5,
+                cache_read_tokens=7,
+                cache_write_tokens=3,
+            ),
+        )
+        finalize_agent_span(agent_span, output_content="Hello!")
+
+        db_traces = tracer.get_db_traces(project_id=1)
+        spans = db_traces[0].spans
+        llm_db = next(s for s in spans if s.span_kind == OpenInferenceSpanKindValues.LLM.value)
+
+        prompt_details = llm_db.attributes["llm"]["token_count"]["prompt_details"]
+        assert prompt_details["cache_read"] == 7
+        assert prompt_details["cache_write"] == 3
 
     def test_traces_recent_frontend_tool_results(self, db: DbSessionFactory) -> None:
         from pydantic_ai.messages import (

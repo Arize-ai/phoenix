@@ -39,6 +39,16 @@ class DatasetExample(Node):
             raise ValueError("DatasetExample ID mismatch")
 
     @strawberry.field
+    async def external_id(self, info: Info[Context, None]) -> Optional[str]:
+        if self.db_record:
+            val = self.db_record.external_id
+        else:
+            val = await info.context.data_loaders.dataset_example_fields.load(
+                (self.id, models.DatasetExample.external_id),
+            )
+        return val
+
+    @strawberry.field
     async def created_at(self, info: Info[Context, None]) -> datetime:
         if self.db_record:
             val = self.db_record.created_at

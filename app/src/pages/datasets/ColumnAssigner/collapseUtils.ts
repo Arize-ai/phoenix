@@ -55,6 +55,7 @@ export function computeBucketCollapseConflicts(
   for (const parentKey of collapsibleKeys) {
     const childKeys = new Set<string>();
     for (const row of previewRows) {
+      if (!(parentKey in row)) continue;
       const value = row[parentKey];
       if (!isPlainObject(value)) {
         conflicts.set(parentKey, [NON_OBJECT_CONFLICT_MARKER]);

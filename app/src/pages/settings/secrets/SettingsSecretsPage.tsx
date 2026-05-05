@@ -86,6 +86,15 @@ function SettingsSecretsPageContent({
                 username
                 profilePictureUrl
               }
+              value {
+                __typename
+                ... on DecryptedSecret {
+                  value
+                }
+                ... on UnparsableSecret {
+                  parseError
+                }
+              }
             }
           }
         }

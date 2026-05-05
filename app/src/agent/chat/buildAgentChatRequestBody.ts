@@ -1,15 +1,7 @@
-/**
- * For the workflow to add, edit, or remove a frontend tool, see
- * `.agents/skills/phoenix-pxi/rules/extending-frontend-tool-registry.md`.
- */
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
-import {
-  buildAgentCapabilitySystemPrompt,
-  type AgentCapabilities,
-} from "@phoenix/agent/extensions/capabilities";
+import type { AgentCapabilities } from "@phoenix/agent/extensions/capabilities";
 import type { AgentObservabilitySettings } from "@phoenix/store/agentStore";
 
-import { agentToolDefinitions } from "./chatTools";
 import type { AgentUIMessage } from "./types";
 
 type BuildAgentChatRequestBodyOptions = {
@@ -23,8 +15,6 @@ type BuildAgentChatRequestBodyOptions = {
   trigger: "submit-message" | "regenerate-message";
   /** Optional message identifier for regenerate flows. */
   messageId: string | undefined;
-  /** System prompt from agent settings (persisted in the agent store). */
-  systemPrompt: string;
   /** Optional PXI session id used to associate traces across turns. */
   sessionId?: string | null;
   /** Runtime capability snapshot to expose to the model for this turn. */
@@ -47,10 +37,6 @@ type BuildAgentChatRequestBodyResult = Record<string, unknown> & {
   trigger: "submit-message" | "regenerate-message";
   /** Optional message identifier for regenerate flows. */
   messageId: string | undefined;
-  /** System prompt applied to PXI agent chat requests. */
-  system: string;
-  /** Frontend tool definitions exposed for client-side execution. */
-  tools: typeof agentToolDefinitions;
   /** Distinguishes normal chat turns from other PXI chat request types. */
   traceNameSuffix: "Turn";
   /** Optional PXI session id used to associate traces across turns. */
@@ -61,29 +47,17 @@ type BuildAgentChatRequestBodyResult = Record<string, unknown> & {
   exportRemoteTraces: boolean;
   /** Typed contexts advertised to the backend for this turn. */
   contexts: AgentContext[];
+  /** Runtime capability snapshot advertised to the backend for this turn. */
+  capabilities: AgentCapabilities;
 };
 
-function buildSystemPrompt({
-  systemPrompt,
-  capabilities,
-}: {
-  systemPrompt: string;
-  capabilities: AgentCapabilities;
-}): string {
-  const capabilityPrompt = buildAgentCapabilitySystemPrompt({ capabilities });
-
-  return capabilityPrompt
-    ? `${systemPrompt}\n\n${capabilityPrompt}`
-    : systemPrompt;
-}
-
 /**
- * Merges the AI SDK transport payload with the frontend tool definitions that
- * the agent chat API expects for client-side tool execution.
+ * Merges the AI SDK transport payload with PXI chat metadata. Tool definitions
+ * are intentionally omitted because the server is the model-facing authority.
  *
- * The exported request body includes three agent-specific additions beyond the
- * raw AI SDK payload: the base system prompt, the current runtime capability
- * summary, and the frontend tool definitions the model may call.
+ * The exported request body includes two agent-specific additions beyond the
+ * raw AI SDK payload: runtime capabilities and typed UI contexts. Tool
+ * definitions and prompt assembly are owned by the server.
  */
 export function buildAgentChatRequestBody({
   body,
@@ -91,7 +65,6 @@ export function buildAgentChatRequestBody({
   messages,
   trigger,
   messageId,
-  systemPrompt,
   sessionId,
   capabilities,
   observability,
@@ -104,12 +77,11 @@ export function buildAgentChatRequestBody({
     messages,
     trigger,
     messageId,
-    system: buildSystemPrompt({ systemPrompt, capabilities }),
-    tools: agentToolDefinitions,
     traceNameSuffix: "Turn",
     ingestTraces: observability.storeLocalTraces,
     exportRemoteTraces: observability.exportRemoteTraces && hasRemoteCollector,
     contexts,
+    capabilities,
     ...(sessionId ? { sessionId } : {}),
   };
 }

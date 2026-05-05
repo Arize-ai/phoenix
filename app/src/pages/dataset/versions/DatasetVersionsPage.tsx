@@ -1,7 +1,7 @@
 import { Suspense } from "react";
-import { usePreloadedQuery } from "react-relay";
 import { Outlet, useLoaderData } from "react-router";
 
+import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import { DatasetHistoryTable } from "@phoenix/pages/dataset/DatasetHistoryTable";
 
 import type { datasetVersionsLoaderQuery as DatasetVersionsLoaderQuery } from "./__generated__/datasetVersionsLoaderQuery.graphql";
@@ -13,10 +13,10 @@ import { datasetVersionsLoaderQuery } from "./datasetVersionsLoader";
  */
 export function DatasetVersionsPage() {
   const loaderData = useLoaderData<DatasetVersionsLoaderData>();
-  const data = usePreloadedQuery<DatasetVersionsLoaderQuery>(
-    datasetVersionsLoaderQuery,
-    loaderData.queryRef
-  );
+  const data = useOwnedPreloadedQuery<DatasetVersionsLoaderQuery>({
+    query: datasetVersionsLoaderQuery,
+    queryRef: loaderData.queryRef,
+  });
   return (
     <>
       <DatasetHistoryTable dataset={data.dataset} />

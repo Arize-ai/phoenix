@@ -585,6 +585,7 @@ async def get_incomplete_runs(
                 IncompleteExperimentRun(
                     dataset_example=DatasetExample(
                         id=str(example_globalid),
+                        node_id=str(example_globalid),
                         input=revision.input,
                         output=revision.output,
                         metadata=revision.metadata_,
@@ -934,6 +935,7 @@ async def get_experiment_csv(
                 "input": json.dumps(revision.input),
                 "reference_output": json.dumps(revision.output),
                 "output": serialized_run_output,
+                "metadata": json.dumps(revision.metadata_),
                 "error": run.error,
                 "latency_ms": run.latency_ms,
                 "start_time": run.start_time.isoformat(),

@@ -68,6 +68,7 @@ class Dataset(TypedDict):
 
 class DatasetExample(TypedDict):
     id: str
+    node_id: str
     input: Mapping[str, Any]
     output: Mapping[str, Any]
     metadata: Mapping[str, Any]
@@ -277,6 +278,15 @@ class Prompt(PromptData):
     id: str
 
 
+class PromptAnthropicOutputConfig(TypedDict):
+    effort: NotRequired[Literal["low", "medium", "high", "xhigh", "max"]]
+
+
+class PromptAnthropicThinkingConfigAdaptive(TypedDict):
+    type: Literal["adaptive"]
+    display: NotRequired[Literal["summarized", "omitted"]]
+
+
 class PromptAnthropicThinkingConfigDisabled(TypedDict):
     type: Literal["disabled"]
 
@@ -284,12 +294,14 @@ class PromptAnthropicThinkingConfigDisabled(TypedDict):
 class PromptAnthropicThinkingConfigEnabled(TypedDict):
     type: Literal["enabled"]
     budget_tokens: int
+    display: NotRequired[Literal["summarized", "omitted"]]
 
 
 class PromptAwsInvocationParametersContent(TypedDict):
     max_tokens: NotRequired[int]
     temperature: NotRequired[float]
     top_p: NotRequired[float]
+    stop_sequences: NotRequired[Sequence[str]]
 
 
 class PromptAzureOpenAIInvocationParametersContent(TypedDict):
@@ -300,7 +312,9 @@ class PromptAzureOpenAIInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
 
 
 class PromptCerebrasInvocationParametersContent(TypedDict):
@@ -311,7 +325,9 @@ class PromptCerebrasInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
 
 
 class PromptDeepSeekInvocationParametersContent(TypedDict):
@@ -322,7 +338,9 @@ class PromptDeepSeekInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
 
 
 class PromptFireworksInvocationParametersContent(TypedDict):
@@ -333,17 +351,15 @@ class PromptFireworksInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
 
 
-class PromptGoogleInvocationParametersContent(TypedDict):
-    temperature: NotRequired[float]
-    max_output_tokens: NotRequired[int]
-    stop_sequences: NotRequired[Sequence[str]]
-    presence_penalty: NotRequired[float]
-    frequency_penalty: NotRequired[float]
-    top_p: NotRequired[float]
-    top_k: NotRequired[int]
+class PromptGoogleThinkingConfig(TypedDict):
+    thinking_budget: NotRequired[int]
+    thinking_level: NotRequired[Literal["minimal", "low", "medium", "high"]]
+    include_thoughts: NotRequired[bool]
 
 
 class PromptGroqInvocationParametersContent(TypedDict):
@@ -354,7 +370,9 @@ class PromptGroqInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
 
 
 class PromptMoonshotInvocationParametersContent(TypedDict):
@@ -365,7 +383,9 @@ class PromptMoonshotInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
 
 
 class PromptOllamaInvocationParametersContent(TypedDict):
@@ -376,7 +396,9 @@ class PromptOllamaInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
 
 
 class PromptOpenAIInvocationParametersContent(TypedDict):
@@ -387,7 +409,9 @@ class PromptOpenAIInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
 
 
 class PromptPerplexityInvocationParametersContent(TypedDict):
@@ -398,7 +422,9 @@ class PromptPerplexityInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
 
 
 class PromptResponseFormatJSONSchemaDefinition(TypedDict):
@@ -421,7 +447,9 @@ class PromptTogetherInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
 
 
 class PromptToolChoiceNone(TypedDict):
@@ -467,7 +495,9 @@ class PromptXAIInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
 
 
 class SecretKeyValue(TypedDict):
@@ -501,6 +531,11 @@ class SessionAnnotationData(TypedDict):
 class SessionAnnotationsResponseBody(TypedDict):
     data: Sequence[SessionAnnotation]
     next_cursor: Optional[str]
+
+
+class SessionNoteData(TypedDict):
+    session_id: str
+    note: str
 
 
 class SessionTraceData(TypedDict):
@@ -630,6 +665,9 @@ class UpdateProjectResponseBody(TypedDict):
 class UploadDatasetData(TypedDict):
     dataset_id: str
     version_id: str
+    num_created_examples: int
+    num_updated_examples: int
+    num_deleted_examples: int
 
 
 class UploadDatasetResponseBody(TypedDict):
@@ -753,6 +791,14 @@ class CreateProjectResponseBody(TypedDict):
     data: Project
 
 
+class CreateSessionNoteRequestBody(TypedDict):
+    data: SessionNoteData
+
+
+class CreateSessionNoteResponseBody(TypedDict):
+    data: InsertedSessionAnnotation
+
+
 class CreateSpanNoteRequestBody(TypedDict):
     data: SpanNoteData
 
@@ -840,9 +886,15 @@ class PromptAnthropicInvocationParametersContent(TypedDict):
     temperature: NotRequired[float]
     top_p: NotRequired[float]
     stop_sequences: NotRequired[Sequence[str]]
+    output_config: NotRequired[PromptAnthropicOutputConfig]
     thinking: NotRequired[
-        Union[PromptAnthropicThinkingConfigDisabled, PromptAnthropicThinkingConfigEnabled]
+        Union[
+            PromptAnthropicThinkingConfigDisabled,
+            PromptAnthropicThinkingConfigEnabled,
+            PromptAnthropicThinkingConfigAdaptive,
+        ]
     ]
+    extra_body: NotRequired[Mapping[str, Any]]
 
 
 class PromptAwsInvocationParameters(TypedDict):
@@ -870,9 +922,15 @@ class PromptFireworksInvocationParameters(TypedDict):
     fireworks: PromptFireworksInvocationParametersContent
 
 
-class PromptGoogleInvocationParameters(TypedDict):
-    type: Literal["google"]
-    google: PromptGoogleInvocationParametersContent
+class PromptGoogleInvocationParametersContent(TypedDict):
+    temperature: NotRequired[float]
+    max_output_tokens: NotRequired[int]
+    stop_sequences: NotRequired[Sequence[str]]
+    presence_penalty: NotRequired[float]
+    frequency_penalty: NotRequired[float]
+    top_p: NotRequired[float]
+    top_k: NotRequired[int]
+    thinking_config: NotRequired[PromptGoogleThinkingConfig]
 
 
 class PromptGroqInvocationParameters(TypedDict):
@@ -1010,6 +1068,11 @@ class GetTracesResponseBody(TypedDict):
 class PromptAnthropicInvocationParameters(TypedDict):
     type: Literal["anthropic"]
     anthropic: PromptAnthropicInvocationParametersContent
+
+
+class PromptGoogleInvocationParameters(TypedDict):
+    type: Literal["google"]
+    google: PromptGoogleInvocationParametersContent
 
 
 class PromptMessage(TypedDict):

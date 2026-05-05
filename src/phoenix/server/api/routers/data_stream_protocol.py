@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
 from uuid import uuid4
@@ -14,27 +14,29 @@ from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
-from phoenix.server.api.routers.chat_context import (
+from phoenix.server.agents.capabilities import AgentCapabilities
+from phoenix.server.agents.context import (
     ChatContext,
     ResolvedContexts,
     resolve_contexts,
 )
+from phoenix.server.agents.prompts import build_agent_system_prompts
 from phoenix.server.api.routers.chat_tracing import (
     AgentMessageMetadata,
     AgentMessageMetadataUsage,
+    AgentMessageMetadataUsageTokenDetails,
     AgentMessageMetadataUsageTokens,
     StreamAccumulator,
 )
 
 if TYPE_CHECKING:
-    from pydantic_ai.messages import ModelMessage
+    from pydantic_ai.messages import InstructionPart, ModelMessage
     from pydantic_ai.models import Model
     from pydantic_ai.tools import ToolDefinition
     from pydantic_ai.ui.vercel_ai.response_types import FinishReason
     from pydantic_ai.usage import RequestUsage
 
-    from phoenix.server.api.routers.chat_context import ToolCallable
-    from phoenix.server.api.routers.mcp_tools import MintlifyDocsClient
+    from phoenix.server.agents.mcp import MintlifyDocsClient
 
 logger = logging.getLogger(__name__)
 
@@ -49,8 +51,51 @@ _FINISH_REASON_MAP: dict[
 }
 
 
-class FrontendTool(BaseModel):
-    """Tool descriptor sent by the frontend alongside chat requests."""
+def _anthropic_model_settings_for_cache(model: "Model") -> Any | None:
+    """Return Anthropic cache settings when the selected model is Anthropic-backed."""
+    model_cls = type(model)
+    if not model_cls.__module__.startswith("pydantic_ai.models.anthropic"):
+        return None
+
+    from pydantic_ai.models.anthropic import AnthropicModelSettings
+
+    return AnthropicModelSettings(
+        anthropic_cache=True,
+        anthropic_cache_instructions=True,
+        anthropic_cache_tool_definitions=True,
+    )
+
+
+def _latest_nonzero_cache_tokens(
+    *,
+    current_read: int,
+    current_write: int,
+    usage: "RequestUsage",
+) -> tuple[int, int]:
+    return (
+        usage.cache_read_tokens or current_read,
+        usage.cache_write_tokens or current_write,
+    )
+
+
+def _build_trace_messages(
+    *,
+    instruction_parts: list["InstructionPart"],
+    messages: list["ModelMessage"],
+) -> list[Any]:
+    from pydantic_ai.messages import ModelRequest, SystemPromptPart
+
+    return [
+        *[
+            ModelRequest(parts=[SystemPromptPart(content=part.content)])
+            for part in instruction_parts
+        ],
+        *messages,
+    ]
+
+
+class ExternalTool(BaseModel):
+    """Tool descriptor supplied by the external AI SDK chat request."""
 
     name: str
     description: str
@@ -70,11 +115,11 @@ def _get_vercel_request_class() -> Any:
         from pydantic_ai.ui.vercel_ai.request_types import SubmitMessage
 
         class _VercelRequest(SubmitMessage):
-            tools: list[FrontendTool] | None = None
-            output_tools: list[FrontendTool] | None = None
+            output_tools: list[ExternalTool] | None = None
             system: str | None = None
             session_id: str | None = None
             contexts: list[ChatContext] | None = None
+            capabilities: AgentCapabilities = AgentCapabilities()
             export_remote_traces: bool = False
             ingest_traces: bool = True
             trace_name_suffix: str = "Turn"
@@ -88,14 +133,13 @@ class ChatBody:
     """Parsed chat request body with all the data needed for streaming and tracing."""
 
     messages: list[ModelMessage]
-    tools: list[FrontendTool] | None = None
-    output_tools: list[FrontendTool] | None = None
-    system: str | None = None
+    instruction_parts: list[InstructionPart] = field(default_factory=list)
+    output_tools: list[ExternalTool] | None = None
     session_id: str | None = None
+    capabilities: AgentCapabilities = field(default_factory=AgentCapabilities)
     export_remote_traces: bool = False
     ingest_traces: bool = True
     trace_name_suffix: str = "Turn"
-    raw_tools: list[dict[str, Any]] = field(default_factory=list)
     contexts: list[ChatContext] = field(default_factory=list)
     resolved: ResolvedContexts = field(default_factory=ResolvedContexts)
 
@@ -121,44 +165,40 @@ def parse_chat_body(raw_body: bytes) -> ChatBody:
     Separates body parsing from streaming so callers can access fields like
     ``session_id`` and the local/remote trace flags before entering the generator.
     """
-    from pydantic_ai.messages import ModelRequest, SystemPromptPart
+    from pydantic_ai.messages import InstructionPart
     from pydantic_ai.ui.vercel_ai._adapter import VercelAIAdapter
 
     cls = _get_vercel_request_class()
     body = cls.model_validate_json(_sanitize_raw_body(raw_body))
     logger.debug("system=%r", body.system)
-    logger.debug("tools=%r", [t.name for t in (body.tools or [])])
     logger.debug("messages=%r", body.messages)
     logger.debug("contexts=%r", [context.type for context in (body.contexts or [])])
+    logger.debug("capabilities=%r", body.capabilities)
 
     messages: list[Any] = VercelAIAdapter.load_messages(body.messages)
+    system_prompts = build_agent_system_prompts(
+        capabilities=body.capabilities,
+    )
 
-    if body.system:
-        messages = [ModelRequest(parts=[SystemPromptPart(content=body.system)]), *messages]
-
-    # Build raw tool dicts for tracing (OpenInference tool json_schema).
-    raw_tools: list[dict[str, Any]] = []
-    for t in body.tools or []:
-        function: dict[str, Any] = {
-            "name": t.name,
-            "parameters": t.parameters,
-        }
-        if t.description is not None:
-            function["description"] = t.description
-        raw_tools.append({"type": "function", "function": function})
+    instruction_parts = [
+        InstructionPart(content=system_prompts[0], dynamic=False),
+        *[
+            InstructionPart(content=system_prompt, dynamic=True)
+            for system_prompt in system_prompts[1:]
+        ],
+    ]
 
     contexts = list(body.contexts or [])
 
     return ChatBody(
         messages=messages,
-        tools=body.tools,
+        instruction_parts=instruction_parts,
         output_tools=body.output_tools,
-        system=body.system,
         session_id=body.session_id,
+        capabilities=body.capabilities,
         export_remote_traces=body.export_remote_traces,
         ingest_traces=body.ingest_traces,
         trace_name_suffix=body.trace_name_suffix,
-        raw_tools=raw_tools,
         contexts=contexts,
         resolved=resolve_contexts(contexts),
     )
@@ -331,8 +371,12 @@ async def stream_text(
     model: "Model",
     *,
     body: ChatBody,
-    mcp_client: "MintlifyDocsClient | None" = None,
-    contextual_tools: tuple[list["ToolDefinition"], dict[str, "ToolCallable"]] | None = None,
+    mcp_client: MintlifyDocsClient | None = None,
+    tools: tuple[
+        list["ToolDefinition"],
+        dict[str, Callable[[dict[str, Any]], Awaitable[str]]],
+    ]
+    | None = None,
 ) -> StreamingResponse:
     from pydantic_ai.messages import (
         ModelRequest,
@@ -372,7 +416,7 @@ async def stream_text(
 
     messages: list[Any] = list(body.messages)
 
-    def _to_tool_defs(tools: list[FrontendTool]) -> list[ToolDefinition]:
+    def _to_tool_defs(tools: list[ExternalTool]) -> list[ToolDefinition]:
         return [
             ToolDefinition(
                 name=t.name,
@@ -382,7 +426,7 @@ async def stream_text(
             for t in tools
         ]
 
-    contextual_tool_defs, contextual_dispatch = contextual_tools or ([], {})
+    tool_defs, contextual_dispatch = tools or ([], {})
     mcp_tool_defs: list[ToolDefinition] = []
     mcp_tool_names: frozenset[str] = frozenset()
     if mcp_client is not None:
@@ -393,7 +437,7 @@ async def stream_text(
         except Exception:
             logger.exception("Failed to fetch backend MCP tool definitions")
 
-    backend_tool_defs = mcp_tool_defs + contextual_tool_defs
+    all_function_tools = tool_defs + mcp_tool_defs
     # Only tools with a server-side callable count as "backend": MCP tools
     # always run server-side, and contextual tools that registered an entry in
     # ``contextual_dispatch``. Contextual tools advertised without a dispatch
@@ -401,18 +445,16 @@ async def stream_text(
     # to the browser via the standard frontend-tool path.
     backend_tool_names = mcp_tool_names | frozenset(contextual_dispatch.keys())
 
-    frontend_tool_defs = _to_tool_defs(body.tools or [])
     output_tool_defs = _to_tool_defs(body.output_tools or [])
-
-    # Merge frontend + backend tools for the model.
-    all_function_tools = frontend_tool_defs + backend_tool_defs
 
     params = ModelRequestParameters(
         function_tools=all_function_tools,
         output_tools=output_tool_defs,
         output_mode="tool" if output_tool_defs else "text",
         allow_text_output=not output_tool_defs,
+        instruction_parts=body.instruction_parts,
     )
+    model_settings = _anthropic_model_settings_for_cache(model)
 
     chunk_types = dict(
         PartDeltaEvent=PartDeltaEvent,
@@ -435,9 +477,9 @@ async def stream_text(
         ToolInputAvailableChunk=ToolInputAvailableChunk,
     )
 
-    # Also build raw tool dicts for tracing that include backend tools.
-    raw_all_tools: list[dict[str, Any]] = list(body.raw_tools or [])
-    for td in backend_tool_defs:
+    # Also build raw tool dicts for tracing that include all advertised tools.
+    raw_all_tools: list[dict[str, Any]] = []
+    for td in all_function_tools:
         raw_all_tools.append(
             {
                 "type": "function",
@@ -454,7 +496,7 @@ async def stream_text(
     should_trace = ingest_traces or export_remote_traces
 
     # Maximum backend tool loop iterations to prevent runaway loops.
-    _MAX_BACKEND_TOOL_LOOPS = 5
+    _MAX_BACKEND_TOOL_LOOPS = 20
 
     from phoenix.config import get_env_phoenix_agents_assistant_project_name
     from phoenix.server.api.routers.chat_tracing import (
@@ -490,9 +532,13 @@ async def stream_text(
                 )
                 if ingest_traces:
                     project_id = await ensure_project_exists(request.app.state.db)
+                trace_messages = _build_trace_messages(
+                    instruction_parts=body.instruction_parts,
+                    messages=messages,
+                )
                 agent_span = create_agent_span(
                     tracer,
-                    input_messages=messages,
+                    input_messages=trace_messages,
                     session_id=body.session_id,
                     trace_name_suffix=body.trace_name_suffix,
                 )
@@ -503,7 +549,7 @@ async def stream_text(
                 finalize_recent_input_tool_result_spans(
                     tracer,
                     parent_span=agent_span,
-                    messages=messages,
+                    messages=trace_messages,
                     tools=raw_all_tools or None,
                 )
             except Exception:
@@ -524,6 +570,8 @@ async def stream_text(
         loop_count = 0
         final_output_text: str | None = None
         usage: RequestUsage | None = None
+        turn_cache_read_tokens = 0
+        turn_cache_write_tokens = 0
         try:
             while loop_count < _MAX_BACKEND_TOOL_LOOPS:
                 loop_count += 1
@@ -533,10 +581,14 @@ async def stream_text(
                 llm_span: Any = None
                 if tracer is not None and agent_span is not None:
                     llm_call_count += 1
+                    trace_messages = _build_trace_messages(
+                        instruction_parts=body.instruction_parts,
+                        messages=messages,
+                    )
                     llm_span = create_llm_span(
                         tracer,
                         parent_span=agent_span,
-                        input_messages=messages,
+                        input_messages=trace_messages,
                         tools=raw_all_tools or None,
                         trace_name_suffix=(
                             f"Step {llm_call_count}"
@@ -548,7 +600,7 @@ async def stream_text(
                 yield _sse(StartStepChunk())
 
                 try:
-                    async with model.request_stream(messages, None, params) as stream:
+                    async with model.request_stream(messages, model_settings, params) as stream:
                         async for chunk in _encode_stream(
                             stream,
                             accumulator=accumulator,
@@ -566,6 +618,13 @@ async def stream_text(
                         if iter_text:
                             final_output_text = iter_text
                         usage = stream.usage()
+                        turn_cache_read_tokens, turn_cache_write_tokens = (
+                            _latest_nonzero_cache_tokens(
+                                current_read=turn_cache_read_tokens,
+                                current_write=turn_cache_write_tokens,
+                                usage=usage,
+                            )
+                        )
                         if llm_span is not None:
                             finalize_llm_span(
                                 llm_span,
@@ -730,15 +789,18 @@ async def stream_text(
         additional_metadata = None
         if usage:
             logger.debug(usage)
-            # Guard against None (pydantic-ai's RequestUsage fields are Optional[int])
-            # to avoid JSON nulls that would fail frontend Zod validation.
+            prompt_details = AgentMessageMetadataUsageTokenDetails(
+                cacheRead=turn_cache_read_tokens,
+                cacheWrite=turn_cache_write_tokens,
+            )
             additional_metadata = AgentMessageMetadata(
                 usage=AgentMessageMetadataUsage(
                     tokens=AgentMessageMetadataUsageTokens(
                         prompt=usage.input_tokens or 0,
                         completion=usage.output_tokens or 0,
                         total=usage.total_tokens or 0,
-                    )
+                    ),
+                    promptDetails=prompt_details,
                 )
             )
 

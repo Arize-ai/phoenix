@@ -19,11 +19,9 @@ import {
   useRef,
   useState,
 } from "react";
-import { fetchQuery, graphql } from "relay-runtime";
 
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
-import { APPLY_SPAN_FILTER_CONDITION_TOOL_NAME } from "@phoenix/agent/extensions/toolRegistry";
 import {
   Button,
   DialogTrigger,
@@ -40,12 +38,10 @@ import {
 } from "@phoenix/components";
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import { useTheme } from "@phoenix/contexts";
-import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
-import environment from "@phoenix/RelayEnvironment";
 
-import type { SpanFilterConditionFieldValidationQuery } from "./__generated__/SpanFilterConditionFieldValidationQuery.graphql";
-import { useSpanFilterCondition } from "./SpanFilterConditionContext";
+import { useSpanFilters } from "./SpanFiltersContext";
+import { validateSpanFilterCondition } from "./spanFilterValidation";
 
 const codeMirrorCSS = css`
   flex: 1 1 auto;
@@ -211,40 +207,6 @@ function filterConditionCompletions(
   };
 }
 
-/**
- * Async server-side validation of the filter condition expression
- */
-async function isConditionValid(condition: string, projectId: string) {
-  if (!condition) {
-    return {
-      isValid: true,
-      errorMessage: null,
-    };
-  }
-  const validationResult =
-    await fetchQuery<SpanFilterConditionFieldValidationQuery>(
-      environment,
-      graphql`
-        query SpanFilterConditionFieldValidationQuery($condition: String!, $id: ID!) {
-          project: node(id: $id) {
-            ... on Project {
-              validateSpanFilterCondition(condition: $condition) {
-                isValid
-                errorMessage
-              }
-            }
-          }
-        }
-      `,
-      { condition, id: projectId }
-    ).toPromise();
-  // Satisfy the type checker
-  if (!validationResult) {
-    throw new Error("Filter condition validation is null");
-  }
-  return validationResult.project.validateSpanFilterCondition;
-}
-
 const extensions = [
   keymap.of([
     {
@@ -287,7 +249,7 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
     useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const { filterCondition, setFilterCondition, appendFilterCondition } =
-    useSpanFilterCondition();
+    useSpanFilters();
   const deferredFilterCondition = useDeferredValue(filterCondition);
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
@@ -316,70 +278,10 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
   }, [deferredFilterCondition, isConditionValidState, projectId]);
 
   // Keep the agent's mounted UI context aligned with the current validated
-  // filter expression while this field is rendered.
+  // filter expression while this field is rendered. The matching agent
+  // client action for `set_spans_filter` is registered by
+  // `SpanFiltersProvider`, which owns the underlying state.
   useAdvertiseAgentContext(advertisedContext);
-
-  // Register a client action so the agent's apply_span_filter_condition tool
-  // (advertised by the server, executed in the browser) can drive this field.
-  // The handler validates the condition through the same GraphQL path the
-  // user-facing input uses, then commits the value via setFilterCondition and
-  // notifies the parent so the spans table refetches.
-  const agentStore = useAgentStore();
-  const setFilterConditionRef = useRef(setFilterCondition);
-  const onValidConditionRef = useRef(onValidCondition);
-  const projectIdRef = useRef(projectId);
-  setFilterConditionRef.current = setFilterCondition;
-  onValidConditionRef.current = onValidCondition;
-  projectIdRef.current = projectId;
-
-  useEffect(() => {
-    const { registerClientAction, unregisterClientAction } =
-      agentStore.getState();
-    registerClientAction(
-      APPLY_SPAN_FILTER_CONDITION_TOOL_NAME,
-      async (input) => {
-        if (
-          typeof input !== "object" ||
-          input === null ||
-          !("condition" in input) ||
-          typeof (input as { condition: unknown }).condition !== "string"
-        ) {
-          return {
-            ok: false,
-            error: "Invalid input: expected { condition: string }.",
-          };
-        }
-        const condition = (input as { condition: string }).condition;
-        const currentProjectId = projectIdRef.current;
-        if (!currentProjectId) {
-          return {
-            ok: false,
-            error: "Span filter field is not bound to a project on this page.",
-          };
-        }
-        const validation = await isConditionValid(condition, currentProjectId);
-        if (!validation?.isValid) {
-          return {
-            ok: false,
-            error:
-              validation?.errorMessage ??
-              "Filter condition failed validation; not applied.",
-          };
-        }
-        setFilterConditionRef.current(condition);
-        onValidConditionRef.current(condition);
-        return {
-          ok: true,
-          output: condition
-            ? `Applied filter: ${condition}`
-            : "Cleared the span filter.",
-        };
-      }
-    );
-    return () => {
-      unregisterClientAction(APPLY_SPAN_FILTER_CONDITION_TOOL_NAME);
-    };
-  }, [agentStore]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -388,22 +290,24 @@ export function SpanFilterConditionField(props: SpanFilterConditionFieldProps) {
       setIsConditionValidState(false);
     }
 
-    void isConditionValid(deferredFilterCondition, projectId).then((result) => {
-      if (isCancelled) {
-        return;
-      }
+    void validateSpanFilterCondition(deferredFilterCondition, projectId).then(
+      (result) => {
+        if (isCancelled) {
+          return;
+        }
 
-      if (!result?.isValid) {
-        setErrorMessage(result?.errorMessage ?? "Invalid filter condition");
-        setIsConditionValidState(false);
-      } else {
-        setErrorMessage("");
-        setIsConditionValidState(true);
-        startTransition(() => {
-          onValidCondition(deferredFilterCondition);
-        });
+        if (!result?.isValid) {
+          setErrorMessage(result?.errorMessage ?? "Invalid filter condition");
+          setIsConditionValidState(false);
+        } else {
+          setErrorMessage("");
+          setIsConditionValidState(true);
+          startTransition(() => {
+            onValidCondition(deferredFilterCondition);
+          });
+        }
       }
-    });
+    );
 
     return () => {
       isCancelled = true;

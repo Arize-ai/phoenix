@@ -1,5 +1,11 @@
 # @arizeai/phoenix-evals
 
+## 1.0.3
+
+### Patch Changes
+
+- 5d14f23: Add LinkedIn link to the Community section of the README.
+
 ## 1.0.2
 
 ### Patch Changes

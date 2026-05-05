@@ -4,7 +4,7 @@ import { ProjectProvider } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
 import { TracingProvider } from "@phoenix/contexts/TracingContext";
 import type { DatasetEvaluatorSpans_project$key } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorSpans_project.graphql";
-import { SpanFilterConditionProvider } from "@phoenix/pages/project/SpanFilterConditionContext";
+import { SpanFiltersProvider } from "@phoenix/pages/project/SpanFiltersContext";
 import { SpansTable } from "@phoenix/pages/project/SpansTable";
 
 export function DatasetEvaluatorSpans({
@@ -26,9 +26,9 @@ export function DatasetEvaluatorSpans({
     <ProjectProvider projectId={data.id}>
       <StreamStateProvider>
         <TracingProvider projectId={data.id} tableId="spans">
-          <SpanFilterConditionProvider>
+          <SpanFiltersProvider>
             <SpansTable project={data} />
-          </SpanFilterConditionProvider>
+          </SpanFiltersProvider>
         </TracingProvider>
       </StreamStateProvider>
     </ProjectProvider>

@@ -1,6 +1,7 @@
-import { css } from "@emotion/react";
+import { css, keyframes } from "@emotion/react";
 import type { ChatStatus } from "ai";
 import {
+  type CSSProperties,
   useEffect,
   type ReactNode,
   useRef,
@@ -14,7 +15,6 @@ import type {
   ElicitToolOutput,
   PendingElicitation,
 } from "@phoenix/agent/tools/elicit";
-import { Icon, Icons, View } from "@phoenix/components";
 import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
 import { ElicitationCarousel } from "@phoenix/components/ai/elicitation";
 import {
@@ -28,54 +28,56 @@ import {
 } from "@phoenix/components/ai/prompt-input";
 import { Shimmer } from "@phoenix/components/ai/shimmer";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
+import { useTheme } from "@phoenix/contexts";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import { AgentConsentGate } from "./AgentConsentGate";
 import { AgentContextPills } from "./AgentContextPills";
-import { AgentDebugMenu } from "./AgentDebugMenu";
 import {
   ElicitationDraftProvider,
   type PendingElicitationDraft,
 } from "./ElicitationDraftContext";
 import { AgentModelMenu } from "./AgentModelMenu";
+import { ChatEmptyState, type EmptyStateQuickAction } from "./ChatEmptyState";
+import { ChatLantern } from "./ChatLantern";
 import { AssistantMessage, UserMessage } from "./ChatMessage";
-import { PxiGlyph } from "./PxiGlyph";
 import { useAgentChat } from "./useAgentChat";
 
-export type EmptyStateQuickAction = {
-  icon: ReactNode;
-  label: string;
-  /** Prompt text sent to the chat when the action is pressed. */
-  prompt: string;
-};
+export type { EmptyStateQuickAction } from "./ChatEmptyState";
 
-const DEFAULT_EMPTY_STATE_SUBTEXT =
-  "Ask questions about Phoenix, get help with tracing, datasets, evaluations, and more.";
+const CHAT_SIDEBAR_INSET_CSS = "var(--global-dimension-size-200)";
 
-const DEFAULT_EMPTY_STATE_QUICK_ACTIONS: EmptyStateQuickAction[] = [
-  {
-    icon: <Icons.BulbOutline />,
-    label: "How do I use Phoenix?",
-    prompt: "How do I use Phoenix?",
-  },
-  {
-    icon: <Icons.BookOutline />,
-    label: "Explain a concept",
-    prompt: "Explain a Phoenix concept to me.",
-  },
-  {
-    icon: <Icons.Trace />,
-    label: "Find critical issues",
-    prompt: "Find critical issues in my traces.",
-  },
-];
+const chatInputFadeUp = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+const chatEmptyItemFadeUp = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
 
 const chatCSS = css`
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
+  position: relative;
 
   .chat__children {
     width: 100%;
@@ -88,8 +90,23 @@ const chatCSS = css`
 
   &:has(.chat__children > *) {
     .chat__input {
-      // remove bottom padding from chat input when children present
+      /* Remove bottom padding from chat input when children are present. */
       padding-bottom: 0;
+    }
+  }
+
+  .chat__scroll-frame {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  &.chat--empty-bleed {
+    .chat__scroll-frame,
+    .chat__scroll {
+      overflow: visible;
     }
   }
 
@@ -97,110 +114,62 @@ const chatCSS = css`
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    scrollbar-gutter: stable both-edges;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chat__empty-title,
+    .chat__empty-subtext,
+    .chat__empty-action,
+    .chat__input {
+      opacity: 1;
+      animation: none;
+      transform: none;
+    }
+  }
+
+  .chat__empty-title {
+    opacity: 0;
+    animation: ${chatEmptyItemFadeUp} 500ms ease-out 400ms forwards;
+  }
+
+  .chat__empty-subtext {
+    opacity: 0;
+    animation: ${chatEmptyItemFadeUp} 500ms ease-out 300ms forwards;
+  }
+
+  .chat__empty-action {
+    opacity: 0;
+    animation: ${chatEmptyItemFadeUp} 500ms ease-out var(--chat-empty-action-delay, 700ms)
+      forwards;
   }
 
   .chat__messages {
     max-width: 780px;
     margin: 0 auto;
+    position: relative;
+    z-index: 2;
     display: flex;
     flex-direction: column;
     gap: var(--global-dimension-size-100);
-    padding: var(--global-dimension-size-200) var(--global-dimension-size-150);
+    padding: var(--global-dimension-size-200)
+      var(--chat-sidebar-inset);
     font-size: var(--global-font-size-s);
     line-height: var(--global-line-height-s);
   }
 
   .chat__input {
     flex-shrink: 0;
-    max-width: 900px;
     margin: 0 auto;
-    width: 100%;
+    position: relative;
+    z-index: 2;
+    /* Respects sidebar inset until the sidebar is wider than the max input size. */
+    width: min(
+      var(--global-dimension-size-8500),
+      max(0px, calc(100% - (2 * var(--chat-sidebar-inset))))
+    );
     padding-top: var(--global-dimension-size-100);
     padding-bottom: var(--global-dimension-size-250);
-    background-color: var(--global-color-gray-75);
-  }
-
-  .chat__empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--global-dimension-size-200);
-    margin-top: var(--global-dimension-size-600);
-    padding: 0 var(--global-dimension-size-200);
-    color: var(--global-text-color-300);
-  }
-
-  .chat__empty-glyph {
-    width: 80px;
-    height: 80px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--global-color-primary);
-    background: radial-gradient(
-      circle at center,
-      var(--global-color-primary-100) 0%,
-      transparent 65%
-    );
-  }
-
-  .chat__empty-title {
-    margin: 0;
-    font-size: var(--global-font-size-l);
-    font-weight: var(--px-font-weight-heavy, 600);
-    color: var(--global-text-color-900);
-    text-align: center;
-  }
-
-  .chat__empty-subtext {
-    margin: 0;
-    text-align: center;
-    color: var(--global-text-color-500);
-    line-height: var(--global-line-height-m);
-  }
-
-  .chat__empty-actions {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: var(--global-dimension-size-100);
-    margin-top: var(--global-dimension-size-100);
-  }
-
-  .chat__empty-action {
-    display: flex;
-    align-items: center;
-    gap: var(--global-dimension-size-150);
-    width: 100%;
-    padding: var(--global-dimension-size-150) var(--global-dimension-size-200);
-    background: transparent;
-    border: 1px solid var(--global-border-color-default);
-    border-radius: var(--global-rounding-medium);
-    color: var(--global-text-color-500);
-    font-size: var(--global-font-size-s);
-    font-family: inherit;
-    text-align: left;
-    cursor: pointer;
-    transition:
-      background-color 0.15s ease,
-      color 0.15s ease,
-      border-color 0.15s ease;
-  }
-
-  .chat__empty-action:hover {
-    background: var(--global-color-gray-100);
-    border-color: var(--global-border-color-hover, var(--global-color-gray-300));
-    color: var(--global-text-color-900);
-  }
-
-  .chat__empty-action-icon {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--global-text-color-500);
-    font-size: 16px;
+    animation: ${chatInputFadeUp} 280ms ease-out;
   }
 
   .chat__loading {
@@ -277,8 +246,8 @@ export function ChatView({
   modelMenuValue,
   onModelChange,
   children,
-  emptyStateSubtext = DEFAULT_EMPTY_STATE_SUBTEXT,
-  emptyStateQuickActions = DEFAULT_EMPTY_STATE_QUICK_ACTIONS,
+  emptyStateSubtext,
+  emptyStateQuickActions,
 }: PropsWithChildren<{
   messages: AgentUIMessage[];
   sendMessage: (message: { text: string }) => void;
@@ -293,6 +262,7 @@ export function ChatView({
   emptyStateSubtext?: ReactNode;
   emptyStateQuickActions?: EmptyStateQuickAction[];
 }>) {
+  const { theme } = useTheme();
   const { contentRef, scrollRef, scrollToBottom } = useStickToBottom();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [inputValue, setInputValue] = useState("");
@@ -301,6 +271,8 @@ export function ChatView({
   const hasAcknowledgedConsent = useAgentContext(
     (state) => state.observability.hasAcknowledgedConsent
   );
+  const showsEmptyState = messages.length === 0;
+  const chatClassName = showsEmptyState ? "chat--empty chat--empty-bleed" : "";
 
   useEffect(() => {
     if (!pendingElicitation) {
@@ -328,161 +300,125 @@ export function ChatView({
 
   return (
     <ElicitationDraftProvider draft={elicitationDraft}>
-      <div css={chatCSS}>
-        <div className="chat__scroll" ref={scrollRef}>
-          <div className="chat__messages" ref={contentRef}>
-            {messages.length === 0 && (
-              <EmptyState
+      <div
+        css={chatCSS}
+        className={chatClassName}
+        style={
+          {
+            "--chat-sidebar-inset": CHAT_SIDEBAR_INSET_CSS,
+          } as CSSProperties
+        }
+      >
+        <ChatLantern isVisible={showsEmptyState} />
+        <div className="chat__scroll-frame">
+          <div className="chat__scroll" ref={scrollRef}>
+            <div className="chat__messages" ref={contentRef}>
+              {showsEmptyState && (
+                <ChatEmptyState
+                  key={theme}
                 subtext={emptyStateSubtext}
                 quickActions={emptyStateQuickActions}
                 onQuickAction={handleQuickAction}
-              />
-            )}
-            {messages.map((message, index) => {
-              if (message.role === "user") {
-                return <UserMessage key={message.id} parts={message.parts} />;
-              }
-              // Only the last assistant message can still be streaming — hide
-              // its actions until the chat reports it is settled.
-              const isLast = index === messages.length - 1;
-              const showActions = !isLast || status === "ready";
-              return (
-                <AssistantMessage
-                  key={message.id}
-                  message={message}
-                  showActions={showActions}
                 />
-              );
-            })}
-            {status === "submitted" && <Loading />}
-            {error && <ErrorMessage error={error} />}
+              )}
+              {messages.map((message, index) => {
+                if (message.role === "user") {
+                  return <UserMessage key={message.id} parts={message.parts} />;
+                }
+                // Only the last assistant message can still be streaming — hide
+                // its actions until the chat reports it is settled.
+                const isLast = index === messages.length - 1;
+                const showActions = !isLast || status === "ready";
+                return (
+                  <AssistantMessage
+                    key={message.id}
+                    message={message}
+                    showActions={showActions}
+                  />
+                );
+              })}
+              {status === "submitted" && <Loading />}
+              {error && <ErrorMessage error={error} />}
+            </div>
           </div>
         </div>
         <div className="chat__input">
-          <View paddingX="size-200">
-            {!hasAcknowledgedConsent ? (
-              <PromptInput status={status} isDisabled mode="elicitation">
-                <AgentConsentGate />
-              </PromptInput>
-            ) : pendingElicitation ? (
-              <PromptInput status={status} isDisabled mode="elicitation">
-                <ElicitationCarousel
-                  key={pendingElicitation.toolCallId}
-                  questions={pendingElicitation.questions}
-                  onProgressStateChange={(draftState) => {
-                    setElicitationDraft({
-                      toolCallId: pendingElicitation.toolCallId,
-                      ...draftState,
-                    });
-                  }}
-                  onSubmit={(output) => {
-                    setElicitationDraft({
-                      toolCallId: pendingElicitation.toolCallId,
-                      answers: output.answers,
-                      freeformTexts: output.freeformTexts,
-                      currentIndex: Math.max(
-                        0,
-                        pendingElicitation.questions.length - 1
-                      ),
-                    });
-                    void scrollToBottom();
-                    handleElicitationSubmit(output);
-                  }}
-                  onCancel={() => {
-                    setElicitationDraft(null);
-                    handleElicitationCancel();
+          {!hasAcknowledgedConsent ? (
+          <PromptInput status={status} isDisabled mode="elicitation">
+            <AgentConsentGate />
+          </PromptInput>
+        ) : pendingElicitation ? (
+          <PromptInput status={status} isDisabled mode="elicitation">
+            <ElicitationCarousel
+              key={pendingElicitation.toolCallId}
+              questions={pendingElicitation.questions}
+              onProgressStateChange={(draftState) => {
+                setElicitationDraft({
+                  toolCallId: pendingElicitation.toolCallId,
+                  ...draftState,
+                });
+              }}
+              onSubmit={(output) => {
+                setElicitationDraft({
+                  toolCallId: pendingElicitation.toolCallId,
+                  answers: output.answers,
+                  freeformTexts: output.freeformTexts,
+                  currentIndex: Math.max(
+                    0,
+                    pendingElicitation.questions.length - 1
+                  ),
+                });
+                void scrollToBottom();
+                handleElicitationSubmit(output);
+              }}
+              onCancel={() => {
+                setElicitationDraft(null);
+                handleElicitationCancel();
+              }}
+            />
+          </PromptInput>
+        ) : (
+          <PromptInput
+            onSubmit={(text) => {
+              void scrollToBottom();
+              sendMessage({ text });
+            }}
+            status={status}
+            value={inputValue}
+            onValueChange={setInputValue}
+          >
+            <AgentContextPills />
+            <PromptInputBody>
+              <PromptInputTextarea
+                ref={textareaRef}
+                placeholder="Send a message..."
+              />
+            </PromptInputBody>
+            <PromptInputFooter>
+              <PromptInputTools>
+                <AgentModelMenu
+                  value={modelMenuValue}
+                  onChange={onModelChange}
+                  placement="top start"
+                  shouldFlip
+                  variant="quiet"
+                />
+              </PromptInputTools>
+
+              <PromptInputActions>
+                <PromptInputSubmit
+                  onPress={() => {
+                    void stop();
                   }}
                 />
-              </PromptInput>
-            ) : (
-              <PromptInput
-                onSubmit={(text) => {
-                  void scrollToBottom();
-                  sendMessage({ text });
-                }}
-                status={status}
-                value={inputValue}
-                onValueChange={setInputValue}
-              >
-                <AgentContextPills />
-                <PromptInputBody>
-                  <PromptInputTextarea
-                    ref={textareaRef}
-                    placeholder="Send a message..."
-                  />
-                </PromptInputBody>
-                <PromptInputFooter>
-                  <PromptInputTools>
-                    <AgentModelMenu
-                      value={modelMenuValue}
-                      onChange={onModelChange}
-                      placement="top start"
-                      shouldFlip
-                      variant="quiet"
-                    />
-                    <AgentDebugMenu />
-                  </PromptInputTools>
-
-                  <PromptInputActions>
-                    <PromptInputSubmit
-                      onPress={() => {
-                        void stop();
-                      }}
-                    />
-                  </PromptInputActions>
-                </PromptInputFooter>
-              </PromptInput>
-            )}
-            {children ? <div className="chat__children">{children}</div> : null}
-          </View>
-        </div>
+              </PromptInputActions>
+            </PromptInputFooter>
+          </PromptInput>
+        )}
+        {children ? <div className="chat__children">{children}</div> : null}
+      </div>
       </div>
     </ElicitationDraftProvider>
-  );
-}
-
-/** Empty-state shown before the first user message in a session. */
-function EmptyState({
-  subtext,
-  quickActions,
-  onQuickAction,
-}: {
-  subtext: ReactNode;
-  quickActions: EmptyStateQuickAction[];
-  onQuickAction: (prompt: string) => void;
-}) {
-  return (
-    <div className="chat__empty">
-      <div className="chat__empty-glyph">
-        <PxiGlyph
-          fill="currentColor"
-          css={css`
-            transform: scale(1.8);
-          `}
-        />
-      </div>
-      <h2 className="chat__empty-title">
-        I&apos;m PXI, your Phoenix assistant
-      </h2>
-      <p className="chat__empty-subtext">{subtext}</p>
-      {quickActions.length > 0 && (
-        <div className="chat__empty-actions">
-          {quickActions.map((action) => (
-            <button
-              key={action.label}
-              type="button"
-              className="chat__empty-action"
-              onClick={() => onQuickAction(action.prompt)}
-            >
-              <span className="chat__empty-action-icon">
-                <Icon svg={action.icon} />
-              </span>
-              <span>{action.label}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
 

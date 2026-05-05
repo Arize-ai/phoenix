@@ -1,6 +1,5 @@
 import {
   AGENT_CAPABILITY_DEFINITIONS,
-  buildAgentCapabilitySystemPrompt,
   createDefaultAgentCapabilities,
   getAgentCapabilitiesForControlSurface,
 } from "@phoenix/agent/extensions/capabilities";
@@ -15,50 +14,14 @@ describe("agent capabilities", () => {
   });
 
   it("filters capabilities by control surface", () => {
-    const debugMenuCapabilities =
-      getAgentCapabilitiesForControlSurface("debug-menu");
+    const debugMenuCapabilities = getAgentCapabilitiesForControlSurface(
+      "experimental-settings"
+    );
 
     expect(debugMenuCapabilities).toEqual(
       AGENT_CAPABILITY_DEFINITIONS.filter(
-        (definition) => definition.controlSurface === "debug-menu"
+        (definition) => definition.controlSurface === "experimental-settings"
       )
-    );
-  });
-
-  it("serializes capability prompt state from the shared definitions", () => {
-    const baseCapabilities = createDefaultAgentCapabilities();
-    const promptWithDefaults = buildAgentCapabilitySystemPrompt({
-      capabilities: baseCapabilities,
-    });
-
-    for (const definition of AGENT_CAPABILITY_DEFINITIONS) {
-      if (!definition.systemPromptState) {
-        continue;
-      }
-
-      expect(promptWithDefaults).toContain(
-        definition.systemPromptState.disabled
-      );
-    }
-
-    const firstPromptedCapability = AGENT_CAPABILITY_DEFINITIONS.find(
-      (definition) => definition.systemPromptState
-    );
-
-    expect(firstPromptedCapability).toBeDefined();
-
-    const promptWithEnabledCapability = buildAgentCapabilitySystemPrompt({
-      capabilities: {
-        ...baseCapabilities,
-        [firstPromptedCapability!.key]: true,
-      },
-    });
-
-    expect(promptWithEnabledCapability).toContain(
-      firstPromptedCapability!.systemPromptState!.enabled
-    );
-    expect(promptWithEnabledCapability).not.toContain(
-      firstPromptedCapability!.systemPromptState!.disabled
     );
   });
 });

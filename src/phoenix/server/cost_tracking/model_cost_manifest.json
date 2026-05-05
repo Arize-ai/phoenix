@@ -3175,17 +3175,17 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.00006,
+          "base_rate": 0.00003,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00036,
+          "base_rate": 0.00018,
           "is_prompt": false,
           "token_type": "output"
         },
         {
-          "base_rate": 6e-6,
+          "base_rate": 3e-6,
           "is_prompt": true,
           "token_type": "cache_read"
         }
@@ -3197,17 +3197,17 @@
       "source": "litellm",
       "token_prices": [
         {
-          "base_rate": 0.00006,
+          "base_rate": 0.00003,
           "is_prompt": true,
           "token_type": "input"
         },
         {
-          "base_rate": 0.00036,
+          "base_rate": 0.00018,
           "is_prompt": false,
           "token_type": "output"
         },
         {
-          "base_rate": 6e-6,
+          "base_rate": 3e-6,
           "is_prompt": true,
           "token_type": "cache_read"
         }
@@ -3400,6 +3400,50 @@
     {
       "name": "gpt-image-1.5-2025-12-16",
       "name_pattern": "gpt-image-1\\.5-2025-12-16",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.25e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "gpt-image-2",
+      "name_pattern": "gpt-image-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.25e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "gpt-image-2-2026-04-21",
+      "name_pattern": "gpt-image-2-2026-04-21",
       "source": "litellm",
       "token_prices": [
         {

@@ -1,3 +1,6 @@
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
@@ -7,24 +10,29 @@ import {
   resolveConfig,
   validateConfig,
 } from "../src/config";
+import { type SettingsFile, saveSettings } from "../src/settings";
 
 describe("Configuration", () => {
   let originalEnv: NodeJS.ProcessEnv;
+  let tmpDir: string;
 
   beforeEach(() => {
-    // Save original environment
     originalEnv = { ...process.env };
 
-    // Clear environment variables
     delete process.env.PHOENIX_HOST;
     delete process.env.PHOENIX_PROJECT;
     delete process.env.PHOENIX_API_KEY;
     delete process.env.PHOENIX_CLIENT_HEADERS;
+
+    // Redirect XDG_CONFIG_HOME so profile resolution stays isolated from
+    // the developer's real ~/.px/settings.json.
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "phoenix-config-test-"));
+    process.env.XDG_CONFIG_HOME = tmpDir;
   });
 
   afterEach(() => {
-    // Restore original environment
     process.env = originalEnv;
+    fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
   describe("loadConfigFromEnvironment", () => {
@@ -41,18 +49,18 @@ describe("Configuration", () => {
     });
 
     it("should handle missing environment variables", () => {
+      // After the profile-aware refactor, loadConfigFromEnvironment() no
+      // longer injects the default endpoint — that's getBuiltInDefaults()'s
+      // job. resolveConfig still applies it (covered below).
       const config = loadConfigFromEnvironment();
-
-      expect(config.endpoint).toBe("http://localhost:6006");
+      expect(config.endpoint).toBeUndefined();
       expect(config.project).toBeUndefined();
       expect(config.apiKey).toBeUndefined();
     });
 
     it("should load custom headers from environment", () => {
       process.env.PHOENIX_CLIENT_HEADERS = '{"X-Custom": "value"}';
-
       const config = loadConfigFromEnvironment();
-
       expect(config.headers).toEqual({ "X-Custom": "value" });
     });
   });
@@ -62,9 +70,7 @@ describe("Configuration", () => {
       process.env.PHOENIX_HOST = "http://env-host:6006";
 
       const config = resolveConfig({
-        cliOptions: {
-          endpoint: "http://cli-host:6006",
-        },
+        cliOptions: { endpoint: "http://cli-host:6006" },
       });
 
       expect(config.endpoint).toBe("http://cli-host:6006");
@@ -73,11 +79,7 @@ describe("Configuration", () => {
     it("should merge configs from environment and CLI options", () => {
       process.env.PHOENIX_HOST = "http://localhost:6006";
 
-      const config = resolveConfig({
-        cliOptions: {
-          project: "cli-project",
-        },
-      });
+      const config = resolveConfig({ cliOptions: { project: "cli-project" } });
 
       expect(config.endpoint).toBe("http://localhost:6006");
       expect(config.project).toBe("cli-project");
@@ -86,13 +88,38 @@ describe("Configuration", () => {
     it("should not clobber environment values with undefined CLI options", () => {
       process.env.PHOENIX_HOST = "http://localhost:6006";
 
-      const config = resolveConfig({
-        cliOptions: {
-          endpoint: undefined,
-        },
-      });
+      const config = resolveConfig({ cliOptions: { endpoint: undefined } });
 
       expect(config.endpoint).toBe("http://localhost:6006");
+    });
+
+    it("flows profile values through but yields to env vars and CLI flags", () => {
+      // Active profile contributes endpoint + project + apiKey.
+      const settings: SettingsFile = {
+        activeProfile: "prod",
+        profiles: {
+          prod: {
+            endpoint: "https://prod.example.com",
+            project: "profile-project",
+            apiKey: "profile-key",
+          },
+        },
+      };
+      const settingsPath = path.join(tmpDir, "px", "settings.json");
+      fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
+      saveSettings(settings, { settingsPath });
+
+      // Env var overrides apiKey, CLI flag overrides endpoint, project flows
+      // from the profile (not set in env or CLI).
+      process.env.PHOENIX_API_KEY = "env-key";
+
+      const config = resolveConfig({
+        cliOptions: { endpoint: "http://cli-host:6006" },
+      });
+
+      expect(config.endpoint).toBe("http://cli-host:6006");
+      expect(config.apiKey).toBe("env-key");
+      expect(config.project).toBe("profile-project");
     });
   });
 
@@ -102,20 +129,14 @@ describe("Configuration", () => {
         endpoint: "http://localhost:6006",
         project: "test-project",
       };
-
       const validation = validateConfig({ config });
-
       expect(validation.valid).toBe(true);
       expect(validation.errors).toHaveLength(0);
     });
 
     it("should require endpoint", () => {
-      const config: PhoenixConfig = {
-        project: "test-project",
-      };
-
+      const config: PhoenixConfig = { project: "test-project" };
       const validation = validateConfig({ config });
-
       expect(validation.valid).toBe(false);
       expect(validation.errors).toContain(
         "Phoenix endpoint not configured. Set PHOENIX_HOST environment variable or use --endpoint flag."
@@ -123,12 +144,8 @@ describe("Configuration", () => {
     });
 
     it("should require project", () => {
-      const config: PhoenixConfig = {
-        endpoint: "http://localhost:6006",
-      };
-
+      const config: PhoenixConfig = { endpoint: "http://localhost:6006" };
       const validation = validateConfig({ config });
-
       expect(validation.valid).toBe(false);
       expect(validation.errors).toContain(
         "Project not configured. Set PHOENIX_PROJECT environment variable or use --project flag."

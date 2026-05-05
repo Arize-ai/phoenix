@@ -14,6 +14,7 @@ from typing import (
 
 import strawberry
 from openinference.semconv.trace import SpanAttributes
+from opentelemetry.context import Context as OtelContext
 from sqlalchemy import and_, insert, select
 from sqlalchemy import func as sa_func
 from strawberry.types import Info
@@ -80,6 +81,7 @@ async def _stream_single_chat_completion(
     project_id: int,
     on_span_insertion: Callable[[], None],
     span_cost_calculator: SpanCostCalculator,
+    otel_context: OtelContext,
 ) -> ChatStream:
     messages = prompt_chat_template_to_playground_messages(input.prompt_version.template.to_orm())
     if template_options := input.template:
@@ -105,6 +107,7 @@ async def _stream_single_chat_completion(
             response_format=response_format,
             invocation_parameters=invocation_parameters,
             tracer=tracer,
+            otel_context=otel_context,
             stream_model_output=input.stream_model_output,
         ):
             chunk.repetition_number = repetition_number
@@ -235,6 +238,7 @@ class Subscription:
                         SpanInsertEvent(ids=(playground_project_id,))
                     ),
                     span_cost_calculator=info.context.span_cost_calculator,
+                    otel_context=OtelContext(),
                 ),
             )
             for repetition_number in range(1, input.repetitions + 1)

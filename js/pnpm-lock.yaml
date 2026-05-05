@@ -411,6 +411,9 @@ importers:
       commander:
         specifier: ^12.1.0
         version: 12.1.0
+      zod:
+        specifier: ^4.0.14
+        version: 4.3.6
     devDependencies:
       '@types/node':
         specifier: ^22.12.0

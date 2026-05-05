@@ -186,19 +186,3 @@ query {
 Queries that omit `first` will fail with `"first" is required`. Queries that pass `first` greater than 1000 will fail with `"first" must be less than or equal to 1000`. Backward pagination with `last`/`before` is no longer supported on these fields.
 
 This change protects the server from unbounded queries that could cause excessive memory usage and slow response times.
-
-# New: Resume Interrupted SDK Experiments
-
-April 7, 2026
-
-**New in arize-phoenix 14.0.0**
-
-SDK experiments still run in the caller's Python process. Phoenix v14 adds dedicated resume APIs so you can continue interrupted experiments without starting over from scratch.
-
-Additional capabilities:
-
-- **Resume API** — use `resume_experiment(experiment_id=..., task=...)` to re-run only missing or failed task runs.
-- **Async resume API** — use `async_resume_experiment(...)` for async tasks.
-- **Evaluator support** — pass `evaluators` to `resume_experiment` to run or re-run evaluations on completed task runs after resuming.
-
-The `run_experiment` call signature is unchanged. See [Resume Interrupted Experiments](/datasets-and-experiments/how-to-experiments/run-experiments-in-background) for full documentation.

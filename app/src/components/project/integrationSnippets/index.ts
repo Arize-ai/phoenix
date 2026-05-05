@@ -26,6 +26,7 @@ export { getMastraCodeTypescript } from "./mastra";
 export { getOpenaiCodePython, getOpenaiCodeTypescript } from "./openai";
 export { getOpenaiAgentsCodePython } from "./openaiAgents";
 export { getStrandsAgentsCodePython } from "./strandsAgents";
+export { getTanStackAiCodeTypescript } from "./tanstackAi";
 export {
   getOpenRouterCodePython,
   getOpenRouterCodeTypescript,

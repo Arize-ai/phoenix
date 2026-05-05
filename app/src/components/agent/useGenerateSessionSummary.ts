@@ -8,6 +8,7 @@ import { useCallback, useRef } from "react";
 
 import { authFetch } from "@phoenix/authFetch";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
+import { generateUUID } from "@phoenix/utils/uuidUtils";
 
 import {
   SUMMARY_OUTPUT_TOOL,
@@ -69,19 +70,19 @@ async function fetchSummary({
 
   const chunkStream = await transport.sendMessages({
     trigger: "submit-message",
-    chatId: crypto.randomUUID(),
+    chatId: generateUUID(),
     messageId: undefined,
     body: {
       output_tools: [SUMMARY_OUTPUT_TOOL],
     },
     messages: [
       {
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         role: "system" as const,
         parts: [{ type: "text" as const, text: SUMMARY_SYSTEM_PROMPT }],
       },
       {
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         role: "user" as const,
         parts: [{ type: "text" as const, text: summarizePrompt }],
       },

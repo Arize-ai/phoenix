@@ -3,7 +3,6 @@ import type { StateCreator } from "zustand";
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
-import { AGENT_SYSTEM_PROMPT } from "@phoenix/agent/chat/systemPrompt";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import {
   agentContextKey,
@@ -15,6 +14,7 @@ import {
   type AgentCapabilityKey,
 } from "@phoenix/agent/extensions/capabilities";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
+import { generateUUID } from "@phoenix/utils/uuidUtils";
 
 import type { ModelConfig } from "./playground/types";
 
@@ -69,6 +69,10 @@ export type AgentSessionUsage = {
     prompt: number;
     completion: number;
     total: number;
+    promptDetails?: {
+      cacheRead: number;
+      cacheWrite: number;
+    };
   };
   // this can be extended with cost in the future
 };
@@ -135,11 +139,6 @@ export interface AgentProps {
   sessionMap: Record<string, AgentSession>;
   /** Default model configuration applied to newly created sessions. */
   defaultModelConfig: ModelConfig;
-  /**
-   * System instructions sent with PXI agent chat requests (editable in Settings).
-   * Defaults to the built-in {@link AGENT_SYSTEM_PROMPT}.
-   */
-  systemPrompt: string;
   /** Server-provided PXI config used to describe trace destinations in the UI. */
   agentsConfig: AgentServerConfig;
   /** Per-user PXI observability preferences and consent acknowledgement state. */
@@ -169,7 +168,6 @@ export interface AgentState extends AgentProps {
   removeSessionContext: (sessionId: string, context: string) => void;
   setSessionMessages: (sessionId: string, messages: AgentUIMessage[]) => void;
   setDefaultModelConfig: (config: ModelConfig) => void;
-  setSystemPrompt: (systemPrompt: string) => void;
   setObservability: (patch: Partial<AgentObservabilitySettings>) => void;
   acknowledgeConsent: () => void;
   clearAllSessions: () => void;
@@ -194,7 +192,12 @@ export interface AgentState extends AgentProps {
   setSessionChatStatus: (sessionId: string, status: ChatStatus) => void;
   setSessionUsage: (
     sessionId: string,
-    newUsage: { prompt: number; completion: number }
+    newUsage: {
+      prompt: number;
+      completion: number;
+      total?: number;
+      promptDetails?: { cacheRead: number; cacheWrite: number };
+    }
   ) => void;
 
   // -- Page and mounted contexts advertised with /chat (ephemeral) --
@@ -262,7 +265,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     activeSessionId: null,
     sessionMap: {},
     defaultModelConfig: { ...DEFAULT_MODEL_CONFIG },
-    systemPrompt: AGENT_SYSTEM_PROMPT,
     agentsConfig: DEFAULT_AGENT_SERVER_CONFIG,
     observability: DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
     capabilities: createDefaultAgentCapabilities(),
@@ -285,7 +287,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       });
     },
     createSession: () => {
-      const sessionId = crypto.randomUUID();
+      const sessionId = generateUUID();
       set(
         (state) => {
           const session: AgentSession = {
@@ -434,9 +436,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         type: "setDefaultModelConfig",
       });
     },
-    setSystemPrompt: (systemPrompt) => {
-      set({ systemPrompt }, false, { type: "setSystemPrompt" });
-    },
     setObservability: (patch) => {
       set(
         (state) => ({
@@ -535,7 +534,11 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
                   tokenCount: {
                     prompt: newUsage.prompt,
                     completion: newUsage.completion,
-                    total: newUsage.prompt + newUsage.completion,
+                    total:
+                      newUsage.total ?? newUsage.prompt + newUsage.completion,
+                    ...(newUsage.promptDetails
+                      ? { promptDetails: newUsage.promptDetails }
+                      : {}),
                   } satisfies AgentSessionUsage["tokenCount"],
                 },
               },
@@ -631,12 +634,11 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
   return create<AgentState>()(
     persist(devtools(agentStore, { name: "agentStore" }), {
       name: "arize-phoenix-agent",
-      version: 4,
+      version: 5,
       migrate: (persisted, version) => {
         const state = persisted as Partial<AgentProps> & {
           capabilities?: Partial<AgentCapabilities>;
           observability?: Partial<AgentObservabilitySettings>;
-          systemPrompt?: string;
           debug?: {
             retainInactiveBashSessions?: boolean;
             dangerouslyEnableMutations?: boolean;
@@ -673,7 +675,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         return {
           ...state,
           sessionMap: migratedSessionMap,
-          systemPrompt: state.systemPrompt ?? AGENT_SYSTEM_PROMPT,
           observability: {
             ...DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
             ...(state.observability ?? {}),
@@ -688,7 +689,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         activeSessionId: state.activeSessionId,
         sessionMap: state.sessionMap,
         defaultModelConfig: state.defaultModelConfig,
-        systemPrompt: state.systemPrompt,
         observability: state.observability,
         capabilities: state.capabilities,
       }),

@@ -1,9 +1,14 @@
 import json
 
+from pydantic_ai.usage import RequestUsage
+
 from phoenix.server.api.routers.chat_tracing import StreamAccumulator
 from phoenix.server.api.routers.data_stream_protocol import (
     ChatBody,
+    _anthropic_model_settings_for_cache,
     _backend_tool_loop_limit_error,
+    _build_trace_messages,
+    _latest_nonzero_cache_tokens,
     parse_chat_body,
 )
 
@@ -29,8 +34,6 @@ class TestParseChatBody:
         assert body.export_remote_traces is False
         assert body.ingest_traces is True
         assert body.trace_name_suffix == "Turn"
-        assert body.system is None
-        assert body.tools is None
         assert len(body.messages) >= 1
 
     def test_parses_session_id_and_trace_destination_flags(self) -> None:
@@ -57,7 +60,7 @@ class TestParseChatBody:
         assert body.ingest_traces is False
         assert body.trace_name_suffix == "Summary"
 
-    def test_parses_tools(self) -> None:
+    def test_ignores_legacy_client_tool_definitions(self) -> None:
         raw = json.dumps(
             {
                 "trigger": "submit-message",
@@ -75,15 +78,9 @@ class TestParseChatBody:
             }
         ).encode()
         body = parse_chat_body(raw)
-        assert body.tools is not None
-        assert len(body.tools) == 1
-        assert body.tools[0].name == "search"
-        assert len(body.raw_tools) == 1
-        assert body.raw_tools[0]["type"] == "function"
-        assert body.raw_tools[0]["function"]["name"] == "search"
-        assert body.raw_tools[0]["function"]["description"] == "Search the web"
+        assert isinstance(body, ChatBody)
 
-    def test_parses_system_prompt(self) -> None:
+    def test_appends_capability_guidance_to_system_prompt(self) -> None:
         raw = json.dumps(
             {
                 "trigger": "submit-message",
@@ -95,17 +92,105 @@ class TestParseChatBody:
                         "parts": [{"type": "text", "text": "Hello"}],
                     }
                 ],
-                "system": "You are a helpful assistant.",
+                "capabilities": {
+                    "bash.retainInactiveSessions": False,
+                    "graphql.mutations": True,
+                },
             }
         ).encode()
         body = parse_chat_body(raw)
-        assert body.system == "You are a helpful assistant."
-        # System prompt should be prepended to messages as a ModelRequest.
-        from pydantic_ai.messages import ModelRequest, SystemPromptPart
 
-        first_msg = body.messages[0]
-        assert isinstance(first_msg, ModelRequest)
-        assert any(isinstance(p, SystemPromptPart) for p in first_msg.parts)
+        static_part, system_part = body.instruction_parts
+        assert static_part.content.startswith("<role>")
+        assert static_part.dynamic is False
+        assert system_part.dynamic is True
+        assert system_part.content.startswith("Runtime capability state for this conversation:")
+        assert "GraphQL mutations are enabled" in system_part.content
+        assert body.capabilities.graphql_mutations is True
+
+
+class TestAnthropicModelSettingsForCache:
+    def test_returns_cache_settings_for_anthropic_model(self) -> None:
+        AnthropicModel = type(
+            "AnthropicModel",
+            (),
+            {"__module__": "pydantic_ai.models.anthropic"},
+        )
+
+        settings = _anthropic_model_settings_for_cache(AnthropicModel())
+
+        assert settings is not None
+        assert settings["anthropic_cache"] is True
+        assert settings["anthropic_cache_instructions"] is True
+        assert settings["anthropic_cache_tool_definitions"] is True
+
+    def test_returns_none_for_non_anthropic_model(self) -> None:
+        OtherModel = type("OtherModel", (), {"__module__": "pydantic_ai.models.openai"})
+
+        assert _anthropic_model_settings_for_cache(OtherModel()) is None
+
+
+class TestLatestNonzeroCacheTokens:
+    def test_keeps_prior_cache_tokens_when_latest_usage_has_zeroes(self) -> None:
+        cache_read, cache_write = _latest_nonzero_cache_tokens(
+            current_read=0,
+            current_write=0,
+            usage=RequestUsage(cache_read_tokens=123, cache_write_tokens=456),
+        )
+
+        cache_read, cache_write = _latest_nonzero_cache_tokens(
+            current_read=cache_read,
+            current_write=cache_write,
+            usage=RequestUsage(cache_read_tokens=0, cache_write_tokens=0),
+        )
+
+        assert cache_read == 123
+        assert cache_write == 456
+
+    def test_updates_cache_tokens_when_later_usage_has_nonzeroes(self) -> None:
+        cache_read, cache_write = _latest_nonzero_cache_tokens(
+            current_read=123,
+            current_write=456,
+            usage=RequestUsage(cache_read_tokens=789, cache_write_tokens=101),
+        )
+
+        assert cache_read == 789
+        assert cache_write == 101
+
+
+class TestBuildTraceMessages:
+    def test_rebuilds_from_current_messages(self) -> None:
+        from pydantic_ai.messages import ModelRequest, UserPromptPart
+
+        raw = json.dumps(
+            {
+                "trigger": "submit-message",
+                "id": "test-1",
+                "messages": [
+                    {
+                        "id": "msg-1",
+                        "role": "user",
+                        "parts": [{"type": "text", "text": "Hello"}],
+                    }
+                ],
+            }
+        ).encode()
+        body = parse_chat_body(raw)
+        messages = list(body.messages)
+        initial_trace_messages = _build_trace_messages(
+            instruction_parts=body.instruction_parts,
+            messages=messages,
+        )
+
+        appended_message = ModelRequest(parts=[UserPromptPart(content="Tool result")])
+        messages.append(appended_message)
+        updated_trace_messages = _build_trace_messages(
+            instruction_parts=body.instruction_parts,
+            messages=messages,
+        )
+
+        assert len(updated_trace_messages) == len(initial_trace_messages) + 1
+        assert updated_trace_messages[-1] is appended_message
 
 
 class TestStreamAccumulator:

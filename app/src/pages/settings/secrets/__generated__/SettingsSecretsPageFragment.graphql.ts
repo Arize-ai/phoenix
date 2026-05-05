@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bdfc2cfb2c7fdd5e34bc5dd5748461db>>
+ * @generated SignedSource<<d0dfba1d0966dfb91113922acc79497b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -22,6 +22,17 @@ export type SettingsSecretsPageFragment$data = {
           readonly profilePictureUrl: string | null;
           readonly username: string;
         } | null;
+        readonly value: {
+          readonly __typename: "DecryptedSecret";
+          readonly value: string;
+        } | {
+          readonly __typename: "UnparsableSecret";
+          readonly parseError: string;
+        } | {
+          // This will never be '%other', but we need some
+          // value in case none of the concrete values match.
+          readonly __typename: "%other";
+        };
       };
     }>;
   };
@@ -43,6 +54,13 @@ v1 = {
   "args": null,
   "kind": "ScalarField",
   "name": "id",
+  "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
   "storageKey": null
 };
 return {
@@ -151,10 +169,44 @@ return {
                 {
                   "alias": null,
                   "args": null,
-                  "kind": "ScalarField",
-                  "name": "__typename",
+                  "concreteType": null,
+                  "kind": "LinkedField",
+                  "name": "value",
+                  "plural": false,
+                  "selections": [
+                    (v2/*: any*/),
+                    {
+                      "kind": "InlineFragment",
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "value",
+                          "storageKey": null
+                        }
+                      ],
+                      "type": "DecryptedSecret",
+                      "abstractKey": null
+                    },
+                    {
+                      "kind": "InlineFragment",
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "parseError",
+                          "storageKey": null
+                        }
+                      ],
+                      "type": "UnparsableSecret",
+                      "abstractKey": null
+                    }
+                  ],
                   "storageKey": null
-                }
+                },
+                (v2/*: any*/)
               ],
               "storageKey": null
             },
@@ -202,6 +254,6 @@ return {
 };
 })();
 
-(node as any).hash = "9458ee6e39a893b28d61dc76c23e2639";
+(node as any).hash = "ba94b1a73c531646ae5ab82eb48878c7";
 
 export default node;

@@ -22,6 +22,10 @@ from phoenix.server.api.types.Evaluator import (
     Evaluator,
 )
 from phoenix.server.api.types.Identifier import Identifier, identifier_scalar_definition
+from phoenix.server.api.types.RedactedString import (
+    RedactedString,
+    redacted_string_scalar_definition,
+)
 from phoenix.server.api.types.SecretString import secret_string_scalar_definition
 
 
@@ -41,6 +45,7 @@ def build_graphql_schema(
                 Identifier: identifier_scalar_definition,
                 CronExpression: cron_expression_scalar_definition,
                 Secret: secret_string_scalar_definition,
+                RedactedString: redacted_string_scalar_definition,
             },
         ),
         types=list(

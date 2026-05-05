@@ -198,15 +198,25 @@ export const anthropicToolDefinitionJSONSchema = z.toJSONSchema(
   anthropicToolDefinitionSchema
 );
 
-export const awsToolDefinitionSchema = z.object({
-  toolSpec: z.object({
-    name: z.string(),
-    description: z.string().min(1).optional(),
-    inputSchema: z.object({
-      json: parametersSchemaWithDefaultObjectType,
-    }),
+const awsToolSpecSchema = z.object({
+  name: z.string(),
+  description: z.string().min(1).optional(),
+  inputSchema: z.object({
+    json: parametersSchemaWithDefaultObjectType,
   }),
 });
+
+/**
+ * AWS Bedrock tool definition.
+ *
+ * The canonical Converse API shape wraps the tool in `toolSpec`, but some
+ * OpenInference Bedrock spans store the unwrapped inner shape. Accept both
+ * so playground can rehydrate either form.
+ */
+export const awsToolDefinitionSchema = z.union([
+  z.object({ toolSpec: awsToolSpecSchema }),
+  awsToolSpecSchema,
+]);
 
 export type AwsToolDefinition = z.infer<typeof awsToolDefinitionSchema>;
 

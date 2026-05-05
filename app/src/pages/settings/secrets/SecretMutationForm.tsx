@@ -3,13 +3,12 @@ import { Controller, useForm } from "react-hook-form";
 
 import {
   Button,
-  CredentialField,
-  CredentialInput,
   FieldError,
   Flex,
   Form,
   Input,
   Label,
+  RedactedCredentialField,
   Text,
   TextField,
   View,
@@ -141,23 +140,20 @@ export function SecretMutationForm({
                 return true;
               },
             }}
-            render={({ field: { onChange, value }, fieldState: { error } }) => (
-              <CredentialField
-                isInvalid={!!error}
-                onChange={onChange}
+            render={({
+              field: { name, onChange, onBlur, value },
+              fieldState: { error },
+            }) => (
+              <RedactedCredentialField
+                label="Value"
+                placeholder="Enter a secret value"
+                description="This value is write-only and will not be shown again after it is saved."
+                name={name}
                 value={value}
-              >
-                <Label>Value</Label>
-                <CredentialInput placeholder="Enter a secret value" />
-                {error?.message ? (
-                  <FieldError>{error.message}</FieldError>
-                ) : (
-                  <Text slot="description">
-                    This value is write-only and will not be shown again after
-                    it is saved.
-                  </Text>
-                )}
-              </CredentialField>
+                onChange={onChange}
+                onBlur={onBlur}
+                errorMessage={error?.message}
+              />
             )}
           />
         </Flex>

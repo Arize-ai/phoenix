@@ -1,22 +1,15 @@
 import type { Chat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 
-import {
-  bashToolDefinition,
-  getBashToolInput,
-} from "@phoenix/agent/tools/bash";
+import { getBashToolInput } from "@phoenix/agent/tools/bash";
 import type { BashToolInput } from "@phoenix/agent/tools/bash";
 /**
- * For the workflow to add, edit, or remove a frontend tool, see
- * `.agents/skills/phoenix-pxi/rules/extending-frontend-tool-registry.md`.
+ * Frontend registry for executing PXI tools whose model-facing definitions are
+ * advertised by the server.
  */
 import { handleBashToolCall } from "@phoenix/agent/tools/bash/handleBashToolCall";
-import {
-  elicitToolDefinition,
-  parseElicitToolInput,
-} from "@phoenix/agent/tools/elicit";
+import { parseElicitToolInput } from "@phoenix/agent/tools/elicit";
 import type { ElicitToolInput } from "@phoenix/agent/tools/elicit";
-import type { FrontendToolDefinition } from "@phoenix/agent/tools/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
 import {
@@ -45,20 +38,14 @@ type AgentToolHandlerContext<TInput> = {
 };
 
 /**
- * One frontend tool entry: schema exposed to the model, parser for raw input,
+ * One frontend tool entry: server-advertised name, parser for raw input,
  * optional capability gates, and the implementation that handles the call.
- *
- * `isServerAdvertised` marks tools whose `ToolDefinition` is supplied by the
- * server (gated on resolved chat context) rather than sent in the chat
- * request body. The client still owns execution; only the advertisement
- * channel differs. These entries are excluded from `agentToolDefinitions`.
  */
 type RegisteredAgentTool<TInput> = {
-  definition: FrontendToolDefinition;
+  name: string;
   parseInput: (input: unknown) => TInput | null;
   invalidInputErrorText: string;
   requiredCapabilities?: AgentCapabilityKey[];
-  isServerAdvertised?: boolean;
   execute: (context: AgentToolHandlerContext<TInput>) => Promise<void>;
 };
 
@@ -71,7 +58,7 @@ function createRegisteredAgentTool<TInput>(
 
 /** Bash runs in the browser sandbox and is gated by runtime capabilities. */
 const bashAgentTool = createRegisteredAgentTool<BashToolInput>({
-  definition: bashToolDefinition,
+  name: "bash",
   parseInput: getBashToolInput,
   invalidInputErrorText: "Invalid bash tool input",
   execute: async ({
@@ -93,7 +80,7 @@ const bashAgentTool = createRegisteredAgentTool<BashToolInput>({
 
 /** ask_user pauses tool execution until the user answers in the UI. */
 const askUserAgentTool = createRegisteredAgentTool<ElicitToolInput>({
-  definition: elicitToolDefinition,
+  name: "ask_user",
   parseInput: parseElicitToolInput,
   invalidInputErrorText:
     "Invalid ask_user tool input. Expected { questions: ElicitationQuestion[] }.",
@@ -123,101 +110,78 @@ const askUserAgentTool = createRegisteredAgentTool<ElicitToolInput>({
 
 /**
  * Server-advertised, client-executed: the server owns the canonical schema
- * and description (see chat_tools/apply_span_filter_condition.py); this name
- * is the single source of truth for routing the call to the matching client
- * action registered by SpanFilterConditionField.
+ * and description (see agents/tools/set_spans_filter.py); this name is the
+ * single source of truth for routing the call to the matching client action
+ * registered by SpanFilterConditionField. The tool consolidates control over
+ * both the freeform filter condition and the root-vs-all-spans toggle.
  */
-export const APPLY_SPAN_FILTER_CONDITION_TOOL_NAME =
-  "apply_span_filter_condition";
+export const SET_SPANS_FILTER_TOOL_NAME = "set_spans_filter";
 
-type ApplySpanFilterConditionInput = {
+export type SetSpansFilterInput = {
   condition: string;
+  rootSpansOnly: boolean;
 };
 
-// Mirrors the server-side schema in chat_tools/apply_span_filter_condition.py.
-// The server is the source of truth advertised to the model; this copy exists
-// so the description still reads correctly if it ever surfaces in synthesis,
-// session summaries, or developer tooling.
-const applySpanFilterConditionToolDefinition: FrontendToolDefinition = {
-  name: APPLY_SPAN_FILTER_CONDITION_TOOL_NAME,
-  description:
-    "Apply a Phoenix span filter to the project span list to narrow the spans visible in the UI. " +
-    "Examples: `span_kind == 'LLM'`, `status_code == 'ERROR' and latency_ms >= 5000`, " +
-    "`'agent' in input.value`, `annotations['Hallucination'].label == 'hallucinated'`. " +
-    "Pass an empty string to clear the filter.",
-  parameters: {
-    type: "object",
-    properties: {
-      condition: {
-        type: "string",
-        description:
-          "The span filter DSL expression to apply. Pass an empty string to clear the filter.",
-      },
-    },
-    required: ["condition"],
-    additionalProperties: false,
-  },
-};
-
-function parseApplySpanFilterConditionInput(
-  input: unknown
-): ApplySpanFilterConditionInput | null {
+function parseSetSpansFilterInput(input: unknown): SetSpansFilterInput | null {
   if (typeof input !== "object" || input === null) return null;
-  const candidate = input as { condition?: unknown };
+  const candidate = input as {
+    condition?: unknown;
+    rootSpansOnly?: unknown;
+  };
   if (typeof candidate.condition !== "string") return null;
-  return { condition: candidate.condition };
+  if (typeof candidate.rootSpansOnly !== "boolean") return null;
+  return {
+    condition: candidate.condition,
+    rootSpansOnly: candidate.rootSpansOnly,
+  };
 }
 
-const applySpanFilterConditionAgentTool =
-  createRegisteredAgentTool<ApplySpanFilterConditionInput>({
-    definition: applySpanFilterConditionToolDefinition,
-    parseInput: parseApplySpanFilterConditionInput,
-    invalidInputErrorText: `Invalid ${APPLY_SPAN_FILTER_CONDITION_TOOL_NAME} input. Expected { condition: string }.`,
-    isServerAdvertised: true,
-    execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
-      const action =
-        agentStore.getState().registeredClientActions[
-          APPLY_SPAN_FILTER_CONDITION_TOOL_NAME
-        ];
-      if (!action) {
-        await addToolOutput({
-          state: "output-error",
-          tool: APPLY_SPAN_FILTER_CONDITION_TOOL_NAME,
-          toolCallId: toolCall.toolCallId,
-          errorText:
-            "The span filter field is not mounted on this page; cannot apply a filter.",
-        });
-        return;
-      }
-      const result = await action(input);
-      if (result.ok) {
-        await addToolOutput({
-          state: "output-available",
-          tool: APPLY_SPAN_FILTER_CONDITION_TOOL_NAME,
-          toolCallId: toolCall.toolCallId,
-          output: result.output ?? "Filter applied.",
-        });
-      } else {
-        await addToolOutput({
-          state: "output-error",
-          tool: APPLY_SPAN_FILTER_CONDITION_TOOL_NAME,
-          toolCallId: toolCall.toolCallId,
-          errorText: result.error,
-        });
-      }
-    },
-  });
+const setSpansFilterAgentTool = createRegisteredAgentTool<SetSpansFilterInput>({
+  name: SET_SPANS_FILTER_TOOL_NAME,
+  parseInput: parseSetSpansFilterInput,
+  invalidInputErrorText: `Invalid ${SET_SPANS_FILTER_TOOL_NAME} input. Expected { condition: string, rootSpansOnly: boolean }.`,
+  execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+    const action =
+      agentStore.getState().registeredClientActions[SET_SPANS_FILTER_TOOL_NAME];
+    if (!action) {
+      await addToolOutput({
+        state: "output-error",
+        tool: SET_SPANS_FILTER_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        errorText:
+          "The span filter field is not mounted on this page; cannot update the spans filter.",
+      });
+      return;
+    }
+    const result = await action(input);
+    if (result.ok) {
+      await addToolOutput({
+        state: "output-available",
+        tool: SET_SPANS_FILTER_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        output: result.output ?? "Spans filter updated.",
+      });
+    } else {
+      await addToolOutput({
+        state: "output-error",
+        tool: SET_SPANS_FILTER_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        errorText: result.error,
+      });
+    }
+  },
+});
 
 /** Ordered registry of all frontend-executable tools. */
 const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   bashAgentTool as RegisteredAgentTool<unknown>,
   askUserAgentTool as RegisteredAgentTool<unknown>,
-  applySpanFilterConditionAgentTool as RegisteredAgentTool<unknown>,
+  setSpansFilterAgentTool as RegisteredAgentTool<unknown>,
 ];
 
 /** Fast lookup map for runtime tool dispatch by name. */
 const agentToolRegistryByName = new Map<string, RegisteredAgentTool<unknown>>(
-  agentToolRegistry.map((tool) => [tool.definition.name, tool])
+  agentToolRegistry.map((tool) => [tool.name, tool])
 );
 
 function getMissingCapabilities({
@@ -245,15 +209,6 @@ function buildMissingCapabilitiesErrorText(
     ),
   ].join("\n");
 }
-
-/**
- * Tool schemas sent with every chat request. Server-advertised tools are
- * excluded — the server inserts their definitions itself based on resolved
- * chat context, and including them here would duplicate names.
- */
-export const agentToolDefinitions = agentToolRegistry
-  .filter((tool) => !tool.isServerAdvertised)
-  .map((tool) => tool.definition);
 
 /**
  * Validates and dispatches one tool call from the AI SDK runtime to the

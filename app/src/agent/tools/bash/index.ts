@@ -1,5 +1,5 @@
 // --- Bash tool ---
-export { bashToolDefinition, getBashToolInput } from "./bashToolSchema";
+export { getBashToolInput } from "./bashToolSchema";
 export {
   applyBashToolFilesystemPolicy,
   BASH_TOOL_READONLY_ROOT,

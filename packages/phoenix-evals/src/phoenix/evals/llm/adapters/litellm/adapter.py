@@ -4,7 +4,15 @@ import logging
 from typing import Any, Dict, List, Type, cast
 from urllib.parse import urlparse
 
-from ...prompts import Message, MessageRole, PromptLike
+from ...prompts import (
+    Message,
+    MessageRole,
+    PromptLike,
+    classify_message_list_kind,
+    is_openai_native_message_dict,
+    normalize_role,
+    validate_message_dict,
+)
 from ...registries import register_provider
 from ...types import BaseLLMAdapter, ObjectGenerationMethod
 from .client import LiteLLMClient
@@ -469,12 +477,49 @@ class LiteLLMAdapter(BaseLLMAdapter):
             return [{"role": "user", "content": prompt}]
 
         if isinstance(prompt, list):
-            # Check if this is List[Message] with MessageRole enum
-            if prompt and isinstance(prompt[0].get("role"), MessageRole):
+            if not prompt:
+                raise ValueError("Prompt message list cannot be empty.")
+            # Reject mixed lists (typed Message + raw dict) up front.
+            if classify_message_list_kind(prompt) == "typed":
                 # Transform List[Message] to OpenAI format
                 return self._transform_messages_to_openai(cast(List[Message], prompt))
-            # Already in OpenAI message format (backward compatibility)
-            return cast(list[dict[str, Any]], prompt)
+            if any(
+                is_openai_native_message_dict(msg) for msg in cast(List[Dict[str, Any]], prompt)
+            ):
+                return cast(list[dict[str, Any]], prompt)
+            # OpenAI-style dict messages — validate and canonicalize aliases.
+            # LiteLLM is a provider-routing layer that handles "developer" for
+            # reasoning models internally, so we preserve OpenAI-compatible
+            # SYSTEM role strings ("system" / "developer") verbatim rather than
+            # normalizing both to "system" via the MessageRole round-trip.
+            # Caller-supplied keys other than ``role``/``content`` (e.g. the
+            # documented ``name`` field) are preserved so the validating dict
+            # path matches the native pass-through's compatibility guarantee.
+            output: list[dict[str, Any]] = []
+            for i, msg in enumerate(cast(List[Dict[str, Any]], prompt)):
+                validate_message_dict(msg, index=i)
+                canonical = normalize_role(msg["role"])
+                if canonical == MessageRole.SYSTEM:
+                    # Keep "developer" vs "system" so LiteLLM can route to the
+                    # correct provider-side representation for the target model.
+                    raw = msg["role"].strip().lower() if isinstance(msg["role"], str) else "system"
+                    role_str: str = raw if raw in ("system", "developer") else "system"
+                else:
+                    role_str = canonical.value  # "user" or "assistant"
+                content = msg["content"]
+                if isinstance(content, str):
+                    body: dict[str, Any] = {"role": role_str, "content": content}
+                else:
+                    # Content-part list: join text parts (non-text parts dropped,
+                    # matching _transform_messages_to_openai behaviour).
+                    text_parts = [
+                        p["text"] for p in content if p.get("type") == "text" and "text" in p
+                    ]
+                    body = {"role": role_str, "content": "\n".join(text_parts)}
+                extras = {k: v for k, v in msg.items() if k not in ("role", "content")}
+                # Canonical role/content win over any conflicting caller keys.
+                output.append({**extras, **body})
+            return output
 
         # If we get here, prompt is an unexpected type
         raise ValueError(f"Expected prompt to be str or list, got {type(prompt).__name__}")

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.16.0...arize-phoenix-otel-v0.16.1) (2026-05-03)
+
+
+### Documentation
+
+* add LinkedIn social links alongside X/Bluesky ([#12993](https://github.com/Arize-ai/phoenix/issues/12993)) ([5d14f23](https://github.com/Arize-ai/phoenix/commit/5d14f23598202c062530466a9dbdc9a1a033d6c8))
+
 ## [0.16.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-otel-v0.15.0...arize-phoenix-otel-v0.16.0) (2026-04-24)
 
 

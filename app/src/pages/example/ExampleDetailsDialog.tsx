@@ -172,6 +172,7 @@ function ExampleDetailsDialogContent({
         example: node(id: $exampleId) {
           ... on DatasetExample {
             id
+            externalId
             revision(datasetVersionId: $datasetVersionId) {
               input
               output
@@ -243,7 +244,10 @@ function ExampleDetailsDialogContent({
   return (
     <>
       <DialogHeader>
-        <TitleWithID title="Example" id={exampleId} />
+        <TitleWithID
+          title="Example"
+          id={data.example.externalId ?? exampleId}
+        />
         <DialogTitleExtra>
           <DatasetSplits labels={datasetSplits} />
           {sourceSpanInfo ? (

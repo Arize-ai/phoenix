@@ -1,11 +1,11 @@
 ---
 name: phoenix-cli
-description: Debug LLM applications using the Phoenix CLI. Fetch traces, analyze errors, review experiments, inspect datasets, query annotation configs, and use the GraphQL API. Use when debugging AI/LLM applications, analyzing trace data, working with Phoenix observability, investigating LLM performance issues, or checking Phoenix auth status.
+description: Debug LLM applications using the Phoenix CLI. Fetch traces, analyze errors, structure trace review with open coding and axial coding, inspect datasets, review experiments, query annotation configs, and use the GraphQL API. Use whenever the user is analyzing traces or spans, investigating LLM/agent failures, deciding what to do after instrumenting an app, building failure taxonomies, choosing what evals to write, or asking "what's going wrong", "what kinds of mistakes", or "where do I focus" — even without naming a technique.
 license: Apache-2.0
 compatibility: Requires Node.js (for npx) or global install of @arizeai/phoenix-cli. Optionally requires jq for JSON processing.
 metadata:
   author: arize-ai
-  version: "3.2.0"
+  version: "3.3.0"
 ---
 
 # Phoenix CLI
@@ -27,6 +27,10 @@ px trace add-note <trace-id>
 px span list
 px span annotate <span-id>
 px span add-note <span-id>
+px session list
+px session get <session-id>
+px session annotate <session-id>
+px session add-note <session-id>
 px dataset list
 px dataset get <name>
 px project list
@@ -43,6 +47,25 @@ export PHOENIX_API_KEY=your-api-key  # if auth is enabled
 ```
 
 Always use `--format raw --no-progress` when piping to `jq`.
+
+## Quick Reference
+
+| Task | Files |
+| ---- | ----- |
+| Look at sampled traces and write specific notes about what went wrong (no taxonomy yet) | [references/open-coding](references/open-coding.md) |
+| Group those notes into a structured failure taxonomy and quantify what matters | [references/axial-coding](references/axial-coding.md) |
+
+## Workflows
+
+**"What do I do after instrumenting?" / "Where do I focus?" / "What's going wrong?"**
+[open-coding](references/open-coding.md) → [axial-coding](references/axial-coding.md) → build evals for the top categories.
+
+## Reference Categories
+
+| Prefix | Description |
+| ------ | ----------- |
+| `references/open-coding` | Free-form notes against sampled traces — reach for it whenever the user wants to make sense of traces but has no failure categories yet |
+| `references/axial-coding` | Inductive grouping of notes into a MECE taxonomy with counts — reach for it whenever the user has observations and needs categories or eval targets |
 
 ## Auth
 
@@ -154,8 +177,13 @@ Span
 ```bash
 px session list --limit 10 --format raw --no-progress | jq .
 px session list --order asc --format raw --no-progress | jq '.[].session_id'
+px session list --include-annotations --include-notes --format raw --no-progress | jq '.[].notes'
 px session get <session-id> --format raw | jq .
-px session get <session-id> --include-annotations --format raw | jq '.annotations'
+px session get <session-id> --include-annotations --format raw | jq '.session.annotations'
+px session get <session-id> --include-notes --format raw | jq '.session.notes'
+px session annotate <session-id> --name reviewer --label pass
+px session annotate <session-id> --name reviewer --score 0.9 --format raw --no-progress
+px session add-note <session-id> --text "verified by agent"
 ```
 
 ### Session JSON shape
@@ -164,13 +192,12 @@ px session get <session-id> --include-annotations --format raw | jq '.annotation
 SessionData
   id, session_id, project_id
   start_time, end_time
+  annotations[] (with --include-annotations, excludes note)
+    name, result { score, label, explanation }
+  notes[] (with --include-notes)
+    name="note", result { explanation }
   traces[]
     id, trace_id, start_time, end_time
-
-SessionAnnotation (with --include-annotations)
-  id, name, annotator_kind ("LLM"|"CODE"|"HUMAN"), session_id
-  result { label, score, explanation }
-  metadata, identifier, source, created_at, updated_at
 ```
 
 ## Datasets / Experiments / Prompts

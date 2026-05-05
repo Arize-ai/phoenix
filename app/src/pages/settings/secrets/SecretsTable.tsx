@@ -7,8 +7,14 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
+import { Focusable } from "react-aria";
 
 import { Card, Flex, Icon, Icons, Text } from "@phoenix/components";
+import {
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+} from "@phoenix/components/core/tooltip";
 import { TableEmpty } from "@phoenix/components/table";
 import { tableCSS } from "@phoenix/components/table/styles";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
@@ -21,6 +27,10 @@ import { ReplaceSecretButton } from "./ReplaceSecretButton";
 
 type SecretRow =
   SettingsSecretsPageFragment$data["secrets"]["edges"][number]["node"];
+
+function getParseError(value: SecretRow["value"]): string | null {
+  return value.__typename === "UnparsableSecret" ? value.parseError : null;
+}
 
 export function SecretsTable({
   data,
@@ -42,6 +52,35 @@ export function SecretsTable({
       {
         header: "Key",
         accessorKey: "key",
+        cell: ({ row }) => {
+          const { key, value } = row.original;
+          const parseError = getParseError(value);
+          return (
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <span>{key}</span>
+              {parseError && (
+                <TooltipTrigger delay={200}>
+                  <Focusable>
+                    <span
+                      role="img"
+                      tabIndex={0}
+                      aria-label="Secret could not be decrypted"
+                    >
+                      <Icon
+                        svg={<Icons.AlertTriangleOutline />}
+                        color="warning"
+                      />
+                    </span>
+                  </Focusable>
+                  <Tooltip>
+                    <TooltipArrow />
+                    {parseError}
+                  </Tooltip>
+                </TooltipTrigger>
+              )}
+            </Flex>
+          );
+        },
       },
       {
         header: "Updated At",
@@ -81,6 +120,7 @@ export function SecretsTable({
           <Flex direction="row" gap="size-50" width="100%" justifyContent="end">
             <ReplaceSecretButton
               secretKey={row.original.key}
+              parseError={getParseError(row.original.value)}
               connectionId={connectionId}
             />
             <DeleteSecretButton

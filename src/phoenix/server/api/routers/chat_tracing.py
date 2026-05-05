@@ -69,8 +69,14 @@ class AgentMessageMetadataUsageTokens(TypedDict):
     total: int
 
 
+class AgentMessageMetadataUsageTokenDetails(TypedDict, total=False):
+    cacheRead: int
+    cacheWrite: int
+
+
 class AgentMessageMetadataUsage(TypedDict, total=False):
     tokens: AgentMessageMetadataUsageTokens
+    promptDetails: AgentMessageMetadataUsageTokenDetails
 
 
 class AgentMessageMetadata(TypedDict, total=False):
@@ -260,6 +266,12 @@ _LLM_SYSTEM = SpanAttributes.LLM_SYSTEM
 _LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
 _LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
 _LLM_TOKEN_COUNT_TOTAL = SpanAttributes.LLM_TOKEN_COUNT_TOTAL
+_LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ = (
+    SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ
+)
+_LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE = (
+    SpanAttributes.LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE
+)
 _TOOL_NAME = cast(str, getattr(SpanAttributes, "TOOL_NAME", "tool.name"))
 _TOOL_DESCRIPTION = cast(str, getattr(SpanAttributes, "TOOL_DESCRIPTION", "tool.description"))
 _TOOL_PARAMETERS = cast(str, getattr(SpanAttributes, "TOOL_PARAMETERS", "tool.parameters"))
@@ -486,9 +498,13 @@ def finalize_llm_span(
     if usage is not None:
         input_tokens = getattr(usage, "input_tokens", 0) or 0
         output_tokens = getattr(usage, "output_tokens", 0) or 0
+        cache_read_tokens = getattr(usage, "cache_read_tokens", 0) or 0
+        cache_write_tokens = getattr(usage, "cache_write_tokens", 0) or 0
         span.set_attribute(_LLM_TOKEN_COUNT_PROMPT, input_tokens)
         span.set_attribute(_LLM_TOKEN_COUNT_COMPLETION, output_tokens)
         span.set_attribute(_LLM_TOKEN_COUNT_TOTAL, input_tokens + output_tokens)
+        span.set_attribute(_LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_READ, cache_read_tokens)
+        span.set_attribute(_LLM_TOKEN_COUNT_PROMPT_DETAILS_CACHE_WRITE, cache_write_tokens)
 
     span.end()
 

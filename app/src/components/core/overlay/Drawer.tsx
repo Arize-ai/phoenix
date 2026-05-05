@@ -90,12 +90,6 @@ const drawerCSS = css`
     color: var(--global-text-color-900);
     border-left: 1px solid var(--global-border-color-default);
     outline: none;
-
-    & .dialog__header {
-      position: sticky;
-      top: 0;
-      z-index: 1;
-    }
   }
 `;
 

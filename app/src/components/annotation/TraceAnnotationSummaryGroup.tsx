@@ -6,7 +6,10 @@ import { Flex } from "@phoenix/components";
 import type { TraceAnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/TraceAnnotationSummaryGroup.graphql";
 import { AnnotationLabel } from "@phoenix/components/annotation/AnnotationLabel";
 import { AnnotationSummaryPopover } from "@phoenix/components/annotation/AnnotationSummaryPopover";
-import { SummaryValuePreview } from "@phoenix/pages/project/AnnotationSummary";
+import {
+  SummaryValueLabelPreview,
+  SummaryValuePreview,
+} from "@phoenix/pages/project/AnnotationSummary";
 import type { AnnotationConfigCategorical } from "@phoenix/pages/settings/types";
 
 const useTraceAnnotationSummaryGroup = (
@@ -176,7 +179,11 @@ export const TraceAnnotationSummaryGroupTokens = ({
                     categoricalAnnotationConfigsByName[latestAnnotation.name]
                   }
                 />
-              ) : null}
+              ) : (
+                <SummaryValueLabelPreview
+                  labelFractions={summary.labelFractions}
+                />
+              )}
             </AnnotationLabel>
           </AnnotationSummaryPopover>
         );

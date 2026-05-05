@@ -25,34 +25,35 @@ Sections use `##` headings, subsections use `###`. Subsections inherit their par
 
 ## Coverage rules
 
+Default to **including** every published `.mdx` page that exists in `docs.json` navigation. The AFDocs Agent Score (`afdocs.dev`) measures llms.txt coverage against the sitemap and flags anything under 80%. Aim for ≥ 90% coverage of nav-published pages.
+
 **Include as individual entries:**
 - All workflow docs (tracing, evaluation, experiments, prompts)
-- SDK and API reference pages
+- SDK and API reference pages, including each REST API endpoint
 - Self-hosting and deployment guides
 - Quick start guides (Python and TypeScript)
 - Server-side evaluation pages
-**Index-level only (one entry, not every sub-page):**
-- REST API endpoints — the `api-reference` overview is sufficient
-- Legacy evaluation pages
-- Cookbooks — link to the cookbook index page only, since individual cookbook pages are typically Colab notebooks that agents cannot parse
-- Evaluation integrations — link to the evaluation-integrations index (`https://arize.com/docs/phoenix/integrations/evaluation-integrations`) only; do NOT list individual 3rd-party eval library pages (e.g., Ragas, Cleanlab, UQLM, MLflow). These are thin wrappers around external tools and change frequently.
-- Pre-built evaluation metrics — link to the pre-built-metrics index page and the server-evals pre-built-metrics index only; do NOT list each individual metric page (e.g., faithfulness, toxicity, hallucination). The index pages enumerate all available metrics.
+- Pre-built evaluation metrics — list each metric page (faithfulness, toxicity, hallucination, RAG relevance, etc.) so agents can find them by name
+- Evaluation integrations — list each provider's evals page (Ragas, Cleanlab, UQLM, MLflow, OpenAI evals, Anthropic evals, etc.); these are real docs pages with usable code
+- Release notes — list each individual release note. Group by year under a `## Release Notes` section with `### YYYY` subsections so the section stays scannable
+- Cookbook pages with substantial prose content (code samples, written explanation, configuration walkthroughs)
 
 **Include as individual entries under Integrations:**
 - All LLM provider pages (OpenAI, Anthropic, Bedrock, Google GenAI, etc.) and their tracing/evals sub-pages
 - All framework integration pages (LangChain, LlamaIndex, Vercel AI SDK, etc.) and their tracing sub-pages
 - All platform integration pages (Dify, Flowise, LangFlow, etc.)
 - Developer tools (Coding Agents, MCP Server)
+- Vector databases (each provider page)
 
-**Exclude — content agents cannot use or does not help them:**
-- Agent-assisted setup page — this is for AI coding agents, not for human developers or LLM documentation consumers
+**Exclude — content agents cannot use:**
+- Agent-assisted setup page — for AI coding agents, not human developers or LLM documentation consumers
 - Interactive demos and sandbox links (e.g., Phoenix Demo) — agents cannot interact with live demos
 - Colab / Jupyter notebook links (e.g., End-to-End Features Notebook) — agents cannot parse `.ipynb` hosted on Colab
-- Cookbook pages that are **only** notebook links without prose documentation — if the page is just a Colab embed, exclude it; if it has substantial written content with code snippets, include it
+- Cookbook pages that are **only** a Colab embed with no prose
 - Bare external links that have no docs page behind them (e.g., a raw `github.com` URL). Note: docs *about* GitHub (issues, contributing) are fine to keep
-- Individual release notes
 - Translated pages (`documentation/jp.mdx`, `zh.mdx`)
 - Draft or temporary pages
+- Orphan `.mdx` files not in `docs.json` navigation — these aren't routed by Mintlify and 404 in production
 - Duplicate entries — if a page already appears in one section, do not repeat it in another (e.g., don't list "User Guide" in both Overview and Concepts)
 
 **Always include:**
@@ -62,13 +63,26 @@ Sections use `##` headings, subsections use `###`. Subsections inherit their par
 
 Every time you add, remove, or audit llms.txt entries you **must** traverse the full docs tree to verify coverage. Follow these steps in order:
 
-### Step 1 — Enumerate all docs pages
+### Step 1 — Enumerate published nav pages (intersect docs.json with .mdx files)
+
+`docs.json` is the source of truth for what Mintlify routes. Pages on disk but not in nav 404 in production. Pages in nav with no `.mdx` file are broken nav entries. Use the intersection.
 
 ```bash
-# Build a sorted list of every .mdx page in the docs tree
+# All nav-published page paths
+python3 -c "
+import re, json
+raw = open('docs.json').read()
+nav = sorted({p.replace('docs/phoenix/','') for p in re.findall(r'\"(docs/phoenix/[a-zA-Z0-9/_-]+)\"', raw)})
+print('\n'.join(f'https://arize.com/docs/phoenix/{p}' for p in nav))
+" | sort > /tmp/nav_urls.txt
+
+# All .mdx files on disk
 find docs/phoenix -name "*.mdx" -type f | \
-  sed 's|docs/phoenix/||; s|\.mdx$||' | \
-  sed 's|^|https://arize.com/docs/phoenix/|' | sort > /tmp/fs_urls.txt
+  sed 's|docs/phoenix/||; s|\.mdx$||; s|^|https://arize.com/docs/phoenix/|' | \
+  sort > /tmp/fs_urls.txt
+
+# Use the intersection — these are the URLs that actually serve content
+comm -12 /tmp/nav_urls.txt /tmp/fs_urls.txt > /tmp/published_urls.txt
 ```
 
 ### Step 2 — Extract current llms.txt URLs
@@ -81,23 +95,31 @@ grep -oE '\(https://[^)]+\)' docs/phoenix/llms.txt | \
 ### Step 3 — Diff for missing and stale entries
 
 ```bash
-# Pages in docs but NOT in llms.txt (potential gaps)
-comm -23 /tmp/fs_urls.txt /tmp/llms_urls.txt > /tmp/missing.txt
+# Pages published but NOT in llms.txt (gaps to fill)
+comm -23 /tmp/published_urls.txt /tmp/llms_urls.txt > /tmp/missing.txt
 
-# URLs in llms.txt but NOT in docs (potential stale entries)
-comm -13 /tmp/fs_urls.txt /tmp/llms_urls.txt > /tmp/stale.txt
+# URLs in llms.txt but NOT published (stale — remove)
+comm -13 /tmp/published_urls.txt /tmp/llms_urls.txt > /tmp/stale.txt
 ```
 
 ### Step 4 — Triage each result
 
 For every entry in `/tmp/missing.txt`, open the `.mdx` file and decide:
-- **Include** — if it's a real docs page with prose content that an agent could benefit from
-- **Skip** — if it matches an exclusion rule above (notebook-only, demo, translated, etc.)
-- **Index-only** — if it's a sub-page of a section that should only have one entry (e.g., individual cookbook notebooks, REST API endpoints)
+- **Include** — default, unless the page matches an exclusion rule (notebook-only, demo, translated, agent-assisted-setup)
+- **Skip** — only when an exclusion rule applies
 
 For every entry in `/tmp/stale.txt`:
 - Check if the URL is a non-filesystem resource that is still valid (e.g., the OpenAPI spec, external TypeScript SDK docs). These are expected "stale" results — keep them.
-- If the `.mdx` file was genuinely deleted, remove the entry from llms.txt.
+- If the `.mdx` file was deleted or renamed, remove the entry.
+
+### Step 5 — Verify coverage % against the AFDocs threshold
+
+```bash
+published=$(wc -l < /tmp/published_urls.txt)
+indexed=$(comm -12 /tmp/published_urls.txt /tmp/llms_urls.txt | wc -l)
+echo "scale=1; $indexed * 100 / $published" | bc
+# Target: ≥ 90 (AFDocs flags < 80)
+```
 
 ### Step 5 — Spot-check by section
 

@@ -88,7 +88,6 @@ export function useAgentChat({
                     messages,
                     trigger,
                     messageId,
-                    systemPrompt: store.getState().systemPrompt,
                     sessionId,
                     capabilities: store.getState().capabilities,
                     observability: store.getState().observability,
@@ -115,7 +114,12 @@ export function useAgentChat({
               onFinish: ({ messages: finalMessages, message }) => {
                 const usage = message.metadata?.usage;
                 if (usage != null) {
-                  store.getState().setSessionUsage(sessionId, usage.tokens);
+                  store.getState().setSessionUsage(sessionId, {
+                    ...usage.tokens,
+                    ...(usage.promptDetails
+                      ? { promptDetails: usage.promptDetails }
+                      : {}),
+                  });
                 }
                 // Finalized history is mirrored into the durable store so idle
                 // runtimes can be reclaimed and later reconstructed from state.

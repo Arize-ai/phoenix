@@ -41,9 +41,11 @@ export class InvalidArgumentError extends Error {
 /**
  * Infer a semantic exit code from an unknown error value.
  *
- * The Fetch API throws a `TypeError` for low-level network failures such as
- * connection refused or DNS resolution errors. All other errors fall back to
- * the general {@link ExitCode.FAILURE} code.
+ * - `InvalidArgumentError` (and subclasses like `ProfileResolutionError`)
+ *   map to INVALID_ARGUMENT.
+ * - The Fetch API throws a `TypeError` for low-level network failures such
+ *   as connection refused or DNS resolution errors.
+ * - All other errors fall back to the general {@link ExitCode.FAILURE} code.
  */
 export function getExitCodeForError(error: unknown): ExitCode {
   if (error instanceof InvalidArgumentError) {

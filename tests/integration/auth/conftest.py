@@ -16,6 +16,7 @@ from .._helpers import (
 )
 
 if TYPE_CHECKING:
+    from phoenix.server.redaction import Redactor
     from tests.integration._mock_ldap_server import _LDAPServer
 
 
@@ -426,9 +427,15 @@ def _env_ldap_posix_memberuid(_ldap_server: _LDAPServer) -> dict[str, str]:
 
 @pytest.fixture(scope="package")
 def _env_agents() -> dict[str, str]:
-    """Configure agent feature flag for testing."""
+    """Configure agents testing environment.
+
+    The chat auth integration tests use the Anthropic built-in provider only
+    to exercise route authentication, not provider credential validation, so
+    provide a fake key to keep those requests on the authenticated code path.
+    """
     return {
         "PHOENIX_DANGEROUSLY_ENABLE_AGENTS": "true",
+        "ANTHROPIC_API_KEY": "sk-fake-anthropic-key",
     }
 
 
@@ -462,6 +469,20 @@ def _app(
 ) -> Iterator[_AppInfo]:
     with _server(_AppInfo(_env)) as app:
         yield app
+
+
+@pytest.fixture(scope="package")
+def _redactor(_app: _AppInfo) -> "Redactor":
+    """A Redactor keyed off the same PHOENIX_SECRET as the running server.
+
+    Tests use this to redact values before sending and to un-redact server-emitted
+    tokens — verifying symmetric round-trips end-to-end.
+    """
+    from starlette.datastructures import Secret
+
+    from phoenix.server.redaction import Redactor
+
+    return Redactor(secret=Secret(_app.env["PHOENIX_SECRET"]))
 
 
 @pytest.fixture(scope="package")

@@ -36,8 +36,8 @@ In this step, we’ll create a Phoenix Cloud account and configure it for our ap
 2. From the dashboard, click **Create a Space** in the upper-right corner.
 3. Enter a name for your new space.
 4. Once the space is created, launch your Phoenix instance directly from the dashboard.
-5. Create and save an API key. We’ll use this in the next step.
-6. Note your **Hostname** — this is the endpoint we’ll configure in code shortly.
+5. Create and save an API key by navigating to **Settings** in the sidebar. We’ll use this in the next step.
+6. In settings, note your **Hostname** in the **General** tab. This is the endpoint we’ll configure in code shortly.
 
 <Frame caption="How to Create a Phoenix Cloud account & a space">
   <video controls className="w-full aspect-video rounded-xl" src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/observe_phoenix_cloud_launch.mp4" />
@@ -70,10 +70,11 @@ npm install @mastra/arize @ai-sdk/openai @arizeai/phoenix-evals @arizeai/phoenix
 ```
 OPENAI_API_KEY= <ENTER YOUR OPENAI API KEY>
 
-PHOENIX_ENDPOINT= <ENTER YOUR PHOENIX ENDPOINT>
+PHOENIX_COLLECTOR_ENDPOINT= <YOUR PHOENIX ENDPOINT>/v1/traces
 PHOENIX_API_KEY= <ENTER YOUR PHOENIX API KEY>
 PHOENIX_PROJECT_NAME=mastra-tracing-quickstart
 ```
+Note that `v1/traces` needs to be appended to the endpoint in your `.env` file when working with Mastra.
 
 ### **Connect Your Project in Phoenix** 
 
@@ -93,7 +94,7 @@ export const mastra = new Mastra({
           process.env.PHOENIX_PROJECT_NAME || "mastra-tracing-quickstart",
         exporters: [
           new ArizeExporter({
-            endpoint: process.env.PHOENIX_ENDPOINT!,
+            endpoint: process.env.PHOENIX_COLLECTOR_ENDPOINT!,
             apiKey: process.env.PHOENIX_API_KEY,
             projectName: process.env.PHOENIX_PROJECT_NAME,
           }),
@@ -366,7 +367,7 @@ export const mastra = new Mastra({
           process.env.PHOENIX_PROJECT_NAME || "mastra-tracing-quickstart",
         exporters: [
           new ArizeExporter({
-            endpoint: process.env.PHOENIX_ENDPOINT!,
+            endpoint: process.env.PHOENIX_COLLECTOR_ENDPOINT!,
             apiKey: process.env.PHOENIX_API_KEY,
             projectName: process.env.PHOENIX_PROJECT_NAME,
           }),
