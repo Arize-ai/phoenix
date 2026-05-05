@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<44e9479ad34b7cf3f7a33993f420ee11>>
+ * @generated SignedSource<<cbd3a725f27aa1d1c1057c8650eb124e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -75,12 +75,20 @@ export type fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$data = {
       readonly type: PromptToolChoiceType;
     } | null;
     readonly tools: ReadonlyArray<{
+      readonly __typename: "PromptToolFunction";
       readonly function: {
         readonly description: string | null;
         readonly name: string;
         readonly parameters: any;
         readonly strict: boolean | null;
       };
+    } | {
+      readonly __typename: "PromptToolRaw";
+      readonly raw: any;
+    } | {
+      // This will never be '%other', but we need some
+      // value in case none of the concrete values match.
+      readonly __typename: "%other";
     }>;
   } | null;
   readonly " $fragmentType": "fetchPlaygroundPrompt_promptVersionToInstance_promptVersion";
@@ -95,6 +103,6 @@ const node: ReaderInlineDataFragment = {
   "name": "fetchPlaygroundPrompt_promptVersionToInstance_promptVersion"
 };
 
-(node as any).hash = "cccc93bf9101868d1ff7d1b69643490b";
+(node as any).hash = "a89bd9a895cdf5c3eb6b3f4124b34ec9";
 
 export default node;

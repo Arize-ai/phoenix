@@ -10581,6 +10581,27 @@
         ],
         "title": "PromptToolFunctionDefinition"
       },
+      "PromptToolRaw": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "raw",
+            "title": "Type"
+          },
+          "raw": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Raw"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "raw"
+        ],
+        "title": "PromptToolRaw"
+      },
       "PromptTools": {
         "properties": {
           "type": {
@@ -10593,12 +10614,16 @@
               "oneOf": [
                 {
                   "$ref": "#/components/schemas/PromptToolFunction"
+                },
+                {
+                  "$ref": "#/components/schemas/PromptToolRaw"
                 }
               ],
               "discriminator": {
                 "propertyName": "type",
                 "mapping": {
-                  "function": "#/components/schemas/PromptToolFunction"
+                  "function": "#/components/schemas/PromptToolFunction",
+                  "raw": "#/components/schemas/PromptToolRaw"
                 }
               }
             },

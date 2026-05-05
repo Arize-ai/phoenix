@@ -14,8 +14,8 @@ import {
   anthropicToolDefinitionSchema,
   awsToolDefinitionSchema,
   geminiToolDefinitionSchema,
+  openAIChatCompletionsToolDefinitionSchema,
   openAIResponsesToolDefinitionSchema,
-  openAIToolDefinitionSchema,
 } from "@phoenix/schemas";
 import type { JSONLiteral } from "@phoenix/schemas/jsonLiteralSchema";
 import type { PhoenixToolEditorType } from "@phoenix/schemas/phoenixToolTypeSchemas";
@@ -436,6 +436,10 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
         ),
         modelName,
         provider,
+        ...getOpenAIApiTypeConfigFromAttributes({
+          parsedAttributes,
+          provider,
+        }),
         invocationParameters: [],
         supportedInvocationParameters: [],
       },
@@ -443,6 +447,182 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
     };
   }
   return { modelConfig: null, parsingErrors: [MODEL_CONFIG_PARSING_ERROR] };
+}
+
+/**
+ * Decide which OpenAI API surface ("openaiApiType") to record on a playground
+ * instance reconstructed from a span's attributes.
+ *
+ * The OpenAI Chat Completions and Responses APIs accept structurally different
+ * `tools` payloads (see {@link inferOpenAIApiTypeFromTools}); when we rebuild
+ * a playground instance from a span, we need to know which API the span came
+ * from so we route a re-run through the same SDK call. Returns an empty patch
+ * for non-OpenAI providers and for spans we can't classify (the store falls
+ * back to the configured default in that case).
+ */
+function getOpenAIApiTypeConfigFromAttributes({
+  parsedAttributes,
+  provider,
+}: {
+  parsedAttributes: unknown;
+  provider: ModelProvider;
+}): Pick<ModelConfig, "openaiApiType"> {
+  if (provider !== "OPENAI" && provider !== "AZURE_OPENAI") {
+    return {};
+  }
+  return isOpenAIResponsesSpan(parsedAttributes)
+    ? { openaiApiType: "RESPONSES" }
+    : {};
+}
+
+/**
+ * Tool `type` values that are exclusive to OpenAI Chat Completions (i.e. not
+ * accepted by the Responses API). Used as a negative list so that a tool with
+ * one of these types is NOT treated as a Responses signal even though its
+ * type isn't "function".
+ *
+ * Currently just "custom" (ChatCompletionCustomToolParam — a Chat-Completions
+ * tool that processes input via a specified format). If OpenAI ever ships
+ * another non-function Chat-Completions-only tool, add it here. Failure mode
+ * if we miss one: prompts containing it get misclassified as Responses, which
+ * surfaces as a confusing 400 from OpenAI at request time.
+ */
+const CHAT_COMPLETIONS_ONLY_NON_FUNCTION_TYPES: ReadonlySet<string> = new Set([
+  "custom",
+]);
+
+/**
+ * Two positive signals that a tool came from the OpenAI Responses API:
+ *
+ *   1. The tool's `type` is a non-"function" string AND is not in the
+ *      Chat-Completions-only set above (e.g. "web_search", "file_search",
+ *      "computer_use_preview"). Chat Completions otherwise only accepts
+ *      function tools, so seeing any other type is proof of Responses.
+ *   2. The tool is a function tool but in *flat* Responses shape:
+ *      `{ type: "function", name, parameters, ... }` with the function fields
+ *      at the top level. Chat Completions wraps them in a nested
+ *      `function: { name, parameters, ... }` sub-object instead.
+ *
+ * Either signal alone is sufficient. Returns null if neither is present (the
+ * tool could be Chat Completions or could be a Responses prompt that happens
+ * to contain only Chat-Completions-shaped tools — we can't distinguish those).
+ */
+function isResponsesShapedRawTool(definition: unknown): boolean {
+  if (!isStringKeyedObject(definition)) {
+    return false;
+  }
+  const type = definition.type;
+  if (typeof type !== "string") {
+    return false;
+  }
+  if (type !== "function") {
+    return !CHAT_COMPLETIONS_ONLY_NON_FUNCTION_TYPES.has(type);
+  }
+  // type: "function" — Chat Completions nests fields under `function`,
+  // Responses puts them at the top level.
+  return !isStringKeyedObject(definition.function);
+}
+
+/**
+ * Decide which OpenAI API surface ("openaiApiType") to use based on the tools
+ * attached to a prompt or span.
+ *
+ * Why this exists: OpenAI exposes two structurally different chat APIs and we
+ * need to know which one a prompt was written for so the playground routes a
+ * re-run through the matching SDK call (and fetches the matching set of
+ * supported invocation parameters). Spans saved before openaiApiType was
+ * stored, and prompts imported from external sources, don't carry the
+ * answer — so we infer it from tool shape.
+ *
+ * Why we can infer: the two APIs accept *partially disjoint* sets of tool
+ * shapes, and seeing one that's exclusive to Responses is proof of origin.
+ *   - Chat Completions only accepts function tools nested under `function`:
+ *     `{ type: "function", function: { name, parameters, ... } }`
+ *     (https://platform.openai.com/docs/api-reference/chat/create — see the
+ *     `tools[]` parameter and `tool` definition).
+ *   - Responses additionally accepts:
+ *       (a) builtin tools whose `type` is something else (`web_search`,
+ *           `file_search`, `computer_use_preview`, ...).
+ *       (b) function tools in *flat* shape with `name` / `parameters` at the
+ *           top level, no nested `function: {...}`.
+ *     (https://platform.openai.com/docs/api-reference/responses/create —
+ *     see the `tools[]` parameter and the function-tool variant.)
+ * Either (a) or (b) on any tool ⇒ the prompt must be Responses. Otherwise
+ * we can't distinguish (Responses is permissive enough to also accept
+ * Chat-Completions-shaped function tools), so we return `fallback`.
+ *
+ * Applies {@link isResponsesShapedRawTool} to each `kind: "raw"` tool. Function
+ * tools whose definition reached the playground as `kind: "function"` have
+ * already been normalized to canonical shape, so the original Chat-Completions
+ * vs Responses signal is no longer recoverable from them — we only consult
+ * raw tools here.
+ */
+export function inferOpenAIApiTypeFromTools(
+  tools: readonly Tool[],
+  fallback: OpenAIApiType | null = null
+): OpenAIApiType | null {
+  const hasResponsesShape = tools.some(
+    (tool) => tool.kind === "raw" && isResponsesShapedRawTool(tool.raw)
+  );
+  return hasResponsesShape ? "RESPONSES" : fallback;
+}
+
+/**
+ * Same heuristic as {@link inferOpenAIApiTypeFromTools} but operating on
+ * already-deserialized raw OpenAI tool JSON (no Tool wrapper). Used when
+ * sniffing a span's `llm.tools[].tool.json_schema` payloads, where function
+ * tools have *not* been normalized — so the flat-vs-nested shape signal is
+ * still recoverable.
+ *
+ * NB: Only exported for testing.
+ */
+export function inferOpenAIApiTypeFromRawToolDefinitions(
+  rawDefinitions: readonly unknown[]
+): OpenAIApiType | null {
+  return rawDefinitions.some(isResponsesShapedRawTool) ? "RESPONSES" : null;
+}
+
+/**
+ * Heuristic: did this span come from the OpenAI Responses API?
+ *
+ * Pulls the OpenInference `llm.tools[].tool.json_schema` strings out of the
+ * span attributes, parses them, and applies the same Chat-Completions vs
+ * Responses tool-shape check {@link inferOpenAIApiTypeFromTools} uses. If
+ * any tool's `type` is a non-"function" string, the span must be a Responses
+ * call. Returns false for spans without recognizable tool attributes (so the
+ * caller falls back to the configured default).
+ *
+ * NB: Only exported for testing.
+ */
+export function isOpenAIResponsesSpan(parsedAttributes: unknown): boolean {
+  if (!isStringKeyedObject(parsedAttributes)) {
+    return false;
+  }
+  const { llm } = parsedAttributes;
+  if (!isStringKeyedObject(llm)) {
+    return false;
+  }
+  const toolEntries = Array.isArray(llm.tools) ? llm.tools : [];
+  const rawToolDefinitions = toolEntries
+    .map((entry) => {
+      if (!isStringKeyedObject(entry)) {
+        return null;
+      }
+      if (!isStringKeyedObject(entry.tool)) {
+        return null;
+      }
+      const rawSchema = entry.tool.json_schema;
+      if (typeof rawSchema !== "string") {
+        return null;
+      }
+      return safelyParseJSON(rawSchema).json;
+    })
+    .filter((definition): definition is NonNullable<typeof definition> => {
+      return definition != null;
+    });
+  return (
+    inferOpenAIApiTypeFromRawToolDefinitions(rawToolDefinitions) === "RESPONSES"
+  );
 }
 
 /**
@@ -870,10 +1050,38 @@ export function getResponseFormatFromAttributes(
 }
 
 /**
+ * Decide which {@link Tool} branch a provider-formatted tool definition lands
+ * on. See `Tool`'s docstring for why the union exists. Function tools that
+ * parse against any provider's known function-tool schema get normalized;
+ * everything else (vendor builtins, unrecognized shapes) becomes a raw
+ * passthrough. Returns null only for non-objects.
+ */
+function createToolFromRawDefinition(rawDefinition: unknown): Tool | null {
+  const normalizedFunctionDefinition = toCanonicalToolDefinition(rawDefinition);
+  if (normalizedFunctionDefinition != null) {
+    return {
+      kind: "function",
+      id: generateToolId(),
+      editorType: "json",
+      definition: normalizedFunctionDefinition,
+    };
+  }
+  if (isStringKeyedObject(rawDefinition)) {
+    return {
+      kind: "raw",
+      id: generateToolId(),
+      editorType: "json",
+      raw: rawDefinition,
+    };
+  }
+  return null;
+}
+
+/**
  * Processes the tools from the span attributes to be used in the playground.
- * Provider-specific formats (Gemini, Anthropic, AWS, etc.) are preserved as-is.
- * OpenAI Responses API tools are normalized to Chat Completions format since
- * the playground only supports Chat Completions tools for now.
+ * Provider-specific formats (Gemini, Anthropic, AWS, etc.) are preserved as-is
+ * via {@link createToolFromRawDefinition}. Function tools are normalized to the
+ * canonical function-tool form regardless of the source provider.
  * @param tools tools from the span attributes
  * @returns playground tools
  */
@@ -884,17 +1092,7 @@ function processAttributeTools(tools: LlmToolSchema): Tool[] {
         return null;
       }
       const rawDefinition = tool.tool.json_schema;
-      // Normalize to canonical hub form (OpenAI Responses API → Chat Completions
-      // is handled transparently by toCanonicalToolDefinition).
-      const definition = toCanonicalToolDefinition(rawDefinition);
-      if (definition == null) {
-        return null;
-      }
-      return {
-        id: generateToolId(),
-        editorType: "json",
-        definition,
-      } satisfies Tool;
+      return createToolFromRawDefinition(rawDefinition);
     })
     .filter((tool): tool is NonNullable<typeof tool> => tool != null);
 }
@@ -1280,8 +1478,26 @@ export const transformInvocationParametersFromAttributesToInvocationParameterInp
       })
       .filter((ip): ip is NonNullable<typeof ip> => ip != null);
   };
+/** Discriminator predicate for the function-tool branch of {@link Tool}. */
+export const isFunctionTool = (
+  tool: Tool
+): tool is Extract<Tool, { kind: "function" }> => tool.kind === "function";
+
+/** Discriminator predicate for the raw-tool branch of {@link Tool}. */
+export const isRawTool = (tool: Tool): tool is Extract<Tool, { kind: "raw" }> =>
+  tool.kind === "raw";
+
+/**
+ * Best-effort display name for any tool, function or raw. For raw tools the
+ * tool's own `name` field is preferred, falling back to its `type`.
+ */
 export const getToolName = (tool: Tool): string | null => {
-  return tool.definition?.name ?? null;
+  if (isFunctionTool(tool)) {
+    return tool.definition?.name ?? null;
+  }
+  const rawName = typeof tool.raw.name === "string" ? tool.raw.name : null;
+  const rawType = typeof tool.raw.type === "string" ? tool.raw.type : null;
+  return rawName ?? rawType;
 };
 
 /**
@@ -1325,6 +1541,7 @@ export const createTool = ({
     definition ?? getDefaultCanonicalToolDefinition(toolNumber);
 
   return {
+    kind: "function",
     id: generateToolId(),
     editorType: type,
     definition: defaultDefinition,
@@ -1764,8 +1981,15 @@ function canonicalParameters(parameters: unknown): unknown {
 export function toCanonicalToolDefinition(
   raw: unknown
 ): CanonicalToolDefinition | null {
+  if (
+    isStringKeyedObject(raw) &&
+    typeof raw.type === "string" &&
+    raw.type !== "function"
+  ) {
+    return null;
+  }
   // OpenAI Chat Completions: { type: "function", function: { name, description?, parameters, strict? } }
-  const openai = openAIToolDefinitionSchema.safeParse(raw);
+  const openai = openAIChatCompletionsToolDefinitionSchema.safeParse(raw);
   if (openai.success) {
     const fn = openai.data.function as Record<string, unknown>;
     return {
@@ -1940,6 +2164,128 @@ export function buildPromptToolFunctionInput(
 }
 
 /**
+ * Shape of a single tool element from any Relay `tools.tools` selection that
+ * spreads on `PromptToolFunction` and `PromptToolRaw` (e.g. the fragments in
+ * fetchPlaygroundPrompt.ts, experimentRehydration.ts, and PromptTools.tsx).
+ * Mirrors the generated discriminated union with `__typename` as the tag,
+ * including Relay's `"%other"` fallthrough variant.
+ */
+export type GraphQLPromptTool =
+  | {
+      readonly __typename: "PromptToolFunction";
+      readonly function: {
+        readonly name: string;
+        readonly description: string | null;
+        readonly parameters: unknown;
+        readonly strict: boolean | null;
+      };
+    }
+  | {
+      readonly __typename: "PromptToolRaw";
+      readonly raw: unknown;
+    }
+  | { readonly __typename: "%other" };
+
+export function promptToolFromGraphQL(tool: GraphQLPromptTool): Tool | null {
+  switch (tool.__typename) {
+    case "PromptToolFunction":
+      return {
+        kind: "function",
+        id: generateToolId(),
+        editorType: "json",
+        definition: {
+          name: tool.function.name,
+          description: tool.function.description ?? null,
+          parameters: tool.function.parameters,
+          strict: tool.function.strict ?? null,
+        },
+      };
+    case "PromptToolRaw":
+      if (!isStringKeyedObject(tool.raw)) {
+        return null;
+      }
+      return {
+        kind: "raw",
+        id: generateToolId(),
+        editorType: "json",
+        raw: tool.raw,
+      };
+    case "%other":
+      // Schema added a tool variant the client wasn't built against. Drop it
+      // (the alternative is crashing the prompt page on schema drift).
+      return null;
+    default:
+      return assertUnreachable(tool);
+  }
+}
+
+/**
+ * Pull the prompt's tools and inferred OpenAI API surface out of a GraphQL
+ * `tools.tools` array. Centralizes the logic shared by the prompt-loading and
+ * experiment-rehydration paths so they can't drift.
+ */
+export function deriveToolsAndOpenAIApiType(
+  rawTools: readonly GraphQLPromptTool[] | null | undefined,
+  provider: ModelProvider
+): { tools: Tool[]; openaiApiType: OpenAIApiType | null } {
+  const tools = (rawTools ?? [])
+    .map(promptToolFromGraphQL)
+    .filter((tool): tool is Tool => tool != null);
+  const isOpenAIProvider = provider === "OPENAI" || provider === "AZURE_OPENAI";
+  const openaiApiType = isOpenAIProvider
+    ? inferOpenAIApiTypeFromTools(tools, DEFAULT_OPENAI_API_TYPE)
+    : null;
+  return { tools, openaiApiType };
+}
+
+/**
+ * Build a {@link Tool} from the JSON the user typed into the tool editor.
+ * The user-typed value drives the function-vs-raw split (see Tool's docstring
+ * for why the union exists): if the JSON parses against any provider's known
+ * function-tool schema we normalize it; otherwise we keep it as a raw
+ * passthrough. Returns null for non-objects.
+ */
+export function toolFromEditorJSON({
+  value,
+  id,
+  editorType,
+}: {
+  value: unknown;
+  id: number;
+  editorType: PhoenixToolEditorType;
+}): Tool | null {
+  if (!isStringKeyedObject(value)) {
+    return null;
+  }
+  const normalizedFunctionDefinition = toCanonicalToolDefinition(value);
+  if (normalizedFunctionDefinition != null) {
+    return {
+      kind: "function",
+      id,
+      editorType,
+      definition: normalizedFunctionDefinition,
+    };
+  }
+  return {
+    kind: "raw",
+    id,
+    editorType,
+    raw: value,
+  };
+}
+
+export function toolToPromptToolInput(
+  tool: Tool
+):
+  | ReturnType<typeof buildPromptToolFunctionInput>
+  | { raw: Record<string, unknown> } {
+  if (isRawTool(tool)) {
+    return { raw: tool.raw };
+  }
+  return buildPromptToolFunctionInput(tool.definition);
+}
+
+/**
  * Convert a canonical tool choice to the PromptToolChoiceInput wire format
  * (isomorphic to DB PromptToolChoice).
  */
@@ -2042,7 +2388,7 @@ export const getChatCompletionInput = ({
     ),
     tools: instance.tools.length
       ? {
-          tools: instance.tools.map(toolToPromptToolFunctionInput),
+          tools: instance.tools.map(toolToPromptToolInput),
           toolChoice: toCanonicalToolChoice(instance.toolChoice),
         }
       : null,
@@ -2146,7 +2492,7 @@ export const getChatCompletionOverDatasetInput = ({
     ),
     tools: instance.tools.length
       ? {
-          tools: instance.tools.map(toolToPromptToolFunctionInput),
+          tools: instance.tools.map(toolToPromptToolInput),
           toolChoice: toCanonicalToolChoice(instance.toolChoice),
         }
       : null,

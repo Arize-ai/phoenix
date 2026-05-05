@@ -44,11 +44,13 @@ class TestPromptMutations:
                 invocationParameters
                 tools {
                   tools {
-                    function {
-                      name
-                      description
-                      parameters
-                      strict
+                    ... on PromptToolFunction {
+                      function {
+                        name
+                        description
+                        parameters
+                        strict
+                      }
                     }
                   }
                   toolChoice {
@@ -106,11 +108,13 @@ class TestPromptMutations:
                 invocationParameters
                 tools {
                   tools {
-                    function {
-                      name
-                      description
-                      parameters
-                      strict
+                    ... on PromptToolFunction {
+                      function {
+                        name
+                        description
+                        parameters
+                        strict
+                      }
                     }
                   }
                   toolChoice {
@@ -171,11 +175,13 @@ class TestPromptMutations:
                 invocationParameters
                 tools {
                   tools {
-                    function {
-                      name
-                      description
-                      parameters
-                      strict
+                    ... on PromptToolFunction {
+                      function {
+                        name
+                        description
+                        parameters
+                        strict
+                      }
                     }
                   }
                   toolChoice {

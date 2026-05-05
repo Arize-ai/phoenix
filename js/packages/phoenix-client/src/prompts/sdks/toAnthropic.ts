@@ -7,6 +7,7 @@ import {
   safelyConvertToolChoiceToProvider,
   safelyConvertToolDefinitionToProvider,
 } from "../../schemas/llm/converters";
+import { isPromptToolRaw } from "../../types/prompts";
 import { formatPromptMessages } from "../../utils/formatPromptMessages";
 import type { toSDKParamsBase, Variables } from "./types";
 
@@ -62,22 +63,32 @@ export const toAnthropic = <V extends Variables = Variables>({
       return anthropicMessage;
     });
 
-    let tools = prompt.tools?.tools.map((tool) => {
-      const anthropicToolDefinition = safelyConvertToolDefinitionToProvider({
-        toolDefinition: tool,
-        targetProvider: "ANTHROPIC",
-      });
-      invariant(anthropicToolDefinition, "Tool definition is not valid");
-      return anthropicToolDefinition;
-    });
-    tools = (tools?.length ?? 0) > 0 ? tools : undefined;
+    const toolsList = prompt.tools?.tools ?? [];
+    // Cast: raw tools are `Record<string, unknown>` straight from the prompt
+    // store. We trust the upstream caller to have stored a shape Anthropic's
+    // SDK accepts; no validation here.
+    const tools =
+      toolsList.length === 0
+        ? undefined
+        : (toolsList.map((tool) => {
+            if (isPromptToolRaw(tool)) {
+              return tool.raw;
+            }
+            const anthropicToolDefinition =
+              safelyConvertToolDefinitionToProvider({
+                toolDefinition: tool,
+                targetProvider: "ANTHROPIC",
+              });
+            invariant(anthropicToolDefinition, "Tool definition is not valid");
+            return anthropicToolDefinition;
+          }) as MessageCreateParams["tools"]);
 
-    let tool_choice: AnthropicToolChoice | undefined =
-      safelyConvertToolChoiceToProvider({
-        toolChoice: prompt?.tools?.tool_choice,
-        targetProvider: "ANTHROPIC",
-      }) || undefined;
-    tool_choice = tools?.length ? tool_choice : undefined;
+    const tool_choice: AnthropicToolChoice | undefined = tools
+      ? (safelyConvertToolChoiceToProvider({
+          toolChoice: prompt?.tools?.tool_choice,
+          targetProvider: "ANTHROPIC",
+        }) ?? undefined)
+      : undefined;
 
     // combine base and computed params
     const completionParams = {

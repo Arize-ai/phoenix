@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6f21c759ff2c42800cbc9db8b6d5efa8>>
+ * @generated SignedSource<<56d4a366c10d7ccdebcf0aeaf6260e0c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -75,12 +75,20 @@ export type PromptCodeExportCard__main$data = {
       readonly type: PromptToolChoiceType;
     } | null;
     readonly tools: ReadonlyArray<{
+      readonly __typename: "PromptToolFunction";
       readonly function: {
         readonly description: string | null;
         readonly name: string;
         readonly parameters: any;
         readonly strict: boolean | null;
       };
+    } | {
+      readonly __typename: "PromptToolRaw";
+      readonly raw: any;
+    } | {
+      // This will never be '%other', but we need some
+      // value in case none of the concrete values match.
+      readonly __typename: "%other";
     }>;
   } | null;
   readonly " $fragmentType": "PromptCodeExportCard__main";
@@ -203,31 +211,53 @@ return {
         {
           "alias": null,
           "args": null,
-          "concreteType": "PromptToolFunction",
+          "concreteType": null,
           "kind": "LinkedField",
           "name": "tools",
           "plural": true,
           "selections": [
+            (v3/*: any*/),
             {
-              "alias": null,
-              "args": null,
-              "concreteType": "PromptToolFunctionDefinition",
-              "kind": "LinkedField",
-              "name": "function",
-              "plural": false,
+              "kind": "InlineFragment",
               "selections": [
-                (v0/*: any*/),
-                (v1/*: any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "concreteType": "PromptToolFunctionDefinition",
+                  "kind": "LinkedField",
+                  "name": "function",
+                  "plural": false,
+                  "selections": [
+                    (v0/*: any*/),
+                    (v1/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "parameters",
+                      "storageKey": null
+                    },
+                    (v2/*: any*/)
+                  ],
+                  "storageKey": null
+                }
+              ],
+              "type": "PromptToolFunction",
+              "abstractKey": null
+            },
+            {
+              "kind": "InlineFragment",
+              "selections": [
                 {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
-                  "name": "parameters",
+                  "name": "raw",
                   "storageKey": null
-                },
-                (v2/*: any*/)
+                }
               ],
-              "storageKey": null
+              "type": "PromptToolRaw",
+              "abstractKey": null
             }
           ],
           "storageKey": null
@@ -441,6 +471,6 @@ return {
 };
 })();
 
-(node as any).hash = "ff8e5b9568638ecc6bcdcd2371b3789e";
+(node as any).hash = "02b590e488d48551b0e240d073f51a12";
 
 export default node;

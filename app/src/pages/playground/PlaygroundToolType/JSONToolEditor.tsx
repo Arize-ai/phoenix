@@ -49,13 +49,13 @@ export const JSONToolEditor = ({
       return;
     }
     const tool = instance.tools.find((t) => t.id === toolId);
-    if (tool == null || tool.definition == null) {
+    if (tool == null) {
       return;
     }
-    const displayValue = getToolDefinitionDisplay(
-      tool.definition,
-      instance.model.provider
-    );
+    const displayValue =
+      tool.kind === "raw"
+        ? tool.raw
+        : getToolDefinitionDisplay(tool.definition, instance.model.provider);
     const newDefinition = JSON.stringify(displayValue, null, 2);
     if (isJSONString({ str: newDefinition, excludeNull: true })) {
       // eslint-disable-next-line react-hooks-js/set-state-in-effect

@@ -88,8 +88,12 @@ class PromptToolFunctionInput(BaseModel):
     function: PromptToolFunctionDefinitionInput
 
 
+class PromptToolRawInput(BaseModel):
+    raw: dict[str, Any]
+
+
 class PromptToolsInput(BaseModel):
-    tools: list[PromptToolFunctionInput]
+    tools: list[PromptToolFunctionInput | PromptToolRawInput] | None = None
     toolChoice: dict[str, Any] | None = None
 
 

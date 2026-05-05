@@ -4,20 +4,18 @@ import type {
   GenerativeProviderKey,
   OpenAIApiType,
 } from "@phoenix/components/playground/model/__generated__/ModelSupportedParamsFetcherQuery.graphql";
-import {
-  DEFAULT_MODEL_NAME,
-  DEFAULT_OPENAI_API_TYPE,
-} from "@phoenix/constants/generativeConstants";
+import { DEFAULT_MODEL_NAME } from "@phoenix/constants/generativeConstants";
 import type { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
 import type { fetchPlaygroundPromptSupportedInvocationParametersQuery } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPromptSupportedInvocationParametersQuery.graphql";
 import type { ChatPromptVersionInput } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
 import { toCamelCase } from "@phoenix/pages/playground/invocationParameterUtils";
 import {
   applyProviderInvocationParameterConstraints,
+  deriveToolsAndOpenAIApiType,
   getChatRole,
   normalizeInvocationParameters,
   toCanonicalToolChoice,
-  toolToPromptToolFunctionInput,
+  toolToPromptToolInput,
 } from "@phoenix/pages/playground/playgroundUtils";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import type {
@@ -30,7 +28,6 @@ import type { PlaygroundInstance } from "@phoenix/store/playground";
 import {
   DEFAULT_INSTANCE_PARAMS,
   generateMessageId,
-  generateToolId,
 } from "@phoenix/store/playground";
 import type { Mutable } from "@phoenix/typeUtils";
 import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
@@ -202,11 +199,17 @@ export const promptVersionToInstance = ({
         }
         tools {
           tools {
-            function {
-              name
-              description
-              parameters
-              strict
+            __typename
+            ... on PromptToolFunction {
+              function {
+                name
+                description
+                parameters
+                strict
+              }
+            }
+            ... on PromptToolRaw {
+              raw
             }
           }
           toolChoice {
@@ -245,12 +248,17 @@ export const promptVersionToInstance = ({
         }),
       } as const)
     : undefined;
+  const { tools, openaiApiType } = deriveToolsAndOpenAIApiType(
+    promptVersion.tools?.tools,
+    provider
+  );
   return {
     ...newInstance,
     model: {
       ...newInstance.model,
       modelName,
       provider,
+      openaiApiType,
       customProvider: promptVersion.customProvider
         ? {
             id: promptVersion.customProvider.id,
@@ -327,16 +335,7 @@ export const promptVersionToInstance = ({
             })
           : [],
     },
-    tools: (promptVersion.tools?.tools ?? []).map((t) => ({
-      id: generateToolId(),
-      editorType: "json",
-      definition: {
-        name: t.function.name,
-        description: t.function.description ?? null,
-        parameters: t.function.parameters,
-        strict: t.function.strict ?? null,
-      },
-    })),
+    tools,
     toolChoice,
   } satisfies Omit<PlaygroundInstance, "id">;
 };
@@ -464,7 +463,7 @@ export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
     },
     tools: instance.tools.length
       ? {
-          tools: instance.tools.map(toolToPromptToolFunctionInput),
+          tools: instance.tools.map(toolToPromptToolInput),
           toolChoice: toCanonicalToolChoice(instance.toolChoice),
         }
       : null,
@@ -547,11 +546,17 @@ const fetchPlaygroundPromptQuery = graphql`
           }
           tools {
             tools {
-              function {
-                name
-                description
-                parameters
-                strict
+              __typename
+              ... on PromptToolFunction {
+                function {
+                  name
+                  description
+                  parameters
+                  strict
+                }
+              }
+              ... on PromptToolRaw {
+                raw
               }
             }
             toolChoice {
@@ -717,15 +722,15 @@ export const fetchPlaygroundPromptAsInstance = async ({
   });
   const latestPromptVersion = response?.prompt?.version ?? null;
   if (latestPromptVersion && latestPromptVersion.templateType === "CHAT") {
-    // Only apply default openaiApiType for OpenAI/Azure providers
-    const isOpenAIProvider =
-      latestPromptVersion.modelProvider === "OPENAI" ||
-      latestPromptVersion.modelProvider === "AZURE_OPENAI";
+    const { openaiApiType } = deriveToolsAndOpenAIApiType(
+      latestPromptVersion.tools?.tools,
+      latestPromptVersion.modelProvider
+    );
     const supportedInvocationParameters =
       await fetchSupportedInvocationParameters({
         modelName: latestPromptVersion.modelName,
         providerKey: latestPromptVersion.modelProvider,
-        openaiApiType: isOpenAIProvider ? DEFAULT_OPENAI_API_TYPE : null,
+        openaiApiType,
       });
     const promptName = response?.prompt?.name;
     if (!promptName) {

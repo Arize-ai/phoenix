@@ -80,7 +80,7 @@ if TYPE_CHECKING:
 
 
 class _ToolKwargs(TypedDict, total=False):
-    tools: list[ToolParam]
+    tools: list[ToolUnionParam]
     tool_choice: ToolChoiceParam
 
 
@@ -470,7 +470,9 @@ class _ToolKwargsConversion:
         ans: _ToolKwargs = {}
         if not obj:
             return ans
-        tools: list[ToolParam] = list(_ToolConversion.to_anthropic(obj["tools"]))
+        tools: list[ToolUnionParam] = list(_ToolConversion.to_anthropic(obj["tools"]))
+        if not tools:
+            return ans
         ans["tools"] = tools
         if "tool_choice" in obj:
             if obj["tool_choice"]["type"] == "none":
@@ -491,7 +493,9 @@ class _ToolKwargsConversion:
     ) -> Optional[v1.PromptTools]:
         if not obj or "tools" not in obj:
             return None
-        tools: list[v1.PromptToolFunction] = list(_ToolConversion.from_anthropic(obj["tools"]))
+        tools: list[Union[v1.PromptToolFunction, v1.PromptToolRaw]] = list(
+            _ToolConversion.from_anthropic(obj["tools"])
+        )
         if not tools:
             return None
         ans = v1.PromptTools(
@@ -578,34 +582,49 @@ class _ToolChoiceConversion:
 class _ToolConversion:
     @staticmethod
     def to_anthropic(
-        obj: Iterable[v1.PromptToolFunction],
-    ) -> Iterator[ToolParam]:
+        obj: Iterable[Union[v1.PromptToolFunction, v1.PromptToolRaw]],
+    ) -> Iterator[ToolUnionParam]:
         for tool in obj:
-            function = tool["function"]
-            input_schema: dict[str, Any] = (
-                dict(function["parameters"]) if "parameters" in function else {}
-            )
-            param: ToolParam = {
-                "name": function["name"],
-                "input_schema": input_schema,
-            }
-            if "description" in function:
-                param["description"] = function["description"]
-            yield param
+            if tool["type"] == "function":
+                function = tool["function"]
+                input_schema: dict[str, Any] = (
+                    dict(function["parameters"]) if "parameters" in function else {}
+                )
+                param: ToolParam = {
+                    "name": function["name"],
+                    "input_schema": input_schema,
+                }
+                if "description" in function:
+                    param["description"] = function["description"]
+                yield param
+            elif tool["type"] == "raw":
+                # Vendor passthrough: forward the raw dict as a ToolUnionParam
+                # (e.g. web_search_20250305, computer_20250124). No validation
+                # here; mismatches surface as Anthropic SDK errors at request
+                # time.
+                yield cast("ToolUnionParam", dict(tool["raw"]))
+            else:
+                assert_never(tool)
 
     @staticmethod
     def from_anthropic(
-        obj: Iterable[ToolParam],
-    ) -> Iterator[v1.PromptToolFunction]:
+        obj: Iterable[ToolUnionParam],
+    ) -> Iterator[Union[v1.PromptToolFunction, v1.PromptToolRaw]]:
         for tool in obj:
-            function = v1.PromptToolFunctionDefinition(
-                name=tool["name"],
-            )
-            if "description" in tool:
-                function["description"] = tool["description"]
+            # User-defined function tools are recognized by the presence of
+            # `input_schema`; everything else (web_search, computer_use,
+            # code_execution, ...) is round-tripped as a raw passthrough.
             if "input_schema" in tool:
-                function["parameters"] = tool["input_schema"]
-            yield v1.PromptToolFunction(type="function", function=function)
+                tool_param = cast("ToolParam", tool)  # pyright: ignore[reportUnnecessaryCast] -- mypy doesn't narrow ToolUnionParam on `key in tool`.
+                function = v1.PromptToolFunctionDefinition(
+                    name=tool_param["name"],
+                )
+                if "description" in tool_param:
+                    function["description"] = tool_param["description"]
+                function["parameters"] = tool_param["input_schema"]
+                yield v1.PromptToolFunction(type="function", function=function)
+            else:
+                yield v1.PromptToolRaw(type="raw", raw=dict(cast(Mapping[str, Any], tool)))
 
 
 class _MessageConversion:

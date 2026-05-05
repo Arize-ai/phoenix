@@ -1,6 +1,6 @@
 import type {
   AnthropicToolDefinition,
-  OpenAIToolDefinition,
+  OpenAIChatCompletionsToolDefinition,
 } from "@phoenix/schemas";
 import type {
   AnthropicToolCall,
@@ -133,18 +133,19 @@ export type SpanTool = {
   };
 };
 
-export const testSpanOpenAIToolJsonSchema: OpenAIToolDefinition = {
-  type: "function",
-  function: {
-    name: "get_weather",
-    parameters: {
-      type: "object",
-      properties: {
-        city: { type: "string" },
+export const testSpanOpenAIToolJsonSchema: OpenAIChatCompletionsToolDefinition =
+  {
+    type: "function",
+    function: {
+      name: "get_weather",
+      parameters: {
+        type: "object",
+        properties: {
+          city: { type: "string" },
+        },
       },
     },
-  },
-};
+  };
 
 export const testSpanOpenAITool: SpanTool = {
   tool: {

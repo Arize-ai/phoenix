@@ -441,6 +441,19 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       }
 
       const savedProviderConfig = modelConfigByProvider[provider];
+      const functionTools = instance.tools.filter(
+        (tool) => tool.kind === "function"
+      );
+      const functionToolNames = new Set(
+        functionTools.map((tool) => tool.definition.name)
+      );
+      const toolChoice =
+        functionTools.length === 0
+          ? undefined
+          : instance.toolChoice?.type === "SPECIFIC_FUNCTION" &&
+              !functionToolNames.has(instance.toolChoice.functionName ?? "")
+            ? { type: "ZERO_OR_MORE" as const }
+            : (instance.toolChoice ?? undefined);
 
       // Set default baseUrl for OLLAMA if no saved config exists
       const getDefaultBaseUrl = (provider: ModelProvider) => {
@@ -486,8 +499,8 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
 
           return finalModel;
         })(),
-        toolChoice: instance.toolChoice ?? undefined,
-        tools: instance.tools,
+        toolChoice,
+        tools: functionTools,
       };
       const messageMapPatch: Record<number, ChatMessage> = {};
       if (instance.template.__type === "chat") {
@@ -534,6 +547,24 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       if (!instance) {
         return;
       }
+      const shouldDropRawTools =
+        patch.openaiApiType !== undefined &&
+        patch.openaiApiType !== instance.model.openaiApiType;
+      const tools = shouldDropRawTools
+        ? instance.tools.filter((tool) => tool.kind === "function")
+        : instance.tools;
+      const functionToolNames = new Set(
+        tools
+          .filter((tool) => tool.kind === "function")
+          .map((tool) => tool.definition.name)
+      );
+      const toolChoice =
+        tools.length === 0
+          ? undefined
+          : instance.toolChoice?.type === "SPECIFIC_FUNCTION" &&
+              !functionToolNames.has(instance.toolChoice.functionName ?? "")
+            ? { type: "ZERO_OR_MORE" as const }
+            : instance.toolChoice;
       set(
         {
           dirtyInstances: {
@@ -544,6 +575,8 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             if (instance.id === instanceId) {
               return {
                 ...instance,
+                tools,
+                toolChoice,
                 model: {
                   ...instance.model,
                   ...patch,

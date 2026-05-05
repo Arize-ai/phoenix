@@ -31,7 +31,7 @@ export const jsonSchemaZodSchema = z.looseObject({
       z.union([
         jsonSchemaPropertiesSchema,
         z
-          .object({ anyOf: z.array(jsonSchemaPropertiesSchema) })
+          .looseObject({ anyOf: z.array(jsonSchemaPropertiesSchema) })
           .describe("A list of possible parameter names to their definitions"),
       ])
     )
@@ -55,7 +55,7 @@ const toolParametersJsonSchema = z.looseObject({
       z.union([
         jsonSchemaPropertiesSchema,
         z
-          .object({ anyOf: z.array(jsonSchemaPropertiesSchema) })
+          .looseObject({ anyOf: z.array(jsonSchemaPropertiesSchema) })
           .describe("A list of possible parameter names to their definitions"),
       ])
     )
@@ -79,7 +79,27 @@ const parametersSchemaWithDefaultObjectType = z.looseObject({
       z.union([
         jsonSchemaPropertiesSchema,
         z
-          .object({ anyOf: z.array(jsonSchemaPropertiesSchema) })
+          .looseObject({ anyOf: z.array(jsonSchemaPropertiesSchema) })
+          .describe("A list of possible parameter names to their definitions"),
+      ])
+    )
+    .optional(),
+  required: z.array(z.string()).optional().describe("The required parameters"),
+  additionalProperties: z
+    .boolean()
+    .optional()
+    .describe("Whether or not additional properties are allowed in the schema"),
+});
+
+const requiredToolParametersJsonSchema = z.looseObject({
+  type: z.enum(["object"]).optional(),
+  properties: z
+    .record(
+      z.string(),
+      z.union([
+        jsonSchemaPropertiesSchema,
+        z
+          .looseObject({ anyOf: z.array(jsonSchemaPropertiesSchema) })
           .describe("A list of possible parameter names to their definitions"),
       ])
     )
@@ -92,47 +112,46 @@ const parametersSchemaWithDefaultObjectType = z.looseObject({
 });
 
 /**
- * The schema for an OpenAI tool definition
- * @see https://platform.openai.com/docs/guides/structured-outputs/supported-schemas
+ * The schema for an OpenAI Chat Completions tool definition
  *
- * Note: The nested passThrough's are used to allow for extra keys in JSON schema, however, they do not actually
- * allow for extra keys when the zod schema is used for parsing. This is to allow more flexibility for users
- * to define their own tools according
+ * The tool wrapper is intentionally strict so Phoenix only canonicalizes when
+ * no wrapper fields would be dropped. Nested JSON schema objects remain loose
+ * to preserve schema keywords Phoenix does not model explicitly.
  */
-export const openAIToolDefinitionSchema = z.looseObject({
+export const openAIChatCompletionsToolDefinitionSchema = z.strictObject({
   type: z.literal("function").describe("The type of the tool"),
   function: z
-    .looseObject({
+    .strictObject({
       name: z.string().describe("The name of the function"),
       description: z
         .string()
         .optional()
         .describe("A description of the function"),
-      parameters: toolParametersJsonSchema
-        .extend({
-          strict: z
-            .boolean()
-            .optional()
-            .describe(
-              "Whether or not the arguments should exactly match the function definition, only supported for OpenAI models"
-            ),
-        })
-        .describe("The parameters that the function accepts"),
+      parameters: toolParametersJsonSchema.describe(
+        "The parameters that the function accepts"
+      ),
+      strict: z
+        .boolean()
+        .optional()
+        .describe(
+          "Whether or not the arguments should exactly match the function definition, only supported for OpenAI models"
+        ),
     })
     .describe("The function definition"),
 });
 
 /**
- * The type of an OpenAI tool definition
- * @see https://platform.openai.com/docs/guides/structured-outputs/supported-schemas
+ * The type of an OpenAI Chat Completions tool definition
  */
-export type OpenAIToolDefinition = z.infer<typeof openAIToolDefinitionSchema>;
+export type OpenAIChatCompletionsToolDefinition = z.infer<
+  typeof openAIChatCompletionsToolDefinitionSchema
+>;
 
 /**
- * The JSON schema for an OpenAI tool definition
+ * The JSON schema for an OpenAI Chat Completions tool definition
  */
-export const openAIToolDefinitionJSONSchema = z.toJSONSchema(
-  openAIToolDefinitionSchema
+export const openAIChatCompletionsToolDefinitionJSONSchema = z.toJSONSchema(
+  openAIChatCompletionsToolDefinitionSchema
 );
 
 /**
@@ -143,7 +162,7 @@ export const openAIToolDefinitionJSONSchema = z.toJSONSchema(
  * the Responses API flattens name, description, and parameters to the top level
  * alongside `type` and `strict`.
  */
-export const openAIResponsesToolDefinitionSchema = z.looseObject({
+export const openAIResponsesToolDefinitionSchema = z.strictObject({
   type: z
     .literal("function")
     .describe("The type of the tool. Always `function`."),
@@ -178,10 +197,10 @@ export type OpenAIResponsesToolDefinition = z.infer<
 /**
  * The zod schema for an anthropic tool definition
  */
-export const anthropicToolDefinitionSchema = z.object({
+export const anthropicToolDefinitionSchema = z.strictObject({
   name: z.string(),
   description: z.string().optional(),
-  input_schema: parametersSchemaWithDefaultObjectType,
+  input_schema: requiredToolParametersJsonSchema,
 });
 
 /**
@@ -198,10 +217,10 @@ export const anthropicToolDefinitionJSONSchema = z.toJSONSchema(
   anthropicToolDefinitionSchema
 );
 
-const awsToolSpecSchema = z.object({
+const awsToolSpecSchema = z.strictObject({
   name: z.string(),
   description: z.string().min(1).optional(),
-  inputSchema: z.object({
+  inputSchema: z.strictObject({
     json: parametersSchemaWithDefaultObjectType,
   }),
 });
@@ -214,7 +233,7 @@ const awsToolSpecSchema = z.object({
  * so playground can rehydrate either form.
  */
 export const awsToolDefinitionSchema = z.union([
-  z.object({ toolSpec: awsToolSpecSchema }),
+  z.strictObject({ toolSpec: awsToolSpecSchema }),
   awsToolSpecSchema,
 ]);
 
@@ -229,7 +248,7 @@ export const awsToolDefinitionJSONSchema = z.toJSONSchema(
  * Google GenAI SDK uses `parameters_json_schema`; we accept both for spans
  * that store the raw FunctionDeclaration dump.
  */
-export const geminiToolDefinitionSchema = z.object({
+export const geminiToolDefinitionSchema = z.strictObject({
   name: z.string(),
   description: z.string().optional(),
   parameters: toolParametersJsonSchema.optional(),
@@ -251,7 +270,7 @@ export const geminiToolDefinitionJSONSchema = z.toJSONSchema(
  * This is useful for functions that need to accept any tool definition format
  */
 export const llmProviderToolDefinitionSchema = z.union([
-  openAIToolDefinitionSchema,
+  openAIChatCompletionsToolDefinitionSchema,
   // Responses API must come before Gemini: both have top-level name + parameters,
   // but only Responses API requires type: "function", which Gemini tools lack.
   openAIResponsesToolDefinitionSchema,

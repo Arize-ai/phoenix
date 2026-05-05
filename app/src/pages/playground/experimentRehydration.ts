@@ -8,7 +8,6 @@
 import { fetchQuery, graphql } from "relay-runtime";
 
 import type { GenerativeProviderKey } from "@phoenix/components/playground/model/__generated__/ModelSupportedParamsFetcherQuery.graphql";
-import { DEFAULT_OPENAI_API_TYPE } from "@phoenix/constants/generativeConstants";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import type {
   TextPart,
@@ -22,7 +21,6 @@ import {
   DEFAULT_TEMPLATE_VARIABLES_PATH,
   generateInstanceId,
   generateMessageId,
-  generateToolId,
 } from "@phoenix/store/playground/playgroundStore";
 import type {
   ModelConfig,
@@ -41,7 +39,7 @@ import {
   fetchSupportedInvocationParameters,
   objectToInvocationParameters,
 } from "./fetchPlaygroundPrompt";
-import { getChatRole } from "./playgroundUtils";
+import { deriveToolsAndOpenAIApiType, getChatRole } from "./playgroundUtils";
 
 const EXPERIMENT_REHYDRATION_QUERY = graphql`
   query experimentRehydrationQuery($experimentId: ID!) {
@@ -96,11 +94,17 @@ const EXPERIMENT_REHYDRATION_QUERY = graphql`
               }
               tools {
                 tools {
-                  function {
-                    name
-                    description
-                    parameters
-                    strict
+                  __typename
+                  ... on PromptToolFunction {
+                    function {
+                      name
+                      description
+                      parameters
+                      strict
+                    }
+                  }
+                  ... on PromptToolRaw {
+                    raw
                   }
                 }
                 toolChoice {
@@ -243,17 +247,7 @@ function taskConfigToPlaygroundProps(
       : [];
 
   // --- Tools ---
-  const toolsList = prompt.tools?.tools ?? [];
-  const tools = toolsList.map((t) => ({
-    id: generateToolId(),
-    editorType: "json" as const,
-    definition: {
-      name: t.function.name,
-      description: t.function.description ?? null,
-      parameters: t.function.parameters,
-      strict: t.function.strict ?? null,
-    },
-  }));
+  const { tools } = deriveToolsAndOpenAIApiType(prompt.tools?.tools, provider);
 
   // --- Tool Choice ---
   const rawToolChoice = prompt.tools?.toolChoice;
@@ -390,15 +384,16 @@ export async function fetchExperimentPlaygroundProps(
   if (!job?.taskConfig) return null;
 
   const prompt = job.taskConfig.prompt;
-  const isOpenAIProvider =
-    prompt.modelProvider === "OPENAI" ||
-    prompt.modelProvider === "AZURE_OPENAI";
+  const { openaiApiType } = deriveToolsAndOpenAIApiType(
+    prompt.tools?.tools,
+    prompt.modelProvider
+  );
 
   const supportedInvocationParameters =
     (await fetchSupportedInvocationParameters({
       modelName: prompt.modelName,
       providerKey: prompt.modelProvider,
-      openaiApiType: isOpenAIProvider ? DEFAULT_OPENAI_API_TYPE : null,
+      openaiApiType,
     })) ?? [];
 
   const selectedDatasetEvaluatorIds = job.datasetEvaluators.edges.map(

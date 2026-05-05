@@ -6,10 +6,7 @@ import {
 } from "@arizeai/openinference-semantic-conventions";
 import { z } from "zod";
 
-import {
-  jsonSchemaZodSchema,
-  llmProviderToolDefinitionSchema,
-} from "@phoenix/schemas";
+import { jsonSchemaZodSchema } from "@phoenix/schemas";
 import type { JSONLiteral } from "@phoenix/schemas/jsonLiteralSchema";
 import { jsonLiteralSchema } from "@phoenix/schemas/jsonLiteralSchema";
 import { llmProviderToolCallSchema } from "@phoenix/schemas/toolCallSchemas";
@@ -278,32 +275,18 @@ export const urlSchema = z.object({
  *  The zod schema for llm.tools.{i}.tool.json_schema attribute
  *  This will be a json string parsed into an object
  */
-export const toolJSONSchemaSchema = z
-  .string()
-  .transform((s, ctx) => {
-    const { json } = safelyParseJSON(s);
+export const toolJSONSchemaSchema = z.string().transform((s, ctx) => {
+  const { json } = safelyParseJSON(s);
 
-    if (json == null || !isObject(json)) {
-      ctx.addIssue({
-        code: "custom",
-        message: "The tool JSON schema must be a valid JSON object",
-      });
-      return z.NEVER;
-    }
-    return json;
-  })
-  .transform((o, ctx) => {
-    const { data, success } = llmProviderToolDefinitionSchema.safeParse(o);
-
-    if (!success) {
-      ctx.addIssue({
-        code: "custom",
-        message: "The tool JSON schema must be a valid tool schema",
-      });
-      return z.NEVER;
-    }
-    return data;
-  });
+  if (json == null || !isObject(json)) {
+    ctx.addIssue({
+      code: "custom",
+      message: "The tool JSON schema must be a valid JSON object",
+    });
+    return z.NEVER;
+  }
+  return json;
+});
 
 /**
  * The zod schema for llm.tools

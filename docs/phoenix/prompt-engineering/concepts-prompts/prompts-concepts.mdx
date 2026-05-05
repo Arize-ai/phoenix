@@ -109,6 +109,8 @@ Here is an example of what a tool would looke like for the weather API using Ope
 }
 ```
 
+Phoenix also supports **provider tools** — vendor-specific built-in tools like Anthropic web search, OpenAI Responses `file_search` and `code_interpreter`, Gemini `google_search` grounding, and Amazon Nova `nova_grounding`. These are passed through to the provider as opaque JSON. See [Use provider tools](/docs/phoenix/prompt-engineering/how-to-prompts/use-provider-tools) for the JSON shape per provider.
+
 ## Response Format
 
 Some LLMs support structured responses, known as **response format** or **output schema**, allowing you to specify an exact schema for the model’s output.

@@ -330,7 +330,8 @@
                   "docs/phoenix/prompt-engineering/how-to-prompts/create-a-prompt",
                   "docs/phoenix/prompt-engineering/how-to-prompts/test-a-prompt",
                   "docs/phoenix/prompt-engineering/how-to-prompts/tag-a-prompt",
-                  "docs/phoenix/prompt-engineering/how-to-prompts/using-a-prompt"
+                  "docs/phoenix/prompt-engineering/how-to-prompts/using-a-prompt",
+                  "docs/phoenix/prompt-engineering/how-to-prompts/use-provider-tools"
                 ]
               }
             ]
