@@ -102,44 +102,50 @@ const getSessionTraceUrl = ({
   };
 };
 
-const messageWrapCSS = css`
+const inputMessageWrapCSS = css`
   width: fit-content;
   max-width: 70%;
 `;
 
-type RootSpanMessageRole = "INPUT" | "OUTPUT";
+type RootSpanPreviewRole = "INPUT" | "OUTPUT";
 
 type RootSpanMessageProps = {
   /**
-   * Optional content rendered opposite the message label in the header,
+   * Optional content rendered opposite the output message label in the header,
    * typically a small action like the trace link.
    */
-  extra?: ReactNode;
+  endContent?: ReactNode;
   label?: string;
-  role: RootSpanMessageRole;
+  role: "HUMAN" | "AI";
   value: unknown;
 };
 
-function RootSpanMessage({ extra, label, role, value }: RootSpanMessageProps) {
-  const isInput = role === "INPUT";
+function RootSpanMessage({
+  endContent,
+  label,
+  role,
+  value,
+}: RootSpanMessageProps) {
+  const isInput = role === "HUMAN";
   const styles = useChatMessageStyles(isInput ? "user" : "assistant");
   const defaultLabel = isInput ? "INPUT" : "OUTPUT";
   return (
     <Flex
       direction="column"
       gap="size-50"
-      alignSelf={isInput ? "start" : "end"}
-      alignItems={isInput ? "start" : "end"}
-      css={messageWrapCSS}
+      alignSelf={isInput ? "end" : "stretch"}
+      alignItems={isInput ? "end" : "start"}
+      width={isInput ? undefined : "100%"}
+      css={isInput ? inputMessageWrapCSS : undefined}
     >
       <Flex
         direction="row"
-        justifyContent="space-between"
+        justifyContent={isInput ? "end" : "space-between"}
         alignItems="center"
         width="100%"
       >
         <Text color="text-700">{label ?? defaultLabel}</Text>
-        {extra}
+        {endContent}
       </Flex>
       <View
         borderRadius={"medium"}
@@ -250,18 +256,20 @@ function SessionTurnDetail({
 
   return (
     <Flex direction="column" gap="size-200">
-      <Flex direction="column" gap="size-100" alignItems="start">
+      <Flex direction="column" gap="size-100" alignItems="end">
         <RootSpanMessage
           label={inputLabel}
-          role="INPUT"
+          role="HUMAN"
           value={rootSpan.input?.value}
         />
         <RootSpanStartTime rootSpan={rootSpan} />
       </Flex>
       <Flex direction="column" gap="size-100">
         <RootSpanMessage
-          extra={<RootSpanTraceLink traceId={traceId} rootSpan={rootSpan} />}
-          role="OUTPUT"
+          endContent={
+            <RootSpanTraceLink traceId={traceId} rootSpan={rootSpan} />
+          }
+          role="AI"
           value={rootSpan.output?.value}
         />
         <RootSpanOutputMetadata rootSpan={rootSpan} />
@@ -281,7 +289,7 @@ function RootSpanPreviewLine({
   role,
   value,
 }: {
-  role: RootSpanMessageRole;
+  role: RootSpanPreviewRole;
   value?: string | null;
 }) {
   const isInput = role === "INPUT";
