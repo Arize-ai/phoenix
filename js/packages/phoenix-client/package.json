@@ -90,7 +90,7 @@
     "@arizeai/phoenix-config": "workspace:*",
     "@arizeai/phoenix-otel": "workspace:*",
     "async": "^3.2.6",
-    "openapi-fetch": "^0.12.5",
+    "openapi-fetch": "^0.17.0",
     "tiny-invariant": "^1.3.3",
     "zod": "^4.0.14"
   },
