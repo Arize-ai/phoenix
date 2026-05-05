@@ -9,14 +9,13 @@ function ProgressCircle({
   ref,
   ...props
 }: ProgressCircleProps & { ref?: Ref<HTMLDivElement> }) {
-  const { isIndeterminate = false, value, size = "M", variant = "default" } = props;
+  const { isIndeterminate = false, value, size = "M" } = props;
 
   return (
     <ProgressBar
       {...props}
       data-size={size}
       data-indeterminate={isIndeterminate || undefined}
-      data-variant={variant}
       css={progressCircleCSS}
       ref={ref}
       style={
