@@ -6,10 +6,11 @@ from typing import Annotated, Any, Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Path, Query
 from pydantic import Field
-from sqlalchemy import exists, select
+from sqlalchemy import ColumnElement, delete, exists, select
 from starlette.requests import Request
 from strawberry.relay import GlobalID
 
+from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.insertion.types import Precursors
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
@@ -19,6 +20,12 @@ from phoenix.server.api.types.ProjectSessionAnnotation import (
 from phoenix.server.api.types.SpanAnnotation import SpanAnnotation as SpanAnnotationNodeType
 from phoenix.server.api.types.TraceAnnotation import TraceAnnotation as TraceAnnotationNodeType
 from phoenix.server.api.types.User import User as UserNodeType
+from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.dml_event import (
+    ProjectSessionAnnotationDeleteEvent,
+    SpanAnnotationDeleteEvent,
+    TraceAnnotationDeleteEvent,
+)
 
 from .utils import PaginatedResponseBody, add_errors_to_responses, get_project_by_identifier
 
@@ -730,3 +737,413 @@ async def list_session_annotations(
         ]
 
     return SessionAnnotationsResponseBody(data=data, next_cursor=next_cursor)
+
+
+def _resolve_non_admin_user_id(request: Request) -> Optional[int]:
+    """Return the caller's user_id when auth is enabled and the caller is a
+    non-admin PhoenixUser. Returns None when auth is disabled or the caller
+    is an admin (admin/no-auth → unconditional delete; non-admin → narrow by
+    user_id). System users are admins (PhoenixSystemUser.is_admin == True).
+    """
+    if not request.app.state.authentication_enabled:
+        return None
+    user = request.user
+    if not isinstance(user, PhoenixUser):
+        # is_authenticated dependency would have already rejected this with 401,
+        # but guard defensively for typing.
+        return None
+    if user.is_admin:
+        return None
+    return int(user.identity)
+
+
+_DELETE_FILTER_DESCRIPTIONS: dict[str, str] = {
+    "name": (
+        "Optional annotation name. When provided, must be non-empty and narrows the delete to "
+        "annotations of that name."
+    ),
+    "identifier": (
+        "Optional annotation identifier. When provided, must be non-empty and narrows the "
+        "delete to annotations with that identifier."
+    ),
+    "annotator_kind": (
+        "Optional annotator kind. When provided, narrows the delete to annotations produced by "
+        "this annotator kind."
+    ),
+    "start_time": (
+        "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted "
+        "as UTC."
+    ),
+    "end_time": (
+        "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted "
+        "as UTC."
+    ),
+    "delete_all": (
+        "Opt-in flag that authorizes the request without a bounded "
+        "`[start_time, end_time)` time window. When `false` (default) or absent, the "
+        "request must supply both `start_time` AND `end_time` to bound the delete. "
+        "When `true`, the time-range bound is waived and any other filters (`name`, "
+        "`identifier`, `annotator_kind`) still narrow the delete within the project — e.g. "
+        "`delete_all=true&name=X` deletes all annotations named X regardless of time."
+    ),
+}
+
+_DELETE_DESCRIPTION_TEMPLATE = """
+Hard-delete {kind} annotations within the named project that match the
+supplied filter.
+
+- The request must either supply both `start_time` AND `end_time`
+  to bound the delete to a `[start_time, end_time)` time window,
+  OR set `delete_all=true` to acknowledge an unbounded sweep. A request
+  that satisfies neither is rejected with 422.
+- `name`, `identifier`, and `annotator_kind` are optional narrowing
+  filters; on their own they do NOT authorize the request — they only
+  narrow within an already-authorized request (bounded time range or
+  `delete_all=true`).
+- All supplied filters are combined with AND. `name` and `identifier`,
+  when present, must be non-empty.
+- `start_time` is inclusive (`>=`); `end_time` is exclusive
+  (`<`). When both are supplied, `start_time` must be strictly earlier
+  than `end_time` (else 422). A half-bounded range (only one of
+  the two) does NOT satisfy the gate and is rejected unless
+  `delete_all=true` is also set. Naive datetimes are interpreted as UTC.
+- The endpoint is idempotent: a request that matches no rows still
+  returns 204.
+- When authentication is enabled, non-admin callers can only delete rows
+  they own (`user_id == current_user.id`); admins delete all matching
+  rows.
+"""
+
+
+def _validate_delete_filters(
+    *,
+    start_time: Optional[datetime],
+    end_time: Optional[datetime],
+    delete_all: bool,
+) -> tuple[Optional[datetime], Optional[datetime]]:
+    """Enforce the delete-bound gate (`(start_time AND end_time) OR
+    delete_all=True`) and the `start_time < end_time` invariant.
+    Normalize tz-naive datetimes to UTC for SQL comparison. Returns the
+    normalized (start_time, end_time) pair.
+
+    The gate subsumes the prior ≥1-filter rule: other filters (`name`,
+    `identifier`, `annotator_kind`) only narrow within an already-authorized
+    request — they do not unlock the gate, so they are not validator inputs.
+    Their non-empty rules are enforced by `Query(min_length=1)` on the
+    handler signatures. A half-bounded time range fails the gate unless
+    `delete_all=True` is also set.
+    """
+    fully_bounded = start_time is not None and end_time is not None
+    if not delete_all and not fully_bounded:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Delete is unbounded. Set delete_all=true to acknowledge, or "
+                "supply both start_time and end_time to bound the time range."
+            ),
+        )
+    normalized_start = normalize_datetime(start_time, timezone.utc)
+    normalized_end = normalize_datetime(end_time, timezone.utc)
+    if (
+        normalized_start is not None
+        and normalized_end is not None
+        and normalized_start >= normalized_end
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="`start_time` must be strictly earlier than `end_time`.",
+        )
+    return normalized_start, normalized_end
+
+
+def _build_annotation_filter_predicates(
+    annotation_model: Any,
+    *,
+    name: Optional[str],
+    identifier: Optional[str],
+    annotator_kind: Optional[str],
+    created_after: Optional[datetime],
+    created_before: Optional[datetime],
+    user_id_for_filter: Optional[int],
+) -> list[ColumnElement[bool]]:
+    """Build the per-annotation-table predicate list shared across the three
+    DELETE handlers. Project-scoping and parent-FK subquery predicates are
+    appended by the caller (they differ per kind).
+    """
+    predicates: list[ColumnElement[bool]] = []
+    if name is not None:
+        predicates.append(annotation_model.name == name)
+    if identifier is not None:
+        predicates.append(annotation_model.identifier == identifier)
+    if annotator_kind is not None:
+        predicates.append(annotation_model.annotator_kind == annotator_kind)
+    if created_after is not None:
+        predicates.append(annotation_model.created_at >= created_after)
+    if created_before is not None:
+        predicates.append(annotation_model.created_at < created_before)
+    if user_id_for_filter is not None:
+        predicates.append(annotation_model.user_id == user_id_for_filter)
+    return predicates
+
+
+@router.delete(
+    "/projects/{project_identifier}/span_annotations",
+    operation_id="deleteSpanAnnotations",
+    summary="Delete span annotations in a project that match the supplied filter.",
+    description=_DELETE_DESCRIPTION_TEMPLATE.format(kind="span"),
+    responses=add_errors_to_responses(
+        [
+            {"status_code": 404, "description": "Project not found"},
+            {"status_code": 422, "description": "Invalid parameters"},
+        ]
+    ),
+    status_code=204,
+)
+async def delete_span_annotations(
+    request: Request,
+    project_identifier: Annotated[
+        str,
+        Path(
+            description=(
+                "The project identifier: either project ID or project name. If using a project "
+                "name as the identifier, it cannot contain slash (/), question mark (?), or "
+                "pound sign (#) characters."
+            )
+        ),
+    ],
+    name: Annotated[
+        Optional[str],
+        Query(min_length=1, description=_DELETE_FILTER_DESCRIPTIONS["name"]),
+    ] = None,
+    identifier: Annotated[
+        Optional[str],
+        Query(min_length=1, description=_DELETE_FILTER_DESCRIPTIONS["identifier"]),
+    ] = None,
+    annotator_kind: Annotated[
+        Optional[Literal["LLM", "CODE", "HUMAN"]],
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["annotator_kind"]),
+    ] = None,
+    start_time: Annotated[
+        Optional[datetime],
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["start_time"]),
+    ] = None,
+    end_time: Annotated[
+        Optional[datetime],
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["end_time"]),
+    ] = None,
+    delete_all: Annotated[
+        bool,
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["delete_all"]),
+    ] = False,
+) -> None:
+    start_time, end_time = _validate_delete_filters(
+        start_time=start_time,
+        end_time=end_time,
+        delete_all=delete_all,
+    )
+    user_id_for_filter = _resolve_non_admin_user_id(request)
+    async with request.app.state.db() as session:
+        project = await get_project_by_identifier(session, project_identifier)
+        if not project:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Project with identifier {project_identifier} not found",
+            )
+
+        span_rowids_in_project = (
+            select(models.Span.id)
+            .join(models.Trace, models.Span.trace_rowid == models.Trace.id)
+            .where(models.Trace.project_rowid == project.id)
+        )
+        predicate = _build_annotation_filter_predicates(
+            models.SpanAnnotation,
+            name=name,
+            identifier=identifier,
+            annotator_kind=annotator_kind,
+            created_after=start_time,
+            created_before=end_time,
+            user_id_for_filter=user_id_for_filter,
+        )
+        predicate.append(models.SpanAnnotation.span_rowid.in_(span_rowids_in_project))
+
+        stmt = delete(models.SpanAnnotation).where(*predicate).returning(models.SpanAnnotation.id)
+        deleted_ids = list((await session.scalars(stmt)).all())
+
+    if deleted_ids:
+        request.state.event_queue.put(SpanAnnotationDeleteEvent(tuple(deleted_ids)))
+
+
+@router.delete(
+    "/projects/{project_identifier}/trace_annotations",
+    operation_id="deleteTraceAnnotations",
+    summary="Delete trace annotations in a project that match the supplied filter.",
+    description=_DELETE_DESCRIPTION_TEMPLATE.format(kind="trace"),
+    responses=add_errors_to_responses(
+        [
+            {"status_code": 404, "description": "Project not found"},
+            {"status_code": 422, "description": "Invalid parameters"},
+        ]
+    ),
+    status_code=204,
+)
+async def delete_trace_annotations(
+    request: Request,
+    project_identifier: Annotated[
+        str,
+        Path(
+            description=(
+                "The project identifier: either project ID or project name. If using a project "
+                "name as the identifier, it cannot contain slash (/), question mark (?), or "
+                "pound sign (#) characters."
+            )
+        ),
+    ],
+    name: Annotated[
+        Optional[str],
+        Query(min_length=1, description=_DELETE_FILTER_DESCRIPTIONS["name"]),
+    ] = None,
+    identifier: Annotated[
+        Optional[str],
+        Query(min_length=1, description=_DELETE_FILTER_DESCRIPTIONS["identifier"]),
+    ] = None,
+    annotator_kind: Annotated[
+        Optional[Literal["LLM", "CODE", "HUMAN"]],
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["annotator_kind"]),
+    ] = None,
+    start_time: Annotated[
+        Optional[datetime],
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["start_time"]),
+    ] = None,
+    end_time: Annotated[
+        Optional[datetime],
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["end_time"]),
+    ] = None,
+    delete_all: Annotated[
+        bool,
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["delete_all"]),
+    ] = False,
+) -> None:
+    start_time, end_time = _validate_delete_filters(
+        start_time=start_time,
+        end_time=end_time,
+        delete_all=delete_all,
+    )
+    user_id_for_filter = _resolve_non_admin_user_id(request)
+    async with request.app.state.db() as session:
+        project = await get_project_by_identifier(session, project_identifier)
+        if not project:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Project with identifier {project_identifier} not found",
+            )
+
+        trace_rowids_in_project = select(models.Trace.id).where(
+            models.Trace.project_rowid == project.id
+        )
+        predicate = _build_annotation_filter_predicates(
+            models.TraceAnnotation,
+            name=name,
+            identifier=identifier,
+            annotator_kind=annotator_kind,
+            created_after=start_time,
+            created_before=end_time,
+            user_id_for_filter=user_id_for_filter,
+        )
+        predicate.append(models.TraceAnnotation.trace_rowid.in_(trace_rowids_in_project))
+
+        stmt = delete(models.TraceAnnotation).where(*predicate).returning(models.TraceAnnotation.id)
+        deleted_ids = list((await session.scalars(stmt)).all())
+
+    if deleted_ids:
+        request.state.event_queue.put(TraceAnnotationDeleteEvent(tuple(deleted_ids)))
+
+
+@router.delete(
+    "/projects/{project_identifier}/session_annotations",
+    operation_id="deleteSessionAnnotations",
+    summary="Delete session annotations in a project that match the supplied filter.",
+    description=_DELETE_DESCRIPTION_TEMPLATE.format(kind="session"),
+    responses=add_errors_to_responses(
+        [
+            {"status_code": 404, "description": "Project not found"},
+            {"status_code": 422, "description": "Invalid parameters"},
+        ]
+    ),
+    status_code=204,
+)
+async def delete_session_annotations(
+    request: Request,
+    project_identifier: Annotated[
+        str,
+        Path(
+            description=(
+                "The project identifier: either project ID or project name. If using a project "
+                "name as the identifier, it cannot contain slash (/), question mark (?), or "
+                "pound sign (#) characters."
+            )
+        ),
+    ],
+    name: Annotated[
+        Optional[str],
+        Query(min_length=1, description=_DELETE_FILTER_DESCRIPTIONS["name"]),
+    ] = None,
+    identifier: Annotated[
+        Optional[str],
+        Query(min_length=1, description=_DELETE_FILTER_DESCRIPTIONS["identifier"]),
+    ] = None,
+    annotator_kind: Annotated[
+        Optional[Literal["LLM", "CODE", "HUMAN"]],
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["annotator_kind"]),
+    ] = None,
+    start_time: Annotated[
+        Optional[datetime],
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["start_time"]),
+    ] = None,
+    end_time: Annotated[
+        Optional[datetime],
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["end_time"]),
+    ] = None,
+    delete_all: Annotated[
+        bool,
+        Query(description=_DELETE_FILTER_DESCRIPTIONS["delete_all"]),
+    ] = False,
+) -> None:
+    start_time, end_time = _validate_delete_filters(
+        start_time=start_time,
+        end_time=end_time,
+        delete_all=delete_all,
+    )
+    user_id_for_filter = _resolve_non_admin_user_id(request)
+    async with request.app.state.db() as session:
+        project = await get_project_by_identifier(session, project_identifier)
+        if not project:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Project with identifier {project_identifier} not found",
+            )
+
+        session_rowids_in_project = select(models.ProjectSession.id).where(
+            models.ProjectSession.project_id == project.id
+        )
+        predicate = _build_annotation_filter_predicates(
+            models.ProjectSessionAnnotation,
+            name=name,
+            identifier=identifier,
+            annotator_kind=annotator_kind,
+            created_after=start_time,
+            created_before=end_time,
+            user_id_for_filter=user_id_for_filter,
+        )
+        predicate.append(
+            models.ProjectSessionAnnotation.project_session_id.in_(session_rowids_in_project)
+        )
+
+        stmt = (
+            delete(models.ProjectSessionAnnotation)
+            .where(*predicate)
+            .returning(models.ProjectSessionAnnotation.id)
+        )
+        deleted_ids = list((await session.scalars(stmt)).all())
+
+    if deleted_ids:
+        request.state.event_queue.put(ProjectSessionAnnotationDeleteEvent(tuple(deleted_ids)))

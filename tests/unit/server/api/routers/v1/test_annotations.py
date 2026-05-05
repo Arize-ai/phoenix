@@ -3,7 +3,7 @@ from typing import Any
 
 import httpx
 import pytest
-from sqlalchemy import insert
+from sqlalchemy import insert, select
 
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
@@ -678,3 +678,209 @@ async def test_list_span_annotations_unknown_span_ids_only_still_404(
         params={"span_ids": ["nonexistent-span"]},
     )
     assert response.status_code == 404
+
+
+# =============================================================================
+# DELETE /v1/projects/{project_identifier}/{kind}_annotations
+# =============================================================================
+
+
+@pytest.fixture
+async def two_projects_with_annotations(db: DbSessionFactory) -> dict[str, Any]:
+    """Build two projects (project-A, project-B), each with one trace, one
+    span, one project_session, and matching span/trace/session annotations
+    sharing the same `(name, identifier)` so we can verify that DELETE on
+    project-A leaves project-B's matching rows intact.
+
+    Identifier intentionally uses uppercase characters to confirm that DELETE
+    accepts identifiers that the `Identifier` regex would reject — create
+    accepts arbitrary strings, so delete must accept what create allowed.
+    """
+    name = "rollback-tag"
+    identifier = "Agent-Run-1"  # uppercase — fails the Identifier regex
+    state: dict[str, Any] = {"name": name, "identifier": identifier}
+    async with db() as session:
+        for label in ("A", "B"):
+            project_rowid = await session.scalar(
+                insert(models.Project).values(name=f"project-{label}").returning(models.Project.id)
+            )
+            trace_rowid = await session.scalar(
+                insert(models.Trace)
+                .values(
+                    trace_id=f"trace-{label}",
+                    project_rowid=project_rowid,
+                    start_time=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end_time=datetime.fromisoformat("2024-01-01T00:01:00+00:00"),
+                )
+                .returning(models.Trace.id)
+            )
+            span_rowid = await session.scalar(
+                insert(models.Span)
+                .values(
+                    trace_rowid=trace_rowid,
+                    span_id=f"span-{label}",
+                    parent_id=None,
+                    name=f"span-{label}",
+                    span_kind="CHAIN",
+                    start_time=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end_time=datetime.fromisoformat("2024-01-01T00:00:30+00:00"),
+                    attributes={},
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=0,
+                    cumulative_llm_token_count_completion=0,
+                )
+                .returning(models.Span.id)
+            )
+            session_rowid = await session.scalar(
+                insert(models.ProjectSession)
+                .values(
+                    session_id=f"session-{label}",
+                    project_id=project_rowid,
+                    start_time=datetime.fromisoformat("2024-01-01T00:00:00+00:00"),
+                    end_time=datetime.fromisoformat("2024-01-01T00:01:00+00:00"),
+                )
+                .returning(models.ProjectSession.id)
+            )
+            await session.execute(
+                insert(models.SpanAnnotation).values(
+                    span_rowid=span_rowid,
+                    name=name,
+                    label=None,
+                    score=None,
+                    explanation=None,
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    source="API",
+                    identifier=identifier,
+                )
+            )
+            await session.execute(
+                insert(models.TraceAnnotation).values(
+                    trace_rowid=trace_rowid,
+                    name=name,
+                    label=None,
+                    score=None,
+                    explanation=None,
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    source="API",
+                    identifier=identifier,
+                )
+            )
+            await session.execute(
+                insert(models.ProjectSessionAnnotation).values(
+                    project_session_id=session_rowid,
+                    name=name,
+                    label=None,
+                    score=None,
+                    explanation=None,
+                    metadata_={},
+                    annotator_kind="HUMAN",
+                    source="API",
+                    identifier=identifier,
+                )
+            )
+        await session.commit()
+    return state
+
+
+async def _count(db: DbSessionFactory, model: Any, **filters: Any) -> int:
+    async with db() as session:
+        rows = (await session.scalars(select(model).filter_by(**filters))).all()
+        return len(list(rows))
+
+
+async def test_delete_span_annotations_happy_path(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    two_projects_with_annotations: dict[str, Any],
+) -> None:
+    """204 + matching row in project-A removed + project-B's matching row
+    preserved + non-regex identifier accepted (project-scoped hard delete).
+    Uses `delete_all=true` to authorize the non-time-bounded `name`/`identifier`
+    delete under the new gate.
+    """
+    name = two_projects_with_annotations["name"]
+    identifier = two_projects_with_annotations["identifier"]
+
+    response = await httpx_client.request(
+        "DELETE",
+        "v1/projects/project-A/span_annotations",
+        params={"name": name, "identifier": identifier, "delete_all": "true"},
+    )
+    assert response.status_code == 204
+
+    remaining = await _count(db, models.SpanAnnotation, name=name, identifier=identifier)
+    assert remaining == 1, "project-B's matching row must be preserved"
+
+
+async def test_delete_trace_annotations_happy_path(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    two_projects_with_annotations: dict[str, Any],
+) -> None:
+    name = two_projects_with_annotations["name"]
+    identifier = two_projects_with_annotations["identifier"]
+
+    response = await httpx_client.request(
+        "DELETE",
+        "v1/projects/project-A/trace_annotations",
+        params={"name": name, "identifier": identifier, "delete_all": "true"},
+    )
+    assert response.status_code == 204
+
+    remaining = await _count(db, models.TraceAnnotation, name=name, identifier=identifier)
+    assert remaining == 1
+
+
+async def test_delete_session_annotations_happy_path(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+    two_projects_with_annotations: dict[str, Any],
+) -> None:
+    name = two_projects_with_annotations["name"]
+    identifier = two_projects_with_annotations["identifier"]
+
+    response = await httpx_client.request(
+        "DELETE",
+        "v1/projects/project-A/session_annotations",
+        params={"name": name, "identifier": identifier, "delete_all": "true"},
+    )
+    assert response.status_code == 204
+
+    remaining = await _count(db, models.ProjectSessionAnnotation, name=name, identifier=identifier)
+    assert remaining == 1
+
+
+async def test_delete_annotations_unknown_project_404(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    response = await httpx_client.request(
+        "DELETE",
+        "v1/projects/does-not-exist/span_annotations",
+        params={"name": "anything", "identifier": "anything", "delete_all": "true"},
+    )
+    assert response.status_code == 404
+
+
+async def test_delete_annotations_without_bound_or_delete_all_returns_422(
+    httpx_client: httpx.AsyncClient,
+) -> None:
+    """The destructive-delete gate: a request that is neither time-bounded
+    (both `start_time` and `end_time`) nor authorized via
+    `delete_all=true` must be rejected with 422 and a message naming both
+    resolutions.
+    """
+    response = await httpx_client.request(
+        "DELETE",
+        "v1/projects/project-X/span_annotations",
+        params={"name": "anything"},
+    )
+    assert response.status_code == 422
+    assert response.text == (
+        "Delete is unbounded. Set delete_all=true to acknowledge, or "
+        "supply both start_time and end_time to bound the time range."
+    )

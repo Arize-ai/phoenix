@@ -74,7 +74,33 @@ export interface paths {
         get: operations["listSpanAnnotationsBySpanIds"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete span annotations in a project that match the supplied filter.
+         * @description Hard-delete span annotations within the named project that match the
+         *     supplied filter.
+         *
+         *     - The request must either supply both `start_time` AND `end_time`
+         *       to bound the delete to a `[start_time, end_time)` time window,
+         *       OR set `delete_all=true` to acknowledge an unbounded sweep. A request
+         *       that satisfies neither is rejected with 422.
+         *     - `name`, `identifier`, and `annotator_kind` are optional narrowing
+         *       filters; on their own they do NOT authorize the request — they only
+         *       narrow within an already-authorized request (bounded time range or
+         *       `delete_all=true`).
+         *     - All supplied filters are combined with AND. `name` and `identifier`,
+         *       when present, must be non-empty.
+         *     - `start_time` is inclusive (`>=`); `end_time` is exclusive
+         *       (`<`). When both are supplied, `start_time` must be strictly earlier
+         *       than `end_time` (else 422). A half-bounded range (only one of
+         *       the two) does NOT satisfy the gate and is rejected unless
+         *       `delete_all=true` is also set. Naive datetimes are interpreted as UTC.
+         *     - The endpoint is idempotent: a request that matches no rows still
+         *       returns 204.
+         *     - When authentication is enabled, non-admin callers can only delete rows
+         *       they own (`user_id == current_user.id`); admins delete all matching
+         *       rows.
+         */
+        delete: operations["deleteSpanAnnotations"];
         options?: never;
         head?: never;
         patch?: never;
@@ -94,7 +120,33 @@ export interface paths {
         get: operations["listTraceAnnotationsByTraceIds"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete trace annotations in a project that match the supplied filter.
+         * @description Hard-delete trace annotations within the named project that match the
+         *     supplied filter.
+         *
+         *     - The request must either supply both `start_time` AND `end_time`
+         *       to bound the delete to a `[start_time, end_time)` time window,
+         *       OR set `delete_all=true` to acknowledge an unbounded sweep. A request
+         *       that satisfies neither is rejected with 422.
+         *     - `name`, `identifier`, and `annotator_kind` are optional narrowing
+         *       filters; on their own they do NOT authorize the request — they only
+         *       narrow within an already-authorized request (bounded time range or
+         *       `delete_all=true`).
+         *     - All supplied filters are combined with AND. `name` and `identifier`,
+         *       when present, must be non-empty.
+         *     - `start_time` is inclusive (`>=`); `end_time` is exclusive
+         *       (`<`). When both are supplied, `start_time` must be strictly earlier
+         *       than `end_time` (else 422). A half-bounded range (only one of
+         *       the two) does NOT satisfy the gate and is rejected unless
+         *       `delete_all=true` is also set. Naive datetimes are interpreted as UTC.
+         *     - The endpoint is idempotent: a request that matches no rows still
+         *       returns 204.
+         *     - When authentication is enabled, non-admin callers can only delete rows
+         *       they own (`user_id == current_user.id`); admins delete all matching
+         *       rows.
+         */
+        delete: operations["deleteTraceAnnotations"];
         options?: never;
         head?: never;
         patch?: never;
@@ -114,7 +166,33 @@ export interface paths {
         get: operations["listSessionAnnotationsBySessionIds"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete session annotations in a project that match the supplied filter.
+         * @description Hard-delete session annotations within the named project that match the
+         *     supplied filter.
+         *
+         *     - The request must either supply both `start_time` AND `end_time`
+         *       to bound the delete to a `[start_time, end_time)` time window,
+         *       OR set `delete_all=true` to acknowledge an unbounded sweep. A request
+         *       that satisfies neither is rejected with 422.
+         *     - `name`, `identifier`, and `annotator_kind` are optional narrowing
+         *       filters; on their own they do NOT authorize the request — they only
+         *       narrow within an already-authorized request (bounded time range or
+         *       `delete_all=true`).
+         *     - All supplied filters are combined with AND. `name` and `identifier`,
+         *       when present, must be non-empty.
+         *     - `start_time` is inclusive (`>=`); `end_time` is exclusive
+         *       (`<`). When both are supplied, `start_time` must be strictly earlier
+         *       than `end_time` (else 422). A half-bounded range (only one of
+         *       the two) does NOT satisfy the gate and is rejected unless
+         *       `delete_all=true` is also set. Naive datetimes are interpreted as UTC.
+         *     - The endpoint is idempotent: a request that matches no rows still
+         *       returns 204.
+         *     - When authentication is enabled, non-admin callers can only delete rows
+         *       they own (`user_id == current_user.id`); admins delete all matching
+         *       rows.
+         */
+        delete: operations["deleteSessionAnnotations"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4073,6 +4151,67 @@ export interface operations {
             };
         };
     };
+    deleteSpanAnnotations: {
+        parameters: {
+            query?: {
+                /** @description Optional annotation name. When provided, must be non-empty and narrows the delete to annotations of that name. */
+                name?: string | null;
+                /** @description Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier. */
+                identifier?: string | null;
+                /** @description Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind. */
+                annotator_kind?: ("LLM" | "CODE" | "HUMAN") | null;
+                /** @description Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC. */
+                start_time?: string | null;
+                /** @description Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC. */
+                end_time?: string | null;
+                /** @description Opt-in flag that authorizes the request without a bounded `[start_time, end_time)` time window. When `false` (default) or absent, the request must supply both `start_time` AND `end_time` to bound the delete. When `true`, the time-range bound is waived and any other filters (`name`, `identifier`, `annotator_kind`) still narrow the delete within the project — e.g. `delete_all=true&name=X` deletes all annotations named X regardless of time. */
+                delete_all?: boolean;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Project not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid parameters */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
     listTraceAnnotationsByTraceIds: {
         parameters: {
             query?: {
@@ -4136,6 +4275,67 @@ export interface operations {
             };
         };
     };
+    deleteTraceAnnotations: {
+        parameters: {
+            query?: {
+                /** @description Optional annotation name. When provided, must be non-empty and narrows the delete to annotations of that name. */
+                name?: string | null;
+                /** @description Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier. */
+                identifier?: string | null;
+                /** @description Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind. */
+                annotator_kind?: ("LLM" | "CODE" | "HUMAN") | null;
+                /** @description Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC. */
+                start_time?: string | null;
+                /** @description Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC. */
+                end_time?: string | null;
+                /** @description Opt-in flag that authorizes the request without a bounded `[start_time, end_time)` time window. When `false` (default) or absent, the request must supply both `start_time` AND `end_time` to bound the delete. When `true`, the time-range bound is waived and any other filters (`name`, `identifier`, `annotator_kind`) still narrow the delete within the project — e.g. `delete_all=true&name=X` deletes all annotations named X regardless of time. */
+                delete_all?: boolean;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Project not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid parameters */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
     listSessionAnnotationsBySessionIds: {
         parameters: {
             query?: {
@@ -4180,6 +4380,67 @@ export interface operations {
                 };
             };
             /** @description Project or sessions not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Invalid parameters */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+        };
+    };
+    deleteSessionAnnotations: {
+        parameters: {
+            query?: {
+                /** @description Optional annotation name. When provided, must be non-empty and narrows the delete to annotations of that name. */
+                name?: string | null;
+                /** @description Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier. */
+                identifier?: string | null;
+                /** @description Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind. */
+                annotator_kind?: ("LLM" | "CODE" | "HUMAN") | null;
+                /** @description Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC. */
+                start_time?: string | null;
+                /** @description Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC. */
+                end_time?: string | null;
+                /** @description Opt-in flag that authorizes the request without a bounded `[start_time, end_time)` time window. When `false` (default) or absent, the request must supply both `start_time` AND `end_time` to bound the delete. When `true`, the time-range bound is waived and any other filters (`name`, `identifier`, `annotator_kind`) still narrow the delete within the project — e.g. `delete_all=true&name=X` deletes all annotations named X regardless of time. */
+                delete_all?: boolean;
+            };
+            header?: never;
+            path: {
+                /** @description The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters. */
+                project_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Project not found */
             404: {
                 headers: {
                     [name: string]: unknown;

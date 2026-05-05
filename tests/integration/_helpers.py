@@ -2260,6 +2260,9 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (404, "DELETE", "v1/prompts/fake-id-{}"),
     (404, "DELETE", "v1/traces/fake-id-{}"),
     (422, "DELETE", "v1/prompt_versions/fake-id-{}/tags/test-tag"),
+    (422, "DELETE", "v1/projects/fake-id-{}/span_annotations"),
+    (422, "DELETE", "v1/projects/fake-id-{}/trace_annotations"),
+    (422, "DELETE", "v1/projects/fake-id-{}/session_annotations"),
     # Bulk delete routes
     (422, "POST", "v1/sessions/delete"),
 )

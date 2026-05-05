@@ -480,6 +480,173 @@
             "description": "Invalid parameters"
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "annotations"
+        ],
+        "summary": "Delete span annotations in a project that match the supplied filter.",
+        "description": "Hard-delete span annotations within the named project that match the\nsupplied filter.\n\n- The request must either supply both `start_time` AND `end_time`\n  to bound the delete to a `[start_time, end_time)` time window,\n  OR set `delete_all=true` to acknowledge an unbounded sweep. A request\n  that satisfies neither is rejected with 422.\n- `name`, `identifier`, and `annotator_kind` are optional narrowing\n  filters; on their own they do NOT authorize the request \u2014 they only\n  narrow within an already-authorized request (bounded time range or\n  `delete_all=true`).\n- All supplied filters are combined with AND. `name` and `identifier`,\n  when present, must be non-empty.\n- `start_time` is inclusive (`>=`); `end_time` is exclusive\n  (`<`). When both are supplied, `start_time` must be strictly earlier\n  than `end_time` (else 422). A half-bounded range (only one of\n  the two) does NOT satisfy the gate and is rejected unless\n  `delete_all=true` is also set. Naive datetimes are interpreted as UTC.\n- The endpoint is idempotent: a request that matches no rows still\n  returns 204.\n- When authentication is enabled, non-admin callers can only delete rows\n  they own (`user_id == current_user.id`); admins delete all matching\n  rows.",
+        "operationId": "deleteSpanAnnotations",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional annotation name. When provided, must be non-empty and narrows the delete to annotations of that name.",
+              "title": "Name"
+            },
+            "description": "Optional annotation name. When provided, must be non-empty and narrows the delete to annotations of that name."
+          },
+          {
+            "name": "identifier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier.",
+              "title": "Identifier"
+            },
+            "description": "Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier."
+          },
+          {
+            "name": "annotator_kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "LLM",
+                    "CODE",
+                    "HUMAN"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind.",
+              "title": "Annotator Kind"
+            },
+            "description": "Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind."
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC.",
+              "title": "Start Time"
+            },
+            "description": "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC."
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC.",
+              "title": "End Time"
+            },
+            "description": "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC."
+          },
+          {
+            "name": "delete_all",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Opt-in flag that authorizes the request without a bounded `[start_time, end_time)` time window. When `false` (default) or absent, the request must supply both `start_time` AND `end_time` to bound the delete. When `true`, the time-range bound is waived and any other filters (`name`, `identifier`, `annotator_kind`) still narrow the delete within the project \u2014 e.g. `delete_all=true&name=X` deletes all annotations named X regardless of time.",
+              "default": false,
+              "title": "Delete All"
+            },
+            "description": "Opt-in flag that authorizes the request without a bounded `[start_time, end_time)` time window. When `false` (default) or absent, the request must supply both `start_time` AND `end_time` to bound the delete. When `true`, the time-range bound is waived and any other filters (`name`, `identifier`, `annotator_kind`) still narrow the delete within the project \u2014 e.g. `delete_all=true&name=X` deletes all annotations named X regardless of time."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Project not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid parameters"
+          }
+        }
       }
     },
     "/v1/projects/{project_identifier}/trace_annotations": {
@@ -662,6 +829,173 @@
             "description": "Invalid parameters"
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "annotations"
+        ],
+        "summary": "Delete trace annotations in a project that match the supplied filter.",
+        "description": "Hard-delete trace annotations within the named project that match the\nsupplied filter.\n\n- The request must either supply both `start_time` AND `end_time`\n  to bound the delete to a `[start_time, end_time)` time window,\n  OR set `delete_all=true` to acknowledge an unbounded sweep. A request\n  that satisfies neither is rejected with 422.\n- `name`, `identifier`, and `annotator_kind` are optional narrowing\n  filters; on their own they do NOT authorize the request \u2014 they only\n  narrow within an already-authorized request (bounded time range or\n  `delete_all=true`).\n- All supplied filters are combined with AND. `name` and `identifier`,\n  when present, must be non-empty.\n- `start_time` is inclusive (`>=`); `end_time` is exclusive\n  (`<`). When both are supplied, `start_time` must be strictly earlier\n  than `end_time` (else 422). A half-bounded range (only one of\n  the two) does NOT satisfy the gate and is rejected unless\n  `delete_all=true` is also set. Naive datetimes are interpreted as UTC.\n- The endpoint is idempotent: a request that matches no rows still\n  returns 204.\n- When authentication is enabled, non-admin callers can only delete rows\n  they own (`user_id == current_user.id`); admins delete all matching\n  rows.",
+        "operationId": "deleteTraceAnnotations",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional annotation name. When provided, must be non-empty and narrows the delete to annotations of that name.",
+              "title": "Name"
+            },
+            "description": "Optional annotation name. When provided, must be non-empty and narrows the delete to annotations of that name."
+          },
+          {
+            "name": "identifier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier.",
+              "title": "Identifier"
+            },
+            "description": "Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier."
+          },
+          {
+            "name": "annotator_kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "LLM",
+                    "CODE",
+                    "HUMAN"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind.",
+              "title": "Annotator Kind"
+            },
+            "description": "Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind."
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC.",
+              "title": "Start Time"
+            },
+            "description": "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC."
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC.",
+              "title": "End Time"
+            },
+            "description": "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC."
+          },
+          {
+            "name": "delete_all",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Opt-in flag that authorizes the request without a bounded `[start_time, end_time)` time window. When `false` (default) or absent, the request must supply both `start_time` AND `end_time` to bound the delete. When `true`, the time-range bound is waived and any other filters (`name`, `identifier`, `annotator_kind`) still narrow the delete within the project \u2014 e.g. `delete_all=true&name=X` deletes all annotations named X regardless of time.",
+              "default": false,
+              "title": "Delete All"
+            },
+            "description": "Opt-in flag that authorizes the request without a bounded `[start_time, end_time)` time window. When `false` (default) or absent, the request must supply both `start_time` AND `end_time` to bound the delete. When `true`, the time-range bound is waived and any other filters (`name`, `identifier`, `annotator_kind`) still narrow the delete within the project \u2014 e.g. `delete_all=true&name=X` deletes all annotations named X regardless of time."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Project not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid parameters"
+          }
+        }
       }
     },
     "/v1/projects/{project_identifier}/session_annotations": {
@@ -832,6 +1166,173 @@
               }
             },
             "description": "Project or sessions not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid parameters"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "annotations"
+        ],
+        "summary": "Delete session annotations in a project that match the supplied filter.",
+        "description": "Hard-delete session annotations within the named project that match the\nsupplied filter.\n\n- The request must either supply both `start_time` AND `end_time`\n  to bound the delete to a `[start_time, end_time)` time window,\n  OR set `delete_all=true` to acknowledge an unbounded sweep. A request\n  that satisfies neither is rejected with 422.\n- `name`, `identifier`, and `annotator_kind` are optional narrowing\n  filters; on their own they do NOT authorize the request \u2014 they only\n  narrow within an already-authorized request (bounded time range or\n  `delete_all=true`).\n- All supplied filters are combined with AND. `name` and `identifier`,\n  when present, must be non-empty.\n- `start_time` is inclusive (`>=`); `end_time` is exclusive\n  (`<`). When both are supplied, `start_time` must be strictly earlier\n  than `end_time` (else 422). A half-bounded range (only one of\n  the two) does NOT satisfy the gate and is rejected unless\n  `delete_all=true` is also set. Naive datetimes are interpreted as UTC.\n- The endpoint is idempotent: a request that matches no rows still\n  returns 204.\n- When authentication is enabled, non-admin callers can only delete rows\n  they own (`user_id == current_user.id`); admins delete all matching\n  rows.",
+        "operationId": "deleteSessionAnnotations",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional annotation name. When provided, must be non-empty and narrows the delete to annotations of that name.",
+              "title": "Name"
+            },
+            "description": "Optional annotation name. When provided, must be non-empty and narrows the delete to annotations of that name."
+          },
+          {
+            "name": "identifier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier.",
+              "title": "Identifier"
+            },
+            "description": "Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier."
+          },
+          {
+            "name": "annotator_kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "LLM",
+                    "CODE",
+                    "HUMAN"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind.",
+              "title": "Annotator Kind"
+            },
+            "description": "Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind."
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC.",
+              "title": "Start Time"
+            },
+            "description": "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC."
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC.",
+              "title": "End Time"
+            },
+            "description": "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC."
+          },
+          {
+            "name": "delete_all",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Opt-in flag that authorizes the request without a bounded `[start_time, end_time)` time window. When `false` (default) or absent, the request must supply both `start_time` AND `end_time` to bound the delete. When `true`, the time-range bound is waived and any other filters (`name`, `identifier`, `annotator_kind`) still narrow the delete within the project \u2014 e.g. `delete_all=true&name=X` deletes all annotations named X regardless of time.",
+              "default": false,
+              "title": "Delete All"
+            },
+            "description": "Opt-in flag that authorizes the request without a bounded `[start_time, end_time)` time window. When `false` (default) or absent, the request must supply both `start_time` AND `end_time` to bound the delete. When `true`, the time-range bound is waived and any other filters (`name`, `identifier`, `annotator_kind`) still narrow the delete within the project \u2014 e.g. `delete_all=true&name=X` deletes all annotations named X regardless of time."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Project not found"
           },
           "422": {
             "content": {
