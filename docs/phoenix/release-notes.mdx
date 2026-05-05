@@ -27,7 +27,7 @@ Phoenix prompts now support **provider tools** — built-in, vendor-hosted capab
 Cumulative token counts now appear directly on trace and session payloads, and three new filter-based DELETE endpoints close the rollback loop for annotation cleanup.
 
 - **Token counts** — `token_count_prompt`, `token_count_completion`, `token_count_total` on `/traces` and `/sessions`
-- **Bulk delete annotations** — `DELETE /v1/projects/{id}/{span,trace,session}_annotations` with filters by `name`, `identifier`, `annotator_kind`, and time window
+- **Bulk delete annotations** — `DELETE /v1/projects/{project_identifier}/{span,trace,session}_annotations` with filters by `name`, `identifier`, `annotator_kind`, and time window
 - **Safety guard** — every delete request must supply a bounded time window or set `delete_all=true`
 </Update>
 
