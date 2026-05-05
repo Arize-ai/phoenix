@@ -3114,6 +3114,24 @@ export interface components {
             end_time: string;
             /** Traces */
             traces: components["schemas"]["SessionTraceData"][];
+            /**
+             * Token Count Prompt
+             * @description Cumulative prompt token count across all spans in the session.
+             * @default 0
+             */
+            token_count_prompt?: number;
+            /**
+             * Token Count Completion
+             * @description Cumulative completion token count across all spans in the session.
+             * @default 0
+             */
+            token_count_completion?: number;
+            /**
+             * Token Count Total
+             * @description Cumulative total token count across all spans in the session (prompt + completion).
+             * @default 0
+             */
+            token_count_total?: number;
         };
         /** SessionNoteData */
         SessionNoteData: {
@@ -3588,6 +3606,24 @@ export interface components {
              * Format: date-time
              */
             end_time: string;
+            /**
+             * Token Count Prompt
+             * @description Cumulative prompt token count across all spans in the trace.
+             * @default 0
+             */
+            token_count_prompt?: number;
+            /**
+             * Token Count Completion
+             * @description Cumulative completion token count across all spans in the trace.
+             * @default 0
+             */
+            token_count_completion?: number;
+            /**
+             * Token Count Total
+             * @description Cumulative total token count across all spans in the trace (prompt + completion).
+             * @default 0
+             */
+            token_count_total?: number;
             /** Spans */
             spans?: components["schemas"]["TraceSpanData"][] | null;
         };

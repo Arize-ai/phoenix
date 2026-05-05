@@ -1003,6 +1003,9 @@ class SessionData(TypedDict):
     start_time: str
     end_time: str
     traces: Sequence[SessionTraceData]
+    token_count_prompt: NotRequired[int]
+    token_count_completion: NotRequired[int]
+    token_count_total: NotRequired[int]
 
 
 class Span(TypedDict):
@@ -1036,6 +1039,9 @@ class TraceData(TypedDict):
     project_id: str
     start_time: str
     end_time: str
+    token_count_prompt: NotRequired[int]
+    token_count_completion: NotRequired[int]
+    token_count_total: NotRequired[int]
     spans: NotRequired[Sequence[TraceSpanData]]
 
 

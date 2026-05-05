@@ -15,6 +15,9 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.server.api.helpers.annotations import get_note_identifier
+from phoenix.server.api.helpers.cumulative_token_count_queries import (
+    cumulative_token_counts_by_session,
+)
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
@@ -100,6 +103,20 @@ class SessionData(V1RoutesBaseModel):
     start_time: datetime
     end_time: datetime
     traces: list[SessionTraceData]
+    token_count_prompt: int = Field(
+        default=0,
+        description="Cumulative prompt token count across all spans in the session.",
+    )
+    token_count_completion: int = Field(
+        default=0,
+        description="Cumulative completion token count across all spans in the session.",
+    )
+    token_count_total: int = Field(
+        default=0,
+        description=(
+            "Cumulative total token count across all spans in the session (prompt + completion)."
+        ),
+    )
 
 
 class GetSessionResponseBody(ResponseBody[SessionData]):
@@ -155,7 +172,9 @@ def _to_trace_data(trace: models.Trace) -> SessionTraceData:
 def _to_session_data(
     project_session: models.ProjectSession,
     traces: list[models.Trace],
+    token_counts: dict[int, tuple[int, int]],
 ) -> SessionData:
+    prompt, completion = token_counts.get(project_session.id, (0, 0))
     return SessionData(
         id=str(GlobalID(ProjectSessionNodeType.__name__, str(project_session.id))),
         session_id=project_session.session_id,
@@ -163,6 +182,9 @@ def _to_session_data(
         start_time=project_session.start_time,
         end_time=project_session.end_time,
         traces=[_to_trace_data(t) for t in traces],
+        token_count_prompt=prompt,
+        token_count_completion=completion,
+        token_count_total=prompt + completion,
     )
 
 
@@ -186,7 +208,13 @@ async def get_session(
             .order_by(models.Trace.start_time.asc())
         )
         traces = list((await db_session.scalars(traces_stmt)).all())
-    data = _to_session_data(project_session, traces)
+        token_counts_rows = await db_session.execute(
+            cumulative_token_counts_by_session([project_session.id])
+        )
+        token_counts: dict[int, tuple[int, int]] = {
+            row.id_: (row.prompt, row.completion) for row in token_counts_rows
+        }
+    data = _to_session_data(project_session, traces, token_counts)
     return GetSessionResponseBody(data=data)
 
 
@@ -374,7 +402,16 @@ async def list_project_sessions(
             if trace.project_session_rowid is not None:
                 traces_by_session[trace.project_session_rowid].append(trace)
 
-        data = [_to_session_data(s, traces_by_session.get(s.id, [])) for s in sessions]
+        token_counts_rows = await db_session.execute(
+            cumulative_token_counts_by_session(session_ids)
+        )
+        token_counts: dict[int, tuple[int, int]] = {
+            row.id_: (row.prompt, row.completion) for row in token_counts_rows
+        }
+
+        data = [
+            _to_session_data(s, traces_by_session.get(s.id, []), token_counts) for s in sessions
+        ]
     return GetSessionsResponseBody(next_cursor=next_cursor, data=data)
 
 

@@ -10841,6 +10841,24 @@
             },
             "type": "array",
             "title": "Traces"
+          },
+          "token_count_prompt": {
+            "type": "integer",
+            "title": "Token Count Prompt",
+            "description": "Cumulative prompt token count across all spans in the session.",
+            "default": 0
+          },
+          "token_count_completion": {
+            "type": "integer",
+            "title": "Token Count Completion",
+            "description": "Cumulative completion token count across all spans in the session.",
+            "default": 0
+          },
+          "token_count_total": {
+            "type": "integer",
+            "title": "Token Count Total",
+            "description": "Cumulative total token count across all spans in the session (prompt + completion).",
+            "default": 0
           }
         },
         "type": "object",
@@ -11716,6 +11734,24 @@
             "type": "string",
             "format": "date-time",
             "title": "End Time"
+          },
+          "token_count_prompt": {
+            "type": "integer",
+            "title": "Token Count Prompt",
+            "description": "Cumulative prompt token count across all spans in the trace.",
+            "default": 0
+          },
+          "token_count_completion": {
+            "type": "integer",
+            "title": "Token Count Completion",
+            "description": "Cumulative completion token count across all spans in the trace.",
+            "default": 0
+          },
+          "token_count_total": {
+            "type": "integer",
+            "title": "Token Count Total",
+            "description": "Cumulative total token count across all spans in the trace (prompt + completion).",
+            "default": 0
           },
           "spans": {
             "anyOf": [

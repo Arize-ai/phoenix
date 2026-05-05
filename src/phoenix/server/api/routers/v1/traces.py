@@ -23,6 +23,9 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.server.api.helpers.annotations import get_note_identifier
+from phoenix.server.api.helpers.cumulative_token_count_queries import (
+    cumulative_token_counts_by_trace,
+)
 from phoenix.server.api.routers.v1.annotations import TraceAnnotationData
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project as ProjectNodeType
@@ -71,6 +74,20 @@ class TraceData(V1RoutesBaseModel):
     project_id: str
     start_time: datetime
     end_time: datetime
+    token_count_prompt: int = Field(
+        default=0,
+        description="Cumulative prompt token count across all spans in the trace.",
+    )
+    token_count_completion: int = Field(
+        default=0,
+        description="Cumulative completion token count across all spans in the trace.",
+    )
+    token_count_total: int = Field(
+        default=0,
+        description=(
+            "Cumulative total token count across all spans in the trace (prompt + completion)."
+        ),
+    )
     spans: Optional[list[TraceSpanData]] = None
 
 
@@ -81,14 +98,20 @@ class GetTracesResponseBody(PaginatedResponseBody[TraceData]):
 def _to_trace_data(
     trace: models.Trace,
     project_id: int,
+    token_counts: Optional[tuple[int, int]] = None,
     spans: Optional[list[TraceSpanData]] = None,
 ) -> TraceData:
+    prompt = token_counts[0] if token_counts is not None else 0
+    completion = token_counts[1] if token_counts is not None else 0
     return TraceData(
         id=str(GlobalID(TraceNodeType.__name__, str(trace.id))),
         trace_id=trace.trace_id,
         project_id=str(GlobalID(ProjectNodeType.__name__, str(project_id))),
         start_time=trace.start_time,
         end_time=trace.end_time,
+        token_count_prompt=prompt,
+        token_count_completion=completion,
+        token_count_total=prompt + completion,
         spans=spans,
     )
 
@@ -208,11 +231,17 @@ async def list_project_traces(
             next_cursor = str(GlobalID(TraceNodeType.__name__, str(last_trace.id)))
             traces = traces[:-1]
 
+        trace_rowids = [t.id for t in traces]
+
+        # Batch-fetch cumulative token counts (one query per page, not per row)
+        token_counts_by_trace: dict[int, tuple[int, int]] = {}
+        for row in (await session.execute(cumulative_token_counts_by_trace(trace_rowids))).all():
+            token_counts_by_trace[row.id_] = (row.prompt, row.completion)
+
         # Optionally batch-fetch full span details (column projection to avoid
         # loading heavy attributes/events JSON blobs that aren't in the response)
         spans_by_trace: Optional[dict[int, list[TraceSpanData]]] = None
         if include_spans:
-            trace_ids = [t.id for t in traces]
             spans_by_trace = defaultdict(list)
             spans_stmt = (
                 select(
@@ -226,7 +255,7 @@ async def list_project_traces(
                     models.Span.start_time,
                     models.Span.end_time,
                 )
-                .filter(models.Span.trace_rowid.in_(trace_ids))
+                .filter(models.Span.trace_rowid.in_(trace_rowids))
                 .order_by(models.Span.start_time.asc())
             )
             for row in (await session.execute(spans_stmt)).all():
@@ -247,7 +276,8 @@ async def list_project_traces(
             _to_trace_data(
                 t,
                 project_rowid,
-                spans_by_trace.get(t.id, []) if spans_by_trace is not None else None,
+                token_counts=token_counts_by_trace.get(t.id),
+                spans=spans_by_trace.get(t.id, []) if spans_by_trace is not None else None,
             )
             for t in traces
         ]

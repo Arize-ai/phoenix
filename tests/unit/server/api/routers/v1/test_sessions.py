@@ -589,6 +589,23 @@ class TestListProjectSessions:
         assert len(response_b.json()["data"]) == 3
 
 
+class TestSessionTokenCounts:
+    async def test_get_session_token_counts_single_trace(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, session_model, trace = await _insert_session_with_token_spans(
+            db, prompt=10, completion=20
+        )
+        response = await httpx_client.get(f"v1/sessions/{session_model.session_id}")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["token_count_prompt"] == 10
+        assert data["token_count_completion"] == 20
+        assert data["token_count_total"] == 30
+
+
 def _assert_session_data(
     data: dict[str, Any],
     project: models.Project,
@@ -650,6 +667,54 @@ async def _insert_session_with_traces(
         await session.flush()
 
     return project, project_session, traces
+
+
+async def _insert_session_with_token_spans(
+    db: DbSessionFactory,
+    prompt: int = 10,
+    completion: int = 20,
+) -> tuple[models.Project, models.ProjectSession, models.Trace]:
+    async with db() as session:
+        project = models.Project(name=token_hex(16))
+        session.add(project)
+        await session.flush()
+        now = datetime.now(timezone.utc)
+        project_session = models.ProjectSession(
+            session_id=token_hex(16),
+            project_id=project.id,
+            start_time=now,
+            end_time=now,
+        )
+        session.add(project_session)
+        await session.flush()
+        trace = models.Trace(
+            project_rowid=project.id,
+            project_session_rowid=project_session.id,
+            trace_id=token_hex(16),
+            start_time=now,
+            end_time=now,
+        )
+        session.add(trace)
+        await session.flush()
+        session.add(
+            models.Span(
+                name=token_hex(4),
+                span_id=token_hex(8),
+                parent_id=None,
+                span_kind="LLM",
+                start_time=now,
+                end_time=now,
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=prompt,
+                cumulative_llm_token_count_completion=completion,
+                attributes={},
+                trace_rowid=trace.id,
+            )
+        )
+        await session.flush()
+    return project, project_session, trace
 
 
 async def _insert_project_with_sessions(
