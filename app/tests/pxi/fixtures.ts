@@ -195,10 +195,24 @@ export class PxiDriver {
   }
 
   expectDocsToolCalled(turn: PxiTurn) {
+    // These names intentionally match Phoenix's docs tool prompt contract.
+    // If the docs tool names change, update this assertion with the prompt.
+    const docsToolNames = [
+      "search_phoenix",
+      "get_page_phoenix",
+      "query_docs_filesystem_phoenix",
+    ];
+    const hasCalledDocsTool = turn.calledTools.some((toolName) =>
+      docsToolNames.includes(toolName)
+    );
     expect(
-      turn.calledTools.length,
-      "Expected the PXI trace to include at least one backend TOOL span. In this docs smoke test, backend TOOL spans are runtime-discovered Mintlify MCP documentation tool calls."
-    ).toBeGreaterThan(0);
+      hasCalledDocsTool,
+      `Expected the PXI trace to include a documentation tool call (${docsToolNames.join(
+        ", "
+      )}). This assertion is intentionally coupled to Phoenix's current docs tool prompt contract; if those tool names change, update the smoke test alongside the prompt. Called tools: ${turn.calledTools.join(
+        ", "
+      )}`
+    ).toBe(true);
   }
 
   getMetadata() {
