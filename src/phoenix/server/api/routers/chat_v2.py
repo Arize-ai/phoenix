@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from pydantic.types import Discriminator
 from pydantic_ai import Agent, AgentRunResult, DeferredToolRequests, RunContext
+from pydantic_ai.messages import ModelMessage
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
 from pydantic_ai.ui.vercel_ai.request_types import (
     RegenerateMessage,
@@ -19,6 +20,8 @@ from phoenix.server.agents.chat_v2.dependencies import ChatDependencies
 from phoenix.server.agents.chat_v2.toolsets import build_chat_v2_toolsets
 from phoenix.server.agents.context import (
     ChatContext,
+    build_phoenix_context_user_message_content,
+    insert_context_user_message,
     resolve_contexts,
 )
 from phoenix.server.agents.exceptions import AgentError
@@ -61,6 +64,23 @@ def _build_dynamic_instructions(ctx: RunContext[ChatDependencies]) -> str | None
     return build_agent_dynamic_system_prompt(capabilities=ctx.deps.capabilities)
 
 
+def _inject_ui_context(
+    ctx: RunContext[ChatDependencies],
+    messages: list[ModelMessage],
+) -> list[ModelMessage]:
+    """Append the per-turn Phoenix UI context as a trailing user message.
+
+    Running as a history processor (rather than mutating the request body)
+    keeps the static prefix — system prompt + prior conversation history —
+    byte-identical across turns, which is the prerequisite for any
+    provider-side prompt cache to take effect.
+    """
+    return insert_context_user_message(
+        messages,
+        build_phoenix_context_user_message_content(ctx.deps.contexts),
+    )
+
+
 def _log_run_complete(result: AgentRunResult[Any]) -> None:
     """Log the full message history after a chat-v2 agent run completes."""
     messages = result.all_messages()
@@ -95,6 +115,7 @@ def create_chat_v2_router(authentication_enabled: bool) -> APIRouter:
             output_type=[str, DeferredToolRequests],
             instructions=[AGENT_STATIC_SYSTEM_PROMPT, _build_dynamic_instructions],
             toolsets=[lambda ctx: build_chat_v2_toolsets(ctx.deps)],
+            history_processors=[_inject_ui_context],
         )
         adapter: VercelAIAdapter[ChatDependencies, ChatOutput] = VercelAIAdapter(
             agent=agent,
