@@ -15,7 +15,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-27T20:06:34.476597Z"
+exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
 exclude-newer-span = "P3D"
 
 [options.exclude-newer-package]
@@ -524,6 +524,7 @@ container = [
     { name = "py-grpc-prometheus" },
     { name = "strawberry-graphql", extra = ["opentelemetry"] },
     { name = "uvloop", marker = "sys_platform != 'win32'" },
+    { name = "wasmtime" },
 ]
 daytona = [
     { name = "daytona-sdk" },
@@ -716,6 +717,7 @@ requires-dist = [
     { name = "uvicorn" },
     { name = "uvloop", marker = "sys_platform != 'win32' and extra == 'container'" },
     { name = "vercel", marker = "extra == 'vercel'", specifier = ">=0.5.1" },
+    { name = "wasmtime", marker = "extra == 'container'", specifier = ">=15.0" },
     { name = "wasmtime", marker = "extra == 'wasm'", specifier = ">=15.0" },
     { name = "websockets", marker = "extra == 'vercel'", specifier = ">=14.0" },
     { name = "wrapt", specifier = ">=1.17.2,<3" },

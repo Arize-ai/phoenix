@@ -14,8 +14,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -31,6 +33,8 @@ from .types import (
 )
 
 logger = logging.getLogger(__name__)
+
+_WASM_BINARY_PATH_ENV = "PHOENIX_WASM_BINARY_PATH"
 
 _DEFAULT_TIMEOUT_SECONDS = 30
 _EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="wasm-sandbox")
@@ -146,6 +150,22 @@ class WASMBackend(BaseNoSessionBackend):
         pass
 
 
+@dataclass(frozen=True)
+class WASMBinaryProbe:
+    """Outcome of a non-network probe for the CPython WASM binary.
+
+    ``available`` is True when a binary file is resolvable locally without any
+    download — either via ``$PHOENIX_WASM_BINARY_PATH`` (when set and the file
+    exists) or via the existing on-disk cache. ``detail`` is a human-readable
+    explanation suitable for ``SandboxBackendInfo.statusDetail``; it is None
+    when the binary is available.
+    """
+
+    available: bool
+    detail: Optional[str]
+    path: Optional[Path]
+
+
 class WASMAdapter(SandboxAdapter):
     key = "WASM"
     display_name = "WebAssembly (local)"
@@ -159,3 +179,51 @@ class WASMAdapter(SandboxAdapter):
     ) -> SandboxBackend:
         self._enforce_capabilities(config, user_env)
         return WASMBackend()
+
+    @staticmethod
+    def probe_binary() -> WASMBinaryProbe:
+        """Report whether the CPython WASM binary is locally resolvable.
+
+        This is the *capability-probe* path — it MUST NOT touch the network,
+        MUST NOT create cache files, and MUST NOT write anywhere. It is called
+        from the GraphQL ``sandboxBackends`` resolver to surface accurate
+        ``SandboxBackendStatus`` for the WASM provider, layered on top of the
+        wasmtime-importable check that ``_SANDBOX_ADAPTERS`` registration
+        already provides.
+
+        Outcomes:
+        - ``available=True`` — a binary file exists at
+          ``$PHOENIX_WASM_BINARY_PATH`` (when the env var is set) or at the
+          default cache location (when it is unset).
+        - ``available=False`` with detail
+          ``"PHOENIX_WASM_BINARY_PATH=<path> is set but the file does not exist."``
+          — the env var is set but the file is missing. The execution path
+          treats the env var as authoritative and will NOT fall back to lazy
+          download in that case, so this is the correct surfaced state.
+        - ``available=False`` with detail
+          ``"WASM binary not present locally; will download on first use."``
+          — env var unset and no cache file. Execution will succeed via
+          lazy download on first use, but operators may want to pre-warm
+          the cache to avoid a cold-start cost.
+
+        The two distinct detail strings let docs/UI link to the relevant
+        remediation per D4.
+        """
+        from phoenix.server.sandbox._download import resolve_wasm_binary_if_present
+
+        resolved = resolve_wasm_binary_if_present()
+        if resolved is not None:
+            return WASMBinaryProbe(available=True, detail=None, path=resolved)
+
+        env_path = os.environ.get(_WASM_BINARY_PATH_ENV)
+        if env_path:
+            return WASMBinaryProbe(
+                available=False,
+                detail=(f"{_WASM_BINARY_PATH_ENV}={env_path} is set but the file does not exist."),
+                path=None,
+            )
+        return WASMBinaryProbe(
+            available=False,
+            detail="WASM binary not present locally; will download on first use.",
+            path=None,
+        )

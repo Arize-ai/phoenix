@@ -55,6 +55,25 @@ RUN uv sync \
 RUN uv build
 RUN uv pip install dist/*.whl --no-deps
 
+# Pre-download the CPython WASM binary so the WASM sandbox provider works
+# inside the distroless final image without network egress or a writable
+# home cache. The URL/filename here MUST stay in sync with
+# src/phoenix/server/sandbox/_download.py (_WASM_URL / _WASM_FILENAME);
+# the env var PHOENIX_WASM_BINARY_PATH (set in the final stage) is the
+# authoritative resolver hook consumed by ensure_wasm_binary(). Uses
+# python (already present in the uv builder image) instead of curl/wget
+# so we don't add an apt-get install layer.
+RUN mkdir -p /wasm \
+  && python -c "import urllib.request; urllib.request.urlretrieve('https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm', '/wasm/python-3.12.0.wasm')"
+
+# Bundle the Deno runtime so the local DENO sandbox provider works inside
+# the distroless image. denoland/deno:bin-<version> is a scratch-based
+# image that contains a single statically-linked /deno binary, which is
+# safe to COPY into the distroless final stage without dragging in a
+# shell or libc. Pinning the version (NOT :latest) keeps builds
+# reproducible.
+FROM denoland/deno:bin-2.1.4 AS deno-binary
+
 # The production image is distroless, meaning that it is a minimal image that
 # contains only the necessary dependencies to run the application. This is
 # useful for security and performance reasons. If you need to debug the
@@ -70,6 +89,21 @@ RUN uv pip install dist/*.whl --no-deps
 FROM ${BASE_IMAGE}
 WORKDIR /phoenix
 COPY --from=backend-builder /phoenix/.venv/ ./.venv
+# Bundled local sandbox runtimes (Deno + CPython WASM). The Deno binary
+# is statically linked, so a single COPY into the distroless image keeps
+# the security/footprint properties documented in the comment block
+# above. shutil.which("deno") in src/phoenix/server/sandbox/deno_backend.py
+# resolves to /usr/local/bin/deno because /usr/local/bin is on the
+# distroless image's default PATH (inherited via the base image's ENV).
+COPY --chmod=755 --from=deno-binary /deno /usr/local/bin/deno
+COPY --from=backend-builder /wasm/python-3.12.0.wasm /opt/phoenix/wasm/python-3.12.0.wasm
+ENV PHOENIX_WASM_BINARY_PATH=/opt/phoenix/wasm/python-3.12.0.wasm
+# Ensure /usr/local/bin is on PATH so shutil.which("deno") in
+# deno_backend.py resolves to the bundled binary above. The base
+# distroless image's default PATH already includes /usr/local/bin, but
+# we set it explicitly to keep DENO discovery insensitive to base-image
+# PATH drift on future bumps.
+ENV PATH="/usr/local/bin:/usr/bin:/bin"
 ENV PYTHONPATH="/phoenix/.venv/lib/python3.13/site-packages:$PYTHONPATH"
 ENV PYTHONUNBUFFERED=1
 # Expose the Phoenix port.

@@ -222,6 +222,7 @@ container = [
   "strawberry-graphql[opentelemetry]==0.314.3",
   "uvloop; platform_system != 'Windows'",
   "aioboto3",
+  "wasmtime>=15.0",  # local WASM sandbox provider; same pin as the [wasm] extra
 ]
 
 [project.urls]
