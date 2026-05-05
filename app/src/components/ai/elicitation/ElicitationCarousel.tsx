@@ -68,8 +68,9 @@ export function ElicitationCarousel({
   onCancel,
 }: ElicitationCarouselProps) {
   const [answers, setAnswers] = useState<ElicitationAnswers>({});
-  const [freeformTexts, setFreeformTexts] =
-    useState<ElicitationFreeformTexts>({});
+  const [freeformTexts, setFreeformTexts] = useState<ElicitationFreeformTexts>(
+    {}
+  );
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(0);
   const isInitialMount = useRef(true);
