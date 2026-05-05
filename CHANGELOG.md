@@ -1,5 +1,22 @@
 # Changelog
 
+## [15.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.3.0...arize-phoenix-v15.4.0) (2026-05-05)
+
+
+### Features
+
+* **agents:** agent set_time_range tool with hardened context injection ([#13022](https://github.com/Arize-ai/phoenix/issues/13022)) ([115c08b](https://github.com/Arize-ai/phoenix/commit/115c08ba093d22ebe91dbc10d3c325fb03e39a79))
+* **agents:** ToolPart styles and subcomponents ([#12894](https://github.com/Arize-ai/phoenix/issues/12894)) ([0d4e16b](https://github.com/Arize-ai/phoenix/commit/0d4e16bcc6c93d3a1a762452730b4fdddd75f5ed))
+* **api:** add filter-based DELETE endpoints for span/trace/session annotations ([#12928](https://github.com/Arize-ai/phoenix/issues/12928)) ([12779fb](https://github.com/Arize-ai/phoenix/commit/12779fbf1db2113bcb0213932442d7b692d7eb05))
+* **rest-api:** include token counts in span/trace/session payloads ([#12926](https://github.com/Arize-ai/phoenix/issues/12926)) ([c0c0edb](https://github.com/Arize-ai/phoenix/commit/c0c0edba49f039c1ab893a3cbd51d48b2782de4c))
+* simplify trace/span status icons, use status badge in panel views ([#12972](https://github.com/Arize-ai/phoenix/issues/12972)) ([d8e3915](https://github.com/Arize-ai/phoenix/commit/d8e39153313c0ccc8cca64b1ef452344a0711f35))
+* vendor passthrough tools support ([#12533](https://github.com/Arize-ai/phoenix/issues/12533)) ([41e8fe0](https://github.com/Arize-ai/phoenix/commit/41e8fe0272752882d888d782b5023bcdf0e08ac8))
+
+
+### Bug Fixes
+
+* select traces within session view ([#12950](https://github.com/Arize-ai/phoenix/issues/12950)) ([99209e8](https://github.com/Arize-ai/phoenix/commit/99209e8f5c1c077a99c57a0603de9ddf1e9b6082))
+
 ## [15.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.2.0...arize-phoenix-v15.3.0) (2026-05-05)
 
 
