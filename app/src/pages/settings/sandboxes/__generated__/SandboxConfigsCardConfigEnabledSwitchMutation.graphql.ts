@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b4672f35491441f00dc3bdbde8b16117>>
+ * @generated SignedSource<<dfb8d81b3e841aee3814228b2438b13b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -237,13 +237,6 @@ return {
                         "alias": null,
                         "args": null,
                         "kind": "ScalarField",
-                        "name": "isSet",
-                        "storageKey": null
-                      },
-                      {
-                        "alias": null,
-                        "args": null,
-                        "kind": "ScalarField",
                         "name": "isRequired",
                         "storageKey": null
                       }
@@ -315,12 +308,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "6b15678395ce9eb44ee70c51af7e7f11",
+    "cacheID": "913db21ba8f034bf568f88dfc915ebb8",
     "id": null,
     "metadata": {},
     "name": "SandboxConfigsCardConfigEnabledSwitchMutation",
     "operationKind": "mutation",
-    "text": "mutation SandboxConfigsCardConfigEnabledSwitchMutation(\n  $input: UpdateSandboxConfigInput!\n) {\n  updateSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n    credentialSpecs {\n      key\n      displayName\n      description\n      isSet\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
+    "text": "mutation SandboxConfigsCardConfigEnabledSwitchMutation(\n  $input: UpdateSandboxConfigInput!\n) {\n  updateSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();

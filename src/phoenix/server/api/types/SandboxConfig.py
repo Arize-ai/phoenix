@@ -24,7 +24,6 @@ from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.sandbox import (
     SANDBOX_ADAPTER_METADATA,
     MissingSecretError,
-    _resolve_named_credentials,
     get_missing_sandbox_auth_detail,
     get_or_create_backend,
 )
@@ -47,12 +46,11 @@ class ConfigFieldSpecType:
 
 @strawberry.type
 class SandboxProviderCredentialSpec:
-    """GQL mirror of ProviderCredentialSpec, plus runtime resolution status."""
+    """GQL mirror of ProviderCredentialSpec."""
 
     key: str
     display_name: str
     description: str
-    is_set: bool
     is_required: bool
 
 
@@ -366,32 +364,21 @@ def _probe_wasm_binary(backend_type: str) -> Optional[str]:
     return probe.detail
 
 
-async def _build_credential_specs(
+def _build_credential_specs(
     backend_type: str,
-    session: Optional[Any],
-    decrypt: Optional[Any],
 ) -> list[SandboxProviderCredentialSpec]:
-    """Resolve credential specs into GQL types with is_set populated.
-
-    Every adapter-declared credential is treated as required (is_required=True).
-    """
+    """Mirror an adapter's credential_specs into GQL types."""
     from phoenix.server.sandbox import _SANDBOX_ADAPTERS
 
     adapter = _SANDBOX_ADAPTERS.get(backend_type)
     if adapter is None or not adapter.credential_specs:
         return []
-    keys = [spec.key for spec in adapter.credential_specs]
-    # _resolve_named_credentials already falls back to os.getenv when the DB
-    # lookup misses (or when session/decrypt are None), so resolved represents
-    # the full DB+env view.
-    resolved = await _resolve_named_credentials(session, decrypt, keys)
     return [
         SandboxProviderCredentialSpec(
             key=spec.key,
             display_name=spec.display_name,
             description=spec.description,
-            is_set=spec.key in resolved,
-            is_required=True,
+            is_required=spec.is_required,
         )
         for spec in adapter.credential_specs
     ]
@@ -454,7 +441,7 @@ async def _get_sandbox_backend_info_with_session(
                         status = SandboxBackendStatus.UNAVAILABLE
                         status_detail = str(exc)
         raw_specs = getattr(meta, "config_field_specs", [])
-        credential_specs = await _build_credential_specs(backend_type, session, decrypt)
+        credential_specs = _build_credential_specs(backend_type)
         infos.append(
             SandboxBackendInfo(
                 backend_type=backend_type,

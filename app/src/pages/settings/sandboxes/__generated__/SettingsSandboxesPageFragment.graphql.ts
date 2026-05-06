@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<46ac7b213c1828bde2ab142944fecf7c>>
+ * @generated SignedSource<<7476bb35d721b8ab7789bce19d1a5979>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -20,7 +20,6 @@ export type SettingsSandboxesPageFragment$data = {
       readonly description: string;
       readonly displayName: string;
       readonly isRequired: boolean;
-      readonly isSet: boolean;
       readonly key: string;
     }>;
     readonly dependenciesLanguage: Language | null;
@@ -200,13 +199,6 @@ return {
               "alias": null,
               "args": null,
               "kind": "ScalarField",
-              "name": "isSet",
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
               "name": "isRequired",
               "storageKey": null
             }
@@ -275,6 +267,6 @@ return {
 };
 })();
 
-(node as any).hash = "cb16b4155368e327356016c1ff3465dd";
+(node as any).hash = "ecf4493da709473f1f05e97b6ab7e787";
 
 export default node;

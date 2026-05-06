@@ -555,9 +555,7 @@ async def get_missing_sandbox_auth_detail(
     if backend_type == "MODAL":
         modal_keys = ["MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET"]
         resolved = await _resolve_named_credentials(session, decrypt, modal_keys)
-        missing_modal_keys = [
-            key for key in modal_keys if key not in resolved and not os.getenv(key)
-        ]
+        missing_modal_keys = [key for key in modal_keys if key not in resolved]
         if not missing_modal_keys:
             return None
         return f"Set {_format_required_keys(missing_modal_keys)}."
@@ -729,12 +727,11 @@ except ImportError:
 
 _PHOENIX_RESERVED_CREDENTIAL_ONLY_KEYS: frozenset[str] = frozenset(
     {
-        # Reservation-only names: NOT settable via setSandboxCredential mutation.
-        # Contrast with SandboxAdapter.credential_specs (adapter-declared, settable
-        # via mutation). RESERVED_CREDENTIAL_NAMES is the derived union of both.
-        # Modal remains env-var-only, so reserve its names explicitly.
-        "MODAL_TOKEN_ID",
-        "MODAL_TOKEN_SECRET",
+        # Reservation-only names: reserved against user env_var / config-key
+        # collisions even though they are not exposed via the credentials UI.
+        # Adapter-declared credential_specs are unioned in by
+        # _build_reserved_credential_names — this set is only for keys that
+        # are NOT advertised through credential_specs.
         # VERCEL_OIDC_TOKEN is read by the Vercel SDK directly from os.environ.
         # We no longer surface it in the UI (only the access-token triple is
         # configurable), but it must stay reserved so a user-supplied env_var

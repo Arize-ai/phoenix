@@ -64,7 +64,6 @@ function SettingsSandboxesPageContent({
             key
             displayName
             description
-            isSet
             isRequired
           }
         }
@@ -107,18 +106,16 @@ function SettingsSandboxesPageContent({
           row.backend != null
       )
       .sort((a, b) => {
-        // any provider with (local) in the name should be first
-        if (
-          a.backend.displayName.includes("(local)") &&
-          !b.backend.displayName.includes("(local)")
-        )
-          return -1;
-        if (
-          !a.backend.displayName.includes("(local)") &&
-          b.backend.displayName.includes("(local)")
-        )
-          return 1;
-        return 0;
+        // Local providers first, then alphabetical by display name, then by
+        // language for stable ordering when two providers share a name.
+        const aLocal = a.backend.displayName.includes("(local)") ? 0 : 1;
+        const bLocal = b.backend.displayName.includes("(local)") ? 0 : 1;
+        if (aLocal !== bLocal) return aLocal - bLocal;
+        const nameCmp = a.backend.displayName.localeCompare(
+          b.backend.displayName
+        );
+        if (nameCmp !== 0) return nameCmp;
+        return a.provider.language.localeCompare(b.provider.language);
       }) satisfies ProviderRow[];
   }, [data.sandboxBackends, data.sandboxProviders]);
 

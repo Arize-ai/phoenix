@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1a29b8ffa9bdd678d955d836edc23282>>
+ * @generated SignedSource<<6c18fc33d917bf8ade66ce1c90a65da2>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -171,13 +171,6 @@ return {
                 "alias": null,
                 "args": null,
                 "kind": "ScalarField",
-                "name": "isSet",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
                 "name": "isRequired",
                 "storageKey": null
               }
@@ -243,16 +236,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "473b4083ba2ad067722fe44ea0aa312b",
+    "cacheID": "cd9fbbdf0396ecc309ca3d5d25ac79b7",
     "id": null,
     "metadata": {},
     "name": "SettingsSandboxesPageRefetchQuery",
     "operationKind": "query",
-    "text": "query SettingsSandboxesPageRefetchQuery {\n  ...SettingsSandboxesPageFragment\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n    credentialSpecs {\n      key\n      displayName\n      description\n      isSet\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
+    "text": "query SettingsSandboxesPageRefetchQuery {\n  ...SettingsSandboxesPageFragment\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "cb16b4155368e327356016c1ff3465dd";
+(node as any).hash = "ecf4493da709473f1f05e97b6ab7e787";
 
 export default node;

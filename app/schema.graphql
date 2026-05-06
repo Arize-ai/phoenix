@@ -3184,7 +3184,6 @@ type SandboxProviderCredentialSpec {
   key: String!
   displayName: String!
   description: String!
-  isSet: Boolean!
   isRequired: Boolean!
 }
 

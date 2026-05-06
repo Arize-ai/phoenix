@@ -309,6 +309,7 @@ function CredentialsForm({
       <DialogFooter>
         {existingKeys.length > 0 ? (
           <Button
+            type="button"
             variant="danger"
             size="M"
             isDisabled={isCommitting}
