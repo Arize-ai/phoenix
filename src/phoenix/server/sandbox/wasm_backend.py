@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
-    import wasmtime  # type: ignore[import-not-found]
+    import wasmtime
 
 from .types import (
     BaseNoSessionBackend,
