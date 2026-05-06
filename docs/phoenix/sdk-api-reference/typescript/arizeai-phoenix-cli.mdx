@@ -71,6 +71,119 @@ px trace list ./my-traces --limit 50
 
 CLI flags take priority over environment variables.
 
+## Profiles
+
+**Available in `@arizeai/phoenix-cli` 1.4.0+**
+
+Named profiles bundle an endpoint, project, API key, and custom headers under a single name (like `prod` or `staging`) so you can switch between Phoenix instances without re-exporting environment variables.
+
+Profiles are stored in `~/.px/settings.json` (or `$XDG_CONFIG_HOME/px/settings.json`) with file mode `0600`. API keys are stored verbatim but never echoed back through the CLI — they appear as a fixed-width mask in `profile show` and `profile list` output.
+
+### Resolution order
+
+The active profile slots into the existing config chain:
+
+```text
+built-in defaults → active profile → environment variables → CLI flags
+```
+
+Higher-precedence sources override lower ones. Existing scripts that set `PHOENIX_HOST` / `PHOENIX_API_KEY` keep working unchanged — env vars override the active profile.
+
+### `px profile create <name>`
+
+Create a new profile.
+
+```bash
+px profile create prod \
+  --endpoint https://prod.phoenix.example.com \
+  --project main \
+  --api-key sk-xxx \
+  --activate
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `<name>` | Profile name (alphanumeric, hyphens, underscores) | — |
+| `--endpoint <url>` | Phoenix API endpoint | — |
+| `--project <name>` | Default project name | — |
+| `--api-key <key>` | Phoenix API key (stored at mode `0600`; never echoed back) | — |
+| `--header <key=value>` | Custom HTTP header (repeatable) | — |
+| `--activate` | Make this the active profile after creation | Off |
+
+### `px profile list`
+
+List all profiles. The active profile is marked in a `current` column (kubectl-style).
+
+```bash
+px profile list
+px profile list --format json
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--format <format>` | Output format: `pretty`, `json`, or `raw` | `pretty` |
+
+### `px profile show [name]`
+
+Show a profile (defaults to the active one). Read `~/.px/settings.json` directly if you need the unmasked API key value for a script.
+
+```bash
+px profile show           # active profile
+px profile show staging   # specific profile
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `[name]` | Profile name | active profile |
+| `--format <format>` | Output format: `pretty`, `json`, or `raw` | `pretty` |
+
+### `px profile use <name>`
+
+Set the active profile. Reports the transition (`Switched active profile: staging → prod`); a no-op if the profile is already active.
+
+```bash
+px profile use prod
+```
+
+### `px profile edit <name>`
+
+Open a profile in `$EDITOR` (or `$PHOENIX_EDITOR` if set). The CLI validates the JSON on save and re-opens the editor on validation failure. Edits are discarded if the editor exits non-zero.
+
+```bash
+px profile edit prod
+```
+
+### `px profile delete <name>`
+
+Delete a profile. Deleting the active profile leaves no profile active — set a new one with `px profile use <name>`.
+
+```bash
+px profile delete staging
+px profile delete staging --yes  # skip confirmation
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--yes` | Skip the confirmation prompt | — |
+
+### Editor autocomplete via JSON Schema
+
+`@arizeai/phoenix-cli` publishes a JSON Schema for the settings file. Add a `$schema` key to enable autocomplete and validation in editors that support JSON Schema:
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/Arize-ai/phoenix/main/schemas/phoenix-cli-settings.json",
+  "activeProfile": "prod",
+  "profiles": {
+    "prod": {
+      "endpoint": "https://prod.phoenix.example.com",
+      "apiKey": "...",
+      "project": "production"
+    }
+  }
+}
+```
+
 ## Commands
 
 ### `px project list`
