@@ -83,6 +83,7 @@ interface SessionAnnotateOptions {
   score?: string;
   explanation?: string;
   annotatorKind?: string;
+  identifier?: string;
 }
 
 interface SessionAddNoteOptions {
@@ -91,6 +92,7 @@ interface SessionAddNoteOptions {
   format?: NoteMutationOutputFormat;
   progress?: boolean;
   text?: string;
+  identifier?: string;
 }
 
 /**
@@ -670,7 +672,7 @@ async function sessionAnnotateHandler(
         score: annotationInput.score ?? undefined,
         explanation: annotationInput.explanation ?? undefined,
         annotatorKind: annotationInput.annotatorKind,
-        identifier: "",
+        identifier: options.identifier ?? "",
       },
     });
 
@@ -713,6 +715,10 @@ export function createSessionAnnotateCommand(): Command {
       "--annotator-kind <kind>",
       "Annotator kind: HUMAN, LLM, or CODE",
       "HUMAN"
+    )
+    .option(
+      "--identifier <string>",
+      "Optional caller-supplied annotation identifier. Repeated calls with the same identifier overwrite the existing annotation. Default: empty string (server-side default)."
     )
     .option(
       "--format <format>",
@@ -774,6 +780,9 @@ async function sessionAddNoteHandler(
       sessionNote: {
         sessionId: session.session_id,
         note: text,
+        ...(options.identifier !== undefined && {
+          identifier: options.identifier,
+        }),
       },
     });
 
@@ -805,6 +814,10 @@ export function createSessionAddNoteCommand(): Command {
     .option("--endpoint <url>", "Phoenix API endpoint")
     .option("--api-key <key>", "Phoenix API key for authentication")
     .option("--text <text>", "Note text")
+    .option(
+      "--identifier <string>",
+      "Optional caller-supplied note identifier. Repeated calls with the same identifier overwrite the existing note. When omitted, the server stamps a unique 'px-session-note:<uuid>' identifier so each call appends a new note."
+    )
     .option(
       "--format <format>",
       "Output format: pretty, json, or raw",

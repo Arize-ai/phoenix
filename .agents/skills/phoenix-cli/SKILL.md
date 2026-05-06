@@ -55,6 +55,8 @@ Always use `--format raw --no-progress` when piping to `jq`.
 | Look at sampled traces and write specific notes about what went wrong (no taxonomy yet) | [references/open-coding](references/open-coding.md) |
 | Group those notes into a structured failure taxonomy and quantify what matters | [references/axial-coding](references/axial-coding.md) |
 
+Both stages tag every artifact with one shared `PHOENIX_CODING_SESSION_ID` (shape `px-coding-session:<8-char>`) so the run is queryable, reversible, and viewable as a unit. Source the helper from [references/open-coding.md](references/open-coding.md#coding-session-helper-run-this-first), call `coding_session_start` once, run open coding then axial coding in the same shell, then `coding_session_end` to print the Phoenix UI URL (or `coding_session_end --revert` to delete every artifact this run produced).
+
 ## Workflows
 
 **"What do I do after instrumenting?" / "Where do I focus?" / "What's going wrong?"**
@@ -94,7 +96,9 @@ px trace get <trace-id> --format raw | jq '.spans[] | select(.status_code != "OK
 px trace get <trace-id> --include-notes --format raw | jq '.notes'
 px trace annotate <trace-id> --name reviewer --label pass
 px trace annotate <trace-id> --name reviewer --score 0.9 --format raw --no-progress
+px trace annotate <trace-id> --name reviewer --label pass --identifier "$PHOENIX_CODING_SESSION_ID"  # tag with a coding session
 px trace add-note <trace-id> --text "needs follow-up"
+px trace add-note <trace-id> --text "needs follow-up" --identifier "$PHOENIX_CODING_SESSION_ID"      # tag + upsert on identifier
 ```
 
 ### Trace JSON shape
@@ -147,7 +151,9 @@ px span list output.json --limit 100                       # save to JSON file
 px span list --format raw --no-progress | jq '.[] | select(.status_code == "ERROR")'
 px span annotate <span-id> --name reviewer --label pass
 px span annotate <span-id> --name checker --score 1 --annotator-kind CODE
+px span annotate <span-id> --name reviewer --label pass --identifier "$PHOENIX_CODING_SESSION_ID"  # tag with a coding session
 px span add-note <span-id> --text "verified by agent"
+px span add-note <span-id> --text "verified by agent" --identifier "$PHOENIX_CODING_SESSION_ID"    # tag + upsert on identifier
 ```
 
 ### Span JSON shape
@@ -183,7 +189,9 @@ px session get <session-id> --include-annotations --format raw | jq '.session.an
 px session get <session-id> --include-notes --format raw | jq '.session.notes'
 px session annotate <session-id> --name reviewer --label pass
 px session annotate <session-id> --name reviewer --score 0.9 --format raw --no-progress
+px session annotate <session-id> --name reviewer --label pass --identifier "$PHOENIX_CODING_SESSION_ID"  # tag with a coding session
 px session add-note <session-id> --text "verified by agent"
+px session add-note <session-id> --text "verified by agent" --identifier "$PHOENIX_CODING_SESSION_ID"    # tag + upsert on identifier
 ```
 
 ### Session JSON shape

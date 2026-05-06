@@ -573,7 +573,7 @@ export interface paths {
         put?: never;
         /**
          * Create a trace note
-         * @description Add a note annotation to a trace. Each call appends a new note with an auto-generated UUIDv4 identifier, so multiple notes accumulate on the same trace. Structured annotations, by contrast, are keyed by (name, trace_id, identifier) — re-writing the same key overwrites the existing annotation, so to keep multiple structured annotations with the same name on a trace you must supply distinct identifiers.
+         * @description Add a note annotation to a trace. By default each call appends a new note with an auto-generated UUIDv4 identifier, so multiple notes accumulate on the same trace. Callers may supply a non-empty `identifier` to upsert on (trace_id, name='note', identifier) — repeated calls with the same identifier overwrite the existing note, matching the semantics of structured annotations.
          */
         post: operations["createTraceNote"];
         delete?: never;
@@ -678,7 +678,7 @@ export interface paths {
         put?: never;
         /**
          * Create a span note
-         * @description Add a note annotation to a span. Each call appends a new note with an auto-generated UUIDv4 identifier, so multiple notes accumulate on the same span. Structured annotations, by contrast, are keyed by (name, span_id, identifier) — re-writing the same key overwrites the existing annotation, so to keep multiple structured annotations with the same name on a span you must supply distinct identifiers.
+         * @description Add a note annotation to a span. By default each call appends a new note with an auto-generated UUIDv4 identifier, so multiple notes accumulate on the same span. Callers may supply a non-empty `identifier` to upsert on (span_id, name='note', identifier) — repeated calls with the same identifier overwrite the existing note, matching the semantics of structured annotations.
          */
         post: operations["createSpanNote"];
         delete?: never;
@@ -1029,7 +1029,7 @@ export interface paths {
         put?: never;
         /**
          * Create a session note
-         * @description Add a note annotation to a session. Each call appends a new note with an auto-generated UUIDv4 identifier, so multiple notes accumulate on the same session. Structured annotations, by contrast, are keyed by (name, session_id, identifier) — re-writing the same key overwrites the existing annotation, so to keep multiple structured annotations with the same name on a session you must supply distinct identifiers.
+         * @description Add a note annotation to a session. By default each call appends a new note with an auto-generated UUIDv4 identifier, so multiple notes accumulate on the same session. Callers may supply a non-empty `identifier` to upsert on (session_id, name='note', identifier) — repeated calls with the same identifier overwrite the existing note, matching the semantics of structured annotations.
          */
         post: operations["createSessionNote"];
         delete?: never;
@@ -3235,6 +3235,12 @@ export interface components {
              * @description The note text to add to the session
              */
             note: string;
+            /**
+             * Identifier
+             * @description Optional caller-supplied identifier. When non-empty, the note is upserted on (session_id, name='note', identifier) — repeated calls with the same identifier overwrite the existing note. When omitted or empty, the server stamps a unique 'px-session-note:<uuid>' identifier so each call appends a new note.
+             * @default
+             */
+            identifier?: string;
         };
         /** SessionTraceData */
         SessionTraceData: {
@@ -3528,6 +3534,12 @@ export interface components {
              * @description The note text to add to the span
              */
             note: string;
+            /**
+             * Identifier
+             * @description Optional caller-supplied identifier. When non-empty, the note is upserted on (span_id, name='note', identifier) — repeated calls with the same identifier overwrite the existing note. When omitted or empty, the server stamps a unique 'px-span-note:<uuid>' identifier so each call appends a new note.
+             * @default
+             */
+            identifier?: string;
         };
         /** SpansResponseBody */
         SpansResponseBody: {
@@ -3729,6 +3741,12 @@ export interface components {
              * @description The note text to add to the trace
              */
             note: string;
+            /**
+             * Identifier
+             * @description Optional caller-supplied identifier. When non-empty, the note is upserted on (trace_id, name='note', identifier) — repeated calls with the same identifier overwrite the existing note. When omitted or empty, the server stamps a unique 'px-trace-note:<uuid>' identifier so each call appends a new note.
+             * @default
+             */
+            identifier?: string;
         };
         /** TraceSpanData */
         TraceSpanData: {

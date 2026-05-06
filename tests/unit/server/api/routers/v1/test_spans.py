@@ -188,6 +188,45 @@ async def test_rest_create_multiple_span_notes(
     )
 
 
+async def test_rest_create_span_note_with_identifier_upserts(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+    fake: Faker,
+) -> None:
+    """Two POSTs sharing the same caller-supplied identifier produce a single row whose
+    content reflects the latest call.
+    """
+    identifier = "px-coding-session:test-upsert"
+    first_note, second_note = fake.pystr(), fake.pystr()
+
+    for note_text in (first_note, second_note):
+        response = await httpx_client.post(
+            "v1/span_notes",
+            json={
+                "data": {
+                    "span_id": "7e2f08cb43bbf521",
+                    "note": note_text,
+                    "identifier": identifier,
+                }
+            },
+        )
+        assert response.status_code == 200
+
+    async with db() as session:
+        annotations = list(
+            (
+                await session.scalars(
+                    select(models.SpanAnnotation).where(models.SpanAnnotation.name == "note")
+                )
+            ).all()
+        )
+
+    assert len(annotations) == 1
+    assert annotations[0].identifier == identifier
+    assert annotations[0].explanation == second_note
+
+
 @pytest.fixture
 def span_factory() -> Callable[..., models.Span]:
     """Factory for creating spans with sensible defaults."""

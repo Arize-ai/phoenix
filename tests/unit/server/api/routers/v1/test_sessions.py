@@ -437,6 +437,44 @@ class TestCreateSessionNote:
 
         assert response.status_code == 422
 
+    async def test_rest_create_session_note_with_identifier_upserts(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        _, session_model, _ = await _insert_session_with_traces(db)
+        identifier = "px-coding-session:test-upsert"
+        first_note, second_note = "first observation", "second observation"
+
+        for note_text in (first_note, second_note):
+            response = await httpx_client.post(
+                "v1/session_notes",
+                json={
+                    "data": {
+                        "session_id": session_model.session_id,
+                        "note": note_text,
+                        "identifier": identifier,
+                    }
+                },
+            )
+            assert response.status_code == 200
+
+        async with db() as session:
+            annotations = list(
+                (
+                    await session.scalars(
+                        select(models.ProjectSessionAnnotation).where(
+                            models.ProjectSessionAnnotation.project_session_id == session_model.id,
+                            models.ProjectSessionAnnotation.name == "note",
+                        )
+                    )
+                ).all()
+            )
+
+        assert len(annotations) == 1
+        assert annotations[0].identifier == identifier
+        assert annotations[0].explanation == second_note
+
 
 class TestListProjectSessions:
     async def test_list_sessions_for_project_by_name(

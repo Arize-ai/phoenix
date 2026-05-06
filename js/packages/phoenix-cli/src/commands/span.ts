@@ -73,6 +73,7 @@ interface SpanAnnotateOptions {
   score?: string;
   explanation?: string;
   annotatorKind?: string;
+  identifier?: string;
 }
 
 interface SpanAddNoteOptions {
@@ -81,6 +82,7 @@ interface SpanAddNoteOptions {
   format?: NoteMutationOutputFormat;
   progress?: boolean;
   text?: string;
+  identifier?: string;
 }
 
 /**
@@ -447,7 +449,7 @@ async function spanAnnotateHandler(
             name: annotationInput.name,
             annotator_kind: annotationInput.annotatorKind,
             result: annotationInput.result,
-            identifier: "",
+            identifier: options.identifier ?? "",
           },
         ],
       },
@@ -496,6 +498,10 @@ export function createSpanAnnotateCommand(): Command {
     .option("--explanation <text>", "Annotation explanation")
     .option("--annotator-kind <kind>", "Annotation kind: HUMAN, LLM, or CODE")
     .option(
+      "--identifier <string>",
+      "Optional caller-supplied annotation identifier. Repeated calls with the same identifier overwrite the existing annotation. Default: empty string (server-side default)."
+    )
+    .option(
       "--format <format>",
       "Output format: pretty, json, or raw",
       "pretty"
@@ -541,6 +547,9 @@ async function spanAddNoteHandler(
       spanNote: {
         spanId,
         note: noteText,
+        ...(options.identifier !== undefined && {
+          identifier: options.identifier,
+        }),
       },
     });
 
@@ -572,6 +581,10 @@ export function createSpanAddNoteCommand(): Command {
     .option("--endpoint <url>", "Phoenix API endpoint")
     .option("--api-key <key>", "Phoenix API key for authentication")
     .option("--text <text>", "Note text")
+    .option(
+      "--identifier <string>",
+      "Optional caller-supplied note identifier. Repeated calls with the same identifier overwrite the existing note. When omitted, the server stamps a unique 'px-span-note:<uuid>' identifier so each call appends a new note."
+    )
     .option(
       "--format <format>",
       "Output format: pretty, json, or raw",

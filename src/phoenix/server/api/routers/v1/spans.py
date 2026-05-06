@@ -1185,6 +1185,16 @@ class SpanNoteData(V1RoutesBaseModel):
     note: Annotated[str, BeforeValidator(lambda v: v.strip() if isinstance(v, str) else v)] = Field(
         min_length=1, description="The note text to add to the span"
     )
+    identifier: str = Field(
+        default="",
+        description=(
+            "Optional caller-supplied identifier. When non-empty, the note is upserted "
+            "on (span_id, name='note', identifier) — repeated calls with the same "
+            "identifier overwrite the existing note. When omitted or empty, the server "
+            "stamps a unique 'px-span-note:<uuid>' identifier so each call appends a "
+            "new note."
+        ),
+    )
 
 
 class CreateSpanNoteRequestBody(RequestBody[SpanNoteData]):
@@ -1205,12 +1215,12 @@ class CreateSpanNoteResponseBody(ResponseBody[InsertedSpanAnnotation]):
     operation_id="createSpanNote",
     summary="Create a span note",
     description=(
-        "Add a note annotation to a span. Each call appends a new note with an "
-        "auto-generated UUIDv4 identifier, so multiple notes accumulate on the same "
-        "span. Structured annotations, by contrast, are keyed by (name, span_id, "
-        "identifier) — re-writing the same key overwrites the existing annotation, "
-        "so to keep multiple structured annotations with the same name on a span you "
-        "must supply distinct identifiers."
+        "Add a note annotation to a span. By default each call appends a new note "
+        "with an auto-generated UUIDv4 identifier, so multiple notes accumulate on "
+        "the same span. Callers may supply a non-empty `identifier` to upsert on "
+        "(span_id, name='note', identifier) — repeated calls with the same "
+        "identifier overwrite the existing note, matching the semantics of "
+        "structured annotations."
     ),
     responses=add_errors_to_responses([{"status_code": 404, "description": "Span not found"}]),
     response_description="Span note created successfully",
@@ -1225,9 +1235,14 @@ async def create_span_note(
 
     Notes are a special type of annotation that:
     - Have the fixed name "note"
-    - Use a UUIDv4 identifier to allow multiple notes per span
     - Are always created with annotator_kind="HUMAN" and source="API"
     - Store the note text in the explanation field
+
+    When the caller supplies a non-empty ``identifier``, the row is upserted on
+    (span_rowid, name='note', identifier) — repeated calls with the same
+    identifier overwrite the existing note. When omitted or empty, the server
+    stamps a unique ``px-span-note:<uuid>`` identifier so each call appends a
+    new note.
     """
     note_data = request_body.data
 
@@ -1247,7 +1262,7 @@ async def create_span_note(
                 detail=f"Span with ID {note_data.span_id} not found",
             )
 
-        note_identifier = get_note_identifier("px-span-note")
+        note_identifier = note_data.identifier or get_note_identifier("px-span-note")
 
         # Create the annotation values
         values = {
@@ -1263,10 +1278,22 @@ async def create_span_note(
             "user_id": user_id,
         }
 
-        # Insert the annotation
-        result = await session.execute(
-            sa.insert(models.SpanAnnotation).values(**values).returning(models.SpanAnnotation.id)
-        )
+        if note_data.identifier:
+            dialect = SupportedSQLDialect(session.bind.dialect.name)
+            result = await session.execute(
+                insert_on_conflict(
+                    values,
+                    dialect=dialect,
+                    table=models.SpanAnnotation,
+                    unique_by=("name", "span_rowid", "identifier"),
+                ).returning(models.SpanAnnotation.id)
+            )
+        else:
+            result = await session.execute(
+                sa.insert(models.SpanAnnotation)
+                .values(**values)
+                .returning(models.SpanAnnotation.id)
+            )
         annotation_id = result.scalar_one()
 
     # Put event on queue after successful insert

@@ -16,6 +16,13 @@ export interface TraceNote {
    * The note text to add to the trace.
    */
   note: string;
+  /**
+   * Optional caller-supplied identifier. When non-empty, the note is upserted
+   * on `(traceId, name='note', identifier)` — repeated calls with the same
+   * identifier overwrite the existing note. When omitted, the server stamps a
+   * unique `px-trace-note:<uuid>` identifier so each call appends a new note.
+   */
+  identifier?: string;
 }
 
 /**
@@ -59,6 +66,9 @@ export async function addTraceNote({
       data: {
         trace_id: traceNote.traceId.trim(),
         note: traceNote.note,
+        ...(traceNote.identifier !== undefined && {
+          identifier: traceNote.identifier,
+        }),
       },
     },
   });

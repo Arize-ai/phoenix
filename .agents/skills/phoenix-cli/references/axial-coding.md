@@ -4,17 +4,29 @@ Group open-ended observations into structured failure taxonomies. Axial coding t
 
 **Reach for this whenever** the user has observations and needs structure — e.g., "what categories of failures do we have", "what should I build evals for", "how do I prioritize fixes", "group these notes", "MECE breakdown", or any framing that asks for categories or counts grounded in real traces rather than invented top-down.
 
+## Coding session helper (reuse the open-coding session)
+
+Axial coding shares one identifier with open coding so a single revert / single UI link covers both stages. **Use the same shell that ran open coding** — the `PHOENIX_CODING_SESSION_ID` env var is already exported and every `annotate` call below should pass `--identifier "$PHOENIX_CODING_SESSION_ID"`.
+
+If you're starting axial coding fresh in a new shell (e.g., resuming on a different machine), source the helper from [open-coding.md](open-coding.md#coding-session-helper-run-this-first) and either:
+
+- Set the existing id manually: `export PHOENIX_CODING_SESSION_ID=px-coding-session:<short>` — pulled from a previous `coding_session_id` invocation or from the URL `coding_session_end` printed at the end of open coding.
+- Mint a new id with `coding_session_start` — but the resulting axial-coding rows won't share an identifier with the open-coding notes from the prior shell, so the "list everything in one call" and "revert in one call" guarantees collapse.
+
 ## Choosing the unit
 
-Open-coding notes are usually **trace-level** (see [open-coding.md#choosing-the-unit](open-coding.md#choosing-the-unit)) — examples below lead with `px trace` and fall back to `px span` for span-level notes. **An axial label can live at a different level than the note that informed it** — that's a feature: a trace-level note "answered shipping when asked returns" can produce a span-level annotation on the retrieval span once a pattern reveals retrieval as the consistent culprit. Re-attribution at axial coding time is what axial coding *is*. Session-level rollups go through REST `/v1/projects/{id}/session_annotations` (no CLI write path).
+Open-coding notes are usually **trace-level** (see [open-coding.md#choosing-the-unit](open-coding.md#choosing-the-unit)) — examples below lead with `px trace` and fall back to `px span` for span-level notes. **An axial label can live at a different level than the note that informed it** — that's a feature: a trace-level note "answered shipping when asked returns" can produce a span-level annotation on the retrieval span once a pattern reveals retrieval as the consistent culprit. Re-attribution at axial coding time is what axial coding *is*. Whichever level you write the axial label on, write the sidecar on the same entity (see [Sidecar](#sidecar-annotation) below) so the UI link picks it up.
+
+Default placement: trace-level for both the `axial_coding_category` annotation and its sidecar. Drop to span when the pattern implicates a specific component; reach for session only when the category is genuinely cross-trace.
 
 ## Process
 
-1. **Gather** — Collect open-coding notes from the entities you reviewed (trace-level by default)
-2. **Pattern** — Group notes with common themes
-3. **Name** — Create actionable category names
-4. **Attribute** — Decide what level each category lives at; an axial label can move from the note's level to the component the pattern implicates
-5. **Quantify** — Count failures per category
+1. **Confirm the session id** — run `coding_session_id` to make sure `PHOENIX_CODING_SESSION_ID` is still exported from open coding
+2. **Gather** — Collect open-coding notes from the entities you reviewed (trace-level by default), filtered to this session via `?identifier=$PHOENIX_CODING_SESSION_ID`
+3. **Pattern** — Group notes with common themes
+4. **Name** — Create actionable category names
+5. **Attribute** — Decide what level each category lives at; an axial label can move from the note's level to the component the pattern implicates
+6. **Quantify** — Count failures per category
 
 ## Example Taxonomy
 
@@ -39,23 +51,33 @@ failure_taxonomy:
 
 ## Reading
 
-### 1. Gather — extract open-coding notes
+### 1. Gather — extract this session's open-coding notes
 
-Open-coding notes are stored as annotations with `name="note"` and are only returned when `--include-notes` is passed. Use `--include-annotations` instead and you will get structured annotations but **not** notes — the server excludes notes from the annotations array.
+Open-coding notes are stored as annotations with `name="note"` and the session identifier you set via `add-note --identifier`. Filter the project's notes endpoint by that identifier to read back exactly the rows this session produced:
 
 ```bash
-# Trace-level notes (default for open coding)
-px trace list --include-notes --format raw --no-progress | jq '
-  [ .[] | select((.notes // []) | length > 0) ]
-  | map({ trace_id: .traceId, notes: [ .notes[].result.explanation ] })
-'
+# Trace-level notes from this session (default for open coding)
+px api rest GET "/v1/projects/$PHOENIX_PROJECT/trace_annotations" \
+  --query "identifier=$PHOENIX_CODING_SESSION_ID" \
+  --query 'limit=1000' \
+  --format raw --no-progress \
+  | jq '
+    [ .data[] | select(.name == "note") ]
+    | map({ trace_id, note: .result.explanation })
+  '
 
-# Span-level notes (when open coding dropped to span for mechanical failures)
-px span list --include-notes --format raw --no-progress | jq '
-  [ .[] | select((.notes // []) | length > 0) ]
-  | map({ span_id: .context.span_id, notes: [ .notes[].result.explanation ] })
-'
+# Span-level notes from this session (when open coding dropped to span)
+px api rest GET "/v1/projects/$PHOENIX_PROJECT/span_annotations" \
+  --query "identifier=$PHOENIX_CODING_SESSION_ID" \
+  --query 'limit=1000' \
+  --format raw --no-progress \
+  | jq '
+    [ .data[] | select(.name == "note") ]
+    | map({ span_id, note: .result.explanation })
+  '
 ```
+
+If you need notes from outside this session (older runs, shared notes from another reviewer), drop the identifier filter — `px trace list --include-notes` and `px span list --include-notes` still work as in the pre-session world.
 
 ### 2. Group — synthesize categories
 
@@ -63,73 +85,107 @@ Review the note text collected above. Manually identify recurring themes and dra
 
 ### 3. Record — write axial-coding annotations
 
-Write one annotation per entity using `px trace annotate` or `px span annotate`. The level can differ from where the source note lives — see the **Recording** section below.
+Write one annotation per entity using `px trace annotate` or `px span annotate`. Pass `--identifier "$PHOENIX_CODING_SESSION_ID"` on every call so the row shares the session identifier (which both makes it queryable in one call and makes a re-run within the same session **upsert** instead of producing a second row). The level can differ from where the source note lives — see the **Recording** section below.
 
-### 4. Quantify — count per category
+### 4. Quantify — count per category, scoped to this session
 
-After recording, use `--include-annotations` to count how many entities carry each label. Examples below show span-level counts; for trace-level annotations, swap `px span list` for `px trace list` (the `.annotations[]` shape is the same).
-
-```bash
-px span list --include-annotations --format raw --no-progress | jq '
-  [ .[] | .annotations[]? | select(.name == "failure_category" and .result.label != null) ]
-  | group_by(.result.label)
-  | map({ label: .[0].result.label, count: length })
-  | sort_by(-.count)
-'
-```
-
-Filter to a specific annotation name to check coverage:
+After recording, list this session's annotations and count by label. The `?identifier=` filter narrows the read to exactly the rows this run produced; without it you'd be counting the entire project history of `axial_coding_category`.
 
 ```bash
-px span list --include-annotations --format raw --no-progress | jq '
-  [ .[] | select((.annotations // []) | any(.name == "failure_category")) ]
-  | length
-'
+px api rest GET "/v1/projects/$PHOENIX_PROJECT/trace_annotations" \
+  --query "identifier=$PHOENIX_CODING_SESSION_ID" \
+  --query 'limit=1000' \
+  --format raw --no-progress \
+  | jq '
+    [ .data[] | select(.name == "axial_coding_category" and .result.label != null) ]
+    | group_by(.result.label)
+    | map({ label: .[0].result.label, count: length })
+    | sort_by(-.count)
+  '
 ```
+
+For span-level annotations, swap `trace_annotations` for `span_annotations` (and the read-back JSON's `span_id` for `trace_id`).
 
 ## Recording
 
-Use the matching annotate command for the level the **label** belongs at — which may differ from where the source note lives (see [Choosing the unit](#choosing-the-unit)):
+Use the matching annotate command for the level the **label** belongs at — which may differ from where the source note lives (see [Choosing the unit](#choosing-the-unit)). Every call carries `--identifier "$PHOENIX_CODING_SESSION_ID"`:
 
 ```bash
 # Trace-level label (most common — the trace as a whole exhibits the failure)
 px trace annotate <trace-id> \
-  --name failure_category \
+  --name axial_coding_category \
   --label answered_off_topic \
   --explanation "asked about returns; answer covered shipping" \
-  --annotator-kind HUMAN
+  --annotator-kind HUMAN \
+  --identifier "$PHOENIX_CODING_SESSION_ID"
 
 # Span-level label (when the pattern implicates a specific component)
 px span annotate <span-id> \
-  --name failure_category \
+  --name axial_coding_category \
   --label retrieval_off_topic \
   --explanation "retrieved shipping docs for a returns query" \
-  --annotator-kind HUMAN
+  --annotator-kind HUMAN \
+  --identifier "$PHOENIX_CODING_SESSION_ID"
 ```
 
-Accepted flags: `--name`, `--label`, `--score`, `--explanation`, `--annotator-kind` (`HUMAN`, `LLM`, `CODE`). There are no `--identifier` or `--sync` flags on these commands.
+Accepted flags: `--name`, `--label`, `--score`, `--explanation`, `--annotator-kind` (`HUMAN`, `LLM`, `CODE`), `--identifier`. There is no `--sync` flag — the CLI passes `sync=true` itself.
+
+### Sidecar annotation
+
+Every entity you axial-annotate also needs a `coding_session_id` sidecar annotation at the same level. Phoenix's UI filter language is name-based — there is no UI primitive for filtering by `identifier`, so the URL printed by `coding_session_end` filters on `annotations['coding_session_id'].label == '<sess-id>'`. Without the sidecar, the UI link returns nothing.
+
+```bash
+# Same level as the axial-coding label above
+px trace annotate <trace-id> \
+  --name coding_session_id \
+  --label "$PHOENIX_CODING_SESSION_ID" \
+  --identifier "$PHOENIX_CODING_SESSION_ID"
+# or px span annotate / px session annotate at matching levels
+```
+
+If [open coding](open-coding.md#sidecar-annotation) already wrote a sidecar on the same entity, this is an upsert (no second row) — the `(entity_id, name='coding_session_id', identifier=$PHOENIX_CODING_SESSION_ID)` key is shared. Writing it again is idempotent and safe.
 
 ### Bulk recording
 
 Axial coding categorizes the entities you took notes on during open coding. Do **not** filter by `--status-code ERROR` — that captures only spans where Python raised, which excludes most failure modes (hallucination, wrong tone, retrieval miss). See [open-coding.md](open-coding.md#inspection) for the full reasoning.
 
 ```bash
-# Bulk-annotate traces that already have open-coding notes
-px trace list --include-notes --format raw --no-progress \
-  | jq -r '.[] | select((.notes // []) | length > 0) | .traceId' \
+# Bulk-annotate traces that already have open-coding notes from THIS session
+px api rest GET "/v1/projects/$PHOENIX_PROJECT/trace_annotations" \
+  --query "identifier=$PHOENIX_CODING_SESSION_ID" \
+  --query 'limit=1000' \
+  --format raw --no-progress \
+  | jq -r '[.data[] | select(.name == "note")] | .[].trace_id' \
+  | sort -u \
   | while read tid; do
       px trace annotate "$tid" \
-        --name failure_category \
+        --name axial_coding_category \
         --label answered_off_topic \
-        --annotator-kind HUMAN
+        --annotator-kind HUMAN \
+        --identifier "$PHOENIX_CODING_SESSION_ID"
+      px trace annotate "$tid" \
+        --name coding_session_id \
+        --label "$PHOENIX_CODING_SESSION_ID" \
+        --identifier "$PHOENIX_CODING_SESSION_ID"
     done
 ```
 
-The same pattern works for span-level notes — swap `px trace` for `px span` and `.traceId` for `.context.span_id`.
+The same pattern works for span-level notes — swap `trace_annotations` for `span_annotations`, `.trace_id` for `.span_id`, and `px trace` for `px span`.
 
-Aside: for Node-based bulk scripts, `@arizeai/phoenix-client` exposes `addSpanAnnotation`, `addSpanNote`, and `addTraceNote`. (No `addTraceAnnotation` is exported today; use the REST endpoint or `px trace annotate` for trace-level annotations.)
+Aside: for Node-based bulk scripts, `@arizeai/phoenix-client` exposes `addSpanAnnotation`, `addSpanNote`, `addTraceNote`, `addSessionAnnotation`, and `addSessionNote`; all accept an optional `identifier` field on the input object. (No `addTraceAnnotation` is exported today; use the REST endpoint or `px trace annotate --identifier` for trace-level annotations.)
 
 Aside: `px api graphql` rejects mutations — it cannot write annotations.
+
+## Wrapping up
+
+After axial coding finishes, print the Phoenix UI link and decide whether to keep or revert what the session produced:
+
+```bash
+coding_session_end                  # prints UI link, no deletes
+coding_session_end --revert         # prompts for the session id, then DELETEs
+```
+
+The link points to the project's traces table filtered by the sidecar — `annotations['coding_session_id'].label == '<sess-id>'`. Revert is opt-in and issues three identifier-bound DELETEs (one per kind), each of which removes notes, axial-coding annotations, and sidecars in a single call (they share the annotation table).
 
 ## Agent Failure Taxonomy
 
@@ -173,6 +229,8 @@ A useful category is:
 
 ## Principles
 
-- **MECE** - Each failure fits ONE category
-- **Actionable** - Categories suggest fixes
-- **Bottom-up** - Let categories emerge from data
+- **One identifier per session** — every `annotate` and sidecar carries `$PHOENIX_CODING_SESSION_ID`, the same value open coding used.
+- **MECE** — Each failure fits ONE category.
+- **Actionable** — Categories suggest fixes.
+- **Bottom-up** — Let categories emerge from data.
+- **Sidecar always paired** — never write `axial_coding_category` without writing the matching `coding_session_id` sidecar; the UI link depends on it.

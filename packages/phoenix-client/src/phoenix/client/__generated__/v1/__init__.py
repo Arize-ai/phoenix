@@ -541,6 +541,7 @@ class SessionAnnotationsResponseBody(TypedDict):
 class SessionNoteData(TypedDict):
     session_id: str
     note: str
+    identifier: NotRequired[str]
 
 
 class SessionTraceData(TypedDict):
@@ -596,6 +597,7 @@ class SpanEvent(TypedDict):
 class SpanNoteData(TypedDict):
     span_id: str
     note: str
+    identifier: NotRequired[str]
 
 
 class TextContentPart(TypedDict):
@@ -646,6 +648,7 @@ class TraceAnnotationsResponseBody(TypedDict):
 class TraceNoteData(TypedDict):
     trace_id: str
     note: str
+    identifier: NotRequired[str]
 
 
 class TraceSpanData(TypedDict):

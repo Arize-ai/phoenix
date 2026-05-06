@@ -14,6 +14,13 @@ export interface SpanNote {
    * The note text to add to the span
    */
   note: string;
+  /**
+   * Optional caller-supplied identifier. When non-empty, the note is upserted
+   * on `(spanId, name='note', identifier)` — repeated calls with the same
+   * identifier overwrite the existing note. When omitted, the server stamps a
+   * unique `px-span-note:<uuid>` identifier so each call appends a new note.
+   */
+  identifier?: string;
 }
 
 /**
@@ -56,6 +63,9 @@ export async function addSpanNote({
       data: {
         span_id: spanNote.spanId.trim(),
         note: spanNote.note,
+        ...(spanNote.identifier !== undefined && {
+          identifier: spanNote.identifier,
+        }),
       },
     },
   });

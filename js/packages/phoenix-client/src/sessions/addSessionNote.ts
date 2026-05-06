@@ -16,6 +16,13 @@ export interface SessionNote {
    * The note text to add to the session.
    */
   note: string;
+  /**
+   * Optional caller-supplied identifier. When non-empty, the note is upserted
+   * on `(sessionId, name='note', identifier)` — repeated calls with the same
+   * identifier overwrite the existing note. When omitted, the server stamps a
+   * unique `px-session-note:<uuid>` identifier so each call appends a new note.
+   */
+  identifier?: string;
 }
 
 /**
@@ -58,6 +65,9 @@ export async function addSessionNote({
       data: {
         session_id: sessionNote.sessionId.trim(),
         note: sessionNote.note,
+        ...(sessionNote.identifier !== undefined && {
+          identifier: sessionNote.identifier,
+        }),
       },
     },
   });
