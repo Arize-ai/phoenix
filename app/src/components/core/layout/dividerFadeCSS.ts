@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 
-const buildFadingGradient = ({
+export const makeGradient = ({
   direction,
 }: {
   direction: "to right" | "to bottom";
@@ -25,7 +25,7 @@ const buildFadingGradient = ({
  * The clamp() constraints ensure the fade looks good in narrow containers
  * (where 15% would be too small) and wide containers (where 15% would be too generous).
  */
-function makeFadedDividerCSS(edge: "top" | "bottom" | "left" | "right") {
+function makeDividerFadeCSS(edge: "top" | "bottom" | "left" | "right") {
   const isHorizontal = edge === "top" || edge === "bottom";
   return css`
     position: relative;
@@ -35,7 +35,7 @@ function makeFadedDividerCSS(edge: "top" | "bottom" | "left" | "right") {
       ${edge}: 0;
       ${isHorizontal ? "left: 0; right: 0;" : "top: 0; bottom: 0;"}
       ${isHorizontal ? "height: 1px;" : "width: 1px;"}
-      background: ${buildFadingGradient({
+      background: ${makeGradient({
         direction: isHorizontal ? "to right" : "to bottom",
       })};
       opacity: 0.8;
@@ -43,7 +43,7 @@ function makeFadedDividerCSS(edge: "top" | "bottom" | "left" | "right") {
   `;
 }
 
-export const fadedDividerTopCSS = makeFadedDividerCSS("top");
-export const fadedDividerBottomCSS = makeFadedDividerCSS("bottom");
-export const fadedDividerLeftCSS = makeFadedDividerCSS("left");
-export const fadedDividerRightCSS = makeFadedDividerCSS("right");
+export const fadedDividerTopCSS = makeDividerFadeCSS("top");
+export const fadedDividerBottomCSS = makeDividerFadeCSS("bottom");
+export const fadedDividerLeftCSS = makeDividerFadeCSS("left");
+export const fadedDividerRightCSS = makeDividerFadeCSS("right");

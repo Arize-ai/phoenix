@@ -1,6 +1,8 @@
 import { css } from "@emotion/react";
 import type { ElementType, HTMLAttributes, Ref } from "react";
 
+import { makeGradient } from "./dividerFadeCSS";
+
 /**
  * Divider sizes map to vertical margin (spacing above and below).
  * Defer lg/xl until usage patterns establish what values make sense.
@@ -54,21 +56,6 @@ const solidVerticalCSS = css`
   background-color: var(--global-border-color-default);
 `;
 
-const buildFadingGradient = ({
-  direction,
-}: {
-  direction: "to right" | "to bottom";
-}) => `
-  linear-gradient(
-    ${direction},
-    transparent,
-    var(--global-border-color-default) clamp(48px, 15%, 128px),
-    var(--global-border-color-default) 50%,
-    var(--global-border-color-default) calc(100% - clamp(48px, 15%, 128px)),
-    transparent
-  )
-`;
-
 /**
  * Fading gradient divider derived from the semantic border color with fixed,
  * clamped fade distances.
@@ -77,7 +64,7 @@ const fadingHorizontalCSS = css`
   ${baseHrCSS}
   height: 1px;
   width: 100%;
-  background: ${buildFadingGradient({
+  background: ${makeGradient({
     direction: "to right",
   })};
   opacity: 0.78;
@@ -87,7 +74,7 @@ const fadingVerticalCSS = css`
   ${baseHrCSS}
   width: 1px;
   height: 100%;
-  background: ${buildFadingGradient({
+  background: ${makeGradient({
     direction: "to bottom",
   })};
   opacity: 0.78;

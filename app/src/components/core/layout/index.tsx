@@ -1,4 +1,9 @@
 export * from "./Divider";
-export * from "./fadedDividerCSS";
+export {
+	fadedDividerTopCSS,
+	fadedDividerBottomCSS,
+	fadedDividerLeftCSS,
+	fadedDividerRightCSS,
+} from "./dividerFadeCSS";
 export * from "./Flex";
 export * from "./Group";
