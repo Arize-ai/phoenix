@@ -107,17 +107,18 @@ const inputMessageWrapCSS = css`
   max-width: 70%;
 `;
 
-function RootSpanMessage({
-  endContent,
-  label,
-  role,
-  value,
-}: {
-  endContent?: ReactNode;
+type RootSpanMessageProps = {
+  /**
+   * Optional content rendered opposite the message label in the header,
+   * typically a small action like the trace link.
+   */
+  extra?: ReactNode;
   label?: string;
   role: "HUMAN" | "AI";
   value: unknown;
-}) {
+};
+
+function RootSpanMessage({ extra, label, role, value }: RootSpanMessageProps) {
   const isInput = role === "HUMAN";
   const styles = useChatMessageStyles(isInput ? "user" : "assistant");
   const defaultLabel = isInput ? "INPUT" : "OUTPUT";
@@ -137,7 +138,7 @@ function RootSpanMessage({
         width="100%"
       >
         <Text color="text-700">{label ?? defaultLabel}</Text>
-        {endContent}
+        {extra}
       </Flex>
       <View
         borderRadius={"medium"}
@@ -258,9 +259,7 @@ function SessionTurnDetail({
       </Flex>
       <Flex direction="column" gap="size-100">
         <RootSpanMessage
-          endContent={
-            <RootSpanTraceLink traceId={traceId} rootSpan={rootSpan} />
-          }
+          extra={<RootSpanTraceLink traceId={traceId} rootSpan={rootSpan} />}
           role="AI"
           value={rootSpan.output?.value}
         />
@@ -299,7 +298,8 @@ const turnListCSS = css`
 
   .react-aria-ListBoxItem {
     margin: 0;
-    padding: var(--global-dimension-static-size-200);
+    padding: var(--global-dimension-static-size-150)
+      var(--global-dimension-static-size-200);
     border-radius: 0;
     border-left: 4px solid transparent;
     border-bottom: 1px solid var(--global-border-color-default);
@@ -354,52 +354,55 @@ function SessionTurnList({
         const turnLabel = `${paddedIndex} | ${row.rootSpan.name}`;
         return (
           <ListBoxItem id={row.traceId} textValue={turnLabel}>
-            <Flex direction="column" gap="size-100">
+            <Flex direction="column" gap="size-50">
               <Flex
                 direction="row"
-                justifyContent="space-between"
                 alignItems="center"
+                justifyContent="space-between"
                 gap="size-100"
               >
-                <Text fontFamily="mono" color="text-500">
-                  {paddedIndex}
-                </Text>
-                <Text color="text-700" size="XS">
-                  {fullTimeFormatter(new Date(row.rootSpan.startTime))}
-                </Text>
+                <Flex
+                  direction="row"
+                  alignItems="center"
+                  gap="size-75"
+                  flex={1}
+                  minWidth={0}
+                >
+                  <Text fontFamily="mono" color="text-500">
+                    {paddedIndex}
+                  </Text>
+                  <Truncate maxWidth="100%" title={row.rootSpan.name}>
+                    <Text weight="heavy" size="S">
+                      {row.rootSpan.name}
+                    </Text>
+                  </Truncate>
+                </Flex>
+                <Flex flexShrink={0}>
+                  <Text color="text-700" size="XS">
+                    {fullTimeFormatter(new Date(row.rootSpan.startTime))}
+                  </Text>
+                </Flex>
               </Flex>
-              <Flex direction="row" gap="size-200" alignItems="start">
-                <Flex direction="column" gap="size-100" flex={1} minWidth={0}>
-                  <Flex minWidth={0}>
-                    <Truncate maxWidth="100%" title={row.rootSpan.name}>
-                      <Text weight="heavy">{row.rootSpan.name}</Text>
-                    </Truncate>
-                  </Flex>
-                  <Flex direction="row" gap="size-100" alignItems="center" wrap>
-                    <TokenCount size="S">
-                      {row.rootSpan.cumulativeTokenCountTotal ?? 0}
-                    </TokenCount>
-                    {row.rootSpan.trace.costSummary?.total?.cost != null ? (
-                      <TokenCosts size="S">
-                        {row.rootSpan.trace.costSummary.total.cost}
-                      </TokenCosts>
-                    ) : null}
-                    {row.rootSpan.latencyMs != null ? (
-                      <LatencyText
-                        latencyMs={row.rootSpan.latencyMs}
-                        size="S"
-                      />
-                    ) : null}
-                  </Flex>
-                </Flex>
-                <Flex direction="column" gap="size-50" flex={1} minWidth={0}>
-                  <RootSpanPreviewLine
-                    value={row.rootSpan.input?.truncatedValue}
-                  />
-                  <RootSpanPreviewLine
-                    value={row.rootSpan.output?.truncatedValue}
-                  />
-                </Flex>
+              <Flex direction="column" gap="size-50" minWidth={0}>
+                <RootSpanPreviewLine
+                  value={row.rootSpan.input?.truncatedValue}
+                />
+                <RootSpanPreviewLine
+                  value={row.rootSpan.output?.truncatedValue}
+                />
+              </Flex>
+              <Flex direction="row" gap="size-100" alignItems="center" wrap>
+                <TokenCount size="S">
+                  {row.rootSpan.cumulativeTokenCountTotal ?? 0}
+                </TokenCount>
+                {row.rootSpan.trace.costSummary?.total?.cost != null ? (
+                  <TokenCosts size="S">
+                    {row.rootSpan.trace.costSummary.total.cost}
+                  </TokenCosts>
+                ) : null}
+                {row.rootSpan.latencyMs != null ? (
+                  <LatencyText latencyMs={row.rootSpan.latencyMs} size="S" />
+                ) : null}
               </Flex>
             </Flex>
           </ListBoxItem>
@@ -632,7 +635,13 @@ export function SessionDetailsTraceList({
                 borderBottomWidth="thin"
                 padding="size-200"
               >
-                <SessionTurnDetail traceId={traceId} rootSpan={rootSpan} />
+                <View
+                  width="100%"
+                  maxWidth="var(--global-dimension-size-8500)"
+                  marginX="auto"
+                >
+                  <SessionTurnDetail traceId={traceId} rootSpan={rootSpan} />
+                </View>
               </View>
             </div>
           ))}
@@ -642,7 +651,13 @@ export function SessionDetailsTraceList({
               borderBottomWidth={"thin"}
               padding="size-200"
             >
-              <Loading />
+              <View
+                width="100%"
+                maxWidth="var(--global-dimension-size-8500)"
+                marginX="auto"
+              >
+                <Loading />
+              </View>
             </View>
           )}
         </div>
