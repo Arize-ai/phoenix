@@ -1,7 +1,9 @@
 import logging
+from collections.abc import AsyncIterator
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from openinference.instrumentation import using_session
 from pydantic import BaseModel, Field
 from pydantic.types import Discriminator
 from pydantic_ai import Agent, AgentRunResult, DeferredToolRequests, RunContext
@@ -12,6 +14,7 @@ from pydantic_ai.ui.vercel_ai.request_types import (
     RegenerateMessage,
     SubmitMessage,
 )
+from pydantic_ai.ui.vercel_ai.response_types import BaseChunk
 from starlette.requests import Request
 from starlette.responses import Response
 
@@ -47,6 +50,7 @@ class _ChatMessageMixin(BaseModel):
 
     contexts: list[ChatContext] = Field(default_factory=list)
     capabilities: AgentCapabilities = Field(default_factory=AgentCapabilities)
+    session_id: str
 
 
 class _SubmitMessage(_ChatMessageMixin, SubmitMessage):
@@ -154,8 +158,12 @@ def create_chat_v2_router(authentication_enabled: bool) -> APIRouter:
             capabilities=body.capabilities,
             docs_mcp_toolset=request.app.state.docs_mcp_toolset,
         )
-        return adapter.streaming_response(
-            adapter.run_stream(deps=deps, on_complete=_log_run_complete)
-        )
+
+        async def _stream_with_session() -> AsyncIterator[BaseChunk]:
+            with using_session(session_id=body.session_id):
+                async for chunk in adapter.run_stream(deps=deps, on_complete=_log_run_complete):
+                    yield chunk
+
+        return adapter.streaming_response(_stream_with_session())
 
     return router
