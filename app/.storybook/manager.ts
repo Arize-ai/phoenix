@@ -63,9 +63,12 @@ function ThemeToolbar() {
   const api = useStorybookApi();
   const currentTheme = globals.theme ?? "auto";
 
-  const applyManagerTheme = useCallback((mode: string) => {
-    api.setOptions({ theme: getThemeForMode(mode) });
-  }, [api]);
+  const applyManagerTheme = useCallback(
+    (mode: string) => {
+      api.setOptions({ theme: getThemeForMode(mode) });
+    },
+    [api]
+  );
 
   const handleClick = useCallback(
     (value: string) => {
