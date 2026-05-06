@@ -25,6 +25,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import threading
 from typing import Any, Optional
 
 from .types import (
@@ -39,6 +40,16 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_TIMEOUT = 600
 _DEFAULT_IDLE_TIMEOUT = 300
+
+_ENV_MODAL_TOKEN_ID = "MODAL_TOKEN_ID"
+_ENV_MODAL_TOKEN_SECRET = "MODAL_TOKEN_SECRET"
+
+# Modal SDK reads MODAL_TOKEN_ID / MODAL_TOKEN_SECRET from os.environ at client
+# init time. When DB-stored secrets are resolved we inject them around the
+# Modal client construction and restore the originals afterward; the lock
+# serializes that env-mutation window across concurrent backend constructions
+# so two instances cannot leak each other's credentials into the process env.
+_MODAL_TOKEN_ENV_LOCK = threading.Lock()
 
 
 class ModalSandboxBackend(SandboxBackend):
@@ -61,15 +72,30 @@ class ModalSandboxBackend(SandboxBackend):
         token_secret: Optional[str] = None,
     ) -> None:
         # Modal SDK reads MODAL_TOKEN_ID / MODAL_TOKEN_SECRET from os.environ at
-        # client init time. Inject DB-resolved values before the SDK is touched
-        # so admins can configure Modal via the secrets table without having to
-        # also export the variables in the server process.
-        if token_id:
-            os.environ["MODAL_TOKEN_ID"] = token_id
-        if token_secret:
-            os.environ["MODAL_TOKEN_SECRET"] = token_secret
+        # client init time. Inject DB-resolved values around the SDK import +
+        # App.lookup() and restore the originals afterward so credentials don't
+        # linger in the process environment after construction returns.
+        with _MODAL_TOKEN_ENV_LOCK:
+            previous_token_id = os.environ.get(_ENV_MODAL_TOKEN_ID)
+            previous_token_secret = os.environ.get(_ENV_MODAL_TOKEN_SECRET)
+            try:
+                if token_id:
+                    os.environ[_ENV_MODAL_TOKEN_ID] = token_id
+                if token_secret:
+                    os.environ[_ENV_MODAL_TOKEN_SECRET] = token_secret
 
-        import modal  # type: ignore[import-not-found]
+                import modal  # type: ignore[import-not-found]
+
+                app = modal.App.lookup(app_name, create_if_missing=True)
+            finally:
+                if previous_token_id is None:
+                    os.environ.pop(_ENV_MODAL_TOKEN_ID, None)
+                else:
+                    os.environ[_ENV_MODAL_TOKEN_ID] = previous_token_id
+                if previous_token_secret is None:
+                    os.environ.pop(_ENV_MODAL_TOKEN_SECRET, None)
+                else:
+                    os.environ[_ENV_MODAL_TOKEN_SECRET] = previous_token_secret
 
         self._timeout = timeout
         self._idle_timeout = idle_timeout
@@ -77,7 +103,7 @@ class ModalSandboxBackend(SandboxBackend):
         self._block_network = block_network
         self._sessions: dict[str, Any] = {}
         self._session_locks: dict[str, asyncio.Lock] = {}
-        self._app = modal.App.lookup(app_name, create_if_missing=True)
+        self._app = app
         base_image = modal.Image.debian_slim()
         self._image = base_image.pip_install(packages) if packages else base_image
 
