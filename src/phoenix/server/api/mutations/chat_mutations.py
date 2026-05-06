@@ -140,8 +140,7 @@ async def _resolve_inline_code_evaluator_backend(
                 )
             )
 
-        provider_language_row = await session.get(models.Language, provider.language_id)
-        if provider_language_row is not None and provider_language_row.name != language:
+        if provider.language != language:
             raise BadRequest("Sandbox provider language does not match code evaluator language")
 
         # Admin-authored provider config wins over user-authored
@@ -287,16 +286,7 @@ class ChatCompletionMutationMixin:
                     if code_evaluator_record is None:
                         raise BadRequest(f"Code evaluator with id {code_evaluator_id} not found")
 
-                    # Resolve language within session to avoid DetachedInstanceError
-                    language_row = await session.get(
-                        models.Language, code_evaluator_record.language_id
-                    )
-                    if language_row is None:
-                        raise ValueError(
-                            f"Language with id {code_evaluator_record.language_id} "
-                            "not found in languages table"
-                        )
-                    language = language_row.name
+                    language = code_evaluator_record.language or ""
 
                     # Resolve sandbox backend via config -> provider chain
                     sandbox_backend = None
@@ -314,10 +304,7 @@ class ChatCompletionMutationMixin:
                             )
                             if provider is not None and provider.enabled:
                                 backend_type = provider.backend_type
-                                if (
-                                    code_evaluator_record.language_id is not None
-                                    and provider.language_id != code_evaluator_record.language_id
-                                ):
+                                if provider.language != code_evaluator_record.language:
                                     raise BadRequest(
                                         "Sandbox provider language does not match "
                                         "code evaluator language"
@@ -376,7 +363,6 @@ class ChatCompletionMutationMixin:
                     input_mapping=input_mapping.to_orm(),
                     name=evaluator_name,
                     output_configs=output_configs,
-                    session_key="",
                 )
                 for eval_result in eval_results:
                     all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))
@@ -418,7 +404,6 @@ class ChatCompletionMutationMixin:
                     input_mapping=input_mapping.to_orm(),
                     name=evaluator_name,
                     output_configs=output_configs,
-                    session_key="",
                 )
                 for eval_result in eval_results:
                     all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))

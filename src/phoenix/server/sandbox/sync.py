@@ -54,36 +54,34 @@ async def sync_sandbox_providers(
 
     The caller (sandbox/__init__.py) passes SANDBOX_ADAPTER_METADATA so
     this module has no import dependency on the sandbox package itself.
-    Existing rows (matched by backend_type + language_id) are left
+    Existing rows (matched by backend_type + language) are left
     untouched so user-configured values (enabled, config) are preserved.
 
     Safe to call multiple times (idempotent).
     """
-    # Build language-name → id lookup from rows inserted by sync_languages().
-    lang_result = await session.execute(select(models.Language.name, models.Language.id))
-    language_ids: dict[str, int] = {name: lid for name, lid in lang_result.fetchall()}
+    # Build set of known language names to guard against unknown languages.
+    lang_result = await session.execute(select(models.Language.name))
+    known_languages: set[str] = {row[0] for row in lang_result.fetchall()}
 
-    # Build set of already-present (backend_type, language_id) pairs.
+    # Build set of already-present (backend_type, language) pairs.
     existing_result = await session.execute(
-        select(models.SandboxProvider.backend_type, models.SandboxProvider.language_id)
+        select(models.SandboxProvider.backend_type, models.SandboxProvider.language)
     )
-    existing_pairs: set[tuple[str, int]] = {(row[0], row[1]) for row in existing_result.fetchall()}
+    existing_pairs: set[tuple[str, str]] = {(row[0], row[1]) for row in existing_result.fetchall()}
 
     for key, meta in adapter_metadata.items():
         lang_name = meta.language
-        lang_id = language_ids.get(lang_name)
-        if lang_id is None:
+        if lang_name not in known_languages:
             logger.warning(
                 f"Language '{lang_name}' not found in languages table; "
                 f"skipping sandbox_providers row for {key}/{lang_name}"
             )
             continue
-
-        if (key, lang_id) not in existing_pairs:
+        if (key, lang_name) not in existing_pairs:
             session.add(
                 models.SandboxProvider(
                     backend_type=key,
-                    language_id=lang_id,
+                    language=lang_name,
                 )
             )
             logger.info(

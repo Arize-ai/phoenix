@@ -2741,16 +2741,16 @@ class LLMEvaluator(Evaluator):
     )
 
 
-class Language(HasId):
+class Language(Base):
     __tablename__ = "languages"
-    name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    name: Mapped[str] = mapped_column(String, primary_key=True)
 
 
 class SandboxProvider(HasId):
     __tablename__ = "sandbox_providers"
     backend_type: Mapped[str] = mapped_column(nullable=False)
-    language_id: Mapped[int] = mapped_column(
-        ForeignKey("languages.id", ondelete="RESTRICT"), nullable=False
+    language: Mapped[str] = mapped_column(
+        ForeignKey("languages.name", ondelete="RESTRICT"), nullable=False
     )
     config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, server_default="{}")
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
@@ -2758,8 +2758,12 @@ class SandboxProvider(HasId):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    language: Mapped["Language"] = relationship("Language")
-    __table_args__ = (UniqueConstraint("backend_type", "language_id"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "backend_type", "language", name="uq_sandbox_providers_backend_type_language"
+        ),
+        UniqueConstraint("id", "language", name="uq_sandbox_providers_id_language"),
+    )
 
 
 class SandboxConfig(HasId):
@@ -2767,6 +2771,7 @@ class SandboxConfig(HasId):
     sandbox_provider_id: Mapped[int] = mapped_column(
         ForeignKey("sandbox_providers.id", ondelete="CASCADE"), nullable=False
     )
+    language: Mapped[str] = mapped_column(nullable=False)
     name: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[Optional[str]] = mapped_column(nullable=True)
     config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, server_default="{}")
@@ -2776,7 +2781,15 @@ class SandboxConfig(HasId):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    __table_args__ = (UniqueConstraint("sandbox_provider_id", "name"),)
+    __table_args__ = (
+        UniqueConstraint("sandbox_provider_id", "name"),
+        UniqueConstraint("id", "language", name="uq_sandbox_configs_id_language"),
+        ForeignKeyConstraint(
+            ["sandbox_provider_id", "language"],
+            ["sandbox_providers.id", "sandbox_providers.language"],
+            name="fk_sandbox_configs_provider_language",
+        ),
+    )
 
 
 class CodeEvaluator(Evaluator):
@@ -2788,9 +2801,9 @@ class CodeEvaluator(Evaluator):
         nullable=False,
     )
     source_code: Mapped[str] = mapped_column(nullable=False, server_default="")
-    language_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("languages.id", ondelete="RESTRICT"),
-        nullable=True,
+    language: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("languages.name", ondelete="RESTRICT"),
+        nullable=False,
         index=True,
     )
     input_mapping: Mapped[InputMapping] = mapped_column(
@@ -2808,8 +2821,9 @@ class CodeEvaluator(Evaluator):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
 
-    language: Mapped[Optional["Language"]] = relationship("Language")
-    sandbox_config: Mapped[Optional["SandboxConfig"]] = relationship("SandboxConfig")
+    sandbox_config: Mapped[Optional["SandboxConfig"]] = relationship(
+        "SandboxConfig", foreign_keys="[CodeEvaluator.sandbox_config_id]"
+    )
 
     __mapper_args__ = {
         "polymorphic_identity": "CODE",
@@ -2819,6 +2833,11 @@ class CodeEvaluator(Evaluator):
             ["kind", "id"],
             ["evaluators.kind", "evaluators.id"],
             ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["sandbox_config_id", "language"],
+            ["sandbox_configs.id", "sandbox_configs.language"],
+            name="fk_code_evaluators_sandbox_config_language",
         ),
     )
 

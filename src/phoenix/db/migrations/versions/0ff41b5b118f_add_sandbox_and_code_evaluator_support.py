@@ -51,33 +51,18 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    languages_table = op.create_table(
+    # languages: natural PK on name (D1)
+    op.create_table(
         "languages",
-        sa.Column("id", _Integer, primary_key=True),
-        sa.Column("name", sa.String, nullable=False, unique=True),
+        sa.Column("name", sa.String, primary_key=True),
     )
-    op.bulk_insert(
-        languages_table,
-        [
-            {"name": "PYTHON"},
-            {"name": "TYPESCRIPT"},
-        ],
-    )
+    op.execute(sa.text("INSERT INTO languages (name) VALUES ('PYTHON'), ('TYPESCRIPT')"))
 
+    # sandbox_providers: language + UNIQUE(id, language) for composite-FK target (D2)
     op.create_table(
         "sandbox_providers",
         sa.Column("id", _Integer, primary_key=True),
-        sa.Column(
-            "backend_type",
-            sa.String,
-            nullable=False,
-        ),
-        sa.Column(
-            "language_id",
-            _Integer,
-            sa.ForeignKey("languages.id", ondelete="RESTRICT"),
-            nullable=False,
-        ),
+        sa.Column("backend_type", sa.String, nullable=False),
         sa.Column("config", JSON_, nullable=False, server_default="{}"),
         sa.Column("enabled", sa.Boolean, nullable=False, server_default=sa.text("true")),
         sa.Column(
@@ -92,9 +77,23 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.UniqueConstraint("backend_type", "language_id"),
     )
+    with op.batch_alter_table("sandbox_providers") as batch_op:
+        batch_op.add_column(
+            sa.Column(
+                "language",
+                sa.String,
+                sa.ForeignKey("languages.name", ondelete="RESTRICT"),
+                nullable=False,
+                server_default="PYTHON",
+            )
+        )
+        batch_op.create_unique_constraint(
+            "uq_sandbox_providers_backend_type_language", ["backend_type", "language"]
+        )
+        batch_op.create_unique_constraint("uq_sandbox_providers_id_language", ["id", "language"])
 
+    # sandbox_configs: language + UNIQUE(id, language) + composite FK → sandbox_providers (D2)
     op.create_table(
         "sandbox_configs",
         sa.Column("id", _Integer, primary_key=True),
@@ -123,7 +122,24 @@ def upgrade() -> None:
         ),
         sa.UniqueConstraint("sandbox_provider_id", "name"),
     )
+    with op.batch_alter_table("sandbox_configs") as batch_op:
+        batch_op.add_column(
+            sa.Column(
+                "language",
+                sa.String,
+                nullable=False,
+                server_default="PYTHON",
+            )
+        )
+        batch_op.create_unique_constraint("uq_sandbox_configs_id_language", ["id", "language"])
+        batch_op.create_foreign_key(
+            "fk_sandbox_configs_provider_language",
+            "sandbox_providers",
+            ["sandbox_provider_id", "language"],
+            ["id", "language"],
+        )
 
+    # code_evaluators: language (NOT NULL FK → languages.name) + composite FK → sandbox_configs (D2)
     with op.batch_alter_table("code_evaluators") as batch_op:
         batch_op.add_column(
             sa.Column(
@@ -135,11 +151,12 @@ def upgrade() -> None:
         )
         batch_op.add_column(
             sa.Column(
-                "language_id",
-                _Integer,
-                sa.ForeignKey("languages.id", ondelete="RESTRICT"),
-                nullable=True,
-            ),
+                "language",
+                sa.String,
+                sa.ForeignKey("languages.name", ondelete="RESTRICT"),
+                nullable=False,
+                server_default="PYTHON",
+            )
         )
         batch_op.add_column(
             sa.Column(
@@ -165,23 +182,28 @@ def upgrade() -> None:
                 nullable=True,
             ),
         )
-        batch_op.create_index("ix_code_evaluators_language_id", ["language_id"])
+        batch_op.create_index("ix_code_evaluators_language", ["language"])
         batch_op.create_index("ix_code_evaluators_sandbox_config_id", ["sandbox_config_id"])
+        batch_op.create_foreign_key(
+            "fk_code_evaluators_sandbox_config_language",
+            "sandbox_configs",
+            ["sandbox_config_id", "language"],
+            ["id", "language"],
+        )
 
 
 def downgrade() -> None:
-    # Remove columns/indexes from code_evaluators first (before dropping referenced tables)
+    # Remove composite FK + columns from code_evaluators first
     with op.batch_alter_table("code_evaluators") as batch_op:
+        batch_op.drop_constraint("fk_code_evaluators_sandbox_config_language", type_="foreignkey")
         batch_op.drop_index("ix_code_evaluators_sandbox_config_id")
-        batch_op.drop_index("ix_code_evaluators_language_id")
+        batch_op.drop_index("ix_code_evaluators_language")
         batch_op.drop_column("sandbox_config_id")
         batch_op.drop_column("output_configs")
         batch_op.drop_column("input_mapping")
-        batch_op.drop_column("language_id")
+        batch_op.drop_column("language")
         batch_op.drop_column("source_code")
 
-    # Drop sandbox_configs (FKs to sandbox_providers and languages)
     op.drop_table("sandbox_configs")
-
     op.drop_table("sandbox_providers")
     op.drop_table("languages")

@@ -118,11 +118,7 @@ class SandboxProvider(Node):
     @strawberry.field
     async def language(self, info: Info[Context, None]) -> Language:
         record = await self._get_record(info)
-        lang = await info.context.data_loaders.language_by_id.load(record.language_id)
-        # Defense-in-depth: language_id is NOT NULL FK with RESTRICT, so lang always resolves.
-        if lang is None:
-            return Language.PYTHON
-        return Language(lang.name)
+        return Language(record.language)
 
     @strawberry.field
     async def config(self, info: Info[Context, None]) -> JSON:
