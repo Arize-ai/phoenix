@@ -328,6 +328,7 @@ module = [
   "mistralai.*",
   "jsonpath_ng",
   "vercel.*",
+  "wasmtime",
 ]
 ignore_missing_imports = true
 
