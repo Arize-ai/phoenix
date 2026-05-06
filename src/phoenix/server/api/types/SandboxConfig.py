@@ -330,6 +330,33 @@ async def get_sandbox_backend_info(
     return await _get_sandbox_backend_info_with_session(session=None, decrypt=None)
 
 
+def _probe_wasm_binary(backend_type: str) -> Optional[str]:
+    """Run the WASM-binary capability probe and return a status_detail string.
+
+    Returns None when this backend_type is not WASM, or when the binary is
+    locally resolvable (probe says ``available=True``). Returns the probe's
+    ``detail`` string when the WASM binary is not present locally — the
+    caller treats a non-None return as falsifying evidence and forces the
+    backend to ``UNAVAILABLE`` without invoking ``build_backend()``.
+
+    Importing ``WASMAdapter`` is gated on the ``wasmtime`` optional extra,
+    so an ImportError here means the SDK is missing — that case is already
+    handled by the ``backend_type not in _SANDBOX_ADAPTERS`` branch in the
+    caller, but we re-handle it defensively (returning None) so this helper
+    cannot regress that branch.
+    """
+    if backend_type != "WASM":
+        return None
+    try:
+        from phoenix.server.sandbox.wasm_backend import WASMAdapter
+    except ImportError:
+        return None
+    probe = WASMAdapter.probe_binary()
+    if probe.available:
+        return None
+    return probe.detail
+
+
 async def _get_sandbox_backend_info_with_session(
     session: Optional[Any],
     decrypt: Optional[Any],
@@ -351,31 +378,41 @@ async def _get_sandbox_backend_info_with_session(
                 status = SandboxBackendStatus.MISSING_CREDENTIALS
                 status_detail = missing_auth_detail
             else:
-                # TODO: Add backend-specific dependency validation here where possible.
-                # Adapter registration and backend construction can still over-report
-                # availability when runtime prerequisites are only checked later
-                # (for example, missing binaries, API keys, or first-use downloads).
-                try:
-                    backend = await get_or_create_backend(
-                        backend_type, session=session, decrypt=decrypt
-                    )
-                    status = (
-                        SandboxBackendStatus.AVAILABLE
-                        if backend is not None
-                        else SandboxBackendStatus.UNAVAILABLE
-                    )
-                except (ValueError, MissingSecretError, UnsupportedOperation) as exc:
-                    # Adapter is registered but construction failed because a
-                    # runtime precondition is not met (auth not configured,
-                    # missing user secret, capability mismatch). Surface as
-                    # UNAVAILABLE instead of 500ing the whole query — capability
-                    # advertisement must continue to work for adapters the admin
-                    # hasn't configured yet.
-                    logger.debug(
-                        f"sandboxBackends: {backend_type!r} unavailable: {exc}",
-                    )
+                # Backend-specific runtime-asset gates layered on top of
+                # build_backend(): adapter registration only proves the SDK
+                # is importable. For backends that defer runtime preconditions
+                # past build_backend (e.g. WASM lazy-downloads its CPython
+                # binary), call a side-effect-free probe so the GraphQL status
+                # reflects whether execution will actually succeed without a
+                # network round-trip. Build_backend() is still called for the
+                # general AVAILABLE/UNAVAILABLE path; the probe short-circuits
+                # only when it has falsifying evidence (binary absent).
+                wasm_probe_detail = _probe_wasm_binary(backend_type)
+                if wasm_probe_detail is not None:
                     status = SandboxBackendStatus.UNAVAILABLE
-                    status_detail = str(exc)
+                    status_detail = wasm_probe_detail
+                else:
+                    try:
+                        backend = await get_or_create_backend(
+                            backend_type, session=session, decrypt=decrypt
+                        )
+                        status = (
+                            SandboxBackendStatus.AVAILABLE
+                            if backend is not None
+                            else SandboxBackendStatus.UNAVAILABLE
+                        )
+                    except (ValueError, MissingSecretError, UnsupportedOperation) as exc:
+                        # Adapter is registered but construction failed because a
+                        # runtime precondition is not met (auth not configured,
+                        # missing user secret, capability mismatch). Surface as
+                        # UNAVAILABLE instead of 500ing the whole query — capability
+                        # advertisement must continue to work for adapters the admin
+                        # hasn't configured yet.
+                        logger.debug(
+                            f"sandboxBackends: {backend_type!r} unavailable: {exc}",
+                        )
+                        status = SandboxBackendStatus.UNAVAILABLE
+                        status_detail = str(exc)
         raw_specs = getattr(meta, "config_field_specs", [])
         infos.append(
             SandboxBackendInfo(
