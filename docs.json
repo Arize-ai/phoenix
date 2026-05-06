@@ -1037,6 +1037,7 @@
               "docs/phoenix/self-hosting/features/authentication",
               "docs/phoenix/self-hosting/features/email",
               "docs/phoenix/self-hosting/features/management",
+              "docs/phoenix/self-hosting/features/sandbox-runtimes",
               "docs/phoenix/settings/data-retention"
             ]
           },

@@ -54,6 +54,22 @@ RUN find src/ -xtype l -delete && \
     uv pip install dist/*.whl --no-deps && \
     cp -a .venv/lib/python*/site-packages/ /phoenix/env/
 
+# Pre-download the CPython WASM binary so the WASM sandbox provider works
+# without network egress at runtime. Same URL/filename as the production
+# Dockerfile — keep in sync with src/phoenix/server/sandbox/_download.py
+# (_WASM_URL / _WASM_FILENAME); PHOENIX_WASM_BINARY_PATH (set in the
+# runtime stage) is the authoritative resolver hook consumed by
+# ensure_wasm_binary().
+RUN mkdir -p /wasm \
+  && python -c "import urllib.request; urllib.request.urlretrieve('https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm', '/wasm/python-3.12.0.wasm')"
+
+# Bundle the Deno runtime so the local DENO sandbox provider works inside
+# the runtime image. denoland/deno:bin-<version> is a scratch-based image
+# that contains a single statically-linked /deno binary, safe to COPY
+# into the runtime stage. Pinning the version (NOT :latest) keeps builds
+# reproducible and matches the production Dockerfile pin.
+FROM denoland/deno:bin-2.1.4 AS deno-binary
+
 # Stage 3: Runtime (combines everything)
 FROM python:${PYTHON_VERSION}-slim-bullseye AS runtime
 WORKDIR /phoenix
@@ -71,8 +87,17 @@ COPY --chmod=755 scripts/docker/devops/scripts/start-phoenix.sh /usr/local/bin/s
 # Copy Python environment (version-independent flat directory)
 COPY --from=backend-builder /phoenix/env ./env
 
-# Copy built frontend from frontend builder to correct location  
+# Copy built frontend from frontend builder to correct location
 COPY --from=frontend-builder /phoenix/src/phoenix/server/static/ ./env/phoenix/server/static/
+
+# Bundled local sandbox runtimes (Deno + CPython WASM). Mirrors the
+# production Dockerfile so devops images behave the same as shipped
+# containers for the local sandbox providers. /usr/local/bin is on the
+# default PATH for python:slim-bullseye, so shutil.which("deno") in
+# deno_backend.py resolves the bundled binary.
+COPY --chmod=755 --from=deno-binary /deno /usr/local/bin/deno
+COPY --from=backend-builder /wasm/python-3.12.0.wasm /opt/phoenix/wasm/python-3.12.0.wasm
+ENV PHOENIX_WASM_BINARY_PATH=/opt/phoenix/wasm/python-3.12.0.wasm
 
 # Environment setup
 ENV PYTHONPATH="/phoenix/env"

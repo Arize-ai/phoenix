@@ -106,6 +106,38 @@ export function LanguageWithIcon({ language }: { language: Language }) {
   );
 }
 
+/**
+ * Returns true when the local-Deno trust warning should be surfaced to the user.
+ *
+ * The warning is meaningful only when both of the following hold:
+ *
+ *  1. The DENO backend can actually be exercised — i.e. the server reports
+ *     `status === "AVAILABLE"`. The probe (see `WASMAdapter.probe_binary` /
+ *     `_probe_deno_binary` in `SandboxConfig.py`) verifies the runtime is
+ *     resolvable; suppressing the warning when the provider is `UNAVAILABLE`
+ *     or `NOT_INSTALLED` avoids alarming users about a provider they cannot
+ *     even select.
+ *  2. The Phoenix instance is self-hosted — managed deployments inject
+ *     `window.Config.managementUrl`, where the host runtime is operator-owned
+ *     and the user cannot install additional binaries.
+ *
+ * The `managementUrl` heuristic stays as the deployment-mode signal until a
+ * dedicated server flag exists; the `status` gate makes the warning
+ * capability-driven *in addition to* deployment-driven (closes the heuristic
+ * gap called out in #13030).
+ */
+export function shouldShowLocalDenoTrustWarning(
+  backend: Pick<BackendInfo, "backendType" | "status"> | undefined
+): boolean {
+  if (backend == null || backend.backendType !== "DENO") {
+    return false;
+  }
+  if (backend.status !== "AVAILABLE") {
+    return false;
+  }
+  return !window.Config.managementUrl;
+}
+
 export function getBackendDescription(backendType: BackendInfo["backendType"]) {
   switch (backendType) {
     case "WASM":
