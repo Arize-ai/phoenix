@@ -73,19 +73,7 @@ CLI flags take priority over environment variables.
 
 ## Profiles
 
-Named profiles bundle an endpoint, project, API key, and custom headers under a single name (like `prod` or `staging`) so you can switch between Phoenix instances without re-exporting environment variables.
-
-Profiles are stored in `~/.px/settings.json` (or `$XDG_CONFIG_HOME/px/settings.json`) with file mode `0600`. API keys are stored verbatim but never echoed back through the CLI — they appear as a fixed-width mask in `profile show` and `profile list` output.
-
-### Resolution order
-
-The active profile slots into the existing config chain:
-
-```text
-built-in defaults → active profile → environment variables → CLI flags
-```
-
-Higher-precedence sources override lower ones. Existing scripts that set `PHOENIX_HOST` / `PHOENIX_API_KEY` keep working unchanged — env vars override the active profile.
+A profile saves the endpoint, project, API key, and headers for a Phoenix instance under a name like `prod` or `staging`. Activate a profile and every `px` command picks up those settings without re-exporting environment variables. Environment variables and CLI flags still override the active profile, so existing scripts keep working.
 
 ### `px profile create <name>`
 
@@ -104,7 +92,7 @@ px profile create prod \
 | `<name>` | Profile name (alphanumeric, hyphens, underscores) | — |
 | `--endpoint <url>` | Phoenix API endpoint | — |
 | `--project <name>` | Default project name | — |
-| `--api-key <key>` | Phoenix API key (stored at mode `0600`; never echoed back) | — |
+| `--api-key <key>` | Phoenix API key | — |
 | `--header <key=value>` | Custom HTTP header (repeatable) | — |
 | `--activate` | Make this the active profile after creation | Off |
 
@@ -123,7 +111,7 @@ px profile list --format json
 
 ### `px profile show [name]`
 
-Show a profile (defaults to the active one). Read `~/.px/settings.json` directly if you need the unmasked API key value for a script.
+Show a profile (defaults to the active one).
 
 ```bash
 px profile show           # active profile
