@@ -51,31 +51,26 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    languages_table = op.create_table(
+    # languages: natural PK on name (D1)
+    op.create_table(
         "languages",
-        sa.Column("id", _Integer, primary_key=True),
-        sa.Column("name", sa.String, nullable=False, unique=True),
+        sa.Column("name", sa.String, primary_key=True),
     )
-    op.bulk_insert(
-        languages_table,
-        [
-            {"name": "PYTHON"},
-            {"name": "TYPESCRIPT"},
-        ],
-    )
+    op.execute(sa.text("INSERT INTO languages (name) VALUES ('PYTHON'), ('TYPESCRIPT')"))
 
+    # sandbox_providers: language + UNIQUE(language, id) for composite-FK target (D2).
+    # UNIQUE column order is (language, id) — flipped from natural (id, language) — so the
+    # constraint's underlying index doubles as a leftmost-prefix index on `language` alone,
+    # at zero extra storage. Composite (id, language) point lookups are unchanged, and
+    # id-only lookups still hit the PK.
     op.create_table(
         "sandbox_providers",
         sa.Column("id", _Integer, primary_key=True),
+        sa.Column("backend_type", sa.String, nullable=False),
         sa.Column(
-            "backend_type",
+            "language",
             sa.String,
-            nullable=False,
-        ),
-        sa.Column(
-            "language_id",
-            _Integer,
-            sa.ForeignKey("languages.id", ondelete="RESTRICT"),
+            sa.ForeignKey("languages.name", ondelete="RESTRICT"),
             nullable=False,
         ),
         sa.Column("config", JSON_, nullable=False, server_default="{}"),
@@ -92,9 +87,14 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.UniqueConstraint("backend_type", "language_id"),
+        sa.UniqueConstraint("backend_type", "language"),
+        sa.UniqueConstraint("language", "id"),
     )
 
+    # sandbox_configs: language + UNIQUE(language, id) + composite FK → sandbox_providers (D2).
+    # The composite FK fk_sandbox_configs_provider_language is named explicitly because its
+    # auto-generated name (column_0_name="sandbox_provider_id") would collide with the simple
+    # FK on the same first column.
     op.create_table(
         "sandbox_configs",
         sa.Column("id", _Integer, primary_key=True),
@@ -104,6 +104,7 @@ def upgrade() -> None:
             sa.ForeignKey("sandbox_providers.id", ondelete="CASCADE"),
             nullable=False,
         ),
+        sa.Column("language", sa.String, nullable=False),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("description", sa.String, nullable=True),
         sa.Column("config", JSON_, nullable=False, server_default="{}"),
@@ -122,8 +123,23 @@ def upgrade() -> None:
             server_default=sa.func.now(),
         ),
         sa.UniqueConstraint("sandbox_provider_id", "name"),
+        sa.UniqueConstraint("language", "id"),
+        sa.ForeignKeyConstraint(
+            ["sandbox_provider_id", "language"],
+            ["sandbox_providers.id", "sandbox_providers.language"],
+            name="fk_sandbox_configs_provider_language",
+        ),
     )
 
+    # code_evaluators: ADD COLUMN to a pre-existing table requires batch_alter_table on SQLite.
+    # The composite FK fk_code_evaluators_sandbox_config_language is named explicitly because
+    # its auto-generated name (column_0_name="sandbox_config_id") would collide with the
+    # simple FK on the same first column.
+    #
+    # `language` is added with server_default="PYTHON" only to backfill any existing rows
+    # under the new NOT NULL constraint; the persistent DDL default is dropped immediately
+    # after so callers must always supply a value (the language is one of N valid choices,
+    # not a "correct regardless of caller intent" value like created_at = now()).
     with op.batch_alter_table("code_evaluators") as batch_op:
         batch_op.add_column(
             sa.Column(
@@ -135,11 +151,12 @@ def upgrade() -> None:
         )
         batch_op.add_column(
             sa.Column(
-                "language_id",
-                _Integer,
-                sa.ForeignKey("languages.id", ondelete="RESTRICT"),
-                nullable=True,
-            ),
+                "language",
+                sa.String,
+                sa.ForeignKey("languages.name", ondelete="RESTRICT"),
+                nullable=False,
+                server_default="PYTHON",
+            )
         )
         batch_op.add_column(
             sa.Column(
@@ -165,23 +182,29 @@ def upgrade() -> None:
                 nullable=True,
             ),
         )
-        batch_op.create_index("ix_code_evaluators_language_id", ["language_id"])
+        batch_op.alter_column("language", server_default=None)
+        batch_op.create_index("ix_code_evaluators_language", ["language"])
         batch_op.create_index("ix_code_evaluators_sandbox_config_id", ["sandbox_config_id"])
+        batch_op.create_foreign_key(
+            "fk_code_evaluators_sandbox_config_language",
+            "sandbox_configs",
+            ["sandbox_config_id", "language"],
+            ["id", "language"],
+        )
 
 
 def downgrade() -> None:
-    # Remove columns/indexes from code_evaluators first (before dropping referenced tables)
+    # Remove composite FK + columns from code_evaluators first
     with op.batch_alter_table("code_evaluators") as batch_op:
+        batch_op.drop_constraint("fk_code_evaluators_sandbox_config_language", type_="foreignkey")
         batch_op.drop_index("ix_code_evaluators_sandbox_config_id")
-        batch_op.drop_index("ix_code_evaluators_language_id")
+        batch_op.drop_index("ix_code_evaluators_language")
         batch_op.drop_column("sandbox_config_id")
         batch_op.drop_column("output_configs")
         batch_op.drop_column("input_mapping")
-        batch_op.drop_column("language_id")
+        batch_op.drop_column("language")
         batch_op.drop_column("source_code")
 
-    # Drop sandbox_configs (FKs to sandbox_providers and languages)
     op.drop_table("sandbox_configs")
-
     op.drop_table("sandbox_providers")
     op.drop_table("languages")

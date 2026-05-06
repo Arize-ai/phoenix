@@ -477,6 +477,7 @@ async def _create_code_evaluator_with_config(
             description=None,
             metadata_={},
             source_code="def evaluate(input): return {'score': 1.0}",
+            language=sandbox_config.language,
             sandbox_config_id=sandbox_config.id,
         )
         session.add(code_eval)
@@ -579,6 +580,7 @@ class TestCodeEvaluatorSandboxMutationIds:
                 description=None,
                 metadata_={},
                 source_code="def evaluate(output): return {'score': 0.0}",
+                language="PYTHON",
             )
             session.add(code_eval)
             await session.flush()
@@ -813,6 +815,7 @@ class TestConfigValidationPath:
         async with db() as session:
             config = models.SandboxConfig(
                 sandbox_provider_id=provider.id,
+                language=provider.language,
                 name="e2b-update-test",
                 config={},
                 timeout=30,
@@ -850,6 +853,7 @@ class TestConfigValidationPath:
         async with db() as session:
             config = models.SandboxConfig(
                 sandbox_provider_id=provider.id,
+                language=provider.language,
                 name="e2b-persist-test",
                 config={},
                 timeout=30,
@@ -1020,6 +1024,7 @@ class TestConfigValidationPath:
         async with db() as session:
             config = models.SandboxConfig(
                 sandbox_provider_id=provider.id,
+                language=provider.language,
                 name="e2b-reserved-update",
                 config={},
                 timeout=30,

@@ -52,22 +52,6 @@ from phoenix.server.api.types.SandboxConfig import Language, SandboxConfig
 from phoenix.server.bearer_auth import PhoenixUser
 
 
-async def _validate_language_matches_sandbox(
-    language_id: int,
-    sandbox_config_id: int,
-    session: "AsyncSession",
-) -> None:
-    """Raise BadRequest if the evaluator language doesn't match the sandbox provider's language."""
-    cfg = await session.get(models.SandboxConfig, sandbox_config_id)
-    if cfg is None:
-        raise BadRequest(f"SandboxConfig not found: {sandbox_config_id}")
-    provider = await session.get(models.SandboxProvider, cfg.sandbox_provider_id)
-    if provider is None:
-        raise BadRequest(f"SandboxProvider not found: {cfg.sandbox_provider_id}")
-    if provider.language_id != language_id:
-        raise BadRequest("Evaluator language does not match sandbox provider language")
-
-
 def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> OutputConfigType:
     """
     Convert AnnotationConfigInput to pydantic for evaluator output configs.
@@ -1197,8 +1181,6 @@ class EvaluatorMutationMixin:
         input: CreateCodeEvaluatorInput,
     ) -> CodeEvaluatorMutationPayload:
         """Create a new CodeEvaluator with source code and optional sandbox config."""
-        from phoenix.server.api.helpers.evaluators import _resolve_language_id
-
         user_id: Optional[int] = None
         assert isinstance(request := info.context.request, Request)
         if "user" in request.scope:
@@ -1221,24 +1203,17 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
-                language_id = await _resolve_language_id(input.language.value, session)
-                if language_id is None:
-                    raise BadRequest(f"Unknown language: {input.language!r}")
-
                 sandbox_config_id = None
                 if input.sandbox_config_id is not None:
                     sandbox_config_id = from_global_id_with_expected_type(
                         input.sandbox_config_id, SandboxConfig.__name__
-                    )
-                    await _validate_language_matches_sandbox(
-                        language_id, sandbox_config_id, session
                     )
 
                 row = models.CodeEvaluator(
                     name=validated_name,
                     description=input.description,
                     source_code=input.source_code,
-                    language_id=language_id,
+                    language=input.language.value,
                     sandbox_config_id=sandbox_config_id,
                     output_configs=output_configs,
                     input_mapping=input_mapping_orm,
@@ -1262,8 +1237,6 @@ class EvaluatorMutationMixin:
         input: UpdateCodeEvaluatorInput,
     ) -> CodeEvaluatorMutationPayload:
         """Update fields on an existing CodeEvaluator."""
-        from phoenix.server.api.helpers.evaluators import _resolve_language_id
-
         evaluator_id = from_global_id_with_expected_type(
             global_id=input.id, expected_type_name=CodeEvaluator.__name__
         )
@@ -1284,10 +1257,7 @@ class EvaluatorMutationMixin:
                     row.source_code = input.source_code
 
                 if input.language is not UNSET and input.language is not None:
-                    language_id = await _resolve_language_id(input.language.value, session)
-                    if language_id is None:
-                        raise BadRequest(f"Unknown language: {input.language!r}")
-                    row.language_id = language_id
+                    row.language = input.language.value
 
                 if input.description is not UNSET:
                     row.description = input.description
@@ -1308,11 +1278,6 @@ class EvaluatorMutationMixin:
 
                 if input.input_mapping is not UNSET and input.input_mapping is not None:
                     row.input_mapping = input.input_mapping.to_orm()
-
-                if row.sandbox_config_id is not None and row.language_id is not None:
-                    await _validate_language_matches_sandbox(
-                        row.language_id, row.sandbox_config_id, session
-                    )
 
                 await session.flush()
                 await session.refresh(row)

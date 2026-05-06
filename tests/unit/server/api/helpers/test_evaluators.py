@@ -3674,6 +3674,7 @@ class TestGetEvaluators:
     async def test_code_evaluator_not_found_message_contains_name_and_settings_hint(
         self,
         db: Any,
+        seed_languages: None,
     ) -> None:
         """NotFound raised for a CodeEvaluator with no sandbox must name the evaluator."""
         async with db() as session:
@@ -3686,6 +3687,7 @@ class TestGetEvaluators:
                 source_code="def evaluate(output): return 1.0",
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 output_configs=[],
+                language="PYTHON",
                 sandbox_config_id=None,
             )
             session.add(code_eval)

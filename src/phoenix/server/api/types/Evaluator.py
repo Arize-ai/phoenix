@@ -228,18 +228,14 @@ class CodeEvaluator(Evaluator, Node):
     async def language(
         self,
         info: Info[Context, None],
-    ) -> Optional[Language]:
+    ) -> Language:
         """The execution language for this code evaluator (e.g. 'PYTHON')."""
         if self.db_record:
-            lang = self.db_record.language
-            return Language(lang.name) if lang is not None else None
-        language_id = await info.context.data_loaders.code_evaluator_fields.load(
-            (self.id, models.CodeEvaluator.language_id),
+            return Language(self.db_record.language)
+        language = await info.context.data_loaders.code_evaluator_fields.load(
+            (self.id, models.CodeEvaluator.language),
         )
-        if language_id is None:
-            return None
-        row = await info.context.data_loaders.language_by_id.load(language_id)
-        return Language(row.name) if row is not None else None
+        return Language(language)
 
     @strawberry.field
     async def sandbox_config(

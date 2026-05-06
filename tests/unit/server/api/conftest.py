@@ -1703,6 +1703,7 @@ async def sandbox_config(
         )
         config = models.SandboxConfig(
             sandbox_provider_id=provider.id,
+            language=provider.language,
             name="test-sandbox-config",
             description="Fixture sandbox config for tests",
             config={},

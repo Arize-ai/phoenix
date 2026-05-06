@@ -44,7 +44,6 @@ from .experiment_runs_by_experiment_and_example import (
     ExperimentRunsByExperimentAndExampleDataLoader,
 )
 from .experiment_sequence_number import ExperimentSequenceNumberDataLoader
-from .language_by_id import LanguageByIdDataLoader
 from .last_experiment_errors import LastExperimentErrorsDataLoader
 from .last_used_times_by_generative_model_id import LastUsedTimesByGenerativeModelIdDataLoader
 from .latency_ms_quantile import LatencyMsQuantileCache, LatencyMsQuantileDataLoader
@@ -134,7 +133,6 @@ __all__ = [
     "ExperimentRunCountsDataLoader",
     "ExperimentRunsByExperimentAndExampleDataLoader",
     "ExperimentSequenceNumberDataLoader",
-    "LanguageByIdDataLoader",
     "LastUsedTimesByGenerativeModelIdDataLoader",
     "LatestPromptVersionIdDataLoader",
     "LatencyMsQuantileDataLoader",
