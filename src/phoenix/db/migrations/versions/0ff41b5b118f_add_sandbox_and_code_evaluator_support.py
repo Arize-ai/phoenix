@@ -58,11 +58,21 @@ def upgrade() -> None:
     )
     op.execute(sa.text("INSERT INTO languages (name) VALUES ('PYTHON'), ('TYPESCRIPT')"))
 
-    # sandbox_providers: language + UNIQUE(id, language) for composite-FK target (D2)
+    # sandbox_providers: language + UNIQUE(language, id) for composite-FK target (D2).
+    # UNIQUE column order is (language, id) — flipped from natural (id, language) — so the
+    # constraint's underlying index doubles as a leftmost-prefix index on `language` alone,
+    # at zero extra storage. Composite (id, language) point lookups are unchanged, and
+    # id-only lookups still hit the PK.
     op.create_table(
         "sandbox_providers",
         sa.Column("id", _Integer, primary_key=True),
         sa.Column("backend_type", sa.String, nullable=False),
+        sa.Column(
+            "language",
+            sa.String,
+            sa.ForeignKey("languages.name", ondelete="RESTRICT"),
+            nullable=False,
+        ),
         sa.Column("config", JSON_, nullable=False, server_default="{}"),
         sa.Column("enabled", sa.Boolean, nullable=False, server_default=sa.text("true")),
         sa.Column(
@@ -77,23 +87,14 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
+        sa.UniqueConstraint("backend_type", "language"),
+        sa.UniqueConstraint("language", "id"),
     )
-    with op.batch_alter_table("sandbox_providers") as batch_op:
-        batch_op.add_column(
-            sa.Column(
-                "language",
-                sa.String,
-                sa.ForeignKey("languages.name", ondelete="RESTRICT"),
-                nullable=False,
-                server_default="PYTHON",
-            )
-        )
-        batch_op.create_unique_constraint(
-            "uq_sandbox_providers_backend_type_language", ["backend_type", "language"]
-        )
-        batch_op.create_unique_constraint("uq_sandbox_providers_id_language", ["id", "language"])
 
-    # sandbox_configs: language + UNIQUE(id, language) + composite FK → sandbox_providers (D2)
+    # sandbox_configs: language + UNIQUE(language, id) + composite FK → sandbox_providers (D2).
+    # The composite FK fk_sandbox_configs_provider_language is named explicitly because its
+    # auto-generated name (column_0_name="sandbox_provider_id") would collide with the simple
+    # FK on the same first column.
     op.create_table(
         "sandbox_configs",
         sa.Column("id", _Integer, primary_key=True),
@@ -103,6 +104,7 @@ def upgrade() -> None:
             sa.ForeignKey("sandbox_providers.id", ondelete="CASCADE"),
             nullable=False,
         ),
+        sa.Column("language", sa.String, nullable=False),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("description", sa.String, nullable=True),
         sa.Column("config", JSON_, nullable=False, server_default="{}"),
@@ -121,25 +123,23 @@ def upgrade() -> None:
             server_default=sa.func.now(),
         ),
         sa.UniqueConstraint("sandbox_provider_id", "name"),
-    )
-    with op.batch_alter_table("sandbox_configs") as batch_op:
-        batch_op.add_column(
-            sa.Column(
-                "language",
-                sa.String,
-                nullable=False,
-                server_default="PYTHON",
-            )
-        )
-        batch_op.create_unique_constraint("uq_sandbox_configs_id_language", ["id", "language"])
-        batch_op.create_foreign_key(
-            "fk_sandbox_configs_provider_language",
-            "sandbox_providers",
+        sa.UniqueConstraint("language", "id"),
+        sa.ForeignKeyConstraint(
             ["sandbox_provider_id", "language"],
-            ["id", "language"],
-        )
+            ["sandbox_providers.id", "sandbox_providers.language"],
+            name="fk_sandbox_configs_provider_language",
+        ),
+    )
 
-    # code_evaluators: language (NOT NULL FK → languages.name) + composite FK → sandbox_configs (D2)
+    # code_evaluators: ADD COLUMN to a pre-existing table requires batch_alter_table on SQLite.
+    # The composite FK fk_code_evaluators_sandbox_config_language is named explicitly because
+    # its auto-generated name (column_0_name="sandbox_config_id") would collide with the
+    # simple FK on the same first column.
+    #
+    # `language` is added with server_default="PYTHON" only to backfill any existing rows
+    # under the new NOT NULL constraint; the persistent DDL default is dropped immediately
+    # after so callers must always supply a value (the language is one of N valid choices,
+    # not a "correct regardless of caller intent" value like created_at = now()).
     with op.batch_alter_table("code_evaluators") as batch_op:
         batch_op.add_column(
             sa.Column(
@@ -182,6 +182,7 @@ def upgrade() -> None:
                 nullable=True,
             ),
         )
+        batch_op.alter_column("language", server_default=None)
         batch_op.create_index("ix_code_evaluators_language", ["language"])
         batch_op.create_index("ix_code_evaluators_sandbox_config_id", ["sandbox_config_id"])
         batch_op.create_foreign_key(

@@ -286,7 +286,7 @@ class ChatCompletionMutationMixin:
                     if code_evaluator_record is None:
                         raise BadRequest(f"Code evaluator with id {code_evaluator_id} not found")
 
-                    language = code_evaluator_record.language or ""
+                    language = code_evaluator_record.language
 
                     # Resolve sandbox backend via config -> provider chain
                     sandbox_backend = None

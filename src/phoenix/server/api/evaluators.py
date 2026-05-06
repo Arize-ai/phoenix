@@ -806,7 +806,7 @@ async def get_evaluators(
             select(models.CodeEvaluator).where(models.CodeEvaluator.id.in_(code_evaluator_db_ids))
         )
         for code_row in code_rows_result:
-            evaluator_language = code_row.language or ""
+            evaluator_language = code_row.language
             code_evaluator_languages_by_id[code_row.id] = evaluator_language
 
             # Resolve sandbox backend via SandboxConfig → SandboxProvider

@@ -201,16 +201,16 @@ CREATE INDEX ix_prompts_prompt_labels_prompt_label_id ON public.prompts_prompt_l
 CREATE TABLE public.sandbox_providers (
     id bigserial NOT NULL,
     backend_type VARCHAR NOT NULL,
+    language VARCHAR NOT NULL,
     config JSONB NOT NULL DEFAULT '{}'::jsonb,
     enabled BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    language VARCHAR NOT NULL DEFAULT 'PYTHON'::character varying,
     CONSTRAINT pk_sandbox_providers PRIMARY KEY (id),
     CONSTRAINT uq_sandbox_providers_backend_type_language
         UNIQUE (backend_type, language),
-    CONSTRAINT uq_sandbox_providers_id_language
-        UNIQUE (id, language),
+    CONSTRAINT uq_sandbox_providers_language_id
+        UNIQUE (language, id),
     CONSTRAINT fk_sandbox_providers_language_languages FOREIGN KEY
         (language)
         REFERENCES public.languages (name)
@@ -223,6 +223,7 @@ CREATE TABLE public.sandbox_providers (
 CREATE TABLE public.sandbox_configs (
     id bigserial NOT NULL,
     sandbox_provider_id BIGINT NOT NULL,
+    language VARCHAR NOT NULL,
     name VARCHAR NOT NULL,
     description VARCHAR,
     config JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -230,10 +231,9 @@ CREATE TABLE public.sandbox_configs (
     enabled BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    language VARCHAR NOT NULL DEFAULT 'PYTHON'::character varying,
     CONSTRAINT pk_sandbox_configs PRIMARY KEY (id),
-    CONSTRAINT uq_sandbox_configs_id_language
-        UNIQUE (id, language),
+    CONSTRAINT uq_sandbox_configs_language_id
+        UNIQUE (language, id),
     CONSTRAINT uq_sandbox_configs_sandbox_provider_id_name
         UNIQUE (sandbox_provider_id, name),
     CONSTRAINT fk_sandbox_configs_provider_language FOREIGN KEY
@@ -781,7 +781,7 @@ CREATE TABLE public.code_evaluators (
     kind VARCHAR NOT NULL DEFAULT 'CODE'::character varying,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     source_code VARCHAR NOT NULL DEFAULT ''::character varying,
-    language VARCHAR NOT NULL DEFAULT 'PYTHON'::character varying,
+    language VARCHAR NOT NULL,
     input_mapping JSONB NOT NULL DEFAULT '{"path_mapping": {}, "literal_mapping": {}}',
     output_configs JSONB NOT NULL DEFAULT '[]'::jsonb,
     sandbox_config_id BIGINT,
