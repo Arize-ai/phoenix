@@ -93,6 +93,7 @@ class ProviderCredentialSpec:
     key: str
     display_name: str
     description: str = ""
+    is_required: bool = True
 
 
 # ---------------------------------------------------------------------------
