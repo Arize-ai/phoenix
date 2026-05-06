@@ -138,13 +138,32 @@ docs/phoenix/release-notes/{MM-YYYY}/{MM-DD-YYYY}-{slug-title}.mdx
 
 Create the month directory if it doesn't exist: `mkdir -p docs/phoenix/release-notes/MM-YYYY`
 
+### Frontmatter title rules (apply to BOTH formats)
+
+Every release note MDX file — single-topic or multi-topic — **must** have a descriptive,
+date-prefixed `title` in its frontmatter. The title appears in browser tabs, the sidebar,
+and search results, so a generic `"Release Notes"` makes the page indistinguishable from
+the index page.
+
+Required format: `title: "MM.DD.YYYY: Descriptive Title"`
+
+- ✅ `title: "04.29.2026: Dataset Upsert"`
+- ✅ `title: "05.05.2026: REST API Updates"`
+- ✅ `title: "04.30.2026: Annotation Enhancements"`
+- ❌ `title: "Release Notes"` — never use this; it collides with the index page
+- ❌ `title: "Dataset Upsert"` — missing the date prefix
+- ❌ `title: "04.29.2026 Dataset Upsert"` — missing the colon separator
+
+For multi-topic files, the title summarizes the theme of the bundle (e.g.
+`"04.30.2026: Annotation Enhancements"`), not any single feature inside it.
+
 ### Format A: Single-topic file
 
 Use when one feature is significant enough to warrant its own page.
 
 ```mdx
 ---
-title: "MM.DD.YYYY Feature Title"
+title: "MM.DD.YYYY: Feature Title"
 description: "One-sentence description of the feature."
 ---
 
@@ -172,11 +191,13 @@ Introductory paragraph explaining what users can now do.
 
 ### Format B: Multi-topic file
 
-Use when several features from a date range are combined into one file.
+Use when several features from a date range are combined into one file. The frontmatter
+`title` still follows the `MM.DD.YYYY: Theme` rule (see "Frontmatter title rules" above) —
+**never** use `"Release Notes"`.
 
 ```mdx
 ---
-title: "Release Notes"
+title: "MM.DD.YYYY: Theme Title"
 ---
 
 # Feature Title One
@@ -228,8 +249,9 @@ Match the version line to which packages are involved:
 
 File: `docs/phoenix/release-notes.mdx`
 
-Add `<Update>` blocks at the top of the file (after the GitHub card), in reverse-chronological
-order. Each block is a condensed summary linking to the individual file.
+Insert each new `<Update>` block at the correct chronological position relative to **all**
+existing blocks — not as a contiguous group at the top. Each block is a condensed summary
+linking to the individual file.
 
 ```mdx
 <Update label="MM.DD.YYYY">
@@ -248,7 +270,35 @@ Rules:
 - Link path has no `.mdx` extension
 - Keep each block to 5-10 lines
 - If one MDX file covers multiple features, create separate `<Update>` blocks per feature date
-- Maintain strict reverse-chronological order (newest first)
+
+### Reverse-chronological insertion (do not skip this)
+
+The aggregate file is sorted strictly newest-first by date. Existing entries are already
+ordered, so inserting a batch of new entries is a **merge**, not an append.
+
+**Wrong** — stacking all new entries at the top as a contiguous block:
+
+```
+[NEW 05.05] [NEW 05.05] [NEW 04.30] [NEW 04.30] [NEW 04.29] [old 05.01] [old 04.28] ...
+                                                              ^^^^^^^^^^
+                                          older date appears AFTER newer dates — broken
+```
+
+**Right** — interleave each new entry with existing entries by date:
+
+```
+[NEW 05.05] [NEW 05.05] [old 05.01] [NEW 04.30] [NEW 04.30] [NEW 04.29] [old 04.28] ...
+```
+
+Procedure when adding multiple entries:
+
+1. List every date you are adding.
+2. Read the existing labels in order: `grep -n 'Update label=' docs/phoenix/release-notes.mdx`
+3. For **each** new entry, find the first existing label whose date is strictly older, and
+   insert the new block immediately before it. Same-date ties stay together.
+4. After inserting, re-run the grep and read the dates top-to-bottom — they must be
+   monotonically non-increasing. If any older date appears above a newer one, fix it
+   before moving on.
 
 ## Step 5: Update the Year Overview
 
@@ -349,6 +399,16 @@ grep -oP '(?<=\()/docs/phoenix/release-notes/[^)]+' docs/phoenix/release-notes.m
   file="${path}.mdx"
   [ -f "$file" ] || echo "MISSING: $file"
 done
+
+# Catch any new file that still has the generic "Release Notes" title
+grep -l '^title: "Release Notes"$' docs/phoenix/release-notes/**/*.mdx 2>/dev/null \
+  && echo "FAIL: file(s) above use the generic 'Release Notes' title — must be 'MM.DD.YYYY: ...'" \
+  || echo "OK: all per-date files have descriptive titles"
+
+# Confirm reverse-chronological order in the aggregate file
+grep -nP 'Update label="[\d.]+' docs/phoenix/release-notes.mdx \
+  | awk -F'[:."]' '{ printf "%s %s%s%s\n", $1, $5, $3, $4 }' \
+  | awk 'NR>1 && $2>prev { print "OUT OF ORDER at release-notes.mdx:" $1 " — " $2 " appears above " prev; bad=1 } { prev=$2 } END { if (!bad) print "OK: reverse-chronological order intact" }'
 ```
 
 ## Decision Quick Reference
@@ -401,6 +461,8 @@ Every code example must be grounded in real code — no hallucinated APIs:
 ### Formatting and linting
 
 - [ ] **Valid MDX**: Each file has YAML frontmatter with at least `title`, all JSX components are properly closed
+- [ ] **Frontmatter title is date-prefixed**: `title: "MM.DD.YYYY: Descriptive Title"` — never `"Release Notes"` (which is reserved for the index page) and never missing the date prefix
+- [ ] **Aggregate order is reverse-chronological**: After inserting new entries, read the labels top-to-bottom in `release-notes.mdx`. Dates must be monotonically non-increasing — no older date ever appears above a newer one. New entries must be **interleaved** with existing ones by date, not stacked as a contiguous block at the top.
 - [ ] **No trailing whitespace or extra blank lines**
 - [ ] **Fenced code blocks have language tags**: Every ` ``` ` block specifies `python`, `typescript`, `bash`, `json`, etc.
 - [ ] **Links have no `.mdx` extension**: All internal doc links use extensionless paths
