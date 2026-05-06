@@ -7,6 +7,7 @@ import {
   TooltipTrigger,
   TriggerWrap,
 } from "@phoenix/components";
+import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { isPlainObject } from "@phoenix/utils/jsonUtils";
 
@@ -15,6 +16,10 @@ import type {
   SandboxConfigFormValues,
   SandboxProvider,
 } from "./types";
+
+type Language =
+  | SandboxProvider["language"]
+  | BackendInfo["supportedLanguages"][number];
 
 export function StatusText({
   status,
@@ -82,12 +87,23 @@ export function statusLabel(status: BackendInfo["status"]) {
   }
 }
 
-export function languageLabel(
-  language:
-    | SandboxProvider["language"]
-    | BackendInfo["supportedLanguages"][number]
-) {
+export function languageLabel(language: Language) {
   return language === "PYTHON" ? "Python" : "TypeScript";
+}
+
+const languageWithIconCSS = css`
+  display: inline-flex;
+  align-items: center;
+  gap: var(--global-dimension-size-100);
+`;
+
+export function LanguageWithIcon({ language }: { language: Language }) {
+  return (
+    <span css={languageWithIconCSS}>
+      {language === "PYTHON" ? <PythonSVG /> : <TypeScriptSVG />}
+      {languageLabel(language)}
+    </span>
+  );
 }
 
 export function getBackendDescription(backendType: BackendInfo["backendType"]) {

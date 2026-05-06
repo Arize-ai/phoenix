@@ -2,6 +2,7 @@ import { useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import { Card, Flex, Label, Switch, Text } from "@phoenix/components";
+import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { SandboxProvidersCardProviderEnabledSwitchMutation } from "./__generated__/SandboxProvidersCardProviderEnabledSwitchMutation.graphql";
@@ -10,7 +11,7 @@ import type { ProviderRow, SandboxProvider } from "./types";
 import {
   formatTimestamp,
   getBackendDescription,
-  languageLabel,
+  LanguageWithIcon,
   StatusText,
 } from "./utils";
 
@@ -31,6 +32,7 @@ export function SandboxProvidersCard({
         <thead>
           <tr>
             <th>Provider</th>
+            <th>Language</th>
             <th>Runtime</th>
             <th>Status</th>
             <th>Updated</th>
@@ -43,12 +45,16 @@ export function SandboxProvidersCard({
             return (
               <tr key={provider.id}>
                 <td>
-                  <Flex direction="column" gap="size-25">
+                  <Flex direction="row" gap="size-100" alignItems="center">
+                    <SandboxProviderIcon
+                      backendType={backend.backendType}
+                      height={18}
+                    />
                     <span>{backend.displayName}</span>
-                    <Text color="text-700" size="S">
-                      {languageLabel(provider.language)} provider
-                    </Text>
                   </Flex>
+                </td>
+                <td>
+                  <LanguageWithIcon language={provider.language} />
                 </td>
                 <td>
                   <Text>{getBackendDescription(backend.backendType)}</Text>
