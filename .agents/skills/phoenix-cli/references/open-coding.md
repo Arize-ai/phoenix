@@ -18,12 +18,12 @@ The unit is about **where the failure modes you're investigating actually live**
 
 1. **User framing.** *Tilts session*: "conversation", "agent forgot", "drift", "memory", "across turns", "user had to repeat themselves". *Tilts trace*: "this trace", "this call", "the response was wrong", "wrong output". *Tilts span*: "exception", "error response", "malformed", "the retrieval failed".
 
-2. **Data shape.** Probe before the loop:
+2. **Data shape.** Probe before the loop. The session id lives at `rootSpan.attributes["session.id"]` (it is *not* a top-level field on the trace JSON), and is `""` for traces that aren't session-wired — filter both:
 
    ```bash
    px trace list --limit 200 --format raw --no-progress \
      | jq '
-       [ .[] | .sessionId // empty ]
+       [ .[] | .rootSpan.attributes["session.id"] // empty | select(. != "") ]
        | { with_session: length,
            distinct_sessions: (group_by(.) | length),
            median_traces_per_session:
@@ -61,10 +61,8 @@ Verify the id isn't already in use in this project (any of the three kinds — t
 ```bash
 export PHOENIX_CODING_SESSION_ID="coding-session:chatbot-context-loss-2026-05-06"
 
-px api rest GET "/v1/projects/$PHOENIX_PROJECT/trace_annotations" \
-  --query "identifier=$PHOENIX_CODING_SESSION_ID" \
-  --query "limit=1" \
-  --format raw --no-progress \
+curl -s ${PHOENIX_API_KEY:+-H "Authorization: Bearer $PHOENIX_API_KEY"} \
+  "$PHOENIX_HOST/v1/projects/$PHOENIX_PROJECT/trace_annotations?identifier=$PHOENIX_CODING_SESSION_ID&limit=1" \
   | jq '.data | length'
 # Expect 0. If non-zero, append a disambiguator (-v2, -dustin, etc.) and re-check.
 ```
@@ -147,7 +145,7 @@ px session add-note <session-id> \
   --identifier "$PHOENIX_CODING_SESSION_ID"
 ```
 
-Interactive loop — walks traces; for span or session units, swap `px trace` for `px span` / `px session` and the JSON path (`.traceId` → `.context.span_id` / `.sessionId`) accordingly:
+Interactive loop — walks traces; for span or session units, swap `px trace` for `px span` / `px session` and the JSON path (`.traceId` → `.context.span_id` / `.session_id`) accordingly:
 
 ```bash
 px trace list --last-n-minutes 60 --limit 50 --format raw --no-progress \
@@ -221,22 +219,22 @@ At any time during the run you can list every artifact tagged with the current s
 ```bash
 # All notes + structured annotations + sidecars across the three entity kinds
 for kind in trace span session; do
-  px api rest GET "/v1/projects/$PHOENIX_PROJECT/${kind}_annotations" \
-    --query "identifier=$PHOENIX_CODING_SESSION_ID" \
-    --query 'limit=1000' \
-    --format raw --no-progress \
+  curl -s ${PHOENIX_API_KEY:+-H "Authorization: Bearer $PHOENIX_API_KEY"} \
+    "$PHOENIX_HOST/v1/projects/$PHOENIX_PROJECT/${kind}_annotations?identifier=$PHOENIX_CODING_SESSION_ID&limit=1000" \
     | jq --arg kind "$kind" '{kind: $kind, rows: .data}'
 done
 ```
 
 ## Wrapping up
 
-When the session is done, share the Phoenix UI link with the user. The link filters the project's traces page by the sidecar annotation:
+When the session is done, share the Phoenix UI link with the user. The link filters the project's traces page by the sidecar annotation. The UI route `/projects/:projectId` expects an encoded GraphQL node ID, not a project name — resolve it first via `getProjectByName`:
 
 ```bash
+project_id=$(px api graphql "{ getProjectByName(name: \"$PHOENIX_PROJECT\") { id } }" \
+  | jq -r '.data.getProjectByName.id')
 encoded=$(python3 -c 'import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))' \
   "annotations['coding_session_id'].label == '$PHOENIX_CODING_SESSION_ID'")
-echo "Phoenix UI: $PHOENIX_HOST/projects/$PHOENIX_PROJECT/traces?filterCondition=$encoded"
+echo "Phoenix UI: $PHOENIX_HOST/projects/$project_id/traces?filterCondition=$encoded"
 ```
 
 If the user wants to discard everything this session produced, three identifier-bound DELETEs handle it. **Confirm with the user before running** — this is destructive:
