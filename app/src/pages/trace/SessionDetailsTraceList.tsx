@@ -19,6 +19,7 @@ import { useLocation, useSearchParams } from "react-router";
 
 import {
   Flex,
+  ExpandableContent,
   Icon,
   Icons,
   LinkButton,
@@ -32,7 +33,6 @@ import {
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
-import { OverflowCell } from "@phoenix/components/table";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanCumulativeTokenCount } from "@phoenix/components/trace/SpanCumulativeTokenCount";
 import { TokenCosts } from "@phoenix/components/trace/TokenCosts";
@@ -154,13 +154,13 @@ function RootSpanMessage({ extra, label, role, value }: RootSpanMessageProps) {
         width="100%"
         {...styles}
       >
-        <OverflowCell
+        <ExpandableContent
           height={SESSION_TURN_MESSAGE_MAX_HEIGHT}
           expandedBehavior="grow"
           overlayBackgroundColor={overlayBackgroundColor}
         >
           <DynamicContent value={value} />
-        </OverflowCell>
+        </ExpandableContent>
       </View>
     </Flex>
   );

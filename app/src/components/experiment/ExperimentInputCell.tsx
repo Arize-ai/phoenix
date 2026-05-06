@@ -1,13 +1,20 @@
 import { css } from "@emotion/react";
 
-import { Flex, Icon, IconButton, Icons, Text } from "@phoenix/components";
+import {
+  ExpandableContent,
+  Flex,
+  Icon,
+  IconButton,
+  Icons,
+  Text,
+} from "@phoenix/components";
 import {
   Tooltip,
   TooltipArrow,
   TooltipTrigger,
 } from "@phoenix/components/core/tooltip";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
-import { CellTop, OverflowCell } from "@phoenix/components/table";
+import { CellTop } from "@phoenix/components/table";
 
 const contentCSS = css`
   flex: none;
@@ -69,11 +76,11 @@ export function ExperimentInputCell({
           `}
         >{`example ${exampleId}`}</Text>
       </CellTop>
-      <OverflowCell height={height}>
+      <ExpandableContent height={height}>
         <div css={contentCSS}>
           <DynamicContent value={value} />
         </div>
-      </OverflowCell>
+      </ExpandableContent>
     </Flex>
   );
 }
