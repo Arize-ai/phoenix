@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { CSSProperties, PropsWithChildren, RefObject } from "react";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Icon, Icons } from "@phoenix/components/core/icon";
 
@@ -75,6 +75,16 @@ const expandButtonCSS = css`
   }
 `;
 
+const collapseButtonCSS = css`
+  position: static;
+  height: auto;
+  padding-top: var(--global-dimension-size-100);
+  background: var(
+    --expandable-content-overlay-background-color,
+    var(--global-background-color-default)
+  );
+`;
+
 export interface ExpandableContentProps extends PropsWithChildren {
   height: number;
   /**
@@ -99,7 +109,7 @@ export interface ExpandableContentProps extends PropsWithChildren {
   onExpandedChange?: (isExpanded: boolean) => void;
 }
 
-export const ExpandableContent = memo(function ExpandableContent({
+export function ExpandableContent({
   children,
   height,
   expandedBehavior = "scroll",
@@ -109,20 +119,27 @@ export const ExpandableContent = memo(function ExpandableContent({
 }: ExpandableContentProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const isOverflowing = useIsOverflowing(contentRef, containerRef);
+  const isOverflowing = useIsOverflowing({
+    contentRef,
+    containerRef,
+    collapsedHeight: height,
+    expandedBehavior,
+  });
   const [internalExpanded, setInternalExpanded] = useState(false);
 
   // Use controlled value if provided, otherwise use internal state
   const isControlled = controlledExpanded !== undefined;
   const isExpanded = isControlled ? controlledExpanded : internalExpanded;
 
-  const handleExpand = useCallback(() => {
+  const setExpanded = (nextIsExpanded: boolean) => {
     if (!isControlled) {
-      setInternalExpanded(true);
+      setInternalExpanded(nextIsExpanded);
     }
-    onExpandedChange?.(true);
-  }, [isControlled, onExpandedChange]);
+    onExpandedChange?.(nextIsExpanded);
+  };
   const shouldUseNaturalHeight = expandedBehavior === "grow" && isExpanded;
+  const canCollapse =
+    expandedBehavior === "grow" && isExpanded && isOverflowing;
   const containerStyle = {
     "--expandable-content-overlay-background-color": overlayBackgroundColor,
     ...(expandedBehavior === "scroll"
@@ -148,16 +165,29 @@ export const ExpandableContent = memo(function ExpandableContent({
         <button
           className="expand-button button--reset"
           css={expandButtonCSS}
-          onClick={handleExpand}
+          onClick={() => setExpanded(true)}
           aria-label="Show more"
+          aria-expanded={false}
         >
           <span>expand</span>
           <Icon svg={<Icons.ArrowIosDownwardOutline />} />
         </button>
       )}
+      {canCollapse && (
+        <button
+          className="expand-button button--reset"
+          css={[expandButtonCSS, collapseButtonCSS]}
+          onClick={() => setExpanded(false)}
+          aria-label="Show less"
+          aria-expanded={true}
+        >
+          <span>collapse</span>
+          <Icon svg={<Icons.ArrowIosUpwardOutline />} />
+        </button>
+      )}
     </div>
   );
-});
+}
 
 /**
  * Hook to detect if content overflows its container.
@@ -165,10 +195,17 @@ export const ExpandableContent = memo(function ExpandableContent({
  * - Asynchronously-rendered content (e.g., CodeMirror, images)
  * - Streaming content where text is appended incrementally
  */
-function useIsOverflowing(
-  contentRef: RefObject<HTMLElement | null>,
-  containerRef: RefObject<HTMLElement | null>
-): boolean {
+function useIsOverflowing({
+  contentRef,
+  containerRef,
+  collapsedHeight,
+  expandedBehavior,
+}: {
+  contentRef: RefObject<HTMLElement | null>;
+  containerRef: RefObject<HTMLElement | null>;
+  collapsedHeight: number;
+  expandedBehavior: ExpandableContentProps["expandedBehavior"];
+}): boolean {
   const [isOverflowing, setIsOverflowing] = useState(false);
 
   useEffect(() => {
@@ -177,8 +214,10 @@ function useIsOverflowing(
     if (!content || !container) return;
 
     const checkOverflow = () => {
+      const overflowBoundary =
+        expandedBehavior === "grow" ? collapsedHeight : container.clientHeight;
       setIsOverflowing(
-        content.scrollHeight > container.clientHeight + OVERFLOW_TOLERANCE_PX
+        content.scrollHeight > overflowBoundary + OVERFLOW_TOLERANCE_PX
       );
     };
 
@@ -202,7 +241,7 @@ function useIsOverflowing(
       resizeObserver.disconnect();
       mutationObserver.disconnect();
     };
-  }, [contentRef, containerRef]);
+  }, [collapsedHeight, contentRef, containerRef, expandedBehavior]);
 
   return isOverflowing;
 }
