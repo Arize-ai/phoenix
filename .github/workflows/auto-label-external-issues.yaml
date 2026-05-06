@@ -1,0 +1,60 @@
+name: Auto-label external issues for triage
+
+on:
+  issues:
+    types: [opened]
+  # `pull_request_target` runs in the context of the base repo so the
+  # default token has write permissions even for fork PRs. We only react
+  # to the `opened` event and do not check out the PR head, so the
+  # elevated token is not exposed to untrusted code.
+  pull_request_target:
+    types: [opened]
+
+jobs:
+  label:
+    name: Label external issues and PRs
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Add triage label for non-team contributors
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        with:
+          script: |
+            const payload = context.payload.issue || context.payload.pull_request;
+            if (!payload) {
+              core.info("No issue or pull_request payload — nothing to label");
+              return;
+            }
+
+            // Skip bot authors (Dependabot, github-actions[bot], etc.)
+            if (payload.user?.type === "Bot") {
+              core.info(`Skipping bot author: ${payload.user.login}`);
+              return;
+            }
+
+            // Treat MEMBER / OWNER / COLLABORATOR as internal. Everything
+            // else (CONTRIBUTOR, FIRST_TIME_CONTRIBUTOR, FIRST_TIMER, NONE)
+            // is external and gets routed to triage.
+            const internal = ["MEMBER", "OWNER", "COLLABORATOR"];
+            const association = payload.author_association;
+            if (internal.includes(association)) {
+              core.info(
+                `Skipping internal contributor (author_association=${association})`
+              );
+              return;
+            }
+
+            core.info(
+              `External contributor (author_association=${association}); applying triage label`
+            );
+
+            const label = "triage";
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: payload.number,
+              labels: [label],
+            });
+            core.info(`Added "${label}" to #${payload.number}`);
