@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<14288cbdc6064a2f6c9f67026084f40b>>
+ * @generated SignedSource<<a6777edcd2f852c61807cc8fd9949e91>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -14,7 +14,6 @@ export type CreateCodeEvaluatorVersionInput = {
   codeEvaluatorId: string;
   description?: string | null;
   language: Language;
-  sandboxConfigId?: string | null;
   sourceCode: string;
 };
 export type EditCodeDatasetEvaluatorSlideover_createCodeEvaluatorVersionMutation$variables = {

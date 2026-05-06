@@ -12,7 +12,6 @@ import asyncio
 import logging
 import re
 import shutil
-import subprocess
 from typing import Any, Optional
 
 from .types import (
@@ -30,24 +29,6 @@ _ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
 
 def _strip_ansi(text: str) -> str:
     return _ANSI_ESCAPE_RE.sub("", text)
-
-
-def _detect_deno_version() -> Optional[str]:
-    deno_executable = shutil.which("deno")
-    if deno_executable is None:
-        return None
-    try:
-        result = subprocess.run(
-            [deno_executable, "--version"],
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=2,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        return None
-    first_line = _strip_ansi(result.stdout).splitlines()
-    return first_line[0] if first_line else None
 
 
 class DenoSandboxBackend(BaseNoSessionBackend):
@@ -146,14 +127,6 @@ class DenoAdapter(SandboxAdapter):
     display_name = "Deno (local)"
     language = "TYPESCRIPT"
     config_model = DenoConfig
-    _deno_version: Optional[str]
-
-    def __init__(self) -> None:
-        self._deno_version = _detect_deno_version()
-
-    def runtime_fingerprint(self, config: dict[str, Any]) -> str:
-        v = self._deno_version or "unknown"
-        return f"DENO@{v}"
 
     def build_backend(
         self, config: dict[str, Any], user_env: Optional[dict[str, str]] = None

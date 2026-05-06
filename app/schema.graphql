@@ -500,14 +500,15 @@ type CodeEvaluator implements Evaluator & Node {
   isBuiltin: Boolean!
   datasets(first: Int = 50, after: String): DatasetConnection!
   datasetEvaluators: [DatasetEvaluator!]!
-  sourceCode: String!
-  language: Language!
   sandboxConfig: SandboxConfig
   inputMapping: EvaluatorInputMapping!
   outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   currentVersion: CodeEvaluatorVersion
   version(versionId: ID!): CodeEvaluatorVersion
   versions(first: Int = 50, last: Int, after: String, before: String): CodeEvaluatorVersionConnection!
+  inputSchema: JSON
+  sourceCode: String!
+  language: Language!
   user: User
 }
 
@@ -521,7 +522,6 @@ type CodeEvaluatorVersion implements Node {
   id: ID!
   description: String
   sourceCode: String!
-  sandboxSnapshot: JSON
   createdAt: DateTime!
   language: Language!
   inputSchema: JSON
@@ -649,11 +649,6 @@ input CreateCodeEvaluatorVersionInput {
   codeEvaluatorId: ID!
   sourceCode: String!
   language: Language!
-
-  """
-  ID of the SandboxConfig to bind the new version (and the evaluator's tip) to. Pass null to record a sandbox-less version. Must be supplied explicitly: omitting it is a schema error so callers cannot accidentally inherit a stale tip binding.
-  """
-  sandboxConfigId: ID
   description: String = null
 }
 
@@ -2298,7 +2293,7 @@ type Mutation {
   patchCodeEvaluator(input: PatchCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
 
   """
-  Append a new immutable CodeEvaluatorVersion. The new version is bound to the SandboxConfig identified by input.sandbox_config_id (null is allowed and records a sandbox-less version); the evaluator's tip sandbox_config_id is updated in the same transaction so the version row and the tip always agree. If the proposed source_code, language, and sandbox binding are identical to the current tip version, no new row is appended and was_created=false.
+  Append a new immutable CodeEvaluatorVersion. If the proposed source_code and language are identical to the current tip version, no new row is appended and was_created=false. Sandbox rebinding lives on patchCodeEvaluator and does not bump a version on its own.
   """
   createCodeEvaluatorVersion(input: CreateCodeEvaluatorVersionInput!): CreateCodeEvaluatorVersionPayload!
   stopExperiment(experimentId: ID!): StopExperimentPayload!
@@ -2453,6 +2448,8 @@ input PatchCodeEvaluatorInput {
   id: ID!
   name: Identifier
   description: String
+  sourceCode: String
+  language: Language
   sandboxConfigId: ID
   inputMapping: EvaluatorInputMappingInput
   outputConfigs: [AnnotationConfigInput!]

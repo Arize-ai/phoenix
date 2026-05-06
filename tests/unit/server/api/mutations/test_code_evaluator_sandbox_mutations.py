@@ -446,7 +446,6 @@ mutation CreateCodeEvaluator($input: CreateCodeEvaluatorInput!) {
             ... on CodeEvaluator {
                 currentVersion {
                     id
-                    sandboxSnapshot
                 }
             }
         }
@@ -481,7 +480,6 @@ mutation CreateCodeEvaluatorVersion($input: CreateCodeEvaluatorVersionInput!) {
                 currentVersion {
                     id
                     sourceCode
-                    sandboxSnapshot
                 }
             }
         }
@@ -551,12 +549,6 @@ async def _create_code_evaluator_with_config(
             code_evaluator_id=code_eval.id,
             source_code="def evaluate(input): return {'score': 1.0}",
             language=provider.language,
-            sandbox_snapshot={
-                "backend_type": provider.backend_type,
-                "timeout": sandbox_config.timeout,
-                "config": sandbox_config.config,
-                "runtime_fingerprint": f"{provider.backend_type}@1.0",
-            },
         )
         session.add(version)
         await session.flush()
@@ -574,6 +566,7 @@ async def _create_code_evaluator_with_two_versions(
             name=Identifier(root=f"test-history-eval-{token_hex(4)}"),
             description=None,
             metadata_={},
+            language=provider.language,
             sandbox_config_id=sandbox_config.id,
         )
         session.add(code_eval)
@@ -581,12 +574,6 @@ async def _create_code_evaluator_with_two_versions(
         common_kwargs: dict[str, Any] = dict(
             code_evaluator_id=code_eval.id,
             language=provider.language,
-            sandbox_snapshot={
-                "backend_type": provider.backend_type,
-                "timeout": sandbox_config.timeout,
-                "config": sandbox_config.config,
-                "runtime_fingerprint": f"{provider.backend_type}@1.0",
-            },
         )
         first_version = models.CodeEvaluatorVersion(
             source_code="def evaluate(input): return {'score': 0.0}",
@@ -676,9 +663,7 @@ class TestCodeEvaluatorSandboxMutationIds:
         )
         assert result.data and not result.errors
         evaluator = result.data["createCodeEvaluator"]["evaluator"]
-        snapshot = evaluator["currentVersion"]["sandboxSnapshot"]
-        assert "backend_type" in snapshot
-        assert "runtime_fingerprint" in snapshot
+        assert evaluator["currentVersion"]["id"]
 
         evaluator_id = GlobalID.from_id(evaluator["id"])
         async with db() as session:
@@ -686,15 +671,14 @@ class TestCodeEvaluatorSandboxMutationIds:
         assert row is not None
         assert row.sandbox_config_id == sandbox_config.id
 
-    async def test_create_code_evaluator_version_snapshots_tip_sandbox(
+    async def test_create_code_evaluator_version_appends_when_code_changes(
         self,
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
         sandbox_config: models.SandboxConfig,
     ) -> None:
-        """createCodeEvaluatorVersion now reads sandbox_config_id from the input
-        (required-nullable) and snapshots the 4-key shape
-        {backend_type, config, timeout, runtime_fingerprint}."""
+        """createCodeEvaluatorVersion appends a new immutable row when the
+        source_code changes. Sandbox binding is not part of the version row."""
         async with db() as session:
             code_eval = models.CodeEvaluator(
                 name=Identifier(root="test_update_code_evaluator"),
@@ -706,135 +690,37 @@ class TestCodeEvaluatorSandboxMutationIds:
             )
             session.add(code_eval)
             await session.flush()
+            seed = models.CodeEvaluatorVersion(
+                code_evaluator_id=code_eval.id,
+                source_code="def evaluate(output): return {'score': 0.0}",
+                language="PYTHON",
+            )
+            session.add(seed)
+            await session.flush()
             evaluator_gid = str(GlobalID("CodeEvaluator", str(code_eval.id)))
 
-        sandbox_config_gid = str(GlobalID("SandboxConfig", str(sandbox_config.id)))
         result = await gql_client.execute(
             _CREATE_CODE_EVALUATOR_VERSION,
             variables={
                 "input": {
                     "codeEvaluatorId": evaluator_gid,
                     "language": "PYTHON",
-                    "sourceCode": "def evaluate(output): return {'score': 0.0}",
-                    "sandboxConfigId": sandbox_config_gid,
+                    "sourceCode": "def evaluate(output): return {'score': 1.0}",
                 }
             },
         )
         assert result.data and not result.errors
-        evaluator = result.data["createCodeEvaluatorVersion"]["evaluator"]
-        snapshot = evaluator["currentVersion"]["sandboxSnapshot"]
-        assert "backend_type" in snapshot
-        assert "runtime_fingerprint" in snapshot
+        payload = result.data["createCodeEvaluatorVersion"]
+        assert payload["wasCreated"] is True
+        assert (
+            payload["evaluator"]["currentVersion"]["sourceCode"]
+            == "def evaluate(output): return {'score': 1.0}"
+        )
 
         async with db() as session:
             row = await session.get(models.CodeEvaluator, code_eval.id)
         assert row is not None
         assert row.sandbox_config_id == sandbox_config.id
-
-    async def test_create_code_evaluator_version_snapshot_merges_provider_config(
-        self,
-        gql_client: AsyncGraphQLClient,
-        db: DbSessionFactory,
-        seed_sandbox_providers: None,
-    ) -> None:
-        """Non-credential keys on SandboxProvider.config must flow into the
-        snapshot — runtime now reads sandbox config from the snapshot, so any
-        admin-authored provider keys (env_vars, internet_access, dependencies,
-        etc.) would otherwise silently disappear from replay and drift
-        detection. Provider config wins on key collision, matching the
-        pre-snapshot runtime merge order."""
-        async with db() as session:
-            provider = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
-            )
-            assert provider is not None, "E2B provider must be seeded"
-            # Admin-authored provider config: env_vars + internet_access.
-            # internet_access uses the same mode the user set so the merged
-            # capability check passes; env_vars is the key whose presence we
-            # verify in the snapshot.
-            provider.config = {
-                "env_vars": [
-                    {"kind": "literal", "name": "PROVIDER_KEY", "value": "from-provider"},
-                ],
-                "internet_access": {"mode": "allow"},
-            }
-            await session.flush()
-            provider_id = provider.id
-
-            sandbox_cfg = models.SandboxConfig(
-                sandbox_provider_id=provider_id,
-                name=f"merge-test-config-{token_hex(4)}",
-                description=None,
-                # User-side: a non-overlapping non-credential key, plus a
-                # colliding internet_access (mode=deny) to confirm the
-                # provider value (mode=allow) wins on conflict.
-                config={
-                    "dependencies": {"packages": ["requests"]},
-                    "internet_access": {"mode": "deny"},
-                },
-                timeout=30,
-            )
-            session.add(sandbox_cfg)
-            await session.flush()
-            sandbox_cfg_id = sandbox_cfg.id
-
-            code_eval = models.CodeEvaluator(
-                name=Identifier(root=f"merge-test-eval-{token_hex(4)}"),
-                description=None,
-                metadata_={},
-                sandbox_config_id=sandbox_cfg_id,
-            )
-            session.add(code_eval)
-            await session.flush()
-            evaluator_gid = str(GlobalID("CodeEvaluator", str(code_eval.id)))
-
-        sandbox_cfg_gid = str(GlobalID("SandboxConfig", str(sandbox_cfg_id)))
-        result = await gql_client.execute(
-            _CREATE_CODE_EVALUATOR_VERSION,
-            variables={
-                "input": {
-                    "codeEvaluatorId": evaluator_gid,
-                    "language": "PYTHON",
-                    "sourceCode": "def evaluate(output): return {'score': 0.0}",
-                    "sandboxConfigId": sandbox_cfg_gid,
-                }
-            },
-        )
-        assert result.data and not result.errors, result.errors
-        snapshot = result.data["createCodeEvaluatorVersion"]["evaluator"]["currentVersion"][
-            "sandboxSnapshot"
-        ]
-        snapshot_config = snapshot["config"]
-        # User-only key preserved (not on provider).
-        assert snapshot_config["dependencies"] == {"packages": ["requests"], "lockfile": None}
-        # Provider-only env_vars entry flows into the snapshot — without the
-        # merge this whole entry would silently disappear, since the user
-        # config carries no env_vars of its own. The literal value is redacted
-        # at write; we assert on shape + name to confirm the provider entry
-        # made it through.
-        env_vars = snapshot_config["env_vars"]
-        assert len(env_vars) == 1
-        assert env_vars[0]["kind"] == "literal"
-        assert env_vars[0]["name"] == "PROVIDER_KEY"
-        assert env_vars[0]["value"] == "<redacted>"
-        # Provider value wins on key collision (allow, not user's deny).
-        assert snapshot_config["internet_access"] == {"mode": "allow"}
-
-        # Verify the DB row stores the redacted shape (plaintext is not at rest).
-        async with db() as session:
-            db_version = await session.scalar(
-                select(models.CodeEvaluatorVersion).where(
-                    models.CodeEvaluatorVersion.code_evaluator_id == code_eval.id
-                )
-            )
-        assert db_version is not None
-        assert db_version.sandbox_snapshot is not None
-        db_env_vars = db_version.sandbox_snapshot["config"]["env_vars"]
-        assert len(db_env_vars) == 1
-        assert db_env_vars[0]["kind"] == "literal"
-        assert db_env_vars[0]["name"] == "PROVIDER_KEY"
-        assert db_env_vars[0]["value"] == "<redacted>"
-        assert "value_digest" in db_env_vars[0]
 
     async def test_create_code_evaluator_version_dedups_identical_content(
         self,
@@ -846,7 +732,6 @@ class TestCodeEvaluatorSandboxMutationIds:
             db, sandbox_config
         )
         evaluator_gid = str(GlobalID("CodeEvaluator", str(evaluator_db_id)))
-        sandbox_config_gid = str(GlobalID("SandboxConfig", str(sandbox_config.id)))
 
         result = await gql_client.execute(
             _CREATE_CODE_EVALUATOR_VERSION,
@@ -855,7 +740,6 @@ class TestCodeEvaluatorSandboxMutationIds:
                     "codeEvaluatorId": evaluator_gid,
                     "language": "PYTHON",
                     "sourceCode": "def evaluate(input): return {'score': 1.0}",
-                    "sandboxConfigId": sandbox_config_gid,
                 }
             },
         )
@@ -940,9 +824,9 @@ class TestCodeEvaluatorSandboxMutationIds:
         sandbox_config: models.SandboxConfig,
         seed_sandbox_providers: None,
     ) -> None:
-        """Happy path: patchCodeEvaluator(sandboxConfigId=B) updates the tip
-        and a follow-up createCodeEvaluatorVersion encodes B in the snapshot,
-        not the pre-patch FK A."""
+        """Happy path: patchCodeEvaluator(sandboxConfigId=B) updates the tip's
+        sandbox binding without bumping a version — sandbox is binding state on
+        the tip, not version content."""
         # Build a second WASM/Python config (B) to switch the binding to.
         async with db() as session:
             python_provider = await session.scalar(
@@ -951,6 +835,7 @@ class TestCodeEvaluatorSandboxMutationIds:
             assert python_provider is not None
             sandbox_config_b = models.SandboxConfig(
                 sandbox_provider_id=python_provider.id,
+                language=python_provider.language,
                 name=f"sandbox-b-{token_hex(4)}",
                 description=None,
                 config={},
@@ -977,25 +862,75 @@ class TestCodeEvaluatorSandboxMutationIds:
         patched = patch_result.data["patchCodeEvaluator"]["evaluator"]
         assert patched["sandboxConfig"]["id"] == sandbox_b_gid
 
-        # Now create a new version. Its snapshot's timeout is sourced from B
-        # (45) — proves the snapshot encodes the patched FK, not the pre-patch
-        # FK A whose timeout is 30.
+        async with db() as session:
+            row = await session.get(models.CodeEvaluator, evaluator_db_id)
+        assert row is not None
+        assert row.sandbox_config_id == sandbox_config_b_id
+
+    async def test_patch_tip_sandbox_without_code_change_returns_was_created_false(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        sandbox_config: models.SandboxConfig,
+        seed_sandbox_providers: None,
+    ) -> None:
+        """Rebinding the tip's sandbox via patchCodeEvaluator and then calling
+        createCodeEvaluatorVersion with the same source/language must not
+        manufacture a new version row."""
+        async with db() as session:
+            python_provider = await session.scalar(
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
+            )
+            assert python_provider is not None
+            sandbox_config_b = models.SandboxConfig(
+                sandbox_provider_id=python_provider.id,
+                language=python_provider.language,
+                name=f"sandbox-b-{token_hex(4)}",
+                description=None,
+                config={},
+                timeout=45,
+            )
+            session.add(sandbox_config_b)
+            await session.flush()
+            sandbox_config_b_id = sandbox_config_b.id
+
+        evaluator_db_id = await _create_code_evaluator_with_config(db, sandbox_config)
+        evaluator_gid = str(GlobalID("CodeEvaluator", str(evaluator_db_id)))
+        sandbox_b_gid = str(GlobalID("SandboxConfig", str(sandbox_config_b_id)))
+
+        async with db() as session:
+            initial_count = await session.scalar(
+                select(sa.func.count(models.CodeEvaluatorVersion.id)).where(
+                    models.CodeEvaluatorVersion.code_evaluator_id == evaluator_db_id
+                )
+            )
+
+        patch_result = await gql_client.execute(
+            _PATCH_CODE_EVALUATOR,
+            variables={"input": {"id": evaluator_gid, "sandboxConfigId": sandbox_b_gid}},
+        )
+        assert patch_result.data and not patch_result.errors, patch_result.errors
+
         version_result = await gql_client.execute(
             _CREATE_CODE_EVALUATOR_VERSION,
             variables={
                 "input": {
                     "codeEvaluatorId": evaluator_gid,
                     "language": "PYTHON",
-                    "sourceCode": "def evaluate(input): return {'score': 0.5}",
-                    "sandboxConfigId": sandbox_b_gid,
+                    "sourceCode": "def evaluate(input): return {'score': 1.0}",
                 }
             },
         )
         assert version_result.data and not version_result.errors, version_result.errors
-        snapshot = version_result.data["createCodeEvaluatorVersion"]["evaluator"]["currentVersion"][
-            "sandboxSnapshot"
-        ]
-        assert snapshot["timeout"] == 45
+        assert version_result.data["createCodeEvaluatorVersion"]["wasCreated"] is False
+
+        async with db() as session:
+            final_count = await session.scalar(
+                select(sa.func.count(models.CodeEvaluatorVersion.id)).where(
+                    models.CodeEvaluatorVersion.code_evaluator_id == evaluator_db_id
+                )
+            )
+        assert final_count == initial_count
 
     async def test_patch_code_evaluator_rejects_language_mismatch(
         self,
@@ -1019,6 +954,7 @@ class TestCodeEvaluatorSandboxMutationIds:
             )
             ts_config = models.SandboxConfig(
                 sandbox_provider_id=ts_provider.id,
+                language=ts_provider.language,
                 name=f"ts-config-{token_hex(4)}",
                 description=None,
                 config={},
@@ -1099,169 +1035,38 @@ class TestCodeEvaluatorSandboxMutationIds:
         assert {"sourceCode", "language", "inputSchema"}.isdisjoint(field_names)
 
 
-def test_code_evaluator_version_content_equality_ignores_runtime_fingerprint_and_description() -> (
-    None
-):
-    """Runtime-fingerprint drift (e.g. SDK upgrade) and description changes
-    must not manufacture a new version when the user-authored content is
-    unchanged. This is the product invariant that makes dedup safe to rely on."""
-    base_snapshot = {
-        "backend_type": "WASM",
-        "timeout": 30,
-        "config": {},
-        "runtime_fingerprint": "WASM@1.0",
-    }
+def test_code_evaluator_version_has_identical_content_compares_source_and_language() -> None:
+    """has_identical_content compares only (source_code, language). Description
+    is metadata, sandbox is binding state on the tip — neither bumps a version."""
     version = models.CodeEvaluatorVersion(
         code_evaluator_id=1,
         description="first",
         source_code="def evaluate(input): return {'score': 1.0}",
-        language_id=1,
-        sandbox_snapshot=base_snapshot,
+        language="PYTHON",
     )
     same_content = models.CodeEvaluatorVersion(
         code_evaluator_id=1,
         description="metadata-only change",
         source_code="def evaluate(input): return {'score': 1.0}",
-        language_id=1,
-        sandbox_snapshot={**base_snapshot, "runtime_fingerprint": "WASM@2.0"},
+        language="PYTHON",
     )
-    changed_content = models.CodeEvaluatorVersion(
+    changed_source = models.CodeEvaluatorVersion(
+        code_evaluator_id=1,
+        source_code="def evaluate(input): return {'score': 0.0}",
+        language="PYTHON",
+    )
+    changed_language = models.CodeEvaluatorVersion(
         code_evaluator_id=1,
         source_code="def evaluate(input): return {'score': 1.0}",
-        language_id=1,
-        sandbox_snapshot={**base_snapshot, "config": {"allow_network": True}},
+        language="TYPESCRIPT",
     )
 
     assert same_content.has_identical_content(version)
-    assert not changed_content.has_identical_content(version)
-
-
-def test_has_identical_content_with_redacted_snapshots_uses_value_digest() -> None:
-    """has_identical_content must return True for two redacted snapshots with matching digests
-    and False when only the literal value (and thus digest) rotates."""
-    from phoenix.server.api.helpers.sandbox_redaction import redact_sandbox_snapshot
-
-    base_raw = {
-        "backend_type": "WASM",
-        "timeout": 30,
-        "config": {"env_vars": [{"kind": "literal", "name": "MY_KEY", "value": "secret-v1"}]},
-        "runtime_fingerprint": "WASM@1.0",
-    }
-    rotated_raw = {
-        **base_raw,
-        "config": {"env_vars": [{"kind": "literal", "name": "MY_KEY", "value": "secret-v2"}]},
-    }
-    redacted_base = redact_sandbox_snapshot(base_raw)
-    redacted_same = redact_sandbox_snapshot(base_raw)
-    redacted_rotated = redact_sandbox_snapshot(rotated_raw)
-
-    v1 = models.CodeEvaluatorVersion(
-        code_evaluator_id=1,
-        source_code="def evaluate(input): return {'score': 1.0}",
-        language_id=1,
-        sandbox_snapshot=redacted_base,
-    )
-    v2_same = models.CodeEvaluatorVersion(
-        code_evaluator_id=1,
-        source_code="def evaluate(input): return {'score': 1.0}",
-        language_id=1,
-        sandbox_snapshot=redacted_same,
-    )
-    v2_rotated = models.CodeEvaluatorVersion(
-        code_evaluator_id=1,
-        source_code="def evaluate(input): return {'score': 1.0}",
-        language_id=1,
-        sandbox_snapshot=redacted_rotated,
-    )
-
-    assert v2_same.has_identical_content(v1)
-    assert not v2_rotated.has_identical_content(v1)
+    assert not changed_source.has_identical_content(version)
+    assert not changed_language.has_identical_content(version)
 
 
 class TestRedactAtRestInMutations:
-    async def _make_e2b_config_with_env_var(
-        self, db: DbSessionFactory, name: str, env_var_value: str
-    ) -> tuple[int, int]:
-        """Create an E2B sandbox config with one literal env var. Returns (config_id, provider_id)."""
-        async with db() as session:
-            provider = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
-            )
-            assert provider is not None, "E2B provider must be seeded"
-            cfg = models.SandboxConfig(
-                sandbox_provider_id=provider.id,
-                name=name,
-                description=None,
-                config={
-                    "env_vars": [{"kind": "literal", "name": "API_KEY", "value": env_var_value}]
-                },
-                timeout=30,
-            )
-            session.add(cfg)
-            await session.flush()
-            return cfg.id, provider.id
-
-    async def test_create_code_evaluator_stores_redacted_snapshot(
-        self,
-        gql_client: AsyncGraphQLClient,
-        db: DbSessionFactory,
-        seed_sandbox_providers: None,
-    ) -> None:
-        """createCodeEvaluator must persist a redacted snapshot (no plaintext literals at rest)."""
-        config_id, _ = await self._make_e2b_config_with_env_var(
-            db, f"redact-create-cfg-{token_hex(4)}", "plaintext-secret"
-        )
-
-        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
-            result = await gql_client.execute(
-                _CREATE_CODE_EVALUATOR,
-                variables={
-                    "input": {
-                        "name": f"redact-at-rest-create-{token_hex(4)}",
-                        "description": None,
-                        "language": "PYTHON",
-                        "sourceCode": "def evaluate(output): return {'score': 1.0}",
-                        "sandboxConfigId": _config_global_id(config_id),
-                        "inputMapping": {"literalMapping": {}, "pathMapping": {}},
-                        "outputConfigs": [
-                            {
-                                "continuous": {
-                                    "name": "score",
-                                    "optimizationDirection": "NONE",
-                                    "lowerBound": 0,
-                                    "upperBound": 1,
-                                }
-                            }
-                        ],
-                    }
-                },
-            )
-        assert result.data and not result.errors, result.errors
-        evaluator = result.data["createCodeEvaluator"]["evaluator"]
-        gql_snapshot = evaluator["currentVersion"]["sandboxSnapshot"]
-        # GraphQL surface returns redacted shape
-        env_vars = gql_snapshot["config"]["env_vars"]
-        assert len(env_vars) == 1
-        assert env_vars[0]["value"] == "<redacted>"
-        assert "value_digest" in env_vars[0]
-
-        # DB row also stores redacted shape (plaintext never at rest)
-        evaluator_id = int(GlobalID.from_id(evaluator["id"]).node_id)
-        async with db() as session:
-            from sqlalchemy import func as _func
-
-            version_id = await session.scalar(
-                select(_func.max(models.CodeEvaluatorVersion.id)).where(
-                    models.CodeEvaluatorVersion.code_evaluator_id == evaluator_id
-                )
-            )
-            db_version = await session.get(models.CodeEvaluatorVersion, version_id)
-        assert db_version is not None and db_version.sandbox_snapshot is not None
-        db_env_vars = db_version.sandbox_snapshot["config"]["env_vars"]
-        assert len(db_env_vars) == 1
-        assert db_env_vars[0]["value"] == "<redacted>"
-        assert "value_digest" in db_env_vars[0]
-
     async def test_current_version_returns_null_for_evaluator_with_no_versions(
         self,
         gql_client: AsyncGraphQLClient,
@@ -1273,6 +1078,7 @@ class TestRedactAtRestInMutations:
                 name=Identifier(root="no-version-eval"),
                 description=None,
                 metadata_={},
+                language="PYTHON",
                 sandbox_config_id=None,
             )
             session.add(code_eval)

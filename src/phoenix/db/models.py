@@ -2874,7 +2874,6 @@ class CodeEvaluatorVersion(HasId):
         nullable=False,
         index=True,
     )
-    sandbox_snapshot: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON_, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
 
     code_evaluator: Mapped["CodeEvaluator"] = relationship(
@@ -2887,20 +2886,7 @@ class CodeEvaluatorVersion(HasId):
     __table_args__ = {"sqlite_autoincrement": True}
 
     def has_identical_content(self, other: Self) -> bool:
-        def sandbox_content(snapshot: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
-            if snapshot is None:
-                return None
-            return {
-                "backend_type": snapshot.get("backend_type"),
-                "config": snapshot.get("config"),
-                "timeout": snapshot.get("timeout"),
-            }
-
-        return (
-            self.source_code == other.source_code
-            and self.language == other.language
-            and sandbox_content(self.sandbox_snapshot) == sandbox_content(other.sandbox_snapshot)
-        )
+        return self.source_code == other.source_code and self.language == other.language
 
 
 class BuiltinEvaluator(Evaluator):

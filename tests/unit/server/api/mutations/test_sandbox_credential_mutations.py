@@ -54,9 +54,6 @@ class _TestCredAdapter(SandboxAdapter):
     ) -> SandboxBackend:
         return MagicMock(spec=SandboxBackend)
 
-    def runtime_fingerprint(self, config: dict[str, Any]) -> str:
-        return f"{_TEST_BACKEND}@1.0"
-
 
 @pytest.fixture(autouse=True)
 def _register_test_adapter() -> Any:

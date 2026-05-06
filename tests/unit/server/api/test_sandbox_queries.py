@@ -38,9 +38,6 @@ class _TestAuthAdapter(SandboxAdapter):
     ) -> SandboxBackend:
         return MagicMock(spec=SandboxBackend)
 
-    def runtime_fingerprint(self, config: dict[str, Any]) -> str:
-        return f"{_TEST_AUTH_BACKEND}@1.0"
-
 
 @pytest.fixture(autouse=True)
 def _clean_test_auth_backend() -> Any:

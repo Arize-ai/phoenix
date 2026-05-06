@@ -57,9 +57,6 @@ def _make_adapter(config_model_cls: type) -> SandboxAdapter:
         ) -> Any:
             return None
 
-        def runtime_fingerprint(self, config: dict[str, Any]) -> str:
-            return "TEST@1.0"
-
     return _ConcreteAdapter()
 
 

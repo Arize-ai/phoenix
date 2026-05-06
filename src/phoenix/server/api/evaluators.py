@@ -823,20 +823,11 @@ async def get_evaluators(
             evaluator_language = code_row.language
             code_evaluator_languages_by_id[code_row.id] = evaluator_language
 
-            # The version's sandbox_snapshot is an advisory baseline for drift
-            # detection: its runtime_fingerprint is compared to the live runtime's
-            # fingerprint, but execution dispatches against the tip's current
-            # sandbox_config_id so a patchCodeEvaluator takes effect immediately.
-            # The snapshot's backend_type / config / timeout are intentionally
-            # not consumed at execute time.
+            # Execution dispatches against the tip's current sandbox_config_id so
+            # a patchCodeEvaluator takes effect immediately.
             backend = None
             language = evaluator_language
             sandbox_timeout: Optional[int] = None
-            expected_runtime_fingerprint: Optional[str] = None
-            if code_version.sandbox_snapshot is not None:
-                expected_runtime_fingerprint = code_version.sandbox_snapshot.get(
-                    "runtime_fingerprint"
-                )
             tip_sandbox_config_id = code_row.sandbox_config_id
             if tip_sandbox_config_id is not None:
                 live_sandbox_config = await session.get(models.SandboxConfig, tip_sandbox_config_id)
@@ -849,9 +840,8 @@ async def get_evaluators(
                     provider_id = live_sandbox_config.sandbox_provider_id
                     raise BadRequest(f"SandboxProvider not found: {provider_id}")
                 sandbox_timeout = live_sandbox_config.timeout
-                # Provider config wins on key collision — matches
-                # _build_code_evaluator_sandbox_snapshot's merge order so save-time
-                # and execute-time agree.
+                # Provider config wins on key collision so user-supplied config
+                # cannot override server-injected provider keys.
                 merged_config = {
                     **live_sandbox_config.config,
                     **live_sandbox_provider.config,
@@ -862,9 +852,6 @@ async def get_evaluators(
                         config=merged_config,
                         session=session,
                         decrypt=decrypt,
-                        expected_runtime_fingerprint=expected_runtime_fingerprint,
-                        evaluator_id=code_row.id,
-                        version_id=code_version.id,
                     )
                 except (
                     MissingSecretError,

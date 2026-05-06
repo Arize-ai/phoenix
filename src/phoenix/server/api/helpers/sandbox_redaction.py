@@ -1,10 +1,7 @@
 """Shared redaction for sandbox-config secret material.
 
-Snapshot rows are redacted at write time (no plaintext literals at rest).
-``value_digest`` preserves rotation-triggers-version semantics for
-``has_identical_content``. The runtime evaluator paths source
-``backend_type``/``config``/``timeout`` from the live tip's
-``SandboxConfig``/``SandboxProvider``, not from the snapshot.
+``redact_env_var_literals`` is used by the ``SandboxConfig.config`` GraphQL
+resolver to redact literal env-var values at read time.
 """
 
 from __future__ import annotations
@@ -40,11 +37,3 @@ def redact_env_var_literals(config: Any) -> Any:
         else:
             redacted_env_vars.append(entry)
     return {**config, "env_vars": redacted_env_vars}
-
-
-def redact_sandbox_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
-    """Apply :func:`redact_env_var_literals` to the snapshot's ``config`` block."""
-    config = snapshot.get("config")
-    if not isinstance(config, dict):
-        return snapshot
-    return {**snapshot, "config": redact_env_var_literals(config)}

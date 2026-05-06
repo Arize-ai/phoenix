@@ -1338,12 +1338,12 @@ class TestCodeEvaluatorVersionGraphQLTraversal:
                 sa.select(models.Language).where(models.Language.name == "PYTHON")
             )
             assert language_row is not None
-            language_id = language_row.id
 
             evaluator_row = models.CodeEvaluator(
                 name=Identifier(root=f"traverse-{token_hex(4)}"),
                 description="traversal test",
                 metadata_={},
+                language="PYTHON",
             )
             session.add(evaluator_row)
             await session.flush()
@@ -1352,8 +1352,7 @@ class TestCodeEvaluatorVersionGraphQLTraversal:
                 code_evaluator_id=evaluator_row.id,
                 description=None,
                 source_code="def evaluate(input): return {'score': 0.0}",
-                language_id=language_id,
-                sandbox_snapshot=None,
+                language="PYTHON",
             )
             session.add(v1)
             await session.flush()
@@ -1361,8 +1360,7 @@ class TestCodeEvaluatorVersionGraphQLTraversal:
                 code_evaluator_id=evaluator_row.id,
                 description=None,
                 source_code="def evaluate(input): return {'score': 1.0}",
-                language_id=language_id,
-                sandbox_snapshot=None,
+                language="PYTHON",
             )
             session.add(v2)
             await session.flush()

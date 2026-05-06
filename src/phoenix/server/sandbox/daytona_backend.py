@@ -12,7 +12,6 @@ error during evaluation.
 from __future__ import annotations
 
 import logging
-from importlib.metadata import PackageNotFoundError, version
 from typing import Any, Optional
 
 from .types import (
@@ -24,13 +23,6 @@ from .types import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-def _package_version(distribution_name: str) -> Optional[str]:
-    try:
-        return version(distribution_name)
-    except PackageNotFoundError:
-        return None
 
 
 class DaytonaSandboxBackend(SandboxBackend):
@@ -164,10 +156,6 @@ class DaytonaPythonAdapter(SandboxAdapter):
     def probe_dependencies(cls) -> None:
         """Verify ``daytona_sdk`` is installed; ImportError → NOT_INSTALLED."""
         import daytona_sdk  # noqa: F401
-
-    def runtime_fingerprint(self, config: dict[str, Any]) -> str:
-        v = _package_version("daytona-sdk") or "unknown"
-        return f"DAYTONA_PYTHON@{v}"
 
     def build_backend(
         self, config: dict[str, Any], user_env: Optional[dict[str, str]] = None

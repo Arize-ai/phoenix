@@ -62,9 +62,6 @@ def _make_adapter(received: dict[str, Any], cred_key: str = "CRED_X") -> Sandbox
             received["user_env"] = user_env
             return MagicMock(spec=SandboxBackend)
 
-        def runtime_fingerprint(self, config: dict[str, Any]) -> str:
-            return "STUB@1.0"
-
     return _StubAdapter()
 
 

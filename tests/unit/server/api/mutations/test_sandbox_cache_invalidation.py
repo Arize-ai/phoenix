@@ -104,9 +104,6 @@ class _CapturingAdapter(SandboxAdapter):
         backend.close = AsyncMock()
         return backend
 
-    def runtime_fingerprint(self, config: dict[str, Any]) -> str:
-        return f"{self.key}@1.0"
-
 
 def _purge_cache_for(backend_types: list[str]) -> None:
     for backend_type in backend_types:

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4b38dbcd49360ad57de3886ca8167bf4>>
+ * @generated SignedSource<<f0e2cb1f387523466e3ce474ee9884d4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,14 +9,17 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type Language = "PYTHON" | "TYPESCRIPT";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PatchCodeEvaluatorInput = {
   description?: string | null;
   id: string;
   inputMapping?: EvaluatorInputMappingInput | null;
+  language?: Language | null;
   name?: string | null;
   outputConfigs?: ReadonlyArray<AnnotationConfigInput> | null;
   sandboxConfigId?: string | null;
+  sourceCode?: string | null;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping: any;

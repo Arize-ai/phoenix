@@ -11,7 +11,6 @@ missing extra as ``status=NOT_INSTALLED`` instead of a runtime error.
 from __future__ import annotations
 
 import logging
-from importlib.metadata import PackageNotFoundError, version
 from typing import Any, Optional
 
 from .types import (
@@ -23,13 +22,6 @@ from .types import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-def _package_version(distribution_name: str) -> Optional[str]:
-    try:
-        return version(distribution_name)
-    except PackageNotFoundError:
-        return None
 
 
 class E2BSandboxBackend(SandboxBackend):
@@ -186,10 +178,6 @@ class E2BAdapter(SandboxAdapter):
     def probe_dependencies(cls) -> None:
         """Verify ``e2b_code_interpreter`` is installed; ImportError → NOT_INSTALLED."""
         import e2b_code_interpreter  # noqa: F401
-
-    def runtime_fingerprint(self, config: dict[str, Any]) -> str:
-        v = _package_version("e2b-code-interpreter") or "unknown"
-        return f"E2B@{v}"
 
     def build_backend(
         self,

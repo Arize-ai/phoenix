@@ -31,7 +31,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from importlib.metadata import PackageNotFoundError, version
 from typing import Any, Optional
 
 from .types import (
@@ -81,13 +80,6 @@ _DEFAULT_LANGUAGE = "TYPESCRIPT"
 # mutations process-wide so concurrent creates with different resolved tokens
 # cannot leak each other's value into the env.
 _VERCEL_OIDC_ENV_LOCK = asyncio.Lock()
-
-
-def _package_version(distribution_name: str) -> Optional[str]:
-    try:
-        return version(distribution_name)
-    except PackageNotFoundError:
-        return None
 
 
 class VercelSandboxBackend(SandboxBackend):
@@ -293,10 +285,6 @@ class VercelPythonAdapter(SandboxAdapter):
     def probe_dependencies(cls) -> None:
         _probe_vercel_sdk()
 
-    def runtime_fingerprint(self, config: dict[str, Any]) -> str:
-        v = _package_version("vercel") or "unknown"
-        return f"VERCEL_PYTHON@{v}"
-
     def build_backend(
         self,
         config: dict[str, Any],
@@ -338,10 +326,6 @@ class VercelTypescriptAdapter(SandboxAdapter):
     @classmethod
     def probe_dependencies(cls) -> None:
         _probe_vercel_sdk()
-
-    def runtime_fingerprint(self, config: dict[str, Any]) -> str:
-        v = _package_version("vercel") or "unknown"
-        return f"VERCEL_TYPESCRIPT@{v}"
 
     def build_backend(
         self,

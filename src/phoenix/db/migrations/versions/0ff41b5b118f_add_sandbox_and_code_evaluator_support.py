@@ -211,7 +211,6 @@ def upgrade() -> None:
             sa.ForeignKey("languages.name", ondelete="RESTRICT"),
             nullable=False,
         ),
-        sa.Column("sandbox_snapshot", JSON_, nullable=True),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),

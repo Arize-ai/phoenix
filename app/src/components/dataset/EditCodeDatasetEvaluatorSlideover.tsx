@@ -348,14 +348,8 @@ function EditCodeDatasetEvaluatorSlideoverContent({
     const normalizedName = name.trim();
     const normalizedDescription = description.trim() || undefined;
 
-    const resolvedSandboxConfigId =
-      payload.sandboxConfigId !== undefined
-        ? payload.sandboxConfigId
-        : initialSandboxConfigId;
-    // patchCodeEvaluator runs first so the tip's sandbox_config_id and the
-    // version row's snapshot agree on the same binding. With createCodeEvaluatorVersion
-    // now carrying sandboxConfigId on its input, the call order is no longer
-    // load-bearing, but the chain stays as-is until consolidation.
+    // Sandbox rebinding lives exclusively on patchCodeEvaluator; the version
+    // row carries no sandbox snapshot.
     patchCodeEvaluator({
       variables: {
         input: {
@@ -377,7 +371,6 @@ function EditCodeDatasetEvaluatorSlideoverContent({
               language: payload.language,
               sourceCode: payload.sourceCode,
               description: normalizedDescription,
-              sandboxConfigId: resolvedSandboxConfigId,
             },
           },
           onCompleted: () => {

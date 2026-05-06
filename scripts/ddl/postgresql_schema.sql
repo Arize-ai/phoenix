@@ -820,7 +820,6 @@ CREATE TABLE public.code_evaluator_versions (
     user_id BIGINT,
     source_code VARCHAR NOT NULL DEFAULT ''::character varying,
     language VARCHAR NOT NULL,
-    sandbox_snapshot JSONB,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_code_evaluator_versions PRIMARY KEY (id),
     CONSTRAINT fk_code_evaluator_versions_code_evaluator_id_code_evaluators

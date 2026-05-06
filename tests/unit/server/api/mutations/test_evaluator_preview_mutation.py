@@ -350,7 +350,6 @@ class TestCodeEvaluatorPreviewNoSandbox:
                 code_evaluator_id=code_eval.id,
                 source_code="def evaluate(output): return 1.0",
                 language="PYTHON",
-                sandbox_snapshot=None,
             )
             session.add(version)
             await session.flush()

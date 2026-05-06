@@ -130,7 +130,6 @@ class CodeEvaluatorVersion(Node):
     description: Optional[str]
     source_code: str
     language_value: strawberry.Private[str]
-    sandbox_snapshot: Optional[JSON]
     created_at: datetime
     cached_sequence_number: strawberry.Private[Optional[int]] = None
 
@@ -214,7 +213,6 @@ def to_gql_code_evaluator_version(
         description=version.description,
         source_code=version.source_code,
         language_value=version.language,
-        sandbox_snapshot=JSON(version.sandbox_snapshot) if version.sandbox_snapshot else None,
         created_at=version.created_at,
         cached_sequence_number=sequence_number,
     )

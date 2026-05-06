@@ -29,7 +29,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from importlib.metadata import PackageNotFoundError, version
 from typing import Any, Optional
 
 from .types import (
@@ -44,13 +43,6 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_TIMEOUT = 600
 _DEFAULT_IDLE_TIMEOUT = 300
-
-
-def _package_version(distribution_name: str) -> Optional[str]:
-    try:
-        return version(distribution_name)
-    except PackageNotFoundError:
-        return None
 
 
 class ModalSandboxBackend(SandboxBackend):
@@ -190,10 +182,6 @@ class ModalAdapter(SandboxAdapter):
     def probe_dependencies(cls) -> None:
         """Verify ``modal`` is installed; ImportError → NOT_INSTALLED."""
         import modal  # noqa: F401
-
-    def runtime_fingerprint(self, config: dict[str, Any]) -> str:
-        v = _package_version("modal") or "unknown"
-        return f"MODAL@{v}"
 
     def build_backend(
         self,
