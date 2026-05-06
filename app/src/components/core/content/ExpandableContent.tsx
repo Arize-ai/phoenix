@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import type { CSSProperties, PropsWithChildren, RefObject } from "react";
-import { useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 
 import { Icon, Icons } from "@phoenix/components/core/icon";
 
@@ -99,7 +99,7 @@ export interface ExpandableContentProps extends PropsWithChildren {
   onExpandedChange?: (isExpanded: boolean) => void;
 }
 
-export function ExpandableContent({
+export const ExpandableContent = memo(function ExpandableContent({
   children,
   height,
   expandedBehavior = "scroll",
@@ -116,12 +116,12 @@ export function ExpandableContent({
   const isControlled = controlledExpanded !== undefined;
   const isExpanded = isControlled ? controlledExpanded : internalExpanded;
 
-  const handleExpand = () => {
+  const handleExpand = useCallback(() => {
     if (!isControlled) {
       setInternalExpanded(true);
     }
     onExpandedChange?.(true);
-  };
+  }, [isControlled, onExpandedChange]);
   const shouldUseNaturalHeight = expandedBehavior === "grow" && isExpanded;
   const containerStyle = {
     "--expandable-content-overlay-background-color": overlayBackgroundColor,
@@ -163,7 +163,7 @@ export function ExpandableContent({
       )}
     </div>
   );
-}
+});
 
 /**
  * Hook to detect if content overflows its container.
