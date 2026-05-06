@@ -19,7 +19,12 @@ import pytest
 pytest.importorskip("wasmtime", reason="wasmtime optional extra not installed")
 
 from phoenix.server.sandbox.types import ExecutionResult  # noqa: E402
-from phoenix.server.sandbox.wasm_backend import WASMAdapter, WASMBackend, _run_wasm  # noqa: E402
+from phoenix.server.sandbox.wasm_backend import (  # noqa: E402
+    WASMAdapter,
+    WASMBackend,
+    WASMBinaryProbe,
+    _run_wasm,
+)
 
 
 class TestWASMBackendSessionNoop:
@@ -115,7 +120,7 @@ class TestEngineCaching:
         cache_key = str(fake_path)
         _MODULE_CACHE.pop(cache_key, None)
 
-        import wasmtime  # type: ignore[import-not-found]
+        import wasmtime
 
         with patch.object(wasmtime.Module, "from_file", return_value="fake_module"):
             engine1, mod1 = _get_engine_and_module(fake_path)
@@ -184,7 +189,7 @@ class TestRunWasmStdoutCapture:
 
             @stdin_file.setter
             def stdin_file(self, path: object) -> None:
-                pass
+                del path
 
             def inherit_env(self) -> None:
                 pass
@@ -194,6 +199,7 @@ class TestRunWasmStdoutCapture:
         ft = wasmtime.FuncType([], [])
 
         def _start_impl(caller: object) -> None:
+            del caller
             if stdout_cb_holder:
                 stdout_cb_holder[0](b"hello from wasm\n")
 
@@ -234,7 +240,7 @@ class TestRunWasmStdoutCapture:
 
             @stdout_custom.setter
             def stdout_custom(self, cb: object) -> None:
-                pass
+                del cb
 
             @property
             def stderr_custom(self) -> None:
@@ -250,7 +256,7 @@ class TestRunWasmStdoutCapture:
 
             @stdin_file.setter
             def stdin_file(self, path: object) -> None:
-                pass
+                del path
 
             def inherit_env(self) -> None:
                 pass
@@ -259,6 +265,7 @@ class TestRunWasmStdoutCapture:
         ft = wasmtime.FuncType([], [])
 
         def _start_impl(caller: object) -> None:
+            del caller
             if stderr_cb_holder:
                 stderr_cb_holder[0](b"error output\n")
 
@@ -308,7 +315,7 @@ class TestRunWasmStdoutCapture:
 
             @stdout_custom.setter
             def stdout_custom(self, cb: object) -> None:
-                pass
+                del cb
 
             @property
             def stderr_custom(self) -> None:
@@ -316,7 +323,7 @@ class TestRunWasmStdoutCapture:
 
             @stderr_custom.setter
             def stderr_custom(self, cb: object) -> None:
-                pass
+                del cb
 
             @property
             def stdin_file(self) -> None:
@@ -331,7 +338,11 @@ class TestRunWasmStdoutCapture:
 
         store = wasmtime.Store()
         ft = wasmtime.FuncType([], [])
-        start_func = wasmtime.Func(store, ft, lambda c: None, access_caller=True)
+
+        def _noop_start(caller: object) -> None:
+            del caller
+
+        start_func = wasmtime.Func(store, ft, _noop_start, access_caller=True)
 
         mock_exports = MagicMock()
         mock_exports.get.return_value = start_func
@@ -373,3 +384,185 @@ class TestTempFileCleanup:
             with patch.object(wasmtime.WasiConfig, "inherit_env") as mock_inherit:
                 _run_wasm(Path("/fake.wasm"), "x=1", timeout=5)
                 mock_inherit.assert_not_called()
+
+
+class TestWASMAdapterProbeBinary:
+    """WASMAdapter.probe_binary() reports binary-asset availability without I/O.
+
+    The probe is the *capability-probe path* per D3/D4 — it reports whether the
+    CPython WASM binary is locally resolvable so the GraphQL sandboxBackends
+    resolver can surface accurate ``SandboxBackendStatus``. It MUST NOT touch
+    the network and MUST NOT create cache files; the assertions below pin
+    those invariants explicitly.
+    """
+
+    def test_probe_returns_available_when_resolver_returns_path(self) -> None:
+        fake_path = Path("/opt/phoenix/wasm/python-3.12.0.wasm")
+        with patch(
+            "phoenix.server.sandbox._download.resolve_wasm_binary_if_present",
+            return_value=fake_path,
+        ):
+            with patch(
+                "urllib.request.urlretrieve", side_effect=AssertionError("network used")
+            ) as mock_retrieve:
+                probe = WASMAdapter.probe_binary()
+        assert isinstance(probe, WASMBinaryProbe)
+        assert probe.available is True
+        assert probe.detail is None
+        assert probe.path == fake_path
+        mock_retrieve.assert_not_called()
+
+    def test_probe_returns_env_var_set_but_missing_detail(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        env_path = "/opt/phoenix/wasm/python-3.12.0.wasm"
+        monkeypatch.setenv("PHOENIX_WASM_BINARY_PATH", env_path)
+        with patch(
+            "phoenix.server.sandbox._download.resolve_wasm_binary_if_present",
+            return_value=None,
+        ):
+            with patch(
+                "urllib.request.urlretrieve", side_effect=AssertionError("network used")
+            ) as mock_retrieve:
+                probe = WASMAdapter.probe_binary()
+        assert probe.available is False
+        assert probe.path is None
+        assert probe.detail == (
+            f"PHOENIX_WASM_BINARY_PATH={env_path} is set but the file does not exist."
+        )
+        mock_retrieve.assert_not_called()
+
+    def test_probe_returns_unset_no_cache_detail(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
+        with patch(
+            "phoenix.server.sandbox._download.resolve_wasm_binary_if_present",
+            return_value=None,
+        ):
+            with patch(
+                "urllib.request.urlretrieve", side_effect=AssertionError("network used")
+            ) as mock_retrieve:
+                probe = WASMAdapter.probe_binary()
+        assert probe.available is False
+        assert probe.path is None
+        assert probe.detail == "WASM binary not present locally; will download on first use."
+        mock_retrieve.assert_not_called()
+
+    def test_probe_does_not_invoke_real_resolver_network_path(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """End-to-end with the real resolver: env var unset, empty cache → no
+        download attempted, resolver returns None.
+
+        Calls ``resolve_wasm_binary_if_present`` directly so the cache_dir
+        argument can be redirected to an empty tmp dir (the default cache
+        path may exist on dev workstations). Patches
+        ``urllib.request.urlretrieve`` to fail any attempted network call —
+        the assertion that the resolver did NOT invoke it is the
+        load-bearing check that the probe path stays side-effect-free.
+        ``WASMAdapter.probe_binary()`` itself is exercised end-to-end in
+        the other tests in this class.
+        """
+        from phoenix.server.sandbox import _download
+
+        monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
+        empty_cache = tmp_path / "cache"  # does not exist; resolver must not create it
+        with patch(
+            "urllib.request.urlretrieve", side_effect=AssertionError("network used")
+        ) as mock_retrieve:
+            resolved = _download.resolve_wasm_binary_if_present(cache_dir=empty_cache)
+        assert resolved is None, "resolver must report no binary when env unset and cache empty"
+        mock_retrieve.assert_not_called()
+        assert not empty_cache.exists(), "probe must not create the cache directory"
+
+
+class TestSandboxBackendsResolverWASMStatus:
+    """The sandboxBackends GraphQL resolver layers ``WASMAdapter.probe_binary()``
+    on top of build_backend() so that status reflects binary-asset presence,
+    not just SDK-importability per D4.
+
+    These tests exercise the resolver helper ``_get_sandbox_backend_info_with_session``
+    directly — it is the single locus of the probe wiring and is more
+    surgical to test than the full GraphQL surface.
+    """
+
+    async def test_wasm_reports_available_when_probe_finds_binary(self) -> None:
+        from phoenix.server.api.types.SandboxConfig import (
+            SandboxBackendStatus,
+            _get_sandbox_backend_info_with_session,
+        )
+        from phoenix.server.sandbox import _SANDBOX_ADAPTERS
+
+        with patch.dict(_SANDBOX_ADAPTERS, {"WASM": WASMAdapter()}, clear=False):
+            with patch.object(
+                WASMAdapter,
+                "probe_binary",
+                return_value=WASMBinaryProbe(
+                    available=True,
+                    detail=None,
+                    path=Path("/opt/phoenix/wasm/python-3.12.0.wasm"),
+                ),
+            ):
+                infos = await _get_sandbox_backend_info_with_session(session=None, decrypt=None)
+        wasm = next(info for info in infos if info.backend_type == "WASM")
+        assert wasm.status == SandboxBackendStatus.AVAILABLE
+        assert wasm.status_detail is None
+
+    async def test_wasm_reports_unavailable_when_env_var_set_but_missing(self) -> None:
+        from phoenix.server.api.types.SandboxConfig import (
+            SandboxBackendStatus,
+            _get_sandbox_backend_info_with_session,
+        )
+        from phoenix.server.sandbox import _SANDBOX_ADAPTERS
+
+        env_path = "/opt/phoenix/wasm/python-3.12.0.wasm"
+        detail = f"PHOENIX_WASM_BINARY_PATH={env_path} is set but the file does not exist."
+        with patch.dict(_SANDBOX_ADAPTERS, {"WASM": WASMAdapter()}, clear=False):
+            with patch.object(
+                WASMAdapter,
+                "probe_binary",
+                return_value=WASMBinaryProbe(available=False, detail=detail, path=None),
+            ):
+                infos = await _get_sandbox_backend_info_with_session(session=None, decrypt=None)
+        wasm = next(info for info in infos if info.backend_type == "WASM")
+        assert wasm.status == SandboxBackendStatus.UNAVAILABLE
+        assert wasm.status_detail == detail
+
+    async def test_wasm_reports_unavailable_when_unset_and_no_cache(self) -> None:
+        from phoenix.server.api.types.SandboxConfig import (
+            SandboxBackendStatus,
+            _get_sandbox_backend_info_with_session,
+        )
+        from phoenix.server.sandbox import _SANDBOX_ADAPTERS
+
+        detail = "WASM binary not present locally; will download on first use."
+        with patch.dict(_SANDBOX_ADAPTERS, {"WASM": WASMAdapter()}, clear=False):
+            with patch.object(
+                WASMAdapter,
+                "probe_binary",
+                return_value=WASMBinaryProbe(available=False, detail=detail, path=None),
+            ):
+                infos = await _get_sandbox_backend_info_with_session(session=None, decrypt=None)
+        wasm = next(info for info in infos if info.backend_type == "WASM")
+        assert wasm.status == SandboxBackendStatus.UNAVAILABLE
+        assert wasm.status_detail == detail
+
+    async def test_wasm_status_path_does_not_invoke_network(self) -> None:
+        """Resolver-level guarantee: even when the probe is exercised end-to-end,
+        ``urllib.request.urlretrieve`` is never called.
+        """
+        from phoenix.server.api.types.SandboxConfig import (
+            _get_sandbox_backend_info_with_session,
+        )
+        from phoenix.server.sandbox import _SANDBOX_ADAPTERS
+
+        with patch.dict(_SANDBOX_ADAPTERS, {"WASM": WASMAdapter()}, clear=False):
+            with patch(
+                "phoenix.server.sandbox._download.resolve_wasm_binary_if_present",
+                return_value=None,
+            ):
+                with patch(
+                    "urllib.request.urlretrieve",
+                    side_effect=AssertionError("network used"),
+                ) as mock_retrieve:
+                    await _get_sandbox_backend_info_with_session(session=None, decrypt=None)
+        mock_retrieve.assert_not_called()
