@@ -406,9 +406,9 @@ grep -l '^title: "Release Notes"$' docs/phoenix/release-notes/**/*.mdx 2>/dev/nu
   || echo "OK: all per-date files have descriptive titles"
 
 # Confirm reverse-chronological order in the aggregate file
-grep -oP 'Update label="\K[\d.]+' docs/phoenix/release-notes.mdx \
-  | awk -F. '{ printf "%s%s%s\n", $3, $1, $2 }' \
-  | awk 'NR>1 && $0>prev { print "OUT OF ORDER at line " NR ": " $0 " > " prev; bad=1 } { prev=$0 } END { if (!bad) print "OK: reverse-chronological order intact" }'
+grep -nP 'Update label="[\d.]+' docs/phoenix/release-notes.mdx \
+  | awk -F'[:."]' '{ printf "%s %s%s%s\n", $1, $5, $3, $4 }' \
+  | awk 'NR>1 && $2>prev { print "OUT OF ORDER at release-notes.mdx:" $1 " — " $2 " appears above " prev; bad=1 } { prev=$2 } END { if (!bad) print "OK: reverse-chronological order intact" }'
 ```
 
 ## Decision Quick Reference

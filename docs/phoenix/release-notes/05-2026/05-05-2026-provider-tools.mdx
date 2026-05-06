@@ -9,14 +9,21 @@ Phoenix Playground and the Prompts library now support **provider tools** — bu
 
 Provider tools sit alongside Phoenix's existing portable function tools: function tools stay normalized and provider-agnostic; provider tools preserve provider-specific JSON for capabilities only that vendor offers.
 
-## Supported provider tools
+## What Phoenix forwards
 
-| Provider | Tools |
-|----------|-------|
-| **Anthropic** | `web_search`, `web_fetch`, `code_execution`, `bash`, `text_editor`, `computer`, `memory` |
-| **OpenAI Responses API** | `web_search`, `file_search`, `code_interpreter`, `computer`, `tool_search` |
+Phoenix doesn't maintain a hardcoded list of supported provider tools — anything the
+underlying provider SDK accepts is round-tripped as-is. Examples that have been verified
+end-to-end against the playground:
+
+| Provider | Examples verified in Phoenix |
+|----------|-------------------------------|
+| **Anthropic** | `web_search`, `code_execution`, `computer_use` |
+| **OpenAI Responses API** | `web_search`, `file_search`, `code_interpreter`, `computer_use_preview`, `tool_search` |
 | **Google Gemini** | `google_search` grounding |
-| **Amazon Bedrock** | Nova `nova_grounding` |
+| **Amazon Bedrock** | provider-specific tool blocks are forwarded verbatim |
+
+If a provider ships a new built-in tool, it works in Phoenix immediately — no library
+update required. Mismatches surface as errors from the provider SDK at request time.
 
 ## Using provider tools
 

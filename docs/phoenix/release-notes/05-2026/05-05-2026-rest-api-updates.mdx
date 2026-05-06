@@ -10,7 +10,7 @@ May 5, 2026
 
 Three new `DELETE` endpoints let you bulk-remove annotations from a project by filter — without knowing every individual span/trace/session ID. This closes the annotation lifecycle loop for automated pipelines that tag annotations with a custom `identifier` on creation and need to roll them back later.
 
-```
+```http
 DELETE /v1/projects/{project_identifier}/span_annotations
 DELETE /v1/projects/{project_identifier}/trace_annotations
 DELETE /v1/projects/{project_identifier}/session_annotations

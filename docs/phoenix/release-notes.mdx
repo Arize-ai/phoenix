@@ -13,7 +13,7 @@ GitHub
 
 Phoenix Playground and the Prompts library now support vendor-native tools — web search, code execution, computer use, grounding, and more — alongside existing function tools. Paste any provider's tool JSON into the Playground and Phoenix stores and round-trips it verbatim.
 
-- **Supported providers** — Anthropic (`web_search`, `code_execution`, `computer`, and more), OpenAI Responses API (`web_search`, `file_search`, `code_interpreter`), Google Gemini (`google_search`), Amazon Bedrock (`nova_grounding`)
+- **Generic passthrough** — any tool the provider SDK accepts works without a library update; verified examples include Anthropic `web_search` / `code_execution` / `computer_use`, OpenAI Responses `web_search` / `file_search` / `code_interpreter` / `computer_use_preview`, and Gemini `google_search` grounding
 - **Mix with function tools** — provider tools and function tools coexist on the same prompt version
 - **SDK export** — Python and TypeScript clients preserve provider tools when formatting prompts
 </Update>
