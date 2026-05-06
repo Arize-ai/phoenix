@@ -240,32 +240,25 @@ def _resolve_vercel_oidc_token(config: dict[str, Any]) -> str:
     return str(config.get(ENV_VERCEL_OIDC_TOKEN) or "") or os.environ.get(ENV_VERCEL_OIDC_TOKEN, "")
 
 
+# UI surfaces only the access-token triple. OIDC is still honored when
+# VERCEL_OIDC_TOKEN is present in the process environment (e.g. `vercel env
+# pull` or running on Vercel) — see get_missing_sandbox_auth_detail and
+# build_backend below — but is not exposed as a configurable secret.
 _VERCEL_ENV_VAR_SPECS = [
-    ProviderCredentialSpec(
-        key="VERCEL_OIDC_TOKEN",
-        display_name="Vercel OIDC Token",
-        description="OIDC token for Vercel sandbox (e.g. from `vercel env pull`).",
-    ),
     ProviderCredentialSpec(
         key="PHOENIX_SANDBOX_VERCEL_TOKEN",
         display_name="Vercel Access Token",
-        description="Vercel personal access token (used with PHOENIX_SANDBOX_VERCEL_PROJECT_ID and PHOENIX_SANDBOX_VERCEL_TEAM_ID).",  # noqa: E501
+        description="Vercel personal access token.",
     ),
     ProviderCredentialSpec(
         key="PHOENIX_SANDBOX_VERCEL_PROJECT_ID",
         display_name="Vercel Project ID",
-        description=(
-            "Vercel project ID (used with PHOENIX_SANDBOX_VERCEL_TOKEN and "
-            "PHOENIX_SANDBOX_VERCEL_TEAM_ID)."
-        ),
+        description="Vercel project ID.",
     ),
     ProviderCredentialSpec(
         key="PHOENIX_SANDBOX_VERCEL_TEAM_ID",
         display_name="Vercel Team ID",
-        description=(
-            "Vercel team ID (used with PHOENIX_SANDBOX_VERCEL_TOKEN and "
-            "PHOENIX_SANDBOX_VERCEL_PROJECT_ID)."
-        ),
+        description="Vercel team ID.",
     ),
 ]
 

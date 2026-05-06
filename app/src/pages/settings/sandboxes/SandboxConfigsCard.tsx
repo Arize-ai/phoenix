@@ -12,7 +12,6 @@ import {
   configNameCSS,
   configNameCellCSS,
   inlineTokenRowCSS,
-  pageIntroCSS,
   sandboxesTableCSS,
   sandboxesTableWrapCSS,
   subtitleCSS,
@@ -36,17 +35,11 @@ export function SandboxConfigsCard({
   return (
     <Card
       title="Code Sandboxes"
+      subTitle="Configure reusable sandbox configurations for code evaluators."
       extra={
         <SandboxConfigDialogTrigger mode="create" providers={providerRows} />
       }
     >
-      <div css={pageIntroCSS}>
-        <Flex justifyContent="space-between" alignItems="center" gap="size-200">
-          <Text color="text-700">
-            Configure reusable sandbox configurations for code evaluators.
-          </Text>
-        </Flex>
-      </div>
       <div css={sandboxesTableWrapCSS}>
         <table css={sandboxesTableCSS}>
           <thead>
