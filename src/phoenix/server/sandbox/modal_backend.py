@@ -4,9 +4,10 @@ Modal sandbox backend.
 Requires the ``modal`` package (optional extra).
 Import is deferred to avoid top-level failures when the extra is absent.
 
-Authentication is env-var-only: Modal picks up MODAL_TOKEN_ID and
-MODAL_TOKEN_SECRET automatically from the environment (D6 design decision —
-no credentials stored in DB config).
+Authentication: Modal SDK reads MODAL_TOKEN_ID and MODAL_TOKEN_SECRET from
+``os.environ``. When DB-stored secrets are resolved for these keys, the
+backend writes them into ``os.environ`` before invoking the Modal SDK so
+the SDK picks them up.
 
 Session lifecycle
 -----------------
@@ -23,11 +24,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from typing import Any, Optional
 
 from .types import (
     ExecutionResult,
     ModalConfig,
+    ProviderCredentialSpec,
     SandboxAdapter,
     SandboxBackend,
 )
@@ -54,7 +57,18 @@ class ModalSandboxBackend(SandboxBackend):
         user_env: Optional[dict[str, str]] = None,
         packages: Optional[list[str]] = None,
         block_network: bool = False,
+        token_id: Optional[str] = None,
+        token_secret: Optional[str] = None,
     ) -> None:
+        # Modal SDK reads MODAL_TOKEN_ID / MODAL_TOKEN_SECRET from os.environ at
+        # client init time. Inject DB-resolved values before the SDK is touched
+        # so admins can configure Modal via the secrets table without having to
+        # also export the variables in the server process.
+        if token_id:
+            os.environ["MODAL_TOKEN_ID"] = token_id
+        if token_secret:
+            os.environ["MODAL_TOKEN_SECRET"] = token_secret
+
         import modal  # type: ignore[import-not-found]
 
         self._timeout = timeout
@@ -146,6 +160,18 @@ class ModalAdapter(SandboxAdapter):
     display_name = "Modal"
     language = "PYTHON"
     config_model = ModalConfig
+    credential_specs = [
+        ProviderCredentialSpec(
+            key="MODAL_TOKEN_ID",
+            display_name="Modal Token ID",
+            description="Token ID issued by `modal token new`.",
+        ),
+        ProviderCredentialSpec(
+            key="MODAL_TOKEN_SECRET",
+            display_name="Modal Token Secret",
+            description="Token secret issued by `modal token new`.",
+        ),
+    ]
 
     def build_backend(
         self,
@@ -158,6 +184,8 @@ class ModalAdapter(SandboxAdapter):
         ia = config.get("internet_access") or {}
         mode = ia.get("mode") if isinstance(ia, dict) else getattr(ia, "mode", None)
         block_network: bool = mode == "deny"
+        token_id = config.get("MODAL_TOKEN_ID") or None
+        token_secret = config.get("MODAL_TOKEN_SECRET") or None
         return ModalSandboxBackend(
             timeout=_DEFAULT_TIMEOUT,
             idle_timeout=_DEFAULT_IDLE_TIMEOUT,
@@ -165,4 +193,6 @@ class ModalAdapter(SandboxAdapter):
             user_env=user_env,
             packages=packages or None,
             block_network=block_network,
+            token_id=token_id,
+            token_secret=token_secret,
         )
