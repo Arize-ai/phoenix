@@ -1,5 +1,11 @@
 # @arizeai/phoenix-client
 
+## 6.9.2
+
+### Patch Changes
+
+- d0cc4c4: Update `openapi-fetch` from `^0.12.5` to `^0.17.0`.
+
 ## 6.9.1
 
 ### Patch Changes
