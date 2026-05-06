@@ -42,11 +42,8 @@ CREATE UNIQUE INDEX ix_generative_models_name_is_built_in ON public.generative_m
 -- Table: languages
 -- ----------------
 CREATE TABLE public.languages (
-    id bigserial NOT NULL,
     name VARCHAR NOT NULL,
-    CONSTRAINT pk_languages PRIMARY KEY (id),
-    CONSTRAINT uq_languages_name
-        UNIQUE (name)
+    CONSTRAINT pk_languages PRIMARY KEY (name)
 );
 
 
@@ -204,17 +201,19 @@ CREATE INDEX ix_prompts_prompt_labels_prompt_label_id ON public.prompts_prompt_l
 CREATE TABLE public.sandbox_providers (
     id bigserial NOT NULL,
     backend_type VARCHAR NOT NULL,
-    language_id BIGINT NOT NULL,
+    language VARCHAR NOT NULL,
     config JSONB NOT NULL DEFAULT '{}'::jsonb,
     enabled BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_sandbox_providers PRIMARY KEY (id),
-    CONSTRAINT uq_sandbox_providers_backend_type_language_id
-        UNIQUE (backend_type, language_id),
-    CONSTRAINT fk_sandbox_providers_language_id_languages FOREIGN KEY
-        (language_id)
-        REFERENCES public.languages (id)
+    CONSTRAINT uq_sandbox_providers_backend_type_language
+        UNIQUE (backend_type, language),
+    CONSTRAINT uq_sandbox_providers_language_id
+        UNIQUE (language, id),
+    CONSTRAINT fk_sandbox_providers_language_languages FOREIGN KEY
+        (language)
+        REFERENCES public.languages (name)
         ON DELETE RESTRICT
 );
 
@@ -224,6 +223,7 @@ CREATE TABLE public.sandbox_providers (
 CREATE TABLE public.sandbox_configs (
     id bigserial NOT NULL,
     sandbox_provider_id BIGINT NOT NULL,
+    language VARCHAR NOT NULL,
     name VARCHAR NOT NULL,
     description VARCHAR,
     config JSONB NOT NULL DEFAULT '{}'::jsonb,
@@ -232,8 +232,13 @@ CREATE TABLE public.sandbox_configs (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_sandbox_configs PRIMARY KEY (id),
+    CONSTRAINT uq_sandbox_configs_language_id
+        UNIQUE (language, id),
     CONSTRAINT uq_sandbox_configs_sandbox_provider_id_name
         UNIQUE (sandbox_provider_id, name),
+    CONSTRAINT fk_sandbox_configs_provider_language FOREIGN KEY
+        (sandbox_provider_id, language)
+        REFERENCES public.sandbox_providers (id, language),
     CONSTRAINT fk_sandbox_configs_sandbox_provider_id_sandbox_providers
         FOREIGN KEY
         (sandbox_provider_id)
@@ -776,7 +781,7 @@ CREATE TABLE public.code_evaluators (
     kind VARCHAR NOT NULL DEFAULT 'CODE'::character varying,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     source_code VARCHAR NOT NULL DEFAULT ''::character varying,
-    language_id BIGINT,
+    language VARCHAR NOT NULL,
     input_mapping JSONB NOT NULL DEFAULT '{"path_mapping": {}, "literal_mapping": {}}',
     output_configs JSONB NOT NULL DEFAULT '[]'::jsonb,
     sandbox_config_id BIGINT,
@@ -786,19 +791,22 @@ CREATE TABLE public.code_evaluators (
         (kind, id)
         REFERENCES public.evaluators (kind, id)
         ON DELETE CASCADE,
-    CONSTRAINT fk_code_evaluators_language_id_languages FOREIGN KEY
-        (language_id)
-        REFERENCES public.languages (id)
+    CONSTRAINT fk_code_evaluators_language_languages FOREIGN KEY
+        (language)
+        REFERENCES public.languages (name)
         ON DELETE RESTRICT,
     CONSTRAINT fk_code_evaluators_sandbox_config_id_sandbox_configs
         FOREIGN KEY
         (sandbox_config_id)
         REFERENCES public.sandbox_configs (id)
-        ON DELETE SET NULL
+        ON DELETE SET NULL,
+    CONSTRAINT fk_code_evaluators_sandbox_config_language FOREIGN KEY
+        (sandbox_config_id, language)
+        REFERENCES public.sandbox_configs (id, language)
 );
 
-CREATE INDEX ix_code_evaluators_language_id ON public.code_evaluators
-    USING btree (language_id);
+CREATE INDEX ix_code_evaluators_language ON public.code_evaluators
+    USING btree (language);
 CREATE INDEX ix_code_evaluators_sandbox_config_id ON public.code_evaluators
     USING btree (sandbox_config_id);
 

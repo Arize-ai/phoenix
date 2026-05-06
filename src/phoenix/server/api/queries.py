@@ -1693,14 +1693,10 @@ class Query:
     @strawberry.field
     async def sandbox_providers(self, info: Info[Context, None]) -> list[SandboxProvider]:
         """Return all persisted sandbox providers with their nested configs."""
-        stmt = (
-            select(models.SandboxProvider)
-            .join(models.Language, models.Language.id == models.SandboxProvider.language_id)
-            .order_by(
-                models.SandboxProvider.backend_type.asc(),
-                models.Language.name.asc(),
-                models.SandboxProvider.id.asc(),
-            )
+        stmt = select(models.SandboxProvider).order_by(
+            models.SandboxProvider.backend_type.asc(),
+            models.SandboxProvider.language.asc(),
+            models.SandboxProvider.id.asc(),
         )
         async with info.context.db() as session:
             rows = (await session.scalars(stmt)).all()

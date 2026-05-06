@@ -114,7 +114,6 @@ from phoenix.server.api.dataloaders import (
     ExperimentRunCountsDataLoader,
     ExperimentRunsByExperimentAndExampleDataLoader,
     ExperimentSequenceNumberDataLoader,
-    LanguageByIdDataLoader,
     LastExperimentErrorsDataLoader,
     LastUsedTimesByGenerativeModelIdDataLoader,
     LatencyMsQuantileDataLoader,
@@ -855,7 +854,6 @@ def create_graphql_router(
                 generative_model_custom_provider_fields=TableFieldsDataLoader(
                     db, models.GenerativeModelCustomProvider
                 ),
-                language_by_id=LanguageByIdDataLoader(db),
                 last_used_times_by_generative_model_id=LastUsedTimesByGenerativeModelIdDataLoader(
                     db
                 ),

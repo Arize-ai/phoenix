@@ -332,23 +332,16 @@ class TestCodeEvaluatorPreviewNoSandbox:
         db: DbSessionFactory,
         seed_languages: None,
     ) -> None:
-        from sqlalchemy import select
-
         from phoenix.db.types.evaluators import InputMapping
         from phoenix.db.types.identifier import Identifier
 
         async with db() as session:
-            python_lang = await session.scalar(
-                select(models.Language).where(models.Language.name == "PYTHON")
-            )
-            assert python_lang is not None
-
             code_eval = models.CodeEvaluator(
                 name=Identifier("no-sandbox-eval"),
                 source_code="def evaluate(output): return 1.0",
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 output_configs=[],
-                language_id=python_lang.id,
+                language="PYTHON",
                 sandbox_config_id=None,
             )
             session.add(code_eval)
