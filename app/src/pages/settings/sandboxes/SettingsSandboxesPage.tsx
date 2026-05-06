@@ -1,5 +1,9 @@
-import { useMemo } from "react";
-import { graphql, useFragment, usePreloadedQuery } from "react-relay";
+import { startTransition, useCallback, useMemo } from "react";
+import {
+  graphql,
+  usePreloadedQuery,
+  useRefetchableFragment,
+} from "react-relay";
 import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -9,6 +13,7 @@ import type { settingsSandboxesPageLoaderQuery } from "@phoenix/pages/settings/_
 import type { SettingsSandboxesPageLoaderType } from "@phoenix/pages/settings/settingsSandboxesPageLoader";
 import { settingsSandboxesPageLoaderGql } from "@phoenix/pages/settings/settingsSandboxesPageLoader";
 
+import type { SettingsSandboxesPageRefetchQuery } from "./__generated__/SettingsSandboxesPageRefetchQuery.graphql";
 import { SandboxConfigsCard } from "./SandboxConfigsCard";
 import { SandboxProvidersCard } from "./SandboxProvidersCard";
 import type {
@@ -38,9 +43,13 @@ function SettingsSandboxesPageContent({
 }: {
   query: SettingsSandboxesPageFragment$key;
 }) {
-  const data = useFragment(
+  const [data, refetch] = useRefetchableFragment<
+    SettingsSandboxesPageRefetchQuery,
+    SettingsSandboxesPageFragment$key
+  >(
     graphql`
-      fragment SettingsSandboxesPageFragment on Query {
+      fragment SettingsSandboxesPageFragment on Query
+      @refetchable(queryName: "SettingsSandboxesPageRefetchQuery") {
         sandboxBackends {
           backendType
           displayName
@@ -51,6 +60,12 @@ function SettingsSandboxesPageContent({
           supportsEnvVars
           internetAccess
           dependenciesLanguage
+          credentialSpecs {
+            key
+            displayName
+            description
+            isRequired
+          }
         }
         sandboxProviders {
           id
@@ -91,18 +106,16 @@ function SettingsSandboxesPageContent({
           row.backend != null
       )
       .sort((a, b) => {
-        // any provider with (local) in the name should be first
-        if (
-          a.backend.displayName.includes("(local)") &&
-          !b.backend.displayName.includes("(local)")
-        )
-          return -1;
-        if (
-          !a.backend.displayName.includes("(local)") &&
-          b.backend.displayName.includes("(local)")
-        )
-          return 1;
-        return 0;
+        // Local providers first, then alphabetical by display name, then by
+        // language for stable ordering when two providers share a name.
+        const aLocal = a.backend.displayName.includes("(local)") ? 0 : 1;
+        const bLocal = b.backend.displayName.includes("(local)") ? 0 : 1;
+        if (aLocal !== bLocal) return aLocal - bLocal;
+        const nameCmp = a.backend.displayName.localeCompare(
+          b.backend.displayName
+        );
+        if (nameCmp !== 0) return nameCmp;
+        return a.provider.language.localeCompare(b.provider.language);
       }) satisfies ProviderRow[];
   }, [data.sandboxBackends, data.sandboxProviders]);
 
@@ -114,9 +127,15 @@ function SettingsSandboxesPageContent({
     [providerRows]
   );
 
+  const refresh = useCallback(() => {
+    startTransition(() => {
+      refetch({}, { fetchPolicy: "network-only" });
+    });
+  }, [refetch]);
+
   return (
     <Flex direction="column" gap="size-200">
-      <SandboxProvidersCard providers={providerRows} />
+      <SandboxProvidersCard providers={providerRows} onRefresh={refresh} />
       <SandboxConfigsCard configRows={configRows} providerRows={providerRows} />
     </Flex>
   );
