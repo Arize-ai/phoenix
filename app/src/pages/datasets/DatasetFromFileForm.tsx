@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import invariant from "tiny-invariant";
 
-import { authFetch } from "@phoenix/authFetch";
+import { apiFetch } from "@phoenix/api/apiFetch";
 import {
   Alert,
   Button,
@@ -38,7 +38,6 @@ import { assertUnreachable } from "@phoenix/typeUtils";
 import { parseCSVFile } from "@phoenix/utils/csvUtils";
 import { formatJSONLError, parseJSONLFile } from "@phoenix/utils/jsonlUtils";
 import { isPlainObject, safelyParseJSONString } from "@phoenix/utils/jsonUtils";
-import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import {
   ColumnAssigner,
@@ -555,7 +554,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
   }, [columns, setValue]);
 
   const onSubmit = useCallback(
-    (
+    async (
       data: CreateDatasetFromFileParams,
       action: "create" | "append" | "update"
     ) => {
@@ -617,48 +616,45 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
         formData.append("example_id_key", data.example_id_key);
       }
 
-      const uploadUrl = "/v1/datasets/upload?sync=true";
-      return authFetch(prependBasename(uploadUrl), {
-        method: "POST",
-        body: formData,
-      })
-        .then((response) => {
-          if (!response.ok) {
-            return response.text().then((text) => {
-              throw new Error(
-                text || response.statusText || "Failed to create dataset"
-              );
-            });
+      try {
+        const { data: result, response } = await apiFetch.POST(
+          "/v1/datasets/upload",
+          {
+            params: { query: { sync: true } },
+            body: formData as never,
+            bodySerializer: () => formData,
           }
-          return response.json();
-        })
-        .then((res) => {
-          const payload = res["data"];
-          const summary: DatasetUploadSummary = {
-            numCreatedExamples: Number(payload["num_created_examples"] ?? 0),
-            numPatchedExamples: Number(payload["num_updated_examples"] ?? 0),
-            numDeletedExamples: Number(payload["num_deleted_examples"] ?? 0),
-          };
-          if (props.mode === "append") {
-            props.onExamplesAdded(summary);
-          } else if (mode === "create") {
-            props.onDatasetCreated({
-              name: data.name,
-              id: payload["dataset_id"],
-              ...summary,
-            });
-          }
-        })
-        .catch((error) => {
-          const fallback =
-            mode === "append"
-              ? "Failed to add examples"
-              : "Failed to create dataset";
-          setErrorMessage(error instanceof Error ? error.message : fallback);
-        })
-        .finally(() => {
-          setPendingAction(null);
-        });
+        );
+        if (!response.ok || !result) {
+          const text = await response.text().catch(() => "");
+          throw new Error(
+            text || response.statusText || "Failed to create dataset"
+          );
+        }
+        const payload = result.data;
+        const summary: DatasetUploadSummary = {
+          numCreatedExamples: payload.num_created_examples,
+          numPatchedExamples: payload.num_updated_examples,
+          numDeletedExamples: payload.num_deleted_examples,
+        };
+        if (props.mode === "append") {
+          props.onExamplesAdded(summary);
+        } else if (mode === "create") {
+          props.onDatasetCreated({
+            name: data.name,
+            id: payload.dataset_id,
+            ...summary,
+          });
+        }
+      } catch (error) {
+        const fallback =
+          mode === "append"
+            ? "Failed to add examples"
+            : "Failed to create dataset";
+        setErrorMessage(error instanceof Error ? error.message : fallback);
+      } finally {
+        setPendingAction(null);
+      }
     },
     [fileType, collapseKeys, keysToCollapse, mode, props]
   );
