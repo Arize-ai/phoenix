@@ -36,6 +36,12 @@ px dataset get <name>
 px project list
 px annotation-config list
 px auth status
+px profile list
+px profile show [name]
+px profile create <name>
+px profile use <name>
+px profile edit <name>
+px profile delete <name>
 ```
 
 ## Setup
@@ -72,7 +78,34 @@ Always use `--format raw --no-progress` when piping to `jq`.
 ```bash
 px auth status                                # check connection and authentication
 px auth status --endpoint http://other:6006   # check a specific endpoint
+px auth status --profile staging              # check a named profile's connection
 ```
+
+## Profiles
+
+Named profiles let you switch between multiple Phoenix instances (local, staging, cloud) without juggling environment variables. Profiles are stored in `~/.px/settings.json` (or `$XDG_CONFIG_HOME/px/settings.json`).
+
+Configuration priority (highest to lowest): CLI flags > env vars > active profile > built-in defaults.
+
+```bash
+px profile list                              # list all profiles (shows active profile)
+px profile show                              # show the active profile's settings
+px profile show staging                      # show a named profile's settings
+px profile create prod --endpoint https://app.phoenix.arize.com --api-key <key> --activate
+px profile create local --endpoint http://localhost:6006 --project my-app
+px profile use prod                          # switch the active profile
+px profile edit prod                         # open profile JSON in $EDITOR (validates on save)
+px profile delete prod --yes                 # delete a profile (--yes skips confirmation)
+```
+
+Use `--profile <name>` on any command to target a specific profile without changing the active one:
+
+```bash
+px trace list --profile staging --limit 10 --format raw --no-progress | jq .
+px auth status --profile prod
+```
+
+`px profile create` options: `--endpoint <url>`, `--project <name>`, `--api-key <key>`, `--header <key=value>` (repeatable), `--activate`.
 
 ## Projects
 
@@ -102,6 +135,7 @@ px trace add-note <trace-id> --text "needs follow-up"
 ```
 Trace
   traceId, status ("OK"|"ERROR"), duration (ms), startTime, endTime
+  token_count_prompt, token_count_completion, token_count_total  — cumulative across all LLM spans (int, default 0)
   annotations[] (with --include-annotations, excludes note)
     name, result { score, label, explanation }
   notes[] (with --include-notes)
@@ -192,6 +226,7 @@ px session add-note <session-id> --text "verified by agent"
 SessionData
   id, session_id, project_id
   start_time, end_time
+  token_count_prompt, token_count_completion, token_count_total  — cumulative across all LLM spans in the session (int, default 0)
   annotations[] (with --include-annotations, excludes note)
     name, result { score, label, explanation }
   notes[] (with --include-notes)
