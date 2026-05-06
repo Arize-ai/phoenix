@@ -46,7 +46,6 @@ if TYPE_CHECKING:
         ExperimentRunCountsDataLoader,
         ExperimentRunsByExperimentAndExampleDataLoader,
         ExperimentSequenceNumberDataLoader,
-        LanguageByIdDataLoader,
         LastExperimentErrorsDataLoader,
         LastUsedTimesByGenerativeModelIdDataLoader,
         LatencyMsQuantileDataLoader,
@@ -165,7 +164,6 @@ class DataLoaders:
     experiment_sequence_number: ExperimentSequenceNumberDataLoader
     generative_model_fields: TableFieldsDataLoader
     generative_model_custom_provider_fields: TableFieldsDataLoader
-    language_by_id: LanguageByIdDataLoader
     last_used_times_by_generative_model_id: LastUsedTimesByGenerativeModelIdDataLoader
     latency_ms_quantile: LatencyMsQuantileDataLoader
     min_start_or_max_end_times: MinStartOrMaxEndTimeDataLoader

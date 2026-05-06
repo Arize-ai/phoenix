@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ed3a776c45e35c2b916631abe67ccf05>>
+ * @generated SignedSource<<4283f3f0ebe61a9a45cd5eb1b7cdc30a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -26,7 +26,7 @@ export type EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery$data = {
         readonly description?: string | null;
         readonly id: string;
         readonly kind: EvaluatorKind;
-        readonly language?: Language | null;
+        readonly language?: Language;
         readonly name?: string;
         readonly outputConfigs?: ReadonlyArray<{
           readonly lowerBound?: number | null;
