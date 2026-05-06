@@ -1324,12 +1324,7 @@ const appGlobalStylesCSS = css`
 
   :root,
   .theme {
-    --section-background-color: #2f353d;
-
     /* An item is a typically something in a list */
-    --item-background-color: #1d2126;
-    --item-border-color: #282e35;
-
     --font-weight-heavy: 600;
 
     --gradient-bar-height: 8px;
