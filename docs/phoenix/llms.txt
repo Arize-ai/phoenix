@@ -122,16 +122,16 @@
 - [Faithfulness](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/faithfulness): Evaluate whether LLM responses are faithful to the provided context
 - [Matches Regex](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/matches-regex): Evaluate if output matches a regular expression pattern
 - [Precision / Recall / F-Score](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/precision-recall-fscore): Compute precision, recall, and F-beta scores for classification tasks
-- [Q&A on Retrieved Data](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/q-and-a-on-retrieved-data): Q&A on Retrieved Data
+- [Q&A on Retrieved Data](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/q-and-a-on-retrieved-data): Legacy evaluator — score whether an LLM answer is correct given retrieved context
 - [Refusal](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/refusal): Detect when an LLM refuses or declines to answer a user query
-- [Retrieval (RAG) Relevance](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/retrieval-rag-relevance): Retrieval (RAG) Relevance
-- [SQL Generation](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/sql-generation-eval): SQL Generation is a common approach to using an LLM. In many cases the goal is to take a human description of
-- [Summarization](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/summarization-eval): Summarization
-- [Agent Function Calling Eval](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-calling-eval): The Agent Function Call eval can be used to determine how well a model selects a tool to use, extracts the
+- [Retrieval (RAG) Relevance](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/retrieval-rag-relevance): Legacy evaluator — score whether retrieved documents are relevant to the query
+- [SQL Generation](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/sql-generation-eval): Legacy evaluator — score whether generated SQL matches a natural-language query description
+- [Summarization](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/summarization-eval): Legacy evaluator — score whether a summary faithfully captures the source document
+- [Agent Function Calling Eval](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-calling-eval): Legacy evaluator — score tool selection, parameter extraction, and generated tool call code
 - [Tool Invocation](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-invocation): Evaluate whether LLM tool calls have correct arguments and formatting
 - [Tool Response Handling](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-response-handling): Evaluate whether AI agents correctly process tool results, including error handling, data extraction, and
 - [Tool Selection](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/tool-selection): Evaluate whether LLMs select the correct tools for given tasks
-- [Toxicity](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/toxicity): Toxicity
+- [Toxicity](https://arize.com/docs/phoenix/evaluation/pre-built-metrics/toxicity): Legacy evaluator — detect toxic, harmful, or offensive content in LLM responses
 
 - [Contains](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/contains): Check whether a text contains one or more specified words
 - [Correctness](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/correctness): Evaluate whether LLM responses are generally correct and complete using a Phoenix-managed judge model
@@ -195,6 +195,7 @@
 - [Test a Prompt](https://arize.com/docs/phoenix/prompt-engineering/how-to-prompts/test-a-prompt): Test with dataset examples or custom inputs
 - [Tag a Prompt](https://arize.com/docs/phoenix/prompt-engineering/how-to-prompts/tag-a-prompt): Tag prompts for deployment control across environments
 - [Using a Prompt](https://arize.com/docs/phoenix/prompt-engineering/how-to-prompts/using-a-prompt): Load prompts programmatically via SDK
+- [Use Provider Tools](https://arize.com/docs/phoenix/prompt-engineering/how-to-prompts/use-provider-tools): Add vendor-specific built-in tools (web search, code execution, computer use) to Phoenix prompts
 
 
 - [How to: Prompts](https://arize.com/docs/phoenix/prompt-engineering/how-to-prompts): Guides on how to do prompt engineering with Phoenix
@@ -282,10 +283,10 @@
 
 ### Evaluation Integrations — Individual Libraries
 
-- [Cleanlab](https://arize.com/docs/phoenix/integrations/evaluation-integrations/cleanlab): Cleanlab
+- [Cleanlab](https://arize.com/docs/phoenix/integrations/evaluation-integrations/cleanlab): Use Cleanlab TLM confidence scores to flag untrustworthy LLM outputs in Phoenix
 - [MLflow](https://arize.com/docs/phoenix/integrations/evaluation-integrations/mlflow): Use Phoenix evaluators as MLflow scorers for GenAI evaluation workflows
-- [Ragas](https://arize.com/docs/phoenix/integrations/evaluation-integrations/ragas): This guide will walk you through the process of creating and evaluating agents using Ragas and Arize Phoenix
-- [UQLM Confidence & Hallucination Risk](https://arize.com/docs/phoenix/integrations/evaluation-integrations/uqlm): UQLM Confidence & Hallucination Risk
+- [Ragas](https://arize.com/docs/phoenix/integrations/evaluation-integrations/ragas): Evaluate agents and RAG pipelines using Ragas metrics alongside Phoenix tracing
+- [UQLM Confidence & Hallucination Risk](https://arize.com/docs/phoenix/integrations/evaluation-integrations/uqlm): Score LLM response uncertainty with UQLM black-box and white-box signals in Phoenix
 
 ### Platforms — Additional
 
@@ -391,19 +392,13 @@
 - [How can I configure the backend to send the data to the phoenix UI in another container?](https://arize.com/docs/phoenix/resources/frequently-asked-questions/how-can-i-configure-the-backend-to-send-the-data-to-the-phoenix-ui-in-another-container): _If you are working on an API whose endpoints perform RAG, but would like the phoenix server not to be
 - [How do I resolve Phoenix Evals showing NOT\_PARSABLE?](https://arize.com/docs/phoenix/resources/frequently-asked-questions/how-do-i-resolve-phoenix-evals-showing-not_parsable): `NOT_PARSABLE` errors often occur when LLM responses exceed the `max_tokens` limit or produce incomplete JSON
 - [Langfuse alternative? Arize Phoenix vs Langfuse: Key differences](https://arize.com/docs/phoenix/resources/frequently-asked-questions/langfuse-alternative-arize-phoenix-vs-langfuse-key-differences): Langfuse alternative? Arize Phoenix vs Langfuse: Key differences
+- [Open Source LangSmith Alternative: Arize Phoenix vs. LangSmith](https://arize.com/docs/phoenix/resources/frequently-asked-questions/open-source-langsmith-alternative-arize-phoenix-vs.-langsmith): Compare Phoenix and LangSmith across observability, evaluation, and open-source features
 - [Phoenix Cloud Migration Guide: Legacy to New Version](https://arize.com/docs/phoenix/resources/frequently-asked-questions/phoenix-cloud-migration-guide-legacy-to-new-version): To move to the new Phoenix Cloud, simply [create a new Phoenix
 - [What is LlamaTrace vs Phoenix Cloud?](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-llamatrace-vs-phoenix-cloud): LlamaTrace and Phoenix Cloud are the same tool. They are the hosted version of Phoenix provided on
 - [What is my Phoenix Endpoint?](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-my-phoenix-endpoint): What is my Phoenix Endpoint?
 - [What is the difference between GRPC and HTTP?](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-grpc-and-http): gRPC and HTTP are communication protocols used to transfer data between client and server applications
 - [What is the difference between Phoenix and Arize?](https://arize.com/docs/phoenix/resources/frequently-asked-questions/what-is-the-difference-between-phoenix-and-arize): Arize is the company that makes Phoenix. Phoenix is an open source LLM observability tool offered by Arize
 - [Will Phoenix Cloud be on the latest version of Phoenix?](https://arize.com/docs/phoenix/resources/frequently-asked-questions/will-phoenix-cloud-be-on-the-latest-version-of-phoenix): We update the Phoenix version used by Phoenix Cloud on a weekly basis
-- [Github](https://arize.com/docs/phoenix/resources/github): Github
-- [OpenInference](https://arize.com/docs/phoenix/resources/openinference): OpenInference
-- [Python SDK](https://arize.com/docs/phoenix/resources/python-api): Python SDK
-- [TypeScript SDK](https://arize.com/docs/phoenix/resources/typescript-api): TypeScript SDK
-## Use Cases
-
-
 ## SDK & API Reference
 
 - [SDK Overview](https://arize.com/docs/phoenix/sdk-api-reference): Navigate all Phoenix SDK and API reference docs
@@ -657,19 +652,28 @@
 
 ### 2026
 
-- [01.17.2026 Phoenix CLI: Terminal Access for AI Coding Assistants](https://arize.com/docs/phoenix/release-notes/01-2026/01-17-2026-phoenix-cli-ai-agent-debugging): 01.17.2026 Phoenix CLI: Terminal Access for AI Coding Assistants
+- [01.05.2026 Appended Messages for Playground Experiments](https://arize.com/docs/phoenix/release-notes/01-2026/01-05-2026-appended-messages-for-playground-experiments): Add suffix messages to Playground experiment runs for A/B testing prompt endings
+- [01.17.2026 Phoenix CLI: Terminal Access for AI Coding Assistants](https://arize.com/docs/phoenix/release-notes/01-2026/01-17-2026-phoenix-cli-ai-agent-debugging): Install px CLI to query traces, spans, and experiments from the terminal
+- [01.21.2026 CLI Datasets, Experiments & Annotations](https://arize.com/docs/phoenix/release-notes/01-2026/01-21-2026-cli-datasets-experiments-annotations): Manage datasets, run experiments, and write annotations from the command line with px
+- [01.21.2026 Create Datasets from Traces with Span Associations](https://arize.com/docs/phoenix/release-notes/01-2026/01-21-2026-create-datasets-from-traces): Build datasets from existing spans using arize-phoenix-client with span-to-example associations
+- [01.22.2026 CLI Prompt Commands](https://arize.com/docs/phoenix/release-notes/01-2026/01-22-2026-cli-prompt-commands): List, pull, and pipe Phoenix prompts to AI assistants from the terminal with px prompts
+- [02.01.2026 Tool Selection and Tool Invocation Evaluators](https://arize.com/docs/phoenix/release-notes/02-2026/02-01-2026-tool-selection-and-tool-invocation-evaluators): New pre-built evals for scoring tool selection and argument quality in Python and TypeScript
+- [02.10.2026 Claude Opus 4.6 Model Support](https://arize.com/docs/phoenix/release-notes/02-2026/02-10-2026-claude-opus-4-6-model-support): Use claude-opus-4-6 in the Playground with extended thinking and accurate cost tracking
+- [02.11.2026 Custom Providers for Playground and Prompts](https://arize.com/docs/phoenix/release-notes/02-2026/02-11-2026-custom-providers): Store OpenAI, Azure, Anthropic, Bedrock, and Google credentials server-side and reuse across Playground
+- [02.12.2026 OpenAI Responses API Type Support](https://arize.com/docs/phoenix/release-notes/02-2026/02-12-2026-openai-responses-api-support): Switch between Chat Completions and Responses API per model in Playground and custom providers
+- [02.12.2026 Dataset Evaluators](https://arize.com/docs/phoenix/release-notes/02-2026/02-12-2026-dataset-evaluators): Attach evaluators to datasets so they auto-run server-side on every Playground experiment
 - [Phoenix 13.0](https://arize.com/docs/phoenix/release-notes/02-2026/02-14-2026-phoenix-13-0): Dataset Evaluators, custom model providers, OpenAI Responses API support, and major Playground and experiment
-- [02.27.2026 Sessions API and CLI Support](https://arize.com/docs/phoenix/release-notes/02-2026/02-27-2026-cli-sessions-and-rest-api): 02.27.2026 Sessions API and CLI Support
+- [02.27.2026 Sessions API and CLI Support](https://arize.com/docs/phoenix/release-notes/02-2026/02-27-2026-cli-sessions-and-rest-api): Query sessions via REST API and CLI with filtering, sorting, and pagination support
 - [03.05.2026 SDK Session Retrieval](https://arize.com/docs/phoenix/release-notes/03-2026/03-05-2026-sdk-session-retrieval): Get and list sessions programmatically from Python and TypeScript
 - [03.08.2026 New Playground Providers and Project Settings](https://arize.com/docs/phoenix/release-notes/03-2026/03-08-2026-new-playground-providers-and-project-settings): Phoenix v13.10.0 adds Cerebras, Fireworks AI, Groq, and Moonshot as first-class playground providers, plus
-- [Release Notes](https://arize.com/docs/phoenix/release-notes/03-2026/03-11-2026-session-turns-api): Release Notes
-- [Release Notes](https://arize.com/docs/phoenix/release-notes/03-2026/03-13-2026-rest-api-improvements): Release Notes
-- [Release Notes](https://arize.com/docs/phoenix/release-notes/03-2026/03-22-2026-cli-and-user-api): Release Notes
-- [Release Notes](https://arize.com/docs/phoenix/release-notes/03-2026/03-24-2026-prompt-version-diff-and-evals-updates): Release Notes
-- [Release Notes](https://arize.com/docs/phoenix/release-notes/03-2026/03-30-2026-delete-prompts-api): Release Notes
-- [Release Notes](https://arize.com/docs/phoenix/release-notes/04-2026/04-01-2026-get-traces-secrets-api-and-python-314): Release Notes
+- [03.11.2026 Session Turns API](https://arize.com/docs/phoenix/release-notes/03-2026/03-11-2026-session-turns-api): Retrieve ordered input/output turns across all traces in a session via Python and TypeScript client
+- [03.13.2026 List Traces by Project REST API](https://arize.com/docs/phoenix/release-notes/03-2026/03-13-2026-rest-api-improvements): GET /v1/projects/{project_identifier}/traces with filtering, sorting, and pagination
+- [03.22.2026 px spans CLI Command](https://arize.com/docs/phoenix/release-notes/03-2026/03-22-2026-cli-and-user-api): Fetch and filter spans from the command line; pipe output to scripts and CI pipelines
+- [03.24.2026 Prompt Version Diff View](https://arize.com/docs/phoenix/release-notes/03-2026/03-24-2026-prompt-version-diff-and-evals-updates): Compare two prompt versions side-by-side with line-level diffs for messages, tools, and content
+- [03.30.2026 Delete Prompts REST API](https://arize.com/docs/phoenix/release-notes/03-2026/03-30-2026-delete-prompts-api): DELETE /v1/prompts and DELETE /v1/prompt_versions tag endpoints now available
+- [04.01.2026 get_traces SDK Method and Secrets API](https://arize.com/docs/phoenix/release-notes/04-2026/04-01-2026-get-traces-secrets-api-and-python-314): Retrieve traces programmatically via arize-phoenix-client with cursor-based pagination
 - [04.03.2026 ATIF Trajectory Upload](https://arize.com/docs/phoenix/release-notes/04-2026/04-03-2026-atif-trajectory-upload): Upload Harbor ATIF agent trajectories as structured Phoenix traces
-- [Release Notes](https://arize.com/docs/phoenix/release-notes/04-2026/04-07-2026-phoenix-v14-breaking-changes): Breaking changes in Phoenix v14.0.0: CLI restructuring, legacy client removal, evaluations endpoint removal
+- [04.07.2026 Phoenix v14 Breaking Changes](https://arize.com/docs/phoenix/release-notes/04-2026/04-07-2026-phoenix-v14-breaking-changes): Breaking changes in Phoenix v14.0.0: CLI restructuring, legacy client removal, evaluations endpoint removal
 - [04.07.2026 PostgreSQL Read Replica Routing](https://arize.com/docs/phoenix/release-notes/04-2026/04-07-2026-postgresql-read-replica): Route read-only queries to a PostgreSQL read replica to reduce load on the primary under high ingestion
 - [04.10.2026 Shareable Project URLs](https://arize.com/docs/phoenix/release-notes/04-2026/04-10-2026-shareable-url-redirects): Link to Phoenix projects by name without looking up internal IDs
 - [04.13.2026 @arizeai/phoenix-otel 1.0](https://arize.com/docs/phoenix/release-notes/04-2026/04-13-2026-phoenix-otel-ts-1-0): Tracing helpers, decorators, context setters, and OpenInference semantic conventions ship from a single
@@ -757,6 +761,7 @@
 - [09.25.2025: Repetitions](https://arize.com/docs/phoenix/release-notes/09-2025/09-25-2025-repetitions): Available in Phoenix 11.38+
 - [09.26.2025: Session Annotations](https://arize.com/docs/phoenix/release-notes/09-2025/09-26-2025-session-annotations): Available in Phoenix 12.0+
 - [09.27.2025: Dataset Splits](https://arize.com/docs/phoenix/release-notes/09-2025/09-27-2025-dataset-splits): Available in Phoenix 12.0+
+- [09.29.2025: Day 0 Support for Claude Sonnet 4.5](https://arize.com/docs/phoenix/release-notes/09-2025/09-29-2025-day-0-support-for-claude-sonnet-4.5): Available in Phoenix 12.1+
 - [10.03.2025: Prompt Version Editing in Playground](https://arize.com/docs/phoenix/release-notes/10-2025/10-03-2025-prompt-version-editing-in-playground): Available in Phoenix 12.2+
 - [10.05.2025: Load Prompt by Tag into Playground](https://arize.com/docs/phoenix/release-notes/10-2025/10-05-2025-load-prompt-by-tag-into-playground): Available in Phoenix 12.2+
 - [10.06.2025: Paginate Compare Experiments](https://arize.com/docs/phoenix/release-notes/10-2025/10-06-2025-paginate-compare-experiments): Available in Phoenix 12.3+
@@ -776,6 +781,7 @@
 - [11.07.2025: Timezone Preference](https://arize.com/docs/phoenix/release-notes/11-2025/11-07-2025-timezone-preference): Available in Phoenix 12.11+
 - [11.09.2025 OpenInference TypeScript 2.0](https://arize.com/docs/phoenix/release-notes/11-2025/11-09-2025-openinference-typescript-2-0): 11.09.2025 OpenInference TypeScript 2.0
 - [11.12.2025: Updated Anthropic Model List](https://arize.com/docs/phoenix/release-notes/11-2025/11-12-2025-updated-anthropic-model-list): Available in Phoenix 12.15+
+- [11.19.2025: Expanded Provider Support with OpenAI 5.1 and Gemini 3](https://arize.com/docs/phoenix/release-notes/11-2025/11-19-2025-expanded-provider-support-with-openai-5-1-+-gemini-3): OpenAI v5.1 compatibility with reasoning, Gemini 3 model support in Phoenix 12.15+
 - [11.23.2025: Repetitions for Manual Playground Invocations](https://arize.com/docs/phoenix/release-notes/11-2025/11-23-2025-repetitions-for-manual-playground-invocations): Available in Phoenix 12.17+
 - [11.25.2025: Split Assignments When Uploading a Dataset](https://arize.com/docs/phoenix/release-notes/11-2025/11-25-2025-split-assignments-when-uploading-a-dataset): Available in Phoenix 12.18+
 - [11.27.2025: Show Server Credential Setup in Playground API Keys](https://arize.com/docs/phoenix/release-notes/11-2025/11-27-2025-show-server-credential-setup-in-playground-api-keys): Available in Phoenix 12.18+
