@@ -1311,6 +1311,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/chat-v2": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Chat V2 */
+        post: operations["chat_v2_chat_v2_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/arize_phoenix_version": {
         parameters: {
             query?: never;
@@ -1366,6 +1383,22 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AgentCapabilities
+         * @description Runtime capability state sent by the browser for a chat turn.
+         */
+        AgentCapabilities: {
+            /**
+             * Bash.Retaininactivesessions
+             * @default false
+             */
+            "bash.retainInactiveSessions"?: boolean;
+            /**
+             * Graphql.Mutations
+             * @default false
+             */
+            "graphql.mutations"?: boolean;
+        };
         /** AnnotateSessionsRequestBody */
         AnnotateSessionsRequestBody: {
             /** Data */
@@ -1434,6 +1467,21 @@ export interface components {
              * @enum {string}
              */
             auth_method: "ANONYMOUS";
+        };
+        /**
+         * AppContext
+         * @description Per-turn browser clock context for resolving relative time requests.
+         */
+        AppContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "app";
+            /** Currentdatetime */
+            currentDateTime: string;
+            /** Timezone */
+            timeZone: string;
         };
         /**
          * BuiltInProviderChatSearchParams
@@ -1734,6 +1782,18 @@ export interface components {
             /** Model Name */
             model_name: string;
         };
+        /**
+         * DataUIPart
+         * @description Data part with dynamic type based on data name.
+         */
+        DataUIPart: {
+            /** Type */
+            type: string;
+            /** Id */
+            id?: string | null;
+            /** Data */
+            data: unknown;
+        };
         /** Dataset */
         Dataset: {
             /** Id */
@@ -1836,6 +1896,236 @@ export interface components {
              * @description List of session identifiers to delete. All identifiers must be the same type: either all GlobalIDs or all user-provided session_id strings.
              */
             session_identifiers: string[];
+        };
+        /**
+         * DynamicToolApprovalRequestedPart
+         * @description Dynamic tool part in approval-requested state (awaiting user decision).
+         */
+        DynamicToolApprovalRequestedPart: {
+            /**
+             * Type
+             * @default dynamic-tool
+             * @constant
+             */
+            type?: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default approval-requested
+             * @constant
+             */
+            state?: "approval-requested";
+            /** Input */
+            input: unknown;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * DynamicToolApprovalRespondedPart
+         * @description Dynamic tool part in approval-responded state (user approved/denied, execution pending).
+         */
+        DynamicToolApprovalRespondedPart: {
+            /**
+             * Type
+             * @default dynamic-tool
+             * @constant
+             */
+            type?: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default approval-responded
+             * @constant
+             */
+            state?: "approval-responded";
+            /** Input */
+            input: unknown;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * DynamicToolInputAvailablePart
+         * @description Dynamic tool part in input-available state.
+         */
+        DynamicToolInputAvailablePart: {
+            /**
+             * Type
+             * @default dynamic-tool
+             * @constant
+             */
+            type?: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default input-available
+             * @constant
+             */
+            state?: "input-available";
+            /** Input */
+            input: unknown;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * DynamicToolInputStreamingPart
+         * @description Dynamic tool part in input-streaming state.
+         */
+        DynamicToolInputStreamingPart: {
+            /**
+             * Type
+             * @default dynamic-tool
+             * @constant
+             */
+            type?: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default input-streaming
+             * @constant
+             */
+            state?: "input-streaming";
+            /** Input */
+            input?: unknown | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * DynamicToolOutputAvailablePart
+         * @description Dynamic tool part in output-available state.
+         */
+        DynamicToolOutputAvailablePart: {
+            /**
+             * Type
+             * @default dynamic-tool
+             * @constant
+             */
+            type?: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default output-available
+             * @constant
+             */
+            state?: "output-available";
+            /** Input */
+            input: unknown;
+            /** Output */
+            output: unknown;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Preliminary */
+            preliminary?: boolean | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * DynamicToolOutputDeniedPart
+         * @description Dynamic tool part in output-denied state (tool was denied, terminal state).
+         */
+        DynamicToolOutputDeniedPart: {
+            /**
+             * Type
+             * @default dynamic-tool
+             * @constant
+             */
+            type?: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default output-denied
+             * @constant
+             */
+            state?: "output-denied";
+            /** Input */
+            input: unknown;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * DynamicToolOutputErrorPart
+         * @description Dynamic tool part in output-error state.
+         */
+        DynamicToolOutputErrorPart: {
+            /**
+             * Type
+             * @default dynamic-tool
+             * @constant
+             */
+            type?: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default output-error
+             * @constant
+             */
+            state?: "output-error";
+            /** Input */
+            input: unknown;
+            /** Errortext */
+            errorText: string;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
         };
         /** Experiment */
         Experiment: {
@@ -1971,6 +2261,30 @@ export interface components {
              * @description The ID of the experiment
              */
             experiment_id: string;
+        };
+        /**
+         * FileUIPart
+         * @description A file part of a message.
+         */
+        FileUIPart: {
+            /**
+             * Type
+             * @default file
+             * @constant
+             */
+            type?: "file";
+            /** Mediatype */
+            mediaType: string;
+            /** Filename */
+            filename?: string | null;
+            /** Url */
+            url: string;
+            /** Providermetadata */
+            providerMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
         };
         /** FreeformAnnotationConfig */
         FreeformAnnotationConfig: {
@@ -2583,6 +2897,32 @@ export interface components {
             description?: string | null;
             /** Id */
             id: string;
+        };
+        /**
+         * ProjectContext
+         * @description Project the user is currently viewing.
+         *
+         *     ``span_filter`` carries the project-scoped span filter expression when the
+         *     span filter field is mounted — empty string when the field is mounted with
+         *     no condition applied, ``None`` when the field is not present at all.
+         *
+         *     ``root_spans_only`` carries the current state of the spans-table root vs.
+         *     all toggle when that toggle is mounted — ``True`` when the table is
+         *     restricted to root spans, ``False`` when it shows every span, ``None``
+         *     when the toggle is not present (e.g. on the traces tab).
+         */
+        ProjectContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "project";
+            /** Projectnodeid */
+            projectNodeId: string;
+            /** Spanfilter */
+            spanFilter?: string | null;
+            /** Rootspansonly */
+            rootSpansOnly?: boolean | null;
         };
         /** Prompt */
         Prompt: {
@@ -3341,6 +3681,28 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /**
+         * ReasoningUIPart
+         * @description A reasoning part of a message.
+         */
+        ReasoningUIPart: {
+            /**
+             * Type
+             * @default reasoning
+             * @constant
+             */
+            type?: "reasoning";
+            /** Text */
+            text: string;
+            /** State */
+            state?: ("streaming" | "done") | null;
+            /** Providermetadata */
+            providerMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+        };
         /** ResponseBody[UpsertOrDeleteSecretsResult] */
         ResponseBody_UpsertOrDeleteSecretsResult_: {
             data: components["schemas"]["UpsertOrDeleteSecretsResult"];
@@ -3522,6 +3884,56 @@ export interface components {
             end_time: string;
         };
         /**
+         * SourceDocumentUIPart
+         * @description A document source part of a message.
+         */
+        SourceDocumentUIPart: {
+            /**
+             * Type
+             * @default source-document
+             * @constant
+             */
+            type?: "source-document";
+            /** Sourceid */
+            sourceId: string;
+            /** Mediatype */
+            mediaType: string;
+            /** Title */
+            title: string;
+            /** Filename */
+            filename?: string | null;
+            /** Providermetadata */
+            providerMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+        };
+        /**
+         * SourceUrlUIPart
+         * @description A source part of a message.
+         */
+        SourceUrlUIPart: {
+            /**
+             * Type
+             * @default source-url
+             * @constant
+             */
+            type?: "source-url";
+            /** Sourceid */
+            sourceId: string;
+            /** Url */
+            url: string;
+            /** Title */
+            title?: string | null;
+            /** Providermetadata */
+            providerMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+        };
+        /**
          * Span
          * @example {
          *       "attributes": {
@@ -3555,7 +3967,7 @@ export interface components {
              */
             name: string;
             /** @description Span context containing trace_id and span_id */
-            context: components["schemas"]["SpanContext"];
+            context: components["schemas"]["phoenix__server__api__routers__v1__spans__SpanContext"];
             /**
              * Span Kind
              * @description Type of work that the span encapsulates
@@ -3696,25 +4108,6 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
-        /**
-         * SpanContext
-         * @example {
-         *       "span_id": "1a2b3c4d5e6f7a8b",
-         *       "trace_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
-         *     }
-         */
-        SpanContext: {
-            /**
-             * Trace Id
-             * @description OpenTelemetry trace ID
-             */
-            trace_id: string;
-            /**
-             * Span Id
-             * @description OpenTelemetry span ID
-             */
-            span_id: string;
-        };
         /** SpanDocumentAnnotationData */
         SpanDocumentAnnotationData: {
             /**
@@ -3804,6 +4197,18 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
+        /**
+         * StepStartUIPart
+         * @description A step boundary part of a message.
+         */
+        StepStartUIPart: {
+            /**
+             * Type
+             * @default step-start
+             * @constant
+             */
+            type?: "step-start";
+        };
         /** TextContentPart */
         TextContentPart: {
             /**
@@ -3813,6 +4218,104 @@ export interface components {
             type: "text";
             /** Text */
             text: string;
+        };
+        /**
+         * TextUIPart
+         * @description A text part of a message.
+         */
+        TextUIPart: {
+            /**
+             * Type
+             * @default text
+             * @constant
+             */
+            type?: "text";
+            /** Text */
+            text: string;
+            /** State */
+            state?: ("streaming" | "done") | null;
+            /** Providermetadata */
+            providerMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+        };
+        /**
+         * ToolApprovalRequested
+         * @description Tool approval in requested state (awaiting user response).
+         */
+        ToolApprovalRequested: {
+            /** Id */
+            id: string;
+        };
+        /**
+         * ToolApprovalRequestedPart
+         * @description Tool part in approval-requested state (awaiting user decision).
+         */
+        ToolApprovalRequestedPart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default approval-requested
+             * @constant
+             */
+            state?: "approval-requested";
+            /** Input */
+            input?: unknown | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * ToolApprovalResponded
+         * @description Tool approval in responded state (user has approved or denied).
+         */
+        ToolApprovalResponded: {
+            /** Id */
+            id: string;
+            /** Approved */
+            approved: boolean;
+            /** Reason */
+            reason?: string | null;
+        };
+        /**
+         * ToolApprovalRespondedPart
+         * @description Tool part in approval-responded state (user approved/denied, execution pending).
+         */
+        ToolApprovalRespondedPart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default approval-responded
+             * @constant
+             */
+            state?: "approval-responded";
+            /** Input */
+            input?: unknown | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
         };
         /** ToolCallContentPart */
         ToolCallContentPart: {
@@ -3837,6 +4340,154 @@ export interface components {
             name: string;
             /** Arguments */
             arguments: string;
+        };
+        /**
+         * ToolInputAvailablePart
+         * @description Tool part in input-available state.
+         */
+        ToolInputAvailablePart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default input-available
+             * @constant
+             */
+            state?: "input-available";
+            /** Input */
+            input?: unknown | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * ToolInputStreamingPart
+         * @description Tool part in input-streaming state.
+         */
+        ToolInputStreamingPart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default input-streaming
+             * @constant
+             */
+            state?: "input-streaming";
+            /** Input */
+            input?: unknown | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * ToolOutputAvailablePart
+         * @description Tool part in output-available state.
+         */
+        ToolOutputAvailablePart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default output-available
+             * @constant
+             */
+            state?: "output-available";
+            /** Input */
+            input?: unknown | null;
+            /** Output */
+            output?: unknown | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Preliminary */
+            preliminary?: boolean | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * ToolOutputDeniedPart
+         * @description Tool part in output-denied state (tool was denied, terminal state).
+         */
+        ToolOutputDeniedPart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default output-denied
+             * @constant
+             */
+            state?: "output-denied";
+            /** Input */
+            input?: unknown | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * ToolOutputErrorPart
+         * @description Tool part in output-error state.
+         */
+        ToolOutputErrorPart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default output-error
+             * @constant
+             */
+            state?: "output-error";
+            /** Input */
+            input?: unknown | null;
+            /** Rawinput */
+            rawInput?: unknown | null;
+            /** Errortext */
+            errorText: string;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
         };
         /** ToolResultContentPart */
         ToolResultContentPart: {
@@ -3946,6 +4597,18 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
+        /** TraceContext */
+        TraceContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "trace";
+            /** Projectnodeid */
+            projectNodeId: string;
+            /** Oteltraceid */
+            otelTraceId: string;
+        };
         /** TraceData */
         TraceData: {
             /** Id */
@@ -4022,6 +4685,23 @@ export interface components {
              * Format: date-time
              */
             end_time: string;
+        };
+        /**
+         * UIMessage
+         * @description A message as displayed in the UI by Vercel AI Elements.
+         */
+        UIMessage: {
+            /** Id */
+            id: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "system" | "user" | "assistant";
+            /** Metadata */
+            metadata?: unknown | null;
+            /** Parts */
+            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["ToolOutputAvailablePart"] | components["schemas"]["ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["DynamicToolOutputAvailablePart"] | components["schemas"]["DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
         };
         /** UpdateAnnotationConfigResponseBody */
         UpdateAnnotationConfigResponseBody: {
@@ -4146,6 +4826,92 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, unknown>;
+        };
+        /**
+         * _RegenerateMessage
+         * @description Regenerate message extended with Phoenix-specific fields.
+         */
+        _RegenerateMessage: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            trigger: "regenerate-message";
+            /** Id */
+            id: string;
+            /** Messages */
+            messages: components["schemas"]["UIMessage"][];
+            /** Messageid */
+            messageId?: string | null;
+            /** Contexts */
+            contexts?: (components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["phoenix__server__agents__context__SpanContext"])[];
+            capabilities?: components["schemas"]["AgentCapabilities"];
+            /** Sessionid */
+            sessionId: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * _SubmitMessage
+         * @description Submit message extended with Phoenix-specific fields.
+         */
+        _SubmitMessage: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            trigger: "submit-message";
+            /** Id */
+            id: string;
+            /** Messages */
+            messages: components["schemas"]["UIMessage"][];
+            /** Contexts */
+            contexts?: (components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["phoenix__server__agents__context__SpanContext"])[];
+            capabilities?: components["schemas"]["AgentCapabilities"];
+            /** Sessionid */
+            sessionId: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SpanContext
+         * @description Span the user has selected.
+         *
+         *     Exactly one of ``span_node_id`` (relay) or ``otel_span_id`` (OpenTelemetry
+         *     hex) must be set. ``project_node_id`` is optional because a span can be
+         *     selected from views outside a project route.
+         */
+        phoenix__server__agents__context__SpanContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "span";
+            /** Projectnodeid */
+            projectNodeId?: string | null;
+            /** Spannodeid */
+            spanNodeId?: string | null;
+            /** Otelspanid */
+            otelSpanId?: string | null;
+        };
+        /**
+         * SpanContext
+         * @example {
+         *       "span_id": "1a2b3c4d5e6f7a8b",
+         *       "trace_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
+         *     }
+         */
+        phoenix__server__api__routers__v1__spans__SpanContext: {
+            /**
+             * Trace Id
+             * @description OpenTelemetry trace ID
+             */
+            trace_id: string;
+            /**
+             * Span Id
+             * @description OpenTelemetry span ID
+             */
+            span_id: string;
         };
     };
     responses: never;
@@ -7966,6 +8732,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chat_v2_chat_v2_post: {
+        parameters: {
+            query: {
+                root: components["schemas"]["CustomProviderChatSearchParams"] | components["schemas"]["BuiltInProviderChatSearchParams"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["_SubmitMessage"] | components["schemas"]["_RegenerateMessage"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

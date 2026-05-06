@@ -6544,6 +6544,85 @@
         }
       }
     },
+    "/chat-v2": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Chat V2",
+        "operationId": "chat_v2_chat_v2_post",
+        "parameters": [
+          {
+            "name": "root",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CustomProviderChatSearchParams"
+                },
+                {
+                  "$ref": "#/components/schemas/BuiltInProviderChatSearchParams"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "provider_type",
+                "mapping": {
+                  "custom": "#/components/schemas/CustomProviderChatSearchParams",
+                  "builtin": "#/components/schemas/BuiltInProviderChatSearchParams"
+                }
+              },
+              "title": "Root"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/_SubmitMessage"
+                  },
+                  {
+                    "$ref": "#/components/schemas/_RegenerateMessage"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "trigger",
+                  "mapping": {
+                    "submit-message": "#/components/schemas/_SubmitMessage",
+                    "regenerate-message": "#/components/schemas/_RegenerateMessage"
+                  }
+                },
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/arize_phoenix_version": {
       "get": {
         "summary": "Version",
@@ -6595,6 +6674,23 @@
   },
   "components": {
     "schemas": {
+      "AgentCapabilities": {
+        "properties": {
+          "bash.retainInactiveSessions": {
+            "type": "boolean",
+            "title": "Bash.Retaininactivesessions",
+            "default": false
+          },
+          "graphql.mutations": {
+            "type": "boolean",
+            "title": "Graphql.Mutations",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "AgentCapabilities",
+        "description": "Runtime capability state sent by the browser for a chat turn."
+      },
       "AnnotateSessionsRequestBody": {
         "properties": {
           "data": {
@@ -6779,6 +6875,31 @@
           "auth_method"
         ],
         "title": "AnonymousUser"
+      },
+      "AppContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "app",
+            "title": "Type"
+          },
+          "currentDateTime": {
+            "type": "string",
+            "title": "Currentdatetime"
+          },
+          "timeZone": {
+            "type": "string",
+            "title": "Timezone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "currentDateTime",
+          "timeZone"
+        ],
+        "title": "AppContext",
+        "description": "Per-turn browser clock context for resolving relative time requests."
       },
       "BuiltInProviderChatSearchParams": {
         "properties": {
@@ -7540,6 +7661,37 @@
         "title": "CustomProviderChatSearchParams",
         "description": "Chat against a stored custom provider record.\n\nThe wire format of ``provider_id`` is a relay GlobalID (e.g.\n``UHJvdmlkZXI6MTM=``). It is decoded to its integer node ID at\nparse time so downstream consumers don't need to know the GlobalID\nencoding."
       },
+      "DataUIPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^data-",
+            "title": "Type"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "data": {
+            "title": "Data"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "data"
+        ],
+        "title": "DataUIPart",
+        "description": "Data part with dynamic type based on data name."
+      },
       "Dataset": {
         "properties": {
           "id": {
@@ -7773,6 +7925,486 @@
         ],
         "title": "DeleteSessionsRequestBody"
       },
+      "DynamicToolApprovalRequestedPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dynamic-tool",
+            "title": "Type",
+            "default": "dynamic-tool"
+          },
+          "toolName": {
+            "type": "string",
+            "title": "Toolname"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "approval-requested",
+            "title": "State",
+            "default": "approval-requested"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "toolName",
+          "toolCallId",
+          "input"
+        ],
+        "title": "DynamicToolApprovalRequestedPart",
+        "description": "Dynamic tool part in approval-requested state (awaiting user decision)."
+      },
+      "DynamicToolApprovalRespondedPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dynamic-tool",
+            "title": "Type",
+            "default": "dynamic-tool"
+          },
+          "toolName": {
+            "type": "string",
+            "title": "Toolname"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "approval-responded",
+            "title": "State",
+            "default": "approval-responded"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "toolName",
+          "toolCallId",
+          "input"
+        ],
+        "title": "DynamicToolApprovalRespondedPart",
+        "description": "Dynamic tool part in approval-responded state (user approved/denied, execution pending)."
+      },
+      "DynamicToolInputAvailablePart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dynamic-tool",
+            "title": "Type",
+            "default": "dynamic-tool"
+          },
+          "toolName": {
+            "type": "string",
+            "title": "Toolname"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "input-available",
+            "title": "State",
+            "default": "input-available"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "toolName",
+          "toolCallId",
+          "input"
+        ],
+        "title": "DynamicToolInputAvailablePart",
+        "description": "Dynamic tool part in input-available state."
+      },
+      "DynamicToolInputStreamingPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dynamic-tool",
+            "title": "Type",
+            "default": "dynamic-tool"
+          },
+          "toolName": {
+            "type": "string",
+            "title": "Toolname"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "input-streaming",
+            "title": "State",
+            "default": "input-streaming"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "toolName",
+          "toolCallId"
+        ],
+        "title": "DynamicToolInputStreamingPart",
+        "description": "Dynamic tool part in input-streaming state."
+      },
+      "DynamicToolOutputAvailablePart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dynamic-tool",
+            "title": "Type",
+            "default": "dynamic-tool"
+          },
+          "toolName": {
+            "type": "string",
+            "title": "Toolname"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-available",
+            "title": "State",
+            "default": "output-available"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "output": {
+            "title": "Output"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "preliminary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preliminary"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "toolName",
+          "toolCallId",
+          "input",
+          "output"
+        ],
+        "title": "DynamicToolOutputAvailablePart",
+        "description": "Dynamic tool part in output-available state."
+      },
+      "DynamicToolOutputDeniedPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dynamic-tool",
+            "title": "Type",
+            "default": "dynamic-tool"
+          },
+          "toolName": {
+            "type": "string",
+            "title": "Toolname"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-denied",
+            "title": "State",
+            "default": "output-denied"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "toolName",
+          "toolCallId",
+          "input"
+        ],
+        "title": "DynamicToolOutputDeniedPart",
+        "description": "Dynamic tool part in output-denied state (tool was denied, terminal state)."
+      },
+      "DynamicToolOutputErrorPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dynamic-tool",
+            "title": "Type",
+            "default": "dynamic-tool"
+          },
+          "toolName": {
+            "type": "string",
+            "title": "Toolname"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-error",
+            "title": "State",
+            "default": "output-error"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "errorText": {
+            "type": "string",
+            "title": "Errortext"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "toolName",
+          "toolCallId",
+          "input",
+          "errorText"
+        ],
+        "title": "DynamicToolOutputErrorPart",
+        "description": "Dynamic tool part in output-error state."
+      },
       "Experiment": {
         "properties": {
           "id": {
@@ -7981,6 +8613,58 @@
           "experiment_id"
         ],
         "title": "ExperimentRun"
+      },
+      "FileUIPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "file",
+            "title": "Type",
+            "default": "file"
+          },
+          "mediaType": {
+            "type": "string",
+            "title": "Mediatype"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "providerMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providermetadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "mediaType",
+          "url"
+        ],
+        "title": "FileUIPart",
+        "description": "A file part of a message."
       },
       "FreeformAnnotationConfig": {
         "properties": {
@@ -9636,6 +10320,48 @@
           "id"
         ],
         "title": "Project"
+      },
+      "ProjectContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "project",
+            "title": "Type"
+          },
+          "projectNodeId": {
+            "type": "string",
+            "title": "Projectnodeid"
+          },
+          "spanFilter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spanfilter"
+          },
+          "rootSpansOnly": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rootspansonly"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "projectNodeId"
+        ],
+        "title": "ProjectContext",
+        "description": "Project the user is currently viewing.\n\n``span_filter`` carries the project-scoped span filter expression when the\nspan filter field is mounted \u2014 empty string when the field is mounted with\nno condition applied, ``None`` when the field is not present at all.\n\n``root_spans_only`` carries the current state of the spans-table root vs.\nall toggle when that toggle is mounted \u2014 ``True`` when the table is\nrestricted to root spans, ``False`` when it shows every span, ``None``\nwhen the toggle is not present (e.g. on the traces tab)."
       },
       "Prompt": {
         "properties": {
@@ -11610,6 +12336,57 @@
         "type": "object",
         "title": "PromptXAIInvocationParametersContent"
       },
+      "ReasoningUIPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "reasoning",
+            "title": "Type",
+            "default": "reasoning"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "streaming",
+                  "done"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "providerMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providermetadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "ReasoningUIPart",
+        "description": "A reasoning part of a message."
+      },
       "ResponseBody_UpsertOrDeleteSecretsResult_": {
         "properties": {
           "data": {
@@ -11950,6 +12727,115 @@
         ],
         "title": "SessionTraceData"
       },
+      "SourceDocumentUIPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "source-document",
+            "title": "Type",
+            "default": "source-document"
+          },
+          "sourceId": {
+            "type": "string",
+            "title": "Sourceid"
+          },
+          "mediaType": {
+            "type": "string",
+            "title": "Mediatype"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "providerMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providermetadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sourceId",
+          "mediaType",
+          "title"
+        ],
+        "title": "SourceDocumentUIPart",
+        "description": "A document source part of a message."
+      },
+      "SourceUrlUIPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "source-url",
+            "title": "Type",
+            "default": "source-url"
+          },
+          "sourceId": {
+            "type": "string",
+            "title": "Sourceid"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "providerMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providermetadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sourceId",
+          "url"
+        ],
+        "title": "SourceUrlUIPart",
+        "description": "A source part of a message."
+      },
       "Span": {
         "properties": {
           "id": {
@@ -11964,7 +12850,7 @@
             "description": "Name of the span operation"
           },
           "context": {
-            "$ref": "#/components/schemas/SpanContext",
+            "$ref": "#/components/schemas/phoenix__server__api__routers__v1__spans__SpanContext",
             "description": "Span context containing trace_id and span_id"
           },
           "span_kind": {
@@ -12241,32 +13127,6 @@
         ],
         "title": "SpanAnnotationsResponseBody"
       },
-      "SpanContext": {
-        "properties": {
-          "trace_id": {
-            "type": "string",
-            "title": "Trace Id",
-            "description": "OpenTelemetry trace ID"
-          },
-          "span_id": {
-            "type": "string",
-            "title": "Span Id",
-            "description": "OpenTelemetry span ID"
-          }
-        },
-        "type": "object",
-        "required": [
-          "trace_id",
-          "span_id"
-        ],
-        "title": "SpanContext",
-        "examples": [
-          {
-            "span_id": "1a2b3c4d5e6f7a8b",
-            "trace_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
-          }
-        ]
-      },
       "SpanDocumentAnnotationData": {
         "properties": {
           "name": {
@@ -12420,6 +13280,20 @@
         ],
         "title": "SpansResponseBody"
       },
+      "StepStartUIPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "step-start",
+            "title": "Type",
+            "default": "step-start"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "StepStartUIPart",
+        "description": "A step boundary part of a message."
+      },
       "TextContentPart": {
         "properties": {
           "type": {
@@ -12439,6 +13313,255 @@
           "text"
         ],
         "title": "TextContentPart"
+      },
+      "TextUIPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "text",
+            "title": "Type",
+            "default": "text"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "streaming",
+                  "done"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "providerMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providermetadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "TextUIPart",
+        "description": "A text part of a message."
+      },
+      "ToolApprovalRequested": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "ToolApprovalRequested",
+        "description": "Tool approval in requested state (awaiting user response)."
+      },
+      "ToolApprovalRequestedPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^tool-",
+            "title": "Type"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "approval-requested",
+            "title": "State",
+            "default": "approval-requested"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolCallId"
+        ],
+        "title": "ToolApprovalRequestedPart",
+        "description": "Tool part in approval-requested state (awaiting user decision)."
+      },
+      "ToolApprovalResponded": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "approved": {
+            "type": "boolean",
+            "title": "Approved"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "approved"
+        ],
+        "title": "ToolApprovalResponded",
+        "description": "Tool approval in responded state (user has approved or denied)."
+      },
+      "ToolApprovalRespondedPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^tool-",
+            "title": "Type"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "approval-responded",
+            "title": "State",
+            "default": "approval-responded"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolCallId"
+        ],
+        "title": "ToolApprovalRespondedPart",
+        "description": "Tool part in approval-responded state (user approved/denied, execution pending)."
       },
       "ToolCallContentPart": {
         "properties": {
@@ -12499,6 +13622,420 @@
           "arguments"
         ],
         "title": "ToolCallFunction"
+      },
+      "ToolInputAvailablePart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^tool-",
+            "title": "Type"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "input-available",
+            "title": "State",
+            "default": "input-available"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolCallId"
+        ],
+        "title": "ToolInputAvailablePart",
+        "description": "Tool part in input-available state."
+      },
+      "ToolInputStreamingPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^tool-",
+            "title": "Type"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "input-streaming",
+            "title": "State",
+            "default": "input-streaming"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolCallId"
+        ],
+        "title": "ToolInputStreamingPart",
+        "description": "Tool part in input-streaming state."
+      },
+      "ToolOutputAvailablePart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^tool-",
+            "title": "Type"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-available",
+            "title": "State",
+            "default": "output-available"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "output": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "preliminary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preliminary"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolCallId"
+        ],
+        "title": "ToolOutputAvailablePart",
+        "description": "Tool part in output-available state."
+      },
+      "ToolOutputDeniedPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^tool-",
+            "title": "Type"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-denied",
+            "title": "State",
+            "default": "output-denied"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolCallId"
+        ],
+        "title": "ToolOutputDeniedPart",
+        "description": "Tool part in output-denied state (tool was denied, terminal state)."
+      },
+      "ToolOutputErrorPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^tool-",
+            "title": "Type"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-error",
+            "title": "State",
+            "default": "output-error"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "rawInput": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rawinput"
+          },
+          "errorText": {
+            "type": "string",
+            "title": "Errortext"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolCallId",
+          "errorText"
+        ],
+        "title": "ToolOutputErrorPart",
+        "description": "Tool part in output-error state."
       },
       "ToolResultContentPart": {
         "properties": {
@@ -12737,6 +14274,30 @@
         ],
         "title": "TraceAnnotationsResponseBody"
       },
+      "TraceContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "trace",
+            "title": "Type"
+          },
+          "projectNodeId": {
+            "type": "string",
+            "title": "Projectnodeid"
+          },
+          "otelTraceId": {
+            "type": "string",
+            "title": "Oteltraceid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "projectNodeId",
+          "otelTraceId"
+        ],
+        "title": "TraceContext"
+      },
       "TraceData": {
         "properties": {
           "id": {
@@ -12882,6 +14443,112 @@
           "end_time"
         ],
         "title": "TraceSpanData"
+      },
+      "UIMessage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "system",
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "metadata": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          },
+          "parts": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TextUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ReasoningUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolInputStreamingPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolInputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolOutputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolOutputErrorPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolApprovalRequestedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolApprovalRespondedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolOutputDeniedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolInputStreamingPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolInputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolOutputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolOutputErrorPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolApprovalRequestedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolApprovalRespondedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolOutputDeniedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/SourceUrlUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/SourceDocumentUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/FileUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DataUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/StepStartUIPart"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Parts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "role",
+          "parts"
+        ],
+        "title": "UIMessage",
+        "description": "A message as displayed in the UI by Vercel AI Elements."
       },
       "UpdateAnnotationConfigResponseBody": {
         "properties": {
@@ -13188,6 +14855,223 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "_RegenerateMessage": {
+        "properties": {
+          "trigger": {
+            "type": "string",
+            "const": "regenerate-message",
+            "title": "Trigger"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/UIMessage"
+            },
+            "type": "array",
+            "title": "Messages"
+          },
+          "messageId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Messageid"
+          },
+          "contexts": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/AppContext"
+                },
+                {
+                  "$ref": "#/components/schemas/ProjectContext"
+                },
+                {
+                  "$ref": "#/components/schemas/TraceContext"
+                },
+                {
+                  "$ref": "#/components/schemas/phoenix__server__agents__context__SpanContext"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "app": "#/components/schemas/AppContext",
+                  "project": "#/components/schemas/ProjectContext",
+                  "span": "#/components/schemas/phoenix__server__agents__context__SpanContext",
+                  "trace": "#/components/schemas/TraceContext"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Contexts"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/AgentCapabilities"
+          },
+          "sessionId": {
+            "type": "string",
+            "title": "Sessionid"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "trigger",
+          "id",
+          "messages",
+          "sessionId"
+        ],
+        "title": "_RegenerateMessage",
+        "description": "Regenerate message extended with Phoenix-specific fields."
+      },
+      "_SubmitMessage": {
+        "properties": {
+          "trigger": {
+            "type": "string",
+            "const": "submit-message",
+            "title": "Trigger",
+            "default": "submit-message"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/UIMessage"
+            },
+            "type": "array",
+            "title": "Messages"
+          },
+          "contexts": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/AppContext"
+                },
+                {
+                  "$ref": "#/components/schemas/ProjectContext"
+                },
+                {
+                  "$ref": "#/components/schemas/TraceContext"
+                },
+                {
+                  "$ref": "#/components/schemas/phoenix__server__agents__context__SpanContext"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "app": "#/components/schemas/AppContext",
+                  "project": "#/components/schemas/ProjectContext",
+                  "span": "#/components/schemas/phoenix__server__agents__context__SpanContext",
+                  "trace": "#/components/schemas/TraceContext"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Contexts"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/AgentCapabilities"
+          },
+          "sessionId": {
+            "type": "string",
+            "title": "Sessionid"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "messages",
+          "sessionId"
+        ],
+        "title": "_SubmitMessage",
+        "description": "Submit message extended with Phoenix-specific fields."
+      },
+      "phoenix__server__agents__context__SpanContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "span",
+            "title": "Type"
+          },
+          "projectNodeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Projectnodeid"
+          },
+          "spanNodeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spannodeid"
+          },
+          "otelSpanId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Otelspanid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "SpanContext",
+        "description": "Span the user has selected.\n\nExactly one of ``span_node_id`` (relay) or ``otel_span_id`` (OpenTelemetry\nhex) must be set. ``project_node_id`` is optional because a span can be\nselected from views outside a project route."
+      },
+      "phoenix__server__api__routers__v1__spans__SpanContext": {
+        "properties": {
+          "trace_id": {
+            "type": "string",
+            "title": "Trace Id",
+            "description": "OpenTelemetry trace ID"
+          },
+          "span_id": {
+            "type": "string",
+            "title": "Span Id",
+            "description": "OpenTelemetry span ID"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trace_id",
+          "span_id"
+        ],
+        "title": "SpanContext",
+        "examples": [
+          {
+            "span_id": "1a2b3c4d5e6f7a8b",
+            "trace_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
+          }
+        ]
       }
     }
   }
