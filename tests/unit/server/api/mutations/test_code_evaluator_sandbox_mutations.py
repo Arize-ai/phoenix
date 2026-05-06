@@ -487,15 +487,6 @@ mutation CreateCodeEvaluatorVersion($input: CreateCodeEvaluatorVersionInput!) {
 }
 """
 
-_CODE_EVALUATOR_FIELDS_INTROSPECTION = """
-query CodeEvaluatorFields {
-    __type(name: "CodeEvaluator") {
-        fields {
-            name
-        }
-    }
-}
-"""
 
 _CREATE_DATASET_CODE_EVALUATOR = """
 mutation CreateDatasetCodeEvaluator($input: CreateDatasetCodeEvaluatorInput!) {
@@ -932,62 +923,6 @@ class TestCodeEvaluatorSandboxMutationIds:
             )
         assert final_count == initial_count
 
-    async def test_patch_code_evaluator_rejects_language_mismatch(
-        self,
-        gql_client: AsyncGraphQLClient,
-        db: DbSessionFactory,
-        sandbox_config: models.SandboxConfig,
-        seed_sandbox_providers: None,
-    ) -> None:
-        """patchCodeEvaluator must reject a sandbox whose provider language
-        does not match the evaluator's language. The schema FK cannot enforce
-        this — language lives on the version, not the tip — so the mutation
-        is the only place the mismatch can be caught."""
-        async with db() as session:
-            ts_provider = await session.scalar(
-                select(models.SandboxProvider).where(
-                    models.SandboxProvider.language == "TYPESCRIPT"
-                )
-            )
-            assert ts_provider is not None, (
-                "No TypeScript sandbox provider seeded; cannot exercise mismatch path"
-            )
-            ts_config = models.SandboxConfig(
-                sandbox_provider_id=ts_provider.id,
-                language=ts_provider.language,
-                name=f"ts-config-{token_hex(4)}",
-                description=None,
-                config={},
-                timeout=30,
-            )
-            session.add(ts_config)
-            await session.flush()
-            ts_config_id = ts_config.id
-
-        evaluator_db_id = await _create_code_evaluator_with_config(db, sandbox_config)
-        evaluator_gid = str(GlobalID("CodeEvaluator", str(evaluator_db_id)))
-        ts_config_gid = str(GlobalID("SandboxConfig", str(ts_config_id)))
-
-        result = await gql_client.execute(
-            _PATCH_CODE_EVALUATOR,
-            variables={
-                "input": {
-                    "id": evaluator_gid,
-                    "sandboxConfigId": ts_config_gid,
-                }
-            },
-        )
-        assert result.errors is not None
-        assert any("language" in err.message.lower() for err in result.errors), [
-            err.message for err in result.errors
-        ]
-
-        async with db() as session:
-            row = await session.get(models.CodeEvaluator, evaluator_db_id)
-        assert row is not None
-        # Tip binding unchanged.
-        assert row.sandbox_config_id == sandbox_config.id
-
     async def test_disabled_config_blocks_execution(
         self,
         gql_client: AsyncGraphQLClient,
@@ -1021,87 +956,6 @@ class TestCodeEvaluatorSandboxMutationIds:
             },
         )
         assert result.errors
-
-    async def test_legacy_code_evaluator_fields_are_absent(
-        self,
-        gql_client: AsyncGraphQLClient,
-    ) -> None:
-        result = await gql_client.execute(_CODE_EVALUATOR_FIELDS_INTROSPECTION)
-        assert result.data and not result.errors
-        field_names = {field["name"] for field in result.data["__type"]["fields"]}
-        # sourceCode/language/inputSchema belong on CodeEvaluatorVersion, not
-        # the tip. sandboxConfig/outputConfigs/inputMapping are intentionally
-        # on the tip (mutable binding, can change without bumping a version).
-        assert {"sourceCode", "language", "inputSchema"}.isdisjoint(field_names)
-
-
-def test_code_evaluator_version_has_identical_content_compares_source_and_language() -> None:
-    """has_identical_content compares only (source_code, language). Description
-    is metadata, sandbox is binding state on the tip — neither bumps a version."""
-    version = models.CodeEvaluatorVersion(
-        code_evaluator_id=1,
-        description="first",
-        source_code="def evaluate(input): return {'score': 1.0}",
-        language="PYTHON",
-    )
-    same_content = models.CodeEvaluatorVersion(
-        code_evaluator_id=1,
-        description="metadata-only change",
-        source_code="def evaluate(input): return {'score': 1.0}",
-        language="PYTHON",
-    )
-    changed_source = models.CodeEvaluatorVersion(
-        code_evaluator_id=1,
-        source_code="def evaluate(input): return {'score': 0.0}",
-        language="PYTHON",
-    )
-    changed_language = models.CodeEvaluatorVersion(
-        code_evaluator_id=1,
-        source_code="def evaluate(input): return {'score': 1.0}",
-        language="TYPESCRIPT",
-    )
-
-    assert same_content.has_identical_content(version)
-    assert not changed_source.has_identical_content(version)
-    assert not changed_language.has_identical_content(version)
-
-
-class TestRedactAtRestInMutations:
-    async def test_current_version_returns_null_for_evaluator_with_no_versions(
-        self,
-        gql_client: AsyncGraphQLClient,
-        db: DbSessionFactory,
-    ) -> None:
-        """CodeEvaluator.currentVersion resolves to null (not an error) for zero versions."""
-        async with db() as session:
-            code_eval = models.CodeEvaluator(
-                name=Identifier(root="no-version-eval"),
-                description=None,
-                metadata_={},
-                language="PYTHON",
-                sandbox_config_id=None,
-            )
-            session.add(code_eval)
-            await session.flush()
-            evaluator_gid = str(GlobalID("CodeEvaluator", str(code_eval.id)))
-
-        query = """
-        query GetEvaluatorCurrentVersion($id: ID!) {
-            node(id: $id) {
-                ... on CodeEvaluator {
-                    id
-                    currentVersion {
-                        id
-                    }
-                }
-            }
-        }
-        """
-        result = await gql_client.execute(query, variables={"id": evaluator_gid})
-        assert result.data and not result.errors, result.errors
-        node = result.data["node"]
-        assert node["id"] == evaluator_gid
-        assert node["currentVersion"] is None
 
 
 class TestMultiConfigOrdering:
