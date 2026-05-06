@@ -16,8 +16,6 @@ type BuildAgentChatRequestBodyOptions = {
   trigger: "submit-message" | "regenerate-message";
   /** Optional message identifier for regenerate flows. */
   messageId: string | undefined;
-  /** Optional PXI session id used to associate traces across turns. */
-  sessionId?: string | null;
   /** Runtime capability snapshot to expose to the model for this turn. */
   capabilities: AgentCapabilities;
   /** Per-user PXI observability settings for this request. */
@@ -40,8 +38,6 @@ type BuildAgentChatRequestBodyResult = Record<string, unknown> & {
   messageId: string | undefined;
   /** Distinguishes normal chat turns from other PXI chat request types. */
   traceNameSuffix: "Turn";
-  /** Optional PXI session id used to associate traces across turns. */
-  sessionId?: string;
   /** Whether to persist PXI traces in the current Phoenix instance. */
   ingestTraces: boolean;
   /** Whether to also export PXI traces to the configured remote collector. */
@@ -83,7 +79,6 @@ export function buildAgentChatRequestBody({
   messages,
   trigger,
   messageId,
-  sessionId,
   capabilities,
   observability,
   hasRemoteCollector,
@@ -103,6 +98,5 @@ export function buildAgentChatRequestBody({
     exportRemoteTraces: observability.exportRemoteTraces && hasRemoteCollector,
     contexts: requestContexts,
     capabilities,
-    ...(sessionId ? { sessionId } : {}),
   };
 }

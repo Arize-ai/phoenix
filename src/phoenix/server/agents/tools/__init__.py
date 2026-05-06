@@ -1,17 +1,40 @@
-"""PXI tool registry exports.
+from __future__ import annotations
 
-``resolve_tools`` returns the server-defined tools advertised for a turn,
-including always-available external tools and UI-context-gated contextual tools.
-"""
+from opentelemetry.trace import NoOpTracerProvider, TracerProvider
+from pydantic_ai.tools import ToolDefinition
+from pydantic_ai.toolsets import AbstractToolset, CombinedToolset, ExternalToolset
 
-from phoenix.server.agents.tools.registry import (
-    ContextualTool,
-    resolve_contextual_tools,
-    resolve_tools,
+from phoenix.server.agents.dependencies import ChatDependencies
+from phoenix.server.agents.pydantic_ai import OpenInferenceToolsetWrapper
+from phoenix.server.agents.tools.external_tools import (
+    ASK_USER_TOOL_DEFINITION,
+    BASH_TOOL_DEFINITION,
+    SET_SPANS_FILTER_TOOL_DEFINITION,
+    SET_TIME_RANGE_TOOL_DEFINITION,
 )
 
-__all__ = [
-    "ContextualTool",
-    "resolve_contextual_tools",
-    "resolve_tools",
-]
+
+def build_toolset(
+    deps: ChatDependencies,
+    *,
+    tracer_provider: TracerProvider | None = None,
+) -> OpenInferenceToolsetWrapper[ChatDependencies]:
+    """Build the combined PXI toolset from request dependencies."""
+    external_tools: list[ToolDefinition] = [
+        BASH_TOOL_DEFINITION,
+        ASK_USER_TOOL_DEFINITION,
+        SET_TIME_RANGE_TOOL_DEFINITION,
+    ]
+    project = deps.contexts.project
+    if project is not None and project.span_filter is not None:
+        external_tools.append(SET_SPANS_FILTER_TOOL_DEFINITION)
+    toolsets: list[AbstractToolset[ChatDependencies]] = [ExternalToolset(external_tools)]
+    if deps.docs_mcp_toolset is not None:
+        toolsets.append(deps.docs_mcp_toolset)
+    return OpenInferenceToolsetWrapper(
+        CombinedToolset(toolsets),
+        tracer_provider=tracer_provider or NoOpTracerProvider(),
+    )
+
+
+__all__ = ["build_toolset"]

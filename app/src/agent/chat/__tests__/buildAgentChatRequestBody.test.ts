@@ -13,7 +13,6 @@ describe("buildAgentChatRequestBody", () => {
       messages: [] as AgentUIMessage[],
       trigger: "submit-message",
       messageId: undefined,
-      sessionId: "session-1",
       capabilities: createDefaultAgentCapabilities(),
       observability: {
         storeLocalTraces: true,

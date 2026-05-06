@@ -171,22 +171,36 @@ export function useAgentChatPanelState() {
     [defaultModelConfig, setDefaultModelConfig]
   );
 
-  // TODO(chat-v2-migration): remove this selector once /chat-v2 is the only endpoint.
-  const useV2Endpoint = useAgentContext(
-    (state) => state.capabilities["chat.useV2Endpoint"]
+  const providerSearchParams = useMemo(
+    () =>
+      new URLSearchParams({
+        model_name: menuValue.modelName,
+        ...(menuValue.customProvider
+          ? {
+              provider_type: "custom",
+              provider_id: menuValue.customProvider.id,
+            }
+          : { provider_type: "builtin", provider: menuValue.provider }),
+      }).toString(),
+    [menuValue]
   );
-  const chatApiUrl = useMemo(() => {
-    const params = new URLSearchParams({
-      model_name: menuValue.modelName,
-      ...(menuValue.customProvider
-        ? { provider_type: "custom", provider_id: menuValue.customProvider.id }
-        : { provider_type: "builtin", provider: menuValue.provider }),
-    });
 
-    // TODO(chat-v2-migration): inline `/chat-v2` once the toggle is removed.
-    const path = useV2Endpoint ? "/chat-v2" : "/chat";
-    return prependBasename(`${path}?${params}`);
-  }, [menuValue, useV2Endpoint]);
+  const chatApiUrl = useMemo(() => {
+    // The session id is part of the path so the URL is session-scoped. Until
+    // a session exists the chat hook short-circuits all network activity, so
+    // this empty string is never actually fetched.
+    if (activeSessionId === null) return "";
+    return prependBasename(
+      `/agent-sessions/${encodeURIComponent(activeSessionId)}/chat?${providerSearchParams}`
+    );
+  }, [providerSearchParams, activeSessionId]);
+
+  const summarizeApiUrl = useMemo(() => {
+    if (activeSessionId === null) return "";
+    return prependBasename(
+      `/agent-sessions/${encodeURIComponent(activeSessionId)}/summary?${providerSearchParams}`
+    );
+  }, [providerSearchParams, activeSessionId]);
 
   const refreshSessionContext = useCallback(
     async ({
@@ -247,6 +261,7 @@ export function useAgentChatPanelState() {
     activeSessionId,
     orderedSessions,
     chatApiUrl,
+    summarizeApiUrl,
     menuValue,
     createSession,
     setActiveSession,

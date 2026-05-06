@@ -250,6 +250,43 @@ export class PxiDriver {
       return toolName ? [toolName] : [];
     });
   }
+
+  async getActiveSessionId(): Promise<string> {
+    const handle = await this.page.waitForFunction(() => {
+      const stored = localStorage.getItem("arize-phoenix-agent");
+      if (!stored) return null;
+      const parsed = JSON.parse(stored) as {
+        state?: { activeSessionId?: string | null };
+      };
+      return parsed.state?.activeSessionId ?? null;
+    });
+    return (await handle.jsonValue()) as string;
+  }
+
+  async listRecentProjectTraces(sinceIsoTimestamp: string): Promise<
+    Array<{
+      trace_id: string;
+      spans: Array<{ span_kind: string; name: string }>;
+    }>
+  > {
+    const projectName = encodeURIComponent(getAssistantProjectName());
+    const response = await expectOK(
+      await this.request.get(`/v1/projects/${projectName}/traces`, {
+        params: {
+          start_time: sinceIsoTimestamp,
+          include_spans: "true",
+          limit: 50,
+        },
+      })
+    );
+    const traces = response.data;
+    return Array.isArray(traces)
+      ? (traces as Array<{
+          trace_id: string;
+          spans: Array<{ span_kind: string; name: string }>;
+        }>)
+      : [];
+  }
 }
 
 export const test = base.extend<{ pxi: PxiDriver }>({

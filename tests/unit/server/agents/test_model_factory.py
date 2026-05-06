@@ -21,7 +21,7 @@ from phoenix.server.agents.exceptions import (
 from phoenix.server.agents.model_factory import (
     _get_pydantic_ai_model_from_generative_model_custom_provider,
     azure_endpoint_to_base_url,
-    build_chat_model,
+    build_model,
 )
 from phoenix.server.types import DbSessionFactory
 
@@ -31,7 +31,7 @@ class _ProviderRecord:
     config: bytes
 
 
-class TestBuildChatModel:
+class TestBuildModel:
     async def test_returns_404_for_missing_custom_provider(self, db: DbSessionFactory) -> None:
         params = CustomProviderChatSearchParams(
             provider_type="custom",
@@ -41,7 +41,7 @@ class TestBuildChatModel:
 
         async with db() as session:
             with pytest.raises(ProviderNotFoundError) as exc_info:
-                await build_chat_model(params, session=session, decrypt=lambda value: value)
+                await build_model(params, session=session, decrypt=lambda value: value)
 
         assert exc_info.value.status_code == 404
         assert str(exc_info.value) == "Custom provider not found."
@@ -61,7 +61,7 @@ class TestBuildChatModel:
 
         async with db() as session:
             with pytest.raises(ProviderCredentialsError) as exc_info:
-                await build_chat_model(params, session=session, decrypt=lambda value: value)
+                await build_model(params, session=session, decrypt=lambda value: value)
 
         assert exc_info.value.status_code == 400
         assert "OPENAI_API_KEY" in str(exc_info.value)
@@ -196,7 +196,7 @@ class TestSecretResolutionErrorTranslation:
 
         async with db() as session:
             with pytest.raises(ProviderConfigError) as exc_info:
-                await build_chat_model(params, session=session, decrypt=_decrypt_fails)
+                await build_model(params, session=session, decrypt=_decrypt_fails)
 
         assert exc_info.value.status_code == 400
         assert "OPENAI_API_KEY" in str(exc_info.value)

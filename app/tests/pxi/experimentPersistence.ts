@@ -24,6 +24,14 @@ export const PXI_EXPERIMENT_EXAMPLES = {
     experimentDescription:
       "PXI time range smoke test driven through the Phoenix frontend.",
   },
+  ingestTracesSmoke: {
+    id: "pxi-ingest-traces-smoke:chat-and-summary",
+    prompt: "Say hello in one short sentence.",
+    expectedOutput: "Assistant produces any non-empty greeting response.",
+    experimentNamePrefix: "pxi-e2e-ingest-traces-smoke",
+    experimentDescription:
+      "PXI ingest-traces smoke test: confirms chat + summary traces persist locally.",
+  },
 } as const;
 
 type PxiExperimentExample =

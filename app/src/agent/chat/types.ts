@@ -4,13 +4,16 @@ import { z } from "zod";
 /**
  * Assistant-message metadata emitted by the `/chat` stream.
  *
- * The IDs are the raw OpenTelemetry identifiers for the root AGENT span that
- * represents the current agent turn.
+ * `trace` is present only when the request opted into tracing.
  */
 export const assistantMessageMetadataSchema = z.object({
-  traceId: z.string(),
-  rootSpanId: z.string(),
   sessionId: z.string(),
+  trace: z
+    .object({
+      traceId: z.string(),
+      rootSpanId: z.string(),
+    })
+    .optional(),
   usage: z
     .object({
       tokens: z.object({

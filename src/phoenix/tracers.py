@@ -132,6 +132,10 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
         tracer = provider.get_tracer(__name__)
         super().__init__(tracer)
 
+    @property
+    def tracer_provider(self) -> TracerProvider:
+        return self._self_provider
+
     def get_db_traces(self, *, project_id: int) -> list[models.Trace]:
         """
         Builds in-memory models.Trace objects from captured spans without persisting them.

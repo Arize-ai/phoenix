@@ -58,6 +58,7 @@ tests/unit/server/api/
 |------|-----------|
 | Adding or modifying a mutation, type, subscription, or input | `references/graphql-patterns.md` |
 | Writing or modifying tests | `references/test-patterns.md` |
+| Writing tests for code that emits OpenInference spans (VCR cassettes, span attribute assertions) | `references/llm-trace-tests.md` |
 | Adding a migration or modifying database models | `references/database-patterns.md` |
 
 ## Hard Rules

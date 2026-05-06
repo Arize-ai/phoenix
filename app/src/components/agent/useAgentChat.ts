@@ -43,13 +43,15 @@ import { useGenerateSessionSummary } from "./useGenerateSessionSummary";
 export function useAgentChat({
   sessionId,
   chatApiUrl,
+  summarizeApiUrl,
 }: {
   sessionId: string | null;
   chatApiUrl: string;
+  summarizeApiUrl: string;
 }) {
   const store = useAgentStore();
   const runtime = useAgentChatRuntime();
-  const { generateSummary } = useGenerateSessionSummary({ chatApiUrl });
+  const { generateSummary } = useGenerateSessionSummary({ summarizeApiUrl });
   const pendingElicitation = useAgentContext((state) =>
     sessionId ? (state.pendingElicitationBySessionId[sessionId] ?? null) : null
   );
@@ -88,7 +90,6 @@ export function useAgentChat({
                     messages,
                     trigger,
                     messageId,
-                    sessionId,
                     capabilities: store.getState().capabilities,
                     observability: store.getState().observability,
                     hasRemoteCollector: Boolean(

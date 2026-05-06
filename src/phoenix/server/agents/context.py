@@ -1,16 +1,11 @@
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Annotated, Any, Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-
-if TYPE_CHECKING:
-    from pydantic_ai.messages import ModelMessage
-
-    from phoenix.server.types import DbSessionFactory
-
+from pydantic_ai.messages import ModelMessage
 
 # ID format conventions
 # ---------------------
@@ -98,15 +93,6 @@ class ResolvedContexts:
     project: ProjectContext | None = None
     trace: TraceContext | None = None
     span: SpanContext | None = None
-
-
-ToolCallable = Callable[[dict[str, Any]], Awaitable[str]]
-
-
-@dataclass
-class ToolExecutionEnv:
-    user: Any
-    db: "DbSessionFactory"
 
 
 def resolve_contexts(items: list[ChatContext]) -> ResolvedContexts:
