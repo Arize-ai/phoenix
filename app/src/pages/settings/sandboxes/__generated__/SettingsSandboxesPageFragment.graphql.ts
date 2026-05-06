@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0f6f6a12695141fa562ec06945810b44>>
+ * @generated SignedSource<<7476bb35d721b8ab7789bce19d1a5979>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,6 +16,12 @@ import { FragmentRefs } from "relay-runtime";
 export type SettingsSandboxesPageFragment$data = {
   readonly sandboxBackends: ReadonlyArray<{
     readonly backendType: string;
+    readonly credentialSpecs: ReadonlyArray<{
+      readonly description: string;
+      readonly displayName: string;
+      readonly isRequired: boolean;
+      readonly key: string;
+    }>;
     readonly dependenciesLanguage: Language | null;
     readonly dependencyHints: ReadonlyArray<string>;
     readonly displayName: string;
@@ -49,6 +55,8 @@ export type SettingsSandboxesPageFragment$key = {
   readonly " $fragmentSpreads": FragmentRefs<"SettingsSandboxesPageFragment">;
 };
 
+import SettingsSandboxesPageRefetchQuery_graphql from './SettingsSandboxesPageRefetchQuery.graphql';
+
 const node: ReaderFragment = (function(){
 var v0 = {
   "alias": null,
@@ -61,24 +69,38 @@ v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
+  "name": "displayName",
   "storageKey": null
 },
 v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "enabled",
+  "name": "description",
   "storageKey": null
 },
 v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "config",
+  "name": "id",
   "storageKey": null
 },
 v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "enabled",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "config",
+  "storageKey": null
+},
+v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -88,7 +110,13 @@ v4 = {
 return {
   "argumentDefinitions": [],
   "kind": "Fragment",
-  "metadata": null,
+  "metadata": {
+    "refetch": {
+      "connection": null,
+      "fragmentPathInResult": [],
+      "operation": SettingsSandboxesPageRefetchQuery_graphql
+    }
+  },
   "name": "SettingsSandboxesPageFragment",
   "selections": [
     {
@@ -100,13 +128,7 @@ return {
       "plural": true,
       "selections": [
         (v0/*: any*/),
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "displayName",
-          "storageKey": null
-        },
+        (v1/*: any*/),
         {
           "alias": null,
           "args": null,
@@ -155,6 +177,33 @@ return {
           "kind": "ScalarField",
           "name": "dependenciesLanguage",
           "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "SandboxProviderCredentialSpec",
+          "kind": "LinkedField",
+          "name": "credentialSpecs",
+          "plural": true,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "key",
+              "storageKey": null
+            },
+            (v1/*: any*/),
+            (v2/*: any*/),
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "isRequired",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
         }
       ],
       "storageKey": null
@@ -167,7 +216,7 @@ return {
       "name": "sandboxProviders",
       "plural": true,
       "selections": [
-        (v1/*: any*/),
+        (v3/*: any*/),
         (v0/*: any*/),
         {
           "alias": null,
@@ -176,9 +225,9 @@ return {
           "name": "language",
           "storageKey": null
         },
-        (v2/*: any*/),
-        (v3/*: any*/),
         (v4/*: any*/),
+        (v5/*: any*/),
+        (v6/*: any*/),
         {
           "alias": null,
           "args": null,
@@ -187,7 +236,7 @@ return {
           "name": "configs",
           "plural": true,
           "selections": [
-            (v1/*: any*/),
+            (v3/*: any*/),
             {
               "alias": null,
               "args": null,
@@ -195,13 +244,7 @@ return {
               "name": "name",
               "storageKey": null
             },
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "description",
-              "storageKey": null
-            },
+            (v2/*: any*/),
             {
               "alias": null,
               "args": null,
@@ -209,9 +252,9 @@ return {
               "name": "timeout",
               "storageKey": null
             },
-            (v2/*: any*/),
-            (v3/*: any*/),
-            (v4/*: any*/)
+            (v4/*: any*/),
+            (v5/*: any*/),
+            (v6/*: any*/)
           ],
           "storageKey": null
         }
@@ -224,6 +267,6 @@ return {
 };
 })();
 
-(node as any).hash = "fbfdf2c6bcd4f7119c65cc9dbcf52876";
+(node as any).hash = "ecf4493da709473f1f05e97b6ab7e787";
 
 export default node;

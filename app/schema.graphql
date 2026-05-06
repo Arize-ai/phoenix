@@ -3169,6 +3169,7 @@ type SandboxBackendInfo {
   supportsEnvVars: Boolean!
   internetAccess: InternetAccessMode!
   dependenciesLanguage: Language
+  credentialSpecs: [SandboxProviderCredentialSpec!]!
 }
 
 enum SandboxBackendStatus {
@@ -3205,6 +3206,13 @@ type SandboxProvider implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   configs: [SandboxConfig!]!
+}
+
+type SandboxProviderCredentialSpec {
+  key: String!
+  displayName: String!
+  description: String!
+  isRequired: Boolean!
 }
 
 type Secret implements Node {

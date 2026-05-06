@@ -2,6 +2,8 @@
 
 Alert dialogs are interruptive — they block all other interaction until resolved. They MUST only be used when a user must acknowledge important information or confirm a consequential action before proceeding.
 
+For dialogs that collect input (create, edit, configure), see `form-dialogs.md` instead.
+
 ## When to use
 
 - Confirming a destructive or irreversible action (delete project, clear traces, remove data)
