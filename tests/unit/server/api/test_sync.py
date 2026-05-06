@@ -69,9 +69,9 @@ class TestSyncSandboxProviders:
             count_result = await session.execute(select(models.SandboxProvider))
             providers = list(count_result.scalars())
 
-        # Each (backend_type, language_id) pair should appear exactly once
-        pairs = [(p.backend_type, p.language_id) for p in providers]
-        assert len(pairs) == len(set(pairs)), "Duplicate (backend_type, language_id) pairs found"
+        # Each (backend_type, language) pair should appear exactly once
+        pairs = [(p.backend_type, p.language) for p in providers]
+        assert len(pairs) == len(set(pairs)), "Duplicate (backend_type, language) pairs found"
 
     async def test_preserves_existing_user_config(
         self,

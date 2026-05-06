@@ -118,11 +118,7 @@ class SandboxProvider(Node):
     @strawberry.field
     async def language(self, info: Info[Context, None]) -> Language:
         record = await self._get_record(info)
-        lang = await info.context.data_loaders.language_by_id.load(record.language_id)
-        # Defense-in-depth: language_id is NOT NULL FK with RESTRICT, so lang always resolves.
-        if lang is None:
-            return Language.PYTHON
-        return Language(lang.name)
+        return Language(record.language)
 
     @strawberry.field
     async def config(self, info: Info[Context, None]) -> JSON:
@@ -446,10 +442,18 @@ async def _get_sandbox_backend_info_with_session(
 def sandbox_config_from_input(
     input_: CreateSandboxConfigInput,
     provider_id: int,
+    provider_language: str,
 ) -> dict[str, Any]:
-    """Convert CreateSandboxConfigInput to a dict of column values."""
+    """Convert CreateSandboxConfigInput to a dict of column values.
+
+    `provider_language` is inherited from the parent SandboxProvider and stored
+    on the row so the composite FK to sandbox_providers(id, language) holds; the
+    schema rejects any (sandbox_provider_id, language) pair that does not match
+    the provider.
+    """
     values: dict[str, Any] = {
         "sandbox_provider_id": provider_id,
+        "language": provider_language,
         "name": input_.name,
         "description": input_.description,
         "config": input_.config if input_.config is not None else {},

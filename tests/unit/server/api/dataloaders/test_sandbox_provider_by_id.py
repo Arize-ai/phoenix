@@ -1,28 +1,21 @@
 from secrets import token_hex
 
 import sqlalchemy
-from sqlalchemy import select
 
 from phoenix.db import models
 from phoenix.server.api.dataloaders import SandboxProviderByIdDataLoader
+from phoenix.server.sandbox.sync import sync_languages
 from phoenix.server.types import DbSessionFactory
 
 
 async def test_sandbox_provider_by_id_batches_lookups(db: DbSessionFactory) -> None:
     """Loading N provider ids issues a single batched query and preserves key order."""
     async with db() as session:
-        language_id = await session.scalar(
-            select(models.Language.id).where(models.Language.name == "PYTHON")
-        )
-        if language_id is None:
-            language = models.Language(name="PYTHON")
-            session.add(language)
-            await session.flush()
-            language_id = language.id
+        await sync_languages(session)
         providers = [
             models.SandboxProvider(
                 backend_type=f"backend-{token_hex(3)}",
-                language_id=language_id,
+                language="PYTHON",
                 config={},
                 enabled=True,
             )

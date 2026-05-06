@@ -126,7 +126,6 @@ class BaseEvaluator(ABC):
         name: str,
         output_configs: Sequence[OutputConfigType],
         tracer: Optional[Tracer] = None,
-        session_key: str = "",
     ) -> list[EvaluationResult]:
         """
         Evaluate the given context and return evaluation results.
@@ -236,7 +235,6 @@ class LLMEvaluator(BaseEvaluator):
         name: str,
         output_configs: Sequence[OutputConfigType],
         tracer: Optional[Tracer] = None,
-        session_key: str = "",
     ) -> list[EvaluationResult]:
         start_time = datetime.now(timezone.utc)
 
@@ -535,7 +533,6 @@ class BuiltInEvaluator(BaseEvaluator):
         name: str,
         output_configs: Sequence[OutputConfigType],
         tracer: Optional[Tracer] = None,
-        session_key: str = "",
     ) -> list[EvaluationResult]:
         multi_output = len(output_configs) > 1
         results: list[EvaluationResult] = []
@@ -809,15 +806,7 @@ async def get_evaluators(
             select(models.CodeEvaluator).where(models.CodeEvaluator.id.in_(code_evaluator_db_ids))
         )
         for code_row in code_rows_result:
-            # Resolve evaluator language name for error reporting
-            evaluator_language = ""
-            if code_row.language_id is not None:
-                eval_lang_row = await session.get(models.Language, code_row.language_id)
-                if eval_lang_row is None:
-                    raise ValueError(
-                        f"Language with id {code_row.language_id} not found in languages table"
-                    )
-                evaluator_language = eval_lang_row.name
+            evaluator_language = code_row.language
             code_evaluator_languages_by_id[code_row.id] = evaluator_language
 
             # Resolve sandbox backend via SandboxConfig → SandboxProvider
@@ -832,10 +821,7 @@ async def get_evaluators(
                         models.SandboxProvider, sandbox_config.sandbox_provider_id
                     )
                     if sandbox_provider is not None and sandbox_provider.enabled:
-                        if (
-                            code_row.language_id is not None
-                            and sandbox_provider.language_id != code_row.language_id
-                        ):
+                        if sandbox_provider.language != code_row.language:
                             raise BadRequest(
                                 f"Language mismatch: evaluator language '{evaluator_language}' "
                                 f"does not match the sandbox provider's configured language."
@@ -2514,8 +2500,8 @@ class CodeEvaluatorRunner(BaseEvaluator):
     The harness calls ``evaluate(**mapped_inputs)`` and coerces the return
     value via _coerce_output against each output_config.
 
-    Supports both PYTHON and TYPESCRIPT languages. Session reuse is
-    controlled by the caller via the ``session_key`` kwarg on evaluate().
+    Supports both PYTHON and TYPESCRIPT languages. The sandbox session key
+    is derived from the runner's name (``self._name``).
     """
 
     def __init__(
@@ -2611,7 +2597,6 @@ class CodeEvaluatorRunner(BaseEvaluator):
         name: str,
         output_configs: Sequence[OutputConfigType],
         tracer: Optional[Tracer] = None,
-        session_key: str = "",
     ) -> list[EvaluationResult]:
         from phoenix.server.api.coerce_output import _coerce_output
 
@@ -2647,15 +2632,13 @@ class CodeEvaluatorRunner(BaseEvaluator):
             execution = await asyncio.wait_for(
                 self._sandbox_backend.execute(
                     code,
-                    session_key=session_key or self._name,
+                    session_key=self._name,
                     timeout=self._timeout,
                 ),
                 timeout=self._timeout,
             )
         except asyncio.TimeoutError:
-            asyncio.create_task(
-                _stop_session_quietly(self._sandbox_backend, session_key or self._name, logger)
-            )
+            asyncio.create_task(_stop_session_quietly(self._sandbox_backend, self._name, logger))
             execution = ExecutionResult(stdout="", stderr="", error="timeout")
         except UnsupportedOperation as exc:
             err = f"Sandbox backend does not support this operation: {exc}"

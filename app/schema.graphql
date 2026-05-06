@@ -502,7 +502,7 @@ type CodeEvaluator implements Evaluator & Node {
   datasets(first: Int = 50, after: String): DatasetConnection!
   datasetEvaluators: [DatasetEvaluator!]!
   sourceCode: String!
-  language: Language
+  language: Language!
   sandboxConfig: SandboxConfig
   outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   user: User
