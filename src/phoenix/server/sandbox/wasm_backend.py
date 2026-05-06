@@ -23,6 +23,7 @@ import os
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -43,6 +44,13 @@ _WASM_BINARY_PATH_ENV = "PHOENIX_WASM_BINARY_PATH"
 
 _DEFAULT_TIMEOUT_SECONDS = 30
 _EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="wasm-sandbox")
+
+
+def _package_version(distribution_name: str) -> Optional[str]:
+    try:
+        return version(distribution_name)
+    except PackageNotFoundError:
+        return None
 
 
 # Module-level cache: path → (engine, compiled module).
@@ -182,6 +190,10 @@ class WASMAdapter(SandboxAdapter):
     def probe_dependencies(cls) -> None:
         """Verify ``wasmtime`` is installed; ImportError surfaces NOT_INSTALLED."""
         import wasmtime  # noqa: F401
+
+    def runtime_fingerprint(self, config: dict[str, Any]) -> str:
+        v = _package_version("wasmtime") or "unknown"
+        return f"WASM@{v}"
 
     def build_backend(
         self,

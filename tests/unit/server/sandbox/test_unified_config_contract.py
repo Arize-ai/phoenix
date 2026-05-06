@@ -191,3 +191,29 @@ def test_all_metadata_keys_have_adapter_module_entry() -> None:
         f"Adapters in SANDBOX_ADAPTER_METADATA have no entry in _ADAPTER_MODULES: {missing}. "
         "Add an entry to _ADAPTER_MODULES in this test file."
     )
+
+
+@pytest.mark.parametrize("adapter_key", list(SANDBOX_ADAPTER_METADATA.keys()))
+def test_runtime_fingerprint_contract(adapter_key: str) -> None:
+    adapter = _get_adapter(adapter_key)
+    validated = adapter.validate_config({})
+    fp1 = adapter.runtime_fingerprint(validated)
+    fp2 = adapter.runtime_fingerprint(validated)
+    assert isinstance(fp1, str)
+    assert fp1  # non-empty
+    assert fp1 == fp2  # stable for equal inputs
+
+
+def test_runtime_fingerprint_ignores_config() -> None:
+    """The adapter contract treats `runtime_fingerprint` as a runtime-stack
+    identifier (image / SDK / language version) — it must not depend on the
+    user-supplied `config`. Pin this on at least one adapter so a future
+    refactor that folds `config` into the fingerprint is caught here, not
+    silently when drift detection regresses to comparing the snapshot to
+    itself."""
+    adapter = _get_adapter("E2B")
+    fp_empty = adapter.runtime_fingerprint(adapter.validate_config({}))
+    fp_with_keys = adapter.runtime_fingerprint(
+        adapter.validate_config({"dependencies": {"packages": ["requests"]}})
+    )
+    assert fp_empty == fp_with_keys

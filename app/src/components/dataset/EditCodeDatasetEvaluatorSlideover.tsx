@@ -5,13 +5,15 @@ import invariant from "tiny-invariant";
 
 import {
   Dialog,
+  Empty,
   Flex,
   Loading,
   Modal,
   ModalOverlay,
 } from "@phoenix/components";
+import type { EditCodeDatasetEvaluatorSlideover_createCodeEvaluatorVersionMutation } from "@phoenix/components/dataset/__generated__/EditCodeDatasetEvaluatorSlideover_createCodeEvaluatorVersionMutation.graphql";
 import type { EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery } from "@phoenix/components/dataset/__generated__/EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery.graphql";
-import type { EditCodeDatasetEvaluatorSlideover_updateCodeEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditCodeDatasetEvaluatorSlideover_updateCodeEvaluatorMutation.graphql";
+import type { EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation.graphql";
 import type { EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation.graphql";
 import { mapSandboxConfigOptions } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
 import {
@@ -162,8 +164,6 @@ function EditCodeDatasetEvaluatorSlideoverContent({
                   ... on CodeEvaluator {
                     name
                     description
-                    sourceCode
-                    language
                     sandboxConfig {
                       id
                     }
@@ -182,6 +182,10 @@ function EditCodeDatasetEvaluatorSlideoverContent({
                         lowerBound
                         upperBound
                       }
+                    }
+                    currentVersion {
+                      sourceCode
+                      language
                     }
                   }
                 }
@@ -218,25 +222,37 @@ function EditCodeDatasetEvaluatorSlideoverContent({
   invariant(datasetEvaluator, "dataset evaluator is required");
   const evaluator = datasetEvaluator.evaluator;
   invariant(evaluator.kind === "CODE", "expected code evaluator");
-  invariant(evaluator.language, "code evaluator language is required");
-  invariant(evaluator.sourceCode, "code evaluator source code is required");
-  const evaluatorLanguage = evaluator.language;
-  const evaluatorSourceCode = evaluator.sourceCode;
   const sandboxConfigs = mapSandboxConfigOptions(
     sandboxProviders,
     sandboxBackends
   );
-  const sandboxConfigGlobalId = evaluator.sandboxConfig?.id;
-  const initialSandboxConfigId = sandboxConfigGlobalId ?? null;
+  const initialSandboxConfigId = evaluator.sandboxConfig?.id ?? null;
 
-  const [updateCodeEvaluator, isUpdatingCodeEvaluator] =
-    useMutation<EditCodeDatasetEvaluatorSlideover_updateCodeEvaluatorMutation>(graphql`
-      mutation EditCodeDatasetEvaluatorSlideover_updateCodeEvaluatorMutation(
-        $input: UpdateCodeEvaluatorInput!
+  const [patchCodeEvaluator, isPatchingCodeEvaluator] =
+    useMutation<EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation>(graphql`
+      mutation EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation(
+        $input: PatchCodeEvaluatorInput!
       ) {
-        updateCodeEvaluator(input: $input) {
+        patchCodeEvaluator(input: $input) {
           evaluator {
             id
+          }
+        }
+      }
+    `);
+  const [createCodeEvaluatorVersion, isCreatingCodeEvaluatorVersion] =
+    useMutation<EditCodeDatasetEvaluatorSlideover_createCodeEvaluatorVersionMutation>(graphql`
+      mutation EditCodeDatasetEvaluatorSlideover_createCodeEvaluatorVersionMutation(
+        $input: CreateCodeEvaluatorVersionInput!
+      ) {
+        createCodeEvaluatorVersion(input: $input) {
+          evaluator {
+            id
+            ... on CodeEvaluator {
+              currentVersion {
+                id
+              }
+            }
           }
         }
       }
@@ -261,6 +277,24 @@ function EditCodeDatasetEvaluatorSlideoverContent({
         }
       }
     `);
+
+  // currentVersion is nullable on the schema (a CodeEvaluator can exist
+  // without any version — fixtures, backfills, partial-commit recovery).
+  // Render a bounded missing-version state instead of throwing.
+  const currentVersion = evaluator.currentVersion;
+  if (
+    !currentVersion ||
+    !currentVersion.language ||
+    !currentVersion.sourceCode
+  ) {
+    return (
+      <Flex flex={1} alignItems="center" justifyContent="center">
+        <Empty message="This code evaluator has no current version yet." />
+      </Flex>
+    );
+  }
+  const evaluatorLanguage = currentVersion.language;
+  const evaluatorSourceCode = currentVersion.sourceCode;
 
   const loadedOutputConfigs = (
     datasetEvaluator.outputConfigs?.length
@@ -314,36 +348,64 @@ function EditCodeDatasetEvaluatorSlideoverContent({
     const normalizedName = name.trim();
     const normalizedDescription = description.trim() || undefined;
 
-    updateCodeEvaluator({
+    const resolvedSandboxConfigId =
+      payload.sandboxConfigId !== undefined
+        ? payload.sandboxConfigId
+        : initialSandboxConfigId;
+    // patchCodeEvaluator runs first so the tip's sandbox_config_id and the
+    // version row's snapshot agree on the same binding. With createCodeEvaluatorVersion
+    // now carrying sandboxConfigId on its input, the call order is no longer
+    // load-bearing, but the chain stays as-is until consolidation.
+    patchCodeEvaluator({
       variables: {
         input: {
           id: evaluatorId,
           name: normalizedName,
           description: normalizedDescription,
-          language: payload.language,
-          sourceCode: payload.sourceCode,
-          sandboxConfigId: payload.sandboxConfigId,
           outputConfigs: buildOutputConfigsInput(outputConfigs),
           inputMapping,
+          ...(payload.sandboxConfigId !== undefined
+            ? { sandboxConfigId: payload.sandboxConfigId }
+            : {}),
         },
       },
       onCompleted: () => {
-        updateDatasetCodeEvaluator({
+        createCodeEvaluatorVersion({
           variables: {
             input: {
-              datasetEvaluatorId,
-              name: normalizedName,
+              codeEvaluatorId: evaluatorId,
+              language: payload.language,
+              sourceCode: payload.sourceCode,
               description: normalizedDescription,
-              outputConfigs: buildOutputConfigsInput(outputConfigs),
-              inputMapping,
+              sandboxConfigId: resolvedSandboxConfigId,
             },
-            connectionIds: updateConnectionIds ?? [],
           },
           onCompleted: () => {
-            notifySuccess({ title: "Evaluator updated" });
-            onDirtyChange?.(false);
-            onClose();
-            onUpdate?.();
+            updateDatasetCodeEvaluator({
+              variables: {
+                input: {
+                  datasetEvaluatorId,
+                  name: normalizedName,
+                  description: normalizedDescription,
+                  outputConfigs: buildOutputConfigsInput(outputConfigs),
+                  inputMapping,
+                },
+                connectionIds: updateConnectionIds ?? [],
+              },
+              onCompleted: () => {
+                notifySuccess({ title: "Evaluator updated" });
+                onDirtyChange?.(false);
+                onClose();
+                onUpdate?.();
+              },
+              onError: (mutationError) => {
+                setError(
+                  getErrorMessagesFromRelayMutationError(mutationError)?.join(
+                    "\n"
+                  ) ?? mutationError.message
+                );
+              },
+            });
           },
           onError: (mutationError) => {
             setError(
@@ -371,7 +433,9 @@ function EditCodeDatasetEvaluatorSlideoverContent({
           onCancel={onClose}
           onDirtyChange={onDirtyChange}
           isSubmitting={
-            isUpdatingCodeEvaluator || isUpdatingDatasetCodeEvaluator
+            isCreatingCodeEvaluatorVersion ||
+            isPatchingCodeEvaluator ||
+            isUpdatingDatasetCodeEvaluator
           }
           mode="update"
           error={error}

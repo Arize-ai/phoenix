@@ -22,6 +22,7 @@ export type SandboxConfigOption = {
   id: string;
   name: string;
   description?: string | null;
+  backendType: string;
   providerLabel: string;
   providerLanguage: CodeEvaluatorLanguage;
   providerBackendType: string;
@@ -235,6 +236,7 @@ export const mapSandboxConfigOptions = (
         id: config.id,
         name: config.name,
         description: config.description,
+        backendType: provider.backendType,
         providerLanguage: provider.language,
         providerLabel: backendTypeLabel(provider.backendType),
         providerBackendType: provider.backendType,

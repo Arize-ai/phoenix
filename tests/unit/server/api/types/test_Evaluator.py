@@ -1315,3 +1315,100 @@ class TestDatasetEvaluatorFields:
         )
         assert not resp.errors and resp.data
         assert resp.data["node"]["user"] is None
+
+
+class TestCodeEvaluatorVersionGraphQLTraversal:
+    """End-to-end happy-path traversal of the CodeEvaluator version surface
+    through gql_client. Pinning this case catches schema-binding regressions
+    (CodeEvaluatorVersion.previousVersion / version(versionId) / sequenceNumber
+    / isLatest) that direct-resolver unit tests miss."""
+
+    async def test_currentVersion_versions_sequence_isLatest_previous(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        import sqlalchemy as sa
+
+        from phoenix.server.sandbox.sync import sync_languages
+
+        async with db() as session:
+            await sync_languages(session)
+            language_row = await session.scalar(
+                sa.select(models.Language).where(models.Language.name == "PYTHON")
+            )
+            assert language_row is not None
+            language_id = language_row.id
+
+            evaluator_row = models.CodeEvaluator(
+                name=Identifier(root=f"traverse-{token_hex(4)}"),
+                description="traversal test",
+                metadata_={},
+            )
+            session.add(evaluator_row)
+            await session.flush()
+
+            v1 = models.CodeEvaluatorVersion(
+                code_evaluator_id=evaluator_row.id,
+                description=None,
+                source_code="def evaluate(input): return {'score': 0.0}",
+                language_id=language_id,
+                sandbox_snapshot=None,
+            )
+            session.add(v1)
+            await session.flush()
+            v2 = models.CodeEvaluatorVersion(
+                code_evaluator_id=evaluator_row.id,
+                description=None,
+                source_code="def evaluate(input): return {'score': 1.0}",
+                language_id=language_id,
+                sandbox_snapshot=None,
+            )
+            session.add(v2)
+            await session.flush()
+            evaluator_id = evaluator_row.id
+            v1_gid = str(GlobalID("CodeEvaluatorVersion", str(v1.id)))
+            v2_gid = str(GlobalID("CodeEvaluatorVersion", str(v2.id)))
+
+        evaluator_gid = str(GlobalID("CodeEvaluator", str(evaluator_id)))
+        resp = await gql_client.execute(
+            """
+            query ($id: ID!, $versionId: ID!) {
+                node(id: $id) {
+                    ... on CodeEvaluator {
+                        currentVersion {
+                            id
+                            sequenceNumber
+                            isLatest
+                            previousVersion { id }
+                        }
+                        versions(first: 10) {
+                            edges { node { id sequenceNumber isLatest } }
+                        }
+                        version(versionId: $versionId) {
+                            id
+                            sequenceNumber
+                            isLatest
+                        }
+                    }
+                }
+            }
+            """,
+            variables={"id": evaluator_gid, "versionId": v1_gid},
+        )
+        assert not resp.errors and resp.data is not None
+        ce = resp.data["node"]
+        cv = ce["currentVersion"]
+        assert cv["id"] == v2_gid
+        assert cv["sequenceNumber"] == 2
+        assert cv["isLatest"] is True
+        assert cv["previousVersion"]["id"] == v1_gid
+
+        version_node_ids = [edge["node"]["id"] for edge in ce["versions"]["edges"]]
+        assert version_node_ids == [v2_gid, v1_gid]
+        assert ce["versions"]["edges"][1]["node"]["isLatest"] is False
+
+        looked_up = ce["version"]
+        assert looked_up["id"] == v1_gid
+        assert looked_up["sequenceNumber"] == 1
+        assert looked_up["isLatest"] is False

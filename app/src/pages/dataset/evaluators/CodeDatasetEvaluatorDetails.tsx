@@ -8,6 +8,7 @@ import { graphql } from "relay-runtime";
 import {
   Card,
   ContextualHelp,
+  Empty,
   Flex,
   Icon,
   Icons,
@@ -450,19 +451,6 @@ export function CodeDatasetEvaluatorDetails({
             id
             name
             description
-            language
-            sourceCode
-            sandboxConfig {
-              id
-              name
-              description
-              config
-              timeout
-              provider {
-                backendType
-                language
-              }
-            }
             outputConfigs {
               ... on CategoricalAnnotationConfig {
                 name
@@ -479,6 +467,21 @@ export function CodeDatasetEvaluatorDetails({
                 upperBound
               }
             }
+            sandboxConfig {
+              id
+              name
+              description
+              timeout
+              config
+              provider {
+                backendType
+                language
+              }
+            }
+            currentVersion {
+              language
+              sourceCode
+            }
           }
         }
       }
@@ -490,15 +493,13 @@ export function CodeDatasetEvaluatorDetails({
   if (evaluator.kind !== "CODE") {
     throw new Error("Invalid evaluator for CodeDatasetEvaluatorDetails");
   }
-  if (!evaluator.language || !evaluator.sourceCode) {
-    throw new Error("Code evaluator is missing language or source code");
-  }
+  const currentVersion = evaluator.currentVersion;
 
   const outputConfigs =
     datasetEvaluator.outputConfigs.length > 0
       ? datasetEvaluator.outputConfigs
       : (evaluator.outputConfigs ?? []);
-  const sandboxConfig = evaluator.sandboxConfig;
+  const sandboxConfig = evaluator.sandboxConfig ?? null;
   const sandboxBackendByType = useMemo(
     () =>
       new Map(
@@ -548,16 +549,32 @@ export function CodeDatasetEvaluatorDetails({
     [customSettings]
   );
 
+  // currentVersion is nullable on the schema (a CodeEvaluator can exist
+  // without any version — fixtures, backfills, partial-commit recovery).
+  // Render a bounded missing-version state instead of throwing so the rest
+  // of the page can still surface the evaluator's identity and config.
+  if (
+    !currentVersion ||
+    !currentVersion.language ||
+    !currentVersion.sourceCode
+  ) {
+    return (
+      <Flex flex={1} alignItems="center" justifyContent="center">
+        <Empty message="This code evaluator has no current version yet." />
+      </Flex>
+    );
+  }
+
   return (
     <>
       <Flex direction="column" gap="size-200">
         <Card
           title="Source Code"
-          extra={<LanguageWithIcon language={evaluator.language} />}
+          extra={<LanguageWithIcon language={currentVersion.language} />}
         >
           <CodeEvaluatorSourceCodeBlock
-            language={evaluator.language}
-            sourceCode={evaluator.sourceCode}
+            language={currentVersion.language}
+            sourceCode={currentVersion.sourceCode}
           />
         </Card>
         <div css={splitLayoutCSS}>

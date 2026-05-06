@@ -346,6 +346,14 @@ class TestCodeEvaluatorPreviewNoSandbox:
             )
             session.add(code_eval)
             await session.flush()
+            version = models.CodeEvaluatorVersion(
+                code_evaluator_id=code_eval.id,
+                source_code="def evaluate(output): return 1.0",
+                language="PYTHON",
+                sandbox_snapshot=None,
+            )
+            session.add(version)
+            await session.flush()
             code_eval_id = code_eval.id
 
         gid = str(GlobalID("CodeEvaluator", str(code_eval_id)))

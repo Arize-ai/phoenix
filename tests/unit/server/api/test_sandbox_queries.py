@@ -12,7 +12,11 @@ from phoenix.server.sandbox import (
     SANDBOX_ADAPTER_METADATA,
     AdapterMetadata,
 )
-from phoenix.server.sandbox.types import ProviderCredentialSpec, SandboxAdapter, SandboxBackend
+from phoenix.server.sandbox.types import (
+    ProviderCredentialSpec,
+    SandboxAdapter,
+    SandboxBackend,
+)
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -33,6 +37,9 @@ class _TestAuthAdapter(SandboxAdapter):
         user_env: dict | None = None,  # type: ignore[type-arg]
     ) -> SandboxBackend:
         return MagicMock(spec=SandboxBackend)
+
+    def runtime_fingerprint(self, config: dict[str, Any]) -> str:
+        return f"{_TEST_AUTH_BACKEND}@1.0"
 
 
 @pytest.fixture(autouse=True)

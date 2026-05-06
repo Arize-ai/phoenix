@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<521f17b6275170cd63127b3a6854b154>>
+ * @generated SignedSource<<70c071f9d0ed584b14415cd2b4cb166b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,10 +15,13 @@ export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
   readonly evaluator: {
+    readonly currentVersion?: {
+      readonly language: Language;
+      readonly sourceCode: string;
+    } | null;
     readonly description?: string | null;
     readonly id?: string;
     readonly kind: EvaluatorKind;
-    readonly language?: Language;
     readonly name?: string;
     readonly outputConfigs?: ReadonlyArray<{
       readonly lowerBound?: number | null;
@@ -41,7 +44,6 @@ export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
       };
       readonly timeout: number;
     } | null;
-    readonly sourceCode?: string;
   };
   readonly id: string;
   readonly inputMapping: {
@@ -223,14 +225,7 @@ return {
             (v0/*: any*/),
             (v1/*: any*/),
             (v4/*: any*/),
-            (v5/*: any*/),
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "sourceCode",
-              "storageKey": null
-            },
+            (v3/*: any*/),
             {
               "alias": null,
               "args": null,
@@ -246,14 +241,14 @@ return {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
-                  "name": "config",
+                  "name": "timeout",
                   "storageKey": null
                 },
                 {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
-                  "name": "timeout",
+                  "name": "config",
                   "storageKey": null
                 },
                 {
@@ -278,7 +273,25 @@ return {
               ],
               "storageKey": null
             },
-            (v3/*: any*/)
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "CodeEvaluatorVersion",
+              "kind": "LinkedField",
+              "name": "currentVersion",
+              "plural": false,
+              "selections": [
+                (v5/*: any*/),
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "sourceCode",
+                  "storageKey": null
+                }
+              ],
+              "storageKey": null
+            }
           ],
           "type": "CodeEvaluator",
           "abstractKey": null
@@ -292,6 +305,6 @@ return {
 };
 })();
 
-(node as any).hash = "88fd86cc602541670d30c2d0f1a2c25b";
+(node as any).hash = "3bedfd78175e35cee57f41fd0f9202d1";
 
 export default node;

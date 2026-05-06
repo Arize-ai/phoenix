@@ -911,6 +911,9 @@ class TestPhase1WrapperInputShape:
                 ProviderCredentialSpec(key=cred_key, display_name="Wrapper Test Cred")
             ]
 
+            def runtime_fingerprint(self, config):  # type: ignore[no-untyped-def]
+                return "wrapper-input-test-backend"
+
             def build_backend(self, config, user_env=None):  # type: ignore[no-untyped-def]
                 return MagicMock(spec=SandboxBackend)
 

@@ -281,46 +281,74 @@ class ChatCompletionMutationMixin:
                 from phoenix.server.sandbox import MissingSecretError, get_or_create_backend
                 from phoenix.server.sandbox.types import UnsupportedOperation
 
+                latest_version_id = (
+                    await info.context.data_loaders.latest_code_evaluator_version_ids.load(db_id)
+                )
+                if latest_version_id is None:
+                    raise BadRequest(
+                        f"Code evaluator with id {code_evaluator_id} has no current version"
+                    )
+
                 async with info.context.db() as session:
                     code_evaluator_record = await session.get(models.CodeEvaluator, db_id)
                     if code_evaluator_record is None:
                         raise BadRequest(f"Code evaluator with id {code_evaluator_id} not found")
+                    code_evaluator_version = await session.get(
+                        models.CodeEvaluatorVersion,
+                        latest_version_id,
+                    )
+                    if code_evaluator_version is None:
+                        raise BadRequest(
+                            f"Code evaluator with id {code_evaluator_id} has no current version"
+                        )
 
+                    # Post-#13055: language is denormalized on the tip and aligned with
+                    # the version row by composite FK; read directly without a Language lookup.
                     language = code_evaluator_record.language
 
-                    # Resolve sandbox backend via config -> provider chain
+                    # The version's sandbox_snapshot is an advisory baseline for
+                    # drift detection: its runtime_fingerprint is compared to the
+                    # live runtime's fingerprint, but execution dispatches against
+                    # the tip's current sandbox_config_id so a patchCodeEvaluator
+                    # takes effect immediately. The snapshot's backend_type /
+                    # config / timeout are intentionally not consumed at execute
+                    # time.
                     sandbox_backend = None
                     backend_type: str | None = None
-                    merged_config: dict[str, Any] | None = None
+                    sandbox_config: dict[str, Any] | None = None
+                    expected_runtime_fingerprint: str | None = None
                     sandbox_timeout: int | None = None
-                    if code_evaluator_record.sandbox_config_id is not None:
-                        sandbox_cfg = await session.get(
-                            models.SandboxConfig, code_evaluator_record.sandbox_config_id
+                    if code_evaluator_version.sandbox_snapshot is not None:
+                        expected_runtime_fingerprint = code_evaluator_version.sandbox_snapshot.get(
+                            "runtime_fingerprint"
                         )
-                        if sandbox_cfg is not None and sandbox_cfg.enabled:
-                            sandbox_timeout = sandbox_cfg.timeout
-                            provider = await session.get(
-                                models.SandboxProvider, sandbox_cfg.sandbox_provider_id
-                            )
-                            if provider is not None and provider.enabled:
-                                backend_type = provider.backend_type
-                                if provider.language != code_evaluator_record.language:
-                                    raise BadRequest(
-                                        "Sandbox provider language does not match "
-                                        "code evaluator language"
-                                    )
-                                # Admin-authored provider config wins over user-authored
-                                # SandboxConfig.config on key collision — consistent with
-                                # the factory's credentials-win merge order.
-                                merged_config = {
-                                    **sandbox_cfg.config,
-                                    **provider.config,
-                                }
+                    tip_sandbox_config_id = code_evaluator_record.sandbox_config_id
+                    if tip_sandbox_config_id is not None:
+                        live_sandbox_config = await session.get(
+                            models.SandboxConfig, tip_sandbox_config_id
+                        )
+                        if live_sandbox_config is None:
+                            raise BadRequest(f"SandboxConfig not found: {tip_sandbox_config_id}")
+                        live_sandbox_provider = await session.get(
+                            models.SandboxProvider, live_sandbox_config.sandbox_provider_id
+                        )
+                        if live_sandbox_provider is None:
+                            provider_id = live_sandbox_config.sandbox_provider_id
+                            raise BadRequest(f"SandboxProvider not found: {provider_id}")
+                        backend_type = live_sandbox_provider.backend_type
+                        # Provider config wins on key collision — matches
+                        # _build_code_evaluator_sandbox_snapshot's merge order so
+                        # save-time and execute-time agree.
+                        sandbox_config = {
+                            **live_sandbox_config.config,
+                            **live_sandbox_provider.config,
+                        }
+                        sandbox_timeout = live_sandbox_config.timeout
 
                     # Eagerly capture scalar fields before session closes
                     evaluator_name = code_evaluator_record.name.root
                     evaluator_description = code_evaluator_record.description
-                    evaluator_source_code = code_evaluator_record.source_code
+                    evaluator_source_code = code_evaluator_version.source_code
                     output_configs = [
                         c
                         for c in code_evaluator_record.output_configs
@@ -331,9 +359,12 @@ class ChatCompletionMutationMixin:
                         try:
                             sandbox_backend = await get_or_create_backend(
                                 backend_type,
-                                config=merged_config,
+                                config=sandbox_config,
                                 session=session,
                                 decrypt=info.context.decrypt,
+                                expected_runtime_fingerprint=expected_runtime_fingerprint,
+                                evaluator_id=code_evaluator_record.id,
+                                version_id=code_evaluator_version.id,
                             )
                         except (
                             MissingSecretError,

@@ -10,6 +10,7 @@ from .average_experiment_repeated_run_group_latency import (
     AverageExperimentRepeatedRunGroupLatencyDataLoader,
 )
 from .average_experiment_run_latency import AverageExperimentRunLatencyDataLoader
+from .code_evaluator_version_sequence_number import CodeEvaluatorVersionSequenceNumberDataLoader
 from .dataset_dataset_splits import DatasetDatasetSplitsDataLoader
 from .dataset_evaluators import DatasetEvaluatorsDataLoader
 from .dataset_evaluators_by_evaluator import DatasetEvaluatorsByEvaluatorDataLoader
@@ -47,6 +48,7 @@ from .experiment_sequence_number import ExperimentSequenceNumberDataLoader
 from .last_experiment_errors import LastExperimentErrorsDataLoader
 from .last_used_times_by_generative_model_id import LastUsedTimesByGenerativeModelIdDataLoader
 from .latency_ms_quantile import LatencyMsQuantileCache, LatencyMsQuantileDataLoader
+from .latest_code_evaluator_version_ids import LatestCodeEvaluatorVersionIdDataLoader
 from .latest_prompt_version_ids import LatestPromptVersionIdDataLoader
 from .min_start_or_max_end_times import MinStartOrMaxEndTimeCache, MinStartOrMaxEndTimeDataLoader
 from .num_child_spans import NumChildSpansDataLoader
@@ -107,6 +109,7 @@ __all__ = [
     "AverageExperimentRepeatedRunGroupLatencyDataLoader",
     "AverageExperimentRunLatencyDataLoader",
     "CacheForDataLoaders",
+    "CodeEvaluatorVersionSequenceNumberDataLoader",
     "DatasetDatasetSplitsDataLoader",
     "DatasetEvaluatorsByEvaluatorDataLoader",
     "DatasetEvaluatorsByIdDataLoader",
@@ -134,6 +137,7 @@ __all__ = [
     "ExperimentRunsByExperimentAndExampleDataLoader",
     "ExperimentSequenceNumberDataLoader",
     "LastUsedTimesByGenerativeModelIdDataLoader",
+    "LatestCodeEvaluatorVersionIdDataLoader",
     "LatestPromptVersionIdDataLoader",
     "LatencyMsQuantileDataLoader",
     "MinStartOrMaxEndTimeDataLoader",

@@ -15,7 +15,11 @@ from phoenix.server.sandbox import (
     invalidate_backend_cache,
 )
 from phoenix.server.sandbox.daytona_backend import DaytonaPythonAdapter
-from phoenix.server.sandbox.types import ProviderCredentialSpec, SandboxAdapter, SandboxBackend
+from phoenix.server.sandbox.types import (
+    ProviderCredentialSpec,
+    SandboxAdapter,
+    SandboxBackend,
+)
 
 
 class _StubConfig(BaseModel):
@@ -57,6 +61,9 @@ def _make_adapter(received: dict[str, Any], cred_key: str = "CRED_X") -> Sandbox
             received["config"] = dict(config)
             received["user_env"] = user_env
             return MagicMock(spec=SandboxBackend)
+
+        def runtime_fingerprint(self, config: dict[str, Any]) -> str:
+            return "STUB@1.0"
 
     return _StubAdapter()
 

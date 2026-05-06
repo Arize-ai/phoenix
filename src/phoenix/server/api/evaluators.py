@@ -800,53 +800,79 @@ async def get_evaluators(
     code_evaluators_by_id: dict[int, CodeEvaluatorRunner] = {}
     code_evaluator_languages_by_id: dict[int, str] = {}
     if code_evaluator_db_ids:
+        from phoenix.server.api.dataloaders.latest_code_evaluator_version_ids import (
+            latest_code_evaluator_version_ids_by_evaluator_id,
+        )
         from phoenix.server.sandbox import get_or_create_backend
 
         code_rows_result = await session.scalars(
             select(models.CodeEvaluator).where(models.CodeEvaluator.id.in_(code_evaluator_db_ids))
         )
+        latest_version_ids = await latest_code_evaluator_version_ids_by_evaluator_id(
+            list(code_evaluator_db_ids), session
+        )
         for code_row in code_rows_result:
+            latest_version_id = latest_version_ids.get(code_row.id)
+            if latest_version_id is None:
+                continue
+            code_version = await session.get(models.CodeEvaluatorVersion, latest_version_id)
+            if code_version is None:
+                continue
+            # Post-#13055: language is the denormalized string column on both
+            # code_evaluators and code_evaluator_versions, kept aligned by composite FK.
             evaluator_language = code_row.language
             code_evaluator_languages_by_id[code_row.id] = evaluator_language
 
-            # Resolve sandbox backend via SandboxConfig → SandboxProvider
+            # The version's sandbox_snapshot is an advisory baseline for drift
+            # detection: its runtime_fingerprint is compared to the live runtime's
+            # fingerprint, but execution dispatches against the tip's current
+            # sandbox_config_id so a patchCodeEvaluator takes effect immediately.
+            # The snapshot's backend_type / config / timeout are intentionally
+            # not consumed at execute time.
             backend = None
             language = evaluator_language
             sandbox_timeout: Optional[int] = None
-            if code_row.sandbox_config_id is not None:
-                sandbox_config = await session.get(models.SandboxConfig, code_row.sandbox_config_id)
-                if sandbox_config is not None and sandbox_config.enabled:
-                    sandbox_timeout = sandbox_config.timeout
-                    sandbox_provider = await session.get(
-                        models.SandboxProvider, sandbox_config.sandbox_provider_id
+            expected_runtime_fingerprint: Optional[str] = None
+            if code_version.sandbox_snapshot is not None:
+                expected_runtime_fingerprint = code_version.sandbox_snapshot.get(
+                    "runtime_fingerprint"
+                )
+            tip_sandbox_config_id = code_row.sandbox_config_id
+            if tip_sandbox_config_id is not None:
+                live_sandbox_config = await session.get(models.SandboxConfig, tip_sandbox_config_id)
+                if live_sandbox_config is None:
+                    raise BadRequest(f"SandboxConfig not found: {tip_sandbox_config_id}")
+                live_sandbox_provider = await session.get(
+                    models.SandboxProvider, live_sandbox_config.sandbox_provider_id
+                )
+                if live_sandbox_provider is None:
+                    provider_id = live_sandbox_config.sandbox_provider_id
+                    raise BadRequest(f"SandboxProvider not found: {provider_id}")
+                sandbox_timeout = live_sandbox_config.timeout
+                # Provider config wins on key collision — matches
+                # _build_code_evaluator_sandbox_snapshot's merge order so save-time
+                # and execute-time agree.
+                merged_config = {
+                    **live_sandbox_config.config,
+                    **live_sandbox_provider.config,
+                }
+                try:
+                    backend = await get_or_create_backend(
+                        live_sandbox_provider.backend_type,
+                        config=merged_config,
+                        session=session,
+                        decrypt=decrypt,
+                        expected_runtime_fingerprint=expected_runtime_fingerprint,
+                        evaluator_id=code_row.id,
+                        version_id=code_version.id,
                     )
-                    if sandbox_provider is not None and sandbox_provider.enabled:
-                        if sandbox_provider.language != code_row.language:
-                            raise BadRequest(
-                                f"Language mismatch: evaluator language '{evaluator_language}' "
-                                f"does not match the sandbox provider's configured language."
-                            )
-                        # Admin-authored provider config wins over user-authored
-                        # SandboxConfig.config on key collision — consistent with
-                        # the factory's credentials-win merge order.
-                        merged_config = {
-                            **sandbox_config.config,
-                            **sandbox_provider.config,
-                        }
-                        try:
-                            backend = await get_or_create_backend(
-                                sandbox_provider.backend_type,
-                                config=merged_config,
-                                session=session,
-                                decrypt=decrypt,
-                            )
-                        except (
-                            MissingSecretError,
-                            UnsupportedOperation,
-                            PydanticValidationError,
-                            ValueError,
-                        ) as exc:
-                            raise BadRequest(str(exc))
+                except (
+                    MissingSecretError,
+                    UnsupportedOperation,
+                    PydanticValidationError,
+                    ValueError,
+                ) as exc:
+                    raise BadRequest(str(exc))
 
             # Resolve evaluator base row for name/description/metadata
             evaluator_base = await session.get(models.Evaluator, code_row.id)
@@ -864,7 +890,7 @@ async def get_evaluators(
                 runner = CodeEvaluatorRunner(
                     name=str(eval_name),
                     description=eval_description,
-                    source_code=code_row.source_code,
+                    source_code=code_version.source_code,
                     stored_output_configs=output_cfgs,
                     sandbox_backend=backend,
                     language=language,

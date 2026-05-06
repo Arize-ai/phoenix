@@ -811,6 +811,41 @@ CREATE INDEX ix_code_evaluators_sandbox_config_id ON public.code_evaluators
     USING btree (sandbox_config_id);
 
 
+-- Table: code_evaluator_versions
+-- ------------------------------
+CREATE TABLE public.code_evaluator_versions (
+    id bigserial NOT NULL,
+    code_evaluator_id BIGINT NOT NULL,
+    description VARCHAR,
+    user_id BIGINT,
+    source_code VARCHAR NOT NULL DEFAULT ''::character varying,
+    language VARCHAR NOT NULL,
+    sandbox_snapshot JSONB,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_code_evaluator_versions PRIMARY KEY (id),
+    CONSTRAINT fk_code_evaluator_versions_code_evaluator_id_code_evaluators
+        FOREIGN KEY
+        (code_evaluator_id)
+        REFERENCES public.code_evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_code_evaluator_versions_language_languages FOREIGN KEY
+        (language)
+        REFERENCES public.languages (name)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_code_evaluator_versions_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE SET NULL
+);
+
+CREATE INDEX ix_code_evaluator_versions_code_evaluator_id ON public.code_evaluator_versions
+    USING btree (code_evaluator_id);
+CREATE INDEX ix_code_evaluator_versions_language ON public.code_evaluator_versions
+    USING btree (language);
+CREATE INDEX ix_code_evaluator_versions_user_id ON public.code_evaluator_versions
+    USING btree (user_id);
+
+
 -- Table: dataset_evaluators
 -- -------------------------
 CREATE TABLE public.dataset_evaluators (

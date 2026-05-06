@@ -90,6 +90,7 @@ from phoenix.server.api.dataloaders import (
     AverageExperimentRepeatedRunGroupLatencyDataLoader,
     AverageExperimentRunLatencyDataLoader,
     CacheForDataLoaders,
+    CodeEvaluatorVersionSequenceNumberDataLoader,
     DatasetDatasetSplitsDataLoader,
     DatasetEvaluatorsByEvaluatorDataLoader,
     DatasetEvaluatorsByIdDataLoader,
@@ -117,6 +118,7 @@ from phoenix.server.api.dataloaders import (
     LastExperimentErrorsDataLoader,
     LastUsedTimesByGenerativeModelIdDataLoader,
     LatencyMsQuantileDataLoader,
+    LatestCodeEvaluatorVersionIdDataLoader,
     LatestPromptVersionIdDataLoader,
     MinStartOrMaxEndTimeDataLoader,
     NumChildSpansDataLoader,
@@ -793,6 +795,9 @@ def create_graphql_router(
                 ),
                 average_experiment_run_latency=AverageExperimentRunLatencyDataLoader(db),
                 code_evaluator_fields=TableFieldsDataLoader(db, models.CodeEvaluator),
+                code_evaluator_version_sequence_number=CodeEvaluatorVersionSequenceNumberDataLoader(
+                    db
+                ),
                 dataset_evaluator_fields=TableFieldsDataLoader(db, models.DatasetEvaluators),
                 dataset_evaluators_by_evaluator=DatasetEvaluatorsByEvaluatorDataLoader(db),
                 dataset_evaluators_by_id=DatasetEvaluatorsByIdDataLoader(db),
@@ -885,6 +890,7 @@ def create_graphql_router(
                 prompt_version_sequence_number=PromptVersionSequenceNumberDataLoader(db),
                 prompt_version_tag_fields=TableFieldsDataLoader(db, models.PromptVersionTag),
                 latest_prompt_version_ids=LatestPromptVersionIdDataLoader(db),
+                latest_code_evaluator_version_ids=LatestCodeEvaluatorVersionIdDataLoader(db),
                 project_session_annotation_fields=TableFieldsDataLoader(
                     db, models.ProjectSessionAnnotation
                 ),

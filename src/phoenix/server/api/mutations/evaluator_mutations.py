@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Optional
+from typing import Any, Optional, cast
 
 import strawberry
 from fastapi import Request
@@ -14,8 +14,9 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.db.models import EvaluatorKind
+from phoenix.db.models import EvaluatorKind, LanguageName
 from phoenix.db.types.annotation_configs import (
+    AnnotationConfigType,
     CategoricalOutputConfig,
     ContinuousOutputConfig,
     OutputConfigType,
@@ -48,6 +49,54 @@ from phoenix.server.api.types.node import from_global_id, from_global_id_with_ex
 from phoenix.server.api.types.PromptVersion import PromptVersion
 from phoenix.server.api.types.SandboxConfig import Language, SandboxConfig
 from phoenix.server.bearer_auth import PhoenixUser
+
+
+async def _build_code_evaluator_sandbox_snapshot(
+    *,
+    language: LanguageName,
+    sandbox_config_id: Optional[int],
+    session: AsyncSession,
+) -> Optional[dict[str, Any]]:
+    """Build a sandbox snapshot for a code evaluator version.
+
+    Post-#13055, language is the denormalized string column on every dependent
+    table; cross-table alignment is enforced by composite FK so we no longer need
+    `_validate_language_matches_sandbox`. The snapshot itself is slated for
+    removal by [[work:carve-out-sandbox-snapshot-machinery-code-evaluato]].
+    """
+    if sandbox_config_id is None:
+        return None
+
+    sandbox_config = await session.get(models.SandboxConfig, sandbox_config_id)
+    if sandbox_config is None:
+        raise BadRequest(f"SandboxConfig not found: {sandbox_config_id}")
+    sandbox_provider = await session.get(models.SandboxProvider, sandbox_config.sandbox_provider_id)
+    if sandbox_provider is None:
+        raise BadRequest(f"SandboxProvider not found: {sandbox_config.sandbox_provider_id}")
+    if sandbox_provider.language != language:
+        raise BadRequest("Evaluator language does not match sandbox provider language")
+
+    from phoenix.server.sandbox import _SANDBOX_ADAPTERS
+
+    adapter = _SANDBOX_ADAPTERS.get(sandbox_provider.backend_type)
+    if adapter is None:
+        raise BadRequest(f"Sandbox backend is not installed: {sandbox_provider.backend_type}")
+    # Merge provider config into user config — preserves the pre-version-snapshot
+    # runtime semantics where admin-authored, non-credential provider keys
+    # (region, custom server URL, internet_access, etc.) override per-config
+    # values. Provider config wins on key collision.
+    merged_config: dict[str, Any] = {**sandbox_config.config, **sandbox_provider.config}
+    # No ``stored_config`` here: snapshot creation is a fresh write, not an
+    # update round-trip, so every capability gate must fire.
+    validated_config = adapter.validate_config(merged_config)
+    runtime_fingerprint = adapter.runtime_fingerprint(validated_config)
+    return {
+        "backend_type": sandbox_provider.backend_type,
+        "language": language,
+        "timeout": sandbox_config.timeout,
+        "config": validated_config,
+        "runtime_fingerprint": runtime_fingerprint,
+    }
 
 
 def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> OutputConfigType:
@@ -304,20 +353,49 @@ class CreateCodeEvaluatorInput:
 
 
 @strawberry.input
-class UpdateCodeEvaluatorInput:
+class PatchCodeEvaluatorInput:
     id: GlobalID
     name: Optional[Identifier] = UNSET
+    description: Optional[str] = UNSET
     source_code: Optional[str] = UNSET
     language: Optional[Language] = UNSET
-    description: Optional[str] = UNSET
     sandbox_config_id: Optional[GlobalID] = UNSET
-    output_configs: Optional[list[AnnotationConfigInput]] = UNSET
     input_mapping: Optional[EvaluatorInputMappingInput] = UNSET
+    output_configs: Optional[list[AnnotationConfigInput]] = UNSET
+
+
+@strawberry.input
+class CreateCodeEvaluatorVersionInput:
+    code_evaluator_id: GlobalID
+    source_code: str
+    language: Language
+    sandbox_config_id: Optional[GlobalID] = strawberry.field(
+        description=(
+            "ID of the SandboxConfig to bind the new version (and the evaluator's tip) to."
+            " Pass null to record a sandbox-less version. Must be supplied explicitly:"
+            " omitting it is a schema error so callers cannot accidentally inherit a"
+            " stale tip binding."
+        )
+    )
+    description: Optional[str] = None
 
 
 @strawberry.type
 class CodeEvaluatorMutationPayload:
     evaluator: CodeEvaluator
+    query: Query
+
+
+@strawberry.type
+class CreateCodeEvaluatorVersionPayload:
+    evaluator: CodeEvaluator
+    was_created: bool = strawberry.field(
+        description=(
+            "True when a new CodeEvaluatorVersion row was appended."
+            " False when the call dedup'd against the existing tip because"
+            " source_code, language, and sandbox binding were unchanged."
+        )
+    )
     query: Query
 
 
@@ -1039,6 +1117,10 @@ class EvaluatorMutationMixin:
             )
 
         if output_configs is None:
+            async with info.context.db.read() as session:
+                code_evaluator = await session.get(models.CodeEvaluator, evaluator_id)
+            if code_evaluator is None:
+                raise BadRequest("Code evaluator not found")
             dataset_evaluator.output_configs = [
                 config
                 for config in code_evaluator.output_configs
@@ -1088,8 +1170,8 @@ class EvaluatorMutationMixin:
                         f"DatasetEvaluator with id {input.dataset_evaluator_id} not found"
                     )
 
-                evaluator = await session.get(models.Evaluator, dataset_evaluator.evaluator_id)
-                if not isinstance(evaluator, models.CodeEvaluator):
+                evaluator = await session.get(models.CodeEvaluator, dataset_evaluator.evaluator_id)
+                if evaluator is None:
                     raise BadRequest("Cannot update a non-code dataset evaluator")
 
                 try:
@@ -1117,9 +1199,13 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"DatasetEvaluator with name {input.name} already exists")
 
         if dataset_evaluator.output_configs is None:
+            async with info.context.db.read() as session:
+                tip = await session.get(models.CodeEvaluator, dataset_evaluator.evaluator_id)
+            if tip is None:
+                raise BadRequest("Code evaluator not found")
             dataset_evaluator.output_configs = [
                 config
-                for config in evaluator.output_configs
+                for config in tip.output_configs
                 if isinstance(config, (CategoricalOutputConfig, ContinuousOutputConfig))
             ]
 
@@ -1168,13 +1254,34 @@ class EvaluatorMutationMixin:
                     description=input.description,
                     source_code=input.source_code,
                     language=input.language.value,
-                    sandbox_config_id=sandbox_config_id,
-                    output_configs=output_configs,
-                    input_mapping=input_mapping_orm,
                     user_id=user_id,
+                    sandbox_config_id=sandbox_config_id,
+                    input_mapping=input_mapping_orm,
+                    output_configs=output_configs,
                 )
                 session.add(row)
                 await session.flush()
+
+                from phoenix.server.api.helpers.sandbox_redaction import redact_sandbox_snapshot
+
+                # Post-#13055: language is the natural primary key — pass the string directly.
+                language_value: LanguageName = input.language.value
+                sandbox_snapshot = await _build_code_evaluator_sandbox_snapshot(
+                    language=language_value,
+                    sandbox_config_id=sandbox_config_id,
+                    session=session,
+                )
+                version = models.CodeEvaluatorVersion(
+                    code_evaluator_id=row.id,
+                    description=input.description,
+                    source_code=input.source_code,
+                    language=language_value,
+                    sandbox_snapshot=redact_sandbox_snapshot(sandbox_snapshot)
+                    if sandbox_snapshot is not None
+                    else None,
+                    user_id=user_id,
+                )
+                session.add(version)
                 await session.refresh(row)
         except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
             raise BadRequest(f"Could not create code evaluator: {e}")
@@ -1185,15 +1292,20 @@ class EvaluatorMutationMixin:
         )
 
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
-    async def update_code_evaluator(
+    async def patch_code_evaluator(
         self,
         info: Info[Context, None],
-        input: UpdateCodeEvaluatorInput,
+        input: PatchCodeEvaluatorInput,
     ) -> CodeEvaluatorMutationPayload:
         """Update fields on an existing CodeEvaluator."""
         evaluator_id = from_global_id_with_expected_type(
             global_id=input.id, expected_type_name=CodeEvaluator.__name__
         )
+
+        if input.input_mapping is not UNSET and input.input_mapping is None:
+            raise BadRequest("input_mapping cannot be set to null")
+        if input.output_configs is not UNSET and input.output_configs is None:
+            raise BadRequest("output_configs cannot be set to null")
 
         try:
             async with info.context.db() as session:
@@ -1217,28 +1329,175 @@ class EvaluatorMutationMixin:
                     row.description = input.description
 
                 if input.sandbox_config_id is not UNSET:
-                    row.sandbox_config_id = (
-                        None
-                        if input.sandbox_config_id is None
-                        else from_global_id_with_expected_type(
+                    if input.sandbox_config_id is None:
+                        row.sandbox_config_id = None
+                    else:
+                        sandbox_config_id = from_global_id_with_expected_type(
                             input.sandbox_config_id, SandboxConfig.__name__
                         )
-                    )
+                        # The tip table no longer carries a language column, so
+                        # the schema-layer composite FK on
+                        # (sandbox_config_id, language) cannot guard direct tip
+                        # writes. Resolve the evaluator's language from its
+                        # latest version and reject mismatched sandbox bindings
+                        # at the mutation boundary.
+                        from sqlalchemy import func as _sa_func
+                        from sqlalchemy import select as _sa_select
 
-                if input.output_configs is not UNSET and input.output_configs is not None:
-                    row.output_configs = list(
-                        _convert_output_config_inputs_to_pydantic(input.output_configs)
-                    )
+                        latest_version_id = await session.scalar(
+                            _sa_select(_sa_func.max(models.CodeEvaluatorVersion.id)).where(
+                                models.CodeEvaluatorVersion.code_evaluator_id == row.id
+                            )
+                        )
+                        if latest_version_id is not None:
+                            latest_version = await session.get(
+                                models.CodeEvaluatorVersion, latest_version_id
+                            )
+                            if latest_version is not None:
+                                # Post-#13055: language is the denormalized string column;
+                                # composite FK enforces alignment between sandbox_config and tip.
+                                target_cfg = await session.get(
+                                    models.SandboxConfig, sandbox_config_id
+                                )
+                                if target_cfg is not None and (
+                                    target_cfg.language != latest_version.language
+                                ):
+                                    raise BadRequest(
+                                        "Evaluator language does not match sandbox config language"
+                                    )
+                        row.sandbox_config_id = sandbox_config_id
 
                 if input.input_mapping is not UNSET and input.input_mapping is not None:
                     row.input_mapping = input.input_mapping.to_orm()
 
+                if input.output_configs is not UNSET and input.output_configs is not None:
+                    try:
+                        validate_unique_config_names(input.output_configs)
+                    except ValueError as e:
+                        raise BadRequest(str(e))
+                    row.output_configs = cast(
+                        list[AnnotationConfigType],
+                        _convert_output_config_inputs_to_pydantic(input.output_configs),
+                    )
+
                 await session.flush()
                 await session.refresh(row)
         except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
-            raise BadRequest(f"Could not update code evaluator: {e}")
+            raise BadRequest(f"Could not patch code evaluator: {e}")
 
         return CodeEvaluatorMutationPayload(
             evaluator=CodeEvaluator(id=row.id, db_record=row),
+            query=Query(),
+        )
+
+    @strawberry.mutation(  # type: ignore
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        description=(
+            "Append a new immutable CodeEvaluatorVersion. The new version is bound to"
+            " the SandboxConfig identified by input.sandbox_config_id (null is allowed and"
+            " records a sandbox-less version); the evaluator's tip sandbox_config_id is"
+            " updated in the same transaction so the version row and the tip always agree."
+            " If the proposed source_code, language, and sandbox binding are identical to"
+            " the current tip version, no new row is appended and was_created=false."
+        ),
+    )
+    async def create_code_evaluator_version(
+        self,
+        info: Info[Context, None],
+        input: CreateCodeEvaluatorVersionInput,
+    ) -> CreateCodeEvaluatorVersionPayload:
+        """Create an immutable CodeEvaluatorVersion unless content is unchanged."""
+        evaluator_id = from_global_id_with_expected_type(
+            global_id=input.code_evaluator_id, expected_type_name=CodeEvaluator.__name__
+        )
+
+        user_id: Optional[int] = None
+        assert isinstance(request := info.context.request, Request)
+        if "user" in request.scope:
+            assert isinstance(user := request.user, PhoenixUser)
+            user_id = int(user.identity)
+
+        # Post-#13055: language is the natural primary key — pass the string directly.
+        language_value: LanguageName = input.language.value
+
+        # Resolve the binding ID up-front. The version row's snapshot is built
+        # from input.sandbox_config_id rather than the tip; the tip is updated
+        # to match before the snapshot is built so save-time and execute-time
+        # agree on what runs.
+        sandbox_config_id: Optional[int] = None
+        if input.sandbox_config_id is not None:
+            sandbox_config_id = from_global_id_with_expected_type(
+                input.sandbox_config_id, SandboxConfig.__name__
+            )
+
+        try:
+            async with info.context.db() as session:
+                row = await session.get(models.CodeEvaluator, evaluator_id)
+                if row is None:
+                    raise NotFound(f"CodeEvaluator not found: {evaluator_id}")
+
+                if sandbox_config_id is not None:
+                    # Post-#13055: composite FK enforces alignment, but we still
+                    # surface a friendly error instead of an integrity failure.
+                    target_cfg = await session.get(models.SandboxConfig, sandbox_config_id)
+                    if target_cfg is None:
+                        raise BadRequest(f"SandboxConfig not found: {sandbox_config_id}")
+                    if target_cfg.language != language_value:
+                        raise BadRequest(
+                            "Evaluator language does not match sandbox config language"
+                        )
+
+                # Update the tip's sandbox_config_id to the input's value first,
+                # so a subsequent execute-time read sees the same binding the
+                # version row will encode in its snapshot.
+                row.sandbox_config_id = sandbox_config_id
+
+                from phoenix.server.api.helpers.sandbox_redaction import redact_sandbox_snapshot
+
+                raw_snapshot = await _build_code_evaluator_sandbox_snapshot(
+                    language=language_value,
+                    sandbox_config_id=sandbox_config_id,
+                    session=session,
+                )
+                sandbox_snapshot = (
+                    redact_sandbox_snapshot(raw_snapshot) if raw_snapshot is not None else None
+                )
+
+                candidate = models.CodeEvaluatorVersion(
+                    code_evaluator_id=row.id,
+                    description=input.description,
+                    source_code=input.source_code,
+                    language=language_value,
+                    sandbox_snapshot=sandbox_snapshot,
+                    user_id=user_id,
+                )
+
+                from sqlalchemy import func
+                from sqlalchemy import select as sa_select
+
+                latest_version_id = await session.scalar(
+                    sa_select(func.max(models.CodeEvaluatorVersion.id)).where(
+                        models.CodeEvaluatorVersion.code_evaluator_id == row.id
+                    )
+                )
+                current_version = (
+                    await session.get(models.CodeEvaluatorVersion, latest_version_id)
+                    if latest_version_id is not None
+                    else None
+                )
+
+                was_created = current_version is None or not current_version.has_identical_content(
+                    candidate
+                )
+                if was_created:
+                    session.add(candidate)
+
+                await session.refresh(row)
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
+            raise BadRequest(f"Could not create code evaluator version: {e}")
+
+        return CreateCodeEvaluatorVersionPayload(
+            evaluator=CodeEvaluator(id=row.id, db_record=row),
+            was_created=was_created,
             query=Query(),
         )

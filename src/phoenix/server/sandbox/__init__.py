@@ -645,6 +645,9 @@ async def get_or_create_backend(
     config: dict[str, Any] | None = None,
     session: Optional[AsyncSession] = None,
     decrypt: Optional[Callable[[bytes], bytes]] = None,
+    expected_runtime_fingerprint: Optional[str] = None,
+    evaluator_id: Optional[int] = None,
+    version_id: Optional[int] = None,
 ) -> Optional[SandboxBackend]:
     """
     Return a cached SandboxBackend for backend_type, creating it if needed.
@@ -678,6 +681,20 @@ async def get_or_create_backend(
     cred_keys = {spec.key for spec in adapter.credential_specs}
     user_config = {k: v for k, v in (config or {}).items() if k not in cred_keys}
     validated_config = adapter.validate_config(user_config)
+    current_runtime_fingerprint = adapter.runtime_fingerprint(validated_config)
+    if (
+        expected_runtime_fingerprint is not None
+        and expected_runtime_fingerprint != current_runtime_fingerprint
+    ):
+        logger.warning(
+            "Code evaluator sandbox runtime identity drift detected",
+            extra={
+                "evaluator_id": evaluator_id,
+                "version_id": version_id,
+                "snapshot_fingerprint": expected_runtime_fingerprint,
+                "current_fingerprint": current_runtime_fingerprint,
+            },
+        )
     effective_config: dict[str, Any] = {**validated_config, **provider_creds}
 
     cache_key = (backend_type, _config_hash(effective_config))

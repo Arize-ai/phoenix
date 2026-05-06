@@ -15,6 +15,7 @@ from openinference.semconv.trace import (
     ToolCallAttributes,
 )
 from opentelemetry.semconv.attributes.url_attributes import URL_FULL, URL_PATH
+from sqlalchemy import select
 from strawberry.scalars import JSON
 
 from phoenix.db import models
@@ -3691,6 +3692,21 @@ class TestGetEvaluators:
                 sandbox_config_id=None,
             )
             session.add(code_eval)
+            await session.flush()
+            python_lang = await session.scalar(
+                select(models.Language).where(models.Language.name == "PYTHON")
+            )
+            if python_lang is None:
+                python_lang = models.Language(name="PYTHON")
+                session.add(python_lang)
+                await session.flush()
+            version = models.CodeEvaluatorVersion(
+                code_evaluator_id=code_eval.id,
+                source_code="def evaluate(output): return 1.0",
+                language="PYTHON",
+                sandbox_snapshot=None,
+            )
+            session.add(version)
             await session.flush()
 
             de_code = models.DatasetEvaluators(

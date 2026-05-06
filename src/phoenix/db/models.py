@@ -2811,16 +2811,16 @@ class CodeEvaluator(Evaluator):
         nullable=False,
         index=True,
     )
+    sandbox_config_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("sandbox_configs.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     input_mapping: Mapped[InputMapping] = mapped_column(
         _InputMapping, nullable=False, server_default='{"literal_mapping": {}, "path_mapping": {}}'
     )
     output_configs: Mapped[list[AnnotationConfigType]] = mapped_column(
         _AnnotationConfigList, nullable=False, server_default="[]"
-    )
-    sandbox_config_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("sandbox_configs.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
     )
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
@@ -2828,6 +2828,13 @@ class CodeEvaluator(Evaluator):
 
     sandbox_config: Mapped[Optional["SandboxConfig"]] = relationship(
         "SandboxConfig", foreign_keys="[CodeEvaluator.sandbox_config_id]"
+    )
+    versions: Mapped[list["CodeEvaluatorVersion"]] = relationship(
+        "CodeEvaluatorVersion",
+        back_populates="code_evaluator",
+        cascade="all, delete-orphan",
+        foreign_keys="CodeEvaluatorVersion.code_evaluator_id",
+        uselist=True,
     )
 
     __mapper_args__ = {
@@ -2845,6 +2852,55 @@ class CodeEvaluator(Evaluator):
             name="fk_code_evaluators_sandbox_config_language",
         ),
     )
+
+
+class CodeEvaluatorVersion(HasId):
+    __tablename__ = "code_evaluator_versions"
+
+    code_evaluator_id: Mapped[int] = mapped_column(
+        ForeignKey("code_evaluators.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    source_code: Mapped[str] = mapped_column(nullable=False, server_default="")
+    language: Mapped[LanguageName] = mapped_column(
+        ForeignKey("languages.name", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    sandbox_snapshot: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON_, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+    code_evaluator: Mapped["CodeEvaluator"] = relationship(
+        "CodeEvaluator",
+        back_populates="versions",
+        foreign_keys=[code_evaluator_id],
+    )
+    user: Mapped[Optional["User"]] = relationship("User")
+
+    __table_args__ = {"sqlite_autoincrement": True}
+
+    def has_identical_content(self, other: Self) -> bool:
+        def sandbox_content(snapshot: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
+            if snapshot is None:
+                return None
+            return {
+                "backend_type": snapshot.get("backend_type"),
+                "config": snapshot.get("config"),
+                "timeout": snapshot.get("timeout"),
+            }
+
+        return (
+            self.source_code == other.source_code
+            and self.language == other.language
+            and sandbox_content(self.sandbox_snapshot) == sandbox_content(other.sandbox_snapshot)
+        )
 
 
 class BuiltinEvaluator(Evaluator):

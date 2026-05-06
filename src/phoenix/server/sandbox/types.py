@@ -454,6 +454,11 @@ class SandboxAdapter(ABC):
         return None
 
     @abstractmethod
+    def runtime_fingerprint(self, config: dict[str, Any]) -> str:
+        """Return an opaque, adapter-owned string identifying the current runtime environment."""
+        ...
+
+    @abstractmethod
     def build_backend(
         self,
         config: dict[str, Any],
