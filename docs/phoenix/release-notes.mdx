@@ -28,6 +28,17 @@ Phoenix Playground and the Prompts library now support vendor-native tools — w
 - **Evals runtime capability detection** — OpenAI reasoning models (`o1`, `o3`, `o3-mini`, `o4-mini`) now work with `ClassificationEvaluator` automatically
 </Update>
 
+<Update label="05.01.2026">
+## [05.01.2026: TanStack AI Tracing](/docs/phoenix/release-notes/05-2026/05-01-2026-tanstack-ai-tracing)
+**Available in @arizeai/openinference-tanstack-ai 0.1.0+**
+
+A new OpenInference middleware for [TanStack AI](https://tanstack.com/ai/latest/docs/getting-started/overview) emits `AGENT`, `LLM`, and `TOOL` spans for `chat()` calls — covering streaming, non-streaming, and tool-loop flows across any TanStack AI provider adapter.
+
+- **Install** — `npm install --save @arizeai/openinference-tanstack-ai @tanstack/ai`
+- **Usage** — drop `openInferenceMiddleware()` into the `middleware` option of any `chat()` call
+- **Feedback welcome** — this integration is brand new; please reach out via the [OpenInference repo](https://github.com/Arize-ai/openinference)
+</Update>
+
 <Update label="04.30.2026">
 ## [04.30.2026: CLI Named Auth Profiles](/docs/phoenix/release-notes/04-2026/04-30-2026-cli-auth-profiles)
 **Available in @arizeai/phoenix-cli 1.4.0+**
@@ -54,17 +65,6 @@ Phoenix Playground and the Prompts library now support vendor-native tools — w
 **Breaking change in arize-phoenix-client 2.6.0+ (Python) and arize-phoenix 15.0.0+ (server)**
 
 `client.datasets.create_dataset()` now defaults to upsert semantics: if a dataset with the same name exists, examples are merged into the latest version rather than returning a conflict error. Supply a stable `id` on each example for deterministic in-place updates on re-upload.
-</Update>
-
-<Update label="05.01.2026">
-## [05.01.2026: TanStack AI Tracing](/docs/phoenix/release-notes/05-2026/05-01-2026-tanstack-ai-tracing)
-**Available in @arizeai/openinference-tanstack-ai 0.1.0+**
-
-A new OpenInference middleware for [TanStack AI](https://tanstack.com/ai/latest/docs/getting-started/overview) emits `AGENT`, `LLM`, and `TOOL` spans for `chat()` calls — covering streaming, non-streaming, and tool-loop flows across any TanStack AI provider adapter.
-
-- **Install** — `npm install --save @arizeai/openinference-tanstack-ai @tanstack/ai`
-- **Usage** — drop `openInferenceMiddleware()` into the `middleware` option of any `chat()` call
-- **Feedback welcome** — this integration is brand new; please reach out via the [OpenInference repo](https://github.com/Arize-ai/openinference)
 </Update>
 
 <Update label="04.28.2026">
