@@ -1,5 +1,9 @@
-import { useMemo } from "react";
-import { graphql, useFragment, usePreloadedQuery } from "react-relay";
+import { startTransition, useCallback, useMemo } from "react";
+import {
+  graphql,
+  usePreloadedQuery,
+  useRefetchableFragment,
+} from "react-relay";
 import { useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -9,6 +13,7 @@ import type { settingsSandboxesPageLoaderQuery } from "@phoenix/pages/settings/_
 import type { SettingsSandboxesPageLoaderType } from "@phoenix/pages/settings/settingsSandboxesPageLoader";
 import { settingsSandboxesPageLoaderGql } from "@phoenix/pages/settings/settingsSandboxesPageLoader";
 
+import type { SettingsSandboxesPageRefetchQuery } from "./__generated__/SettingsSandboxesPageRefetchQuery.graphql";
 import { SandboxConfigsCard } from "./SandboxConfigsCard";
 import { SandboxProvidersCard } from "./SandboxProvidersCard";
 import type {
@@ -38,9 +43,13 @@ function SettingsSandboxesPageContent({
 }: {
   query: SettingsSandboxesPageFragment$key;
 }) {
-  const data = useFragment(
+  const [data, refetch] = useRefetchableFragment<
+    SettingsSandboxesPageRefetchQuery,
+    SettingsSandboxesPageFragment$key
+  >(
     graphql`
-      fragment SettingsSandboxesPageFragment on Query {
+      fragment SettingsSandboxesPageFragment on Query
+      @refetchable(queryName: "SettingsSandboxesPageRefetchQuery") {
         sandboxBackends {
           backendType
           displayName
@@ -51,6 +60,13 @@ function SettingsSandboxesPageContent({
           supportsEnvVars
           internetAccess
           dependenciesLanguage
+          credentialSpecs {
+            key
+            displayName
+            description
+            isSet
+            isRequired
+          }
         }
         sandboxProviders {
           id
@@ -114,9 +130,15 @@ function SettingsSandboxesPageContent({
     [providerRows]
   );
 
+  const refresh = useCallback(() => {
+    startTransition(() => {
+      refetch({}, { fetchPolicy: "network-only" });
+    });
+  }, [refetch]);
+
   return (
     <Flex direction="column" gap="size-200">
-      <SandboxProvidersCard providers={providerRows} />
+      <SandboxProvidersCard providers={providerRows} onRefresh={refresh} />
       <SandboxConfigsCard configRows={configRows} providerRows={providerRows} />
     </Flex>
   );

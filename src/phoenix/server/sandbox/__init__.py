@@ -250,8 +250,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         dependency_hints=[
             "Install Phoenix with the `vercel` extra.",
             (
-                "Set `VERCEL_OIDC_TOKEN`, or all of "
-                "`PHOENIX_SANDBOX_VERCEL_TOKEN`, "
+                "Set all of `PHOENIX_SANDBOX_VERCEL_TOKEN`, "
                 "`PHOENIX_SANDBOX_VERCEL_PROJECT_ID`, and "
                 "`PHOENIX_SANDBOX_VERCEL_TEAM_ID`."
             ),
@@ -266,8 +265,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         dependency_hints=[
             "Install Phoenix with the `vercel` extra.",
             (
-                "Set `VERCEL_OIDC_TOKEN`, or all of "
-                "`PHOENIX_SANDBOX_VERCEL_TOKEN`, "
+                "Set all of `PHOENIX_SANDBOX_VERCEL_TOKEN`, "
                 "`PHOENIX_SANDBOX_VERCEL_PROJECT_ID`, and "
                 "`PHOENIX_SANDBOX_VERCEL_TEAM_ID`."
             ),
@@ -552,6 +550,8 @@ async def get_missing_sandbox_auth_detail(
         return "Set `PHOENIX_SANDBOX_DAYTONA_API_KEY`."
 
     if backend_type in {"VERCEL_PYTHON", "VERCEL_TYPESCRIPT"}:
+        # OIDC is still honored as an environment fallback (e.g. on Vercel
+        # deployments or after `vercel env pull`) but is not exposed in the UI.
         oidc_key = "VERCEL_OIDC_TOKEN"
         access_keys = [
             "PHOENIX_SANDBOX_VERCEL_TOKEN",
@@ -562,20 +562,13 @@ async def get_missing_sandbox_auth_detail(
         if oidc_key in resolved or all(key in resolved for key in access_keys):
             return None
         missing_access_keys = [key for key in access_keys if key not in resolved]
-        if len(missing_access_keys) < len(access_keys):
-            return (
-                "Set `VERCEL_OIDC_TOKEN`, or add "
-                f"{_format_required_keys(missing_access_keys)} to complete "
-                "the Vercel access token configuration."
-            )
-        return (
-            "Set `VERCEL_OIDC_TOKEN`, or all of `PHOENIX_SANDBOX_VERCEL_TOKEN`, "
-            "`PHOENIX_SANDBOX_VERCEL_PROJECT_ID`, and `PHOENIX_SANDBOX_VERCEL_TEAM_ID`."
-        )
+        return f"Set {_format_required_keys(missing_access_keys)}."
 
     if backend_type == "MODAL":
+        modal_keys = ["MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET"]
+        resolved = await _resolve_named_credentials(session, decrypt, modal_keys)
         missing_modal_keys = [
-            key for key in ("MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET") if not os.getenv(key)
+            key for key in modal_keys if key not in resolved and not os.getenv(key)
         ]
         if not missing_modal_keys:
             return None
@@ -754,6 +747,11 @@ _PHOENIX_RESERVED_CREDENTIAL_ONLY_KEYS: frozenset[str] = frozenset(
         # Modal remains env-var-only, so reserve its names explicitly.
         "MODAL_TOKEN_ID",
         "MODAL_TOKEN_SECRET",
+        # VERCEL_OIDC_TOKEN is read by the Vercel SDK directly from os.environ.
+        # We no longer surface it in the UI (only the access-token triple is
+        # configurable), but it must stay reserved so a user-supplied env_var
+        # cannot shadow the SDK's auth resolution at execute time.
+        "VERCEL_OIDC_TOKEN",
     }
 )
 

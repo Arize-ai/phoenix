@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<81689e3353eb257ab8579c01f845760f>>
+ * @generated SignedSource<<58b7f13224c7804b68bb526fe9b189ab>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,27 +10,26 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type CreateSandboxConfigInput = {
-  config?: any | null;
-  description?: string | null;
-  enabled?: boolean;
-  name: string;
-  sandboxProviderId: string;
-  timeout?: number | null;
+export type UpsertOrDeleteSecretsMutationInput = {
+  secrets: ReadonlyArray<SecretKeyValueInput>;
 };
-export type SandboxConfigDialogCreateSandboxConfigMutation$variables = {
-  input: CreateSandboxConfigInput;
+export type SecretKeyValueInput = {
+  key: string;
+  value?: string | null;
 };
-export type SandboxConfigDialogCreateSandboxConfigMutation$data = {
-  readonly createSandboxConfig: {
+export type SandboxProviderCredentialsDialogUpsertMutation$variables = {
+  input: UpsertOrDeleteSecretsMutationInput;
+};
+export type SandboxProviderCredentialsDialogUpsertMutation$data = {
+  readonly upsertOrDeleteSecrets: {
     readonly query: {
       readonly " $fragmentSpreads": FragmentRefs<"SettingsSandboxesPageFragment">;
     };
   };
 };
-export type SandboxConfigDialogCreateSandboxConfigMutation = {
-  response: SandboxConfigDialogCreateSandboxConfigMutation$data;
-  variables: SandboxConfigDialogCreateSandboxConfigMutation$variables;
+export type SandboxProviderCredentialsDialogUpsertMutation = {
+  response: SandboxProviderCredentialsDialogUpsertMutation$data;
+  variables: SandboxProviderCredentialsDialogUpsertMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -102,14 +101,14 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "SandboxConfigDialogCreateSandboxConfigMutation",
+    "name": "SandboxProviderCredentialsDialogUpsertMutation",
     "selections": [
       {
         "alias": null,
         "args": (v1/*: any*/),
-        "concreteType": "CreateSandboxConfigPayload",
+        "concreteType": "UpsertOrDeleteSecretsMutationPayload",
         "kind": "LinkedField",
-        "name": "createSandboxConfig",
+        "name": "upsertOrDeleteSecrets",
         "plural": false,
         "selections": [
           {
@@ -139,14 +138,14 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "SandboxConfigDialogCreateSandboxConfigMutation",
+    "name": "SandboxProviderCredentialsDialogUpsertMutation",
     "selections": [
       {
         "alias": null,
         "args": (v1/*: any*/),
-        "concreteType": "CreateSandboxConfigPayload",
+        "concreteType": "UpsertOrDeleteSecretsMutationPayload",
         "kind": "LinkedField",
-        "name": "createSandboxConfig",
+        "name": "upsertOrDeleteSecrets",
         "plural": false,
         "selections": [
           {
@@ -315,16 +314,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "95d0566d347a7a13ec0b164a33c6b02f",
+    "cacheID": "212b8bf564eeb9d0a4798f2e21c07233",
     "id": null,
     "metadata": {},
-    "name": "SandboxConfigDialogCreateSandboxConfigMutation",
+    "name": "SandboxProviderCredentialsDialogUpsertMutation",
     "operationKind": "mutation",
-    "text": "mutation SandboxConfigDialogCreateSandboxConfigMutation(\n  $input: CreateSandboxConfigInput!\n) {\n  createSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n    credentialSpecs {\n      key\n      displayName\n      description\n      isSet\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
+    "text": "mutation SandboxProviderCredentialsDialogUpsertMutation(\n  $input: UpsertOrDeleteSecretsMutationInput!\n) {\n  upsertOrDeleteSecrets(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n    credentialSpecs {\n      key\n      displayName\n      description\n      isSet\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "882dc58fcb9292c723e14e97dcc4447f";
+(node as any).hash = "3b42883adbb85683e3d1b00bfc9c3cce";
 
 export default node;

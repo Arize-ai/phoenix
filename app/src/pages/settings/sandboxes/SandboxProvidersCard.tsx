@@ -1,13 +1,27 @@
 import { useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import { Card, Flex, Label, Switch, Text } from "@phoenix/components";
+import {
+  Button,
+  Card,
+  ContextualHelp,
+  DialogTrigger,
+  Flex,
+  Icon,
+  Icons,
+  Label,
+  Modal,
+  ModalOverlay,
+  Switch,
+  Text,
+} from "@phoenix/components";
 import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
 import type { SandboxProvidersCardProviderEnabledSwitchMutation } from "./__generated__/SandboxProvidersCardProviderEnabledSwitchMutation.graphql";
+import { SandboxProviderCredentialsDialog } from "./SandboxProviderCredentialsDialog";
 import { cardIntroCSS, sandboxesTableCSS } from "./styles";
-import type { ProviderRow, SandboxProvider } from "./types";
+import type { BackendInfo, ProviderRow, SandboxProvider } from "./types";
 import {
   formatTimestamp,
   getBackendDescription,
@@ -17,8 +31,10 @@ import {
 
 export function SandboxProvidersCard({
   providers,
+  onRefresh,
 }: {
   providers: ProviderRow[];
+  onRefresh: () => void;
 }) {
   return (
     <Card title="Sandbox Providers">
@@ -33,9 +49,8 @@ export function SandboxProvidersCard({
           <tr>
             <th>Provider</th>
             <th>Language</th>
-            <th>Runtime</th>
-            <th>Status</th>
             <th>Updated</th>
+            <th>Status</th>
             <th />
           </tr>
         </thead>
@@ -51,22 +66,14 @@ export function SandboxProvidersCard({
                       height={18}
                     />
                     <span>{backend.displayName}</span>
+                    <ContextualHelp variant="info">
+                      {getBackendDescription(backend.backendType)}
+                    </ContextualHelp>
                   </Flex>
                 </td>
                 <td>
                   <LanguageWithIcon language={provider.language} />
                 </td>
-                <td>
-                  <Text>{getBackendDescription(backend.backendType)}</Text>
-                </td>
-                <td>
-                  <StatusText
-                    status={backend.status}
-                    detail={backend.statusDetail}
-                    dependencyHints={backend.dependencyHints}
-                  />
-                </td>
-
                 <td>{formatTimestamp(provider.updatedAt)}</td>
                 <td>
                   {canEnable ? (
@@ -75,10 +82,20 @@ export function SandboxProvidersCard({
                       canEnable={canEnable}
                     />
                   ) : (
-                    <Text color="text-700" size="S">
-                      Unavailable
-                    </Text>
+                    <StatusText
+                      status={backend.status}
+                      detail={backend.statusDetail}
+                      dependencyHints={backend.dependencyHints}
+                    />
                   )}
+                </td>
+                <td>
+                  <Flex justifyContent="end">
+                    <ConfigureCredentialsButton
+                      backend={backend}
+                      onRefresh={onRefresh}
+                    />
+                  </Flex>
                 </td>
               </tr>
             );
@@ -86,6 +103,40 @@ export function SandboxProvidersCard({
         </tbody>
       </table>
     </Card>
+  );
+}
+
+function ConfigureCredentialsButton({
+  backend,
+  onRefresh,
+}: {
+  backend: BackendInfo;
+  onRefresh: () => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const hasCredentialSpecs = backend.credentialSpecs.length > 0;
+  return (
+    <DialogTrigger isOpen={isOpen} onOpenChange={setIsOpen}>
+      <Button
+        size="S"
+        aria-label={
+          hasCredentialSpecs
+            ? `Configure ${backend.displayName} credentials`
+            : `${backend.displayName} requires no credentials`
+        }
+        isDisabled={!hasCredentialSpecs}
+        leadingVisual={<Icon svg={<Icons.SettingsOutline />} />}
+      />
+      <ModalOverlay>
+        <Modal size="M">
+          <SandboxProviderCredentialsDialog
+            backend={backend}
+            onClose={() => setIsOpen(false)}
+            onRefresh={onRefresh}
+          />
+        </Modal>
+      </ModalOverlay>
+    </DialogTrigger>
   );
 }
 

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9e76e9132a30d488fb038b8067254526>>
+ * @generated SignedSource<<1a29b8ffa9bdd678d955d836edc23282>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,13 +10,13 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type settingsSandboxesPageLoaderQuery$variables = Record<PropertyKey, never>;
-export type settingsSandboxesPageLoaderQuery$data = {
+export type SettingsSandboxesPageRefetchQuery$variables = Record<PropertyKey, never>;
+export type SettingsSandboxesPageRefetchQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"SettingsSandboxesPageFragment">;
 };
-export type settingsSandboxesPageLoaderQuery = {
-  response: settingsSandboxesPageLoaderQuery$data;
-  variables: settingsSandboxesPageLoaderQuery$variables;
+export type SettingsSandboxesPageRefetchQuery = {
+  response: SettingsSandboxesPageRefetchQuery$data;
+  variables: SettingsSandboxesPageRefetchQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -74,7 +74,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
-    "name": "settingsSandboxesPageLoaderQuery",
+    "name": "SettingsSandboxesPageRefetchQuery",
     "selections": [
       {
         "args": null,
@@ -89,7 +89,7 @@ return {
   "operation": {
     "argumentDefinitions": [],
     "kind": "Operation",
-    "name": "settingsSandboxesPageLoaderQuery",
+    "name": "SettingsSandboxesPageRefetchQuery",
     "selections": [
       {
         "alias": null,
@@ -243,16 +243,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3340b59919e4b38cfe89f7478ac8fd98",
+    "cacheID": "473b4083ba2ad067722fe44ea0aa312b",
     "id": null,
     "metadata": {},
-    "name": "settingsSandboxesPageLoaderQuery",
+    "name": "SettingsSandboxesPageRefetchQuery",
     "operationKind": "query",
-    "text": "query settingsSandboxesPageLoaderQuery {\n  ...SettingsSandboxesPageFragment\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n    credentialSpecs {\n      key\n      displayName\n      description\n      isSet\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
+    "text": "query SettingsSandboxesPageRefetchQuery {\n  ...SettingsSandboxesPageFragment\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n    credentialSpecs {\n      key\n      displayName\n      description\n      isSet\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8b7c1366afbed5a07d5e628b48bd100c";
+(node as any).hash = "cb16b4155368e327356016c1ff3465dd";
 
 export default node;
