@@ -73,8 +73,6 @@ CLI flags take priority over environment variables.
 
 ## Profiles
 
-**Available in `@arizeai/phoenix-cli` 1.4.0+**
-
 Named profiles bundle an endpoint, project, API key, and custom headers under a single name (like `prod` or `staging`) so you can switch between Phoenix instances without re-exporting environment variables.
 
 Profiles are stored in `~/.px/settings.json` (or `$XDG_CONFIG_HOME/px/settings.json`) with file mode `0600`. API keys are stored verbatim but never echoed back through the CLI — they appear as a fixed-width mask in `profile show` and `profile list` output.
@@ -147,7 +145,7 @@ px profile use prod
 
 ### `px profile edit <name>`
 
-Open a profile in `$EDITOR` (or `$PHOENIX_EDITOR` if set). The CLI validates the JSON on save and re-opens the editor on validation failure. Edits are discarded if the editor exits non-zero.
+Open a profile in `$PHOENIX_EDITOR` if set, otherwise `$EDITOR`, falling back to `vi`. The CLI validates the JSON on save and re-opens the editor on validation failure. Edits are discarded if the editor exits non-zero.
 
 ```bash
 px profile edit prod
