@@ -4,13 +4,14 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from openinference.instrumentation import using_session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from pydantic.types import Discriminator
 from pydantic_ai import AgentRunResult
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
 from pydantic_ai.ui.vercel_ai.request_types import (
     RegenerateMessage,
     SubmitMessage,
+    UIMessage,
 )
 from pydantic_ai.ui.vercel_ai.response_types import BaseChunk
 from starlette.requests import Request
@@ -32,6 +33,7 @@ from phoenix.server.agents.context import (
 from phoenix.server.agents.exceptions import AgentError
 from phoenix.server.agents.instrumentation import get_tracer_provider
 from phoenix.server.agents.model_factory import build_chat_model
+from phoenix.server.agents.summarization import SummarizationError, summarize_messages
 from phoenix.server.bearer_auth import is_authenticated
 
 
@@ -55,6 +57,36 @@ _RequestData = Annotated[
     _SubmitMessage | _RegenerateMessage,
     Discriminator("trigger"),
 ]
+
+
+class _SummarizeRequest(BaseModel):
+    """Body for POST /summarize.
+
+    Carries the Vercel-style messages array; the backend owns the prompt and
+    the structured-output tool schema."""
+
+    messages: list[UIMessage]
+
+    @field_validator("messages", mode="before")
+    @classmethod
+    def _sanitize_raw_inputs(cls, value: Any) -> Any:
+        if not isinstance(value, list):
+            return value
+        for msg in value:
+            if not isinstance(msg, dict):
+                continue
+            for part in msg.get("parts", []) or []:
+                if (
+                    isinstance(part, dict)
+                    and part.get("type") == "dynamic-tool"
+                    and "providerExecuted" in part
+                ):
+                    del part["providerExecuted"]
+        return value
+
+
+class _SummarizeResponse(BaseModel):
+    summary: str
 
 
 logger = logging.getLogger(__name__)
@@ -120,5 +152,28 @@ def create_chat_v2_router(authentication_enabled: bool) -> APIRouter:
                     yield chunk
 
         return adapter.streaming_response(_stream_with_session())
+
+    @router.post("/summarize", response_model=_SummarizeResponse)
+    async def summarize_endpoint(
+        request: Request,
+        params: Annotated[ChatSearchParamsModel, Query()],
+        body: _SummarizeRequest,
+    ) -> _SummarizeResponse:
+        try:
+            async with request.app.state.db() as session:
+                model = await build_chat_model(
+                    params.root,
+                    session=session,
+                    decrypt=request.app.state.decrypt,
+                )
+        except AgentError as exc:
+            raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+        history = VercelAIAdapter.load_messages(body.messages)
+        try:
+            result = await summarize_messages(messages=history, model=model)
+        except SummarizationError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+        return _SummarizeResponse(summary=result.summary.strip())
 
     return router

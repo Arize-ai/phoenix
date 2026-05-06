@@ -175,18 +175,30 @@ export function useAgentChatPanelState() {
   const useV2Endpoint = useAgentContext(
     (state) => state.capabilities["chat.useV2Endpoint"]
   );
-  const chatApiUrl = useMemo(() => {
-    const params = new URLSearchParams({
-      model_name: menuValue.modelName,
-      ...(menuValue.customProvider
-        ? { provider_type: "custom", provider_id: menuValue.customProvider.id }
-        : { provider_type: "builtin", provider: menuValue.provider }),
-    });
+  const providerSearchParams = useMemo(
+    () =>
+      new URLSearchParams({
+        model_name: menuValue.modelName,
+        ...(menuValue.customProvider
+          ? {
+              provider_type: "custom",
+              provider_id: menuValue.customProvider.id,
+            }
+          : { provider_type: "builtin", provider: menuValue.provider }),
+      }).toString(),
+    [menuValue]
+  );
 
+  const chatApiUrl = useMemo(() => {
     // TODO(chat-v2-migration): inline `/chat-v2` once the toggle is removed.
     const path = useV2Endpoint ? "/chat-v2" : "/chat";
-    return prependBasename(`${path}?${params}`);
-  }, [menuValue, useV2Endpoint]);
+    return prependBasename(`${path}?${providerSearchParams}`);
+  }, [providerSearchParams, useV2Endpoint]);
+
+  const summarizeApiUrl = useMemo(
+    () => prependBasename(`/summarize?${providerSearchParams}`),
+    [providerSearchParams]
+  );
 
   const refreshSessionContext = useCallback(
     async ({
@@ -247,6 +259,7 @@ export function useAgentChatPanelState() {
     activeSessionId,
     orderedSessions,
     chatApiUrl,
+    summarizeApiUrl,
     menuValue,
     createSession,
     setActiveSession,
