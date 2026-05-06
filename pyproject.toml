@@ -222,7 +222,15 @@ container = [
   "strawberry-graphql[opentelemetry]==0.314.3",
   "uvloop; platform_system != 'Windows'",
   "aioboto3",
-  "wasmtime>=15.0",  # local WASM sandbox provider; same pin as the [wasm] extra
+  # Sandbox provider SDKs — bundled so the shipped container can use any
+  # configured provider without a rebuild. Each pin matches the matching
+  # single-provider extra above ([wasm], [e2b], [daytona], [vercel], [modal]).
+  "wasmtime>=15.0",
+  "e2b-code-interpreter>=0.0.12",
+  "daytona-sdk>=0.140.0",
+  "vercel>=0.5.1",
+  "websockets>=14.0",
+  "modal>=1.2.0",
 ]
 
 [project.urls]
