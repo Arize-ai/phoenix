@@ -321,9 +321,19 @@ function useResolvedThemes(themeMode: string) {
     }
   }, [themeMode]);
 
-  if (themeMode === "both") return ["light", "dark"] as ProviderTheme[];
-  if (themeMode === "auto") return [systemTheme];
-  return [themeMode as ProviderTheme];
+  if (themeMode === "both") {
+    return {
+      resolvedThemes: ["light", "dark"] as ProviderTheme[],
+      systemTheme,
+    };
+  }
+  if (themeMode === "auto") {
+    return { resolvedThemes: [systemTheme], systemTheme };
+  }
+  return {
+    resolvedThemes: [themeMode as ProviderTheme],
+    systemTheme,
+  };
 }
 
 const preview: Preview = {
@@ -381,7 +391,7 @@ const preview: Preview = {
   decorators: [
     (Story, { globals, parameters }) => {
       const themeMode = globals.theme ?? "auto";
-      const resolvedThemes = useResolvedThemes(themeMode);
+      const { resolvedThemes, systemTheme } = useResolvedThemes(themeMode);
       const isBoth = resolvedThemes.length > 1;
       const layout = getStorySurfaceLayout(parameters.layout);
       const contentMode = getStoryContentMode(parameters.contentMode, layout);
@@ -410,6 +420,7 @@ const preview: Preview = {
         <div
           data-phoenix-story-root="true"
           style={{
+            backgroundColor: PHOENIX_BACKGROUND[systemTheme],
             display: "flex",
             flexDirection: themeLayout,
             height: "100%",
