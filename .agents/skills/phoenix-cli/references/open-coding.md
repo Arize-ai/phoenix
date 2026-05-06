@@ -78,7 +78,7 @@ Keep the same shell open through axial coding — the env var persists, and [axi
 3. **Inspect** — fetch one entity at the chosen unit (trace / span / session)
 4. **Read** — input, output, exceptions, tool calls, retrieved context, and (at session level) the trajectory across child traces
 5. **Note** — write one specific sentence describing what went wrong (or skip if correct)
-6. **Record** — `px {trace,span,session} add-note <id> --text "..." --identifier "$PHOENIX_CODING_SESSION_ID"`, picking the command that matches the unit committed in step 2. Drop to a finer unit (e.g., trace → span) when an observation is mechanically attributable; reach to a coarser unit (e.g., trace → session) when the observation is cross-trace. Also write the [sidecar annotation](#sidecar-annotation) at the same level so the run is filterable in the Phoenix UI.
+6. **Record** — `px {trace,span,session} add-note <id> --text "..." --identifier "$PHOENIX_CODING_SESSION_ID"` plus the matching [sidecar annotation](#sidecar-annotation) — see [Recording Notes](#recording-notes) for the full pattern and unit-shifting.
 7. **Iterate** — move to the next entity; repeat until the sample is exhausted or saturation hits
 8. **Hand off** — keep the same shell open for [axial coding](axial-coding.md), then share the UI link from [Wrapping up](#wrapping-up)
 
@@ -89,8 +89,6 @@ Use `px` to read context at the unit committed in [Choosing the unit](#choosing-
 - **Trace unit** — read one trace's input → tool calls → retrieved context → output as one story.
 - **Span unit** — read one operation's input/output and surrounding spans for context.
 - **Session unit** — read the sequence of traces in order; the trajectory (turns, retrievals, tool-call patterns *across* traces) is the data, not any single trace's inputs and outputs.
-
-Drill to a finer unit (trace → span) only when the failure is mechanical or attributable on sight; reach to a coarser unit (trace → session) when the observation is genuinely cross-trace.
 
 > **Don't filter the sample by `--status-code ERROR`.** OTel's `status_code` only flips to `ERROR` when an instrumentor catches a raised Python exception (network failure, 5xx, parse error). Hallucinations, wrong tone, retrieval misses, and bad tool selection all complete cleanly and arrive as `OK` or `UNSET`. Sampling for open coding by `--status-code ERROR` excludes the population this workflow exists to surface.
 
@@ -149,18 +147,16 @@ px session add-note <session-id> \
   --identifier "$PHOENIX_CODING_SESSION_ID"
 ```
 
-The interactive loop below walks **traces**. To run it at the **session** or **span** unit, swap `px trace list` / `px trace get` / `px trace add-note` / `px trace annotate` for the `px session ...` (or `px span ...`) equivalents and the JSON path `.traceId` for `.sessionId` (or `.context.span_id`). The structure is identical.
+Interactive loop — walks traces; for span or session units, swap `px trace` for `px span` / `px session` and the JSON path (`.traceId` → `.context.span_id` / `.sessionId`) accordingly:
 
 ```bash
-# Walk recent traces, write a trace-level note + sidecar per failing trace
 px trace list --last-n-minutes 60 --limit 50 --format raw --no-progress \
   | jq -r '.[].traceId' \
   | while read tid; do
       echo "── trace $tid ──"
       px trace get "$tid" --format raw | jq '
         {input: .rootSpan.attributes["input.value"],
-         output: .rootSpan.attributes["output.value"],
-         spans: (.spans | sort_by(.start_time) | map({name, status_code}))}
+         output: .rootSpan.attributes["output.value"]}
       '
       read -p "Note for $tid (blank to skip): " note
       [ -z "$note" ] && continue

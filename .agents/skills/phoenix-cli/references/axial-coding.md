@@ -6,13 +6,11 @@ Group open-ended observations into structured failure taxonomies. Axial coding t
 
 ## Coding session identifier (reuse the open-coding session)
 
-Axial coding shares one identifier with open coding so a single revert / single UI link covers both stages. **Use the same shell that ran open coding** — the `PHOENIX_CODING_SESSION_ID` env var is already exported and every `annotate` call below should pass `--identifier "$PHOENIX_CODING_SESSION_ID"`.
-
-If you're starting axial coding in a fresh shell, just `export PHOENIX_CODING_SESSION_ID=...` again with the same value open coding used (recoverable from the wrap-up UI URL or any annotation row from the prior session). Don't pick a new id — the open-coding notes and the axial-coding annotations need the same identifier for the queryability and revert guarantees to hold.
+Reuse the `PHOENIX_CODING_SESSION_ID` chosen in open coding — every `annotate` call below passes `--identifier "$PHOENIX_CODING_SESSION_ID"`. In a fresh shell, re-export the same value (recoverable from the wrap-up UI URL or any annotation row); don't mint a new id. See [open-coding.md#coding-session-identifier-pick-this-first](open-coding.md#coding-session-identifier-pick-this-first) for the rationale.
 
 ## Choosing the unit
 
-Open coding's diagnostic in [open-coding.md#choosing-the-unit-of-analysis](open-coding.md#choosing-the-unit-of-analysis) commits to a unit (trace, span, or session) before any notes are written. Axial coding inherits that unit by default — examples below show all three. If open coding ran at the session level, the bulk of axial labels will too; same for trace and span.
+Open coding's diagnostic in [open-coding.md#choosing-the-unit-of-analysis](open-coding.md#choosing-the-unit-of-analysis) commits to a unit (trace, span, or session). Axial coding inherits that unit by default — if open coding ran at the session level, most axial labels will too; same for trace and span.
 
 **An axial label can live at a different level than the note that informed it** — that's a feature, and it works in every direction:
 
@@ -20,7 +18,7 @@ Open coding's diagnostic in [open-coding.md#choosing-the-unit-of-analysis](open-
 - *Trace → session*: a batch of trace-level notes describing single-turn confusion can produce a session-level annotation once you see the pattern is "the agent doesn't track the user's stated context across turns."
 - *Session → trace*: a session-level note about cross-turn drift may, on closer reading, attribute to one specific turn where the agent dropped the thread; a trace-level annotation can name that turn.
 
-Re-attribution at axial coding time is what axial coding *is*. Whichever level you write the axial label on, write the sidecar on the same entity (see [Sidecar](#sidecar-annotation) below) so the UI link picks it up.
+Whichever level you write the axial label on, write the sidecar on the same entity (see [Sidecar](#sidecar-annotation) below) so the UI link picks it up.
 
 ## Process
 
@@ -56,7 +54,7 @@ failure_taxonomy:
 
 ### 1. Gather — extract this session's open-coding notes
 
-Open-coding notes are stored as annotations with `name="note"` and the session identifier you set via `add-note --identifier`. Filter the project's notes endpoint by that identifier to read back exactly the rows this session produced. Run the read at the same unit open coding wrote at:
+Open-coding notes are stored as annotations with `name="note"` and the session identifier set via `add-note --identifier`. Filter the project's notes endpoint by that identifier to read back exactly the rows this session produced. Run at the same unit open coding wrote at:
 
 ```bash
 # Trace-level notes from this session
@@ -68,29 +66,11 @@ px api rest GET "/v1/projects/$PHOENIX_PROJECT/trace_annotations" \
     [ .data[] | select(.name == "note") ]
     | map({ trace_id, note: .result.explanation })
   '
-
-# Span-level notes from this session
-px api rest GET "/v1/projects/$PHOENIX_PROJECT/span_annotations" \
-  --query "identifier=$PHOENIX_CODING_SESSION_ID" \
-  --query 'limit=1000' \
-  --format raw --no-progress \
-  | jq '
-    [ .data[] | select(.name == "note") ]
-    | map({ span_id, note: .result.explanation })
-  '
-
-# Session-level notes from this session
-px api rest GET "/v1/projects/$PHOENIX_PROJECT/session_annotations" \
-  --query "identifier=$PHOENIX_CODING_SESSION_ID" \
-  --query 'limit=1000' \
-  --format raw --no-progress \
-  | jq '
-    [ .data[] | select(.name == "note") ]
-    | map({ session_id, note: .result.explanation })
-  '
 ```
 
-If you need notes from outside this session (older runs, shared notes from another reviewer), drop the identifier filter — `px trace list --include-notes`, `px span list --include-notes`, and `px session list --include-notes` still work as in the pre-session world.
+For span- or session-level notes, swap `trace_annotations` → `span_annotations` / `session_annotations` and `trace_id` → `span_id` / `session_id` in the jq.
+
+For notes outside this session (older runs, another reviewer's notes), drop the identifier filter or use `px {trace,span,session} list --include-notes`.
 
 ### 2. Group — synthesize categories
 
@@ -98,7 +78,7 @@ Review the note text collected above. Manually identify recurring themes and dra
 
 ### 3. Record — write axial-coding annotations
 
-Write one annotation per entity using `px trace annotate` or `px span annotate`. Pass `--identifier "$PHOENIX_CODING_SESSION_ID"` on every call so the row shares the session identifier (which both makes it queryable in one call and makes a re-run within the same session **upsert** instead of producing a second row). The level can differ from where the source note lives — see the **Recording** section below.
+Write one annotation per entity using `px {trace,span,session} annotate`, passing `--identifier "$PHOENIX_CODING_SESSION_ID"` on every call. The level can differ from where the source note lives — see [Recording](#recording) below.
 
 ### 4. Quantify — count per category, scoped to this session
 
@@ -153,7 +133,7 @@ Accepted flags: `--name`, `--label`, `--score`, `--explanation`, `--annotator-ki
 
 ### Sidecar annotation
 
-Every entity you axial-annotate also needs a `coding_session_id` sidecar annotation at the same level. Phoenix's UI filter language is name-based — there is no UI primitive for filtering by `identifier`, so the [wrap-up UI link](#wrapping-up) filters on `annotations['coding_session_id'].label == '<sess-id>'`. Without the sidecar, the UI link returns nothing.
+Write a `coding_session_id` sidecar at the same level as the axial label — see [open-coding.md#sidecar-annotation](open-coding.md#sidecar-annotation) for why. If open coding already wrote a sidecar on the same entity, this call upserts (idempotent).
 
 ```bash
 # Same level as the axial-coding label above
@@ -163,8 +143,6 @@ px trace annotate <trace-id> \
   --identifier "$PHOENIX_CODING_SESSION_ID"
 # or px span annotate / px session annotate at matching levels
 ```
-
-If [open coding](open-coding.md#sidecar-annotation) already wrote a sidecar on the same entity, this is an upsert (no second row) — the `(entity_id, name='coding_session_id', identifier=$PHOENIX_CODING_SESSION_ID)` key is shared. Writing it again is idempotent and safe.
 
 ### Bulk recording
 
@@ -193,9 +171,7 @@ px api rest GET "/v1/projects/$PHOENIX_PROJECT/trace_annotations" \
 
 The same pattern works for span-level or session-level notes — swap `trace_annotations` for `span_annotations` / `session_annotations`, `.trace_id` for `.span_id` / `.session_id`, and `px trace` for `px span` / `px session`.
 
-Aside: for Node-based bulk scripts, `@arizeai/phoenix-client` exposes `addSpanAnnotation`, `addSpanNote`, `addTraceNote`, `addSessionAnnotation`, and `addSessionNote`; all accept an optional `identifier` field on the input object. (No `addTraceAnnotation` is exported today; use the REST endpoint or `px trace annotate --identifier` for trace-level annotations.)
-
-Aside: `px api graphql` rejects mutations — it cannot write annotations.
+**Fallback paths:** REST `POST /v1/{trace,span,session}_annotations` and `@arizeai/phoenix-client`'s `addSpanAnnotation` / `addSessionAnnotation` (no `addTraceAnnotation` is exported today — use REST or `px trace annotate`). `px api graphql` rejects mutations.
 
 ## Wrapping up
 
