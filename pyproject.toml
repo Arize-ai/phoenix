@@ -48,6 +48,7 @@ dependencies = [
   "openinference-semantic-conventions>=0.1.26",
   "openinference-instrumentation>=0.1.44",
   "openinference-instrumentation-openai>=0.1.41",
+  "openinference-instrumentation-pydantic-ai>=0.1.12",
   "sqlalchemy[asyncio]>=2.0.46, <3",
   "alembic>=1.3.0, <2",
   "aiosqlite>=0.22.1",

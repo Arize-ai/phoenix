@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from pydantic.types import Discriminator
 from pydantic_ai import Agent, AgentRunResult, DeferredToolRequests, RunContext
+from pydantic_ai.agent import InstrumentationSettings
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
 from pydantic_ai.ui.vercel_ai.request_types import (
@@ -14,6 +15,11 @@ from pydantic_ai.ui.vercel_ai.request_types import (
 from starlette.requests import Request
 from starlette.responses import Response
 
+from phoenix.config import (
+    get_env_phoenix_agents_assistant_project_name,
+    get_env_phoenix_agents_collector_api_key,
+    get_env_phoenix_agents_collector_endpoint,
+)
 from phoenix.server.agents.capabilities import AgentCapabilities
 from phoenix.server.agents.chat_params import ChatSearchParamsModel
 from phoenix.server.agents.chat_v2.dependencies import ChatDependencies
@@ -25,6 +31,7 @@ from phoenix.server.agents.context import (
     resolve_contexts,
 )
 from phoenix.server.agents.exceptions import AgentError
+from phoenix.server.agents.instrumentation import get_tracer_provider
 from phoenix.server.agents.model_factory import build_chat_model
 from phoenix.server.agents.prompts import (
     AGENT_STATIC_SYSTEM_PROMPT,
@@ -116,6 +123,16 @@ def create_chat_v2_router(authentication_enabled: bool) -> APIRouter:
             getattr(model, "settings", None),
         )
 
+        tracer_provider = get_tracer_provider(
+            collector_endpoint=get_env_phoenix_agents_collector_endpoint(),
+            collector_api_key=get_env_phoenix_agents_collector_api_key(),
+            project_name=get_env_phoenix_agents_assistant_project_name(),
+        )
+        instrument = (
+            InstrumentationSettings(tracer_provider=tracer_provider)
+            if tracer_provider is not None
+            else None
+        )
         agent: Agent[ChatDependencies, ChatOutput] = Agent(
             model,
             deps_type=ChatDependencies,
@@ -123,6 +140,7 @@ def create_chat_v2_router(authentication_enabled: bool) -> APIRouter:
             instructions=[AGENT_STATIC_SYSTEM_PROMPT, _build_dynamic_instructions],
             toolsets=[lambda ctx: build_chat_v2_toolsets(ctx.deps)],
             history_processors=[_inject_ui_context],
+            instrument=instrument,
         )
         adapter: VercelAIAdapter[ChatDependencies, ChatOutput] = VercelAIAdapter(
             agent=agent,
