@@ -107,25 +107,18 @@ const inputMessageWrapCSS = css`
   max-width: 70%;
 `;
 
-type RootSpanPreviewRole = "INPUT" | "OUTPUT";
-
 type RootSpanMessageProps = {
   /**
-   * Optional content rendered opposite the output message label in the header,
+   * Optional content rendered opposite the message label in the header,
    * typically a small action like the trace link.
    */
-  endContent?: ReactNode;
+  extra?: ReactNode;
   label?: string;
   role: "HUMAN" | "AI";
   value: unknown;
 };
 
-function RootSpanMessage({
-  endContent,
-  label,
-  role,
-  value,
-}: RootSpanMessageProps) {
+function RootSpanMessage({ extra, label, role, value }: RootSpanMessageProps) {
   const isInput = role === "HUMAN";
   const styles = useChatMessageStyles(isInput ? "user" : "assistant");
   const defaultLabel = isInput ? "INPUT" : "OUTPUT";
@@ -145,7 +138,7 @@ function RootSpanMessage({
         width="100%"
       >
         <Text color="text-700">{label ?? defaultLabel}</Text>
-        {endContent}
+        {extra}
       </Flex>
       <View
         borderRadius={"medium"}
@@ -266,9 +259,7 @@ function SessionTurnDetail({
       </Flex>
       <Flex direction="column" gap="size-100">
         <RootSpanMessage
-          endContent={
-            <RootSpanTraceLink traceId={traceId} rootSpan={rootSpan} />
-          }
+          extra={<RootSpanTraceLink traceId={traceId} rootSpan={rootSpan} />}
           role="AI"
           value={rootSpan.output?.value}
         />
@@ -285,34 +276,18 @@ type SessionTurnRow = {
 
 type IndexedSessionTurnRow = SessionTurnRow & { index: number };
 
-function RootSpanPreviewLine({
-  role,
-  value,
-}: {
-  role: RootSpanPreviewRole;
-  value?: string | null;
-}) {
-  const isInput = role === "INPUT";
-  const styles = useChatMessageStyles(isInput ? "user" : "assistant");
+function RootSpanPreviewLine({ value }: { value?: string | null }) {
   if (!value) {
     return null;
   }
   return (
-    <View
-      borderStartColor={styles.borderColor}
-      borderStartWidth="thick"
-      minWidth={0}
-      paddingStart="size-75"
-      width="100%"
-    >
-      <Flex direction="row" alignItems="center" gap="size-75" minWidth={0}>
-        <Truncate maxWidth="100%" title={value}>
-          <Text color="text-700" size="XS">
-            {value}
-          </Text>
-        </Truncate>
-      </Flex>
-    </View>
+    <Flex minWidth={0}>
+      <Truncate maxWidth="100%" title={value}>
+        <Text color="text-700" size="XS">
+          {value}
+        </Text>
+      </Truncate>
+    </Flex>
   );
 }
 
@@ -410,11 +385,9 @@ function SessionTurnList({
               </Flex>
               <Flex direction="column" gap="size-50" minWidth={0}>
                 <RootSpanPreviewLine
-                  role="INPUT"
                   value={row.rootSpan.input?.truncatedValue}
                 />
                 <RootSpanPreviewLine
-                  role="OUTPUT"
                   value={row.rootSpan.output?.truncatedValue}
                 />
               </Flex>
