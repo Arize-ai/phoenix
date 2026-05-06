@@ -21,7 +21,7 @@ import type { ConfigRow, ProviderRow } from "./types";
 import {
   formatTimestamp,
   hasConfig,
-  languageLabel,
+  LanguageWithIcon,
   StatusText,
   summarizeConfig,
 } from "./utils";
@@ -53,6 +53,7 @@ export function SandboxConfigsCard({
             <tr>
               <th>Name</th>
               <th>Provider</th>
+              <th>Language</th>
               <th>Status</th>
               <th>Settings</th>
               <th>Updated</th>
@@ -72,12 +73,10 @@ export function SandboxConfigsCard({
                     </Flex>
                   </td>
                   <td>
-                    <Flex direction="column" gap="size-25">
-                      <Text>{backend.displayName}</Text>
-                      <Text color="text-700" size="S">
-                        {languageLabel(provider.language)} provider
-                      </Text>
-                    </Flex>
+                    <Text>{backend.displayName}</Text>
+                  </td>
+                  <td>
+                    <LanguageWithIcon language={provider.language} />
                   </td>
                   <td>
                     <div css={inlineTokenRowCSS}>
