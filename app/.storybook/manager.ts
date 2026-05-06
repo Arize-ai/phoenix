@@ -1,5 +1,10 @@
 import React, { useCallback, useEffect } from "react";
-import { addons, types, useGlobals } from "storybook/manager-api";
+import {
+  addons,
+  types,
+  useGlobals,
+  useStorybookApi,
+} from "storybook/manager-api";
 import { themes } from "storybook/theming";
 import { create } from "storybook/theming/create";
 
@@ -30,6 +35,16 @@ function getThemeForScheme(scheme: string) {
   return scheme === "dark" ? darkTheme : lightTheme;
 }
 
+function getThemeForMode(mode: string) {
+  if (mode === "light") {
+    return lightTheme;
+  }
+  if (mode === "dark") {
+    return darkTheme;
+  }
+  return getThemeForScheme(getSystemTheme());
+}
+
 function getSystemTheme() {
   return globalThis.matchMedia?.("(prefers-color-scheme: dark)").matches
     ? "dark"
@@ -45,17 +60,12 @@ const THEME_OPTIONS = [
 
 function ThemeToolbar() {
   const [globals, updateGlobals] = useGlobals();
+  const api = useStorybookApi();
   const currentTheme = globals.theme ?? "auto";
 
   const applyManagerTheme = useCallback((mode: string) => {
-    if (mode === "light") {
-      addons.setConfig({ theme: lightTheme });
-    } else if (mode === "dark") {
-      addons.setConfig({ theme: darkTheme });
-    } else {
-      addons.setConfig({ theme: getThemeForScheme(getSystemTheme()) });
-    }
-  }, []);
+    api.setOptions({ theme: getThemeForMode(mode) });
+  }, [api]);
 
   const handleClick = useCallback(
     (value: string) => {
@@ -124,10 +134,11 @@ addons.register("phoenix-theme-toolbar", () => {
   });
 });
 
-// Set initial theme based on OS preference
-addons.setConfig({
-  enableShortcuts: false,
-  theme: getThemeForScheme(getSystemTheme()),
+addons.register("phoenix-manager-options", (api) => {
+  api.setOptions({
+    enableShortcuts: false,
+    theme: getThemeForMode(api.getGlobals()?.theme ?? "auto"),
+  });
 });
 
 // Listen for system theme changes when in "auto" mode
@@ -139,7 +150,7 @@ addons.register("phoenix-auto-theme", (api) => {
   channel.on(THEME_CHANGE_EVENT, (scheme: string) => {
     const mode = getThemeMode();
     if (mode === "auto" || mode === "both") {
-      addons.setConfig({ theme: getThemeForScheme(scheme) });
+      api.setOptions({ theme: getThemeForScheme(scheme) });
     }
   });
 
@@ -148,7 +159,7 @@ addons.register("phoenix-auto-theme", (api) => {
     mq.addEventListener("change", () => {
       const mode = getThemeMode();
       if (mode === "auto" || mode === "both") {
-        addons.setConfig({ theme: getThemeForScheme(getSystemTheme()) });
+        api.setOptions({ theme: getThemeForScheme(getSystemTheme()) });
       }
     });
   }
