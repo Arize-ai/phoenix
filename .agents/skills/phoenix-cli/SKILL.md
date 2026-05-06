@@ -55,7 +55,7 @@ Always use `--format raw --no-progress` when piping to `jq`.
 | Look at sampled traces, spans, or sessions and write specific notes about what went wrong (no taxonomy yet) | [references/open-coding](references/open-coding.md) |
 | Group those notes into a structured failure taxonomy and quantify what matters | [references/axial-coding](references/axial-coding.md) |
 
-Both stages tag every artifact with one shared `PHOENIX_CODING_SESSION_ID` (shape `px-coding-session:<8-char>`) so the run is queryable, reversible, and viewable as a unit. Source the helper from [references/open-coding.md](references/open-coding.md#coding-session-helper-run-this-first), call `coding_session_start` once, run open coding then axial coding in the same shell, then `coding_session_end` to print the Phoenix UI URL (or `coding_session_end --revert` to delete every artifact this run produced).
+Both stages tag every artifact with one shared `PHOENIX_CODING_SESSION_ID` (descriptive shape, e.g. `coding-session:chatbot-context-loss-2026-05-06`) so the run is queryable, reversible, and viewable as a unit. Pick the id and verify uniqueness once per run (see [references/open-coding.md](references/open-coding.md#coding-session-identifier-pick-this-first)), run open coding then axial coding in the same shell, then share the Phoenix UI link from the wrap-up section. Revert is opt-in and runs three identifier-bound DELETEs only after explicit user confirmation.
 
 ## Workflows
 

@@ -4,14 +4,11 @@ Group open-ended observations into structured failure taxonomies. Axial coding t
 
 **Reach for this whenever** the user has observations and needs structure — e.g., "what categories of failures do we have", "what should I build evals for", "how do I prioritize fixes", "group these notes", "MECE breakdown", or any framing that asks for categories or counts grounded in real traces rather than invented top-down.
 
-## Coding session helper (reuse the open-coding session)
+## Coding session identifier (reuse the open-coding session)
 
 Axial coding shares one identifier with open coding so a single revert / single UI link covers both stages. **Use the same shell that ran open coding** — the `PHOENIX_CODING_SESSION_ID` env var is already exported and every `annotate` call below should pass `--identifier "$PHOENIX_CODING_SESSION_ID"`.
 
-If you're starting axial coding fresh in a new shell (e.g., resuming on a different machine), source the helper from [open-coding.md](open-coding.md#coding-session-helper-run-this-first) and either:
-
-- Set the existing id manually: `export PHOENIX_CODING_SESSION_ID=px-coding-session:<short>` — pulled from a previous `coding_session_id` invocation or from the URL `coding_session_end` printed at the end of open coding.
-- Mint a new id with `coding_session_start` — but the resulting axial-coding rows won't share an identifier with the open-coding notes from the prior shell, so the "list everything in one call" and "revert in one call" guarantees collapse.
+If you're starting axial coding in a fresh shell, just `export PHOENIX_CODING_SESSION_ID=...` again with the same value open coding used (recoverable from the wrap-up UI URL or any annotation row from the prior session). Don't pick a new id — the open-coding notes and the axial-coding annotations need the same identifier for the queryability and revert guarantees to hold.
 
 ## Choosing the unit
 
@@ -27,7 +24,7 @@ Re-attribution at axial coding time is what axial coding *is*. Whichever level y
 
 ## Process
 
-1. **Confirm the session id** — run `coding_session_id` to make sure `PHOENIX_CODING_SESSION_ID` is still exported from open coding
+1. **Confirm the session id** — `echo $PHOENIX_CODING_SESSION_ID` to make sure it's still exported from open coding (re-export with the same value if you're in a fresh shell)
 2. **Gather** — collect open-coding notes from the entities you reviewed (at the unit committed in open coding), filtered to this session via `?identifier=$PHOENIX_CODING_SESSION_ID`
 3. **Pattern** — group notes with common themes
 4. **Name** — create actionable category names
@@ -156,7 +153,7 @@ Accepted flags: `--name`, `--label`, `--score`, `--explanation`, `--annotator-ki
 
 ### Sidecar annotation
 
-Every entity you axial-annotate also needs a `coding_session_id` sidecar annotation at the same level. Phoenix's UI filter language is name-based — there is no UI primitive for filtering by `identifier`, so the URL printed by `coding_session_end` filters on `annotations['coding_session_id'].label == '<sess-id>'`. Without the sidecar, the UI link returns nothing.
+Every entity you axial-annotate also needs a `coding_session_id` sidecar annotation at the same level. Phoenix's UI filter language is name-based — there is no UI primitive for filtering by `identifier`, so the [wrap-up UI link](#wrapping-up) filters on `annotations['coding_session_id'].label == '<sess-id>'`. Without the sidecar, the UI link returns nothing.
 
 ```bash
 # Same level as the axial-coding label above
@@ -202,14 +199,25 @@ Aside: `px api graphql` rejects mutations — it cannot write annotations.
 
 ## Wrapping up
 
-After axial coding finishes, print the Phoenix UI link and decide whether to keep or revert what the session produced:
+After axial coding finishes, share the Phoenix UI link with the user. The link points to the project's traces table filtered by the sidecar — `annotations['coding_session_id'].label == '<sess-id>'`:
 
 ```bash
-coding_session_end                  # prints UI link, no deletes
-coding_session_end --revert         # prompts for the session id, then DELETEs
+encoded=$(python3 -c 'import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))' \
+  "annotations['coding_session_id'].label == '$PHOENIX_CODING_SESSION_ID'")
+echo "Phoenix UI: $PHOENIX_HOST/projects/$PHOENIX_PROJECT/traces?filterCondition=$encoded"
 ```
 
-The link points to the project's traces table filtered by the sidecar — `annotations['coding_session_id'].label == '<sess-id>'`. Revert is opt-in and issues three identifier-bound DELETEs (one per kind), each of which removes notes, axial-coding annotations, and sidecars in a single call (they share the annotation table).
+If the user wants to discard everything this session produced (open-coding notes, axial-coding annotations, and sidecars), three identifier-bound DELETEs handle it. **Confirm before running** — destructive:
+
+```bash
+for kind in trace span session; do
+  curl -X DELETE \
+    ${PHOENIX_API_KEY:+-H "Authorization: Bearer $PHOENIX_API_KEY"} \
+    "$PHOENIX_HOST/v1/projects/$PHOENIX_PROJECT/${kind}_annotations?identifier=$PHOENIX_CODING_SESSION_ID&delete_all=true"
+done
+```
+
+Each call removes notes, axial-coding annotations, and sidecars together because they share the underlying annotation table.
 
 ## Agent Failure Taxonomy
 

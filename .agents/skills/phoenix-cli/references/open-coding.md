@@ -48,109 +48,39 @@ State the unit explicitly before recording any note:
 
 The unit can shift if data demands it — a trace-level investigation that surfaces "the agent never remembers earlier turns" should pivot to session. Record the observation, then refocus the next batch. The unit is a starting hypothesis, not a contract.
 
-## Coding session helper (run this first)
+## Coding session identifier (pick this first)
 
-Every artifact this workflow produces — open-coding notes, axial-coding annotations, and a UI-filter sidecar — is tagged with one identifier so the run is queryable, revertible, and viewable as a unit. Source the helper into your shell once, then call `coding_session_start` before recording any notes:
+Every artifact this workflow produces — open-coding notes, axial-coding annotations, and a UI-filter sidecar — is tagged with one identifier so the run is queryable, revertible, and viewable as a unit. Pick a **descriptive, unique** identifier before recording any notes. Format suggestion:
 
-```bash
-coding_session_start() {
-  if [ -n "${PHOENIX_CODING_SESSION_ID:-}" ]; then
-    echo "PHOENIX_CODING_SESSION_ID already set: $PHOENIX_CODING_SESSION_ID" >&2
-    return 0
-  fi
-  local short
-  short=$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d '-' | cut -c1-8)
-  export PHOENIX_CODING_SESSION_ID="px-coding-session:$short"
-  echo "$PHOENIX_CODING_SESSION_ID"
-}
+    coding-session:<short-topic>-<YYYY-MM-DD>
 
-coding_session_id() {
-  if [ -z "${PHOENIX_CODING_SESSION_ID:-}" ]; then
-    echo "PHOENIX_CODING_SESSION_ID is unset. Run coding_session_start first." >&2
-    return 1
-  fi
-  echo "$PHOENIX_CODING_SESSION_ID"
-}
+Examples: `coding-session:chatbot-context-loss-2026-05-06`, `coding-session:agent-tool-misuse-q2`. Descriptive ids carry meaning for whoever opens the data later — better than an opaque uuid.
 
-coding_session_end() {
-  local sess revert=0
-  if ! sess=$(coding_session_id); then
-    return 1
-  fi
-  if [ "${1:-}" = "--revert" ]; then revert=1; fi
-
-  if [ -z "${PHOENIX_HOST:-}" ] || [ -z "${PHOENIX_PROJECT:-}" ]; then
-    echo "PHOENIX_HOST and PHOENIX_PROJECT must be set." >&2
-    return 1
-  fi
-
-  # 1. Print the Phoenix UI link (sidecar-name-based filter on the project's traces page).
-  local filter url
-  filter="annotations['coding_session_id'].label == '$sess'"
-  url="$PHOENIX_HOST/projects/$PHOENIX_PROJECT/traces?filterCondition=$(
-    python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))' "$filter"
-  )"
-  echo "Phoenix UI: $url"
-
-  if [ "$revert" = "0" ]; then
-    echo "Tip: re-run with --revert to delete every artifact tagged $sess." >&2
-    return 0
-  fi
-
-  printf 'Revert will DELETE every annotation/note tagged %s in project %s. Type the session id to confirm: ' \
-    "$sess" "$PHOENIX_PROJECT"
-  local confirm; read -r confirm
-  if [ "$confirm" != "$sess" ]; then
-    echo "Confirmation mismatch — no DELETE issued." >&2
-    return 1
-  fi
-
-  local enc_sess kind status
-  enc_sess=$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))' "$sess")
-  for kind in trace span session; do
-    status=$(curl -s -o /dev/null -w '%{http_code}' \
-      -X DELETE \
-      ${PHOENIX_API_KEY:+-H "Authorization: Bearer $PHOENIX_API_KEY"} \
-      "$PHOENIX_HOST/v1/projects/$PHOENIX_PROJECT/${kind}_annotations?identifier=$enc_sess&delete_all=true")
-    echo "DELETE ${kind}_annotations identifier=$sess -> HTTP $status"
-  done
-
-  # Confirm the post-revert row counts (should all be zero).
-  for kind in trace span session; do
-    local n
-    n=$(curl -s \
-      ${PHOENIX_API_KEY:+-H "Authorization: Bearer $PHOENIX_API_KEY"} \
-      "$PHOENIX_HOST/v1/projects/$PHOENIX_PROJECT/${kind}_annotations?identifier=$enc_sess&limit=1" \
-      | python3 -c 'import json,sys; print(len(json.load(sys.stdin).get("data", [])))')
-    echo "post-revert ${kind}_annotations rows for $sess: $n"
-  done
-}
-```
-
-Quick start:
+Verify the id isn't already in use in this project (any of the three kinds — they share the underlying annotation table). One GET, expect zero rows:
 
 ```bash
-coding_session_start                # prints e.g. px-coding-session:a1b2c3d4
-echo "$PHOENIX_CODING_SESSION_ID"   # stable across this shell
+export PHOENIX_CODING_SESSION_ID="coding-session:chatbot-context-loss-2026-05-06"
 
-# ... record notes (Recording Notes section below) ...
-
-coding_session_end                  # prints UI link, no deletes
-coding_session_end --revert         # opt-in: prompts for the session id, then DELETEs
+px api rest GET "/v1/projects/$PHOENIX_PROJECT/trace_annotations" \
+  --query "identifier=$PHOENIX_CODING_SESSION_ID" \
+  --query "limit=1" \
+  --format raw --no-progress \
+  | jq '.data | length'
+# Expect 0. If non-zero, append a disambiguator (-v2, -dustin, etc.) and re-check.
 ```
 
-The same `PHOENIX_CODING_SESSION_ID` is read by [axial-coding.md](axial-coding.md). Keep the same shell open for both stages so the id is shared.
+Keep the same shell open through axial coding — the env var persists, and [axial-coding.md](axial-coding.md) reads the same `PHOENIX_CODING_SESSION_ID`. If you start axial coding in a fresh shell, just `export PHOENIX_CODING_SESSION_ID=...` again with the same value.
 
 ## Process
 
-1. **Start a session** — `coding_session_start` once per shell
+1. **Pick a session id** — choose a descriptive identifier and verify uniqueness (see [Coding session identifier](#coding-session-identifier-pick-this-first))
 2. **Pick the unit** — work through [Choosing the unit of analysis](#choosing-the-unit-of-analysis) and commit to trace, span, or session
 3. **Inspect** — fetch one entity at the chosen unit (trace / span / session)
 4. **Read** — input, output, exceptions, tool calls, retrieved context, and (at session level) the trajectory across child traces
 5. **Note** — write one specific sentence describing what went wrong (or skip if correct)
 6. **Record** — `px {trace,span,session} add-note <id> --text "..." --identifier "$PHOENIX_CODING_SESSION_ID"`, picking the command that matches the unit committed in step 2. Drop to a finer unit (e.g., trace → span) when an observation is mechanically attributable; reach to a coarser unit (e.g., trace → session) when the observation is cross-trace. Also write the [sidecar annotation](#sidecar-annotation) at the same level so the run is filterable in the Phoenix UI.
 7. **Iterate** — move to the next entity; repeat until the sample is exhausted or saturation hits
-8. **Hand off** — keep the same shell open for [axial coding](axial-coding.md), then `coding_session_end` to print the UI link
+8. **Hand off** — keep the same shell open for [axial coding](axial-coding.md), then share the UI link from [Wrapping up](#wrapping-up)
 
 ## Inspection
 
@@ -246,7 +176,7 @@ Bulk auto-tagging by status code (e.g. `px span list --status-code ERROR | xargs
 
 ### Sidecar annotation
 
-Every entity that receives an open-coding note (or an axial-coding annotation later) also needs a sidecar annotation so the Phoenix UI can filter by session. Phoenix's UI filter language is name-based, not identifier-based — there is no UI primitive for filtering by `identifier`, so a sidecar annotation whose **name** is constant and whose **label** is the session id is what the URL printed by `coding_session_end` actually filters on.
+Every entity that receives an open-coding note (or an axial-coding annotation later) also needs a sidecar annotation so the Phoenix UI can filter by session. Phoenix's UI filter language is name-based, not identifier-based — there is no UI primitive for filtering by `identifier`, so a sidecar annotation whose **name** is constant and whose **label** is the session id is what the wrap-up UI link actually filters on.
 
 Run this once per touched entity, alongside the `add-note` (and again later when axial coding annotates a different entity):
 
@@ -258,7 +188,7 @@ px trace annotate <trace-id> \
 # or px span annotate / px session annotate at matching levels
 ```
 
-The sidecar's identifier matches the session id, so the revert in `coding_session_end --revert` cleans it up in the same DELETE call as the notes and the axial-coding annotations.
+The sidecar's identifier matches the session id, so the [wrap-up DELETE](#wrapping-up) cleans it up in the same call as the notes and the axial-coding annotations.
 
 **Fallback write paths (one-line asides):**
 
@@ -305,14 +235,25 @@ done
 
 ## Wrapping up
 
-When the session is done, print the UI link and (optionally) revert everything this run produced:
+When the session is done, share the Phoenix UI link with the user. The link filters the project's traces page by the sidecar annotation:
 
 ```bash
-coding_session_end                  # prints UI link only
-coding_session_end --revert         # prompts for the session id, then DELETEs
+encoded=$(python3 -c 'import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))' \
+  "annotations['coding_session_id'].label == '$PHOENIX_CODING_SESSION_ID'")
+echo "Phoenix UI: $PHOENIX_HOST/projects/$PHOENIX_PROJECT/traces?filterCondition=$encoded"
 ```
 
-`coding_session_end --revert` issues three identifier-bound DELETEs (one per kind). Each call covers notes, structured annotations, and sidecars in one shot because they share the underlying annotation table.
+If the user wants to discard everything this session produced, three identifier-bound DELETEs handle it. **Confirm with the user before running** — this is destructive:
+
+```bash
+for kind in trace span session; do
+  curl -X DELETE \
+    ${PHOENIX_API_KEY:+-H "Authorization: Bearer $PHOENIX_API_KEY"} \
+    "$PHOENIX_HOST/v1/projects/$PHOENIX_PROJECT/${kind}_annotations?identifier=$PHOENIX_CODING_SESSION_ID&delete_all=true"
+done
+```
+
+Each call covers notes, structured annotations, and sidecars in one shot because they share the underlying annotation table.
 
 ## Principles
 
@@ -322,4 +263,4 @@ coding_session_end --revert         # prompts for the session id, then DELETEs
 - **Context before labeling** — inspect input, output, and retrieved context before writing any note.
 - **Iterate before categorizing** — work through the full sample first; resist grouping while still collecting.
 - **Skip is valid** — a correct span needs no note; annotating everything dilutes signal.
-- **Revert is opt-in** — `coding_session_end --revert` deletes; the bare call only prints the link.
+- **Revert is opt-in** — the wrap-up DELETE only runs after explicit user confirmation; the default path prints the UI link and stops.
