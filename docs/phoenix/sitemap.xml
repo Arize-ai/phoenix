@@ -1261,6 +1261,18 @@
     <lastmod>2026-05-03T19:50:00+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/delete-span-annotations-by-filter</loc>
+    <lastmod>2026-05-06T17:50:06+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/delete-trace-annotations-by-filter</loc>
+    <lastmod>2026-05-06T17:50:06+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/delete-session-annotations-by-filter</loc>
+    <lastmod>2026-05-06T17:50:06+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/list-datasets</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
