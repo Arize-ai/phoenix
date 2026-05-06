@@ -1,3 +1,5 @@
+import type { components } from "@phoenix/api/__generated__/v1";
+
 /**
  * Agent context types advertised to the PXI chat agent.
  *
@@ -10,9 +12,9 @@
  *
  * # ID format conventions
  *
- * Two distinct ID formats appear in this file. Field names declare which
- * format is carried so the backend (and the LLM, via the system prompt) can
- * resolve them unambiguously:
+ * Two distinct ID formats appear on context payloads. Field names declare
+ * which format is carried so the backend (and the LLM, via the system
+ * prompt) can resolve them unambiguously:
  *
  * - `*NodeId`  — A Phoenix GraphQL relay [Global Object
  *   Identification](https://relay.dev/graphql/objectidentification.htm) node
@@ -35,94 +37,8 @@
  * {@link ../context/selectors.selectActiveContexts}.
  */
 
-/**
- * Project the user is currently viewing.
- *
- * `spanFilter` carries the project-scoped span filter expression when the
- * span filter field is mounted on the page — empty string when the field is
- * present with no condition applied, `undefined` when the field is not
- * mounted at all. The consolidated `set_spans_filter` tool that drives both
- * the filter condition and the root-vs-all-spans toggle is gated server-side
- * on whether this field is set.
- *
- * `rootSpansOnly` carries the current state of the root-vs-all-spans toggle
- * when that toggle is mounted on the page — `true` when the spans table is
- * showing root spans only, `false` when showing all spans, `undefined` when
- * the toggle is not present (e.g. on the traces tab). It does not gate the
- * `set_spans_filter` tool, but its presence in the context message tells the
- * agent that the `rootSpansOnly` parameter on that tool will take effect on
- * the current page.
- */
-export type AgentProjectContext = {
-  type: "project";
-  /** Phoenix GraphQL relay node ID (base64). */
-  projectNodeId: string;
-  /** Validated span filter DSL expression; empty when no condition applied. */
-  spanFilter?: string;
-  /** Current state of the root-vs-all-spans toggle when mounted. */
-  rootSpansOnly?: boolean;
-};
-
-/** Trace the user is currently viewing (always nested under a project). */
-export type AgentTraceContext = {
-  type: "trace";
-  /** Phoenix GraphQL relay node ID (base64). */
-  projectNodeId: string;
-  /** OpenTelemetry trace ID (32 hex chars). */
-  otelTraceId: string;
-};
-
-/**
- * Span the user currently has selected.
- *
- * `projectNodeId` is optional because a span can be selected from views
- * outside a project route. Exactly one of `spanNodeId` (relay) or
- * `otelSpanId` (OpenTelemetry hex) is set, depending on where the selection
- * came from:
- *
- * - The `?selectedSpanNodeId=` search param flows in as `spanNodeId`.
- * - The `/playground/spans/:spanId` route segment flows in as `otelSpanId`.
- */
-export type AgentSpanContext = {
-  type: "span";
-  /** Phoenix GraphQL relay node ID for the project (base64), if known. */
-  projectNodeId?: string;
-} & (
-  | {
-      /** Phoenix GraphQL relay node ID (base64). */
-      spanNodeId: string;
-      otelSpanId?: never;
-    }
-  | {
-      /** OpenTelemetry span ID (16 hex chars). */
-      otelSpanId: string;
-      spanNodeId?: never;
-    }
-);
-
-/** Per-turn app-level browser clock context. */
-export type AgentAppContext = {
-  type: "app";
-  /** Current date/time formatted in the user's browser timezone. */
-  currentDateTime: string;
-  /** IANA timezone name from the user's browser, e.g. America/Los_Angeles. */
-  timeZone: string;
-};
-
-/** Playground prompt editor state currently mounted in the browser. */
-export type AgentPlaygroundContext = {
-  type: "playground";
-  /** Playground instance IDs available for prompt read/edit tools. */
-  instanceIds: number[];
-};
-
 /** Discriminated union of every context type the agent understands. */
-export type AgentContext =
-  | AgentAppContext
-  | AgentPlaygroundContext
-  | AgentProjectContext
-  | AgentTraceContext
-  | AgentSpanContext;
+export type AgentContext = components["schemas"]["ChatContext"];
 
 /**
  * Stable string key for an {@link AgentContext}.

@@ -36,6 +36,22 @@ class AppContext(TypedDict):
     timeZone: str
 
 
+class AssistantMessageMetadataTraceIds(TypedDict):
+    traceId: str
+    rootSpanId: str
+
+
+class AssistantMessageMetadataUsageTokenDetails(TypedDict):
+    cacheRead: int
+    cacheWrite: int
+
+
+class AssistantMessageMetadataUsageTokens(TypedDict):
+    prompt: int
+    completion: int
+    total: int
+
+
 class CategoricalAnnotationValue(TypedDict):
     label: str
     score: NotRequired[float]
@@ -907,6 +923,11 @@ class AnnotateTracesResponseBody(TypedDict):
     data: Sequence[InsertedTraceAnnotation]
 
 
+class AssistantMessageMetadataUsage(TypedDict):
+    tokens: AssistantMessageMetadataUsageTokens
+    promptDetails: NotRequired[AssistantMessageMetadataUsageTokenDetails]
+
+
 class CategoricalAnnotationConfig(TypedDict):
     type: Literal["CATEGORICAL"]
     name: str
@@ -1335,35 +1356,76 @@ class UpsertExperimentEvaluationResponseBody(TypedDict):
     data: UpsertExperimentEvaluationResponseBodyData
 
 
-class FieldRegenerateMessage(TypedDict):
-    id: str
-    messages: Sequence[UIMessage]
-    sessionId: str
-    trigger: NotRequired[str]
-    messageId: NotRequired[str]
-    contexts: NotRequired[
-        Sequence[
-            Union[AppContext, ProjectContext, TraceContext, AgentSpanContext, PlaygroundContext]
-        ]
-    ]
-    capabilities: NotRequired[AgentCapabilities]
-
-
-class FieldSubmitMessage(TypedDict):
-    id: str
-    messages: Sequence[UIMessage]
-    sessionId: str
-    trigger: NotRequired[str]
-    contexts: NotRequired[
-        Sequence[
-            Union[AppContext, ProjectContext, TraceContext, AgentSpanContext, PlaygroundContext]
-        ]
-    ]
-    capabilities: NotRequired[AgentCapabilities]
-
-
 class FieldSummarizeRequest(TypedDict):
     messages: Sequence[UIMessage]
+    ingestTraces: NotRequired[bool]
+    exportRemoteTraces: NotRequired[bool]
+
+
+class AssistantMessageMetadata(TypedDict):
+    sessionId: str
+    trace: NotRequired[AssistantMessageMetadataTraceIds]
+    usage: NotRequired[AssistantMessageMetadataUsage]
+
+
+class AssistantMetadataUIMessage(TypedDict):
+    id: str
+    role: Literal["system", "user", "assistant"]
+    parts: Sequence[
+        Union[
+            TextUIPart,
+            ReasoningUIPart,
+            ToolInputStreamingPart,
+            ToolInputAvailablePart,
+            ToolOutputAvailablePart,
+            ToolOutputErrorPart,
+            ToolApprovalRequestedPart,
+            ToolApprovalRespondedPart,
+            ToolOutputDeniedPart,
+            DynamicToolInputStreamingPart,
+            DynamicToolInputAvailablePart,
+            DynamicToolOutputAvailablePart,
+            DynamicToolOutputErrorPart,
+            DynamicToolApprovalRequestedPart,
+            DynamicToolApprovalRespondedPart,
+            DynamicToolOutputDeniedPart,
+            SourceUrlUIPart,
+            SourceDocumentUIPart,
+            FileUIPart,
+            DataUIPart,
+            StepStartUIPart,
+        ]
+    ]
+    metadata: NotRequired[AssistantMessageMetadata]
+
+
+class ChatRegenerateMessage(TypedDict):
+    id: str
+    messages: Sequence[AssistantMetadataUIMessage]
+    trigger: Literal["regenerate-message"]
+    messageId: NotRequired[str]
+    ingestTraces: NotRequired[bool]
+    exportRemoteTraces: NotRequired[bool]
+    contexts: NotRequired[
+        Sequence[
+            Union[AppContext, ProjectContext, TraceContext, AgentSpanContext, PlaygroundContext]
+        ]
+    ]
+    capabilities: NotRequired[AgentCapabilities]
+
+
+class ChatSubmitMessage(TypedDict):
+    id: str
+    messages: Sequence[AssistantMetadataUIMessage]
+    trigger: Literal["submit-message"]
+    ingestTraces: NotRequired[bool]
+    exportRemoteTraces: NotRequired[bool]
+    contexts: NotRequired[
+        Sequence[
+            Union[AppContext, ProjectContext, TraceContext, AgentSpanContext, PlaygroundContext]
+        ]
+    ]
+    capabilities: NotRequired[AgentCapabilities]
 
 
 class CreateSpansRequestBody(TypedDict):

@@ -81,7 +81,7 @@ from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.facilitator import Facilitator
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.types import AnnotationPrecursor
-from phoenix.server.agents.chat_v2.mintlify_docs import build_mintlify_docs_toolset
+from phoenix.server.agents.tools.docs_mcp_toolset import build_docs_mcp_toolset
 from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
 from phoenix.server.api.context import Context, DataLoaders
 from phoenix.server.api.dataloaders import (
@@ -166,9 +166,8 @@ from phoenix.server.api.dataloaders import (
 )
 from phoenix.server.api.dataloaders.dataset_labels import DatasetLabelsDataLoader
 from phoenix.server.api.routers import (
+    create_agents_router,
     create_auth_router,
-    create_chat_router,
-    create_chat_v2_router,
     create_v1_router,
     oauth2_router,
 )
@@ -1190,7 +1189,7 @@ def create_app(
     grpc_interceptors: list[ServerInterceptor] = []
     grpc_interceptors.append(DbDiskUsageInterceptor(db))
     docs_mcp_toolset = (
-        build_mintlify_docs_toolset()
+        build_docs_mcp_toolset()
         if get_env_dangerously_enable_agents() and get_env_allow_external_resources()
         else None
     )
@@ -1231,8 +1230,7 @@ def create_app(
     )
     app.include_router(create_v1_router(authentication_enabled))
     if get_env_dangerously_enable_agents():
-        app.include_router(create_chat_router(authentication_enabled))
-        app.include_router(create_chat_v2_router(authentication_enabled))
+        app.include_router(create_agents_router(authentication_enabled))
     app.include_router(router)
     app.include_router(graphql_router)
     if authentication_enabled:

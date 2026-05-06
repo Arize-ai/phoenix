@@ -35,8 +35,13 @@ function contextLabel(context: AgentContext): string {
       return "Project";
     case "trace":
       return `Trace: ${truncateId(context.otelTraceId)}`;
-    case "span":
-      return `Span: ${truncateId(context.spanNodeId ?? context.otelSpanId)}`;
+    case "span": {
+      const spanId = context.spanNodeId ?? context.otelSpanId;
+      if (spanId == null) {
+        throw new Error("span context must have spanNodeId or otelSpanId");
+      }
+      return `Span: ${truncateId(spanId)}`;
+    }
   }
 }
 
