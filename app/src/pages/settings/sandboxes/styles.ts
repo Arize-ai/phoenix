@@ -2,11 +2,6 @@ import { css } from "@emotion/react";
 
 import { tableCSS } from "@phoenix/components/table/styles";
 
-export const cardIntroCSS = css`
-  padding: var(--global-dimension-size-200);
-  border-bottom: 1px solid var(--global-border-color-default);
-`;
-
 export const sandboxesTableWrapCSS = css`
   overflow: hidden;
 `;

@@ -20,7 +20,7 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 
 import type { SandboxProvidersCardProviderEnabledSwitchMutation } from "./__generated__/SandboxProvidersCardProviderEnabledSwitchMutation.graphql";
 import { SandboxProviderCredentialsDialog } from "./SandboxProviderCredentialsDialog";
-import { cardIntroCSS, sandboxesTableCSS } from "./styles";
+import { sandboxesTableCSS } from "./styles";
 import type { BackendInfo, ProviderRow, SandboxProvider } from "./types";
 import {
   formatTimestamp,
@@ -37,13 +37,10 @@ export function SandboxProvidersCard({
   onRefresh: () => void;
 }) {
   return (
-    <Card title="Sandbox Providers">
-      <div css={cardIntroCSS}>
-        <Text color="text-700">
-          Manage shared provider settings and whether each sandbox runtime can
-          be enabled.
-        </Text>
-      </div>
+    <Card
+      title="Sandbox Providers"
+      subTitle="Manage shared provider settings and whether each sandbox runtime can be enabled."
+    >
       <table css={sandboxesTableCSS}>
         <thead>
           <tr>

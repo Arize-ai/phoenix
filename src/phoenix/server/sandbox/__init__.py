@@ -244,36 +244,24 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
     # Python SDK has not yet ported them. Re-evaluate when Python SDK >=0.5.8
     # ships; flip internet_access_capability to "boolean" and wire network_policy
     # then. Until that lands, both Vercel adapters remain internet_access="none".
-    "VERCEL_PYTHON": AdapterMetadata(
-        display_name="Vercel Sandbox",
-        language="PYTHON",
-        dependency_hints=[
-            "Install Phoenix with the `vercel` extra.",
-            (
-                "Set all of `PHOENIX_SANDBOX_VERCEL_TOKEN`, "
-                "`PHOENIX_SANDBOX_VERCEL_PROJECT_ID`, and "
-                "`PHOENIX_SANDBOX_VERCEL_TEAM_ID`."
-            ),
-        ],
-        supports_env_vars=True,
-        internet_access_capability="none",
-        dependencies_language=None,
-    ),
-    "VERCEL_TYPESCRIPT": AdapterMetadata(
-        display_name="Vercel Sandbox",
-        language="TYPESCRIPT",
-        dependency_hints=[
-            "Install Phoenix with the `vercel` extra.",
-            (
-                "Set all of `PHOENIX_SANDBOX_VERCEL_TOKEN`, "
-                "`PHOENIX_SANDBOX_VERCEL_PROJECT_ID`, and "
-                "`PHOENIX_SANDBOX_VERCEL_TEAM_ID`."
-            ),
-        ],
-        supports_env_vars=True,
-        internet_access_capability="none",
-        dependencies_language=None,
-    ),
+    **{
+        f"VERCEL_{lang}": AdapterMetadata(
+            display_name="Vercel Sandbox",
+            language=lang,
+            dependency_hints=[
+                "Install Phoenix with the `vercel` extra.",
+                (
+                    "Set all of `PHOENIX_SANDBOX_VERCEL_TOKEN`, "
+                    "`PHOENIX_SANDBOX_VERCEL_PROJECT_ID`, and "
+                    "`PHOENIX_SANDBOX_VERCEL_TEAM_ID`."
+                ),
+            ],
+            supports_env_vars=True,
+            internet_access_capability="none",
+            dependencies_language=None,
+        )
+        for lang in ("PYTHON", "TYPESCRIPT")
+    },
     "DENO": AdapterMetadata(
         display_name="Deno (local)",
         language="TYPESCRIPT",

@@ -366,44 +366,32 @@ def _probe_wasm_binary(backend_type: str) -> Optional[str]:
     return probe.detail
 
 
-def _required_credential_keys_for_backend(backend_type: str) -> set[str]:
-    """Return the subset of credential keys the backend treats as required.
-
-    Every credential surfaced in the UI is required.
-    """
-    from phoenix.server.sandbox import _SANDBOX_ADAPTERS
-
-    adapter = _SANDBOX_ADAPTERS.get(backend_type)
-    if adapter is None:
-        return set()
-    return {spec.key for spec in adapter.credential_specs}
-
-
 async def _build_credential_specs(
     backend_type: str,
     session: Optional[Any],
     decrypt: Optional[Any],
 ) -> list[SandboxProviderCredentialSpec]:
-    """Resolve credential specs into GQL types with is_set populated."""
-    import os
+    """Resolve credential specs into GQL types with is_set populated.
 
+    Every adapter-declared credential is treated as required (is_required=True).
+    """
     from phoenix.server.sandbox import _SANDBOX_ADAPTERS
 
     adapter = _SANDBOX_ADAPTERS.get(backend_type)
     if adapter is None or not adapter.credential_specs:
         return []
-    required_keys = _required_credential_keys_for_backend(backend_type)
     keys = [spec.key for spec in adapter.credential_specs]
-    resolved: dict[str, str] = {}
-    if session is not None and decrypt is not None:
-        resolved = await _resolve_named_credentials(session, decrypt, keys)
+    # _resolve_named_credentials already falls back to os.getenv when the DB
+    # lookup misses (or when session/decrypt are None), so resolved represents
+    # the full DB+env view.
+    resolved = await _resolve_named_credentials(session, decrypt, keys)
     return [
         SandboxProviderCredentialSpec(
             key=spec.key,
             display_name=spec.display_name,
             description=spec.description,
-            is_set=(spec.key in resolved) or bool(os.getenv(spec.key)),
-            is_required=spec.key in required_keys,
+            is_set=spec.key in resolved,
+            is_required=True,
         )
         for spec in adapter.credential_specs
     ]

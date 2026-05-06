@@ -115,7 +115,6 @@ function CredentialsForm({
 }) {
   const notifySuccess = useNotifySuccess();
   const [error, setError] = useState<string | null>(null);
-  const [fetchKey, setFetchKey] = useState(0);
 
   const credentialSpecs = backend.credentialSpecs;
   const secretKeys = useMemo(
@@ -145,7 +144,7 @@ function CredentialsForm({
       }
     `,
     { keys: secretKeys },
-    { fetchKey, fetchPolicy: "store-and-network" }
+    { fetchPolicy: "store-and-network" }
   );
 
   const { savedValues, unparsable } = useMemo(() => {
@@ -188,9 +187,7 @@ function CredentialsForm({
         $input: UpsertOrDeleteSecretsMutationInput!
       ) {
         upsertOrDeleteSecrets(input: $input) {
-          query {
-            ...SettingsSandboxesPageFragment
-          }
+          __typename
         }
       }
     `);
@@ -205,9 +202,34 @@ function CredentialsForm({
     [savedValues, unparsable]
   );
 
+  const runMutation = useCallback(
+    (
+      secrets: { key: string; value: string | null }[],
+      successTitle: string,
+      successMessage: string,
+      errorFallback: string
+    ) => {
+      setError(null);
+      commit({
+        variables: { input: { secrets } },
+        onCompleted: () => {
+          onRefresh();
+          notifySuccess({ title: successTitle, message: successMessage });
+          onClose();
+        },
+        onError: (mutationError) => {
+          setError(
+            getErrorMessagesFromRelayMutationError(mutationError)?.[0] ??
+              errorFallback
+          );
+        },
+      });
+    },
+    [commit, notifySuccess, onClose, onRefresh]
+  );
+
   const onSubmit = useCallback(
     (formValues: CredentialFormValues) => {
-      setError(null);
       const secrets = credentialSpecs
         .map((spec) => {
           const next = formValues[spec.key]?.trim() || null;
@@ -222,68 +244,33 @@ function CredentialsForm({
         return;
       }
 
-      commit({
-        variables: { input: { secrets } },
-        onCompleted: () => {
-          setFetchKey((k) => k + 1);
-          onRefresh();
-          notifySuccess({
-            title: "Credentials updated",
-            message: `${secrets.length} credential${
-              secrets.length === 1 ? "" : "s"
-            } saved`,
-          });
-          onClose();
-        },
-        onError: (mutationError) => {
-          setError(
-            getErrorMessagesFromRelayMutationError(mutationError)?.[0] ??
-              "Failed to update credentials"
-          );
-        },
-      });
+      runMutation(
+        secrets,
+        "Credentials updated",
+        `${secrets.length} credential${secrets.length === 1 ? "" : "s"} saved`,
+        "Failed to update credentials"
+      );
     },
-    [credentialSpecs, savedValues, commit, notifySuccess, onClose, onRefresh]
+    [credentialSpecs, savedValues, runMutation, onClose]
   );
 
   const handleDelete = useCallback(() => {
     if (existingKeys.length === 0) return;
-    setError(null);
     const secrets = existingKeys.map((key) => ({ key, value: null }));
-    commit({
-      variables: { input: { secrets } },
-      onCompleted: () => {
-        setFetchKey((k) => k + 1);
-        const cleared: CredentialFormValues = {};
-        credentialSpecs.forEach((spec) => {
-          cleared[spec.key] = "";
-        });
-        reset(cleared);
-        onRefresh();
-        notifySuccess({
-          title: "Credentials cleared",
-          message: `${existingKeys.length} credential${
-            existingKeys.length === 1 ? "" : "s"
-          } removed`,
-        });
-        onClose();
-      },
-      onError: (mutationError) => {
-        setError(
-          getErrorMessagesFromRelayMutationError(mutationError)?.[0] ??
-            "Failed to clear credentials"
-        );
-      },
+    const cleared: CredentialFormValues = {};
+    credentialSpecs.forEach((spec) => {
+      cleared[spec.key] = "";
     });
-  }, [
-    existingKeys,
-    commit,
-    credentialSpecs,
-    reset,
-    notifySuccess,
-    onClose,
-    onRefresh,
-  ]);
+    reset(cleared);
+    runMutation(
+      secrets,
+      "Credentials cleared",
+      `${existingKeys.length} credential${
+        existingKeys.length === 1 ? "" : "s"
+      } removed`,
+      "Failed to clear credentials"
+    );
+  }, [existingKeys, credentialSpecs, reset, runMutation]);
 
   if (credentialSpecs.length === 0) {
     return (
