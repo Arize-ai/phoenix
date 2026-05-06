@@ -52,7 +52,7 @@ Always use `--format raw --no-progress` when piping to `jq`.
 
 | Task | Files |
 | ---- | ----- |
-| Look at sampled traces and write specific notes about what went wrong (no taxonomy yet) | [references/open-coding](references/open-coding.md) |
+| Look at sampled traces, spans, or sessions and write specific notes about what went wrong (no taxonomy yet) | [references/open-coding](references/open-coding.md) |
 | Group those notes into a structured failure taxonomy and quantify what matters | [references/axial-coding](references/axial-coding.md) |
 
 Both stages tag every artifact with one shared `PHOENIX_CODING_SESSION_ID` (shape `px-coding-session:<8-char>`) so the run is queryable, reversible, and viewable as a unit. Source the helper from [references/open-coding.md](references/open-coding.md#coding-session-helper-run-this-first), call `coding_session_start` once, run open coding then axial coding in the same shell, then `coding_session_end` to print the Phoenix UI URL (or `coding_session_end --revert` to delete every artifact this run produced).
@@ -66,7 +66,7 @@ Both stages tag every artifact with one shared `PHOENIX_CODING_SESSION_ID` (shap
 
 | Prefix | Description |
 | ------ | ----------- |
-| `references/open-coding` | Free-form notes against sampled traces — reach for it whenever the user wants to make sense of traces but has no failure categories yet |
+| `references/open-coding` | Free-form notes against sampled traces, spans, or sessions — reach for it whenever the user wants to make sense of LLM traffic but has no failure categories yet. Includes a unit-of-analysis diagnostic so the workflow runs at the level the failure modes actually live at (trace for stateless single-shot calls, session for multi-turn agents, span for mechanical/in-isolation failures). |
 | `references/axial-coding` | Inductive grouping of notes into a MECE taxonomy with counts — reach for it whenever the user has observations and needs categories or eval targets |
 
 ## Auth

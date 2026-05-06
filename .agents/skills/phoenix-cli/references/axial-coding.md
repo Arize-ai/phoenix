@@ -15,18 +15,24 @@ If you're starting axial coding fresh in a new shell (e.g., resuming on a differ
 
 ## Choosing the unit
 
-Open-coding notes are usually **trace-level** (see [open-coding.md#choosing-the-unit](open-coding.md#choosing-the-unit)) — examples below lead with `px trace` and fall back to `px span` for span-level notes. **An axial label can live at a different level than the note that informed it** — that's a feature: a trace-level note "answered shipping when asked returns" can produce a span-level annotation on the retrieval span once a pattern reveals retrieval as the consistent culprit. Re-attribution at axial coding time is what axial coding *is*. Whichever level you write the axial label on, write the sidecar on the same entity (see [Sidecar](#sidecar-annotation) below) so the UI link picks it up.
+Open coding's diagnostic in [open-coding.md#choosing-the-unit-of-analysis](open-coding.md#choosing-the-unit-of-analysis) commits to a unit (trace, span, or session) before any notes are written. Axial coding inherits that unit by default — examples below show all three. If open coding ran at the session level, the bulk of axial labels will too; same for trace and span.
 
-Default placement: trace-level for both the `axial_coding_category` annotation and its sidecar. Drop to span when the pattern implicates a specific component; reach for session only when the category is genuinely cross-trace.
+**An axial label can live at a different level than the note that informed it** — that's a feature, and it works in every direction:
+
+- *Trace → span*: a trace-level note "answered shipping when asked about returns" can produce a span-level annotation on the retrieval span once a pattern reveals retrieval as the consistent culprit.
+- *Trace → session*: a batch of trace-level notes describing single-turn confusion can produce a session-level annotation once you see the pattern is "the agent doesn't track the user's stated context across turns."
+- *Session → trace*: a session-level note about cross-turn drift may, on closer reading, attribute to one specific turn where the agent dropped the thread; a trace-level annotation can name that turn.
+
+Re-attribution at axial coding time is what axial coding *is*. Whichever level you write the axial label on, write the sidecar on the same entity (see [Sidecar](#sidecar-annotation) below) so the UI link picks it up.
 
 ## Process
 
 1. **Confirm the session id** — run `coding_session_id` to make sure `PHOENIX_CODING_SESSION_ID` is still exported from open coding
-2. **Gather** — Collect open-coding notes from the entities you reviewed (trace-level by default), filtered to this session via `?identifier=$PHOENIX_CODING_SESSION_ID`
-3. **Pattern** — Group notes with common themes
-4. **Name** — Create actionable category names
-5. **Attribute** — Decide what level each category lives at; an axial label can move from the note's level to the component the pattern implicates
-6. **Quantify** — Count failures per category
+2. **Gather** — collect open-coding notes from the entities you reviewed (at the unit committed in open coding), filtered to this session via `?identifier=$PHOENIX_CODING_SESSION_ID`
+3. **Pattern** — group notes with common themes
+4. **Name** — create actionable category names
+5. **Attribute** — decide what level each category lives at; an axial label can move up (trace → session) or down (trace → span) from the source note's level to the level the pattern actually implicates
+6. **Quantify** — count failures per category
 
 ## Example Taxonomy
 
@@ -53,10 +59,10 @@ failure_taxonomy:
 
 ### 1. Gather — extract this session's open-coding notes
 
-Open-coding notes are stored as annotations with `name="note"` and the session identifier you set via `add-note --identifier`. Filter the project's notes endpoint by that identifier to read back exactly the rows this session produced:
+Open-coding notes are stored as annotations with `name="note"` and the session identifier you set via `add-note --identifier`. Filter the project's notes endpoint by that identifier to read back exactly the rows this session produced. Run the read at the same unit open coding wrote at:
 
 ```bash
-# Trace-level notes from this session (default for open coding)
+# Trace-level notes from this session
 px api rest GET "/v1/projects/$PHOENIX_PROJECT/trace_annotations" \
   --query "identifier=$PHOENIX_CODING_SESSION_ID" \
   --query 'limit=1000' \
@@ -66,7 +72,7 @@ px api rest GET "/v1/projects/$PHOENIX_PROJECT/trace_annotations" \
     | map({ trace_id, note: .result.explanation })
   '
 
-# Span-level notes from this session (when open coding dropped to span)
+# Span-level notes from this session
 px api rest GET "/v1/projects/$PHOENIX_PROJECT/span_annotations" \
   --query "identifier=$PHOENIX_CODING_SESSION_ID" \
   --query 'limit=1000' \
@@ -75,9 +81,19 @@ px api rest GET "/v1/projects/$PHOENIX_PROJECT/span_annotations" \
     [ .data[] | select(.name == "note") ]
     | map({ span_id, note: .result.explanation })
   '
+
+# Session-level notes from this session
+px api rest GET "/v1/projects/$PHOENIX_PROJECT/session_annotations" \
+  --query "identifier=$PHOENIX_CODING_SESSION_ID" \
+  --query 'limit=1000' \
+  --format raw --no-progress \
+  | jq '
+    [ .data[] | select(.name == "note") ]
+    | map({ session_id, note: .result.explanation })
+  '
 ```
 
-If you need notes from outside this session (older runs, shared notes from another reviewer), drop the identifier filter — `px trace list --include-notes` and `px span list --include-notes` still work as in the pre-session world.
+If you need notes from outside this session (older runs, shared notes from another reviewer), drop the identifier filter — `px trace list --include-notes`, `px span list --include-notes`, and `px session list --include-notes` still work as in the pre-session world.
 
 ### 2. Group — synthesize categories
 
@@ -111,7 +127,7 @@ For span-level annotations, swap `trace_annotations` for `span_annotations` (and
 Use the matching annotate command for the level the **label** belongs at — which may differ from where the source note lives (see [Choosing the unit](#choosing-the-unit)). Every call carries `--identifier "$PHOENIX_CODING_SESSION_ID"`:
 
 ```bash
-# Trace-level label (most common — the trace as a whole exhibits the failure)
+# Trace-level label — the trace as a whole exhibits the failure
 px trace annotate <trace-id> \
   --name axial_coding_category \
   --label answered_off_topic \
@@ -119,11 +135,19 @@ px trace annotate <trace-id> \
   --annotator-kind HUMAN \
   --identifier "$PHOENIX_CODING_SESSION_ID"
 
-# Span-level label (when the pattern implicates a specific component)
+# Span-level label — the pattern implicates a specific component
 px span annotate <span-id> \
   --name axial_coding_category \
   --label retrieval_off_topic \
   --explanation "retrieved shipping docs for a returns query" \
+  --annotator-kind HUMAN \
+  --identifier "$PHOENIX_CODING_SESSION_ID"
+
+# Session-level label — the failure is a trajectory across turns
+px session annotate <session-id> \
+  --name axial_coding_category \
+  --label cross_turn_context_loss \
+  --explanation "agent dropped the user's stated dietary restriction by turn 4" \
   --annotator-kind HUMAN \
   --identifier "$PHOENIX_CODING_SESSION_ID"
 ```
@@ -170,7 +194,7 @@ px api rest GET "/v1/projects/$PHOENIX_PROJECT/trace_annotations" \
     done
 ```
 
-The same pattern works for span-level notes — swap `trace_annotations` for `span_annotations`, `.trace_id` for `.span_id`, and `px trace` for `px span`.
+The same pattern works for span-level or session-level notes — swap `trace_annotations` for `span_annotations` / `session_annotations`, `.trace_id` for `.span_id` / `.session_id`, and `px trace` for `px span` / `px session`.
 
 Aside: for Node-based bulk scripts, `@arizeai/phoenix-client` exposes `addSpanAnnotation`, `addSpanNote`, `addTraceNote`, `addSessionAnnotation`, and `addSessionNote`; all accept an optional `identifier` field on the input object. (No `addTraceAnnotation` is exported today; use the REST endpoint or `px trace annotate --identifier` for trace-level annotations.)
 

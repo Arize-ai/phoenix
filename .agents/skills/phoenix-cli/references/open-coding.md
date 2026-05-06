@@ -1,8 +1,52 @@
 # Open Coding
 
-Free-form note-writing against sampled traces, before any taxonomy exists. After you pick a sample of traces, read each one and write a short, specific observation of what went wrong. These raw notes feed [axial coding](axial-coding.md), where they get grouped into named failure categories — and ultimately into eval targets or fix priorities.
+Free-form note-writing against sampled traces, spans, or sessions, before any taxonomy exists. After you pick a sample at the right unit (see [Choosing the unit of analysis](#choosing-the-unit-of-analysis)), read each one and write a short, specific observation of what went wrong. These raw notes feed [axial coding](axial-coding.md), where they get grouped into named failure categories — and ultimately into eval targets or fix priorities.
 
-**Reach for this whenever** the user wants to look at traces or spans without a fixed taxonomy yet — e.g., "what's going wrong with this agent", "I just instrumented my app, where do I start", "review these traces", "what kinds of mistakes is the model making", "help me make sense of these outputs", or any framing that needs grounded observations before categories.
+**Reach for this whenever** the user wants to look at LLM traffic without a fixed taxonomy yet — e.g., "what's going wrong with this agent", "I just instrumented my app, where do I start", "review these traces", "the chatbot keeps losing context", "what kinds of mistakes is the model making", "help me make sense of these conversations", or any framing that needs grounded observations before categories.
+
+## Choosing the unit of analysis
+
+The right unit — **trace, span, or session** — depends on the question and the system. Pick deliberately before recording; the choice determines whether you call `px trace`, `px span`, or `px session` throughout, and a wrong default is expensive to undo mid-run.
+
+The unit is about **where the failure modes you're investigating actually live**:
+
+- **Trace** — one input → one call graph → one output. Right for classifiers, single-shot summarizers, stateless tool-using agents, single-query RAG. Failure modes that live here: wrong answer, malformed output, missed retrieval, bad tool selection within one request.
+- **Span** — one operation inside a trace. Right for in-isolation mechanical failures (an exception fired, a tool returned an error response, an output is malformed) or when you can attribute on sight to a specific component. Reach for span when the trace as a whole is fine but one piece inside it is the unit of interest.
+- **Session** — a sequence of traces sharing a `session.id`. Right for multi-turn conversational agents, agents with episodic memory, anything where the failure mode is a *trajectory*: context loss across turns, drift from the user's stated goal, the agent forgetting a stated preference, repeated user clarifications. These failures don't exist on any single trace; they only exist *across* traces.
+
+### Diagnostic — three signals to read
+
+1. **User framing.** *Tilts session*: "conversation", "agent forgot", "drift", "memory", "across turns", "user had to repeat themselves". *Tilts trace*: "this trace", "this call", "the response was wrong", "wrong output". *Tilts span*: "exception", "error response", "malformed", "the retrieval failed".
+
+2. **Data shape.** Probe before the loop:
+
+   ```bash
+   px trace list --limit 200 --format raw --no-progress \
+     | jq '
+       [ .[] | .sessionId // empty ]
+       | { with_session: length,
+           distinct_sessions: (group_by(.) | length),
+           median_traces_per_session:
+             (group_by(.) | map(length) | sort | .[length/2|floor] // 0) }
+     '
+   ```
+
+   `with_session: 0` → sessions not wired; trace is the grain. `median_traces_per_session: 1` → single-trace sessions; still trace. `median_traces_per_session: 5+` → sessions are meaningful; session is plausibly right.
+
+3. **System type.** Open one recent trace and inspect the root span's input. A single user message → one turn or one shot. A message *array* (`[{role: user}, {role: assistant}, ...]`) → that's a turn within a longer dialogue; the dialogue lives at the session level.
+
+   ```bash
+   px trace get <trace-id> --format raw \
+     | jq '.rootSpan.attributes["input.value"] | (try fromjson catch .) | (type, length?)'
+   ```
+
+### Commit out loud, then proceed
+
+State the unit explicitly before recording any note:
+
+> "Question: 'the chatbot keeps losing context'. Data: median 7 traces per session, message-array inputs. Recording at the **session** level; will drop to **trace** for single-turn observations, **span** for mechanical failures."
+
+The unit can shift if data demands it — a trace-level investigation that surfaces "the agent never remembers earlier turns" should pivot to session. Record the observation, then refocus the next batch. The unit is a starting hypothesis, not a contract.
 
 ## Coding session helper (run this first)
 
@@ -97,32 +141,26 @@ coding_session_end --revert         # opt-in: prompts for the session id, then D
 
 The same `PHOENIX_CODING_SESSION_ID` is read by [axial-coding.md](axial-coding.md). Keep the same shell open for both stages so the id is shared.
 
-## Choosing the unit
-
-Open coding has two scopes that don't have to match:
-
-- **Review scope** — the **trace**. Read input → tool calls → retrieved context → output as one story.
-- **Recording scope** — **default to the trace**. The honest observation is usually trace-shaped ("asked X, got Y; the answer didn't address the question"), and forcing localization to a span at this stage commits to causal attribution you don't yet have data to support — that's axial coding's job.
-
-  Drop to a **span** only when one of:
-  - The span, read in isolation, is still wrong: an exception fired, a tool returned an error response, the output is malformed.
-  - You already know the domain well enough to attribute the failure on sight without inferring across spans.
-
-Session-level recording is rare in open coding — reach for `px session add-note` only when the observation is genuinely cross-trace ("user repeated themselves four times across the conversation"). Single-trace observations stay on the trace.
-
 ## Process
 
 1. **Start a session** — `coding_session_start` once per shell
-2. **Inspect** — fetch a trace from your sample
-3. **Read** — look at input, output, exceptions, tool calls, retrieved context
-4. **Note** — write one specific sentence describing what went wrong (or skip if correct)
-5. **Record** — attach the note to the trace with `px trace add-note --identifier $PHOENIX_CODING_SESSION_ID` (default), or to a span with `px span add-note --identifier $PHOENIX_CODING_SESSION_ID` for in-isolation/mechanical failures. Also write the sidecar annotation (see [Sidecar annotation](#sidecar-annotation) below) so the run is filterable in the Phoenix UI.
-6. **Iterate** — move to the next trace; repeat until the sample is exhausted or saturation hits
-7. **Hand off** — keep the same shell open for [axial coding](axial-coding.md), then `coding_session_end` to print the UI link
+2. **Pick the unit** — work through [Choosing the unit of analysis](#choosing-the-unit-of-analysis) and commit to trace, span, or session
+3. **Inspect** — fetch one entity at the chosen unit (trace / span / session)
+4. **Read** — input, output, exceptions, tool calls, retrieved context, and (at session level) the trajectory across child traces
+5. **Note** — write one specific sentence describing what went wrong (or skip if correct)
+6. **Record** — `px {trace,span,session} add-note <id> --text "..." --identifier "$PHOENIX_CODING_SESSION_ID"`, picking the command that matches the unit committed in step 2. Drop to a finer unit (e.g., trace → span) when an observation is mechanically attributable; reach to a coarser unit (e.g., trace → session) when the observation is cross-trace. Also write the [sidecar annotation](#sidecar-annotation) at the same level so the run is filterable in the Phoenix UI.
+7. **Iterate** — move to the next entity; repeat until the sample is exhausted or saturation hits
+8. **Hand off** — keep the same shell open for [axial coding](axial-coding.md), then `coding_session_end` to print the UI link
 
 ## Inspection
 
-Use `px` to read trace and span context before writing a note. Open coding reviews by **trace** — read input → tool calls → retrieved context → output as a unit. Record on the trace by default; drill to a specific span only when the failure is mechanical (exception, error response, malformed output) or you can attribute on sight (see [Choosing the unit](#choosing-the-unit)).
+Use `px` to read context at the unit committed in [Choosing the unit](#choosing-the-unit-of-analysis):
+
+- **Trace unit** — read one trace's input → tool calls → retrieved context → output as one story.
+- **Span unit** — read one operation's input/output and surrounding spans for context.
+- **Session unit** — read the sequence of traces in order; the trajectory (turns, retrievals, tool-call patterns *across* traces) is the data, not any single trace's inputs and outputs.
+
+Drill to a finer unit (trace → span) only when the failure is mechanical or attributable on sight; reach to a coarser unit (trace → session) when the observation is genuinely cross-trace.
 
 > **Don't filter the sample by `--status-code ERROR`.** OTel's `status_code` only flips to `ERROR` when an instrumentor catches a raised Python exception (network failure, 5xx, parse error). Hallucinations, wrong tone, retrieval misses, and bad tool selection all complete cleanly and arrive as `OK` or `UNSET`. Sampling for open coding by `--status-code ERROR` excludes the population this workflow exists to surface.
 
@@ -158,24 +196,33 @@ Always pipe through `jq` with `--format raw --no-progress` when scripting.
 
 ## Recording Notes
 
-Default write path is `px trace add-note <trace-id> --text "..." --identifier "$PHOENIX_CODING_SESSION_ID"` — most observations are trace-shaped and shouldn't pre-commit to localization. Drop to `px span add-note <span-id>` when the failure is in-isolation wrong (exception, error response, malformed output) or you already know the failure structure on sight.
+Use the `add-note` command matching the unit committed in [Choosing the unit](#choosing-the-unit-of-analysis): `px trace add-note`, `px span add-note`, or `px session add-note`. Every call carries `--identifier "$PHOENIX_CODING_SESSION_ID"`.
 
 Passing `--identifier "$PHOENIX_CODING_SESSION_ID"` does two things:
 - Tags the note row with the session id, so `GET /v1/projects/<pid>/{trace,span,session}_annotations?identifier=<sess-id>` returns every artifact this run produced.
-- Makes the call **upsert** on `(entity_id, name='note', identifier)` — re-running open coding on the same trace within the same session overwrites the prior note instead of appending a second row. (Without `--identifier`, the server stamps a unique `px-{kind}-note:<uuid>` and each call appends.)
+- Makes the call **upsert** on `(entity_id, name='note', identifier)` — re-running open coding on the same entity within the same session overwrites the prior note instead of appending a second row. (Without `--identifier`, the server stamps a unique `px-{kind}-note:<uuid>` and each call appends.)
 
 ```bash
-# Trace-level note (default)
+# Trace-level note — single-call failures
 px trace add-note <trace-id> \
   --text "Asked about returns; final answer covered shipping policy instead" \
   --identifier "$PHOENIX_CODING_SESSION_ID"
 
-# Span-level note (mechanical or attributable-on-sight failures)
+# Span-level note — mechanical or attributable-on-sight failures
 px span add-note <span-id> \
   --text "Tool call returned 500 — vendor API unreachable" \
   --identifier "$PHOENIX_CODING_SESSION_ID"
 
-# Interactive loop — walk traces, write a trace-level note + sidecar per failing trace
+# Session-level note — trajectory failures across multiple turns
+px session add-note <session-id> \
+  --text "Agent forgot the user's stated dietary restriction by turn 4 and recommended a dish that violated it" \
+  --identifier "$PHOENIX_CODING_SESSION_ID"
+```
+
+The interactive loop below walks **traces**. To run it at the **session** or **span** unit, swap `px trace list` / `px trace get` / `px trace add-note` / `px trace annotate` for the `px session ...` (or `px span ...`) equivalents and the JSON path `.traceId` for `.sessionId` (or `.context.span_id`). The structure is identical.
+
+```bash
+# Walk recent traces, write a trace-level note + sidecar per failing trace
 px trace list --last-n-minutes 60 --limit 50 --format raw --no-progress \
   | jq -r '.[].traceId' \
   | while read tid; do
