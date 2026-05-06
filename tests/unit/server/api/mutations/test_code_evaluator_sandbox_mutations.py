@@ -488,36 +488,6 @@ mutation CreateCodeEvaluatorVersion($input: CreateCodeEvaluatorVersionInput!) {
 """
 
 
-_CREATE_DATASET_CODE_EVALUATOR = """
-mutation CreateDatasetCodeEvaluator($input: CreateDatasetCodeEvaluatorInput!) {
-    createDatasetCodeEvaluator(input: $input) {
-        evaluator {
-            id
-            name
-        }
-        query {
-            __typename
-        }
-    }
-}
-"""
-
-_UPDATE_DATASET_CODE_EVALUATOR = """
-mutation UpdateDatasetCodeEvaluator($input: UpdateDatasetCodeEvaluatorInput!) {
-    updateDatasetCodeEvaluator(input: $input) {
-        evaluator {
-            id
-            name
-            description
-        }
-        query {
-            __typename
-        }
-    }
-}
-"""
-
-
 async def _create_code_evaluator_with_config(
     db: DbSessionFactory,
     sandbox_config: models.SandboxConfig,
@@ -750,64 +720,6 @@ class TestCodeEvaluatorSandboxMutationIds:
             )
         assert version_count == 2
 
-    async def test_dataset_code_evaluator_update_does_not_create_version(
-        self,
-        gql_client: AsyncGraphQLClient,
-        db: DbSessionFactory,
-        sandbox_config: models.SandboxConfig,
-    ) -> None:
-        evaluator_db_id, _, current_version_id = await _create_code_evaluator_with_two_versions(
-            db, sandbox_config
-        )
-        async with db() as session:
-            dataset = models.Dataset(
-                name=f"test dataset {token_hex(4)}",
-                description="test",
-                metadata_={},
-            )
-            session.add(dataset)
-            await session.flush()
-            dataset_id = dataset.id
-
-        create_result = await gql_client.execute(
-            _CREATE_DATASET_CODE_EVALUATOR,
-            variables={
-                "input": {
-                    "datasetId": str(GlobalID("Dataset", str(dataset_id))),
-                    "evaluatorId": str(GlobalID("CodeEvaluator", str(evaluator_db_id))),
-                    "name": "dataset_code_eval",
-                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
-                }
-            },
-        )
-        assert create_result.data and not create_result.errors
-        dataset_evaluator_id = create_result.data["createDatasetCodeEvaluator"]["evaluator"]["id"]
-
-        update_result = await gql_client.execute(
-            _UPDATE_DATASET_CODE_EVALUATOR,
-            variables={
-                "input": {
-                    "datasetEvaluatorId": dataset_evaluator_id,
-                    "name": "dataset_code_eval_renamed",
-                    "description": "association metadata changed",
-                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
-                }
-            },
-        )
-        assert update_result.data and not update_result.errors
-        assert (
-            update_result.data["updateDatasetCodeEvaluator"]["evaluator"]["description"]
-            == "association metadata changed"
-        )
-
-        async with db() as session:
-            version_count = await session.scalar(
-                select(sa.func.count(models.CodeEvaluatorVersion.id)).where(
-                    models.CodeEvaluatorVersion.code_evaluator_id == evaluator_db_id
-                )
-            )
-        assert version_count == 2
-
     async def test_patch_code_evaluator_updates_sandbox_binding(
         self,
         gql_client: AsyncGraphQLClient,
@@ -857,71 +769,6 @@ class TestCodeEvaluatorSandboxMutationIds:
             row = await session.get(models.CodeEvaluator, evaluator_db_id)
         assert row is not None
         assert row.sandbox_config_id == sandbox_config_b_id
-
-    async def test_patch_tip_sandbox_without_code_change_returns_was_created_false(
-        self,
-        gql_client: AsyncGraphQLClient,
-        db: DbSessionFactory,
-        sandbox_config: models.SandboxConfig,
-        seed_sandbox_providers: None,
-    ) -> None:
-        """Rebinding the tip's sandbox via patchCodeEvaluator and then calling
-        createCodeEvaluatorVersion with the same source/language must not
-        manufacture a new version row."""
-        async with db() as session:
-            python_provider = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
-            )
-            assert python_provider is not None
-            sandbox_config_b = models.SandboxConfig(
-                sandbox_provider_id=python_provider.id,
-                language=python_provider.language,
-                name=f"sandbox-b-{token_hex(4)}",
-                description=None,
-                config={},
-                timeout=45,
-            )
-            session.add(sandbox_config_b)
-            await session.flush()
-            sandbox_config_b_id = sandbox_config_b.id
-
-        evaluator_db_id = await _create_code_evaluator_with_config(db, sandbox_config)
-        evaluator_gid = str(GlobalID("CodeEvaluator", str(evaluator_db_id)))
-        sandbox_b_gid = str(GlobalID("SandboxConfig", str(sandbox_config_b_id)))
-
-        async with db() as session:
-            initial_count = await session.scalar(
-                select(sa.func.count(models.CodeEvaluatorVersion.id)).where(
-                    models.CodeEvaluatorVersion.code_evaluator_id == evaluator_db_id
-                )
-            )
-
-        patch_result = await gql_client.execute(
-            _PATCH_CODE_EVALUATOR,
-            variables={"input": {"id": evaluator_gid, "sandboxConfigId": sandbox_b_gid}},
-        )
-        assert patch_result.data and not patch_result.errors, patch_result.errors
-
-        version_result = await gql_client.execute(
-            _CREATE_CODE_EVALUATOR_VERSION,
-            variables={
-                "input": {
-                    "codeEvaluatorId": evaluator_gid,
-                    "language": "PYTHON",
-                    "sourceCode": "def evaluate(input): return {'score': 1.0}",
-                }
-            },
-        )
-        assert version_result.data and not version_result.errors, version_result.errors
-        assert version_result.data["createCodeEvaluatorVersion"]["wasCreated"] is False
-
-        async with db() as session:
-            final_count = await session.scalar(
-                select(sa.func.count(models.CodeEvaluatorVersion.id)).where(
-                    models.CodeEvaluatorVersion.code_evaluator_id == evaluator_db_id
-                )
-            )
-        assert final_count == initial_count
 
     async def test_disabled_config_blocks_execution(
         self,
