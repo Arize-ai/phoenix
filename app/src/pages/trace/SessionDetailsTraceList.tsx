@@ -635,11 +635,7 @@ export function SessionDetailsTraceList({
                 borderBottomWidth="thin"
                 padding="size-200"
               >
-                <View
-                  width="100%"
-                  maxWidth="var(--global-dimension-size-8500)"
-                  marginX="auto"
-                >
+                <View width="100%" maxWidth="size-8500" marginX="auto">
                   <SessionTurnDetail traceId={traceId} rootSpan={rootSpan} />
                 </View>
               </View>
@@ -651,11 +647,7 @@ export function SessionDetailsTraceList({
               borderBottomWidth={"thin"}
               padding="size-200"
             >
-              <View
-                width="100%"
-                maxWidth="var(--global-dimension-size-8500)"
-                marginX="auto"
-              >
+              <View width="100%" maxWidth="size-8500" marginX="auto">
                 <Loading />
               </View>
             </View>
