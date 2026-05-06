@@ -7,6 +7,55 @@ description: The latest from the Phoenix team.
 GitHub
 </Card>
 
+<Update label="05.05.2026">
+## [05.05.2026: Provider Tools in Playground and Prompts](/docs/phoenix/release-notes/05-2026/05-05-2026-provider-tools)
+**Available in arize-phoenix 15.4.0+**
+
+Phoenix Playground and the Prompts library now support vendor-native tools — web search, code execution, computer use, grounding, and more — alongside existing function tools. Paste any provider's tool JSON into the Playground and Phoenix stores and round-trips it verbatim.
+
+- **Supported providers** — Anthropic (`web_search`, `code_execution`, `computer`, and more), OpenAI Responses API (`web_search`, `file_search`, `code_interpreter`), Google Gemini (`google_search`), Amazon Bedrock (`nova_grounding`)
+- **Mix with function tools** — provider tools and function tools coexist on the same prompt version
+- **SDK export** — Python and TypeScript clients preserve provider tools when formatting prompts
+</Update>
+
+<Update label="05.05.2026">
+## [05.05.2026: REST API Updates — Annotation Delete, Token Counts, and More](/docs/phoenix/release-notes/05-2026/05-05-2026-rest-api-updates)
+**Available in arize-phoenix 15.3.0–15.4.0+, arize-phoenix-evals 3.1.0+**
+
+- **Filter-based annotation DELETE** — `DELETE /v1/projects/{project}/span_annotations`, `trace_annotations`, and `session_annotations` bulk-remove annotations by `identifier`, `name`, `annotator_kind`, or time range
+- **Token counts in REST** — trace and session list endpoints now return `cumulative_token_count_prompt`, `_completion`, and `_total` fields
+- **Experiment CSV metadata** — downloading an experiment as CSV now includes per-example dataset metadata as `metadata_<key>` columns
+- **Evals runtime capability detection** — OpenAI reasoning models (`o1`, `o3`, `o3-mini`, `o4-mini`) now work with `ClassificationEvaluator` automatically
+</Update>
+
+<Update label="04.30.2026">
+## [04.30.2026: CLI Named Auth Profiles](/docs/phoenix/release-notes/04-2026/04-30-2026-cli-auth-profiles)
+**Available in @arizeai/phoenix-cli 1.4.0+**
+
+`px profile` commands let you store named connection profiles — endpoint, project, API key, and headers — and switch between Phoenix instances without re-exporting environment variables. The active profile slots into the existing config resolution chain below env vars, so existing scripts are unaffected.
+
+- **Commands** — `px profile create`, `list`, `show`, `edit`, `use`, `delete`
+- **Profile status** — `px auth status` surfaces the active profile name
+- **Editor autocomplete** — JSON Schema published for `~/.px/profiles.json`
+</Update>
+
+<Update label="04.30.2026">
+## [04.30.2026: Annotation Enhancements — Sessions, TypeScript, and Identifier Queries](/docs/phoenix/release-notes/04-2026/04-30-2026-annotation-enhancements)
+**Available in arize-phoenix 15.1.0+ (server), @arizeai/phoenix-cli 1.4.0+ (CLI), @arizeai/phoenix-client 6.9.0+ (TypeScript)**
+
+- **CLI session annotations** — `px session annotate <id>` and `px session add-note <id>` with `--include-annotations` / `--include-notes` flags on list and get
+- **TypeScript trace annotations** — `addTraceAnnotation` and `logTraceAnnotations` exported from `@arizeai/phoenix-client/traces`
+- **`addSessionNote`** in `@arizeai/phoenix-client/sessions`
+- **Query by identifier** — GET annotation endpoints for spans, traces, and sessions accept `?identifier=` to retrieve all annotations sharing a tag, project-wide
+</Update>
+
+<Update label="04.29.2026">
+## [04.29.2026: Dataset Upsert](/docs/phoenix/release-notes/04-2026/04-29-2026-dataset-upsert)
+**Breaking change in arize-phoenix-client 2.6.0+ (Python) and arize-phoenix 15.0.0+ (server)**
+
+`client.datasets.create_dataset()` now defaults to upsert semantics: if a dataset with the same name exists, examples are merged into the latest version rather than returning a conflict error. Supply a stable `id` on each example for deterministic in-place updates on re-upload.
+</Update>
+
 <Update label="05.01.2026">
 ## [05.01.2026: TanStack AI Tracing](/docs/phoenix/release-notes/05-2026/05-01-2026-tanstack-ai-tracing)
 **Available in @arizeai/openinference-tanstack-ai 0.1.0+**

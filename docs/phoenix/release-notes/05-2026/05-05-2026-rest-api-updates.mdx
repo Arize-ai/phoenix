@@ -1,0 +1,78 @@
+---
+title: "Release Notes"
+---
+
+# Filter-Based Annotation Delete Endpoints
+
+May 5, 2026
+
+**Available in arize-phoenix 15.4.0+**
+
+Three new `DELETE` endpoints let you bulk-remove annotations from a project by filter — without knowing every individual span/trace/session ID. This closes the annotation lifecycle loop for automated pipelines that tag annotations with a custom `identifier` on creation and need to roll them back later.
+
+```
+DELETE /v1/projects/{project_identifier}/span_annotations
+DELETE /v1/projects/{project_identifier}/trace_annotations
+DELETE /v1/projects/{project_identifier}/session_annotations
+```
+
+**Query parameters** (all optional, but at least one time-bound or `delete_all=true` is required):
+
+| Parameter | Description |
+|-----------|-------------|
+| `name` | Exact match on annotation name |
+| `identifier` | Exact match on annotation identifier |
+| `annotator_kind` | `LLM`, `CODE`, or `HUMAN` |
+| `start_time` | Inclusive lower bound on `created_at` |
+| `end_time` | Exclusive upper bound on `created_at` |
+| `delete_all` | Set `true` to waive the time-bound requirement |
+
+```bash
+# Delete all annotations tagged with identifier "eval-run-42" on spans
+curl -X DELETE \
+  "https://your-phoenix/v1/projects/my-project/span_annotations?identifier=eval-run-42" \
+  -H "Authorization: Bearer $PHOENIX_API_KEY"
+
+# Delete LLM annotations older than a cutoff
+curl -X DELETE \
+  "https://your-phoenix/v1/projects/my-project/trace_annotations?annotator_kind=LLM&end_time=2026-05-01T00:00:00Z" \
+  -H "Authorization: Bearer $PHOENIX_API_KEY"
+```
+
+# Token Counts in Trace and Session REST Payloads
+
+May 5, 2026
+
+**Available in arize-phoenix 15.4.0+**
+
+The `GET /v1/projects/{project_identifier}/traces` and `GET /v1/projects/{project_identifier}/sessions` endpoints now include cumulative token usage fields — `cumulative_token_count_prompt`, `cumulative_token_count_completion`, and `cumulative_token_count_total` — so you can read aggregate token consumption directly from the REST API without recomputing from raw span attributes.
+
+Values are summed from root spans and default to `0` for traces or sessions with no LLM calls. The `/v1/spans` endpoint is unchanged — span-level token counts remain in the existing `attributes` dictionary.
+
+# Experiment CSV Export Includes Dataset Metadata
+
+May 5, 2026
+
+**Available in arize-phoenix 15.3.0+**
+
+Downloading an experiment as CSV now includes per-example dataset metadata columns. Each metadata key appears as a `metadata_<key>` column — matching the format used by the dataset CSV export — so you can cross-reference experiment results with the original dataset context without a separate download.
+
+# Evals: Runtime Model Capability Detection
+
+May 5, 2026
+
+**Available in arize-phoenix-evals 3.1.0+**
+
+The OpenAI evaluator adapter now detects structured-output and tool-call support at runtime rather than checking against a hardcoded model list. This unblocks OpenAI reasoning models (`o1`, `o3`, `o3-mini`, `o4-mini`) for use with `ClassificationEvaluator` and ensures new models work automatically without requiring a library update.
+
+The adapter tries structured output first, falls back to tool calling if unsupported, and caches the result per adapter instance — matching the approach already used by the Google GenAI adapter.
+
+```python
+from phoenix.evals import ClassificationEvaluator, OpenAIModel
+
+# Reasoning models now work without any special configuration
+evaluator = ClassificationEvaluator(
+    model=OpenAIModel(model="o3-mini"),
+    template="my-eval-template",
+)
+```

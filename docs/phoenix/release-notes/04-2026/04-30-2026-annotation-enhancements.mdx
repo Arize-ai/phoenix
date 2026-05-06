@@ -1,0 +1,98 @@
+---
+title: "Release Notes"
+---
+
+# Session Annotations and Notes (CLI and TypeScript)
+
+April 30, 2026
+
+**Available in arize-phoenix 15.1.0+ (server), @arizeai/phoenix-cli 1.4.0+ (CLI), @arizeai/phoenix-client 6.9.0+ (TypeScript)**
+
+Phoenix now supports session annotations and notes in the CLI and TypeScript client, bringing sessions to full parity with spans and traces.
+
+- **`px session annotate <session-id>`** — add or update a label/score annotation on a session
+- **`px session add-note <session-id> --text "..."`** — append a free-text note to a session (requires server 14.17.0+)
+- **`--include-annotations`** and **`--include-notes`** flags on `px session list` and `px session get`
+- **`addSessionNote`** is now available in `@arizeai/phoenix-client/sessions`
+
+Both GlobalIDs and user-facing `session_id` values are accepted everywhere; the CLI resolves them automatically.
+
+```bash
+# Annotate a session with a label
+px session annotate <session-id> \
+  --name quality \
+  --label pass \
+  --score 0.95
+
+# Add a free-text note
+px session add-note <session-id> \
+  --text "Reviewed and verified by QA"
+
+# List sessions including annotations and notes
+px session list --project my-project \
+  --include-annotations --include-notes
+```
+
+```typescript
+import { addSessionNote } from "@arizeai/phoenix-client/sessions";
+
+await addSessionNote({
+  sessionNote: {
+    sessionId: "abc123",
+    note: "Reviewed and verified by QA",
+  },
+});
+```
+
+# TypeScript Trace Annotations
+
+April 30, 2026
+
+**Available in @arizeai/phoenix-client 6.9.0+**
+
+`@arizeai/phoenix-client` now exports `addTraceAnnotation` and `logTraceAnnotations` from `@arizeai/phoenix-client/traces`, bringing TypeScript to parity with the Python client for trace-level annotation.
+
+- **`addTraceAnnotation`** — add or update a single trace annotation
+- **`logTraceAnnotations`** — batch-write multiple trace annotations in one request
+- The reserved name `note` is rejected — use `addTraceNote` for free-form text
+
+```typescript
+import { addTraceAnnotation, logTraceAnnotations } from "@arizeai/phoenix-client/traces";
+
+// Single annotation
+await addTraceAnnotation({
+  traceAnnotation: {
+    traceId: "abc123",
+    name: "correctness",
+    label: "correct",
+    score: 1.0,
+    annotatorKind: "HUMAN",
+    identifier: "run-001",
+  },
+  sync: true,
+});
+
+// Batch annotations
+await logTraceAnnotations({
+  traceAnnotations: [
+    { traceId: "abc123", name: "faithfulness", label: "faithful", score: 0.9, annotatorKind: "LLM" },
+    { traceId: "def456", name: "faithfulness", label: "unfaithful", score: 0.2, annotatorKind: "LLM" },
+  ],
+});
+```
+
+# Query Annotations by Identifier
+
+April 30, 2026
+
+**Available in arize-phoenix 15.1.0+**
+
+The GET annotation endpoints for spans, traces, and sessions now accept an optional `identifier` query parameter. This lets you retrieve all annotations created with a specific `identifier` tag across an entire project without knowing the individual span/trace/session IDs.
+
+```
+GET /v1/projects/{project_identifier}/span_annotations?identifier=run-001
+GET /v1/projects/{project_identifier}/trace_annotations?identifier=run-001
+GET /v1/projects/{project_identifier}/session_annotations?identifier=run-001
+```
+
+Combined with the existing `*_ids` parameter, the two filters compose as an AND intersection. Querying by `identifier` alone (without `*_ids`) returns `200` with an empty list when no rows match — rather than `404` — since an empty result is a valid outcome.
