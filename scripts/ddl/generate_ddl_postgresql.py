@@ -361,14 +361,22 @@ class PostgreSQLDDLExtractor:
         )
 
     def _get_foreign_keys(self, schema: str, table_name: str) -> list[dict[str, Any]]:
-        """Get foreign key constraints with full details."""
+        """Get foreign key constraints with full details.
+
+        For composite FKs whose source-column declaration order differs from the
+        referenced unique constraint's column order, we must pair source→target
+        via `position_in_unique_constraint` (the FK column's position in the
+        referenced unique constraint), not via raw ordinal positions. The target
+        list is then ordered by the source column's ordinal position so the
+        emitted REFERENCES clause matches the FK declaration's positional mapping.
+        """
         query = sql.SQL("""
             SELECT
                 tc.constraint_name,
                 array_agg(kcu.column_name ORDER BY kcu.ordinal_position) as columns,
                 kcu2.table_schema AS foreign_table_schema,
                 kcu2.table_name AS foreign_table_name,
-                array_agg(kcu2.column_name ORDER BY kcu2.ordinal_position) as foreign_columns,
+                array_agg(kcu2.column_name ORDER BY kcu.ordinal_position) as foreign_columns,
                 rc.update_rule,
                 rc.delete_rule
             FROM information_schema.table_constraints AS tc
@@ -379,7 +387,7 @@ class PostgreSQLDDLExtractor:
                           ON tc.constraint_name = rc.constraint_name
                      JOIN information_schema.key_column_usage AS kcu2
                           ON rc.unique_constraint_name = kcu2.constraint_name
-                              AND kcu.ordinal_position = kcu2.ordinal_position
+                              AND kcu.position_in_unique_constraint = kcu2.ordinal_position
             WHERE tc.constraint_type = 'FOREIGN KEY'
               AND tc.table_schema = %s
               AND tc.table_name = %s

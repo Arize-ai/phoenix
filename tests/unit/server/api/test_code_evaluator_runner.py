@@ -5,7 +5,7 @@ Covers:
 - evaluate() success path: stdout → label/score via _coerce_output
 - evaluate() error paths: input mapping failure, sandbox execution error, sandbox error field
 - Multi-output config: one result per config, annotation name includes config name
-- session_key is forwarded to backend.execute()
+- runner name is forwarded to backend.execute() as session_key
 """
 
 from __future__ import annotations
@@ -235,29 +235,15 @@ class TestEvaluateSuccessPath:
         )
         assert results[0]["annotator_kind"] == "CODE"
 
-    async def test_session_key_forwarded_to_backend(self) -> None:
+    async def test_runner_name_used_as_session_key(self) -> None:
         runner, backend = _make_runner(backend_stdout='"pass"')
         await runner.evaluate(
             context={},
             input_mapping=_EMPTY_MAPPING,
             name="test",
             output_configs=[_categorical_config()],
-            session_key="my-session",
         )
         call_kwargs = backend.execute.call_args
-        assert call_kwargs.kwargs.get("session_key") == "my-session"
-
-    async def test_empty_session_key_uses_runner_name(self) -> None:
-        runner, backend = _make_runner(backend_stdout='"pass"')
-        await runner.evaluate(
-            context={},
-            input_mapping=_EMPTY_MAPPING,
-            name="test",
-            output_configs=[_categorical_config()],
-            session_key="",
-        )
-        call_kwargs = backend.execute.call_args
-        # When session_key is falsy, falls back to self._name
         assert call_kwargs.kwargs.get("session_key") == runner._name
 
     async def test_timeout_forwarded_to_backend_execute(self) -> None:

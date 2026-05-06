@@ -111,6 +111,7 @@ async def _create_config_for_provider(
     async with db() as session:
         config = models.SandboxConfig(
             sandbox_provider_id=provider.id,
+            language=provider.language,
             name=f"cap-gate-test-config-{provider.backend_type.lower()}",
             description="Capability gate regression test fixture",
             config={},
@@ -268,6 +269,7 @@ class TestStoredBaselinePassthrough:
         async with db() as session:
             config = models.SandboxConfig(
                 sandbox_provider_id=provider.id,
+                language=provider.language,
                 name="deno-preserved-ia",
                 description="Pre-existing config with internet_access",
                 config={"internet_access": {"mode": "deny"}},
@@ -300,6 +302,7 @@ class TestStoredBaselinePassthrough:
         async with db() as session:
             config = models.SandboxConfig(
                 sandbox_provider_id=provider.id,
+                language=provider.language,
                 name="deno-changed-ia",
                 description="Pre-existing config with internet_access",
                 config={"internet_access": {"mode": "deny"}},
@@ -332,6 +335,7 @@ class TestStoredBaselinePassthrough:
         async with db() as session:
             config = models.SandboxConfig(
                 sandbox_provider_id=provider.id,
+                language=provider.language,
                 name="wasm-new-dep",
                 description="Pre-existing config with dependencies",
                 config={"dependencies": {"packages": ["requests"]}},
@@ -540,6 +544,7 @@ class TestSandboxConfigTimeoutDefault:
         async with db() as session:
             config = models.SandboxConfig(
                 sandbox_provider_id=provider.id,
+                language=provider.language,
                 name="e2b-reset-timeout",
                 config={},
                 timeout=60,
@@ -571,6 +576,7 @@ class TestSandboxConfigTimeoutDefault:
         async with db() as session:
             config = models.SandboxConfig(
                 sandbox_provider_id=provider.id,
+                language=provider.language,
                 name="e2b-preserve-timeout",
                 config={},
                 timeout=30,
@@ -728,12 +734,14 @@ class TestPhase1ValidationErrors:
         async with db() as session:
             existing = models.SandboxConfig(
                 sandbox_provider_id=provider.id,
+                language=provider.language,
                 name="existing-cfg",
                 config={},
                 timeout=30,
             )
             target = models.SandboxConfig(
                 sandbox_provider_id=provider.id,
+                language=provider.language,
                 name="target-cfg",
                 config={},
                 timeout=30,
