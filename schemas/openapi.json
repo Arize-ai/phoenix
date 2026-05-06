@@ -6149,6 +6149,448 @@
           }
         }
       }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": " Login",
+        "description": "Authenticate user via email/password and return access/refresh tokens.",
+        "operationId": "_login_auth_login_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "get": {
+        "summary": " Logout",
+        "description": "Log out user by revoking tokens and clearing cookies.",
+        "operationId": "_logout_auth_logout_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "summary": " Refresh Tokens",
+        "description": "Refresh access and refresh tokens.",
+        "operationId": "_refresh_tokens_auth_refresh_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/password-reset-email": {
+      "post": {
+        "summary": " Initiate Password Reset",
+        "description": "Send password reset email to user.",
+        "operationId": "_initiate_password_reset_auth_password_reset_email_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/password-reset": {
+      "post": {
+        "summary": " Reset Password",
+        "description": "Reset user password using a valid reset token.",
+        "operationId": "_reset_password_auth_password_reset_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/ldap/login": {
+      "post": {
+        "summary": " Ldap Login",
+        "description": "Authenticate user via LDAP and return access/refresh tokens.",
+        "operationId": "_ldap_login_auth_ldap_login_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oauth2/{idp_name}/login": {
+      "post": {
+        "summary": "Login",
+        "operationId": "login_oauth2__idp_name__login_post",
+        "parameters": [
+          {
+            "name": "idp_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "[a-z0-9_]+",
+              "title": "Idp Name"
+            }
+          },
+          {
+            "name": "returnUrl",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Returnurl"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Login",
+        "operationId": "login_oauth2__idp_name__login_get",
+        "parameters": [
+          {
+            "name": "idp_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "[a-z0-9_]+",
+              "title": "Idp Name"
+            }
+          },
+          {
+            "name": "returnUrl",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Returnurl"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oauth2/{idp_name}/tokens": {
+      "get": {
+        "summary": "Create Tokens",
+        "operationId": "create_tokens_oauth2__idp_name__tokens_get",
+        "parameters": [
+          {
+            "name": "idp_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "[a-z0-9_]+",
+              "title": "Idp Name"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "State"
+            }
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Code"
+            }
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error"
+            }
+          },
+          {
+            "name": "error_description",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error Description"
+            }
+          },
+          {
+            "name": "phoenix-oauth2-state",
+            "in": "cookie",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Phoenix-Oauth2-State"
+            }
+          },
+          {
+            "name": "phoenix-oauth2-nonce",
+            "in": "cookie",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Phoenix-Oauth2-Nonce"
+            }
+          },
+          {
+            "name": "phoenix-oauth2-code-verifier",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Phoenix-Oauth2-Code-Verifier"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Chat",
+        "operationId": "chat_chat_post",
+        "parameters": [
+          {
+            "name": "root",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CustomProviderChatSearchParams"
+                },
+                {
+                  "$ref": "#/components/schemas/BuiltInProviderChatSearchParams"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "provider_type",
+                "mapping": {
+                  "custom": "#/components/schemas/CustomProviderChatSearchParams",
+                  "builtin": "#/components/schemas/BuiltInProviderChatSearchParams"
+                }
+              },
+              "title": "Root"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/arize_phoenix_version": {
+      "get": {
+        "summary": "Version",
+        "operationId": "version_arize_phoenix_version_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/healthz": {
+      "get": {
+        "summary": "Check Healthz",
+        "operationId": "check_healthz_healthz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/readyz": {
+      "get": {
+        "summary": "Check Readyz",
+        "operationId": "check_readyz_readyz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -6337,6 +6779,39 @@
           "auth_method"
         ],
         "title": "AnonymousUser"
+      },
+      "BuiltInProviderChatSearchParams": {
+        "properties": {
+          "provider_type": {
+            "type": "string",
+            "const": "builtin",
+            "title": "Provider Type"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/ModelProvider"
+          },
+          "model_name": {
+            "type": "string",
+            "title": "Model Name"
+          },
+          "openai_api_type": {
+            "type": "string",
+            "enum": [
+              "chat_completions",
+              "responses"
+            ],
+            "title": "Openai Api Type",
+            "default": "responses"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider_type",
+          "provider",
+          "model_name"
+        ],
+        "title": "BuiltInProviderChatSearchParams",
+        "description": "Chat against a Phoenix built-in provider.\n\nCredentials and connection details (base URL, Azure endpoint, AWS\nregion) are resolved from the secret store first and the process\nenvironment second. ``openai_api_type`` is honoured by the OpenAI and\nAzure OpenAI branches; other providers ignore it."
       },
       "CategoricalAnnotationConfig": {
         "properties": {
@@ -7039,6 +7514,31 @@
           "data"
         ],
         "title": "CreateUserResponseBody"
+      },
+      "CustomProviderChatSearchParams": {
+        "properties": {
+          "provider_type": {
+            "type": "string",
+            "const": "custom",
+            "title": "Provider Type"
+          },
+          "provider_id": {
+            "type": "integer",
+            "title": "Provider Id"
+          },
+          "model_name": {
+            "type": "string",
+            "title": "Model Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider_type",
+          "provider_id",
+          "model_name"
+        ],
+        "title": "CustomProviderChatSearchParams",
+        "description": "Chat against a stored custom provider record.\n\nThe wire format of ``provider_id`` is a relay GlobalID (e.g.\n``UHJvdmlkZXI6MTM=``). It is decoded to its integer node ID at\nparse time so downstream consumers don't need to know the GlobalID\nencoding."
       },
       "Dataset": {
         "properties": {
