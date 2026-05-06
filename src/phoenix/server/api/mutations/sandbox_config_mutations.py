@@ -209,7 +209,9 @@ class SandboxConfigMutationMixin:
                 if provider is None:
                     raise NotFound(f"SandboxProvider not found: {provider_id}")
 
-                values = sandbox_config_from_input(input, provider_id=provider_id)
+                values = sandbox_config_from_input(
+                    input, provider_id=provider_id, provider_language=provider.language
+                )
                 values["name"] = validated_name.root
                 config_dict = values.get("config", {}) or {}
                 _check_env_var_collision(config_dict.get("env_vars"), provider.backend_type)

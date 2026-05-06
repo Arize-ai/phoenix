@@ -661,6 +661,7 @@ async def projects_with_and_without_experiments(
 @pytest.fixture
 async def projects_with_and_without_dataset_evaluators(
     db: DbSessionFactory,
+    seed_languages: None,
 ) -> None:
     """
     Insert two projects, one that is associated with a dataset evaluator and the other that is not.
@@ -689,6 +690,7 @@ async def projects_with_and_without_dataset_evaluators(
             name=Identifier(root="test-evaluator"),
             description="Test evaluator",
             metadata_={},
+            language="PYTHON",
         )
         session.add(code_evaluator)
         await session.flush()

@@ -278,16 +278,9 @@ class TestUpsertOrDeleteSecretsCacheInvalidation:
         # SandboxConfig rows to find affected backend_types. Reuse or create
         # the PYTHON Language row — another test/seed may have already inserted it.
         async with db() as session:
-            language = await session.scalar(
-                sa.select(models.Language).where(models.Language.name == "PYTHON")
-            )
-            if language is None:
-                language = models.Language(name="PYTHON")
-                session.add(language)
-                await session.flush()
             provider = models.SandboxProvider(
                 backend_type=backend_type,
-                language_id=language.id,
+                language="PYTHON",
                 enabled=True,
                 config={},
             )
@@ -295,6 +288,7 @@ class TestUpsertOrDeleteSecretsCacheInvalidation:
             await session.flush()
             sandbox_config = models.SandboxConfig(
                 sandbox_provider_id=provider.id,
+                language="PYTHON",
                 name="secret-ref-test-config",
                 config={
                     "env_vars": [

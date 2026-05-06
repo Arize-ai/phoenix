@@ -769,6 +769,7 @@ class TestProjects:
         self,
         httpx_client: httpx.AsyncClient,
         db: DbSessionFactory,
+        seed_languages: None,
     ) -> None:
         """
         Test that dataset evaluator projects are excluded by default but can be included with a parameter.
@@ -797,6 +798,7 @@ class TestProjects:
                 name=Identifier(root="test-evaluator"),
                 description="Test evaluator",
                 metadata_={},
+                language="PYTHON",
             )
             session.add(code_evaluator)
             await session.flush()
