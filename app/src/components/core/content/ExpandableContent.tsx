@@ -140,14 +140,8 @@ export const ExpandableContent = memo(function ExpandableContent({
       css={containerCSS}
       style={containerStyle}
       className="expandable-content"
-      data-expanded-behavior={expandedBehavior}
     >
-      <div
-        ref={contentRef}
-        css={contentCSS}
-        data-expanded={isExpanded}
-        data-expanded-behavior={expandedBehavior}
-      >
+      <div ref={contentRef} css={contentCSS} data-expanded={isExpanded}>
         {children}
       </div>
       {isOverflowing && !isExpanded && (
