@@ -20,6 +20,7 @@ Read the relevant file(s) based on the task:
 |-----------|-------------|
 | `rules/layout.md` | Layout stability, scroll behavior, interaction patterns |
 | `rules/dialogs.md` | Alert dialog usage, variants, and content writing |
+| `rules/form-dialogs.md` | Form dialog structure, footer/submit placement, field metadata |
 | `rules/error-display.md` | Error scoping, inline alerts, input validation |
 | `rules/bem.md` | Naming CSS classes |
 | `rules/tokens.md` | Creating or consuming CSS design tokens |

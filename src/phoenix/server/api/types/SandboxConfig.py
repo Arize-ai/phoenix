@@ -44,6 +44,16 @@ class ConfigFieldSpecType:
     choices: Optional[list[str]]
 
 
+@strawberry.type
+class SandboxProviderCredentialSpec:
+    """GQL mirror of ProviderCredentialSpec."""
+
+    key: str
+    display_name: str
+    description: str
+    is_required: bool
+
+
 @strawberry.enum
 class Language(Enum):
     """Execution language for a code evaluator or sandbox provider."""
@@ -92,6 +102,7 @@ class SandboxBackendInfo:
     supports_env_vars: bool
     internet_access: InternetAccessMode
     dependencies_language: Optional[Language]
+    credential_specs: list[SandboxProviderCredentialSpec]
 
 
 @strawberry.type
@@ -353,6 +364,26 @@ def _probe_wasm_binary(backend_type: str) -> Optional[str]:
     return probe.detail
 
 
+def _build_credential_specs(
+    backend_type: str,
+) -> list[SandboxProviderCredentialSpec]:
+    """Mirror an adapter's credential_specs into GQL types."""
+    from phoenix.server.sandbox import _SANDBOX_ADAPTERS
+
+    adapter = _SANDBOX_ADAPTERS.get(backend_type)
+    if adapter is None or not adapter.credential_specs:
+        return []
+    return [
+        SandboxProviderCredentialSpec(
+            key=spec.key,
+            display_name=spec.display_name,
+            description=spec.description,
+            is_required=spec.is_required,
+        )
+        for spec in adapter.credential_specs
+    ]
+
+
 async def _get_sandbox_backend_info_with_session(
     session: Optional[Any],
     decrypt: Optional[Any],
@@ -410,6 +441,7 @@ async def _get_sandbox_backend_info_with_session(
                         status = SandboxBackendStatus.UNAVAILABLE
                         status_detail = str(exc)
         raw_specs = getattr(meta, "config_field_specs", [])
+        credential_specs = _build_credential_specs(backend_type)
         infos.append(
             SandboxBackendInfo(
                 backend_type=backend_type,
@@ -434,6 +466,7 @@ async def _get_sandbox_backend_info_with_session(
                 dependencies_language=(
                     Language(meta.dependencies_language) if meta.dependencies_language else None
                 ),
+                credential_specs=credential_specs,
             )
         )
     return infos

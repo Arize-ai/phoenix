@@ -244,38 +244,24 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
     # Python SDK has not yet ported them. Re-evaluate when Python SDK >=0.5.8
     # ships; flip internet_access_capability to "boolean" and wire network_policy
     # then. Until that lands, both Vercel adapters remain internet_access="none".
-    "VERCEL_PYTHON": AdapterMetadata(
-        display_name="Vercel Sandbox",
-        language="PYTHON",
-        dependency_hints=[
-            "Install Phoenix with the `vercel` extra.",
-            (
-                "Set `VERCEL_OIDC_TOKEN`, or all of "
-                "`PHOENIX_SANDBOX_VERCEL_TOKEN`, "
-                "`PHOENIX_SANDBOX_VERCEL_PROJECT_ID`, and "
-                "`PHOENIX_SANDBOX_VERCEL_TEAM_ID`."
-            ),
-        ],
-        supports_env_vars=True,
-        internet_access_capability="none",
-        dependencies_language=None,
-    ),
-    "VERCEL_TYPESCRIPT": AdapterMetadata(
-        display_name="Vercel Sandbox",
-        language="TYPESCRIPT",
-        dependency_hints=[
-            "Install Phoenix with the `vercel` extra.",
-            (
-                "Set `VERCEL_OIDC_TOKEN`, or all of "
-                "`PHOENIX_SANDBOX_VERCEL_TOKEN`, "
-                "`PHOENIX_SANDBOX_VERCEL_PROJECT_ID`, and "
-                "`PHOENIX_SANDBOX_VERCEL_TEAM_ID`."
-            ),
-        ],
-        supports_env_vars=True,
-        internet_access_capability="none",
-        dependencies_language=None,
-    ),
+    **{
+        f"VERCEL_{lang}": AdapterMetadata(
+            display_name="Vercel Sandbox",
+            language=lang,
+            dependency_hints=[
+                "Install Phoenix with the `vercel` extra.",
+                (
+                    "Set all of `PHOENIX_SANDBOX_VERCEL_TOKEN`, "
+                    "`PHOENIX_SANDBOX_VERCEL_PROJECT_ID`, and "
+                    "`PHOENIX_SANDBOX_VERCEL_TEAM_ID`."
+                ),
+            ],
+            supports_env_vars=True,
+            internet_access_capability="none",
+            dependencies_language=None,
+        )
+        for lang in ("PYTHON", "TYPESCRIPT")
+    },
     "DENO": AdapterMetadata(
         display_name="Deno (local)",
         language="TYPESCRIPT",
@@ -552,6 +538,8 @@ async def get_missing_sandbox_auth_detail(
         return "Set `PHOENIX_SANDBOX_DAYTONA_API_KEY`."
 
     if backend_type in {"VERCEL_PYTHON", "VERCEL_TYPESCRIPT"}:
+        # OIDC is still honored as an environment fallback (e.g. on Vercel
+        # deployments or after `vercel env pull`) but is not exposed in the UI.
         oidc_key = "VERCEL_OIDC_TOKEN"
         access_keys = [
             "PHOENIX_SANDBOX_VERCEL_TOKEN",
@@ -562,21 +550,12 @@ async def get_missing_sandbox_auth_detail(
         if oidc_key in resolved or all(key in resolved for key in access_keys):
             return None
         missing_access_keys = [key for key in access_keys if key not in resolved]
-        if len(missing_access_keys) < len(access_keys):
-            return (
-                "Set `VERCEL_OIDC_TOKEN`, or add "
-                f"{_format_required_keys(missing_access_keys)} to complete "
-                "the Vercel access token configuration."
-            )
-        return (
-            "Set `VERCEL_OIDC_TOKEN`, or all of `PHOENIX_SANDBOX_VERCEL_TOKEN`, "
-            "`PHOENIX_SANDBOX_VERCEL_PROJECT_ID`, and `PHOENIX_SANDBOX_VERCEL_TEAM_ID`."
-        )
+        return f"Set {_format_required_keys(missing_access_keys)}."
 
     if backend_type == "MODAL":
-        missing_modal_keys = [
-            key for key in ("MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET") if not os.getenv(key)
-        ]
+        modal_keys = ["MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET"]
+        resolved = await _resolve_named_credentials(session, decrypt, modal_keys)
+        missing_modal_keys = [key for key in modal_keys if key not in resolved]
         if not missing_modal_keys:
             return None
         return f"Set {_format_required_keys(missing_modal_keys)}."
@@ -748,12 +727,16 @@ except ImportError:
 
 _PHOENIX_RESERVED_CREDENTIAL_ONLY_KEYS: frozenset[str] = frozenset(
     {
-        # Reservation-only names: NOT settable via setSandboxCredential mutation.
-        # Contrast with SandboxAdapter.credential_specs (adapter-declared, settable
-        # via mutation). RESERVED_CREDENTIAL_NAMES is the derived union of both.
-        # Modal remains env-var-only, so reserve its names explicitly.
-        "MODAL_TOKEN_ID",
-        "MODAL_TOKEN_SECRET",
+        # Reservation-only names: reserved against user env_var / config-key
+        # collisions even though they are not exposed via the credentials UI.
+        # Adapter-declared credential_specs are unioned in by
+        # _build_reserved_credential_names — this set is only for keys that
+        # are NOT advertised through credential_specs.
+        # VERCEL_OIDC_TOKEN is read by the Vercel SDK directly from os.environ.
+        # We no longer surface it in the UI (only the access-token triple is
+        # configurable), but it must stay reserved so a user-supplied env_var
+        # cannot shadow the SDK's auth resolution at execute time.
+        "VERCEL_OIDC_TOKEN",
     }
 )
 
