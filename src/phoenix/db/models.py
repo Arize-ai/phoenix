@@ -2801,7 +2801,7 @@ class CodeEvaluator(Evaluator):
         nullable=False,
     )
     source_code: Mapped[str] = mapped_column(nullable=False, server_default="")
-    language: Mapped[Optional[str]] = mapped_column(
+    language: Mapped[str] = mapped_column(
         ForeignKey("languages.name", ondelete="RESTRICT"),
         nullable=False,
         index=True,
