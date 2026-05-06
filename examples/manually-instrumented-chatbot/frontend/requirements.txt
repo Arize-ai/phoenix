@@ -25,7 +25,7 @@ click==8.1.7
     # via streamlit
 gitdb==4.0.11
     # via gitpython
-gitpython==3.1.47
+gitpython==3.1.48
     # via streamlit
 h11==0.16.0
     # via httpcore
