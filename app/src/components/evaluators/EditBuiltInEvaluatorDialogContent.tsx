@@ -42,7 +42,9 @@ export const EditBuiltInEvaluatorDialogContent = ({
     <DialogContent>
       <DialogHeader>
         <DialogTitle>
-          {mode === "create" ? "Create Evaluator" : "Edit Evaluator"}
+          {mode === "create"
+            ? "Create Built-in Code Evaluator"
+            : "Edit Built-in Code Evaluator"}
         </DialogTitle>
         <DialogTitleExtra>
           <Button slot="close" isDisabled={isSubmitting}>
