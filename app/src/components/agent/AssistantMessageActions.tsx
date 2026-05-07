@@ -192,6 +192,11 @@ export function AssistantMessageActions({
     }
 
     setIsSubmittingFeedback(true);
+    // Span feedback still uses the generic annotation endpoint. Using the
+    // username as the identifier makes span feedback per-user: the same user
+    // re-submitting updates their entry, while different users produce distinct
+    // annotation records. Anonymous viewers fall back to the message id, which
+    // still deduplicates against the same message.
     const identifier = viewer?.username ?? message.id;
     const spanAnnotation = {
       annotator_kind: "HUMAN" as const,
