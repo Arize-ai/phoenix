@@ -148,9 +148,9 @@ test.describe.serial("Server Evaluators", () => {
       .first()
       .click();
 
-    // Verify the Create Evaluator dialog opens with prefilled template
+    // Verify the Create LLM Evaluator dialog opens with prefilled template
     await expect(
-      page.getByRole("heading", { name: "Create Evaluator" })
+      page.getByRole("heading", { name: "Create LLM Evaluator" })
     ).toBeVisible();
 
     // Update the name to our unique test name
@@ -189,9 +189,9 @@ test.describe.serial("Server Evaluators", () => {
     // Wait for submenu to appear and click "exact_match"
     await page.getByRole("menuitem", { name: /exact_match/i }).click();
 
-    // Verify the Create Evaluator dialog opens
+    // Verify the Create Built-in Code Evaluator dialog opens
     await expect(
-      page.getByRole("heading", { name: "Create Evaluator" })
+      page.getByRole("heading", { name: "Create Built-in Code Evaluator" })
     ).toBeVisible();
 
     // Update the name to our unique test name
@@ -242,9 +242,9 @@ test.describe.serial("Server Evaluators", () => {
     // Click "Edit" from the menu
     await page.getByRole("menuitem", { name: "Edit" }).click();
 
-    // Verify the Edit Evaluator dialog opens
+    // Verify the Edit Built-in Code Evaluator dialog opens
     await expect(
-      page.getByRole("heading", { name: "Edit Evaluator" })
+      page.getByRole("heading", { name: "Edit Built-in Code Evaluator" })
     ).toBeVisible();
 
     // Find the Expected field's input mode selector and verify it exists
@@ -296,9 +296,9 @@ test.describe.serial("Server Evaluators", () => {
       .getByRole("menuitem", { name: "Create new LLM evaluator" })
       .click();
 
-    // Verify the Create Evaluator dialog opens
+    // Verify the Create LLM Evaluator dialog opens
     await expect(
-      page.getByRole("heading", { name: "Create Evaluator" })
+      page.getByRole("heading", { name: "Create LLM Evaluator" })
     ).toBeVisible();
 
     // Fill in the evaluator name
@@ -366,9 +366,9 @@ test.describe.serial("Server Evaluators", () => {
     // Click "Edit" from the menu
     await page.getByRole("menuitem", { name: "Edit" }).click();
 
-    // Verify the Edit Evaluator dialog opens
+    // Verify the Edit LLM Evaluator dialog opens
     await expect(
-      page.getByRole("heading", { name: "Edit Evaluator" })
+      page.getByRole("heading", { name: "Edit LLM Evaluator" })
     ).toBeVisible();
 
     // Update the description
@@ -409,9 +409,9 @@ test.describe.serial("Server Evaluators", () => {
     // Click "Edit" from the menu
     await page.getByRole("menuitem", { name: "Edit" }).click();
 
-    // Verify the Edit Evaluator dialog opens
+    // Verify the Edit LLM Evaluator dialog opens
     await expect(
-      page.getByRole("heading", { name: "Edit Evaluator" })
+      page.getByRole("heading", { name: "Edit LLM Evaluator" })
     ).toBeVisible();
 
     // Verify the updated description is present

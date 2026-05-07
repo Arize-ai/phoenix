@@ -44,7 +44,7 @@ export const EditLLMEvaluatorDialogContent = ({
     <DialogContent>
       <DialogHeader>
         <DialogTitle>
-          {mode === "create" ? "Create Evaluator" : "Edit Evaluator"}
+          {mode === "create" ? "Create LLM Evaluator" : "Edit LLM Evaluator"}
         </DialogTitle>
         <DialogTitleExtra>
           <Button slot="close" isDisabled={isSubmitting}>
