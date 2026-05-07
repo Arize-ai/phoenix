@@ -22,10 +22,12 @@ import React, {
 import { graphql, readInlineData } from "react-relay";
 
 import { Flex, Icon, Icons, Link, Text } from "@phoenix/components";
+import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
+import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
 import { TextCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
@@ -367,7 +369,12 @@ export const DatasetEvaluatorsTable = ({
           if (!language) {
             return <Text color="text-700">—</Text>;
           }
-          return <Text>{language === "PYTHON" ? "Python" : "TypeScript"}</Text>;
+          return (
+            <Flex direction="row" gap="size-100" alignItems="center">
+              {language === "PYTHON" ? <PythonSVG /> : <TypeScriptSVG />}
+              <Text>{language === "PYTHON" ? "Python" : "TypeScript"}</Text>
+            </Flex>
+          );
         },
       },
       {
@@ -381,12 +388,18 @@ export const DatasetEvaluatorsTable = ({
             return <Text color="text-700">—</Text>;
           }
           return (
-            <Flex direction="column" gap="size-25" minWidth={0}>
+            <Flex
+              direction="row"
+              gap="size-100"
+              alignItems="center"
+              minWidth={0}
+            >
+              <SandboxProviderIcon
+                backendType={sandboxConfig.provider.backendType}
+                height={18}
+              />
               <Text minWidth={0}>
                 <Truncate>{sandboxConfig.name}</Truncate>
-              </Text>
-              <Text size="XS" color="text-700">
-                {sandboxConfig.provider.backendType}
               </Text>
             </Flex>
           );

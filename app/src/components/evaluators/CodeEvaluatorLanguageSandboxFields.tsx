@@ -2,8 +2,6 @@ import { useMemo } from "react";
 
 import {
   Button,
-  ComboBox,
-  ComboBoxItem,
   Flex,
   Label,
   Link,
@@ -102,7 +100,7 @@ export const CodeEvaluatorSandboxField = ({
   language,
   selectedSandboxConfigId,
   onSelectionChange,
-  size = "L",
+  size = "M",
   showHelperText = false,
 }: CodeEvaluatorSandboxFieldProps) => {
   // Filter configs to only show those matching the current language
@@ -134,60 +132,44 @@ export const CodeEvaluatorSandboxField = ({
 
   return (
     <View>
-      <ComboBox
-        label="Sandbox"
+      <Select
         size={size}
+        selectedKey={validSelectedId != null ? String(validSelectedId) : null}
+        onSelectionChange={(key) => {
+          onSelectionChange(typeof key === "string" ? key : null);
+        }}
+        isDisabled={compatibleConfigs.length === 0}
         placeholder={
           compatibleConfigs.length > 0
             ? "Select a sandbox..."
             : "None available"
         }
-        selectedKey={validSelectedId != null ? String(validSelectedId) : null}
-        onSelectionChange={(key) => {
-          if (typeof key === "string") {
-            onSelectionChange(key);
-          } else {
-            onSelectionChange(null);
-          }
-        }}
-        defaultItems={compatibleConfigs}
-        menuTrigger="focus"
-        isDisabled={compatibleConfigs.length === 0}
-        renderEmptyState={() => (
-          <View padding="size-100">
-            <Text color="text-500" size="S">
-              No configs for {language === "PYTHON" ? "Python" : "TypeScript"}
-            </Text>
-          </View>
-        )}
       >
-        {(item) => (
-          <ComboBoxItem
-            id={String(item.id)}
-            key={item.id}
-            textValue={item.name}
-          >
-            <Flex direction="row" gap="size-100" alignItems="center">
-              <SandboxProviderIcon
-                backendType={item.providerBackendType}
-                height={18}
-              />
-              <Flex direction="column" gap="size-25">
-                <Text>{item.name}</Text>
-                {item.description ? (
-                  <Text color="text-700" size="XS">
-                    {item.description}
-                  </Text>
-                ) : (
-                  <Text color="text-700" size="XS">
-                    {item.providerLabel}
-                  </Text>
-                )}
-              </Flex>
-            </Flex>
-          </ComboBoxItem>
-        )}
-      </ComboBox>
+        <Label>Sandbox</Label>
+        <Button>
+          <SelectValue />
+          <SelectChevronUpDownIcon />
+        </Button>
+        <Popover>
+          <ListBox items={compatibleConfigs}>
+            {(item) => (
+              <SelectItem
+                id={String(item.id)}
+                key={item.id}
+                textValue={item.name}
+              >
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <SandboxProviderIcon
+                    backendType={item.providerBackendType}
+                    height={18}
+                  />
+                  <Text>{item.name}</Text>
+                </Flex>
+              </SelectItem>
+            )}
+          </ListBox>
+        </Popover>
+      </Select>
       {showHelperText && (
         <Text color="text-500" size="S">
           Code evaluators run in a sandbox. Configure reusable sandbox configs
