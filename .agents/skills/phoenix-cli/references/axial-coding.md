@@ -54,20 +54,20 @@ failure_taxonomy:
 
 ### 1. Gather — extract this session's open-coding notes
 
-Open-coding notes are stored as annotations with `name="note"` and the session identifier set via `add-note --identifier`. The `--include-notes` flag opts in to those rows (the GET endpoint excludes them by default). Run at the same unit open coding wrote at:
+Open-coding notes are stored as annotations with `name="note"` and the session identifier set via `add-note --identifier`. Run at the same unit open coding wrote at; `--include-name note` whitelists only the note rows so you don't have to filter structured annotations + sidecars in jq:
 
 ```bash
 # Trace-level notes from this session
 px trace list-annotations \
   --identifier "$PHOENIX_CODING_SESSION_ID" \
-  --include-notes \
+  --include-name note \
   --format raw --no-progress \
-  | jq '[ .[] | select(.name == "note") ] | map({ trace_id, note: .result.explanation })'
+  | jq 'map({ trace_id, note: .result.explanation })'
 ```
 
 For span- or session-level notes, swap `px trace list-annotations` → `px span list-annotations` / `px session list-annotations` and `trace_id` → `span_id` / `session_id` in the jq.
 
-For notes outside this session (older runs, another reviewer's notes), drop the `--identifier` filter and pass `--trace-ids` (or `--span-ids` / `--session-ids`), or use `px {trace,span,session} list --include-notes`.
+For notes outside this session (older runs, another reviewer's notes), drop the `--identifier` filter and pass `--trace-ids` (or `--span-ids` / `--session-ids`), or use `px {trace,span,session} list --include-notes` (different command — embeds notes into row output).
 
 ### 2. Group — synthesize categories
 
@@ -148,9 +148,9 @@ Axial coding categorizes the entities you took notes on during open coding. Do *
 # Bulk-annotate traces that already have open-coding notes from THIS session
 px trace list-annotations \
   --identifier "$PHOENIX_CODING_SESSION_ID" \
-  --include-notes \
+  --include-name note \
   --format raw --no-progress \
-  | jq -r '.[] | select(.name == "note") | .trace_id' \
+  | jq -r '.[].trace_id' \
   | sort -u \
   | while read tid; do
       px trace annotate "$tid" \

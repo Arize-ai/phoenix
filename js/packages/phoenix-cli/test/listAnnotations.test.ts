@@ -187,7 +187,7 @@ describe("trace list-annotations", () => {
     expect(JSON.parse(String(output))).toEqual([TRACE_ANNOTATION_ROW]);
   });
 
-  it("translates --include-notes to include_annotation_names=note (D2)", async () => {
+  it("threads --include-name through to include_annotation_names (whitelist semantic)", async () => {
     const fetchMock = makeFetchMock([
       PROJECT_RESPONSE,
       { ok: true, body: { data: [], next_cursor: null } },
@@ -201,7 +201,8 @@ describe("trace list-annotations", () => {
         "list-annotations",
         "--identifier",
         "coding-session:demo",
-        "--include-notes",
+        "--include-name",
+        "note",
         "--format",
         "raw",
         ...BASE_ARGS,
@@ -363,7 +364,7 @@ describe("session list-annotations", () => {
     expect(JSON.parse(String(output))).toEqual([SESSION_ANNOTATION_ROW]);
   });
 
-  it("combines --include-name and --exclude-name without overriding the convenience flag", async () => {
+  it("threads multiple --include-name and --exclude-name values through unchanged", async () => {
     const fetchMock = makeFetchMock([
       PROJECT_RESPONSE,
       { ok: true, body: { data: [], next_cursor: null } },
@@ -379,7 +380,8 @@ describe("session list-annotations", () => {
         "coding-session:demo",
         "--include-name",
         "axial_coding_category",
-        "--include-notes",
+        "--include-name",
+        "note",
         "--exclude-name",
         "deprecated",
         "--format",

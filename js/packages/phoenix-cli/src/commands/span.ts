@@ -481,6 +481,7 @@ async function spanAnnotateHandler(
       targetType: "span",
       targetId: spanId,
       annotationInput,
+      identifier: options.identifier,
     });
 
     const output = formatAnnotationMutationOutput({
@@ -693,7 +694,6 @@ interface SpanListAnnotationsOptions {
   spanIds?: string[];
   includeName?: string[];
   excludeName?: string[];
-  includeNotes?: boolean;
 }
 
 async function spanListAnnotationsHandler(
@@ -748,11 +748,6 @@ async function spanListAnnotationsHandler(
     });
     const projectId = await resolveProjectId({ client, projectIdentifier });
 
-    const includeNames = [
-      ...(options.includeName ?? []),
-      ...(options.includeNotes ? [NOTE_ANNOTATION_NAME] : []),
-    ];
-
     writeProgress({
       message: "Fetching span annotations...",
       noProgress: !options.progress,
@@ -763,8 +758,7 @@ async function spanListAnnotationsHandler(
       projectIdentifier: projectId,
       spanIds: options.spanIds,
       identifier: options.identifier,
-      includeAnnotationNames:
-        includeNames.length > 0 ? includeNames : undefined,
+      includeAnnotationNames: options.includeName,
       excludeAnnotationNames: options.excludeName,
     });
 
@@ -801,13 +795,9 @@ export function createSpanListAnnotationsCommand(): Command {
     )
     .option(
       "--include-name <name...>",
-      "Include only annotations with these names"
+      'Include only annotations with these names (whitelist; e.g. "note" to fetch only open-coding notes, repeatable)'
     )
     .option("--exclude-name <name...>", "Exclude annotations with these names")
-    .option(
-      "--include-notes",
-      'Convenience: include annotations with name="note" (which the GET endpoint excludes by default)'
-    )
     .option(
       "--format <format>",
       "Output format: pretty, json, or raw",
@@ -817,8 +807,8 @@ export function createSpanListAnnotationsCommand(): Command {
     .addHelpText(
       "after",
       "\nExamples:\n" +
-        '  px span list-annotations --identifier "$PHOENIX_CODING_SESSION_ID"\n' +
-        '  px span list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --include-notes --format raw --no-progress\n'
+        '  px span list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --format raw --no-progress\n' +
+        '  px span list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --include-name note --format raw --no-progress\n'
     )
     .action(spanListAnnotationsHandler);
 }

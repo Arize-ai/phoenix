@@ -110,8 +110,8 @@ px trace annotate <trace-id> --name reviewer --score 0.9 --format raw --no-progr
 px trace annotate <trace-id> --name reviewer --label pass --identifier "$PHOENIX_CODING_SESSION_ID"  # tag with a coding session
 px trace add-note <trace-id> --text "needs follow-up"
 px trace add-note <trace-id> --text "needs follow-up" --identifier "$PHOENIX_CODING_SESSION_ID"      # tag + upsert on identifier
-px trace list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --format raw --no-progress | jq .            # list rows for a coding session
-px trace list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --include-notes --format raw --no-progress | jq . # include note rows (name="note")
+px trace list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --format raw --no-progress | jq .            # list rows for a coding session (notes + structured + sidecars)
+px trace list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --include-name note --format raw --no-progress | jq . # whitelist to only note rows
 px trace delete-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --all -y                                   # nuke a coding session's annotations
 ```
 
@@ -170,8 +170,8 @@ px span annotate <span-id> --name checker --score 1 --annotator-kind CODE
 px span annotate <span-id> --name reviewer --label pass --identifier "$PHOENIX_CODING_SESSION_ID"  # tag with a coding session
 px span add-note <span-id> --text "verified by agent"
 px span add-note <span-id> --text "verified by agent" --identifier "$PHOENIX_CODING_SESSION_ID"    # tag + upsert on identifier
-px span list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --format raw --no-progress | jq .             # list rows for a coding session
-px span list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --include-notes --format raw --no-progress | jq .  # include note rows
+px span list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --format raw --no-progress | jq .             # list rows for a coding session (notes + structured + sidecars)
+px span list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --include-name note --format raw --no-progress | jq .  # whitelist to only note rows
 px span delete-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --all -y                                    # nuke a coding session's annotations
 ```
 
@@ -215,7 +215,7 @@ px session list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --format r
 px session delete-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --all -y                                 # nuke a coding session's annotations
 ```
 
-Sessions accept only structured annotations (no notes via `session add-note`); `--include-notes` on `session list-annotations` is still legal as a read filter for note rows written through other paths.
+Sessions accept only structured annotations (no notes via `session add-note`); to read note rows that may have been written through other paths, pass `--include-name note` on `session list-annotations`.
 
 ### Session JSON shape
 

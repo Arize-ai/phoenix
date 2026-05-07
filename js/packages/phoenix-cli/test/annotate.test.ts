@@ -984,4 +984,36 @@ describe("annotate --identifier round-trip", () => {
       ],
     });
   });
+
+  it("echoes the supplied --identifier in the raw mutation result", async () => {
+    const fetchMock = makeFetchMock([
+      {
+        ok: true,
+        body: { data: [{ id: "trace-annotation-id" }] },
+      },
+    ]);
+    vi.stubGlobal("fetch", fetchMock);
+    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await createTraceCommand().parseAsync(
+      [
+        "annotate",
+        "trace-123",
+        "--name",
+        "axial_coding_category",
+        "--label",
+        "off-topic",
+        "--identifier",
+        "px-coding-session:abc12345",
+        "--format",
+        "raw",
+        ...BASE_ARGS,
+      ],
+      { from: "user" }
+    );
+
+    const echoed = JSON.parse(String(stdoutSpy.mock.calls[0]?.[0]));
+    expect(echoed.identifier).toBe("px-coding-session:abc12345");
+  });
 });

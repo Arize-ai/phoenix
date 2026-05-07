@@ -213,17 +213,22 @@ At saturation, move on to [axial coding](axial-coding.md) to group what you have
 
 ## Listing what this session produced
 
-At any time during the run you can list every artifact tagged with the current session id. The `--include-notes` flag opts in to the `name="note"` rows that the GET endpoint excludes by default:
+At any time during the run you can list every artifact tagged with the current session id. The default GET returns every annotation the identifier matches — open-coding notes (`name="note"`), structured annotations, and sidecars all in one call:
 
 ```bash
 # All notes + structured annotations + sidecars across the three entity kinds
 for kind in trace span session; do
   px "$kind" list-annotations \
     --identifier "$PHOENIX_CODING_SESSION_ID" \
-    --include-notes \
     --format raw --no-progress \
     | jq --arg kind "$kind" '{kind: $kind, rows: .}'
 done
+
+# Whitelist to just the note rows for one kind (e.g. when handing off to axial coding)
+px trace list-annotations \
+  --identifier "$PHOENIX_CODING_SESSION_ID" \
+  --include-name note \
+  --format raw --no-progress
 ```
 
 ## Wrapping up

@@ -204,9 +204,11 @@ px trace add-note abc123def456 --text "agent triage complete" --format raw --no-
 
 List trace annotations for the configured project, filtered by `--identifier` and/or `--trace-ids`. Either filter must be supplied — the GET endpoint requires at least one. JSON mode envelopes results as `{ annotations: [...] }`; raw mode emits the bare array.
 
+By default the call returns every annotation matching the filter, including notes (`name="note"`). Pass `--include-name <name>` to narrow to a whitelist (e.g. `--include-name note` to fetch only the open-coding notes for a session).
+
 ```bash
 px trace list-annotations --identifier "$PHOENIX_CODING_SESSION_ID"
-px trace list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --include-notes --format raw --no-progress | jq .
+px trace list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --include-name note --format raw --no-progress | jq .
 px trace list-annotations --trace-ids abc123def456 def456abc123 --format raw --no-progress
 ```
 
@@ -214,9 +216,8 @@ px trace list-annotations --trace-ids abc123def456 def456abc123 --format raw --n
 | ------------------------ | -------------------------------------------------------------------------------------------------------- |
 | `--identifier <ids...>`  | Filter to annotations whose identifier matches one of these values                                       |
 | `--trace-ids <ids...>`   | Filter to annotations attached to these trace IDs                                                        |
-| `--include-name <name>`  | Include only annotations with these names (repeatable)                                                   |
+| `--include-name <name>`  | Include only annotations with these names — whitelist (repeatable)                                       |
 | `--exclude-name <name>`  | Exclude annotations with these names (repeatable)                                                        |
-| `--include-notes`        | Convenience: include annotations with `name="note"` (which the GET endpoint excludes by default)        |
 | `--format <format>`      | `pretty`, `json`, or `raw`                                                                               |
 
 ---
@@ -309,10 +310,10 @@ List span annotations for the configured project, filtered by `--identifier` and
 
 ```bash
 px span list-annotations --identifier "$PHOENIX_CODING_SESSION_ID"
-px span list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --include-notes --format raw --no-progress | jq .
+px span list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --include-name note --format raw --no-progress | jq .
 ```
 
-Supports the same `--include-name`, `--exclude-name`, `--include-notes`, and `--format` flags as `px trace list-annotations`.
+Supports the same `--include-name`, `--exclude-name`, and `--format` flags as `px trace list-annotations`.
 
 ---
 
@@ -510,7 +511,7 @@ px session add-note my-session-id --text "agent triage complete" --format raw --
 
 ### `px session list-annotations`
 
-List session annotations for the configured project, filtered by `--identifier` and/or `--session-ids`. JSON mode envelopes results as `{ annotations: [...] }`; raw mode emits the bare array. Sessions accept only structured annotations (no notes via `session add-note`); `--include-notes` still works as a read filter for note rows that may have been written through other paths.
+List session annotations for the configured project, filtered by `--identifier` and/or `--session-ids`. JSON mode envelopes results as `{ annotations: [...] }`; raw mode emits the bare array. Sessions accept only structured annotations (no notes via `session add-note`); to read note rows that may have been written through other paths, pass `--include-name note`.
 
 ```bash
 px session list-annotations --identifier "$PHOENIX_CODING_SESSION_ID"

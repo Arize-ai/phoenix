@@ -878,6 +878,7 @@ async function traceAnnotateHandler(
       targetType: "trace",
       targetId: traceId,
       annotationInput,
+      identifier: options.identifier,
     });
 
     const output = formatAnnotationMutationOutput({
@@ -1096,7 +1097,6 @@ interface TraceListAnnotationsOptions {
   traceIds?: string[];
   includeName?: string[];
   excludeName?: string[];
-  includeNotes?: boolean;
 }
 
 async function traceListAnnotationsHandler(
@@ -1151,13 +1151,6 @@ async function traceListAnnotationsHandler(
     });
     const projectId = await resolveProjectId({ client, projectIdentifier });
 
-    // --include-notes is a convenience flag (D2) for the OpenAPI
-    // include_annotation_names=note query parameter.
-    const includeNames = [
-      ...(options.includeName ?? []),
-      ...(options.includeNotes ? [NOTE_ANNOTATION_NAME] : []),
-    ];
-
     writeProgress({
       message: "Fetching trace annotations...",
       noProgress: !options.progress,
@@ -1168,8 +1161,7 @@ async function traceListAnnotationsHandler(
       projectIdentifier: projectId,
       traceIds: options.traceIds,
       identifier: options.identifier,
-      includeAnnotationNames:
-        includeNames.length > 0 ? includeNames : undefined,
+      includeAnnotationNames: options.includeName,
       excludeAnnotationNames: options.excludeName,
     });
 
@@ -1206,13 +1198,9 @@ export function createTraceListAnnotationsCommand(): Command {
     )
     .option(
       "--include-name <name...>",
-      "Include only annotations with these names"
+      'Include only annotations with these names (whitelist; e.g. "note" to fetch only open-coding notes, repeatable)'
     )
     .option("--exclude-name <name...>", "Exclude annotations with these names")
-    .option(
-      "--include-notes",
-      'Convenience: include annotations with name="note" (which the GET endpoint excludes by default)'
-    )
     .option(
       "--format <format>",
       "Output format: pretty, json, or raw",
@@ -1222,8 +1210,8 @@ export function createTraceListAnnotationsCommand(): Command {
     .addHelpText(
       "after",
       "\nExamples:\n" +
-        '  px trace list-annotations --identifier "$PHOENIX_CODING_SESSION_ID"\n' +
-        '  px trace list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --include-notes --format raw --no-progress\n'
+        '  px trace list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --format raw --no-progress\n' +
+        '  px trace list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --include-name note --format raw --no-progress\n'
     )
     .action(traceListAnnotationsHandler);
 }

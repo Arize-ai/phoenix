@@ -720,6 +720,7 @@ async function sessionAnnotateHandler(
         targetType: "session",
         targetId: session.session_id,
         annotationInput,
+        identifier: options.identifier,
       }),
       format: options.format,
     });
@@ -938,7 +939,6 @@ interface SessionListAnnotationsOptions {
   sessionIds?: string[];
   includeName?: string[];
   excludeName?: string[];
-  includeNotes?: boolean;
 }
 
 async function sessionListAnnotationsHandler(
@@ -993,11 +993,6 @@ async function sessionListAnnotationsHandler(
     });
     const projectId = await resolveProjectId({ client, projectIdentifier });
 
-    const includeNames = [
-      ...(options.includeName ?? []),
-      ...(options.includeNotes ? [NOTE_ANNOTATION_NAME] : []),
-    ];
-
     writeProgress({
       message: "Fetching session annotations...",
       noProgress: !options.progress,
@@ -1008,8 +1003,7 @@ async function sessionListAnnotationsHandler(
       projectIdentifier: projectId,
       sessionIds: options.sessionIds,
       identifier: options.identifier,
-      includeAnnotationNames:
-        includeNames.length > 0 ? includeNames : undefined,
+      includeAnnotationNames: options.includeName,
       excludeAnnotationNames: options.excludeName,
     });
 
@@ -1031,7 +1025,7 @@ async function sessionListAnnotationsHandler(
 export function createSessionListAnnotationsCommand(): Command {
   return new Command("list-annotations")
     .description(
-      "List session annotations for the configured project, filtered by identifier and/or session IDs. Note: sessions accept only structured annotations (no notes via `session add-note`); --include-notes still works as a read filter for note rows written through other paths."
+      "List session annotations for the configured project, filtered by identifier and/or session IDs. Note: sessions accept only structured annotations (no notes via `session add-note`); to read note rows that may have been written through other paths, pass --include-name note."
     )
     .option("--endpoint <url>", "Phoenix API endpoint")
     .option("--project <name>", "Project name or ID")
@@ -1046,13 +1040,9 @@ export function createSessionListAnnotationsCommand(): Command {
     )
     .option(
       "--include-name <name...>",
-      "Include only annotations with these names"
+      'Include only annotations with these names (whitelist; e.g. "note" to fetch only note rows, repeatable)'
     )
     .option("--exclude-name <name...>", "Exclude annotations with these names")
-    .option(
-      "--include-notes",
-      'Convenience: include annotations with name="note" (which the GET endpoint excludes by default)'
-    )
     .option(
       "--format <format>",
       "Output format: pretty, json, or raw",
@@ -1062,8 +1052,8 @@ export function createSessionListAnnotationsCommand(): Command {
     .addHelpText(
       "after",
       "\nExamples:\n" +
-        '  px session list-annotations --identifier "$PHOENIX_CODING_SESSION_ID"\n' +
-        '  px session list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --format raw --no-progress\n'
+        '  px session list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --format raw --no-progress\n' +
+        '  px session list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --include-name note --format raw --no-progress\n'
     )
     .action(sessionListAnnotationsHandler);
 }

@@ -169,11 +169,13 @@ export function buildAnnotationMutationResult({
   targetType,
   targetId,
   annotationInput,
+  identifier,
 }: {
   id: string;
   targetType: AnnotationTargetType;
   targetId: string;
   annotationInput: NormalizedAnnotationInput;
+  identifier?: string;
 }): AnnotationMutationResult {
   return {
     id,
@@ -184,7 +186,7 @@ export function buildAnnotationMutationResult({
     score: annotationInput.score,
     explanation: annotationInput.explanation,
     annotatorKind: annotationInput.annotatorKind,
-    identifier: "",
+    identifier: identifier ?? "",
   };
 }
 
