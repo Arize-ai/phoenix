@@ -11,6 +11,7 @@ import {
   type PromptMessageSnapshot,
 } from "@phoenix/agent/tools/playgroundPrompt";
 import { Button, Flex, View } from "@phoenix/components";
+import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { useTheme } from "@phoenix/contexts";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
@@ -19,6 +20,28 @@ import type { ToolInvocationPart } from "./toolPartTypes";
 import { formatToolState, stringifyToolValue } from "./toolPartTypes";
 
 const editPromptToolDetailsCSS = css`
+  .edit-prompt__header {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    gap: var(--global-dimension-size-100);
+    padding: var(--global-dimension-size-100) var(--global-dimension-size-250)
+      var(--global-dimension-size-50);
+  }
+
+  .edit-prompt__header-icon {
+    flex-shrink: 0;
+  }
+
+  .edit-prompt__header-label {
+    min-width: 0;
+    color: var(--tool-call-secondary-color);
+    text-transform: uppercase;
+    font-size: var(--global-font-size-xs);
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+
   .edit-prompt__diff {
     font-family: var(--ac-global-font-family-sans);
     white-space: normal;
@@ -48,6 +71,7 @@ export function EditPromptToolDetails({ part }: { part: ToolInvocationPart }) {
   const pendingEdit = useAgentContext(
     (state) => state.pendingPromptEditsByToolCallId[part.toolCallId] ?? null
   );
+  const input = parseEditPromptInput(part.input);
 
   return (
     <div className="tool-part__body" css={editPromptToolDetailsCSS}>
@@ -66,7 +90,7 @@ export function EditPromptToolDetails({ part }: { part: ToolInvocationPart }) {
           <ToolPartCodeBlock>{part.errorText ?? ""}</ToolPartCodeBlock>
         </>
       ) : null}
-      {!pendingEdit && part.state === "input-available" ? (
+      {!pendingEdit && input && part.state === "input-available" ? (
         <>
           <ToolPartLabel>{EDIT_PROMPT_TOOL_NAME}</ToolPartLabel>
           <ToolPartCodeBlock>Preparing prompt edit diff...</ToolPartCodeBlock>
@@ -98,7 +122,15 @@ function PendingEditPromptDiff({
 
   return (
     <Flex direction="column" gap="size-100">
-      <ToolPartLabel>Proposed diff</ToolPartLabel>
+      <div className="edit-prompt__header">
+        <div className="edit-prompt__header-icon">
+          <AlphabeticIndexIcon index={pendingEdit.before.index} size="XS" />
+        </div>
+        <span className="edit-prompt__header-label">
+          Proposed diff for {pendingEdit.before.label} (instance{" "}
+          {pendingEdit.instanceId})
+        </span>
+      </div>
       <div className="edit-prompt__diff">
         <FileDiff
           fileDiff={fileDiff}

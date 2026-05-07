@@ -278,19 +278,21 @@ function ToolInvocationPartDetails({ part }: { part: ToolInvocationPart }) {
   const toolName = getToolName(part);
   const uiBehavior = getAgentToolUIBehavior(toolName);
   const detailsRef = useRef<HTMLDetailsElement>(null);
-  const hasAutoFocusedRef = useRef(false);
-  const [isOpen, setIsOpen] = useState(uiBehavior?.autoOpen === true);
+  const hasAutoOpenedRef = useRef(false);
+  const [manualOpen, setManualOpen] = useState<boolean | null>(null);
   const { preview, stateLabel, statusVariant, details } = getToolPresentation(
     toolName,
     part
   );
+  const shouldAutoOpen = shouldAutoOpenToolPart(part, preview);
+  const isRenderedOpen = manualOpen ?? shouldAutoOpen;
 
   useEffect(() => {
-    if (uiBehavior?.autoOpen !== true || hasAutoFocusedRef.current) {
+    if (!shouldAutoOpen || hasAutoOpenedRef.current) {
       return;
     }
-    hasAutoFocusedRef.current = true;
-    if (uiBehavior.scrollIntoViewOnMount !== true) {
+    hasAutoOpenedRef.current = true;
+    if (uiBehavior?.scrollIntoViewOnMount !== true) {
       return;
     }
     requestAnimationFrame(() => {
@@ -298,23 +300,26 @@ function ToolInvocationPartDetails({ part }: { part: ToolInvocationPart }) {
         behavior: "smooth",
         block: "center",
       });
-      detailsRef.current
-        ?.querySelector("summary")
-        ?.focus({ preventScroll: true });
     });
-  }, [uiBehavior?.autoOpen, uiBehavior?.scrollIntoViewOnMount]);
+  }, [shouldAutoOpen, uiBehavior?.scrollIntoViewOnMount]);
 
   return (
     <details
       ref={detailsRef}
       className="tool-part"
       css={toolPartCSS}
-      open={isOpen}
+      open={isRenderedOpen}
       onToggle={(event) => {
-        setIsOpen(event.currentTarget.open);
+        if (manualOpen != null) {
+          setManualOpen(event.currentTarget.open);
+        }
       }}
     >
-      <summary>
+      <summary
+        onClick={() => {
+          setManualOpen(!isRenderedOpen);
+        }}
+      >
         <div className="tool-part__summary">
           <span className="tool-part__title">
             <Icon svg={<Icons.ChevronDown />} className="tool-part__chevron" />
@@ -333,6 +338,24 @@ function ToolInvocationPartDetails({ part }: { part: ToolInvocationPart }) {
       <div>{details}</div>
     </details>
   );
+}
+
+export function shouldAutoOpenToolPart(
+  part: ToolInvocationPart,
+  preview: string
+): boolean {
+  const toolName = getToolName(part);
+  const uiBehavior = getAgentToolUIBehavior(toolName);
+  if (uiBehavior?.autoOpen !== true) {
+    return false;
+  }
+  // Avoid opening an empty shell while tool arguments are still absent. Once the
+  // preview can be derived from arguments, the expanded details have context.
+  return preview !== "" || part.state !== "input-streaming";
+}
+
+export function getToolPartPreview(part: ToolInvocationPart): string {
+  return getToolPresentation(getToolName(part), part).preview;
 }
 
 // ---------------------------------------------------------------------------

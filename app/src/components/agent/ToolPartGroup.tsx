@@ -2,10 +2,14 @@ import { css } from "@emotion/react";
 import { getToolName, isToolUIPart } from "ai";
 import { useMemo, useState } from "react";
 
-import { getAgentToolUIBehavior } from "@phoenix/agent/extensions/toolRegistry";
 import { Icon, Icons } from "@phoenix/components";
 
-import { ToolPart, type ToolPartType } from "./ToolPart";
+import {
+  getToolPartPreview,
+  shouldAutoOpenToolPart,
+  ToolPart,
+  type ToolPartType,
+} from "./ToolPart";
 
 type ToolState =
   | "input-streaming"
@@ -199,16 +203,15 @@ function formatPoolStatus({
  * header with tool-type breakdown badges. Expands to reveal individual
  * {@link ToolPart} details.
  *
- * Starts collapsed. The user controls open/close exclusively — no automatic
- * toggling as tool states change, which avoids jitter during rapid tool
- * execution.
+ * Starts collapsed, except for tools that explicitly request auto-open after
+ * they have enough streamed input to render meaningful details.
  */
 export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
   const stats = useToolPoolStats(parts);
   const hasAutoOpenTool = parts.some(
     (part) =>
       isToolUIPart(part) &&
-      getAgentToolUIBehavior(getToolName(part))?.autoOpen === true
+      shouldAutoOpenToolPart(part, getToolPartPreview(part))
   );
   const [isExpanded, setIsExpanded] = useState(false);
   const isRenderedExpanded = isExpanded || hasAutoOpenTool;
