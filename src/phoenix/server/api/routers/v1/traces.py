@@ -579,13 +579,13 @@ async def _get_trace_rowid_by_relay_id_or_trace_id(
     trace_identifier: str,
 ) -> tuple[Optional[int], str]:
     try:
-        trace_rowid = from_global_id_with_expected_type(
+        relay_trace_rowid = from_global_id_with_expected_type(
             GlobalID.from_id(trace_identifier),
             "Trace",
         )
-        if await session.get(models.Trace, trace_rowid) is None:
+        if await session.get(models.Trace, relay_trace_rowid) is None:
             return None, f"Trace with relay ID '{trace_identifier}' not found"
-        return trace_rowid, f"Trace with relay ID '{trace_identifier}' not found"
+        return relay_trace_rowid, f"Trace with relay ID '{trace_identifier}' not found"
     except Exception:
         trace_rowid = await get_trace_rowid_by_identifier(session, trace_identifier)
         return trace_rowid, f"Trace with trace_id '{trace_identifier}' not found"

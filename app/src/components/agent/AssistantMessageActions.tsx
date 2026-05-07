@@ -91,9 +91,10 @@ async function getResponseErrorMessage(response: Response) {
  * write to complete (`sync=true`) so the caller knows it was persisted.
  * Throws with a descriptive message on non-2xx responses.
  */
-async function postAnnotation(
-  args: { endpoint: "/v1/span_annotations"; payload: SpanAnnotationPayload }
-) {
+async function postAnnotation(args: {
+  endpoint: "/v1/span_annotations";
+  payload: SpanAnnotationPayload;
+}) {
   const params = { query: { sync: true } } as const;
   const { response } = await authApiFetch.POST("/v1/span_annotations", {
     params,

@@ -27,9 +27,10 @@ async def get_trace_rowid_by_identifier(
     session: AsyncSession,
     trace_identifier: str,
 ) -> Optional[int]:
-    return await session.scalar(
+    trace_rowid: Optional[int] = await session.scalar(
         select(models.Trace.id).where(models.Trace.trace_id == trace_identifier)
     )
+    return trace_rowid
 
 
 async def upsert_trace_user_feedback(
