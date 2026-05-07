@@ -359,7 +359,7 @@ export const EditCodeEvaluatorDialogContent = ({
             {/* Left panel: Code Editor (60%) */}
             <Panel defaultSize="60%" minSize="40%" style={panelStyle}>
               <div css={editorPanelCSS}>
-                <CodeEditorSection
+                <EvaluatorMetadataForm
                   language={language}
                   onLanguageChange={(nextLanguage) => {
                     setLanguage((currentLanguage) => {
@@ -385,11 +385,16 @@ export const EditCodeEvaluatorDialogContent = ({
                   selectedSandboxConfigId={selectedSandboxConfigId}
                   onSandboxChange={setSandboxConfigId}
                   showSandboxHelperText={hasNoSandboxConfigs}
-                  outputShape={outputShape}
-                  outputConfig={outputConfig}
+                />
+                <CodeEditor
+                  language={language}
                   sourceCode={sourceCode}
                   onChange={setSourceCode}
+                  outputShape={outputShape}
+                  outputConfig={outputConfig}
                 />
+                <EvaluatorAnnotationSection />
+                <InputMappingSection />
               </div>
             </Panel>
 
@@ -414,9 +419,10 @@ export const EditCodeEvaluatorDialogContent = ({
 };
 
 /**
- * Compact header bar with inline name, language, and sandbox fields
+ * Top-of-panel form for the evaluator's identifying metadata:
+ * Name, Language, Sandbox, and Description.
  */
-const CompactHeaderBar = ({
+const EvaluatorMetadataForm = ({
   language,
   onLanguageChange,
   sandboxConfigs,
@@ -432,7 +438,7 @@ const CompactHeaderBar = ({
   showSandboxHelperText?: boolean;
 }) => {
   return (
-    <div css={headerBarCSS}>
+    <div css={metadataFormCSS}>
       <div style={{ flex: "0 0 260px" }}>
         <EvaluatorNameInput />
       </div>
@@ -715,27 +721,17 @@ function getSandboxConfigRecord(config: unknown) {
 }
 
 /**
- * Code editor section - full height, primary element
- * Includes auto-generated type definitions as a read-only footer below the editor.
+ * Editable source-code editor with a read-only auto-generated type footer.
+ * Ships its own description line and Reset-to-default button.
  */
-const CodeEditorSection = ({
+const CodeEditor = ({
   language,
-  onLanguageChange,
-  sandboxConfigs,
-  selectedSandboxConfigId,
-  onSandboxChange,
-  showSandboxHelperText,
   outputShape,
   outputConfig,
   sourceCode,
   onChange,
 }: {
   language: CodeEvaluatorLanguage;
-  onLanguageChange: (language: CodeEvaluatorLanguage) => void;
-  sandboxConfigs: SandboxConfigOption[];
-  selectedSandboxConfigId: string | null;
-  onSandboxChange: (sandboxConfigId: string | null) => void;
-  showSandboxHelperText?: boolean;
   outputShape: EvaluatorOutputShape;
   outputConfig: AnnotationConfig | undefined;
   sourceCode: string;
@@ -771,15 +767,7 @@ const CodeEditorSection = ({
       : "Define an evaluate function that returns a numerical score.";
 
   return (
-    <div css={editorSectionCSS}>
-      <CompactHeaderBar
-        language={language}
-        onLanguageChange={onLanguageChange}
-        sandboxConfigs={sandboxConfigs}
-        selectedSandboxConfigId={selectedSandboxConfigId}
-        onSandboxChange={onSandboxChange}
-        showSandboxHelperText={showSandboxHelperText}
-      />
+    <Flex direction="column" gap="size-100">
       {/* Editor header with reset button */}
       <Flex
         direction="row"
@@ -866,48 +854,62 @@ const CodeEditorSection = ({
           )}
         </Group>
       </div>
+    </Flex>
+  );
+};
 
-      <View flex="none">
-        <Flex direction="column" gap="size-100">
-          <Heading level={2} weight="heavy">
-            Evaluator Annotation
-          </Heading>
-          <Text color="text-500">
-            Define the annotation that your evaluator will create.
-          </Text>
-          <View
-            borderRadius="medium"
-            borderWidth="thin"
-            padding="size-200"
-            marginTop="size-50"
-            borderColor="default"
-          >
-            <OutputConfigSection />
-          </View>
-        </Flex>
-      </View>
+/**
+ * Heading + bordered card for the evaluator's output annotation config.
+ */
+const EvaluatorAnnotationSection = () => {
+  return (
+    <View flex="none">
+      <Flex direction="column" gap="size-100">
+        <Heading level={2} weight="heavy">
+          Evaluator Annotation
+        </Heading>
+        <Text color="text-500">
+          Define the annotation that your evaluator will create.
+        </Text>
+        <View
+          borderRadius="medium"
+          borderWidth="thin"
+          padding="size-200"
+          marginTop="size-50"
+          borderColor="default"
+        >
+          <OutputConfigSection />
+        </View>
+      </Flex>
+    </View>
+  );
+};
 
-      <View flex="none">
-        <Flex direction="column" gap="size-100">
-          <Heading level={2} weight="heavy">
-            Input Mapping (optional)
-          </Heading>
-          <Text color="text-500">
-            Map evaluator arguments to dataset fields. Arguments are
-            auto-detected from your code.
-          </Text>
-          <View
-            borderRadius="medium"
-            borderWidth="thin"
-            padding="size-200"
-            marginTop="size-50"
-            borderColor="default"
-          >
-            <EvaluatorInputMapping />
-          </View>
-        </Flex>
-      </View>
-    </div>
+/**
+ * Heading + bordered card for mapping evaluator arguments to dataset fields.
+ */
+const InputMappingSection = () => {
+  return (
+    <View flex="none">
+      <Flex direction="column" gap="size-100">
+        <Heading level={2} weight="heavy">
+          Input Mapping (optional)
+        </Heading>
+        <Text color="text-500">
+          Map evaluator arguments to dataset fields. Arguments are auto-detected
+          from your code.
+        </Text>
+        <View
+          borderRadius="medium"
+          borderWidth="thin"
+          padding="size-200"
+          marginTop="size-50"
+          borderColor="default"
+        >
+          <EvaluatorInputMapping />
+        </View>
+      </Flex>
+    </View>
   );
 };
 
@@ -1164,7 +1166,7 @@ const fieldsetCSS = css`
   overflow: hidden;
 `;
 
-const headerBarCSS = css`
+const metadataFormCSS = css`
   display: flex;
   flex-direction: row;
   align-items: flex-start;
@@ -1189,12 +1191,7 @@ const editorPanelCSS = css`
   padding-top: var(--global-dimension-size-100);
   box-sizing: border-box;
   overflow-y: auto;
-`;
-
-const editorSectionCSS = css`
-  display: flex;
-  flex-direction: column;
-  gap: var(--global-dimension-size-100);
+  gap: var(--global-dimension-size-150);
 `;
 
 const sidebarPanelCSS = css`
