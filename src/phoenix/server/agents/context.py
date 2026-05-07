@@ -56,7 +56,7 @@ class TraceContext(_ChatContextBase):
     otel_trace_id: str = Field(alias="otelTraceId")
 
 
-class SpanContext(_ChatContextBase):
+class AgentSpanContext(_ChatContextBase):
     """Span the user has selected.
 
     Exactly one of ``span_node_id`` (relay) or ``otel_span_id`` (OpenTelemetry
@@ -70,11 +70,11 @@ class SpanContext(_ChatContextBase):
     otel_span_id: str | None = Field(default=None, alias="otelSpanId")
 
     @model_validator(mode="after")
-    def _exactly_one_span_id(self) -> "SpanContext":
+    def _exactly_one_span_id(self) -> "AgentSpanContext":
         has_node = self.span_node_id is not None
         has_otel = self.otel_span_id is not None
         if has_node == has_otel:
-            raise ValueError("SpanContext requires exactly one of spanNodeId or otelSpanId")
+            raise ValueError("AgentSpanContext requires exactly one of spanNodeId or otelSpanId")
         return self
 
 
@@ -87,7 +87,7 @@ class AppContext(_ChatContextBase):
 
 
 ChatContext = Annotated[
-    AppContext | ProjectContext | TraceContext | SpanContext,
+    AppContext | ProjectContext | TraceContext | AgentSpanContext,
     Field(discriminator="type"),
 ]
 
@@ -97,7 +97,7 @@ class ResolvedContexts:
     app: AppContext | None = None
     project: ProjectContext | None = None
     trace: TraceContext | None = None
-    span: SpanContext | None = None
+    span: AgentSpanContext | None = None
 
 
 ToolCallable = Callable[[dict[str, Any]], Awaitable[str]]
@@ -118,7 +118,7 @@ def resolve_contexts(items: list[ChatContext]) -> ResolvedContexts:
             resolved.project = item
         elif isinstance(item, TraceContext):
             resolved.trace = item
-        elif isinstance(item, SpanContext):
+        elif isinstance(item, AgentSpanContext):
             resolved.span = item
     return resolved
 

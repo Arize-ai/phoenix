@@ -32,6 +32,7 @@ import grpc
 import strawberry
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from fastapi.utils import is_body_allowed_for_status_code
 from grpc.aio import ServerInterceptor
 from grpc_interceptor import AsyncServerInterceptor
@@ -230,7 +231,7 @@ mimetypes.add_type("text/javascript", ".mjs", strict=True)
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(include_in_schema=False)
+router = APIRouter()
 
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
 
@@ -1238,6 +1239,26 @@ def create_app(
         # Only register LDAP endpoint if LDAP is configured
         app.include_router(create_auth_router(ldap_enabled=ldap_config is not None))
         app.include_router(oauth2_router)
+
+    def _v1_only_openapi() -> dict[str, Any]:
+        """Generate the OpenAPI schema served to Swagger UI, restricted to routes under ``/v1``."""
+        if app.openapi_schema:
+            return app.openapi_schema
+        schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            openapi_version=app.openapi_version,
+            description=app.description,
+            routes=app.routes,
+            separate_input_output_schemas=False,
+        )
+        schema["paths"] = {
+            path: ops for path, ops in schema["paths"].items() if path.startswith("/v1")
+        }
+        app.openapi_schema = schema
+        return schema
+
+    app.openapi = _v1_only_openapi  # type: ignore[method-assign]
     app.add_middleware(GZipMiddleware)
     static_dir = SERVER_DIR / "static"
     web_manifest_path = static_dir / ".vite" / "manifest.json"

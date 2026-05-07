@@ -31,7 +31,7 @@ NC := \033[0m # No Color
 .PHONY: help check-tools \
 	setup install-python install-node \
 	graphql schema-graphql relay-build \
-	openapi schema-openapi codegen-python-client codegen-ts-client \
+	openapi schema-openapi codegen-python-client codegen-ts-client codegen-ts-app \
 	dev dev-backend dev-frontend dev-docker dev-mock-llm \
 	test test-python test-frontend test-ts test-helm test-jcs typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
@@ -51,6 +51,7 @@ help: ## Show this help message
 	@echo -e "  schema-openapi         - Generate OpenAPI schema only"
 	@echo -e "  codegen-python-client  - Generate Python client types from OpenAPI"
 	@echo -e "  codegen-ts-client      - Generate TypeScript client types from OpenAPI"
+	@echo -e "  codegen-ts-app         - Generate TypeScript OpenAPI types for frontend (app/)"
 	@echo -e ""
 	@echo -e "$(GREEN)Setup:$(NC)"
 	@echo -e "  $(YELLOW)setup$(NC)                 - Complete development environment setup"
@@ -196,7 +197,12 @@ codegen-ts-client: ## Generate TypeScript client types from OpenAPI
 	@cd $(JS_DIR)/packages/phoenix-client && $(PNPM) run --silent generate
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-openapi: schema-openapi codegen-python-client codegen-ts-client ## Generate OpenAPI schema and all clients (full workflow)
+codegen-ts-app: ## Generate TypeScript OpenAPI types for app/
+	@echo -e "$(CYAN)Generating TypeScript OpenAPI types for app...$(NC)"
+	@cd $(APP_DIR) && $(PNPM) run --silent generate:openapi
+	@echo -e "$(GREEN)✓ Done$(NC)"
+
+openapi: schema-openapi codegen-python-client codegen-ts-client codegen-ts-app ## Generate OpenAPI schema and all clients (full workflow)
 	@echo -e "$(GREEN)✓ OpenAPI schema workflow complete$(NC)"
 
 #=============================================================================

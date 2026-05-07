@@ -77,7 +77,6 @@ _BRUTE_FORCE_MESSAGE = "Too many failed login attempts. Please try again later."
 
 
 def _check_brute_force_limit(key: str) -> None:
-
     if brute_force_rate_limiter is None:
         return
     try:
@@ -125,7 +124,7 @@ def create_auth_router(ldap_enabled: bool = False) -> APIRouter:
     login_rate_limiter = fastapi_ip_rate_limiter(rate_limiter, paths=rate_limited_paths)
     auth_dependencies = [Depends(login_rate_limiter)] if not get_env_disable_rate_limit() else []
 
-    router = APIRouter(prefix="/auth", include_in_schema=False, dependencies=auth_dependencies)
+    router = APIRouter(prefix="/auth", dependencies=auth_dependencies)
 
     # Register all authentication endpoints
     router.add_api_route("/login", _login, methods=["POST"])

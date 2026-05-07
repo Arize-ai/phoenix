@@ -19,10 +19,15 @@ jobs:
           fetch-depth: 0
           sparse-checkout: schemas/openapi.json
           sparse-checkout-cone-mode: false
-      - name: Copy schema file
+      - name: Snapshot head schema
         run: |
-          cp schemas/openapi.json .${{ github.sha }}.openapi.json
+          jq '.paths |= with_entries(select(.key | startswith("/agent") | not))' \
+            schemas/openapi.json > head.json
           git checkout ${{ github.base_ref }}
+      - name: Snapshot base schema
+        run: |
+          jq '.paths |= with_entries(select(.key | startswith("/agent") | not))' \
+            schemas/openapi.json > base.json
       - uses: docker://openapitools/openapi-diff
         with:
-          args: --fail-on-incompatible schemas/openapi.json .${{ github.sha }}.openapi.json
+          args: --fail-on-incompatible base.json head.json

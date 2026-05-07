@@ -3,7 +3,7 @@ import copy from "copy-to-clipboard";
 import { useState } from "react";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
-import { authFetch } from "@phoenix/authFetch";
+import { authApiFetch } from "@phoenix/api/authApiFetch";
 import { Icon, Icons } from "@phoenix/components";
 import {
   MessageAction,
@@ -87,20 +87,22 @@ async function getResponseErrorMessage(response: Response) {
  * write to complete (`sync=true`) so the caller knows it was persisted.
  * Throws with a descriptive message on non-2xx responses.
  */
-async function postAnnotation({
-  endpoint,
-  payload,
-}: {
-  endpoint: "/v1/span_annotations" | "/v1/trace_annotations";
-  payload: SpanAnnotationPayload | TraceAnnotationPayload;
-}) {
-  const response = await authFetch(`${prependBasename(endpoint)}?sync=true`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ data: [payload] }),
-  });
+async function postAnnotation(
+  args:
+    | { endpoint: "/v1/span_annotations"; payload: SpanAnnotationPayload }
+    | { endpoint: "/v1/trace_annotations"; payload: TraceAnnotationPayload }
+) {
+  const params = { query: { sync: true } } as const;
+  const { response } =
+    args.endpoint === "/v1/span_annotations"
+      ? await authApiFetch.POST("/v1/span_annotations", {
+          params,
+          body: { data: [args.payload] },
+        })
+      : await authApiFetch.POST("/v1/trace_annotations", {
+          params,
+          body: { data: [args.payload] },
+        });
 
   if (!response.ok) {
     throw new Error(await getResponseErrorMessage(response));
