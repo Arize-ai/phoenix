@@ -16,6 +16,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
+import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
 
@@ -59,8 +60,18 @@ export const CodeEvaluatorLanguageField = ({
       </Button>
       <Popover>
         <ListBox>
-          <SelectItem id="PYTHON">Python</SelectItem>
-          <SelectItem id="TYPESCRIPT">TypeScript</SelectItem>
+          <SelectItem id="PYTHON" textValue="Python">
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <PythonSVG />
+              <Text>Python</Text>
+            </Flex>
+          </SelectItem>
+          <SelectItem id="TYPESCRIPT" textValue="TypeScript">
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <TypeScriptSVG />
+              <Text>TypeScript</Text>
+            </Flex>
+          </SelectItem>
         </ListBox>
       </Popover>
     </Select>
@@ -127,7 +138,9 @@ export const CodeEvaluatorSandboxField = ({
         label="Sandbox"
         size={size}
         placeholder={
-          compatibleConfigs.length > 0 ? "Select..." : "None available"
+          compatibleConfigs.length > 0
+            ? "Select a sandbox..."
+            : "None available"
         }
         selectedKey={validSelectedId != null ? String(validSelectedId) : null}
         onSelectionChange={(key) => {
