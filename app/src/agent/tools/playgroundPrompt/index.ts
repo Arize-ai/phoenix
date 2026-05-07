@@ -1,18 +1,21 @@
 import type { Chat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 
+import { NUM_MAX_PLAYGROUND_INSTANCES } from "@phoenix/pages/playground/constants";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 import type {
   ChatMessage,
   PlaygroundNormalizedInstance,
 } from "@phoenix/store/playground";
 import {
+  generateInstanceId,
   generateMessageId,
   type PlaygroundStore,
 } from "@phoenix/store/playground";
 
 export const READ_PROMPT_TOOL_NAME = "read_prompt";
 export const EDIT_PROMPT_TOOL_NAME = "edit_prompt";
+export const CLONE_PROMPT_INSTANCE_TOOL_NAME = "clone_prompt_instance";
 
 type AddToolOutput = Chat<UIMessage>["addToolOutput"];
 export type PromptEditToolOutputSender = AddToolOutput;
@@ -22,6 +25,10 @@ const VALID_MESSAGE_ROLES = ["system", "user", "ai", "tool"] as const;
 type PromptMessageRole = (typeof VALID_MESSAGE_ROLES)[number];
 
 export type ReadPromptInput = {
+  instanceId?: number;
+};
+
+export type ClonePromptInstanceInput = {
   instanceId?: number;
 };
 
@@ -36,6 +43,7 @@ export type PromptMessageSnapshot = {
 export type PromptSnapshot = {
   instanceId: number;
   index: number;
+  label: string;
   revision: string;
   dirty: boolean;
   prompt: {
@@ -140,6 +148,20 @@ export function parseReadPromptInput(input: unknown): ReadPromptInput | null {
     ...(typeof candidate.instanceId === "number"
       ? { instanceId: candidate.instanceId }
       : {}),
+  };
+}
+
+export function parseClonePromptInstanceInput(
+  input: unknown
+): ClonePromptInstanceInput | null {
+  if (typeof input !== "object" || input === null) return null;
+  const candidate = input as { instanceId?: unknown; instance_id?: unknown };
+  const instanceId = candidate.instanceId ?? candidate.instance_id;
+  if (instanceId !== undefined && !Number.isInteger(instanceId)) {
+    return null;
+  }
+  return {
+    ...(typeof instanceId === "number" ? { instanceId } : {}),
   };
 }
 
@@ -294,6 +316,28 @@ export function createReadPromptClientAction({
       return snapshot;
     }
     return { ok: true, output: JSON.stringify(snapshot.output, null, 2) };
+  };
+}
+
+export function createClonePromptInstanceClientAction({
+  playgroundStore,
+}: {
+  playgroundStore: PlaygroundStore;
+}) {
+  return async (input: unknown): Promise<AgentClientActionResult> => {
+    const parsed = parseClonePromptInstanceInput(input);
+    if (!parsed) {
+      return { ok: false, error: "Invalid clone_prompt_instance input." };
+    }
+    const result = clonePromptInstance({
+      playgroundStore,
+      instanceId: parsed.instanceId,
+    });
+    if (!result.ok) return result;
+    return {
+      ok: true,
+      output: JSON.stringify(result.output, null, 2),
+    };
   };
 }
 
@@ -496,9 +540,13 @@ function getPromptSnapshot({
       error: "The playground prompt has missing message state.",
     };
   }
+  const instanceIndex = instances.findIndex(
+    (candidate) => candidate.id === instance.id
+  );
   const snapshotWithoutRevision = {
     instanceId: instance.id,
-    index: instances.findIndex((candidate) => candidate.id === instance.id),
+    index: instanceIndex,
+    label: getInstanceLabel(instanceIndex),
     dirty: state.dirtyInstances[instance.id] === true,
     prompt: instance.prompt
       ? {
@@ -522,6 +570,107 @@ function getPromptSnapshot({
   };
 }
 
+function clonePromptInstance({
+  playgroundStore,
+  instanceId,
+}: {
+  playgroundStore: PlaygroundStore;
+  instanceId?: number;
+}):
+  | {
+      ok: true;
+      output: {
+        sourceInstanceId: number;
+        sourceLabel: string;
+        clonedInstanceId: number;
+        clonedLabel: string;
+        revision: string;
+        message: string;
+      };
+    }
+  | { ok: false; error: string } {
+  const source = getPromptSnapshot({ playgroundStore, instanceId });
+  if (!source.ok) return source;
+  if (
+    playgroundStore.getState().instances.length >= NUM_MAX_PLAYGROUND_INSTANCES
+  ) {
+    return {
+      ok: false,
+      error: `Cannot clone prompt instance: the playground supports at most ${NUM_MAX_PLAYGROUND_INSTANCES} comparison instances. Delete an existing instance before cloning another.`,
+    };
+  }
+  let clonedInstanceId: number | null = null;
+  playgroundStore.setState((state) => {
+    const sourceInstance = state.instances.find(
+      (candidate) => candidate.id === source.output.instanceId
+    );
+    if (!sourceInstance || sourceInstance.template.__type !== "chat") {
+      return state;
+    }
+    const copiedMessages = sourceInstance.template.messageIds
+      .map((messageId) => state.allInstanceMessages[messageId])
+      .filter((message): message is ChatMessage => message != null)
+      .map((message) => ({
+        ...message,
+        id: generateMessageId(),
+      }));
+    if (copiedMessages.length !== sourceInstance.template.messageIds.length) {
+      return state;
+    }
+    const clonedMessageIds = copiedMessages.map((message) => message.id);
+    const clonedMessages = copiedMessages.reduce(
+      (acc, message) => {
+        acc[message.id] = message;
+        return acc;
+      },
+      {} as Record<number, ChatMessage>
+    );
+    clonedInstanceId = generateInstanceId();
+    return {
+      ...state,
+      allInstanceMessages: {
+        ...state.allInstanceMessages,
+        ...clonedMessages,
+      },
+      instances: [
+        ...state.instances,
+        {
+          ...sourceInstance,
+          id: clonedInstanceId,
+          template: {
+            ...sourceInstance.template,
+            messageIds: clonedMessageIds,
+          },
+          activeRunId: null,
+          experiment: null,
+          repetitions: {},
+        },
+      ],
+    };
+  });
+  if (clonedInstanceId == null) {
+    return {
+      ok: false,
+      error: "Unable to clone the playground prompt instance.",
+    };
+  }
+  const cloned = getPromptSnapshot({
+    playgroundStore,
+    instanceId: clonedInstanceId,
+  });
+  return {
+    ok: true,
+    output: {
+      sourceInstanceId: source.output.instanceId,
+      sourceLabel: source.output.label,
+      clonedInstanceId,
+      clonedLabel: cloned.ok ? cloned.output.label : "",
+      revision: cloned.ok ? cloned.output.revision : source.output.revision,
+      message: "Prompt instance cloned for comparison.",
+    },
+  };
+}
+
 function normalizeMessageSnapshot(
   message: ChatMessage | undefined
 ): PromptMessageSnapshot | null {
@@ -539,6 +688,10 @@ function normalizeMessageSnapshot(
       ? { toolCalls: message.toolCalls }
       : {}),
   };
+}
+
+export function getInstanceLabel(index: number): string {
+  return String.fromCharCode(65 + index);
 }
 
 function buildRevision(value: unknown): string {

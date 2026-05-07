@@ -13,6 +13,8 @@ import { useBlocker, useSearchParams } from "react-router";
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import {
   bindPendingPromptEditActions,
+  CLONE_PROMPT_INSTANCE_TOOL_NAME,
+  createClonePromptInstanceClientAction,
   createEditPromptClientAction,
   createReadPromptClientAction,
   EDIT_PROMPT_TOOL_NAME,
@@ -270,6 +272,10 @@ function PlaygroundContent() {
       createReadPromptClientAction({ playgroundStore })
     );
     registerClientAction(
+      CLONE_PROMPT_INSTANCE_TOOL_NAME,
+      createClonePromptInstanceClientAction({ playgroundStore })
+    );
+    registerClientAction(
       EDIT_PROMPT_TOOL_NAME,
       createEditPromptClientAction({ playgroundStore, setPendingPromptEdit })
     );
@@ -296,6 +302,7 @@ function PlaygroundContent() {
     }
     return () => {
       unregisterClientAction(READ_PROMPT_TOOL_NAME);
+      unregisterClientAction(CLONE_PROMPT_INSTANCE_TOOL_NAME);
       unregisterClientAction(EDIT_PROMPT_TOOL_NAME);
     };
   }, [agentStore, playgroundStore]);

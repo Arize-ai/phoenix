@@ -3,7 +3,10 @@ import {
   handleRegisteredAgentToolCall,
   SET_TIME_RANGE_TOOL_NAME,
 } from "@phoenix/agent/extensions/toolRegistry";
-import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
+import {
+  CLONE_PROMPT_INSTANCE_TOOL_NAME,
+  EDIT_PROMPT_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundPrompt";
 import { createAgentStore } from "@phoenix/store/agentStore";
 
 describe("toolRegistry", () => {
@@ -146,6 +149,35 @@ describe("toolRegistry", () => {
         state: "output-available",
         tool: SET_TIME_RANGE_TOOL_NAME,
         output: "updated",
+      })
+    );
+  });
+
+  it("dispatches clone_prompt_instance to the registered client action", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const action = vi.fn().mockResolvedValue({ ok: true, output: "cloned" });
+    store
+      .getState()
+      .registerClientAction(CLONE_PROMPT_INSTANCE_TOOL_NAME, action);
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-6",
+        toolName: CLONE_PROMPT_INSTANCE_TOOL_NAME,
+        input: { instanceId: 0 },
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(action).toHaveBeenCalledWith({ instanceId: 0 });
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-available",
+        tool: CLONE_PROMPT_INSTANCE_TOOL_NAME,
+        output: "cloned",
       })
     );
   });

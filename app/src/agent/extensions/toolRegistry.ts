@@ -11,9 +11,12 @@ import { handleBashToolCall } from "@phoenix/agent/tools/bash/handleBashToolCall
 import { parseElicitToolInput } from "@phoenix/agent/tools/elicit";
 import type { ElicitToolInput } from "@phoenix/agent/tools/elicit";
 import {
+  CLONE_PROMPT_INSTANCE_TOOL_NAME,
   EDIT_PROMPT_TOOL_NAME,
+  parseClonePromptInstanceInput,
   parseEditPromptInput,
   parseReadPromptInput,
+  type ClonePromptInstanceInput,
   READ_PROMPT_TOOL_NAME,
   type EditPromptActionContext,
   type EditPromptInput,
@@ -321,6 +324,45 @@ const readPromptAgentTool = createRegisteredAgentTool<ReadPromptInput>({
   },
 });
 
+const clonePromptInstanceAgentTool =
+  createRegisteredAgentTool<ClonePromptInstanceInput>({
+    name: CLONE_PROMPT_INSTANCE_TOOL_NAME,
+    parseInput: parseClonePromptInstanceInput,
+    invalidInputErrorText: `Invalid ${CLONE_PROMPT_INSTANCE_TOOL_NAME} input. Expected { instanceId?: number }.`,
+    execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+      const action =
+        agentStore.getState().registeredClientActions[
+          CLONE_PROMPT_INSTANCE_TOOL_NAME
+        ];
+      if (!action) {
+        await addToolOutput({
+          state: "output-error",
+          tool: CLONE_PROMPT_INSTANCE_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText:
+            "The playground prompt editor is not mounted; cannot clone prompt instances.",
+        });
+        return;
+      }
+      const result = await action(input);
+      if (result.ok) {
+        await addToolOutput({
+          state: "output-available",
+          tool: CLONE_PROMPT_INSTANCE_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          output: result.output ?? "Prompt instance cloned.",
+        });
+      } else {
+        await addToolOutput({
+          state: "output-error",
+          tool: CLONE_PROMPT_INSTANCE_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText: result.error,
+        });
+      }
+    },
+  });
+
 const editPromptAgentTool = createRegisteredAgentTool<EditPromptInput>({
   name: EDIT_PROMPT_TOOL_NAME,
   parseInput: parseEditPromptInput,
@@ -381,6 +423,7 @@ const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   setTimeRangeAgentTool as RegisteredAgentTool<unknown>,
   setSpansFilterAgentTool as RegisteredAgentTool<unknown>,
   readPromptAgentTool as RegisteredAgentTool<unknown>,
+  clonePromptInstanceAgentTool as RegisteredAgentTool<unknown>,
   editPromptAgentTool as RegisteredAgentTool<unknown>,
 ];
 

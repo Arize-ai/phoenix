@@ -1,4 +1,5 @@
 import {
+  createClonePromptInstanceClientAction,
   createEditPromptClientAction,
   createReadPromptClientAction,
   EDIT_PROMPT_TOOL_NAME,
@@ -31,11 +32,80 @@ describe("playground prompt agent tools", () => {
     if (!result.ok) return;
     const snapshot = JSON.parse(result.output ?? "") as PromptSnapshot;
     expect(snapshot.instanceId).toBe(0);
+    expect(snapshot.label).toBe("A");
     expect(snapshot.revision).toMatch(/^prompt-/);
     expect(snapshot.messages).toEqual([
       expect.objectContaining({ id: 0, role: "system" }),
       expect.objectContaining({ id: 1, role: "user" }),
     ]);
+  });
+
+  it("clones a prompt instance for comparison with fresh message IDs", async () => {
+    const playgroundStore = createPlaygroundStore({
+      datasetId: null,
+      modelConfigByProvider: {},
+    });
+    const readAction = createReadPromptClientAction({ playgroundStore });
+    const cloneAction = createClonePromptInstanceClientAction({
+      playgroundStore,
+    });
+    const readResult = await readAction({});
+    expect(readResult.ok).toBe(true);
+    if (!readResult.ok) return;
+    const original = JSON.parse(readResult.output ?? "") as PromptSnapshot;
+
+    const cloneResult = await cloneAction({ instanceId: original.instanceId });
+
+    expect(cloneResult.ok).toBe(true);
+    if (!cloneResult.ok) return;
+    const cloneOutput = JSON.parse(cloneResult.output ?? "") as {
+      sourceInstanceId: number;
+      sourceLabel: string;
+      clonedInstanceId: number;
+      clonedLabel: string;
+      revision: string;
+    };
+    expect(cloneOutput.sourceInstanceId).toBe(original.instanceId);
+    expect(cloneOutput.sourceLabel).toBe("A");
+    expect(cloneOutput.clonedInstanceId).not.toBe(original.instanceId);
+    expect(cloneOutput.clonedLabel).toBe("B");
+    expect(playgroundStore.getState().instances).toHaveLength(2);
+    const clonedRead = await readAction({
+      instanceId: cloneOutput.clonedInstanceId,
+    });
+    expect(clonedRead.ok).toBe(true);
+    if (!clonedRead.ok) return;
+    const cloned = JSON.parse(clonedRead.output ?? "") as PromptSnapshot;
+    expect(cloned.messages.map((message) => message.content)).toEqual(
+      original.messages.map((message) => message.content)
+    );
+    expect(cloned.messages.map((message) => message.id)).not.toEqual(
+      original.messages.map((message) => message.id)
+    );
+  });
+
+  it("rejects clone_prompt_instance when the playground already has four instances", async () => {
+    const playgroundStore = createPlaygroundStore({
+      datasetId: null,
+      modelConfigByProvider: {},
+    });
+    const cloneAction = createClonePromptInstanceClientAction({
+      playgroundStore,
+    });
+    playgroundStore.getState().addInstance();
+    playgroundStore.getState().addInstance();
+    playgroundStore.getState().addInstance();
+    expect(playgroundStore.getState().instances).toHaveLength(4);
+
+    const result = await cloneAction({ instanceId: 0 });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: false,
+        error: expect.stringContaining("at most 4"),
+      })
+    );
+    expect(playgroundStore.getState().instances).toHaveLength(4);
   });
 
   it("queues edit_prompt until the user accepts, then applies the edit and completes the tool", async () => {

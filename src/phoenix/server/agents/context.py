@@ -227,18 +227,24 @@ def build_phoenix_context_user_message_content(
             body_lines.append("  - Spans table is showing all spans (root and non-root)")
         has_context = True
     if resolved.playground is not None:
-        instance_ids = ", ".join(
-            str(instance_id) for instance_id in resolved.playground.instance_ids
+        instance_labels = ", ".join(
+            f"{chr(65 + index)} (instance ID {instance_id})"
+            for index, instance_id in enumerate(resolved.playground.instance_ids)
         )
-        if instance_ids:
+        if instance_labels:
             body_lines.append(
-                f"- Playground prompt editor is available with instance IDs: {instance_ids}"
+                f"- Playground prompt editor is available with instances: {instance_labels}"
             )
         else:
             body_lines.append("- Playground prompt editor is available")
         body_lines.append(
-            "  - Use `read_prompt` before proposing edits and `edit_prompt` to show the user "
-            "an approval diff before changing prompt messages"
+            "  - Use the alphabetic labels (A, B, C, D) when discussing instances with "
+            "the user, and pass the corresponding numeric instance ID when calling tools"
+        )
+        body_lines.append(
+            "  - Use `read_prompt` before proposing edits, `clone_prompt_instance` to create "
+            "comparison variants, and `edit_prompt` to show the user an approval diff before "
+            "changing prompt messages"
         )
         has_context = True
     if resolved.trace is not None:

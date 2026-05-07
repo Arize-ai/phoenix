@@ -9,6 +9,9 @@ READ_PROMPT_TOOL_NAME = "read_prompt"
 _READ_PROMPT_TOOL_DESCRIPTION = (
     "Read the current playground prompt for one instance. Use this before editing a "
     "playground prompt so you have stable message IDs and the latest revision token. "
+    "The result includes both the numeric `instanceId` for tool calls and the alphabetic "
+    "`label` (A, B, C, D) shown to the user; use labels when discussing instances with "
+    "the user. "
     "If there is exactly one playground instance, `instanceId` may be omitted. If "
     "there are multiple comparison instances, pass the specific `instanceId`."
 )
