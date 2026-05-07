@@ -1261,6 +1261,18 @@
     <lastmod>2026-05-03T19:50:00+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/delete-span-annotations-by-filter</loc>
+    <lastmod>2026-05-06T17:50:06+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/delete-trace-annotations-by-filter</loc>
+    <lastmod>2026-05-06T17:50:06+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/delete-session-annotations-by-filter</loc>
+    <lastmod>2026-05-06T17:50:06+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/list-datasets</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -1757,8 +1769,28 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/05-2026/05-05-2026-provider-tools</loc>
+    <lastmod>2026-05-06T17:07:52+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/05-2026/05-05-2026-rest-api-updates</loc>
+    <lastmod>2026-05-06T17:07:52+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/release-notes/05-2026/05-01-2026-tanstack-ai-tracing</loc>
     <lastmod>2026-05-02T02:56:56+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-30-2026-cli-auth-profiles</loc>
+    <lastmod>2026-05-06T17:07:52+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-30-2026-annotation-enhancements</loc>
+    <lastmod>2026-05-06T17:07:52+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-29-2026-dataset-upsert</loc>
+    <lastmod>2026-05-06T17:07:52+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-28-2026-session-notes-api</loc>

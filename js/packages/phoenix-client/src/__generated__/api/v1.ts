@@ -1139,10 +1139,287 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Login
+         * @description Authenticate user via email/password and return access/refresh tokens.
+         */
+        post: operations["_login_auth_login_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Logout
+         * @description Log out user by revoking tokens and clearing cookies.
+         */
+        get: operations["_logout_auth_logout_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh Tokens
+         * @description Refresh access and refresh tokens.
+         */
+        post: operations["_refresh_tokens_auth_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/password-reset-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Initiate Password Reset
+         * @description Send password reset email to user.
+         */
+        post: operations["_initiate_password_reset_auth_password_reset_email_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/password-reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Password
+         * @description Reset user password using a valid reset token.
+         */
+        post: operations["_reset_password_auth_password_reset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/ldap/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ldap Login
+         * @description Authenticate user via LDAP and return access/refresh tokens.
+         */
+        post: operations["_ldap_login_auth_ldap_login_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/oauth2/{idp_name}/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Login */
+        get: operations["login_oauth2__idp_name__login_get"];
+        put?: never;
+        /** Login */
+        post: operations["login_oauth2__idp_name__login_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/oauth2/{idp_name}/tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Create Tokens */
+        get: operations["create_tokens_oauth2__idp_name__tokens_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Chat */
+        post: operations["chat_chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/chat-v2": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Chat V2 */
+        post: operations["chat_v2_chat_v2_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/arize_phoenix_version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Version */
+        get: operations["version_arize_phoenix_version_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/healthz": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Check Healthz */
+        get: operations["check_healthz_healthz_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/readyz": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Check Readyz */
+        get: operations["check_readyz_readyz_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AgentCapabilities
+         * @description Runtime capability state sent by the browser for a chat turn.
+         */
+        AgentCapabilities: {
+            /**
+             * Bash.Retaininactivesessions
+             * @default false
+             */
+            "bash.retainInactiveSessions"?: boolean;
+            /**
+             * Graphql.Mutations
+             * @default false
+             */
+            "graphql.mutations"?: boolean;
+        };
+        /**
+         * AgentSpanContext
+         * @description Span the user has selected.
+         *
+         *     Exactly one of ``span_node_id`` (relay) or ``otel_span_id`` (OpenTelemetry
+         *     hex) must be set. ``project_node_id`` is optional because a span can be
+         *     selected from views outside a project route.
+         */
+        AgentSpanContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "span";
+            /** Projectnodeid */
+            projectNodeId?: string | null;
+            /** Spannodeid */
+            spanNodeId?: string | null;
+            /** Otelspanid */
+            otelSpanId?: string | null;
+        };
         /** AnnotateSessionsRequestBody */
         AnnotateSessionsRequestBody: {
             /** Data */
@@ -1211,6 +1488,46 @@ export interface components {
              * @enum {string}
              */
             auth_method: "ANONYMOUS";
+        };
+        /**
+         * AppContext
+         * @description Per-turn browser clock context for resolving relative time requests.
+         */
+        AppContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "app";
+            /** Currentdatetime */
+            currentDateTime: string;
+            /** Timezone */
+            timeZone: string;
+        };
+        /**
+         * BuiltInProviderChatSearchParams
+         * @description Chat against a Phoenix built-in provider.
+         *
+         *     Credentials and connection details (base URL, Azure endpoint, AWS
+         *     region) are resolved from the secret store first and the process
+         *     environment second. ``openai_api_type`` is honoured by the OpenAI and
+         *     Azure OpenAI branches; other providers ignore it.
+         */
+        BuiltInProviderChatSearchParams: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            provider_type: "builtin";
+            provider: components["schemas"]["ModelProvider"];
+            /** Model Name */
+            model_name: string;
+            /**
+             * Openai Api Type
+             * @default responses
+             * @enum {string}
+             */
+            openai_api_type?: "chat_completions" | "responses";
         };
         /** CategoricalAnnotationConfig */
         CategoricalAnnotationConfig: {
@@ -1466,6 +1783,38 @@ export interface components {
             /** Data */
             data: components["schemas"]["LocalUser"] | components["schemas"]["OAuth2User"] | components["schemas"]["LDAPUser"];
         };
+        /**
+         * CustomProviderChatSearchParams
+         * @description Chat against a stored custom provider record.
+         *
+         *     The wire format of ``provider_id`` is a relay GlobalID (e.g.
+         *     ``UHJvdmlkZXI6MTM=``). It is decoded to its integer node ID at
+         *     parse time so downstream consumers don't need to know the GlobalID
+         *     encoding.
+         */
+        CustomProviderChatSearchParams: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            provider_type: "custom";
+            /** Provider Id */
+            provider_id: number;
+            /** Model Name */
+            model_name: string;
+        };
+        /**
+         * DataUIPart
+         * @description Data part with dynamic type based on data name.
+         */
+        DataUIPart: {
+            /** Type */
+            type: string;
+            /** Id */
+            id?: string | null;
+            /** Data */
+            data: unknown;
+        };
         /** Dataset */
         Dataset: {
             /** Id */
@@ -1568,6 +1917,236 @@ export interface components {
              * @description List of session identifiers to delete. All identifiers must be the same type: either all GlobalIDs or all user-provided session_id strings.
              */
             session_identifiers: string[];
+        };
+        /**
+         * DynamicToolApprovalRequestedPart
+         * @description Dynamic tool part in approval-requested state (awaiting user decision).
+         */
+        DynamicToolApprovalRequestedPart: {
+            /**
+             * Type
+             * @default dynamic-tool
+             * @constant
+             */
+            type?: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default approval-requested
+             * @constant
+             */
+            state?: "approval-requested";
+            /** Input */
+            input: unknown;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * DynamicToolApprovalRespondedPart
+         * @description Dynamic tool part in approval-responded state (user approved/denied, execution pending).
+         */
+        DynamicToolApprovalRespondedPart: {
+            /**
+             * Type
+             * @default dynamic-tool
+             * @constant
+             */
+            type?: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default approval-responded
+             * @constant
+             */
+            state?: "approval-responded";
+            /** Input */
+            input: unknown;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * DynamicToolInputAvailablePart
+         * @description Dynamic tool part in input-available state.
+         */
+        DynamicToolInputAvailablePart: {
+            /**
+             * Type
+             * @default dynamic-tool
+             * @constant
+             */
+            type?: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default input-available
+             * @constant
+             */
+            state?: "input-available";
+            /** Input */
+            input: unknown;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * DynamicToolInputStreamingPart
+         * @description Dynamic tool part in input-streaming state.
+         */
+        DynamicToolInputStreamingPart: {
+            /**
+             * Type
+             * @default dynamic-tool
+             * @constant
+             */
+            type?: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default input-streaming
+             * @constant
+             */
+            state?: "input-streaming";
+            /** Input */
+            input?: unknown | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * DynamicToolOutputAvailablePart
+         * @description Dynamic tool part in output-available state.
+         */
+        DynamicToolOutputAvailablePart: {
+            /**
+             * Type
+             * @default dynamic-tool
+             * @constant
+             */
+            type?: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default output-available
+             * @constant
+             */
+            state?: "output-available";
+            /** Input */
+            input: unknown;
+            /** Output */
+            output: unknown;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Preliminary */
+            preliminary?: boolean | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * DynamicToolOutputDeniedPart
+         * @description Dynamic tool part in output-denied state (tool was denied, terminal state).
+         */
+        DynamicToolOutputDeniedPart: {
+            /**
+             * Type
+             * @default dynamic-tool
+             * @constant
+             */
+            type?: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default output-denied
+             * @constant
+             */
+            state?: "output-denied";
+            /** Input */
+            input: unknown;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * DynamicToolOutputErrorPart
+         * @description Dynamic tool part in output-error state.
+         */
+        DynamicToolOutputErrorPart: {
+            /**
+             * Type
+             * @default dynamic-tool
+             * @constant
+             */
+            type?: "dynamic-tool";
+            /** Toolname */
+            toolName: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default output-error
+             * @constant
+             */
+            state?: "output-error";
+            /** Input */
+            input: unknown;
+            /** Errortext */
+            errorText: string;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
         };
         /** Experiment */
         Experiment: {
@@ -1703,6 +2282,30 @@ export interface components {
              * @description The ID of the experiment
              */
             experiment_id: string;
+        };
+        /**
+         * FileUIPart
+         * @description A file part of a message.
+         */
+        FileUIPart: {
+            /**
+             * Type
+             * @default file
+             * @constant
+             */
+            type?: "file";
+            /** Mediatype */
+            mediaType: string;
+            /** Filename */
+            filename?: string | null;
+            /** Url */
+            url: string;
+            /** Providermetadata */
+            providerMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
         };
         /** FreeformAnnotationConfig */
         FreeformAnnotationConfig: {
@@ -2315,6 +2918,32 @@ export interface components {
             description?: string | null;
             /** Id */
             id: string;
+        };
+        /**
+         * ProjectContext
+         * @description Project the user is currently viewing.
+         *
+         *     ``span_filter`` carries the project-scoped span filter expression when the
+         *     span filter field is mounted — empty string when the field is mounted with
+         *     no condition applied, ``None`` when the field is not present at all.
+         *
+         *     ``root_spans_only`` carries the current state of the spans-table root vs.
+         *     all toggle when that toggle is mounted — ``True`` when the table is
+         *     restricted to root spans, ``False`` when it shows every span, ``None``
+         *     when the toggle is not present (e.g. on the traces tab).
+         */
+        ProjectContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "project";
+            /** Projectnodeid */
+            projectNodeId: string;
+            /** Spanfilter */
+            spanFilter?: string | null;
+            /** Rootspansonly */
+            rootSpansOnly?: boolean | null;
         };
         /** Prompt */
         Prompt: {
@@ -3073,6 +3702,28 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /**
+         * ReasoningUIPart
+         * @description A reasoning part of a message.
+         */
+        ReasoningUIPart: {
+            /**
+             * Type
+             * @default reasoning
+             * @constant
+             */
+            type?: "reasoning";
+            /** Text */
+            text: string;
+            /** State */
+            state?: ("streaming" | "done") | null;
+            /** Providermetadata */
+            providerMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+        };
         /** ResponseBody[UpsertOrDeleteSecretsResult] */
         ResponseBody_UpsertOrDeleteSecretsResult_: {
             data: components["schemas"]["UpsertOrDeleteSecretsResult"];
@@ -3258,6 +3909,56 @@ export interface components {
              * Format: date-time
              */
             end_time: string;
+        };
+        /**
+         * SourceDocumentUIPart
+         * @description A document source part of a message.
+         */
+        SourceDocumentUIPart: {
+            /**
+             * Type
+             * @default source-document
+             * @constant
+             */
+            type?: "source-document";
+            /** Sourceid */
+            sourceId: string;
+            /** Mediatype */
+            mediaType: string;
+            /** Title */
+            title: string;
+            /** Filename */
+            filename?: string | null;
+            /** Providermetadata */
+            providerMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+        };
+        /**
+         * SourceUrlUIPart
+         * @description A source part of a message.
+         */
+        SourceUrlUIPart: {
+            /**
+             * Type
+             * @default source-url
+             * @constant
+             */
+            type?: "source-url";
+            /** Sourceid */
+            sourceId: string;
+            /** Url */
+            url: string;
+            /** Title */
+            title?: string | null;
+            /** Providermetadata */
+            providerMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
         };
         /**
          * Span
@@ -3548,6 +4249,18 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
+        /**
+         * StepStartUIPart
+         * @description A step boundary part of a message.
+         */
+        StepStartUIPart: {
+            /**
+             * Type
+             * @default step-start
+             * @constant
+             */
+            type?: "step-start";
+        };
         /** TextContentPart */
         TextContentPart: {
             /**
@@ -3557,6 +4270,104 @@ export interface components {
             type: "text";
             /** Text */
             text: string;
+        };
+        /**
+         * TextUIPart
+         * @description A text part of a message.
+         */
+        TextUIPart: {
+            /**
+             * Type
+             * @default text
+             * @constant
+             */
+            type?: "text";
+            /** Text */
+            text: string;
+            /** State */
+            state?: ("streaming" | "done") | null;
+            /** Providermetadata */
+            providerMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+        };
+        /**
+         * ToolApprovalRequested
+         * @description Tool approval in requested state (awaiting user response).
+         */
+        ToolApprovalRequested: {
+            /** Id */
+            id: string;
+        };
+        /**
+         * ToolApprovalRequestedPart
+         * @description Tool part in approval-requested state (awaiting user decision).
+         */
+        ToolApprovalRequestedPart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default approval-requested
+             * @constant
+             */
+            state?: "approval-requested";
+            /** Input */
+            input?: unknown | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * ToolApprovalResponded
+         * @description Tool approval in responded state (user has approved or denied).
+         */
+        ToolApprovalResponded: {
+            /** Id */
+            id: string;
+            /** Approved */
+            approved: boolean;
+            /** Reason */
+            reason?: string | null;
+        };
+        /**
+         * ToolApprovalRespondedPart
+         * @description Tool part in approval-responded state (user approved/denied, execution pending).
+         */
+        ToolApprovalRespondedPart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default approval-responded
+             * @constant
+             */
+            state?: "approval-responded";
+            /** Input */
+            input?: unknown | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
         };
         /** ToolCallContentPart */
         ToolCallContentPart: {
@@ -3581,6 +4392,154 @@ export interface components {
             name: string;
             /** Arguments */
             arguments: string;
+        };
+        /**
+         * ToolInputAvailablePart
+         * @description Tool part in input-available state.
+         */
+        ToolInputAvailablePart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default input-available
+             * @constant
+             */
+            state?: "input-available";
+            /** Input */
+            input?: unknown | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * ToolInputStreamingPart
+         * @description Tool part in input-streaming state.
+         */
+        ToolInputStreamingPart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default input-streaming
+             * @constant
+             */
+            state?: "input-streaming";
+            /** Input */
+            input?: unknown | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * ToolOutputAvailablePart
+         * @description Tool part in output-available state.
+         */
+        ToolOutputAvailablePart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default output-available
+             * @constant
+             */
+            state?: "output-available";
+            /** Input */
+            input?: unknown | null;
+            /** Output */
+            output?: unknown | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Preliminary */
+            preliminary?: boolean | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * ToolOutputDeniedPart
+         * @description Tool part in output-denied state (tool was denied, terminal state).
+         */
+        ToolOutputDeniedPart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default output-denied
+             * @constant
+             */
+            state?: "output-denied";
+            /** Input */
+            input?: unknown | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
+        };
+        /**
+         * ToolOutputErrorPart
+         * @description Tool part in output-error state.
+         */
+        ToolOutputErrorPart: {
+            /** Type */
+            type: string;
+            /** Toolcallid */
+            toolCallId: string;
+            /**
+             * State
+             * @default output-error
+             * @constant
+             */
+            state?: "output-error";
+            /** Input */
+            input?: unknown | null;
+            /** Rawinput */
+            rawInput?: unknown | null;
+            /** Errortext */
+            errorText: string;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
+            /** Callprovidermetadata */
+            callProviderMetadata?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            } | null;
+            /** Approval */
+            approval?: components["schemas"]["ToolApprovalRequested"] | components["schemas"]["ToolApprovalResponded"] | null;
         };
         /** ToolResultContentPart */
         ToolResultContentPart: {
@@ -3690,6 +4649,18 @@ export interface components {
             /** Next Cursor */
             next_cursor: string | null;
         };
+        /** TraceContext */
+        TraceContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "trace";
+            /** Projectnodeid */
+            projectNodeId: string;
+            /** Oteltraceid */
+            otelTraceId: string;
+        };
         /** TraceData */
         TraceData: {
             /** Id */
@@ -3772,6 +4743,23 @@ export interface components {
              * Format: date-time
              */
             end_time: string;
+        };
+        /**
+         * UIMessage
+         * @description A message as displayed in the UI by Vercel AI Elements.
+         */
+        UIMessage: {
+            /** Id */
+            id: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "system" | "user" | "assistant";
+            /** Metadata */
+            metadata?: unknown | null;
+            /** Parts */
+            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["ToolOutputAvailablePart"] | components["schemas"]["ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["DynamicToolOutputAvailablePart"] | components["schemas"]["DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
         };
         /** UpdateAnnotationConfigResponseBody */
         UpdateAnnotationConfigResponseBody: {
@@ -3896,6 +4884,52 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, unknown>;
+        };
+        /**
+         * _RegenerateMessage
+         * @description Regenerate message extended with Phoenix-specific fields.
+         */
+        _RegenerateMessage: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            trigger: "regenerate-message";
+            /** Id */
+            id: string;
+            /** Messages */
+            messages: components["schemas"]["UIMessage"][];
+            /** Messageid */
+            messageId?: string | null;
+            /** Contexts */
+            contexts?: (components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"])[];
+            capabilities?: components["schemas"]["AgentCapabilities"];
+            /** Sessionid */
+            sessionId: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * _SubmitMessage
+         * @description Submit message extended with Phoenix-specific fields.
+         */
+        _SubmitMessage: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            trigger: "submit-message";
+            /** Id */
+            id: string;
+            /** Messages */
+            messages: components["schemas"]["UIMessage"][];
+            /** Contexts */
+            contexts?: (components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"])[];
+            capabilities?: components["schemas"]["AgentCapabilities"];
+            /** Sessionid */
+            sessionId: string;
+        } & {
+            [key: string]: unknown;
         };
     };
     responses: never;
@@ -7476,6 +8510,358 @@ export interface operations {
                 };
                 content: {
                     "text/plain": string;
+                };
+            };
+        };
+    };
+    _login_auth_login_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    _logout_auth_logout_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    _refresh_tokens_auth_refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    _initiate_password_reset_auth_password_reset_email_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    _reset_password_auth_password_reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    _ldap_login_auth_ldap_login_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    login_oauth2__idp_name__login_get: {
+        parameters: {
+            query?: {
+                returnUrl?: string | null;
+            };
+            header?: never;
+            path: {
+                idp_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    login_oauth2__idp_name__login_post: {
+        parameters: {
+            query?: {
+                returnUrl?: string | null;
+            };
+            header?: never;
+            path: {
+                idp_name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_tokens_oauth2__idp_name__tokens_get: {
+        parameters: {
+            query: {
+                state: string;
+                code?: string | null;
+                error?: string | null;
+                error_description?: string | null;
+            };
+            header?: never;
+            path: {
+                idp_name: string;
+            };
+            cookie: {
+                "phoenix-oauth2-state": string;
+                "phoenix-oauth2-nonce": string;
+                "phoenix-oauth2-code-verifier"?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chat_chat_post: {
+        parameters: {
+            query: {
+                root: components["schemas"]["CustomProviderChatSearchParams"] | components["schemas"]["BuiltInProviderChatSearchParams"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chat_v2_chat_v2_post: {
+        parameters: {
+            query: {
+                root: components["schemas"]["CustomProviderChatSearchParams"] | components["schemas"]["BuiltInProviderChatSearchParams"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["_SubmitMessage"] | components["schemas"]["_RegenerateMessage"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    version_arize_phoenix_version_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    check_healthz_healthz_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    check_readyz_readyz_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };

@@ -79,7 +79,6 @@ create_tokens_rate_limiter = fastapi_route_rate_limiter(
 
 router = APIRouter(
     prefix="/oauth2",
-    include_in_schema=False,
 )
 
 if not get_env_disable_rate_limit():

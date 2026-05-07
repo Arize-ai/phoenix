@@ -57,7 +57,7 @@ Delete commands are disabled by default and require `PHOENIX_CLI_DANGEROUSLY_ENA
 
 ## Profiles
 
-Profiles are stored in `~/.px/settings.json` (or `$XDG_CONFIG_HOME/px/settings.json`, mode `0600`).
+A profile saves the endpoint, project, API key, and headers for a Phoenix instance under a name like `prod` or `staging`. Activate a profile and every `px` command picks up those settings without re-exporting environment variables. Environment variables and CLI flags still override the active profile, so existing scripts keep working.
 
 ```bash
 px profile create prod --endpoint https://phoenix.example.com --project main \
@@ -69,15 +69,7 @@ px profile edit prod           # open in $EDITOR, validates on save
 px profile delete prod         # remove a profile (--yes to skip prompt)
 ```
 
-Every command reads the active profile through the standard config chain:
-**built-in defaults → active profile → env vars → CLI flags** (highest wins).
-The `auth status` command accepts `--profile <name>` to scope a single
-invocation to a profile other than the stored active one.
-
-API keys are stored verbatim in the settings file (mode `0600`) but are
-never echoed back through `profile create`, `profile show`, or `profile
-list` — they appear as a fixed-width mask. If you need the raw value for a
-script, read `~/.px/settings.json` directly.
+Pass `--profile <name>` to `auth status` to scope a single invocation to a profile other than the active one.
 
 ### Editor autocompletion via `$schema`
 

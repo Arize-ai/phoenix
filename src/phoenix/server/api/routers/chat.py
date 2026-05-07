@@ -20,7 +20,7 @@ from phoenix.server.bearer_auth import is_authenticated
 
 def create_chat_router(authentication_enabled: bool) -> APIRouter:
     dependencies = [Depends(is_authenticated)] if authentication_enabled else []
-    router = APIRouter(tags=["chat"], include_in_schema=False, dependencies=dependencies)
+    router = APIRouter(tags=["chat"], dependencies=dependencies)
 
     @router.post("/chat")
     async def chat(

@@ -171,6 +171,10 @@ export function useAgentChatPanelState() {
     [defaultModelConfig, setDefaultModelConfig]
   );
 
+  // TODO(chat-v2-migration): remove this selector once /chat-v2 is the only endpoint.
+  const useV2Endpoint = useAgentContext(
+    (state) => state.capabilities["chat.useV2Endpoint"]
+  );
   const chatApiUrl = useMemo(() => {
     const params = new URLSearchParams({
       model_name: menuValue.modelName,
@@ -179,8 +183,10 @@ export function useAgentChatPanelState() {
         : { provider_type: "builtin", provider: menuValue.provider }),
     });
 
-    return prependBasename(`/chat?${params}`);
-  }, [menuValue]);
+    // TODO(chat-v2-migration): inline `/chat-v2` once the toggle is removed.
+    const path = useV2Endpoint ? "/chat-v2" : "/chat";
+    return prependBasename(`${path}?${params}`);
+  }, [menuValue, useV2Endpoint]);
 
   const refreshSessionContext = useCallback(
     async ({

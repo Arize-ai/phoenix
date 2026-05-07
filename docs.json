@@ -883,7 +883,10 @@
                     "pages": [
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/get-span-annotations-for-a-list-of-span_ids",
                       "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/get-trace-annotations-for-a-list-of-trace_ids",
-                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/get-session-annotations-for-a-list-of-session_ids"
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/get-session-annotations-for-a-list-of-session_ids",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/delete-span-annotations-by-filter",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/delete-trace-annotations-by-filter",
+                      "docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/delete-session-annotations-by-filter"
                     ]
                   },
                   {
@@ -1187,12 +1190,17 @@
               {
                 "group": "05.2026",
                 "pages": [
+                  "docs/phoenix/release-notes/05-2026/05-05-2026-provider-tools",
+                  "docs/phoenix/release-notes/05-2026/05-05-2026-rest-api-updates",
                   "docs/phoenix/release-notes/05-2026/05-01-2026-tanstack-ai-tracing"
                 ]
               },
               {
                 "group": "04.2026",
                 "pages": [
+                  "docs/phoenix/release-notes/04-2026/04-30-2026-cli-auth-profiles",
+                  "docs/phoenix/release-notes/04-2026/04-30-2026-annotation-enhancements",
+                  "docs/phoenix/release-notes/04-2026/04-29-2026-dataset-upsert",
                   "docs/phoenix/release-notes/04-2026/04-28-2026-session-notes-api",
                   "docs/phoenix/release-notes/04-2026/04-24-2026-trace-notes-api",
                   "docs/phoenix/release-notes/04-2026/04-24-2026-phoenix-otel-python-0-16",

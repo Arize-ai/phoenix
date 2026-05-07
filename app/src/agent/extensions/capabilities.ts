@@ -8,7 +8,9 @@
  */
 export type AgentCapabilityKey =
   | "bash.retainInactiveSessions"
-  | "graphql.mutations";
+  | "graphql.mutations"
+  // TODO(chat-v2-migration): remove once /chat-v2 is the only endpoint.
+  | "chat.useV2Endpoint";
 
 /** Describes one capability and how it should appear across the app. */
 export type AgentCapabilityDefinition = {
@@ -26,6 +28,8 @@ export type AgentCapabilities = Record<AgentCapabilityKey, boolean>;
 const DEFAULT_AGENT_CAPABILITIES: AgentCapabilities = {
   "bash.retainInactiveSessions": false,
   "graphql.mutations": false,
+  // TODO(chat-v2-migration): remove once /chat-v2 is the only endpoint.
+  "chat.useV2Endpoint": false,
 };
 
 /** Ordered capability catalog used by the UI and runtime. */
@@ -44,6 +48,16 @@ export const AGENT_CAPABILITY_DEFINITIONS: AgentCapabilityDefinition[] = [
     label: "Dangerously enable mutations",
     description:
       "Allows the phoenix-gql bash command to execute GraphQL mutations in addition to queries.",
+    defaultValue: false,
+    scope: "global",
+    controlSurface: "experimental-settings",
+  },
+  // TODO(chat-v2-migration): remove this entire definition once /chat-v2 is the only endpoint.
+  {
+    key: "chat.useV2Endpoint",
+    label: "Use chat v2 endpoint",
+    description:
+      "Routes chat requests to the new pydantic-ai-backed /chat-v2 endpoint instead of /chat. Experimental — many features are not yet wired up.",
     defaultValue: false,
     scope: "global",
     controlSurface: "experimental-settings",
