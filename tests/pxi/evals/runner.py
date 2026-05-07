@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import os
 import subprocess
 import sys
@@ -8,29 +9,25 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urljoin
 
-from phoenix.client import Client
+from phoenix.client import AsyncClient
 
 from tests.pxi.evals.agent_task import (
     DEFAULT_ASSISTANT_MODEL,
     DEFAULT_ASSISTANT_PROVIDER,
-    build_task,
+    task,
 )
 from tests.pxi.evals.datasets import load_dataset, to_phoenix_examples
-from tests.pxi.evals.evaluators import set_spans_filter_args_match, strict_tools_called
+from tests.pxi.evals.evaluators import correct_tools_called, tool_call_args_match
 from tests.pxi.evals.types import EvalDataset
 
 DEFAULT_BASE_URL = "http://localhost:6006"
 
 
-class InfrastructureError(RuntimeError):
-    """Raised when Phoenix infrastructure required for the eval is unavailable."""
-
-
 @dataclass(frozen=True)
-class RunnerConfig:
+class ExperimentConfig:
     dataset: str
     base_url: str
     bearer_token: str | None
@@ -50,11 +47,11 @@ def _check_local_healthz(base_url: str, explicitly_configured: bool) -> None:
     try:
         with urllib.request.urlopen(urljoin(base_url + "/", "healthz"), timeout=2) as response:
             if response.status >= 400:
-                raise InfrastructureError(
+                raise RuntimeError(
                     f"Local Phoenix health check failed with HTTP {response.status}: {base_url}"
                 )
     except (OSError, urllib.error.URLError) as exc:
-        raise InfrastructureError(
+        raise RuntimeError(
             "Local Phoenix is unavailable at http://localhost:6006. "
             "Start Phoenix or set PXI_E2E_EXPERIMENT_BASE_URL."
         ) from exc
@@ -67,7 +64,7 @@ def _git_value(*args: str) -> str:
         return "unknown"
 
 
-def _experiment_name(dataset: EvalDataset, config: RunnerConfig) -> str:
+def _experiment_name(dataset: EvalDataset, config: ExperimentConfig) -> str:
     if config.experiment_name:
         return config.experiment_name
     branch = _git_value("rev-parse", "--abbrev-ref", "HEAD").replace("/", "-")
@@ -82,22 +79,6 @@ def _experiment_url(base_url: str, experiment: Any) -> str:
     if experiment_id is None and isinstance(experiment, dict):
         experiment_id = experiment.get("id") or experiment.get("experiment_id")
     return f"{base_url.rstrip('/')}/experiments/{experiment_id}" if experiment_id else base_url
-
-
-def _score_value(score: Any) -> float | None:
-    if isinstance(score, dict):
-        value = score.get("score")
-    else:
-        value = getattr(score, "score", None)
-    return float(value) if isinstance(value, (int, float)) else None
-
-
-def _score_explanation(score: Any) -> str | None:
-    if isinstance(score, dict):
-        value = score.get("explanation")
-    else:
-        value = getattr(score, "explanation", None)
-    return value if isinstance(value, str) else None
 
 
 def _run_output(run: Any) -> Any:
@@ -121,7 +102,7 @@ def _run_dataset_example_id(run: Any) -> str:
 def _run_stable_example_id(run: Any) -> str:
     output = _run_output(run)
     if isinstance(output, dict) and isinstance(output.get("stable_example_id"), str):
-        return output["stable_example_id"]
+        return cast(str, output["stable_example_id"])
     return _run_dataset_example_id(run)
 
 
@@ -134,7 +115,7 @@ def _evaluation_run_id(evaluation_run: Any) -> str:
 def _evaluation_name(evaluation_run: Any) -> str:
     if isinstance(evaluation_run, dict):
         return str(evaluation_run.get("name") or "unknown")
-    return str(getattr(evaluation_run, "name", None) or "unknown")
+    return cast(str, getattr(evaluation_run, "name", None) or "unknown")
 
 
 def _evaluation_result(evaluation_run: Any) -> Any:
@@ -164,13 +145,13 @@ def _print_report(dataset: EvalDataset, experiment: Any, base_url: str) -> bool:
         task_runs = list(experiment.get("task_runs") or [])
         evaluation_runs = list(experiment.get("evaluation_runs") or [])
     else:
-        task_runs = list(getattr(experiment, "task_runs", []) or getattr(experiment, "runs", []) or [])
+        task_runs = list(
+            getattr(experiment, "task_runs", []) or getattr(experiment, "runs", []) or []
+        )
         evaluation_runs = list(getattr(experiment, "evaluation_runs", []) or [])
     task_outputs_by_run_id = {_run_id(run): _run_output(run) for run in task_runs}
     stable_example_ids_by_run_id = {
-        run_id: _run_stable_example_id(run)
-        for run in task_runs
-        if (run_id := _run_id(run))
+        run_id: _run_stable_example_id(run) for run in task_runs if (run_id := _run_id(run))
     }
     counts: dict[str, dict[str, int]] = {}
     failures: list[tuple[str, str, str | None, Any]] = []
@@ -179,7 +160,13 @@ def _print_report(dataset: EvalDataset, experiment: Any, base_url: str) -> bool:
         result = _evaluation_result(evaluation_run)
         error = _evaluation_error(evaluation_run)
         counts.setdefault(name, {"pass": 0, "fail": 0})
-        passed = error is None and (_score_value(result) or 0.0) >= 1.0
+        if isinstance(result, dict):
+            score = result.get("score")
+            explanation = result.get("explanation")
+        else:
+            score = getattr(result, "score", None)
+            explanation = getattr(result, "explanation", None)
+        passed = error is None and (float(score) if isinstance(score, (int, float)) else 0.0) >= 1.0
         counts[name]["pass" if passed else "fail"] += 1
         if not passed:
             experiment_run_id = _evaluation_run_id(evaluation_run)
@@ -187,7 +174,7 @@ def _print_report(dataset: EvalDataset, experiment: Any, base_url: str) -> bool:
                 (
                     _failure_example_id(experiment_run_id, stable_example_ids_by_run_id),
                     name,
-                    str(error) if error else _score_explanation(result),
+                    str(error) if error else explanation if isinstance(explanation, str) else None,
                     task_outputs_by_run_id.get(experiment_run_id),
                 )
             )
@@ -207,52 +194,60 @@ def _print_report(dataset: EvalDataset, experiment: Any, base_url: str) -> bool:
     return bool(failures)
 
 
-def run(config: RunnerConfig) -> int:
+async def _run_async(config: ExperimentConfig) -> int:
     _check_local_healthz(config.base_url, os.getenv("PXI_E2E_EXPERIMENT_BASE_URL") is not None)
     dataset = load_dataset(config.dataset)
-    client = Client(base_url=config.base_url, api_key=config.bearer_token)
-    phoenix_dataset = client.datasets.create_dataset(
-        name=dataset.dataset_name,
-        examples=to_phoenix_examples(dataset),
-        dataset_description=dataset.description,
-    )
-    name = _experiment_name(dataset, config)
-    metadata = {
-        "git_sha": _git_value("rev-parse", "HEAD"),
-        "git_branch": _git_value("rev-parse", "--abbrev-ref", "HEAD"),
-        "assistant_provider": os.getenv("PXI_E2E_ASSISTANT_PROVIDER", DEFAULT_ASSISTANT_PROVIDER),
-        "assistant_model": os.getenv("PXI_E2E_ASSISTANT_MODEL", DEFAULT_ASSISTANT_MODEL),
-        "started_at": datetime.now(timezone.utc).isoformat(),
-    }
-    print(f"Running experiment: {name}")
-    experiment = client.experiments.run_experiment(
-        dataset=phoenix_dataset,
-        task=build_task(),
-        experiment_name=name,
-        experiment_description=dataset.description,
-        experiment_metadata=metadata,
-        print_summary=False,
-        timeout=180,
-        retries=0,
-    )
+    client = AsyncClient(base_url=config.base_url, api_key=config.bearer_token)
+    try:
+        phoenix_dataset = await client.datasets.create_dataset(
+            name=dataset.dataset_name,
+            examples=to_phoenix_examples(dataset),
+            dataset_description=dataset.description,
+        )
+        name = _experiment_name(dataset, config)
+        metadata = {
+            "git_sha": _git_value("rev-parse", "HEAD"),
+            "git_branch": _git_value("rev-parse", "--abbrev-ref", "HEAD"),
+            "assistant_provider": os.getenv(
+                "PXI_E2E_ASSISTANT_PROVIDER", DEFAULT_ASSISTANT_PROVIDER
+            ),
+            "assistant_model": os.getenv("PXI_E2E_ASSISTANT_MODEL", DEFAULT_ASSISTANT_MODEL),
+            "started_at": datetime.now(timezone.utc).isoformat(),
+        }
+        print(f"Running experiment: {name}")
+        experiment = await client.experiments.run_experiment(
+            dataset=phoenix_dataset,
+            task=task,
+            evaluators=cast(Any, [correct_tools_called, tool_call_args_match]),
+            experiment_name=name,
+            experiment_description=dataset.description,
+            experiment_metadata=metadata,
+            print_summary=False,
+            concurrency=3,
+            timeout=180,
+            retries=0,
+        )
+    finally:
+        await client._client.aclose()
     for task_run in experiment["task_runs"]:
         output = task_run.get("output")
         if isinstance(output, dict) and isinstance(output.get("stable_example_id"), str):
             task_run["dataset_example_id"] = output["stable_example_id"]
-    experiment = client.experiments.evaluate_experiment(
-        experiment=experiment,
-        evaluators=[strict_tools_called, set_spans_filter_args_match],
-        print_summary=False,
-        timeout=180,
-        retries=0,
-    )
     has_failures = _print_report(dataset, experiment, config.base_url)
     return 1 if has_failures and config.fail_on_regression else 0
 
 
+def run(config: ExperimentConfig) -> int:
+    return asyncio.run(_run_async(config))
+
+
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run PXI server-side evals as Phoenix experiments.")
-    parser.add_argument("--dataset", required=True, help="Dataset name from tests/pxi/evals/datasets")
+    parser = argparse.ArgumentParser(
+        description="Run PXI server-side evals as Phoenix experiments."
+    )
+    parser.add_argument(
+        "--dataset", required=True, help="Dataset name from tests/pxi/evals/datasets"
+    )
     parser.add_argument("--experiment-name", help="Full experiment name override")
     parser.add_argument("--experiment-name-suffix", help="Suffix appended to the generated name")
     parser.add_argument("--fail-on-regression", action="store_true")
@@ -262,7 +257,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     base_url, _ = _configured_base_url()
-    config = RunnerConfig(
+    config = ExperimentConfig(
         dataset=args.dataset,
         base_url=base_url,
         bearer_token=os.getenv("PXI_E2E_EXPERIMENT_BEARER_TOKEN"),
@@ -272,7 +267,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     try:
         return run(config)
-    except InfrastructureError as exc:
+    except RuntimeError as exc:
         print(f"Infrastructure error: {exc}", file=sys.stderr)
         return 2
 

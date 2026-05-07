@@ -7,7 +7,7 @@ This harness runs live-model PXI server-side evals as Phoenix experiments.
 Start Phoenix, then run:
 
 ```bash
-uv run python tests/pxi/evals/run_eval.py --dataset set_spans_filter
+uv run python tests/pxi/evals/run_experiment.py --dataset set_spans_filter
 ```
 
 By default the runner writes results to `http://localhost:6006` and checks
@@ -16,7 +16,7 @@ By default the runner writes results to `http://localhost:6006` and checks
 ```bash
 export PXI_E2E_EXPERIMENT_BASE_URL=https://your-phoenix.example.com
 export PXI_E2E_EXPERIMENT_BEARER_TOKEN=...
-uv run python tests/pxi/evals/run_eval.py --dataset set_spans_filter
+uv run python tests/pxi/evals/run_experiment.py --dataset set_spans_filter
 ```
 
 ## Model Configuration
@@ -40,7 +40,7 @@ Datasets live in `tests/pxi/evals/datasets/*.yaml`. Each file has:
 - `examples`
 
 Each example needs a stable `id`, `input.query`, `expected.tools`, and
-`expected.set_spans_filter`. Do not add manual version numbers; Phoenix
+expected tool arguments under `expected.tool_call_args`. Do not add manual version numbers; Phoenix
 versions datasets on upload. Example IDs must be unique because the runner
 uses them for stable upserts.
 

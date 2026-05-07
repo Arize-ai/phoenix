@@ -10,21 +10,13 @@ class ToolExpectation(BaseModel):
 
     required: list[str] = Field(default_factory=list)
     forbidden: list[str] = Field(default_factory=list)
-    strict: bool = True
-
-
-class SetSpansFilterExpectation(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    condition: str
-    root_spans_only: bool = Field(alias="rootSpansOnly")
 
 
 class ExampleExpected(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
     tools: ToolExpectation
-    set_spans_filter: SetSpansFilterExpectation
+    tool_call_args: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
 
 class ExampleInput(BaseModel):
@@ -86,5 +78,6 @@ class AgentTaskOutput(BaseModel):
 
     assistant_text: str | None = None
     tool_calls: list[ToolCall] = Field(default_factory=list)
+    messages: list[dict[str, Any]] = Field(default_factory=list)
     raw_output_type: str
     error: str | None = None

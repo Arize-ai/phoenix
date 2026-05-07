@@ -7,10 +7,10 @@ examples:
     expected:
       tools:
         required: [set_spans_filter]
-        strict: true
-      set_spans_filter:
-        condition: span_kind == 'LLM'
-        rootSpansOnly: false
+      tool_call_args:
+        set_spans_filter:
+          condition: span_kind == 'LLM'
+          rootSpansOnly: false
     metadata:
       category: span_kind
   - id: tool-spans
@@ -19,10 +19,10 @@ examples:
     expected:
       tools:
         required: [set_spans_filter]
-        strict: true
-      set_spans_filter:
-        condition: span_kind == 'TOOL'
-        rootSpansOnly: false
+      tool_call_args:
+        set_spans_filter:
+          condition: span_kind == 'TOOL'
+          rootSpansOnly: false
     metadata:
       category: span_kind
   - id: error-spans
@@ -31,10 +31,10 @@ examples:
     expected:
       tools:
         required: [set_spans_filter]
-        strict: true
-      set_spans_filter:
-        condition: status_code == 'ERROR'
-        rootSpansOnly: false
+      tool_call_args:
+        set_spans_filter:
+          condition: status_code == 'ERROR'
+          rootSpansOnly: false
     metadata:
       category: status
   - id: slow-spans
@@ -43,10 +43,10 @@ examples:
     expected:
       tools:
         required: [set_spans_filter]
-        strict: true
-      set_spans_filter:
-        condition: latency_ms >= 5000
-        rootSpansOnly: false
+      tool_call_args:
+        set_spans_filter:
+          condition: latency_ms >= 5000
+          rootSpansOnly: false
     metadata:
       category: latency
   - id: slow-llm-spans
@@ -55,10 +55,10 @@ examples:
     expected:
       tools:
         required: [set_spans_filter]
-        strict: true
-      set_spans_filter:
-        condition: span_kind == 'LLM' and latency_ms >= 5000
-        rootSpansOnly: false
+      tool_call_args:
+        set_spans_filter:
+          condition: span_kind == 'LLM' and latency_ms >= 5000
+          rootSpansOnly: false
     metadata:
       category: latency
   - id: trace-id
@@ -67,10 +67,10 @@ examples:
     expected:
       tools:
         required: [set_spans_filter]
-        strict: true
-      set_spans_filter:
-        condition: trace_id == '8f3c2d1e0a9b4c5d6e7f8091a2b3c4d5'
-        rootSpansOnly: false
+      tool_call_args:
+        set_spans_filter:
+          condition: trace_id == '8f3c2d1e0a9b4c5d6e7f8091a2b3c4d5'
+          rootSpansOnly: false
     metadata:
       category: trace
   - id: span-name
@@ -79,10 +79,10 @@ examples:
     expected:
       tools:
         required: [set_spans_filter]
-        strict: true
-      set_spans_filter:
-        condition: name == 'retrieve_documents'
-        rootSpansOnly: false
+      tool_call_args:
+        set_spans_filter:
+          condition: name == 'retrieve_documents'
+          rootSpansOnly: false
     metadata:
       category: name
   - id: input-substring
@@ -91,10 +91,10 @@ examples:
     expected:
       tools:
         required: [set_spans_filter]
-        strict: true
-      set_spans_filter:
-        condition: "'refund policy' in input.value"
-        rootSpansOnly: false
+      tool_call_args:
+        set_spans_filter:
+          condition: "'refund policy' in input.value"
+          rootSpansOnly: false
     metadata:
       category: input
   - id: annotation-label
@@ -103,10 +103,10 @@ examples:
     expected:
       tools:
         required: [set_spans_filter]
-        strict: true
-      set_spans_filter:
-        condition: annotations['Hallucination'].label == 'hallucinated'
-        rootSpansOnly: false
+      tool_call_args:
+        set_spans_filter:
+          condition: annotations['Hallucination'].label == 'hallucinated'
+          rootSpansOnly: false
     metadata:
       category: annotation
   - id: reset-filter
@@ -115,9 +115,9 @@ examples:
     expected:
       tools:
         required: [set_spans_filter]
-        strict: true
-      set_spans_filter:
-        condition: ""
-        rootSpansOnly: true
+      tool_call_args:
+        set_spans_filter:
+          condition: ""
+          rootSpansOnly: true
     metadata:
       category: reset
