@@ -102,10 +102,12 @@ const getSessionTraceUrl = ({
   };
 };
 
-const inputMessageWrapCSS = css`
+const messageWrapCSS = css`
   width: fit-content;
   max-width: 70%;
 `;
+
+type RootSpanMessageRole = "INPUT" | "OUTPUT";
 
 type RootSpanMessageProps = {
   /**
@@ -114,26 +116,25 @@ type RootSpanMessageProps = {
    */
   extra?: ReactNode;
   label?: string;
-  role: "HUMAN" | "AI";
+  role: RootSpanMessageRole;
   value: unknown;
 };
 
 function RootSpanMessage({ extra, label, role, value }: RootSpanMessageProps) {
-  const isInput = role === "HUMAN";
+  const isInput = role === "INPUT";
   const styles = useChatMessageStyles(isInput ? "user" : "assistant");
   const defaultLabel = isInput ? "INPUT" : "OUTPUT";
   return (
     <Flex
       direction="column"
       gap="size-50"
-      alignSelf={isInput ? "end" : "stretch"}
-      alignItems={isInput ? "end" : "start"}
-      width={isInput ? undefined : "100%"}
-      css={isInput ? inputMessageWrapCSS : undefined}
+      alignSelf={isInput ? "start" : "end"}
+      alignItems={isInput ? "start" : "end"}
+      css={messageWrapCSS}
     >
       <Flex
         direction="row"
-        justifyContent={isInput ? "end" : "space-between"}
+        justifyContent="space-between"
         alignItems="center"
         width="100%"
       >
@@ -249,10 +250,10 @@ function SessionTurnDetail({
 
   return (
     <Flex direction="column" gap="size-200">
-      <Flex direction="column" gap="size-100" alignItems="end">
+      <Flex direction="column" gap="size-100" alignItems="start">
         <RootSpanMessage
           label={inputLabel}
-          role="HUMAN"
+          role="INPUT"
           value={rootSpan.input?.value}
         />
         <RootSpanStartTime rootSpan={rootSpan} />
@@ -260,7 +261,7 @@ function SessionTurnDetail({
       <Flex direction="column" gap="size-100">
         <RootSpanMessage
           extra={<RootSpanTraceLink traceId={traceId} rootSpan={rootSpan} />}
-          role="AI"
+          role="OUTPUT"
           value={rootSpan.output?.value}
         />
         <RootSpanOutputMetadata rootSpan={rootSpan} />
@@ -276,18 +277,34 @@ type SessionTurnRow = {
 
 type IndexedSessionTurnRow = SessionTurnRow & { index: number };
 
-function RootSpanPreviewLine({ value }: { value?: string | null }) {
+function RootSpanPreviewLine({
+  role,
+  value,
+}: {
+  role: RootSpanMessageRole;
+  value?: string | null;
+}) {
+  const isInput = role === "INPUT";
+  const styles = useChatMessageStyles(isInput ? "user" : "assistant");
   if (!value) {
     return null;
   }
   return (
-    <Flex minWidth={0}>
-      <Truncate maxWidth="100%" title={value}>
-        <Text color="text-700" size="XS">
-          {value}
-        </Text>
-      </Truncate>
-    </Flex>
+    <View
+      borderStartColor={styles.borderColor}
+      borderStartWidth="thick"
+      minWidth={0}
+      paddingStart="size-75"
+      width="100%"
+    >
+      <Flex direction="row" alignItems="center" gap="size-75" minWidth={0}>
+        <Truncate maxWidth="100%" title={value}>
+          <Text color="text-700" size="XS">
+            {value}
+          </Text>
+        </Truncate>
+      </Flex>
+    </View>
   );
 }
 
@@ -385,9 +402,11 @@ function SessionTurnList({
               </Flex>
               <Flex direction="column" gap="size-50" minWidth={0}>
                 <RootSpanPreviewLine
+                  role="INPUT"
                   value={row.rootSpan.input?.truncatedValue}
                 />
                 <RootSpanPreviewLine
+                  role="OUTPUT"
                   value={row.rootSpan.output?.truncatedValue}
                 />
               </Flex>
