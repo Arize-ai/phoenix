@@ -184,6 +184,7 @@
               },
               "docs/phoenix/evaluation/llm-evals",
               "docs/phoenix/evaluation/concepts-evals/llm-as-a-judge",
+              "docs/phoenix/evaluation/concepts-evals/rag-failure-mode-checklist",
               {
                 "group": "Client-Side Evals (SDK)",
                 "pages": [

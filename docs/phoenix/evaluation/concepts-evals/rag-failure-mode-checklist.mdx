@@ -1,0 +1,54 @@
+---
+title: "RAG Failure Mode Checklist"
+description: "Use Phoenix traces and evaluation results to triage common RAG failures."
+---
+
+RAG systems can fail in retrieval, context assembly, generation, or evaluation. Use this checklist to turn a low score, user report, or suspicious trace into a smaller set of checks.
+
+Start with the trace. Then compare the trace evidence with evaluator outputs such as [Document Relevance](/docs/phoenix/evaluation/pre-built-metrics/document-relevance), [Faithfulness](/docs/phoenix/evaluation/pre-built-metrics/faithfulness), and custom evaluators that match your application policy.
+
+## Quick Triage
+
+| Symptom | Trace evidence to inspect | Evaluation signal | First checks |
+| ------- | ------------------------- | ----------------- | ------------ |
+| The answer is unsupported by the retrieved context | LLM span output, retriever span documents, prompt context | Faithfulness is low or labels the answer unfaithful | Confirm the final prompt contains the retrieved evidence, then check whether the answer adds claims that are absent from every retrieved document. |
+| Retrieved documents are off topic | Retriever span query, returned document text, metadata, scores | Document Relevance is low across top documents | Check query rewriting, filters, embedding model, index freshness, and chunk boundaries. |
+| Correct document is retrieved but the answer misses it | Retriever output includes supporting text, but LLM input omits or truncates it | Document Relevance is high, Faithfulness may pass, answer quality is low | Inspect context assembly, truncation, reranking, prompt ordering, and whether the relevant chunk is below the model's attention focus. |
+| The answer cites or uses stale information | Document metadata shows old timestamps or unexpected source versions | Custom freshness or source-policy eval fails | Check ingestion timestamps, source sync jobs, cache invalidation, and source priority rules. |
+| The answer follows the wrong instruction | Prompt contains conflicting system, developer, retrieved, or user instructions | Custom instruction-following or policy eval fails | Inspect prompt templates, tool outputs, and retrieved content for instructions that should be treated as data. |
+| Multi-turn answer uses the wrong context | Session trace shows prior turns or memory influencing the answer | Session-level evaluator flags context drift | Check session identifiers, memory retrieval, conversation summarization, and whether the current turn's retrieved context is isolated. |
+| Good answer receives a bad score | Evaluator trace shows rubric mismatch, malformed input mapping, or missing context | Evaluator explanation conflicts with trace evidence | Inspect evaluator input mapping, prompt format, model configuration, and whether the metric is measuring the intended failure. |
+
+## Debugging Workflow
+
+1. Open the failed trace and identify the retriever, reranker, tool, and LLM spans involved in the response.
+2. Compare the user's input with the retriever query. If they differ, inspect query rewriting and filters.
+3. Inspect the top retrieved documents and their metadata. Check whether the answer is possible from those documents alone.
+4. Inspect the final prompt or LLM input. Confirm the relevant context reached the model and was not truncated, reordered badly, or hidden inside noisy formatting.
+5. Compare evaluator explanations with the trace. If the explanation references missing or malformed fields, fix the evaluator input mapping before changing the application.
+6. Add or update a small regression dataset that captures the observed failure and rerun the same evaluator set after the fix.
+
+## Evaluator Pairings
+
+Use multiple signals because one score rarely identifies the broken stage.
+
+| Stage | Useful signal | What it helps separate |
+| ----- | ------------- | ---------------------- |
+| Retrieval | Document Relevance per retrieved document | Bad search results vs. good evidence ignored later |
+| Context assembly | Custom checks for empty, truncated, duplicated, or stale context | Good retrieval vs. broken prompt construction |
+| Generation | Faithfulness on the final answer and context | Supported answers vs. added claims or contradictions |
+| Policy and safety | Custom rubric or code evaluator | Correct factual answer vs. answer that violates app-specific rules |
+| Evaluation quality | Evaluator traces and explanations | Product failure vs. evaluator configuration failure |
+
+## Regression Checklist
+
+Before closing a RAG incident, keep a small test case that includes:
+
+- the user query
+- the retrieved documents or document IDs
+- the final model input or prompt context
+- the generated answer
+- the expected evaluator labels or thresholds
+- the trace or session identifier, when available
+
+This makes the failure reproducible, helps reviewers understand the intended fix, and gives CI or scheduled evaluations a stable guardrail for the same failure mode.
