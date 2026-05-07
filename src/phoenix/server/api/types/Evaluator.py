@@ -9,7 +9,7 @@ from strawberry import UNSET
 from strawberry.relay import Connection, GlobalID, Node, NodeID
 from strawberry.scalars import JSON
 from strawberry.types import Info
-from typing_extensions import TypeAlias
+from typing_extensions import TypeAlias, assert_never
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
@@ -141,17 +141,19 @@ class CodeEvaluatorVersion(Node):
     async def input_schema(
         self,
         info: Info[Context, None],
-    ) -> Optional[JSON]:
+    ) -> JSON:
         from phoenix.server.api.evaluators import (
             _infer_python_evaluate_input_schema,
             _infer_typescript_evaluate_input_schema,
         )
 
-        language = await self.language(info)  # type: ignore[misc, arg-type]
+        language = Language(self.language_value)
         if language is Language.PYTHON:
             schema, _ = _infer_python_evaluate_input_schema(self.source_code)
-        else:
+        elif language is Language.TYPESCRIPT:
             schema, _ = _infer_typescript_evaluate_input_schema(self.source_code)
+        else:
+            assert_never(language)
         return JSON(schema)
 
     @strawberry.field
@@ -186,15 +188,6 @@ class CodeEvaluatorVersion(Node):
         return self.cached_sequence_number
 
     @strawberry.field
-    async def is_latest(self, info: Info[Context, None]) -> bool:
-        latest_version_id = await info.context.data_loaders.latest_code_evaluator_version_ids.load(
-            self.code_evaluator_id
-        )
-        if latest_version_id is None:
-            return False
-        return latest_version_id == self.id_attr
-
-    @strawberry.field
     async def user(self) -> Optional[Annotated["User", strawberry.lazy(".User")]]:
         if self.user_id is None:
             return None
@@ -226,9 +219,6 @@ class CodeEvaluator(Evaluator, Node):
     def __post_init__(self) -> None:
         if self.db_record and self.id != self.db_record.id:
             raise ValueError("Evaluator ID mismatch")
-
-    async def _current_version_id(self, info: Info[Context, None]) -> Optional[int]:
-        return await info.context.data_loaders.latest_code_evaluator_version_ids.load(self.id)
 
     @strawberry.field
     async def sandbox_config(
@@ -294,17 +284,12 @@ class CodeEvaluator(Evaluator, Node):
         self,
         info: Info[Context, None],
     ) -> Optional[CodeEvaluatorVersion]:
-        # Resolve the current version id BEFORE opening a read session, otherwise
-        # the dataloader's nested `db.read()` contends with the outer one and
-        # deadlocks under sqlite's single-reader connection pool.
-        current_version_id = await self._current_version_id(info)
-        if current_version_id is None:
+        current_version = await info.context.data_loaders.latest_code_evaluator_versions.load(
+            self.id
+        )
+        if current_version is None:
             return None
-        async with info.context.db.read() as session:
-            version = await session.get(models.CodeEvaluatorVersion, current_version_id)
-        if version is None:
-            return None
-        return to_gql_code_evaluator_version(version)
+        return to_gql_code_evaluator_version(current_version)
 
     @strawberry.field
     async def version(
@@ -965,7 +950,11 @@ class DatasetEvaluator(Node):
             if isinstance(evaluator, models.LLMEvaluator):
                 configs = list(evaluator.output_configs)
             elif isinstance(evaluator, models.CodeEvaluator):
-                configs = list(evaluator.output_configs)  # type: ignore[arg-type]
+                configs = [
+                    config
+                    for config in evaluator.output_configs
+                    if isinstance(config, (CategoricalOutputConfig, ContinuousOutputConfig))
+                ]
             elif isinstance(evaluator, models.BuiltinEvaluator):
                 builtin = get_builtin_evaluator_by_key(evaluator.key)
                 if builtin is None:

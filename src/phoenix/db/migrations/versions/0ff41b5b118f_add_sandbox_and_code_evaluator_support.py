@@ -220,9 +220,9 @@ def upgrade() -> None:
         sqlite_autoincrement=True,
     )
     op.create_index(
-        "ix_code_evaluator_versions_code_evaluator_id",
+        "ix_code_evaluator_versions_code_evaluator_id_id",
         "code_evaluator_versions",
-        ["code_evaluator_id"],
+        ["code_evaluator_id", "id"],
     )
     op.create_index(
         "ix_code_evaluator_versions_language",
@@ -238,12 +238,6 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     # Drop code_evaluator_versions first (FKs into code_evaluators).
-    op.drop_index("ix_code_evaluator_versions_user_id", table_name="code_evaluator_versions")
-    op.drop_index("ix_code_evaluator_versions_language", table_name="code_evaluator_versions")
-    op.drop_index(
-        "ix_code_evaluator_versions_code_evaluator_id",
-        table_name="code_evaluator_versions",
-    )
     op.drop_table("code_evaluator_versions")
 
     # Then remove composite FK + denormalized columns from code_evaluators.

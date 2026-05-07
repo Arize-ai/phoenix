@@ -2859,7 +2859,6 @@ class CodeEvaluatorVersion(HasId):
 
     code_evaluator_id: Mapped[int] = mapped_column(
         ForeignKey("code_evaluators.id", ondelete="CASCADE"),
-        index=True,
         nullable=False,
     )
     description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
@@ -2883,7 +2882,10 @@ class CodeEvaluatorVersion(HasId):
     )
     user: Mapped[Optional["User"]] = relationship("User")
 
-    __table_args__ = {"sqlite_autoincrement": True}
+    __table_args__ = (
+        Index("ix_code_evaluator_versions_code_evaluator_id_id", "code_evaluator_id", "id"),
+        {"sqlite_autoincrement": True},
+    )
 
     def has_identical_content(self, other: Self) -> bool:
         return self.source_code == other.source_code and self.language == other.language

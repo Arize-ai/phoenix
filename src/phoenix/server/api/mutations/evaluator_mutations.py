@@ -24,7 +24,14 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
+from phoenix.server.api.dataloaders.latest_code_evaluator_versions import (
+    latest_code_evaluator_version_for_update,
+)
+from phoenix.server.api.evaluators import (
+    _infer_python_evaluate_input_schema,
+    _infer_typescript_evaluate_input_schema,
+    get_builtin_evaluator_by_key,
+)
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.evaluators import (
     LLMEvaluatorOutputConfigs,
@@ -88,6 +95,17 @@ def _convert_output_config_inputs_to_pydantic(
 ) -> list[OutputConfigType]:
     """Convert a list of AnnotationConfigInput to pydantic models for evaluator output configs."""
     return [_output_config_input_to_pydantic(c) for c in configs]
+
+
+def _raise_on_uninferable_evaluate_signature(source_code: str, language: Language) -> None:
+    if language is Language.PYTHON:
+        _, error_message = _infer_python_evaluate_input_schema(source_code)
+    elif language is Language.TYPESCRIPT:
+        _, error_message = _infer_typescript_evaluate_input_schema(source_code)
+    else:
+        error_message = f"Unsupported code evaluator language: {language.value}"
+    if error_message is not None:
+        raise BadRequest(error_message)
 
 
 async def _generate_unique_evaluator_name(
@@ -309,8 +327,6 @@ class PatchCodeEvaluatorInput:
     id: GlobalID
     name: Optional[Identifier] = UNSET
     description: Optional[str] = UNSET
-    source_code: Optional[str] = UNSET
-    language: Optional[Language] = UNSET
     sandbox_config_id: Optional[GlobalID] = UNSET
     input_mapping: Optional[EvaluatorInputMappingInput] = UNSET
     output_configs: Optional[list[AnnotationConfigInput]] = UNSET
@@ -321,7 +337,6 @@ class CreateCodeEvaluatorVersionInput:
     code_evaluator_id: GlobalID
     source_code: str
     language: Language
-    description: Optional[str] = None
 
 
 @strawberry.type
@@ -337,7 +352,7 @@ class CreateCodeEvaluatorVersionPayload:
         description=(
             "True when a new CodeEvaluatorVersion row was appended."
             " False when the call dedup'd against the existing tip because"
-            " source_code, language, and sandbox binding were unchanged."
+            " source_code and language were unchanged."
         )
     )
     query: Query
@@ -1061,10 +1076,6 @@ class EvaluatorMutationMixin:
             )
 
         if output_configs is None:
-            async with info.context.db.read() as session:
-                code_evaluator = await session.get(models.CodeEvaluator, evaluator_id)
-            if code_evaluator is None:
-                raise BadRequest("Code evaluator not found")
             dataset_evaluator.output_configs = [
                 config
                 for config in code_evaluator.output_configs
@@ -1143,13 +1154,9 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"DatasetEvaluator with name {input.name} already exists")
 
         if dataset_evaluator.output_configs is None:
-            async with info.context.db.read() as session:
-                tip = await session.get(models.CodeEvaluator, dataset_evaluator.evaluator_id)
-            if tip is None:
-                raise BadRequest("Code evaluator not found")
             dataset_evaluator.output_configs = [
                 config
-                for config in tip.output_configs
+                for config in evaluator.output_configs
                 if isinstance(config, (CategoricalOutputConfig, ContinuousOutputConfig))
             ]
 
@@ -1184,6 +1191,7 @@ class EvaluatorMutationMixin:
         if input.input_mapping is None:
             raise BadRequest("input_mapping is required")
         input_mapping_orm = input.input_mapping.to_orm()
+        _raise_on_uninferable_evaluate_signature(input.source_code, input.language)
 
         try:
             async with info.context.db() as session:
@@ -1252,12 +1260,6 @@ class EvaluatorMutationMixin:
                     except ValidationError as error:
                         raise BadRequest(f"Invalid evaluator name: {error}")
 
-                if input.source_code is not UNSET and input.source_code is not None:
-                    row.source_code = input.source_code
-
-                if input.language is not UNSET and input.language is not None:
-                    row.language = input.language.value
-
                 if input.description is not UNSET:
                     row.description = input.description
 
@@ -1268,36 +1270,17 @@ class EvaluatorMutationMixin:
                         sandbox_config_id = from_global_id_with_expected_type(
                             input.sandbox_config_id, SandboxConfig.__name__
                         )
-                        # The tip table no longer carries a language column, so
-                        # the schema-layer composite FK on
-                        # (sandbox_config_id, language) cannot guard direct tip
-                        # writes. Resolve the evaluator's language from its
-                        # latest version and reject mismatched sandbox bindings
-                        # at the mutation boundary.
-                        from sqlalchemy import func as _sa_func
-                        from sqlalchemy import select as _sa_select
-
-                        latest_version_id = await session.scalar(
-                            _sa_select(_sa_func.max(models.CodeEvaluatorVersion.id)).where(
-                                models.CodeEvaluatorVersion.code_evaluator_id == row.id
-                            )
+                        latest_version = await latest_code_evaluator_version_for_update(
+                            session, row.id
                         )
-                        if latest_version_id is not None:
-                            latest_version = await session.get(
-                                models.CodeEvaluatorVersion, latest_version_id
-                            )
-                            if latest_version is not None:
-                                # Post-#13055: language is the denormalized string column;
-                                # composite FK enforces alignment between sandbox_config and tip.
-                                target_cfg = await session.get(
-                                    models.SandboxConfig, sandbox_config_id
+                        if latest_version is not None:
+                            target_cfg = await session.get(models.SandboxConfig, sandbox_config_id)
+                            if target_cfg is not None and (
+                                target_cfg.language != latest_version.language
+                            ):
+                                raise BadRequest(
+                                    "Evaluator language does not match sandbox config language"
                                 )
-                                if target_cfg is not None and (
-                                    target_cfg.language != latest_version.language
-                                ):
-                                    raise BadRequest(
-                                        "Evaluator language does not match sandbox config language"
-                                    )
                         row.sandbox_config_id = sandbox_config_id
 
                 if input.input_mapping is not UNSET and input.input_mapping is not None:
@@ -1341,6 +1324,7 @@ class EvaluatorMutationMixin:
         evaluator_id = from_global_id_with_expected_type(
             global_id=input.code_evaluator_id, expected_type_name=CodeEvaluator.__name__
         )
+        _raise_on_uninferable_evaluate_signature(input.source_code, input.language)
 
         user_id: Optional[int] = None
         assert isinstance(request := info.context.request, Request)
@@ -1359,33 +1343,21 @@ class EvaluatorMutationMixin:
 
                 candidate = models.CodeEvaluatorVersion(
                     code_evaluator_id=row.id,
-                    description=input.description,
+                    description=row.description,
                     source_code=input.source_code,
                     language=language_value,
                     user_id=user_id,
                 )
 
-                from sqlalchemy import func
-                from sqlalchemy import select as sa_select
-
-                latest_version_id = await session.scalar(
-                    sa_select(func.max(models.CodeEvaluatorVersion.id)).where(
-                        models.CodeEvaluatorVersion.code_evaluator_id == row.id
-                    )
-                )
-                current_version = (
-                    await session.get(models.CodeEvaluatorVersion, latest_version_id)
-                    if latest_version_id is not None
-                    else None
-                )
+                current_version = await latest_code_evaluator_version_for_update(session, row.id)
 
                 was_created = current_version is None or not current_version.has_identical_content(
                     candidate
                 )
                 if was_created:
                     session.add(candidate)
-
-                await session.refresh(row)
+                    await session.flush()
+                    await session.refresh(row)
         except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
             raise BadRequest(f"Could not create code evaluator version: {e}")
 

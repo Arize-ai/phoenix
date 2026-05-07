@@ -370,7 +370,6 @@ function EditCodeDatasetEvaluatorSlideoverContent({
               codeEvaluatorId: evaluatorId,
               language: payload.language,
               sourceCode: payload.sourceCode,
-              description: normalizedDescription,
             },
           },
           onCompleted: () => {

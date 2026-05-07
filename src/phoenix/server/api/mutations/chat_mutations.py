@@ -281,10 +281,10 @@ class ChatCompletionMutationMixin:
                 from phoenix.server.sandbox import MissingSecretError, get_or_create_backend
                 from phoenix.server.sandbox.types import UnsupportedOperation
 
-                latest_version_id = (
-                    await info.context.data_loaders.latest_code_evaluator_version_ids.load(db_id)
+                code_evaluator_version = (
+                    await info.context.data_loaders.latest_code_evaluator_versions.load(db_id)
                 )
-                if latest_version_id is None:
+                if code_evaluator_version is None:
                     raise BadRequest(
                         f"Code evaluator with id {code_evaluator_id} has no current version"
                     )
@@ -293,15 +293,6 @@ class ChatCompletionMutationMixin:
                     code_evaluator_record = await session.get(models.CodeEvaluator, db_id)
                     if code_evaluator_record is None:
                         raise BadRequest(f"Code evaluator with id {code_evaluator_id} not found")
-                    code_evaluator_version = await session.get(
-                        models.CodeEvaluatorVersion,
-                        latest_version_id,
-                    )
-                    if code_evaluator_version is None:
-                        raise BadRequest(
-                            f"Code evaluator with id {code_evaluator_id} has no current version"
-                        )
-
                     # Post-#13055: language is denormalized on the tip and aligned with
                     # the version row by composite FK; read directly without a Language lookup.
                     language = code_evaluator_record.language
@@ -319,12 +310,26 @@ class ChatCompletionMutationMixin:
                         )
                         if live_sandbox_config is None:
                             raise BadRequest(f"SandboxConfig not found: {tip_sandbox_config_id}")
+                        if not live_sandbox_config.enabled:
+                            raise BadRequest(
+                                (
+                                    f"Sandbox configuration '{live_sandbox_config.name}' is "
+                                    "disabled. Enable it before testing this evaluator."
+                                )
+                            )
                         live_sandbox_provider = await session.get(
                             models.SandboxProvider, live_sandbox_config.sandbox_provider_id
                         )
                         if live_sandbox_provider is None:
                             provider_id = live_sandbox_config.sandbox_provider_id
                             raise BadRequest(f"SandboxProvider not found: {provider_id}")
+                        if not live_sandbox_provider.enabled:
+                            raise BadRequest(
+                                (
+                                    f"Sandbox provider '{live_sandbox_provider.backend_type}' is "
+                                    "disabled. Enable it before testing this evaluator."
+                                )
+                            )
                         backend_type = live_sandbox_provider.backend_type
                         # Provider config wins on key collision so user-supplied config
                         # cannot override server-injected provider keys.

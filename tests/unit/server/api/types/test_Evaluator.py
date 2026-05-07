@@ -1320,10 +1320,10 @@ class TestDatasetEvaluatorFields:
 class TestCodeEvaluatorVersionGraphQLTraversal:
     """End-to-end happy-path traversal of the CodeEvaluator version surface
     through gql_client. Pinning this case catches schema-binding regressions
-    (CodeEvaluatorVersion.previousVersion / version(versionId) / sequenceNumber
-    / isLatest) that direct-resolver unit tests miss."""
+    (CodeEvaluatorVersion.previousVersion / version(versionId) / sequenceNumber)
+    that direct-resolver unit tests miss."""
 
-    async def test_currentVersion_versions_sequence_isLatest_previous(
+    async def test_currentVersion_versions_sequence_previous(
         self,
         db: DbSessionFactory,
         gql_client: AsyncGraphQLClient,
@@ -1377,16 +1377,14 @@ class TestCodeEvaluatorVersionGraphQLTraversal:
                         currentVersion {
                             id
                             sequenceNumber
-                            isLatest
                             previousVersion { id }
                         }
                         versions(first: 10) {
-                            edges { node { id sequenceNumber isLatest } }
+                            edges { node { id sequenceNumber } }
                         }
                         version(versionId: $versionId) {
                             id
                             sequenceNumber
-                            isLatest
                         }
                     }
                 }
@@ -1399,14 +1397,11 @@ class TestCodeEvaluatorVersionGraphQLTraversal:
         cv = ce["currentVersion"]
         assert cv["id"] == v2_gid
         assert cv["sequenceNumber"] == 2
-        assert cv["isLatest"] is True
         assert cv["previousVersion"]["id"] == v1_gid
 
         version_node_ids = [edge["node"]["id"] for edge in ce["versions"]["edges"]]
         assert version_node_ids == [v2_gid, v1_gid]
-        assert ce["versions"]["edges"][1]["node"]["isLatest"] is False
 
         looked_up = ce["version"]
         assert looked_up["id"] == v1_gid
         assert looked_up["sequenceNumber"] == 1
-        assert looked_up["isLatest"] is False

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a6777edcd2f852c61807cc8fd9949e91>>
+ * @generated SignedSource<<d0af9ebc55606899faab5805fc2d22b0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,7 +12,6 @@ import { ConcreteRequest } from 'relay-runtime';
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type CreateCodeEvaluatorVersionInput = {
   codeEvaluatorId: string;
-  description?: string | null;
   language: Language;
   sourceCode: string;
 };

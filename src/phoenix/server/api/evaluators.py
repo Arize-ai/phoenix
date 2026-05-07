@@ -800,75 +800,103 @@ async def get_evaluators(
     code_evaluators_by_id: dict[int, CodeEvaluatorRunner] = {}
     code_evaluator_languages_by_id: dict[int, str] = {}
     if code_evaluator_db_ids:
-        from phoenix.server.api.dataloaders.latest_code_evaluator_version_ids import (
-            latest_code_evaluator_version_ids_by_evaluator_id,
+        from phoenix.server.api.dataloaders.latest_code_evaluator_versions import (
+            latest_code_evaluator_versions_by_evaluator_id,
         )
         from phoenix.server.sandbox import get_or_create_backend
 
-        code_rows_result = await session.scalars(
-            select(models.CodeEvaluator).where(models.CodeEvaluator.id.in_(code_evaluator_db_ids))
+        code_rows = list(
+            await session.scalars(
+                select(models.CodeEvaluator).where(
+                    models.CodeEvaluator.id.in_(code_evaluator_db_ids)
+                )
+            )
         )
-        latest_version_ids = await latest_code_evaluator_version_ids_by_evaluator_id(
+        latest_versions = await latest_code_evaluator_versions_by_evaluator_id(
             list(code_evaluator_db_ids), session
         )
-        for code_row in code_rows_result:
-            latest_version_id = latest_version_ids.get(code_row.id)
-            if latest_version_id is None:
-                continue
-            code_version = await session.get(models.CodeEvaluatorVersion, latest_version_id)
+        tip_sandbox_config_ids = {
+            code_row.sandbox_config_id
+            for code_row in code_rows
+            if code_row.sandbox_config_id is not None
+        }
+        sandbox_by_config_id: dict[int, tuple[models.SandboxConfig, models.SandboxProvider]] = {}
+        if tip_sandbox_config_ids:
+            sandbox_rows = await session.execute(
+                select(models.SandboxConfig, models.SandboxProvider)
+                .join(
+                    models.SandboxProvider,
+                    models.SandboxProvider.id == models.SandboxConfig.sandbox_provider_id,
+                )
+                .where(models.SandboxConfig.id.in_(tip_sandbox_config_ids))
+            )
+            sandbox_by_config_id = {
+                sandbox_config.id: (sandbox_config, sandbox_provider)
+                for sandbox_config, sandbox_provider in sandbox_rows
+            }
+        backend_by_sandbox_key: dict[tuple[int, int], Optional[SandboxBackend]] = {}
+        evaluator_base_by_id = {
+            evaluator.id: evaluator for _, evaluator in dataset_evaluators_by_id.values()
+        }
+
+        for code_row in code_rows:
+            code_version = latest_versions.get(code_row.id)
             if code_version is None:
                 continue
-            # Post-#13055: language is the denormalized string column on both
-            # code_evaluators and code_evaluator_versions, kept aligned by composite FK.
             evaluator_language = code_row.language
             code_evaluator_languages_by_id[code_row.id] = evaluator_language
 
-            # Execution dispatches against the tip's current sandbox_config_id so
-            # a patchCodeEvaluator takes effect immediately.
             backend = None
             language = evaluator_language
             sandbox_timeout: Optional[int] = None
             tip_sandbox_config_id = code_row.sandbox_config_id
             if tip_sandbox_config_id is not None:
-                live_sandbox_config = await session.get(models.SandboxConfig, tip_sandbox_config_id)
-                if live_sandbox_config is None:
+                sandbox_pair = sandbox_by_config_id.get(tip_sandbox_config_id)
+                if sandbox_pair is None:
                     raise BadRequest(f"SandboxConfig not found: {tip_sandbox_config_id}")
-                live_sandbox_provider = await session.get(
-                    models.SandboxProvider, live_sandbox_config.sandbox_provider_id
-                )
-                if live_sandbox_provider is None:
-                    provider_id = live_sandbox_config.sandbox_provider_id
-                    raise BadRequest(f"SandboxProvider not found: {provider_id}")
-                sandbox_timeout = live_sandbox_config.timeout
-                # Provider config wins on key collision so user-supplied config
-                # cannot override server-injected provider keys.
-                merged_config = {
-                    **live_sandbox_config.config,
-                    **live_sandbox_provider.config,
-                }
-                try:
-                    backend = await get_or_create_backend(
-                        live_sandbox_provider.backend_type,
-                        config=merged_config,
-                        session=session,
-                        decrypt=decrypt,
+                live_sandbox_config, live_sandbox_provider = sandbox_pair
+                if not live_sandbox_config.enabled:
+                    raise BadRequest(
+                        (
+                            f"Sandbox configuration '{live_sandbox_config.name}' is disabled. "
+                            "Enable it before testing this evaluator."
+                        )
                     )
-                except (
-                    MissingSecretError,
-                    UnsupportedOperation,
-                    PydanticValidationError,
-                    ValueError,
-                ) as exc:
-                    raise BadRequest(str(exc))
+                if not live_sandbox_provider.enabled:
+                    raise BadRequest(
+                        (
+                            f"Sandbox provider '{live_sandbox_provider.backend_type}' is disabled. "
+                            "Enable it before testing this evaluator."
+                        )
+                    )
+                sandbox_timeout = live_sandbox_config.timeout
+                sandbox_key = (live_sandbox_provider.id, live_sandbox_config.id)
+                if sandbox_key not in backend_by_sandbox_key:
+                    merged_config = {
+                        **live_sandbox_config.config,
+                        **live_sandbox_provider.config,
+                    }
+                    try:
+                        backend_by_sandbox_key[sandbox_key] = await get_or_create_backend(
+                            live_sandbox_provider.backend_type,
+                            config=merged_config,
+                            session=session,
+                            decrypt=decrypt,
+                        )
+                    except (
+                        MissingSecretError,
+                        UnsupportedOperation,
+                        PydanticValidationError,
+                        ValueError,
+                    ) as exc:
+                        raise BadRequest(str(exc))
+                backend = backend_by_sandbox_key[sandbox_key]
 
-            # Resolve evaluator base row for name/description/metadata
-            evaluator_base = await session.get(models.Evaluator, code_row.id)
+            evaluator_base = evaluator_base_by_id.get(code_row.id)
             eval_name = evaluator_base.name if evaluator_base else str(code_row.id)
             eval_description = evaluator_base.description if evaluator_base else None
 
             if backend is not None:
-                # Filter to OutputConfigType (CategoricalOutputConfig | ContinuousOutputConfig)
-                # — FreeformAnnotationConfig has no name attr and is not a valid output config.
                 output_cfgs: list[OutputConfigType] = [
                     c
                     for c in code_row.output_configs

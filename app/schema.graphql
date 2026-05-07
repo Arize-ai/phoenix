@@ -524,10 +524,9 @@ type CodeEvaluatorVersion implements Node {
   sourceCode: String!
   createdAt: DateTime!
   language: Language!
-  inputSchema: JSON
+  inputSchema: JSON!
   previousVersion: CodeEvaluatorVersion
   sequenceNumber: Int!
-  isLatest: Boolean!
   user: User
 }
 
@@ -649,14 +648,13 @@ input CreateCodeEvaluatorVersionInput {
   codeEvaluatorId: ID!
   sourceCode: String!
   language: Language!
-  description: String = null
 }
 
 type CreateCodeEvaluatorVersionPayload {
   evaluator: CodeEvaluator!
 
   """
-  True when a new CodeEvaluatorVersion row was appended. False when the call dedup'd against the existing tip because source_code, language, and sandbox binding were unchanged.
+  True when a new CodeEvaluatorVersion row was appended. False when the call dedup'd against the existing tip because source_code and language were unchanged.
   """
   wasCreated: Boolean!
   query: Query!
@@ -2448,8 +2446,6 @@ input PatchCodeEvaluatorInput {
   id: ID!
   name: Identifier
   description: String
-  sourceCode: String
-  language: Language
   sandboxConfigId: ID
   inputMapping: EvaluatorInputMappingInput
   outputConfigs: [AnnotationConfigInput!]
