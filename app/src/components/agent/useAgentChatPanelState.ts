@@ -195,8 +195,11 @@ export function useAgentChatPanelState() {
     return prependBasename(`${path}?${providerSearchParams}`);
   }, [providerSearchParams, useV2Endpoint]);
 
-  const summarizeApiUrl = useMemo(
-    () => prependBasename(`/summarize?${providerSearchParams}`),
+  const getSummarizeApiUrl = useCallback(
+    (sessionId: string) =>
+      prependBasename(
+        `/agent-sessions/${encodeURIComponent(sessionId)}/summary?${providerSearchParams}`
+      ),
     [providerSearchParams]
   );
 
@@ -259,7 +262,7 @@ export function useAgentChatPanelState() {
     activeSessionId,
     orderedSessions,
     chatApiUrl,
-    summarizeApiUrl,
+    getSummarizeApiUrl,
     menuValue,
     createSession,
     setActiveSession,

@@ -60,7 +60,7 @@ _RequestData = Annotated[
 
 
 class _SummarizeRequest(BaseModel):
-    """Body for POST /summarize.
+    """Body for POST /agent-sessions/{session_id}/summary.
 
     Carries the Vercel-style messages array; the backend owns the prompt and
     the structured-output tool schema."""
@@ -153,9 +153,13 @@ def create_chat_v2_router(authentication_enabled: bool) -> APIRouter:
 
         return adapter.streaming_response(_stream_with_session())
 
-    @router.post("/summarize", response_model=_SummarizeResponse)
+    @router.post(
+        "/agent-sessions/{session_id}/summary",
+        response_model=_SummarizeResponse,
+    )
     async def summarize_endpoint(
         request: Request,
+        session_id: str,
         params: Annotated[ChatSearchParamsModel, Query()],
         body: _SummarizeRequest,
     ) -> _SummarizeResponse:

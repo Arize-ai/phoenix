@@ -197,7 +197,7 @@ const chatCSS = css`
 export function Chat({
   sessionId,
   chatApiUrl,
-  summarizeApiUrl,
+  getSummarizeApiUrl,
   modelMenuValue,
   onModelChange,
   emptyStateSubtext,
@@ -205,7 +205,7 @@ export function Chat({
 }: {
   sessionId: string | null;
   chatApiUrl: string;
-  summarizeApiUrl: string;
+  getSummarizeApiUrl: (sessionId: string) => string;
   modelMenuValue: ModelMenuValue;
   onModelChange: (model: ModelMenuValue) => void;
   emptyStateSubtext?: ReactNode;
@@ -220,7 +220,7 @@ export function Chat({
     pendingElicitation,
     handleElicitationSubmit,
     handleElicitationCancel,
-  } = useAgentChat({ sessionId, chatApiUrl, summarizeApiUrl });
+  } = useAgentChat({ sessionId, chatApiUrl, getSummarizeApiUrl });
 
   return (
     <ChatView

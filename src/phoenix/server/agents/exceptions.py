@@ -35,3 +35,7 @@ class ProviderUnsupportedError(AgentError):
 
 class ProviderDependencyError(AgentError):
     """A required SDK package (e.g. ``azure-identity``) is not installed."""
+
+
+class SummarizationError(AgentError):
+    """Raised when the model does not produce a usable summary tool call."""
