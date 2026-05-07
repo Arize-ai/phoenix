@@ -97,8 +97,9 @@ async def test_crud_operations(
     list_response = await httpx_client.get("/v1/annotation_configs")
     assert list_response.status_code == 200
     configs = list_response.json()["data"]
-    assert len(configs) == 1
-    assert configs[0] == created_config
+    assert len(configs) == 2  # Includes the seeded user_feedback config.
+    assert created_config in configs
+    assert any(config["name"] == "user_feedback" for config in configs)
 
     # Get config by ID
     get_response = await httpx_client.get(f"/v1/annotation_configs/{config_id}")
@@ -130,7 +131,8 @@ async def test_crud_operations(
     list_response = await httpx_client.get("/v1/annotation_configs")
     assert list_response.status_code == 200
     configs = list_response.json()["data"]
-    assert len(configs) == 0
+    assert len(configs) == 1  # Only the seeded user_feedback config remains.
+    assert configs[0]["name"] == "user_feedback"
 
     # Verify the config is deleted by getting
     get_response = await httpx_client.get(f"/v1/annotation_configs/{config_id}")
@@ -428,18 +430,18 @@ async def annotation_configs(db: DbSessionFactory) -> list[models.AnnotationConf
         pytest.param(
             4,
             4,
-            str(GlobalID("CategoricalAnnotationConfig", str(1))),
+            str(GlobalID("CategoricalAnnotationConfig", str(2))),
             id="page_size_less_than_total_has_next_cursor",
         ),
         pytest.param(
             5,
             5,
-            None,
-            id="page_size_equals_total_no_next_cursor",
+            str(GlobalID("CategoricalAnnotationConfig", str(1))),
+            id="page_size_less_than_total_has_next_cursor_for_seeded_config",
         ),
         pytest.param(
             6,
-            5,
+            6,
             None,
             id="page_size_greater_than_total_no_next_cursor",
         ),
@@ -465,18 +467,18 @@ async def test_list_annotation_configs_pagination_without_cursor(
         pytest.param(
             2,
             2,
-            str(GlobalID("CategoricalAnnotationConfig", str(1))),
+            str(GlobalID("CategoricalAnnotationConfig", str(2))),
             id="page_size_less_than_remaining_has_next_cursor",
         ),
         pytest.param(
             3,
             3,
-            None,
+            str(GlobalID("CategoricalAnnotationConfig", str(1))),
             id="page_size_equals_remaining_no_next_cursor",
         ),
         pytest.param(
             4,
-            3,
+            4,
             None,
             id="page_size_greater_than_remaining_no_next_cursor",
         ),

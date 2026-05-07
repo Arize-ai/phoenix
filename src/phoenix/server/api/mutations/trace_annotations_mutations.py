@@ -4,12 +4,20 @@ import strawberry
 from sqlalchemy import delete, insert, select
 from starlette.requests import Request
 from strawberry import UNSET, Info
+from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
 from phoenix.server.api.helpers.annotations import get_user_identifier
+from phoenix.server.api.helpers.trace_user_feedback import (
+    delete_trace_user_feedback as delete_trace_user_feedback_record,
+)
+from phoenix.server.api.helpers.trace_user_feedback import (
+    upsert_trace_user_feedback,
+    validate_user_feedback_label,
+)
 from phoenix.server.api.input_types.CreateTraceAnnotationInput import CreateTraceAnnotationInput
 from phoenix.server.api.input_types.DeleteAnnotationsInput import DeleteAnnotationsInput
 from phoenix.server.api.input_types.PatchAnnotationInput import PatchAnnotationInput
@@ -27,8 +35,105 @@ class TraceAnnotationMutationPayload:
     query: Query
 
 
+@strawberry.input
+class SetTraceUserFeedbackInput:
+    trace_id: GlobalID
+    label: str
+
+
+@strawberry.type
+class SetTraceUserFeedbackPayload:
+    trace_annotation: TraceAnnotation
+    query: Query
+
+
+@strawberry.input
+class DeleteTraceUserFeedbackInput:
+    trace_id: GlobalID
+
+
+@strawberry.type
+class DeleteTraceUserFeedbackPayload:
+    trace_annotation: TraceAnnotation
+    query: Query
+
+
 @strawberry.type
 class TraceAnnotationMutationMixin:
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def set_trace_user_feedback(
+        self, info: Info[Context, None], input: SetTraceUserFeedbackInput
+    ) -> SetTraceUserFeedbackPayload:
+        try:
+            label = validate_user_feedback_label(input.label)
+        except ValueError as error:
+            raise BadRequest(str(error))
+        try:
+            trace_rowid = from_global_id_with_expected_type(input.trace_id, "Trace")
+        except ValueError:
+            raise BadRequest(f"Invalid trace ID: {input.trace_id}")
+
+        assert isinstance(request := info.context.request, Request)
+        user_id: Optional[int] = None
+        if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
+            user_id = int(user.identity)
+
+        async with info.context.db() as session:
+            if await session.get(models.Trace, trace_rowid) is None:
+                raise NotFound("Trace not found")
+            trace_annotation = await upsert_trace_user_feedback(
+                session,
+                trace_rowid=trace_rowid,
+                label=label,
+                source="APP",
+                user_id=user_id,
+            )
+            await session.commit()
+
+        info.context.event_queue.put(TraceAnnotationInsertEvent((trace_annotation.id,)))
+        return SetTraceUserFeedbackPayload(
+            trace_annotation=TraceAnnotation(
+                id=trace_annotation.id,
+                db_record=trace_annotation,
+            ),
+            query=Query(),
+        )
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer])  # type: ignore
+    async def delete_trace_user_feedback(
+        self, info: Info[Context, None], input: DeleteTraceUserFeedbackInput
+    ) -> DeleteTraceUserFeedbackPayload:
+        try:
+            trace_rowid = from_global_id_with_expected_type(input.trace_id, "Trace")
+        except ValueError:
+            raise BadRequest(f"Invalid trace ID: {input.trace_id}")
+
+        assert isinstance(request := info.context.request, Request)
+        user_id: Optional[int] = None
+        if "user" in request.scope and isinstance((user := info.context.user), PhoenixUser):
+            user_id = int(user.identity)
+
+        async with info.context.db() as session:
+            if await session.get(models.Trace, trace_rowid) is None:
+                raise NotFound("Trace not found")
+            trace_annotation = await delete_trace_user_feedback_record(
+                session,
+                trace_rowid=trace_rowid,
+                user_id=user_id,
+            )
+            if trace_annotation is None:
+                raise NotFound("Trace user feedback not found")
+            await session.commit()
+
+        info.context.event_queue.put(TraceAnnotationDeleteEvent((trace_annotation.id,)))
+        return DeleteTraceUserFeedbackPayload(
+            trace_annotation=TraceAnnotation(
+                id=trace_annotation.id,
+                db_record=trace_annotation,
+            ),
+            query=Query(),
+        )
+
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def create_trace_annotations(
         self, info: Info[Context, None], input: list[CreateTraceAnnotationInput]

@@ -75,9 +75,14 @@ Add shared backend constants and helpers for:
 - the per-user identifier policy
 - shared trace feedback upsert and delete behavior
 
-The upsert helper should write `source="APP"` for app-owned feedback, use
-`annotator_kind="HUMAN"`, set `metadata_={}`, and emit
-`TraceAnnotationInsertEvent` when a row is inserted or updated.
+The upsert helper should use dialect-aware `insert_on_conflict` against the
+existing `(name, trace_rowid, identifier)` uniqueness constraint so repeated
+clicks and concurrent requests update atomically instead of racing through a
+select-then-insert flow. GraphQL app-owned feedback should write `source="APP"`;
+the dedicated REST endpoint should write `source="API"` to match existing REST
+annotation and note routes. Both surfaces should use `annotator_kind="HUMAN"`,
+set `metadata_={}`, and emit `TraceAnnotationInsertEvent` when a row is
+inserted or updated.
 
 The delete helper should remove only the matching `user_feedback` row for the
 resolved trace and caller identifier, emit `TraceAnnotationDeleteEvent` when a
@@ -85,8 +90,10 @@ row is deleted, and otherwise succeed without error.
 
 Seed a canonical annotation config during startup through an idempotent
 facilitator step, following the existing built-in evaluator sync pattern. The
-seeded config should be a global categorical `AnnotationConfig` named
-`user_feedback` with values:
+step should create the config only when no `AnnotationConfig` named
+`user_feedback` exists. If a config with that name already exists, leave it
+unchanged; do not fail startup, warn, or repair the existing shape. When seeded,
+the config should be a global categorical `AnnotationConfig` with values:
 
 | Label | Score |
 | ----- | ----- |
@@ -104,6 +111,13 @@ with `name="user_feedback"` accepted for now because PXI already depends on
 that path. A later UI/API cleanup can migrate PXI to the dedicated endpoints
 and then fully reserve `user_feedback` like `note`.
 
+REST endpoints should use the same read-only and viewer protections as trace
+notes. The `PUT` route should also use `is_not_locked`, matching the existing
+repo convention that locked-project guards apply to insert/update routes and not
+DELETE routes. Add both new `PUT` and `DELETE` routes to
+`_VIEWER_BLOCKED_WRITE_OPERATIONS` in `tests/integration/_helpers.py` so REST
+endpoint coverage remains exhaustive.
+
 ## Test Plan
 
 GraphQL tests:
@@ -120,17 +134,18 @@ REST tests:
 - PUT works with a raw trace ID
 - PUT works with a Relay trace ID
 - repeated PUT updates in place
+- concurrent or repeated PUT requests resolve through atomic upsert semantics
 - DELETE removes the caller's feedback and returns `204`
 - DELETE returns `204` when no feedback exists
 - missing traces return `404`
 - invalid labels return a validation error
+- viewers are blocked from PUT and DELETE
 
 Config seeding tests:
 
-- startup creates the `user_feedback` categorical config
+- startup creates the `user_feedback` categorical config when absent
 - startup sync is idempotent
-- an existing noncanonical `user_feedback` config is repaired to the canonical
-  shape
+- an existing `user_feedback` config is left unchanged, even if noncanonical
 - annotation-config create, update, and delete APIs reject `user_feedback`
 
 Compatibility tests:
@@ -142,6 +157,7 @@ Generated artifacts and verification:
 
 - run `make graphql`
 - run `make openapi`
+- update the REST endpoint coverage helper for the new PUT and DELETE routes
 - run targeted Python tests for trace annotation mutations, trace REST routes,
   annotation config routes and mutations, and facilitator seeding
 

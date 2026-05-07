@@ -232,6 +232,113 @@ async def test_rest_create_multiple_trace_notes(
     )
 
 
+async def test_rest_set_trace_user_feedback_upserts_by_trace_id(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+) -> None:
+    trace_id = "82c6c9c33ccc586e0d3bdf46b20db309"
+
+    response = await httpx_client.put(
+        f"v1/traces/{trace_id}/user_feedback",
+        json={"data": {"label": "positive"}},
+    )
+    assert response.status_code == 200
+    first_annotation_id = response.json()["data"]["id"]
+
+    response = await httpx_client.put(
+        f"v1/traces/{trace_id}/user_feedback",
+        json={"data": {"label": "negative"}},
+    )
+    assert response.status_code == 200
+    assert response.json()["data"]["id"] == first_annotation_id
+
+    async with db() as session:
+        annotations = list(
+            await session.scalars(
+                select(models.TraceAnnotation).where(models.TraceAnnotation.name == "user_feedback")
+            )
+        )
+
+    assert len(annotations) == 1
+    annotation = annotations[0]
+    assert annotation.label == "negative"
+    assert annotation.score == 0.0
+    assert annotation.explanation is None
+    assert annotation.annotator_kind == "HUMAN"
+    assert annotation.metadata_ == {}
+    assert annotation.identifier == "px-app:anonymous"
+    assert annotation.source == "API"
+    assert annotation.user_id is None
+
+
+async def test_rest_set_trace_user_feedback_accepts_relay_trace_id(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+) -> None:
+    async with db() as session:
+        trace_rowid = await session.scalar(
+            select(models.Trace.id).where(
+                models.Trace.trace_id == "82c6c9c33ccc586e0d3bdf46b20db309"
+            )
+        )
+    assert trace_rowid is not None
+    trace_gid = str(GlobalID("Trace", str(trace_rowid)))
+
+    response = await httpx_client.put(
+        f"v1/traces/{trace_gid}/user_feedback",
+        json={"data": {"label": "positive"}},
+    )
+
+    assert response.status_code == 200
+    async with db() as session:
+        annotation = await session.scalar(
+            select(models.TraceAnnotation).where(models.TraceAnnotation.name == "user_feedback")
+        )
+    assert annotation is not None
+    assert annotation.label == "positive"
+    assert annotation.score == 1.0
+
+
+async def test_rest_delete_trace_user_feedback_returns_no_content(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+) -> None:
+    trace_id = "82c6c9c33ccc586e0d3bdf46b20db309"
+    response = await httpx_client.put(
+        f"v1/traces/{trace_id}/user_feedback",
+        json={"data": {"label": "positive"}},
+    )
+    assert response.status_code == 200
+
+    response = await httpx_client.delete(f"v1/traces/{trace_id}/user_feedback")
+    assert response.status_code == 204
+    assert response.text == ""
+
+    response = await httpx_client.delete(f"v1/traces/{trace_id}/user_feedback")
+    assert response.status_code == 204
+    assert response.text == ""
+
+    async with db() as session:
+        count = await session.scalar(
+            select(models.TraceAnnotation).where(models.TraceAnnotation.name == "user_feedback")
+        )
+    assert count is None
+
+
+async def test_rest_set_trace_user_feedback_rejects_unknown_label(
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+) -> None:
+    response = await httpx_client.put(
+        "v1/traces/82c6c9c33ccc586e0d3bdf46b20db309/user_feedback",
+        json={"data": {"label": "neutral"}},
+    )
+    assert response.status_code == 422
+
+
 async def test_rest_create_trace_note_blank_text_rejected(
     httpx_client: httpx.AsyncClient,
     project_with_a_single_trace_and_span: Any,

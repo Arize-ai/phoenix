@@ -3,6 +3,7 @@ from secrets import token_hex
 from typing import Any
 
 import pytest
+from sqlalchemy import select
 from strawberry.relay.types import GlobalID
 
 from phoenix.db import models
@@ -72,6 +73,29 @@ class TestTraceAnnotationMutations:
       deleteTraceAnnotations(input: $input) {
         traceAnnotations {
           id
+        }
+      }
+    }
+
+    mutation SetTraceUserFeedback($input: SetTraceUserFeedbackInput!) {
+      setTraceUserFeedback(input: $input) {
+        traceAnnotation {
+          id
+          name
+          label
+          score
+          explanation
+          identifier
+          metadata
+        }
+      }
+    }
+
+    mutation DeleteTraceUserFeedback($input: DeleteTraceUserFeedbackInput!) {
+      deleteTraceUserFeedback(input: $input) {
+        traceAnnotation {
+          id
+          name
         }
       }
     }
@@ -256,3 +280,86 @@ class TestTraceAnnotationMutations:
             "The name 'note' is reserved for trace and span notes. "
             "Use POST /v1/trace_notes instead."
         ) in response.errors[0].message
+
+    async def test_trace_user_feedback_set_upserts_and_second_delete_errors(
+        self,
+        _trace_data: models.Trace,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        trace_gid = str(GlobalID("Trace", str(_trace_data.id)))
+
+        response = await gql_client.execute(
+            self.QUERY,
+            {"input": {"traceId": trace_gid, "label": "positive"}},
+            operation_name="SetTraceUserFeedback",
+        )
+        assert not response.errors
+        assert response.data is not None
+        created = response.data["setTraceUserFeedback"]["traceAnnotation"]
+        assert created["name"] == "user_feedback"
+        assert created["label"] == "positive"
+        assert created["score"] == 1.0
+        assert created["explanation"] is None
+        assert created["identifier"] == "px-app:anonymous"
+        assert created["metadata"] == {}
+
+        response = await gql_client.execute(
+            self.QUERY,
+            {"input": {"traceId": trace_gid, "label": "negative"}},
+            operation_name="SetTraceUserFeedback",
+        )
+        assert not response.errors
+        assert response.data is not None
+        updated = response.data["setTraceUserFeedback"]["traceAnnotation"]
+        assert updated["id"] == created["id"]
+        assert updated["label"] == "negative"
+        assert updated["score"] == 0.0
+
+        async with db() as session:
+            annotations = list(
+                await session.scalars(
+                    select(models.TraceAnnotation).where(
+                        models.TraceAnnotation.name == "user_feedback"
+                    )
+                )
+            )
+        assert len(annotations) == 1
+        assert annotations[0].source == "APP"
+
+        response = await gql_client.execute(
+            self.QUERY,
+            {"input": {"traceId": trace_gid}},
+            operation_name="DeleteTraceUserFeedback",
+        )
+        assert not response.errors
+        assert response.data is not None
+        deleted = response.data["deleteTraceUserFeedback"]["traceAnnotation"]
+        assert deleted["id"] == created["id"]
+        assert deleted["name"] == "user_feedback"
+
+        response = await gql_client.execute(
+            self.QUERY,
+            {"input": {"traceId": trace_gid}},
+            operation_name="DeleteTraceUserFeedback",
+        )
+        assert response.data is None
+        assert response.errors
+        assert "Trace user feedback not found" in response.errors[0].message
+
+    async def test_trace_user_feedback_rejects_unknown_label(
+        self,
+        _trace_data: models.Trace,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        trace_gid = str(GlobalID("Trace", str(_trace_data.id)))
+
+        response = await gql_client.execute(
+            self.QUERY,
+            {"input": {"traceId": trace_gid, "label": "neutral"}},
+            operation_name="SetTraceUserFeedback",
+        )
+
+        assert response.data is None
+        assert response.errors
+        assert "User feedback label must be 'positive' or 'negative'." in response.errors[0].message

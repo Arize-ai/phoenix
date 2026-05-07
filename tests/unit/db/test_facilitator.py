@@ -728,3 +728,64 @@ class TestEnsureBuiltinEvaluators:
         assert builtin_count == registry_count, (
             f"Expected {registry_count} builtin evaluators after multiple syncs, got {builtin_count}"
         )
+
+
+class TestEnsureUserFeedbackAnnotationConfig:
+    async def test_ensure_user_feedback_annotation_config_seeds_if_absent(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        from phoenix.db.facilitator import _ensure_user_feedback_annotation_config
+        from phoenix.db.types.annotation_configs import (
+            CategoricalAnnotationConfig,
+            OptimizationDirection,
+        )
+
+        await _ensure_user_feedback_annotation_config(db)
+
+        async with db() as session:
+            annotation_config = await session.scalar(
+                select(models.AnnotationConfig).where(
+                    models.AnnotationConfig.name == "user_feedback"
+                )
+            )
+
+        assert annotation_config is not None
+        assert isinstance(annotation_config.config, CategoricalAnnotationConfig)
+        assert annotation_config.config.optimization_direction == OptimizationDirection.MAXIMIZE
+        assert [(value.label, value.score) for value in annotation_config.config.values] == [
+            ("positive", 1.0),
+            ("negative", 0.0),
+        ]
+
+    async def test_ensure_user_feedback_annotation_config_leaves_existing_config_unchanged(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        from phoenix.db.facilitator import _ensure_user_feedback_annotation_config
+        from phoenix.db.types.annotation_configs import (
+            AnnotationType,
+            FreeformAnnotationConfig,
+        )
+
+        async with db() as session:
+            session.add(
+                models.AnnotationConfig(
+                    name="user_feedback",
+                    config=FreeformAnnotationConfig(type=AnnotationType.FREEFORM.value),
+                )
+            )
+
+        await _ensure_user_feedback_annotation_config(db)
+
+        async with db() as session:
+            annotation_configs = list(
+                await session.scalars(
+                    select(models.AnnotationConfig).where(
+                        models.AnnotationConfig.name == "user_feedback"
+                    )
+                )
+            )
+
+        assert len(annotation_configs) == 1
+        assert isinstance(annotation_configs[0].config, FreeformAnnotationConfig)

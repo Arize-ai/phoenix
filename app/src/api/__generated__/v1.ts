@@ -582,6 +582,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/traces/{trace_identifier}/user_feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set trace user feedback */
+        put: operations["setTraceUserFeedback"];
+        post?: never;
+        /** Delete trace user feedback */
+        delete: operations["deleteTraceUserFeedback"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/traces/{trace_identifier}": {
         parameters: {
             query?: never;
@@ -3904,6 +3922,14 @@ export interface components {
              */
             end_time: string;
         };
+        /** SetTraceUserFeedbackRequestBody */
+        SetTraceUserFeedbackRequestBody: {
+            data: components["schemas"]["TraceUserFeedbackData"];
+        };
+        /** SetTraceUserFeedbackResponseBody */
+        SetTraceUserFeedbackResponseBody: {
+            data: components["schemas"]["InsertedTraceAnnotation"];
+        };
         /**
          * SourceDocumentUIPart
          * @description A document source part of a message.
@@ -4725,6 +4751,15 @@ export interface components {
              * Format: date-time
              */
             end_time: string;
+        };
+        /** TraceUserFeedbackData */
+        TraceUserFeedbackData: {
+            /**
+             * Label
+             * @description The user feedback label to apply to the trace.
+             * @enum {string}
+             */
+            label: "positive" | "negative";
         };
         /**
          * UIMessage
@@ -6730,6 +6765,108 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["CreateTraceNoteResponseBody"];
                 };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Trace not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    setTraceUserFeedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The trace identifier: either a relay GlobalID or OpenTelemetry trace_id */
+                trace_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetTraceUserFeedbackRequestBody"];
+            };
+        };
+        responses: {
+            /** @description Trace user feedback set successfully */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetTraceUserFeedbackResponseBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Trace not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deleteTraceUserFeedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The trace identifier: either a relay GlobalID or OpenTelemetry trace_id */
+                trace_identifier: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Forbidden */
             403: {

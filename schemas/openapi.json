@@ -3472,6 +3472,135 @@
         }
       }
     },
+    "/v1/traces/{trace_identifier}/user_feedback": {
+      "put": {
+        "tags": [
+          "traces"
+        ],
+        "summary": "Set trace user feedback",
+        "operationId": "setTraceUserFeedback",
+        "parameters": [
+          {
+            "name": "trace_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The trace identifier: either a relay GlobalID or OpenTelemetry trace_id",
+              "title": "Trace Identifier"
+            },
+            "description": "The trace identifier: either a relay GlobalID or OpenTelemetry trace_id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetTraceUserFeedbackRequestBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Trace user feedback set successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetTraceUserFeedbackResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Trace not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "traces"
+        ],
+        "summary": "Delete trace user feedback",
+        "operationId": "deleteTraceUserFeedback",
+        "parameters": [
+          {
+            "name": "trace_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The trace identifier: either a relay GlobalID or OpenTelemetry trace_id",
+              "title": "Trace Identifier"
+            },
+            "description": "The trace identifier: either a relay GlobalID or OpenTelemetry trace_id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Trace not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/traces/{trace_identifier}": {
       "delete": {
         "tags": [
@@ -12775,6 +12904,30 @@
         ],
         "title": "SessionTraceData"
       },
+      "SetTraceUserFeedbackRequestBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/TraceUserFeedbackData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SetTraceUserFeedbackRequestBody"
+      },
+      "SetTraceUserFeedbackResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/InsertedTraceAnnotation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SetTraceUserFeedbackResponseBody"
+      },
       "SourceDocumentUIPart": {
         "properties": {
           "type": {
@@ -14517,6 +14670,24 @@
           "end_time"
         ],
         "title": "TraceSpanData"
+      },
+      "TraceUserFeedbackData": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "enum": [
+              "positive",
+              "negative"
+            ],
+            "title": "Label",
+            "description": "The user feedback label to apply to the trace."
+          }
+        },
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "title": "TraceUserFeedbackData"
       },
       "UIMessage": {
         "properties": {
