@@ -401,6 +401,24 @@ class SandboxAdapter(ABC):
     #: Specs for provider credential env vars required by this adapter.
     credential_specs: list["ProviderCredentialSpec"] = []
 
+    @classmethod
+    def probe_dependencies(cls) -> None:
+        """Verify optional SDK dependencies are importable; raise ImportError otherwise.
+
+        Called by ``phoenix.server.sandbox.__init__`` at registration time. Subclasses
+        whose backend depends on an optional extra (wasmtime, e2b_code_interpreter,
+        daytona_sdk, vercel, modal, ...) should override this to import their SDK
+        and let the ImportError bubble. Adapters without optional SDK deps (e.g.
+        Deno, which shells out to the ``deno`` CLI) inherit this no-op default.
+
+        The registration block in ``phoenix.server.sandbox.__init__`` wraps the
+        adapter import + ``probe_dependencies()`` + registration in a single
+        ``try/except ImportError``: a failed probe results in the adapter being
+        absent from ``_SANDBOX_ADAPTERS``, which the status resolver maps to
+        ``status=NOT_INSTALLED`` (and surfaces the adapter's dependency hints).
+        """
+        return None
+
     @abstractmethod
     def build_backend(
         self,

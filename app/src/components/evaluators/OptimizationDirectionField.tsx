@@ -81,7 +81,7 @@ export const OptimizationDirectionField = ({
       aria-label="Optimization direction"
       data-testid="optimization-direction-picker"
       css={css`
-        width: fit-content;
+        width: 100%;
       `}
     >
       <Label>Optimization direction</Label>

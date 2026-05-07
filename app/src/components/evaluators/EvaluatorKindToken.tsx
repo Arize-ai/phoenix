@@ -13,6 +13,7 @@ export function EvaluatorKindToken(props: {
     switch (kind) {
       case "LLM":
         return "var(--global-color-orange-500)";
+      case "CODE":
       case "BUILTIN":
         return "var(--global-color-blue-500)";
       default:
@@ -21,7 +22,7 @@ export function EvaluatorKindToken(props: {
   }, [kind]);
   return (
     <Token color={color} size={size}>
-      {/* for now, all builtin evaluators are code evaluators */}
+      {/* BUILTIN historically rendered as CODE — keep that label aligned with CODE. */}
       {kind === "BUILTIN" ? "CODE" : kind}
     </Token>
   );

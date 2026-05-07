@@ -22,10 +22,12 @@ import React, {
 import { graphql, readInlineData } from "react-relay";
 
 import { Flex, Icon, Icons, Link, Text } from "@phoenix/components";
+import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
+import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
 import { TextCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
@@ -37,7 +39,10 @@ import type {
   DatasetEvaluatorSort,
 } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsTableEvaluatorsQuery.graphql";
 import { DatasetEvaluatorActionMenu } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorActionMenu";
-import type { DatasetEvaluatorsTable_row$key } from "@phoenix/pages/evaluators/__generated__/DatasetEvaluatorsTable_row.graphql";
+import type {
+  DatasetEvaluatorsTable_row$key,
+  EvaluatorKind,
+} from "@phoenix/pages/evaluators/__generated__/DatasetEvaluatorsTable_row.graphql";
 import { useDatasetEvaluatorsFilterContext } from "@phoenix/pages/evaluators/DatasetEvaluatorsFilterProvider";
 import { PromptCell } from "@phoenix/pages/evaluators/PromptCell";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
@@ -229,6 +234,16 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
               modelProvider
             }
           }
+          ... on CodeEvaluator {
+            language
+            sandboxConfig {
+              id
+              name
+              provider {
+                backendType
+              }
+            }
+          }
         }
       }
     `,
@@ -334,7 +349,7 @@ export const DatasetEvaluatorsTable = ({
         accessorFn: (row) => row.evaluator.kind,
         size: 60,
         cell: ({ getValue }) => (
-          <EvaluatorKindToken kind={getValue() as "LLM" | "BUILTIN"} />
+          <EvaluatorKindToken kind={getValue() as EvaluatorKind} />
         ),
       },
       {
@@ -343,6 +358,52 @@ export const DatasetEvaluatorsTable = ({
         cell: TextCell,
         enableSorting: false,
         size: 320,
+      },
+      {
+        header: "language",
+        accessorKey: "language",
+        size: 110,
+        enableSorting: false,
+        cell: ({ row }) => {
+          const language = row.original.evaluator.language;
+          if (!language) {
+            return <Text color="text-700">—</Text>;
+          }
+          return (
+            <Flex direction="row" gap="size-100" alignItems="center">
+              {language === "PYTHON" ? <PythonSVG /> : <TypeScriptSVG />}
+              <Text>{language === "PYTHON" ? "Python" : "TypeScript"}</Text>
+            </Flex>
+          );
+        },
+      },
+      {
+        header: "sandbox",
+        accessorKey: "sandbox",
+        size: 180,
+        enableSorting: false,
+        cell: ({ row }) => {
+          const sandboxConfig = row.original.evaluator.sandboxConfig;
+          if (!sandboxConfig) {
+            return <Text color="text-700">—</Text>;
+          }
+          return (
+            <Flex
+              direction="row"
+              gap="size-100"
+              alignItems="center"
+              minWidth={0}
+            >
+              <SandboxProviderIcon
+                backendType={sandboxConfig.provider.backendType}
+                height={18}
+              />
+              <Text minWidth={0}>
+                <Truncate>{sandboxConfig.name}</Truncate>
+              </Text>
+            </Flex>
+          );
+        },
       },
       {
         header: "prompt",

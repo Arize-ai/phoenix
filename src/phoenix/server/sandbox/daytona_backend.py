@@ -1,8 +1,12 @@
 """
 Daytona sandbox backend.
 
-Requires the ``daytona_sdk`` package (optional extra).
-Import is deferred to avoid top-level failures when the extra is absent.
+Requires the ``daytona_sdk`` package (optional extra). Imports of the SDK are
+lazy (in ``DaytonaSandboxBackend._get_client`` and ``execute``) so the module
+remains importable when the extra is absent. Adapter availability is gated by
+``DaytonaPythonAdapter.probe_dependencies`` at registration time, which
+surfaces a missing extra as ``status=NOT_INSTALLED`` instead of a runtime
+error during evaluation.
 """
 
 from __future__ import annotations
@@ -146,6 +150,11 @@ class DaytonaPythonAdapter(SandboxAdapter):
             description="API key for the Daytona sandbox service.",
         ),
     ]
+
+    @classmethod
+    def probe_dependencies(cls) -> None:
+        """Verify ``daytona_sdk`` is installed; ImportError → NOT_INSTALLED."""
+        import daytona_sdk  # noqa: F401
 
     def build_backend(
         self, config: dict[str, Any], user_env: Optional[dict[str, str]] = None

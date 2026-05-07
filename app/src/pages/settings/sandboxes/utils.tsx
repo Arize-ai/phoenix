@@ -13,6 +13,7 @@ import { isPlainObject } from "@phoenix/utils/jsonUtils";
 
 import type {
   BackendInfo,
+  SandboxConfig,
   SandboxConfigFormValues,
   SandboxProvider,
 } from "./types";
@@ -20,6 +21,79 @@ import type {
 type Language =
   | SandboxProvider["language"]
   | BackendInfo["supportedLanguages"][number];
+
+/**
+ * Status pill for a config row: a "union" of backend health and the
+ * config/provider enabled toggles.
+ *
+ * Precedence (top wins): config-disabled > provider-disabled > backend status.
+ *
+ * Why user toggles win over backend health: a disabled config is "off" by
+ * explicit user intent — its backend health is moot until re-enabled, and
+ * any backend issue stays visible in the providers section above. Showing
+ * "Disabled" matches the toggle UI in the actions column.
+ */
+export function ConfigStatusText({
+  config,
+  provider,
+  backend,
+}: {
+  config: Pick<SandboxConfig, "enabled">;
+  provider: Pick<SandboxProvider, "enabled">;
+  backend: Pick<BackendInfo, "status" | "statusDetail" | "dependencyHints">;
+}) {
+  if (!config.enabled) {
+    return (
+      <DisabledStatusText
+        label="Disabled"
+        tooltip="Toggle this config on to make it available."
+      />
+    );
+  }
+  if (!provider.enabled) {
+    return (
+      <DisabledStatusText
+        label="Provider disabled"
+        tooltip="Enable the provider in the Sandbox Providers section above."
+      />
+    );
+  }
+  return (
+    <StatusText
+      status={backend.status}
+      detail={backend.statusDetail}
+      dependencyHints={backend.dependencyHints}
+    />
+  );
+}
+
+function DisabledStatusText({
+  label,
+  tooltip,
+}: {
+  label: string;
+  tooltip: string;
+}) {
+  return (
+    <TooltipTrigger delay={100}>
+      <TriggerWrap>
+        <Text
+          color="text-700"
+          css={css`
+            text-decoration: underline dotted;
+            text-underline-offset: 2px;
+            cursor: help;
+          `}
+        >
+          {label}
+        </Text>
+      </TriggerWrap>
+      <RichTooltip width={320}>
+        <Text>{tooltip}</Text>
+      </RichTooltip>
+    </TooltipTrigger>
+  );
+}
 
 export function StatusText({
   status,
@@ -159,6 +233,76 @@ export function getBackendDescription(backendType: BackendInfo["backendType"]) {
   }
 }
 
+/**
+ * Returns a copy of a sandbox config safe for display, with literal env_var
+ * values redacted. Non-object configs and non-array env_vars pass through
+ * unchanged so that malformed payloads do not throw and do not unmask
+ * unexpected fields.
+ */
+export function getDisplaySandboxConfig(config: unknown): unknown {
+  if (!isPlainObject(config)) {
+    return config;
+  }
+  const result: Record<string, unknown> = { ...config };
+  const envVars = result["env_vars"];
+  if (Array.isArray(envVars)) {
+    result["env_vars"] = envVars.map((entry) => {
+      if (!isPlainObject(entry)) {
+        return entry;
+      }
+      if (entry["kind"] === "literal" && "value" in entry) {
+        return { ...entry, value: "<redacted>" };
+      }
+      return entry;
+    });
+  }
+  return result;
+}
+
+/**
+ * Splits the user-edited "one package per line" textarea into a normalized
+ * list of package specifiers.
+ */
+export function getDependencyPackages(packagesText: string): string[] {
+  return packagesText
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Produces a one-line install-command preview for the dependency textarea.
+ * Returns null when there is nothing to display (no language advertised, no
+ * packages typed) so the caller can hide the preview entirely.
+ */
+export function getDependencyPreview({
+  packagesText,
+  dependenciesLanguage,
+  backendType,
+}: {
+  packagesText: string;
+  dependenciesLanguage: BackendInfo["dependenciesLanguage"] | undefined | null;
+  backendType: BackendInfo["backendType"] | undefined;
+}): string | null {
+  if (dependenciesLanguage == null) {
+    return null;
+  }
+  const packages = getDependencyPackages(packagesText);
+  if (packages.length === 0) {
+    return null;
+  }
+  if (dependenciesLanguage === "TYPESCRIPT") {
+    return "preview unavailable for typescript";
+  }
+  // Python branch: shape the preview after the install path the backend uses.
+  const joined = packages.join(" ");
+  if (backendType === "MODAL") {
+    const args = packages.map((p) => `"${p}"`).join(", ");
+    return `image.pip_install(${args})`;
+  }
+  return `pip install ${joined}`;
+}
+
 export function summarizeConfig(config: unknown) {
   if (!isPlainObject(config) || Object.keys(config).length === 0) {
     return "No custom settings";
@@ -200,10 +344,7 @@ export function formValuesToConfigPatch(
   }
 
   if (backend?.dependenciesLanguage != null) {
-    const packages = values.dependenciesText
-      .split("\n")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const packages = getDependencyPackages(values.dependenciesText);
     if (packages.length > 0) {
       const dep: Record<string, unknown> = { packages };
       if (values.dependenciesLockfile != null) {
