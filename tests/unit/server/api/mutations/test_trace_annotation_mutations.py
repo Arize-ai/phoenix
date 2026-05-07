@@ -1,15 +1,51 @@
 import datetime
-from secrets import token_hex
+from secrets import token_bytes, token_hex
 from typing import Any
 
+import httpx
 import pytest
 from sqlalchemy import select
+from starlette.types import ASGIApp, Receive, Scope, Send
 from strawberry.relay.types import GlobalID
 
 from phoenix.db import models
+from phoenix.db.facilitator import _ensure_enums
 from phoenix.server.api.types.AnnotationSource import AnnotationSource
-from phoenix.server.types import DbSessionFactory
+from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.types import (
+    AccessTokenAttributes,
+    AccessTokenClaims,
+    AccessTokenId,
+    DbSessionFactory,
+    RefreshTokenId,
+    UserId,
+)
 from tests.unit.graphql import AsyncGraphQLClient
+
+
+class _AuthenticatedASGIApp:
+    def __init__(self, app: ASGIApp, user: PhoenixUser) -> None:
+        self._app = app
+        self._user = user
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http":
+            scope = {**scope, "user": self._user}
+        await self._app(scope, receive, send)
+
+
+def _phoenix_user(user_id: int) -> PhoenixUser:
+    return PhoenixUser(
+        UserId(user_id),
+        AccessTokenClaims(
+            subject=UserId(user_id),
+            token_id=AccessTokenId(user_id),
+            attributes=AccessTokenAttributes(
+                refresh_token_id=RefreshTokenId(user_id),
+                user_role="MEMBER",
+            ),
+        ),
+    )
 
 
 @pytest.fixture
@@ -31,6 +67,32 @@ async def _trace_data(db: DbSessionFactory) -> models.Trace:
         )
         session.add(trace)
     return trace
+
+
+@pytest.fixture
+async def _member_user_ids(db: DbSessionFactory) -> tuple[int, int]:
+    await _ensure_enums(db)
+    async with db() as session:
+        member_role_id = await session.scalar(select(models.UserRole.id).filter_by(name="MEMBER"))
+        assert isinstance(member_role_id, int)
+        users = [
+            models.LocalUser(
+                email=f"{token_hex(8)}@example.com",
+                username=token_hex(8),
+                user_role_id=member_role_id,
+                reset_password=False,
+                password_hash=token_bytes(32),
+                password_salt=token_bytes(32),
+            )
+            for _ in range(2)
+        ]
+        session.add_all(users)
+        await session.flush()
+        return users[0].id, users[1].id
+
+
+def _transport_for_user(asgi_app: ASGIApp, user_id: int) -> httpx.ASGITransport:
+    return httpx.ASGITransport(app=_AuthenticatedASGIApp(asgi_app, _phoenix_user(user_id)))
 
 
 class TestTraceAnnotationMutations:
@@ -346,6 +408,79 @@ class TestTraceAnnotationMutations:
         assert response.data is None
         assert response.errors
         assert "Trace user feedback not found" in response.errors[0].message
+
+    async def test_trace_user_feedback_is_scoped_to_authenticated_user(
+        self,
+        _trace_data: models.Trace,
+        _member_user_ids: tuple[int, int],
+        asgi_app: ASGIApp,
+        db: DbSessionFactory,
+    ) -> None:
+        trace_gid = str(GlobalID("Trace", str(_trace_data.id)))
+        user_1_id, user_2_id = _member_user_ids
+
+        async with (
+            httpx.AsyncClient(
+                transport=_transport_for_user(asgi_app, user_1_id),
+                base_url="http://test",
+            ) as user_1_httpx_client,
+            httpx.AsyncClient(
+                transport=_transport_for_user(asgi_app, user_2_id),
+                base_url="http://test",
+            ) as user_2_httpx_client,
+        ):
+            user_1_gql_client = AsyncGraphQLClient(user_1_httpx_client)
+            user_2_gql_client = AsyncGraphQLClient(user_2_httpx_client)
+
+            response = await user_1_gql_client.execute(
+                self.QUERY,
+                {"input": {"traceId": trace_gid, "label": "positive"}},
+                operation_name="SetTraceUserFeedback",
+            )
+            assert not response.errors
+
+            response = await user_2_gql_client.execute(
+                self.QUERY,
+                {"input": {"traceId": trace_gid, "label": "negative"}},
+                operation_name="SetTraceUserFeedback",
+            )
+            assert not response.errors
+
+            async with db() as session:
+                annotations = list(
+                    await session.scalars(
+                        select(models.TraceAnnotation)
+                        .where(models.TraceAnnotation.name == "user_feedback")
+                        .order_by(models.TraceAnnotation.user_id)
+                    )
+                )
+            assert [(annotation.user_id, annotation.label) for annotation in annotations] == [
+                (user_1_id, "positive"),
+                (user_2_id, "negative"),
+            ]
+            assert [annotation.identifier for annotation in annotations] == [
+                f"px-app:{GlobalID('User', str(user_1_id))}",
+                f"px-app:{GlobalID('User', str(user_2_id))}",
+            ]
+
+            response = await user_1_gql_client.execute(
+                self.QUERY,
+                {"input": {"traceId": trace_gid}},
+                operation_name="DeleteTraceUserFeedback",
+            )
+            assert not response.errors
+
+        async with db() as session:
+            remaining_annotations = list(
+                await session.scalars(
+                    select(models.TraceAnnotation).where(
+                        models.TraceAnnotation.name == "user_feedback"
+                    )
+                )
+            )
+        assert len(remaining_annotations) == 1
+        assert remaining_annotations[0].user_id == user_2_id
+        assert remaining_annotations[0].label == "negative"
 
     async def test_trace_user_feedback_rejects_unknown_label(
         self,

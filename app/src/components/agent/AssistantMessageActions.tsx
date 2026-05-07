@@ -40,7 +40,11 @@ type AnnotationPayloadBase = {
 };
 
 type SpanAnnotationPayload = AnnotationPayloadBase & { span_id: string };
-type TraceAnnotationPayload = AnnotationPayloadBase & { trace_id: string };
+type TraceFeedbackPayload = {
+  data: {
+    label: AssistantFeedback;
+  };
+};
 
 /**
  * Concatenates all text parts of an assistant message into a single string.
@@ -88,21 +92,33 @@ async function getResponseErrorMessage(response: Response) {
  * Throws with a descriptive message on non-2xx responses.
  */
 async function postAnnotation(
-  args:
-    | { endpoint: "/v1/span_annotations"; payload: SpanAnnotationPayload }
-    | { endpoint: "/v1/trace_annotations"; payload: TraceAnnotationPayload }
+  args: { endpoint: "/v1/span_annotations"; payload: SpanAnnotationPayload }
 ) {
   const params = { query: { sync: true } } as const;
-  const { response } =
-    args.endpoint === "/v1/span_annotations"
-      ? await authApiFetch.POST("/v1/span_annotations", {
-          params,
-          body: { data: [args.payload] },
-        })
-      : await authApiFetch.POST("/v1/trace_annotations", {
-          params,
-          body: { data: [args.payload] },
-        });
+  const { response } = await authApiFetch.POST("/v1/span_annotations", {
+    params,
+    body: { data: [args.payload] },
+  });
+
+  if (!response.ok) {
+    throw new Error(await getResponseErrorMessage(response));
+  }
+}
+
+async function putTraceUserFeedback({
+  traceId,
+  payload,
+}: {
+  traceId: string;
+  payload: TraceFeedbackPayload;
+}) {
+  const { response } = await authApiFetch.PUT(
+    "/v1/traces/{trace_identifier}/user_feedback",
+    {
+      params: { path: { trace_identifier: traceId } },
+      body: payload,
+    }
+  );
 
   if (!response.ok) {
     throw new Error(await getResponseErrorMessage(response));
@@ -176,12 +192,8 @@ export function AssistantMessageActions({
     }
 
     setIsSubmittingFeedback(true);
-    // Using the username as the identifier makes feedback per-user: the same
-    // user re-submitting updates their entry, while different users produce
-    // distinct annotation records. Anonymous viewers fall back to the message
-    // id, which still deduplicates against the same message.
     const identifier = viewer?.username ?? message.id;
-    const base = {
+    const spanAnnotation = {
       annotator_kind: "HUMAN" as const,
       identifier,
       metadata: {
@@ -194,16 +206,21 @@ export function AssistantMessageActions({
       name: FEEDBACK_ANNOTATION_NAME,
       result: toFeedbackResult(feedback),
     };
+    const traceFeedback = {
+      data: {
+        label: feedback,
+      },
+    };
 
     try {
       await Promise.all([
         postAnnotation({
           endpoint: "/v1/span_annotations",
-          payload: { ...base, span_id: metadata.rootSpanId },
+          payload: { ...spanAnnotation, span_id: metadata.rootSpanId },
         }),
-        postAnnotation({
-          endpoint: "/v1/trace_annotations",
-          payload: { ...base, trace_id: metadata.traceId },
+        putTraceUserFeedback({
+          traceId: metadata.traceId,
+          payload: traceFeedback,
         }),
       ]);
       setSelectedFeedback(feedback);
