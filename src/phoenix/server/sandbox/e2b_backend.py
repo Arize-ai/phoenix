@@ -162,6 +162,7 @@ class E2BSandboxBackend(SandboxBackend):
 
 class E2BAdapter(SandboxAdapter):
     key = "E2B"
+    family = "E2B"
     display_name = "E2B"
     language = "PYTHON"
     config_model = E2BConfig
