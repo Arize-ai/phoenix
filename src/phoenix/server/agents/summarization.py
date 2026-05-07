@@ -11,6 +11,8 @@ from pydantic_ai.messages import (
 from pydantic_ai.models import Model, ModelRequestParameters
 from pydantic_ai.tools import ToolDefinition
 
+from phoenix.server.agents.exceptions import SummarizationError
+
 _SUMMARIZATION_SYSTEM_PROMPT_LINES = (
     "<role>",
     "  You generate a short title for a Phoenix chat session. The title",
@@ -50,10 +52,6 @@ SUMMARY_TOOL_DEFINITION = ToolDefinition(
     description="Provide the conversation title.",
     parameters_json_schema=Summary.model_json_schema(),
 )
-
-
-class SummarizationError(Exception):
-    """Raised when the model does not produce a usable summary tool call."""
 
 
 async def summarize_messages(

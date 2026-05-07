@@ -43,15 +43,15 @@ import { useGenerateSessionSummary } from "./useGenerateSessionSummary";
 export function useAgentChat({
   sessionId,
   chatApiUrl,
-  summarizeApiUrl,
+  getSummarizeApiUrl,
 }: {
   sessionId: string | null;
   chatApiUrl: string;
-  summarizeApiUrl: string;
+  getSummarizeApiUrl: (sessionId: string) => string;
 }) {
   const store = useAgentStore();
   const runtime = useAgentChatRuntime();
-  const { generateSummary } = useGenerateSessionSummary({ summarizeApiUrl });
+  const { generateSummary } = useGenerateSessionSummary({ getSummarizeApiUrl });
   const pendingElicitation = useAgentContext((state) =>
     sessionId ? (state.pendingElicitationBySessionId[sessionId] ?? null) : null
   );
