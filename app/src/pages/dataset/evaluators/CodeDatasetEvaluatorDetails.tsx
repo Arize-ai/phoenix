@@ -13,6 +13,7 @@ import type { CodeDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/
 import type { datasetEvaluatorDetailsLoaderQuery } from "@phoenix/pages/dataset/evaluators/__generated__/datasetEvaluatorDetailsLoaderQuery.graphql";
 import {
   getBackendDescription,
+  getDisplaySandboxConfig,
   languageLabel,
   summarizeConfig,
 } from "@phoenix/pages/settings/sandboxes/utils";
@@ -318,7 +319,11 @@ export function CodeDatasetEvaluatorDetails({
                     <Text color="text-700">No custom settings</Text>
                   ) : (
                     <JSONBlock
-                      value={JSON.stringify(sandboxConfig.config, null, 2)}
+                      value={JSON.stringify(
+                        getDisplaySandboxConfig(sandboxConfig.config),
+                        null,
+                        2
+                      )}
                     />
                   )}
                 </Flex>

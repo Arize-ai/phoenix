@@ -1,8 +1,11 @@
 """
 E2B sandbox backend.
 
-Requires the ``e2b_code_interpreter`` package (optional extra).
-Import is deferred to avoid top-level failures when the extra is absent.
+Requires the ``e2b_code_interpreter`` package (optional extra). Imports of the
+SDK are lazy (in ``E2BSandboxBackend._get_sandbox_cls``) so the module remains
+importable when the extra is absent. Adapter availability is gated by
+``E2BAdapter.probe_dependencies`` at registration time, which surfaces a
+missing extra as ``status=NOT_INSTALLED`` instead of a runtime error.
 """
 
 from __future__ import annotations
@@ -49,7 +52,7 @@ class E2BSandboxBackend(SandboxBackend):
         self._sessions: dict[str, Any] = {}
 
     def _get_sandbox_cls(self) -> Any:
-        from e2b_code_interpreter import AsyncSandbox  # type: ignore[import-not-found]
+        from e2b_code_interpreter import AsyncSandbox  # type: ignore
 
         return AsyncSandbox
 
@@ -169,6 +172,11 @@ class E2BAdapter(SandboxAdapter):
             description="API key for the E2B sandbox service.",
         ),
     ]
+
+    @classmethod
+    def probe_dependencies(cls) -> None:
+        """Verify ``e2b_code_interpreter`` is installed; ImportError → NOT_INSTALLED."""
+        import e2b_code_interpreter  # noqa: F401
 
     def build_backend(
         self,

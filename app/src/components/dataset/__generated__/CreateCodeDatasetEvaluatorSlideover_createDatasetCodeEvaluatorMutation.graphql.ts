@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<352426ac65f9f3a02bcdd2b33c15e9fe>>
+ * @generated SignedSource<<e3fd1536d4c209bf0de480c9f2056d8a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -267,6 +267,20 @@ v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "language",
+  "storageKey": null
+},
+v20 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "backendType",
+  "storageKey": null
+},
+v21 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 };
@@ -401,6 +415,39 @@ return {
                         ],
                         "type": "LLMEvaluator",
                         "abstractKey": null
+                      },
+                      {
+                        "kind": "InlineFragment",
+                        "selections": [
+                          (v19/*: any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "SandboxConfig",
+                            "kind": "LinkedField",
+                            "name": "sandboxConfig",
+                            "plural": false,
+                            "selections": [
+                              (v3/*: any*/),
+                              (v4/*: any*/),
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "SandboxProvider",
+                                "kind": "LinkedField",
+                                "name": "provider",
+                                "plural": false,
+                                "selections": [
+                                  (v20/*: any*/)
+                                ],
+                                "storageKey": null
+                              }
+                            ],
+                            "storageKey": null
+                          }
+                        ],
+                        "type": "CodeEvaluator",
+                        "abstractKey": null
                       }
                     ],
                     "storageKey": null
@@ -455,7 +502,7 @@ return {
                 "name": "evaluator",
                 "plural": false,
                 "selections": [
-                  (v19/*: any*/),
+                  (v21/*: any*/),
                   (v3/*: any*/),
                   (v6/*: any*/),
                   (v7/*: any*/),
@@ -496,6 +543,40 @@ return {
                     ],
                     "type": "LLMEvaluator",
                     "abstractKey": null
+                  },
+                  {
+                    "kind": "InlineFragment",
+                    "selections": [
+                      (v19/*: any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "SandboxConfig",
+                        "kind": "LinkedField",
+                        "name": "sandboxConfig",
+                        "plural": false,
+                        "selections": [
+                          (v3/*: any*/),
+                          (v4/*: any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "SandboxProvider",
+                            "kind": "LinkedField",
+                            "name": "provider",
+                            "plural": false,
+                            "selections": [
+                              (v20/*: any*/),
+                              (v3/*: any*/)
+                            ],
+                            "storageKey": null
+                          }
+                        ],
+                        "storageKey": null
+                      }
+                    ],
+                    "type": "CodeEvaluator",
+                    "abstractKey": null
                   }
                 ],
                 "storageKey": null
@@ -508,7 +589,7 @@ return {
                 "name": "outputConfigs",
                 "plural": true,
                 "selections": [
-                  (v19/*: any*/),
+                  (v21/*: any*/),
                   (v9/*: any*/),
                   (v10/*: any*/),
                   {
@@ -568,12 +649,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3945aa6cc5f2caeb5e816200a747638f",
+    "cacheID": "6bf2ed99eb02b2c6a22b760078a14e19",
     "id": null,
     "metadata": {},
     "name": "CreateCodeDatasetEvaluatorSlideover_createDatasetCodeEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateCodeDatasetEvaluatorSlideover_createDatasetCodeEvaluatorMutation(\n  $input: CreateDatasetCodeEvaluatorInput!\n) {\n  createDatasetCodeEvaluator(input: $input) {\n    evaluator {\n      id\n      ...PlaygroundDatasetSection_evaluator\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n"
+    "text": "mutation CreateCodeDatasetEvaluatorSlideover_createDatasetCodeEvaluatorMutation(\n  $input: CreateDatasetCodeEvaluatorInput!\n) {\n  createDatasetCodeEvaluator(input: $input) {\n    evaluator {\n      id\n      ...PlaygroundDatasetSection_evaluator\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n"
   }
 };
 })();

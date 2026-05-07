@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<21c3207eca14d6249e8ba99abf16b552>>
+ * @generated SignedSource<<c101065b72eddff19628bffba2047a73>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -65,11 +65,10 @@ export type ToolResultContentValueInput = {
 export type PromptToolsInput = {
   disableParallelToolCalls?: boolean | null;
   toolChoice?: PromptToolChoiceInput | null;
-  tools: ReadonlyArray<PromptToolInput>;
+  tools: ReadonlyArray<PromptToolFunctionInput>;
 };
-export type PromptToolInput = {
-  function?: PromptToolFunctionDefinitionInput | null;
-  raw?: any | null;
+export type PromptToolFunctionInput = {
+  function: PromptToolFunctionDefinitionInput;
 };
 export type PromptToolFunctionDefinitionInput = {
   description?: string | null;
@@ -338,6 +337,20 @@ v19 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "language",
+  "storageKey": null
+},
+v20 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "backendType",
+  "storageKey": null
+},
+v21 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 };
@@ -516,6 +529,39 @@ return {
                         ],
                         "type": "LLMEvaluator",
                         "abstractKey": null
+                      },
+                      {
+                        "kind": "InlineFragment",
+                        "selections": [
+                          (v19/*: any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "SandboxConfig",
+                            "kind": "LinkedField",
+                            "name": "sandboxConfig",
+                            "plural": false,
+                            "selections": [
+                              (v3/*: any*/),
+                              (v4/*: any*/),
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "SandboxProvider",
+                                "kind": "LinkedField",
+                                "name": "provider",
+                                "plural": false,
+                                "selections": [
+                                  (v20/*: any*/)
+                                ],
+                                "storageKey": null
+                              }
+                            ],
+                            "storageKey": null
+                          }
+                        ],
+                        "type": "CodeEvaluator",
+                        "abstractKey": null
                       }
                     ],
                     "storageKey": null
@@ -570,7 +616,7 @@ return {
                 "name": "evaluator",
                 "plural": false,
                 "selections": [
-                  (v19/*: any*/),
+                  (v21/*: any*/),
                   (v3/*: any*/),
                   (v6/*: any*/),
                   (v7/*: any*/),
@@ -690,7 +736,41 @@ return {
                   },
                   (v4/*: any*/),
                   (v15/*: any*/),
-                  (v12/*: any*/)
+                  (v12/*: any*/),
+                  {
+                    "kind": "InlineFragment",
+                    "selections": [
+                      (v19/*: any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "SandboxConfig",
+                        "kind": "LinkedField",
+                        "name": "sandboxConfig",
+                        "plural": false,
+                        "selections": [
+                          (v3/*: any*/),
+                          (v4/*: any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "SandboxProvider",
+                            "kind": "LinkedField",
+                            "name": "provider",
+                            "plural": false,
+                            "selections": [
+                              (v20/*: any*/),
+                              (v3/*: any*/)
+                            ],
+                            "storageKey": null
+                          }
+                        ],
+                        "storageKey": null
+                      }
+                    ],
+                    "type": "CodeEvaluator",
+                    "abstractKey": null
+                  }
                 ],
                 "storageKey": null
               },
@@ -702,7 +782,7 @@ return {
                 "name": "outputConfigs",
                 "plural": true,
                 "selections": [
-                  (v19/*: any*/),
+                  (v21/*: any*/),
                   (v9/*: any*/),
                   (v10/*: any*/),
                   {
@@ -762,12 +842,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7ae9bbf7ee8e3576bf2b650c29dc10c0",
+    "cacheID": "d5a2637549861c399f7b287cff0bc084",
     "id": null,
     "metadata": {},
     "name": "CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation(\n  $input: CreateDatasetLLMEvaluatorInput!\n) {\n  createDatasetLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...PlaygroundDatasetSection_evaluator\n      evaluator {\n        __typename\n        ... on LLMEvaluator {\n          prompt {\n            ...PromptVersionsList__main\n            id\n          }\n        }\n        id\n      }\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n\nfragment PromptVersionSummaryFragment on PromptVersion {\n  id\n  description\n  sequenceNumber\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n  ...PromptVersionTagsList_data\n}\n\nfragment PromptVersionTagsList_data on PromptVersion {\n  tags {\n    id\n    name\n  }\n}\n\nfragment PromptVersionsList__main on Prompt {\n  promptVersions {\n    edges {\n      version: node {\n        id\n        ...PromptVersionSummaryFragment\n      }\n    }\n  }\n}\n"
+    "text": "mutation CreateLLMDatasetEvaluatorSlideover_createLLMEvaluatorMutation(\n  $input: CreateDatasetLLMEvaluatorInput!\n) {\n  createDatasetLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      ...PlaygroundDatasetSection_evaluator\n      evaluator {\n        __typename\n        ... on LLMEvaluator {\n          prompt {\n            ...PromptVersionsList__main\n            id\n          }\n        }\n        id\n      }\n      ...DatasetEvaluatorsTable_row\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n\nfragment PromptVersionSummaryFragment on PromptVersion {\n  id\n  description\n  sequenceNumber\n  createdAt\n  user {\n    id\n    username\n    profilePictureUrl\n  }\n  ...PromptVersionTagsList_data\n}\n\nfragment PromptVersionTagsList_data on PromptVersion {\n  tags {\n    id\n    name\n  }\n}\n\nfragment PromptVersionsList__main on Prompt {\n  promptVersions {\n    edges {\n      version: node {\n        id\n        ...PromptVersionSummaryFragment\n      }\n    }\n  }\n}\n"
   }
 };
 })();
