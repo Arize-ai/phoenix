@@ -1,7 +1,9 @@
 import {
+  getAgentToolUIBehavior,
   handleRegisteredAgentToolCall,
   SET_TIME_RANGE_TOOL_NAME,
 } from "@phoenix/agent/extensions/toolRegistry";
+import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
 import { createAgentStore } from "@phoenix/store/agentStore";
 
 describe("toolRegistry", () => {
@@ -146,5 +148,12 @@ describe("toolRegistry", () => {
         output: "updated",
       })
     );
+  });
+
+  it("declares edit_prompt as an auto-focused tool", () => {
+    expect(getAgentToolUIBehavior(EDIT_PROMPT_TOOL_NAME)).toEqual({
+      autoOpen: true,
+      scrollIntoViewOnMount: true,
+    });
   });
 });

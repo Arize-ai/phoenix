@@ -2,6 +2,7 @@ import { css } from "@emotion/react";
 import { getToolName, isToolUIPart } from "ai";
 import { useMemo, useState } from "react";
 
+import { getAgentToolUIBehavior } from "@phoenix/agent/extensions/toolRegistry";
 import { Icon, Icons } from "@phoenix/components";
 
 import { ToolPart, type ToolPartType } from "./ToolPart";
@@ -204,7 +205,13 @@ function formatPoolStatus({
  */
 export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
   const stats = useToolPoolStats(parts);
+  const hasAutoOpenTool = parts.some(
+    (part) =>
+      isToolUIPart(part) &&
+      getAgentToolUIBehavior(getToolName(part))?.autoOpen === true
+  );
   const [isExpanded, setIsExpanded] = useState(false);
+  const isRenderedExpanded = isExpanded || hasAutoOpenTool;
 
   const { text: statusText, variant: statusVariant } = formatPoolStatus(stats);
 
@@ -218,7 +225,7 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
         className="tool-pool__header"
         role="button"
         tabIndex={0}
-        aria-expanded={isExpanded}
+        aria-expanded={isRenderedExpanded}
         onClick={handleToggle}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
@@ -232,7 +239,7 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
             <Icon
               svg={<Icons.ChevronDown />}
               className="tool-pool__chevron"
-              data-expanded={isExpanded}
+              data-expanded={isRenderedExpanded}
             />
             <Icon
               svg={<Icons.WrenchOutline />}
@@ -259,7 +266,7 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
           </span>
         </div>
       </div>
-      {isExpanded ? (
+      {isRenderedExpanded ? (
         <div className="tool-pool__body">
           {parts.map((part, i) => (
             <ToolPart key={i} part={part} />

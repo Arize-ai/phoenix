@@ -10,6 +10,15 @@ import type { BashToolInput } from "@phoenix/agent/tools/bash";
 import { handleBashToolCall } from "@phoenix/agent/tools/bash/handleBashToolCall";
 import { parseElicitToolInput } from "@phoenix/agent/tools/elicit";
 import type { ElicitToolInput } from "@phoenix/agent/tools/elicit";
+import {
+  EDIT_PROMPT_TOOL_NAME,
+  parseEditPromptInput,
+  parseReadPromptInput,
+  READ_PROMPT_TOOL_NAME,
+  type EditPromptActionContext,
+  type EditPromptInput,
+  type ReadPromptInput,
+} from "@phoenix/agent/tools/playgroundPrompt";
 import type { TimeRangeKey } from "@phoenix/components/datetime/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
@@ -47,8 +56,19 @@ type RegisteredAgentTool<TInput> = {
   parseInput: (input: unknown) => TInput | null;
   invalidInputErrorText: string;
   requiredCapabilities?: AgentCapabilityKey[];
+  uiBehavior?: AgentToolUIBehavior;
   execute: (context: AgentToolHandlerContext<TInput>) => Promise<void>;
 };
+
+export type AgentToolUIBehavior = {
+  autoOpen?: boolean;
+  scrollIntoViewOnMount?: boolean;
+};
+
+// TODO(pending-tool-rehydration): Generalize pending tool rehydration here.
+// Tool definitions should be able to declare how to serialize pending UI state
+// and how to rebind runtime dependencies, instead of each tool owning bespoke
+// Zustand slices and page-level rehydration logic.
 
 /** Helps TypeScript preserve the input type for each tool definition. */
 function createRegisteredAgentTool<TInput>(
@@ -265,18 +285,115 @@ const setTimeRangeAgentTool = createRegisteredAgentTool<SetTimeRangeInput>({
   },
 });
 
+const readPromptAgentTool = createRegisteredAgentTool<ReadPromptInput>({
+  name: READ_PROMPT_TOOL_NAME,
+  parseInput: parseReadPromptInput,
+  invalidInputErrorText: `Invalid ${READ_PROMPT_TOOL_NAME} input. Expected { instanceId?: number }.`,
+  execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+    const action =
+      agentStore.getState().registeredClientActions[READ_PROMPT_TOOL_NAME];
+    if (!action) {
+      await addToolOutput({
+        state: "output-error",
+        tool: READ_PROMPT_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        errorText:
+          "The playground prompt editor is not mounted; cannot read prompts.",
+      });
+      return;
+    }
+    const result = await action(input);
+    if (result.ok) {
+      await addToolOutput({
+        state: "output-available",
+        tool: READ_PROMPT_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        output: result.output ?? "Prompt read.",
+      });
+    } else {
+      await addToolOutput({
+        state: "output-error",
+        tool: READ_PROMPT_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        errorText: result.error,
+      });
+    }
+  },
+});
+
+const editPromptAgentTool = createRegisteredAgentTool<EditPromptInput>({
+  name: EDIT_PROMPT_TOOL_NAME,
+  parseInput: parseEditPromptInput,
+  invalidInputErrorText: `Invalid ${EDIT_PROMPT_TOOL_NAME} input. Expected { instanceId: number, expectedRevision: string, operations: EditPromptOperation[] }.`,
+  uiBehavior: {
+    autoOpen: true,
+    scrollIntoViewOnMount: true,
+  },
+  execute: async ({
+    toolCall,
+    input,
+    sessionId,
+    addToolOutput,
+    agentStore,
+  }) => {
+    const action =
+      agentStore.getState().registeredClientActions[EDIT_PROMPT_TOOL_NAME];
+    if (!action) {
+      await addToolOutput({
+        state: "output-error",
+        tool: EDIT_PROMPT_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        errorText:
+          "The playground prompt editor is not mounted; cannot edit prompts.",
+      });
+      return;
+    }
+    if (!sessionId) {
+      await addToolOutput({
+        state: "output-error",
+        tool: EDIT_PROMPT_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        errorText: "Cannot propose prompt edits without an active session.",
+      });
+      return;
+    }
+    const context: EditPromptActionContext = {
+      toolCallId: toolCall.toolCallId,
+      sessionId,
+      addToolOutput,
+    };
+    const result = await action(input, context);
+    if (!result.ok) {
+      await addToolOutput({
+        state: "output-error",
+        tool: EDIT_PROMPT_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        errorText: result.error,
+      });
+    }
+  },
+});
+
 /** Ordered registry of all frontend-executable tools. */
 const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   bashAgentTool as RegisteredAgentTool<unknown>,
   askUserAgentTool as RegisteredAgentTool<unknown>,
   setTimeRangeAgentTool as RegisteredAgentTool<unknown>,
   setSpansFilterAgentTool as RegisteredAgentTool<unknown>,
+  readPromptAgentTool as RegisteredAgentTool<unknown>,
+  editPromptAgentTool as RegisteredAgentTool<unknown>,
 ];
 
 /** Fast lookup map for runtime tool dispatch by name. */
 const agentToolRegistryByName = new Map<string, RegisteredAgentTool<unknown>>(
   agentToolRegistry.map((tool) => [tool.name, tool])
 );
+
+export function getAgentToolUIBehavior(
+  toolName: string
+): AgentToolUIBehavior | undefined {
+  return agentToolRegistryByName.get(toolName)?.uiBehavior;
+}
 
 function getMissingCapabilities({
   registeredTool,

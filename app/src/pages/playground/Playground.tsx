@@ -10,6 +10,14 @@ import {
 import type { BlockerFunction } from "react-router";
 import { useBlocker, useSearchParams } from "react-router";
 
+import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
+import {
+  bindPendingPromptEditActions,
+  createEditPromptClientAction,
+  createReadPromptClientAction,
+  EDIT_PROMPT_TOOL_NAME,
+  READ_PROMPT_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundPrompt";
 import {
   Button,
   Disclosure,
@@ -27,9 +35,11 @@ import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
+import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import {
   PlaygroundProvider,
   usePlaygroundContext,
+  usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { ConfirmExperimentNavigationDialog } from "@phoenix/pages/playground/ConfirmExperimentNavigationDialog";
@@ -203,6 +213,8 @@ const DEFAULT_EXPANDED_PROMPTS = ["prompts"];
 const DEFAULT_EXPANDED_PARAMS = ["input", "output"];
 
 function PlaygroundContent() {
+  const agentStore = useAgentStore();
+  const playgroundStore = usePlaygroundStore();
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
   const [searchParams, setSearchParams] = useSearchParams();
   const storeDatasetId = usePlaygroundContext((state) => state.datasetId);
@@ -240,6 +252,53 @@ function PlaygroundContent() {
       left.length === right.length &&
       left.every((id, index) => id === right[index])
   );
+
+  const advertisedPlaygroundContext = useMemo(
+    () => ({ type: "playground" as const, instanceIds }),
+    [instanceIds]
+  );
+  useAdvertiseAgentContext(advertisedPlaygroundContext);
+
+  useEffect(() => {
+    const {
+      registerClientAction,
+      unregisterClientAction,
+      setPendingPromptEdit,
+    } = agentStore.getState();
+    registerClientAction(
+      READ_PROMPT_TOOL_NAME,
+      createReadPromptClientAction({ playgroundStore })
+    );
+    registerClientAction(
+      EDIT_PROMPT_TOOL_NAME,
+      createEditPromptClientAction({ playgroundStore, setPendingPromptEdit })
+    );
+    // TODO(pending-tool-rehydration): Move this page-specific rebind loop into
+    // a generic pending-tool rehydration path driven by tool registry metadata.
+    // The playground should only register the live tool action/capability; the
+    // registry should know how to restore pending UI for edit_prompt.
+    for (const pendingEdit of Object.values(
+      agentStore.getState().pendingPromptEditsByToolCallId
+    )) {
+      if (!pendingEdit) {
+        continue;
+      }
+      setPendingPromptEdit(
+        pendingEdit.toolCallId,
+        bindPendingPromptEditActions({
+          pendingEdit,
+          playgroundStore,
+          getAddToolOutput: (sessionId) =>
+            agentStore.getState().promptEditToolOutputBySessionId[sessionId],
+          setPendingPromptEdit,
+        })
+      );
+    }
+    return () => {
+      unregisterClientAction(READ_PROMPT_TOOL_NAME);
+      unregisterClientAction(EDIT_PROMPT_TOOL_NAME);
+    };
+  }, [agentStore, playgroundStore]);
 
   const playgroundDatasetStateByDatasetId = usePlaygroundContext(
     (state) => state.stateByDatasetId

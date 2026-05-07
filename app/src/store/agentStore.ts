@@ -14,6 +14,10 @@ import {
   type AgentCapabilityKey,
 } from "@phoenix/agent/extensions/capabilities";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
+import type {
+  PendingPromptEdit,
+  PromptEditToolOutputSender,
+} from "@phoenix/agent/tools/playgroundPrompt";
 import { generateUUID } from "@phoenix/utils/uuidUtils";
 
 import type { ModelConfig } from "./playground/types";
@@ -227,6 +231,24 @@ export interface AgentState extends AgentProps {
   registeredClientActions: Record<string, AgentClientAction>;
   registerClientAction: (name: string, action: AgentClientAction) => void;
   unregisterClientAction: (name: string) => void;
+
+  // -- Prompt edit approvals advertised by edit_prompt tool calls --
+  // TODO(pending-tool-rehydration): Replace this edit_prompt-specific state
+  // with a generic pending tool state map keyed by toolCallId. The tool
+  // registry should own each tool's serializer and runtime rebinder.
+  pendingPromptEditsByToolCallId: Partial<Record<string, PendingPromptEdit>>;
+  setPendingPromptEdit: (
+    toolCallId: string,
+    edit: PendingPromptEdit | null
+  ) => void;
+  promptEditToolOutputBySessionId: Partial<
+    Record<string, PromptEditToolOutputSender>
+  >;
+  registerPromptEditToolOutput: (
+    sessionId: string,
+    addToolOutput: PromptEditToolOutputSender
+  ) => void;
+  unregisterPromptEditToolOutput: (sessionId: string) => void;
 }
 
 /**
@@ -240,7 +262,8 @@ export type AgentClientActionResult =
   | { ok: false; error: string };
 
 export type AgentClientAction = (
-  input: unknown
+  input: unknown,
+  context?: unknown
 ) => Promise<AgentClientActionResult>;
 
 /**
@@ -269,6 +292,8 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     capabilities: createDefaultAgentCapabilities(),
     routeContexts: [],
     mountedContexts: {},
+    pendingPromptEditsByToolCallId: {},
+    promptEditToolOutputBySessionId: {},
     setIsOpen: (isOpen) => {
       set({ isOpen }, false, { type: "setIsOpen" });
     },
@@ -627,6 +652,50 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       );
     },
 
+    setPendingPromptEdit: (toolCallId, edit) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingPromptEditsByToolCallId };
+          if (edit) {
+            next[toolCallId] = edit;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingPromptEditsByToolCallId: next };
+        },
+        false,
+        { type: "setPendingPromptEdit" }
+      );
+    },
+
+    registerPromptEditToolOutput: (sessionId, addToolOutput) => {
+      set(
+        (state) => ({
+          promptEditToolOutputBySessionId: {
+            ...state.promptEditToolOutputBySessionId,
+            [sessionId]: addToolOutput,
+          },
+        }),
+        false,
+        { type: "registerPromptEditToolOutput" }
+      );
+    },
+
+    unregisterPromptEditToolOutput: (sessionId) => {
+      set(
+        (state) => {
+          if (!(sessionId in state.promptEditToolOutputBySessionId)) {
+            return state;
+          }
+          const next = { ...state.promptEditToolOutputBySessionId };
+          delete next[sessionId];
+          return { promptEditToolOutputBySessionId: next };
+        },
+        false,
+        { type: "unregisterPromptEditToolOutput" }
+      );
+    },
+
     ...initialProps,
   });
 
@@ -638,6 +707,9 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         const state = persisted as Partial<AgentProps> & {
           capabilities?: Partial<AgentCapabilities>;
           observability?: Partial<AgentObservabilitySettings>;
+          pendingPromptEditsByToolCallId?: Partial<
+            Record<string, PendingPromptEdit>
+          >;
           debug?: {
             retainInactiveBashSessions?: boolean;
             dangerouslyEnableMutations?: boolean;
@@ -679,6 +751,8 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             ...(state.observability ?? {}),
           },
           capabilities: migratedCapabilities,
+          pendingPromptEditsByToolCallId:
+            state.pendingPromptEditsByToolCallId ?? {},
         } as AgentState;
       },
       partialize: (state) => ({
@@ -690,6 +764,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         defaultModelConfig: state.defaultModelConfig,
         observability: state.observability,
         capabilities: state.capabilities,
+        pendingPromptEditsByToolCallId: state.pendingPromptEditsByToolCallId,
       }),
     })
   );

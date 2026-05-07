@@ -1,6 +1,8 @@
 import { css } from "@emotion/react";
 import { getToolName } from "ai";
+import { useEffect, useRef, useState } from "react";
 
+import { getAgentToolUIBehavior } from "@phoenix/agent/extensions/toolRegistry";
 import { Icon, Icons } from "@phoenix/components";
 
 import {
@@ -15,6 +17,11 @@ import {
   getDocsToolPreview,
   isDocsToolName,
 } from "./DocsToolDetails";
+import {
+  EditPromptToolDetails,
+  formatEditPromptState,
+  getEditPromptToolPreview,
+} from "./EditPromptToolDetails";
 import {
   ToolPartCodeBlock,
   ToolPartLabel,
@@ -264,14 +271,49 @@ export function ToolPart({ part }: { part: MessagePart }) {
     return null;
   }
 
+  return <ToolInvocationPartDetails part={part} />;
+}
+
+function ToolInvocationPartDetails({ part }: { part: ToolInvocationPart }) {
   const toolName = getToolName(part);
+  const uiBehavior = getAgentToolUIBehavior(toolName);
+  const detailsRef = useRef<HTMLDetailsElement>(null);
+  const hasAutoFocusedRef = useRef(false);
+  const [isOpen, setIsOpen] = useState(uiBehavior?.autoOpen === true);
   const { preview, stateLabel, statusVariant, details } = getToolPresentation(
     toolName,
     part
   );
 
+  useEffect(() => {
+    if (uiBehavior?.autoOpen !== true || hasAutoFocusedRef.current) {
+      return;
+    }
+    hasAutoFocusedRef.current = true;
+    if (uiBehavior.scrollIntoViewOnMount !== true) {
+      return;
+    }
+    requestAnimationFrame(() => {
+      detailsRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      detailsRef.current
+        ?.querySelector("summary")
+        ?.focus({ preventScroll: true });
+    });
+  }, [uiBehavior?.autoOpen, uiBehavior?.scrollIntoViewOnMount]);
+
   return (
-    <details className="tool-part" css={toolPartCSS}>
+    <details
+      ref={detailsRef}
+      className="tool-part"
+      css={toolPartCSS}
+      open={isOpen}
+      onToggle={(event) => {
+        setIsOpen(event.currentTarget.open);
+      }}
+    >
       <summary>
         <div className="tool-part__summary">
           <span className="tool-part__title">
@@ -347,6 +389,13 @@ function getToolPresentation(
         details: <AskUserToolDetails part={part} />,
       };
     }
+    case "edit_prompt":
+      return {
+        preview: getEditPromptToolPreview(part),
+        stateLabel: formatEditPromptState(part),
+        statusVariant,
+        details: <EditPromptToolDetails part={part} />,
+      };
     default: {
       if (isDocsToolName(toolName)) {
         return {

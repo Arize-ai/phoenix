@@ -245,6 +245,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     ...props,
     instances,
     allInstanceMessages: instanceMessages,
+    externallyUpdatedMessageRevisionById: {},
     stateByDatasetId: props.stateByDatasetId
       ? props.stateByDatasetId
       : props.datasetId

@@ -208,12 +208,20 @@ export function useAgentChat({
   // the visible surface moved, the active session changed, or the model swap
   // caused the runtime instance to be replaced.
   useEffect(() => {
+    if (!sessionId) {
+      return;
+    }
+    // edit_prompt approvals may outlive the mounted chat surface. Register the
+    // live tool-output sender so restored pending edits can resolve the original
+    // AI SDK tool call when the user returns to this session.
+    store.getState().registerPromptEditToolOutput(sessionId, addToolOutput);
     return () => {
+      store.getState().unregisterPromptEditToolOutput(sessionId);
       if (sessionId && messagesRef.current.length > 0) {
         store.getState().setSessionMessages(sessionId, messagesRef.current);
       }
     };
-  }, [sessionId, store]);
+  }, [addToolOutput, sessionId, store]);
 
   // Elicitation responses are written back through the runtime-owned chat so
   // the pending tool call resolves against the correct assistant turn.

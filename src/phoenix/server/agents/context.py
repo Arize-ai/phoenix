@@ -86,8 +86,15 @@ class AppContext(_ChatContextBase):
     time_zone: str = Field(alias="timeZone")
 
 
+class PlaygroundContext(_ChatContextBase):
+    """Playground prompt editor state mounted in the current browser route."""
+
+    type: Literal["playground"]
+    instance_ids: list[int] = Field(alias="instanceIds")
+
+
 ChatContext = Annotated[
-    AppContext | ProjectContext | TraceContext | AgentSpanContext,
+    AppContext | ProjectContext | TraceContext | AgentSpanContext | PlaygroundContext,
     Field(discriminator="type"),
 ]
 
@@ -98,6 +105,7 @@ class ResolvedContexts:
     project: ProjectContext | None = None
     trace: TraceContext | None = None
     span: AgentSpanContext | None = None
+    playground: PlaygroundContext | None = None
 
 
 ToolCallable = Callable[[dict[str, Any]], Awaitable[str]]
@@ -114,6 +122,8 @@ def resolve_contexts(items: list[ChatContext]) -> ResolvedContexts:
     for item in items:
         if isinstance(item, AppContext):
             resolved.app = item
+        elif isinstance(item, PlaygroundContext):
+            resolved.playground = item
         elif isinstance(item, ProjectContext):
             resolved.project = item
         elif isinstance(item, TraceContext):
@@ -215,6 +225,21 @@ def build_phoenix_context_user_message_content(
             )
         elif root_spans_only is False:
             body_lines.append("  - Spans table is showing all spans (root and non-root)")
+        has_context = True
+    if resolved.playground is not None:
+        instance_ids = ", ".join(
+            str(instance_id) for instance_id in resolved.playground.instance_ids
+        )
+        if instance_ids:
+            body_lines.append(
+                f"- Playground prompt editor is available with instance IDs: {instance_ids}"
+            )
+        else:
+            body_lines.append("- Playground prompt editor is available")
+        body_lines.append(
+            "  - Use `read_prompt` before proposing edits and `edit_prompt` to show the user "
+            "an approval diff before changing prompt messages"
+        )
         has_context = True
     if resolved.trace is not None:
         body_lines.append(f"- Trace (OpenTelemetry trace ID, hex): {resolved.trace.otel_trace_id}")
