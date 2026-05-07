@@ -252,7 +252,7 @@ async function openEvaluatorEditor(page: Page, evaluatorName: string) {
   await evaluatorRow.getByRole("button").last().click();
   await page.getByRole("menuitem", { name: "Edit" }).click();
   await expect(
-    page.getByRole("heading", { name: "Edit Evaluator" })
+    page.getByRole("heading", { name: "Edit Code Evaluator" })
   ).toBeVisible();
 }
 
@@ -276,7 +276,7 @@ async function createCustomCodeEvaluator({
 
   const dialog = page.getByRole("dialog");
   await expect(
-    dialog.getByRole("heading", { name: "Create Evaluator" })
+    dialog.getByRole("heading", { name: "Create Code Evaluator" })
   ).toBeVisible();
 
   await dialog
@@ -600,7 +600,7 @@ test.describe.serial("Code Evaluators", () => {
 
     const dialog = page.getByRole("dialog");
     await expect(
-      dialog.getByRole("heading", { name: "Create Evaluator" })
+      dialog.getByRole("heading", { name: "Create Code Evaluator" })
     ).toBeVisible();
 
     await dialog
@@ -684,7 +684,7 @@ test.describe.serial("Code Evaluators", () => {
 
     const dialog = page.getByRole("dialog");
     await expect(
-      dialog.getByRole("heading", { name: "Create Evaluator" })
+      dialog.getByRole("heading", { name: "Create Code Evaluator" })
     ).toBeVisible();
 
     await dialog
@@ -761,7 +761,7 @@ test.describe.serial("Code Evaluators", () => {
 
     const dialog = page.getByRole("dialog");
     await expect(
-      dialog.getByRole("heading", { name: "Create Evaluator" })
+      dialog.getByRole("heading", { name: "Create Code Evaluator" })
     ).toBeVisible();
 
     await dialog
@@ -806,7 +806,7 @@ test.describe.serial("Code Evaluators", () => {
 
     const dialog = page.getByRole("dialog");
     await expect(
-      dialog.getByRole("heading", { name: "Create Evaluator" })
+      dialog.getByRole("heading", { name: "Create Code Evaluator" })
     ).toBeVisible();
 
     await dialog
@@ -938,7 +938,7 @@ test.describe.serial("Code Evaluators", () => {
 
     const dialog = page.getByRole("dialog");
     await expect(
-      dialog.getByRole("heading", { name: "Create Evaluator" })
+      dialog.getByRole("heading", { name: "Create Code Evaluator" })
     ).toBeVisible();
 
     // Pin the editor to the static continuous fallback by clearing the
@@ -977,7 +977,7 @@ test.describe.serial("Code Evaluators", () => {
       .click();
     const dialog = page.getByRole("dialog");
     await expect(
-      dialog.getByRole("heading", { name: "Create Evaluator" })
+      dialog.getByRole("heading", { name: "Create Code Evaluator" })
     ).toBeVisible();
     await selectSandbox(page, dialog, pythonSandboxName);
 
