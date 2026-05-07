@@ -39,6 +39,11 @@ def subagent_fixture() -> Dict[str, Any]:
     return _load_fixture("subagent_trajectories.json")
 
 
+@pytest.fixture()
+def v17_embedded_subagents() -> Dict[str, Any]:
+    return _load_fixture("v17_embedded_subagents.json")
+
+
 class TestUploadIntegration:
     def test_calls_log_spans_with_correct_project(self, simple_trajectory: Dict[str, Any]) -> None:
         mock_client = MagicMock()
@@ -172,3 +177,27 @@ class TestUploadIntegration:
         # Child should share the parent's trace_id (from _build_subagent_ref_map)
         parent_trace_id = _sha256_trace_id("sess-parent-001:trace")
         assert child_root["context"]["trace_id"] == parent_trace_id
+
+    def test_upload_flattens_v17_embedded_subagents(
+        self, v17_embedded_subagents: Dict[str, Any]
+    ) -> None:
+        mock_client = MagicMock()
+        mock_client.spans.log_spans.return_value = {
+            "total_received": 5,
+            "total_queued": 5,
+        }
+
+        upload_atif_trajectories_as_spans(
+            mock_client,
+            [v17_embedded_subagents],
+            project_name="v17-subagents",
+        )
+
+        call_kwargs = mock_client.spans.log_spans.call_args
+        spans = call_kwargs.kwargs["spans"]
+        assert len(spans) == 5
+
+        child_root = [s for s in spans if s["name"] == "researcher"][0]
+        assert child_root["parent_id"] == _sha256_span_id("parent-doc:step:2:tool:call_delegate")
+        assert child_root["context"]["trace_id"] == _sha256_trace_id("run-v17-001:trace")
+        assert child_root["attributes"]["session.id"] == "run-v17-001"

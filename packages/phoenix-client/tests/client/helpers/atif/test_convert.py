@@ -13,6 +13,8 @@ from phoenix.client.helpers.atif._convert import (
     _base_session_id,
     _build_subagent_ref_map,
     _convert_atif_trajectory_to_spans,
+    _flatten_atif_trajectories,
+    _get_parent_span_context,
     _has_multimodal_content,
     _sha256_span_id,
     _sha256_trace_id,
@@ -59,6 +61,11 @@ def parallel_mixed_trajectory() -> Dict[str, Any]:
 @pytest.fixture()
 def subagent_fixture() -> Dict[str, Any]:
     return _load_fixture("subagent_trajectories.json")
+
+
+@pytest.fixture()
+def v17_embedded_subagents() -> Dict[str, Any]:
+    return _load_fixture("v17_embedded_subagents.json")
 
 
 class TestDeterministicIds:
@@ -591,6 +598,70 @@ class TestSubagentLinking:
         spans = _convert_atif_trajectory_to_spans(trajectory)
         root = spans[0]
         assert "parent_id" not in root
+
+
+class TestATIFV17Conversion:
+    def test_flatten_embedded_subagents_inherits_session(
+        self, v17_embedded_subagents: Dict[str, Any]
+    ) -> None:
+        flat = _flatten_atif_trajectories([v17_embedded_subagents])
+        assert len(flat) == 2
+        child = flat[1]
+        assert child["trajectory_id"] == "child-doc"
+        assert child["session_id"] == "run-v17-001"
+
+    def test_build_subagent_ref_map_uses_trajectory_id(
+        self, v17_embedded_subagents: Dict[str, Any]
+    ) -> None:
+        flat = _flatten_atif_trajectories([v17_embedded_subagents])
+        ref_map = _build_subagent_ref_map(flat)
+        assert "child-doc" in ref_map
+        parent_tool_span_id, parent_trace_id = ref_map["child-doc"]
+        assert parent_tool_span_id == _sha256_span_id("parent-doc:step:2:tool:call_delegate")
+        assert parent_trace_id == _sha256_trace_id("run-v17-001:trace")
+
+    def test_deterministic_dispatch_skips_llm_span(
+        self, v17_embedded_subagents: Dict[str, Any]
+    ) -> None:
+        spans = _convert_atif_trajectory_to_spans(v17_embedded_subagents)
+        kinds = _span_kind_counts(spans)
+        assert kinds["AGENT"] == 1
+        assert kinds["LLM"] == 1
+        assert kinds["TOOL"] == 1
+
+        tool_span = [s for s in spans if s["span_kind"] == "TOOL"][0]
+        metadata = tool_span["attributes"]["metadata"]
+        assert metadata["llm_call_count"] == 0
+        assert metadata["tool_call_extra"] == {"runtime": "graph-dispatch"}
+        assert metadata["observation_extra"] == {"confidence": 0.91}
+
+    def test_context_management_replace_reconstructs_llm_input(
+        self, v17_embedded_subagents: Dict[str, Any]
+    ) -> None:
+        spans = _convert_atif_trajectory_to_spans(v17_embedded_subagents)
+        llm_span = [s for s in spans if s["span_kind"] == "LLM"][0]
+        attrs = llm_span["attributes"]
+        assert attrs["llm.input_messages.0.message.role"] == "system"
+        assert "Compacted context" in attrs["llm.input_messages.0.message.content"]
+        assert "Research current ATIF" not in attrs["input.value"]
+
+    def test_embedded_child_links_to_parent_tool(
+        self, v17_embedded_subagents: Dict[str, Any]
+    ) -> None:
+        flat = _flatten_atif_trajectories([v17_embedded_subagents])
+        parent, child = flat
+        ref_map = _build_subagent_ref_map(flat)
+        parent_ctx = _get_parent_span_context(child, ref_map)
+        assert parent_ctx is not None
+
+        child_spans = _convert_atif_trajectory_to_spans(child, parent_span_context=parent_ctx)
+        child_root = child_spans[0]
+        assert child_root["parent_id"] == _sha256_span_id("parent-doc:step:2:tool:call_delegate")
+        assert child_root["context"]["trace_id"] == _sha256_trace_id(
+            f"{parent['session_id']}:trace"
+        )
+        assert child_root["attributes"]["session.id"] == parent["session_id"]
+        assert child_root["attributes"]["metadata"]["trajectory_id"] == "child-doc"
 
 
 class TestMultiTurnBehavior:

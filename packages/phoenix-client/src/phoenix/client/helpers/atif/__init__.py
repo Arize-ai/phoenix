@@ -15,6 +15,8 @@ from phoenix.client.client import Client
 from ._convert import (
     _build_subagent_ref_map,
     _convert_atif_trajectory_to_spans,
+    _flatten_atif_trajectories,
+    _get_parent_span_context,
 )
 from ._validate import _validate_atif_trajectory
 
@@ -34,7 +36,7 @@ def upload_atif_trajectories_as_spans(
 
     Converts ATIF (Agent Trajectory Interchange Format) trajectory dicts
     into Phoenix/OpenTelemetry-compatible span trees and uploads them.
-    Supports ATIF schema versions v1.0 through v1.6.
+    Supports ATIF schema versions v1.0 through v1.7.
 
     **Trace structure**
 
@@ -67,7 +69,10 @@ def upload_atif_trajectories_as_spans(
     When trajectories in the batch reference each other via
     ``subagent_trajectory_ref``, the child trajectory's spans are nested
     under the parent's tool span within a single trace. Upload the parent
-    and child trajectories together in one call for linking to work::
+    and child trajectories together in one call for linking to work. ATIF
+    v1.7 embedded ``subagent_trajectories`` are flattened and uploaded
+    automatically, with ``trajectory_id`` used as the canonical embedded
+    reference key::
 
         AGENT (parent)
           LLM
@@ -102,6 +107,12 @@ def upload_atif_trajectories_as_spans(
     includes any copied context steps are annotated with
     ``metadata.has_copied_context = True``.
 
+    **Deterministic dispatch (v1.7+)**
+
+    Agent steps with ``llm_call_count: 0`` represent non-LLM orchestration
+    that issued tool calls. These steps do not create synthetic LLM spans;
+    their TOOL spans are still emitted under the AGENT/turn parent.
+
     **Attribute mapping**
 
     - ``metrics.prompt_tokens`` / ``completion_tokens`` →
@@ -116,8 +127,10 @@ def upload_atif_trajectories_as_spans(
 
     **Deterministic IDs**
 
-    Trace and span IDs are derived from ``session_id`` via SHA-256, so
-    re-uploading the same trajectory produces the same trace (idempotent).
+    Trace IDs are derived from the run-scoped ``session_id`` when present,
+    while span IDs use document-scoped ``trajectory_id`` when available.
+    This keeps v1.7 subagents with shared or inherited ``session_id`` from
+    colliding while preserving idempotent uploads.
 
     **Known limitation: long conversations**
 
@@ -131,7 +144,7 @@ def upload_atif_trajectories_as_spans(
     Args:
         client: A Phoenix ``Client`` instance.
         trajectories: A sequence of ATIF trajectory dicts conforming to
-            the ATIF schema (v1.0–v1.6).
+            the ATIF schema (v1.0–v1.7).
         project_name: The Phoenix project to upload spans into.
         timeout: Request timeout in seconds.
 
@@ -171,14 +184,16 @@ def upload_atif_trajectories_as_spans(
     for trajectory in trajectories:
         _validate_atif_trajectory(trajectory)
 
-    # Scan for subagent references across the batch
-    ref_map = _build_subagent_ref_map(trajectories)
+    # Flatten embedded ATIF v1.7 subagents before linking/conversion.
+    flat_trajectories = _flatten_atif_trajectories(trajectories)
+
+    # Scan for subagent references across the flattened batch
+    ref_map = _build_subagent_ref_map(flat_trajectories)
 
     # Convert all trajectories (with cross-trace linking)
     all_spans: List[v1.Span] = []
-    for trajectory in trajectories:
-        session_id = trajectory["session_id"]
-        parent_ctx = ref_map.get(session_id)
+    for trajectory in flat_trajectories:
+        parent_ctx = _get_parent_span_context(trajectory, ref_map)
         all_spans.extend(
             _convert_atif_trajectory_to_spans(trajectory, parent_span_context=parent_ctx)
         )

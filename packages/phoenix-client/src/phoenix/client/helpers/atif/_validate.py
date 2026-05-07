@@ -5,11 +5,11 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, List, Mapping, Set
+from typing import Any, List, Mapping, Optional, Set
 
 logger = logging.getLogger(__name__)
 
-_MAX_SUPPORTED_MINOR = 6
+_MAX_SUPPORTED_MINOR = 7
 
 _VALID_SOURCES = {"user", "agent", "system"}
 # Fields that may ONLY appear on agent steps.
@@ -22,27 +22,42 @@ _AGENT_ONLY_FIELDS = {
 _SCHEMA_VERSION_PATTERN = re.compile(r"^ATIF-v\d+\.\d+$")
 
 
-def _validate_atif_trajectory(trajectory: Mapping[str, Any]) -> None:
+def _parse_schema_version(schema_version: object) -> Optional[tuple[int, int]]:
+    if not isinstance(schema_version, str) or not _SCHEMA_VERSION_PATTERN.match(schema_version):
+        return None
+    version_part = schema_version.split("-v")[1]
+    major_str, minor_str = version_part.split(".")
+    return int(major_str), int(minor_str)
+
+
+def _validate_atif_trajectory(
+    trajectory: Mapping[str, Any],
+    *,
+    _is_embedded: bool = False,
+) -> None:
     """Validate an ATIF trajectory dict, raising ValueError on any issue.
 
     Checks:
-    - Required root fields: schema_version, session_id, agent, steps
+    - Required root fields: schema_version, agent, steps
+    - session_id is required before ATIF v1.7 and optional in v1.7+
     - schema_version format (ATIF-vX.Y); hard reject on major >= 2,
-      warning on minor > 6 (latest supported)
+      warning on minor > 7 (latest supported)
+    - trajectory_id is required for v1.7+ embedded subagent trajectories
     - Agent required fields: name, version (model_name is optional)
     - Steps are non-empty with sequential step_ids starting at 1
     - Step source is one of: user, agent, system
-    - message is required for user/system steps
+    - message is required for user/system steps, and for all v1.7+ steps
     - Agent-only fields (model_name, reasoning_content, reasoning_effort)
       only on agent steps
     - Tool call structure validation
     - Observation validation (independent of tool_calls); source_call_id
       cross-referenced against tool_call_ids when both are present
+    - ATIF v1.7 embedded subagents and trajectory_id refs
     """
     errors: List[str] = []
 
     # Root required fields
-    for field in ("schema_version", "session_id", "agent", "steps"):
+    for field in ("schema_version", "agent", "steps"):
         if field not in trajectory:
             errors.append(f"Missing required root field: '{field}'")
 
@@ -51,13 +66,14 @@ def _validate_atif_trajectory(trajectory: Mapping[str, Any]) -> None:
 
     # Schema version format
     schema_version = trajectory["schema_version"]
-    if not isinstance(schema_version, str) or not _SCHEMA_VERSION_PATTERN.match(schema_version):
+    parsed_version = _parse_schema_version(schema_version)
+    major: Optional[int] = None
+    minor: Optional[int] = None
+    if parsed_version is None:
         errors.append(f"Invalid schema_version '{schema_version}': expected format 'ATIF-vX.Y'")
     else:
         # Parse and check version numbers
-        version_part = schema_version.split("-v")[1]
-        major_str, minor_str = version_part.split(".")
-        major, minor = int(major_str), int(minor_str)
+        major, minor = parsed_version
         if major >= 2:
             errors.append(
                 f"Unsupported ATIF major version {major} in '{schema_version}': "
@@ -73,9 +89,22 @@ def _validate_atif_trajectory(trajectory: Mapping[str, Any]) -> None:
             )
 
     # Session ID
-    session_id = trajectory["session_id"]
-    if not isinstance(session_id, str) or not session_id.strip():
+    session_id = trajectory.get("session_id")
+    session_required = parsed_version is None or minor is None or minor < 7
+    if session_id is None:
+        if session_required:
+            errors.append("Missing required root field: 'session_id'")
+    elif not isinstance(session_id, str) or not session_id.strip():
         errors.append("session_id must be a non-empty string")
+
+    # Trajectory ID
+    trajectory_id = trajectory.get("trajectory_id")
+    if trajectory_id is not None and (
+        not isinstance(trajectory_id, str) or not trajectory_id.strip()
+    ):
+        errors.append("trajectory_id must be a non-empty string if provided")
+    if _is_embedded and minor is not None and minor >= 7 and not trajectory_id:
+        errors.append("embedded subagent trajectories must set trajectory_id")
 
     # Agent validation
     agent = trajectory["agent"]
@@ -96,6 +125,32 @@ def _validate_atif_trajectory(trajectory: Mapping[str, Any]) -> None:
     if not isinstance(raw_steps, list) or len(raw_steps) == 0:
         errors.append("'steps' must be a non-empty list")
         raise ValueError("Invalid ATIF trajectory:\n" + "\n".join(f"  - {e}" for e in errors))
+
+    embedded_subagent_ids: Set[str] = set()
+    subagent_trajectories = trajectory.get("subagent_trajectories")
+    if subagent_trajectories is not None:
+        if not isinstance(subagent_trajectories, list):
+            errors.append("subagent_trajectories must be a list if provided")
+        else:
+            for j, subagent in enumerate(subagent_trajectories):
+                s_prefix = f"subagent_trajectories[{j}]"
+                if not isinstance(subagent, dict):
+                    errors.append(f"{s_prefix}: must be a dict")
+                    continue
+                subagent_trajectory_id = subagent.get("trajectory_id")
+                if (
+                    not isinstance(subagent_trajectory_id, str)
+                    or not subagent_trajectory_id.strip()
+                ):
+                    errors.append(f"{s_prefix}: trajectory_id is required")
+                    continue
+                if subagent_trajectory_id in embedded_subagent_ids:
+                    errors.append(f"{s_prefix}: duplicate trajectory_id '{subagent_trajectory_id}'")
+                embedded_subagent_ids.add(subagent_trajectory_id)
+                try:
+                    _validate_atif_trajectory(subagent, _is_embedded=True)
+                except ValueError as e:
+                    errors.append(f"{s_prefix}: {e}")
 
     steps: List[Any] = raw_steps
     for i, step in enumerate(steps):
@@ -126,15 +181,29 @@ def _validate_atif_trajectory(trajectory: Mapping[str, Any]) -> None:
         if source not in _VALID_SOURCES:
             errors.append(f"{prefix}: source '{source}' must be one of {_VALID_SOURCES}")
 
-        # Message required for user/system steps
-        if source in ("user", "system"):
+        # Message required for user/system steps. ATIF v1.7 requires it for
+        # all steps, including agent steps with an intentionally empty string.
+        if source in ("user", "system") or (minor is not None and minor >= 7):
             msg: object = step_dict.get("message")
             if msg is None:
                 errors.append(f"{prefix}: message is required for {source} steps")
+
+        if source in ("user", "system"):
             # Agent-only fields should not appear on user/system steps
             for field in _AGENT_ONLY_FIELDS:
                 if field in step_dict:
                     errors.append(f"{prefix}: '{field}' is not allowed on {source} steps")
+
+        llm_call_count = step_dict.get("llm_call_count")
+        if llm_call_count is not None:
+            if not isinstance(llm_call_count, int) or llm_call_count < 0:
+                errors.append(f"{prefix}: llm_call_count must be a non-negative integer")
+            elif source == "agent" and llm_call_count == 0:
+                for field in ("metrics", "reasoning_content"):
+                    if step_dict.get(field) is not None:
+                        errors.append(
+                            f"{prefix}: '{field}' must be absent when llm_call_count is 0"
+                        )
 
         # Tool call validation
         tool_call_ids: Set[str] = set()
@@ -188,6 +257,39 @@ def _validate_atif_trajectory(trajectory: Mapping[str, Any]) -> None:
                             f"match any tool_call_id in "
                             f"this step"
                         )
+                    refs: object = result_dict.get("subagent_trajectory_ref")
+                    if refs is not None:
+                        if not isinstance(refs, list):
+                            errors.append(f"{r_prefix}: subagent_trajectory_ref must be a list")
+                            continue
+                        for ref_index, ref in enumerate(refs):
+                            ref_prefix = f"{r_prefix}.subagent_trajectory_ref[{ref_index}]"
+                            if not isinstance(ref, dict):
+                                errors.append(f"{ref_prefix}: must be a dict")
+                                continue
+                            ref_trajectory_id = ref.get("trajectory_id")
+                            ref_trajectory_path = ref.get("trajectory_path")
+                            if minor is not None and minor >= 7:
+                                has_trajectory_id = isinstance(ref_trajectory_id, str) and bool(
+                                    ref_trajectory_id.strip()
+                                )
+                                has_trajectory_path = isinstance(ref_trajectory_path, str) and bool(
+                                    ref_trajectory_path.strip()
+                                )
+                                if not has_trajectory_id and not has_trajectory_path:
+                                    errors.append(
+                                        f"{ref_prefix}: at least one of trajectory_id or "
+                                        "trajectory_path is required"
+                                    )
+                                if (
+                                    has_trajectory_id
+                                    and not has_trajectory_path
+                                    and ref_trajectory_id not in embedded_subagent_ids
+                                ):
+                                    errors.append(
+                                        f"{ref_prefix}: trajectory_id '{ref_trajectory_id}' "
+                                        "does not match an embedded subagent trajectory"
+                                    )
 
     if errors:
         raise ValueError("Invalid ATIF trajectory:\n" + "\n".join(f"  - {e}" for e in errors))

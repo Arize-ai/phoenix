@@ -30,12 +30,20 @@ def multi_tool_trajectory() -> Dict[str, Any]:
     return _load_fixture("multi_tool_trajectory.json")
 
 
+@pytest.fixture()
+def v17_embedded_subagents() -> Dict[str, Any]:
+    return _load_fixture("v17_embedded_subagents.json")
+
+
 class TestValidTrajectories:
     def test_simple_trajectory_passes(self, simple_trajectory: Dict[str, Any]) -> None:
         _validate_atif_trajectory(simple_trajectory)
 
     def test_multi_tool_trajectory_passes(self, multi_tool_trajectory: Dict[str, Any]) -> None:
         _validate_atif_trajectory(multi_tool_trajectory)
+
+    def test_v17_embedded_subagents_passes(self, v17_embedded_subagents: Dict[str, Any]) -> None:
+        _validate_atif_trajectory(v17_embedded_subagents)
 
     def test_real_harbor_trajectory_passes(self) -> None:
         """Validates that a real Harbor ATIF-v1.2 trajectory passes validation."""
@@ -135,11 +143,20 @@ class TestSchemaVersion:
         with pytest.raises(ValueError, match="Unsupported ATIF major version 2"):
             _validate_atif_trajectory(simple_trajectory)
 
-    def test_v1_7_warns(
+    def test_v1_7_no_warning(
         self, simple_trajectory: Dict[str, Any], caplog: pytest.LogCaptureFixture
     ) -> None:
-        """ATIF v1.7 should pass validation but emit a warning."""
+        """ATIF v1.7 should pass without any warning."""
         simple_trajectory["schema_version"] = "ATIF-v1.7"
+        with caplog.at_level(logging.WARNING):
+            _validate_atif_trajectory(simple_trajectory)
+        assert caplog.text == ""
+
+    def test_v1_8_warns(
+        self, simple_trajectory: Dict[str, Any], caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """ATIF v1.8 should pass validation but emit a warning."""
+        simple_trajectory["schema_version"] = "ATIF-v1.8"
         with caplog.at_level(logging.WARNING):
             _validate_atif_trajectory(simple_trajectory)
         assert "newer than the latest supported version" in caplog.text
@@ -172,6 +189,107 @@ class TestAgentValidation:
         simple_trajectory["agent"]["model_name"] = 123
         with pytest.raises(ValueError, match="model_name must be a string"):
             _validate_atif_trajectory(simple_trajectory)
+
+
+class TestV17Validation:
+    def test_session_id_optional(self, v17_embedded_subagents: Dict[str, Any]) -> None:
+        del v17_embedded_subagents["session_id"]
+        _validate_atif_trajectory(v17_embedded_subagents)
+
+    def test_embedded_subagent_requires_trajectory_id(
+        self, v17_embedded_subagents: Dict[str, Any]
+    ) -> None:
+        del v17_embedded_subagents["subagent_trajectories"][0]["trajectory_id"]
+        with pytest.raises(ValueError, match="trajectory_id is required"):
+            _validate_atif_trajectory(v17_embedded_subagents)
+
+    def test_session_only_subagent_ref_rejected(self) -> None:
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": "run-v17-session-only",
+            "trajectory_id": "parent",
+            "agent": {"name": "agent", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "delegate"},
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "",
+                    "llm_call_count": 0,
+                    "tool_calls": [
+                        {
+                            "tool_call_id": "call_child",
+                            "function_name": "delegate",
+                            "arguments": {},
+                        }
+                    ],
+                    "observation": {
+                        "results": [
+                            {
+                                "source_call_id": "call_child",
+                                "subagent_trajectory_ref": [{"session_id": "child-session"}],
+                            }
+                        ]
+                    },
+                },
+            ],
+        }
+        with pytest.raises(ValueError, match="trajectory_id or trajectory_path"):
+            _validate_atif_trajectory(trajectory)
+
+    def test_unembedded_trajectory_id_ref_rejected(self) -> None:
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": "run-v17-missing-embedded",
+            "trajectory_id": "parent",
+            "agent": {"name": "agent", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "delegate"},
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "",
+                    "llm_call_count": 0,
+                    "tool_calls": [
+                        {
+                            "tool_call_id": "call_child",
+                            "function_name": "delegate",
+                            "arguments": {},
+                        }
+                    ],
+                    "observation": {
+                        "results": [
+                            {
+                                "source_call_id": "call_child",
+                                "subagent_trajectory_ref": [{"trajectory_id": "missing-child"}],
+                            }
+                        ]
+                    },
+                },
+            ],
+        }
+        with pytest.raises(ValueError, match="does not match an embedded subagent"):
+            _validate_atif_trajectory(trajectory)
+
+    def test_llm_call_count_zero_rejects_metrics(self) -> None:
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": "run-v17-bad-dispatch",
+            "trajectory_id": "dispatch",
+            "agent": {"name": "agent", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "delegate"},
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "",
+                    "llm_call_count": 0,
+                    "metrics": {"prompt_tokens": 1},
+                },
+            ],
+        }
+        with pytest.raises(ValueError, match="must be absent when llm_call_count is 0"):
+            _validate_atif_trajectory(trajectory)
 
 
 class TestStepValidation:

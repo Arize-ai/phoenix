@@ -141,7 +141,7 @@ Phoenix v14 removes several legacy APIs. See the [migration guide](https://githu
 
 `upload_atif_trajectories_as_spans` converts [ATIF](https://github.com/harbor-ai/agent-trajectory-format) (Agent Trajectory Interchange Format) trajectory JSON files into OpenTelemetry span trees and uploads them to Phoenix. Visualize offline Harbor agent runs alongside live instrumented traces.
 
-- **Supports ATIF v1.0–v1.6** including multimodal content (images) in v1.6+
+- **Supports ATIF v1.0–v1.7** including multimodal content (images) in v1.6+ and embedded subagent trajectories in v1.7
 - **Subagent linking** — upload parent and child trajectories together to link them into one trace
 - **Idempotent** — trace/span IDs are derived from `session_id` via SHA-256; re-uploading the same file is safe
 </Update>

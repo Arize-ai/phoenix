@@ -84,6 +84,8 @@ AGENT (parent)
       TOOL
 ```
 
+For ATIF v1.7 files, embedded `subagent_trajectories` are flattened automatically. Embedded references resolve by `trajectory_id`, so you can upload a single parent trajectory file and still see the delegated subagent spans nested under the parent tool span.
+
 ### Continuation merging
 
 When an agent's context window fills up, Harbor splits the session across multiple trajectory files. The continuation file gets a `session_id` ending in `-cont-N`. The converter automatically detects these and merges them into a single trace, so the full agent session is visible as one trace in Phoenix.
@@ -104,13 +106,16 @@ The converter maps ATIF fields to standard [OpenInference](/docs/phoenix/referen
 | `agent.tool_definitions` | `llm.tools.{i}.tool.json_schema` |
 | `reasoning_content` | `metadata.reasoning_content` |
 | `session_id` | `session.id` |
+| `trajectory_id` | Root span `metadata.trajectory_id` |
 | Step messages | `llm.input_messages` / `llm.output_messages` |
 | Tool calls | `llm.output_messages.{i}.message.tool_calls` |
 | Observations | Tool span `output.value` |
 
+Agent steps with `llm_call_count = 0` represent deterministic orchestration rather than an LLM inference. Phoenix emits the associated TOOL spans without creating a synthetic LLM span for that step.
+
 ### Deterministic IDs
 
-Trace and span IDs are derived from the trajectory's `session_id` via SHA-256, so uploading the same trajectory twice produces the same trace. This makes uploads idempotent — you can safely re-run without creating duplicates.
+Trace IDs are derived from the run-scoped `session_id` when present. Span IDs use document-scoped `trajectory_id` when available, which keeps ATIF v1.7 embedded subagents from colliding even when they inherit or share the same `session_id`. Uploading the same trajectory twice produces the same trace, so you can safely re-run without creating duplicates.
 
 ### Known limitations
 
