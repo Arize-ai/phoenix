@@ -106,9 +106,7 @@ async function createDatasetWithExample(page: Page, datasetName: string) {
     .getByRole("button", { name: "Add Dataset Example" })
     .or(page.getByRole("button", { name: "Example" }))
     .click();
-  await page
-    .getByRole("menuitem", { name: "Add Example Manually" })
-    .click();
+  await page.getByRole("menuitem", { name: "Add Example Manually" }).click();
 
   const dialog = page
     .getByRole("dialog")
@@ -229,11 +227,7 @@ async function selectLanguage(
 /**
  * Set the Sandbox Select in a code-evaluator dialog and assert the new value.
  */
-async function selectSandbox(
-  page: Page,
-  scope: Locator,
-  sandboxName: string
-) {
+async function selectSandbox(page: Page, scope: Locator, sandboxName: string) {
   await selectFromSelect(page, scope, "Sandbox", sandboxName);
 }
 
@@ -385,9 +379,7 @@ async function createSecretKey(page: Page, key: string, value: string) {
  * the read-only type footer).
  */
 async function getEditorContent(scope: Locator): Promise<string> {
-  return (
-    (await scope.locator(".cm-content").first().textContent()) ?? ""
-  );
+  return (await scope.locator(".cm-content").first().textContent()) ?? "";
 }
 
 test.describe.serial("Code Evaluators", () => {
@@ -482,7 +474,10 @@ test.describe.serial("Code Evaluators", () => {
         .getByRole("dialog")
         .getByRole("textbox", { name: "Name", exact: true })
     ).toHaveValue(updatedPythonEvaluatorName);
-    await page.getByRole("dialog").getByRole("button", { name: "Cancel" }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Cancel" })
+      .click();
     await expect(page.getByTestId("dialog")).not.toBeVisible();
 
     await expectEvaluatorDetailsPage(page, updatedPythonEvaluatorName);
@@ -496,7 +491,9 @@ test.describe.serial("Code Evaluators", () => {
 
     const dialog = page.getByRole("dialog");
 
-    await expect(selectTrigger(dialog, "Sandbox")).toContainText(pythonSandboxName);
+    await expect(selectTrigger(dialog, "Sandbox")).toContainText(
+      pythonSandboxName
+    );
 
     await selectLanguage(page, dialog, "TypeScript");
     await selectSandbox(page, dialog, typeScriptSandboxName);
@@ -534,7 +531,10 @@ test.describe.serial("Code Evaluators", () => {
 
     await openEvaluatorEditor(page, updatedPythonEvaluatorName);
     await expectSandboxCleared(page.getByRole("dialog"));
-    await page.getByRole("dialog").getByRole("button", { name: "Cancel" }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Cancel" })
+      .click();
     await expect(page.getByTestId("dialog")).not.toBeVisible();
   });
 
@@ -581,7 +581,10 @@ test.describe.serial("Code Evaluators", () => {
     await expect(
       page.getByRole("dialog").getByRole("textbox", { name: /Description/i })
     ).toHaveValue(updatedDescription);
-    await page.getByRole("dialog").getByRole("button", { name: "Cancel" }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Cancel" })
+      .click();
     await expect(page.getByTestId("dialog")).not.toBeVisible();
   });
 
@@ -778,9 +781,7 @@ test.describe.serial("Code Evaluators", () => {
 
     await dialog.getByRole("button", { name: "Reset" }).click();
 
-    await expect
-      .poll(() => getEditorContent(dialog))
-      .toContain('"excellent"');
+    await expect.poll(() => getEditorContent(dialog)).toContain('"excellent"');
     const content = await getEditorContent(dialog);
     expect(content).not.toMatch(/return "pass"/);
     // Dict-form comment with explanation key must be present.
@@ -913,9 +914,7 @@ test.describe.serial("Code Evaluators", () => {
 
     // Switch back to Python — guard regenerates the Python variant.
     await selectLanguage(page, dialog, "Python");
-    await expect
-      .poll(() => getEditorContent(dialog))
-      .toMatch(/def evaluate/);
+    await expect.poll(() => getEditorContent(dialog)).toMatch(/def evaluate/);
     content = await getEditorContent(dialog);
     expect(content).toContain('"Good"');
 
