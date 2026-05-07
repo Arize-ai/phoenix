@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import invariant from "tiny-invariant";
 
-import { apiFetch } from "@phoenix/api/apiFetch";
+import { authApiFetch } from "@phoenix/authApiFetch";
 import {
   Alert,
   Button,
@@ -617,10 +617,11 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
       }
 
       try {
-        const { data: result, response } = await apiFetch.POST(
+        const { data: result, response } = await authApiFetch.POST(
           "/v1/datasets/upload",
           {
             params: { query: { sync: true } },
+            // FormData doesn't match the typed body shape; bodySerializer is what actually gets sent.
             body: formData as never,
             bodySerializer: () => formData,
           }

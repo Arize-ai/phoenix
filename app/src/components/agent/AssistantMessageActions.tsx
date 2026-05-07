@@ -3,7 +3,7 @@ import copy from "copy-to-clipboard";
 import { useState } from "react";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
-import { apiFetch } from "@phoenix/api/apiFetch";
+import { authApiFetch } from "@phoenix/authApiFetch";
 import { Icon, Icons } from "@phoenix/components";
 import {
   MessageAction,
@@ -95,11 +95,11 @@ async function postAnnotation(
   const params = { query: { sync: true } } as const;
   const { response } =
     args.endpoint === "/v1/span_annotations"
-      ? await apiFetch.POST("/v1/span_annotations", {
+      ? await authApiFetch.POST("/v1/span_annotations", {
           params,
           body: { data: [args.payload] },
         })
-      : await apiFetch.POST("/v1/trace_annotations", {
+      : await authApiFetch.POST("/v1/trace_annotations", {
           params,
           body: { data: [args.payload] },
         });
