@@ -10,7 +10,10 @@ from phoenix.db import models
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, NotFound, Unauthorized
-from phoenix.server.api.helpers.annotations import get_user_identifier
+from phoenix.server.api.helpers.annotations import (
+    USER_FEEDBACK_ANNOTATION_NAME,
+    get_user_identifier,
+)
 from phoenix.server.api.helpers.trace_user_feedback import (
     delete_trace_user_feedback as delete_trace_user_feedback_record,
 )
@@ -144,6 +147,13 @@ class TraceAnnotationMutationMixin:
             raise BadRequest(
                 "The name 'note' is reserved for trace and span notes. "
                 "Use POST /v1/trace_notes instead."
+            )
+        if any(
+            annotation_input.name == USER_FEEDBACK_ANNOTATION_NAME for annotation_input in input
+        ):
+            raise BadRequest(
+                "The name 'user_feedback' is reserved for trace user feedback. "
+                "Use setTraceUserFeedback instead."
             )
 
         assert isinstance(request := info.context.request, Request)

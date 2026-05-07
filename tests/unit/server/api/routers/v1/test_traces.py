@@ -140,6 +140,33 @@ async def test_rest_trace_annotation_rejects_note_name(
     ) in response.text
 
 
+async def test_rest_trace_annotation_rejects_user_feedback_name(
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+) -> None:
+    request_body = {
+        "data": [
+            {
+                "trace_id": "82c6c9c33ccc586e0d3bdf46b20db309",
+                "name": "user_feedback",
+                "annotator_kind": "HUMAN",
+                "result": {
+                    "label": "positive",
+                    "score": 1,
+                },
+                "metadata": {},
+            }
+        ]
+    }
+
+    response = await httpx_client.post("v1/trace_annotations?sync=true", json=request_body)
+    assert response.status_code == 400
+    assert (
+        "The name 'user_feedback' is reserved for trace user feedback. "
+        "Use PUT /v1/traces/{trace_identifier}/user_feedback instead."
+    ) in response.text
+
+
 async def test_rest_create_trace_note(
     db: DbSessionFactory,
     httpx_client: httpx.AsyncClient,

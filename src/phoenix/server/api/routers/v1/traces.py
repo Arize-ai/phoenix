@@ -23,7 +23,10 @@ from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
-from phoenix.server.api.helpers.annotations import get_note_identifier
+from phoenix.server.api.helpers.annotations import (
+    USER_FEEDBACK_ANNOTATION_NAME,
+    get_note_identifier,
+)
 from phoenix.server.api.helpers.cumulative_token_count_queries import (
     cumulative_token_counts_by_trace,
 )
@@ -407,6 +410,14 @@ async def annotate_traces(
             detail=(
                 "The name 'note' is reserved for trace and span notes. "
                 "Use POST /v1/trace_notes instead."
+            ),
+        )
+    if any(data.name == USER_FEEDBACK_ANNOTATION_NAME for data in request_body.data):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "The name 'user_feedback' is reserved for trace user feedback. "
+                "Use PUT /v1/traces/{trace_identifier}/user_feedback instead."
             ),
         )
 

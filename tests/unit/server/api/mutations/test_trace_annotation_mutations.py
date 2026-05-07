@@ -343,6 +343,38 @@ class TestTraceAnnotationMutations:
             "Use POST /v1/trace_notes instead."
         ) in response.errors[0].message
 
+    async def test_trace_annotations_reject_reserved_user_feedback_name(
+        self,
+        _trace_data: models.Trace,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        trace_gid = str(GlobalID("Trace", str(_trace_data.id)))
+        response = await gql_client.execute(
+            self.QUERY,
+            {
+                "input": [
+                    {
+                        "traceId": trace_gid,
+                        "name": "user_feedback",
+                        "label": "positive",
+                        "score": 1,
+                        "annotatorKind": "HUMAN",
+                        "metadata": {},
+                        "identifier": "",
+                        "source": AnnotationSource.API.name,
+                    }
+                ]
+            },
+            operation_name="CreateTraceAnnotations",
+        )
+
+        assert response.data is None
+        assert response.errors
+        assert (
+            "The name 'user_feedback' is reserved for trace user feedback. "
+            "Use setTraceUserFeedback instead."
+        ) in response.errors[0].message
+
     async def test_trace_user_feedback_set_upserts_and_second_delete_errors(
         self,
         _trace_data: models.Trace,
