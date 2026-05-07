@@ -3,7 +3,7 @@ import copy from "copy-to-clipboard";
 import { useState } from "react";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
-import { authApiFetch } from "@phoenix/authApiFetch";
+import { authApiFetch } from "@phoenix/api/authApiFetch";
 import { Icon, Icons } from "@phoenix/components";
 import {
   MessageAction,

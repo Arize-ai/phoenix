@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import invariant from "tiny-invariant";
 
-import { authApiFetch } from "@phoenix/authApiFetch";
+import { authApiFetch } from "@phoenix/api/authApiFetch";
 import {
   Alert,
   Button,

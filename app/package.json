@@ -22,7 +22,7 @@
     "ensure:env": "test -f .env || printf 'export PHOENIX_TELEMETRY_ENABLED=False\nexport PHOENIX_DANGEROUSLY_ENABLE_AGENTS=True\n' > .env",
     "fmt": "oxfmt --config ../.oxfmtrc.jsonc",
     "fmt:check": "oxfmt --check --config ../.oxfmtrc.jsonc",
-    "generate:openapi": "openapi-typescript --empty-objects-unknown=true --default-non-nullable=false ../schemas/openapi.json -o ./src/__generated__/api/v1.ts",
+    "generate:openapi": "openapi-typescript --empty-objects-unknown=true --default-non-nullable=false ../schemas/openapi.json -o ./src/api/__generated__/v1.ts",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "preinstall": "npx only-allow pnpm",
