@@ -204,13 +204,13 @@ px trace list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --include-na
 px trace list-annotations --trace-ids abc123def456 def456abc123 --format raw --no-progress
 ```
 
-| Option                   | Description                                                                                              |
-| ------------------------ | -------------------------------------------------------------------------------------------------------- |
-| `--identifier <ids...>`  | Filter to annotations whose identifier matches one of these values                                       |
-| `--trace-ids <ids...>`   | Filter to annotations attached to these trace IDs                                                        |
-| `--include-name <name>`  | Include only annotations with these names — whitelist (repeatable)                                       |
-| `--exclude-name <name>`  | Exclude annotations with these names (repeatable)                                                        |
-| `--format <format>`      | `pretty`, `json`, or `raw`                                                                               |
+| Option                  | Description                                                        |
+| ----------------------- | ------------------------------------------------------------------ |
+| `--identifier <ids...>` | Filter to annotations whose identifier matches one of these values |
+| `--trace-ids <ids...>`  | Filter to annotations attached to these trace IDs                  |
+| `--include-name <name>` | Include only annotations with these names — whitelist (repeatable) |
+| `--exclude-name <name>` | Exclude annotations with these names (repeatable)                  |
+| `--format <format>`     | `pretty`, `json`, or `raw`                                         |
 
 ---
 
@@ -424,11 +424,11 @@ px project get my-project --format raw --no-progress | jq -r '.id'
 px project get my-project --format json
 ```
 
-| Option              | Description                                 | Default  |
-| ------------------- | ------------------------------------------- | -------- |
-| `--format <format>` | `pretty`, `json`, or `raw`                  | `pretty` |
-| `--limit <number>`  | Page size for the underlying lookup         | `100`    |
-| `--no-progress`     | Suppress progress output                    | —        |
+| Option              | Description                         | Default  |
+| ------------------- | ----------------------------------- | -------- |
+| `--format <format>` | `pretty`, `json`, or `raw`          | `pretty` |
+| `--limit <number>`  | Page size for the underlying lookup | `100`    |
+| `--no-progress`     | Suppress progress output            | —        |
 
 Miss-case stderr (raw): `{"error":"Project 'foo' not found","code":"FAILURE","hint":"px project list --format raw"}`.
 
