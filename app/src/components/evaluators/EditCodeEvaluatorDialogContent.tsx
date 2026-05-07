@@ -1,5 +1,6 @@
 import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
+import { indentUnit } from "@codemirror/language";
 import { css } from "@emotion/react";
 import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import CodeMirror from "@uiw/react-codemirror";
@@ -10,10 +11,12 @@ import {
   Alert,
   Button,
   Flex,
+  Heading,
   Icon,
   Icons,
   Input,
   Label,
+  Link,
   List,
   ListItem,
   ListBox,
@@ -339,39 +342,12 @@ export const EditCodeEvaluatorDialogContent = ({
         )}
         {hasNoSandboxConfigs ? (
           <Alert variant="warning" title="No sandboxes configured">
-            You can still draft and save this evaluator now. Select a sandbox
-            later to test or execute it.
+            You can still draft and save this evaluator now.{" "}
+            <Link to="/settings/sandboxes">Configure a sandbox</Link> later to
+            test or execute it.
           </Alert>
         ) : null}
 
-        {/* Compact inline header bar */}
-        <CompactHeaderBar
-          language={language}
-          onLanguageChange={(nextLanguage) => {
-            setLanguage((currentLanguage) => {
-              // Auto-swap if sourceCode matches any generated default for the
-              // current language (substituted or fallback, across all shapes).
-              const currentDefaults = getAllGeneratedSources(
-                currentLanguage,
-                outputConfig
-              );
-              if (currentDefaults.includes(sourceCode)) {
-                setSourceCode(
-                  getDefaultCodeEvaluatorSource(
-                    nextLanguage,
-                    outputShape,
-                    outputConfig
-                  )
-                );
-              }
-              return nextLanguage;
-            });
-          }}
-          sandboxConfigs={sandboxConfigs}
-          selectedSandboxConfigId={selectedSandboxConfigId}
-          onSandboxChange={setSandboxConfigId}
-          showSandboxHelperText={hasNoSandboxConfigs}
-        />
         {unavailableSandboxSelectionMessage ? (
           <Alert variant="warning" title="Sandbox unavailable">
             {unavailableSandboxSelectionMessage}
@@ -383,13 +359,42 @@ export const EditCodeEvaluatorDialogContent = ({
             {/* Left panel: Code Editor (60%) */}
             <Panel defaultSize="60%" minSize="40%" style={panelStyle}>
               <div css={editorPanelCSS}>
-                <CodeEditorSection
+                <EvaluatorMetadataForm
                   language={language}
-                  outputShape={outputShape}
-                  outputConfig={outputConfig}
+                  onLanguageChange={(nextLanguage) => {
+                    setLanguage((currentLanguage) => {
+                      // Auto-swap if sourceCode matches any generated default for the
+                      // current language (substituted or fallback, across all shapes).
+                      const currentDefaults = getAllGeneratedSources(
+                        currentLanguage,
+                        outputConfig
+                      );
+                      if (currentDefaults.includes(sourceCode)) {
+                        setSourceCode(
+                          getDefaultCodeEvaluatorSource(
+                            nextLanguage,
+                            outputShape,
+                            outputConfig
+                          )
+                        );
+                      }
+                      return nextLanguage;
+                    });
+                  }}
+                  sandboxConfigs={sandboxConfigs}
+                  selectedSandboxConfigId={selectedSandboxConfigId}
+                  onSandboxChange={setSandboxConfigId}
+                  showSandboxHelperText={hasNoSandboxConfigs}
+                />
+                <CodeEditor
+                  language={language}
                   sourceCode={sourceCode}
                   onChange={setSourceCode}
+                  outputShape={outputShape}
+                  outputConfig={outputConfig}
                 />
+                <EvaluatorAnnotationSection />
+                <InputMappingSection />
               </div>
             </Panel>
 
@@ -414,9 +419,10 @@ export const EditCodeEvaluatorDialogContent = ({
 };
 
 /**
- * Compact header bar with inline name, language, and sandbox fields
+ * Top-of-panel form for the evaluator's identifying metadata:
+ * Name, Language, Sandbox, and Description.
  */
-const CompactHeaderBar = ({
+const EvaluatorMetadataForm = ({
   language,
   onLanguageChange,
   sandboxConfigs,
@@ -432,41 +438,29 @@ const CompactHeaderBar = ({
   showSandboxHelperText?: boolean;
 }) => {
   return (
-    <Flex direction="column" gap="size-100">
-      <div css={headerBarCSS}>
-        {/* Name field */}
-        <div
-          css={headerFieldCSS}
-          style={{ flex: "1 1 180px", minWidth: 140, maxWidth: 500 }}
-        >
-          <EvaluatorNameInput />
-        </div>
-
-        {/* Description field */}
-        <div css={headerFieldCSS} style={{ flex: "1 1 240px", minWidth: 180 }}>
-          <EvaluatorDescriptionInput />
-        </div>
-
-        {/* Language selector */}
-        <div css={headerFieldCSS} style={{ flex: "0 0 auto", width: 130 }}>
-          <CodeEvaluatorLanguageField
-            language={language}
-            onChange={onLanguageChange}
-          />
-        </div>
-
-        {/* Sandbox selector */}
-        <div css={headerFieldCSS} style={{ flex: "0 1 240px", minWidth: 180 }}>
-          <CodeEvaluatorSandboxField
-            sandboxConfigs={sandboxConfigs}
-            language={language}
-            selectedSandboxConfigId={selectedSandboxConfigId}
-            onSelectionChange={onSandboxChange}
-            showHelperText={showSandboxHelperText}
-          />
-        </div>
+    <div css={metadataFormCSS}>
+      <div style={{ flex: "0 0 260px" }}>
+        <EvaluatorNameInput />
       </div>
-    </Flex>
+      <div style={{ flex: "0 0 260px" }}>
+        <CodeEvaluatorLanguageField
+          language={language}
+          onChange={onLanguageChange}
+        />
+      </div>
+      <div style={{ flex: "0 0 260px" }}>
+        <CodeEvaluatorSandboxField
+          sandboxConfigs={sandboxConfigs}
+          language={language}
+          selectedSandboxConfigId={selectedSandboxConfigId}
+          onSelectionChange={onSandboxChange}
+          showHelperText={showSandboxHelperText}
+        />
+      </div>
+      <div style={{ flex: "1 1 240px", minWidth: 180 }}>
+        <EvaluatorDescriptionInput />
+      </div>
+    </div>
   );
 };
 
@@ -482,25 +476,7 @@ const ConfiguratorSidebar = ({
   language: CodeEvaluatorLanguage;
 }) => {
   return (
-    <DisclosureGroup defaultExpandedKeys={["output-config", "input-mapping"]}>
-      <Disclosure id="sandbox-runtime" defaultExpanded={false}>
-        <DisclosureTrigger arrowPosition="start">
-          <Text weight="heavy" size="S">
-            Sandbox Runtime
-          </Text>
-        </DisclosureTrigger>
-        <DisclosurePanel>
-          <div css={accordionContentCSS}>
-            <View paddingTop="size-100">
-              <SandboxCapabilitySummaryCard
-                selectedSandboxConfig={selectedSandboxConfig}
-                description="Review the selected runtime before testing execution behavior or saving this evaluator."
-              />
-            </View>
-          </div>
-        </DisclosurePanel>
-      </Disclosure>
-
+    <DisclosureGroup defaultExpandedKeys={["test-section"]}>
       <Disclosure id="test-section" defaultExpanded={false}>
         <DisclosureTrigger arrowPosition="start">
           <Text weight="heavy" size="S">
@@ -526,43 +502,19 @@ const ConfiguratorSidebar = ({
         </DisclosurePanel>
       </Disclosure>
 
-      <Disclosure id="output-config">
+      <Disclosure id="sandbox-runtime" defaultExpanded={false}>
         <DisclosureTrigger arrowPosition="start">
           <Text weight="heavy" size="S">
-            Output Configuration
+            Sandbox Runtime
           </Text>
         </DisclosureTrigger>
         <DisclosurePanel>
           <div css={accordionContentCSS}>
-            <View paddingX="size-200" paddingTop="size-100">
-              <Text color="text-500" size="XS">
-                Define the output type and optimization direction for your
-                evaluator.
-              </Text>
-              <View marginTop="size-100">
-                <OutputConfigSection />
-              </View>
-            </View>
-          </div>
-        </DisclosurePanel>
-      </Disclosure>
-
-      <Disclosure id="input-mapping">
-        <DisclosureTrigger arrowPosition="start">
-          <Text weight="heavy" size="S">
-            Input Mapping
-          </Text>
-        </DisclosureTrigger>
-        <DisclosurePanel>
-          <div css={accordionContentCSS}>
-            <View paddingX="size-200" paddingTop="size-100">
-              <Text color="text-500" size="XS">
-                Map evaluator arguments to dataset fields. Arguments are
-                auto-detected from your code.
-              </Text>
-              <View marginTop="size-100">
-                <EvaluatorInputMapping />
-              </View>
+            <View paddingTop="size-100">
+              <SandboxCapabilitySummaryCard
+                selectedSandboxConfig={selectedSandboxConfig}
+                description="Review the selected runtime before testing execution behavior or saving this evaluator."
+              />
             </View>
           </div>
         </DisclosurePanel>
@@ -594,38 +546,106 @@ const SandboxCapabilitySummaryCard = ({
           </Text>
         </View>
       ) : (
-        <List size="S">
-          <SandboxCapabilityRow
-            label="config"
-            value={selectedSandboxConfig.name}
-          />
-          {selectedSandboxConfig.timeout != null ? (
-            <SandboxCapabilityRow
-              label="timeout"
-              value={`${selectedSandboxConfig.timeout} seconds`}
-            />
-          ) : null}
-          <SandboxCapabilityRow
-            label="env_vars"
-            value={getSandboxEnvVarsLabel(selectedSandboxConfig.config)}
-          />
-          <SandboxCapabilityRow
-            label="internet_access"
-            value={getSandboxInternetAccessConfigLabel(
-              selectedSandboxConfig.config
-            )}
-          />
-          <SandboxCapabilityRow
-            label="dependencies"
-            value={getSandboxDependenciesConfigLabel(
-              selectedSandboxConfig.config
-            )}
-          />
-        </List>
+        <Flex direction="column" gap="size-150">
+          <Flex direction="column" gap="size-50">
+            <View paddingX="size-200">
+              <Text weight="heavy" size="XS">
+                Runtime supports
+              </Text>
+            </View>
+            <List size="S">
+              <SandboxCapabilityRow
+                label="env_vars"
+                value={getRuntimeEnvVarsSupportLabel(selectedSandboxConfig)}
+              />
+              <SandboxCapabilityRow
+                label="internet_access"
+                value={getRuntimeInternetAccessSupportLabel(
+                  selectedSandboxConfig
+                )}
+              />
+              <SandboxCapabilityRow
+                label="dependencies"
+                value={getRuntimeDependenciesSupportLabel(
+                  selectedSandboxConfig
+                )}
+              />
+            </List>
+          </Flex>
+          <Flex direction="column" gap="size-50">
+            <View paddingX="size-200">
+              <Text weight="heavy" size="XS">
+                Configured
+              </Text>
+            </View>
+            <List size="S">
+              <SandboxCapabilityRow
+                label="config"
+                value={selectedSandboxConfig.name}
+              />
+              {selectedSandboxConfig.timeout != null ? (
+                <SandboxCapabilityRow
+                  label="timeout"
+                  value={`${selectedSandboxConfig.timeout} seconds`}
+                />
+              ) : null}
+              <SandboxCapabilityRow
+                label="env_vars"
+                value={getSandboxEnvVarsLabel(selectedSandboxConfig.config)}
+              />
+              <SandboxCapabilityRow
+                label="internet_access"
+                value={getSandboxInternetAccessConfigLabel(
+                  selectedSandboxConfig.config
+                )}
+              />
+              <SandboxCapabilityRow
+                label="dependencies"
+                value={getSandboxDependenciesConfigLabel(
+                  selectedSandboxConfig.config
+                )}
+              />
+            </List>
+          </Flex>
+        </Flex>
       )}
     </Flex>
   );
 };
+
+function getRuntimeEnvVarsSupportLabel(option: SandboxConfigOption) {
+  if (option.supportsEnvVars == null) {
+    return "not advertised";
+  }
+  return option.supportsEnvVars ? "supported" : "not supported";
+}
+
+function getRuntimeInternetAccessSupportLabel(option: SandboxConfigOption) {
+  const value = option.internetAccess;
+  if (value == null) {
+    return "not advertised";
+  }
+  switch (value) {
+    case "BOOLEAN":
+      return "configurable";
+    case "ALLOWLIST":
+      return "allowlist";
+    case "NONE":
+      return "not supported";
+    default:
+      return value;
+  }
+}
+
+function getRuntimeDependenciesSupportLabel(option: SandboxConfigOption) {
+  if (option.dependenciesLanguage === undefined) {
+    return "not advertised";
+  }
+  if (option.dependenciesLanguage == null) {
+    return "not supported";
+  }
+  return option.dependenciesLanguage === "PYTHON" ? "Python" : "TypeScript";
+}
 
 const SandboxCapabilityRow = ({
   label,
@@ -701,10 +721,10 @@ function getSandboxConfigRecord(config: unknown) {
 }
 
 /**
- * Code editor section - full height, primary element
- * Includes auto-generated type definitions as a read-only footer below the editor.
+ * Editable source-code editor with a read-only auto-generated type footer.
+ * Ships its own description line and Reset-to-default button.
  */
-const CodeEditorSection = ({
+const CodeEditor = ({
   language,
   outputShape,
   outputConfig,
@@ -734,6 +754,8 @@ const CodeEditorSection = ({
   const extensions = useMemo(
     () => [
       language === "PYTHON" ? python() : javascript({ typescript: true }),
+      // Python: 4-space indent; JS/TS: 2-space.
+      indentUnit.of(language === "PYTHON" ? "    " : "  "),
       createEvaluatorAutocompletion(evaluatorMappingSource, language),
     ],
     [language, evaluatorMappingSource]
@@ -745,7 +767,7 @@ const CodeEditorSection = ({
       : "Define an evaluate function that returns a numerical score.";
 
   return (
-    <div css={editorSectionCSS}>
+    <Flex direction="column" gap="size-100">
       {/* Editor header with reset button */}
       <Flex
         direction="row"
@@ -776,7 +798,7 @@ const CodeEditorSection = ({
           {/* Editable code editor panel */}
           <Panel defaultSize="75%" minSize="30%" style={editorPanelStyle}>
             <div
-              css={editorWrapCSS}
+              css={[editorWrapCSS, cmLineNumberGutterCSS]}
               onKeyDown={(e) => {
                 if (e.key === "Escape" || e.key === "Tab") {
                   e.stopPropagation();
@@ -810,7 +832,7 @@ const CodeEditorSection = ({
             <>
               <Separator css={compactResizeHandleCSS} />
               <Panel defaultSize="25%" minSize="10%" style={editorPanelStyle}>
-                <div css={typeFooterCSS}>
+                <div css={[typeFooterCSS, cmLineNumberGutterCSS]}>
                   <CodeMirror
                     value={typeFooter}
                     theme={codeMirrorTheme}
@@ -818,9 +840,12 @@ const CodeEditorSection = ({
                     editable={false}
                     basicSetup={{
                       lineNumbers: true,
-                      foldGutter: false,
+                      foldGutter: true,
+                      bracketMatching: true,
+                      syntaxHighlighting: true,
                       highlightActiveLine: false,
                       highlightActiveLineGutter: false,
+                      tabSize: language === "PYTHON" ? 4 : 2,
                     }}
                   />
                 </div>
@@ -829,13 +854,65 @@ const CodeEditorSection = ({
           )}
         </Group>
       </div>
-    </div>
+    </Flex>
   );
 };
 
 /**
- * Output configuration section (inside accordion)
+ * Heading + bordered card for the evaluator's output annotation config.
  */
+const EvaluatorAnnotationSection = () => {
+  return (
+    <View flex="none">
+      <Flex direction="column" gap="size-100">
+        <Heading level={2} weight="heavy">
+          Evaluator Annotation
+        </Heading>
+        <Text color="text-500">
+          Define the annotation that your evaluator will create.
+        </Text>
+        <View
+          borderRadius="medium"
+          borderWidth="thin"
+          padding="size-200"
+          marginTop="size-50"
+          borderColor="default"
+        >
+          <OutputConfigSection />
+        </View>
+      </Flex>
+    </View>
+  );
+};
+
+/**
+ * Heading + bordered card for mapping evaluator arguments to dataset fields.
+ */
+const InputMappingSection = () => {
+  return (
+    <View flex="none">
+      <Flex direction="column" gap="size-100">
+        <Heading level={2} weight="heavy">
+          Input Mapping (optional)
+        </Heading>
+        <Text color="text-500">
+          Map evaluator arguments to dataset fields. Arguments are auto-detected
+          from your code.
+        </Text>
+        <View
+          borderRadius="medium"
+          borderWidth="thin"
+          padding="size-200"
+          marginTop="size-50"
+          borderColor="default"
+        >
+          <EvaluatorInputMapping />
+        </View>
+      </Flex>
+    </View>
+  );
+};
+
 const OutputConfigSection = () => {
   const store = useEvaluatorStoreInstance();
   const outputConfig = useEvaluatorStore((state) => state.outputConfigs[0]);
@@ -868,45 +945,51 @@ const OutputConfigSection = () => {
         </Text>
       </TextField>
 
-      <Select
-        value={outputType}
-        onChange={(value) => {
-          const nextType = value as (typeof outputTypeOptions)[number]["id"];
-          store.getState().setOutputConfigs([
-            nextType === "categorical"
-              ? {
-                  name: evaluatorName,
-                  optimizationDirection: "NONE",
-                  values: [
-                    { label: "pass", score: 1 },
-                    { label: "fail", score: 0 },
-                  ],
-                }
-              : createDefaultContinuousOutputConfig(evaluatorName),
-          ]);
-        }}
-      >
-        <Label>Output type</Label>
-        <Button>
-          <SelectValue />
-          <SelectChevronUpDownIcon />
-        </Button>
-        <Text slot="description">
-          The type of output that will be created by this evaluator. Your code
-          should return a numerical score or a categorical label.
-        </Text>
-        <Popover>
-          <ListBox>
-            {outputTypeOptions.map((option) => (
-              <SelectItem key={option.id} id={option.id}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </ListBox>
-        </Popover>
-      </Select>
-
-      <OptimizationDirectionField />
+      <Flex direction="row" gap="size-200" alignItems="start">
+        <div css={fillCSS}>
+          <Select
+            value={outputType}
+            onChange={(value) => {
+              const nextType =
+                value as (typeof outputTypeOptions)[number]["id"];
+              store.getState().setOutputConfigs([
+                nextType === "categorical"
+                  ? {
+                      name: evaluatorName,
+                      optimizationDirection: "NONE",
+                      values: [
+                        { label: "pass", score: 1 },
+                        { label: "fail", score: 0 },
+                      ],
+                    }
+                  : createDefaultContinuousOutputConfig(evaluatorName),
+              ]);
+            }}
+          >
+            <Label>Output type</Label>
+            <Button>
+              <SelectValue />
+              <SelectChevronUpDownIcon />
+            </Button>
+            <Text slot="description">
+              The type of output that will be created by this evaluator. Your
+              code should return a numerical score or a categorical label.
+            </Text>
+            <Popover>
+              <ListBox>
+                {outputTypeOptions.map((option) => (
+                  <SelectItem key={option.id} id={option.id}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </ListBox>
+            </Popover>
+          </Select>
+        </div>
+        <div css={fillCSS}>
+          <OptimizationDirectionField />
+        </div>
+      </Flex>
 
       {"values" in outputConfig ? (
         <CategoricalChoicesEditor values={outputConfig.values} />
@@ -978,16 +1061,19 @@ const CategoricalChoicesEditor = ({
           </Button>
         </div>
       ))}
-      <Button
-        type="button"
-        variant="quiet"
-        size="S"
-        onPress={() =>
-          updateValues([...values, { label: "", score: undefined }])
-        }
-      >
-        + Add choice
-      </Button>
+      <Flex justifyContent="end">
+        <Button
+          type="button"
+          variant="quiet"
+          size="S"
+          leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
+          onPress={() =>
+            updateValues([...values, { label: "", score: undefined }])
+          }
+        >
+          Add choice
+        </Button>
+      </Flex>
     </Flex>
   );
 };
@@ -1080,18 +1166,12 @@ const fieldsetCSS = css`
   overflow: hidden;
 `;
 
-const headerBarCSS = css`
+const metadataFormCSS = css`
   display: flex;
   flex-direction: row;
   align-items: flex-start;
   gap: var(--global-dimension-size-150);
-  padding: var(--global-dimension-size-150) var(--global-dimension-size-200);
-  border-bottom: 1px solid var(--global-border-color-default);
   flex-shrink: 0;
-`;
-
-const headerFieldCSS = css`
-  /* Ensure fields don't wrap */
 `;
 
 const panelStyle = {
@@ -1110,14 +1190,8 @@ const editorPanelCSS = css`
   padding: var(--global-dimension-size-150);
   padding-top: var(--global-dimension-size-100);
   box-sizing: border-box;
-`;
-
-const editorSectionCSS = css`
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  gap: var(--global-dimension-size-100);
+  overflow-y: auto;
+  gap: var(--global-dimension-size-150);
 `;
 
 const sidebarPanelCSS = css`
@@ -1138,8 +1212,7 @@ const accordionContentCSS = css`
 const editorContainerCSS = css`
   display: flex;
   flex-direction: column;
-  flex: 1;
-  min-height: 0;
+  min-height: 500px;
   border: 1px solid var(--global-border-color-default);
   border-radius: var(--global-rounding-medium);
   overflow: hidden;
@@ -1152,6 +1225,13 @@ const editorPanelStyle = {
   minHeight: 0,
   overflow: "hidden" as const,
 };
+
+const cmLineNumberGutterCSS = css`
+  & .cm-gutter.cm-lineNumbers .cm-gutterElement {
+    min-width: 2.25em;
+    box-sizing: border-box;
+  }
+`;
 
 const editorWrapCSS = css`
   flex: 1;
@@ -1203,4 +1283,9 @@ const choiceGridCSS = css`
   grid-template-columns: 1fr 100px 32px;
   gap: var(--global-dimension-size-50);
   align-items: center;
+`;
+
+const fillCSS = css`
+  flex: 1 1 0;
+  min-width: 0;
 `;

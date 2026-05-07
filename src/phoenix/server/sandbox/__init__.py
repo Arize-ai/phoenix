@@ -8,7 +8,14 @@ Two tiers:
 - _SANDBOX_ADAPTERS: populated only for installed backends. Maps backend_type
   key to a SandboxAdapter instance. Used for get_or_create_backend().
 
-Importing WASMBackend requires wasmtime — guarded by try/except ImportError.
+Adapter modules with optional SDK extras (wasmtime, e2b, daytona, vercel,
+modal) keep their SDK imports lazy so the modules remain importable in test
+environments where the extra is absent. Availability is gated at registration
+time by ``Adapter.probe_dependencies()``: each adapter overrides the classmethod
+to import its SDK; the registration block below wraps adapter import + probe +
+register in a single ``try/except ImportError``. A missing extra → adapter
+absent from ``_SANDBOX_ADAPTERS`` → status resolver maps to ``NOT_INSTALLED``
+(surfacing the adapter's dependency hints in the UI).
 """
 
 from __future__ import annotations
@@ -665,49 +672,80 @@ async def get_or_create_backend(
 
 
 # ---------------------------------------------------------------------------
-# Register built-in adapters (guarded by try/except for optional deps).
+# Register built-in adapters (guarded by per-adapter probe for optional deps).
+#
+# _KNOWN_ADAPTER_CLASSES tracks every adapter class whose module imports
+# successfully — *regardless* of whether its SDK probe passes. The
+# reserved-credential-name set is derived from this list (not from
+# _SANDBOX_ADAPTERS), so adapter-declared credential keys (e.g.
+# PHOENIX_SANDBOX_VERCEL_TOKEN) remain reserved on installs that don't have
+# the optional SDK. Without this, a missing optional extra would silently
+# narrow the reserved set and let a user-supplied env_var or secret_ref
+# shadow a provider credential name.
 # ---------------------------------------------------------------------------
+
+_KNOWN_ADAPTER_CLASSES: list[type[SandboxAdapter]] = []
+
+
+def _try_register_adapter(adapter_cls: type[SandboxAdapter]) -> bool:
+    """Track an adapter class and register an instance if the SDK probe passes.
+
+    Returns True if registration succeeded, False if the SDK probe raised
+    ImportError. The class is appended to _KNOWN_ADAPTER_CLASSES in either
+    case so reserved-name derivation reflects all adapters.
+    """
+    _KNOWN_ADAPTER_CLASSES.append(adapter_cls)
+    try:
+        adapter_cls.probe_dependencies()
+    except ImportError:
+        return False
+    register_sandbox_adapter(adapter_cls())
+    return True
+
 
 try:
     from phoenix.server.sandbox.wasm_backend import WASMAdapter
 
-    register_sandbox_adapter(WASMAdapter())
+    _try_register_adapter(WASMAdapter)
 except ImportError:
     pass
 
 try:
     from phoenix.server.sandbox.e2b_backend import E2BAdapter
 
-    register_sandbox_adapter(E2BAdapter())
+    _try_register_adapter(E2BAdapter)
 except ImportError:
     pass
 
 try:
     from phoenix.server.sandbox.daytona_backend import DaytonaPythonAdapter
 
-    register_sandbox_adapter(DaytonaPythonAdapter())
+    _try_register_adapter(DaytonaPythonAdapter)
 except ImportError:
     pass
 
 try:
     from phoenix.server.sandbox.vercel_backend import VercelPythonAdapter, VercelTypescriptAdapter
 
-    register_sandbox_adapter(VercelPythonAdapter())
-    register_sandbox_adapter(VercelTypescriptAdapter())
+    # Both Vercel adapters share the same SDK (vercel.sandbox); the shared
+    # probe runs once per call but Python's import cache makes the second
+    # call effectively free.
+    _try_register_adapter(VercelPythonAdapter)
+    _try_register_adapter(VercelTypescriptAdapter)
 except ImportError:
     pass
 
 try:
     from phoenix.server.sandbox.deno_backend import DenoAdapter
 
-    register_sandbox_adapter(DenoAdapter())
+    _try_register_adapter(DenoAdapter)
 except ImportError:
     pass
 
 try:
     from phoenix.server.sandbox.modal_backend import ModalAdapter
 
-    register_sandbox_adapter(ModalAdapter())
+    _try_register_adapter(ModalAdapter)
 except ImportError:
     pass
 
@@ -744,16 +782,21 @@ _PHOENIX_RESERVED_CREDENTIAL_ONLY_KEYS: frozenset[str] = frozenset(
 def _build_reserved_credential_names() -> frozenset[str]:
     """Compute the current set of reserved credential names (case-insensitive).
 
-    Resolved on every call because ``_SANDBOX_ADAPTERS`` is populated lazily
-    by ``register_sandbox_adapter`` as optional extras import. Caching the
-    result at module load would freeze a snapshot taken before any adapter
-    registers — leaving every adapter-declared key (e.g.
-    ``PHOENIX_SANDBOX_VERCEL_TOKEN``) absent from the reserved set and
-    silently accepted as a user-supplied env_var or secret_ref.
+    Resolved on every call so that adapter classes added late (e.g. by tests
+    or downstream extensions) participate.
+
+    Walks ``_KNOWN_ADAPTER_CLASSES`` (every adapter whose module imports),
+    NOT ``_SANDBOX_ADAPTERS`` (only adapters whose SDK probe passed). The
+    distinction matters: an installation without the ``vercel`` extra has
+    ``VercelPythonAdapter`` in _KNOWN_ADAPTER_CLASSES but not in
+    _SANDBOX_ADAPTERS, and ``PHOENIX_SANDBOX_VERCEL_TOKEN`` MUST remain
+    reserved regardless of whether the SDK is installed — otherwise a
+    user-supplied env_var or secret_ref on that name could shadow the
+    provider credential the moment the SDK is later installed.
     """
     names: set[str] = {key.lower() for key in _PHOENIX_RESERVED_CREDENTIAL_ONLY_KEYS}
-    for adapter in _SANDBOX_ADAPTERS.values():
-        for spec in adapter.credential_specs:
+    for adapter_cls in _KNOWN_ADAPTER_CLASSES:
+        for spec in adapter_cls.credential_specs:
             names.add(spec.key.lower())
     return frozenset(names)
 

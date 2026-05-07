@@ -2,10 +2,9 @@ import { useMemo } from "react";
 
 import {
   Button,
-  ComboBox,
-  ComboBoxItem,
   Flex,
   Label,
+  Link,
   ListBox,
   Popover,
   Select,
@@ -15,6 +14,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
+import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
 
@@ -58,8 +58,18 @@ export const CodeEvaluatorLanguageField = ({
       </Button>
       <Popover>
         <ListBox>
-          <SelectItem id="PYTHON">Python</SelectItem>
-          <SelectItem id="TYPESCRIPT">TypeScript</SelectItem>
+          <SelectItem id="PYTHON" textValue="Python">
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <PythonSVG />
+              <Text>Python</Text>
+            </Flex>
+          </SelectItem>
+          <SelectItem id="TYPESCRIPT" textValue="TypeScript">
+            <Flex direction="row" gap="size-100" alignItems="center">
+              <TypeScriptSVG />
+              <Text>TypeScript</Text>
+            </Flex>
+          </SelectItem>
         </ListBox>
       </Popover>
     </Select>
@@ -90,7 +100,7 @@ export const CodeEvaluatorSandboxField = ({
   language,
   selectedSandboxConfigId,
   onSelectionChange,
-  size = "L",
+  size = "M",
   showHelperText = false,
 }: CodeEvaluatorSandboxFieldProps) => {
   // Filter configs to only show those matching the current language
@@ -113,7 +123,8 @@ export const CodeEvaluatorSandboxField = ({
       <Flex direction="column" gap="size-50">
         <Label>Sandbox</Label>
         <Text color="text-500" size="S">
-          No sandbox providers enabled. Configure in Settings.
+          No sandbox providers enabled.{" "}
+          <Link to="/settings/sandboxes">Configure in Settings</Link>.
         </Text>
       </Flex>
     );
@@ -121,58 +132,44 @@ export const CodeEvaluatorSandboxField = ({
 
   return (
     <View>
-      <ComboBox
-        label="Sandbox"
+      <Select
         size={size}
-        placeholder={
-          compatibleConfigs.length > 0 ? "Select..." : "None available"
-        }
         selectedKey={validSelectedId != null ? String(validSelectedId) : null}
         onSelectionChange={(key) => {
-          if (typeof key === "string") {
-            onSelectionChange(key);
-          } else {
-            onSelectionChange(null);
-          }
+          onSelectionChange(typeof key === "string" ? key : null);
         }}
-        defaultItems={compatibleConfigs}
-        menuTrigger="focus"
         isDisabled={compatibleConfigs.length === 0}
-        renderEmptyState={() => (
-          <View padding="size-100">
-            <Text color="text-500" size="S">
-              No configs for {language === "PYTHON" ? "Python" : "TypeScript"}
-            </Text>
-          </View>
-        )}
+        placeholder={
+          compatibleConfigs.length > 0
+            ? "Select a sandbox..."
+            : "None available"
+        }
       >
-        {(item) => (
-          <ComboBoxItem
-            id={String(item.id)}
-            key={item.id}
-            textValue={item.name}
-          >
-            <Flex direction="row" gap="size-100" alignItems="center">
-              <SandboxProviderIcon
-                backendType={item.providerBackendType}
-                height={18}
-              />
-              <Flex direction="column" gap="size-25">
-                <Text>{item.name}</Text>
-                {item.description ? (
-                  <Text color="text-700" size="XS">
-                    {item.description}
-                  </Text>
-                ) : (
-                  <Text color="text-700" size="XS">
-                    {item.providerLabel}
-                  </Text>
-                )}
-              </Flex>
-            </Flex>
-          </ComboBoxItem>
-        )}
-      </ComboBox>
+        <Label>Sandbox</Label>
+        <Button>
+          <SelectValue />
+          <SelectChevronUpDownIcon />
+        </Button>
+        <Popover>
+          <ListBox items={compatibleConfigs}>
+            {(item) => (
+              <SelectItem
+                id={String(item.id)}
+                key={item.id}
+                textValue={item.name}
+              >
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <SandboxProviderIcon
+                    backendType={item.providerBackendType}
+                    height={18}
+                  />
+                  <Text>{item.name}</Text>
+                </Flex>
+              </SelectItem>
+            )}
+          </ListBox>
+        </Popover>
+      </Select>
       {showHelperText && (
         <Text color="text-500" size="S">
           Code evaluators run in a sandbox. Configure reusable sandbox configs
