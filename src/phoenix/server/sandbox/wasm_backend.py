@@ -7,7 +7,12 @@ Executes Python code locally via a CPython 3.12 WebAssembly binary using the
 The WASM binary is downloaded on first use via _download.ensure_wasm_binary().
 Execution runs in a thread pool to avoid blocking the event loop.
 
-Requires the ``wasmtime`` package (optional extra).
+Requires the ``wasmtime`` package (optional extra). Runtime imports are lazy
+inside ``_run_wasm`` and ``_get_engine_and_module`` so the module remains
+importable when the extra is absent (test environments mock or skip). Adapter
+availability is gated by ``WASMAdapter.probe_dependencies`` at registration
+time, which surfaces a missing extra as ``status=NOT_INSTALLED`` instead of a
+runtime error during evaluation.
 """
 
 from __future__ import annotations
@@ -171,6 +176,11 @@ class WASMAdapter(SandboxAdapter):
     display_name = "WebAssembly (local)"
     language = "PYTHON"
     config_model = WASMConfig
+
+    @classmethod
+    def probe_dependencies(cls) -> None:
+        """Verify ``wasmtime`` is installed; ImportError surfaces NOT_INSTALLED."""
+        import wasmtime  # noqa: F401
 
     def build_backend(
         self,

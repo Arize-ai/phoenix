@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c349a1dea86cc1043fe770959eb3e074>>
+ * @generated SignedSource<<42d71676ec7446484f8148b61a69f9dc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -262,6 +262,51 @@ return {
                             }
                           ],
                           "type": "LLMEvaluator",
+                          "abstractKey": null
+                        },
+                        {
+                          "kind": "InlineFragment",
+                          "selections": [
+                            {
+                              "alias": null,
+                              "args": null,
+                              "kind": "ScalarField",
+                              "name": "language",
+                              "storageKey": null
+                            },
+                            {
+                              "alias": null,
+                              "args": null,
+                              "concreteType": "SandboxConfig",
+                              "kind": "LinkedField",
+                              "name": "sandboxConfig",
+                              "plural": false,
+                              "selections": [
+                                (v1/*: any*/),
+                                (v2/*: any*/),
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "concreteType": "SandboxProvider",
+                                  "kind": "LinkedField",
+                                  "name": "provider",
+                                  "plural": false,
+                                  "selections": [
+                                    {
+                                      "alias": null,
+                                      "args": null,
+                                      "kind": "ScalarField",
+                                      "name": "backendType",
+                                      "storageKey": null
+                                    }
+                                  ],
+                                  "storageKey": null
+                                }
+                              ],
+                              "storageKey": null
+                            }
+                          ],
+                          "type": "CodeEvaluator",
                           "abstractKey": null
                         }
                       ],

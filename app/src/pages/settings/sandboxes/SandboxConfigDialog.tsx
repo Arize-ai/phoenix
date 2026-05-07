@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { Suspense, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 
@@ -60,6 +60,7 @@ import type {
 import { DEFAULT_SANDBOX_TIMEOUT_SECONDS } from "./types";
 import {
   formValuesToConfigPatch,
+  getDependencyPreview,
   LanguageWithIcon,
   shouldShowLocalDenoTrustWarning,
 } from "./utils";
@@ -144,6 +145,21 @@ type SandboxConfigDialogContentProps = (
 ) & { onClose: () => void };
 
 const NOT_SUPPORTED_COPY = "Not supported by the selected backend.";
+
+// Shared flex sizing for env-var row inputs so the Name and source fields
+// share remaining space evenly. This prevents column widths from shifting
+// when the user toggles between literal "value" and "secret_ref" kinds.
+const envVarFieldFillCSS = css`
+  flex: 1;
+  min-width: 0;
+`;
+
+// Stable min-width for the Kind selector so the row doesn't shift laterally
+// when the user toggles between "Value" and "Secret" (the two labels have
+// different lengths). Sized to fit the longer label plus dropdown chevron.
+const envVarKindFieldCSS = css`
+  min-width: 7rem;
+`;
 
 function defaultConfigName(provider: ProviderRow): string {
   return getIdentifier(provider.backend.displayName);
@@ -488,7 +504,12 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                   <Input />
                   {fieldState.error ? (
                     <FieldError>{fieldState.error.message}</FieldError>
-                  ) : null}
+                  ) : (
+                    <Text slot="description" size="S" color="text-700">
+                      Total time allowed for sandbox setup and execution.
+                      Defaults to 300s.
+                    </Text>
+                  )}
                 </NumberField>
               )}
             />
@@ -554,25 +575,39 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
               <Controller
                 name="dependenciesText"
                 control={form.control}
-                render={({ field }) => (
-                  <TextField {...field}>
-                    <Label>
-                      {activeBackend.dependenciesLanguage === "PYTHON"
-                        ? "Python Packages"
-                        : "npm Packages"}
-                    </Label>
-                    <TextArea
-                      placeholder={
-                        activeBackend.dependenciesLanguage === "PYTHON"
-                          ? "requests\nnumpy==1.26.0"
-                          : "@types/node\nlodash"
-                      }
-                    />
-                    <Text slot="description" size="S" color="text-700">
-                      One package per line. Installed before code execution.
-                    </Text>
-                  </TextField>
-                )}
+                render={({ field }) => {
+                  const preview = getDependencyPreview({
+                    packagesText: field.value,
+                    dependenciesLanguage: activeBackend.dependenciesLanguage,
+                    backendType: activeBackend.backendType,
+                  });
+                  return (
+                    <Flex direction="column" gap="size-50">
+                      <TextField {...field}>
+                        <Label>
+                          {activeBackend.dependenciesLanguage === "PYTHON"
+                            ? "Python Packages"
+                            : "npm Packages"}
+                        </Label>
+                        <TextArea
+                          placeholder={
+                            activeBackend.dependenciesLanguage === "PYTHON"
+                              ? "requests\nnumpy==1.26.0"
+                              : "@types/node\nlodash"
+                          }
+                        />
+                        <Text slot="description" size="S" color="text-700">
+                          One package per line. Installed before code execution.
+                        </Text>
+                      </TextField>
+                      {preview ? (
+                        <Text size="S" color="text-700">
+                          Preview: <code>{preview}</code>
+                        </Text>
+                      ) : null}
+                    </Flex>
+                  );
+                }}
               />
             ) : activeBackend != null ? (
               <Flex direction="column" gap="size-100">
@@ -615,34 +650,27 @@ function EnvVarRow({
     control: form.control,
     name: `envVars.${index}.kind`,
   });
+  // Track the previously selected secret key so the secret-ref → name
+  // auto-populate guard can tell whether the current Name was implicitly
+  // taken from the prior secret key (and is therefore safe to overwrite).
+  // Initialized once per row from the loaded form value.
+  const previousSecretKeyRef = useRef<string>(
+    form.getValues(`envVars.${index}.secret_key`) ?? ""
+  );
 
-  return (
-    <Flex gap="size-100" alignItems="end">
+  const kindField = (
+    <div css={envVarKindFieldCSS}>
       <Controller
         name={`envVars.${index}.kind`}
         control={form.control}
         render={({ field }) => (
-          // <RadioGroup
-          //   value={field.value}
-          //   onChange={(val) => {
-          //     field.onChange(val);
-          //     if (val === "secret_ref") {
-          //       form.setValue(`envVars.${index}.value`, "");
-          //     } else {
-          //       form.setValue(`envVars.${index}.secret_key`, "");
-          //     }
-          //   }}
-          //   orientation="horizontal"
-          // >
-          //   <Radio value="literal">Value</Radio>
-          //   <Radio value="secret_ref">Secret</Radio>
-          // </RadioGroup>
           <Select
             {...field}
             onChange={(v) => {
               field.onChange(v);
               if (v === "literal") {
                 form.setValue(`envVars.${index}.secret_key`, "");
+                previousSecretKeyRef.current = "";
               }
               if (v === "secret_ref") {
                 form.setValue(`envVars.${index}.value`, "");
@@ -663,6 +691,10 @@ function EnvVarRow({
           </Select>
         )}
       />
+    </div>
+  );
+  const nameField = (
+    <div css={envVarFieldFillCSS}>
       <Controller
         name={`envVars.${index}.name`}
         control={form.control}
@@ -677,13 +709,56 @@ function EnvVarRow({
           </TextField>
         )}
       />
-      {kind === "secret_ref" ? (
-        <Suspense
-          fallback={<SecretKeyInputFallback index={index} form={form} />}
-        >
-          <SecretKeyComboBox index={index} form={form} />
-        </Suspense>
-      ) : (
+    </div>
+  );
+  const removeButton = (
+    <Button
+      size="M"
+      variant="quiet"
+      aria-label="Remove variable"
+      leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+      onPress={onRemove}
+    />
+  );
+
+  if (kind === "secret_ref") {
+    const handleSecretKeySelected = (newKey: string) => {
+      const currentName = form.getValues(`envVars.${index}.name`) ?? "";
+      const previousKey = previousSecretKeyRef.current;
+      const shouldAutoPopulate =
+        currentName === "" || currentName === previousKey;
+      // Update the ref BEFORE setValue so listeners that re-read the row
+      // observe a consistent prior-key value.
+      previousSecretKeyRef.current = newKey;
+      if (shouldAutoPopulate) {
+        form.setValue(`envVars.${index}.name`, newKey);
+      }
+    };
+    return (
+      <Flex gap="size-100" alignItems="end">
+        {kindField}
+        {nameField}
+        <div css={envVarFieldFillCSS}>
+          <Suspense
+            fallback={<SecretKeyInputFallback index={index} form={form} />}
+          >
+            <SecretKeyComboBox
+              index={index}
+              form={form}
+              onSecretKeySelected={handleSecretKeySelected}
+            />
+          </Suspense>
+        </div>
+        {removeButton}
+      </Flex>
+    );
+  }
+
+  return (
+    <Flex gap="size-100" alignItems="end">
+      {kindField}
+      {nameField}
+      <div css={envVarFieldFillCSS}>
         <Controller
           name={`envVars.${index}.value`}
           control={form.control}
@@ -694,14 +769,8 @@ function EnvVarRow({
             </TextField>
           )}
         />
-      )}
-      <Button
-        size="M"
-        variant="quiet"
-        aria-label="Remove variable"
-        leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
-        onPress={onRemove}
-      />
+      </div>
+      {removeButton}
     </Flex>
   );
 }
@@ -719,7 +788,7 @@ function SecretKeyInputFallback({
       control={form.control}
       render={({ field }) => (
         <TextField {...field}>
-          <Label>Secret Key</Label>
+          <Label>Secret</Label>
           <Input placeholder="Loading..." />
         </TextField>
       )}
@@ -730,9 +799,11 @@ function SecretKeyInputFallback({
 function SecretKeyComboBox({
   index,
   form,
+  onSecretKeySelected,
 }: {
   index: number;
   form: ReturnType<typeof useForm<SandboxConfigFormValues>>;
+  onSecretKeySelected?: (newKey: string) => void;
 }) {
   const data = useLazyLoadQuery<SandboxConfigDialogSecretsQuery>(
     graphql`
@@ -758,15 +829,21 @@ function SecretKeyComboBox({
     <Controller
       name={`envVars.${index}.secret_key`}
       control={form.control}
-      rules={{ required: "Secret key is required" }}
+      rules={{ required: "Secret is required" }}
       render={({ field, fieldState }) => (
         <ComboBox
-          label="Secret Key"
+          label="Secret"
           placeholder="Select a secret"
+          // Phoenix's ComboBox size scale is offset from TextField's: ComboBox
+          // "L" matches TextField "M" (both → --global-input-height-m). Use "L"
+          // so this picker visually aligns with the sibling Name TextField.
           size="L"
           selectedKey={field.value || null}
           onSelectionChange={(key) => {
-            if (typeof key === "string") field.onChange(key);
+            if (typeof key === "string") {
+              field.onChange(key);
+              onSecretKeySelected?.(key);
+            }
           }}
           onBlur={field.onBlur}
           isInvalid={fieldState.invalid}
