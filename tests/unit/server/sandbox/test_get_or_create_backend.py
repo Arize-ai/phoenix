@@ -43,6 +43,7 @@ def _identity_decrypt(data: bytes) -> bytes:
 def _make_adapter(received: dict[str, Any], cred_key: str = "CRED_X") -> SandboxAdapter:
     class _StubAdapter(SandboxAdapter):
         key = "STUB"
+        family = "WASM"  # any canonical family — gate doesn't filter for these tests
         display_name = "Stub"
         language = "PYTHON"
         config_model = _StubConfig
@@ -232,6 +233,20 @@ class TestGetOrCreateBackendCache:
     async def test_unregistered_backend_returns_none(self) -> None:
         result = await get_or_create_backend("NONEXISTENT", config={}, session=None, decrypt=None)
         assert result is None
+
+    @pytest.mark.asyncio
+    async def test_disallowed_backend_returns_none_without_building(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        received: dict[str, Any] = {}
+        adapter = _make_adapter(received, "CRED_X")
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "NONE")
+
+        with patch.dict(_SANDBOX_ADAPTERS, {"STUB": adapter}):
+            result = await get_or_create_backend("STUB", config={}, session=None, decrypt=None)
+
+        assert result is None
+        assert received == {}
 
 
 class TestProviderMergeSSRFBlocked:

@@ -904,6 +904,7 @@ class TestPhase1WrapperInputShape:
 
         class _Adapter(SandboxAdapter):
             key = backend_type
+            family = "WASM"  # any canonical family — gate doesn't filter here
             display_name = "Wrapper Input Test Backend"
             language = "PYTHON"
             credential_specs = [

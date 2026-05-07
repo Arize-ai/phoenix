@@ -85,6 +85,8 @@ class _CapturingAdapter(SandboxAdapter):
         credential_specs: list[ProviderCredentialSpec],
     ) -> None:
         self.key = key
+        # Any canonical family — gate doesn't filter for these tests.
+        self.family = "WASM"
         self.display_name = f"Capturing {key}"
         self.language = "PYTHON"
         self.credential_specs = credential_specs

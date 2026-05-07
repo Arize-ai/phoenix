@@ -161,6 +161,7 @@ class ModalSandboxBackend(SandboxBackend):
 
 class ModalAdapter(SandboxAdapter):
     key = "MODAL"
+    family = "MODAL"
     display_name = "Modal"
     language = "PYTHON"
     config_model = ModalConfig

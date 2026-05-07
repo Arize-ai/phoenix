@@ -35,6 +35,7 @@ from phoenix.utilities.re import parse_env_headers
 
 if TYPE_CHECKING:
     from phoenix.server.oauth2 import OAuth2Clients
+    from phoenix.server.sandbox.types import SandboxProviderFamily
 
 # Assignable roles (SYSTEM is internal-only and not included)
 AssignableUserRoleName: TypeAlias = Literal["ADMIN", "MEMBER", "VIEWER"]
@@ -778,6 +779,14 @@ The default sandbox backend type to use for code evaluator execution.
 Accepted values: WASM, E2B, DAYTONA_PYTHON, VERCEL_PYTHON, VERCEL_TYPESCRIPT, DENO, MODAL.
 When not set, the WASM (local WebAssembly) backend is used.
 """
+ENV_PHOENIX_ALLOWED_SANDBOX_PROVIDERS = "PHOENIX_ALLOWED_SANDBOX_PROVIDERS"
+"""
+A comma-separated list of sandbox provider families to allow.
+Accepted values: WASM, E2B, DAYTONA, VERCEL, DENO, MODAL.
+Listing a family allows all of its language variants. Case-insensitive.
+When not set, all providers are allowed. To disable all sandbox providers, set to NONE.
+Example: PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO
+"""
 
 
 @dataclass(frozen=True)
@@ -1196,6 +1205,47 @@ def validate_env_allowed_providers() -> None:
             f"PHOENIX_ALLOWED_PROVIDERS contains unrecognized provider names: "
             f"{', '.join(sorted(invalid))}. "
             f"Valid names are: {', '.join(sorted(valid_names))}"
+        )
+
+
+def get_env_allowed_sandbox_providers() -> frozenset[SandboxProviderFamily]:
+    """Effective set of allowed sandbox provider family names.
+
+    - Unset → ``SANDBOX_PROVIDER_FAMILIES`` (all families allowed).
+    - Parsed tokens include ``NONE`` → empty frozenset (kill switch; other
+      tokens in the same value are not applied).
+    - Otherwise → frozenset of stripped, uppercased comma-separated tokens.
+
+    The concrete return value is always a ``frozenset``. It is annotated
+    as ``frozenset[SandboxProviderFamily]`` because callers only need
+    membership tests against the closed family set; the parsed branch uses
+    ``typing.cast`` since parsing alone would infer ``frozenset[str]``.
+    ``validate_env_allowed_sandbox_providers`` runs at startup and rejects
+    unknown names before the server reads this setting for allowlisting.
+    """
+    from phoenix.server.sandbox.types import SANDBOX_PROVIDER_FAMILIES
+
+    raw = getenv(ENV_PHOENIX_ALLOWED_SANDBOX_PROVIDERS)
+    if not raw:
+        return SANDBOX_PROVIDER_FAMILIES
+    names = frozenset(name.strip().upper() for name in raw.split(",") if name.strip())
+    if "NONE" in names:
+        return frozenset()
+    return cast("frozenset[SandboxProviderFamily]", names)
+
+
+def validate_env_allowed_sandbox_providers() -> None:
+    """Raise ValueError if PHOENIX_ALLOWED_SANDBOX_PROVIDERS contains unknown
+    family names. Called at startup so typos fail fast rather than silently
+    locking out every provider.
+    """
+    from phoenix.server.sandbox.types import SANDBOX_PROVIDER_FAMILIES
+
+    if names := get_env_allowed_sandbox_providers() - SANDBOX_PROVIDER_FAMILIES:
+        raise ValueError(
+            f"PHOENIX_ALLOWED_SANDBOX_PROVIDERS contains unrecognized family names: "
+            f"{', '.join(sorted(names))}. "
+            f"Valid names are: {', '.join(sorted(SANDBOX_PROVIDER_FAMILIES))}"
         )
 
 
@@ -3341,6 +3391,7 @@ def verify_server_environment_variables() -> None:
     get_env_max_spans_queue_size()
     validate_env_support_email()
     validate_env_allowed_providers()
+    validate_env_allowed_sandbox_providers()
 
     # Notify users about deprecated environment variables if they are being used.
     if os.getenv("PHOENIX_ENABLE_WEBSOCKETS") is not None:

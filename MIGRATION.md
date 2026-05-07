@@ -1,5 +1,21 @@
 # Migrations
 
+## v15.x to v16.0.0
+
+### Sandbox provider allowlist (`PHOENIX_ALLOWED_SANDBOX_PROVIDERS`)
+
+A new optional environment variable, `PHOENIX_ALLOWED_SANDBOX_PROVIDERS`, restricts which sandbox provider families are available for code-evaluator execution. 
+
+*When unset, all providers remain available. Set to `NONE` to disable all sandbox providers.*
+
+To restrict the set of usable sandboxes, set the variable to a comma-separated list of family names:
+
+```shell
+PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO
+```
+
+Accepted values: `WASM`, `E2B`, `DAYTONA`, `VERCEL`, `DENO`, `MODAL` (case-insensitive). Listing a family covers all of its language variants — for example, `VERCEL` covers both `VERCEL_PYTHON` and `VERCEL_TYPESCRIPT`.
+
 ## v14.x to v15.0.0
 
 No action is required to upgrade from v14.x to v15.0.0.
