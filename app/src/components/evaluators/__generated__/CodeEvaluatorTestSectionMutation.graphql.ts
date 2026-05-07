@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d589612e4782ee646f647d49093c152a>>
+ * @generated SignedSource<<3f7c10b01f4cbf2c4919e0cce2fc188a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -77,10 +77,11 @@ export type ToolResultContentValueInput = {
 export type PromptToolsInput = {
   disableParallelToolCalls?: boolean | null;
   toolChoice?: PromptToolChoiceInput | null;
-  tools: ReadonlyArray<PromptToolFunctionInput>;
+  tools: ReadonlyArray<PromptToolInput>;
 };
-export type PromptToolFunctionInput = {
-  function: PromptToolFunctionDefinitionInput;
+export type PromptToolInput = {
+  function?: PromptToolFunctionDefinitionInput | null;
+  raw?: any | null;
 };
 export type PromptToolFunctionDefinitionInput = {
   description?: string | null;
