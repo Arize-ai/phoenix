@@ -23,24 +23,43 @@ test.describe("Settings Sandboxes", () => {
       const dialog = page.getByRole("dialog");
       await expect(dialog).toBeVisible();
 
-      // Select WASM provider
-      await dialog.getByLabel("Provider").fill("WebAssembly");
+      // Select WASM provider. Two elements expose the "Provider" name (the
+      // ComboBox input and the disclosure button), so anchor on role.
+      await dialog
+        .getByRole("combobox", { name: "Provider" })
+        .fill("WebAssembly");
       await page
         .getByRole("option", { name: /WebAssembly/i })
         .first()
         .click();
 
-      // WASM does not support env vars — section must not be visible
-      await expect(dialog.getByText("Environment Variables")).not.toBeVisible();
+      // For unsupported capabilities, the dialog renders the section
+      // heading plus a "Not supported by the selected backend." copy
+      // instead of the editor. Assert the interactive controls are gone
+      // and the not-supported copy appears once per disabled section.
 
-      // WASM internet_access is NONE — toggle must not be visible
+      // Env vars: Add Variable button is the only interactive control;
+      // it must not be present for WASM (supportsEnvVars=false).
+      await expect(
+        dialog.getByRole("button", { name: "Add Variable" })
+      ).not.toBeVisible();
+
+      // Internet access: WASM internet_access is NONE — toggle must not
+      // be visible.
       await expect(
         dialog.getByLabel("Allow Internet Access")
       ).not.toBeVisible();
 
-      // WASM has no dependenciesLanguage — packages editor must not be visible
-      await expect(dialog.getByText("Python Packages")).not.toBeVisible();
-      await expect(dialog.getByText("npm Packages")).not.toBeVisible();
+      // Dependencies: WASM has no dependenciesLanguage — neither package
+      // editor label should be visible.
+      await expect(dialog.getByLabel("Python Packages")).not.toBeVisible();
+      await expect(dialog.getByLabel("npm Packages")).not.toBeVisible();
+
+      // The three disabled-capability sections each render the same
+      // "Not supported by the selected backend." copy.
+      await expect(
+        dialog.getByText("Not supported by the selected backend.")
+      ).toHaveCount(3);
 
       // Close dialog
       await dialog.getByRole("button", { name: /cancel/i }).click();
@@ -56,11 +75,16 @@ test.describe("Settings Sandboxes", () => {
       await expect(dialog).toBeVisible();
 
       // Select E2B provider
-      await dialog.getByLabel("Provider").fill("E2B");
+      await dialog.getByRole("combobox", { name: "Provider" }).fill("E2B");
       await page.getByRole("option", { name: /E2B/i }).first().click();
 
-      // E2B supports env vars — section must be visible
-      await expect(dialog.getByText("Environment Variables")).toBeVisible();
+      // E2B supports env vars — section heading must be visible. Use
+      // exact match so the empty-state copy "No environment variables
+      // configured." (case-insensitive substring of the heading) does
+      // not also resolve.
+      await expect(
+        dialog.getByText("Environment Variables", { exact: true })
+      ).toBeVisible();
 
       // Add a literal env var
       await dialog.getByRole("button", { name: "Add Variable" }).click();
@@ -84,8 +108,14 @@ test.describe("Settings Sandboxes", () => {
 
       await expect(dialog).not.toBeVisible();
 
-      // Verify the config appears in the table
-      await expect(page.getByRole("cell", { name: configName })).toBeVisible();
+      // Verify the config appears in the table. The configName text is
+      // exposed in two cells of the same row — the Name cell ("<name>
+      // No") and the Actions cell (whose accessible name aggregates
+      // the "Edit <name>" / "Delete <name>" button labels) — so anchor
+      // on the first match.
+      await expect(
+        page.getByRole("cell", { name: configName }).first()
+      ).toBeVisible();
     });
 
     test("saved E2B config with env vars round-trips through page reload", async ({
@@ -107,8 +137,11 @@ test.describe("Settings Sandboxes", () => {
       const dialog = page.getByRole("dialog");
       await expect(dialog).toBeVisible();
 
-      // Env vars editor should appear (E2B supports env vars)
-      await expect(dialog.getByText("Environment Variables")).toBeVisible();
+      // Env vars editor should appear (E2B supports env vars). Use exact
+      // match so the empty-state copy doesn't also resolve.
+      await expect(
+        dialog.getByText("Environment Variables", { exact: true })
+      ).toBeVisible();
 
       // The literal env var we saved should be shown
       await expect(dialog.locator('input[value="MY_TEST_VAR"]')).toBeVisible();
