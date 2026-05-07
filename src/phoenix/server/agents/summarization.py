@@ -71,12 +71,18 @@ async def summarize_messages(
     final_request = ModelRequest(
         parts=[UserPromptPart(content="Summarize this conversation.")],
     )
-    response = await model.request(
-        [*messages, final_request],
-        model_settings=None,
-        model_request_parameters=request_params,
-    )
+    try:
+        response = await model.request(
+            [*messages, final_request],
+            model_settings=None,
+            model_request_parameters=request_params,
+        )
+    except Exception as exc:
+        raise SummarizationError(str(exc)) from exc
     for part in response.parts:
         if isinstance(part, ToolCallPart) and part.tool_name == SUMMARY_TOOL_NAME:
-            return Summary.model_validate(part.args_as_dict())
+            try:
+                return Summary.model_validate(part.args_as_dict())
+            except Exception as exc:
+                raise SummarizationError(f"invalid summary tool arguments: {exc}") from exc
     raise SummarizationError("model did not call the summary tool")
