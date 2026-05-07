@@ -33,17 +33,33 @@ test.describe("Settings Sandboxes", () => {
         .first()
         .click();
 
-      // WASM does not support env vars — section must not be visible
-      await expect(dialog.getByText("Environment Variables")).not.toBeVisible();
+      // For unsupported capabilities, the dialog renders the section
+      // heading plus a "Not supported by the selected backend." copy
+      // instead of the editor. Assert the interactive controls are gone
+      // and the not-supported copy appears once per disabled section.
 
-      // WASM internet_access is NONE — toggle must not be visible
+      // Env vars: Add Variable button is the only interactive control;
+      // it must not be present for WASM (supportsEnvVars=false).
+      await expect(
+        dialog.getByRole("button", { name: "Add Variable" })
+      ).not.toBeVisible();
+
+      // Internet access: WASM internet_access is NONE — toggle must not
+      // be visible.
       await expect(
         dialog.getByLabel("Allow Internet Access")
       ).not.toBeVisible();
 
-      // WASM has no dependenciesLanguage — packages editor must not be visible
-      await expect(dialog.getByText("Python Packages")).not.toBeVisible();
-      await expect(dialog.getByText("npm Packages")).not.toBeVisible();
+      // Dependencies: WASM has no dependenciesLanguage — neither package
+      // editor label should be visible.
+      await expect(dialog.getByLabel("Python Packages")).not.toBeVisible();
+      await expect(dialog.getByLabel("npm Packages")).not.toBeVisible();
+
+      // The three disabled-capability sections each render the same
+      // "Not supported by the selected backend." copy.
+      await expect(
+        dialog.getByText("Not supported by the selected backend.")
+      ).toHaveCount(3);
 
       // Close dialog
       await dialog.getByRole("button", { name: /cancel/i }).click();
