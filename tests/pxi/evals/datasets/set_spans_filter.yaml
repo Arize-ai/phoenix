@@ -1,0 +1,123 @@
+dataset_name: pxi_set_spans_filter
+description: PXI server-side eval suite for deferred set_spans_filter tool calls.
+examples:
+  - id: llm-spans
+    input:
+      query: Show me only LLM spans.
+    expected:
+      tools:
+        required: [set_spans_filter]
+        strict: true
+      set_spans_filter:
+        condition: span_kind == 'LLM'
+        rootSpansOnly: false
+    metadata:
+      category: span_kind
+  - id: tool-spans
+    input:
+      query: Filter the table to tool spans.
+    expected:
+      tools:
+        required: [set_spans_filter]
+        strict: true
+      set_spans_filter:
+        condition: span_kind == 'TOOL'
+        rootSpansOnly: false
+    metadata:
+      category: span_kind
+  - id: error-spans
+    input:
+      query: Show spans that errored.
+    expected:
+      tools:
+        required: [set_spans_filter]
+        strict: true
+      set_spans_filter:
+        condition: status_code == 'ERROR'
+        rootSpansOnly: false
+    metadata:
+      category: status
+  - id: slow-spans
+    input:
+      query: Show slow spans taking at least five seconds.
+    expected:
+      tools:
+        required: [set_spans_filter]
+        strict: true
+      set_spans_filter:
+        condition: latency_ms >= 5000
+        rootSpansOnly: false
+    metadata:
+      category: latency
+  - id: slow-llm-spans
+    input:
+      query: Show slow LLM calls taking at least five seconds.
+    expected:
+      tools:
+        required: [set_spans_filter]
+        strict: true
+      set_spans_filter:
+        condition: span_kind == 'LLM' and latency_ms >= 5000
+        rootSpansOnly: false
+    metadata:
+      category: latency
+  - id: trace-id
+    input:
+      query: Filter to trace id 8f3c2d1e0a9b4c5d6e7f8091a2b3c4d5.
+    expected:
+      tools:
+        required: [set_spans_filter]
+        strict: true
+      set_spans_filter:
+        condition: trace_id == '8f3c2d1e0a9b4c5d6e7f8091a2b3c4d5'
+        rootSpansOnly: false
+    metadata:
+      category: trace
+  - id: span-name
+    input:
+      query: Show spans named retrieve_documents.
+    expected:
+      tools:
+        required: [set_spans_filter]
+        strict: true
+      set_spans_filter:
+        condition: name == 'retrieve_documents'
+        rootSpansOnly: false
+    metadata:
+      category: name
+  - id: input-substring
+    input:
+      query: Show spans where the input mentions refund policy.
+    expected:
+      tools:
+        required: [set_spans_filter]
+        strict: true
+      set_spans_filter:
+        condition: "'refund policy' in input.value"
+        rootSpansOnly: false
+    metadata:
+      category: input
+  - id: annotation-label
+    input:
+      query: Show spans marked hallucinated by the Hallucination annotation.
+    expected:
+      tools:
+        required: [set_spans_filter]
+        strict: true
+      set_spans_filter:
+        condition: annotations['Hallucination'].label == 'hallucinated'
+        rootSpansOnly: false
+    metadata:
+      category: annotation
+  - id: reset-filter
+    input:
+      query: Clear the span filter and return to the default root spans view.
+    expected:
+      tools:
+        required: [set_spans_filter]
+        strict: true
+      set_spans_filter:
+        condition: ""
+        rootSpansOnly: true
+    metadata:
+      category: reset
