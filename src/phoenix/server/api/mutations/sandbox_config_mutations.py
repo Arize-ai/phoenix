@@ -32,6 +32,7 @@ from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.SandboxConfig import (
+    DEFAULT_SANDBOX_TIMEOUT_SECONDS,
     CreateSandboxConfigInput,
     DeleteSandboxConfigInput,
     DeleteSandboxCredentialInput,
@@ -301,7 +302,11 @@ class SandboxConfigMutationMixin:
                                 raise BadRequest(str(exc))
                     row.config = config_dict
                 if input.timeout is not strawberry.UNSET:
-                    row.timeout = input.timeout if input.timeout is not None else 300
+                    row.timeout = (
+                        input.timeout
+                        if input.timeout is not None
+                        else DEFAULT_SANDBOX_TIMEOUT_SECONDS
+                    )
                 if input.enabled is not strawberry.UNSET and input.enabled is not None:
                     row.enabled = input.enabled
 
