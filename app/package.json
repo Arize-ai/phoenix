@@ -150,7 +150,7 @@
     "only-allow": "^1.2.2",
     "openapi-typescript": "^7.6.1",
     "oxfmt": "^0.33.0",
-    "oxlint": "^1.53.0",
+    "oxlint": "~1.53.0",
     "playwright": "^1.58.2",
     "relay-compiler": "^20.1.1",
     "rollup-plugin-visualizer": "^7.0.1",
