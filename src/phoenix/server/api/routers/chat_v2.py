@@ -30,10 +30,10 @@ from phoenix.server.agents.context import (
     ChatContext,
     resolve_contexts,
 )
-from phoenix.server.agents.exceptions import AgentError
+from phoenix.server.agents.exceptions import AgentError, SummarizationError
 from phoenix.server.agents.instrumentation import get_tracer_provider
 from phoenix.server.agents.model_factory import build_chat_model
-from phoenix.server.agents.summarization import SummarizationError, summarize_messages
+from phoenix.server.agents.summarization import summarize_messages
 from phoenix.server.bearer_auth import is_authenticated
 
 
