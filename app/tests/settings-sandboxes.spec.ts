@@ -78,8 +78,13 @@ test.describe("Settings Sandboxes", () => {
       await dialog.getByRole("combobox", { name: "Provider" }).fill("E2B");
       await page.getByRole("option", { name: /E2B/i }).first().click();
 
-      // E2B supports env vars — section must be visible
-      await expect(dialog.getByText("Environment Variables")).toBeVisible();
+      // E2B supports env vars — section heading must be visible. Use
+      // exact match so the empty-state copy "No environment variables
+      // configured." (case-insensitive substring of the heading) does
+      // not also resolve.
+      await expect(
+        dialog.getByText("Environment Variables", { exact: true })
+      ).toBeVisible();
 
       // Add a literal env var
       await dialog.getByRole("button", { name: "Add Variable" }).click();
@@ -126,8 +131,11 @@ test.describe("Settings Sandboxes", () => {
       const dialog = page.getByRole("dialog");
       await expect(dialog).toBeVisible();
 
-      // Env vars editor should appear (E2B supports env vars)
-      await expect(dialog.getByText("Environment Variables")).toBeVisible();
+      // Env vars editor should appear (E2B supports env vars). Use exact
+      // match so the empty-state copy doesn't also resolve.
+      await expect(
+        dialog.getByText("Environment Variables", { exact: true })
+      ).toBeVisible();
 
       // The literal env var we saved should be shown
       await expect(dialog.locator('input[value="MY_TEST_VAR"]')).toBeVisible();
