@@ -6623,14 +6623,23 @@
         }
       }
     },
-    "/agent_sessions/{session_id}/summary": {
+    "/agents/{agent_id}/sessions/{session_id}/summary": {
       "post": {
         "tags": [
           "chat"
         ],
         "summary": "Summarize Endpoint",
-        "operationId": "summarize_endpoint_agent_sessions__session_id__summary_post",
+        "operationId": "summarize_endpoint_agents__agent_id__sessions__session_id__summary_post",
         "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          },
           {
             "name": "session_id",
             "in": "path",
@@ -15163,7 +15172,7 @@
           "messages"
         ],
         "title": "_SummarizeRequest",
-        "description": "Body for POST /agent_sessions/{session_id}/summary.\n\nCarries the Vercel-style messages array; the backend owns the prompt and\nthe structured-output tool schema."
+        "description": "Body for POST /agents/{agent_id}/sessions/{session_id}/summary.\n\nCarries the Vercel-style messages array; the backend owns the prompt and\nthe structured-output tool schema."
       },
       "_SummarizeResponse": {
         "properties": {

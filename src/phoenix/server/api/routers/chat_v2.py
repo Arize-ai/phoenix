@@ -36,6 +36,13 @@ from phoenix.server.agents.model_factory import build_chat_model
 from phoenix.server.agents.summarization import summarize_messages
 from phoenix.server.bearer_auth import is_authenticated
 
+_ASSISTANT_AGENT_ID = "assistant"
+
+
+def _validate_agent_id(agent_id: str) -> None:
+    if agent_id != _ASSISTANT_AGENT_ID:
+        raise HTTPException(status_code=404, detail=f"Unknown agent: {agent_id}")
+
 
 class _ChatMessageMixin(BaseModel):
     """Phoenix-specific extensions added to Vercel AI request messages."""
@@ -60,7 +67,7 @@ _RequestData = Annotated[
 
 
 class _SummarizeRequest(BaseModel):
-    """Body for POST /agent_sessions/{session_id}/summary.
+    """Body for POST /agents/{agent_id}/sessions/{session_id}/summary.
 
     Carries the Vercel-style messages array; the backend owns the prompt and
     the structured-output tool schema."""
@@ -154,15 +161,17 @@ def create_chat_v2_router(authentication_enabled: bool) -> APIRouter:
         return adapter.streaming_response(_stream_with_session())
 
     @router.post(
-        "/agent_sessions/{session_id}/summary",
+        "/agents/{agent_id}/sessions/{session_id}/summary",
         response_model=_SummarizeResponse,
     )
     async def summarize_endpoint(
         request: Request,
+        agent_id: str,
         session_id: str,
         params: Annotated[ChatSearchParamsModel, Query()],
         body: _SummarizeRequest,
     ) -> _SummarizeResponse:
+        _validate_agent_id(agent_id)
         try:
             async with request.app.state.db() as session:
                 model = await build_chat_model(

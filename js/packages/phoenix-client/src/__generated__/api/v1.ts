@@ -1328,7 +1328,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/agent_sessions/{session_id}/summary": {
+    "/agents/{agent_id}/sessions/{session_id}/summary": {
         parameters: {
             query?: never;
             header?: never;
@@ -1338,7 +1338,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Summarize Endpoint */
-        post: operations["summarize_endpoint_agent_sessions__session_id__summary_post"];
+        post: operations["summarize_endpoint_agents__agent_id__sessions__session_id__summary_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4932,7 +4932,7 @@ export interface components {
         };
         /**
          * _SummarizeRequest
-         * @description Body for POST /agent_sessions/{session_id}/summary.
+         * @description Body for POST /agents/{agent_id}/sessions/{session_id}/summary.
          *
          *     Carries the Vercel-style messages array; the backend owns the prompt and
          *     the structured-output tool schema.
@@ -8821,13 +8821,14 @@ export interface operations {
             };
         };
     };
-    summarize_endpoint_agent_sessions__session_id__summary_post: {
+    summarize_endpoint_agents__agent_id__sessions__session_id__summary_post: {
         parameters: {
             query: {
                 root: components["schemas"]["CustomProviderChatSearchParams"] | components["schemas"]["BuiltInProviderChatSearchParams"];
             };
             header?: never;
             path: {
+                agent_id: string;
                 session_id: string;
             };
             cookie?: never;
