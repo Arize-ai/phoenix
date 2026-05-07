@@ -31,6 +31,8 @@ from phoenix.server.sandbox.types import UnsupportedOperation
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_SANDBOX_TIMEOUT_SECONDS = 300
+
 
 @strawberry.type
 class ConfigFieldSpecType:
@@ -490,8 +492,9 @@ def sandbox_config_from_input(
         "name": input_.name,
         "description": input_.description,
         "config": input_.config if input_.config is not None else {},
+        "timeout": input_.timeout
+        if input_.timeout is not None
+        else DEFAULT_SANDBOX_TIMEOUT_SECONDS,
+        "enabled": input_.enabled,
     }
-    if input_.timeout is not None:
-        values["timeout"] = input_.timeout
-    values["enabled"] = input_.enabled
     return values

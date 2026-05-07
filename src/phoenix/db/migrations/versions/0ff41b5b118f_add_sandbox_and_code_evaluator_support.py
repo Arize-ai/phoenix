@@ -108,7 +108,7 @@ def upgrade() -> None:
         sa.Column("name", sa.String, nullable=False),
         sa.Column("description", sa.String, nullable=True),
         sa.Column("config", JSON_, nullable=False, server_default="{}"),
-        sa.Column("timeout", sa.Integer, nullable=False, server_default=sa.text("30")),
+        sa.Column("timeout", sa.Integer, nullable=False),
         sa.Column("enabled", sa.Boolean, nullable=False, server_default=sa.text("true")),
         sa.Column(
             "created_at",
