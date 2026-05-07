@@ -23,8 +23,11 @@ test.describe("Settings Sandboxes", () => {
       const dialog = page.getByRole("dialog");
       await expect(dialog).toBeVisible();
 
-      // Select WASM provider
-      await dialog.getByLabel("Provider").fill("WebAssembly");
+      // Select WASM provider. Two elements expose the "Provider" name (the
+      // ComboBox input and the disclosure button), so anchor on role.
+      await dialog
+        .getByRole("combobox", { name: "Provider" })
+        .fill("WebAssembly");
       await page
         .getByRole("option", { name: /WebAssembly/i })
         .first()
@@ -56,7 +59,7 @@ test.describe("Settings Sandboxes", () => {
       await expect(dialog).toBeVisible();
 
       // Select E2B provider
-      await dialog.getByLabel("Provider").fill("E2B");
+      await dialog.getByRole("combobox", { name: "Provider" }).fill("E2B");
       await page.getByRole("option", { name: /E2B/i }).first().click();
 
       // E2B supports env vars — section must be visible
