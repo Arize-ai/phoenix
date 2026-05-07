@@ -872,6 +872,10 @@ class ValidationError(TypedDict):
     ctx: NotRequired[Mapping[str, Any]]
 
 
+class FieldSummarizeResponse(TypedDict):
+    summary: str
+
+
 class AnnotateSessionsRequestBody(TypedDict):
     data: Sequence[SessionAnnotationData]
 
@@ -1375,6 +1379,10 @@ class FieldSubmitMessage(TypedDict):
         Sequence[Union[AppContext, ProjectContext, TraceContext, AgentSpanContext]]
     ]
     capabilities: NotRequired[AgentCapabilities]
+
+
+class FieldSummarizeRequest(TypedDict):
+    messages: Sequence[UIMessage]
 
 
 class CreateSpansRequestBody(TypedDict):

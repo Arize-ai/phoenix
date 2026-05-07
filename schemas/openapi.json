@@ -6623,6 +6623,81 @@
         }
       }
     },
+    "/agent-sessions/{session_id}/summary": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Summarize Endpoint",
+        "operationId": "summarize_endpoint_agent_sessions__session_id__summary_post",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "root",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/CustomProviderChatSearchParams"
+                },
+                {
+                  "$ref": "#/components/schemas/BuiltInProviderChatSearchParams"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "provider_type",
+                "mapping": {
+                  "custom": "#/components/schemas/CustomProviderChatSearchParams",
+                  "builtin": "#/components/schemas/BuiltInProviderChatSearchParams"
+                }
+              },
+              "title": "Root"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_SummarizeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/_SummarizeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/arize_phoenix_version": {
       "get": {
         "summary": "Version",
@@ -15072,6 +15147,36 @@
         ],
         "title": "_SubmitMessage",
         "description": "Submit message extended with Phoenix-specific fields."
+      },
+      "_SummarizeRequest": {
+        "properties": {
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/UIMessage"
+            },
+            "type": "array",
+            "title": "Messages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "messages"
+        ],
+        "title": "_SummarizeRequest",
+        "description": "Body for POST /agent-sessions/{session_id}/summary.\n\nCarries the Vercel-style messages array; the backend owns the prompt and\nthe structured-output tool schema."
+      },
+      "_SummarizeResponse": {
+        "properties": {
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "summary"
+        ],
+        "title": "_SummarizeResponse"
       }
     }
   }

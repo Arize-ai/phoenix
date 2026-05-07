@@ -1328,6 +1328,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/agent-sessions/{session_id}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Summarize Endpoint */
+        post: operations["summarize_endpoint_agent_sessions__session_id__summary_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/arize_phoenix_version": {
         parameters: {
             query?: never;
@@ -4912,6 +4929,22 @@ export interface components {
             sessionId: string;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * _SummarizeRequest
+         * @description Body for POST /agent-sessions/{session_id}/summary.
+         *
+         *     Carries the Vercel-style messages array; the backend owns the prompt and
+         *     the structured-output tool schema.
+         */
+        _SummarizeRequest: {
+            /** Messages */
+            messages: components["schemas"]["UIMessage"][];
+        };
+        /** _SummarizeResponse */
+        _SummarizeResponse: {
+            /** Summary */
+            summary: string;
         };
     };
     responses: never;
@@ -8775,6 +8808,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    summarize_endpoint_agent_sessions__session_id__summary_post: {
+        parameters: {
+            query: {
+                root: components["schemas"]["CustomProviderChatSearchParams"] | components["schemas"]["BuiltInProviderChatSearchParams"];
+            };
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["_SummarizeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["_SummarizeResponse"];
                 };
             };
             /** @description Validation Error */
