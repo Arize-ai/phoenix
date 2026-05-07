@@ -292,7 +292,7 @@ export const EditCodeEvaluatorDialogContent = ({
     <DialogContent>
       <DialogHeader>
         <DialogTitle>
-          {mode === "create" ? "Create Evaluator" : "Edit Evaluator"}
+          {mode === "create" ? "Create Code Evaluator" : "Edit Code Evaluator"}
         </DialogTitle>
         <DialogTitleExtra>
           {onCancel ? (
