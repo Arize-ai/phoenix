@@ -8,15 +8,3 @@ onlyBuiltDependencies:
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
   - "@arizeai/openinference-core"
-  - "langsmith"
-  - "postcss"
-  - "ip-address"
-  - "vite"
-  - "hono"
-  - "@hono/node-server"
-  - "protobufjs"
-  - "path-to-regexp"
-  - "picomatch"
-  - "yaml"
-  - "brace-expansion"
-  - "uuid"

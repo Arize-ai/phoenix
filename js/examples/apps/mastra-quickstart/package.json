@@ -10,7 +10,7 @@
   "main": "index.js",
   "scripts": {
     "add_traces": "tsx src/mastra/evals/add_traces.ts",
-    "build": "npm_config_minimum_release_age=0 mastra build",
+    "build": "mastra build",
     "dev": "pnpx mastra dev",
     "evals": "tsx src/mastra/evals/evals.ts",
     "experiments": "tsx src/mastra/experiments/experiment.ts",
