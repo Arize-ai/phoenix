@@ -100,35 +100,62 @@ def _score_explanation(score: Any) -> str | None:
     return value if isinstance(value, str) else None
 
 
-def _score_name(score: Any) -> str:
-    if isinstance(score, dict):
-        return str(score.get("name") or score.get("eval_name") or "unknown")
-    return str(getattr(score, "name", None) or getattr(score, "eval_name", None) or "unknown")
-
-
-def _run_scores(run: Any) -> list[Any]:
-    value = getattr(run, "scores", None)
-    if value is None and isinstance(run, dict):
-        value = run.get("scores")
-    if isinstance(value, dict):
-        return list(value.values())
-    return list(value or [])
-
-
 def _run_output(run: Any) -> Any:
     if isinstance(run, dict):
         return run.get("output")
     return getattr(run, "output", None)
 
 
-def _run_example_id(run: Any) -> str:
+def _run_id(run: Any) -> str:
     if isinstance(run, dict):
-        return str(run.get("example_id") or run.get("dataset_example_id") or "unknown")
-    return str(
-        getattr(run, "example_id", None)
-        or getattr(run, "dataset_example_id", None)
-        or "unknown"
-    )
+        return str(run.get("id") or "")
+    return str(getattr(run, "id", ""))
+
+
+def _run_dataset_example_id(run: Any) -> str:
+    if isinstance(run, dict):
+        return str(run.get("dataset_example_id") or "unknown")
+    return str(getattr(run, "dataset_example_id", None) or "unknown")
+
+
+def _run_stable_example_id(run: Any) -> str:
+    output = _run_output(run)
+    if isinstance(output, dict) and isinstance(output.get("stable_example_id"), str):
+        return output["stable_example_id"]
+    return _run_dataset_example_id(run)
+
+
+def _evaluation_run_id(evaluation_run: Any) -> str:
+    if isinstance(evaluation_run, dict):
+        return str(evaluation_run.get("experiment_run_id") or "")
+    return str(getattr(evaluation_run, "experiment_run_id", ""))
+
+
+def _evaluation_name(evaluation_run: Any) -> str:
+    if isinstance(evaluation_run, dict):
+        return str(evaluation_run.get("name") or "unknown")
+    return str(getattr(evaluation_run, "name", None) or "unknown")
+
+
+def _evaluation_result(evaluation_run: Any) -> Any:
+    if isinstance(evaluation_run, dict):
+        return evaluation_run.get("result")
+    return getattr(evaluation_run, "result", None)
+
+
+def _evaluation_error(evaluation_run: Any) -> Any:
+    if isinstance(evaluation_run, dict):
+        return evaluation_run.get("error")
+    return getattr(evaluation_run, "error", None)
+
+
+def _failure_example_id(
+    experiment_run_id: str,
+    stable_example_ids_by_run_id: dict[str, str],
+) -> str:
+    if experiment_run_id:
+        return stable_example_ids_by_run_id.get(experiment_run_id, experiment_run_id)
+    return "unknown"
 
 
 def _print_report(dataset: EvalDataset, experiment: Any, base_url: str) -> bool:
@@ -139,24 +166,26 @@ def _print_report(dataset: EvalDataset, experiment: Any, base_url: str) -> bool:
     else:
         task_runs = list(getattr(experiment, "task_runs", []) or getattr(experiment, "runs", []) or [])
         evaluation_runs = list(getattr(experiment, "evaluation_runs", []) or [])
-    task_outputs_by_run_id = {
-        str(run.get("id") if isinstance(run, dict) else getattr(run, "id", "")): _run_output(run)
+    task_outputs_by_run_id = {_run_id(run): _run_output(run) for run in task_runs}
+    stable_example_ids_by_run_id = {
+        run_id: _run_stable_example_id(run)
         for run in task_runs
+        if (run_id := _run_id(run))
     }
     counts: dict[str, dict[str, int]] = {}
     failures: list[tuple[str, str, str | None, Any]] = []
     for evaluation_run in evaluation_runs:
-        name = getattr(evaluation_run, "name", None) or "unknown"
-        result = getattr(evaluation_run, "result", None)
-        error = getattr(evaluation_run, "error", None)
+        name = _evaluation_name(evaluation_run)
+        result = _evaluation_result(evaluation_run)
+        error = _evaluation_error(evaluation_run)
         counts.setdefault(name, {"pass": 0, "fail": 0})
         passed = error is None and (_score_value(result) or 0.0) >= 1.0
         counts[name]["pass" if passed else "fail"] += 1
         if not passed:
-            experiment_run_id = str(getattr(evaluation_run, "experiment_run_id", ""))
+            experiment_run_id = _evaluation_run_id(evaluation_run)
             failures.append(
                 (
-                    experiment_run_id,
+                    _failure_example_id(experiment_run_id, stable_example_ids_by_run_id),
                     name,
                     str(error) if error else _score_explanation(result),
                     task_outputs_by_run_id.get(experiment_run_id),
