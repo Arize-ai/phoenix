@@ -9,13 +9,41 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Annotated, Any, Literal, Optional, Type, Union
+from typing import (
+    Annotated,
+    Any,
+    Literal,
+    Optional,
+    Type,
+    Union,
+    get_args,
+)
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
 class UnsupportedOperation(Exception):
     """Raised when a sandbox backend does not support a requested operation."""
+
+
+# ---------------------------------------------------------------------------
+# SandboxProviderFamily — closed set of provider families used as the trust
+# boundary for PHOENIX_ALLOWED_SANDBOX_PROVIDERS. Adding a new provider
+# family requires adding its name here AND setting `family = "..."` on the
+# adapter class. Pyright/mypy will reject mismatches at type-check time.
+#
+# The family of an adapter is the unit at which the allowlist operates:
+# all (backend_type, language) variants of a family share one allowlist
+# entry. Extending an existing family with a new language is just a new
+# adapter class with the same `family`; extending Phoenix with a new
+# provider family adds a literal here.
+# ---------------------------------------------------------------------------
+SandboxProviderFamily = Literal["WASM", "E2B", "DAYTONA", "VERCEL", "DENO", "MODAL"]
+
+
+SANDBOX_PROVIDER_FAMILIES: frozenset[SandboxProviderFamily] = frozenset(
+    get_args(SandboxProviderFamily)
+)
 
 
 # ---------------------------------------------------------------------------
@@ -385,6 +413,12 @@ class SandboxAdapter(ABC):
 
     #: Unique key identifying this adapter (matches backend_type in sandbox_providers).
     key: str
+
+    #: Provider family — the trust boundary for PHOENIX_ALLOWED_SANDBOX_PROVIDERS.
+    #: All adapters that share infrastructure / SDK / credentials / isolation
+    #: boundary (e.g. VercelPythonAdapter and VercelTypescriptAdapter both
+    #: family="VERCEL") share an allowlist entry.
+    family: SandboxProviderFamily
 
     #: Human-readable name for display in the UI.
     display_name: str

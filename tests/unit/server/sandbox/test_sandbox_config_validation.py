@@ -47,6 +47,7 @@ def _make_adapter(config_model_cls: type) -> SandboxAdapter:
 
     class _ConcreteAdapter(SandboxAdapter):
         key = "TEST"
+        family = "WASM"  # any canonical family — gate doesn't filter for these tests
         display_name = "Test"
         language = "PYTHON"
         config_model = config_model_cls

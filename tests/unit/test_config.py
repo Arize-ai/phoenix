@@ -2229,6 +2229,81 @@ class TestValidateEnvAllowedProviders:
             validate_env_allowed_providers()
 
 
+class TestGetEnvAllowedSandboxProviders:
+    def test_unset_returns_all_known_families(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", raising=False)
+        from phoenix.config import get_env_allowed_sandbox_providers
+        from phoenix.server.sandbox.types import SANDBOX_PROVIDER_FAMILIES
+
+        assert get_env_allowed_sandbox_providers() == SANDBOX_PROVIDER_FAMILIES
+
+    def test_none_returns_empty_set(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "NONE")
+        from phoenix.config import get_env_allowed_sandbox_providers
+
+        assert get_env_allowed_sandbox_providers() == frozenset()
+
+    def test_basic_parsing(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "WASM,DENO")
+        from phoenix.config import get_env_allowed_sandbox_providers
+
+        assert get_env_allowed_sandbox_providers() == frozenset({"WASM", "DENO"})
+
+    def test_case_insensitive(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "vercel,Wasm")
+        from phoenix.config import get_env_allowed_sandbox_providers
+
+        assert get_env_allowed_sandbox_providers() == frozenset({"VERCEL", "WASM"})
+
+    def test_whitespace_handling(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", " WASM , DENO ")
+        from phoenix.config import get_env_allowed_sandbox_providers
+
+        assert get_env_allowed_sandbox_providers() == frozenset({"WASM", "DENO"})
+
+    def test_empty_entries_ignored(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "WASM,,DENO,")
+        from phoenix.config import get_env_allowed_sandbox_providers
+
+        assert get_env_allowed_sandbox_providers() == frozenset({"WASM", "DENO"})
+
+
+class TestValidateEnvAllowedSandboxProviders:
+    def test_unset_does_not_raise(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", raising=False)
+        from phoenix.config import validate_env_allowed_sandbox_providers
+
+        validate_env_allowed_sandbox_providers()  # should not raise
+
+    def test_none_does_not_raise(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "NONE")
+        from phoenix.config import validate_env_allowed_sandbox_providers
+
+        validate_env_allowed_sandbox_providers()  # should not raise
+
+    def test_valid_families_do_not_raise(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "WASM,VERCEL,DENO")
+        from phoenix.config import validate_env_allowed_sandbox_providers
+
+        validate_env_allowed_sandbox_providers()  # should not raise
+
+    def test_invalid_family_raises(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "WASM,VERCLE")
+        from phoenix.config import validate_env_allowed_sandbox_providers
+
+        with pytest.raises(ValueError, match="VERCLE"):
+            validate_env_allowed_sandbox_providers()
+
+    def test_full_backend_type_rejected(self, monkeypatch: MonkeyPatch) -> None:
+        # Allowlist operates on family names, not full backend_type keys —
+        # listing VERCEL_PYTHON instead of VERCEL is wrong-shape input.
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "VERCEL_PYTHON")
+        from phoenix.config import validate_env_allowed_sandbox_providers
+
+        with pytest.raises(ValueError, match="VERCEL_PYTHON"):
+            validate_env_allowed_sandbox_providers()
+
+
 class TestPostgresConnectionStringManagedIdentity:
     """Tests for Azure managed identity path in get_env_postgres_connection_str()."""
 
