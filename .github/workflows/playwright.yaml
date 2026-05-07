@@ -99,6 +99,21 @@ jobs:
         run: |
           echo ${{ matrix.py }} > ../.python-version
           uv sync --upgrade --extra container
+      # Sandbox providers used by the Playwright suite (Deno for TypeScript
+      # code evaluators, CPython WASM for Python). The Phoenix container image
+      # bundles these (see Dockerfile); the e2e runner is bare so we pin the
+      # same versions and surface them via the same env-var contract that
+      # ensure_wasm_binary() / DenoAdapter consume.
+      - name: Install Deno (TypeScript sandbox provider)
+        uses: denoland/setup-deno@e95548e56dfa95d4e1a28d6f422fafe75c4c26fb # v2.0.3
+        with:
+          deno-version: v2.1.4
+      - name: Pre-download CPython WASM binary
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir -p .cache/wasm
+          python -c "import urllib.request; urllib.request.urlretrieve('https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm', '.cache/wasm/python-3.12.0.wasm')"
+          echo "PHOENIX_WASM_BINARY_PATH=${{ github.workspace }}/.cache/wasm/python-3.12.0.wasm" >> "$GITHUB_ENV"
       - name: Run Playwright tests
         run: pnpm test:e2e
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
