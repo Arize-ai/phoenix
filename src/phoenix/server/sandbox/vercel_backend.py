@@ -5,8 +5,13 @@ Session-capable — start_session() creates an AsyncSandbox and caches it by
 session_key. execute() reuses the cached sandbox if one exists for the key,
 otherwise spins up an ephemeral sandbox (create → run_command → stop).
 
-Requires the ``vercel`` extra (``vercel>=0.5.1``).
-Import is deferred to avoid top-level failures when the extra is absent.
+Requires the ``vercel`` extra (``vercel>=0.5.1``). The SDK import is lazy (in
+``VercelSandboxBackend._create_sandbox``) so the module remains importable
+when the extra is absent. Adapter availability is gated by
+``VercelPythonAdapter.probe_dependencies`` /
+``VercelTypescriptAdapter.probe_dependencies`` at registration time, which
+surfaces a missing extra as ``status=NOT_INSTALLED`` instead of a runtime
+error during evaluation.
 
 Authentication follows the Vercel Sandbox SDK: either ``VERCEL_OIDC_TOKEN``
 (for local ``vercel env pull`` or deployments on Vercel — read directly from
@@ -263,12 +268,21 @@ _VERCEL_ENV_VAR_SPECS = [
 ]
 
 
+def _probe_vercel_sdk() -> None:
+    """Verify ``vercel.sandbox`` is installed; ImportError → NOT_INSTALLED."""
+    import vercel.sandbox  # noqa: F401
+
+
 class VercelPythonAdapter(SandboxAdapter):
     key = "VERCEL_PYTHON"
     display_name = "Vercel Sandbox"
     language = "PYTHON"
     config_model = VercelPythonConfig
     credential_specs = _VERCEL_ENV_VAR_SPECS
+
+    @classmethod
+    def probe_dependencies(cls) -> None:
+        _probe_vercel_sdk()
 
     def build_backend(
         self,
@@ -306,6 +320,10 @@ class VercelTypescriptAdapter(SandboxAdapter):
     language = "TYPESCRIPT"
     config_model = VercelTypescriptConfig
     credential_specs = _VERCEL_ENV_VAR_SPECS
+
+    @classmethod
+    def probe_dependencies(cls) -> None:
+        _probe_vercel_sdk()
 
     def build_backend(
         self,
