@@ -291,6 +291,39 @@ class TestV17Validation:
         with pytest.raises(ValueError, match="must be absent when llm_call_count is 0"):
             _validate_atif_trajectory(trajectory)
 
+    def test_llm_call_count_zero_requires_tool_calls(self) -> None:
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": "run-v17-missing-tool-calls",
+            "trajectory_id": "dispatch",
+            "agent": {"name": "agent", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "delegate"},
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "",
+                    "llm_call_count": 0,
+                },
+            ],
+        }
+        with pytest.raises(ValueError, match="tool_calls are required"):
+            _validate_atif_trajectory(trajectory)
+
+    def test_v17_agent_step_missing_message_error_is_version_scoped(self) -> None:
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": "run-v17-missing-agent-message",
+            "trajectory_id": "agent-message",
+            "agent": {"name": "agent", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "hello"},
+                {"step_id": 2, "source": "agent"},
+            ],
+        }
+        with pytest.raises(ValueError, match="message is required for ATIF v1.7\\+ steps"):
+            _validate_atif_trajectory(trajectory)
+
 
 class TestStepValidation:
     def test_empty_steps(self, simple_trajectory: Dict[str, Any]) -> None:

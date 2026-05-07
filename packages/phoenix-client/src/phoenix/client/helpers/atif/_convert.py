@@ -40,7 +40,12 @@ def _sha256_trace_id(seed: str) -> str:
 
 def _stable_trajectory_hash(trajectory: Mapping[str, Any]) -> str:
     """Derive a stable fallback identity for trajectories without IDs."""
-    serialized = json.dumps(trajectory, sort_keys=True, default=str)
+    trajectory_for_hash = {
+        key: value
+        for key, value in trajectory.items()
+        if not (isinstance(key, str) and key.startswith("_phoenix_"))
+    }
+    serialized = json.dumps(trajectory_for_hash, sort_keys=True, default=str)
     return hashlib.sha256(serialized.encode()).hexdigest()[:16]
 
 
@@ -65,16 +70,15 @@ def _trajectory_span_seed(
     trace_id: Optional[str] = None,
 ) -> str:
     """Return the document-scoped identity used for deterministic span IDs."""
+    minor = _schema_minor_version(trajectory) or 0
     trajectory_id = trajectory.get("trajectory_id")
     if isinstance(trajectory_id, str) and trajectory_id.strip():
         seed = trajectory_id
-    elif (_schema_minor_version(trajectory) or 0) >= 7:
+    elif minor >= 7:
         seed = f"atif-{_stable_trajectory_hash(trajectory)}"
     else:
         return _trajectory_session_id(trajectory)
-    if (_schema_minor_version(trajectory) or 0) >= 7:
-        return f"{trace_id}:{seed}" if trace_id else seed
-    return seed
+    return f"{trace_id}:{seed}" if minor >= 7 and trace_id else seed
 
 
 def _trajectory_trace_seed(trajectory: Mapping[str, Any]) -> str:
@@ -163,6 +167,9 @@ def _flatten_atif_trajectories(
     Embedded subagents may omit ``session_id`` in v1.7. When they do, they
     inherit the nearest parent run identity for Phoenix's ``session.id`` while
     still using their own ``trajectory_id`` for deterministic span IDs.
+    Embedded refs resolved against their containing parent carry Phoenix-only
+    parent span context under ``_PARENT_SPAN_CONTEXT_KEY`` so duplicate child
+    IDs in different parents are resolved locally.
     """
     flattened: List[Mapping[str, Any]] = []
 
@@ -180,6 +187,8 @@ def _flatten_atif_trajectories(
         else:
             trajectory_for_conversion = trajectory
         if parent_span_context is not None:
+            # This flattened view is converter-internal; stable hash inputs drop
+            # Phoenix-private keys before deriving fallback document identity.
             trajectory_for_conversion = {
                 **trajectory_for_conversion,
                 _PARENT_SPAN_CONTEXT_KEY: parent_span_context,
@@ -505,7 +514,7 @@ def _build_message_attributes(
             replacement_context = _stringify_observation_results(results)
             context_start_index = i + 1
 
-    if replacement_context:
+    if replacement_context is not None:
         input_messages.append({"role": "system", "content": replacement_context})
 
     for i in range(context_start_index, step_index):
@@ -629,6 +638,10 @@ def _build_subagent_ref_map(
 ) -> Dict[str, tuple[str, str]]:
     """Scan trajectories for subagent_trajectory_ref entries.
 
+    Embedded refs flattened by _flatten_atif_trajectories may already carry
+    parent context under _PARENT_SPAN_CONTEXT_KEY. This map remains necessary
+    for non-embedded batch links and older separate-trajectory refs.
+
     Trace IDs are derived from the run-scoped session identity and tool
     span IDs from the document-scoped trajectory identity,
     matching the deterministic IDs produced by the converter.
@@ -709,7 +722,7 @@ def _base_session_id(session_id: str) -> str:
         "abc123-cont-1"  -> "abc123"
         "abc123-cont-2"  -> "abc123"
     """
-    parts = session_id.split("-cont-")
+    parts = session_id.rsplit("-cont-", 1)
     if len(parts) == 2 and parts[1].isdigit():
         return parts[0]
     return session_id

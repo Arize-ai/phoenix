@@ -186,7 +186,10 @@ def _validate_atif_trajectory(
         if source in ("user", "system") or (minor is not None and minor >= 7):
             msg: object = step_dict.get("message")
             if msg is None:
-                errors.append(f"{prefix}: message is required for {source} steps")
+                if source in ("user", "system"):
+                    errors.append(f"{prefix}: message is required for {source} steps")
+                else:
+                    errors.append(f"{prefix}: message is required for ATIF v1.7+ steps")
 
         if source in ("user", "system"):
             # Agent-only fields should not appear on user/system steps
@@ -204,6 +207,9 @@ def _validate_atif_trajectory(
                         errors.append(
                             f"{prefix}: '{field}' must be absent when llm_call_count is 0"
                         )
+                tool_calls = step_dict.get("tool_calls")
+                if not isinstance(tool_calls, list) or not tool_calls:
+                    errors.append(f"{prefix}: tool_calls are required when llm_call_count is 0")
 
         # Tool call validation
         tool_call_ids: Set[str] = set()
