@@ -108,8 +108,14 @@ test.describe("Settings Sandboxes", () => {
 
       await expect(dialog).not.toBeVisible();
 
-      // Verify the config appears in the table
-      await expect(page.getByRole("cell", { name: configName })).toBeVisible();
+      // Verify the config appears in the table. The configName text is
+      // exposed in two cells of the same row — the Name cell ("<name>
+      // No") and the Actions cell (whose accessible name aggregates
+      // the "Edit <name>" / "Delete <name>" button labels) — so anchor
+      // on the first match.
+      await expect(
+        page.getByRole("cell", { name: configName }).first()
+      ).toBeVisible();
     });
 
     test("saved E2B config with env vars round-trips through page reload", async ({
