@@ -58,9 +58,8 @@ result = upload_atif_trajectories_as_spans(
 
 ## Key Details
 
-- **Supported versions**: ATIF schema v1.0 through v1.7
-- **Deterministic IDs**: trace IDs use `session_id` when present, and span IDs use `trajectory_id` when available — re-uploading the same trajectory is idempotent
+- **Supported versions**: ATIF schema v1.0 through v1.6
+- **Deterministic IDs**: trace and span IDs are derived from `session_id` via SHA-256 — re-uploading the same trajectory is idempotent
 - **Multimodal content (v1.6+)**: image content parts are stored using the OpenInference `message.contents` array format
-- **Embedded subagents (v1.7+)**: `subagent_trajectories` are uploaded automatically and linked by `trajectory_id`
 - **Continuation merging**: sessions split across files (`session_id` ending in `-cont-N`) are automatically merged into one trace
 - **Attribute mapping**: token counts, cost, model name, tool definitions, and reasoning content are mapped to standard OpenInference attributes
