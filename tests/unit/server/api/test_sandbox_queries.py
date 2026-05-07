@@ -22,6 +22,7 @@ _TEST_AUTH_KEY = "TEST_AUTH_KEY"
 
 class _TestAuthAdapter(SandboxAdapter):
     key = _TEST_AUTH_BACKEND
+    family = "WASM"  # any canonical family — gate doesn't filter for these tests
     display_name = "Test Auth Backend"
     language = "PYTHON"
     credential_specs = [ProviderCredentialSpec(key=_TEST_AUTH_KEY, display_name="Test Auth Key")]

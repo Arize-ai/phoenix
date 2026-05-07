@@ -25,8 +25,9 @@ import json
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Literal, Optional
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Literal, MutableMapping, Optional
 
+from phoenix.config import get_env_allowed_sandbox_providers
 from phoenix.server.sandbox.types import (
     ConfigFieldSpec,
     EnvVarEntry,
@@ -296,7 +297,51 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
 # Runtime registry — populated only when the backend's optional deps are
 # installed. Modified via register_sandbox_adapter().
 # ---------------------------------------------------------------------------
-_SANDBOX_ADAPTERS: dict[str, SandboxAdapter] = {}
+
+
+class _AllowlistGatedAdapterRegistry(MutableMapping[str, SandboxAdapter]):
+    """Registry of sandbox adapters with read-time allowlist filtering.
+
+    Storage is delegated to an internal dict. Reads consult
+    PHOENIX_ALLOWED_SANDBOX_PROVIDERS via ``get_env_allowed_sandbox_providers()``
+    and skip adapters whose ``family`` is not in the allowed set. Writes
+    are unfiltered — registration at import time should always succeed;
+    the gate filters who can reach the value afterward.
+
+    Disallowed keys appear absent: ``__getitem__`` raises KeyError,
+    ``.get()`` returns the default, ``in`` returns False, and iteration /
+    len / keys / values / items skip them.
+    """
+
+    def __init__(self) -> None:
+        self._adapters: dict[str, SandboxAdapter] = {}
+
+    @staticmethod
+    def _allowed(adapter: SandboxAdapter) -> bool:
+        return adapter.family in get_env_allowed_sandbox_providers()
+
+    def __getitem__(self, key: str) -> SandboxAdapter:
+        adapter = self._adapters[key]
+        if not self._allowed(adapter):
+            raise KeyError(key)
+        return adapter
+
+    def __setitem__(self, key: str, value: SandboxAdapter) -> None:
+        self._adapters[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        del self._adapters[key]
+
+    def __iter__(self) -> Iterator[str]:
+        allowed = get_env_allowed_sandbox_providers()
+        return (k for k, v in self._adapters.items() if v.family in allowed)
+
+    def __len__(self) -> int:
+        allowed = get_env_allowed_sandbox_providers()
+        return sum(1 for v in self._adapters.values() if v.family in allowed)
+
+
+_SANDBOX_ADAPTERS: MutableMapping[str, SandboxAdapter] = _AllowlistGatedAdapterRegistry()
 
 # ---------------------------------------------------------------------------
 # Session cache — (backend_type, config_hash) → SandboxBackend instance.
