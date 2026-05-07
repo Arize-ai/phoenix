@@ -1,3 +1,4 @@
+import binascii
 import re
 from base64 import b64decode
 
@@ -7,7 +8,17 @@ _COMPOSITE_GLOBAL_ID_PATTERN = re.compile(r"[^:]+:[^:]+(:[^:]+)+")
 
 
 def is_composite_global_id(node_id: str) -> bool:
-    decoded_node_id = b64decode(node_id).decode()
+    """Return True if `node_id` is a base64-encoded composite global id.
+
+    Strings that are not valid base64 (e.g. literal project names like
+    "default" passed in via /projects/<name>/* URLs) are not composite
+    global ids — return False rather than raising.  See
+    https://github.com/Arize-ai/phoenix/issues/12908
+    """
+    try:
+        decoded_node_id = b64decode(node_id, validate=True).decode()
+    except (binascii.Error, UnicodeDecodeError, ValueError):
+        return False
     return _COMPOSITE_GLOBAL_ID_PATTERN.match(decoded_node_id) is not None
 
 

@@ -1022,7 +1022,15 @@ class Query:
                 dataset_example_rowid=dataset_example_rowid,
             )
 
-        global_id = GlobalID.from_id(id)
+        # `GlobalID.from_id` itself calls `b64decode` and raises
+        # `GlobalIDValueError` on non-base64 input.  Bare project names
+        # (e.g. /projects/default/* URLs) reach this code path; surface a
+        # friendly NotFound instead of leaking a binascii padding error.
+        # See https://github.com/Arize-ai/phoenix/issues/12908
+        try:
+            global_id = GlobalID.from_id(id)
+        except Exception:
+            raise NotFound(f"Unknown node: {id}")
         type_name = global_id.type_name
         if type_name == Secret.__name__:
             return Secret(id=global_id.node_id)
