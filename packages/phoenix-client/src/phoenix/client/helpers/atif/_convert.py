@@ -25,6 +25,8 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 
 from phoenix.client.__generated__ import v1
 
+_PARENT_SPAN_CONTEXT_KEY = "_phoenix_parent_span_context"
+
 
 def _sha256_span_id(seed: str) -> str:
     """Derive a deterministic 16-hex-char span ID from a seed string."""
@@ -58,18 +60,34 @@ def _trajectory_session_id(
     return f"atif-{_stable_trajectory_hash(trajectory)}"
 
 
-def _trajectory_span_seed(trajectory: Mapping[str, Any]) -> str:
+def _trajectory_span_seed(
+    trajectory: Mapping[str, Any],
+    trace_id: Optional[str] = None,
+) -> str:
     """Return the document-scoped identity used for deterministic span IDs."""
     trajectory_id = trajectory.get("trajectory_id")
     if isinstance(trajectory_id, str) and trajectory_id.strip():
-        return trajectory_id
-    return _trajectory_session_id(trajectory)
+        seed = trajectory_id
+    elif (_schema_minor_version(trajectory) or 0) >= 7:
+        seed = f"atif-{_stable_trajectory_hash(trajectory)}"
+    else:
+        return _trajectory_session_id(trajectory)
+    if (_schema_minor_version(trajectory) or 0) >= 7:
+        return f"{trace_id}:{seed}" if trace_id else seed
+    return seed
 
 
 def _trajectory_trace_seed(trajectory: Mapping[str, Any]) -> str:
     """Return the run-scoped identity used for deterministic trace IDs."""
     session_id = trajectory.get("session_id")
     if isinstance(session_id, str) and session_id.strip():
+        if (
+            (_schema_minor_version(trajectory) or 0) >= 7
+            and "trajectory_id" not in trajectory
+            and session_id == _base_session_id(session_id)
+            and not trajectory.get("continued_trajectory_ref")
+        ):
+            return f"atif-{_stable_trajectory_hash(trajectory)}"
         return _base_session_id(session_id)
     return _trajectory_span_seed(trajectory)
 
@@ -123,6 +141,13 @@ def _get_parent_span_context(
     ref_map: Mapping[str, tuple[str, str]],
 ) -> Optional[tuple[str, str]]:
     """Return the parent span context for a trajectory if a subagent ref links it."""
+    parent_ctx = trajectory.get(_PARENT_SPAN_CONTEXT_KEY)
+    if (
+        isinstance(parent_ctx, tuple)
+        and len(parent_ctx) == 2
+        and all(isinstance(value, str) for value in parent_ctx)
+    ):
+        return parent_ctx
     for key in _trajectory_lookup_keys(trajectory):
         parent_ctx = ref_map.get(key)
         if parent_ctx is not None:
@@ -144,6 +169,7 @@ def _flatten_atif_trajectories(
     def visit(
         trajectory: Mapping[str, Any],
         inherited_session_id: Optional[str] = None,
+        parent_span_context: Optional[tuple[str, str]] = None,
     ) -> None:
         effective_session_id = _trajectory_session_id(trajectory, inherited_session_id)
         if "session_id" not in trajectory and inherited_session_id:
@@ -153,14 +179,53 @@ def _flatten_atif_trajectories(
             }
         else:
             trajectory_for_conversion = trajectory
+        if parent_span_context is not None:
+            trajectory_for_conversion = {
+                **trajectory_for_conversion,
+                _PARENT_SPAN_CONTEXT_KEY: parent_span_context,
+            }
         flattened.append(trajectory_for_conversion)
 
         subagent_trajectories = trajectory.get("subagent_trajectories")
         if not isinstance(subagent_trajectories, list):
             return
+        if parent_span_context is not None:
+            trace_id = parent_span_context[1]
+        else:
+            trace_id = _sha256_trace_id(
+                f"{_trajectory_trace_seed(trajectory_for_conversion)}:trace"
+            )
+        span_seed = _trajectory_span_seed(trajectory_for_conversion, trace_id)
+        local_ref_map: Dict[str, tuple[str, str]] = {}
+        for step in trajectory_for_conversion.get("steps", []):
+            step_id = step.get("step_id")
+            observation = step.get("observation")
+            if not isinstance(observation, Mapping):
+                continue
+            results = observation.get("results")
+            if not isinstance(results, list):
+                continue
+            for result in results:
+                if not isinstance(result, Mapping):
+                    continue
+                refs = result.get("subagent_trajectory_ref", [])
+                if not isinstance(refs, list):
+                    continue
+                tc_id = result.get("source_call_id", "")
+                parent_tool_span_id = _sha256_span_id(f"{span_seed}:step:{step_id}:tool:{tc_id}")
+                for ref in refs:
+                    if not isinstance(ref, Mapping):
+                        continue
+                    for key in _subagent_ref_lookup_keys(ref, trajectory_for_conversion):
+                        local_ref_map[key] = (parent_tool_span_id, trace_id)
         for subagent in subagent_trajectories:
             if isinstance(subagent, Mapping):
-                visit(subagent, effective_session_id)
+                subagent_parent_ctx = None
+                for key in _trajectory_lookup_keys(subagent):
+                    subagent_parent_ctx = local_ref_map.get(key)
+                    if subagent_parent_ctx is not None:
+                        break
+                visit(subagent, effective_session_id, subagent_parent_ctx)
 
     for trajectory in trajectories:
         visit(trajectory)
@@ -578,7 +643,7 @@ def _build_subagent_ref_map(
             trace_id = parent_ctx[1]
         else:
             trace_id = _sha256_trace_id(f"{_trajectory_trace_seed(trajectory)}:trace")
-        span_seed = _trajectory_span_seed(trajectory)
+        span_seed = _trajectory_span_seed(trajectory, trace_id)
         for step in trajectory.get("steps", []):
             step_id = step.get("step_id")
             observation = step.get("observation")
@@ -705,9 +770,13 @@ def _convert_atif_trajectory_to_spans(
     User/system messages are not separate spans — they appear as
     ``llm.input_messages`` on the LLM spans that follow them.
 
-    IDs are deterministic: trace IDs use the run-scoped session identity,
-    while span IDs use the document-scoped trajectory identity when present.
-    Re-uploading the same trajectory produces the same trace.
+    IDs are deterministic: trace IDs usually use the run-scoped session
+    identity, while span IDs use the document-scoped trajectory identity
+    when present. ATIF v1.7 standalone trajectories without
+    ``trajectory_id`` use a stable document hash for trace/span IDs so
+    independent trajectory documents that share a run-scoped ``session_id``
+    do not collide. Re-uploading the same trajectory produces the same
+    trace.
 
     Args:
         trajectory: A validated ATIF trajectory dict.
@@ -715,7 +784,6 @@ def _convert_atif_trajectory_to_spans(
             for linking child trajectories to a parent's tool span.
     """
     session_id = _trajectory_session_id(trajectory)
-    span_seed = _trajectory_span_seed(trajectory)
     agent: Mapping[str, Any] = trajectory["agent"]
     steps: List[Mapping[str, Any]] = trajectory["steps"]
 
@@ -725,6 +793,7 @@ def _convert_atif_trajectory_to_spans(
         # Derive trace_id from the base session_id so that continuation
         # trajectories (session_id ending in -cont-N) share one trace.
         trace_id = _sha256_trace_id(f"{_trajectory_trace_seed(trajectory)}:trace")
+    span_seed = _trajectory_span_seed(trajectory, trace_id)
     root_span_id = _sha256_span_id(f"{span_seed}:root")
 
     # --- Compute step timings upfront ---

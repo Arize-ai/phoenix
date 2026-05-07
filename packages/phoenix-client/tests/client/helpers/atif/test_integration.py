@@ -198,6 +198,9 @@ class TestUploadIntegration:
         assert len(spans) == 5
 
         child_root = [s for s in spans if s["name"] == "researcher"][0]
-        assert child_root["parent_id"] == _sha256_span_id("parent-doc:step:2:tool:call_delegate")
-        assert child_root["context"]["trace_id"] == _sha256_trace_id("run-v17-001:trace")
+        expected_trace_id = _sha256_trace_id("run-v17-001:trace")
+        assert child_root["parent_id"] == _sha256_span_id(
+            f"{expected_trace_id}:parent-doc:step:2:tool:call_delegate"
+        )
+        assert child_root["context"]["trace_id"] == expected_trace_id
         assert child_root["attributes"]["session.id"] == "run-v17-001"

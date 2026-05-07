@@ -127,10 +127,13 @@ def upload_atif_trajectories_as_spans(
 
     **Deterministic IDs**
 
-    Trace IDs are derived from the run-scoped ``session_id`` when present,
-    while span IDs use document-scoped ``trajectory_id`` when available.
-    This keeps v1.7 subagents with shared or inherited ``session_id`` from
-    colliding while preserving idempotent uploads.
+    Trace IDs are derived from the run-scoped ``session_id`` when present.
+    For ATIF v1.7 standalone trajectories that omit ``trajectory_id`` and
+    do not declare a continuation, a stable document hash is used instead
+    so separate trajectory documents that share a run-scoped ``session_id``
+    do not collapse into one trace. Span IDs use document-scoped
+    ``trajectory_id`` when available, with the same v1.7 document-hash
+    fallback to avoid collisions.
 
     **Known limitation: long conversations**
 

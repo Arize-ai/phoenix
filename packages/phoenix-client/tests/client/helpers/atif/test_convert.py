@@ -617,8 +617,11 @@ class TestATIFV17Conversion:
         ref_map = _build_subagent_ref_map(flat)
         assert "child-doc" in ref_map
         parent_tool_span_id, parent_trace_id = ref_map["child-doc"]
-        assert parent_tool_span_id == _sha256_span_id("parent-doc:step:2:tool:call_delegate")
-        assert parent_trace_id == _sha256_trace_id("run-v17-001:trace")
+        expected_trace_id = _sha256_trace_id("run-v17-001:trace")
+        assert parent_tool_span_id == _sha256_span_id(
+            f"{expected_trace_id}:parent-doc:step:2:tool:call_delegate"
+        )
+        assert parent_trace_id == expected_trace_id
 
     def test_deterministic_dispatch_skips_llm_span(
         self, v17_embedded_subagents: Dict[str, Any]
@@ -656,12 +659,43 @@ class TestATIFV17Conversion:
 
         child_spans = _convert_atif_trajectory_to_spans(child, parent_span_context=parent_ctx)
         child_root = child_spans[0]
-        assert child_root["parent_id"] == _sha256_span_id("parent-doc:step:2:tool:call_delegate")
+        expected_trace_id = _sha256_trace_id(f"{parent['session_id']}:trace")
+        assert child_root["parent_id"] == _sha256_span_id(
+            f"{expected_trace_id}:parent-doc:step:2:tool:call_delegate"
+        )
         assert child_root["context"]["trace_id"] == _sha256_trace_id(
             f"{parent['session_id']}:trace"
         )
         assert child_root["attributes"]["session.id"] == parent["session_id"]
         assert child_root["attributes"]["metadata"]["trajectory_id"] == "child-doc"
+
+    def test_v17_same_session_without_trajectory_id_has_distinct_ids(self) -> None:
+        shared_session_id = "shared-v17-run"
+        trajectory_a: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": shared_session_id,
+            "agent": {"name": "agent-a", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "hello"},
+                {"step_id": 2, "source": "agent", "message": "hi"},
+            ],
+        }
+        trajectory_b: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": shared_session_id,
+            "agent": {"name": "agent-b", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "goodbye"},
+                {"step_id": 2, "source": "agent", "message": "bye"},
+            ],
+        }
+
+        spans_a = _convert_atif_trajectory_to_spans(trajectory_a)
+        spans_b = _convert_atif_trajectory_to_spans(trajectory_b)
+
+        assert spans_a[0]["context"]["trace_id"] != spans_b[0]["context"]["trace_id"]
+        span_ids = {span["context"]["span_id"] for span in spans_a + spans_b}
+        assert len(span_ids) == len(spans_a) + len(spans_b)
 
 
 class TestMultiTurnBehavior:
