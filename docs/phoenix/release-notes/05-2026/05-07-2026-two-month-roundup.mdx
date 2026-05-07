@@ -1,0 +1,499 @@
+---
+title: "05.07.2026: Two-Month Roundup (March–May 2026)"
+description: "Consolidated highlights of every user-facing change shipped to Phoenix between March 7 and May 7, 2026."
+---
+
+The last two months brought Phoenix's biggest API surface expansion yet: a major server release (v14), the dataset-upsert v15 milestone, four playground providers, a fully-featured CLI with auth profiles, parity between Python and TypeScript SDKs, and production-grade Postgres deployment options. This roundup consolidates every shipped change so existing users can catch up in one read.
+
+# Datasets
+
+## Dataset upsert is the new default
+
+**Breaking change in arize-phoenix 15.0.0 / arize-phoenix-client 2.6.0**
+
+`create_dataset()` no longer 409s on a duplicate name. Examples without an `id` are appended as a new version; examples with a matching stable `id` are updated in place.
+
+```python
+from phoenix.client import Client
+
+client = Client()
+client.datasets.create_dataset(
+    name="golden-set",
+    examples=[
+        {"input": {"query": "What is RAG?"}, "output": {"answer": "Retrieval-Augmented Generation"}, "id": "ex-001"},
+    ],
+)
+```
+
+Workflows that depended on duplicate-name errors should switch to passing `action="create"` against the REST endpoint or supply stable `example_id_key`/`id` fields for deterministic updates.
+
+## Drag-and-drop dataset upload
+
+**Available in arize-phoenix 13.9.0+ (server) and 13.13.0+ (column assignment)**
+
+Drag a CSV or JSONL file directly onto the Datasets page. Phoenix auto-detects format using a streaming parser with RFC 4180 quoted-field handling, then offers a chip-based input/output/metadata bucket assignment with smart auto-suggestions and a live preview.
+
+# Sessions
+
+## Session retrieval, listing, and bulk delete
+
+**Available in arize-phoenix-client 1.31.0+ (Python), @arizeai/phoenix-client 6.1.0+ (TypeScript), arize-phoenix 13.13.0+ (server)**
+
+Pull sessions by ID, list them with filters, export to a DataFrame, or delete one or many at once.
+
+```python
+session = client.sessions.get(session_id="my-session")
+sessions = client.sessions.list(project_name="my-chatbot", limit=10)
+df = client.sessions.get_sessions_dataframe(project_name="my-chatbot")
+client.sessions.bulk_delete(session_ids=["session-1", "session-2"])
+```
+
+```typescript
+import { getSession, listSessions, deleteSession } from "@arizeai/phoenix-client/sessions";
+```
+
+The matching REST endpoints are `GET /v1/sessions/{id}`, `GET /v1/projects/{project}/sessions`, `DELETE /v1/sessions/{id}`, and `POST /v1/sessions/delete` for cascading bulk deletes.
+
+## Session turns API
+
+**Available in arize-phoenix-client 2.0.0+ (Python) and @arizeai/phoenix-client 6.4.0+ (TypeScript)**
+
+`get_session_turns()` reconstructs ordered input/output pairs from root spans across every trace in a session — perfect for visualizing multi-turn conversations.
+
+```python
+turns = client.sessions.get_session_turns(session_id="my-session")
+for turn in turns:
+    print(turn.get("input"), "→", turn.get("output"))
+```
+
+# Traces, Spans, and Filtering
+
+## `get_traces` Python client
+
+**Available in arize-phoenix-client 2.2.0+**
+
+Auto-paginated trace retrieval with time, session, sort, and pagination filters.
+
+```python
+from datetime import datetime, timezone
+
+traces = client.traces.get_traces(
+    project_identifier="my-project",
+    start_time=datetime(2026, 3, 1, tzinfo=timezone.utc),
+    end_time=datetime(2026, 4, 1, tzinfo=timezone.utc),
+    include_spans=True,
+    limit=200,
+)
+```
+
+## Span attribute filtering
+
+**Available in arize-phoenix 14.9.0+ (server), arize-phoenix-client 2.4.0+ (Python), @arizeai/phoenix-client 6.7.0+ (TypeScript), @arizeai/phoenix-cli 1.1.0+**
+
+Filter spans by any OpenInference or custom attribute with type-aware matching. Repeat the parameter to AND multiple conditions; quoted strings force string matches; integer queries also match whole-number floats.
+
+```typescript
+const result = await getSpans({
+  client,
+  project: { projectName: "my-project" },
+  attributes: { "llm.model_name": "gpt-4o", "metadata.tier": "premium" },
+});
+```
+
+```bash
+px span list --attribute "llm.model_name:gpt-4o" --attribute "metadata.tier:premium"
+```
+
+## Span filtering by trace ID, parent, kind, status, and name
+
+**Available in arize-phoenix-client 2.0.0+ / 2.1.0+ (Python) and @arizeai/phoenix-client 6.3.0+ / 6.5.1+ (TypeScript)**
+
+`get_spans` now accepts `trace_ids`, `parent_id` (`"null"` returns root spans only), `span_kind`, `status_code`, and `name` (array). Conditions OR within a field and AND across fields.
+
+## List traces by project
+
+**Available in arize-phoenix 13.15.0+**
+
+`GET /v1/projects/{project}/traces` supports sort, cursor pagination, time range, session filtering, and `include_spans=true`.
+
+# Annotations and Notes
+
+## Trace notes and span notes APIs
+
+**Available in arize-phoenix 14.13.0+ (server), @arizeai/phoenix-client 6.8.0+ (TypeScript), @arizeai/phoenix-cli 1.3.0+**
+
+Free-form notes get their own first-class endpoints — `POST /v1/trace_notes` and `POST /v1/span_notes` — separate from structured annotations. The reserved `note` name is rejected on generic annotation endpoints to keep the two surfaces clean.
+
+```typescript
+import { addTraceNote } from "@arizeai/phoenix-client/traces";
+await addTraceNote({ traceNote: { traceId: "abc123", note: "Needs follow-up." } });
+```
+
+```bash
+px trace add-note <trace-id> --text "Reviewed by QA"
+```
+
+## Session notes API
+
+**Available in arize-phoenix 14.16.0+ (server) and 15.1.0+, @arizeai/phoenix-client 6.9.0+, @arizeai/phoenix-cli 1.4.0+**
+
+```typescript
+import { addSessionNote } from "@arizeai/phoenix-client/sessions";
+```
+
+```bash
+px session add-note <session-id> --text "Reviewed by QA"
+px session annotate <session-id> --name quality --label pass --score 0.95
+```
+
+## TypeScript trace annotations reach parity
+
+**Available in @arizeai/phoenix-client 6.9.0+**
+
+```typescript
+import { addTraceAnnotation, logTraceAnnotations } from "@arizeai/phoenix-client/traces";
+
+await addTraceAnnotation({
+  traceAnnotation: {
+    traceId: "abc123",
+    name: "correctness",
+    label: "correct",
+    score: 1.0,
+    annotatorKind: "HUMAN",
+    identifier: "run-001",
+  },
+  sync: true,
+});
+```
+
+## Query and bulk-delete annotations by identifier
+
+**Available in arize-phoenix 15.1.0+ (query) and 15.4.0+ (delete)**
+
+Span/trace/session annotation `GET` endpoints accept an `identifier` query parameter (AND-composes with `*_ids`), and a new `DELETE /v1/projects/{project}/{span|trace|session}_annotations` accepts `name`, `identifier`, `annotator_kind`, time bounds, or `delete_all=true` for bulk cleanup.
+
+# Prompts
+
+## Prompt version diff view
+
+**Available in arize-phoenix 13.18.0+**
+
+Compare any two prompt versions side-by-side with line-level highlights. Works for chat templates (multi-part messages, tool calls, tool results) and string templates.
+
+## Provider tools in Playground and Prompts
+
+**Available in arize-phoenix 15.4.0+, arize-phoenix-client (latest), @arizeai/phoenix-client (latest)**
+
+The tool editor now auto-detects function vs. provider tool shapes and round-trips vendor-native tools verbatim — Anthropic `web_search` / `code_execution` / `computer_use`, OpenAI Responses `web_search` / `file_search` / `code_interpreter` / `computer_use_preview` / `tool_search`, Gemini `google_search`, and Bedrock blocks. Switching providers drops provider tools but preserves function tools.
+
+```python
+prompt.format(formatter="openai")  # round-trips provider tools verbatim
+```
+
+## Delete prompts and prompt-version tags
+
+**Available in arize-phoenix 13.20.0+**
+
+`DELETE /v1/prompts/{id}` and `DELETE /v1/prompt_versions/{id}/tags/{tag_name}`.
+
+# Playground
+
+## Four new providers, 298 new models
+
+**Available in arize-phoenix 13.10.0+**
+
+Cerebras, Fireworks AI, Groq, and Moonshot (Kimi) join the Playground as first-class providers via OpenAI-compatible APIs, with built-in cost tracking. The OpenAI model picker also gained the GPT-5 family (`gpt-5`, `gpt-5-mini`, `gpt-5-nano`, `gpt-5-chat`, `gpt-5-pro`, `gpt-5.2-pro`, `gpt-5.3-chat-latest`, `gpt-5.4`, `gpt-5.4-pro`) and `o3-pro-2025-06-10`.
+
+## Claude Opus 4.7
+
+**Available in arize-phoenix 14.9.0+**
+
+Claude Opus 4.7 is selectable from the Playground model picker for cross-provider comparison.
+
+## Editable project settings
+
+**Available in arize-phoenix 13.10.0+**
+
+Project description and gradient colors are now editable inline from the Project Settings tab.
+
+## Polished experiment recording UX
+
+**Available in arize-phoenix 13.10.0+**
+
+A pulsing red recording icon with elapsed timer replaces the loading spinner during Playground experiments. Switch and Slider components got dark-mode contrast and smoother focus states.
+
+# Evaluators
+
+## Structured-input evaluators
+
+**Available in arize-phoenix-evals 2.12.0+**
+
+Evaluators auto-serialize dicts and lists before prompt rendering — pass nested context and metadata directly.
+
+```python
+scores = evaluator.evaluate({
+    "input": {"query": "What is the capital of France?", "language": "en"},
+    "output": "Paris is the capital of France.",
+    "context": ["Paris is the capital of France.", "France is in Western Europe."],
+})
+```
+
+Built-in evaluators (Faithfulness, Correctness, Hallucination, DocumentRelevance, Refusal, Conciseness, ToolSelection, ToolInvocation, ToolResponseHandling) also accept LLM kwargs:
+
+```python
+evaluator = FaithfulnessEvaluator(llm=llm, temperature=0.0, max_tokens=256)
+```
+
+## Runtime model capability detection
+
+**Available in arize-phoenix-evals 3.1.0+**
+
+The OpenAI adapter detects structured-output and tool-call support at runtime, so reasoning models (`o1`, `o3`, `o3-mini`, `o4-mini`) work with `ClassificationEvaluator` without library updates.
+
+```python
+from phoenix.evals import ClassificationEvaluator, OpenAIModel
+
+evaluator = ClassificationEvaluator(
+    model=OpenAIModel(model="o3-mini"),
+    template="my-eval-template",
+)
+```
+
+## Evaluator `trace_id` parameter
+
+**Available in arize-phoenix-client 2.4.0+**
+
+Experiment evaluators may now accept `trace_id` to correlate or refetch the originating trace.
+
+```python
+def my_evaluator(output, expected, trace_id=None):
+    score = 1.0 if output == expected else 0.0
+    return {"score": score, "label": "correct" if score else "incorrect"}
+```
+
+## ATIF trajectory upload
+
+**Available in arize-phoenix-client 2.3.0+**
+
+Upload Harbor ATIF agent trajectories as OpenTelemetry span trees.
+
+```python
+from phoenix.client.helpers.atif import upload_atif_trajectories_as_spans
+
+result = upload_atif_trajectories_as_spans(client, [trajectory], project_name="my-agent-project")
+```
+
+# OpenTelemetry SDKs
+
+## phoenix-otel for TypeScript 1.0
+
+**Available in @arizeai/phoenix-otel 1.0.0**
+
+A unified tracing surface re-exports the entire `@arizeai/openinference-core` and semantic-conventions API. Adds `withSpan`, `traceChain`, `traceAgent`, `traceTool`, the `@observe` decorator, context setters (`setSession`, `setUser`, `setMetadata`, `setTags`, `setAttributes`, `setPromptTemplate`), attribute builders, and `OITracer` redaction.
+
+```typescript
+import { register, traceAgent, traceTool, observe, OpenInferenceSpanKind } from "@arizeai/phoenix-otel";
+
+register({ projectName: "my-app" });
+
+const searchDocs = traceTool(async (q: string) => fetch(`/api/search?q=${q}`), { name: "search-docs" });
+```
+
+## phoenix-otel 0.16 for Python: built-in re-exports
+
+**Available in arize-phoenix-otel 0.16.0+**
+
+Context managers and OpenInference semantic conventions ship from `phoenix.otel` directly — no separate `openinference-instrumentation` install needed for the common cases.
+
+```python
+from phoenix.otel import (
+    register, suppress_tracing,
+    using_session, using_user, using_attributes, using_metadata, using_prompt_template, using_tags,
+    OpenInferenceMimeTypeValues, OpenInferenceSpanKindValues, SpanAttributes,
+)
+
+register(project_name="my-app", auto_instrument=True)
+
+with using_session(session_id="sess-123"), using_user("user-456"):
+    ...
+```
+
+## TanStack AI middleware
+
+**Available in @arizeai/openinference-tanstack-ai 0.1.0**
+
+OpenInference middleware for TanStack AI captures `AGENT`, `LLM`, and `TOOL` spans across streaming and non-streaming flows.
+
+```typescript
+import { chat } from "@tanstack/ai";
+import { openaiText } from "@tanstack/ai-openai";
+import { openInferenceMiddleware } from "@arizeai/openinference-tanstack-ai";
+
+const stream = chat({
+  adapter: openaiText("gpt-4o-mini"),
+  messages: [{ role: "user", content: "What is OpenInference?" }],
+  middleware: [openInferenceMiddleware()],
+});
+```
+
+# Phoenix CLI
+
+The TypeScript CLI matured from `0.x` to `1.4` over the window.
+
+## Span and trace inspection
+
+**Available in @arizeai/phoenix-cli 0.12.0+**
+
+```bash
+px spans --span-kind LLM --status-code ERROR --last-n-minutes 60
+px self update
+px auth status
+```
+
+## Annotations, notes, and session commands
+
+**Available in @arizeai/phoenix-cli 1.0.4+ (annotations), 1.1.0+ (span notes), 1.3.0+ (trace notes), 1.4.0+ (session)**
+
+```bash
+px span annotate <span-id> --name correctness --label correct --score 1 \
+  --explanation "..." --annotator-kind HUMAN
+px span add-note <span-id> --text "Looks suspicious"
+px trace add-note <trace-id> --text "Reviewed by QA"
+px session annotate <session-id> --name quality --label pass --score 0.95
+```
+
+`--include-annotations` and `--include-notes` flags are available on the matching read commands.
+
+## Named auth profiles
+
+**Available in @arizeai/phoenix-cli 1.4.0+**
+
+Manage multiple Phoenix endpoints (local, staging, prod) with named profiles. Resolution order: CLI flags > env vars > active profile > defaults. A JSON Schema is published for `~/.px/profiles.json` editor autocomplete.
+
+```bash
+px profile create staging \
+  --endpoint https://staging.phoenix.example.com \
+  --project my-project \
+  --api-key $STAGING_API_KEY
+px profile use prod
+px profile list
+```
+
+```json
+{
+  "$schema": "https://unpkg.com/@arizeai/phoenix-cli/schemas/phoenix-cli-settings.json",
+  "activeProfile": "prod",
+  "profiles": {
+    "prod": { "endpoint": "...", "apiKey": "...", "project": "production" }
+  }
+}
+```
+
+# REST API additions
+
+**Available in arize-phoenix 15.3.0+ / 15.4.0+**
+
+- `cumulative_token_count_{prompt,completion,total}` are now returned on traces and sessions endpoints.
+- Experiment CSV export includes `metadata_<key>` columns from each dataset example.
+- Filter-based annotation deletes (see Annotations section).
+- Provider tools round-trip on prompt fetch/format.
+
+## Shareable URL redirects
+
+**Available in arize-phoenix 14.2.0+**
+
+Stable, name-based URLs that resolve to the right internal page without exposing IDs:
+
+```
+/redirects/projects/{project_name}
+/redirects/traces/{trace_id}
+/redirects/spans/{span_id}
+/redirects/sessions/{session_id}
+/redirects/prompts/{prompt_id}/tags/{tag_name}
+```
+
+# Auth and Security
+
+## Secrets management UI and REST API
+
+**Available in arize-phoenix 13.21.0+ (API) and 14.11.0+ (UI)**
+
+A new `Settings → Secrets` admin page (and `PUT /v1/secrets`) manages encrypted (AES-128-CBC) provider credentials in the UI — add, replace, delete, search, and filter by owner or key name. Admin-only.
+
+## `GET /v1/user`
+
+**Available in arize-phoenix 13.16.0+**
+
+Returns the authenticated user's profile (username, email, role); represents anonymous access when auth is disabled. Surfaced by `px auth status`.
+
+## Brute-force login protection
+
+**Available in arize-phoenix 13.8.0+**
+
+Auto-locks accounts after 5 failed logins in 5 minutes. Tunable via `PHOENIX_BRUTE_FORCE_LOGIN_PROTECTION_MAX_ATTEMPTS`.
+
+## Provider visibility controls
+
+**Available in arize-phoenix 13.13.0+**
+
+`PHOENIX_ALLOWED_PROVIDERS` allow-lists which LLM providers appear in the Playground UI. Supports `NONE` to hide them all.
+
+## GraphQL field redaction
+
+**Available in arize-phoenix 14.16.0+**
+
+Sensitive GraphQL fields are now redacted with a `RedactedString` scalar to keep secrets out of introspection and error payloads.
+
+# Database and Deployment
+
+## PostgreSQL read replica routing
+
+**Available in arize-phoenix 14.0.0+**
+
+Set `PHOENIX_SQL_DATABASE_READ_REPLICA_URL` to route DataLoader, GraphQL read resolvers, REST read endpoints, and the model store daemon to a read replica. Writes still hit the primary. PostgreSQL only; SQLite ignored with a warning. Phoenix does not manage replication lag.
+
+## Azure Managed Identity for PostgreSQL
+
+**Available in arize-phoenix 14.8.0+**
+
+Token-based authentication for Azure Database for PostgreSQL — no static passwords.
+
+```bash
+pip install 'arize-phoenix[azure]'
+```
+
+```bash
+export PHOENIX_POSTGRES_USE_AZURE_MANAGED_IDENTITY=true
+export PHOENIX_SQL_DATABASE_URL=postgresql+asyncpg://<user>@<host>/<db>
+# Optional sovereign-cloud override:
+# export PHOENIX_POSTGRES_AZURE_SCOPE=https://ossrdbms-aad.database.windows.net/.default
+```
+
+Mutually exclusive with `PHOENIX_POSTGRES_USE_AWS_IAM_AUTH`. The `PHOENIX_POSTGRES_AWS_IAM_TOKEN_LIFETIME_SECONDS` env var is deprecated and silently ignored.
+
+# Breaking changes summary (arize-phoenix 14.0.0)
+
+These all shipped together on April 7, 2026. Read the dedicated v14 migration note before upgrading.
+
+- **CLI is subcommand-first.** `phoenix --dev serve` becomes `phoenix serve --dev`. The `--enable-websockets` flag is removed.
+- **`px.Client()` is removed.** Switch to `phoenix.client.Client(base_url=...)` with namespaced resources (`.spans`, `.traces`, `.datasets`, `.experiments`).
+- **`/v1/evaluations` is removed.** Use `/v1/{span,trace,document}_annotations` or `client.spans.log_span_annotations_dataframe()`. `protobuf` is no longer a direct server dependency.
+- **GraphQL forward pagination requires `first`.** `Project.spans`, `Trace.spans`, and `ProjectSession.traces` reject `last`/`before` and require `first` (max 1000).
+- **arize-phoenix-evals 3.0.0** removes the entire `legacy/` subpackage, the `models/` wrappers, and `MultimodalPrompt`/`PromptPart*` types. `phoenix.experiments` is removed; use `phoenix.client.experiments`.
+- **Client 2.0.0** removes the deprecated `client.annotations` module — use `client.spans.add_span_annotation()` / `log_span_annotations()`.
+- **Client 2.6.0 / server 15.0.0** make dataset upsert the default (see Datasets section).
+
+<CardGroup cols={2}>
+  <Card title="v14 migration guide" icon="book" href="/docs/phoenix/release-notes/04-2026/04-07-2026-phoenix-v14-breaking-changes">
+    Detailed before/after for every v14 break.
+  </Card>
+  <Card title="Dataset upsert" icon="database" href="/docs/phoenix/release-notes/04-2026/04-29-2026-dataset-upsert">
+    How upsert behaves and how to opt out.
+  </Card>
+  <Card title="PostgreSQL read replica" icon="server" href="/docs/phoenix/release-notes/04-2026/04-07-2026-postgresql-read-replica">
+    Routing reads under high ingestion.
+  </Card>
+  <Card title="Azure managed identity" icon="cloud" href="/docs/phoenix/release-notes/04-2026/04-16-2026-azure-managed-identity-postgres">
+    Passwordless Postgres on Azure.
+  </Card>
+</CardGroup>
