@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<14ef3a15ef3943ee204ad28dc999ced8>>
+ * @generated SignedSource<<34f653fb4eae908a5000f3e5a49cac71>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -24,12 +24,14 @@ export type SessionDetailsTraceList_traces$data = {
           readonly id: string;
           readonly input: {
             readonly mimeType: MimeType;
+            readonly truncatedValue: string;
             readonly value: string;
           } | null;
           readonly latencyMs: number | null;
           readonly name: string;
           readonly output: {
             readonly mimeType: MimeType;
+            readonly truncatedValue: string;
             readonly value: string;
           } | null;
           readonly project: {
@@ -77,6 +79,13 @@ v2 = [
     "args": null,
     "kind": "ScalarField",
     "name": "value",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "truncatedValue",
     "storageKey": null
   },
   {
@@ -368,6 +377,6 @@ return {
 };
 })();
 
-(node as any).hash = "a8c766a3e99780c2b1c0d17747eb5bfb";
+(node as any).hash = "78d860d4c19b7111632899f55e7da5fc";
 
 export default node;

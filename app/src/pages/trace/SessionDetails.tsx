@@ -18,6 +18,7 @@ import {
   TriggerWrap,
   View,
 } from "@phoenix/components";
+import { SessionAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
 import { SESSION_VIEW_PARAM } from "@phoenix/constants/searchParams";
@@ -41,13 +42,13 @@ import {
 import type { SessionView } from "./SessionViewTabs";
 
 function SessionDetailsHeader({
-  traceCount,
+  session,
   costSummary,
   tokenUsage,
   latencyP50,
   sessionId,
 }: {
-  traceCount: number;
+  session: NonNullable<SessionDetailsQuery$data["session"]>;
   tokenUsage?: NonNullable<SessionDetailsQuery$data["session"]>["tokenUsage"];
   costSummary?: NonNullable<SessionDetailsQuery$data["session"]>["costSummary"];
   latencyP50?: number | null;
@@ -59,69 +60,78 @@ function SessionDetailsHeader({
       borderBottomWidth={"thin"}
       borderBottomColor="default"
     >
-      <Flex direction="row" gap="size-400" alignItems="center">
-        <Flex direction={"column"}>
-          <Text elementType={"h3"} color={"text-700"}>
-            Traces Count
-          </Text>
-          <Text size="L">{traceCount}</Text>
+      <Flex
+        direction="row"
+        gap="size-400"
+        alignItems="center"
+        justifyContent="space-between"
+      >
+        <Flex direction="row" gap="size-400" alignItems="center">
+          {tokenUsage != null ? (
+            <Flex direction={"column"}>
+              <Text elementType={"h3"} color={"text-700"}>
+                Total Tokens
+              </Text>
+              <SessionTokenCount
+                tokenCountTotal={tokenUsage.total}
+                nodeId={sessionId}
+                size="L"
+              />
+            </Flex>
+          ) : null}
+          {costSummary != null ? (
+            <Flex direction="column" flex="none">
+              <Text elementType="h3" size="S" color="text-700">
+                Total Cost
+              </Text>
+              <TooltipTrigger delay={0}>
+                <TriggerWrap>
+                  <Text size="L">
+                    {costFormatter(costSummary.total?.cost ?? 0)}
+                  </Text>
+                </TriggerWrap>
+                <RichTooltip placement="bottom">
+                  <View width="size-2400">
+                    <Flex direction="column">
+                      <Flex justifyContent="space-between">
+                        <Text>Prompt Cost</Text>
+                        <Text>
+                          {costFormatter(costSummary.prompt?.cost ?? 0)}
+                        </Text>
+                      </Flex>
+                      <Flex justifyContent="space-between">
+                        <Text>Completion Cost</Text>
+                        <Text>
+                          {costFormatter(costSummary.completion?.cost ?? 0)}
+                        </Text>
+                      </Flex>
+                      <Flex justifyContent="space-between">
+                        <Text>Total Cost</Text>
+                        <Text>
+                          {costFormatter(costSummary.total?.cost ?? 0)}
+                        </Text>
+                      </Flex>
+                    </Flex>
+                  </View>
+                </RichTooltip>
+              </TooltipTrigger>
+            </Flex>
+          ) : null}
+          {latencyP50 != null ? (
+            <Flex direction={"column"}>
+              <Text elementType={"h3"} color={"text-700"}>
+                Latency P50
+              </Text>
+              <LatencyText latencyMs={latencyP50} size="L" />
+            </Flex>
+          ) : null}
         </Flex>
-        {tokenUsage != null ? (
-          <Flex direction={"column"}>
-            <Text elementType={"h3"} color={"text-700"}>
-              Total Tokens
-            </Text>
-            <SessionTokenCount
-              tokenCountTotal={tokenUsage.total}
-              nodeId={sessionId}
-              size="L"
-            />
-          </Flex>
-        ) : null}
-        {costSummary != null ? (
-          <Flex direction="column" flex="none">
-            <Text elementType="h3" size="S" color="text-700">
-              Total Cost
-            </Text>
-            <TooltipTrigger delay={0}>
-              <TriggerWrap>
-                <Text size="L">
-                  {costFormatter(costSummary.total?.cost ?? 0)}
-                </Text>
-              </TriggerWrap>
-              <RichTooltip placement="bottom">
-                <View width="size-2400">
-                  <Flex direction="column">
-                    <Flex justifyContent="space-between">
-                      <Text>Prompt Cost</Text>
-                      <Text>
-                        {costFormatter(costSummary.prompt?.cost ?? 0)}
-                      </Text>
-                    </Flex>
-                    <Flex justifyContent="space-between">
-                      <Text>Completion Cost</Text>
-                      <Text>
-                        {costFormatter(costSummary.completion?.cost ?? 0)}
-                      </Text>
-                    </Flex>
-                    <Flex justifyContent="space-between">
-                      <Text>Total Cost</Text>
-                      <Text>{costFormatter(costSummary.total?.cost ?? 0)}</Text>
-                    </Flex>
-                  </Flex>
-                </View>
-              </RichTooltip>
-            </TooltipTrigger>
-          </Flex>
-        ) : null}
-        {latencyP50 != null ? (
-          <Flex direction={"column"}>
-            <Text elementType={"h3"} color={"text-700"}>
-              Latency P50
-            </Text>
-            <LatencyText latencyMs={latencyP50} size="L" />
-          </Flex>
-        ) : null}
+        <Flex direction="row" justifyContent="end">
+          <SessionAnnotationSummaryGroupTokens
+            session={session}
+            renderEmptyState={() => null}
+          />
+        </Flex>
       </Flex>
     </View>
   );
@@ -179,6 +189,7 @@ export function SessionDetails(props: SessionDetailsProps) {
             }
             sessionId
             latencyP50: traceLatencyMsQuantile(probability: 0.50)
+            ...SessionAnnotationSummaryGroup
           }
         }
       }
@@ -279,7 +290,7 @@ export function SessionDetails(props: SessionDetailsProps) {
       `}
     >
       <SessionDetailsHeader
-        traceCount={traceCount}
+        session={data.session}
         costSummary={data.session.costSummary}
         tokenUsage={data.session.tokenUsage}
         latencyP50={data.session.latencyP50}
