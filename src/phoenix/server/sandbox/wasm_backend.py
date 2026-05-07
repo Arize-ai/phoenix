@@ -173,6 +173,7 @@ class WASMBinaryProbe:
 
 class WASMAdapter(SandboxAdapter):
     key = "WASM"
+    family = "WASM"
     display_name = "WebAssembly (local)"
     language = "PYTHON"
     config_model = WASMConfig
