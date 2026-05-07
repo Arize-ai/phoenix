@@ -8,10 +8,10 @@ from pydantic_ai.messages import (
 )
 
 from phoenix.server.agents.context import (
+    AgentSpanContext,
     AppContext,
     ProjectContext,
     ResolvedContexts,
-    SpanContext,
     TraceContext,
     build_phoenix_context_user_message_content,
     insert_context_user_message,
@@ -42,7 +42,7 @@ class TestBuildPhoenixContextUserMessageContent:
                 project_node_id="UHJvamVjdDox",
                 otel_trace_id="ee6a3a45bd5f1d1e31975e8fedb97cd5",
             ),
-            span=SpanContext(type="span", span_node_id="U3BhbjoxMjM="),
+            span=AgentSpanContext(type="span", span_node_id="U3BhbjoxMjM="),
         )
         content = build_phoenix_context_user_message_content(resolved)
         assert content is not None
@@ -54,7 +54,7 @@ class TestBuildPhoenixContextUserMessageContent:
 
     def test_renders_otel_span_when_node_id_absent(self) -> None:
         resolved = ResolvedContexts(
-            span=SpanContext(type="span", otel_span_id="0123456789abcdef"),
+            span=AgentSpanContext(type="span", otel_span_id="0123456789abcdef"),
         )
         content = build_phoenix_context_user_message_content(resolved)
         assert content is not None

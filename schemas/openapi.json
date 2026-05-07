@@ -6691,6 +6691,54 @@
         "title": "AgentCapabilities",
         "description": "Runtime capability state sent by the browser for a chat turn."
       },
+      "AgentSpanContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "span",
+            "title": "Type"
+          },
+          "projectNodeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Projectnodeid"
+          },
+          "spanNodeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spannodeid"
+          },
+          "otelSpanId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Otelspanid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "AgentSpanContext",
+        "description": "Span the user has selected.\n\nExactly one of ``span_node_id`` (relay) or ``otel_span_id`` (OpenTelemetry\nhex) must be set. ``project_node_id`` is optional because a span can be\nselected from views outside a project route."
+      },
       "AnnotateSessionsRequestBody": {
         "properties": {
           "data": {
@@ -12850,7 +12898,7 @@
             "description": "Name of the span operation"
           },
           "context": {
-            "$ref": "#/components/schemas/phoenix__server__api__routers__v1__spans__SpanContext",
+            "$ref": "#/components/schemas/SpanContext",
             "description": "Span context containing trace_id and span_id"
           },
           "span_kind": {
@@ -13126,6 +13174,32 @@
           "next_cursor"
         ],
         "title": "SpanAnnotationsResponseBody"
+      },
+      "SpanContext": {
+        "properties": {
+          "trace_id": {
+            "type": "string",
+            "title": "Trace Id",
+            "description": "OpenTelemetry trace ID"
+          },
+          "span_id": {
+            "type": "string",
+            "title": "Span Id",
+            "description": "OpenTelemetry span ID"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trace_id",
+          "span_id"
+        ],
+        "title": "SpanContext",
+        "examples": [
+          {
+            "span_id": "1a2b3c4d5e6f7a8b",
+            "trace_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
+          }
+        ]
       },
       "SpanDocumentAnnotationData": {
         "properties": {
@@ -14898,7 +14972,7 @@
                   "$ref": "#/components/schemas/TraceContext"
                 },
                 {
-                  "$ref": "#/components/schemas/phoenix__server__agents__context__SpanContext"
+                  "$ref": "#/components/schemas/AgentSpanContext"
                 }
               ],
               "discriminator": {
@@ -14906,7 +14980,7 @@
                 "mapping": {
                   "app": "#/components/schemas/AppContext",
                   "project": "#/components/schemas/ProjectContext",
-                  "span": "#/components/schemas/phoenix__server__agents__context__SpanContext",
+                  "span": "#/components/schemas/AgentSpanContext",
                   "trace": "#/components/schemas/TraceContext"
                 }
               }
@@ -14965,7 +15039,7 @@
                   "$ref": "#/components/schemas/TraceContext"
                 },
                 {
-                  "$ref": "#/components/schemas/phoenix__server__agents__context__SpanContext"
+                  "$ref": "#/components/schemas/AgentSpanContext"
                 }
               ],
               "discriminator": {
@@ -14973,7 +15047,7 @@
                 "mapping": {
                   "app": "#/components/schemas/AppContext",
                   "project": "#/components/schemas/ProjectContext",
-                  "span": "#/components/schemas/phoenix__server__agents__context__SpanContext",
+                  "span": "#/components/schemas/AgentSpanContext",
                   "trace": "#/components/schemas/TraceContext"
                 }
               }
@@ -14998,80 +15072,6 @@
         ],
         "title": "_SubmitMessage",
         "description": "Submit message extended with Phoenix-specific fields."
-      },
-      "phoenix__server__agents__context__SpanContext": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "span",
-            "title": "Type"
-          },
-          "projectNodeId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Projectnodeid"
-          },
-          "spanNodeId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Spannodeid"
-          },
-          "otelSpanId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Otelspanid"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type"
-        ],
-        "title": "SpanContext",
-        "description": "Span the user has selected.\n\nExactly one of ``span_node_id`` (relay) or ``otel_span_id`` (OpenTelemetry\nhex) must be set. ``project_node_id`` is optional because a span can be\nselected from views outside a project route."
-      },
-      "phoenix__server__api__routers__v1__spans__SpanContext": {
-        "properties": {
-          "trace_id": {
-            "type": "string",
-            "title": "Trace Id",
-            "description": "OpenTelemetry trace ID"
-          },
-          "span_id": {
-            "type": "string",
-            "title": "Span Id",
-            "description": "OpenTelemetry span ID"
-          }
-        },
-        "type": "object",
-        "required": [
-          "trace_id",
-          "span_id"
-        ],
-        "title": "SpanContext",
-        "examples": [
-          {
-            "span_id": "1a2b3c4d5e6f7a8b",
-            "trace_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
-          }
-        ]
       }
     }
   }

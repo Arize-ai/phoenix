@@ -1399,6 +1399,27 @@ export interface components {
              */
             "graphql.mutations"?: boolean;
         };
+        /**
+         * AgentSpanContext
+         * @description Span the user has selected.
+         *
+         *     Exactly one of ``span_node_id`` (relay) or ``otel_span_id`` (OpenTelemetry
+         *     hex) must be set. ``project_node_id`` is optional because a span can be
+         *     selected from views outside a project route.
+         */
+        AgentSpanContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "span";
+            /** Projectnodeid */
+            projectNodeId?: string | null;
+            /** Spannodeid */
+            spanNodeId?: string | null;
+            /** Otelspanid */
+            otelSpanId?: string | null;
+        };
         /** AnnotateSessionsRequestBody */
         AnnotateSessionsRequestBody: {
             /** Data */
@@ -3967,7 +3988,7 @@ export interface components {
              */
             name: string;
             /** @description Span context containing trace_id and span_id */
-            context: components["schemas"]["phoenix__server__api__routers__v1__spans__SpanContext"];
+            context: components["schemas"]["SpanContext"];
             /**
              * Span Kind
              * @description Type of work that the span encapsulates
@@ -4107,6 +4128,25 @@ export interface components {
             data: components["schemas"]["SpanAnnotation"][];
             /** Next Cursor */
             next_cursor: string | null;
+        };
+        /**
+         * SpanContext
+         * @example {
+         *       "span_id": "1a2b3c4d5e6f7a8b",
+         *       "trace_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
+         *     }
+         */
+        SpanContext: {
+            /**
+             * Trace Id
+             * @description OpenTelemetry trace ID
+             */
+            trace_id: string;
+            /**
+             * Span Id
+             * @description OpenTelemetry span ID
+             */
+            span_id: string;
         };
         /** SpanDocumentAnnotationData */
         SpanDocumentAnnotationData: {
@@ -4844,7 +4884,7 @@ export interface components {
             /** Messageid */
             messageId?: string | null;
             /** Contexts */
-            contexts?: (components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["phoenix__server__agents__context__SpanContext"])[];
+            contexts?: (components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"])[];
             capabilities?: components["schemas"]["AgentCapabilities"];
             /** Sessionid */
             sessionId: string;
@@ -4866,52 +4906,12 @@ export interface components {
             /** Messages */
             messages: components["schemas"]["UIMessage"][];
             /** Contexts */
-            contexts?: (components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["phoenix__server__agents__context__SpanContext"])[];
+            contexts?: (components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"])[];
             capabilities?: components["schemas"]["AgentCapabilities"];
             /** Sessionid */
             sessionId: string;
         } & {
             [key: string]: unknown;
-        };
-        /**
-         * SpanContext
-         * @description Span the user has selected.
-         *
-         *     Exactly one of ``span_node_id`` (relay) or ``otel_span_id`` (OpenTelemetry
-         *     hex) must be set. ``project_node_id`` is optional because a span can be
-         *     selected from views outside a project route.
-         */
-        phoenix__server__agents__context__SpanContext: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "span";
-            /** Projectnodeid */
-            projectNodeId?: string | null;
-            /** Spannodeid */
-            spanNodeId?: string | null;
-            /** Otelspanid */
-            otelSpanId?: string | null;
-        };
-        /**
-         * SpanContext
-         * @example {
-         *       "span_id": "1a2b3c4d5e6f7a8b",
-         *       "trace_id": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
-         *     }
-         */
-        phoenix__server__api__routers__v1__spans__SpanContext: {
-            /**
-             * Trace Id
-             * @description OpenTelemetry trace ID
-             */
-            trace_id: string;
-            /**
-             * Span Id
-             * @description OpenTelemetry span ID
-             */
-            span_id: string;
         };
     };
     responses: never;

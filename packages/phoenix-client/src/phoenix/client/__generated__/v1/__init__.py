@@ -13,6 +13,13 @@ class AgentCapabilities(TypedDict):
     graphql_mutations: NotRequired[bool]
 
 
+class AgentSpanContext(TypedDict):
+    type: Literal["span"]
+    projectNodeId: NotRequired[str]
+    spanNodeId: NotRequired[str]
+    otelSpanId: NotRequired[str]
+
+
 class AnnotationResult(TypedDict):
     label: NotRequired[str]
     score: NotRequired[float]
@@ -634,6 +641,11 @@ class SpanAnnotationsResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
+class SpanContext(TypedDict):
+    trace_id: str
+    span_id: str
+
+
 class SpanDocumentAnnotationData(TypedDict):
     name: str
     annotator_kind: Literal["LLM", "CODE", "HUMAN"]
@@ -858,18 +870,6 @@ class ValidationError(TypedDict):
     type: str
     input: NotRequired[Any]
     ctx: NotRequired[Mapping[str, Any]]
-
-
-class PhoenixServerAgentsContextSpanContext(TypedDict):
-    type: Literal["span"]
-    projectNodeId: NotRequired[str]
-    spanNodeId: NotRequired[str]
-    otelSpanId: NotRequired[str]
-
-
-class PhoenixServerApiRoutersV1SpansSpanContext(TypedDict):
-    trace_id: str
-    span_id: str
 
 
 class AnnotateSessionsRequestBody(TypedDict):
@@ -1270,7 +1270,7 @@ class SessionData(TypedDict):
 
 class Span(TypedDict):
     name: str
-    context: PhoenixServerApiRoutersV1SpansSpanContext
+    context: SpanContext
     span_kind: str
     start_time: str
     end_time: str
@@ -1361,9 +1361,7 @@ class FieldRegenerateMessage(TypedDict):
     trigger: NotRequired[str]
     messageId: NotRequired[str]
     contexts: NotRequired[
-        Sequence[
-            Union[AppContext, ProjectContext, TraceContext, PhoenixServerAgentsContextSpanContext]
-        ]
+        Sequence[Union[AppContext, ProjectContext, TraceContext, AgentSpanContext]]
     ]
     capabilities: NotRequired[AgentCapabilities]
 
@@ -1374,9 +1372,7 @@ class FieldSubmitMessage(TypedDict):
     sessionId: str
     trigger: NotRequired[str]
     contexts: NotRequired[
-        Sequence[
-            Union[AppContext, ProjectContext, TraceContext, PhoenixServerAgentsContextSpanContext]
-        ]
+        Sequence[Union[AppContext, ProjectContext, TraceContext, AgentSpanContext]]
     ]
     capabilities: NotRequired[AgentCapabilities]
 
