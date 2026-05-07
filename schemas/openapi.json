@@ -6623,7 +6623,7 @@
         }
       }
     },
-    "/agent-sessions/{session_id}/summary": {
+    "/agent_sessions/{session_id}/summary": {
       "post": {
         "tags": [
           "chat"
@@ -15163,7 +15163,7 @@
           "messages"
         ],
         "title": "_SummarizeRequest",
-        "description": "Body for POST /agent-sessions/{session_id}/summary.\n\nCarries the Vercel-style messages array; the backend owns the prompt and\nthe structured-output tool schema."
+        "description": "Body for POST /agent_sessions/{session_id}/summary.\n\nCarries the Vercel-style messages array; the backend owns the prompt and\nthe structured-output tool schema."
       },
       "_SummarizeResponse": {
         "properties": {

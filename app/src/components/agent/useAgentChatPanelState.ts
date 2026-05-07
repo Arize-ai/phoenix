@@ -198,7 +198,7 @@ export function useAgentChatPanelState() {
   const getSummarizeApiUrl = useCallback(
     (sessionId: string) =>
       prependBasename(
-        `/agent-sessions/${encodeURIComponent(sessionId)}/summary?${providerSearchParams}`
+        `/agent_sessions/${encodeURIComponent(sessionId)}/summary?${providerSearchParams}`
       ),
     [providerSearchParams]
   );

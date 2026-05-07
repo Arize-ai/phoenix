@@ -1328,7 +1328,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/agent-sessions/{session_id}/summary": {
+    "/agent_sessions/{session_id}/summary": {
         parameters: {
             query?: never;
             header?: never;
@@ -4932,7 +4932,7 @@ export interface components {
         };
         /**
          * _SummarizeRequest
-         * @description Body for POST /agent-sessions/{session_id}/summary.
+         * @description Body for POST /agent_sessions/{session_id}/summary.
          *
          *     Carries the Vercel-style messages array; the backend owns the prompt and
          *     the structured-output tool schema.
