@@ -38,8 +38,8 @@ describe("Phoenix CLI", () => {
     );
 
     expect(projectCommand).toBeDefined();
-    expect(projectCommand?.commands.map((command) => command.name())).toContain(
-      "list"
+    expect(projectCommand?.commands.map((command) => command.name())).toEqual(
+      expect.arrayContaining(["list", "get"])
     );
     expect(
       program.commands.find((command) => command.name() === "projects")
@@ -54,7 +54,14 @@ describe("Phoenix CLI", () => {
 
     expect(traceCommand).toBeDefined();
     expect(traceCommand?.commands.map((command) => command.name())).toEqual(
-      expect.arrayContaining(["list", "get", "annotate", "add-note"])
+      expect.arrayContaining([
+        "list",
+        "get",
+        "annotate",
+        "add-note",
+        "list-annotations",
+        "delete-annotations",
+      ])
     );
     expect(
       program.commands.find((command) => command.name() === "traces")
@@ -68,14 +75,14 @@ describe("Phoenix CLI", () => {
     );
 
     expect(spanCommand).toBeDefined();
-    expect(spanCommand?.commands.map((command) => command.name())).toContain(
-      "list"
-    );
-    expect(spanCommand?.commands.map((command) => command.name())).toContain(
-      "annotate"
-    );
-    expect(spanCommand?.commands.map((command) => command.name())).toContain(
-      "add-note"
+    expect(spanCommand?.commands.map((command) => command.name())).toEqual(
+      expect.arrayContaining([
+        "list",
+        "annotate",
+        "add-note",
+        "list-annotations",
+        "delete-annotations",
+      ])
     );
     expect(
       program.commands.find((command) => command.name() === "spans")
@@ -105,7 +112,14 @@ describe("Phoenix CLI", () => {
 
     expect(sessionCommand).toBeDefined();
     expect(sessionCommand?.commands.map((command) => command.name())).toEqual(
-      expect.arrayContaining(["list", "get", "annotate", "add-note"])
+      expect.arrayContaining([
+        "list",
+        "get",
+        "annotate",
+        "add-note",
+        "list-annotations",
+        "delete-annotations",
+      ])
     );
     const listCommand = sessionCommand?.commands.find(
       (command) => command.name() === "list"

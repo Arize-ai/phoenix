@@ -56,14 +56,13 @@ Every artifact this workflow produces — open-coding notes, axial-coding annota
 
 Examples: `coding-session:chatbot-context-loss-2026-05-06`, `coding-session:agent-tool-misuse-q2`. Descriptive ids carry meaning for whoever opens the data later — better than an opaque uuid.
 
-Verify the id isn't already in use in this project (any of the three kinds — they share the underlying annotation table). One GET, expect zero rows:
+Verify the id isn't already in use in this project (any of the three kinds — they share the underlying annotation table). One read, expect zero rows:
 
 ```bash
 export PHOENIX_CODING_SESSION_ID="coding-session:chatbot-context-loss-2026-05-06"
 
-curl -s ${PHOENIX_API_KEY:+-H "Authorization: Bearer $PHOENIX_API_KEY"} \
-  "$PHOENIX_HOST/v1/projects/$PHOENIX_PROJECT/trace_annotations?identifier=$PHOENIX_CODING_SESSION_ID&limit=1" \
-  | jq '.data | length'
+px trace list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --format raw --no-progress \
+  | jq 'length'
 # Expect 0. If non-zero, append a disambiguator (-v2, -dustin, etc.) and re-check.
 ```
 
@@ -188,7 +187,7 @@ The sidecar's identifier matches the session id, so the [wrap-up DELETE](#wrappi
 
 - `POST /v1/trace_notes` and `POST /v1/span_notes` and `POST /v1/session_notes` — accept one `{data: {trace_id|span_id|session_id, note, identifier}}` per request; the optional `identifier` field upserts on `(entity_id, name='note', identifier)` when non-empty.
 - `@arizeai/phoenix-client` `addTraceNote`, `addSpanNote`, and `addSessionNote` wrap the same endpoints and accept an optional `identifier` field on the note object.
-- `px api graphql` rejects mutations with `"Only queries are permitted."` — use `px {trace,span,session} add-note` or the REST endpoints instead.
+- The GraphQL endpoint rejects mutations with `"Only queries are permitted."` — write through `px {trace,span,session} add-note` or the REST endpoints above.
 
 ## What Makes a Good Note
 
@@ -214,36 +213,38 @@ At saturation, move on to [axial coding](axial-coding.md) to group what you have
 
 ## Listing what this session produced
 
-At any time during the run you can list every artifact tagged with the current session id:
+At any time during the run you can list every artifact tagged with the current session id. The `--include-notes` flag opts in to the `name="note"` rows that the GET endpoint excludes by default:
 
 ```bash
 # All notes + structured annotations + sidecars across the three entity kinds
 for kind in trace span session; do
-  curl -s ${PHOENIX_API_KEY:+-H "Authorization: Bearer $PHOENIX_API_KEY"} \
-    "$PHOENIX_HOST/v1/projects/$PHOENIX_PROJECT/${kind}_annotations?identifier=$PHOENIX_CODING_SESSION_ID&limit=1000" \
-    | jq --arg kind "$kind" '{kind: $kind, rows: .data}'
+  px "$kind" list-annotations \
+    --identifier "$PHOENIX_CODING_SESSION_ID" \
+    --include-notes \
+    --format raw --no-progress \
+    | jq --arg kind "$kind" '{kind: $kind, rows: .}'
 done
 ```
 
 ## Wrapping up
 
-When the session is done, share the Phoenix UI link with the user. The link filters the project's traces page by the sidecar annotation. The UI route `/projects/:projectId` expects an encoded GraphQL node ID, not a project name — resolve it first via `getProjectByName`:
+When the session is done, share the Phoenix UI link with the user. The link filters the project's traces page by the sidecar annotation. The UI route `/projects/:projectId` expects an encoded GraphQL node ID, not a project name — resolve it via `px project get`:
 
 ```bash
-project_id=$(px api graphql "{ getProjectByName(name: \"$PHOENIX_PROJECT\") { id } }" \
-  | jq -r '.data.getProjectByName.id')
+project_id=$(px project get "$PHOENIX_PROJECT" --format raw --no-progress | jq -r '.id')
 encoded=$(python3 -c 'import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))' \
   "annotations['coding_session_id'].label == '$PHOENIX_CODING_SESSION_ID'")
 echo "Phoenix UI: $PHOENIX_HOST/projects/$project_id/traces?filterCondition=$encoded"
 ```
 
-If the user wants to discard everything this session produced, three identifier-bound DELETEs handle it. **Confirm with the user before running** — this is destructive:
+If the user wants to discard everything this session produced, three identifier-bound deletes handle it. **Confirm with the user before running** — this is destructive. Each call requires `--all` (or both `--start-time` and `--end-time`) to authorize the sweep; narrowers like `--identifier` filter further but never authorize on their own. Set `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` first if not already exported:
 
 ```bash
 for kind in trace span session; do
-  curl -X DELETE \
-    ${PHOENIX_API_KEY:+-H "Authorization: Bearer $PHOENIX_API_KEY"} \
-    "$PHOENIX_HOST/v1/projects/$PHOENIX_PROJECT/${kind}_annotations?identifier=$PHOENIX_CODING_SESSION_ID&delete_all=true"
+  px "$kind" delete-annotations \
+    --identifier "$PHOENIX_CODING_SESSION_ID" \
+    --all -y \
+    --format raw --no-progress
 done
 ```
 

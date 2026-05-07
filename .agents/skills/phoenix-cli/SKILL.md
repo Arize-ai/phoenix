@@ -24,16 +24,23 @@ px trace list
 px trace get <trace-id>
 px trace annotate <trace-id>
 px trace add-note <trace-id>
+px trace list-annotations
+px trace delete-annotations
 px span list
 px span annotate <span-id>
 px span add-note <span-id>
+px span list-annotations
+px span delete-annotations
 px session list
 px session get <session-id>
 px session annotate <session-id>
 px session add-note <session-id>
+px session list-annotations
+px session delete-annotations
 px dataset list
 px dataset get <name>
 px project list
+px project get <name>
 px annotation-config list
 px auth status
 ```
@@ -81,7 +88,11 @@ px auth status --endpoint http://other:6006   # check a specific endpoint
 ```bash
 px project list                                            # list all projects (table view)
 px project list --format raw --no-progress | jq '.[].name' # project names as JSON
+px project get my-project --format raw --no-progress       # single record by exact name
+px project get my-project --format raw --no-progress | jq -r '.id'  # extract project id
 ```
+
+`project get` exits with `ExitCode.FAILURE` (1) on a name miss and writes a `StructuredError` `{error, code: "FAILURE", hint}` to stderr in `--format json|raw`.
 
 ## Traces
 
@@ -99,7 +110,12 @@ px trace annotate <trace-id> --name reviewer --score 0.9 --format raw --no-progr
 px trace annotate <trace-id> --name reviewer --label pass --identifier "$PHOENIX_CODING_SESSION_ID"  # tag with a coding session
 px trace add-note <trace-id> --text "needs follow-up"
 px trace add-note <trace-id> --text "needs follow-up" --identifier "$PHOENIX_CODING_SESSION_ID"      # tag + upsert on identifier
+px trace list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --format raw --no-progress | jq .            # list rows for a coding session
+px trace list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --include-notes --format raw --no-progress | jq . # include note rows (name="note")
+px trace delete-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --all -y                                   # nuke a coding session's annotations
 ```
+
+JSON output of `list-annotations` envelopes results as `{ annotations: [...] }`; raw mode emits the bare array. `delete-annotations` requires `--all` or both `--start-time` and `--end-time` and emits `{deleted: true, target, filter}` on success.
 
 ### Trace JSON shape
 
@@ -154,6 +170,9 @@ px span annotate <span-id> --name checker --score 1 --annotator-kind CODE
 px span annotate <span-id> --name reviewer --label pass --identifier "$PHOENIX_CODING_SESSION_ID"  # tag with a coding session
 px span add-note <span-id> --text "verified by agent"
 px span add-note <span-id> --text "verified by agent" --identifier "$PHOENIX_CODING_SESSION_ID"    # tag + upsert on identifier
+px span list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --format raw --no-progress | jq .             # list rows for a coding session
+px span list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --include-notes --format raw --no-progress | jq .  # include note rows
+px span delete-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --all -y                                    # nuke a coding session's annotations
 ```
 
 ### Span JSON shape
@@ -192,7 +211,11 @@ px session annotate <session-id> --name reviewer --score 0.9 --format raw --no-p
 px session annotate <session-id> --name reviewer --label pass --identifier "$PHOENIX_CODING_SESSION_ID"  # tag with a coding session
 px session add-note <session-id> --text "verified by agent"
 px session add-note <session-id> --text "verified by agent" --identifier "$PHOENIX_CODING_SESSION_ID"    # tag + upsert on identifier
+px session list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --format raw --no-progress | jq .          # list rows for a coding session
+px session delete-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --all -y                                 # nuke a coding session's annotations
 ```
+
+Sessions accept only structured annotations (no notes via `session add-note`); `--include-notes` on `session list-annotations` is still legal as a read filter for note rows written through other paths.
 
 ### Session JSON shape
 

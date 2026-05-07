@@ -13,6 +13,7 @@ import {
 import { assertDeletesEnabled, confirmOrExit } from "../confirm";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
+import { writeStructuredError } from "../structuredError";
 import {
   buildSpanNote,
   buildTrace,
@@ -29,6 +30,15 @@ import {
   getResponseErrorMessage,
   normalizeAnnotationInput,
 } from "./annotationMutationUtils";
+import {
+  formatAnnotationDeleteOutput,
+  type AnnotationDeleteFilter,
+  type OutputFormat as AnnotationDeleteOutputFormat,
+} from "./formatAnnotationDelete";
+import {
+  formatAnnotationListOutput,
+  type OutputFormat as AnnotationListOutputFormat,
+} from "./formatAnnotationList";
 import {
   formatAnnotationMutationOutput,
   type OutputFormat as AnnotationMutationOutputFormat,
@@ -1076,6 +1086,365 @@ export function createTraceDeleteCommand(): Command {
     .action(traceDeleteHandler);
 }
 
+interface TraceListAnnotationsOptions {
+  endpoint?: string;
+  project?: string;
+  apiKey?: string;
+  format?: AnnotationListOutputFormat;
+  progress?: boolean;
+  identifier?: string[];
+  traceIds?: string[];
+  includeName?: string[];
+  excludeName?: string[];
+  includeNotes?: boolean;
+}
+
+async function traceListAnnotationsHandler(
+  options: TraceListAnnotationsOptions
+): Promise<void> {
+  // Pre-flight argument checks live OUTSIDE the try/catch so that
+  // process.exit(INVALID_ARGUMENT) is not re-caught and re-mapped to
+  // FAILURE by the catch's getExitCodeForError fallback.
+  const config = resolveConfig({
+    cliOptions: {
+      endpoint: options.endpoint,
+      project: options.project,
+      apiKey: options.apiKey,
+    },
+  });
+
+  const validation = validateConfig({ config });
+  if (!validation.valid) {
+    writeError({
+      message: getConfigErrorMessage({ errors: validation.errors }),
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+
+  const projectIdentifier = config.project;
+  if (!projectIdentifier) {
+    writeError({ message: "Project not configured" });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+
+  const hasIdentifier =
+    options.identifier !== undefined && options.identifier.length > 0;
+  const hasTraceIds =
+    options.traceIds !== undefined && options.traceIds.length > 0;
+  if (!hasIdentifier && !hasTraceIds) {
+    writeStructuredError({
+      format: options.format,
+      message:
+        "Missing required filter: pass --identifier <id> or --trace-ids <id...> (the GET endpoint requires at least one).",
+      code: "INVALID_ARGUMENT",
+      hint: "px trace list-annotations --identifier <coding-session-id>",
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+
+  try {
+    const client = createPhoenixClient({ config });
+
+    writeProgress({
+      message: `Resolving project: ${projectIdentifier}`,
+      noProgress: !options.progress,
+    });
+    const projectId = await resolveProjectId({ client, projectIdentifier });
+
+    // --include-notes is a convenience flag (D2) for the OpenAPI
+    // include_annotation_names=note query parameter.
+    const includeNames = [
+      ...(options.includeName ?? []),
+      ...(options.includeNotes ? [NOTE_ANNOTATION_NAME] : []),
+    ];
+
+    writeProgress({
+      message: "Fetching trace annotations...",
+      noProgress: !options.progress,
+    });
+
+    const annotations = await fetchTraceAnnotations({
+      client,
+      projectIdentifier: projectId,
+      traceIds: options.traceIds,
+      identifier: options.identifier,
+      includeAnnotationNames:
+        includeNames.length > 0 ? includeNames : undefined,
+      excludeAnnotationNames: options.excludeName,
+    });
+
+    writeOutput({
+      message: formatAnnotationListOutput({
+        annotations,
+        target: "trace",
+        format: options.format,
+      }),
+    });
+  } catch (error) {
+    writeError({
+      message: `Error listing trace annotations: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+export function createTraceListAnnotationsCommand(): Command {
+  return new Command("list-annotations")
+    .description(
+      "List trace annotations for the configured project, filtered by identifier and/or trace IDs"
+    )
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--project <name>", "Project name or ID")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option(
+      "--identifier <ids...>",
+      "Filter to annotations whose identifier matches one of these values (repeatable)"
+    )
+    .option(
+      "--trace-ids <ids...>",
+      "Filter to annotations attached to these trace IDs"
+    )
+    .option(
+      "--include-name <name...>",
+      "Include only annotations with these names"
+    )
+    .option("--exclude-name <name...>", "Exclude annotations with these names")
+    .option(
+      "--include-notes",
+      'Convenience: include annotations with name="note" (which the GET endpoint excludes by default)'
+    )
+    .option(
+      "--format <format>",
+      "Output format: pretty, json, or raw",
+      "pretty"
+    )
+    .option("--no-progress", "Disable progress indicators")
+    .addHelpText(
+      "after",
+      "\nExamples:\n" +
+        '  px trace list-annotations --identifier "$PHOENIX_CODING_SESSION_ID"\n' +
+        '  px trace list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --include-notes --format raw --no-progress\n'
+    )
+    .action(traceListAnnotationsHandler);
+}
+
+interface TraceDeleteAnnotationsOptions {
+  endpoint?: string;
+  project?: string;
+  apiKey?: string;
+  format?: AnnotationDeleteOutputFormat;
+  progress?: boolean;
+  yes?: boolean;
+  identifier?: string;
+  name?: string;
+  annotatorKind?: string;
+  startTime?: string;
+  endTime?: string;
+  all?: boolean;
+}
+
+async function traceDeleteAnnotationsHandler(
+  options: TraceDeleteAnnotationsOptions
+): Promise<void> {
+  // Pre-flight checks live OUTSIDE the try/catch so explicit
+  // process.exit(INVALID_ARGUMENT) is not re-mapped to FAILURE by the
+  // catch's getExitCodeForError fallback.
+  try {
+    assertDeletesEnabled();
+  } catch (error) {
+    writeError({
+      message: error instanceof Error ? error.message : String(error),
+    });
+    process.exit(getExitCodeForError(error));
+  }
+
+  const config = resolveConfig({
+    cliOptions: {
+      endpoint: options.endpoint,
+      project: options.project,
+      apiKey: options.apiKey,
+    },
+  });
+
+  const validation = validateConfig({ config });
+  if (!validation.valid) {
+    writeError({
+      message: getConfigErrorMessage({ errors: validation.errors }),
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+
+  const projectIdentifier = config.project;
+  if (!projectIdentifier) {
+    writeError({ message: "Project not configured" });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+
+  // Authorization gate per D3: require either --all or both
+  // --start-time and --end-time. Other narrowers do NOT authorize the
+  // request — match the server contract before we hit the wire.
+  const hasWindow =
+    options.startTime !== undefined && options.endTime !== undefined;
+  if (!options.all && !hasWindow) {
+    writeStructuredError({
+      format: options.format,
+      message:
+        "Missing required authorization: pass --all to delete every matching row, or pass both --start-time and --end-time to bound the delete to a [start, end) window.",
+      code: "INVALID_ARGUMENT",
+      hint: 'px trace delete-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --all',
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+
+  let annotatorKind: "HUMAN" | "LLM" | "CODE" | undefined;
+  try {
+    annotatorKind = normalizeAnnotatorKind(options.annotatorKind);
+  } catch (error) {
+    writeError({
+      message: error instanceof Error ? error.message : String(error),
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+
+  try {
+    const client = createPhoenixClient({ config });
+
+    writeProgress({
+      message: `Resolving project: ${projectIdentifier}`,
+      noProgress: !options.progress,
+    });
+    const projectId = await resolveProjectId({ client, projectIdentifier });
+
+    const promptMessage = options.all
+      ? `Delete all matching trace annotations across all time?${describeNarrowers(options)}`
+      : `Delete trace annotations between ${options.startTime} and ${options.endTime}?${describeNarrowers(options)}`;
+    await confirmOrExit({ message: promptMessage, yes: options.yes });
+
+    writeProgress({
+      message: "Deleting trace annotations...",
+      noProgress: !options.progress,
+    });
+
+    const response = await client.DELETE(
+      "/v1/projects/{project_identifier}/trace_annotations",
+      {
+        params: {
+          path: { project_identifier: projectId },
+          query: {
+            name: options.name,
+            identifier: options.identifier,
+            annotator_kind: annotatorKind,
+            start_time: options.startTime,
+            end_time: options.endTime,
+            delete_all: options.all === true ? true : undefined,
+          },
+        },
+      }
+    );
+
+    if (response.error) {
+      throw new Error(`Failed to delete trace annotations: ${response.error}`);
+    }
+
+    const filter: AnnotationDeleteFilter = {
+      ...(options.identifier !== undefined && {
+        identifier: options.identifier,
+      }),
+      ...(options.name !== undefined && { name: options.name }),
+      ...(annotatorKind !== undefined && { annotator_kind: annotatorKind }),
+      ...(options.startTime !== undefined && { start_time: options.startTime }),
+      ...(options.endTime !== undefined && { end_time: options.endTime }),
+      ...(options.all === true && { all: true }),
+    };
+
+    writeOutput({
+      message: formatAnnotationDeleteOutput({
+        result: { deleted: true, target: "trace", filter },
+        format: options.format,
+      }),
+    });
+  } catch (error) {
+    writeError({
+      message: `Error deleting trace annotations: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+export function createTraceDeleteAnnotationsCommand(): Command {
+  return new Command("delete-annotations")
+    .description(
+      "Delete trace annotations for the configured project. Requires --all or both --start-time and --end-time."
+    )
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--project <name>", "Project name or ID")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option(
+      "--identifier <id>",
+      "Narrowing filter — only delete annotations with this identifier"
+    )
+    .option(
+      "--name <name>",
+      "Narrowing filter — only delete annotations with this name"
+    )
+    .option(
+      "--annotator-kind <kind>",
+      "Narrowing filter — annotator kind (HUMAN, LLM, or CODE)"
+    )
+    .option(
+      "--start-time <iso>",
+      "Inclusive lower bound on created_at (ISO-8601). Required together with --end-time unless --all is set."
+    )
+    .option(
+      "--end-time <iso>",
+      "Exclusive upper bound on created_at (ISO-8601). Required together with --start-time unless --all is set."
+    )
+    .option(
+      "--all",
+      "Authorize the delete without a time window (delete_all=true). Required if --start-time/--end-time are not set."
+    )
+    .option("-y, --yes", "Skip confirmation prompt")
+    .option(
+      "--format <format>",
+      "Output format: pretty, json, or raw",
+      "pretty"
+    )
+    .option("--no-progress", "Disable progress indicators")
+    .addHelpText(
+      "after",
+      "\nExamples:\n" +
+        '  px trace delete-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --all -y\n' +
+        "  px trace delete-annotations --start-time 2026-01-01T00:00:00Z --end-time 2026-01-02T00:00:00Z\n"
+    )
+    .action(traceDeleteAnnotationsHandler);
+}
+
+function normalizeAnnotatorKind(
+  raw: string | undefined
+): "HUMAN" | "LLM" | "CODE" | undefined {
+  if (raw === undefined) return undefined;
+  const value = raw.toUpperCase();
+  if (value === "HUMAN" || value === "LLM" || value === "CODE") {
+    return value;
+  }
+  throw new Error(
+    `Invalid --annotator-kind: ${raw}. Expected one of HUMAN, LLM, CODE.`
+  );
+}
+
+function describeNarrowers(options: {
+  identifier?: string;
+  name?: string;
+  annotatorKind?: string;
+}): string {
+  const parts: string[] = [];
+  if (options.identifier) parts.push(`identifier=${options.identifier}`);
+  if (options.name) parts.push(`name=${options.name}`);
+  if (options.annotatorKind)
+    parts.push(`annotator_kind=${options.annotatorKind}`);
+  return parts.length > 0 ? ` (${parts.join(", ")})` : "";
+}
+
 /**
  * Create the `trace` command with subcommands
  */
@@ -1086,6 +1455,8 @@ export function createTraceCommand(): Command {
   command.addCommand(createTraceGetCommand());
   command.addCommand(createTraceAnnotateCommand());
   command.addCommand(createTraceAddNoteCommand());
+  command.addCommand(createTraceListAnnotationsCommand());
+  command.addCommand(createTraceDeleteAnnotationsCommand());
   command.addCommand(createTraceDeleteCommand());
   return command;
 }

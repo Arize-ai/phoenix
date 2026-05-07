@@ -11,7 +11,16 @@ const DEFAULT_MAX_CONCURRENT = 5;
 interface FetchTraceAnnotationsOptions {
   client: PhoenixClient;
   projectIdentifier: string;
-  traceIds: string[];
+  /**
+   * Optional list of trace IDs to filter by. Mutually compatible with `identifier`.
+   * Either `traceIds` or `identifier` (or both) must be supplied.
+   */
+  traceIds?: string[];
+  /**
+   * Optional list of annotation identifiers to filter by. Mutually compatible
+   * with `traceIds`. Either `traceIds` or `identifier` (or both) must be supplied.
+   */
+  identifier?: string[];
   includeAnnotationNames?: string[];
   excludeAnnotationNames?: string[];
   pageLimit?: number;
@@ -22,13 +31,15 @@ async function fetchTraceAnnotationsForChunk({
   client,
   projectIdentifier,
   traceIds,
+  identifier,
   includeAnnotationNames,
   excludeAnnotationNames,
   pageLimit,
 }: {
   client: PhoenixClient;
   projectIdentifier: string;
-  traceIds: string[];
+  traceIds?: string[];
+  identifier?: string[];
   includeAnnotationNames?: string[];
   excludeAnnotationNames?: string[];
   pageLimit: number;
@@ -46,6 +57,7 @@ async function fetchTraceAnnotationsForChunk({
           },
           query: {
             trace_ids: traceIds,
+            identifier,
             cursor,
             limit: pageLimit,
             include_annotation_names: includeAnnotationNames,
@@ -72,13 +84,30 @@ export async function fetchTraceAnnotations({
   client,
   projectIdentifier,
   traceIds,
+  identifier,
   includeAnnotationNames,
   excludeAnnotationNames,
   pageLimit = DEFAULT_PAGE_LIMIT,
   maxConcurrent = DEFAULT_MAX_CONCURRENT,
 }: FetchTraceAnnotationsOptions): Promise<TraceAnnotation[]> {
-  if (traceIds.length === 0) {
+  const hasTraceIds = traceIds !== undefined && traceIds.length > 0;
+  const hasIdentifier = identifier !== undefined && identifier.length > 0;
+
+  if (!hasTraceIds && !hasIdentifier) {
     return [];
+  }
+
+  // No trace IDs to chunk over → run a single non-chunked pagination pass
+  // using the identifier filter alone.
+  if (!hasTraceIds) {
+    return fetchTraceAnnotationsForChunk({
+      client,
+      projectIdentifier,
+      identifier,
+      includeAnnotationNames,
+      excludeAnnotationNames,
+      pageLimit,
+    });
   }
 
   const uniqueTraceIds = Array.from(new Set(traceIds));
@@ -96,6 +125,7 @@ export async function fetchTraceAnnotations({
           client,
           projectIdentifier,
           traceIds: traceIdsChunk,
+          identifier,
           includeAnnotationNames,
           excludeAnnotationNames,
           pageLimit,

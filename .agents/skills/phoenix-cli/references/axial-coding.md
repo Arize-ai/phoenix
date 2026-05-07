@@ -54,21 +54,20 @@ failure_taxonomy:
 
 ### 1. Gather — extract this session's open-coding notes
 
-Open-coding notes are stored as annotations with `name="note"` and the session identifier set via `add-note --identifier`. Filter the project's notes endpoint by that identifier to read back exactly the rows this session produced. Run at the same unit open coding wrote at:
+Open-coding notes are stored as annotations with `name="note"` and the session identifier set via `add-note --identifier`. The `--include-notes` flag opts in to those rows (the GET endpoint excludes them by default). Run at the same unit open coding wrote at:
 
 ```bash
 # Trace-level notes from this session
-curl -s ${PHOENIX_API_KEY:+-H "Authorization: Bearer $PHOENIX_API_KEY"} \
-  "$PHOENIX_HOST/v1/projects/$PHOENIX_PROJECT/trace_annotations?identifier=$PHOENIX_CODING_SESSION_ID&limit=1000" \
-  | jq '
-    [ .data[] | select(.name == "note") ]
-    | map({ trace_id, note: .result.explanation })
-  '
+px trace list-annotations \
+  --identifier "$PHOENIX_CODING_SESSION_ID" \
+  --include-notes \
+  --format raw --no-progress \
+  | jq '[ .[] | select(.name == "note") ] | map({ trace_id, note: .result.explanation })'
 ```
 
-For span- or session-level notes, swap `trace_annotations` → `span_annotations` / `session_annotations` and `trace_id` → `span_id` / `session_id` in the jq.
+For span- or session-level notes, swap `px trace list-annotations` → `px span list-annotations` / `px session list-annotations` and `trace_id` → `span_id` / `session_id` in the jq.
 
-For notes outside this session (older runs, another reviewer's notes), drop the identifier filter or use `px {trace,span,session} list --include-notes`.
+For notes outside this session (older runs, another reviewer's notes), drop the `--identifier` filter and pass `--trace-ids` (or `--span-ids` / `--session-ids`), or use `px {trace,span,session} list --include-notes`.
 
 ### 2. Group — synthesize categories
 
@@ -80,20 +79,21 @@ Write one annotation per entity using `px {trace,span,session} annotate`, passin
 
 ### 4. Quantify — count per category, scoped to this session
 
-After recording, list this session's annotations and count by label. The `?identifier=` filter narrows the read to exactly the rows this run produced; without it you'd be counting the entire project history of `axial_coding_category`.
+After recording, list this session's annotations and count by label. The `--identifier` filter narrows the read to exactly the rows this run produced; without it you'd be counting the entire project history of `axial_coding_category`.
 
 ```bash
-curl -s ${PHOENIX_API_KEY:+-H "Authorization: Bearer $PHOENIX_API_KEY"} \
-  "$PHOENIX_HOST/v1/projects/$PHOENIX_PROJECT/trace_annotations?identifier=$PHOENIX_CODING_SESSION_ID&limit=1000" \
+px trace list-annotations \
+  --identifier "$PHOENIX_CODING_SESSION_ID" \
+  --format raw --no-progress \
   | jq '
-    [ .data[] | select(.name == "axial_coding_category" and .result.label != null) ]
+    [ .[] | select(.name == "axial_coding_category" and .result.label != null) ]
     | group_by(.result.label)
     | map({ label: .[0].result.label, count: length })
     | sort_by(-.count)
   '
 ```
 
-For span-level annotations, swap `trace_annotations` for `span_annotations` (and the read-back JSON's `span_id` for `trace_id`).
+For span- or session-level annotations, swap `px trace list-annotations` for `px span list-annotations` / `px session list-annotations`.
 
 ## Recording
 
@@ -146,9 +146,11 @@ Axial coding categorizes the entities you took notes on during open coding. Do *
 
 ```bash
 # Bulk-annotate traces that already have open-coding notes from THIS session
-curl -s ${PHOENIX_API_KEY:+-H "Authorization: Bearer $PHOENIX_API_KEY"} \
-  "$PHOENIX_HOST/v1/projects/$PHOENIX_PROJECT/trace_annotations?identifier=$PHOENIX_CODING_SESSION_ID&limit=1000" \
-  | jq -r '[.data[] | select(.name == "note")] | .[].trace_id' \
+px trace list-annotations \
+  --identifier "$PHOENIX_CODING_SESSION_ID" \
+  --include-notes \
+  --format raw --no-progress \
+  | jq -r '.[] | select(.name == "note") | .trace_id' \
   | sort -u \
   | while read tid; do
       px trace annotate "$tid" \
@@ -163,29 +165,29 @@ curl -s ${PHOENIX_API_KEY:+-H "Authorization: Bearer $PHOENIX_API_KEY"} \
     done
 ```
 
-The same pattern works for span-level or session-level notes — swap `trace_annotations` for `span_annotations` / `session_annotations`, `.trace_id` for `.span_id` / `.session_id`, and `px trace` for `px span` / `px session`.
+The same pattern works for span-level or session-level notes — swap `px trace list-annotations` for `px span list-annotations` / `px session list-annotations`, `.trace_id` for `.span_id` / `.session_id`, and `px trace` for `px span` / `px session`.
 
-**Fallback paths:** REST `POST /v1/{trace,span,session}_annotations` and `@arizeai/phoenix-client`'s `addSpanAnnotation` / `addSessionAnnotation` (no `addTraceAnnotation` is exported today — use REST or `px trace annotate`). `px api graphql` rejects mutations.
+**Fallback paths:** REST `POST /v1/{trace,span,session}_annotations` and `@arizeai/phoenix-client`'s `addSpanAnnotation` / `addSessionAnnotation` (no `addTraceAnnotation` is exported today — use REST or `px trace annotate`). The GraphQL endpoint rejects mutations.
 
 ## Wrapping up
 
-After axial coding finishes, share the Phoenix UI link with the user. The link points to the project's traces table filtered by the sidecar — `annotations['coding_session_id'].label == '<sess-id>'`. The UI route `/projects/:projectId` expects an encoded GraphQL node ID, not a project name — resolve it first via `getProjectByName`:
+After axial coding finishes, share the Phoenix UI link with the user. The link points to the project's traces table filtered by the sidecar — `annotations['coding_session_id'].label == '<sess-id>'`. The UI route `/projects/:projectId` expects an encoded GraphQL node ID, not a project name — resolve it via `px project get`:
 
 ```bash
-project_id=$(px api graphql "{ getProjectByName(name: \"$PHOENIX_PROJECT\") { id } }" \
-  | jq -r '.data.getProjectByName.id')
+project_id=$(px project get "$PHOENIX_PROJECT" --format raw --no-progress | jq -r '.id')
 encoded=$(python3 -c 'import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))' \
   "annotations['coding_session_id'].label == '$PHOENIX_CODING_SESSION_ID'")
 echo "Phoenix UI: $PHOENIX_HOST/projects/$project_id/traces?filterCondition=$encoded"
 ```
 
-If the user wants to discard everything this session produced (open-coding notes, axial-coding annotations, and sidecars), three identifier-bound DELETEs handle it. **Confirm before running** — destructive:
+If the user wants to discard everything this session produced (open-coding notes, axial-coding annotations, and sidecars), three identifier-bound deletes handle it. **Confirm before running** — destructive. Each call requires `--all` to authorize the unbounded sweep; `--identifier` only narrows. Set `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` first if not already exported:
 
 ```bash
 for kind in trace span session; do
-  curl -X DELETE \
-    ${PHOENIX_API_KEY:+-H "Authorization: Bearer $PHOENIX_API_KEY"} \
-    "$PHOENIX_HOST/v1/projects/$PHOENIX_PROJECT/${kind}_annotations?identifier=$PHOENIX_CODING_SESSION_ID&delete_all=true"
+  px "$kind" delete-annotations \
+    --identifier "$PHOENIX_CODING_SESSION_ID" \
+    --all -y \
+    --format raw --no-progress
 done
 ```
 

@@ -12,6 +12,7 @@ import {
 import { assertDeletesEnabled, confirmOrExit } from "../confirm";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput, writeProgress } from "../io";
+import { writeStructuredError } from "../structuredError";
 import {
   buildSpanNote,
   type SpanNote,
@@ -23,6 +24,15 @@ import {
   getResponseErrorMessage,
   normalizeAnnotationInput,
 } from "./annotationMutationUtils";
+import {
+  formatAnnotationDeleteOutput,
+  type AnnotationDeleteFilter,
+  type OutputFormat as AnnotationDeleteOutputFormat,
+} from "./formatAnnotationDelete";
+import {
+  formatAnnotationListOutput,
+  type OutputFormat as AnnotationListOutputFormat,
+} from "./formatAnnotationList";
 import {
   formatAnnotationMutationOutput,
   type OutputFormat as AnnotationMutationOutputFormat,
@@ -673,6 +683,360 @@ export function createSpanDeleteCommand(): Command {
     .action(spanDeleteHandler);
 }
 
+interface SpanListAnnotationsOptions {
+  endpoint?: string;
+  project?: string;
+  apiKey?: string;
+  format?: AnnotationListOutputFormat;
+  progress?: boolean;
+  identifier?: string[];
+  spanIds?: string[];
+  includeName?: string[];
+  excludeName?: string[];
+  includeNotes?: boolean;
+}
+
+async function spanListAnnotationsHandler(
+  options: SpanListAnnotationsOptions
+): Promise<void> {
+  // Pre-flight checks live OUTSIDE the try/catch so explicit
+  // process.exit(INVALID_ARGUMENT) is not re-mapped to FAILURE by the
+  // catch's getExitCodeForError fallback.
+  const config = resolveConfig({
+    cliOptions: {
+      endpoint: options.endpoint,
+      project: options.project,
+      apiKey: options.apiKey,
+    },
+  });
+
+  const validation = validateConfig({ config });
+  if (!validation.valid) {
+    writeError({
+      message: getConfigErrorMessage({ errors: validation.errors }),
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+
+  const projectIdentifier = config.project;
+  if (!projectIdentifier) {
+    writeError({ message: "Project not configured" });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+
+  const hasIdentifier =
+    options.identifier !== undefined && options.identifier.length > 0;
+  const hasSpanIds =
+    options.spanIds !== undefined && options.spanIds.length > 0;
+  if (!hasIdentifier && !hasSpanIds) {
+    writeStructuredError({
+      format: options.format,
+      message:
+        "Missing required filter: pass --identifier <id> or --span-ids <id...> (the GET endpoint requires at least one).",
+      code: "INVALID_ARGUMENT",
+      hint: "px span list-annotations --identifier <coding-session-id>",
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+
+  try {
+    const client = createPhoenixClient({ config });
+
+    writeProgress({
+      message: `Resolving project: ${projectIdentifier}`,
+      noProgress: !options.progress,
+    });
+    const projectId = await resolveProjectId({ client, projectIdentifier });
+
+    const includeNames = [
+      ...(options.includeName ?? []),
+      ...(options.includeNotes ? [NOTE_ANNOTATION_NAME] : []),
+    ];
+
+    writeProgress({
+      message: "Fetching span annotations...",
+      noProgress: !options.progress,
+    });
+
+    const annotations = await fetchSpanAnnotations({
+      client,
+      projectIdentifier: projectId,
+      spanIds: options.spanIds,
+      identifier: options.identifier,
+      includeAnnotationNames:
+        includeNames.length > 0 ? includeNames : undefined,
+      excludeAnnotationNames: options.excludeName,
+    });
+
+    writeOutput({
+      message: formatAnnotationListOutput({
+        annotations,
+        target: "span",
+        format: options.format,
+      }),
+    });
+  } catch (error) {
+    writeError({
+      message: `Error listing span annotations: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+export function createSpanListAnnotationsCommand(): Command {
+  return new Command("list-annotations")
+    .description(
+      "List span annotations for the configured project, filtered by identifier and/or span IDs"
+    )
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--project <name>", "Project name or ID")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option(
+      "--identifier <ids...>",
+      "Filter to annotations whose identifier matches one of these values (repeatable)"
+    )
+    .option(
+      "--span-ids <ids...>",
+      "Filter to annotations attached to these span IDs"
+    )
+    .option(
+      "--include-name <name...>",
+      "Include only annotations with these names"
+    )
+    .option("--exclude-name <name...>", "Exclude annotations with these names")
+    .option(
+      "--include-notes",
+      'Convenience: include annotations with name="note" (which the GET endpoint excludes by default)'
+    )
+    .option(
+      "--format <format>",
+      "Output format: pretty, json, or raw",
+      "pretty"
+    )
+    .option("--no-progress", "Disable progress indicators")
+    .addHelpText(
+      "after",
+      "\nExamples:\n" +
+        '  px span list-annotations --identifier "$PHOENIX_CODING_SESSION_ID"\n' +
+        '  px span list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --include-notes --format raw --no-progress\n'
+    )
+    .action(spanListAnnotationsHandler);
+}
+
+interface SpanDeleteAnnotationsOptions {
+  endpoint?: string;
+  project?: string;
+  apiKey?: string;
+  format?: AnnotationDeleteOutputFormat;
+  progress?: boolean;
+  yes?: boolean;
+  identifier?: string;
+  name?: string;
+  annotatorKind?: string;
+  startTime?: string;
+  endTime?: string;
+  all?: boolean;
+}
+
+async function spanDeleteAnnotationsHandler(
+  options: SpanDeleteAnnotationsOptions
+): Promise<void> {
+  // Pre-flight checks live OUTSIDE the try/catch so explicit
+  // process.exit(INVALID_ARGUMENT) is not re-mapped to FAILURE by the
+  // catch's getExitCodeForError fallback.
+  try {
+    assertDeletesEnabled();
+  } catch (error) {
+    writeError({
+      message: error instanceof Error ? error.message : String(error),
+    });
+    process.exit(getExitCodeForError(error));
+  }
+
+  const config = resolveConfig({
+    cliOptions: {
+      endpoint: options.endpoint,
+      project: options.project,
+      apiKey: options.apiKey,
+    },
+  });
+
+  const validation = validateConfig({ config });
+  if (!validation.valid) {
+    writeError({
+      message: getConfigErrorMessage({ errors: validation.errors }),
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+
+  const projectIdentifier = config.project;
+  if (!projectIdentifier) {
+    writeError({ message: "Project not configured" });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+
+  const hasWindow =
+    options.startTime !== undefined && options.endTime !== undefined;
+  if (!options.all && !hasWindow) {
+    writeStructuredError({
+      format: options.format,
+      message:
+        "Missing required authorization: pass --all to delete every matching row, or pass both --start-time and --end-time to bound the delete to a [start, end) window.",
+      code: "INVALID_ARGUMENT",
+      hint: 'px span delete-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --all',
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+
+  let annotatorKind: "HUMAN" | "LLM" | "CODE" | undefined;
+  try {
+    annotatorKind = normalizeSpanAnnotatorKind(options.annotatorKind);
+  } catch (error) {
+    writeError({
+      message: error instanceof Error ? error.message : String(error),
+    });
+    process.exit(ExitCode.INVALID_ARGUMENT);
+  }
+
+  try {
+    const client = createPhoenixClient({ config });
+
+    writeProgress({
+      message: `Resolving project: ${projectIdentifier}`,
+      noProgress: !options.progress,
+    });
+    const projectId = await resolveProjectId({ client, projectIdentifier });
+
+    const promptMessage = options.all
+      ? `Delete all matching span annotations across all time?${describeSpanNarrowers(options)}`
+      : `Delete span annotations between ${options.startTime} and ${options.endTime}?${describeSpanNarrowers(options)}`;
+    await confirmOrExit({ message: promptMessage, yes: options.yes });
+
+    writeProgress({
+      message: "Deleting span annotations...",
+      noProgress: !options.progress,
+    });
+
+    const response = await client.DELETE(
+      "/v1/projects/{project_identifier}/span_annotations",
+      {
+        params: {
+          path: { project_identifier: projectId },
+          query: {
+            name: options.name,
+            identifier: options.identifier,
+            annotator_kind: annotatorKind,
+            start_time: options.startTime,
+            end_time: options.endTime,
+            delete_all: options.all === true ? true : undefined,
+          },
+        },
+      }
+    );
+
+    if (response.error) {
+      throw new Error(`Failed to delete span annotations: ${response.error}`);
+    }
+
+    const filter: AnnotationDeleteFilter = {
+      ...(options.identifier !== undefined && {
+        identifier: options.identifier,
+      }),
+      ...(options.name !== undefined && { name: options.name }),
+      ...(annotatorKind !== undefined && { annotator_kind: annotatorKind }),
+      ...(options.startTime !== undefined && { start_time: options.startTime }),
+      ...(options.endTime !== undefined && { end_time: options.endTime }),
+      ...(options.all === true && { all: true }),
+    };
+
+    writeOutput({
+      message: formatAnnotationDeleteOutput({
+        result: { deleted: true, target: "span", filter },
+        format: options.format,
+      }),
+    });
+  } catch (error) {
+    writeError({
+      message: `Error deleting span annotations: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    process.exit(getExitCodeForError(error));
+  }
+}
+
+export function createSpanDeleteAnnotationsCommand(): Command {
+  return new Command("delete-annotations")
+    .description(
+      "Delete span annotations for the configured project. Requires --all or both --start-time and --end-time."
+    )
+    .option("--endpoint <url>", "Phoenix API endpoint")
+    .option("--project <name>", "Project name or ID")
+    .option("--api-key <key>", "Phoenix API key for authentication")
+    .option(
+      "--identifier <id>",
+      "Narrowing filter — only delete annotations with this identifier"
+    )
+    .option(
+      "--name <name>",
+      "Narrowing filter — only delete annotations with this name"
+    )
+    .option(
+      "--annotator-kind <kind>",
+      "Narrowing filter — annotator kind (HUMAN, LLM, or CODE)"
+    )
+    .option(
+      "--start-time <iso>",
+      "Inclusive lower bound on created_at (ISO-8601). Required together with --end-time unless --all is set."
+    )
+    .option(
+      "--end-time <iso>",
+      "Exclusive upper bound on created_at (ISO-8601). Required together with --start-time unless --all is set."
+    )
+    .option(
+      "--all",
+      "Authorize the delete without a time window (delete_all=true). Required if --start-time/--end-time are not set."
+    )
+    .option("-y, --yes", "Skip confirmation prompt")
+    .option(
+      "--format <format>",
+      "Output format: pretty, json, or raw",
+      "pretty"
+    )
+    .option("--no-progress", "Disable progress indicators")
+    .addHelpText(
+      "after",
+      "\nExamples:\n" +
+        '  px span delete-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --all -y\n' +
+        "  px span delete-annotations --start-time 2026-01-01T00:00:00Z --end-time 2026-01-02T00:00:00Z\n"
+    )
+    .action(spanDeleteAnnotationsHandler);
+}
+
+function normalizeSpanAnnotatorKind(
+  raw: string | undefined
+): "HUMAN" | "LLM" | "CODE" | undefined {
+  if (raw === undefined) return undefined;
+  const value = raw.toUpperCase();
+  if (value === "HUMAN" || value === "LLM" || value === "CODE") {
+    return value;
+  }
+  throw new Error(
+    `Invalid --annotator-kind: ${raw}. Expected one of HUMAN, LLM, CODE.`
+  );
+}
+
+function describeSpanNarrowers(options: {
+  identifier?: string;
+  name?: string;
+  annotatorKind?: string;
+}): string {
+  const parts: string[] = [];
+  if (options.identifier) parts.push(`identifier=${options.identifier}`);
+  if (options.name) parts.push(`name=${options.name}`);
+  if (options.annotatorKind)
+    parts.push(`annotator_kind=${options.annotatorKind}`);
+  return parts.length > 0 ? ` (${parts.join(", ")})` : "";
+}
+
 /**
  * Create the `span` command with subcommands
  */
@@ -682,6 +1046,8 @@ export function createSpanCommand(): Command {
   command.addCommand(createSpanListCommand());
   command.addCommand(createSpanAnnotateCommand());
   command.addCommand(createSpanAddNoteCommand());
+  command.addCommand(createSpanListAnnotationsCommand());
+  command.addCommand(createSpanDeleteAnnotationsCommand());
   command.addCommand(createSpanDeleteCommand());
   return command;
 }

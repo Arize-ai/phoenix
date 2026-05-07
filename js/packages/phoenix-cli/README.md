@@ -200,6 +200,41 @@ px trace add-note abc123def456 --text "agent triage complete" --format raw --no-
 
 ---
 
+### `px trace list-annotations`
+
+List trace annotations for the configured project, filtered by `--identifier` and/or `--trace-ids`. Either filter must be supplied — the GET endpoint requires at least one. JSON mode envelopes results as `{ annotations: [...] }`; raw mode emits the bare array.
+
+```bash
+px trace list-annotations --identifier "$PHOENIX_CODING_SESSION_ID"
+px trace list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --include-notes --format raw --no-progress | jq .
+px trace list-annotations --trace-ids abc123def456 def456abc123 --format raw --no-progress
+```
+
+| Option                   | Description                                                                                              |
+| ------------------------ | -------------------------------------------------------------------------------------------------------- |
+| `--identifier <ids...>`  | Filter to annotations whose identifier matches one of these values                                       |
+| `--trace-ids <ids...>`   | Filter to annotations attached to these trace IDs                                                        |
+| `--include-name <name>`  | Include only annotations with these names (repeatable)                                                   |
+| `--exclude-name <name>`  | Exclude annotations with these names (repeatable)                                                        |
+| `--include-notes`        | Convenience: include annotations with `name="note"` (which the GET endpoint excludes by default)        |
+| `--format <format>`      | `pretty`, `json`, or `raw`                                                                               |
+
+---
+
+### `px trace delete-annotations`
+
+Delete trace annotations for the configured project. Requires `--all` (delete every matching row) **or** both `--start-time` and `--end-time` to bound the delete to a `[start_time, end_time)` window — `--name`, `--identifier`, and `--annotator-kind` are narrowing filters and never authorize the request on their own. Deletes are disabled by default; set `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` first.
+
+```bash
+px trace delete-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --all -y
+px trace delete-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --all -y --format raw --no-progress
+px trace delete-annotations --start-time 2026-01-01T00:00:00Z --end-time 2026-01-02T00:00:00Z -y
+```
+
+Output (json/raw): `{ deleted: true, target: "trace", filter: { identifier?, name?, annotator_kind?, start_time?, end_time?, all? } }`.
+
+---
+
 ### `px span list [file]`
 
 Fetch spans for the configured project with filtering options. Output is JSON.
@@ -264,6 +299,29 @@ Add a note to a span by OpenTelemetry span ID.
 ```bash
 px span add-note 7e2f08cb43bbf521 --text "double-check tool output"
 px span add-note 7e2f08cb43bbf521 --text "verified by agent" --format raw --no-progress
+```
+
+---
+
+### `px span list-annotations`
+
+List span annotations for the configured project, filtered by `--identifier` and/or `--span-ids`. JSON mode envelopes results as `{ annotations: [...] }`; raw mode emits the bare array.
+
+```bash
+px span list-annotations --identifier "$PHOENIX_CODING_SESSION_ID"
+px span list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --include-notes --format raw --no-progress | jq .
+```
+
+Supports the same `--include-name`, `--exclude-name`, `--include-notes`, and `--format` flags as `px trace list-annotations`.
+
+---
+
+### `px span delete-annotations`
+
+Delete span annotations for the configured project. Same authorization gate as `px trace delete-annotations` — requires `--all` or both `--start-time` and `--end-time`.
+
+```bash
+px span delete-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --all -y
 ```
 
 ---
@@ -363,6 +421,26 @@ px project list --limit 5
 
 ---
 
+### `px project get <name>`
+
+Fetch a single Phoenix project by exact name. Output is a single record (not an array) — JSON and raw modes emit a bare object. On a name miss, exits with `ExitCode.FAILURE` (1) and writes a `StructuredError` JSON envelope to stderr in `--format json|raw`.
+
+```bash
+px project get my-project
+px project get my-project --format raw --no-progress | jq -r '.id'
+px project get my-project --format json
+```
+
+| Option              | Description                                 | Default  |
+| ------------------- | ------------------------------------------- | -------- |
+| `--format <format>` | `pretty`, `json`, or `raw`                  | `pretty` |
+| `--limit <number>`  | Page size for the underlying lookup         | `100`    |
+| `--no-progress`     | Suppress progress output                    | —        |
+
+Miss-case stderr (raw): `{"error":"Project 'foo' not found","code":"FAILURE","hint":"px project list --format raw"}`.
+
+---
+
 ### `px session list`
 
 List sessions for a project.
@@ -426,6 +504,27 @@ Add a note to a session by GlobalID or user-provided `session_id`. Requires Phoe
 ```bash
 px session add-note my-session-id --text "needs follow-up"
 px session add-note my-session-id --text "agent triage complete" --format raw --no-progress
+```
+
+---
+
+### `px session list-annotations`
+
+List session annotations for the configured project, filtered by `--identifier` and/or `--session-ids`. JSON mode envelopes results as `{ annotations: [...] }`; raw mode emits the bare array. Sessions accept only structured annotations (no notes via `session add-note`); `--include-notes` still works as a read filter for note rows that may have been written through other paths.
+
+```bash
+px session list-annotations --identifier "$PHOENIX_CODING_SESSION_ID"
+px session list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --format raw --no-progress | jq .
+```
+
+---
+
+### `px session delete-annotations`
+
+Delete session annotations for the configured project. Same authorization gate as the trace/span equivalents — requires `--all` or both `--start-time` and `--end-time`.
+
+```bash
+px session delete-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --all -y
 ```
 
 ---
