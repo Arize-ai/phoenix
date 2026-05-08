@@ -29,7 +29,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from .types import (
     ExecutionResult,
@@ -38,6 +38,10 @@ from .types import (
     SandboxAdapter,
     SandboxBackend,
 )
+
+if TYPE_CHECKING:
+    from modal.image import Image
+    from modal.sandbox import Sandbox
 
 logger = logging.getLogger(__name__)
 
@@ -73,19 +77,19 @@ class ModalSandboxBackend(SandboxBackend):
         if token_secret:
             os.environ["MODAL_TOKEN_SECRET"] = token_secret
 
-        import modal  # type: ignore[import-not-found]
+        import modal
 
         self._timeout = timeout
         self._idle_timeout = idle_timeout
         self._user_env: dict[str, str] = user_env or {}
         self._block_network = block_network
-        self._sessions: dict[str, Any] = {}
+        self._sessions: dict[str, Sandbox] = {}
         self._session_locks: dict[str, asyncio.Lock] = {}
         self._app = modal.App.lookup(app_name, create_if_missing=True)
         base_image = modal.Image.debian_slim()
-        self._image = base_image.pip_install(packages) if packages else base_image
+        self._image: Image = base_image.pip_install(packages) if packages else base_image
 
-    async def _create_sandbox(self) -> Any:
+    async def _create_sandbox(self) -> Sandbox:
         import modal
 
         kwargs: dict[str, Any] = {
@@ -98,8 +102,7 @@ class ModalSandboxBackend(SandboxBackend):
             kwargs["env"] = self._user_env
         if self._block_network:
             kwargs["block_network"] = True
-        sandbox = await modal.Sandbox.create.aio(**kwargs)
-        return sandbox
+        return await modal.Sandbox.create.aio(**kwargs)
 
     async def start_session(self, session_key: str) -> None:
         if session_key not in self._session_locks:
@@ -118,15 +121,14 @@ class ModalSandboxBackend(SandboxBackend):
             await sandbox.terminate.aio()
             logger.debug(f"Stopped Modal session '{session_key}'")
 
-    async def _exec_code(self, sandbox: Any, code: str) -> ExecutionResult:
+    async def _exec_code(self, sandbox: Sandbox, code: str) -> ExecutionResult:
         """Run code in a sandbox and collect stdout/stderr."""
         proc = await sandbox.exec.aio("python", "-c", code)
         stdout, stderr = await asyncio.gather(
             proc.stdout.read.aio(),
             proc.stderr.read.aio(),
         )
-        await proc.wait.aio()
-        exit_code = proc.returncode if proc.returncode is not None else 1
+        exit_code = await proc.wait.aio()
         error: Optional[str] = stderr if exit_code != 0 else None
         return ExecutionResult(
             stdout=stdout or "",
@@ -145,7 +147,6 @@ class ModalSandboxBackend(SandboxBackend):
             if sandbox is not None:
                 return await self._exec_code(sandbox, code)
             else:
-                # Ephemeral: create, exec, terminate.
                 sandbox = await self._create_sandbox()
                 try:
                     return await self._exec_code(sandbox, code)
