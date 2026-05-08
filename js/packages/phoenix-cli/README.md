@@ -197,8 +197,8 @@ px trace add-note abc123def456 --text "agent triage complete" --format raw --no-
 Delete trace annotations for the configured project. Requires `--all` (delete every matching row) **or** both `--start-time` and `--end-time` to bound the delete to a `[start_time, end_time)` window — `--name`, `--identifier`, and `--annotator-kind` are narrowing filters and never authorize the request on their own. Deletes are disabled by default; set `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` first.
 
 ```bash
-px trace delete-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --all -y
-px trace delete-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --all -y --format raw --no-progress
+px trace delete-annotations --identifier "$PHOENIX_CODING_IDENTIFIER" --all -y
+px trace delete-annotations --identifier "$PHOENIX_CODING_IDENTIFIER" --all -y --format raw --no-progress
 px trace delete-annotations --start-time 2026-01-01T00:00:00Z --end-time 2026-01-02T00:00:00Z -y
 ```
 
@@ -279,7 +279,7 @@ px span add-note 7e2f08cb43bbf521 --text "verified by agent" --format raw --no-p
 Delete span annotations for the configured project. Same authorization gate as `px trace delete-annotations` — requires `--all` or both `--start-time` and `--end-time`.
 
 ```bash
-px span delete-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --all -y
+px span delete-annotations --identifier "$PHOENIX_CODING_IDENTIFIER" --all -y
 ```
 
 ---
@@ -471,7 +471,7 @@ px session add-note my-session-id --text "agent triage complete" --format raw --
 Delete session annotations for the configured project. Same authorization gate as the trace/span equivalents — requires `--all` or both `--start-time` and `--end-time`.
 
 ```bash
-px session delete-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --all -y
+px session delete-annotations --identifier "$PHOENIX_CODING_IDENTIFIER" --all -y
 ```
 
 ---

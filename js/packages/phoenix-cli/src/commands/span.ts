@@ -740,7 +740,7 @@ async function spanDeleteAnnotationsHandler(
       message:
         "Missing required authorization: pass --all to delete every matching row, or pass both --start-time and --end-time to bound the delete to a [start, end) window.",
       code: "INVALID_ARGUMENT",
-      hint: 'px span delete-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --all',
+      hint: 'px span delete-annotations --identifier "$PHOENIX_CODING_IDENTIFIER" --all',
     });
     process.exit(ExitCode.INVALID_ARGUMENT);
   }
@@ -862,7 +862,7 @@ export function createSpanDeleteAnnotationsCommand(): Command {
     .addHelpText(
       "after",
       "\nExamples:\n" +
-        '  px span delete-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --all -y\n' +
+        '  px span delete-annotations --identifier "$PHOENIX_CODING_IDENTIFIER" --all -y\n' +
         "  px span delete-annotations --start-time 2026-01-01T00:00:00Z --end-time 2026-01-02T00:00:00Z\n"
     )
     .action(spanDeleteAnnotationsHandler);

@@ -25,10 +25,10 @@ export interface FormatAnnotationDeleteOutputOptions {
 /**
  * Format the structured success record returned by `delete-annotations`.
  *
- * Per D7, every delete-annotations call returns a structured record that
- * echoes the *authorized* filter so downstream callers (and audit trails)
- * can distinguish `--all` from a bounded time-window delete without having
- * to re-derive it from CLI flags.
+ * Every delete-annotations call returns a structured record that echoes the
+ * authorized filter so downstream callers and audit trails can distinguish
+ * `--all` from a bounded time-window delete without re-deriving it from CLI
+ * flags.
  */
 export function formatAnnotationDeleteOutput({
   result,

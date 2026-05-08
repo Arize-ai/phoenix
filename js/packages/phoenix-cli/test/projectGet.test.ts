@@ -51,7 +51,7 @@ afterEach(() => {
 });
 
 describe("project get", () => {
-  it("returns the matching project as a bare object in raw mode (D4)", async () => {
+  it("returns the matching project as a bare object in raw mode", async () => {
     const fetchMock = makeFetchMock([PROJECT_PAGE]);
     vi.stubGlobal("fetch", fetchMock);
     const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -71,7 +71,7 @@ describe("project get", () => {
     });
   });
 
-  it("returns the matching project as a bare object in json mode (D4)", async () => {
+  it("returns the matching project as a bare object in json mode", async () => {
     const fetchMock = makeFetchMock([PROJECT_PAGE]);
     vi.stubGlobal("fetch", fetchMock);
     const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -91,7 +91,7 @@ describe("project get", () => {
     });
   });
 
-  it("emits a StructuredError on miss and exits FAILURE (D4)", async () => {
+  it("emits a StructuredError on miss and exits FAILURE", async () => {
     const fetchMock = makeFetchMock([PROJECT_PAGE]);
     vi.stubGlobal("fetch", fetchMock);
     vi.spyOn(console, "log").mockImplementation(() => {});

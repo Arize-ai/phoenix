@@ -5,7 +5,7 @@ import { writeError } from "./io";
  * active. Lets agents parse the failure mode without scraping a
  * human-readable message.
  *
- * Shape per the phoenix-cli-development skill:
+ * Shape:
  *   { error: string, code: string, hint?: string }
  *
  * `code` is the `ExitCode` constant *name* (e.g. "INVALID_ARGUMENT", not the

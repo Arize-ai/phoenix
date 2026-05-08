@@ -231,8 +231,8 @@ function formatProjectGetOutput({
  * Handler for `project get <name>`.
  *
  * Reuses the paginated `fetchProjects` helper and filters by exact name
- * match. Per D4, on miss we exit with `ExitCode.FAILURE` and emit a
- * `StructuredError` so agents can detect not-found without scraping prose.
+ * match. On miss, exit with `ExitCode.FAILURE` and emit a `StructuredError`
+ * so agents can detect not-found without scraping prose.
  */
 async function projectGetHandler(
   name: string,

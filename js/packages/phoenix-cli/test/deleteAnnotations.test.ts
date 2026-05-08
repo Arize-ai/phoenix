@@ -75,7 +75,7 @@ afterEach(() => {
 });
 
 describe("trace delete-annotations", () => {
-  it("DELETEs with delete_all=true when --all is set, then emits structured success (D7)", async () => {
+  it("DELETEs with delete_all=true when --all is set, then emits structured success", async () => {
     const fetchMock = makeFetchMock([PROJECT_RESPONSE, DELETE_204]);
     vi.stubGlobal("fetch", fetchMock);
     const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -147,7 +147,7 @@ describe("trace delete-annotations", () => {
     });
   });
 
-  it("rejects an underspecified delete (no --all, no time window) before any HTTP call (D3)", async () => {
+  it("rejects an underspecified delete before any HTTP call", async () => {
     const fetchMock = makeFetchMock([PROJECT_RESPONSE]);
     vi.stubGlobal("fetch", fetchMock);
     const stderrSpy = vi.spyOn(console, "error").mockImplementation(() => {});

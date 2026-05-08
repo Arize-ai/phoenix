@@ -1135,9 +1135,9 @@ async function traceDeleteAnnotationsHandler(
     process.exit(ExitCode.INVALID_ARGUMENT);
   }
 
-  // Authorization gate per D3: require either --all or both
-  // --start-time and --end-time. Other narrowers do NOT authorize the
-  // request — match the server contract before we hit the wire.
+  // Require either --all or both --start-time and --end-time. Other
+  // narrowers do not authorize the request; match the server contract before
+  // hitting the wire.
   const hasWindow =
     options.startTime !== undefined && options.endTime !== undefined;
   if (!options.all && !hasWindow) {
@@ -1146,7 +1146,7 @@ async function traceDeleteAnnotationsHandler(
       message:
         "Missing required authorization: pass --all to delete every matching row, or pass both --start-time and --end-time to bound the delete to a [start, end) window.",
       code: "INVALID_ARGUMENT",
-      hint: 'px trace delete-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --all',
+      hint: 'px trace delete-annotations --identifier "$PHOENIX_CODING_IDENTIFIER" --all',
     });
     process.exit(ExitCode.INVALID_ARGUMENT);
   }
@@ -1268,7 +1268,7 @@ export function createTraceDeleteAnnotationsCommand(): Command {
     .addHelpText(
       "after",
       "\nExamples:\n" +
-        '  px trace delete-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --all -y\n' +
+        '  px trace delete-annotations --identifier "$PHOENIX_CODING_IDENTIFIER" --all -y\n' +
         "  px trace delete-annotations --start-time 2026-01-01T00:00:00Z --end-time 2026-01-02T00:00:00Z\n"
     )
     .action(traceDeleteAnnotationsHandler);

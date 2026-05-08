@@ -961,7 +961,7 @@ async function sessionDeleteAnnotationsHandler(
       message:
         "Missing required authorization: pass --all to delete every matching row, or pass both --start-time and --end-time to bound the delete to a [start, end) window.",
       code: "INVALID_ARGUMENT",
-      hint: 'px session delete-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --all',
+      hint: 'px session delete-annotations --identifier "$PHOENIX_CODING_IDENTIFIER" --all',
     });
     process.exit(ExitCode.INVALID_ARGUMENT);
   }
@@ -1085,7 +1085,7 @@ export function createSessionDeleteAnnotationsCommand(): Command {
     .addHelpText(
       "after",
       "\nExamples:\n" +
-        '  px session delete-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --all -y\n'
+        '  px session delete-annotations --identifier "$PHOENIX_CODING_IDENTIFIER" --all -y\n'
     )
     .action(sessionDeleteAnnotationsHandler);
 }
