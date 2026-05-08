@@ -93,6 +93,7 @@ dev = [
   "azure-identity>=1.18.0",  # MSAL-backed in-memory token cache for ManagedIdentityCredential
   "beautifulsoup4",
   "boto3",
+  "daytona-sdk>=0.140.0",  # type-checking only; runtime is gated by the [daytona] extra
   "debugpy",
   "deepdiff==8.6.2",
   "Faker>=30.1.0",
