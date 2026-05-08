@@ -103,6 +103,7 @@ dev = [
   "jsonpath-ng",
   "ldap3",
   "litellm>=1.83.14,<1.84",  # >=1.83.14 fixes CVE-2026-42208 (SQLi), MCP stdio RCE, SSTI, OIDC bypass, password hash exposure, privilege escalation; excludes 1.82.7-1.82.8 supply chain compromise; <1.84 caps the minor
+  "modal>=1.2.0",  # type-checking only; runtime is gated by the [modal] extra
   "mypy==1.19.1",
   "mypy-boto3-bedrock-runtime",
   "nest-asyncio",  # for executor testing
