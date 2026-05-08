@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.5.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.5.0...arize-phoenix-v15.5.1) (2026-05-08)
+
+
+### Bug Fixes
+
+* **evaluators:** preserve built-in evaluator on dataset evaluator delete ([#13104](https://github.com/Arize-ai/phoenix/issues/13104)) ([9c8068b](https://github.com/Arize-ai/phoenix/commit/9c8068b594295a9b663dd536136e3bc1abe4a1d6))
+
 ## [15.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.4.0...arize-phoenix-v15.5.0) (2026-05-08)
 
 
