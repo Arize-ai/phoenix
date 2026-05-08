@@ -254,14 +254,13 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
     # then. Until that lands, both Vercel adapters remain internet_access="none".
     **{
         f"VERCEL_{lang}": AdapterMetadata(
-            display_name="Vercel Sandbox",
+            display_name="Vercel",
             language=lang,
             dependency_hints=[
                 "Install Phoenix with the `vercel` extra.",
                 (
-                    "Set all of `PHOENIX_SANDBOX_VERCEL_TOKEN`, "
-                    "`PHOENIX_SANDBOX_VERCEL_PROJECT_ID`, and "
-                    "`PHOENIX_SANDBOX_VERCEL_TEAM_ID`."
+                    "Set all of `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, and `VERCEL_TEAM_ID`. "
+                    "See https://vercel.com/docs/vercel-sandbox/concepts/authentication"
                 ),
             ],
             supports_env_vars=True,
@@ -407,7 +406,7 @@ async def invalidate_backend_cache_for_key(key: str) -> None:
 
     Broader than `invalidate_backend_cache` because one credential key may be
     shared by multiple backend_types (e.g.
-    PHOENIX_SANDBOX_VERCEL_TOKEN across VERCEL_PYTHON and VERCEL_TYPESCRIPT).
+    VERCEL_TOKEN across VERCEL_PYTHON and VERCEL_TYPESCRIPT).
     A per-adapter eviction failure logs and continues —
     a rotation must not stall because one backend failed to close.
     """
@@ -594,9 +593,9 @@ async def get_missing_sandbox_auth_detail(
         # deployments or after `vercel env pull`) but is not exposed in the UI.
         oidc_key = "VERCEL_OIDC_TOKEN"
         access_keys = [
-            "PHOENIX_SANDBOX_VERCEL_TOKEN",
-            "PHOENIX_SANDBOX_VERCEL_PROJECT_ID",
-            "PHOENIX_SANDBOX_VERCEL_TEAM_ID",
+            "VERCEL_TOKEN",
+            "VERCEL_PROJECT_ID",
+            "VERCEL_TEAM_ID",
         ]
         resolved = await _resolve_named_credentials(session, decrypt, [oidc_key, *access_keys])
         if oidc_key in resolved or all(key in resolved for key in access_keys):
@@ -723,7 +722,7 @@ async def get_or_create_backend(
 # successfully — *regardless* of whether its SDK probe passes. The
 # reserved-credential-name set is derived from this list (not from
 # _SANDBOX_ADAPTERS), so adapter-declared credential keys (e.g.
-# PHOENIX_SANDBOX_VERCEL_TOKEN) remain reserved on installs that don't have
+# VERCEL_TOKEN) remain reserved on installs that don't have
 # the optional SDK. Without this, a missing optional extra would silently
 # narrow the reserved set and let a user-supplied env_var or secret_ref
 # shadow a provider credential name.
@@ -834,7 +833,7 @@ def _build_reserved_credential_names() -> frozenset[str]:
     NOT ``_SANDBOX_ADAPTERS`` (only adapters whose SDK probe passed). The
     distinction matters: an installation without the ``vercel`` extra has
     ``VercelPythonAdapter`` in _KNOWN_ADAPTER_CLASSES but not in
-    _SANDBOX_ADAPTERS, and ``PHOENIX_SANDBOX_VERCEL_TOKEN`` MUST remain
+    _SANDBOX_ADAPTERS, and ``VERCEL_TOKEN`` MUST remain
     reserved regardless of whether the SDK is installed — otherwise a
     user-supplied env_var or secret_ref on that name could shadow the
     provider credential the moment the SDK is later installed.
@@ -849,8 +848,7 @@ def _build_reserved_credential_names() -> frozenset[str]:
 def is_reserved_credential_name(name: str) -> bool:
     """Return True if `name` collides with a reserved provider-credential key.
 
-    Comparison is case-insensitive: `PHOENIX_SANDBOX_VERCEL_TOKEN`,
-    `Phoenix_Sandbox_Vercel_Token`, and `phoenix_sandbox_vercel_token` are all
-    reserved.
+    Comparison is case-insensitive: `VERCEL_TOKEN`, `Vercel_Token`, and
+    `vercel_token` are all reserved.
     """
     return name.lower() in _build_reserved_credential_names()
