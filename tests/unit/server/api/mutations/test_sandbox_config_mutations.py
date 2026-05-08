@@ -383,7 +383,7 @@ class TestReservedSecretKeyRejected:
                                 {
                                     "kind": "secret_ref",
                                     "name": "MY_TOKEN",
-                                    "secret_key": "PHOENIX_SANDBOX_VERCEL_TOKEN",
+                                    "secret_key": "VERCEL_TOKEN",
                                 }
                             ]
                         },
@@ -414,7 +414,7 @@ class TestReservedSecretKeyRejected:
                                 {
                                     "kind": "secret_ref",
                                     "name": "MY_TOKEN",
-                                    "secret_key": "PHOENIX_SANDBOX_VERCEL_TOKEN",
+                                    "secret_key": "VERCEL_TOKEN",
                                 }
                             ]
                         },
@@ -444,7 +444,7 @@ class TestReservedSecretKeyRejected:
                                 {
                                     "kind": "secret_ref",
                                     "name": "MY_TOKEN",
-                                    "secret_key": "phoenix_sandbox_vercel_token",
+                                    "secret_key": "vercel_token",
                                 }
                             ]
                         },

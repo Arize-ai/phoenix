@@ -8,7 +8,7 @@ Three scenarios covered:
 1. Rebuild-with-new-value via setSandboxCredential — backend rebuilt with v2
    plaintext after rotation.
 2. Shared-spec invalidation — VERCEL_PYTHON and VERCEL_TYPESCRIPT share
-   `credential_specs` referencing PHOENIX_SANDBOX_VERCEL_TOKEN; rotating via
+   `credential_specs` referencing VERCEL_TOKEN; rotating via
    either backend_type
    evicts BOTH cache entries.
 3. upsertOrDeleteSecrets + SandboxConfig.secret_ref — rotating a user Secret
@@ -178,8 +178,7 @@ class TestRebuildWithNewValue:
 
 
 class TestSharedSpecInvalidation:
-    """Scenario 2: PHOENIX_SANDBOX_VERCEL_TOKEN is shared by VERCEL_PYTHON and
-    VERCEL_TYPESCRIPT.
+    """Scenario 2: VERCEL_TOKEN is shared by VERCEL_PYTHON and VERCEL_TYPESCRIPT.
 
     Rotating via either backend_type must evict BOTH cache entries.
     """
