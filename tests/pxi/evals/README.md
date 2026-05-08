@@ -46,9 +46,7 @@ Datasets live in `tests/pxi/evals/datasets/*.yaml`. Each file has:
 - `examples`
 
 Each example needs a stable `id`, `input.query`, `expected.tools`, and
-expected tool arguments under `expected.tool_call_args`. Do not add manual version numbers; Phoenix
-versions datasets on upload. Example IDs must be unique because the runner
-uses them for stable upserts.
+expected tool arguments under `expected.tool_call_args`. Example IDs must be unique because the runner uses them for stable upserts.
 
 `expected.tools` may also include `exact_match: true`, which switches
 `correct_tools_called` from "all required tools must be called" to "the
@@ -79,7 +77,7 @@ Code evaluators live in `tests/pxi/evals/evaluators/` and use
 `@create_evaluator(name=..., kind="code")` from `phoenix.evals`. Experiment
 evaluators can bind `output`, `input`, `expected`, and `metadata`. Simple
 `bool`, `int`, or `float` returns are converted into Phoenix scores, while
-dict returns can include explanations and metadata for debugging.
+dict returns can include labels, explanations and metadata for debugging.
 
 ## What Belongs Here
 
