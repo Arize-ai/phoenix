@@ -117,10 +117,7 @@ export function useAgentChat({
                 messages: finalMessages,
                 message,
                 finishReason,
-                isAbort,
-                isError,
               }) => {
-                console.log("in Finish: ", { finishReason, isAbort, isError });
                 const usage = message.metadata?.usage;
                 if (usage != null) {
                   store.getState().setSessionUsage(sessionId, {
@@ -134,7 +131,6 @@ export function useAgentChat({
                 // runtimes can be reclaimed and later reconstructed from state.
                 if (finalMessages && finishReason !== "stop") {
                   store.getState().setSessionMessages(sessionId, finalMessages);
-                  console.log("setting final messages to ", { finalMessages });
                   generateSummary({ sessionId });
                 }
               },
@@ -193,10 +189,7 @@ export function useAgentChat({
   };
 
   const handleSendMessage = async (...args: Parameters<typeof sendMessage>) => {
-    console.log("in handleSendMessage: ", { messages });
-
     if (chatInstance && isRequestActive(chatInstance.status)) {
-      console.log("STOPPING");
       await stop();
     }
 
@@ -227,8 +220,6 @@ export function useAgentChat({
         })
       )
     );
-
-    console.log("sanitized messages: ", chatInstance?.messages ?? messages);
 
     await sendMessage(...args);
   };
