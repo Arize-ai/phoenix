@@ -612,12 +612,14 @@ class EvaluatorMutationMixin:
     async def delete_evaluators(
         self, info: Info[Context, None], input: DeleteEvaluatorsInput
     ) -> DeleteEvaluatorsPayload:
+        parsed_evaluators: list[tuple[GlobalID, int]] = []
         evaluator_rowids: set[int] = set()
         for evaluator_gid in input.evaluator_ids:
             try:
                 evaluator_rowid, _ = _parse_evaluator_id(evaluator_gid)
             except ValueError:
                 raise BadRequest(f"Invalid evaluator id: {str(evaluator_gid)}")
+            parsed_evaluators.append((evaluator_gid, evaluator_rowid))
             evaluator_rowids.add(evaluator_rowid)
 
         # Query DB to find which evaluators are builtins (can't be deleted)
@@ -631,7 +633,7 @@ class EvaluatorMutationMixin:
 
         filtered_rowids: list[int] = []
         filtered_gids: list[GlobalID] = []
-        for gid, rowid in zip(input.evaluator_ids, evaluator_rowids):
+        for gid, rowid in parsed_evaluators:
             if rowid in builtin_evaluator_ids:
                 continue
             filtered_rowids.append(rowid)

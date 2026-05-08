@@ -2849,6 +2849,66 @@ async def llm_evaluator(
         await session.execute(sa.delete(models.Prompt).where(models.Prompt.id == prompt.id))
 
 
+class TestDeleteEvaluators:
+    """Tests for the delete_evaluators mutation."""
+
+    _DELETE_MUTATION = """
+      mutation($input: DeleteEvaluatorsInput!) {
+        deleteEvaluators(input: $input) {
+          evaluatorIds
+          query { __typename }
+        }
+      }
+    """
+
+    async def test_delete_mixed_builtin_response_keeps_input_gid_mapping(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        llm_evaluator: models.LLMEvaluator,
+        synced_builtin_evaluators: None,
+    ) -> None:
+        async with db() as session:
+            builtin_evaluator_id = await session.scalar(select(models.BuiltinEvaluator.id).limit(1))
+        assert builtin_evaluator_id is not None, "No builtin evaluators available for testing"
+
+        llm_gid = str(GlobalID("LLMEvaluator", str(llm_evaluator.id)))
+        builtin_gid = str(GlobalID("BuiltInEvaluator", str(builtin_evaluator_id)))
+
+        result = await gql_client.execute(
+            self._DELETE_MUTATION,
+            {"input": {"evaluatorIds": [llm_gid, builtin_gid]}},
+        )
+
+        assert not result.errors
+        assert result.data is not None
+        assert result.data["deleteEvaluators"]["evaluatorIds"] == [llm_gid]
+
+        async with db() as session:
+            deleted_llm_evaluator = await session.get(models.LLMEvaluator, llm_evaluator.id)
+            kept_builtin_evaluator = await session.get(
+                models.BuiltinEvaluator, builtin_evaluator_id
+            )
+        assert deleted_llm_evaluator is None
+        assert kept_builtin_evaluator is not None
+
+    async def test_delete_duplicate_evaluator_ids_does_not_truncate_payload(
+        self,
+        gql_client: AsyncGraphQLClient,
+        llm_evaluator: models.LLMEvaluator,
+    ) -> None:
+        llm_gid = str(GlobalID("LLMEvaluator", str(llm_evaluator.id)))
+
+        result = await gql_client.execute(
+            self._DELETE_MUTATION,
+            {"input": {"evaluatorIds": [llm_gid, llm_gid]}},
+        )
+
+        assert not result.errors
+        assert result.data is not None
+        assert result.data["deleteEvaluators"]["evaluatorIds"] == [llm_gid, llm_gid]
+
+
 class TestDeleteDatasetEvaluators:
     """Tests for the delete_dataset_evaluators mutation."""
 
