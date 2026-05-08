@@ -12,7 +12,7 @@ export interface GetSpanAnnotationsParams extends ClientFn {
   project: ProjectIdentifier;
   /** One or more span IDs to fetch annotations for */
   spanIds: string[];
-  /** Optional list of annotation names to include. If provided, only annotations with these names will be returned (whitelist). When omitted, the response includes every matching row regardless of name (no annotation names are excluded by default). */
+  /** Optional list of annotation names to include. If provided, only annotations with these names will be returned (allowlist). When omitted, the response includes every matching row regardless of name (no annotation names are excluded by default). */
   includeAnnotationNames?: string[];
   /** Optional list of annotation names to exclude from results. */
   excludeAnnotationNames?: string[];

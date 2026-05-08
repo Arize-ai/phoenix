@@ -63,9 +63,7 @@ export async function addSpanNote({
       data: {
         span_id: spanNote.spanId.trim(),
         note: spanNote.note,
-        ...(spanNote.identifier !== undefined && {
-          identifier: spanNote.identifier,
-        }),
+        identifier: spanNote.identifier,
       },
     },
   });

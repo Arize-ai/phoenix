@@ -11,16 +11,7 @@ const DEFAULT_MAX_CONCURRENT = 5;
 interface FetchSpanAnnotationsOptions {
   client: PhoenixClient;
   projectIdentifier: string;
-  /**
-   * Optional list of span IDs to filter by. Mutually compatible with `identifier`.
-   * Either `spanIds` or `identifier` (or both) must be supplied.
-   */
-  spanIds?: string[];
-  /**
-   * Optional list of annotation identifiers to filter by. Mutually compatible
-   * with `spanIds`. Either `spanIds` or `identifier` (or both) must be supplied.
-   */
-  identifier?: string[];
+  spanIds: string[];
   includeAnnotationNames?: string[];
   excludeAnnotationNames?: string[];
   pageLimit?: number;
@@ -31,15 +22,13 @@ async function fetchSpanAnnotationsForChunk({
   client,
   projectIdentifier,
   spanIds,
-  identifier,
   includeAnnotationNames,
   excludeAnnotationNames,
   pageLimit,
 }: {
   client: PhoenixClient;
   projectIdentifier: string;
-  spanIds?: string[];
-  identifier?: string[];
+  spanIds: string[];
   includeAnnotationNames?: string[];
   excludeAnnotationNames?: string[];
   pageLimit: number;
@@ -57,7 +46,6 @@ async function fetchSpanAnnotationsForChunk({
           },
           query: {
             span_ids: spanIds,
-            identifier,
             cursor,
             limit: pageLimit,
             include_annotation_names: includeAnnotationNames,
@@ -84,30 +72,13 @@ export async function fetchSpanAnnotations({
   client,
   projectIdentifier,
   spanIds,
-  identifier,
   includeAnnotationNames,
   excludeAnnotationNames,
   pageLimit = DEFAULT_PAGE_LIMIT,
   maxConcurrent = DEFAULT_MAX_CONCURRENT,
 }: FetchSpanAnnotationsOptions): Promise<SpanAnnotation[]> {
-  const hasSpanIds = spanIds !== undefined && spanIds.length > 0;
-  const hasIdentifier = identifier !== undefined && identifier.length > 0;
-
-  if (!hasSpanIds && !hasIdentifier) {
+  if (spanIds.length === 0) {
     return [];
-  }
-
-  // No span IDs to chunk over → run a single non-chunked pagination pass
-  // using the identifier filter alone.
-  if (!hasSpanIds) {
-    return fetchSpanAnnotationsForChunk({
-      client,
-      projectIdentifier,
-      identifier,
-      includeAnnotationNames,
-      excludeAnnotationNames,
-      pageLimit,
-    });
   }
 
   const uniqueSpanIds = Array.from(new Set(spanIds));
@@ -125,7 +96,6 @@ export async function fetchSpanAnnotations({
           client,
           projectIdentifier,
           spanIds: spanIdsChunk,
-          identifier,
           includeAnnotationNames,
           excludeAnnotationNames,
           pageLimit,

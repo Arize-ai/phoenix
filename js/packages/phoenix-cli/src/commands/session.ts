@@ -29,10 +29,6 @@ import {
   type OutputFormat as AnnotationDeleteOutputFormat,
 } from "./formatAnnotationDelete";
 import {
-  formatAnnotationListOutput,
-  type OutputFormat as AnnotationListOutputFormat,
-} from "./formatAnnotationList";
-import {
   formatAnnotationMutationOutput,
   type OutputFormat as AnnotationMutationOutputFormat,
 } from "./formatAnnotationMutation";
@@ -131,17 +127,12 @@ async function fetchSession({
 }
 
 /**
- * Fetch annotations for a session.
- *
- * Either `sessionIds` or `identifier` (or both) must be supplied — the GET
- * endpoint requires at least one filter. When only `identifier` is supplied,
- * pagination runs against the identifier filter directly (chunking is bypassed).
+ * Fetch annotations for a session by `sessionIds` (chunked + paginated).
  */
 async function fetchSessionAnnotations({
   client,
   projectIdentifier,
   sessionIds,
-  identifier,
   includeAnnotationNames,
   excludeAnnotationNames,
   pageLimit = DEFAULT_PAGE_LIMIT,
@@ -149,29 +140,14 @@ async function fetchSessionAnnotations({
 }: {
   client: PhoenixClient;
   projectIdentifier: string;
-  sessionIds?: string[];
-  identifier?: string[];
+  sessionIds: string[];
   includeAnnotationNames?: string[];
   excludeAnnotationNames?: string[];
   pageLimit?: number;
   maxConcurrent?: number;
 }): Promise<SessionAnnotation[]> {
-  const hasSessionIds = sessionIds !== undefined && sessionIds.length > 0;
-  const hasIdentifier = identifier !== undefined && identifier.length > 0;
-
-  if (!hasSessionIds && !hasIdentifier) {
+  if (sessionIds.length === 0) {
     return [];
-  }
-
-  if (!hasSessionIds) {
-    return fetchSessionAnnotationsForChunk({
-      client,
-      projectIdentifier,
-      identifier,
-      includeAnnotationNames,
-      excludeAnnotationNames,
-      pageLimit,
-    });
   }
 
   const uniqueSessionIds = Array.from(new Set(sessionIds));
@@ -189,7 +165,6 @@ async function fetchSessionAnnotations({
           client,
           projectIdentifier,
           sessionIds: sessionIdsChunk,
-          identifier,
           includeAnnotationNames,
           excludeAnnotationNames,
           pageLimit,
@@ -209,15 +184,13 @@ async function fetchSessionAnnotationsForChunk({
   client,
   projectIdentifier,
   sessionIds,
-  identifier,
   includeAnnotationNames,
   excludeAnnotationNames,
   pageLimit,
 }: {
   client: PhoenixClient;
   projectIdentifier: string;
-  sessionIds?: string[];
-  identifier?: string[];
+  sessionIds: string[];
   includeAnnotationNames?: string[];
   excludeAnnotationNames?: string[];
   pageLimit: number;
@@ -235,7 +208,6 @@ async function fetchSessionAnnotationsForChunk({
           },
           query: {
             session_ids: sessionIds,
-            identifier,
             include_annotation_names: includeAnnotationNames,
             exclude_annotation_names: excludeAnnotationNames,
             cursor,
@@ -929,135 +901,6 @@ export function createSessionDeleteCommand(): Command {
     .action(sessionDeleteHandler);
 }
 
-interface SessionListAnnotationsOptions {
-  endpoint?: string;
-  project?: string;
-  apiKey?: string;
-  format?: AnnotationListOutputFormat;
-  progress?: boolean;
-  identifier?: string[];
-  sessionIds?: string[];
-  includeName?: string[];
-  excludeName?: string[];
-}
-
-async function sessionListAnnotationsHandler(
-  options: SessionListAnnotationsOptions
-): Promise<void> {
-  // Pre-flight checks live OUTSIDE the try/catch so explicit
-  // process.exit(INVALID_ARGUMENT) is not re-mapped to FAILURE by the
-  // catch's getExitCodeForError fallback.
-  const config = resolveConfig({
-    cliOptions: {
-      endpoint: options.endpoint,
-      project: options.project,
-      apiKey: options.apiKey,
-    },
-  });
-
-  const validation = validateConfig({ config });
-  if (!validation.valid) {
-    writeError({
-      message: getConfigErrorMessage({ errors: validation.errors }),
-    });
-    process.exit(ExitCode.INVALID_ARGUMENT);
-  }
-
-  const projectIdentifier = config.project;
-  if (!projectIdentifier) {
-    writeError({ message: "Project not configured" });
-    process.exit(ExitCode.INVALID_ARGUMENT);
-  }
-
-  const hasIdentifier =
-    options.identifier !== undefined && options.identifier.length > 0;
-  const hasSessionIds =
-    options.sessionIds !== undefined && options.sessionIds.length > 0;
-  if (!hasIdentifier && !hasSessionIds) {
-    writeStructuredError({
-      format: options.format,
-      message:
-        "Missing required filter: pass --identifier <id> or --session-ids <id...> (the GET endpoint requires at least one).",
-      code: "INVALID_ARGUMENT",
-      hint: "px session list-annotations --identifier <coding-session-id>",
-    });
-    process.exit(ExitCode.INVALID_ARGUMENT);
-  }
-
-  try {
-    const client = createPhoenixClient({ config });
-
-    writeProgress({
-      message: `Resolving project: ${projectIdentifier}`,
-      noProgress: !options.progress,
-    });
-    const projectId = await resolveProjectId({ client, projectIdentifier });
-
-    writeProgress({
-      message: "Fetching session annotations...",
-      noProgress: !options.progress,
-    });
-
-    const annotations = await fetchSessionAnnotations({
-      client,
-      projectIdentifier: projectId,
-      sessionIds: options.sessionIds,
-      identifier: options.identifier,
-      includeAnnotationNames: options.includeName,
-      excludeAnnotationNames: options.excludeName,
-    });
-
-    writeOutput({
-      message: formatAnnotationListOutput({
-        annotations,
-        target: "session",
-        format: options.format,
-      }),
-    });
-  } catch (error) {
-    writeError({
-      message: `Error listing session annotations: ${error instanceof Error ? error.message : String(error)}`,
-    });
-    process.exit(getExitCodeForError(error));
-  }
-}
-
-export function createSessionListAnnotationsCommand(): Command {
-  return new Command("list-annotations")
-    .description(
-      "List session annotations for the configured project, filtered by identifier and/or session IDs. Note: sessions accept only structured annotations (no notes via `session add-note`); to read note rows that may have been written through other paths, pass --include-name note."
-    )
-    .option("--endpoint <url>", "Phoenix API endpoint")
-    .option("--project <name>", "Project name or ID")
-    .option("--api-key <key>", "Phoenix API key for authentication")
-    .option(
-      "--identifier <ids...>",
-      "Filter to annotations whose identifier matches one of these values (repeatable)"
-    )
-    .option(
-      "--session-ids <ids...>",
-      "Filter to annotations attached to these session IDs"
-    )
-    .option(
-      "--include-name <name...>",
-      'Include only annotations with these names (whitelist; e.g. "note" to fetch only note rows, repeatable)'
-    )
-    .option("--exclude-name <name...>", "Exclude annotations with these names")
-    .option(
-      "--format <format>",
-      "Output format: pretty, json, or raw",
-      "pretty"
-    )
-    .option("--no-progress", "Disable progress indicators")
-    .addHelpText(
-      "after",
-      "\nExamples:\n" +
-        '  px session list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --format raw --no-progress\n' +
-        '  px session list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --include-name note --format raw --no-progress\n'
-    )
-    .action(sessionListAnnotationsHandler);
-}
-
 interface SessionDeleteAnnotationsOptions {
   endpoint?: string;
   project?: string;
@@ -1283,7 +1126,6 @@ export function createSessionCommand(): Command {
   command.addCommand(createSessionGetCommand());
   command.addCommand(createSessionAnnotateCommand());
   command.addCommand(createSessionAddNoteCommand());
-  command.addCommand(createSessionListAnnotationsCommand());
   command.addCommand(createSessionDeleteAnnotationsCommand());
   command.addCommand(createSessionDeleteCommand());
   return command;

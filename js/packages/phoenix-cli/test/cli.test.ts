@@ -59,7 +59,6 @@ describe("Phoenix CLI", () => {
         "get",
         "annotate",
         "add-note",
-        "list-annotations",
         "delete-annotations",
       ])
     );
@@ -80,7 +79,6 @@ describe("Phoenix CLI", () => {
         "list",
         "annotate",
         "add-note",
-        "list-annotations",
         "delete-annotations",
       ])
     );
@@ -117,7 +115,6 @@ describe("Phoenix CLI", () => {
         "get",
         "annotate",
         "add-note",
-        "list-annotations",
         "delete-annotations",
       ])
     );

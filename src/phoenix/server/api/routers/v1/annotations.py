@@ -246,7 +246,7 @@ async def list_span_annotations(
         default=None,
         description=(
             "Optional list of annotation names to include. If provided, only annotations with "
-            "these names will be returned (whitelist). When omitted, the response includes "
+            "these names will be returned (allowlist). When omitted, the response includes "
             "every matching row regardless of name (no annotation names are excluded by default)."
         ),
     ),
@@ -426,7 +426,7 @@ async def list_trace_annotations(
         default=None,
         description=(
             "Optional list of annotation names to include. If provided, only annotations with "
-            "these names will be returned (whitelist). When omitted, the response includes "
+            "these names will be returned (allowlist). When omitted, the response includes "
             "every matching row regardless of name (no annotation names are excluded by default)."
         ),
     ),
@@ -602,7 +602,7 @@ async def list_session_annotations(
         default=None,
         description=(
             "Optional list of annotation names to include. If provided, only annotations with "
-            "these names will be returned (whitelist). When omitted, the response includes "
+            "these names will be returned (allowlist). When omitted, the response includes "
             "every matching row regardless of name (no annotation names are excluded by default)."
         ),
     ),

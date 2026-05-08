@@ -66,9 +66,7 @@ export async function addTraceNote({
       data: {
         trace_id: traceNote.traceId.trim(),
         note: traceNote.note,
-        ...(traceNote.identifier !== undefined && {
-          identifier: traceNote.identifier,
-        }),
+        identifier: traceNote.identifier,
       },
     },
   });

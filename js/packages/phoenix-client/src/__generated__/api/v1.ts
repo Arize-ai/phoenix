@@ -5159,7 +5159,7 @@ export interface operations {
                 span_ids?: string[] | null;
                 /** @description Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `span_ids` must be supplied. When combined with `span_ids`, results are the AND-intersection of both filters. */
                 identifier?: string[] | null;
-                /** @description Optional list of annotation names to include. If provided, only annotations with these names will be returned (whitelist). When omitted, the response includes every matching row regardless of name (no annotation names are excluded by default). */
+                /** @description Optional list of annotation names to include. If provided, only annotations with these names will be returned (allowlist). When omitted, the response includes every matching row regardless of name (no annotation names are excluded by default). */
                 include_annotation_names?: string[] | null;
                 /** @description Optional list of annotation names to exclude from results. */
                 exclude_annotation_names?: string[] | null;
@@ -5283,7 +5283,7 @@ export interface operations {
                 trace_ids?: string[] | null;
                 /** @description Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `trace_ids` must be supplied. When combined with `trace_ids`, results are the AND-intersection of both filters. */
                 identifier?: string[] | null;
-                /** @description Optional list of annotation names to include. If provided, only annotations with these names will be returned (whitelist). When omitted, the response includes every matching row regardless of name (no annotation names are excluded by default). */
+                /** @description Optional list of annotation names to include. If provided, only annotations with these names will be returned (allowlist). When omitted, the response includes every matching row regardless of name (no annotation names are excluded by default). */
                 include_annotation_names?: string[] | null;
                 /** @description Optional list of annotation names to exclude from results. */
                 exclude_annotation_names?: string[] | null;
@@ -5407,7 +5407,7 @@ export interface operations {
                 session_ids?: string[] | null;
                 /** @description Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `session_ids` must be supplied. When combined with `session_ids`, results are the AND-intersection of both filters. */
                 identifier?: string[] | null;
-                /** @description Optional list of annotation names to include. If provided, only annotations with these names will be returned (whitelist). When omitted, the response includes every matching row regardless of name (no annotation names are excluded by default). */
+                /** @description Optional list of annotation names to include. If provided, only annotations with these names will be returned (allowlist). When omitted, the response includes every matching row regardless of name (no annotation names are excluded by default). */
                 include_annotation_names?: string[] | null;
                 /** @description Optional list of annotation names to exclude from results. */
                 exclude_annotation_names?: string[] | null;

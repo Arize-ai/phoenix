@@ -379,10 +379,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Optional list of annotation names to include. If provided, only annotations with these names will be returned (whitelist). When omitted, the response includes every matching row regardless of name (no annotation names are excluded by default).",
+              "description": "Optional list of annotation names to include. If provided, only annotations with these names will be returned (allowlist). When omitted, the response includes every matching row regardless of name (no annotation names are excluded by default).",
               "title": "Include Annotation Names"
             },
-            "description": "Optional list of annotation names to include. If provided, only annotations with these names will be returned (whitelist). When omitted, the response includes every matching row regardless of name (no annotation names are excluded by default)."
+            "description": "Optional list of annotation names to include. If provided, only annotations with these names will be returned (allowlist). When omitted, the response includes every matching row regardless of name (no annotation names are excluded by default)."
           },
           {
             "name": "exclude_annotation_names",
@@ -728,10 +728,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Optional list of annotation names to include. If provided, only annotations with these names will be returned (whitelist). When omitted, the response includes every matching row regardless of name (no annotation names are excluded by default).",
+              "description": "Optional list of annotation names to include. If provided, only annotations with these names will be returned (allowlist). When omitted, the response includes every matching row regardless of name (no annotation names are excluded by default).",
               "title": "Include Annotation Names"
             },
-            "description": "Optional list of annotation names to include. If provided, only annotations with these names will be returned (whitelist). When omitted, the response includes every matching row regardless of name (no annotation names are excluded by default)."
+            "description": "Optional list of annotation names to include. If provided, only annotations with these names will be returned (allowlist). When omitted, the response includes every matching row regardless of name (no annotation names are excluded by default)."
           },
           {
             "name": "exclude_annotation_names",
@@ -1077,10 +1077,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Optional list of annotation names to include. If provided, only annotations with these names will be returned (whitelist). When omitted, the response includes every matching row regardless of name (no annotation names are excluded by default).",
+              "description": "Optional list of annotation names to include. If provided, only annotations with these names will be returned (allowlist). When omitted, the response includes every matching row regardless of name (no annotation names are excluded by default).",
               "title": "Include Annotation Names"
             },
-            "description": "Optional list of annotation names to include. If provided, only annotations with these names will be returned (whitelist). When omitted, the response includes every matching row regardless of name (no annotation names are excluded by default)."
+            "description": "Optional list of annotation names to include. If provided, only annotations with these names will be returned (allowlist). When omitted, the response includes every matching row regardless of name (no annotation names are excluded by default)."
           },
           {
             "name": "exclude_annotation_names",

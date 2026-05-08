@@ -30,10 +30,6 @@ import {
   type OutputFormat as AnnotationDeleteOutputFormat,
 } from "./formatAnnotationDelete";
 import {
-  formatAnnotationListOutput,
-  type OutputFormat as AnnotationListOutputFormat,
-} from "./formatAnnotationList";
-import {
   formatAnnotationMutationOutput,
   type OutputFormat as AnnotationMutationOutputFormat,
 } from "./formatAnnotationMutation";
@@ -684,135 +680,6 @@ export function createSpanDeleteCommand(): Command {
     .action(spanDeleteHandler);
 }
 
-interface SpanListAnnotationsOptions {
-  endpoint?: string;
-  project?: string;
-  apiKey?: string;
-  format?: AnnotationListOutputFormat;
-  progress?: boolean;
-  identifier?: string[];
-  spanIds?: string[];
-  includeName?: string[];
-  excludeName?: string[];
-}
-
-async function spanListAnnotationsHandler(
-  options: SpanListAnnotationsOptions
-): Promise<void> {
-  // Pre-flight checks live OUTSIDE the try/catch so explicit
-  // process.exit(INVALID_ARGUMENT) is not re-mapped to FAILURE by the
-  // catch's getExitCodeForError fallback.
-  const config = resolveConfig({
-    cliOptions: {
-      endpoint: options.endpoint,
-      project: options.project,
-      apiKey: options.apiKey,
-    },
-  });
-
-  const validation = validateConfig({ config });
-  if (!validation.valid) {
-    writeError({
-      message: getConfigErrorMessage({ errors: validation.errors }),
-    });
-    process.exit(ExitCode.INVALID_ARGUMENT);
-  }
-
-  const projectIdentifier = config.project;
-  if (!projectIdentifier) {
-    writeError({ message: "Project not configured" });
-    process.exit(ExitCode.INVALID_ARGUMENT);
-  }
-
-  const hasIdentifier =
-    options.identifier !== undefined && options.identifier.length > 0;
-  const hasSpanIds =
-    options.spanIds !== undefined && options.spanIds.length > 0;
-  if (!hasIdentifier && !hasSpanIds) {
-    writeStructuredError({
-      format: options.format,
-      message:
-        "Missing required filter: pass --identifier <id> or --span-ids <id...> (the GET endpoint requires at least one).",
-      code: "INVALID_ARGUMENT",
-      hint: "px span list-annotations --identifier <coding-session-id>",
-    });
-    process.exit(ExitCode.INVALID_ARGUMENT);
-  }
-
-  try {
-    const client = createPhoenixClient({ config });
-
-    writeProgress({
-      message: `Resolving project: ${projectIdentifier}`,
-      noProgress: !options.progress,
-    });
-    const projectId = await resolveProjectId({ client, projectIdentifier });
-
-    writeProgress({
-      message: "Fetching span annotations...",
-      noProgress: !options.progress,
-    });
-
-    const annotations = await fetchSpanAnnotations({
-      client,
-      projectIdentifier: projectId,
-      spanIds: options.spanIds,
-      identifier: options.identifier,
-      includeAnnotationNames: options.includeName,
-      excludeAnnotationNames: options.excludeName,
-    });
-
-    writeOutput({
-      message: formatAnnotationListOutput({
-        annotations,
-        target: "span",
-        format: options.format,
-      }),
-    });
-  } catch (error) {
-    writeError({
-      message: `Error listing span annotations: ${error instanceof Error ? error.message : String(error)}`,
-    });
-    process.exit(getExitCodeForError(error));
-  }
-}
-
-export function createSpanListAnnotationsCommand(): Command {
-  return new Command("list-annotations")
-    .description(
-      "List span annotations for the configured project, filtered by identifier and/or span IDs"
-    )
-    .option("--endpoint <url>", "Phoenix API endpoint")
-    .option("--project <name>", "Project name or ID")
-    .option("--api-key <key>", "Phoenix API key for authentication")
-    .option(
-      "--identifier <ids...>",
-      "Filter to annotations whose identifier matches one of these values (repeatable)"
-    )
-    .option(
-      "--span-ids <ids...>",
-      "Filter to annotations attached to these span IDs"
-    )
-    .option(
-      "--include-name <name...>",
-      'Include only annotations with these names (whitelist; e.g. "note" to fetch only open-coding notes, repeatable)'
-    )
-    .option("--exclude-name <name...>", "Exclude annotations with these names")
-    .option(
-      "--format <format>",
-      "Output format: pretty, json, or raw",
-      "pretty"
-    )
-    .option("--no-progress", "Disable progress indicators")
-    .addHelpText(
-      "after",
-      "\nExamples:\n" +
-        '  px span list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --format raw --no-progress\n' +
-        '  px span list-annotations --identifier "$PHOENIX_CODING_SESSION_ID" --include-name note --format raw --no-progress\n'
-    )
-    .action(spanListAnnotationsHandler);
-}
-
 interface SpanDeleteAnnotationsOptions {
   endpoint?: string;
   project?: string;
@@ -1036,7 +903,6 @@ export function createSpanCommand(): Command {
   command.addCommand(createSpanListCommand());
   command.addCommand(createSpanAnnotateCommand());
   command.addCommand(createSpanAddNoteCommand());
-  command.addCommand(createSpanListAnnotationsCommand());
   command.addCommand(createSpanDeleteAnnotationsCommand());
   command.addCommand(createSpanDeleteCommand());
   return command;
