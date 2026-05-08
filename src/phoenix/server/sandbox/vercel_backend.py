@@ -249,21 +249,29 @@ def _resolve_vercel_oidc_token(config: dict[str, Any]) -> str:
 # VERCEL_OIDC_TOKEN is present in the process environment (e.g. `vercel env
 # pull` or running on Vercel) — see get_missing_sandbox_auth_detail and
 # build_backend below — but is not exposed as a configurable secret.
+# Linked from credential descriptions and authentication error messages so
+# users hitting either surface have a direct pointer to provisioning steps.
+_VERCEL_AUTH_DOCS_URL = "https://vercel.com/docs/vercel-sandbox/concepts/authentication"
+
 _VERCEL_ENV_VAR_SPECS = [
     ProviderCredentialSpec(
         key=ENV_VERCEL_TOKEN,
         display_name="Vercel Access Token",
-        description="Vercel personal access token.",
+        description=f"Vercel personal access token. See {_VERCEL_AUTH_DOCS_URL}",
     ),
     ProviderCredentialSpec(
         key=ENV_VERCEL_PROJECT_ID,
         display_name="Vercel Project ID",
-        description="Vercel project ID.",
+        description=f"Vercel project ID. See {_VERCEL_AUTH_DOCS_URL}",
     ),
     ProviderCredentialSpec(
         key=ENV_VERCEL_TEAM_ID,
         display_name="Vercel Team ID",
-        description="Vercel team ID.",
+        description=(
+            "Vercel team ID — find it under Team Settings → General "
+            "(https://vercel.com/teams/your_team_name_here/settings#team-id). "
+            f"See {_VERCEL_AUTH_DOCS_URL}"
+        ),
     ),
 ]
 

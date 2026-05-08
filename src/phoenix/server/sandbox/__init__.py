@@ -258,7 +258,10 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
             language=lang,
             dependency_hints=[
                 "Install Phoenix with the `vercel` extra.",
-                ("Set all of `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, and `VERCEL_TEAM_ID`."),
+                (
+                    "Set all of `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, and `VERCEL_TEAM_ID`. "
+                    "See https://vercel.com/docs/vercel-sandbox/concepts/authentication"
+                ),
             ],
             supports_env_vars=True,
             internet_access_capability="none",
