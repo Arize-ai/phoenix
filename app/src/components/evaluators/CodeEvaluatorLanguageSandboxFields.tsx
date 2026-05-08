@@ -38,6 +38,7 @@ export type CodeEvaluatorLanguageFieldProps = {
   language: CodeEvaluatorLanguage;
   /** Callback when language changes */
   onChange: (language: CodeEvaluatorLanguage) => void;
+  isDisabled?: boolean;
 };
 
 /**
@@ -46,10 +47,12 @@ export type CodeEvaluatorLanguageFieldProps = {
 export const CodeEvaluatorLanguageField = ({
   language,
   onChange,
+  isDisabled,
 }: CodeEvaluatorLanguageFieldProps) => {
   return (
     <Select
       value={language}
+      isDisabled={isDisabled}
       onChange={(value) => onChange(value as CodeEvaluatorLanguage)}
     >
       <Label>Language</Label>

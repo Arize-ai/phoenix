@@ -2868,11 +2868,6 @@ class CodeEvaluatorVersion(HasId):
         nullable=True,
     )
     source_code: Mapped[str] = mapped_column(nullable=False, server_default="")
-    language: Mapped[LanguageName] = mapped_column(
-        ForeignKey("languages.name", ondelete="RESTRICT"),
-        nullable=False,
-        index=True,
-    )
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
 
     code_evaluator: Mapped["CodeEvaluator"] = relationship(
@@ -2888,7 +2883,7 @@ class CodeEvaluatorVersion(HasId):
     )
 
     def has_identical_content(self, other: Self) -> bool:
-        return self.source_code == other.source_code and self.language == other.language
+        return self.source_code == other.source_code
 
 
 class BuiltinEvaluator(Evaluator):

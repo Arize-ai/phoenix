@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d0af9ebc55606899faab5805fc2d22b0>>
+ * @generated SignedSource<<4acb1f1379d2c13157981628f2ed7321>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,10 +9,8 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type Language = "PYTHON" | "TYPESCRIPT";
 export type CreateCodeEvaluatorVersionInput = {
   codeEvaluatorId: string;
-  language: Language;
   sourceCode: string;
 };
 export type EditCodeDatasetEvaluatorSlideover_createCodeEvaluatorVersionMutation$variables = {

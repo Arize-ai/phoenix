@@ -186,8 +186,8 @@ def upgrade() -> None:
             ["id", "language"],
         )
 
-    # code_evaluator_code_versions: revision history of evaluator code. `language` matches the
-    # post-#13055 denormalized shape (FK to languages.name, no integer surrogate).
+    # code_evaluator_code_versions: revision history of evaluator code. Language is immutable
+    # evaluator identity, so it lives only on code_evaluators.
     op.create_table(
         "code_evaluator_code_versions",
         sa.Column("id", _Integer, primary_key=True),
@@ -206,12 +206,6 @@ def upgrade() -> None:
         ),
         sa.Column("source_code", sa.String, nullable=False, server_default=""),
         sa.Column(
-            "language",
-            sa.String,
-            sa.ForeignKey("languages.name", ondelete="RESTRICT"),
-            nullable=False,
-        ),
-        sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),
             nullable=False,
@@ -223,11 +217,6 @@ def upgrade() -> None:
         "ix_code_evaluator_code_versions_code_evaluator_id_id",
         "code_evaluator_code_versions",
         ["code_evaluator_id", "id"],
-    )
-    op.create_index(
-        "ix_code_evaluator_code_versions_language",
-        "code_evaluator_code_versions",
-        ["language"],
     )
     op.create_index(
         "ix_code_evaluator_code_versions_user_id",

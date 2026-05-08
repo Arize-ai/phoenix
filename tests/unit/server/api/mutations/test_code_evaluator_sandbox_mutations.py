@@ -510,7 +510,6 @@ async def _create_code_evaluator_with_config(
         version = models.CodeEvaluatorVersion(
             code_evaluator_id=code_eval.id,
             source_code="def evaluate(input): return {'score': 1.0}",
-            language=provider.language,
         )
         session.add(version)
         await session.flush()
@@ -535,7 +534,6 @@ async def _create_code_evaluator_with_two_versions(
         await session.flush()
         common_kwargs: dict[str, Any] = dict(
             code_evaluator_id=code_eval.id,
-            language=provider.language,
         )
         first_version = models.CodeEvaluatorVersion(
             source_code="def evaluate(input): return {'score': 0.0}",
@@ -659,7 +657,6 @@ class TestCodeEvaluatorSandboxMutationIds:
             seed = models.CodeEvaluatorVersion(
                 code_evaluator_id=code_eval.id,
                 source_code="def evaluate(output): return {'score': 0.0}",
-                language="PYTHON",
             )
             session.add(seed)
             await session.flush()
@@ -670,7 +667,6 @@ class TestCodeEvaluatorSandboxMutationIds:
             variables={
                 "input": {
                     "codeEvaluatorId": evaluator_gid,
-                    "language": "PYTHON",
                     "sourceCode": "def evaluate(output): return {'score': 1.0}",
                 }
             },
@@ -704,7 +700,6 @@ class TestCodeEvaluatorSandboxMutationIds:
             variables={
                 "input": {
                     "codeEvaluatorId": evaluator_gid,
-                    "language": "PYTHON",
                     "sourceCode": "def evaluate(input): return {'score': 1.0}",
                 }
             },
@@ -747,7 +742,6 @@ class TestCodeEvaluatorSandboxMutationIds:
                     code_evaluator_id=code_eval.id,
                     description="old version description",
                     source_code="def evaluate(input): return {'score': 0.0}",
-                    language="PYTHON",
                 )
             )
             await session.flush()
@@ -758,7 +752,6 @@ class TestCodeEvaluatorSandboxMutationIds:
             variables={
                 "input": {
                     "codeEvaluatorId": evaluator_gid,
-                    "language": "PYTHON",
                     "sourceCode": "def evaluate(input): return {'score': 1.0}",
                 }
             },
@@ -782,7 +775,6 @@ class TestCodeEvaluatorSandboxMutationIds:
             variables={
                 "input": {
                     "codeEvaluatorId": evaluator_gid,
-                    "language": "PYTHON",
                     "sourceCode": "def not_evaluate(input): return {'score': 1.0}",
                 }
             },

@@ -349,7 +349,6 @@ class TestCodeEvaluatorPreviewNoSandbox:
             version = models.CodeEvaluatorVersion(
                 code_evaluator_id=code_eval.id,
                 source_code="def evaluate(output): return 1.0",
-                language="PYTHON",
             )
             session.add(version)
             await session.flush()

@@ -3703,7 +3703,6 @@ class TestGetEvaluators:
             version = models.CodeEvaluatorVersion(
                 code_evaluator_id=code_eval.id,
                 source_code="def evaluate(output): return 1.0",
-                language="PYTHON",
             )
             session.add(version)
             await session.flush()
@@ -3764,7 +3763,6 @@ class TestGetEvaluators:
                 models.CodeEvaluatorVersion(
                     code_evaluator_id=code_eval.id,
                     source_code="def evaluate(input): return {'score': 1.0}",
-                    language=provider.language,
                 )
             )
             dataset_evaluator = models.DatasetEvaluators(
@@ -3838,7 +3836,6 @@ class TestGetEvaluators:
                     models.CodeEvaluatorVersion(
                         code_evaluator_id=code_eval.id,
                         source_code="def evaluate(input): return {'score': 1.0}",
-                        language=provider.language,
                     )
                 )
                 dataset_evaluator = models.DatasetEvaluators(

@@ -129,13 +129,8 @@ class CodeEvaluatorVersion(Node):
     user_id: strawberry.Private[Optional[int]]
     description: Optional[str]
     source_code: str
-    language_value: strawberry.Private[str]
     created_at: datetime
     cached_sequence_number: strawberry.Private[Optional[int]] = None
-
-    @strawberry.field
-    async def language(self, info: Info[Context, None]) -> Language:
-        return Language(self.language_value)
 
     @strawberry.field
     async def input_schema(
@@ -147,7 +142,10 @@ class CodeEvaluatorVersion(Node):
             _infer_typescript_evaluate_input_schema,
         )
 
-        language = Language(self.language_value)
+        language_value = await info.context.data_loaders.code_evaluator_fields.load(
+            (self.code_evaluator_id, models.CodeEvaluator.language)
+        )
+        language = Language(language_value)
         if language is Language.PYTHON:
             schema, _ = _infer_python_evaluate_input_schema(self.source_code)
         elif language is Language.TYPESCRIPT:
@@ -205,7 +203,6 @@ def to_gql_code_evaluator_version(
         user_id=version.user_id,
         description=version.description,
         source_code=version.source_code,
-        language_value=version.language,
         created_at=version.created_at,
         cached_sequence_number=sequence_number,
     )

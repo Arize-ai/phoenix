@@ -14,7 +14,7 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.db.models import EvaluatorKind, LanguageName
+from phoenix.db.models import EvaluatorKind
 from phoenix.db.types.annotation_configs import (
     AnnotationConfigType,
     CategoricalOutputConfig,
@@ -336,7 +336,6 @@ class PatchCodeEvaluatorInput:
 class CreateCodeEvaluatorVersionInput:
     code_evaluator_id: GlobalID
     source_code: str
-    language: Language
 
 
 @strawberry.type
@@ -352,7 +351,7 @@ class CreateCodeEvaluatorVersionPayload:
         description=(
             "True when a new CodeEvaluatorVersion row was appended."
             " False when the call dedup'd against the existing tip because"
-            " source_code and language were unchanged."
+            " source_code was unchanged."
         )
     )
     query: Query
@@ -1214,12 +1213,10 @@ class EvaluatorMutationMixin:
                 session.add(row)
                 await session.flush()
 
-                language_value: LanguageName = input.language.value
                 version = models.CodeEvaluatorVersion(
                     code_evaluator_id=row.id,
                     description=input.description,
                     source_code=input.source_code,
-                    language=language_value,
                     user_id=user_id,
                 )
                 session.add(version)
@@ -1270,17 +1267,11 @@ class EvaluatorMutationMixin:
                         sandbox_config_id = from_global_id_with_expected_type(
                             input.sandbox_config_id, SandboxConfig.__name__
                         )
-                        latest_version = await latest_code_evaluator_version_for_update(
-                            session, row.id
-                        )
-                        if latest_version is not None:
-                            target_cfg = await session.get(models.SandboxConfig, sandbox_config_id)
-                            if target_cfg is not None and (
-                                target_cfg.language != latest_version.language
-                            ):
-                                raise BadRequest(
-                                    "Evaluator language does not match sandbox config language"
-                                )
+                        target_cfg = await session.get(models.SandboxConfig, sandbox_config_id)
+                        if target_cfg is not None and target_cfg.language != row.language:
+                            raise BadRequest(
+                                "Evaluator language does not match sandbox config language"
+                            )
                         row.sandbox_config_id = sandbox_config_id
 
                 if input.input_mapping is not UNSET and input.input_mapping is not None:
@@ -1310,8 +1301,8 @@ class EvaluatorMutationMixin:
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
         description=(
             "Append a new immutable CodeEvaluatorVersion. If the proposed source_code"
-            " and language are identical to the current tip version, no new row is"
-            " appended and was_created=false. Sandbox rebinding lives on"
+            " is identical to the current tip version, no new row is appended"
+            " and was_created=false. Sandbox rebinding lives on"
             " patchCodeEvaluator and does not bump a version on its own."
         ),
     )
@@ -1324,7 +1315,6 @@ class EvaluatorMutationMixin:
         evaluator_id = from_global_id_with_expected_type(
             global_id=input.code_evaluator_id, expected_type_name=CodeEvaluator.__name__
         )
-        _raise_on_uninferable_evaluate_signature(input.source_code, input.language)
 
         user_id: Optional[int] = None
         assert isinstance(request := info.context.request, Request)
@@ -1332,20 +1322,17 @@ class EvaluatorMutationMixin:
             assert isinstance(user := request.user, PhoenixUser)
             user_id = int(user.identity)
 
-        # Post-#13055: language is the natural primary key — pass the string directly.
-        language_value: LanguageName = input.language.value
-
         try:
             async with info.context.db() as session:
                 row = await session.get(models.CodeEvaluator, evaluator_id)
                 if row is None:
                     raise NotFound(f"CodeEvaluator not found: {evaluator_id}")
+                _raise_on_uninferable_evaluate_signature(input.source_code, Language(row.language))
 
                 candidate = models.CodeEvaluatorVersion(
                     code_evaluator_id=row.id,
                     description=row.description,
                     source_code=input.source_code,
-                    language=language_value,
                     user_id=user_id,
                 )
 

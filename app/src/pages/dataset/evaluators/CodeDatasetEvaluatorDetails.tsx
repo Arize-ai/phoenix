@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useFragment } from "react-relay";
 import { useRevalidator } from "react-router";
 import { graphql } from "relay-runtime";
+import invariant from "tiny-invariant";
 
 import {
   Card,
@@ -451,6 +452,7 @@ export function CodeDatasetEvaluatorDetails({
             id
             name
             description
+            language
             outputConfigs {
               ... on CategoricalAnnotationConfig {
                 name
@@ -479,7 +481,6 @@ export function CodeDatasetEvaluatorDetails({
               }
             }
             currentVersion {
-              language
               sourceCode
             }
           }
@@ -550,30 +551,27 @@ export function CodeDatasetEvaluatorDetails({
   );
 
   // currentVersion is nullable on the schema (a CodeEvaluator can exist
-  // without any version — fixtures, backfills, partial-commit recovery).
+  // without any version: fixtures, backfills, partial-commit recovery.
   // Render a bounded missing-version state instead of throwing so the rest
   // of the page can still surface the evaluator's identity and config.
-  if (
-    !currentVersion ||
-    !currentVersion.language ||
-    !currentVersion.sourceCode
-  ) {
+  if (!currentVersion || !currentVersion.sourceCode) {
     return (
       <Flex flex={1} alignItems="center" justifyContent="center">
         <Empty message="This code evaluator has no current version yet." />
       </Flex>
     );
   }
+  invariant(evaluator.language, "code evaluator language is required");
 
   return (
     <>
       <Flex direction="column" gap="size-200">
         <Card
           title="Source Code"
-          extra={<LanguageWithIcon language={currentVersion.language} />}
+          extra={<LanguageWithIcon language={evaluator.language} />}
         >
           <CodeEvaluatorSourceCodeBlock
-            language={currentVersion.language}
+            language={evaluator.language}
             sourceCode={currentVersion.sourceCode}
           />
         </Card>

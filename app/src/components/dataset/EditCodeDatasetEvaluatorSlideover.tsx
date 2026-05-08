@@ -164,6 +164,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
                   ... on CodeEvaluator {
                     name
                     description
+                    language
                     sandboxConfig {
                       id
                     }
@@ -185,7 +186,6 @@ function EditCodeDatasetEvaluatorSlideoverContent({
                     }
                     currentVersion {
                       sourceCode
-                      language
                     }
                   }
                 }
@@ -279,21 +279,18 @@ function EditCodeDatasetEvaluatorSlideoverContent({
     `);
 
   // currentVersion is nullable on the schema (a CodeEvaluator can exist
-  // without any version — fixtures, backfills, partial-commit recovery).
+  // without any version: fixtures, backfills, partial-commit recovery.
   // Render a bounded missing-version state instead of throwing.
   const currentVersion = evaluator.currentVersion;
-  if (
-    !currentVersion ||
-    !currentVersion.language ||
-    !currentVersion.sourceCode
-  ) {
+  if (!currentVersion || !currentVersion.sourceCode) {
     return (
       <Flex flex={1} alignItems="center" justifyContent="center">
         <Empty message="This code evaluator has no current version yet." />
       </Flex>
     );
   }
-  const evaluatorLanguage = currentVersion.language;
+  invariant(evaluator.language, "code evaluator language is required");
+  const evaluatorLanguage = evaluator.language;
   const evaluatorSourceCode = currentVersion.sourceCode;
 
   const loadedOutputConfigs = (
@@ -368,7 +365,6 @@ function EditCodeDatasetEvaluatorSlideoverContent({
           variables: {
             input: {
               codeEvaluatorId: evaluatorId,
-              language: payload.language,
               sourceCode: payload.sourceCode,
             },
           },

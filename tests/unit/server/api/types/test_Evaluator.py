@@ -1352,7 +1352,6 @@ class TestCodeEvaluatorVersionGraphQLTraversal:
                 code_evaluator_id=evaluator_row.id,
                 description=None,
                 source_code="def evaluate(input): return {'score': 0.0}",
-                language="PYTHON",
             )
             session.add(v1)
             await session.flush()
@@ -1360,7 +1359,6 @@ class TestCodeEvaluatorVersionGraphQLTraversal:
                 code_evaluator_id=evaluator_row.id,
                 description=None,
                 source_code="def evaluate(input): return {'score': 1.0}",
-                language="PYTHON",
             )
             session.add(v2)
             await session.flush()

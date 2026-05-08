@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<70c071f9d0ed584b14415cd2b4cb166b>>
+ * @generated SignedSource<<f2bc5138c35e454fdab8aaab13fd1715>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,12 +16,12 @@ import { FragmentRefs } from "relay-runtime";
 export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
   readonly evaluator: {
     readonly currentVersion?: {
-      readonly language: Language;
       readonly sourceCode: string;
     } | null;
     readonly description?: string | null;
     readonly id?: string;
     readonly kind: EvaluatorKind;
+    readonly language?: Language;
     readonly name?: string;
     readonly outputConfigs?: ReadonlyArray<{
       readonly lowerBound?: number | null;
@@ -225,6 +225,7 @@ return {
             (v0/*: any*/),
             (v1/*: any*/),
             (v4/*: any*/),
+            (v5/*: any*/),
             (v3/*: any*/),
             {
               "alias": null,
@@ -281,7 +282,6 @@ return {
               "name": "currentVersion",
               "plural": false,
               "selections": [
-                (v5/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -305,6 +305,6 @@ return {
 };
 })();
 
-(node as any).hash = "3bedfd78175e35cee57f41fd0f9202d1";
+(node as any).hash = "bb4bbd88be4773bb0ae55a8598ade320";
 
 export default node;

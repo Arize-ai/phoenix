@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<61ae9f5514b90cb836e3ceb722df047a>>
+ * @generated SignedSource<<dfb87967dba1762d2760b00c7346db5f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -24,12 +24,12 @@ export type EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery$data = {
       readonly description: string | null;
       readonly evaluator: {
         readonly currentVersion?: {
-          readonly language: Language;
           readonly sourceCode: string;
         } | null;
         readonly description?: string | null;
         readonly id: string;
         readonly kind: EvaluatorKind;
+        readonly language?: Language;
         readonly name?: string;
         readonly outputConfigs?: ReadonlyArray<{
           readonly lowerBound?: number | null;
@@ -246,31 +246,31 @@ v11 = {
   "name": "kind",
   "storageKey": null
 },
-v12 = [
+v12 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "language",
+  "storageKey": null
+},
+v13 = [
   (v2/*: any*/)
 ],
-v13 = {
+v14 = {
   "alias": null,
   "args": null,
   "concreteType": "SandboxConfig",
   "kind": "LinkedField",
   "name": "sandboxConfig",
   "plural": false,
-  "selections": (v12/*: any*/),
-  "storageKey": null
-},
-v14 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "sourceCode",
+  "selections": (v13/*: any*/),
   "storageKey": null
 },
 v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "language",
+  "name": "sourceCode",
   "storageKey": null
 },
 v16 = {
@@ -375,7 +375,7 @@ v21 = {
     (v9/*: any*/),
     {
       "kind": "InlineFragment",
-      "selections": (v12/*: any*/),
+      "selections": (v13/*: any*/),
       "type": "Node",
       "abstractKey": "__isNode"
     }
@@ -429,7 +429,8 @@ return {
                         "selections": [
                           (v4/*: any*/),
                           (v5/*: any*/),
-                          (v13/*: any*/),
+                          (v12/*: any*/),
+                          (v14/*: any*/),
                           (v10/*: any*/),
                           {
                             "alias": null,
@@ -439,7 +440,6 @@ return {
                             "name": "currentVersion",
                             "plural": false,
                             "selections": [
-                              (v14/*: any*/),
                               (v15/*: any*/)
                             ],
                             "storageKey": null
@@ -470,7 +470,7 @@ return {
         "plural": true,
         "selections": [
           (v16/*: any*/),
-          (v15/*: any*/),
+          (v12/*: any*/),
           (v17/*: any*/),
           (v18/*: any*/)
         ],
@@ -529,7 +529,8 @@ return {
                         "selections": [
                           (v4/*: any*/),
                           (v5/*: any*/),
-                          (v13/*: any*/),
+                          (v12/*: any*/),
+                          (v14/*: any*/),
                           (v21/*: any*/),
                           {
                             "alias": null,
@@ -539,7 +540,6 @@ return {
                             "name": "currentVersion",
                             "plural": false,
                             "selections": [
-                              (v14/*: any*/),
                               (v15/*: any*/),
                               (v2/*: any*/)
                             ],
@@ -571,7 +571,7 @@ return {
         "plural": true,
         "selections": [
           (v16/*: any*/),
-          (v15/*: any*/),
+          (v12/*: any*/),
           (v17/*: any*/),
           (v18/*: any*/),
           (v2/*: any*/)
@@ -582,16 +582,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c7900890e88bdfee0aa50ffe4a8d0eef",
+    "cacheID": "b14afdd2ffaf1f8c6f64f875f321a2c6",
     "id": null,
     "metadata": {},
     "name": "EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery",
     "operationKind": "query",
-    "text": "query EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery(\n  $datasetEvaluatorId: ID!\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        name\n        description\n        inputMapping {\n          literalMapping\n          pathMapping\n        }\n        outputConfigs {\n          __typename\n          ... on CategoricalAnnotationConfig {\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on ContinuousAnnotationConfig {\n            name\n            optimizationDirection\n            lowerBound\n            upperBound\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        evaluator {\n          __typename\n          id\n          kind\n          ... on CodeEvaluator {\n            name\n            description\n            sandboxConfig {\n              id\n            }\n            outputConfigs {\n              __typename\n              ... on CategoricalAnnotationConfig {\n                name\n                optimizationDirection\n                values {\n                  label\n                  score\n                }\n              }\n              ... on ContinuousAnnotationConfig {\n                name\n                optimizationDirection\n                lowerBound\n                upperBound\n              }\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n            currentVersion {\n              sourceCode\n              language\n              id\n            }\n          }\n        }\n      }\n    }\n  }\n  sandboxProviders {\n    backendType\n    language\n    enabled\n    configs {\n      id\n      name\n      description\n      timeout\n      config\n    }\n    id\n  }\n  sandboxBackends {\n    backendType\n    status\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n  }\n}\n"
+    "text": "query EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery(\n  $datasetEvaluatorId: ID!\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        name\n        description\n        inputMapping {\n          literalMapping\n          pathMapping\n        }\n        outputConfigs {\n          __typename\n          ... on CategoricalAnnotationConfig {\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on ContinuousAnnotationConfig {\n            name\n            optimizationDirection\n            lowerBound\n            upperBound\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        evaluator {\n          __typename\n          id\n          kind\n          ... on CodeEvaluator {\n            name\n            description\n            language\n            sandboxConfig {\n              id\n            }\n            outputConfigs {\n              __typename\n              ... on CategoricalAnnotationConfig {\n                name\n                optimizationDirection\n                values {\n                  label\n                  score\n                }\n              }\n              ... on ContinuousAnnotationConfig {\n                name\n                optimizationDirection\n                lowerBound\n                upperBound\n              }\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n            currentVersion {\n              sourceCode\n              id\n            }\n          }\n        }\n      }\n    }\n  }\n  sandboxProviders {\n    backendType\n    language\n    enabled\n    configs {\n      id\n      name\n      description\n      timeout\n      config\n    }\n    id\n  }\n  sandboxBackends {\n    backendType\n    status\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6252c4d5e85643f5f9c5e07183e5f33b";
+(node as any).hash = "dcf5addb8cb7cba09c8cc72927595f30";
 
 export default node;
