@@ -181,6 +181,7 @@ pg = [
 ]
 aws = [
   "aioboto3",
+  "types-aiobotocore-bedrock-runtime>=3.6.0",
 ]
 azure = [
   "azure-identity>=1.18.0",  # MSAL-backed in-memory token cache for ManagedIdentityCredential
@@ -207,6 +208,7 @@ container = [
   "strawberry-graphql[opentelemetry]==0.314.3",
   "uvloop; platform_system != 'Windows'",
   "aioboto3",
+  "types-aiobotocore-bedrock-runtime>=3.6.0",
 ]
 
 [project.urls]
