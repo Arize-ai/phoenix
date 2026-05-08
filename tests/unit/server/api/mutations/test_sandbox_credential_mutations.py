@@ -10,7 +10,11 @@ import sqlalchemy as sa
 
 from phoenix.db import models
 from phoenix.server.sandbox import _BACKEND_CACHE, _SANDBOX_ADAPTERS
-from phoenix.server.sandbox.types import ProviderCredentialSpec, SandboxAdapter, SandboxBackend
+from phoenix.server.sandbox.types import (
+    ProviderCredentialSpec,
+    SandboxAdapter,
+    SandboxBackend,
+)
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 

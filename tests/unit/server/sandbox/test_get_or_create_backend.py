@@ -15,7 +15,11 @@ from phoenix.server.sandbox import (
     invalidate_backend_cache,
 )
 from phoenix.server.sandbox.daytona_backend import DaytonaPythonAdapter
-from phoenix.server.sandbox.types import ProviderCredentialSpec, SandboxAdapter, SandboxBackend
+from phoenix.server.sandbox.types import (
+    ProviderCredentialSpec,
+    SandboxAdapter,
+    SandboxBackend,
+)
 
 
 class _StubConfig(BaseModel):
