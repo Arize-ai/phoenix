@@ -2805,7 +2805,6 @@ class CodeEvaluator(Evaluator):
         server_default="CODE",
         nullable=False,
     )
-    source_code: Mapped[str] = mapped_column(nullable=False, server_default="")
     language: Mapped[LanguageName] = mapped_column(
         ForeignKey("languages.name", ondelete="RESTRICT"),
         nullable=False,
@@ -2861,7 +2860,6 @@ class CodeEvaluatorVersion(HasId):
         ForeignKey("code_evaluators.id", ondelete="CASCADE"),
         nullable=False,
     )
-    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     user_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         index=True,

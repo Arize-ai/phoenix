@@ -142,14 +142,6 @@ def upgrade() -> None:
     with op.batch_alter_table("code_evaluators") as batch_op:
         batch_op.add_column(
             sa.Column(
-                "source_code",
-                sa.String,
-                server_default="",
-                nullable=False,
-            ),
-        )
-        batch_op.add_column(
-            sa.Column(
                 "language",
                 sa.String,
                 sa.ForeignKey("languages.name", ondelete="RESTRICT"),
@@ -197,7 +189,6 @@ def upgrade() -> None:
             sa.ForeignKey("code_evaluators.id", ondelete="CASCADE"),
             nullable=False,
         ),
-        sa.Column("description", sa.String, nullable=True),
         sa.Column(
             "user_id",
             _Integer,
@@ -238,7 +229,6 @@ def downgrade() -> None:
         batch_op.drop_column("output_configs")
         batch_op.drop_column("input_mapping")
         batch_op.drop_column("language")
-        batch_op.drop_column("source_code")
 
     op.drop_table("sandbox_configs")
     op.drop_table("sandbox_providers")

@@ -479,7 +479,6 @@ mutation CreateCodeEvaluatorVersion($input: CreateCodeEvaluatorVersionInput!) {
             ... on CodeEvaluator {
                 currentVersion {
                     id
-                    description
                     sourceCode
                 }
             }
@@ -501,7 +500,6 @@ async def _create_code_evaluator_with_config(
             name=Identifier(root="test-disabled-guard-eval"),
             description=None,
             metadata_={},
-            source_code="def evaluate(input): return {'score': 1.0}",
             language=sandbox_config.language,
             sandbox_config_id=sandbox_config.id,
         )
@@ -648,7 +646,6 @@ class TestCodeEvaluatorSandboxMutationIds:
                 name=Identifier(root="test_update_code_evaluator"),
                 description=None,
                 metadata_={},
-                source_code="def evaluate(output): return {'score': 0.0}",
                 language="PYTHON",
                 sandbox_config_id=sandbox_config.id,
             )
@@ -719,47 +716,6 @@ class TestCodeEvaluatorSandboxMutationIds:
                 )
             )
         assert version_count == 2
-
-    async def test_create_code_evaluator_version_snapshots_tip_description(
-        self,
-        gql_client: AsyncGraphQLClient,
-        db: DbSessionFactory,
-        sandbox_config: models.SandboxConfig,
-    ) -> None:
-        async with db() as session:
-            code_eval = models.CodeEvaluator(
-                name=Identifier(root="test-version-description-owner"),
-                description="tip description",
-                metadata_={},
-                source_code="def evaluate(input): return {'score': 0.0}",
-                language="PYTHON",
-                sandbox_config_id=sandbox_config.id,
-            )
-            session.add(code_eval)
-            await session.flush()
-            session.add(
-                models.CodeEvaluatorVersion(
-                    code_evaluator_id=code_eval.id,
-                    description="old version description",
-                    source_code="def evaluate(input): return {'score': 0.0}",
-                )
-            )
-            await session.flush()
-            evaluator_gid = str(GlobalID("CodeEvaluator", str(code_eval.id)))
-
-        result = await gql_client.execute(
-            _CREATE_CODE_EVALUATOR_VERSION,
-            variables={
-                "input": {
-                    "codeEvaluatorId": evaluator_gid,
-                    "sourceCode": "def evaluate(input): return {'score': 1.0}",
-                }
-            },
-        )
-
-        assert result.data and not result.errors
-        current_version = result.data["createCodeEvaluatorVersion"]["evaluator"]["currentVersion"]
-        assert current_version["description"] == "tip description"
 
     async def test_create_code_evaluator_version_rejects_uninferable_source(
         self,

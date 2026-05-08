@@ -338,7 +338,6 @@ class TestCodeEvaluatorPreviewNoSandbox:
         async with db() as session:
             code_eval = models.CodeEvaluator(
                 name=Identifier("no-sandbox-eval"),
-                source_code="def evaluate(output): return 1.0",
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 output_configs=[],
                 language="PYTHON",

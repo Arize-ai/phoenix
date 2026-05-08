@@ -14,6 +14,7 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.db.helpers import code_evaluator_with_latest_version_for_update
 from phoenix.db.models import EvaluatorKind
 from phoenix.db.types.annotation_configs import (
     AnnotationConfigType,
@@ -24,9 +25,6 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.dataloaders.latest_code_evaluator_versions import (
-    code_evaluator_with_latest_version_for_update,
-)
 from phoenix.server.api.evaluators import (
     _infer_python_evaluate_input_schema,
     _infer_typescript_evaluate_input_schema,
@@ -1221,7 +1219,6 @@ class EvaluatorMutationMixin:
                 row = models.CodeEvaluator(
                     name=validated_name,
                     description=input.description,
-                    source_code=input.source_code,
                     language=input.language.value,
                     user_id=user_id,
                     sandbox_config_id=sandbox_config_id,
@@ -1233,12 +1230,10 @@ class EvaluatorMutationMixin:
 
                 version = models.CodeEvaluatorVersion(
                     code_evaluator_id=row.id,
-                    description=input.description,
                     source_code=input.source_code,
                     user_id=user_id,
                 )
                 session.add(version)
-                await session.refresh(row)
         except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
             raise BadRequest(f"Could not create code evaluator: {e}")
 
@@ -1305,8 +1300,6 @@ class EvaluatorMutationMixin:
                         _convert_output_config_inputs_to_pydantic(input.output_configs),
                     )
 
-                await session.flush()
-                await session.refresh(row)
         except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
             raise BadRequest(f"Could not patch code evaluator: {e}")
 
@@ -1352,7 +1345,6 @@ class EvaluatorMutationMixin:
 
                 candidate = models.CodeEvaluatorVersion(
                     code_evaluator_id=row.id,
-                    description=row.description,
                     source_code=input.source_code,
                     user_id=user_id,
                 )
@@ -1362,8 +1354,6 @@ class EvaluatorMutationMixin:
                 )
                 if was_created:
                     session.add(candidate)
-                    await session.flush()
-                    await session.refresh(row)
         except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
             raise BadRequest(f"Could not create code evaluator version: {e}")
 

@@ -520,7 +520,6 @@ type CodeEvaluatorMutationPayload {
 type CodeEvaluatorVersion implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
-  description: String
   sourceCode: String!
   createdAt: DateTime!
   inputSchema: JSON!

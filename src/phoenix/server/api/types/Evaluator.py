@@ -127,7 +127,6 @@ class CodeEvaluatorVersion(Node):
     id_attr: NodeID[int]
     code_evaluator_id: strawberry.Private[int]
     user_id: strawberry.Private[Optional[int]]
-    description: Optional[str]
     source_code: str
     created_at: datetime
     cached_sequence_number: strawberry.Private[Optional[int]] = None
@@ -137,22 +136,11 @@ class CodeEvaluatorVersion(Node):
         self,
         info: Info[Context, None],
     ) -> JSON:
-        from phoenix.server.api.evaluators import (
-            _infer_python_evaluate_input_schema,
-            _infer_typescript_evaluate_input_schema,
+        return await _infer_code_evaluator_input_schema(
+            info=info,
+            code_evaluator_id=self.code_evaluator_id,
+            source_code=self.source_code,
         )
-
-        language_value = await info.context.data_loaders.code_evaluator_fields.load(
-            (self.code_evaluator_id, models.CodeEvaluator.language)
-        )
-        language = Language(language_value)
-        if language is Language.PYTHON:
-            schema, _ = _infer_python_evaluate_input_schema(self.source_code)
-        elif language is Language.TYPESCRIPT:
-            schema, _ = _infer_typescript_evaluate_input_schema(self.source_code)
-        else:
-            assert_never(language)
-        return JSON(schema)
 
     @strawberry.field
     async def previous_version(self, info: Info[Context, None]) -> Optional["CodeEvaluatorVersion"]:
@@ -194,6 +182,30 @@ class CodeEvaluatorVersion(Node):
         return User(id=self.user_id)
 
 
+async def _infer_code_evaluator_input_schema(
+    *,
+    info: Info[Context, None],
+    code_evaluator_id: int,
+    source_code: str,
+) -> JSON:
+    from phoenix.server.api.evaluators import (
+        _infer_python_evaluate_input_schema,
+        _infer_typescript_evaluate_input_schema,
+    )
+
+    language_value = await info.context.data_loaders.code_evaluator_fields.load(
+        (code_evaluator_id, models.CodeEvaluator.language)
+    )
+    language = Language(language_value)
+    if language is Language.PYTHON:
+        schema, _ = _infer_python_evaluate_input_schema(source_code)
+    elif language is Language.TYPESCRIPT:
+        schema, _ = _infer_typescript_evaluate_input_schema(source_code)
+    else:
+        assert_never(language)
+    return JSON(schema)
+
+
 def to_gql_code_evaluator_version(
     version: models.CodeEvaluatorVersion, sequence_number: Optional[int] = None
 ) -> CodeEvaluatorVersion:
@@ -201,7 +213,6 @@ def to_gql_code_evaluator_version(
         id_attr=version.id,
         code_evaluator_id=version.code_evaluator_id,
         user_id=version.user_id,
-        description=version.description,
         source_code=version.source_code,
         created_at=version.created_at,
         cached_sequence_number=sequence_number,
@@ -412,19 +423,29 @@ class CodeEvaluator(Evaluator, Node):
     async def input_schema(
         self,
         info: Info[Context, None],
-    ) -> Optional[JSON]: ...  # TODO: Implement
+    ) -> Optional[JSON]:
+        current_version = await info.context.data_loaders.latest_code_evaluator_versions.load(
+            self.id
+        )
+        if current_version is None:
+            return None
+        return await _infer_code_evaluator_input_schema(
+            info=info,
+            code_evaluator_id=self.id,
+            source_code=current_version.source_code,
+        )
 
     @strawberry.field
     async def source_code(
         self,
         info: Info[Context, None],
     ) -> str:
-        if self.db_record:
-            return self.db_record.source_code
-        val = await info.context.data_loaders.code_evaluator_fields.load(
-            (self.id, models.CodeEvaluator.source_code),
+        current_version = await info.context.data_loaders.latest_code_evaluator_versions.load(
+            self.id
         )
-        return val or ""
+        if current_version is None:
+            return ""
+        return current_version.source_code
 
     @strawberry.field
     async def language(

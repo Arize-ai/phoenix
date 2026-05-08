@@ -1350,14 +1350,12 @@ class TestCodeEvaluatorVersionGraphQLTraversal:
 
             v1 = models.CodeEvaluatorVersion(
                 code_evaluator_id=evaluator_row.id,
-                description=None,
                 source_code="def evaluate(input): return {'score': 0.0}",
             )
             session.add(v1)
             await session.flush()
             v2 = models.CodeEvaluatorVersion(
                 code_evaluator_id=evaluator_row.id,
-                description=None,
                 source_code="def evaluate(input): return {'score': 1.0}",
             )
             session.add(v2)
@@ -1372,6 +1370,8 @@ class TestCodeEvaluatorVersionGraphQLTraversal:
             query ($id: ID!, $versionId: ID!) {
                 node(id: $id) {
                     ... on CodeEvaluator {
+                        sourceCode
+                        inputSchema
                         currentVersion {
                             id
                             sequenceNumber
@@ -1392,6 +1392,8 @@ class TestCodeEvaluatorVersionGraphQLTraversal:
         )
         assert not resp.errors and resp.data is not None
         ce = resp.data["node"]
+        assert ce["sourceCode"] == "def evaluate(input): return {'score': 1.0}"
+        assert set(ce["inputSchema"]["properties"]) == {"input"}
         cv = ce["currentVersion"]
         assert cv["id"] == v2_gid
         assert cv["sequenceNumber"] == 2

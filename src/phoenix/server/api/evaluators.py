@@ -770,7 +770,7 @@ async def get_evaluators(
     code_evaluators_by_id: dict[int, CodeEvaluatorRunner] = {}
     code_evaluator_languages_by_id: dict[int, str] = {}
     if code_orm_by_id:
-        from phoenix.server.api.dataloaders.latest_code_evaluator_versions import (
+        from phoenix.db.helpers import (
             latest_code_evaluator_versions_by_evaluator_id,
         )
         from phoenix.server.sandbox import get_or_create_backend

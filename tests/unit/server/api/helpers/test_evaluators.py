@@ -3685,7 +3685,6 @@ class TestGetEvaluators:
 
             code_eval = models.CodeEvaluator(
                 name=Identifier("my-code-eval"),
-                source_code="def evaluate(output): return 1.0",
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 output_configs=[],
                 language="PYTHON",
@@ -3751,7 +3750,6 @@ class TestGetEvaluators:
             await session.flush()
             code_eval = models.CodeEvaluator(
                 name=Identifier("disabled-runtime-eval"),
-                source_code="def evaluate(input): return {'score': 1.0}",
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 output_configs=[],
                 language=provider.language,
@@ -3824,7 +3822,6 @@ class TestGetEvaluators:
             for index in range(2):
                 code_eval = models.CodeEvaluator(
                     name=Identifier(f"shared-runtime-eval-{index}"),
-                    source_code="def evaluate(input): return {'score': 1.0}",
                     input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                     output_configs=[],
                     language=provider.language,

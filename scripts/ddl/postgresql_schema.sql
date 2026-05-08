@@ -780,7 +780,6 @@ CREATE TABLE public.code_evaluators (
     id BIGINT NOT NULL,
     kind VARCHAR NOT NULL DEFAULT 'CODE'::character varying,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    source_code VARCHAR NOT NULL DEFAULT ''::character varying,
     language VARCHAR NOT NULL,
     input_mapping JSONB NOT NULL DEFAULT '{"path_mapping": {}, "literal_mapping": {}}',
     output_configs JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -816,7 +815,6 @@ CREATE INDEX ix_code_evaluators_sandbox_config_id ON public.code_evaluators
 CREATE TABLE public.code_evaluator_code_versions (
     id bigserial NOT NULL,
     code_evaluator_id BIGINT NOT NULL,
-    description VARCHAR,
     user_id BIGINT,
     source_code VARCHAR NOT NULL DEFAULT ''::character varying,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
