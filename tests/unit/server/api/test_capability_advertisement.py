@@ -103,7 +103,8 @@ async def test_sandbox_config_with_env_vars_persists_through_mutation(
     db: DbSessionFactory,
     seed_sandbox_providers: None,
 ) -> None:
-    """A SandboxConfig with env_vars in config round-trips through createSandboxConfig."""
+    """A SandboxConfig with env_vars in config persists unredacted in the DB
+    but exposes redacted literal values + a digest at the GraphQL boundary."""
     async with db() as session:
         provider = await session.scalar(
             select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
@@ -125,8 +126,12 @@ async def test_sandbox_config_with_env_vars_persists_through_mutation(
     )
     assert result.data and not result.errors
     cfg = result.data["createSandboxConfig"]["sandboxConfig"]
-    persisted_config = cfg["config"]
-    assert persisted_config["env_vars"] == env_vars_payload
+    persisted_env_vars = cfg["config"]["env_vars"]
+    assert len(persisted_env_vars) == 1
+    assert persisted_env_vars[0]["kind"] == "literal"
+    assert persisted_env_vars[0]["name"] == "MY_VAR"
+    assert persisted_env_vars[0]["value"] == "<redacted>"
+    assert "value_digest" in persisted_env_vars[0]
 
     reload_result = await gql_client.execute(query=_QUERY_PROVIDER_CONFIGS)
     assert reload_result.data and not reload_result.errors
@@ -134,9 +139,22 @@ async def test_sandbox_config_with_env_vars_persists_through_mutation(
         p for p in reload_result.data["sandboxProviders"] if p["backendType"] == "E2B"
     )
     reloaded_config = next(
-        c for c in e2b_provider["configs"] if c["config"].get("env_vars") == env_vars_payload
+        c
+        for c in e2b_provider["configs"]
+        if any(entry.get("name") == "MY_VAR" for entry in (c["config"].get("env_vars") or []))
     )
-    assert reloaded_config["config"]["env_vars"] == env_vars_payload
+    reloaded_env_vars = reloaded_config["config"]["env_vars"]
+    assert reloaded_env_vars[0]["value"] == "<redacted>"
+    assert reloaded_env_vars[0]["name"] == "MY_VAR"
+
+    # The DB row keeps the plaintext so runtime can read the real value.
+    config_id = int(GlobalID.from_id(cfg["id"]).node_id)
+    async with db() as session:
+        row = await session.get(models.SandboxConfig, config_id)
+    assert row is not None
+    assert row.config["env_vars"] == [
+        {"kind": "literal", "name": "MY_VAR", "value": "hello"},
+    ]
 
 
 async def test_sandbox_config_secret_ref_env_var_round_trips(

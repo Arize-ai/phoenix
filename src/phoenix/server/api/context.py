@@ -22,6 +22,7 @@ if TYPE_CHECKING:
         AverageExperimentRepeatedRunGroupLatencyDataLoader,
         AverageExperimentRunLatencyDataLoader,
         CacheForDataLoaders,
+        CodeEvaluatorVersionSequenceNumberDataLoader,
         DatasetDatasetSplitsDataLoader,
         DatasetEvaluatorsByEvaluatorDataLoader,
         DatasetEvaluatorsByIdDataLoader,
@@ -49,6 +50,7 @@ if TYPE_CHECKING:
         LastExperimentErrorsDataLoader,
         LastUsedTimesByGenerativeModelIdDataLoader,
         LatencyMsQuantileDataLoader,
+        LatestCodeEvaluatorVersionDataLoader,
         LatestPromptVersionIdDataLoader,
         MinStartOrMaxEndTimeDataLoader,
         NumChildSpansDataLoader,
@@ -121,6 +123,7 @@ class DataLoaders:
     )
     average_experiment_run_latency: AverageExperimentRunLatencyDataLoader
     code_evaluator_fields: TableFieldsDataLoader
+    code_evaluator_version_sequence_number: CodeEvaluatorVersionSequenceNumberDataLoader
     dataset_evaluator_fields: TableFieldsDataLoader
     dataset_evaluators_by_evaluator: DatasetEvaluatorsByEvaluatorDataLoader
     dataset_evaluators_by_id: DatasetEvaluatorsByIdDataLoader
@@ -181,6 +184,7 @@ class DataLoaders:
     prompt_version_sequence_number: PromptVersionSequenceNumberDataLoader
     prompt_version_tag_fields: TableFieldsDataLoader
     latest_prompt_version_ids: LatestPromptVersionIdDataLoader
+    latest_code_evaluator_versions: LatestCodeEvaluatorVersionDataLoader
     project_session_annotation_fields: TableFieldsDataLoader
     project_session_fields: TableFieldsDataLoader
     record_counts: RecordCountDataLoader

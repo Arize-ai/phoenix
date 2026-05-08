@@ -336,10 +336,10 @@ type BuiltInEvaluator implements Evaluator & Node {
   kind: EvaluatorKind!
   createdAt: DateTime!
   updatedAt: DateTime!
-  inputSchema: JSON
   isBuiltin: Boolean!
   datasets(first: Int = 50, after: String): DatasetConnection!
   datasetEvaluators: [DatasetEvaluator!]!
+  inputSchema: JSON
   user: User
   outputConfigs: [BuiltInEvaluatorOutputConfig!]!
 }
@@ -497,20 +497,53 @@ type CodeEvaluator implements Evaluator & Node {
   kind: EvaluatorKind!
   createdAt: DateTime!
   updatedAt: DateTime!
-  inputSchema: JSON
   isBuiltin: Boolean!
   datasets(first: Int = 50, after: String): DatasetConnection!
   datasetEvaluators: [DatasetEvaluator!]!
+  sandboxConfig: SandboxConfig
+  inputMapping: EvaluatorInputMapping!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
+  currentVersion: CodeEvaluatorVersion
+  version(versionId: ID!): CodeEvaluatorVersion
+  versions(first: Int = 50, last: Int, after: String, before: String): CodeEvaluatorVersionConnection!
+  inputSchema: JSON
   sourceCode: String!
   language: Language!
-  sandboxConfig: SandboxConfig
-  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   user: User
 }
 
 type CodeEvaluatorMutationPayload {
   evaluator: CodeEvaluator!
   query: Query!
+}
+
+type CodeEvaluatorVersion implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  sourceCode: String!
+  createdAt: DateTime!
+  inputSchema: JSON!
+  previousVersion: CodeEvaluatorVersion
+  sequenceNumber: Int!
+  user: User
+}
+
+"""A connection to a list of items."""
+type CodeEvaluatorVersionConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [CodeEvaluatorVersionEdge!]!
+}
+
+"""An edge in a connection."""
+type CodeEvaluatorVersionEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: CodeEvaluatorVersion!
 }
 
 type ConfigFieldSpecType {
@@ -607,6 +640,21 @@ input CreateCodeEvaluatorInput {
   sandboxConfigId: ID = null
   outputConfigs: [AnnotationConfigInput!] = null
   inputMapping: EvaluatorInputMappingInput = null
+}
+
+input CreateCodeEvaluatorVersionInput {
+  codeEvaluatorId: ID!
+  sourceCode: String!
+}
+
+type CreateCodeEvaluatorVersionPayload {
+  evaluator: CodeEvaluator!
+
+  """
+  True when a new CodeEvaluatorVersion row was appended. False when the call dedup'd against the existing tip because source_code was unchanged. Exposes idempotency explicitly so clients can distinguish a saved revision from a no-op.
+  """
+  wasCreated: Boolean!
+  query: Query!
 }
 
 input CreateDatasetBuiltinEvaluatorInput {
@@ -1406,7 +1454,6 @@ interface Evaluator implements Node {
   kind: EvaluatorKind!
   createdAt: DateTime!
   updatedAt: DateTime!
-  inputSchema: JSON
   isBuiltin: Boolean!
   datasets(first: Int = 50, after: String): DatasetConnection!
   datasetEvaluators: [DatasetEvaluator!]!
@@ -2146,13 +2193,13 @@ type LLMEvaluator implements Evaluator & Node {
   kind: EvaluatorKind!
   createdAt: DateTime!
   updatedAt: DateTime!
-  inputSchema: JSON
   isBuiltin: Boolean!
   datasets(first: Int = 50, after: String): DatasetConnection!
   datasetEvaluators: [DatasetEvaluator!]!
   outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   prompt: Prompt!
   promptVersionTag: PromptVersionTag
+  inputSchema: JSON
   user: User
   promptVersion: PromptVersion!
 }
@@ -2238,7 +2285,12 @@ type Mutation {
   createDatasetCodeEvaluator(input: CreateDatasetCodeEvaluatorInput!): DatasetEvaluatorMutationPayload!
   updateDatasetCodeEvaluator(input: UpdateDatasetCodeEvaluatorInput!): DatasetEvaluatorMutationPayload!
   createCodeEvaluator(input: CreateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
-  updateCodeEvaluator(input: UpdateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
+  patchCodeEvaluator(input: PatchCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
+
+  """
+  Append a new immutable CodeEvaluatorVersion. If the proposed source_code is identical to the current tip version, no new row is appended and was_created=false. Sandbox rebinding lives on patchCodeEvaluator and does not bump a version on its own.
+  """
+  createCodeEvaluatorVersion(input: CreateCodeEvaluatorVersionInput!): CreateCodeEvaluatorVersionPayload!
   stopExperiment(experimentId: ID!): StopExperimentPayload!
   resumeExperiment(experimentId: ID!, credentials: [GenerativeCredentialInput!]): ResumeExperimentPayload!
   dismissExperiment(experimentId: ID!): DismissExperimentPayload!
@@ -2385,6 +2437,15 @@ input PatchAnnotationInput {
   metadata: JSON
   identifier: String
   source: AnnotationSource
+}
+
+input PatchCodeEvaluatorInput {
+  id: ID!
+  name: Identifier
+  description: String
+  sandboxConfigId: ID
+  inputMapping: EvaluatorInputMappingInput
+  outputConfigs: [AnnotationConfigInput!]
 }
 
 input PatchDatasetExamplesInput {
@@ -4011,17 +4072,6 @@ input UpdateAnnotationInput {
   explanation: String = null
   metadata: JSON!
   source: AnnotationSource! = APP
-}
-
-input UpdateCodeEvaluatorInput {
-  id: ID!
-  name: Identifier
-  sourceCode: String
-  language: Language
-  description: String
-  sandboxConfigId: ID
-  outputConfigs: [AnnotationConfigInput!]
-  inputMapping: EvaluatorInputMappingInput
 }
 
 input UpdateDatasetBuiltinEvaluatorInput {

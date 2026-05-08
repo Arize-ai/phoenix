@@ -15,6 +15,7 @@ from openinference.semconv.trace import (
     ToolCallAttributes,
 )
 from opentelemetry.semconv.attributes.url_attributes import URL_FULL, URL_PATH
+from sqlalchemy import select
 from strawberry.scalars import JSON
 
 from phoenix.db import models
@@ -3684,13 +3685,25 @@ class TestGetEvaluators:
 
             code_eval = models.CodeEvaluator(
                 name=Identifier("my-code-eval"),
-                source_code="def evaluate(output): return 1.0",
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 output_configs=[],
                 language="PYTHON",
                 sandbox_config_id=None,
             )
             session.add(code_eval)
+            await session.flush()
+            python_lang = await session.scalar(
+                select(models.Language).where(models.Language.name == "PYTHON")
+            )
+            if python_lang is None:
+                python_lang = models.Language(name="PYTHON")
+                session.add(python_lang)
+                await session.flush()
+            version = models.CodeEvaluatorVersion(
+                code_evaluator_id=code_eval.id,
+                source_code="def evaluate(output): return 1.0",
+            )
+            session.add(version)
             await session.flush()
 
             de_code = models.DatasetEvaluators(
@@ -3713,6 +3726,138 @@ class TestGetEvaluators:
 
         assert "my-code-eval" in str(exc_info.value)
         assert "/settings/sandboxes" in str(exc_info.value)
+
+    async def test_code_evaluator_disabled_sandbox_config_raises_bad_request(
+        self,
+        db: Any,
+        seed_sandbox_providers: None,
+    ) -> None:
+        async with db() as session:
+            provider = await session.scalar(
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
+            )
+            assert provider is not None
+            sandbox_config = models.SandboxConfig(
+                sandbox_provider_id=provider.id,
+                language=provider.language,
+                name="disabled-runtime-config",
+                config={},
+                timeout=30,
+                enabled=False,
+            )
+            dataset = models.Dataset(name="test-disabled-runtime-config", metadata_={})
+            session.add_all([sandbox_config, dataset])
+            await session.flush()
+            code_eval = models.CodeEvaluator(
+                name=Identifier("disabled-runtime-eval"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=[],
+                language=provider.language,
+                sandbox_config_id=sandbox_config.id,
+            )
+            session.add(code_eval)
+            await session.flush()
+            session.add(
+                models.CodeEvaluatorVersion(
+                    code_evaluator_id=code_eval.id,
+                    source_code="def evaluate(input): return {'score': 1.0}",
+                )
+            )
+            dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=code_eval.id,
+                name=Identifier("disabled-runtime-eval"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                project=models.Project(name="disabled-runtime-project", description=""),
+            )
+            session.add(dataset_evaluator)
+            await session.flush()
+
+            with pytest.raises(
+                BadRequest,
+                match="Sandbox configuration 'disabled-runtime-config' is disabled",
+            ):
+                await get_evaluators(
+                    dataset_evaluator_ids=[dataset_evaluator.id],
+                    session=session,
+                    decrypt=lambda x: x,
+                    credentials=None,
+                )
+
+    async def test_code_evaluator_reuses_backend_for_shared_sandbox_config(
+        self,
+        db: Any,
+        seed_sandbox_providers: None,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        calls = 0
+
+        async def fake_get_or_create_backend(*args: Any, **kwargs: Any) -> object:
+            nonlocal calls
+            calls += 1
+            return object()
+
+        monkeypatch.setattr(
+            "phoenix.server.sandbox.get_or_create_backend",
+            fake_get_or_create_backend,
+        )
+
+        async with db() as session:
+            provider = await session.scalar(
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
+            )
+            assert provider is not None
+            sandbox_config = models.SandboxConfig(
+                sandbox_provider_id=provider.id,
+                language=provider.language,
+                name="shared-runtime-config",
+                config={},
+                timeout=30,
+            )
+            dataset = models.Dataset(name="test-shared-runtime-config", metadata_={})
+            session.add_all([sandbox_config, dataset])
+            await session.flush()
+
+            dataset_evaluator_ids = []
+            for index in range(2):
+                code_eval = models.CodeEvaluator(
+                    name=Identifier(f"shared-runtime-eval-{index}"),
+                    input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                    output_configs=[],
+                    language=provider.language,
+                    sandbox_config_id=sandbox_config.id,
+                )
+                session.add(code_eval)
+                await session.flush()
+                session.add(
+                    models.CodeEvaluatorVersion(
+                        code_evaluator_id=code_eval.id,
+                        source_code="def evaluate(input): return {'score': 1.0}",
+                    )
+                )
+                dataset_evaluator = models.DatasetEvaluators(
+                    dataset_id=dataset.id,
+                    evaluator_id=code_eval.id,
+                    name=Identifier(f"shared-runtime-eval-{index}"),
+                    input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                    project=models.Project(
+                        name=f"shared-runtime-project-{index}",
+                        description="",
+                    ),
+                )
+                session.add(dataset_evaluator)
+                await session.flush()
+                dataset_evaluator_ids.append(dataset_evaluator.id)
+
+            evaluators = await get_evaluators(
+                dataset_evaluator_ids=dataset_evaluator_ids,
+                session=session,
+                decrypt=lambda x: x,
+                credentials=None,
+            )
+
+        assert len(evaluators) == 2
+        assert calls == 1
 
     async def test_preserves_order_with_only_builtin_evaluators(
         self,

@@ -203,8 +203,10 @@ class SandboxConfig(Node):
 
     @strawberry.field
     async def config(self, info: Info[Context, None]) -> JSON:
+        from phoenix.server.api.helpers.sandbox_redaction import redact_env_var_literals
+
         record = await self._get_record(info)
-        return cast(JSON, record.config)
+        return cast(JSON, redact_env_var_literals(record.config))
 
     @strawberry.field(  # type: ignore
         description="Execution timeout in seconds (includes package install on ephemeral calls)."

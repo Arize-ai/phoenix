@@ -281,46 +281,68 @@ class ChatCompletionMutationMixin:
                 from phoenix.server.sandbox import MissingSecretError, get_or_create_backend
                 from phoenix.server.sandbox.types import UnsupportedOperation
 
+                code_evaluator_version = (
+                    await info.context.data_loaders.latest_code_evaluator_versions.load(db_id)
+                )
+                if code_evaluator_version is None:
+                    raise BadRequest(
+                        f"Code evaluator with id {code_evaluator_id} has no current version"
+                    )
+
                 async with info.context.db() as session:
                     code_evaluator_record = await session.get(models.CodeEvaluator, db_id)
                     if code_evaluator_record is None:
                         raise BadRequest(f"Code evaluator with id {code_evaluator_id} not found")
-
+                    # Post-#13055: language is denormalized on the tip and aligned with
+                    # the version row by composite FK; read directly without a Language lookup.
                     language = code_evaluator_record.language
 
-                    # Resolve sandbox backend via config -> provider chain
+                    # Execution dispatches against the tip's current sandbox_config_id
+                    # so a patchCodeEvaluator takes effect immediately.
                     sandbox_backend = None
                     backend_type: str | None = None
-                    merged_config: dict[str, Any] | None = None
+                    sandbox_config: dict[str, Any] | None = None
                     sandbox_timeout: int | None = None
-                    if code_evaluator_record.sandbox_config_id is not None:
-                        sandbox_cfg = await session.get(
-                            models.SandboxConfig, code_evaluator_record.sandbox_config_id
+                    tip_sandbox_config_id = code_evaluator_record.sandbox_config_id
+                    if tip_sandbox_config_id is not None:
+                        live_sandbox_config = await session.get(
+                            models.SandboxConfig, tip_sandbox_config_id
                         )
-                        if sandbox_cfg is not None and sandbox_cfg.enabled:
-                            sandbox_timeout = sandbox_cfg.timeout
-                            provider = await session.get(
-                                models.SandboxProvider, sandbox_cfg.sandbox_provider_id
+                        if live_sandbox_config is None:
+                            raise BadRequest(f"SandboxConfig not found: {tip_sandbox_config_id}")
+                        if not live_sandbox_config.enabled:
+                            raise BadRequest(
+                                (
+                                    f"Sandbox configuration '{live_sandbox_config.name}' is "
+                                    "disabled. Enable it before testing this evaluator."
+                                )
                             )
-                            if provider is not None and provider.enabled:
-                                backend_type = provider.backend_type
-                                if provider.language != code_evaluator_record.language:
-                                    raise BadRequest(
-                                        "Sandbox provider language does not match "
-                                        "code evaluator language"
-                                    )
-                                # Admin-authored provider config wins over user-authored
-                                # SandboxConfig.config on key collision — consistent with
-                                # the factory's credentials-win merge order.
-                                merged_config = {
-                                    **sandbox_cfg.config,
-                                    **provider.config,
-                                }
+                        live_sandbox_provider = await session.get(
+                            models.SandboxProvider, live_sandbox_config.sandbox_provider_id
+                        )
+                        if live_sandbox_provider is None:
+                            provider_id = live_sandbox_config.sandbox_provider_id
+                            raise BadRequest(f"SandboxProvider not found: {provider_id}")
+                        if not live_sandbox_provider.enabled:
+                            raise BadRequest(
+                                (
+                                    f"Sandbox provider '{live_sandbox_provider.backend_type}' is "
+                                    "disabled. Enable it before testing this evaluator."
+                                )
+                            )
+                        backend_type = live_sandbox_provider.backend_type
+                        # Provider config wins on key collision so user-supplied config
+                        # cannot override server-injected provider keys.
+                        sandbox_config = {
+                            **live_sandbox_config.config,
+                            **live_sandbox_provider.config,
+                        }
+                        sandbox_timeout = live_sandbox_config.timeout
 
                     # Eagerly capture scalar fields before session closes
                     evaluator_name = code_evaluator_record.name.root
                     evaluator_description = code_evaluator_record.description
-                    evaluator_source_code = code_evaluator_record.source_code
+                    evaluator_source_code = code_evaluator_version.source_code
                     output_configs = [
                         c
                         for c in code_evaluator_record.output_configs
@@ -331,7 +353,7 @@ class ChatCompletionMutationMixin:
                         try:
                             sandbox_backend = await get_or_create_backend(
                                 backend_type,
-                                config=merged_config,
+                                config=sandbox_config,
                                 session=session,
                                 decrypt=info.context.decrypt,
                             )
