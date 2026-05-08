@@ -7,6 +7,7 @@ from collections.abc import Mapping
 from typing import Any, Literal, cast
 
 from pydantic_ai import DeferredToolRequests
+from pydantic_ai.mcp import MCPServerStreamableHTTP
 
 from phoenix.config import get_env_allow_external_resources, get_env_dangerously_enable_agents
 from phoenix.server.agents.capabilities import AgentCapabilities
@@ -112,7 +113,34 @@ async def _build_model() -> Any:
     raise RuntimeError(f"Unsupported PXI_E2E_ASSISTANT_PROVIDER for evals: {provider}")
 
 
-def _build_dependencies() -> ChatDependencies:
+def should_build_docs_mcp_toolset() -> bool:
+    """Mirror the production gate so callers know whether to build the toolset.
+
+    See ``phoenix.server.app:1191-1195`` — the real server only constructs
+    the docs MCP toolset when both env toggles are true.
+    """
+    return get_env_dangerously_enable_agents() and get_env_allow_external_resources()
+
+
+def build_shared_docs_mcp_toolset() -> MCPServerStreamableHTTP | None:
+    """Build a single docs-MCP toolset to share across all eval task runs.
+
+    The production server constructs this once at startup and enters its
+    async context manager via the FastAPI lifespan
+    (``phoenix.server.app:697-698``). The harness must do the same: a fresh
+    toolset per task plus concurrency causes anyio to fail with "Attempted
+    to exit cancel scope in a different task than it was entered in"
+    because the underlying streamable-HTTP client opens/closes scopes that
+    cross task boundaries.
+    """
+    if not should_build_docs_mcp_toolset():
+        return None
+    return build_mintlify_docs_toolset()
+
+
+def _build_dependencies(
+    docs_mcp_toolset: MCPServerStreamableHTTP | None = None,
+) -> ChatDependencies:
     contexts = ResolvedContexts(
         project=ProjectContext(
             type="project",
@@ -120,11 +148,6 @@ def _build_dependencies() -> ChatDependencies:
             span_filter="",
             root_spans_only=False,
         )
-    )
-    docs_mcp_toolset = (
-        build_mintlify_docs_toolset()
-        if get_env_dangerously_enable_agents() and get_env_allow_external_resources()
-        else None
     )
     return ChatDependencies(
         user=None,
@@ -274,12 +297,36 @@ def normalize_agent_output(result: Any) -> AgentTaskOutput:
     )
 
 
-async def task(example: dict[str, Any]) -> dict[str, Any]:
-    """Phoenix experiment task callable.
+def make_task(
+    docs_mcp_toolset: MCPServerStreamableHTTP | None = None,
+) -> Any:
+    """Build a Phoenix experiment task callable bound to a shared toolset.
 
-    Receives an experiment example dict (`{id, input, ...}`) and routes it
-    to :func:`run_pxi_example`, attaching the example's stable id so the
-    failure report can map back to YAML example IDs.
+    The returned coroutine receives an experiment example dict
+    (``{id, input, ...}``) and routes it to :func:`run_pxi_example`,
+    attaching the example's stable id so the failure report can map back
+    to YAML example IDs. The single shared ``docs_mcp_toolset`` is reused
+    across every concurrent task to satisfy anyio's single-owner cancel
+    scope rule.
+    """
+
+    async def task(example: dict[str, Any]) -> dict[str, Any]:
+        return await run_pxi_example(
+            example["input"],
+            stable_example_id=example.get("id"),
+            docs_mcp_toolset=docs_mcp_toolset,
+        )
+
+    return task
+
+
+async def task(example: dict[str, Any]) -> dict[str, Any]:
+    """Backwards-compatible task callable that builds no docs MCP toolset.
+
+    Prefer :func:`make_task` so the toolset is shared across concurrent
+    runs. This entrypoint is kept for callers that don't need the docs
+    toolset and for backwards compatibility with the original
+    ``from tests.pxi.evals.agent_task import task`` import.
     """
     return await run_pxi_example(
         example["input"],
@@ -291,6 +338,7 @@ async def run_pxi_example(
     input: dict[str, Any],
     *,
     stable_example_id: str | None = None,
+    docs_mcp_toolset: MCPServerStreamableHTTP | None = None,
 ) -> dict[str, Any]:
     """Run a single PXI agent turn imperatively.
 
@@ -298,6 +346,11 @@ async def run_pxi_example(
     consumed. Failures anywhere in setup or in ``agent.run`` are caught and
     returned as an :class:`AgentTaskOutput` with ``error`` set, so the
     failure report can still resolve a stable example ID for the row.
+
+    ``docs_mcp_toolset`` should be a single shared, already-entered
+    :class:`MCPServerStreamableHTTP` (built via
+    :func:`build_shared_docs_mcp_toolset` at the top of an async run, then
+    entered with ``async with``). Pass ``None`` to skip the docs toolset.
 
     The returned ``error`` field is bounded in length and contains only the
     exception type plus a truncated message (no stack traces). When the
@@ -308,7 +361,7 @@ async def run_pxi_example(
         query = input["query"]
         model = await _build_model()
         agent = create_pxi_agent(model)
-        result = await agent.run(query, deps=_build_dependencies())
+        result = await agent.run(query, deps=_build_dependencies(docs_mcp_toolset=docs_mcp_toolset))
         output = normalize_agent_output(result)
     except Exception as exc:
         message = str(exc)

@@ -7,6 +7,7 @@ import subprocess
 import sys
 import urllib.error
 import urllib.request
+from contextlib import AsyncExitStack
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, cast
@@ -17,7 +18,8 @@ from phoenix.client import AsyncClient
 from tests.pxi.evals.agent_task import (
     DEFAULT_ASSISTANT_MODEL,
     DEFAULT_ASSISTANT_PROVIDER,
-    task,
+    build_shared_docs_mcp_toolset,
+    make_task,
 )
 from tests.pxi.evals.datasets import load_dataset, to_phoenix_examples
 from tests.pxi.evals.evaluators import correct_tools_called, tool_call_args_match
@@ -205,65 +207,78 @@ async def _run_async(config: ExperimentConfig) -> int:
     _check_phoenix_healthz(config.base_url)
     dataset = load_dataset(config.dataset)
     client = AsyncClient(base_url=config.base_url, api_key=config.bearer_token)
-    try:
-        phoenix_dataset = await client.datasets.create_dataset(
-            name=dataset.dataset_name,
-            examples=to_phoenix_examples(dataset),
-            dataset_description=dataset.description,
-        )
-        name = _experiment_name(dataset, config)
-        metadata = {
-            "git_sha": _git_value("rev-parse", "HEAD"),
-            "git_branch": _git_value("rev-parse", "--abbrev-ref", "HEAD"),
-            "assistant_provider": os.getenv(
-                "PXI_E2E_ASSISTANT_PROVIDER", DEFAULT_ASSISTANT_PROVIDER
-            ),
-            "assistant_model": os.getenv("PXI_E2E_ASSISTANT_MODEL", DEFAULT_ASSISTANT_MODEL),
-            "started_at": datetime.now(timezone.utc).isoformat(),
-        }
-        print(f"Running experiment: {name}")
-        # ``run_experiment`` is invoked WITHOUT evaluators because its
-        # internal evaluator loop looks up examples by ``run["dataset_example_id"]``
-        # — which is the relay-encoded ``node_id`` — against an
-        # ``examples_by_id`` map keyed by ``example["id"]`` (the YAML
-        # stable id we uploaded). The two never match, so the in-band
-        # evaluator phase silently produces zero evaluation runs.
-        # We rewrite ``dataset_example_id`` after task runs return, then
-        # call ``evaluate_experiment`` explicitly so the lookup succeeds.
-        experiment = await client.experiments.run_experiment(
-            dataset=phoenix_dataset,
-            task=task,
-            experiment_name=name,
-            experiment_description=dataset.description,
-            experiment_metadata=metadata,
-            print_summary=False,
-            concurrency=3,
-            timeout=180,
-            retries=0,
-        )
-        for task_run in experiment["task_runs"]:
-            output = task_run.get("output")
-            if isinstance(output, dict) and isinstance(output.get("stable_example_id"), str):
-                task_run["dataset_example_id"] = output["stable_example_id"]
-        experiment = await client.experiments.evaluate_experiment(
-            experiment=experiment,
-            evaluators=cast(Any, [correct_tools_called, tool_call_args_match]),
-            print_summary=False,
-            concurrency=3,
-            timeout=180,
-            retries=0,
-        )
-    finally:
-        # ``AsyncClient`` does not yet expose a public ``aclose``; reach for
-        # the underlying httpx client and tolerate it disappearing in a
-        # future refactor so cleanup never shadows a real failure.
-        underlying = getattr(client, "_client", None)
-        aclose = getattr(underlying, "aclose", None)
-        if callable(aclose):
-            try:
-                await aclose()
-            except Exception as cleanup_exc:  # pragma: no cover - best-effort cleanup
-                print(f"warning: AsyncClient cleanup failed: {cleanup_exc}", file=sys.stderr)
+    # Build the docs MCP toolset once and enter its async context manager
+    # for the duration of the run, mirroring the production server's
+    # FastAPI lifespan wiring (``phoenix.server.app:697-698``). Sharing a
+    # single live toolset is what keeps anyio's cancel scopes from
+    # crossing task boundaries when concurrent tasks fan out.
+    docs_mcp_toolset = build_shared_docs_mcp_toolset()
+    async with AsyncExitStack() as stack:
+        if docs_mcp_toolset is not None:
+            await stack.enter_async_context(docs_mcp_toolset)
+        try:
+            phoenix_dataset = await client.datasets.create_dataset(
+                name=dataset.dataset_name,
+                examples=to_phoenix_examples(dataset),
+                dataset_description=dataset.description,
+            )
+            name = _experiment_name(dataset, config)
+            metadata = {
+                "git_sha": _git_value("rev-parse", "HEAD"),
+                "git_branch": _git_value("rev-parse", "--abbrev-ref", "HEAD"),
+                "assistant_provider": os.getenv(
+                    "PXI_E2E_ASSISTANT_PROVIDER", DEFAULT_ASSISTANT_PROVIDER
+                ),
+                "assistant_model": os.getenv("PXI_E2E_ASSISTANT_MODEL", DEFAULT_ASSISTANT_MODEL),
+                "started_at": datetime.now(timezone.utc).isoformat(),
+            }
+            print(f"Running experiment: {name}")
+            # ``run_experiment`` is invoked WITHOUT evaluators because its
+            # internal evaluator loop looks up examples by
+            # ``run["dataset_example_id"]`` (the relay-encoded ``node_id``)
+            # against an ``examples_by_id`` map keyed by ``example["id"]``
+            # (the YAML stable id we uploaded). The two never match, so
+            # the in-band evaluator phase silently produces zero
+            # evaluation runs. We rewrite ``dataset_example_id`` after
+            # task runs return, then call ``evaluate_experiment``
+            # explicitly so the lookup succeeds.
+            experiment = await client.experiments.run_experiment(
+                dataset=phoenix_dataset,
+                task=make_task(docs_mcp_toolset=docs_mcp_toolset),
+                experiment_name=name,
+                experiment_description=dataset.description,
+                experiment_metadata=metadata,
+                print_summary=False,
+                concurrency=3,
+                timeout=180,
+                retries=0,
+            )
+            for task_run in experiment["task_runs"]:
+                output = task_run.get("output")
+                if isinstance(output, dict) and isinstance(output.get("stable_example_id"), str):
+                    task_run["dataset_example_id"] = output["stable_example_id"]
+            experiment = await client.experiments.evaluate_experiment(
+                experiment=experiment,
+                evaluators=cast(Any, [correct_tools_called, tool_call_args_match]),
+                print_summary=False,
+                concurrency=3,
+                timeout=180,
+                retries=0,
+            )
+        finally:
+            # ``AsyncClient`` does not yet expose a public ``aclose``; reach for
+            # the underlying httpx client and tolerate it disappearing in a
+            # future refactor so cleanup never shadows a real failure.
+            underlying = getattr(client, "_client", None)
+            aclose = getattr(underlying, "aclose", None)
+            if callable(aclose):
+                try:
+                    await aclose()
+                except Exception as cleanup_exc:  # pragma: no cover - best-effort cleanup
+                    print(
+                        f"warning: AsyncClient cleanup failed: {cleanup_exc}",
+                        file=sys.stderr,
+                    )
     has_failures = _print_report(dataset, experiment, config.base_url)
     return 1 if has_failures and config.fail_on_regression else 0
 
