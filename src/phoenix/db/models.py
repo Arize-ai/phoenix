@@ -2855,7 +2855,7 @@ class CodeEvaluator(Evaluator):
 
 
 class CodeEvaluatorVersion(HasId):
-    __tablename__ = "code_evaluator_versions"
+    __tablename__ = "code_evaluator_code_versions"
 
     code_evaluator_id: Mapped[int] = mapped_column(
         ForeignKey("code_evaluators.id", ondelete="CASCADE"),
@@ -2883,7 +2883,7 @@ class CodeEvaluatorVersion(HasId):
     user: Mapped[Optional["User"]] = relationship("User")
 
     __table_args__ = (
-        Index("ix_code_evaluator_versions_code_evaluator_id_id", "code_evaluator_id", "id"),
+        Index("ix_code_evaluator_code_versions_code_evaluator_id_id", "code_evaluator_id", "id"),
         {"sqlite_autoincrement": True},
     )
 

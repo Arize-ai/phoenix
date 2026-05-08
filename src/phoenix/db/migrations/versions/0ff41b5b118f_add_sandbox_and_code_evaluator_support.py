@@ -186,10 +186,10 @@ def upgrade() -> None:
             ["id", "language"],
         )
 
-    # code_evaluator_versions: revision history of evaluator code. `language` matches the
+    # code_evaluator_code_versions: revision history of evaluator code. `language` matches the
     # post-#13055 denormalized shape (FK to languages.name, no integer surrogate).
     op.create_table(
-        "code_evaluator_versions",
+        "code_evaluator_code_versions",
         sa.Column("id", _Integer, primary_key=True),
         sa.Column(
             "code_evaluator_id",
@@ -220,25 +220,25 @@ def upgrade() -> None:
         sqlite_autoincrement=True,
     )
     op.create_index(
-        "ix_code_evaluator_versions_code_evaluator_id_id",
-        "code_evaluator_versions",
+        "ix_code_evaluator_code_versions_code_evaluator_id_id",
+        "code_evaluator_code_versions",
         ["code_evaluator_id", "id"],
     )
     op.create_index(
-        "ix_code_evaluator_versions_language",
-        "code_evaluator_versions",
+        "ix_code_evaluator_code_versions_language",
+        "code_evaluator_code_versions",
         ["language"],
     )
     op.create_index(
-        "ix_code_evaluator_versions_user_id",
-        "code_evaluator_versions",
+        "ix_code_evaluator_code_versions_user_id",
+        "code_evaluator_code_versions",
         ["user_id"],
     )
 
 
 def downgrade() -> None:
-    # Drop code_evaluator_versions first (FKs into code_evaluators).
-    op.drop_table("code_evaluator_versions")
+    # Drop code_evaluator_code_versions first (FKs into code_evaluators).
+    op.drop_table("code_evaluator_code_versions")
 
     # Then remove composite FK + denormalized columns from code_evaluators.
     with op.batch_alter_table("code_evaluators") as batch_op:
