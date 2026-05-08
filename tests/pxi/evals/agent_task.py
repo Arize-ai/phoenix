@@ -16,9 +16,13 @@ from phoenix.server.agents.chat_v2.mintlify_docs import build_mintlify_docs_tool
 from phoenix.server.agents.chat_v2.pxi_agent import create_pxi_agent
 from phoenix.server.agents.context import ProjectContext, ResolvedContexts
 from phoenix.server.agents.model_factory import (
-    anthropic_cache_settings,
+    _anthropic_cache_settings as anthropic_cache_settings,
+)
+from phoenix.server.agents.model_factory import (
+    _build_openai_model as build_openai_model,
+)
+from phoenix.server.agents.model_factory import (
     azure_endpoint_to_base_url,
-    build_openai_model,
 )
 from tests.pxi.evals.types import AgentTaskOutput, ToolCall
 
