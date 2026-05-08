@@ -63,70 +63,10 @@ const mapGridCSS = css`
   }
 `;
 
-const mappingRowsCSS = css`
-  display: flex;
-  flex-direction: column;
-  gap: var(--global-dimension-size-75);
-`;
-
-const mappingRowCSS = css`
-  display: flex;
-  align-items: baseline;
-  gap: var(--global-dimension-size-100);
-
-  & > .key {
-    font-family: var(--mono-font-family, ui-monospace, monospace);
-    color: var(--ac-global-text-color-700);
-    flex-shrink: 0;
-  }
-  & > .arrow {
-    color: var(--ac-global-text-color-500);
-  }
-  & > .value {
-    font-family: var(--mono-font-family, ui-monospace, monospace);
-    word-break: break-all;
-  }
-`;
-
 const annotationGridCSS = css`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: var(--global-dimension-size-200);
-`;
-
-const sandboxRowCSS = css`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--global-dimension-size-200);
-`;
-
-const sandboxRowLabelCSS = css`
-  display: flex;
-  align-items: center;
-  gap: var(--global-dimension-size-50);
-  flex-shrink: 0;
-`;
-
-const sandboxRowValueCSS = css`
-  text-align: right;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--global-dimension-size-100);
-  justify-content: flex-end;
-`;
-
-const settingValueCSS = css`
-  font-family: var(--mono-font-family, ui-monospace, monospace);
-  font-size: var(--global-font-size-s);
-`;
-
-const settingValueMutedCSS = css`
-  font-family: var(--mono-font-family, ui-monospace, monospace);
-  font-size: var(--global-font-size-s);
-  color: var(--ac-global-text-color-500);
-  font-style: italic;
 `;
 
 function SandboxRow({
@@ -139,8 +79,13 @@ function SandboxRow({
   value: ReactNode;
 }) {
   return (
-    <div css={sandboxRowCSS}>
-      <div css={sandboxRowLabelCSS}>
+    <Flex
+      direction="row"
+      alignItems="center"
+      justifyContent="space-between"
+      gap="size-200"
+    >
+      <Flex direction="row" alignItems="center" gap="size-50" flexShrink={0}>
         {typeof label === "string" ? (
           <Text size="S" color="text-700">
             {label}
@@ -149,11 +94,17 @@ function SandboxRow({
           label
         )}
         {labelExtra}
-      </div>
-      <div css={sandboxRowValueCSS}>
+      </Flex>
+      <Flex
+        direction="row"
+        alignItems="center"
+        justifyContent="end"
+        gap="size-100"
+        minWidth={0}
+      >
         {typeof value === "string" ? <Text size="S">{value}</Text> : value}
-      </div>
-    </div>
+      </Flex>
+    </Flex>
   );
 }
 
@@ -218,9 +169,9 @@ function MappingTile({
   formatValue: (value: unknown) => string;
 }) {
   return (
-    <Flex direction="column" gap="size-100">
+    <Flex direction="column" gap="size-100" elementType="section">
       <Flex direction="column" gap="size-25">
-        <Text weight="heavy" size="S">
+        <Text weight="heavy" size="S" elementType="h4">
           {title}
         </Text>
         <Text size="XS" color="text-700">
@@ -232,15 +183,26 @@ function MappingTile({
           {emptyLabel}
         </Text>
       ) : (
-        <div css={mappingRowsCSS}>
+        <Flex direction="column" gap="size-75">
           {entries.map(([key, value]) => (
-            <div key={key} css={mappingRowCSS}>
-              <span className="key">{key}</span>
-              <span className="arrow">→</span>
-              <span className="value">{formatValue(value)}</span>
-            </div>
+            <Flex
+              key={key}
+              direction="row"
+              gap="size-100"
+              alignItems="baseline"
+            >
+              <Text size="S" fontFamily="mono" color="text-700">
+                {key}
+              </Text>
+              <Text size="S" color="text-500" aria-hidden="true">
+                →
+              </Text>
+              <Text size="S" fontFamily="mono">
+                {formatValue(value)}
+              </Text>
+            </Flex>
           ))}
-        </div>
+        </Flex>
       )}
     </Flex>
   );
@@ -363,33 +325,49 @@ function isInternetAccessOff(value: unknown): boolean {
   return false;
 }
 
+function MutedSettingValue({ children }: { children: ReactNode }) {
+  return (
+    <Text size="S" fontFamily="mono" color="text-500" fontStyle="italic">
+      {children}
+    </Text>
+  );
+}
+
+function MonoSettingValue({ children }: { children: ReactNode }) {
+  return (
+    <Text size="S" fontFamily="mono">
+      {children}
+    </Text>
+  );
+}
+
 function SettingValue({ keyPath, value }: { keyPath: string; value: unknown }) {
   if (keyPath === "env_vars") {
     if (value == null || (Array.isArray(value) && value.length === 0)) {
-      return <span css={settingValueMutedCSS}>none</span>;
+      return <MutedSettingValue>none</MutedSettingValue>;
     }
   }
   if (keyPath === "internet_access") {
     if (isInternetAccessOff(value)) {
-      return <span css={settingValueMutedCSS}>off</span>;
+      return <MutedSettingValue>off</MutedSettingValue>;
     }
   }
   if (value == null) {
-    return <span css={settingValueMutedCSS}>null</span>;
+    return <MutedSettingValue>null</MutedSettingValue>;
   }
   if (Array.isArray(value)) {
     if (value.length === 0) {
-      return <span css={settingValueMutedCSS}>empty list</span>;
+      return <MutedSettingValue>empty list</MutedSettingValue>;
     }
-    return <span css={settingValueCSS}>{JSON.stringify(value)}</span>;
+    return <MonoSettingValue>{JSON.stringify(value)}</MonoSettingValue>;
   }
   if (typeof value === "object") {
     if (Object.keys(value as object).length === 0) {
-      return <span css={settingValueMutedCSS}>empty</span>;
+      return <MutedSettingValue>empty</MutedSettingValue>;
     }
-    return <span css={settingValueCSS}>{JSON.stringify(value)}</span>;
+    return <MonoSettingValue>{JSON.stringify(value)}</MonoSettingValue>;
   }
-  return <span css={settingValueCSS}>{String(value)}</span>;
+  return <MonoSettingValue>{String(value)}</MonoSettingValue>;
 }
 
 function formatPathMappingValue(value: unknown): string {
@@ -644,7 +622,9 @@ export function CodeDatasetEvaluatorDetails({
                     <SandboxRow
                       label="Config"
                       value={
-                        <span css={settingValueCSS}>{sandboxConfig.name}</span>
+                        <Text size="S" fontFamily="mono">
+                          {sandboxConfig.name}
+                        </Text>
                       }
                     />
                   </ListItem>
