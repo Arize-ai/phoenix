@@ -1,13 +1,16 @@
 import { Chat, useChat } from "@ai-sdk/react";
 import type { ChatStatus } from "ai";
-import {
-  DefaultChatTransport,
-  lastAssistantMessageIsCompleteWithToolCalls,
-} from "ai";
+import { DefaultChatTransport, isToolUIPart } from "ai";
 import { useEffect, useRef } from "react";
 
 import { buildAgentChatRequestBody } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
+import { getUnresolvedToolCalls } from "@phoenix/agent/chat/interruptToolCalls";
+import {
+  shouldSendAutomaticallyAfterToolOutput,
+  SYSTEM_INTERRUPT_ERROR,
+  USER_INTERRUPT_ERROR,
+} from "@phoenix/agent/chat/shouldSendAutomatically";
 import {
   assistantMessageMetadataSchema,
   type AgentUIMessage,
@@ -109,9 +112,15 @@ export function useAgentChat({
                   agentStore: store,
                 });
               },
-              sendAutomaticallyWhen:
-                lastAssistantMessageIsCompleteWithToolCalls,
-              onFinish: ({ messages: finalMessages, message }) => {
+              sendAutomaticallyWhen: shouldSendAutomaticallyAfterToolOutput,
+              onFinish: ({
+                messages: finalMessages,
+                message,
+                finishReason,
+                isAbort,
+                isError,
+              }) => {
+                console.log("in Finish: ", { finishReason, isAbort, isError });
                 const usage = message.metadata?.usage;
                 if (usage != null) {
                   store.getState().setSessionUsage(sessionId, {
@@ -123,8 +132,9 @@ export function useAgentChat({
                 }
                 // Finalized history is mirrored into the durable store so idle
                 // runtimes can be reclaimed and later reconstructed from state.
-                if (finalMessages) {
+                if (finalMessages && finishReason !== "stop") {
                   store.getState().setSessionMessages(sessionId, finalMessages);
+                  console.log("setting final messages to ", { finalMessages });
                   generateSummary({ sessionId });
                 }
               },
@@ -139,7 +149,89 @@ export function useAgentChat({
   const chat = useChat<AgentUIMessage>(
     chatInstance ? { chat: chatInstance } : { id: undefined, messages: [] }
   );
-  const { messages, sendMessage, status, error, addToolOutput, stop } = chat;
+  const {
+    messages,
+    sendMessage,
+    status,
+    error,
+    addToolOutput,
+    stop,
+    setMessages,
+  } = chat;
+
+  const handleStopWithToolCleanup = async () => {
+    await stop();
+    // filter out messages where the input hasn't streamed in yet
+    // these break pydantic's requirement that input must be present
+    setMessages((prevMessages) => {
+      return prevMessages.map((message) => {
+        return {
+          ...message,
+          parts: message.parts.filter(
+            (part) =>
+              !isToolUIPart(part) ||
+              (part.state !== "input-streaming" &&
+                part.state !== "input-available")
+          ),
+        };
+      });
+    });
+
+    const latestMessages = chatInstance?.messages ?? messages;
+    const unresolvedToolCalls = getUnresolvedToolCalls(latestMessages);
+
+    await Promise.all(
+      unresolvedToolCalls.map((toolCall) =>
+        addToolOutput({
+          tool: toolCall.tool,
+          toolCallId: toolCall.toolCallId,
+          errorText: USER_INTERRUPT_ERROR,
+          state: "output-error",
+        })
+      )
+    );
+  };
+
+  const handleSendMessage = async (...args: Parameters<typeof sendMessage>) => {
+    console.log("in handleSendMessage: ", { messages });
+
+    if (chatInstance && isRequestActive(chatInstance.status)) {
+      console.log("STOPPING");
+      await stop();
+    }
+
+    setMessages((prevMessages) => {
+      return prevMessages.map((message) => {
+        return {
+          ...message,
+          parts: message.parts.filter(
+            (part) =>
+              !isToolUIPart(part) ||
+              (part.state !== "input-streaming" &&
+                part.state !== "input-available")
+          ),
+        };
+      });
+    });
+
+    const latestMessages = chatInstance?.messages ?? messages;
+    const unresolvedToolCalls = getUnresolvedToolCalls(latestMessages);
+
+    await Promise.all(
+      unresolvedToolCalls.map((toolCall) =>
+        addToolOutput({
+          tool: toolCall.tool,
+          toolCallId: toolCall.toolCallId,
+          errorText: SYSTEM_INTERRUPT_ERROR,
+          state: "output-error",
+        })
+      )
+    );
+
+    console.log("sanitized messages: ", chatInstance?.messages ?? messages);
+
+    await sendMessage(...args);
+  };
 
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
@@ -184,8 +276,8 @@ export function useAgentChat({
 
   return {
     messages,
-    sendMessage,
-    stop,
+    sendMessage: handleSendMessage,
+    stop: handleStopWithToolCleanup,
     status,
     error,
     pendingElicitation,
@@ -201,4 +293,8 @@ export function useAgentChat({
     handleElicitationSubmit: (output: ElicitToolOutput) => void;
     handleElicitationCancel: () => void;
   };
+}
+
+function isRequestActive(status: ChatStatus): boolean {
+  return status === "submitted" || status === "streaming";
 }
