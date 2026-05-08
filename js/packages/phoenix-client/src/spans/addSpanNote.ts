@@ -33,11 +33,10 @@ export interface AddSpanNoteParams extends ClientFn {
 /**
  * Add a note to a span.
  *
- * Notes are append-only: each call creates a new note with an auto-generated
- * UUIDv4 identifier, so multiple notes accumulate on the same span. Structured
- * annotations, by contrast, are keyed by `(name, spanId, identifier)` — to keep
- * multiple structured annotations with the same name on a span, supply distinct
- * identifiers; otherwise re-writing the same name overwrites the existing one.
+ * When `spanNote.identifier` is omitted, each call appends a new note with an
+ * auto-generated identifier. When `identifier` is non-empty, repeated calls
+ * with the same `(spanId, name='note', identifier)` overwrite the existing
+ * note.
  *
  * @param params - The parameters to add a span note
  * @returns The ID of the created note annotation

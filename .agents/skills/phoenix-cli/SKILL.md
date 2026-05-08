@@ -65,9 +65,9 @@ Always use `--format raw --no-progress` when piping to `jq`.
 | Look at sampled traces, spans, or sessions and write specific notes about what went wrong (no taxonomy yet) | [references/open-coding](references/open-coding.md) |
 | Group those notes into a structured failure taxonomy and quantify what matters | [references/axial-coding](references/axial-coding.md) |
 
-Both stages tag every artifact with one shared **coding identifier** (descriptive shape, e.g. `coding-session:chatbot-context-loss-2026-05-06`) so the run is queryable, reversible, and viewable as a unit. Pass `--identifier <value>` explicitly on every `px` call — env-var inheritance is unreliable across agent harnesses. Open coding writes notes via `px ... add-note` and records a small local JSONL sidecar at `.px/coding/<sanitized-identifier>.jsonl`; axial coding reads that sidecar as the deterministic handoff and records labels in `.px/coding/<sanitized-identifier>-axial.jsonl`. Pick the identifier once per run (see [references/open-coding.md](references/open-coding.md#coding-identifier-pick-this-first)), then share the Phoenix UI link from the wrap-up section. Revert is opt-in and runs three identifier-bound DELETEs only after explicit user confirmation.
+Both stages tag every artifact with one shared **coding annotation identifier** (descriptive shape, e.g. `coding-run:chatbot-context-loss-2026-05-06`) so the run is queryable, reversible, and viewable as a unit. Pass `--identifier <value>` explicitly on every `px` call — shell inheritance is unreliable across agent harnesses. Open coding writes notes via `px ... add-note` and records a small local JSONL sidecar at `.px/coding/<sanitized-identifier>.jsonl`; axial coding reads that sidecar as the deterministic handoff and records labels in `.px/coding/<sanitized-identifier>-axial.jsonl`. Pick the identifier once per run (see [references/open-coding.md](references/open-coding.md#coding-annotation-identifier-pick-this-first)), then share the Phoenix UI link from the wrap-up section. Revert is opt-in and runs three identifier-bound DELETEs only after explicit user confirmation.
 
-> **Workflow term vs. server annotation name.** The skill prose calls this value the **coding identifier** (env-var hint: `PHOENIX_CODING_IDENTIFIER`). The server-side annotation NAME used for the UI filter is unchanged — `coding_session_id` — for data compatibility with rows already written by previous runs. Don't try to rename the server-side annotation; treat the asymmetry as load-bearing.
+> **Workflow term vs. server annotation name.** The skill prose calls this value the **coding annotation identifier** (shell-variable hint: `CODING_ANNOTATION_IDENTIFIER`). The server-side annotation NAME used for the UI filter is unchanged — `coding_session_id` — for data compatibility with rows already written by previous runs. Don't try to rename the server-side annotation; treat the asymmetry as load-bearing.
 
 ## Workflows
 
@@ -139,10 +139,10 @@ px trace get <trace-id> --format raw | jq '.spans[] | select(.status_code != "OK
 px trace get <trace-id> --include-notes --format raw | jq '.notes'
 px trace annotate <trace-id> --name reviewer --label pass
 px trace annotate <trace-id> --name reviewer --score 0.9 --format raw --no-progress
-px trace annotate <trace-id> --name reviewer --label pass --identifier "<coding-id>"  # tag with a coding identifier
+px trace annotate <trace-id> --name reviewer --label pass --identifier "<coding-annotation-id>"  # tag with a coding annotation identifier
 px trace add-note <trace-id> --text "needs follow-up"
-px trace add-note <trace-id> --text "needs follow-up" --identifier "<coding-id>"      # tag + upsert on identifier
-px trace delete-annotations --identifier "<coding-id>" --all -y                       # nuke every annotation tied to this coding identifier
+px trace add-note <trace-id> --text "needs follow-up" --identifier "<coding-annotation-id>"  # tag + upsert on identifier
+px trace delete-annotations --identifier "<coding-annotation-id>" --all -y            # nuke every annotation tied to this coding annotation identifier
 ```
 
 `delete-annotations` requires `--all` or both `--start-time` and `--end-time` and emits `{deleted: true, target, filter}` on success.
@@ -198,10 +198,10 @@ px span list output.json --limit 100                       # save to JSON file
 px span list --format raw --no-progress | jq '.[] | select(.status_code == "ERROR")'
 px span annotate <span-id> --name reviewer --label pass
 px span annotate <span-id> --name checker --score 1 --annotator-kind CODE
-px span annotate <span-id> --name reviewer --label pass --identifier "<coding-id>"  # tag with a coding identifier
+px span annotate <span-id> --name reviewer --label pass --identifier "<coding-annotation-id>"  # tag with a coding annotation identifier
 px span add-note <span-id> --text "verified by agent"
-px span add-note <span-id> --text "verified by agent" --identifier "<coding-id>"    # tag + upsert on identifier
-px span delete-annotations --identifier "<coding-id>" --all -y                      # nuke every annotation tied to this coding identifier
+px span add-note <span-id> --text "verified by agent" --identifier "<coding-annotation-id>"  # tag + upsert on identifier
+px span delete-annotations --identifier "<coding-annotation-id>" --all -y           # nuke every annotation tied to this coding annotation identifier
 ```
 
 ### Span JSON shape
@@ -237,10 +237,10 @@ px session get <session-id> --include-annotations --format raw | jq '.session.an
 px session get <session-id> --include-notes --format raw | jq '.session.notes'
 px session annotate <session-id> --name reviewer --label pass
 px session annotate <session-id> --name reviewer --score 0.9 --format raw --no-progress
-px session annotate <session-id> --name reviewer --label pass --identifier "<coding-id>"  # tag with a coding identifier
+px session annotate <session-id> --name reviewer --label pass --identifier "<coding-annotation-id>"  # tag with a coding annotation identifier
 px session add-note <session-id> --text "verified by agent"
-px session add-note <session-id> --text "verified by agent" --identifier "<coding-id>"    # tag + upsert on identifier
-px session delete-annotations --identifier "<coding-id>" --all -y                         # nuke every annotation tied to this coding identifier
+px session add-note <session-id> --text "verified by agent" --identifier "<coding-annotation-id>"  # tag + upsert on identifier
+px session delete-annotations --identifier "<coding-annotation-id>" --all -y              # nuke every annotation tied to this coding annotation identifier
 ```
 
 ### Session JSON shape

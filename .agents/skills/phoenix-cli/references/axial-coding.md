@@ -4,15 +4,15 @@ Group open-ended observations into structured failure taxonomies. Axial coding t
 
 **Reach for this whenever** the user has observations and needs structure — e.g., "what categories of failures do we have", "what should I build evals for", "how do I prioritize fixes", "group these notes", "MECE breakdown", or any framing that asks for categories or counts grounded in real traces rather than invented top-down.
 
-## Coding identifier (reuse the open-coding value)
+## Coding annotation identifier (reuse the open-coding value)
 
-Reuse the **coding identifier** chosen in open coding — every `annotate` call below passes `--identifier "$IDENT"` explicitly. In a fresh shell or fresh agent invocation, set `IDENT` to the same value (recoverable from the wrap-up UI URL or by listing `.px/coding/*.jsonl`); don't mint a new id. See [open-coding.md#coding-identifier-pick-this-first](open-coding.md#coding-identifier-pick-this-first) for the rationale and the sanitization rule.
+Reuse the **coding annotation identifier** chosen in open coding — every `annotate` call below passes `--identifier "$CODING_ANNOTATION_IDENTIFIER"` explicitly. In a fresh shell or fresh agent invocation, set `CODING_ANNOTATION_IDENTIFIER` to the same value (recoverable from the wrap-up UI URL or by listing `.px/coding/*.jsonl`); don't mint a new id. See [open-coding.md#coding-annotation-identifier-pick-this-first](open-coding.md#coding-annotation-identifier-pick-this-first) for the rationale and the sanitization rule.
 
-> **Workflow term vs. server annotation name.** The skill calls this value the **coding identifier**; the server annotation NAME used for the UI filter stays `coding_session_id` for data compatibility. Don't try to rename the server-side key.
+> **Workflow term vs. server annotation name.** The skill calls this value the **coding annotation identifier**; the server annotation NAME used for the UI filter stays `coding_session_id` for data compatibility. Don't try to rename the server-side key.
 
 ```bash
-IDENT="coding-session:chatbot-context-loss-2026-05-06"
-SLUG=$(echo -n "$IDENT" | sed 's/[^a-zA-Z0-9_-]/-/g')
+CODING_ANNOTATION_IDENTIFIER="coding-run:chatbot-context-loss-2026-05-06"
+SLUG=$(echo -n "$CODING_ANNOTATION_IDENTIFIER" | sed 's/[^a-zA-Z0-9_-]/-/g')
 NOTES_SIDECAR=".px/coding/${SLUG}.jsonl"
 AXIAL_SIDECAR=".px/coding/${SLUG}-axial.jsonl"
 ```
@@ -31,12 +31,12 @@ Whichever level you write the axial label on, write the matching `coding_session
 
 ## Process
 
-1. **Set the coding identifier** — set `IDENT` to the value used in open coding and re-derive `SLUG`, `NOTES_SIDECAR`, `AXIAL_SIDECAR` (see [Coding identifier](#coding-identifier-reuse-the-open-coding-value))
+1. **Set the coding annotation identifier** — set `CODING_ANNOTATION_IDENTIFIER` to the value used in open coding and re-derive `SLUG`, `NOTES_SIDECAR`, `AXIAL_SIDECAR` (see [Coding annotation identifier](#coding-annotation-identifier-reuse-the-open-coding-value))
 2. **Gather** — read open-coding notes from `$NOTES_SIDECAR` (at the unit committed in open coding); no server round-trip
 3. **Pattern** — group notes with common themes
 4. **Name** — create actionable category names
 5. **Attribute** — decide what level each category lives at; an axial label can move up (trace → session) or down (trace → span) from the source note's level to the level the pattern actually implicates
-6. **Record** — `px {trace,span,session} annotate ... --name axial_coding_category --label <cat> --identifier "$IDENT"`, add/update one JSONL sidecar row for the label, then write the matching `coding_session_id` UI-filter annotation
+6. **Record** — `px {trace,span,session} annotate ... --name axial_coding_category --label <cat> --identifier "$CODING_ANNOTATION_IDENTIFIER"`, add/update one JSONL sidecar row for the label, then write the matching `coding_session_id` UI-filter annotation
 7. **Quantify** — count failures per category from `$AXIAL_SIDECAR`
 
 ## Example Taxonomy
@@ -66,7 +66,7 @@ failure_taxonomy:
 
 Open-coding wrote one JSONL line per note to `$NOTES_SIDECAR` (`.px/coding/${SLUG}.jsonl`). Read it directly — no server round-trip is needed. Each line has `entity_kind`, `entity_id`, `note`, `identifier`, and `ts`. If the same `(entity_kind, entity_id)` appears more than once, use the newest `ts` as the current note.
 
-**Missing-file behavior.** An absent `$NOTES_SIDECAR` means open coding hasn't run for this coding identifier in this CWD — stop and run open coding first, do not silently treat it as zero notes.
+**Missing-file behavior.** An absent `$NOTES_SIDECAR` means open coding hasn't run for this coding annotation identifier in this CWD — stop and run open coding first, do not silently treat it as zero notes.
 
 **Malformed lines.** Each line is independently parseable JSON. If `jq` reports a parse error, fix or drop that line manually; do not edit other lines.
 
@@ -78,7 +78,7 @@ Review the note text collected above. Manually identify recurring themes and dra
 
 ### 3. Record — write axial-coding labels
 
-Write one annotation per entity using `px {trace,span,session} annotate`, passing `--identifier "$IDENT"` explicitly on every call, and record one JSONL row in `$AXIAL_SIDECAR` so [Quantify](#4-quantify--count-per-category-from-the-axial-sidecar) below can count without a server round-trip. The level can differ from where the source note lives — see [Recording](#recording) below.
+Write one annotation per entity using `px {trace,span,session} annotate`, passing `--identifier "$CODING_ANNOTATION_IDENTIFIER"` explicitly on every call, and record one JSONL row in `$AXIAL_SIDECAR` so [Quantify](#4-quantify--count-per-category-from-the-axial-sidecar) below can count without a server round-trip. The level can differ from where the source note lives — see [Recording](#recording) below.
 
 ### 4. Quantify — count per category from the axial sidecar
 
@@ -88,12 +88,12 @@ Same missing-file and malformed-line rules as `$NOTES_SIDECAR`: a missing axial 
 
 ## Recording
 
-Use the matching annotate command for the level the **label** belongs at — which may differ from where the source note lives (see [Choosing the unit](#choosing-the-unit)). Every call carries `--identifier "$IDENT"` and `--format raw --no-progress`, and is paired with a JSONL row in `$AXIAL_SIDECAR`.
+Use the matching annotate command for the level the **label** belongs at — which may differ from where the source note lives (see [Choosing the unit](#choosing-the-unit)). Every call carries `--identifier "$CODING_ANNOTATION_IDENTIFIER"` and `--format raw --no-progress`, and is paired with a JSONL row in `$AXIAL_SIDECAR`.
 
 **Axial sidecar JSONL line shape (one per `annotate`):**
 
 ```json
-{"entity_kind":"trace","entity_id":"<trace-id>","annotation_name":"axial_coding_category","axial_label":"<label>","explanation":"<optional explanation>","identifier":"<original IDENT, unsanitized>","ts":"<ISO-8601 UTC>"}
+{"entity_kind":"trace","entity_id":"<trace-id>","annotation_name":"axial_coding_category","axial_label":"<label>","explanation":"<optional explanation>","identifier":"<original identifier value, unsanitized>","ts":"<ISO-8601 UTC>"}
 ```
 
 Fields:
@@ -102,10 +102,10 @@ Fields:
 - `annotation_name` — always `"axial_coding_category"` for axial labels (the workflow's reserved annotation name)
 - `axial_label` — the `--label` value, verbatim; this is what [Quantify](#4-quantify--count-per-category-from-the-axial-sidecar) groups on
 - `explanation` — optional, but include it when the `annotate` call used `--explanation`
-- `identifier` — the **original** `$IDENT` value, unsanitized; the sanitized form lives only in the filename
+- `identifier` — the **original** `$CODING_ANNOTATION_IDENTIFIER` value, unsanitized; the sanitized form lives only in the filename
 - `ts` — ISO-8601 UTC timestamp of the local append
 
-If you revise a label for the same entity under the same coding identifier, either replace that row or append a newer row. When duplicate `(entity_kind, entity_id, annotation_name)` rows exist, the newest `ts` is the current label. This matches the server upsert behavior of `annotate --identifier`.
+If you revise a label for the same entity under the same coding annotation identifier, either replace that row or append a newer row. When duplicate `(entity_kind, entity_id, annotation_name)` rows exist, the newest `ts` is the current label. This matches the server upsert behavior of `annotate --identifier`.
 
 Minimal trace example:
 
@@ -115,7 +115,7 @@ px trace annotate <trace-id> \
   --label answered_off_topic \
   --explanation "asked about returns; answer covered shipping" \
   --annotator-kind HUMAN \
-  --identifier "$IDENT" \
+  --identifier "$CODING_ANNOTATION_IDENTIFIER" \
   --format raw --no-progress
 ```
 
@@ -125,14 +125,14 @@ Accepted flags: `--name`, `--label`, `--score`, `--explanation`, `--annotator-ki
 
 ### UI-filter annotation
 
-Write a `coding_session_id` annotation at the same level as the axial label — see [open-coding.md#ui-filter-annotation](open-coding.md#ui-filter-annotation) for why the Phoenix UI filter requires a name-based annotation rather than the bare `--identifier`. If open coding already wrote `coding_session_id` on the same entity, this call upserts (idempotent). The annotation NAME `coding_session_id` is unchanged; only the workflow's spoken term is "coding identifier".
+Write a `coding_session_id` annotation at the same level as the axial label — see [open-coding.md#ui-filter-annotation](open-coding.md#ui-filter-annotation) for why the Phoenix UI filter requires a name-based annotation rather than the bare `--identifier`. If open coding already wrote `coding_session_id` on the same entity, this call upserts (idempotent). The annotation NAME `coding_session_id` is unchanged; only the workflow's spoken term is "coding annotation identifier".
 
 ```bash
 # Same level as the axial label above
 px trace annotate <trace-id> \
   --name coding_session_id \
-  --label "$IDENT" \
-  --identifier "$IDENT"
+  --label "$CODING_ANNOTATION_IDENTIFIER" \
+  --identifier "$CODING_ANNOTATION_IDENTIFIER"
 # or px span annotate / px session annotate at matching levels
 ```
 
@@ -144,12 +144,12 @@ Axial coding categorizes the entities you took notes on during open coding. Use 
 
 ## Wrapping up
 
-After axial coding finishes, share the Phoenix UI link with the user. The link points to the project's traces table filtered by the `coding_session_id` annotation — `annotations['coding_session_id'].label == '<coding-id>'`. The UI route `/projects/:projectId` expects an encoded GraphQL node ID, not a project name — resolve it via `px project get`:
+After axial coding finishes, share the Phoenix UI link with the user. The link points to the project's traces table filtered by the `coding_session_id` annotation — `annotations['coding_session_id'].label == '<coding-annotation-id>'`. The UI route `/projects/:projectId` expects an encoded GraphQL node ID, not a project name — resolve it via `px project get`:
 
 ```bash
 project_id=$(px project get "$PHOENIX_PROJECT" --format raw --no-progress | jq -r '.id')
 encoded=$(python3 -c 'import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))' \
-  "annotations['coding_session_id'].label == '$IDENT'")
+  "annotations['coding_session_id'].label == '$CODING_ANNOTATION_IDENTIFIER'")
 echo "Phoenix UI: $PHOENIX_HOST/projects/$project_id/traces?filterCondition=$encoded"
 ```
 
@@ -158,7 +158,7 @@ If the user wants to discard everything this run produced (open-coding notes, ax
 ```bash
 for kind in trace span session; do
   px "$kind" delete-annotations \
-    --identifier "$IDENT" \
+    --identifier "$CODING_ANNOTATION_IDENTIFIER" \
     --all -y \
     --format raw --no-progress
 done
@@ -209,8 +209,8 @@ A useful category is:
 
 ## Principles
 
-- **One coding identifier per run** — every `annotate` call and every sidecar line carries `$IDENT`, the same value open coding used; never mint a new id mid-run.
-- **Pass `--identifier` explicitly** — every `px` call gets `--identifier "$IDENT"`; do not rely on inherited env vars.
+- **One coding annotation identifier per run** — every `annotate` call and every sidecar line carries `$CODING_ANNOTATION_IDENTIFIER`, the same value open coding used; never mint a new id mid-run.
+- **Pass `--identifier` explicitly** — every `px` call gets `--identifier "$CODING_ANNOTATION_IDENTIFIER"`; do not rely on inherited env vars.
 - **Sidecar reads, server writes** — Gather and Quantify read `$NOTES_SIDECAR` and `$AXIAL_SIDECAR` locally; Record writes to the server and updates the sidecar. If an entity appears more than once, the newest `ts` wins.
 - **MECE** — Each failure fits ONE category.
 - **Actionable** — Categories suggest fixes.

@@ -48,43 +48,43 @@ State the unit explicitly before recording any note:
 
 The unit can shift if data demands it — a trace-level investigation that surfaces "the agent never remembers earlier turns" should pivot to session. Record the observation, then refocus the next batch. The unit is a starting hypothesis, not a contract.
 
-## Coding identifier (pick this first)
+## Coding annotation identifier (pick this first)
 
-Every artifact this workflow produces — open-coding notes, axial-coding labels, the local sidecar files, and the UI-filter annotation — is tagged with one **coding identifier** so the run is queryable, revertible, and viewable as a unit. Pick a **descriptive, unique** identifier before recording any notes. Format suggestion:
+Every artifact this workflow produces — open-coding notes, axial-coding labels, the local sidecar files, and the UI-filter annotation — is tagged with one **coding annotation identifier** so the run is queryable, revertible, and viewable as a unit. Pick a **descriptive, unique** identifier before recording any notes. Format suggestion:
 
-    coding-session:<short-topic>-<YYYY-MM-DD>
+    coding-run:<short-topic>-<YYYY-MM-DD>
 
-Examples: `coding-session:chatbot-context-loss-2026-05-06`, `coding-session:agent-tool-misuse-q2`. Descriptive ids carry meaning for whoever opens the data later — better than an opaque uuid. The `coding-session:` prefix is a visual convention; the value is the workflow's coding identifier, not a `px session` id.
+Examples: `coding-run:chatbot-context-loss-2026-05-06`, `coding-run:agent-tool-misuse-q2`. Descriptive ids carry meaning for whoever opens the data later — better than an opaque uuid. The `coding-run:` prefix is a visual convention; the value is the workflow's coding annotation identifier, not a `px session` id.
 
-> **Workflow term vs. server annotation name.** The skill calls this value the **coding identifier**. The server-side annotation NAME used for the UI filter is unchanged — `coding_session_id` — for data compatibility with rows already written. Don't try to rename it.
+> **Workflow term vs. server annotation name.** The skill calls this value the **coding annotation identifier**. The server-side annotation NAME used for the UI filter is unchanged — `coding_session_id` — for data compatibility with rows already written. Don't try to rename it.
 
-Pass the identifier explicitly on every `px` call. A shell variable for readability is fine, but **do not rely on env-var inheritance** — many agent harnesses spawn each command in a fresh subshell, so the env var (`PHOENIX_CODING_IDENTIFIER`) won't propagate.
+Pass the identifier explicitly on every `px` call. A shell variable for readability is fine, but **do not rely on shell inheritance** — many agent harnesses spawn each command in a fresh subshell, so `CODING_ANNOTATION_IDENTIFIER` may not propagate.
 
 ```bash
-IDENT="coding-session:chatbot-context-loss-2026-05-06"
+CODING_ANNOTATION_IDENTIFIER="coding-run:chatbot-context-loss-2026-05-06"
 ```
 
-The local sidecar lives at `.px/coding/<sanitized-identifier>.jsonl` (CWD-relative, matching the `.px/docs` precedent). Sanitization rule: replace any character not matching `[a-zA-Z0-9_-]` with `-` before using the value in the filename — colons, slashes, and other shell-fragile characters get normalized. For `IDENT="coding-session:chatbot-context-loss-2026-05-06"` the sidecar path is `.px/coding/coding-session-chatbot-context-loss-2026-05-06.jsonl`.
+The local sidecar lives at `.px/coding/<sanitized-identifier>.jsonl` (CWD-relative, matching the `.px/docs` precedent). Sanitization rule: replace any character not matching `[a-zA-Z0-9_-]` with `-` before using the value in the filename — colons, slashes, and other shell-fragile characters get normalized. For `CODING_ANNOTATION_IDENTIFIER="coding-run:chatbot-context-loss-2026-05-06"` the sidecar path is `.px/coding/coding-run-chatbot-context-loss-2026-05-06.jsonl`.
 
 Verify this run hasn't already started — uniqueness is a **local file check**, not a server query:
 
 ```bash
-SLUG=$(echo -n "$IDENT" | sed 's/[^a-zA-Z0-9_-]/-/g')
+SLUG=$(echo -n "$CODING_ANNOTATION_IDENTIFIER" | sed 's/[^a-zA-Z0-9_-]/-/g')
 SIDECAR=".px/coding/${SLUG}.jsonl"
 test ! -f "$SIDECAR" || { echo "Sidecar already exists at $SIDECAR — pick a new identifier or delete the file"; exit 1; }
 mkdir -p .px/coding
 ```
 
-If `$SIDECAR` already exists, append a disambiguator (`-v2`, `-dustin`, etc.) to `IDENT`, re-derive `SLUG`, and re-check. The agent harness can run open coding and axial coding in independent invocations: each step re-derives `SLUG` from `IDENT` and reads/writes the same file.
+If `$SIDECAR` already exists, append a disambiguator (`-v2`, `-dustin`, etc.) to `CODING_ANNOTATION_IDENTIFIER`, re-derive `SLUG`, and re-check. The agent harness can run open coding and axial coding in independent invocations: each step re-derives `SLUG` from `CODING_ANNOTATION_IDENTIFIER` and reads/writes the same file.
 
 ## Process
 
-1. **Pick a coding identifier** — choose a descriptive value and verify the sidecar file does not yet exist (see [Coding identifier](#coding-identifier-pick-this-first))
+1. **Pick a coding annotation identifier** — choose a descriptive value and verify the sidecar file does not yet exist (see [Coding annotation identifier](#coding-annotation-identifier-pick-this-first))
 2. **Pick the unit** — work through [Choosing the unit of analysis](#choosing-the-unit-of-analysis) and commit to trace, span, or session
 3. **Inspect** — fetch one entity at the chosen unit (trace / span / session)
 4. **Read** — input, output, exceptions, tool calls, retrieved context, and (at session level) the trajectory across child traces
 5. **Note** — write one specific sentence describing what went wrong (or skip if correct)
-6. **Record** — `px {trace,span,session} add-note <id> --text "..." --identifier "$IDENT" --format raw --no-progress`, add/update one JSONL sidecar row for the note, then write the matching [UI-filter annotation](#ui-filter-annotation)
+6. **Record** — `px {trace,span,session} add-note <id> --text "..." --identifier "$CODING_ANNOTATION_IDENTIFIER" --format raw --no-progress`, add/update one JSONL sidecar row for the note, then write the matching [UI-filter annotation](#ui-filter-annotation)
 7. **Iterate** — move to the next entity; repeat until the sample is exhausted or saturation hits
 8. **Hand off** — axial coding reads the sidecar directly (no shared shell required); see [Wrapping up](#wrapping-up) for the UI link
 
@@ -130,35 +130,35 @@ Always pipe through `jq` with `--format raw --no-progress` when scripting.
 
 ## Recording Notes
 
-Use the `add-note` command matching the unit committed in [Choosing the unit](#choosing-the-unit-of-analysis): `px trace add-note`, `px span add-note`, or `px session add-note`. Every call carries an explicit `--identifier "$IDENT"` and `--format raw --no-progress`.
+Use the `add-note` command matching the unit committed in [Choosing the unit](#choosing-the-unit-of-analysis): `px trace add-note`, `px span add-note`, or `px session add-note`. Every call carries an explicit `--identifier "$CODING_ANNOTATION_IDENTIFIER"` and `--format raw --no-progress`.
 
-Passing `--identifier "$IDENT"` does two things:
-- Tags the note row with the coding identifier on the server, so the cleanup `delete-annotations --identifier "$IDENT" --all` sweep removes every artifact this run produced.
-- Makes the call **upsert** on `(entity_id, name='note', identifier)` — re-running open coding on the same entity within the same coding identifier overwrites the prior note instead of appending a second row. (Without `--identifier`, the server stamps a unique `px-{kind}-note:<uuid>` and each call appends.)
+Passing `--identifier "$CODING_ANNOTATION_IDENTIFIER"` does two things:
+- Tags the note row with the coding annotation identifier on the server, so the cleanup `delete-annotations --identifier "$CODING_ANNOTATION_IDENTIFIER" --all` sweep removes every artifact this run produced.
+- Makes the call **upsert** on `(entity_id, name='note', identifier)` — re-running open coding on the same entity within the same coding annotation identifier overwrites the prior note instead of appending a second row. (Without `--identifier`, the server stamps a unique `px-{kind}-note:<uuid>` and each call appends.)
 
 After every successful `add-note`, record one JSONL line in `$SIDECAR`. The sidecar is what axial coding reads — no server round-trip. It is a content handoff, not code: keep it readable, inspect it directly, and use whatever simple tooling is convenient.
 
 **Sidecar JSONL line shape (one per `add-note`):**
 
 ```json
-{"entity_kind":"trace","entity_id":"<trace-id>","note":"<text>","identifier":"<original IDENT, unsanitized>","ts":"<ISO-8601 UTC>"}
+{"entity_kind":"trace","entity_id":"<trace-id>","note":"<text>","identifier":"<original identifier value, unsanitized>","ts":"<ISO-8601 UTC>"}
 ```
 
 Fields:
 - `entity_kind` — `"trace"`, `"span"`, or `"session"` (matches the `add-note` subcommand used)
 - `entity_id` — the entity argument passed to `add-note` (trace id, span id, or session id)
 - `note` — the `--text` value, verbatim
-- `identifier` — the **original** `$IDENT` value, unsanitized; the sanitized form lives only in the filename
+- `identifier` — the **original** `$CODING_ANNOTATION_IDENTIFIER` value, unsanitized; the sanitized form lives only in the filename
 - `ts` — ISO-8601 UTC timestamp (e.g. `2026-05-08T17:14:09Z`) of the local append
 
-If you revise a note for the same entity under the same coding identifier, either replace that row or append a newer row. When duplicate `(entity_kind, entity_id)` rows exist, the newest `ts` is the current note. This matches the server upsert behavior of `add-note --identifier`.
+If you revise a note for the same entity under the same coding annotation identifier, either replace that row or append a newer row. When duplicate `(entity_kind, entity_id)` rows exist, the newest `ts` is the current note. This matches the server upsert behavior of `add-note --identifier`.
 
 Minimal trace example:
 
 ```bash
 px trace add-note <trace-id> \
   --text "Asked about returns; final answer covered shipping policy instead" \
-  --identifier "$IDENT" \
+  --identifier "$CODING_ANNOTATION_IDENTIFIER" \
   --format raw --no-progress
 ```
 
@@ -168,21 +168,21 @@ Bulk auto-tagging by status code (e.g. `px span list --status-code ERROR | xargs
 
 ### UI-filter annotation
 
-Every entity that receives an open-coding note (or an axial-coding label later) also needs a UI-filter annotation so the Phoenix UI can filter by coding identifier. Phoenix's UI filter language is name-based, not identifier-based — there is no UI primitive for filtering by `identifier`, so an annotation whose **name** is the constant `coding_session_id` and whose **label** is the coding identifier value is what the wrap-up UI link actually filters on.
+Every entity that receives an open-coding note (or an axial-coding label later) also needs a UI-filter annotation so the Phoenix UI can filter by coding annotation identifier. Phoenix's UI filter language is name-based, not identifier-based — there is no UI primitive for filtering by `identifier`, so an annotation whose **name** is the constant `coding_session_id` and whose **label** is the coding annotation identifier value is what the wrap-up UI link actually filters on.
 
-The annotation NAME `coding_session_id` is the load-bearing data key on the server and is **unchanged** in this rewrite. The skill's workflow term is "coding identifier"; the server key stays `coding_session_id` for compatibility with rows already written.
+The annotation NAME `coding_session_id` is the load-bearing data key on the server and is **unchanged** in this rewrite. The skill's workflow term is "coding annotation identifier"; the server key stays `coding_session_id` for compatibility with rows already written.
 
 Run this once per touched entity, alongside the `add-note` (and again later when axial coding labels a different entity):
 
 ```bash
 px trace annotate <trace-id> \
   --name coding_session_id \
-  --label "$IDENT" \
-  --identifier "$IDENT"
+  --label "$CODING_ANNOTATION_IDENTIFIER" \
+  --identifier "$CODING_ANNOTATION_IDENTIFIER"
 # or px span annotate / px session annotate at matching levels
 ```
 
-The annotation's `--identifier` matches `$IDENT`, so the [wrap-up DELETE](#wrapping-up) cleans it up in the same call as the notes and the axial-coding labels.
+The annotation's `--identifier` matches `$CODING_ANNOTATION_IDENTIFIER`, so the [wrap-up DELETE](#wrapping-up) cleans it up in the same call as the notes and the axial-coding labels.
 
 **Fallback write paths (one-line asides):**
 
@@ -214,7 +214,7 @@ At saturation, move on to [axial coding](axial-coding.md) to group what you have
 
 ## Listing what this run produced
 
-The local sidecar is the handoff record for notes written this run. Inspect it directly. Each line is one note record; if the same entity appears more than once, use the newest `ts` as the current note. Missing-file behavior: an absent sidecar means open coding has not yet started for this coding identifier; treat that as zero notes, not an error. Malformed lines are line-local: fix or drop the bad line without editing neighbors.
+The local sidecar is the handoff record for notes written this run. Inspect it directly. Each line is one note record; if the same entity appears more than once, use the newest `ts` as the current note. Missing-file behavior: an absent sidecar means open coding has not yet started for this coding annotation identifier; treat that as zero notes, not an error. Malformed lines are line-local: fix or drop the bad line without editing neighbors.
 
 ## Wrapping up
 
@@ -223,7 +223,7 @@ When the run is done, share the Phoenix UI link with the user. The link filters 
 ```bash
 project_id=$(px project get "$PHOENIX_PROJECT" --format raw --no-progress | jq -r '.id')
 encoded=$(python3 -c 'import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))' \
-  "annotations['coding_session_id'].label == '$IDENT'")
+  "annotations['coding_session_id'].label == '$CODING_ANNOTATION_IDENTIFIER'")
 echo "Phoenix UI: $PHOENIX_HOST/projects/$project_id/traces?filterCondition=$encoded"
 ```
 
@@ -232,7 +232,7 @@ If the user wants to discard everything this run produced, three identifier-boun
 ```bash
 for kind in trace span session; do
   px "$kind" delete-annotations \
-    --identifier "$IDENT" \
+    --identifier "$CODING_ANNOTATION_IDENTIFIER" \
     --all -y \
     --format raw --no-progress
 done
@@ -243,8 +243,8 @@ Each `delete-annotations` call covers notes, structured annotations, and the `co
 
 ## Principles
 
-- **One coding identifier per run** — every server artifact and every sidecar line carries the same `$IDENT`; never mint a per-stage id.
-- **Pass `--identifier` explicitly** — every `px` call gets `--identifier "$IDENT"`; do not rely on inherited env vars across harness-spawned subshells.
+- **One coding annotation identifier per run** — every server artifact and every sidecar line carries the same `$CODING_ANNOTATION_IDENTIFIER`; never mint a per-stage id.
+- **Pass `--identifier` explicitly** — every `px` call gets `--identifier "$CODING_ANNOTATION_IDENTIFIER"`; do not rely on inherited env vars across harness-spawned subshells.
 - **Sidecar is the handoff record for notes** — axial coding reads from the local sidecar, not from the server; if an entity appears more than once, the newest `ts` wins.
 - **Free-form over structured** — do not pre-commit to a taxonomy during open coding; categories emerge in axial coding.
 - **Specific over general** — quote or paraphrase the observed failure; vague labels ("bad response") carry no signal.
