@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay import GlobalID
@@ -15,6 +16,7 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.models import EvaluatorKind
 from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
@@ -249,17 +251,6 @@ class UpdateDatasetBuiltinEvaluatorInput:
     input_mapping: Optional[EvaluatorInputMappingInput] = None
     output_configs: Optional[list[AnnotationConfigInput]] = UNSET
     description: Optional[str] = UNSET
-
-
-@strawberry.input
-class DeleteEvaluatorsInput:
-    evaluator_ids: list[GlobalID]
-
-
-@strawberry.type
-class DeleteEvaluatorsPayload:
-    evaluator_ids: list[GlobalID]
-    query: Query
 
 
 @strawberry.input
@@ -605,63 +596,24 @@ class EvaluatorMutationMixin:
             query=Query(),
         )
 
-    # TODO: should this always just get called instead of unlink for DatasetEvaluators?
-    # TODO: this should accept dataset evaluator ids in addition to evaluator ids, or create a new
-    # delete_dataset_evaluators mutation
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
-    async def delete_evaluators(
-        self, info: Info[Context, None], input: DeleteEvaluatorsInput
-    ) -> DeleteEvaluatorsPayload:
-        evaluator_rowids: set[int] = set()
-        for evaluator_gid in input.evaluator_ids:
-            try:
-                evaluator_rowid, _ = _parse_evaluator_id(evaluator_gid)
-            except ValueError:
-                raise BadRequest(f"Invalid evaluator id: {str(evaluator_gid)}")
-            evaluator_rowids.add(evaluator_rowid)
-
-        # Query DB to find which evaluators are builtins (can't be deleted)
-        async with info.context.db() as session:
-            builtin_ids_result = await session.execute(
-                select(models.BuiltinEvaluator.id).where(
-                    models.BuiltinEvaluator.id.in_(evaluator_rowids)
-                )
-            )
-            builtin_evaluator_ids = set(builtin_ids_result.scalars().all())
-
-        filtered_rowids: list[int] = []
-        filtered_gids: list[GlobalID] = []
-        for gid, rowid in zip(input.evaluator_ids, evaluator_rowids):
-            if rowid in builtin_evaluator_ids:
-                continue
-            filtered_rowids.append(rowid)
-            filtered_gids.append(gid)
-
-        stmt = delete(models.Evaluator).where(models.Evaluator.id.in_(filtered_rowids))
-        async with info.context.db() as session:
-            await session.execute(stmt)
-        return DeleteEvaluatorsPayload(
-            evaluator_ids=filtered_gids,
-            query=Query(),
-        )
-
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def delete_dataset_evaluators(
         self, info: Info[Context, None], input: DeleteDatasetEvaluatorsInput
     ) -> DeleteDatasetEvaluatorsPayload:
         """
-        Delete dataset evaluators by their IDs.
+        Remove the per-dataset evaluator links identified by the given IDs.
 
-        All evaluator types (LLM, CODE, BUILTIN) use evaluator_id. The Evaluator record
-        is deleted, which cascades to delete both the specific evaluator type record and
-        DatasetEvaluators rows.
+        Only the DatasetEvaluators rows are removed; shared evaluator definitions
+        are preserved:
+          - BUILTIN evaluator rows are global and are never deleted by this mutation.
+          - LLM and CODE evaluator rows are garbage-collected only after the link
+            is removed and no other DatasetEvaluators row still references them.
 
-        If delete_associated_prompt is True (default), the associated prompt for LLM evaluators
-        will also be deleted.
+        If delete_associated_prompt is True (default), the prompt of an LLM evaluator
+        is also deleted, but only when that LLMEvaluator was itself garbage-collected.
 
-        The associated project for each dataset evaluator is also deleted automatically.
+        The associated project for each removed dataset evaluator link is also deleted.
         """
-        # Parse and validate all dataset_evaluator_ids
         dataset_evaluator_rowids: list[int] = []
         for dataset_evaluator_gid in input.dataset_evaluator_ids:
             try:
@@ -682,49 +634,132 @@ class EvaluatorMutationMixin:
         deleted_gids: list[GlobalID] = []
 
         async with info.context.db() as session:
-            # Fetch all DatasetEvaluators records
-            stmt = select(models.DatasetEvaluators).where(
-                models.DatasetEvaluators.id.in_(dataset_evaluator_rowids)
-            )
-            result = await session.execute(stmt)
-            dataset_evaluators = list(result.scalars().all())
+            dialect = SupportedSQLDialect(session.bind.dialect.name)
 
-            evaluator_ids: list[int] = []
-            project_ids_to_delete: list[int] = []
-
-            for dataset_evaluator in dataset_evaluators:
-                if dataset_evaluator.evaluator_id is not None:
-                    evaluator_ids.append(dataset_evaluator.evaluator_id)
-                project_ids_to_delete.append(dataset_evaluator.project_id)
-                deleted_gids.append(GlobalID(DatasetEvaluator.__name__, str(dataset_evaluator.id)))
-
-            prompt_ids_to_delete: list[int] = []
-            if input.delete_associated_prompt and evaluator_ids:
-                llm_evaluator_stmt = select(models.LLMEvaluator).where(
-                    models.LLMEvaluator.id.in_(evaluator_ids)
+            # Gather link metadata (id, evaluator_id, project_id, kind,
+            # prompt_id). On Postgres we fold the link DELETE into this step
+            # via a data-modifying CTE — one round trip instead of two. SQLite
+            # supports neither data-modifying CTEs nor DELETE...USING, so we
+            # SELECT first and DELETE the links separately below.
+            #
+            # LLMEvaluator uses joined-table inheritance against Evaluator, so
+            # we alias it (flat=True) before the LEFT JOIN to avoid SQLAlchemy
+            # auto-aliasing the `evaluators` table and silently rewriting
+            # `Evaluator.kind` to read from the aliased copy (which would be
+            # NULL for non-LLM rows and break the BUILTIN check).
+            llm_evaluator_alias = aliased(models.LLMEvaluator, flat=True)
+            if dialect is SupportedSQLDialect.POSTGRESQL:
+                deleted_links_cte = (
+                    delete(models.DatasetEvaluators)
+                    .where(models.DatasetEvaluators.id.in_(dataset_evaluator_rowids))
+                    .returning(
+                        models.DatasetEvaluators.id,
+                        models.DatasetEvaluators.evaluator_id,
+                        models.DatasetEvaluators.project_id,
+                    )
+                    .cte("deleted_links")
                 )
-                llm_result = await session.execute(llm_evaluator_stmt)
-                llm_evaluators = list(llm_result.scalars().all())
-                prompt_ids_to_delete = [e.prompt_id for e in llm_evaluators]
-
-            # Delete evaluators (cascades to DatasetEvaluators)
-            if evaluator_ids:
-                delete_evaluators_stmt = delete(models.Evaluator).where(
-                    models.Evaluator.id.in_(evaluator_ids)
+                gather_stmt = (
+                    select(
+                        deleted_links_cte.c.id,
+                        deleted_links_cte.c.evaluator_id,
+                        deleted_links_cte.c.project_id,
+                        models.Evaluator.kind,
+                        llm_evaluator_alias.prompt_id,
+                    )
+                    .select_from(deleted_links_cte)
+                    .join(
+                        models.Evaluator,
+                        models.Evaluator.id == deleted_links_cte.c.evaluator_id,
+                    )
+                    .outerjoin(
+                        llm_evaluator_alias,
+                        llm_evaluator_alias.id == deleted_links_cte.c.evaluator_id,
+                    )
                 )
-                await session.execute(delete_evaluators_stmt)
-
-            if prompt_ids_to_delete:
-                delete_prompts_stmt = delete(models.Prompt).where(
-                    models.Prompt.id.in_(prompt_ids_to_delete)
+            else:
+                gather_stmt = (
+                    select(
+                        models.DatasetEvaluators.id,
+                        models.DatasetEvaluators.evaluator_id,
+                        models.DatasetEvaluators.project_id,
+                        models.Evaluator.kind,
+                        llm_evaluator_alias.prompt_id,
+                    )
+                    .join(
+                        models.Evaluator,
+                        models.DatasetEvaluators.evaluator_id == models.Evaluator.id,
+                    )
+                    .outerjoin(
+                        llm_evaluator_alias,
+                        models.DatasetEvaluators.evaluator_id == llm_evaluator_alias.id,
+                    )
+                    .where(models.DatasetEvaluators.id.in_(dataset_evaluator_rowids))
                 )
-                await session.execute(delete_prompts_stmt)
+            rows = (await session.execute(gather_stmt)).all()
 
-            if project_ids_to_delete:
-                delete_projects_stmt = delete(models.Project).where(
-                    models.Project.id.in_(project_ids_to_delete)
+            link_ids: list[int] = []
+            project_ids: list[int] = []
+            # Only non-BUILTIN evaluators are garbage collect candidates.
+            gc_candidate_evaluator_ids: set[int] = set()
+            candidate_prompt_ids: set[int] = set()
+
+            for link_id, evaluator_id, project_id, kind, prompt_id in rows:
+                link_ids.append(link_id)
+                project_ids.append(project_id)
+                deleted_gids.append(GlobalID(DatasetEvaluator.__name__, str(link_id)))
+                if kind != "BUILTIN":
+                    gc_candidate_evaluator_ids.add(evaluator_id)
+                    if prompt_id is not None:
+                        candidate_prompt_ids.add(prompt_id)
+
+            if not link_ids:
+                return DeleteDatasetEvaluatorsPayload(
+                    dataset_evaluator_ids=[],
+                    query=Query(),
                 )
-                await session.execute(delete_projects_stmt)
+
+            # On SQLite the link DELETE still needs to happen explicitly;
+            # on Postgres it already executed inside the CTE above. Removing
+            # the links first releases the RESTRICT FK on projects and lets
+            # us safely garbage collect orphaned evaluator definitions.
+            if dialect is not SupportedSQLDialect.POSTGRESQL:
+                await session.execute(
+                    delete(models.DatasetEvaluators).where(
+                        models.DatasetEvaluators.id.in_(link_ids)
+                    )
+                )
+
+            # Garbage collect non-BUILTIN evaluators that no DatasetEvaluators
+            # row still references. The correlated NOT EXISTS skips evaluators that
+            # remain in use by other datasets.
+            if gc_candidate_evaluator_ids:
+                await session.execute(
+                    delete(models.Evaluator).where(
+                        models.Evaluator.id.in_(gc_candidate_evaluator_ids),
+                        ~select(models.DatasetEvaluators.id)
+                        .where(models.DatasetEvaluators.evaluator_id == models.Evaluator.id)
+                        .exists(),
+                    )
+                )
+
+            # Garbage collect prompts of LLM evaluators we just deleted. Prompts whose
+            # LLMEvaluator was *not* garbage collected (still referenced) keep their
+            # LLMEvaluator row, so the NOT EXISTS predicate spares them.
+            if input.delete_associated_prompt and candidate_prompt_ids:
+                await session.execute(
+                    delete(models.Prompt).where(
+                        models.Prompt.id.in_(candidate_prompt_ids),
+                        ~select(models.LLMEvaluator.id)
+                        .where(models.LLMEvaluator.prompt_id == models.Prompt.id)
+                        .exists(),
+                    )
+                )
+
+            if project_ids:
+                await session.execute(
+                    delete(models.Project).where(models.Project.id.in_(project_ids))
+                )
 
         return DeleteDatasetEvaluatorsPayload(
             dataset_evaluator_ids=deleted_gids,

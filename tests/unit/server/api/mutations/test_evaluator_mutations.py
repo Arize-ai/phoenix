@@ -2879,12 +2879,95 @@ class TestDeleteDatasetEvaluators:
         )
 
         # Verify the DatasetEvaluators row and associated project are deleted
+        # but the shared built-in evaluator definition is preserved.
         async with db() as session:
             deleted_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
             assert deleted_evaluator is None
 
             deleted_project = await session.get(models.Project, project_id)
             assert deleted_project is None
+
+            preserved_builtin = await session.get(models.BuiltinEvaluator, builtin_evaluator_id)
+            assert preserved_builtin is not None
+
+    async def test_delete_dataset_link_to_builtin_preserves_other_dataset_links(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+        synced_builtin_evaluators: None,
+    ) -> None:
+        """Regression test for #13090.
+
+        Deleting one dataset's link to a shared built-in must not delete the built-in
+        itself, nor any other dataset's link that points to the same built-in.
+        """
+        async with db() as session:
+            builtin_evaluator_id = await session.scalar(select(models.BuiltinEvaluator.id).limit(1))
+        assert builtin_evaluator_id is not None, "No builtin evaluators available for testing"
+
+        async with db() as session:
+            dataset_b = models.Dataset(
+                name=f"dataset-b-{token_hex(4)}",
+                description="second dataset for shared-builtin test",
+                metadata_={},
+            )
+            session.add(dataset_b)
+            await session.flush()
+            dataset_b_id = dataset_b.id
+
+            link_a = models.DatasetEvaluators(
+                dataset_id=empty_dataset.id,
+                evaluator_id=builtin_evaluator_id,
+                name=IdentifierModel.model_validate(f"shared-builtin-a-{token_hex(4)}"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                project=models.Project(
+                    name=f"{empty_dataset.name}/shared-builtin-a-{token_hex(4)}",
+                    description="Project for dataset A link",
+                ),
+            )
+            link_b = models.DatasetEvaluators(
+                dataset_id=dataset_b_id,
+                evaluator_id=builtin_evaluator_id,
+                name=IdentifierModel.model_validate(f"shared-builtin-b-{token_hex(4)}"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                project=models.Project(
+                    name=f"{dataset_b.name}/shared-builtin-b-{token_hex(4)}",
+                    description="Project for dataset B link",
+                ),
+            )
+            session.add_all([link_a, link_b])
+            await session.flush()
+            link_a_id = link_a.id
+            link_b_id = link_b.id
+            link_b_project_id = link_b.project_id
+            link_a_gid = str(GlobalID("DatasetEvaluator", str(link_a_id)))
+
+        # Delete only dataset A's link to the built-in.
+        result = await gql_client.execute(
+            self._DELETE_MUTATION,
+            {"input": {"datasetEvaluatorIds": [link_a_gid]}},
+        )
+
+        assert not result.errors
+        assert result.data is not None
+        assert result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"] == [link_a_gid]
+
+        async with db() as session:
+            assert await session.get(models.DatasetEvaluators, link_a_id) is None
+
+            preserved_builtin = await session.get(models.BuiltinEvaluator, builtin_evaluator_id)
+            assert preserved_builtin is not None, (
+                "shared built-in evaluator must not be deleted when one dataset's link is removed"
+            )
+
+            preserved_link_b = await session.get(models.DatasetEvaluators, link_b_id)
+            assert preserved_link_b is not None, (
+                "dataset B's link must not be cascade-deleted by removing dataset A's link"
+            )
+
+            preserved_link_b_project = await session.get(models.Project, link_b_project_id)
+            assert preserved_link_b_project is not None
 
     async def test_delete_llm_evaluator(
         self,
