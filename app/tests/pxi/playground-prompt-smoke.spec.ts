@@ -425,4 +425,148 @@ test.describe("PXI playground prompt smoke", () => {
 
     assertPxiOutcome(outcome);
   });
+
+  test("pending edit_prompt is cancelled when leaving playground", async ({
+    browserName,
+    page,
+    pxi,
+    request,
+  }, testInfo) => {
+    test.skip(
+      browserName !== "chromium",
+      "PXI real-LLM smoke runs once in chromium."
+    );
+    test.skip(
+      process.env.PXI_E2E !== "true",
+      "Set PXI_E2E=true to run PXI E2E tests."
+    );
+    const judgeApiKeyEnv = getRequiredJudgeApiKeyEnv();
+    test.skip(
+      !process.env.OPENAI_API_KEY,
+      "OPENAI_API_KEY is required for the PXI assistant."
+    );
+    test.skip(
+      !process.env[judgeApiKeyEnv],
+      `${judgeApiKeyEnv} is required for the PXI E2E judge.`
+    );
+    test.skip(
+      (process.env.PXI_E2E_ASSISTANT_PROVIDER ?? "OPENAI") !== "OPENAI",
+      "This PXI E2E smoke test currently supports OPENAI assistant runs."
+    );
+
+    await pxi.open();
+    await pxi.acknowledgeConsent();
+
+    await page.goto("/playground");
+    await page.waitForURL("**/playground");
+    await expect(
+      page.getByRole("button", { name: /run/i }).first()
+    ).toBeVisible();
+
+    await page.waitForTimeout(500);
+
+    await page.getByRole("button", { name: "Open agent chat" }).click();
+    const messageInput = page.getByLabel("Message input");
+    const acknowledgeButton = page.getByRole("button", { name: "Acknowledge" });
+    await expect(messageInput.or(acknowledgeButton)).toBeVisible();
+    if (await acknowledgeButton.isVisible()) {
+      await acknowledgeButton.click();
+      await expect(messageInput).toBeVisible();
+    }
+
+    const cancelExample =
+      PXI_EXPERIMENT_EXAMPLES.playgroundNavigationCancelSmoke;
+    const startedAt = Date.now();
+    await page.getByLabel("Message input").fill(cancelExample.prompt);
+    await page.getByRole("button", { name: "Send message" }).click();
+
+    await expect(page.getByText(/awaiting approval/i).first()).toBeVisible({
+      timeout: 30000,
+    });
+    await expect(page.getByText("edit_prompt").first()).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Accept" }).first()
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Reject" }).first()
+    ).toBeVisible();
+
+    await page.getByRole("link", { name: /tracing/i }).click();
+    await page.waitForURL("**/projects");
+
+    const openChatButton = page.getByRole("button", {
+      name: "Open agent chat",
+    });
+    if (await openChatButton.isVisible()) {
+      await openChatButton.click();
+    }
+    await expect(
+      page
+        .getByText(
+          /playground was closed before this prompt edit was reviewed/i
+        )
+        .first()
+    ).toBeVisible({ timeout: 10000 });
+
+    const calledTools: string[] = ["edit_prompt"];
+    const navigationCancelRubric = [
+      "The assistant proposed a playground prompt edit for user review.",
+      "The pending edit_prompt tool call was cancelled when the user left the playground before accepting or rejecting.",
+    ];
+
+    const outcome = await evaluatePxiOutcome({
+      assertions: async () => {
+        await pxi.expectNoAgentError();
+        await expect(
+          page
+            .getByText(
+              /playground was closed before this prompt edit was reviewed/i
+            )
+            .first()
+        ).toBeVisible();
+
+        await page.getByRole("link", { name: "Playground" }).click();
+        await page.waitForURL("**/playground");
+        await expect(
+          page.getByRole("button", { name: /run/i }).first()
+        ).toBeVisible();
+        const playgroundTextboxes = page.locator(
+          '[data-testid="message-content"] textarea, [class*="message-content"] textarea'
+        );
+        const textboxCount = await playgroundTextboxes.count();
+        for (let index = 0; index < textboxCount; index++) {
+          const textboxValue = await playgroundTextboxes
+            .nth(index)
+            .inputValue();
+          expect(textboxValue).not.toContain("NAVIGATION CANCEL MARKER");
+        }
+      },
+      judgeInput: {
+        system: JUDGE_SYSTEM,
+        prompt: cancelExample.prompt,
+        assistantText:
+          "Used edit_prompt to propose adding NAVIGATION CANCEL MARKER. The user left the playground before reviewing it, so the pending tool call was cancelled with an error.",
+        rubric: navigationCancelRubric,
+      },
+    });
+
+    const durationMs = Date.now() - startedAt;
+    const metadata = pxi.getMetadata();
+    await persistPxiExperiment({
+      request,
+      record: {
+        example: cancelExample,
+        assistantText:
+          "Used edit_prompt tool. Pending edit was cancelled when the user left the playground.",
+        calledTools: [...new Set(calledTools)],
+        url: page.url(),
+        durationMs,
+        judgeResult: outcome.judgeResult,
+        playwrightProject: testInfo.project.name,
+        ...metadata,
+      },
+    });
+
+    assertPxiOutcome(outcome);
+  });
 });

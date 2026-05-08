@@ -54,6 +54,16 @@ export const PXI_EXPERIMENT_EXAMPLES = {
     experimentDescription:
       "PXI playground prompt tools smoke test: edit_prompt with reject flow.",
   },
+  playgroundNavigationCancelSmoke: {
+    id: "pxi-playground-prompt-smoke:navigation-cancels-edit-v1",
+    prompt:
+      "Edit the playground prompt to add a system message saying 'NAVIGATION CANCEL MARKER'. Wait for me to accept or reject the change.",
+    expectedOutput:
+      "PXI proposes an edit, then the pending edit is cancelled when the user leaves the playground before review.",
+    experimentNamePrefix: "pxi-e2e-playground-navigation-cancel-smoke",
+    experimentDescription:
+      "PXI playground prompt tools smoke test: pending edit_prompt is cancelled on route navigation.",
+  },
 } as const;
 
 type PxiExperimentExample =
