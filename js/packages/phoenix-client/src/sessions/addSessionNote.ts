@@ -65,9 +65,7 @@ export async function addSessionNote({
       data: {
         session_id: sessionNote.sessionId.trim(),
         note: sessionNote.note,
-        ...(sessionNote.identifier !== undefined && {
-          identifier: sessionNote.identifier,
-        }),
+        identifier: sessionNote.identifier,
       },
     },
   });

@@ -19,7 +19,7 @@ AXIAL_SIDECAR=".px/coding/${SLUG}-axial.jsonl"
 
 ## Choosing the unit
 
-Open coding's diagnostic in [open-coding.md#choosing-the-unit-of-analysis](open-coding.md#choosing-the-unit-of-analysis) commits to a unit (trace, span, or session). Axial coding inherits that unit by default — if open coding ran at the session level, most axial labels will too; same for trace and span.
+Open coding's diagnostic in [open-coding.md#choosing-the-unit-of-analysis](open-coding.md#choosing-the-unit-of-analysis) commits to a unit (trace, span, or session). Axial coding inherits that unit by default — if open coding ran at the session level, axial labels will too; same for trace and span.
 
 **An axial label can live at a different level than the note that informed it** — that's a feature, and it works in every direction:
 
