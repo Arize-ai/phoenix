@@ -170,6 +170,62 @@ describe("playground prompt agent tools", () => {
     ).toBeUndefined();
   });
 
+  it("cancels a pending edit when the playground becomes unavailable", async () => {
+    const playgroundStore = createPlaygroundStore({
+      datasetId: null,
+      modelConfigByProvider: {},
+    });
+    const agentStore = createAgentStore();
+    const readAction = createReadPromptClientAction({ playgroundStore });
+    const editAction = createEditPromptClientAction({
+      playgroundStore,
+      setPendingPromptEdit: agentStore.getState().setPendingPromptEdit,
+    });
+    const readResult = await readAction({});
+    expect(readResult.ok).toBe(true);
+    if (!readResult.ok) return;
+    const snapshot = JSON.parse(readResult.output ?? "") as PromptSnapshot;
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+
+    const editResult = await editAction(
+      {
+        instanceId: snapshot.instanceId,
+        expectedRevision: snapshot.revision,
+        operations: [
+          {
+            type: "update_message",
+            messageId: snapshot.messages[1]!.id,
+            content: "Pending edit",
+          },
+        ],
+      },
+      { toolCallId: "tool-call-cancel", sessionId: "session-1", addToolOutput }
+    );
+
+    expect(editResult.ok).toBe(true);
+    const pendingEdit =
+      agentStore.getState().pendingPromptEditsByToolCallId["tool-call-cancel"];
+    expect(pendingEdit).toBeDefined();
+
+    await pendingEdit!.cancel!();
+
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-error",
+        tool: EDIT_PROMPT_TOOL_NAME,
+        toolCallId: "tool-call-cancel",
+        errorText: expect.stringContaining("playground was closed"),
+      })
+    );
+    expect(
+      playgroundStore.getState().allInstanceMessages[snapshot.messages[1]!.id]
+        ?.content
+    ).not.toBe("Pending edit");
+    expect(
+      agentStore.getState().pendingPromptEditsByToolCallId["tool-call-cancel"]
+    ).toBeUndefined();
+  });
+
   it("rejects stale edits", async () => {
     const playgroundStore = createPlaygroundStore({
       datasetId: null,

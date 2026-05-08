@@ -8,3 +8,6 @@ export const READ_PROMPT_TOOL_NAME = PLAYGROUND_PROMPT_TOOL_NAMES.read;
 export const EDIT_PROMPT_TOOL_NAME = PLAYGROUND_PROMPT_TOOL_NAMES.edit;
 export const CLONE_PROMPT_INSTANCE_TOOL_NAME =
   PLAYGROUND_PROMPT_TOOL_NAMES.cloneInstance;
+
+export const EDIT_PROMPT_NAVIGATION_CANCEL_ERROR =
+  "The playground was closed before this prompt edit was reviewed. Call read_prompt again before proposing another edit.";

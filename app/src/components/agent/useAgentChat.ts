@@ -211,17 +211,12 @@ export function useAgentChat({
     if (!sessionId) {
       return;
     }
-    // edit_prompt approvals may outlive the mounted chat surface. Register the
-    // live tool-output sender so restored pending edits can resolve the original
-    // AI SDK tool call when the user returns to this session.
-    store.getState().registerPromptEditToolOutput(sessionId, addToolOutput);
     return () => {
-      store.getState().unregisterPromptEditToolOutput(sessionId);
       if (sessionId && messagesRef.current.length > 0) {
         store.getState().setSessionMessages(sessionId, messagesRef.current);
       }
     };
-  }, [addToolOutput, sessionId, store]);
+  }, [sessionId, store]);
 
   // Elicitation responses are written back through the runtime-owned chat so
   // the pending tool call resolves against the correct assistant turn.

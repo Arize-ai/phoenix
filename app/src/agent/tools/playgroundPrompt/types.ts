@@ -88,6 +88,7 @@ export type PendingPromptEdit = {
   operations: MaterializedEditPromptOperation[];
   accept?: () => Promise<void>;
   reject?: () => Promise<void>;
+  cancel?: () => Promise<void>;
 };
 
 export type EditPromptActionContext = z.output<
@@ -99,10 +100,8 @@ export type BindPendingPromptEditOptions = {
   pendingEdit: PendingPromptEdit;
   /** Live playground store used to re-check revisions and apply accepted edits. */
   playgroundStore: PlaygroundStore;
-  /** Returns the live AI SDK tool-output sender for the pending edit's session. */
-  getAddToolOutput: (
-    sessionId: string
-  ) => PromptEditToolOutputSender | undefined;
+  /** Live AI SDK tool-output sender for the original tool call. */
+  addToolOutput: PromptEditToolOutputSender;
   setPendingPromptEdit: (
     toolCallId: string,
     edit: PendingPromptEdit | null

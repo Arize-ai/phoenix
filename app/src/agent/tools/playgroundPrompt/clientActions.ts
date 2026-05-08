@@ -125,7 +125,7 @@ export function createEditPromptClientAction({
         operations: proposed.output.operations,
       },
       playgroundStore,
-      getAddToolOutput: () => editContext.addToolOutput,
+      addToolOutput: editContext.addToolOutput,
       setPendingPromptEdit,
     });
     setPendingPromptEdit(editContext.toolCallId, pendingEdit);

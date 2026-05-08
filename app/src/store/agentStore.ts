@@ -14,10 +14,7 @@ import {
   type AgentCapabilityKey,
 } from "@phoenix/agent/extensions/capabilities";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
-import type {
-  PendingPromptEdit,
-  PromptEditToolOutputSender,
-} from "@phoenix/agent/tools/playgroundPrompt";
+import type { PendingPromptEdit } from "@phoenix/agent/tools/playgroundPrompt";
 import { generateUUID } from "@phoenix/utils/uuidUtils";
 
 import type { ModelConfig } from "./playground/types";
@@ -241,14 +238,6 @@ export interface AgentState extends AgentProps {
     toolCallId: string,
     edit: PendingPromptEdit | null
   ) => void;
-  promptEditToolOutputBySessionId: Partial<
-    Record<string, PromptEditToolOutputSender>
-  >;
-  registerPromptEditToolOutput: (
-    sessionId: string,
-    addToolOutput: PromptEditToolOutputSender
-  ) => void;
-  unregisterPromptEditToolOutput: (sessionId: string) => void;
 }
 
 /**
@@ -293,7 +282,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     routeContexts: [],
     mountedContexts: {},
     pendingPromptEditsByToolCallId: {},
-    promptEditToolOutputBySessionId: {},
     setIsOpen: (isOpen) => {
       set({ isOpen }, false, { type: "setIsOpen" });
     },
@@ -668,48 +656,17 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       );
     },
 
-    registerPromptEditToolOutput: (sessionId, addToolOutput) => {
-      set(
-        (state) => ({
-          promptEditToolOutputBySessionId: {
-            ...state.promptEditToolOutputBySessionId,
-            [sessionId]: addToolOutput,
-          },
-        }),
-        false,
-        { type: "registerPromptEditToolOutput" }
-      );
-    },
-
-    unregisterPromptEditToolOutput: (sessionId) => {
-      set(
-        (state) => {
-          if (!(sessionId in state.promptEditToolOutputBySessionId)) {
-            return state;
-          }
-          const next = { ...state.promptEditToolOutputBySessionId };
-          delete next[sessionId];
-          return { promptEditToolOutputBySessionId: next };
-        },
-        false,
-        { type: "unregisterPromptEditToolOutput" }
-      );
-    },
-
     ...initialProps,
   });
 
   return create<AgentState>()(
     persist(devtools(agentStore, { name: "agentStore" }), {
       name: "arize-phoenix-agent",
-      version: 5,
+      version: 6,
       migrate: (persisted, version) => {
         const state = persisted as Partial<AgentProps> & {
           capabilities?: Partial<AgentCapabilities>;
           observability?: Partial<AgentObservabilitySettings>;
-          pendingPromptEditsByToolCallId?: Partial<
-            Record<string, PendingPromptEdit>
-          >;
           debug?: {
             retainInactiveBashSessions?: boolean;
             dangerouslyEnableMutations?: boolean;
@@ -751,8 +708,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             ...(state.observability ?? {}),
           },
           capabilities: migratedCapabilities,
-          pendingPromptEditsByToolCallId:
-            state.pendingPromptEditsByToolCallId ?? {},
+          pendingPromptEditsByToolCallId: {},
         } as AgentState;
       },
       partialize: (state) => ({
@@ -764,7 +720,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         defaultModelConfig: state.defaultModelConfig,
         observability: state.observability,
         capabilities: state.capabilities,
-        pendingPromptEditsByToolCallId: state.pendingPromptEditsByToolCallId,
       }),
     })
   );

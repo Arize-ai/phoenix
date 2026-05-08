@@ -12,7 +12,6 @@ import { useBlocker, useSearchParams } from "react-router";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import {
-  bindPendingPromptEditActions,
   CLONE_PROMPT_INSTANCE_TOOL_NAME,
   createClonePromptInstanceClientAction,
   createEditPromptClientAction,
@@ -279,31 +278,17 @@ function PlaygroundContent() {
       EDIT_PROMPT_TOOL_NAME,
       createEditPromptClientAction({ playgroundStore, setPendingPromptEdit })
     );
-    // TODO(pending-tool-rehydration): Move this page-specific rebind loop into
-    // a generic pending-tool rehydration path driven by tool registry metadata.
-    // The playground should only register the live tool action/capability; the
-    // registry should know how to restore pending UI for edit_prompt.
-    for (const pendingEdit of Object.values(
-      agentStore.getState().pendingPromptEditsByToolCallId
-    )) {
-      if (!pendingEdit) {
-        continue;
-      }
-      setPendingPromptEdit(
-        pendingEdit.toolCallId,
-        bindPendingPromptEditActions({
-          pendingEdit,
-          playgroundStore,
-          getAddToolOutput: (sessionId) =>
-            agentStore.getState().promptEditToolOutputBySessionId[sessionId],
-          setPendingPromptEdit,
-        })
-      );
-    }
     return () => {
       unregisterClientAction(READ_PROMPT_TOOL_NAME);
       unregisterClientAction(CLONE_PROMPT_INSTANCE_TOOL_NAME);
       unregisterClientAction(EDIT_PROMPT_TOOL_NAME);
+      for (const pendingEdit of Object.values(
+        agentStore.getState().pendingPromptEditsByToolCallId
+      )) {
+        if (pendingEdit) {
+          void pendingEdit.cancel?.();
+        }
+      }
     };
   }, [agentStore, playgroundStore]);
 
