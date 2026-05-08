@@ -262,9 +262,7 @@ function formatOptimizationDirection(direction: string | null | undefined) {
   return direction.charAt(0).toUpperCase() + direction.slice(1).toLowerCase();
 }
 
-function formatCategoricalValues(
-  values: OutputConfig["values"]
-): string {
+function formatCategoricalValues(values: OutputConfig["values"]): string {
   if (!values || values.length === 0) return "—";
   return values
     .map((v) => `${v.label}${v.score != null ? ` (${v.score})` : ""}`)
