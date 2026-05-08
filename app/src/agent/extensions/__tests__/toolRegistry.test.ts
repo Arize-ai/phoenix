@@ -182,7 +182,7 @@ describe("toolRegistry", () => {
     );
   });
 
-  it("declares edit_prompt as an auto-focused tool", () => {
+  it("declares edit_prompt_instance as an auto-focused tool", () => {
     expect(getAgentToolUIBehavior(EDIT_PROMPT_TOOL_NAME)).toEqual({
       autoOpen: true,
       scrollIntoViewOnMount: true,

@@ -2,6 +2,10 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import {
+  EDIT_PROMPT_TOOL_NAME,
+  READ_PROMPT_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundPrompt";
 import { AgentProvider } from "@phoenix/contexts/AgentContext";
 
 import { ToolPart } from "../ToolPart";
@@ -29,7 +33,7 @@ function createToolPart(
   overrides: Partial<ToolInvocationPart> = {}
 ): ToolInvocationPart {
   return {
-    type: "tool-read_prompt",
+    type: `tool-${READ_PROMPT_TOOL_NAME}`,
     toolCallId: "tool-call-1",
     state: "output-available",
     input: {},
@@ -43,7 +47,7 @@ function createAutoOpenToolPart(
   overrides: Partial<ToolInvocationPart> = {}
 ): ToolInvocationPart {
   return {
-    type: "tool-edit_prompt",
+    type: `tool-${EDIT_PROMPT_TOOL_NAME}`,
     toolCallId: "tool-call-edit",
     state: "input-available",
     input: {

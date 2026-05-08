@@ -229,8 +229,8 @@ export interface AgentState extends AgentProps {
   registerClientAction: (name: string, action: AgentClientAction) => void;
   unregisterClientAction: (name: string) => void;
 
-  // -- Prompt edit approvals advertised by edit_prompt tool calls --
-  // TODO(pending-tool-rehydration): Replace this edit_prompt-specific state
+  // -- Prompt edit approvals advertised by edit_prompt_instance tool calls --
+  // TODO(pending-tool-rehydration): Replace this edit_prompt_instance-specific state
   // with a generic pending tool state map keyed by toolCallId. The tool
   // registry should own each tool's serializer and runtime rebinder.
   pendingPromptEditsByToolCallId: Partial<Record<string, PendingPromptEdit>>;

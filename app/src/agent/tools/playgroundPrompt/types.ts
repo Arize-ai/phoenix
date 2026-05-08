@@ -79,7 +79,7 @@ export type MaterializedEditPromptOperation =
 
 export type PendingPromptEdit = {
   toolCallId: string;
-  /** Agent session that owns the unresolved edit_prompt tool call. */
+  /** Agent session that owns the unresolved edit_prompt_instance tool call. */
   sessionId: string;
   instanceId: number;
   expectedRevision: string;

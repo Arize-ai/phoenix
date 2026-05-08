@@ -10,8 +10,8 @@ const EXPERIMENT_EXAMPLE = PXI_EXPERIMENT_EXAMPLES.playgroundPromptSmoke;
 const USER_PROMPT = EXPERIMENT_EXAMPLE.prompt;
 
 const JUDGE_RUBRIC = [
-  "The assistant used read_prompt to inspect the current playground state before proposing changes.",
-  "The assistant used edit_prompt to propose adding a JSON-format system message.",
+  "The assistant used read_prompt_instance to inspect the current playground state before proposing changes.",
+  "The assistant used edit_prompt_instance to propose adding a JSON-format system message.",
   "The assistant indicated it is waiting for user approval (accept/reject) before proceeding.",
   "The assistant did not claim the edit was already applied before user approval.",
 ];
@@ -23,12 +23,12 @@ const JUDGE_SYSTEM =
  * Playground prompt tools smoke test.
  *
  * This test exercises the key features of the playground prompt tools:
- * 1. read_prompt - reads the current playground prompt state
- * 2. edit_prompt - proposes edits with diff preview and waits for approval
+ * 1. read_prompt_instance - reads the current playground prompt state
+ * 2. edit_prompt_instance - proposes edits with diff preview and waits for approval
  *
  * The test verifies:
- * - PXI calls read_prompt to understand current state
- * - PXI calls edit_prompt to propose changes
+ * - PXI calls read_prompt_instance to understand current state
+ * - PXI calls edit_prompt_instance to propose changes
  * - The diff preview UI appears with Accept/Reject buttons
  * - User can accept the edit and see it applied
  */
@@ -96,12 +96,12 @@ test.describe("PXI playground prompt smoke", () => {
       await expect(messageInput).toBeVisible();
     }
 
-    // Send the prompt - don't use askAndWait since edit_prompt blocks waiting for user approval
+    // Send the prompt - don't use askAndWait since edit_prompt_instance blocks waiting for user approval
     const startedAt = Date.now();
     await page.getByLabel("Message input").fill(USER_PROMPT);
     await page.getByRole("button", { name: "Send message" }).click();
 
-    // Wait for the edit_prompt tool to show "Awaiting approval" status
+    // Wait for the edit_prompt_instance tool to show "Awaiting approval" status
     await expect(page.getByText(/awaiting approval/i).first()).toBeVisible({
       timeout: 30000,
     });
@@ -112,13 +112,17 @@ test.describe("PXI playground prompt smoke", () => {
       assertions: async () => {
         await pxi.expectNoAgentError();
 
-        // Verify read_prompt was called (visible in UI)
-        await expect(page.getByText("read_prompt").first()).toBeVisible();
-        calledTools.push("read_prompt");
+        // Verify read_prompt_instance was called (visible in UI)
+        await expect(
+          page.getByText("read_prompt_instance").first()
+        ).toBeVisible();
+        calledTools.push("read_prompt_instance");
 
-        // Verify edit_prompt was called (visible in UI)
-        await expect(page.getByText("edit_prompt").first()).toBeVisible();
-        calledTools.push("edit_prompt");
+        // Verify edit_prompt_instance was called (visible in UI)
+        await expect(
+          page.getByText("edit_prompt_instance").first()
+        ).toBeVisible();
+        calledTools.push("edit_prompt_instance");
 
         // Verify the diff preview UI appeared
         // The diff shows "Proposed diff for" header text
@@ -147,10 +151,10 @@ test.describe("PXI playground prompt smoke", () => {
       judgeInput: {
         system: JUDGE_SYSTEM,
         prompt: USER_PROMPT,
-        // For edit_prompt flow, the assistant doesn't produce a final text response
+        // For edit_prompt_instance flow, the assistant doesn't produce a final text response
         // until after user accepts/rejects, so we use a placeholder
         assistantText:
-          "Used read_prompt to inspect the playground, then edit_prompt to propose adding JSON format instruction. Awaiting user approval.",
+          "Used read_prompt_instance to inspect the playground, then edit_prompt_instance to propose adding JSON format instruction. Awaiting user approval.",
         rubric: JUDGE_RUBRIC,
       },
     });
@@ -162,7 +166,7 @@ test.describe("PXI playground prompt smoke", () => {
       record: {
         example: EXPERIMENT_EXAMPLE,
         assistantText:
-          "Used read_prompt and edit_prompt tools successfully. User accepted the edit.",
+          "Used read_prompt_instance and edit_prompt_instance tools successfully. User accepted the edit.",
         calledTools: [...new Set(calledTools)],
         url: page.url(),
         durationMs,
@@ -293,7 +297,7 @@ test.describe("PXI playground prompt smoke", () => {
     assertPxiOutcome(outcome);
   });
 
-  test("edit_prompt reject flow cancels proposed changes", async ({
+  test("edit_prompt_instance reject flow cancels proposed changes", async ({
     browserName,
     page,
     pxi,
@@ -352,12 +356,12 @@ test.describe("PXI playground prompt smoke", () => {
     await page.getByLabel("Message input").fill(rejectExample.prompt);
     await page.getByRole("button", { name: "Send message" }).click();
 
-    // Wait for the edit_prompt tool to show "Awaiting approval" status
+    // Wait for the edit_prompt_instance tool to show "Awaiting approval" status
     await expect(page.getByText(/awaiting approval/i).first()).toBeVisible({
       timeout: 30000,
     });
 
-    const calledTools: string[] = ["edit_prompt"];
+    const calledTools: string[] = ["edit_prompt_instance"];
 
     const rejectJudgeRubric = [
       "The assistant proposed an edit adding a pirate-themed system message.",
@@ -368,8 +372,10 @@ test.describe("PXI playground prompt smoke", () => {
       assertions: async () => {
         await pxi.expectNoAgentError();
 
-        // Verify edit_prompt was called
-        await expect(page.getByText("edit_prompt").first()).toBeVisible();
+        // Verify edit_prompt_instance was called
+        await expect(
+          page.getByText("edit_prompt_instance").first()
+        ).toBeVisible();
 
         // Verify diff preview appeared
         await expect(
@@ -401,7 +407,7 @@ test.describe("PXI playground prompt smoke", () => {
         system: JUDGE_SYSTEM,
         prompt: rejectExample.prompt,
         assistantText:
-          "Used edit_prompt to propose adding a pirate system message. Awaiting user approval.",
+          "Used edit_prompt_instance to propose adding a pirate system message. Awaiting user approval.",
         rubric: rejectJudgeRubric,
       },
     });
@@ -413,7 +419,7 @@ test.describe("PXI playground prompt smoke", () => {
       record: {
         example: rejectExample,
         assistantText:
-          "Used edit_prompt tool. User rejected the proposed edit.",
+          "Used edit_prompt_instance tool. User rejected the proposed edit.",
         calledTools: [...new Set(calledTools)],
         url: page.url(),
         durationMs,
@@ -426,7 +432,7 @@ test.describe("PXI playground prompt smoke", () => {
     assertPxiOutcome(outcome);
   });
 
-  test("pending edit_prompt is cancelled when leaving playground", async ({
+  test("pending edit_prompt_instance is cancelled when leaving playground", async ({
     browserName,
     page,
     pxi,
@@ -483,7 +489,7 @@ test.describe("PXI playground prompt smoke", () => {
     await expect(page.getByText(/awaiting approval/i).first()).toBeVisible({
       timeout: 30000,
     });
-    await expect(page.getByText("edit_prompt").first()).toBeVisible();
+    await expect(page.getByText("edit_prompt_instance").first()).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Accept" }).first()
     ).toBeVisible();
@@ -508,10 +514,10 @@ test.describe("PXI playground prompt smoke", () => {
         .first()
     ).toBeVisible({ timeout: 10000 });
 
-    const calledTools: string[] = ["edit_prompt"];
+    const calledTools: string[] = ["edit_prompt_instance"];
     const navigationCancelRubric = [
       "The assistant proposed a playground prompt edit for user review.",
-      "The pending edit_prompt tool call was cancelled when the user left the playground before accepting or rejecting.",
+      "The pending edit_prompt_instance tool call was cancelled when the user left the playground before accepting or rejecting.",
     ];
 
     const outcome = await evaluatePxiOutcome({
@@ -545,7 +551,7 @@ test.describe("PXI playground prompt smoke", () => {
         system: JUDGE_SYSTEM,
         prompt: cancelExample.prompt,
         assistantText:
-          "Used edit_prompt to propose adding NAVIGATION CANCEL MARKER. The user left the playground before reviewing it, so the pending tool call was cancelled with an error.",
+          "Used edit_prompt_instance to propose adding NAVIGATION CANCEL MARKER. The user left the playground before reviewing it, so the pending tool call was cancelled with an error.",
         rubric: navigationCancelRubric,
       },
     });
@@ -557,7 +563,7 @@ test.describe("PXI playground prompt smoke", () => {
       record: {
         example: cancelExample,
         assistantText:
-          "Used edit_prompt tool. Pending edit was cancelled when the user left the playground.",
+          "Used edit_prompt_instance tool. Pending edit was cancelled when the user left the playground.",
         calledTools: [...new Set(calledTools)],
         url: page.url(),
         durationMs,

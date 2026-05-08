@@ -38,7 +38,7 @@ export function bindPendingPromptEditActions({
           tool: EDIT_PROMPT_TOOL_NAME,
           toolCallId: pendingEdit.toolCallId,
           errorText:
-            "The prompt changed after this edit was proposed. Call read_prompt again before proposing another edit.",
+            "The prompt changed after this edit was proposed. Call read_prompt_instance again before proposing another edit.",
         });
         setPendingPromptEdit(pendingEdit.toolCallId, null);
         return;

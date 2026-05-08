@@ -4,6 +4,7 @@ import { shouldSendAutomaticallyAfterToolOutput } from "@phoenix/agent/chat/shou
 import {
   EDIT_PROMPT_NAVIGATION_CANCEL_ERROR,
   EDIT_PROMPT_TOOL_NAME,
+  READ_PROMPT_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPrompt";
 
 function createMessage(message: UIMessage): UIMessage {
@@ -18,7 +19,7 @@ describe("shouldSendAutomaticallyAfterToolOutput", () => {
         role: "assistant",
         parts: [
           {
-            type: "tool-read_prompt",
+            type: `tool-${READ_PROMPT_TOOL_NAME}`,
             toolCallId: "tool-call-1",
             state: "output-available",
             input: {},
@@ -38,7 +39,7 @@ describe("shouldSendAutomaticallyAfterToolOutput", () => {
         role: "assistant",
         parts: [
           {
-            type: "tool-read_prompt",
+            type: `tool-${READ_PROMPT_TOOL_NAME}`,
             toolCallId: "tool-call-1",
             state: "output-error",
             input: {},
@@ -51,7 +52,7 @@ describe("shouldSendAutomaticallyAfterToolOutput", () => {
     expect(shouldSendAutomaticallyAfterToolOutput({ messages })).toBe(true);
   });
 
-  it("does not continue after navigation-cancelled edit_prompt", () => {
+  it("does not continue after navigation-cancelled edit_prompt_instance", () => {
     const messages = [
       createMessage({
         id: "assistant-1",

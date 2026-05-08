@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic_ai.tools import ToolDefinition
 
-READ_PROMPT_TOOL_NAME = "read_prompt"
+READ_PROMPT_TOOL_NAME = "read_prompt_instance"
 
 _READ_PROMPT_TOOL_DESCRIPTION = (
     "Read the current playground prompt for one instance. Use this before editing a "

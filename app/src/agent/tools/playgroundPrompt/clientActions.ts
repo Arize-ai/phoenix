@@ -16,7 +16,7 @@ import {
 import type { PendingPromptEdit } from "./types";
 
 /**
- * Creates the client action handler for the read_prompt tool.
+ * Creates the client action handler for the read_prompt_instance tool.
  * Returns the current prompt snapshot as JSON.
  */
 export function createReadPromptClientAction({
@@ -27,7 +27,7 @@ export function createReadPromptClientAction({
   return async (input: unknown): Promise<AgentClientActionResult> => {
     const parsed = parseReadPromptInput(input);
     if (!parsed) {
-      return { ok: false, error: "Invalid read_prompt input." };
+      return { ok: false, error: "Invalid read_prompt_instance input." };
     }
     const snapshot = getPromptSnapshot({
       playgroundStore,
@@ -67,7 +67,7 @@ export function createClonePromptInstanceClientAction({
 }
 
 /**
- * Creates the client action handler for the edit_prompt tool. Validates
+ * Creates the client action handler for the edit_prompt_instance tool. Validates
  * the edit against the current revision, builds a preview, and registers
  * a pending edit for user approval before committing changes.
  */
@@ -94,7 +94,7 @@ export function createEditPromptClientAction({
     }
     const parsed = parseEditPromptInput(input);
     if (!parsed) {
-      return { ok: false, error: "Invalid edit_prompt input." };
+      return { ok: false, error: "Invalid edit_prompt_instance input." };
     }
     const before = getPromptSnapshot({
       playgroundStore,
@@ -105,7 +105,7 @@ export function createEditPromptClientAction({
       return {
         ok: false,
         error:
-          "The prompt changed since read_prompt was called. Call read_prompt again before proposing edits.",
+          "The prompt changed since read_prompt_instance was called. Call read_prompt_instance again before proposing edits.",
       };
     }
     const proposed = buildProposedPromptSnapshot({

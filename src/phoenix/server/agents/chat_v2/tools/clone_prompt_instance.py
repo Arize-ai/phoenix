@@ -15,7 +15,7 @@ _CLONE_PROMPT_INSTANCE_TOOL_DESCRIPTION = (
     "instances with the user, but pass numeric instance IDs when calling tools. The "
     "playground supports at most 4 comparison instances; this tool is rejected when "
     "4 instances already exist. The cloned instance receives fresh message IDs; call "
-    "`read_prompt` on the cloned instance before editing it."
+    "`read_prompt_instance` on the cloned instance before editing it."
 )
 
 _CLONE_PROMPT_INSTANCE_TOOL_PARAMETERS: dict[str, Any] = {

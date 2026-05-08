@@ -3,6 +3,7 @@ import { getToolName } from "ai";
 import { useEffect, useRef, useState } from "react";
 
 import { getAgentToolUIBehavior } from "@phoenix/agent/extensions/toolRegistry";
+import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
 import { Icon, Icons } from "@phoenix/components";
 
 import {
@@ -411,7 +412,7 @@ function getToolPresentation(
         details: <AskUserToolDetails part={part} />,
       };
     }
-    case "edit_prompt":
+    case EDIT_PROMPT_TOOL_NAME:
       return {
         preview: getEditPromptToolPreview(part),
         stateLabel: formatEditPromptState(part),

@@ -4,19 +4,19 @@ from typing import Any
 
 from pydantic_ai.tools import ToolDefinition
 
-EDIT_PROMPT_TOOL_NAME = "edit_prompt"
+EDIT_PROMPT_TOOL_NAME = "edit_prompt_instance"
 
 _MESSAGE_ROLE_ENUM = ["system", "user", "ai", "tool"]
 
 _EDIT_PROMPT_TOOL_DESCRIPTION = (
     "Propose edits to one playground prompt instance. This tool does not change the "
     "prompt immediately: the browser renders an inline diff and the user must accept "
-    "or reject it. Always call `read_prompt` first, then pass its `revision` as "
+    "or reject it. Always call `read_prompt_instance` first, then pass its `revision` as "
     "`expectedRevision`. Edits are rejected if the prompt changed since that read. "
-    "Use the alphabetic label from `read_prompt` (A, B, C, D) when telling the user "
+    "Use the alphabetic label from `read_prompt_instance` (A, B, C, D) when telling the user "
     "which instance is being edited, but pass the numeric `instanceId` when calling "
     "this tool. "
-    "Use message IDs from `read_prompt` for updates, deletes, insertion anchors, and "
+    "Use message IDs from `read_prompt_instance` for updates, deletes, insertion anchors, and "
     "reorders. `operations` must always be an array, even for one edit. Use camelCase "
     "field names exactly as shown. Common valid examples: "
     '{"type":"update_message","messageId":1,"content":"new text"}; '
@@ -43,7 +43,8 @@ _EDIT_PROMPT_OPERATION_SCHEMA: dict[str, Any] = {
         "messageId": {
             "type": "integer",
             "description": (
-                "Message ID from read_prompt. Required for update_message and delete_message."
+                "Message ID from read_prompt_instance. Required for update_message and "
+                "delete_message."
             ),
         },
         "afterMessageId": {
@@ -88,7 +89,7 @@ _EDIT_PROMPT_TOOL_PARAMETERS: dict[str, Any] = {
         },
         "expectedRevision": {
             "type": "string",
-            "description": "The exact revision returned by the latest `read_prompt` call.",
+            "description": "The exact revision returned by the latest `read_prompt_instance` call.",
         },
         "operations": {
             "type": "array",

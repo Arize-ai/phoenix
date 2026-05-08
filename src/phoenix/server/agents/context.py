@@ -242,9 +242,10 @@ def build_phoenix_context_user_message_content(
             "the user, and pass the corresponding numeric instance ID when calling tools"
         )
         body_lines.append(
-            "  - Use `read_prompt` before proposing edits, `clone_prompt_instance` to create "
-            "comparison variants, and `edit_prompt` to show the user an approval diff before "
-            "changing prompt messages"
+            "  - Use `read_prompt_instance` before proposing edits, "
+            "`clone_prompt_instance` to create comparison variants, and "
+            "`edit_prompt_instance` to show the user an approval diff before changing "
+            "prompt messages"
         )
         has_context = True
     if resolved.trace is not None:

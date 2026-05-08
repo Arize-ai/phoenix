@@ -32,7 +32,7 @@ export const PXI_EXPERIMENT_EXAMPLES = {
       "PXI reads the playground prompt, proposes an edit with a diff preview, and waits for user approval.",
     experimentNamePrefix: "pxi-e2e-playground-prompt-smoke",
     experimentDescription:
-      "PXI playground prompt tools smoke test: read_prompt, edit_prompt with approval flow.",
+      "PXI playground prompt tools smoke test: read_prompt_instance, edit_prompt_instance with approval flow.",
   },
   playgroundCloneSmoke: {
     id: "pxi-playground-prompt-smoke:clone-instance-v1",
@@ -52,7 +52,7 @@ export const PXI_EXPERIMENT_EXAMPLES = {
       "PXI proposes an edit that the user rejects, and the change is not applied.",
     experimentNamePrefix: "pxi-e2e-playground-reject-smoke",
     experimentDescription:
-      "PXI playground prompt tools smoke test: edit_prompt with reject flow.",
+      "PXI playground prompt tools smoke test: edit_prompt_instance with reject flow.",
   },
   playgroundNavigationCancelSmoke: {
     id: "pxi-playground-prompt-smoke:navigation-cancels-edit-v1",
@@ -62,7 +62,7 @@ export const PXI_EXPERIMENT_EXAMPLES = {
       "PXI proposes an edit, then the pending edit is cancelled when the user leaves the playground before review.",
     experimentNamePrefix: "pxi-e2e-playground-navigation-cancel-smoke",
     experimentDescription:
-      "PXI playground prompt tools smoke test: pending edit_prompt is cancelled on route navigation.",
+      "PXI playground prompt tools smoke test: pending edit_prompt_instance is cancelled on route navigation.",
   },
 } as const;
 

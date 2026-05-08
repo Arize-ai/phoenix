@@ -108,7 +108,7 @@ describe("playground prompt agent tools", () => {
     expect(playgroundStore.getState().instances).toHaveLength(4);
   });
 
-  it("queues edit_prompt until the user accepts, then applies the edit and completes the tool", async () => {
+  it("queues edit_prompt_instance until the user accepts, then applies the edit and completes the tool", async () => {
     const playgroundStore = createPlaygroundStore({
       datasetId: null,
       modelConfigByProvider: {},
@@ -269,12 +269,12 @@ describe("playground prompt agent tools", () => {
     expect(result).toEqual(
       expect.objectContaining({
         ok: false,
-        error: expect.stringContaining("read_prompt"),
+        error: expect.stringContaining("read_prompt_instance"),
       })
     );
   });
 
-  it("parses common near-miss edit_prompt inputs", async () => {
+  it("parses common near-miss edit_prompt_instance inputs", async () => {
     const playgroundStore = createPlaygroundStore({
       datasetId: null,
       modelConfigByProvider: {},
