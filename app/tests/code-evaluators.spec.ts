@@ -534,12 +534,14 @@ test.describe.serial("Code Evaluators", () => {
       .request()
       .postDataJSON() as {
       variables: {
-        input: {
-          sandboxConfigId: string | null;
-        };
+        input: Record<string, unknown>;
       };
     };
-    expect(createVersionRequestBody.variables.input.sandboxConfigId).toBeNull();
+    // Sandbox rebinding lives exclusively on patchCodeEvaluator; the version
+    // input no longer accepts a sandbox identifier. Lock that boundary in.
+    expect(createVersionRequestBody.variables.input).not.toHaveProperty(
+      "sandboxConfigId"
+    );
 
     await expect(page.getByTestId("dialog")).not.toBeVisible();
 
