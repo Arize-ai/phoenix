@@ -9,6 +9,7 @@ in the GraphQL ``SandboxBackends`` resolver.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from unittest.mock import patch
 
@@ -133,7 +134,7 @@ class TestEnsureWasmBinaryEnvVarOverride:
         monkeypatch.setenv(PHOENIX_WASM_BINARY_PATH_ENV, str(missing))
 
         with patch("phoenix.server.sandbox._download.urllib.request.urlretrieve") as mock_retrieve:
-            with pytest.raises(WASMBinaryUnavailable, match=str(missing)):
+            with pytest.raises(WASMBinaryUnavailable, match=re.escape(str(missing))):
                 ensure_wasm_binary(
                     cache_dir=tmp_path / "unused-cache",
                     expected_sha256="",
