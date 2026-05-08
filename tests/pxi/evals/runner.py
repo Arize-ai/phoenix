@@ -222,13 +222,32 @@ async def _run_async(config: ExperimentConfig) -> int:
             "started_at": datetime.now(timezone.utc).isoformat(),
         }
         print(f"Running experiment: {name}")
+        # ``run_experiment`` is invoked WITHOUT evaluators because its
+        # internal evaluator loop looks up examples by ``run["dataset_example_id"]``
+        # — which is the relay-encoded ``node_id`` — against an
+        # ``examples_by_id`` map keyed by ``example["id"]`` (the YAML
+        # stable id we uploaded). The two never match, so the in-band
+        # evaluator phase silently produces zero evaluation runs.
+        # We rewrite ``dataset_example_id`` after task runs return, then
+        # call ``evaluate_experiment`` explicitly so the lookup succeeds.
         experiment = await client.experiments.run_experiment(
             dataset=phoenix_dataset,
             task=task,
-            evaluators=cast(Any, [correct_tools_called, tool_call_args_match]),
             experiment_name=name,
             experiment_description=dataset.description,
             experiment_metadata=metadata,
+            print_summary=False,
+            concurrency=3,
+            timeout=180,
+            retries=0,
+        )
+        for task_run in experiment["task_runs"]:
+            output = task_run.get("output")
+            if isinstance(output, dict) and isinstance(output.get("stable_example_id"), str):
+                task_run["dataset_example_id"] = output["stable_example_id"]
+        experiment = await client.experiments.evaluate_experiment(
+            experiment=experiment,
+            evaluators=cast(Any, [correct_tools_called, tool_call_args_match]),
             print_summary=False,
             concurrency=3,
             timeout=180,

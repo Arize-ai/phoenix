@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from phoenix.evals import create_evaluator
+from phoenix.client.resources.experiments.evaluators import create_evaluator
 
 
 def _as_mapping(value: Any) -> Mapping[str, Any]:
