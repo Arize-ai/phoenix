@@ -25,7 +25,7 @@ export function AgentChatPanel() {
     activeSessionId,
     orderedSessions,
     chatApiUrl,
-    getSummarizeApiUrl,
+    summarizeQuery,
     menuValue,
     createSession,
     setActiveSession,
@@ -53,7 +53,7 @@ export function AgentChatPanel() {
       orderedSessions={orderedSessions}
       sessionDisplayName={sessionDisplayName}
       chatApiUrl={chatApiUrl}
-      getSummarizeApiUrl={getSummarizeApiUrl}
+      summarizeQuery={summarizeQuery}
       menuValue={menuValue}
       createSession={createSession}
       setActiveSession={setActiveSession}
@@ -70,7 +70,7 @@ function AgentChatController({
   orderedSessions,
   sessionDisplayName,
   chatApiUrl,
-  getSummarizeApiUrl,
+  summarizeQuery,
   menuValue,
   createSession,
   setActiveSession,
@@ -83,7 +83,7 @@ function AgentChatController({
   orderedSessions: ReturnType<typeof useAgentChatPanelState>["orderedSessions"];
   sessionDisplayName: string;
   chatApiUrl: string;
-  getSummarizeApiUrl: (sessionId: string) => string;
+  summarizeQuery: ReturnType<typeof useAgentChatPanelState>["summarizeQuery"];
   menuValue: ReturnType<typeof useAgentChatPanelState>["menuValue"];
   createSession: ReturnType<typeof useAgentChatPanelState>["createSession"];
   setActiveSession: ReturnType<
@@ -107,7 +107,7 @@ function AgentChatController({
   } = useAgentChat({
     sessionId: activeSessionId,
     chatApiUrl,
-    getSummarizeApiUrl,
+    summarizeQuery,
   });
 
   if (!isOpen) {

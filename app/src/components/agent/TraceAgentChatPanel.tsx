@@ -39,7 +39,7 @@ function TraceAgentChatController() {
     activeSessionId,
     orderedSessions,
     chatApiUrl,
-    getSummarizeApiUrl,
+    summarizeQuery,
     menuValue,
     createSession,
     setActiveSession,
@@ -67,7 +67,7 @@ function TraceAgentChatController() {
   } = useAgentChat({
     sessionId: activeSessionId,
     chatApiUrl,
-    getSummarizeApiUrl,
+    summarizeQuery,
   });
 
   return (

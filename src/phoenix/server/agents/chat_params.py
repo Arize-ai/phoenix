@@ -1,40 +1,26 @@
-"""Request schemas for the ``/chat`` endpoint.
+"""Request schemas for the ``/chat`` endpoints.
 
-Discriminated on ``provider_type``: ``"custom"`` selects a stored
-``GenerativeModelCustomProvider`` record; ``"builtin"`` selects a Phoenix-
-managed provider with credentials from the secret store or environment.
+The chat routes accept a discriminated payload as flat query parameters.
+``parse_chat_search_params`` is the FastAPI dependency that collects the
+flat inputs and delegates to ``ChatSearchParamsModel`` for the
+discriminator-based validation; downstream code consumes the resolved
+``ChatSearchParams`` variant directly.
 """
 
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, RootModel, field_validator
-from strawberry.relay import GlobalID
+from fastapi import HTTPException, Query
+from pydantic import BaseModel, Field, RootModel, ValidationError
 
 from phoenix.db.types.model_provider import ModelProvider
-from phoenix.server.api.types.node import from_global_id_with_expected_type
 
 
 class CustomProviderChatSearchParams(BaseModel):
-    """Chat against a stored custom provider record.
-
-    The wire format of ``provider_id`` is a relay GlobalID (e.g.
-    ``UHJvdmlkZXI6MTM=``). It is decoded to its integer node ID at
-    parse time so downstream consumers don't need to know the GlobalID
-    encoding.
-    """
+    """Chat against a stored custom provider record."""
 
     provider_type: Literal["custom"]
-    provider_id: int
+    provider_id: str
     model_name: str
-
-    @field_validator("provider_id", mode="before")
-    @classmethod
-    def _decode_global_id(cls, value: Any) -> Any:
-        if isinstance(value, str):
-            return from_global_id_with_expected_type(
-                GlobalID.from_id(value), "GenerativeModelCustomProvider"
-            )
-        return value
 
 
 class BuiltInProviderChatSearchParams(BaseModel):
@@ -59,7 +45,28 @@ ChatSearchParams = Annotated[
 
 
 class ChatSearchParamsModel(RootModel[ChatSearchParams]):
-    """Wrapper that lets FastAPI parse the discriminated union from query
-    params via ``Annotated[..., Query()]``."""
+    """Discriminator-aware wrapper used to validate the chat payload from
+    a flat dict of query parameters."""
 
     root: ChatSearchParams
+
+
+def parse_chat_search_params(
+    provider_type: Annotated[Literal["custom", "builtin"], Query()],
+    model_name: Annotated[str, Query()],
+    provider_id: Annotated[str | None, Query()] = None,
+    provider: Annotated[ModelProvider | None, Query()] = None,
+    openai_api_type: Annotated[Literal["chat_completions", "responses"], Query()] = "responses",
+) -> ChatSearchParams:
+    try:
+        return ChatSearchParamsModel.model_validate(
+            {
+                "provider_type": provider_type,
+                "model_name": model_name,
+                "provider_id": provider_id,
+                "provider": provider,
+                "openai_api_type": openai_api_type,
+            }
+        ).root
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=exc.errors()) from exc

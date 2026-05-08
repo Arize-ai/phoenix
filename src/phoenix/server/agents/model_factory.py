@@ -24,6 +24,7 @@ from pydantic import ValidationError
 from pydantic_ai.models import Model as PydanticAIModel
 from pydantic_ai.models.anthropic import AnthropicModelSettings
 from sqlalchemy.ext.asyncio import AsyncSession
+from strawberry.relay import GlobalID
 from typing_extensions import assert_never
 
 from phoenix.db import models
@@ -45,6 +46,7 @@ from phoenix.server.agents.exceptions import (
 )
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.playground_clients import _resolve_secrets
+from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.utilities.env_vars import without_env_vars
 
 
@@ -174,9 +176,13 @@ async def build_chat_model(
             recognised by this builder.
     """
     if isinstance(params, CustomProviderChatSearchParams):
+        provider_id = from_global_id_with_expected_type(
+            GlobalID.from_id(params.provider_id),
+            "GenerativeModelCustomProvider",
+        )
         provider = await session.get(
             models.GenerativeModelCustomProvider,
-            params.provider_id,
+            provider_id,
         )
         if provider is None:
             raise ProviderNotFoundError("Custom provider not found.")

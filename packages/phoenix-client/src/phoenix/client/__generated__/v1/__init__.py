@@ -74,12 +74,6 @@ class CreateSpansResponseBody(TypedDict):
     total_queued: int
 
 
-class CustomProviderChatSearchParams(TypedDict):
-    provider_id: int
-    model_name: str
-    provider_type: NotRequired[str]
-
-
 class DataUIPart(TypedDict):
     type: str
     data: Any
@@ -906,28 +900,6 @@ class AnnotateTracesRequestBody(TypedDict):
 
 class AnnotateTracesResponseBody(TypedDict):
     data: Sequence[InsertedTraceAnnotation]
-
-
-class BuiltInProviderChatSearchParams(TypedDict):
-    provider: Literal[
-        "OPENAI",
-        "AZURE_OPENAI",
-        "ANTHROPIC",
-        "GOOGLE",
-        "DEEPSEEK",
-        "XAI",
-        "OLLAMA",
-        "AWS",
-        "CEREBRAS",
-        "FIREWORKS",
-        "GROQ",
-        "MOONSHOT",
-        "PERPLEXITY",
-        "TOGETHER",
-    ]
-    model_name: str
-    provider_type: NotRequired[str]
-    openai_api_type: NotRequired[Literal["chat_completions", "responses"]]
 
 
 class CategoricalAnnotationConfig(TypedDict):

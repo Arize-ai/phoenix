@@ -2,7 +2,7 @@ import logging
 from collections.abc import AsyncIterator
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from openinference.instrumentation import using_session
 from pydantic import BaseModel, Field, field_validator
 from pydantic.types import Discriminator
@@ -23,7 +23,7 @@ from phoenix.config import (
     get_env_phoenix_agents_collector_endpoint,
 )
 from phoenix.server.agents.capabilities import AgentCapabilities
-from phoenix.server.agents.chat_params import ChatSearchParamsModel
+from phoenix.server.agents.chat_params import ChatSearchParams, parse_chat_search_params
 from phoenix.server.agents.chat_v2.dependencies import ChatDependencies
 from phoenix.server.agents.chat_v2.pxi_agent import ChatOutput, create_pxi_agent
 from phoenix.server.agents.context import (
@@ -114,13 +114,13 @@ def create_chat_v2_router(authentication_enabled: bool) -> APIRouter:
     @router.post("/chat-v2")
     async def chat_v2(
         request: Request,
-        params: Annotated[ChatSearchParamsModel, Query()],
+        params: Annotated[ChatSearchParams, Depends(parse_chat_search_params)],
         body: _RequestData,
     ) -> Response:
         try:
             async with request.app.state.db() as session:
                 model = await build_chat_model(
-                    params.root,
+                    params,
                     session=session,
                     decrypt=request.app.state.decrypt,
                 )
@@ -168,14 +168,14 @@ def create_chat_v2_router(authentication_enabled: bool) -> APIRouter:
         request: Request,
         agent_id: str,
         session_id: str,
-        params: Annotated[ChatSearchParamsModel, Query()],
+        params: Annotated[ChatSearchParams, Depends(parse_chat_search_params)],
         body: _SummarizeRequest,
     ) -> _SummarizeResponse:
         _validate_agent_id(agent_id)
         try:
             async with request.app.state.db() as session:
                 model = await build_chat_model(
-                    params.root,
+                    params,
                     session=session,
                     decrypt=request.app.state.decrypt,
                 )

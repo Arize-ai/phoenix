@@ -1,25 +1,35 @@
 import type { UIMessage } from "ai";
 import { useCallback, useRef } from "react";
 
-import { authFetch } from "@phoenix/authFetch";
+import type { paths } from "@phoenix/api/__generated__/v1";
+import { authApiFetch } from "@phoenix/api/authApiFetch";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 
+const SUMMARIZE_PATH =
+  "/agents/{agent_id}/sessions/{session_id}/summary" as const;
+
+export type SummarizeQuery =
+  paths[typeof SUMMARIZE_PATH]["post"]["parameters"]["query"];
+
 async function fetchSummary({
-  url,
+  sessionId,
+  summarizeQuery,
   messages,
 }: {
-  url: string;
+  sessionId: string;
+  summarizeQuery: SummarizeQuery;
   messages: UIMessage[];
 }): Promise<string> {
-  const response = await authFetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages }),
+  const { data, response } = await authApiFetch.POST(SUMMARIZE_PATH, {
+    params: {
+      path: { agent_id: "assistant", session_id: sessionId },
+      query: summarizeQuery,
+    },
+    body: { messages },
   });
-  if (!response.ok) {
+  if (!response.ok || !data) {
     throw new Error(`summarize request failed: ${response.status}`);
   }
-  const data = (await response.json()) as { summary: string };
   return data.summary.trim();
 }
 
@@ -32,9 +42,9 @@ async function fetchSummary({
  * structured-output tool schema. Fire-and-forget so the UI never blocks on it.
  */
 export function useGenerateSessionSummary({
-  getSummarizeApiUrl,
+  summarizeQuery,
 }: {
-  getSummarizeApiUrl: (sessionId: string) => string;
+  summarizeQuery: SummarizeQuery;
 }) {
   const store = useAgentStore();
   const requestedSessionsRef = useRef(new Set<string>());
@@ -52,7 +62,8 @@ export function useGenerateSessionSummary({
       requestedSessionsRef.current.add(sessionId);
 
       void fetchSummary({
-        url: getSummarizeApiUrl(sessionId),
+        sessionId,
+        summarizeQuery,
         messages: session.messages,
       })
         .then((summary) => {
@@ -64,7 +75,7 @@ export function useGenerateSessionSummary({
           requestedSessionsRef.current.delete(sessionId);
         });
     },
-    [getSummarizeApiUrl, store]
+    [summarizeQuery, store]
   );
 
   return { generateSummary };

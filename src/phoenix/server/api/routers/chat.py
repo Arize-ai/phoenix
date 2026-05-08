@@ -1,10 +1,10 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from starlette.requests import Request
 from starlette.responses import Response
 
-from phoenix.server.agents.chat_params import ChatSearchParamsModel
+from phoenix.server.agents.chat_params import ChatSearchParams, parse_chat_search_params
 from phoenix.server.agents.context import (
     ToolExecutionEnv,
     build_phoenix_context_user_message_content,
@@ -25,12 +25,12 @@ def create_chat_router(authentication_enabled: bool) -> APIRouter:
     @router.post("/chat")
     async def chat(
         request: Request,
-        params: Annotated[ChatSearchParamsModel, Query()],
+        params: Annotated[ChatSearchParams, Depends(parse_chat_search_params)],
     ) -> Response:
         try:
             async with request.app.state.db() as session:
                 model = await build_chat_model(
-                    params.root,
+                    params,
                     session=session,
                     decrypt=request.app.state.decrypt,
                 )

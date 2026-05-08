@@ -1521,31 +1521,6 @@ export interface components {
             /** Timezone */
             timeZone: string;
         };
-        /**
-         * BuiltInProviderChatSearchParams
-         * @description Chat against a Phoenix built-in provider.
-         *
-         *     Credentials and connection details (base URL, Azure endpoint, AWS
-         *     region) are resolved from the secret store first and the process
-         *     environment second. ``openai_api_type`` is honoured by the OpenAI and
-         *     Azure OpenAI branches; other providers ignore it.
-         */
-        BuiltInProviderChatSearchParams: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            provider_type: "builtin";
-            provider: components["schemas"]["ModelProvider"];
-            /** Model Name */
-            model_name: string;
-            /**
-             * Openai Api Type
-             * @default responses
-             * @enum {string}
-             */
-            openai_api_type?: "chat_completions" | "responses";
-        };
         /** CategoricalAnnotationConfig */
         CategoricalAnnotationConfig: {
             /** Name */
@@ -1799,26 +1774,6 @@ export interface components {
         CreateUserResponseBody: {
             /** Data */
             data: components["schemas"]["LocalUser"] | components["schemas"]["OAuth2User"] | components["schemas"]["LDAPUser"];
-        };
-        /**
-         * CustomProviderChatSearchParams
-         * @description Chat against a stored custom provider record.
-         *
-         *     The wire format of ``provider_id`` is a relay GlobalID (e.g.
-         *     ``UHJvdmlkZXI6MTM=``). It is decoded to its integer node ID at
-         *     parse time so downstream consumers don't need to know the GlobalID
-         *     encoding.
-         */
-        CustomProviderChatSearchParams: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            provider_type: "custom";
-            /** Provider Id */
-            provider_id: number;
-            /** Model Name */
-            model_name: string;
         };
         /**
          * DataUIPart
@@ -8758,7 +8713,11 @@ export interface operations {
     chat_chat_post: {
         parameters: {
             query: {
-                root: components["schemas"]["CustomProviderChatSearchParams"] | components["schemas"]["BuiltInProviderChatSearchParams"];
+                provider_type: "custom" | "builtin";
+                model_name: string;
+                provider_id?: string | null;
+                provider?: components["schemas"]["ModelProvider"] | null;
+                openai_api_type?: "chat_completions" | "responses";
             };
             header?: never;
             path?: never;
@@ -8789,7 +8748,11 @@ export interface operations {
     chat_v2_chat_v2_post: {
         parameters: {
             query: {
-                root: components["schemas"]["CustomProviderChatSearchParams"] | components["schemas"]["BuiltInProviderChatSearchParams"];
+                provider_type: "custom" | "builtin";
+                model_name: string;
+                provider_id?: string | null;
+                provider?: components["schemas"]["ModelProvider"] | null;
+                openai_api_type?: "chat_completions" | "responses";
             };
             header?: never;
             path?: never;
@@ -8824,7 +8787,11 @@ export interface operations {
     summarize_endpoint_agents__agent_id__sessions__session_id__summary_post: {
         parameters: {
             query: {
-                root: components["schemas"]["CustomProviderChatSearchParams"] | components["schemas"]["BuiltInProviderChatSearchParams"];
+                provider_type: "custom" | "builtin";
+                model_name: string;
+                provider_id?: string | null;
+                provider?: components["schemas"]["ModelProvider"] | null;
+                openai_api_type?: "chat_completions" | "responses";
             };
             header?: never;
             path: {
