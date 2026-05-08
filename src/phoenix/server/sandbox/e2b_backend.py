@@ -39,13 +39,19 @@ class E2BSandboxBackend(SandboxBackend):
     def __init__(
         self,
         api_key: str,
-        template: str = "base",
+        template: Optional[str] = None,
         metadata: Optional[str] = None,
         user_env: Optional[dict[str, str]] = None,
         allow_internet_access: bool = True,
         packages: Optional[list[str]] = None,
     ) -> None:
         self._api_key = api_key
+        # ``template=None`` lets ``AsyncSandbox.create()`` fall back to its
+        # ``default_template`` (``code-interpreter-v1``), which is the only
+        # image that runs the Jupyter server ``run_code()`` POSTs to on
+        # ``JUPYTER_PORT`` (49999). The previously hard-coded ``"base"`` template
+        # is the generic E2B image and does NOT run Jupyter, so every call
+        # surfaced as ``502 The sandbox is running but port is not open``.
         self._template = template
         self._metadata = metadata
         self._user_env: dict[str, str] = user_env or {}
@@ -68,9 +74,10 @@ class E2BSandboxBackend(SandboxBackend):
         """
         kwargs: dict[str, Any] = {
             "api_key": self._api_key,
-            "template": self._template,
             "allow_internet_access": self._allow_internet_access,
         }
+        if self._template is not None:
+            kwargs["template"] = self._template
         if self._metadata is not None:
             kwargs["metadata"] = {"info": self._metadata}
         return kwargs
@@ -207,7 +214,7 @@ class E2BAdapter(SandboxAdapter):
         packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
         return E2BSandboxBackend(
             api_key=api_key,
-            template="base",
+            template=None,
             metadata=None,
             user_env=user_env,
             allow_internet_access=allow_internet_access,
