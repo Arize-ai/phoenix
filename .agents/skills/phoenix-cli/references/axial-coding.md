@@ -36,7 +36,7 @@ Whichever level you write the axial label on, write the matching `coding_session
 3. **Pattern** — group notes with common themes
 4. **Name** — create actionable category names
 5. **Attribute** — decide what level each category lives at; an axial label can move up (trace → session) or down (trace → span) from the source note's level to the level the pattern actually implicates
-6. **Record** — `px {trace,span,session} annotate ... --name axial_coding_category --label <cat> --identifier "$IDENT"`, capture the returned `id`, append a JSONL line to `$AXIAL_SIDECAR`, then write the matching `coding_session_id` UI-filter annotation
+6. **Record** — `px {trace,span,session} annotate ... --name axial_coding_category --label <cat> --identifier "$IDENT"`, add/update one JSONL sidecar row for the label, then write the matching `coding_session_id` UI-filter annotation
 7. **Quantify** — count failures per category from `$AXIAL_SIDECAR`
 
 ## Example Taxonomy
@@ -64,17 +64,7 @@ failure_taxonomy:
 
 ### 1. Gather — read this run's open-coding notes from the sidecar
 
-Open-coding wrote one JSONL line per note to `$NOTES_SIDECAR` (`.px/coding/${SLUG}.jsonl`). Read it directly — no server round-trip is needed:
-
-```bash
-# All notes for this run
-jq -c '.' "$NOTES_SIDECAR"
-
-# Just trace-level notes, in a shape close to the old REST output
-jq -c 'select(.entity_kind == "trace") | {trace_id: .entity_id, note}' "$NOTES_SIDECAR"
-```
-
-For span- or session-level notes, swap `entity_kind == "trace"` for `"span"` / `"session"` and project `entity_id` to `span_id` / `session_id` if the downstream consumer expects it.
+Open-coding wrote one JSONL line per note to `$NOTES_SIDECAR` (`.px/coding/${SLUG}.jsonl`). Read it directly — no server round-trip is needed. Each line has `entity_kind`, `entity_id`, `note`, `identifier`, and `ts`. If the same `(entity_kind, entity_id)` appears more than once, use the newest `ts` as the current note.
 
 **Missing-file behavior.** An absent `$NOTES_SIDECAR` means open coding hasn't run for this coding identifier in this CWD — stop and run open coding first, do not silently treat it as zero notes.
 
@@ -88,41 +78,22 @@ Review the note text collected above. Manually identify recurring themes and dra
 
 ### 3. Record — write axial-coding labels
 
-Write one annotation per entity using `px {trace,span,session} annotate`, passing `--identifier "$IDENT"` explicitly on every call, and append a JSONL line to `$AXIAL_SIDECAR` so [Quantify](#4-quantify--count-per-category-from-the-axial-sidecar) below can count without a server round-trip. The level can differ from where the source note lives — see [Recording](#recording) below.
+Write one annotation per entity using `px {trace,span,session} annotate`, passing `--identifier "$IDENT"` explicitly on every call, and record one JSONL row in `$AXIAL_SIDECAR` so [Quantify](#4-quantify--count-per-category-from-the-axial-sidecar) below can count without a server round-trip. The level can differ from where the source note lives — see [Recording](#recording) below.
 
 ### 4. Quantify — count per category from the axial sidecar
 
-Counts come from `$AXIAL_SIDECAR` (populated by [Record](#3-record--write-axial-coding-labels)). No server query, no project-wide history mixed in — the sidecar holds exactly the labels this run wrote.
-
-```bash
-jq -s '
-  group_by(.axial_label)
-  | map({ label: .[0].axial_label, count: length })
-  | sort_by(-.count)
-' "$AXIAL_SIDECAR"
-```
-
-Filter by `entity_kind` first if you want per-level counts:
-
-```bash
-jq -s '
-  map(select(.entity_kind == "trace"))
-  | group_by(.axial_label)
-  | map({ label: .[0].axial_label, count: length })
-  | sort_by(-.count)
-' "$AXIAL_SIDECAR"
-```
+Counts come from `$AXIAL_SIDECAR` (populated by [Record](#3-record--write-axial-coding-labels)). No server query, no project-wide history mixed in — the sidecar holds exactly the labels this run wrote. Count the current rows by `axial_label`; if an entity appears more than once, use the newest `ts`.
 
 Same missing-file and malformed-line rules as `$NOTES_SIDECAR`: a missing axial sidecar means no labels have been written yet (run [Record](#3-record--write-axial-coding-labels)); malformed lines are line-local — fix or drop, don't edit neighbors.
 
 ## Recording
 
-Use the matching annotate command for the level the **label** belongs at — which may differ from where the source note lives (see [Choosing the unit](#choosing-the-unit)). Every call carries `--identifier "$IDENT"` and `--format raw --no-progress`, and is paired with a JSONL append to `$AXIAL_SIDECAR`.
+Use the matching annotate command for the level the **label** belongs at — which may differ from where the source note lives (see [Choosing the unit](#choosing-the-unit)). Every call carries `--identifier "$IDENT"` and `--format raw --no-progress`, and is paired with a JSONL row in `$AXIAL_SIDECAR`.
 
 **Axial sidecar JSONL line shape (one per `annotate`):**
 
 ```json
-{"entity_kind":"trace","entity_id":"<trace-id>","annotation_name":"axial_coding_category","axial_label":"<label>","annotation_id":"<id from annotate response>","identifier":"<original IDENT, unsanitized>","ts":"<ISO-8601 UTC>"}
+{"entity_kind":"trace","entity_id":"<trace-id>","annotation_name":"axial_coding_category","axial_label":"<label>","explanation":"<optional explanation>","identifier":"<original IDENT, unsanitized>","ts":"<ISO-8601 UTC>"}
 ```
 
 Fields:
@@ -130,60 +101,27 @@ Fields:
 - `entity_id` — the entity argument passed to `annotate`
 - `annotation_name` — always `"axial_coding_category"` for axial labels (the workflow's reserved annotation name)
 - `axial_label` — the `--label` value, verbatim; this is what [Quantify](#4-quantify--count-per-category-from-the-axial-sidecar) groups on
-- `annotation_id` — the `id` field from the `annotate --format raw` response (server-assigned)
+- `explanation` — optional, but include it when the `annotate` call used `--explanation`
 - `identifier` — the **original** `$IDENT` value, unsanitized; the sanitized form lives only in the filename
 - `ts` — ISO-8601 UTC timestamp of the local append
 
+If you revise a label for the same entity under the same coding identifier, either replace that row or append a newer row. When duplicate `(entity_kind, entity_id, annotation_name)` rows exist, the newest `ts` is the current label. This matches the server upsert behavior of `annotate --identifier`.
+
+Minimal trace example:
+
 ```bash
-# Trace-level label — the trace as a whole exhibits the failure
-ANN_ID=$(px trace annotate <trace-id> \
+px trace annotate <trace-id> \
   --name axial_coding_category \
   --label answered_off_topic \
   --explanation "asked about returns; answer covered shipping" \
   --annotator-kind HUMAN \
   --identifier "$IDENT" \
-  --format raw --no-progress \
-  | jq -r '.id')
-jq -nc --arg eid "<trace-id>" --arg id "$ANN_ID" --arg ident "$IDENT" \
-  --arg label "answered_off_topic" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  '{entity_kind:"trace", entity_id:$eid, annotation_name:"axial_coding_category", axial_label:$label, annotation_id:$id, identifier:$ident, ts:$ts}' \
-  >> "$AXIAL_SIDECAR" \
-  || { echo "FATAL: server POST succeeded but axial sidecar append failed; re-run annotate to resync"; exit 1; }
-
-# Span-level label — the pattern implicates a specific component
-ANN_ID=$(px span annotate <span-id> \
-  --name axial_coding_category \
-  --label retrieval_off_topic \
-  --explanation "retrieved shipping docs for a returns query" \
-  --annotator-kind HUMAN \
-  --identifier "$IDENT" \
-  --format raw --no-progress \
-  | jq -r '.id')
-jq -nc --arg eid "<span-id>" --arg id "$ANN_ID" --arg ident "$IDENT" \
-  --arg label "retrieval_off_topic" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  '{entity_kind:"span", entity_id:$eid, annotation_name:"axial_coding_category", axial_label:$label, annotation_id:$id, identifier:$ident, ts:$ts}' \
-  >> "$AXIAL_SIDECAR" \
-  || { echo "FATAL: server POST succeeded but axial sidecar append failed; re-run annotate to resync"; exit 1; }
-
-# Session-level label — the failure is a trajectory across turns
-ANN_ID=$(px session annotate <session-id> \
-  --name axial_coding_category \
-  --label cross_turn_context_loss \
-  --explanation "agent dropped the user's stated dietary restriction by turn 4" \
-  --annotator-kind HUMAN \
-  --identifier "$IDENT" \
-  --format raw --no-progress \
-  | jq -r '.id')
-jq -nc --arg eid "<session-id>" --arg id "$ANN_ID" --arg ident "$IDENT" \
-  --arg label "cross_turn_context_loss" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  '{entity_kind:"session", entity_id:$eid, annotation_name:"axial_coding_category", axial_label:$label, annotation_id:$id, identifier:$ident, ts:$ts}' \
-  >> "$AXIAL_SIDECAR" \
-  || { echo "FATAL: server POST succeeded but axial sidecar append failed; re-run annotate to resync"; exit 1; }
+  --format raw --no-progress
 ```
 
-Accepted flags: `--name`, `--label`, `--score`, `--explanation`, `--annotator-kind` (`HUMAN`, `LLM`, `CODE`), `--identifier`. There is no `--sync` flag — the CLI passes `sync=true` itself.
+Then add a matching JSONL row to `$AXIAL_SIDECAR` using the line shape above. For span or session labels, change `entity_kind`, `entity_id`, and the `px` subcommand accordingly.
 
-**Sidecar-write failure protocol.** If the local append fails after the server POST succeeded, stop with a fatal error. Recovery: re-run the same `annotate` call. The server upsert is idempotent on `(entity_id, name='axial_coding_category', identifier)`, so the second POST overwrites the first row in place; the agent then re-attempts the sidecar append.
+Accepted flags: `--name`, `--label`, `--score`, `--explanation`, `--annotator-kind` (`HUMAN`, `LLM`, `CODE`), `--identifier`. There is no `--sync` flag — the CLI passes `sync=true` itself.
 
 ### UI-filter annotation
 
@@ -198,37 +136,9 @@ px trace annotate <trace-id> \
 # or px span annotate / px session annotate at matching levels
 ```
 
-### Bulk recording
+### Recording discipline
 
-Axial coding categorizes the entities you took notes on during open coding. Do **not** filter by `--status-code ERROR` — that captures only spans where Python raised, which excludes most failure modes (hallucination, wrong tone, retrieval miss). See [open-coding.md](open-coding.md#inspection) for the full reasoning.
-
-The notes sidecar is the source of entities to label — read it directly:
-
-```bash
-# Bulk-label traces that already have open-coding notes from THIS run
-jq -r 'select(.entity_kind == "trace") | .entity_id' "$NOTES_SIDECAR" \
-  | sort -u \
-  | while read tid; do
-      ANN_ID=$(px trace annotate "$tid" \
-        --name axial_coding_category \
-        --label answered_off_topic \
-        --annotator-kind HUMAN \
-        --identifier "$IDENT" \
-        --format raw --no-progress \
-        | jq -r '.id')
-      jq -nc --arg eid "$tid" --arg id "$ANN_ID" --arg ident "$IDENT" \
-        --arg label "answered_off_topic" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-        '{entity_kind:"trace", entity_id:$eid, annotation_name:"axial_coding_category", axial_label:$label, annotation_id:$id, identifier:$ident, ts:$ts}' \
-        >> "$AXIAL_SIDECAR" \
-        || { echo "FATAL: axial sidecar append failed after server POST for $tid; re-run annotate"; exit 1; }
-      px trace annotate "$tid" \
-        --name coding_session_id \
-        --label "$IDENT" \
-        --identifier "$IDENT"
-    done
-```
-
-The same pattern works for span- or session-level notes — swap `entity_kind == "trace"` for `"span"` / `"session"` in the `jq` selector and `px trace` for `px span` / `px session` in the body.
+Axial coding categorizes the entities you took notes on during open coding. Use `$NOTES_SIDECAR` as the source of candidate entities and write labels only after reading the note text and surrounding trace/span/session context. Do **not** filter by `--status-code ERROR` — that captures only spans where Python raised, which excludes most failure modes (hallucination, wrong tone, retrieval miss). See [open-coding.md](open-coding.md#inspection) for the full reasoning.
 
 **Fallback paths:** REST `POST /v1/{trace,span,session}_annotations` and `@arizeai/phoenix-client`'s `addSpanAnnotation` / `addSessionAnnotation` (no `addTraceAnnotation` is exported today — use REST or `px trace annotate`). The GraphQL endpoint rejects mutations.
 
@@ -301,7 +211,7 @@ A useful category is:
 
 - **One coding identifier per run** — every `annotate` call and every sidecar line carries `$IDENT`, the same value open coding used; never mint a new id mid-run.
 - **Pass `--identifier` explicitly** — every `px` call gets `--identifier "$IDENT"`; do not rely on inherited env vars.
-- **Sidecar reads, server writes** — Gather and Quantify read `$NOTES_SIDECAR` and `$AXIAL_SIDECAR` locally; Record writes to the server AND appends to the sidecar.
+- **Sidecar reads, server writes** — Gather and Quantify read `$NOTES_SIDECAR` and `$AXIAL_SIDECAR` locally; Record writes to the server and updates the sidecar. If an entity appears more than once, the newest `ts` wins.
 - **MECE** — Each failure fits ONE category.
 - **Actionable** — Categories suggest fixes.
 - **Bottom-up** — Let categories emerge from data.

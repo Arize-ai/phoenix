@@ -84,7 +84,7 @@ If `$SIDECAR` already exists, append a disambiguator (`-v2`, `-dustin`, etc.) to
 3. **Inspect** — fetch one entity at the chosen unit (trace / span / session)
 4. **Read** — input, output, exceptions, tool calls, retrieved context, and (at session level) the trajectory across child traces
 5. **Note** — write one specific sentence describing what went wrong (or skip if correct)
-6. **Record** — `px {trace,span,session} add-note <id> --text "..." --identifier "$IDENT" --format raw --no-progress`, capture the returned `id`, append a JSONL line to the sidecar, then write the matching [UI-filter annotation](#ui-filter-annotation) — see [Recording Notes](#recording-notes) for the full pattern.
+6. **Record** — `px {trace,span,session} add-note <id> --text "..." --identifier "$IDENT" --format raw --no-progress`, add/update one JSONL sidecar row for the note, then write the matching [UI-filter annotation](#ui-filter-annotation)
 7. **Iterate** — move to the next entity; repeat until the sample is exhausted or saturation hits
 8. **Hand off** — axial coding reads the sidecar directly (no shared shell required); see [Wrapping up](#wrapping-up) for the UI link
 
@@ -130,101 +130,39 @@ Always pipe through `jq` with `--format raw --no-progress` when scripting.
 
 ## Recording Notes
 
-Use the `add-note` command matching the unit committed in [Choosing the unit](#choosing-the-unit-of-analysis): `px trace add-note`, `px span add-note`, or `px session add-note`. Every call carries an explicit `--identifier "$IDENT"` and `--format raw --no-progress` so the response can be parsed.
+Use the `add-note` command matching the unit committed in [Choosing the unit](#choosing-the-unit-of-analysis): `px trace add-note`, `px span add-note`, or `px session add-note`. Every call carries an explicit `--identifier "$IDENT"` and `--format raw --no-progress`.
 
 Passing `--identifier "$IDENT"` does two things:
 - Tags the note row with the coding identifier on the server, so the cleanup `delete-annotations --identifier "$IDENT" --all` sweep removes every artifact this run produced.
 - Makes the call **upsert** on `(entity_id, name='note', identifier)` — re-running open coding on the same entity within the same coding identifier overwrites the prior note instead of appending a second row. (Without `--identifier`, the server stamps a unique `px-{kind}-note:<uuid>` and each call appends.)
 
-After every successful `add-note`, capture the returned `id` and append one JSONL line to the local sidecar `$SIDECAR`. The sidecar is what axial coding reads — no server round-trip.
+After every successful `add-note`, record one JSONL line in `$SIDECAR`. The sidecar is what axial coding reads — no server round-trip. It is a content handoff, not code: keep it readable, inspect it directly, and use whatever simple tooling is convenient.
 
 **Sidecar JSONL line shape (one per `add-note`):**
 
 ```json
-{"entity_kind":"trace","entity_id":"<trace-id>","note":"<text>","annotation_id":"<id from add-note response>","identifier":"<original IDENT, unsanitized>","ts":"<ISO-8601 UTC>"}
+{"entity_kind":"trace","entity_id":"<trace-id>","note":"<text>","identifier":"<original IDENT, unsanitized>","ts":"<ISO-8601 UTC>"}
 ```
 
 Fields:
 - `entity_kind` — `"trace"`, `"span"`, or `"session"` (matches the `add-note` subcommand used)
 - `entity_id` — the entity argument passed to `add-note` (trace id, span id, or session id)
 - `note` — the `--text` value, verbatim
-- `annotation_id` — the `id` field from the `add-note --format raw` response (server-assigned)
 - `identifier` — the **original** `$IDENT` value, unsanitized; the sanitized form lives only in the filename
 - `ts` — ISO-8601 UTC timestamp (e.g. `2026-05-08T17:14:09Z`) of the local append
 
-Examples — each pairs one `px ... add-note` with one sidecar append:
+If you revise a note for the same entity under the same coding identifier, either replace that row or append a newer row. When duplicate `(entity_kind, entity_id)` rows exist, the newest `ts` is the current note. This matches the server upsert behavior of `add-note --identifier`.
+
+Minimal trace example:
 
 ```bash
-# Trace-level note — single-call failures
-ANN_ID=$(px trace add-note <trace-id> \
+px trace add-note <trace-id> \
   --text "Asked about returns; final answer covered shipping policy instead" \
   --identifier "$IDENT" \
-  --format raw --no-progress \
-  | jq -r '.id')
-jq -nc --arg eid "<trace-id>" --arg id "$ANN_ID" --arg ident "$IDENT" \
-  --arg note "Asked about returns; final answer covered shipping policy instead" \
-  --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  '{entity_kind:"trace", entity_id:$eid, note:$note, annotation_id:$id, identifier:$ident, ts:$ts}' \
-  >> "$SIDECAR" || { echo "FATAL: server POST succeeded but sidecar append to $SIDECAR failed; re-run add-note to resync"; exit 1; }
-
-# Span-level note — mechanical or attributable-on-sight failures
-ANN_ID=$(px span add-note <span-id> \
-  --text "Tool call returned 500 — vendor API unreachable" \
-  --identifier "$IDENT" \
-  --format raw --no-progress \
-  | jq -r '.id')
-jq -nc --arg eid "<span-id>" --arg id "$ANN_ID" --arg ident "$IDENT" \
-  --arg note "Tool call returned 500 — vendor API unreachable" \
-  --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  '{entity_kind:"span", entity_id:$eid, note:$note, annotation_id:$id, identifier:$ident, ts:$ts}' \
-  >> "$SIDECAR" || { echo "FATAL: server POST succeeded but sidecar append to $SIDECAR failed; re-run add-note to resync"; exit 1; }
-
-# Session-level note — trajectory failures across multiple turns
-ANN_ID=$(px session add-note <session-id> \
-  --text "Agent forgot the user's stated dietary restriction by turn 4 and recommended a dish that violated it" \
-  --identifier "$IDENT" \
-  --format raw --no-progress \
-  | jq -r '.id')
-jq -nc --arg eid "<session-id>" --arg id "$ANN_ID" --arg ident "$IDENT" \
-  --arg note "Agent forgot the user's stated dietary restriction by turn 4 and recommended a dish that violated it" \
-  --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  '{entity_kind:"session", entity_id:$eid, note:$note, annotation_id:$id, identifier:$ident, ts:$ts}' \
-  >> "$SIDECAR" || { echo "FATAL: server POST succeeded but sidecar append to $SIDECAR failed; re-run add-note to resync"; exit 1; }
+  --format raw --no-progress
 ```
 
-### Sidecar-write failure protocol
-
-If the local append fails **after** the server POST already succeeded, the skill **stops with a fatal error** and reports the inconsistency. Do not silently swallow the failure — axial coding would otherwise miss the note. Recovery: re-run the same `add-note` call. The server upsert is idempotent on `(entity_id, name='note', identifier)`, so the second POST overwrites the first server row in place; the agent then re-attempts the sidecar append. The sidecar resyncs on retry.
-
-Interactive loop — walks traces; for span or session units, swap `px trace` for `px span` / `px session` and the JSON path (`.traceId` → `.context.span_id` / `.session_id`) accordingly:
-
-```bash
-px trace list --last-n-minutes 60 --limit 50 --format raw --no-progress \
-  | jq -r '.[].traceId' \
-  | while read tid; do
-      echo "── trace $tid ──"
-      px trace get "$tid" --format raw | jq '
-        {input: .rootSpan.attributes["input.value"],
-         output: .rootSpan.attributes["output.value"]}
-      '
-      read -p "Note for $tid (blank to skip): " note
-      [ -z "$note" ] && continue
-      ANN_ID=$(px trace add-note "$tid" \
-        --text "$note" \
-        --identifier "$IDENT" \
-        --format raw --no-progress \
-        | jq -r '.id')
-      jq -nc --arg eid "$tid" --arg id "$ANN_ID" --arg ident "$IDENT" \
-        --arg note "$note" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-        '{entity_kind:"trace", entity_id:$eid, note:$note, annotation_id:$id, identifier:$ident, ts:$ts}' \
-        >> "$SIDECAR" \
-        || { echo "FATAL: sidecar append failed after server POST for $tid; re-run add-note"; exit 1; }
-      px trace annotate "$tid" \
-        --name coding_session_id \
-        --label "$IDENT" \
-        --identifier "$IDENT"
-    done
-```
+Then add a matching JSONL row to `$SIDECAR` using the line shape above. For span or session notes, change `entity_kind`, `entity_id`, and the `px` subcommand accordingly.
 
 Bulk auto-tagging by status code (e.g. `px span list --status-code ERROR | xargs ... add-note "error"`) is **not open coding** — open coding is manual, observation-grounded, and ranges over all failure modes, not just spans where Python raised. Skip the bulk-by-status-code shortcut; it produces fewer, less informative notes than walking traces.
 
@@ -276,20 +214,7 @@ At saturation, move on to [axial coding](axial-coding.md) to group what you have
 
 ## Listing what this run produced
 
-The local sidecar is the source of truth for notes written this run — read it directly:
-
-```bash
-# All notes captured this run, oldest first
-cat "$SIDECAR" | jq -s 'sort_by(.ts)'
-
-# Just the trace-level notes
-jq -c 'select(.entity_kind == "trace")' "$SIDECAR"
-
-# Distinct entities touched (e.g. for handoff to axial coding)
-jq -r '.entity_id' "$SIDECAR" | sort -u
-```
-
-Malformed lines: each line is independently parseable JSON. If `jq` fails on a line, fix or drop that line — do not edit other lines. Missing-file behavior: an absent sidecar means open coding has not yet started for this coding identifier; treat that as zero notes, not an error.
+The local sidecar is the handoff record for notes written this run. Inspect it directly. Each line is one note record; if the same entity appears more than once, use the newest `ts` as the current note. Missing-file behavior: an absent sidecar means open coding has not yet started for this coding identifier; treat that as zero notes, not an error. Malformed lines are line-local: fix or drop the bad line without editing neighbors.
 
 ## Wrapping up
 
@@ -320,7 +245,7 @@ Each `delete-annotations` call covers notes, structured annotations, and the `co
 
 - **One coding identifier per run** — every server artifact and every sidecar line carries the same `$IDENT`; never mint a per-stage id.
 - **Pass `--identifier` explicitly** — every `px` call gets `--identifier "$IDENT"`; do not rely on inherited env vars across harness-spawned subshells.
-- **Sidecar is source of truth for notes** — axial coding reads from the local sidecar, not from the server; a note that exists server-side but is missing from the sidecar is a fatal inconsistency, not a recoverable lag.
+- **Sidecar is the handoff record for notes** — axial coding reads from the local sidecar, not from the server; if an entity appears more than once, the newest `ts` wins.
 - **Free-form over structured** — do not pre-commit to a taxonomy during open coding; categories emerge in axial coding.
 - **Specific over general** — quote or paraphrase the observed failure; vague labels ("bad response") carry no signal.
 - **Context before labeling** — inspect input, output, and retrieved context before writing any note.
