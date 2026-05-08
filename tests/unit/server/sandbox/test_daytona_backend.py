@@ -10,7 +10,7 @@ import pytest
 
 
 class _CodeRunParams:
-    """Minimal stand-in for daytona_sdk.common.process.CodeRunParams."""
+    """Minimal stand-in for daytona_sdk.CodeRunParams."""
 
     def __init__(
         self,
@@ -21,19 +21,51 @@ class _CodeRunParams:
         self.env = env
 
 
+class _CreateSandboxFromSnapshotParams:
+    """Minimal stand-in for daytona_sdk.CreateSandboxFromSnapshotParams."""
+
+    def __init__(
+        self,
+        language: str | None = None,
+        network_block_all: bool | None = None,
+        **kwargs: object,
+    ) -> None:
+        self.language = language
+        self.network_block_all = network_block_all
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+
+class _DaytonaConfig:
+    """Minimal stand-in for daytona_sdk.DaytonaConfig."""
+
+    def __init__(
+        self,
+        api_key: str | None = None,
+        api_url: str | None = None,
+        **kwargs: object,
+    ) -> None:
+        self.api_key = api_key
+        self.api_url = api_url
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+
 def _make_daytona_mocks() -> tuple[MagicMock, MagicMock]:
-    """Return (daytona_sdk mock, daytona_sdk.common.process mock)."""
+    """Return (daytona_sdk mock, daytona_sdk.common.process mock — kept for legacy import path)."""
     process_mod = MagicMock()
     process_mod.CodeRunParams = _CodeRunParams
 
     daytona_mod = MagicMock()
+    daytona_mod.CodeRunParams = _CodeRunParams
+    daytona_mod.DaytonaConfig = _DaytonaConfig
+    daytona_mod.CreateSandboxFromSnapshotParams = _CreateSandboxFromSnapshotParams
+
     workspace = MagicMock()
-    workspace.process.code_run = AsyncMock(
-        return_value=MagicMock(stdout="ok", stderr="", exit_code=0)
-    )
-    client = daytona_mod.Daytona.return_value
+    workspace.process.code_run = AsyncMock(return_value=MagicMock(result="ok", exit_code=0))
+    client = daytona_mod.AsyncDaytona.return_value
     client.create = AsyncMock(return_value=workspace)
-    client.remove = AsyncMock()
+    client.delete = AsyncMock()
 
     return daytona_mod, process_mod
 
@@ -56,7 +88,7 @@ class TestCodeRunParamsKwarg:
             backend = DaytonaSandboxBackend(api_key="test-key", user_env=user_env)
             await backend.execute("print('hi')", session_key="s1")
 
-        workspace = daytona_mod.Daytona.return_value.create.return_value
+        workspace = daytona_mod.AsyncDaytona.return_value.create.return_value
         call_args = workspace.process.code_run.call_args
         assert call_args is not None, "code_run was never called"
 
@@ -88,7 +120,7 @@ class TestCodeRunParamsKwarg:
             backend = DaytonaSandboxBackend(api_key="test-key", user_env={})
             await backend.execute("1+1", session_key="s1")
 
-        workspace = daytona_mod.Daytona.return_value.create.return_value
+        workspace = daytona_mod.AsyncDaytona.return_value.create.return_value
         call_args = workspace.process.code_run.call_args
         params = call_args.kwargs["params"]
         assert isinstance(params, _CodeRunParams)
@@ -114,15 +146,19 @@ class TestNetworkBlockAll:
             backend = DaytonaSandboxBackend(api_key="key", network_block_all=True)
             await backend.execute("1", session_key="s1")
 
-        create_call = daytona_mod.Daytona.return_value.create.call_args
+        create_call = daytona_mod.AsyncDaytona.return_value.create.call_args
         assert create_call is not None, "client.create() was never called"
-        assert create_call.kwargs.get("network_block_all") is True, (
-            f"Expected network_block_all=True; got {create_call.kwargs}"
+        params = create_call.args[0] if create_call.args else create_call.kwargs.get("params")
+        assert isinstance(params, _CreateSandboxFromSnapshotParams), (
+            f"Expected CreateSandboxFromSnapshotParams; got {type(params)}"
+        )
+        assert params.network_block_all is True, (
+            f"Expected network_block_all=True; got {params.network_block_all!r}"
         )
 
     @pytest.mark.asyncio
     async def test_allow_mode_omits_network_block_all(self) -> None:
-        """internet_access.mode='allow' → network_block_all NOT passed to client.create()."""
+        """internet_access.mode='allow' → network_block_all NOT set on create params."""
         daytona_mod, process_mod = _make_daytona_mocks()
 
         modules = {
@@ -136,14 +172,16 @@ class TestNetworkBlockAll:
             backend = DaytonaSandboxBackend(api_key="key", network_block_all=False)
             await backend.execute("1", session_key="s1")
 
-        create_call = daytona_mod.Daytona.return_value.create.call_args
-        assert "network_block_all" not in create_call.kwargs, (
-            f"network_block_all should be absent when mode != 'deny'; got {create_call.kwargs}"
+        create_call = daytona_mod.AsyncDaytona.return_value.create.call_args
+        params = create_call.args[0] if create_call.args else create_call.kwargs.get("params")
+        assert isinstance(params, _CreateSandboxFromSnapshotParams)
+        assert params.network_block_all is None, (
+            f"network_block_all should be unset when mode != 'deny'; got {params.network_block_all!r}"
         )
 
     @pytest.mark.asyncio
     async def test_start_session_deny_passes_network_block_all(self) -> None:
-        """start_session also passes network_block_all=True to client.create() when deny mode."""
+        """start_session also sets network_block_all=True on create params when deny mode."""
         daytona_mod, process_mod = _make_daytona_mocks()
 
         modules = {
@@ -157,9 +195,11 @@ class TestNetworkBlockAll:
             backend = DaytonaSandboxBackend(api_key="key", network_block_all=True)
             await backend.start_session("sess")
 
-        create_call = daytona_mod.Daytona.return_value.create.call_args
-        assert create_call.kwargs.get("network_block_all") is True, (
-            f"Expected network_block_all=True in start_session path; got {create_call.kwargs}"
+        create_call = daytona_mod.AsyncDaytona.return_value.create.call_args
+        params = create_call.args[0] if create_call.args else create_call.kwargs.get("params")
+        assert isinstance(params, _CreateSandboxFromSnapshotParams)
+        assert params.network_block_all is True, (
+            f"Expected network_block_all=True in start_session path; got {params.network_block_all!r}"
         )
 
 
@@ -170,7 +210,7 @@ class TestEphemeralTeardown:
     async def test_remove_called_when_code_run_raises(self) -> None:
         """client.remove() is called exactly once when code_run raises."""
         daytona_mod, process_mod = _make_daytona_mocks()
-        client = daytona_mod.Daytona.return_value
+        client = daytona_mod.AsyncDaytona.return_value
         client.create.return_value.process.code_run = AsyncMock(
             side_effect=RuntimeError("code_run failed")
         )
@@ -188,13 +228,13 @@ class TestEphemeralTeardown:
 
         assert result.error is not None
         assert client.create.call_count == 1
-        assert client.remove.call_count == 1
+        assert client.delete.call_count == 1
 
     @pytest.mark.asyncio
     async def test_remove_called_on_cancellation(self) -> None:
         """client.remove() is called when the coroutine is cancelled via asyncio.wait_for."""
         daytona_mod, process_mod = _make_daytona_mocks()
-        client = daytona_mod.Daytona.return_value
+        client = daytona_mod.AsyncDaytona.return_value
 
         async def _slow_code_run(*args: object, **kwargs: object) -> None:
             await asyncio.sleep(10)
@@ -217,4 +257,4 @@ class TestEphemeralTeardown:
                 )
 
         assert client.create.call_count == 1
-        assert client.remove.call_count == 1
+        assert client.delete.call_count == 1
