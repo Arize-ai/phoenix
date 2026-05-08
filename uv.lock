@@ -618,6 +618,7 @@ dev = [
     { name = "typing-extensions" },
     { name = "uvloop", marker = "sys_platform != 'win32'" },
     { name = "vcrpy" },
+    { name = "vercel" },
 ]
 
 [package.metadata]
@@ -796,6 +797,7 @@ dev = [
     { name = "typing-extensions" },
     { name = "uvloop", marker = "sys_platform != 'win32'" },
     { name = "vcrpy" },
+    { name = "vercel", specifier = ">=0.5.1" },
 ]
 
 [[package]]

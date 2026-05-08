@@ -100,12 +100,16 @@ The rows below correspond exactly to the entries in `SANDBOX_ADAPTER_METADATA`. 
 | **WebAssembly (local)** (`WASM`) | Python | Yes — CPython WASM bundled at `$PHOENIX_WASM_BINARY_PATH` | `pip install 'arize-phoenix[wasm]'`; optionally set `PHOENIX_WASM_BINARY_PATH` | None | In-process (`wasmtime`) |
 | **E2B** (`E2B`) | Python | Ready with credentials — SDK in container | `pip install 'arize-phoenix[e2b]'` | `PHOENIX_SANDBOX_E2B_API_KEY` | External API |
 | **Daytona** (`DAYTONA_PYTHON`) | Python | Ready with credentials — SDK in container | `pip install 'arize-phoenix[daytona]'` | `PHOENIX_SANDBOX_DAYTONA_API_KEY` | External API |
-| **Vercel Sandbox — Python** (`VERCEL_PYTHON`) | Python | Ready with credentials — SDK in container | `pip install 'arize-phoenix[vercel]'` | `VERCEL_OIDC_TOKEN`, or `PHOENIX_SANDBOX_VERCEL_TOKEN` + `PHOENIX_SANDBOX_VERCEL_PROJECT_ID` + `PHOENIX_SANDBOX_VERCEL_TEAM_ID` | External API |
-| **Vercel Sandbox — TypeScript** (`VERCEL_TYPESCRIPT`) | TypeScript | Ready with credentials — SDK in container | `pip install 'arize-phoenix[vercel]'` | Same as `VERCEL_PYTHON` | External API |
+| **Vercel Sandbox — Python** (`VERCEL_PYTHON`) | Python | Ready with credentials — SDK in container | `pip install 'arize-phoenix[vercel]'` | `VERCEL_OIDC_TOKEN`, or `VERCEL_TOKEN` + `VERCEL_PROJECT_ID` + `VERCEL_TEAM_ID` ([auth docs](https://vercel.com/docs/vercel-sandbox/concepts/authentication)) | External API |
+| **Vercel Sandbox — TypeScript** (`VERCEL_TYPESCRIPT`) | TypeScript | Ready with credentials — SDK in container | `pip install 'arize-phoenix[vercel]'` | Same as `VERCEL_PYTHON` ([auth docs](https://vercel.com/docs/vercel-sandbox/concepts/authentication)) | External API |
 | **Modal** (`MODAL`) | Python | Ready with credentials — SDK in container | `pip install 'arize-phoenix[modal]'` | `MODAL_TOKEN_ID` + `MODAL_TOKEN_SECRET` | External API |
 
 <Info>
 "Container-ready" means the SDK or binary is present in `arizephoenix/phoenix`. External providers still need their credentials configured before the GraphQL `status` flips from `MISSING_CREDENTIALS` to `AVAILABLE`. Local providers (Deno, WASM) become `AVAILABLE` immediately after the container starts.
+</Info>
+
+<Info>
+**Where to find Vercel credentials.** `VERCEL_TOKEN` is a personal access token created at [Account Settings → Tokens](https://vercel.com/account/tokens). `VERCEL_PROJECT_ID` is the project's resource ID under Project Settings → General. `VERCEL_TEAM_ID` is the team's resource ID at `https://vercel.com/teams/<your-team>/settings#team-id`. Full provisioning steps: [Vercel Sandbox authentication](https://vercel.com/docs/vercel-sandbox/concepts/authentication).
 </Info>
 
 ## Troubleshooting

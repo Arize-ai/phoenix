@@ -959,10 +959,9 @@ class TestConfigValidationPath:
         db: DbSessionFactory,
         seed_sandbox_providers: None,
     ) -> None:
-        """Prefixed adapter-owned credentials like PHOENIX_SANDBOX_VERCEL_TOKEN
-        must also be rejected at createSandboxConfig time —
-        reserved-name coverage is derived from every adapter's credential_specs,
-        not just the PHOENIX_SANDBOX_ prefix."""
+        """Adapter-owned credentials like VERCEL_TOKEN must also be rejected at
+        createSandboxConfig time — reserved-name coverage is derived from every
+        adapter's credential_specs, regardless of naming prefix."""
         async with db() as session:
             provider = await session.scalar(
                 select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
@@ -981,7 +980,7 @@ class TestConfigValidationPath:
                             "env_vars": [
                                 {
                                     "kind": "secret_ref",
-                                    "name": "PHOENIX_SANDBOX_VERCEL_TOKEN",
+                                    "name": "VERCEL_TOKEN",
                                     "secret_key": "anything",
                                 }
                             ]
@@ -996,16 +995,16 @@ class TestConfigValidationPath:
                     "input": {
                         "sandboxProviderId": _provider_global_id(provider.id),
                         "name": "e2b-vercel-token-top",
-                        "config": {"PHOENIX_SANDBOX_VERCEL_TOKEN": "attacker-value"},
+                        "config": {"VERCEL_TOKEN": "attacker-value"},
                     }
                 },
             )
         assert env_var_result.errors, (
-            "Expected BadRequest for PHOENIX_SANDBOX_VERCEL_TOKEN in env_vars; "
+            "Expected BadRequest for VERCEL_TOKEN in env_vars; "
             "reserved-name enforcement may not cover adapter-owned credentials"
         )
         assert top_level_result.errors, (
-            "Expected BadRequest for PHOENIX_SANDBOX_VERCEL_TOKEN as top-level config key; "
+            "Expected BadRequest for VERCEL_TOKEN as top-level config key; "
             "reserved-name enforcement may not cover top-level SandboxConfig.config"
         )
 
@@ -1015,7 +1014,7 @@ class TestConfigValidationPath:
         db: DbSessionFactory,
         seed_sandbox_providers: None,
     ) -> None:
-        """PHOENIX_SANDBOX_* names are also rejected on update."""
+        """Reserved provider-credential names are also rejected on update."""
         async with db() as session:
             provider = await session.scalar(
                 select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
@@ -1043,7 +1042,7 @@ class TestConfigValidationPath:
                             "env_vars": [
                                 {
                                     "kind": "secret_ref",
-                                    "name": "PHOENIX_SANDBOX_VERCEL_TOKEN",
+                                    "name": "VERCEL_TOKEN",
                                     "secret_key": "my-secret",
                                 }
                             ]
