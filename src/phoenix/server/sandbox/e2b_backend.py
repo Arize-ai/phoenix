@@ -11,7 +11,7 @@ missing extra as ``status=NOT_INSTALLED`` instead of a runtime error.
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from .types import (
     E2BConfig,
@@ -20,6 +20,10 @@ from .types import (
     SandboxAdapter,
     SandboxBackend,
 )
+
+if TYPE_CHECKING:
+    from e2b_code_interpreter.code_interpreter_async import AsyncSandbox
+    from e2b_code_interpreter.models import Execution
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +40,6 @@ class E2BSandboxBackend(SandboxBackend):
         self,
         api_key: str,
         template: str = "base",
-        cwd: Optional[str] = None,
         metadata: Optional[str] = None,
         user_env: Optional[dict[str, str]] = None,
         allow_internet_access: bool = True,
@@ -44,15 +47,14 @@ class E2BSandboxBackend(SandboxBackend):
     ) -> None:
         self._api_key = api_key
         self._template = template
-        self._cwd = cwd
         self._metadata = metadata
         self._user_env: dict[str, str] = user_env or {}
         self._allow_internet_access = allow_internet_access
         self._packages: list[str] = packages or []
-        self._sessions: dict[str, Any] = {}
+        self._sessions: dict[str, AsyncSandbox] = {}
 
-    def _get_sandbox_cls(self) -> Any:
-        from e2b_code_interpreter import AsyncSandbox  # type: ignore
+    def _get_sandbox_cls(self) -> type[AsyncSandbox]:
+        from e2b_code_interpreter.code_interpreter_async import AsyncSandbox
 
         return AsyncSandbox
 
@@ -61,7 +63,8 @@ class E2BSandboxBackend(SandboxBackend):
 
         The E2B SDK expects metadata as Dict[str, str]. A string value from
         the config is passed under the key ``"info"``, so the sandbox is
-        tagged with ``{"info": "<value>"}``.
+        tagged with ``{"info": "<value>"}``. ``api_key`` is forwarded via the
+        SDK's ``ApiParams`` (``**opts``) on ``create()``.
         """
         kwargs: dict[str, Any] = {
             "api_key": self._api_key,
@@ -72,7 +75,7 @@ class E2BSandboxBackend(SandboxBackend):
             kwargs["metadata"] = {"info": self._metadata}
         return kwargs
 
-    async def _install_packages(self, sandbox: Any) -> None:
+    async def _install_packages(self, sandbox: AsyncSandbox) -> None:
         """pip-install configured packages via run_code.
 
         ``{self._packages!r}`` serializes the list as a Python list literal
@@ -100,8 +103,8 @@ class E2BSandboxBackend(SandboxBackend):
         if session_key in self._sessions:
             logger.debug(f"E2B session '{session_key}' already exists; reusing")
             return
-        AsyncSandbox = self._get_sandbox_cls()
-        sandbox = await AsyncSandbox.create(**self._create_kwargs())
+        sandbox_cls = self._get_sandbox_cls()
+        sandbox = await sandbox_cls.create(**self._create_kwargs())
         await self._install_packages(sandbox)
         self._sessions[session_key] = sandbox
         logger.debug(f"Started E2B session '{session_key}'")
@@ -109,7 +112,7 @@ class E2BSandboxBackend(SandboxBackend):
     async def stop_session(self, session_key: str) -> None:
         sandbox = self._sessions.pop(session_key, None)
         if sandbox is not None:
-            await sandbox.close()
+            await sandbox.kill()
             logger.debug(f"Stopped E2B session '{session_key}'")
 
     async def execute(
@@ -120,13 +123,13 @@ class E2BSandboxBackend(SandboxBackend):
     ) -> ExecutionResult:
         try:
             sandbox = self._sessions.get(session_key)
-            run_kwargs: dict[str, Any] = {"envs": self._user_env}
-            if timeout is not None:
-                run_kwargs["timeout"] = timeout
-            if self._cwd is not None:
-                run_kwargs["cwd"] = self._cwd
+            execution: Execution
             if sandbox is not None:
-                execution = await sandbox.run_code(code, **run_kwargs)
+                execution = await sandbox.run_code(
+                    code,
+                    envs=self._user_env or None,
+                    timeout=timeout,
+                )
             else:
                 # Ephemeral: spin up a fresh sandbox, run, then close.
                 # The evaluator path enters via execute() without ever calling
@@ -134,10 +137,14 @@ class E2BSandboxBackend(SandboxBackend):
                 # installed here too — otherwise they're silently dropped (the
                 # only other install site is start_session). Mirrors the
                 # Daytona ephemeral branch.
-                AsyncSandbox = self._get_sandbox_cls()
-                async with await AsyncSandbox.create(**self._create_kwargs()) as sb:
+                sandbox_cls = self._get_sandbox_cls()
+                async with await sandbox_cls.create(**self._create_kwargs()) as sb:
                     await self._install_packages(sb)
-                    execution = await sb.run_code(code, **run_kwargs)
+                    execution = await sb.run_code(
+                        code,
+                        envs=self._user_env or None,
+                        timeout=timeout,
+                    )
 
             stdout = "\n".join(execution.logs.stdout) if execution.logs.stdout else ""
             stderr = "\n".join(execution.logs.stderr) if execution.logs.stderr else ""
@@ -168,7 +175,7 @@ class E2BAdapter(SandboxAdapter):
     config_model = E2BConfig
     credential_specs = [
         ProviderCredentialSpec(
-            key="PHOENIX_SANDBOX_E2B_API_KEY",
+            key="E2B_API_KEY",
             display_name="E2B API Key",
             description="API key for the E2B sandbox service.",
         ),
@@ -185,7 +192,7 @@ class E2BAdapter(SandboxAdapter):
         user_env: Optional[dict[str, str]] = None,
     ) -> SandboxBackend:
         self._enforce_capabilities(config, user_env)
-        api_key: str = config.get("PHOENIX_SANDBOX_E2B_API_KEY") or ""
+        api_key: str = config.get("E2B_API_KEY") or ""
         internet_access = config.get("internet_access")
         if internet_access is not None:
             mode = (
@@ -201,7 +208,6 @@ class E2BAdapter(SandboxAdapter):
         return E2BSandboxBackend(
             api_key=api_key,
             template="base",
-            cwd=None,
             metadata=None,
             user_env=user_env,
             allow_internet_access=allow_internet_access,

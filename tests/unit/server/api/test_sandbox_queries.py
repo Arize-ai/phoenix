@@ -136,7 +136,7 @@ async def test_sandbox_backends_and_providers_can_be_loaded_together(
     ]
     assert backends["E2B"]["dependencyHints"] == [
         "Install Phoenix with the `e2b` extra.",
-        "Provide `PHOENIX_SANDBOX_E2B_API_KEY`.",
+        "Provide `E2B_API_KEY`.",
     ]
     assert backends["DAYTONA_PYTHON"]["dependencyHints"] == [
         "Install Phoenix with the `daytona` extra.",
