@@ -318,9 +318,18 @@ export function ModelMenu({
   const isValidSelectedProvider =
     selectedProvider && isModelProvider(selectedProvider);
 
+  const triggerAriaLabel = value
+    ? `Select model: ${value.modelName}`
+    : "Select model";
+
   return (
     <MenuTrigger>
-      <Button size="S" variant={variant} isDisabled={isDisabled}>
+      <Button
+        size="S"
+        variant={variant}
+        isDisabled={isDisabled}
+        aria-label={triggerAriaLabel}
+      >
         {value ? (
           <Flex direction="row" gap="size-100" alignItems="center">
             {isValidSelectedProvider && (

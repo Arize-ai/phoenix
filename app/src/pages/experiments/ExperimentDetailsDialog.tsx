@@ -40,6 +40,7 @@ import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { useViewer } from "@phoenix/contexts";
 import { useTimeFormatters } from "@phoenix/hooks";
+import { readPromptInvocationParameters } from "@phoenix/pages/playground/PromptInvocationParametersReadableFragment";
 import {
   formatCost,
   formatPercent,
@@ -449,7 +450,9 @@ function ExperimentDetailsDialogContent({
                   modelName
                   templateType
                   templateFormat
-                  invocationParameters
+                  invocationParameters {
+                    ...PromptInvocationParametersReadableFragment
+                  }
                 }
                 connection {
                   ... on OpenAIConnectionConfig {
@@ -660,7 +663,9 @@ function ExperimentDetailsDialogContent({
                       </Text>
                       <JSONBlock
                         value={JSON.stringify(
-                          taskConfig.prompt.invocationParameters,
+                          readPromptInvocationParameters(
+                            taskConfig.prompt.invocationParameters
+                          ),
                           null,
                           2
                         )}

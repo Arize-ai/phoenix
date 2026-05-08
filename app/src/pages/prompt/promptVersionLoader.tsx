@@ -21,7 +21,6 @@ export const promptVersionLoaderQuery = graphql`
         ...PromptModelConfigurationCard__main
         ...PromptVersionTagsList_data
         description
-        invocationParameters
         modelName
 
         tags {

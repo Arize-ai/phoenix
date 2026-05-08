@@ -51,13 +51,11 @@ export function ModelInvocationParametersFormFields(
     throw new Error(`Playground instance ${playgroundInstanceId} not found`);
   }
 
-  const modelSupportedInvocationParameters =
-    instance.model.supportedInvocationParameters;
   const configuredInvocationParameters = instance.model.invocationParameters;
   const requiredInvocationParametersConfigured =
     areRequiredInvocationParametersConfigured(
       configuredInvocationParameters,
-      modelSupportedInvocationParameters
+      instance.model
     );
 
   return (

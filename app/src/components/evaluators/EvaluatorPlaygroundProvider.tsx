@@ -62,7 +62,6 @@ export const EvaluatorPlaygroundProvider = ({
             promptName,
             promptVersionRef,
             promptVersionTag: promptVersionTag ?? null,
-            supportedInvocationParameters: [],
           }),
           id: generateInstanceId(),
         },

@@ -1,4 +1,3 @@
-import type { InvocationParameter } from "@phoenix/components/playground/model/InvocationParametersFormFields";
 import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
@@ -39,7 +38,6 @@ describe("getInitialInstances", () => {
         modelName: "test-model",
         provider: "OPENAI" as const,
         invocationParameters: [],
-        supportedInvocationParameters: [],
       },
     };
 
@@ -729,20 +727,8 @@ describe("updateModelSupportedInvocationParameters", () => {
       TEST_RESPONSE_FORMAT
     );
 
-    const supportedInvocationParameters: InvocationParameter[] = [
-      {
-        __typename: "FloatInvocationParameter",
-        invocationName: "temperature",
-        canonicalName: "TEMPERATURE",
-        required: false,
-        floatDefaultValue: 1.0,
-        invocationInputField: "value_float",
-      },
-    ];
-
-    store.getState().updateModelSupportedInvocationParameters({
+    store.getState().syncInvocationParametersWithSpecs({
       instanceId,
-      supportedInvocationParameters,
       modelConfigByProvider: {},
     });
 
@@ -772,20 +758,8 @@ describe("updateModelSupportedInvocationParameters", () => {
       TEST_RESPONSE_FORMAT
     );
 
-    const supportedInvocationParameters: InvocationParameter[] = [
-      {
-        __typename: "FloatInvocationParameter",
-        invocationName: "temperature",
-        canonicalName: "TEMPERATURE",
-        required: false,
-        floatDefaultValue: 1.0,
-        invocationInputField: "value_float",
-      },
-    ];
-
-    store.getState().updateModelSupportedInvocationParameters({
+    store.getState().syncInvocationParametersWithSpecs({
       instanceId: secondInstanceId,
-      supportedInvocationParameters,
       modelConfigByProvider: {},
     });
 

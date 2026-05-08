@@ -265,4 +265,41 @@ describe("toOpenAI type compatibility", () => {
       ],
     });
   });
+
+  it.each([
+    ["azure_openai", "azure_openai"],
+    ["deepseek", "deepseek"],
+    ["xai", "xai"],
+    ["ollama", "ollama"],
+    ["cerebras", "cerebras"],
+    ["fireworks", "fireworks"],
+    ["groq", "groq"],
+    ["moonshot", "moonshot"],
+    ["perplexity", "perplexity"],
+    ["together", "together"],
+  ])(
+    "forwards OpenAI-family invocation parameters from legacy %s discriminator",
+    (type, contentKey) => {
+      const mockPrompt = {
+        ...BASE_MOCK_PROMPT_VERSION,
+        invocation_parameters: {
+          type,
+          [contentKey]: {
+            temperature: 0.2,
+            max_completion_tokens: 128,
+            top_p: 0.9,
+          },
+        },
+      } as PromptVersion;
+
+      const result = toOpenAI({ prompt: mockPrompt });
+
+      expect(result).not.toBeNull();
+      invariant(result, "Expected non-null result");
+
+      expect(result.temperature).toBe(0.2);
+      expect(result.max_completion_tokens).toBe(128);
+      expect(result.top_p).toBe(0.9);
+    }
+  );
 });

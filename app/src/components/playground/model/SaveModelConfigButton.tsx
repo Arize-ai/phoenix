@@ -51,9 +51,7 @@ export function SaveModelConfigButton({
 
     const {
       // Strip out fields that should not be saved:
-      // - supportedInvocationParameters: used for validation only
       // - customProvider: custom providers are separate from built-in providers
-      supportedInvocationParameters: _supportedParams,
       customProvider: _customProvider,
       ...modelConfigToSave
     } = instance.model;

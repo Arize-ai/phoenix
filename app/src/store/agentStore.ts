@@ -101,7 +101,6 @@ const DEFAULT_MODEL_CONFIG: ModelConfig = {
   provider: "ANTHROPIC",
   modelName: "claude-opus-4-6",
   invocationParameters: [],
-  supportedInvocationParameters: [],
 };
 
 const DEFAULT_AGENT_SERVER_CONFIG: AgentServerConfig = {

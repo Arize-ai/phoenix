@@ -944,10 +944,6 @@ class TestTaskWorkItemPersistsErrorRun:
             patch.object(
                 task._llm_client, "chat_completion_create", side_effect=error, create=True
             ),
-            patch(
-                "phoenix.server.daemons.experiment_runner.get_raw_invocation_parameters",
-                return_value={},
-            ),
             patch.object(exp, "on_failure", mock_on_failure),
             patch.object(exp, "_broadcast", mock_broadcast),
             patch.object(task, "_persist_run", mock_persist),

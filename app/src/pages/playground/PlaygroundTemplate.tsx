@@ -17,8 +17,8 @@ import {
   View,
 } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
+import { InvocationParameterSpecsSync } from "@phoenix/components/playground/model/InvocationParameterSpecsSync";
 import { ModelParametersConfigButton } from "@phoenix/components/playground/model/ModelParametersConfigButton";
-import { ModelSupportedParamsFetcher } from "@phoenix/components/playground/model/ModelSupportedParamsFetcher";
 import { PlaygroundModelMenu } from "@phoenix/components/playground/model/PlaygroundModelMenu";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { fetchPlaygroundPromptAsInstance } from "@phoenix/pages/playground/fetchPlaygroundPrompt";
@@ -148,9 +148,9 @@ export function PlaygroundTemplate(props: PlaygroundTemplateProps) {
               </div>
             }
           >
-            {/* As long as this component mounts, it will sync the supported
-              invocation parameters for the model to the instance in the store */}
-            <ModelSupportedParamsFetcher instanceId={instanceId} />
+            {/* Keeps instance invocation parameters aligned with the frontend
+              spec table when model metadata or saved defaults change. */}
+            <InvocationParameterSpecsSync instanceId={instanceId} />
           </Suspense>
           <CompositeField>
             <PlaygroundModelMenu playgroundInstanceId={instanceId} />

@@ -36,14 +36,47 @@ export const toOpenAI = <V extends Variables = Variables>({
 }: ToOpenAIParams<V>): ChatCompletionCreateParams | null => {
   try {
     let invocationParameters: Partial<ChatCompletionCreateParams>;
-    if (prompt.invocation_parameters.type === "openai") {
-      invocationParameters = prompt.invocation_parameters.openai;
-    } else {
-      // eslint-disable-next-line no-console
-      console.warn(
-        "Prompt is not an OpenAI prompt, falling back to default OpenAI invocation parameters"
-      );
-      invocationParameters = {};
+    switch (prompt.invocation_parameters.type) {
+      case "openai":
+        invocationParameters = prompt.invocation_parameters.openai;
+        break;
+      case "azure_openai":
+        invocationParameters = prompt.invocation_parameters.azure_openai;
+        break;
+      case "deepseek":
+        invocationParameters = prompt.invocation_parameters.deepseek;
+        break;
+      case "xai":
+        invocationParameters = prompt.invocation_parameters.xai;
+        break;
+      case "ollama":
+        invocationParameters = prompt.invocation_parameters.ollama;
+        break;
+      case "cerebras":
+        invocationParameters = prompt.invocation_parameters.cerebras;
+        break;
+      case "fireworks":
+        invocationParameters = prompt.invocation_parameters.fireworks;
+        break;
+      case "groq":
+        invocationParameters = prompt.invocation_parameters.groq;
+        break;
+      case "moonshot":
+        invocationParameters = prompt.invocation_parameters.moonshot;
+        break;
+      case "perplexity":
+        invocationParameters = prompt.invocation_parameters.perplexity;
+        break;
+      case "together":
+        invocationParameters = prompt.invocation_parameters.together;
+        break;
+      default:
+        // eslint-disable-next-line no-console
+        console.warn(
+          "Prompt is not an OpenAI-family prompt, falling back to default OpenAI invocation parameters"
+        );
+        invocationParameters = {};
+        break;
     }
     // parts of the prompt that can be directly converted to OpenAI params
     const baseCompletionParams = {

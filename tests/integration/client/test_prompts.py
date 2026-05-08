@@ -114,7 +114,7 @@ class ResponseFormatInput(BaseModel):
 class ChatPromptVersionInput(BaseModel):
     templateFormat: str
     template: PromptChatTemplateInput
-    invocationParameters: dict[str, Any] = {}
+    invocationParameters: Mapping[str, Any] = MappingProxyType({"openai": {}})
     modelProvider: str
     modelName: str
     tools: PromptToolsInput | None = None
@@ -292,7 +292,7 @@ class TestTools:
             api_key,
             tools=tools,
             model_provider="ANTHROPIC",
-            invocation_parameters={"max_tokens": 1024},
+            invocation_parameters={"anthropic": {"maxTokens": 1024}},
         )
         kwargs = prompt.format().kwargs
         assert "tools" in kwargs
@@ -368,12 +368,11 @@ class TestToolChoice:
             ],
             toolChoice=_anthropic_tool_choice_to_canonical(expected),
         )
-        invocation_parameters = {"max_tokens": 1024}
         prompt = _create_chat_prompt(
             _app,
             api_key,
             tools=tools,
-            invocation_parameters=invocation_parameters,
+            invocation_parameters={"anthropic": {"maxTokens": 1024}},
             model_provider="ANTHROPIC",
         )
         kwargs = prompt.format().kwargs
@@ -546,7 +545,7 @@ def _create_chat_prompt(
     model_name: str | None = None,
     response_format: ResponseFormatInput | None = None,
     tools: PromptToolsInput | None = None,
-    invocation_parameters: Mapping[str, Any] = MappingProxyType({}),
+    invocation_parameters: Mapping[str, Any] = MappingProxyType({"openai": {}}),
     template_format: Literal["F_STRING", "MUSTACHE", "NONE"] = "NONE",
 ) -> PromptVersion:
     messages = list(messages) or [
@@ -1392,7 +1391,7 @@ class TestPromptFiltering:
                     )
                 ]
             ),
-            invocationParameters={},
+            invocationParameters={"openai": {}},
             modelProvider="OPENAI",
             modelName=token_hex(8),
             responseFormat=None,

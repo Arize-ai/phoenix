@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<21c3207eca14d6249e8ba99abf16b552>>
+ * @generated SignedSource<<d612fb5c4bc74418a6f726a7b1349889>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,11 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type AnthropicOutputConfigEffort = "HIGH" | "LOW" | "MAX" | "MEDIUM" | "XHIGH";
+export type AnthropicThinkingDisplay = "OMITTED" | "SUMMARIZED";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type GoogleThinkingLevel = "HIGH" | "LOW" | "MEDIUM" | "MINIMAL";
+export type OpenAIReasoningEffort = "HIGH" | "LOW" | "MEDIUM" | "MINIMAL" | "NONE" | "XHIGH";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
@@ -26,7 +30,7 @@ export type CreateDatasetLLMEvaluatorInput = {
 export type ChatPromptVersionInput = {
   customProviderId?: string | null;
   description?: string | null;
-  invocationParameters: any;
+  invocationParameters: PromptInvocationParametersInput;
   modelName: string;
   modelProvider: GenerativeProviderKey;
   responseFormat?: PromptResponseFormatJSONSchemaInput | null;
@@ -61,6 +65,72 @@ export type ToolCallFunctionInput = {
 export type ToolResultContentValueInput = {
   result: any;
   toolCallId: string;
+};
+export type PromptInvocationParametersInput = {
+  anthropic?: PromptAnthropicInvocationParametersInput | null;
+  aws?: PromptAwsInvocationParametersInput | null;
+  google?: PromptGoogleInvocationParametersInput | null;
+  openai?: PromptOpenAIInvocationParametersInput | null;
+};
+export type PromptOpenAIInvocationParametersInput = {
+  extraBody?: any | null;
+  frequencyPenalty?: number | null;
+  maxCompletionTokens?: number | null;
+  maxTokens?: number | null;
+  presencePenalty?: number | null;
+  reasoningEffort?: OpenAIReasoningEffort | null;
+  seed?: number | null;
+  stop?: ReadonlyArray<string> | null;
+  temperature?: number | null;
+  topP?: number | null;
+};
+export type PromptAnthropicInvocationParametersInput = {
+  extraBody?: any | null;
+  maxTokens: number;
+  outputConfig?: PromptAnthropicOutputConfigInput | null;
+  stopSequences?: ReadonlyArray<string> | null;
+  temperature?: number | null;
+  thinking?: PromptAnthropicThinkingConfigInput | null;
+  topP?: number | null;
+};
+export type PromptAnthropicOutputConfigInput = {
+  effort?: AnthropicOutputConfigEffort | null;
+};
+export type PromptAnthropicThinkingConfigInput = {
+  adaptive?: AnthropicThinkingAdaptiveInput | null;
+  disabled?: AnthropicThinkingDisabledMarkerInput | null;
+  enabled?: AnthropicThinkingEnabledInput | null;
+};
+export type AnthropicThinkingDisabledMarkerInput = {
+  disabled?: boolean;
+};
+export type AnthropicThinkingEnabledInput = {
+  budgetTokens: number;
+  display?: AnthropicThinkingDisplay | null;
+};
+export type AnthropicThinkingAdaptiveInput = {
+  display?: AnthropicThinkingDisplay | null;
+};
+export type PromptGoogleInvocationParametersInput = {
+  frequencyPenalty?: number | null;
+  maxOutputTokens?: number | null;
+  presencePenalty?: number | null;
+  stopSequences?: ReadonlyArray<string> | null;
+  temperature?: number | null;
+  thinkingConfig?: PromptGoogleThinkingConfigInput | null;
+  topK?: number | null;
+  topP?: number | null;
+};
+export type PromptGoogleThinkingConfigInput = {
+  includeThoughts?: boolean | null;
+  thinkingBudget?: number | null;
+  thinkingLevel?: GoogleThinkingLevel | null;
+};
+export type PromptAwsInvocationParametersInput = {
+  maxTokens?: number | null;
+  stopSequences?: ReadonlyArray<string> | null;
+  temperature?: number | null;
+  topP?: number | null;
 };
 export type PromptToolsInput = {
   disableParallelToolCalls?: boolean | null;

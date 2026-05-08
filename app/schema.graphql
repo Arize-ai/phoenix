@@ -230,6 +230,32 @@ input AnthropicCustomProviderConfigInput {
   anthropicClientKwargs: AnthropicClientKwargsInput
 }
 
+enum AnthropicOutputConfigEffort {
+  LOW
+  MEDIUM
+  HIGH
+  XHIGH
+  MAX
+}
+
+input AnthropicThinkingAdaptiveInput {
+  display: AnthropicThinkingDisplay = null
+}
+
+input AnthropicThinkingDisabledMarkerInput {
+  disabled: Boolean! = true
+}
+
+enum AnthropicThinkingDisplay {
+  SUMMARIZED
+  OMITTED
+}
+
+input AnthropicThinkingEnabledInput {
+  budgetTokens: Int!
+  display: AnthropicThinkingDisplay = null
+}
+
 interface ApiKey {
   """Name of the API key."""
   name: String!
@@ -307,26 +333,6 @@ input AzureOpenAICustomProviderConfigInput {
   openaiApiType: OpenAIApiType = RESPONSES
 }
 
-type BooleanInvocationParameter implements InvocationParameterBase {
-  invocationName: String!
-  canonicalName: CanonicalParameterName
-  label: String!
-  required: Boolean!
-  invocationInputField: InvocationInputField!
-  defaultValue: Boolean
-}
-
-type BoundedFloatInvocationParameter implements InvocationParameterBase {
-  invocationName: String!
-  canonicalName: CanonicalParameterName
-  label: String!
-  required: Boolean!
-  invocationInputField: InvocationInputField!
-  defaultValue: Float
-  minValue: Float!
-  maxValue: Float!
-}
-
 type BuiltInEvaluator implements Evaluator & Node {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -345,17 +351,6 @@ type BuiltInEvaluator implements Evaluator & Node {
 }
 
 union BuiltInEvaluatorOutputConfig = CategoricalAnnotationConfig | ContinuousAnnotationConfig
-
-enum CanonicalParameterName {
-  TEMPERATURE
-  MAX_COMPLETION_TOKENS
-  STOP_SEQUENCES
-  TOP_P
-  RANDOM_SEED
-  RESPONSE_FORMAT
-  REASONING_EFFORT
-  ANTHROPIC_EXTENDED_THINKING
-}
 
 type CategoricalAnnotationConfig implements Node & AnnotationConfigBase {
   """The Globally Unique ID of this object"""
@@ -457,7 +452,7 @@ input ChatPromptVersionInput {
   description: String = null
   templateFormat: PromptTemplateFormat!
   template: PromptChatTemplateInput!
-  invocationParameters: JSON!
+  invocationParameters: PromptInvocationParametersInput!
   tools: PromptToolsInput = null
   responseFormat: PromptResponseFormatJSONSchemaInput = null
   modelProvider: GenerativeProviderKey!
@@ -1781,15 +1776,6 @@ type FailureDetail {
   errorType: String!
 }
 
-type FloatInvocationParameter implements InvocationParameterBase {
-  invocationName: String!
-  canonicalName: CanonicalParameterName
-  label: String!
-  required: Boolean!
-  invocationInputField: InvocationInputField!
-  defaultValue: Float
-}
-
 type FreeformAnnotationConfig implements Node & AnnotationConfigBase {
   """The Globally Unique ID of this object"""
   id: ID!
@@ -1996,6 +1982,13 @@ input GoogleGenAIHttpOptionsInput {
   headers: JSON
 }
 
+enum GoogleThinkingLevel {
+  MINIMAL
+  LOW
+  MEDIUM
+  HIGH
+}
+
 scalar Identifier
 
 input InlineLLMEvaluatorInput {
@@ -2005,47 +1998,10 @@ input InlineLLMEvaluatorInput {
   description: String = null
 }
 
-type IntInvocationParameter implements InvocationParameterBase {
-  invocationName: String!
-  canonicalName: CanonicalParameterName
-  label: String!
-  required: Boolean!
-  invocationInputField: InvocationInputField!
-  defaultValue: Int
-}
-
-enum InvocationInputField {
-  value_int
-  value_float
-  value_bool
-  value_string
-  value_json
-  value_string_list
-  value_boolean
-}
-
-union InvocationParameter = IntInvocationParameter | FloatInvocationParameter | BoundedFloatInvocationParameter | StringInvocationParameter | JSONInvocationParameter | StringListInvocationParameter | BooleanInvocationParameter
-
-interface InvocationParameterBase {
-  invocationName: String!
-  canonicalName: CanonicalParameterName
-  label: String!
-  required: Boolean!
-}
-
 """
 The `JSON` scalar type represents JSON values as specified by [ECMA-404](https://ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf).
 """
 scalar JSON @specifiedBy(url: "https://ecma-international.org/wp-content/uploads/ECMA-404_2nd_edition_december_2017.pdf")
-
-type JSONInvocationParameter implements InvocationParameterBase {
-  invocationName: String!
-  canonicalName: CanonicalParameterName
-  label: String!
-  required: Boolean!
-  invocationInputField: InvocationInputField!
-  defaultValue: JSON
-}
 
 type LLMEvaluator implements Evaluator & Node {
   """The Globally Unique ID of this object"""
@@ -2247,6 +2203,15 @@ input OpenAICustomProviderConfigInput {
   openaiAuthenticationMethod: OpenAIAuthenticationMethodInput!
   openaiClientKwargs: OpenAIClientKwargsInput
   openaiApiType: OpenAIApiType = RESPONSES
+}
+
+enum OpenAIReasoningEffort {
+  NONE
+  MINIMAL
+  LOW
+  MEDIUM
+  HIGH
+  XHIGH
 }
 
 enum OptimizationDirection {
@@ -2664,6 +2629,69 @@ type Prompt implements Node {
   labels: [PromptLabel!]!
 }
 
+type PromptAnthropicInvocationParameters {
+  maxTokens: Int!
+  temperature: Float
+  topP: Float
+  stopSequences: [String!]
+  outputConfig: PromptAnthropicOutputConfig
+  thinking: PromptAnthropicThinkingConfig
+  extraBody: JSON
+}
+
+input PromptAnthropicInvocationParametersInput {
+  maxTokens: Int!
+  temperature: Float = null
+  topP: Float = null
+  stopSequences: [String!] = null
+  outputConfig: PromptAnthropicOutputConfigInput = null
+  thinking: PromptAnthropicThinkingConfigInput = null
+  extraBody: JSON = null
+}
+
+type PromptAnthropicOutputConfig {
+  effort: AnthropicOutputConfigEffort
+}
+
+input PromptAnthropicOutputConfigInput {
+  effort: AnthropicOutputConfigEffort = null
+}
+
+type PromptAnthropicThinkingAdaptive {
+  display: AnthropicThinkingDisplay
+}
+
+union PromptAnthropicThinkingConfig = PromptAnthropicThinkingDisabled | PromptAnthropicThinkingEnabled | PromptAnthropicThinkingAdaptive
+
+input PromptAnthropicThinkingConfigInput @oneOf {
+  disabled: AnthropicThinkingDisabledMarkerInput
+  enabled: AnthropicThinkingEnabledInput
+  adaptive: AnthropicThinkingAdaptiveInput
+}
+
+type PromptAnthropicThinkingDisabled {
+  disabled: Boolean!
+}
+
+type PromptAnthropicThinkingEnabled {
+  budgetTokens: Int!
+  display: AnthropicThinkingDisplay
+}
+
+type PromptAwsInvocationParameters {
+  maxTokens: Int
+  temperature: Float
+  topP: Float
+  stopSequences: [String!]
+}
+
+input PromptAwsInvocationParametersInput {
+  maxTokens: Int = null
+  temperature: Float = null
+  topP: Float = null
+  stopSequences: [String!] = null
+}
+
 type PromptChatTemplate {
   messages: [PromptMessage!]!
 }
@@ -2678,7 +2706,7 @@ type PromptConfig {
   template: PromptTemplate!
   tools: PromptTools
   responseFormat: PromptResponseFormatJSONSchema
-  invocationParameters: JSON!
+  invocationParameters: PromptInvocationParameters!
 
   """The model provider (OPENAI, ANTHROPIC, etc.)"""
   modelProvider: GenerativeProviderKey!
@@ -2712,6 +2740,49 @@ input PromptFilter {
 
 enum PromptFilterColumn {
   name
+}
+
+type PromptGoogleInvocationParameters {
+  temperature: Float
+  maxOutputTokens: Int
+  stopSequences: [String!]
+  presencePenalty: Float
+  frequencyPenalty: Float
+  topP: Float
+  topK: Int
+  thinkingConfig: PromptGoogleThinkingConfig
+}
+
+input PromptGoogleInvocationParametersInput {
+  temperature: Float = null
+  maxOutputTokens: Int = null
+  stopSequences: [String!] = null
+  presencePenalty: Float = null
+  frequencyPenalty: Float = null
+  topP: Float = null
+  topK: Int = null
+  thinkingConfig: PromptGoogleThinkingConfigInput = null
+}
+
+type PromptGoogleThinkingConfig {
+  thinkingBudget: Int
+  thinkingLevel: GoogleThinkingLevel
+  includeThoughts: Boolean
+}
+
+input PromptGoogleThinkingConfigInput {
+  thinkingBudget: Int = null
+  thinkingLevel: GoogleThinkingLevel = null
+  includeThoughts: Boolean = null
+}
+
+union PromptInvocationParameters = PromptOpenAIInvocationParameters | PromptAnthropicInvocationParameters | PromptGoogleInvocationParameters | PromptAwsInvocationParameters
+
+input PromptInvocationParametersInput @oneOf {
+  openai: PromptOpenAIInvocationParametersInput
+  anthropic: PromptAnthropicInvocationParametersInput
+  google: PromptGoogleInvocationParametersInput
+  aws: PromptAwsInvocationParametersInput
 }
 
 type PromptLabel implements Node {
@@ -2769,6 +2840,32 @@ enum PromptMessageRole {
   SYSTEM
   AI
   TOOL
+}
+
+type PromptOpenAIInvocationParameters {
+  temperature: Float
+  maxTokens: Int
+  maxCompletionTokens: Int
+  frequencyPenalty: Float
+  presencePenalty: Float
+  topP: Float
+  seed: Int
+  stop: [String!]
+  reasoningEffort: OpenAIReasoningEffort
+  extraBody: JSON
+}
+
+input PromptOpenAIInvocationParametersInput {
+  temperature: Float = null
+  maxTokens: Int = null
+  maxCompletionTokens: Int = null
+  frequencyPenalty: Float = null
+  presencePenalty: Float = null
+  topP: Float = null
+  seed: Int = null
+  stop: [String!] = null
+  reasoningEffort: OpenAIReasoningEffort = null
+  extraBody: JSON = null
 }
 
 type PromptResponseFormatJSONSchema {
@@ -2911,7 +3008,7 @@ type PromptVersion implements Node {
   templateType: PromptTemplateType!
   templateFormat: PromptTemplateFormat!
   template: PromptTemplate!
-  invocationParameters: JSON
+  invocationParameters: PromptInvocationParameters!
   tools: PromptTools
   responseFormat: PromptResponseFormatJSONSchema
   modelName: String!
@@ -2969,7 +3066,6 @@ type Query {
   secrets(keys: [String!] = null, first: Int = 50, last: Int, after: String, before: String): SecretConnection!
   generativeModels(first: Int = 50, last: Int, after: String, before: String): GenerativeModelConnection!
   playgroundModels(input: ModelsInput = null): [PlaygroundModel!]!
-  modelInvocationParameters(input: ModelsInput = null): [InvocationParameter!]!
   users(first: Int = 50, last: Int, after: String, before: String): UserConnection!
   userRoles: [UserRole!]!
   userApiKeys: [UserApiKey!]!
@@ -3221,9 +3317,6 @@ type Span implements Node {
 
   """Indicates if the span is contained in any dataset"""
   containedInDataset: Boolean!
-
-  """Invocation parameters for the span"""
-  invocationParameters: [InvocationParameter!]!
   costSummary: SpanCostSummary
   costDetailSummaryEntries: [SpanCostDetailSummaryEntry!]!
 }
@@ -3431,24 +3524,6 @@ enum SpanStatusCode {
 
 type StopExperimentPayload {
   job: ExperimentJob!
-}
-
-type StringInvocationParameter implements InvocationParameterBase {
-  invocationName: String!
-  canonicalName: CanonicalParameterName
-  label: String!
-  required: Boolean!
-  invocationInputField: InvocationInputField!
-  defaultValue: String
-}
-
-type StringListInvocationParameter implements InvocationParameterBase {
-  invocationName: String!
-  canonicalName: CanonicalParameterName
-  label: String!
-  required: Boolean!
-  invocationInputField: InvocationInputField!
-  defaultValue: [String!]
 }
 
 type Subscription {

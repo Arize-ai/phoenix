@@ -23,6 +23,8 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
     PromptChatTemplate,
+    PromptDeepSeekInvocationParameters,
+    PromptDeepSeekInvocationParametersContent,
     PromptMessage,
     PromptOpenAIInvocationParameters,
     PromptOpenAIInvocationParametersContent,
@@ -82,6 +84,25 @@ class TestPromptVersionData:
                 model_provider=ModelProvider.OPENAI,
                 model_name=token_hex(16),
             )
+
+    def test_rest_body_normalizes_legacy_openai_discriminator(self) -> None:
+        legacy = PromptDeepSeekInvocationParameters(
+            type="deepseek",
+            deepseek=PromptDeepSeekInvocationParametersContent(temperature=0.42),
+        )
+        pv = PromptVersionData(
+            template_type=PromptTemplateType.CHAT,
+            template_format=PromptTemplateFormat.MUSTACHE,
+            template=PromptChatTemplate(
+                type="chat", messages=[PromptMessage(role="user", content="hi")]
+            ),
+            invocation_parameters=legacy,
+            model_provider=ModelProvider.DEEPSEEK,
+            model_name=token_hex(16),
+        )
+        assert isinstance(pv.invocation_parameters, PromptOpenAIInvocationParameters)
+        assert pv.invocation_parameters.type == "openai"
+        assert pv.invocation_parameters.openai.temperature == 0.42
 
 
 class TestPrompts:

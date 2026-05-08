@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<cbd3a725f27aa1d1c1057c8650eb124e>>
+ * @generated SignedSource<<ad4021961170e99eab9685681b1766dc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,7 +19,9 @@ export type fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$data = {
     readonly name: string;
   } | null;
   readonly id: string;
-  readonly invocationParameters: any | null;
+  readonly invocationParameters: {
+    readonly " $fragmentSpreads": FragmentRefs<"PromptInvocationParametersReadableFragment">;
+  };
   readonly modelName: string;
   readonly modelProvider: ModelProvider;
   readonly responseFormat: {
@@ -103,6 +105,6 @@ const node: ReaderInlineDataFragment = {
   "name": "fetchPlaygroundPrompt_promptVersionToInstance_promptVersion"
 };
 
-(node as any).hash = "a89bd9a895cdf5c3eb6b3f4124b34ec9";
+(node as any).hash = "7e4c7139f27764907b329345e0b2dabc";
 
 export default node;

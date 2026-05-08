@@ -14,75 +14,72 @@ import {
   Text,
   TextField,
 } from "@phoenix/components";
-import type { ModelSupportedParamsFetcherQuery$data } from "@phoenix/components/playground/model/__generated__/ModelSupportedParamsFetcherQuery.graphql";
 import { OpenAIReasoningEffortConfigField } from "@phoenix/components/playground/model/OpenAIReasoningEffortConfigField";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { AnthropicReasoningConfigField } from "@phoenix/pages/playground/AnthropicReasoningConfigField";
 import { GoogleGenAIThinkingLevelConfigField } from "@phoenix/pages/playground/GoogleGenAIThinkingLevelConfigField";
-import type { ModelInvocationParameterInput } from "@phoenix/store";
-import type { Mutable } from "@phoenix/typeUtils";
-
+import type { ParamSpec } from "@phoenix/pages/playground/invocationParameterSpecs";
 import {
-  areInvocationParamsEqual,
-  toCamelCase,
-} from "../../../pages/playground/invocationParameterUtils";
+  getActiveSpecsForPlayground,
+  invocationValueKeyForSpec,
+} from "@phoenix/pages/playground/invocationParameterSpecs";
+import type { ModelInvocationParameterInput } from "@phoenix/store";
+
+import { areInvocationParamsEqual } from "../../../pages/playground/invocationParameterUtils";
 import { InvocationParameterJsonEditor } from "./InvocationParameterJsonEditor";
 
-export type InvocationParameter = Mutable<
-  ModelSupportedParamsFetcherQuery$data["modelInvocationParameters"]
->[number];
-
-export type HandleInvocationParameterChange = (
-  parameter: InvocationParameter,
-  value: string | number | string[] | boolean | undefined
-) => void;
-
 /**
- * Form field for a single invocation parameter.
+ * Form field for a single invocation parameter driven by the static frontend
+ * {@link ParamSpec} table.
  */
 const InvocationParameterFormField = ({
-  field,
+  spec,
   value,
   onChange,
   errors,
   control,
 }: {
-  field: InvocationParameter;
+  spec: ParamSpec;
   value: unknown;
   onChange: (value: unknown) => void;
   errors: FieldErrors<Record<string, unknown>>;
   control: Control<Record<string, unknown>>;
 }) => {
-  const invocationName = field.invocationName;
-  if (!invocationName) {
-    throw new Error("Invocation name is required");
-  }
-  const errorMessage = errors[invocationName]?.message;
-  const requiredRuleMessage = field.required
-    ? `${field.label || invocationName} is required`
+  const errorMessage = errors[spec.name]?.message;
+  const requiredRuleMessage = spec.required
+    ? `${spec.label || spec.name} is required`
     : undefined;
+  const numericMin =
+    spec.type === "int" ||
+    spec.type === "float" ||
+    spec.type === "bounded_float"
+      ? spec.min
+      : undefined;
+  const numericMax =
+    spec.type === "int" ||
+    spec.type === "float" ||
+    spec.type === "bounded_float"
+      ? spec.max
+      : undefined;
   const minRuleMessage =
-    field.minValue != null
-      ? `${field.label || invocationName} must be at least ${field.minValue}`
+    numericMin != null
+      ? `${spec.label || spec.name} must be at least ${numericMin}`
       : undefined;
   const maxRuleMessage =
-    field.maxValue != null
-      ? `${field.label || invocationName} must be at most ${field.maxValue}`
+    numericMax != null
+      ? `${spec.label || spec.name} must be at most ${numericMax}`
       : undefined;
 
-  // special case for anthropic reasoning config
-  if (field.canonicalName === "ANTHROPIC_EXTENDED_THINKING") {
+  if (spec.ui === "anthropic_thinking") {
     return <AnthropicReasoningConfigField onChange={onChange} value={value} />;
   }
-
-  if (field.canonicalName === "REASONING_EFFORT") {
-    // special case for google gen ai thinking level
-    if (field.invocationName === "thinking_level") {
+  if (spec.canonicalName === "REASONING_EFFORT") {
+    if (spec.name === "thinking_level") {
       return (
         <GoogleGenAIThinkingLevelConfigField
           onChange={onChange}
           value={value ?? null}
-          label={field.label ?? undefined}
+          label={spec.label}
         />
       );
     }
@@ -90,44 +87,39 @@ const InvocationParameterFormField = ({
       <OpenAIReasoningEffortConfigField
         onChange={onChange}
         value={value ?? null}
-        label={field.label ?? undefined}
+        label={spec.label}
       />
     );
   }
 
-  const { __typename } = field;
-  switch (__typename) {
-    case "InvocationParameterBase":
-      return null;
-    case "BoundedFloatInvocationParameter": {
+  switch (spec.type) {
+    case "bounded_float": {
       const isNumber = typeof value === "number";
       const defaultValue = isNumber ? value : undefined;
       return (
         <Slider
-          label={field.label}
+          label={spec.label}
           defaultValue={defaultValue}
           step={0.1}
-          minValue={field.minValue}
-          maxValue={field.maxValue}
-          onChange={(value) => {
-            // NB: the type inference here is wrong. In the case
-            // that the defaultValue is undefined, an array is returned here
-            if (Array.isArray(value) && value.length > 0) {
-              return onChange(value[0]);
+          minValue={numericMin}
+          maxValue={numericMax}
+          onChange={(next) => {
+            if (Array.isArray(next) && next.length > 0) {
+              return onChange(next[0]);
             }
-            onChange(value);
+            onChange(next);
           }}
         >
           <SliderNumberField defaultValue={defaultValue} />
         </Slider>
       );
     }
-    case "FloatInvocationParameter":
-    case "IntInvocationParameter":
+    case "float":
+    case "int":
       return (
         <Controller
           control={control}
-          name={invocationName}
+          name={spec.name}
           rules={{
             required: requiredRuleMessage,
             min: minRuleMessage,
@@ -135,43 +127,39 @@ const InvocationParameterFormField = ({
           }}
           render={({ field: { onBlur } }) => (
             <NumberField
-              isRequired={field.required}
+              isRequired={spec.required}
               value={Number(value)}
               onBlur={onBlur}
-              onChange={(value) => {
-                onChange(value);
-              }}
+              onChange={(next) => onChange(next)}
             >
-              <Label>{field.label}</Label>
+              <Label>{spec.label}</Label>
               <Input />
               {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
             </NumberField>
           )}
         />
       );
-    case "StringListInvocationParameter":
+    case "string_list":
       if (!Array.isArray(value) && value !== undefined) return null;
       return (
         <Controller
           control={control}
-          name={invocationName}
-          rules={{
-            required: requiredRuleMessage,
-          }}
+          name={spec.name}
+          rules={{ required: requiredRuleMessage }}
           render={({ field: { onBlur } }) => (
             <TextField
-              isRequired={field.required}
+              isRequired={spec.required}
               defaultValue={value?.join(", ") ?? ""}
               onBlur={onBlur}
-              onChange={(value) => {
-                if (value === "") {
+              onChange={(next) => {
+                if (next === "") {
                   onChange(undefined);
                   return;
                 }
-                onChange(value.split(/, */g));
+                onChange(next.split(/, */g));
               }}
             >
-              <Label>{field.label}</Label>
+              <Label>{spec.label}</Label>
               <Input />
               {errorMessage ? (
                 <FieldError>{errorMessage}</FieldError>
@@ -184,67 +172,63 @@ const InvocationParameterFormField = ({
           )}
         />
       );
-    case "StringInvocationParameter":
+    case "string":
+    case "enum":
       return (
         <Controller
           control={control}
-          name={invocationName}
-          rules={{
-            required: requiredRuleMessage,
-          }}
+          name={spec.name}
+          rules={{ required: requiredRuleMessage }}
           render={({ field: { onBlur } }) => (
             <TextField
-              isRequired={field.required}
+              isRequired={spec.required}
               defaultValue={value?.toString() || ""}
               type="text"
               onBlur={onBlur}
-              onChange={(value) => {
-                if (value === "") {
+              onChange={(next) => {
+                if (next === "") {
                   onChange(undefined);
                   return;
                 }
-                onChange(value);
+                onChange(next);
               }}
             >
-              <Label>{field.label}</Label>
+              <Label>{spec.label}</Label>
               <Input />
               {errorMessage ? <FieldError>{errorMessage}</FieldError> : null}
             </TextField>
           )}
         />
       );
-    case "BooleanInvocationParameter":
+    case "bool":
       return (
         <Switch onChange={onChange} defaultSelected={Boolean(value)}>
-          {field.label}
+          {spec.label}
         </Switch>
       );
-    case "JSONInvocationParameter": {
+    case "json":
       return (
         <Controller
           control={control}
-          name={invocationName}
-          rules={{
-            required: requiredRuleMessage,
-          }}
+          name={spec.name}
+          rules={{ required: requiredRuleMessage }}
           render={() => (
             <InvocationParameterJsonEditor
               defaultValue={value}
               onChange={onChange}
-              label={field.label ?? field.invocationName ?? ""}
+              label={spec.label || spec.name}
               errorMessage={errorMessage}
             />
           )}
         />
       );
-    }
     default:
       return null;
   }
 };
 
 const getInvocationParameterValue = (
-  field: InvocationParameter,
+  spec: ParamSpec,
   parameterInput: ModelInvocationParameterInput
 ):
   | string
@@ -255,33 +239,19 @@ const getInvocationParameterValue = (
   | Record<string, unknown>
   | unknown[]
   | undefined => {
-  if (field.invocationInputField === undefined) {
-    throw new Error("Invocation input field is required");
-  }
-  const maybeValue =
-    parameterInput[
-      toCamelCase(
-        field.invocationInputField
-      ) as keyof ModelInvocationParameterInput
-    ];
-  return maybeValue;
+  const field = invocationValueKeyForSpec(spec);
+  return parameterInput[field];
 };
 
 const makeInvocationParameterInput = (
-  field: InvocationParameter,
+  spec: ParamSpec,
   value: unknown
 ): ModelInvocationParameterInput => {
-  if (field.invocationName === undefined) {
-    throw new Error("Invocation name is required");
-  }
-  if (field.invocationInputField === undefined) {
-    throw new Error("Invocation input field is required");
-  }
+  const field = invocationValueKeyForSpec(spec);
   return {
-    invocationName: field.invocationName,
-    canonicalName: field.canonicalName,
-    dirty: true,
-    [toCamelCase(field.invocationInputField)]: value,
+    invocationName: spec.name,
+    canonicalName: spec.canonicalName,
+    [field]: value,
   };
 };
 
@@ -306,57 +276,42 @@ export const InvocationParametersFormFields = ({
     (state) => state.deleteInvocationParameterInput
   );
 
-  const supportedInvocationParameterDefinitions =
-    instance.model.supportedInvocationParameters;
+  const specs = useMemo(() => getActiveSpecsForPlayground(model), [model]);
   const instanceInvocationParameters = instance.model.invocationParameters;
 
-  // Handle changes to the form state, either deleting or upserting an invocation parameter
   const onChange = useCallback(
-    (field: InvocationParameter, value: unknown) => {
-      if (!field.invocationName) {
-        throw new Error("Invocation name is required");
-      }
+    (spec: ParamSpec, value: unknown) => {
       if (value === undefined) {
         deleteInvocationParameterInput({
           instanceId,
-          invocationParameterInputInvocationName: field.invocationName,
+          invocationParameterInputInvocationName: spec.name,
         });
       } else {
         upsertInvocationParameterInput({
           instanceId,
-          invocationParameterInput: makeInvocationParameterInput(field, value),
+          invocationParameterInput: makeInvocationParameterInput(spec, value),
         });
       }
     },
     [instanceId, upsertInvocationParameterInput, deleteInvocationParameterInput]
   );
 
-  // Reduce our invocation parameters array into a form state object
   const values = useMemo(() => {
-    return supportedInvocationParameterDefinitions
-      .filter(
-        (field) =>
-          // remove parameters that we want to ignore in the form
-          field.canonicalName != null
-      )
-      .reduce(
-        (acc, field) => {
-          const existingParameter = instanceInvocationParameters.find((p) =>
-            areInvocationParamsEqual(p, field)
-          );
-          const value = existingParameter
-            ? getInvocationParameterValue(field, existingParameter)
-            : undefined;
-          return {
-            ...acc,
-            [field.invocationName!]: value ?? null,
-          };
-        },
-        {} as Record<string, unknown>
-      );
-  }, [instanceInvocationParameters, supportedInvocationParameterDefinitions]);
+    return specs.reduce(
+      (acc, spec) => {
+        const existingParameter = instanceInvocationParameters.find((p) =>
+          areInvocationParamsEqual(p, spec)
+        );
+        const value = existingParameter
+          ? getInvocationParameterValue(spec, existingParameter)
+          : undefined;
+        acc[spec.name] = value ?? null;
+        return acc;
+      },
+      {} as Record<string, unknown>
+    );
+  }, [instanceInvocationParameters, specs]);
 
-  // Mirror the form state in react-hook-form so that we can use the validation and error state
   const form = useForm({
     values,
     mode: "onBlur",
@@ -371,42 +326,24 @@ export const InvocationParametersFormFields = ({
   const debouncedTrigger = useMemo(() => debounce(trigger, 250), [trigger]);
 
   useEffect(() => {
-    // revalidate the form when the values change
-    // debounce to trigger validation only after the user has stopped typing
     debouncedTrigger();
   }, [values, debouncedTrigger]);
 
-  // Don't bother rendering the form if the model name is not set
-  // Except for Azure OpenAI, where the model name does not influence the invocation parameters
   if (model.provider !== "AZURE_OPENAI" && model.modelName === null) {
     return null;
   }
 
-  const fieldsForSchema = Object.entries(values).map(
-    ([invocationName, value]) => {
-      const field = supportedInvocationParameterDefinitions.find(
-        (p) => p.invocationName === invocationName
-      );
-
-      if (!field) {
-        return null;
-      }
-
-      // Remount the field when the provider changes so that we don't hang on to stale values
-      const key = `${model.provider ?? "model"}-${field.invocationName}`;
-
-      return (
-        <InvocationParameterFormField
-          key={key}
-          field={field}
-          value={value}
-          onChange={(value) => onChange(field, value)}
-          control={form.control}
-          errors={form.formState.errors}
-        />
-      );
-    }
-  );
-
-  return fieldsForSchema;
+  return specs.map((spec) => {
+    const key = `${model.provider ?? "model"}-${spec.name}`;
+    return (
+      <InvocationParameterFormField
+        key={key}
+        spec={spec}
+        value={values[spec.name]}
+        onChange={(next) => onChange(spec, next)}
+        control={form.control}
+        errors={form.formState.errors}
+      />
+    );
+  });
 };

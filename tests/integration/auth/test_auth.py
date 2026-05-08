@@ -1209,7 +1209,7 @@ class TestPrompts:
                                 }
                             ]
                         },
-                        "invocationParameters": {"temperature": 0.4},
+                        "invocationParameters": {"openai": {"temperature": 0.4}},
                         "modelProvider": "OPENAI",
                         "modelName": "o1-mini",
                     },
@@ -1255,7 +1255,7 @@ class TestPrompts:
                                 }
                             ]
                         },
-                        "invocationParameters": {"temperature": 0.4},
+                        "invocationParameters": {"openai": {"temperature": 0.4}},
                         "modelProvider": "OPENAI",
                         "modelName": "o1-mini",
                     },
