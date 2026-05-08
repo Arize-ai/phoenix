@@ -213,13 +213,15 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
       isToolUIPart(part) &&
       shouldAutoOpenToolPart(part, getToolPartPreview(part))
   );
-  const [isExpanded, setIsExpanded] = useState(false);
-  const isRenderedExpanded = isExpanded || hasAutoOpenTool;
+  const [manualExpanded, setManualExpanded] = useState<boolean | null>(null);
+  const isRenderedExpanded = manualExpanded ?? hasAutoOpenTool;
 
   const { text: statusText, variant: statusVariant } = formatPoolStatus(stats);
 
   const handleToggle = () => {
-    setIsExpanded((prev) => !prev);
+    setManualExpanded(
+      (previousManualExpanded) => !(previousManualExpanded ?? hasAutoOpenTool)
+    );
   };
 
   return (
