@@ -10339,6 +10339,29 @@
         "type": "object",
         "title": "OtlpStatus"
       },
+      "PlaygroundContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "playground",
+            "title": "Type"
+          },
+          "instanceIds": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Instanceids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "instanceIds"
+        ],
+        "title": "PlaygroundContext",
+        "description": "Playground prompt editor state mounted in the current browser route."
+      },
       "Project": {
         "properties": {
           "name": {
@@ -14973,12 +14996,16 @@
                 },
                 {
                   "$ref": "#/components/schemas/AgentSpanContext"
+                },
+                {
+                  "$ref": "#/components/schemas/PlaygroundContext"
                 }
               ],
               "discriminator": {
                 "propertyName": "type",
                 "mapping": {
                   "app": "#/components/schemas/AppContext",
+                  "playground": "#/components/schemas/PlaygroundContext",
                   "project": "#/components/schemas/ProjectContext",
                   "span": "#/components/schemas/AgentSpanContext",
                   "trace": "#/components/schemas/TraceContext"
@@ -15040,12 +15067,16 @@
                 },
                 {
                   "$ref": "#/components/schemas/AgentSpanContext"
+                },
+                {
+                  "$ref": "#/components/schemas/PlaygroundContext"
                 }
               ],
               "discriminator": {
                 "propertyName": "type",
                 "mapping": {
                   "app": "#/components/schemas/AppContext",
+                  "playground": "#/components/schemas/PlaygroundContext",
                   "project": "#/components/schemas/ProjectContext",
                   "span": "#/components/schemas/AgentSpanContext",
                   "trace": "#/components/schemas/TraceContext"

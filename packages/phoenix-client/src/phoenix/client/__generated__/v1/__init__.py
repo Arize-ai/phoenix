@@ -299,6 +299,11 @@ class OtlpStatus(TypedDict):
     message: NotRequired[str]
 
 
+class PlaygroundContext(TypedDict):
+    type: Literal["playground"]
+    instanceIds: Sequence[int]
+
+
 class Project(TypedDict):
     name: str
     id: str
@@ -1361,7 +1366,9 @@ class FieldRegenerateMessage(TypedDict):
     trigger: NotRequired[str]
     messageId: NotRequired[str]
     contexts: NotRequired[
-        Sequence[Union[AppContext, ProjectContext, TraceContext, AgentSpanContext]]
+        Sequence[
+            Union[AppContext, ProjectContext, TraceContext, AgentSpanContext, PlaygroundContext]
+        ]
     ]
     capabilities: NotRequired[AgentCapabilities]
 
@@ -1372,7 +1379,9 @@ class FieldSubmitMessage(TypedDict):
     sessionId: str
     trigger: NotRequired[str]
     contexts: NotRequired[
-        Sequence[Union[AppContext, ProjectContext, TraceContext, AgentSpanContext]]
+        Sequence[
+            Union[AppContext, ProjectContext, TraceContext, AgentSpanContext, PlaygroundContext]
+        ]
     ]
     capabilities: NotRequired[AgentCapabilities]
 
