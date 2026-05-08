@@ -20,6 +20,7 @@ import type {
   ElicitToolOutput,
   PendingElicitation,
 } from "@phoenix/agent/tools/elicit";
+import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
 import { authFetch } from "@phoenix/authFetch";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
@@ -161,6 +162,14 @@ export function useAgentChat({
     errorText: string;
   }) => {
     const unresolvedToolCalls = getUnresolvedToolCalls(messages);
+
+    unresolvedToolCalls.forEach((toolCall) => {
+      if (toolCall.tool === EDIT_PROMPT_TOOL_NAME) {
+        // The generic interruption output resolves the AI SDK tool call; clear
+        // the live approval state too so stale Accept/Reject actions disappear.
+        store.getState().setPendingPromptEdit(toolCall.toolCallId, null);
+      }
+    });
 
     await Promise.all(
       unresolvedToolCalls.map((toolCall) =>
