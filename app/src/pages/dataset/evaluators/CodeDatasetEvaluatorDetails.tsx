@@ -5,21 +5,43 @@ import { useFragment } from "react-relay";
 import { useRevalidator } from "react-router";
 import { graphql } from "relay-runtime";
 
-import { Flex, Heading, List, ListItem, Text, View } from "@phoenix/components";
-import { JSONBlock } from "@phoenix/components/code";
+import {
+  Card,
+  ContextualHelp,
+  Flex,
+  Icon,
+  Icons,
+  List,
+  ListItem,
+  Text,
+  View,
+} from "@phoenix/components";
 import { EditCodeDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditCodeDatasetEvaluatorSlideover";
 import { CodeEvaluatorSourceCodeBlock } from "@phoenix/components/evaluators/CodeEvaluatorSourceCodeBlock";
+import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
 import type { CodeDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/CodeDatasetEvaluatorDetails_datasetEvaluator.graphql";
 import type { datasetEvaluatorDetailsLoaderQuery } from "@phoenix/pages/dataset/evaluators/__generated__/datasetEvaluatorDetailsLoaderQuery.graphql";
 import {
-  getBackendDescription,
   getDisplaySandboxConfig,
+  LanguageWithIcon,
   languageLabel,
   summarizeConfig,
 } from "@phoenix/pages/settings/sandboxes/utils";
+import { isPlainObject } from "@phoenix/utils/jsonUtils";
 
 type SandboxBackendInfo =
   datasetEvaluatorDetailsLoaderQuery["response"]["sandboxBackends"][number];
+
+type OutputConfig = {
+  name: string;
+  optimizationDirection?: string | null;
+  values?: ReadonlyArray<{
+    label?: string | null;
+    score?: number | null;
+  }> | null;
+  lowerBound?: number | null;
+  upperBound?: number | null;
+};
 
 const splitLayoutCSS = css`
   display: grid;
@@ -31,28 +53,203 @@ const splitLayoutCSS = css`
   }
 `;
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+const mapGridCSS = css`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--global-dimension-size-150);
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const mappingRowsCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-75);
+`;
+
+const mappingRowCSS = css`
+  display: flex;
+  align-items: baseline;
+  gap: var(--global-dimension-size-100);
+
+  & > .key {
+    font-family: var(--mono-font-family, ui-monospace, monospace);
+    color: var(--ac-global-text-color-700);
+    flex-shrink: 0;
+  }
+  & > .arrow {
+    color: var(--ac-global-text-color-500);
+  }
+  & > .value {
+    font-family: var(--mono-font-family, ui-monospace, monospace);
+    word-break: break-all;
+  }
+`;
+
+const annotationGridCSS = css`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--global-dimension-size-200);
+`;
+
+const sandboxRowCSS = css`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--global-dimension-size-200);
+`;
+
+const sandboxRowLabelCSS = css`
+  display: flex;
+  align-items: center;
+  gap: var(--global-dimension-size-50);
+  flex-shrink: 0;
+`;
+
+const sandboxRowValueCSS = css`
+  text-align: right;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--global-dimension-size-100);
+  justify-content: flex-end;
+`;
+
+const settingValueCSS = css`
+  font-family: var(--mono-font-family, ui-monospace, monospace);
+  font-size: var(--global-font-size-s);
+`;
+
+const settingValueMutedCSS = css`
+  font-family: var(--mono-font-family, ui-monospace, monospace);
+  font-size: var(--global-font-size-s);
+  color: var(--ac-global-text-color-500);
+  font-style: italic;
+`;
+
+function SandboxRow({
+  label,
+  labelExtra,
+  value,
+}: {
+  label: ReactNode;
+  labelExtra?: ReactNode;
+  value: ReactNode;
+}) {
   return (
-    <Flex direction="column" gap="size-100">
-      <Heading level={2}>{title}</Heading>
-      <View
-        padding="size-200"
-        borderWidth="thin"
-        borderColor="default"
-        borderRadius="medium"
-      >
-        <Flex direction="column" gap="size-150">
-          {children}
-        </Flex>
-      </View>
+    <div css={sandboxRowCSS}>
+      <div css={sandboxRowLabelCSS}>
+        {typeof label === "string" ? (
+          <Text size="S" color="text-700">
+            {label}
+          </Text>
+        ) : (
+          label
+        )}
+        {labelExtra}
+      </div>
+      <div css={sandboxRowValueCSS}>
+        {typeof value === "string" ? <Text size="S">{value}</Text> : value}
+      </div>
+    </div>
+  );
+}
+
+function CapabilityRow({ label, value }: { label: string; value: string }) {
+  return (
+    <Flex direction="row" gap="size-200" justifyContent="space-between">
+      <Text size="XS" color="text-700">
+        {label}
+      </Text>
+      <Text size="XS">{value}</Text>
     </Flex>
   );
 }
 
-function DetailRow({ label, value }: { label: string; value: ReactNode }) {
+function ProviderCapabilitiesHelp({
+  sandboxBackend,
+}: {
+  sandboxBackend: SandboxBackendInfo | undefined;
+}) {
   return (
-    <Flex direction="column" gap="size-25">
-      <Text weight="heavy" size="S">
+    <ContextualHelp variant="info">
+      <Flex direction="column" gap="size-100">
+        <Text weight="heavy" size="S">
+          Capabilities
+        </Text>
+        <Flex direction="column" gap="size-50">
+          <CapabilityRow
+            label="env_vars"
+            value={
+              sandboxBackend?.supportsEnvVars ? "supported" : "not supported"
+            }
+          />
+          <CapabilityRow
+            label="internet_access"
+            value={getInternetAccessLabel(
+              sandboxBackend?.internetAccess ?? "NONE"
+            )}
+          />
+          <CapabilityRow
+            label="dependencies"
+            value={getDependenciesLabel(
+              sandboxBackend?.dependenciesLanguage ?? null
+            )}
+          />
+        </Flex>
+      </Flex>
+    </ContextualHelp>
+  );
+}
+
+function MappingTile({
+  title,
+  description,
+  entries,
+  emptyLabel,
+  formatValue,
+}: {
+  title: string;
+  description: string;
+  entries: ReadonlyArray<[string, unknown]>;
+  emptyLabel: string;
+  formatValue: (value: unknown) => string;
+}) {
+  return (
+    <Flex direction="column" gap="size-100">
+      <Flex direction="column" gap="size-25">
+        <Text weight="heavy" size="S">
+          {title}
+        </Text>
+        <Text size="XS" color="text-700">
+          {description}
+        </Text>
+      </Flex>
+      {entries.length === 0 ? (
+        <Text size="XS" color="text-500">
+          {emptyLabel}
+        </Text>
+      ) : (
+        <div css={mappingRowsCSS}>
+          {entries.map(([key, value]) => (
+            <div key={key} css={mappingRowCSS}>
+              <span className="key">{key}</span>
+              <span className="arrow">→</span>
+              <span className="value">{formatValue(value)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Flex>
+  );
+}
+
+function AnnotationCell({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <Flex direction="column" gap="size-50">
+      <Text size="XS" color="text-700" weight="heavy">
         {label}
       </Text>
       {typeof value === "string" ? <Text>{value}</Text> : value}
@@ -60,19 +257,154 @@ function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
-function DetailListItem({ label, value }: { label: string; value: string }) {
+function formatOptimizationDirection(direction: string | null | undefined) {
+  if (!direction) return "None";
+  return direction.charAt(0).toUpperCase() + direction.slice(1).toLowerCase();
+}
+
+function formatCategoricalValues(
+  values: OutputConfig["values"]
+): string {
+  if (!values || values.length === 0) return "—";
+  return values
+    .map((v) => `${v.label}${v.score != null ? ` (${v.score})` : ""}`)
+    .join(", ");
+}
+
+function formatBound(value: number | null | undefined): string {
+  return value != null ? String(value) : "Unbounded";
+}
+
+function OutputConfigBlock({ config }: { config: OutputConfig }) {
+  const isCategorical = config.values != null;
+  const direction = formatOptimizationDirection(config.optimizationDirection);
+
   return (
-    <ListItem>
-      <View paddingStart="size-100" paddingEnd="size-100">
-        <Flex direction="row" justifyContent="space-between">
-          <Text size="XS" color="text-700">
-            {label}
-          </Text>
-          <Text size="XS">{value}</Text>
-        </Flex>
-      </View>
-    </ListItem>
+    <div css={annotationGridCSS}>
+      <AnnotationCell label="Name" value={config.name} />
+      <AnnotationCell
+        label="Type"
+        value={isCategorical ? "Categorical" : "Continuous"}
+      />
+      <AnnotationCell label="Optimization Direction" value={direction} />
+      {isCategorical ? (
+        <AnnotationCell
+          label="Values"
+          value={formatCategoricalValues(config.values)}
+        />
+      ) : (
+        <>
+          <AnnotationCell
+            label="Lower bound"
+            value={formatBound(config.lowerBound)}
+          />
+          <AnnotationCell
+            label="Upper bound"
+            value={formatBound(config.upperBound)}
+          />
+        </>
+      )}
+    </div>
   );
+}
+
+// Keys that are presented as a single row (not flattened into dot-paths) so
+// we can apply a friendly human-readable summary value.
+const COLLAPSED_SETTING_KEYS = new Set(["env_vars", "internet_access"]);
+
+const FRIENDLY_SETTING_LABELS: Record<string, string> = {
+  env_vars: "Environment Variables",
+  internet_access: "Internet Access",
+  dependencies: "Dependencies",
+};
+
+function friendlySettingLabel(key: string): string {
+  if (FRIENDLY_SETTING_LABELS[key]) return FRIENDLY_SETTING_LABELS[key];
+  return key
+    .split(".")
+    .map((part) =>
+      part
+        .split("_")
+        .map((s) =>
+          s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1)
+        )
+        .join(" ")
+    )
+    .join(" / ");
+}
+
+function flattenSettings(
+  value: unknown,
+  prefix = ""
+): Array<[string, unknown]> {
+  if (!isPlainObject(value) || Object.keys(value).length === 0) {
+    return prefix ? [[prefix, value]] : [];
+  }
+  const result: Array<[string, unknown]> = [];
+  for (const [key, v] of Object.entries(value)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+    if (!prefix && COLLAPSED_SETTING_KEYS.has(key)) {
+      result.push([path, v]);
+    } else if (isPlainObject(v) && Object.keys(v).length > 0) {
+      result.push(...flattenSettings(v, path));
+    } else {
+      result.push([path, v]);
+    }
+  }
+  return result;
+}
+
+function isInternetAccessOff(value: unknown): boolean {
+  if (value == null) return true;
+  if (isPlainObject(value)) {
+    const mode = value["mode"];
+    if (mode == null) return true;
+    if (typeof mode === "string" && mode.toLowerCase() === "deny") return true;
+  }
+  if (typeof value === "string" && value.toLowerCase() === "deny") return true;
+  return false;
+}
+
+function SettingValue({ keyPath, value }: { keyPath: string; value: unknown }) {
+  if (keyPath === "env_vars") {
+    if (value == null || (Array.isArray(value) && value.length === 0)) {
+      return <span css={settingValueMutedCSS}>none</span>;
+    }
+  }
+  if (keyPath === "internet_access") {
+    if (isInternetAccessOff(value)) {
+      return <span css={settingValueMutedCSS}>off</span>;
+    }
+  }
+  if (value == null) {
+    return <span css={settingValueMutedCSS}>null</span>;
+  }
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return <span css={settingValueMutedCSS}>empty list</span>;
+    }
+    return <span css={settingValueCSS}>{JSON.stringify(value)}</span>;
+  }
+  if (typeof value === "object") {
+    if (Object.keys(value as object).length === 0) {
+      return <span css={settingValueMutedCSS}>empty</span>;
+    }
+    return <span css={settingValueCSS}>{JSON.stringify(value)}</span>;
+  }
+  return <span css={settingValueCSS}>{String(value)}</span>;
+}
+
+function formatPathMappingValue(value: unknown): string {
+  return typeof value === "string" ? value : JSON.stringify(value);
+}
+
+function formatLiteral(value: unknown): string {
+  if (value == null) return "null";
+  if (typeof value === "string") return JSON.stringify(value);
+  if (typeof value === "boolean" || typeof value === "number") {
+    return String(value);
+  }
+  return JSON.stringify(value);
 }
 
 function getInternetAccessLabel(
@@ -189,7 +521,7 @@ export function CodeDatasetEvaluatorDetails({
   const outputConfigs =
     datasetEvaluator.outputConfigs.length > 0
       ? datasetEvaluator.outputConfigs
-      : evaluator.outputConfigs;
+      : (evaluator.outputConfigs ?? []);
   const sandboxConfig = evaluator.sandboxConfig;
   const sandboxBackendByType = useMemo(
     () =>
@@ -206,132 +538,172 @@ export function CodeDatasetEvaluatorDetails({
       ? sandboxBackendByType.get(sandboxConfig.provider.backendType)
       : undefined;
 
+  const pathMappingEntries = useMemo(
+    () =>
+      Object.entries(
+        (datasetEvaluator.inputMapping.pathMapping as Record<
+          string,
+          unknown
+        >) ?? {}
+      ),
+    [datasetEvaluator.inputMapping.pathMapping]
+  );
+  const literalMappingEntries = useMemo(
+    () =>
+      Object.entries(
+        (datasetEvaluator.inputMapping.literalMapping as Record<
+          string,
+          unknown
+        >) ?? {}
+      ),
+    [datasetEvaluator.inputMapping.literalMapping]
+  );
+
+  const customSettings = useMemo(() => {
+    if (sandboxConfig == null) return null;
+    if (summarizeConfig(sandboxConfig.config) === "No custom settings") {
+      return null;
+    }
+    return getDisplaySandboxConfig(sandboxConfig.config);
+  }, [sandboxConfig]);
+
+  const flattenedCustomSettings = useMemo(
+    () => flattenSettings(customSettings),
+    [customSettings]
+  );
+
   return (
     <>
-      <div css={splitLayoutCSS}>
-        <Flex direction="column" gap="size-200" flex="2 1 0" minWidth={0}>
-          <Section title="Source Code">
-            <CodeEvaluatorSourceCodeBlock
-              language={evaluator.language}
-              sourceCode={evaluator.sourceCode}
-            />
-          </Section>
-          <Section title="Input Mapping">
-            <Flex direction="column" gap="size-100">
-              <Text weight="heavy" size="S">
-                Path mapping
-              </Text>
-              <JSONBlock
-                value={JSON.stringify(
-                  datasetEvaluator.inputMapping.pathMapping,
-                  null,
-                  2
-                )}
-              />
-              <Text weight="heavy" size="S">
-                Literal mapping
-              </Text>
-              <JSONBlock
-                value={JSON.stringify(
-                  datasetEvaluator.inputMapping.literalMapping,
-                  null,
-                  2
-                )}
-              />
-            </Flex>
-          </Section>
-          <Section title="Evaluator Annotation">
-            <JSONBlock value={JSON.stringify(outputConfigs, null, 2)} />
-          </Section>
-        </Flex>
-        <Flex direction="column" gap="size-200" flex="1 1 0" minWidth={0}>
-          <Section title="Language">
-            <Text>
-              {evaluator.language === "PYTHON" ? "Python" : "TypeScript"}
-            </Text>
-          </Section>
-          <Section title="Sandbox">
-            {sandboxConfig == null ? (
-              <Text color="text-700">No sandbox configuration selected.</Text>
-            ) : (
-              <Flex direction="column" gap="size-150">
-                <DetailRow label="Config" value={sandboxConfig.name} />
-                {sandboxConfig.description ? (
-                  <DetailRow
-                    label="Description"
-                    value={sandboxConfig.description}
+      <Flex direction="column" gap="size-200">
+        <Card
+          title="Source Code"
+          extra={<LanguageWithIcon language={evaluator.language} />}
+        >
+          <CodeEvaluatorSourceCodeBlock
+            language={evaluator.language}
+            sourceCode={evaluator.sourceCode}
+          />
+        </Card>
+        <div css={splitLayoutCSS}>
+          <Flex direction="column" gap="size-200" flex="2 1 0" minWidth={0}>
+            <Card
+              title={
+                outputConfigs.length > 1
+                  ? `Evaluator Annotations (${outputConfigs.length})`
+                  : "Evaluator Annotation"
+              }
+            >
+              <View padding="size-200">
+                <Flex direction="column" gap="size-200">
+                  {outputConfigs.map((config, idx) => (
+                    <OutputConfigBlock
+                      key={config.name || idx}
+                      config={config as OutputConfig}
+                    />
+                  ))}
+                </Flex>
+              </View>
+            </Card>
+            <Card title="Input Mapping">
+              <View padding="size-200">
+                <div css={mapGridCSS}>
+                  <MappingTile
+                    title="Path mapping"
+                    description="Map function args to fields on the example"
+                    entries={pathMappingEntries}
+                    emptyLabel="No paths set"
+                    formatValue={formatPathMappingValue}
                   />
-                ) : null}
-                <DetailRow
-                  label="Provider"
-                  value={
-                    sandboxBackend?.displayName ??
-                    sandboxConfig.provider.backendType
-                  }
-                />
-                <DetailRow
-                  label="Runtime"
-                  value={getBackendDescription(
-                    sandboxConfig.provider.backendType
-                  )}
-                />
-                <DetailRow
-                  label="Language"
-                  value={languageLabel(sandboxConfig.provider.language)}
-                />
-                <DetailRow
-                  label="Timeout"
-                  value={`${sandboxConfig.timeout} seconds`}
-                />
-                <Flex direction="column" gap="size-50">
-                  <Text weight="heavy" size="S">
-                    Capabilities
+                  <MappingTile
+                    title="Literal mapping"
+                    description="Pass fixed literal values to function args"
+                    entries={literalMappingEntries}
+                    emptyLabel="No literals set"
+                    formatValue={formatLiteral}
+                  />
+                </div>
+              </View>
+            </Card>
+          </Flex>
+          <Flex direction="column" gap="size-200" flex="1 1 0" minWidth={0}>
+            <Card
+              title={
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  <Icon svg={<Icons.HardDriveOutline />} />
+                  <span>Sandbox</span>
+                </Flex>
+              }
+            >
+              {sandboxConfig == null ? (
+                <View padding="size-200">
+                  <Text color="text-700">
+                    No sandbox configuration selected.
                   </Text>
-                  <List size="S">
-                    <DetailListItem
-                      label="env_vars"
+                </View>
+              ) : (
+                <List size="M">
+                  <ListItem>
+                    <SandboxRow
+                      label="Config"
                       value={
-                        sandboxBackend?.supportsEnvVars
-                          ? "supported"
-                          : "not supported"
+                        <span css={settingValueCSS}>{sandboxConfig.name}</span>
                       }
                     />
-                    <DetailListItem
-                      label="internet_access"
-                      value={getInternetAccessLabel(
-                        sandboxBackend?.internetAccess ?? "NONE"
-                      )}
+                  </ListItem>
+                  {sandboxConfig.description ? (
+                    <ListItem>
+                      <SandboxRow
+                        label="Description"
+                        value={sandboxConfig.description}
+                      />
+                    </ListItem>
+                  ) : null}
+                  <ListItem>
+                    <SandboxRow
+                      label="Provider"
+                      labelExtra={
+                        <ProviderCapabilitiesHelp
+                          sandboxBackend={sandboxBackend}
+                        />
+                      }
+                      value={
+                        <Flex
+                          direction="row"
+                          gap="size-100"
+                          alignItems="center"
+                        >
+                          <SandboxProviderIcon
+                            backendType={sandboxConfig.provider.backendType}
+                            height={16}
+                          />
+                          <Text size="S">
+                            {sandboxBackend?.displayName ??
+                              sandboxConfig.provider.backendType}
+                          </Text>
+                        </Flex>
+                      }
                     />
-                    <DetailListItem
-                      label="dependencies"
-                      value={getDependenciesLabel(
-                        sandboxBackend?.dependenciesLanguage ?? null
-                      )}
+                  </ListItem>
+                  <ListItem>
+                    <SandboxRow
+                      label="Timeout"
+                      value={`${sandboxConfig.timeout} seconds`}
                     />
-                  </List>
-                </Flex>
-                <Flex direction="column" gap="size-50">
-                  <Text weight="heavy" size="S">
-                    Custom Settings
-                  </Text>
-                  {summarizeConfig(sandboxConfig.config) ===
-                  "No custom settings" ? (
-                    <Text color="text-700">No custom settings</Text>
-                  ) : (
-                    <JSONBlock
-                      value={JSON.stringify(
-                        getDisplaySandboxConfig(sandboxConfig.config),
-                        null,
-                        2
-                      )}
-                    />
-                  )}
-                </Flex>
-              </Flex>
-            )}
-          </Section>
-        </Flex>
-      </div>
+                  </ListItem>
+                  {flattenedCustomSettings.map(([key, v]) => (
+                    <ListItem key={key}>
+                      <SandboxRow
+                        label={friendlySettingLabel(key)}
+                        value={<SettingValue keyPath={key} value={v} />}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+            </Card>
+          </Flex>
+        </div>
+      </Flex>
       <EditCodeDatasetEvaluatorSlideover
         datasetEvaluatorId={datasetEvaluator.id}
         datasetId={datasetId}
