@@ -12,7 +12,11 @@ from phoenix.server.sandbox import (
     SANDBOX_ADAPTER_METADATA,
     AdapterMetadata,
 )
-from phoenix.server.sandbox.types import ProviderCredentialSpec, SandboxAdapter, SandboxBackend
+from phoenix.server.sandbox.types import (
+    ProviderCredentialSpec,
+    SandboxAdapter,
+    SandboxBackend,
+)
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 

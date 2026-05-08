@@ -780,7 +780,6 @@ CREATE TABLE public.code_evaluators (
     id BIGINT NOT NULL,
     kind VARCHAR NOT NULL DEFAULT 'CODE'::character varying,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    source_code VARCHAR NOT NULL DEFAULT ''::character varying,
     language VARCHAR NOT NULL,
     input_mapping JSONB NOT NULL DEFAULT '{"path_mapping": {}, "literal_mapping": {}}',
     output_configs JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -809,6 +808,32 @@ CREATE INDEX ix_code_evaluators_language ON public.code_evaluators
     USING btree (language);
 CREATE INDEX ix_code_evaluators_sandbox_config_id ON public.code_evaluators
     USING btree (sandbox_config_id);
+
+
+-- Table: code_evaluator_code_versions
+-- -----------------------------------
+CREATE TABLE public.code_evaluator_code_versions (
+    id bigserial NOT NULL,
+    code_evaluator_id BIGINT NOT NULL,
+    user_id BIGINT,
+    source_code VARCHAR NOT NULL DEFAULT ''::character varying,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_code_evaluator_code_versions PRIMARY KEY (id),
+    CONSTRAINT fk_code_evaluator_code_versions_code_evaluator_id_code__3f57
+        FOREIGN KEY
+        (code_evaluator_id)
+        REFERENCES public.code_evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_code_evaluator_code_versions_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE SET NULL
+);
+
+CREATE INDEX ix_code_evaluator_code_versions_code_evaluator_id_id ON public.code_evaluator_code_versions
+    USING btree (code_evaluator_id, id);
+CREATE INDEX ix_code_evaluator_code_versions_user_id ON public.code_evaluator_code_versions
+    USING btree (user_id);
 
 
 -- Table: dataset_evaluators

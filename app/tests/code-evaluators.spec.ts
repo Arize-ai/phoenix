@@ -503,25 +503,45 @@ test.describe.serial("Code Evaluators", () => {
     // should clear the now-incompatible selection.
     await expectSandboxCleared(dialog);
 
-    const updateCodeEvaluatorResponse = page.waitForResponse((response) =>
+    const patchCodeEvaluatorResponse = page.waitForResponse((response) =>
       isGraphQLMutationResponse(
         response,
-        "EditCodeDatasetEvaluatorSlideover_updateCodeEvaluatorMutation"
+        "EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation"
       )
+    );
+    const createCodeEvaluatorVersionResponse = page.waitForResponse(
+      (response) =>
+        isGraphQLMutationResponse(
+          response,
+          "EditCodeDatasetEvaluatorSlideover_createCodeEvaluatorVersionMutation"
+        )
     );
 
     await dialog.getByRole("button", { name: "Update" }).click();
 
-    const response = await updateCodeEvaluatorResponse;
-    const requestBody = response.request().postDataJSON() as {
+    const patchResponse = await patchCodeEvaluatorResponse;
+    const patchRequestBody = patchResponse.request().postDataJSON() as {
       variables: {
         input: {
           sandboxConfigId?: string | null;
         };
       };
     };
+    expect(patchRequestBody.variables.input.sandboxConfigId).toBeNull();
 
-    expect(requestBody.variables.input.sandboxConfigId).toBeNull();
+    const createVersionResponse = await createCodeEvaluatorVersionResponse;
+    const createVersionRequestBody = createVersionResponse
+      .request()
+      .postDataJSON() as {
+      variables: {
+        input: Record<string, unknown>;
+      };
+    };
+    // Sandbox rebinding lives exclusively on patchCodeEvaluator; the version
+    // input no longer accepts a sandbox identifier. Lock that boundary in.
+    expect(createVersionRequestBody.variables.input).not.toHaveProperty(
+      "sandboxConfigId"
+    );
 
     await expect(page.getByTestId("dialog")).not.toBeVisible();
 
