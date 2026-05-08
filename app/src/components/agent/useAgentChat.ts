@@ -155,37 +155,36 @@ export function useAgentChat({
     setMessages,
   } = chat;
 
-  const handleStopWithToolCleanup = async () => {
-    await stop();
-    // filter out messages where the input hasn't streamed in yet
-    // these break pydantic's requirement that input must be present
-    setMessages((prevMessages) => {
-      return prevMessages.map((message) => {
-        return {
-          ...message,
-          parts: message.parts.filter(
-            (part) =>
-              !isToolUIPart(part) ||
-              (part.state !== "input-streaming" &&
-                part.state !== "input-available")
-          ),
-        };
-      });
-    });
-
-    const latestMessages = chatInstance?.messages ?? messages;
-    const unresolvedToolCalls = getUnresolvedToolCalls(latestMessages);
+  const addInterruptedToolOutputs = async ({
+    messages,
+    errorText,
+  }: {
+    messages: AgentUIMessage[];
+    errorText: string;
+  }) => {
+    const unresolvedToolCalls = getUnresolvedToolCalls(messages);
 
     await Promise.all(
       unresolvedToolCalls.map((toolCall) =>
         addToolOutput({
           tool: toolCall.tool,
           toolCallId: toolCall.toolCallId,
-          errorText: USER_INTERRUPT_ERROR,
+          errorText,
           state: "output-error",
         })
       )
     );
+  };
+
+  const handleStopWithToolCleanup = async () => {
+    await stop();
+    setMessages(removeInterruptedToolInputParts);
+
+    const latestMessages = chatInstance?.messages ?? messages;
+    await addInterruptedToolOutputs({
+      messages: latestMessages,
+      errorText: USER_INTERRUPT_ERROR,
+    });
   };
 
   const handleSendMessage = async (...args: Parameters<typeof sendMessage>) => {
@@ -193,33 +192,13 @@ export function useAgentChat({
       await stop();
     }
 
-    setMessages((prevMessages) => {
-      return prevMessages.map((message) => {
-        return {
-          ...message,
-          parts: message.parts.filter(
-            (part) =>
-              !isToolUIPart(part) ||
-              (part.state !== "input-streaming" &&
-                part.state !== "input-available")
-          ),
-        };
-      });
-    });
+    setMessages(removeInterruptedToolInputParts);
 
     const latestMessages = chatInstance?.messages ?? messages;
-    const unresolvedToolCalls = getUnresolvedToolCalls(latestMessages);
-
-    await Promise.all(
-      unresolvedToolCalls.map((toolCall) =>
-        addToolOutput({
-          tool: toolCall.tool,
-          toolCallId: toolCall.toolCallId,
-          errorText: SYSTEM_INTERRUPT_ERROR,
-          state: "output-error",
-        })
-      )
-    );
+    await addInterruptedToolOutputs({
+      messages: latestMessages,
+      errorText: SYSTEM_INTERRUPT_ERROR,
+    });
 
     await sendMessage(...args);
   };
@@ -284,6 +263,22 @@ export function useAgentChat({
     handleElicitationSubmit: (output: ElicitToolOutput) => void;
     handleElicitationCancel: () => void;
   };
+}
+
+function removeInterruptedToolInputParts(
+  messages: AgentUIMessage[]
+): AgentUIMessage[] {
+  return messages.map((message) => {
+    return {
+      ...message,
+      parts: message.parts.filter((part) => {
+        return (
+          !isToolUIPart(part) ||
+          (part.state !== "input-streaming" && part.state !== "input-available")
+        );
+      }),
+    };
+  });
 }
 
 function isRequestActive(status: ChatStatus): boolean {

@@ -28,16 +28,22 @@ export function shouldSendAutomaticallyAfterToolOutput({
 }): boolean {
   // if we just marked tool calls as interrupted (on message send or stream stop), we don't
   // want to trigger another message send event
-  if (hasUserInterruptedToolCall(messages)) {
+  if (hasInterruptedToolCall({ messages, errorText: USER_INTERRUPT_ERROR })) {
     return false;
   }
-  if (hasSystemInterruptedToolCall(messages)) {
+  if (hasInterruptedToolCall({ messages, errorText: SYSTEM_INTERRUPT_ERROR })) {
     return false;
   }
   return lastAssistantMessageIsCompleteWithToolCalls({ messages });
 }
 
-function hasUserInterruptedToolCall(messages: UIMessage[]): boolean {
+function hasInterruptedToolCall({
+  messages,
+  errorText,
+}: {
+  messages: UIMessage[];
+  errorText: string;
+}): boolean {
   const message = messages[messages.length - 1];
   if (!message || message.role !== "assistant") {
     return false;
@@ -46,24 +52,6 @@ function hasUserInterruptedToolCall(messages: UIMessage[]): boolean {
     if (!isToolUIPart(part)) {
       return false;
     }
-    return (
-      part.state === "output-error" && part.errorText === USER_INTERRUPT_ERROR
-    );
-  });
-}
-
-// we don't want to send automatically after we've set a synthetic tool error
-function hasSystemInterruptedToolCall(messages: UIMessage[]): boolean {
-  const message = messages[messages.length - 1];
-  if (!message || message.role !== "assistant") {
-    return false;
-  }
-  return message.parts.some((part) => {
-    if (!isToolUIPart(part)) {
-      return false;
-    }
-    return (
-      part.state === "output-error" && part.errorText === SYSTEM_INTERRUPT_ERROR
-    );
+    return part.state === "output-error" && part.errorText === errorText;
   });
 }
