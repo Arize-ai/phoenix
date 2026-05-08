@@ -113,11 +113,7 @@ export function useAgentChat({
                 });
               },
               sendAutomaticallyWhen: shouldSendAutomaticallyAfterToolOutput,
-              onFinish: ({
-                messages: finalMessages,
-                message,
-                finishReason,
-              }) => {
+              onFinish: ({ messages: finalMessages, message }) => {
                 const usage = message.metadata?.usage;
                 if (usage != null) {
                   store.getState().setSessionUsage(sessionId, {
@@ -129,7 +125,7 @@ export function useAgentChat({
                 }
                 // Finalized history is mirrored into the durable store so idle
                 // runtimes can be reclaimed and later reconstructed from state.
-                if (finalMessages && finishReason !== "stop") {
+                if (finalMessages) {
                   store.getState().setSessionMessages(sessionId, finalMessages);
                   generateSummary({ sessionId });
                 }
@@ -155,6 +151,8 @@ export function useAgentChat({
     setMessages,
   } = chat;
 
+  // Anthropic doesn't accept unresolved tool calls, so we resolve them by marking
+  // as error
   const addInterruptedToolOutputs = async ({
     messages,
     errorText,
@@ -265,6 +263,7 @@ export function useAgentChat({
   };
 }
 
+// Pydantic will error if given tool calls without inputs, so we filter them out
 function removeInterruptedToolInputParts(
   messages: AgentUIMessage[]
 ): AgentUIMessage[] {
