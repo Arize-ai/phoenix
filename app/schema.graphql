@@ -652,7 +652,7 @@ type CreateCodeEvaluatorVersionPayload {
   evaluator: CodeEvaluator!
 
   """
-  True when a new CodeEvaluatorVersion row was appended. False when the call dedup'd against the existing tip because source_code was unchanged.
+  True when a new CodeEvaluatorVersion row was appended. False when the call dedup'd against the existing tip because source_code was unchanged. Exposes idempotency explicitly so clients can distinguish a saved revision from a no-op.
   """
   wasCreated: Boolean!
   query: Query!

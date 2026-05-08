@@ -25,7 +25,7 @@ from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.dataloaders.latest_code_evaluator_versions import (
-    latest_code_evaluator_version_for_update,
+    code_evaluator_with_latest_version_for_update,
 )
 from phoenix.server.api.evaluators import (
     _infer_python_evaluate_input_schema,
@@ -349,9 +349,9 @@ class CreateCodeEvaluatorVersionPayload:
     evaluator: CodeEvaluator
     was_created: bool = strawberry.field(
         description=(
-            "True when a new CodeEvaluatorVersion row was appended."
-            " False when the call dedup'd against the existing tip because"
-            " source_code was unchanged."
+            "True when a new CodeEvaluatorVersion row was appended. False when the call"
+            " dedup'd against the existing tip because source_code was unchanged. Exposes"
+            " idempotency explicitly so clients can distinguish a saved revision from a no-op."
         )
     )
     query: Query
@@ -544,26 +544,34 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"Invalid DatasetEvaluator id: {input.dataset_evaluator_id}")
 
         async with info.context.db() as session:
-            dataset_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_rowid)
-            if dataset_evaluator is None:
-                raise NotFound(f"DatasetEvaluator with id {input.dataset_evaluator_id} not found")
-
-            # Check if this is a builtin evaluator by looking up the evaluator kind
-            if dataset_evaluator.evaluator_id is not None:
-                evaluator = await session.get(models.Evaluator, dataset_evaluator.evaluator_id)
+            dataset_evaluator_row = await session.execute(
+                select(models.DatasetEvaluators, models.LLMEvaluator)
+                .join(
+                    models.LLMEvaluator,
+                    models.DatasetEvaluators.evaluator_id == models.LLMEvaluator.id,
+                )
+                .where(models.DatasetEvaluators.id == dataset_evaluator_rowid)
+            )
+            dataset_evaluator_pair = dataset_evaluator_row.one_or_none()
+            if dataset_evaluator_pair is None:
+                dataset_evaluator = await session.get(
+                    models.DatasetEvaluators, dataset_evaluator_rowid
+                )
+                if dataset_evaluator is None:
+                    raise NotFound(
+                        f"DatasetEvaluator with id {input.dataset_evaluator_id} not found"
+                    )
+                evaluator = (
+                    await session.get(models.Evaluator, dataset_evaluator.evaluator_id)
+                    if dataset_evaluator.evaluator_id is not None
+                    else None
+                )
                 if evaluator is not None and evaluator.kind == "BUILTIN":
                     raise BadRequest("Cannot update a built-in evaluator")
-
-            # Use select instead of session.get to ensure all columns are properly loaded
-            llm_stmt = select(models.LLMEvaluator).where(
-                models.LLMEvaluator.id == dataset_evaluator.evaluator_id
-            )
-            llm_result = await session.execute(llm_stmt)
-            llm_evaluator = llm_result.scalar_one_or_none()
-            if llm_evaluator is None:
                 raise NotFound(
                     f"LLM evaluator not found for DatasetEvaluator {input.dataset_evaluator_id}"
                 )
+            dataset_evaluator, llm_evaluator = dataset_evaluator_pair
 
             # Handle prompt_version_id if provided
             target_prompt_id = llm_evaluator.prompt_id
@@ -940,23 +948,25 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
-                dataset_evaluator = await session.get(
-                    models.DatasetEvaluators, dataset_evaluator_rowid
-                )
-                if dataset_evaluator is None:
-                    raise NotFound(
-                        f"DatasetEvaluator with id {input.dataset_evaluator_id} not found"
+                dataset_evaluator_row = await session.execute(
+                    select(models.DatasetEvaluators, models.BuiltinEvaluator)
+                    .join(
+                        models.BuiltinEvaluator,
+                        models.DatasetEvaluators.evaluator_id == models.BuiltinEvaluator.id,
                     )
-
-                # Check if this is a builtin evaluator by looking up the evaluator kind
-                if dataset_evaluator.evaluator_id is None:
-                    raise BadRequest("Cannot update a non-built-in evaluator")
-
-                builtin_db = await session.get(
-                    models.BuiltinEvaluator, dataset_evaluator.evaluator_id
+                    .where(models.DatasetEvaluators.id == dataset_evaluator_rowid)
                 )
-                if builtin_db is None:
+                dataset_evaluator_pair = dataset_evaluator_row.one_or_none()
+                if dataset_evaluator_pair is None:
+                    dataset_evaluator = await session.get(
+                        models.DatasetEvaluators, dataset_evaluator_rowid
+                    )
+                    if dataset_evaluator is None:
+                        raise NotFound(
+                            f"DatasetEvaluator with id {input.dataset_evaluator_id} not found"
+                        )
                     raise BadRequest("Cannot update a non-built-in evaluator")
+                dataset_evaluator, builtin_db = dataset_evaluator_pair
 
                 builtin_evaluator = get_builtin_evaluator_by_key(builtin_db.key)
                 if builtin_evaluator is None:
@@ -1116,17 +1126,25 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
-                dataset_evaluator = await session.get(
-                    models.DatasetEvaluators, dataset_evaluator_rowid
-                )
-                if dataset_evaluator is None:
-                    raise NotFound(
-                        f"DatasetEvaluator with id {input.dataset_evaluator_id} not found"
+                dataset_evaluator_row = await session.execute(
+                    select(models.DatasetEvaluators, models.CodeEvaluator)
+                    .join(
+                        models.CodeEvaluator,
+                        models.DatasetEvaluators.evaluator_id == models.CodeEvaluator.id,
                     )
-
-                evaluator = await session.get(models.CodeEvaluator, dataset_evaluator.evaluator_id)
-                if evaluator is None:
+                    .where(models.DatasetEvaluators.id == dataset_evaluator_rowid)
+                )
+                dataset_evaluator_pair = dataset_evaluator_row.one_or_none()
+                if dataset_evaluator_pair is None:
+                    dataset_evaluator = await session.get(
+                        models.DatasetEvaluators, dataset_evaluator_rowid
+                    )
+                    if dataset_evaluator is None:
+                        raise NotFound(
+                            f"DatasetEvaluator with id {input.dataset_evaluator_id} not found"
+                        )
                     raise BadRequest("Cannot update a non-code dataset evaluator")
+                dataset_evaluator, evaluator = dataset_evaluator_pair
 
                 try:
                     name = IdentifierModel.model_validate(input.name)
@@ -1324,9 +1342,12 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
-                row = await session.get(models.CodeEvaluator, evaluator_id)
-                if row is None:
+                code_evaluator_with_version = await code_evaluator_with_latest_version_for_update(
+                    session, evaluator_id
+                )
+                if code_evaluator_with_version is None:
                     raise NotFound(f"CodeEvaluator not found: {evaluator_id}")
+                row, current_version = code_evaluator_with_version
                 _raise_on_uninferable_evaluate_signature(input.source_code, Language(row.language))
 
                 candidate = models.CodeEvaluatorVersion(
@@ -1335,8 +1356,6 @@ class EvaluatorMutationMixin:
                     source_code=input.source_code,
                     user_id=user_id,
                 )
-
-                current_version = await latest_code_evaluator_version_for_update(session, row.id)
 
                 was_created = current_version is None or not current_version.has_identical_content(
                     candidate

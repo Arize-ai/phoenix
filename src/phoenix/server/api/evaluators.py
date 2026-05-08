@@ -746,31 +746,12 @@ async def get_evaluators(
             raise NotFound(f"DatasetEvaluator with ID '{de_id}' not found")
 
     llm_orm_by_id: dict[int, models.LLMEvaluator] = {}
+    code_orm_by_id: dict[int, models.CodeEvaluator] = {}
     for _, ev in dataset_evaluators_result:
         if isinstance(ev, models.LLMEvaluator):
             llm_orm_by_id[ev.id] = ev
-
-    # Batch query to get evaluator kinds
-    evaluator_db_ids = {ev.id for _, ev in dataset_evaluators_result}
-    evaluator_kinds_by_id: dict[int, str] = {}
-    if evaluator_db_ids:
-        evaluators_result = await session.scalars(
-            select(models.Evaluator).where(models.Evaluator.id.in_(evaluator_db_ids))
-        )
-        for evaluator in evaluators_result:
-            evaluator_kinds_by_id[evaluator.id] = evaluator.kind
-
-    # Collect LLM, BUILTIN, and CODE evaluator IDs that need to be fetched
-    llm_evaluator_db_ids: set[int] = set()
-    builtin_evaluator_db_ids: set[int] = set()
-    code_evaluator_db_ids: set[int] = set()
-    for eval_id, kind in evaluator_kinds_by_id.items():
-        if kind == "LLM":
-            llm_evaluator_db_ids.add(eval_id)
-        elif kind == "BUILTIN":
-            builtin_evaluator_db_ids.add(eval_id)
-        elif kind == "CODE":
-            code_evaluator_db_ids.add(eval_id)
+        elif isinstance(ev, models.CodeEvaluator):
+            code_orm_by_id[ev.id] = ev
 
     # Single batch query for all LLM evaluators (if any)
     llm_evaluators_by_id: dict[int, LLMEvaluator] = {}
@@ -785,35 +766,18 @@ async def get_evaluators(
         for llm_evaluator_orm, llm_evaluator in zip(llm_evaluator_orms, llm_evaluators_list):
             llm_evaluators_by_id[llm_evaluator_orm.id] = llm_evaluator
 
-    # Single batch query for all BUILTIN evaluators (if any) to get their keys
-    builtin_evaluator_keys_by_id: dict[int, str] = {}
-    if builtin_evaluator_db_ids:
-        builtin_evaluators_result = await session.scalars(
-            select(models.BuiltinEvaluator).where(
-                models.BuiltinEvaluator.id.in_(builtin_evaluator_db_ids)
-            )
-        )
-        for builtin_evaluator in builtin_evaluators_result:
-            builtin_evaluator_keys_by_id[builtin_evaluator.id] = builtin_evaluator.key
-
     # Single batch query for all CODE evaluators (if any)
     code_evaluators_by_id: dict[int, CodeEvaluatorRunner] = {}
     code_evaluator_languages_by_id: dict[int, str] = {}
-    if code_evaluator_db_ids:
+    if code_orm_by_id:
         from phoenix.server.api.dataloaders.latest_code_evaluator_versions import (
             latest_code_evaluator_versions_by_evaluator_id,
         )
         from phoenix.server.sandbox import get_or_create_backend
 
-        code_rows = list(
-            await session.scalars(
-                select(models.CodeEvaluator).where(
-                    models.CodeEvaluator.id.in_(code_evaluator_db_ids)
-                )
-            )
-        )
+        code_rows = [code_orm_by_id[evaluator_id] for evaluator_id in sorted(code_orm_by_id)]
         latest_versions = await latest_code_evaluator_versions_by_evaluator_id(
-            list(code_evaluator_db_ids), session
+            list(code_orm_by_id), session
         )
         tip_sandbox_config_ids = {
             code_row.sandbox_config_id

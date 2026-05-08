@@ -2,6 +2,7 @@ from typing import Any, Optional, cast
 
 from sqlalchemy import Select, Values, column, func, literal_column, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
@@ -37,19 +38,33 @@ async def latest_code_evaluator_versions_by_evaluator_id(
     }
 
 
-async def latest_code_evaluator_version_for_update(
+async def code_evaluator_with_latest_version_for_update(
     session: AsyncSession,
     code_evaluator_id: int,
-) -> Optional[models.CodeEvaluatorVersion]:
-    """Resolve one evaluator's latest version inside an existing write session."""
+) -> Optional[tuple[models.CodeEvaluator, Optional[models.CodeEvaluatorVersion]]]:
+    """Resolve one evaluator and its latest version inside an existing write session."""
+    latest_version = aliased(models.CodeEvaluatorVersion)
+    latest_version_id = (
+        select(models.CodeEvaluatorVersion.id)
+        .where(models.CodeEvaluatorVersion.code_evaluator_id == models.CodeEvaluator.id)
+        .order_by(models.CodeEvaluatorVersion.id.desc())
+        .limit(1)
+        .correlate(models.CodeEvaluator)
+        .scalar_subquery()
+    )
+    row = (
+        await session.execute(
+            select(models.CodeEvaluator, latest_version)
+            .outerjoin(latest_version, latest_version.id == latest_version_id)
+            .where(models.CodeEvaluator.id == code_evaluator_id)
+        )
+    ).one_or_none()
+    if row is None:
+        return None
+    code_evaluator, code_evaluator_version = row
     return cast(
-        Optional[models.CodeEvaluatorVersion],
-        await session.scalar(
-            select(models.CodeEvaluatorVersion)
-            .where(models.CodeEvaluatorVersion.code_evaluator_id == code_evaluator_id)
-            .order_by(models.CodeEvaluatorVersion.id.desc())
-            .limit(1)
-        ),
+        tuple[models.CodeEvaluator, Optional[models.CodeEvaluatorVersion]],
+        (code_evaluator, code_evaluator_version),
     )
 
 
