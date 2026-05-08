@@ -33,7 +33,7 @@ _e2b_adapter = E2BAdapter()
 _RESERVED_NAMES = [
     "MODAL_TOKEN_SECRET",
     "MODAL_TOKEN_ID",
-    "PHOENIX_SANDBOX_VERCEL_TOKEN",
+    "VERCEL_TOKEN",
     "VERCEL_OIDC_TOKEN",
 ]
 
@@ -190,7 +190,7 @@ class TestReservedCredentialNamesCaseInsensitive:
                             "env_vars": [
                                 {
                                     "kind": "literal",
-                                    "name": "phoenix_sandbox_vercel_token",
+                                    "name": "vercel_token",
                                     "value": "shadow-attempt",
                                 }
                             ]
