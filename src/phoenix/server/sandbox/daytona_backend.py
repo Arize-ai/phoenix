@@ -12,7 +12,7 @@ error during evaluation.
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from .types import (
     DaytonaPythonConfig,
@@ -22,7 +22,26 @@ from .types import (
     SandboxBackend,
 )
 
+if TYPE_CHECKING:
+    from daytona_sdk import (
+        AsyncDaytona,
+        AsyncSandbox,
+        CreateSandboxFromSnapshotParams,
+        ExecuteResponse,
+    )
+
 logger = logging.getLogger(__name__)
+
+
+def _to_execution_result(response: ExecuteResponse) -> ExecutionResult:
+    """Map daytona ExecuteResponse (combined stdout/stderr in `result`) to ExecutionResult."""
+    output = response.result or ""
+    failed = response.exit_code != 0
+    return ExecutionResult(
+        stdout="" if failed else output,
+        stderr=output if failed else "",
+        error=output or f"exit code {response.exit_code}" if failed else None,
+    )
 
 
 class DaytonaSandboxBackend(SandboxBackend):
@@ -41,14 +60,23 @@ class DaytonaSandboxBackend(SandboxBackend):
         self._user_env: dict[str, str] = user_env or {}
         self._packages: list[str] = packages or []
         self._network_block_all = network_block_all
-        self._sessions: dict[str, Any] = {}
+        self._sessions: dict[str, AsyncSandbox] = {}
+        self._client: Optional[AsyncDaytona] = None
 
-    def _get_client(self) -> Any:
-        from daytona_sdk import Daytona  # type: ignore[import-not-found]
+    def _get_client(self) -> AsyncDaytona:
+        if self._client is not None:
+            return self._client
+        from daytona_sdk import AsyncDaytona, DaytonaConfig
 
-        return Daytona(api_key=self._api_key, server_url=self._server_url or None)
+        self._client = AsyncDaytona(
+            DaytonaConfig(
+                api_key=self._api_key,
+                api_url=self._server_url or None,
+            )
+        )
+        return self._client
 
-    async def _install_packages(self, workspace: Any) -> None:
+    async def _install_packages(self, workspace: AsyncSandbox) -> None:
         """Run pip install for configured packages before first user execute."""
         if not self._packages:
             return
@@ -65,21 +93,23 @@ class DaytonaSandboxBackend(SandboxBackend):
         result = await workspace.process.code_run(install_code)
         if result.exit_code != 0:
             raise RuntimeError(
-                f"pip install {pkg_args!r} failed (exit {result.exit_code}): {result.stderr}"
+                f"pip install {pkg_args!r} failed (exit {result.exit_code}): {result.result}"
             )
 
-    def _create_kwargs(self) -> dict[str, Any]:
-        kwargs: dict[str, Any] = {}
-        if self._network_block_all:
-            kwargs["network_block_all"] = True
-        return kwargs
+    def _create_params(self) -> CreateSandboxFromSnapshotParams:
+        from daytona_sdk import CodeLanguage, CreateSandboxFromSnapshotParams
+
+        return CreateSandboxFromSnapshotParams(
+            language=CodeLanguage.PYTHON,
+            network_block_all=True if self._network_block_all else None,
+        )
 
     async def start_session(self, session_key: str) -> None:
         if session_key in self._sessions:
             logger.debug(f"Daytona session '{session_key}' already exists; reusing")
             return
         client = self._get_client()
-        workspace = await client.create(**self._create_kwargs())
+        workspace = await client.create(self._create_params())
         await self._install_packages(workspace)
         self._sessions[session_key] = workspace
         logger.debug(f"Started Daytona session '{session_key}'")
@@ -88,7 +118,7 @@ class DaytonaSandboxBackend(SandboxBackend):
         workspace = self._sessions.pop(session_key, None)
         if workspace is not None:
             client = self._get_client()
-            await client.remove(workspace)
+            await client.delete(workspace)
             logger.debug(f"Stopped Daytona session '{session_key}'")
 
     async def execute(
@@ -98,37 +128,29 @@ class DaytonaSandboxBackend(SandboxBackend):
         timeout: Optional[int] = None,
     ) -> ExecutionResult:
         try:
-            from daytona_sdk.common.process import CodeRunParams  # type: ignore[import-not-found]
+            from daytona_sdk import CodeRunParams
 
             workspace = self._sessions.get(session_key)
             if workspace is not None:
                 result = await workspace.process.code_run(
                     code, params=CodeRunParams(env=self._user_env or None)
                 )
-                return ExecutionResult(
-                    stdout=result.stdout or "",
-                    stderr=result.stderr or "",
-                    error=result.exit_code != 0 and result.stderr or None,
-                )
+                return _to_execution_result(result)
             else:
                 client = self._get_client()
-                workspace = await client.create(**self._create_kwargs())
+                workspace = await client.create(self._create_params())
                 try:
                     await self._install_packages(workspace)
                     result = await workspace.process.code_run(
                         code, params=CodeRunParams(env=self._user_env or None)
                     )
-                    return ExecutionResult(
-                        stdout=result.stdout or "",
-                        stderr=result.stderr or "",
-                        error=result.exit_code != 0 and result.stderr or None,
-                    )
+                    return _to_execution_result(result)
                 finally:
                     try:
-                        await client.remove(workspace)
+                        await client.delete(workspace)
                     except Exception:
                         logger.warning(
-                            "Failed to remove ephemeral Daytona workspace", exc_info=True
+                            "Failed to delete ephemeral Daytona workspace", exc_info=True
                         )
         except Exception as exc:
             return ExecutionResult(stdout="", stderr=str(exc), error=str(exc))
@@ -136,6 +158,12 @@ class DaytonaSandboxBackend(SandboxBackend):
     async def close(self) -> None:
         for key in list(self._sessions):
             await self.stop_session(key)
+        if self._client is not None:
+            try:
+                await self._client.close()  # type: ignore[no-untyped-call]  # SDK 0.140 lacks return annotation
+            except Exception:
+                logger.warning("Failed to close Daytona client", exc_info=True)
+            self._client = None
 
 
 class DaytonaPythonAdapter(SandboxAdapter):
