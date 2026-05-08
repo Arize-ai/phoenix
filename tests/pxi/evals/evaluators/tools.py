@@ -50,39 +50,69 @@ def _success() -> dict[str, Any]:
     return {"score": 1.0, "label": "pass"}
 
 
-@create_evaluator(name="correct_tools_called", kind="code")
-def correct_tools_called(
-    output: Any,
-    expected: Any,
-    exact_match: bool = False,
-) -> dict[str, Any]:
+def evaluate_tools_called(output: Any, expected: Any) -> dict[str, Any]:
+    """Evaluate observed tool calls against required/forbidden/exact_match expectations.
+
+    Reads strictness from ``expected.tools.exact_match`` (defaulting to False).
+    Returns a dict with one of the labels:
+
+    - ``correct``: all required tools were called, no forbidden tools, and (when
+      ``exact_match`` is true) the observed sequence equals the required sequence.
+    - ``called_forbidden``: at least one forbidden tool was called.
+    - ``missing_required``: at least one required tool was not called.
+    - ``not_exact_match``: ``exact_match`` is true, all required tools were
+      called, and the observed sequence does not equal the required sequence
+      (extra calls, duplicates, or different ordering).
+
+    Precedence (most specific first): ``called_forbidden`` >
+    ``missing_required`` > ``not_exact_match`` > ``correct``.
+    """
     tool_expectation = _expected_tools(expected)
     required = list(tool_expectation.get("required") or [])
     forbidden = list(tool_expectation.get("forbidden") or [])
+    exact_match = bool(tool_expectation.get("exact_match", False))
 
     observed = [name for call in _tool_calls(output) if (name := _tool_name(call)) is not None]
 
     forbidden_observed = [name for name in forbidden if name in observed]
     if forbidden_observed:
-        return _failure(
-            f"Forbidden tools were called: {forbidden_observed}",
-            metadata={"observed_tools": observed},
-        )
-
-    if exact_match and observed != required:
-        return _failure(
-            f"Expected exact tool sequence {required}, observed {observed}",
-            metadata={"observed_tools": observed},
-        )
+        return {
+            "score": 0.0,
+            "label": "called_forbidden",
+            "explanation": f"Forbidden tools were called: {forbidden_observed}",
+            "metadata": {"observed_tools": observed},
+        }
 
     missing = [name for name in required if name not in observed]
     if missing:
-        return _failure(
-            f"Required tools were not called: {missing}",
-            metadata={"observed_tools": observed},
-        )
+        return {
+            "score": 0.0,
+            "label": "missing_required",
+            "explanation": f"Required tools were not called: {missing}",
+            "metadata": {"observed_tools": observed},
+        }
 
-    return _success()
+    if exact_match and observed != required:
+        return {
+            "score": 0.0,
+            "label": "not_exact_match",
+            "explanation": f"Expected exact tool sequence {required}, observed {observed}",
+            "metadata": {"observed_tools": observed},
+        }
+
+    return {"score": 1.0, "label": "correct"}
+
+
+@create_evaluator(name="correct_tools_called", kind="code")
+def correct_tools_called(output: Any, expected: Any) -> dict[str, Any]:
+    """Phoenix evaluator entrypoint for tool-selection correctness.
+
+    Delegates to :func:`evaluate_tools_called`; see that function for label
+    semantics and precedence. Strictness is read from
+    ``expected.tools.exact_match`` so it can be controlled per-example via
+    the dataset YAML.
+    """
+    return evaluate_tools_called(output, expected)
 
 
 @create_evaluator(name="tool_call_args_match", kind="code")

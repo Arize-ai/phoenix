@@ -10,6 +10,7 @@ class ToolExpectation(BaseModel):
 
     required: list[str] = Field(default_factory=list)
     forbidden: list[str] = Field(default_factory=list)
+    exact_match: bool = False
 
 
 class ExampleExpected(BaseModel):
