@@ -734,31 +734,12 @@ async def get_evaluators(
             raise NotFound(f"DatasetEvaluator with ID '{de_id}' not found")
 
     llm_orm_by_id: dict[int, models.LLMEvaluator] = {}
+    code_orm_by_id: dict[int, models.CodeEvaluator] = {}
     for _, ev in dataset_evaluators_result:
         if isinstance(ev, models.LLMEvaluator):
             llm_orm_by_id[ev.id] = ev
-
-    # Batch query to get evaluator kinds
-    evaluator_db_ids = {ev.id for _, ev in dataset_evaluators_result}
-    evaluator_kinds_by_id: dict[int, str] = {}
-    if evaluator_db_ids:
-        evaluators_result = await session.scalars(
-            select(models.Evaluator).where(models.Evaluator.id.in_(evaluator_db_ids))
-        )
-        for evaluator in evaluators_result:
-            evaluator_kinds_by_id[evaluator.id] = evaluator.kind
-
-    # Collect LLM, BUILTIN, and CODE evaluator IDs that need to be fetched
-    llm_evaluator_db_ids: set[int] = set()
-    builtin_evaluator_db_ids: set[int] = set()
-    code_evaluator_db_ids: set[int] = set()
-    for eval_id, kind in evaluator_kinds_by_id.items():
-        if kind == "LLM":
-            llm_evaluator_db_ids.add(eval_id)
-        elif kind == "BUILTIN":
-            builtin_evaluator_db_ids.add(eval_id)
-        elif kind == "CODE":
-            code_evaluator_db_ids.add(eval_id)
+        elif isinstance(ev, models.CodeEvaluator):
+            code_orm_by_id[ev.id] = ev
 
     # Single batch query for all LLM evaluators (if any)
     llm_evaluators_by_id: dict[int, LLMEvaluator] = {}
@@ -773,77 +754,101 @@ async def get_evaluators(
         for llm_evaluator_orm, llm_evaluator in zip(llm_evaluator_orms, llm_evaluators_list):
             llm_evaluators_by_id[llm_evaluator_orm.id] = llm_evaluator
 
-    # Single batch query for all BUILTIN evaluators (if any) to get their keys
-    builtin_evaluator_keys_by_id: dict[int, str] = {}
-    if builtin_evaluator_db_ids:
-        builtin_evaluators_result = await session.scalars(
-            select(models.BuiltinEvaluator).where(
-                models.BuiltinEvaluator.id.in_(builtin_evaluator_db_ids)
-            )
-        )
-        for builtin_evaluator in builtin_evaluators_result:
-            builtin_evaluator_keys_by_id[builtin_evaluator.id] = builtin_evaluator.key
-
     # Single batch query for all CODE evaluators (if any)
     code_evaluators_by_id: dict[int, CodeEvaluatorRunner] = {}
     code_evaluator_languages_by_id: dict[int, str] = {}
-    if code_evaluator_db_ids:
+    if code_orm_by_id:
+        from phoenix.db.helpers import (
+            latest_code_evaluator_versions_by_evaluator_id,
+        )
         from phoenix.server.sandbox import get_or_create_backend
 
-        code_rows_result = await session.scalars(
-            select(models.CodeEvaluator).where(models.CodeEvaluator.id.in_(code_evaluator_db_ids))
+        code_rows = [code_orm_by_id[evaluator_id] for evaluator_id in sorted(code_orm_by_id)]
+        latest_versions = await latest_code_evaluator_versions_by_evaluator_id(
+            list(code_orm_by_id), session
         )
-        for code_row in code_rows_result:
+        tip_sandbox_config_ids = {
+            code_row.sandbox_config_id
+            for code_row in code_rows
+            if code_row.sandbox_config_id is not None
+        }
+        sandbox_by_config_id: dict[int, tuple[models.SandboxConfig, models.SandboxProvider]] = {}
+        if tip_sandbox_config_ids:
+            sandbox_rows = await session.execute(
+                select(models.SandboxConfig, models.SandboxProvider)
+                .join(
+                    models.SandboxProvider,
+                    models.SandboxProvider.id == models.SandboxConfig.sandbox_provider_id,
+                )
+                .where(models.SandboxConfig.id.in_(tip_sandbox_config_ids))
+            )
+            sandbox_by_config_id = {
+                sandbox_config.id: (sandbox_config, sandbox_provider)
+                for sandbox_config, sandbox_provider in sandbox_rows
+            }
+        backend_by_sandbox_key: dict[tuple[int, int], Optional[SandboxBackend]] = {}
+        evaluator_base_by_id = {
+            evaluator.id: evaluator for _, evaluator in dataset_evaluators_by_id.values()
+        }
+
+        for code_row in code_rows:
+            code_version = latest_versions.get(code_row.id)
+            if code_version is None:
+                continue
             evaluator_language = code_row.language
             code_evaluator_languages_by_id[code_row.id] = evaluator_language
 
-            # Resolve sandbox backend via SandboxConfig → SandboxProvider
             backend = None
             language = evaluator_language
             sandbox_timeout: Optional[int] = None
-            if code_row.sandbox_config_id is not None:
-                sandbox_config = await session.get(models.SandboxConfig, code_row.sandbox_config_id)
-                if sandbox_config is not None and sandbox_config.enabled:
-                    sandbox_timeout = sandbox_config.timeout
-                    sandbox_provider = await session.get(
-                        models.SandboxProvider, sandbox_config.sandbox_provider_id
+            tip_sandbox_config_id = code_row.sandbox_config_id
+            if tip_sandbox_config_id is not None:
+                sandbox_pair = sandbox_by_config_id.get(tip_sandbox_config_id)
+                if sandbox_pair is None:
+                    raise BadRequest(f"SandboxConfig not found: {tip_sandbox_config_id}")
+                live_sandbox_config, live_sandbox_provider = sandbox_pair
+                if not live_sandbox_config.enabled:
+                    raise BadRequest(
+                        (
+                            f"Sandbox configuration '{live_sandbox_config.name}' is disabled. "
+                            "Enable it before testing this evaluator."
+                        )
                     )
-                    if sandbox_provider is not None and sandbox_provider.enabled:
-                        if sandbox_provider.language != code_row.language:
-                            raise BadRequest(
-                                f"Language mismatch: evaluator language '{evaluator_language}' "
-                                f"does not match the sandbox provider's configured language."
-                            )
-                        # Admin-authored provider config wins over user-authored
-                        # SandboxConfig.config on key collision — consistent with
-                        # the factory's credentials-win merge order.
-                        merged_config = {
-                            **sandbox_config.config,
-                            **sandbox_provider.config,
-                        }
-                        try:
-                            backend = await get_or_create_backend(
-                                sandbox_provider.backend_type,
-                                config=merged_config,
-                                session=session,
-                                decrypt=decrypt,
-                            )
-                        except (
-                            MissingSecretError,
-                            UnsupportedOperation,
-                            PydanticValidationError,
-                            ValueError,
-                        ) as exc:
-                            raise BadRequest(str(exc))
+                if not live_sandbox_provider.enabled:
+                    raise BadRequest(
+                        (
+                            f"Sandbox provider '{live_sandbox_provider.backend_type}' is disabled. "
+                            "Enable it before testing this evaluator."
+                        )
+                    )
+                sandbox_timeout = live_sandbox_config.timeout
+                sandbox_key = (live_sandbox_provider.id, live_sandbox_config.id)
+                if sandbox_key not in backend_by_sandbox_key:
+                    merged_config = {
+                        **live_sandbox_config.config,
+                        **live_sandbox_provider.config,
+                    }
+                    try:
+                        backend_by_sandbox_key[sandbox_key] = await get_or_create_backend(
+                            live_sandbox_provider.backend_type,
+                            config=merged_config,
+                            session=session,
+                            decrypt=decrypt,
+                        )
+                    except (
+                        MissingSecretError,
+                        UnsupportedOperation,
+                        PydanticValidationError,
+                        ValueError,
+                    ) as exc:
+                        raise BadRequest(str(exc))
+                backend = backend_by_sandbox_key[sandbox_key]
 
-            # Resolve evaluator base row for name/description/metadata
-            evaluator_base = await session.get(models.Evaluator, code_row.id)
+            evaluator_base = evaluator_base_by_id.get(code_row.id)
             eval_name = evaluator_base.name if evaluator_base else str(code_row.id)
             eval_description = evaluator_base.description if evaluator_base else None
 
             if backend is not None:
-                # Filter to OutputConfigType (CategoricalOutputConfig | ContinuousOutputConfig)
-                # — FreeformAnnotationConfig has no name attr and is not a valid output config.
                 output_cfgs: list[OutputConfigType] = [
                     c
                     for c in code_row.output_configs
@@ -852,7 +857,7 @@ async def get_evaluators(
                 runner = CodeEvaluatorRunner(
                     name=str(eval_name),
                     description=eval_description,
-                    source_code=code_row.source_code,
+                    source_code=code_version.source_code,
                     stored_output_configs=output_cfgs,
                     sandbox_backend=backend,
                     language=language,

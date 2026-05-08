@@ -4,10 +4,12 @@ import { useMemo } from "react";
 import { useFragment } from "react-relay";
 import { useRevalidator } from "react-router";
 import { graphql } from "relay-runtime";
+import invariant from "tiny-invariant";
 
 import {
   Card,
   ContextualHelp,
+  Empty,
   Flex,
   Icon,
   Icons,
@@ -451,18 +453,6 @@ export function CodeDatasetEvaluatorDetails({
             name
             description
             language
-            sourceCode
-            sandboxConfig {
-              id
-              name
-              description
-              config
-              timeout
-              provider {
-                backendType
-                language
-              }
-            }
             outputConfigs {
               ... on CategoricalAnnotationConfig {
                 name
@@ -479,6 +469,20 @@ export function CodeDatasetEvaluatorDetails({
                 upperBound
               }
             }
+            sandboxConfig {
+              id
+              name
+              description
+              timeout
+              config
+              provider {
+                backendType
+                language
+              }
+            }
+            currentVersion {
+              sourceCode
+            }
           }
         }
       }
@@ -490,15 +494,13 @@ export function CodeDatasetEvaluatorDetails({
   if (evaluator.kind !== "CODE") {
     throw new Error("Invalid evaluator for CodeDatasetEvaluatorDetails");
   }
-  if (!evaluator.language || !evaluator.sourceCode) {
-    throw new Error("Code evaluator is missing language or source code");
-  }
+  const currentVersion = evaluator.currentVersion;
 
   const outputConfigs =
     datasetEvaluator.outputConfigs.length > 0
       ? datasetEvaluator.outputConfigs
       : (evaluator.outputConfigs ?? []);
-  const sandboxConfig = evaluator.sandboxConfig;
+  const sandboxConfig = evaluator.sandboxConfig ?? null;
   const sandboxBackendByType = useMemo(
     () =>
       new Map(
@@ -548,6 +550,19 @@ export function CodeDatasetEvaluatorDetails({
     [customSettings]
   );
 
+  // currentVersion is nullable on the schema (a CodeEvaluator can exist
+  // without any version: fixtures, backfills, partial-commit recovery.
+  // Render a bounded missing-version state instead of throwing so the rest
+  // of the page can still surface the evaluator's identity and config.
+  if (!currentVersion || !currentVersion.sourceCode) {
+    return (
+      <Flex flex={1} alignItems="center" justifyContent="center">
+        <Empty message="This code evaluator has no current version yet." />
+      </Flex>
+    );
+  }
+  invariant(evaluator.language, "code evaluator language is required");
+
   return (
     <>
       <Flex direction="column" gap="size-200">
@@ -557,7 +572,7 @@ export function CodeDatasetEvaluatorDetails({
         >
           <CodeEvaluatorSourceCodeBlock
             language={evaluator.language}
-            sourceCode={evaluator.sourceCode}
+            sourceCode={currentVersion.sourceCode}
           />
         </Card>
         <div css={splitLayoutCSS}>

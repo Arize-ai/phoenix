@@ -138,17 +138,8 @@ def upgrade() -> None:
     #
     # `language` is added with server_default="PYTHON" only to backfill any existing rows
     # under the new NOT NULL constraint; the persistent DDL default is dropped immediately
-    # after so callers must always supply a value (the language is one of N valid choices,
-    # not a "correct regardless of caller intent" value like created_at = now()).
+    # after so callers must always supply a value.
     with op.batch_alter_table("code_evaluators") as batch_op:
-        batch_op.add_column(
-            sa.Column(
-                "source_code",
-                sa.String,
-                server_default="",
-                nullable=False,
-            ),
-        )
         batch_op.add_column(
             sa.Column(
                 "language",
@@ -167,12 +158,7 @@ def upgrade() -> None:
             ),
         )
         batch_op.add_column(
-            sa.Column(
-                "output_configs",
-                JSON_,
-                server_default="[]",
-                nullable=False,
-            ),
+            sa.Column("output_configs", JSON_, server_default="[]", nullable=False),
         )
         batch_op.add_column(
             sa.Column(
@@ -192,9 +178,49 @@ def upgrade() -> None:
             ["id", "language"],
         )
 
+    # code_evaluator_code_versions: revision history of evaluator code. Language is immutable
+    # evaluator identity, so it lives only on code_evaluators.
+    op.create_table(
+        "code_evaluator_code_versions",
+        sa.Column("id", _Integer, primary_key=True),
+        sa.Column(
+            "code_evaluator_id",
+            _Integer,
+            sa.ForeignKey("code_evaluators.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "user_id",
+            _Integer,
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+        sa.Column("source_code", sa.String, nullable=False, server_default=""),
+        sa.Column(
+            "created_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
+        sqlite_autoincrement=True,
+    )
+    op.create_index(
+        "ix_code_evaluator_code_versions_code_evaluator_id_id",
+        "code_evaluator_code_versions",
+        ["code_evaluator_id", "id"],
+    )
+    op.create_index(
+        "ix_code_evaluator_code_versions_user_id",
+        "code_evaluator_code_versions",
+        ["user_id"],
+    )
+
 
 def downgrade() -> None:
-    # Remove composite FK + columns from code_evaluators first
+    # Drop code_evaluator_code_versions first (FKs into code_evaluators).
+    op.drop_table("code_evaluator_code_versions")
+
+    # Then remove composite FK + denormalized columns from code_evaluators.
     with op.batch_alter_table("code_evaluators") as batch_op:
         batch_op.drop_constraint("fk_code_evaluators_sandbox_config_language", type_="foreignkey")
         batch_op.drop_index("ix_code_evaluators_sandbox_config_id")
@@ -203,7 +229,6 @@ def downgrade() -> None:
         batch_op.drop_column("output_configs")
         batch_op.drop_column("input_mapping")
         batch_op.drop_column("language")
-        batch_op.drop_column("source_code")
 
     op.drop_table("sandbox_configs")
     op.drop_table("sandbox_providers")
