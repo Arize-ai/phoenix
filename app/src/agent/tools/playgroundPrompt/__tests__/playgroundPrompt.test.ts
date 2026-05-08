@@ -123,7 +123,11 @@ describe("playground prompt agent tools", () => {
     expect(readResult.ok).toBe(true);
     if (!readResult.ok) return;
     const snapshot = JSON.parse(readResult.output ?? "") as PromptSnapshot;
-    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    let resolveToolOutput: (() => void) | undefined;
+    const toolOutputPromise = new Promise<void>((resolve) => {
+      resolveToolOutput = resolve;
+    });
+    const addToolOutput = vi.fn().mockReturnValue(toolOutputPromise);
 
     const editResult = await editAction(
       {
@@ -146,7 +150,13 @@ describe("playground prompt agent tools", () => {
       agentStore.getState().pendingPromptEditsByToolCallId["tool-call-1"];
     expect(pendingEdit).toBeDefined();
 
-    await pendingEdit!.accept!();
+    const acceptPromise = pendingEdit!.accept!();
+
+    expect(
+      agentStore.getState().pendingPromptEditsByToolCallId["tool-call-1"]
+    ).toBeUndefined();
+    resolveToolOutput?.();
+    await acceptPromise;
 
     expect(addToolOutput).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -165,9 +175,6 @@ describe("playground prompt agent tools", () => {
         snapshot.messages[1]!.id
       ]
     ).toBe(1);
-    expect(
-      agentStore.getState().pendingPromptEditsByToolCallId["tool-call-1"]
-    ).toBeUndefined();
   });
 
   it("cancels a pending edit when the playground becomes unavailable", async () => {
@@ -185,7 +192,11 @@ describe("playground prompt agent tools", () => {
     expect(readResult.ok).toBe(true);
     if (!readResult.ok) return;
     const snapshot = JSON.parse(readResult.output ?? "") as PromptSnapshot;
-    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    let resolveToolOutput: (() => void) | undefined;
+    const toolOutputPromise = new Promise<void>((resolve) => {
+      resolveToolOutput = resolve;
+    });
+    const addToolOutput = vi.fn().mockReturnValue(toolOutputPromise);
 
     const editResult = await editAction(
       {
@@ -207,7 +218,13 @@ describe("playground prompt agent tools", () => {
       agentStore.getState().pendingPromptEditsByToolCallId["tool-call-cancel"];
     expect(pendingEdit).toBeDefined();
 
-    await pendingEdit!.cancel!();
+    const cancelPromise = pendingEdit!.cancel!();
+
+    expect(
+      agentStore.getState().pendingPromptEditsByToolCallId["tool-call-cancel"]
+    ).toBeUndefined();
+    resolveToolOutput?.();
+    await cancelPromise;
 
     expect(addToolOutput).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -221,9 +238,6 @@ describe("playground prompt agent tools", () => {
       playgroundStore.getState().allInstanceMessages[snapshot.messages[1]!.id]
         ?.content
     ).not.toBe("Pending edit");
-    expect(
-      agentStore.getState().pendingPromptEditsByToolCallId["tool-call-cancel"]
-    ).toBeUndefined();
   });
 
   it("rejects stale edits", async () => {

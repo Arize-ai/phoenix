@@ -18,6 +18,7 @@ export function bindPendingPromptEditActions({
   return {
     ...pendingEdit,
     accept: async () => {
+      setPendingPromptEdit(pendingEdit.toolCallId, null);
       const current = getPromptSnapshot({
         playgroundStore,
         instanceId: pendingEdit.instanceId,
@@ -29,7 +30,6 @@ export function bindPendingPromptEditActions({
           toolCallId: pendingEdit.toolCallId,
           errorText: current.error,
         });
-        setPendingPromptEdit(pendingEdit.toolCallId, null);
         return;
       }
       if (current.output.revision !== pendingEdit.expectedRevision) {
@@ -40,7 +40,6 @@ export function bindPendingPromptEditActions({
           errorText:
             "The prompt changed after this edit was proposed. Call read_prompt_instance again before proposing another edit.",
         });
-        setPendingPromptEdit(pendingEdit.toolCallId, null);
         return;
       }
       applyPromptOperations({
@@ -65,9 +64,9 @@ export function bindPendingPromptEditActions({
           message: "Prompt edit applied.",
         },
       });
-      setPendingPromptEdit(pendingEdit.toolCallId, null);
     },
     reject: async () => {
+      setPendingPromptEdit(pendingEdit.toolCallId, null);
       await addToolOutput({
         state: "output-available",
         tool: EDIT_PROMPT_TOOL_NAME,
@@ -78,16 +77,15 @@ export function bindPendingPromptEditActions({
           message: "User rejected the proposed prompt edit.",
         },
       });
-      setPendingPromptEdit(pendingEdit.toolCallId, null);
     },
     cancel: async () => {
+      setPendingPromptEdit(pendingEdit.toolCallId, null);
       await addToolOutput({
         state: "output-error",
         tool: EDIT_PROMPT_TOOL_NAME,
         toolCallId: pendingEdit.toolCallId,
         errorText: EDIT_PROMPT_NAVIGATION_CANCEL_ERROR,
       });
-      setPendingPromptEdit(pendingEdit.toolCallId, null);
     },
   };
 }
