@@ -214,6 +214,9 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
       shouldAutoOpenToolPart(part, getToolPartPreview(part))
   );
   const [manualExpanded, setManualExpanded] = useState<boolean | null>(null);
+  // Auto-open is only the initial/default state. Once the user toggles the
+  // group, their manual choice must win even if a child tool still requests
+  // auto-open (for example, an edit_prompt diff that remains previewable).
   const isRenderedExpanded = manualExpanded ?? hasAutoOpenTool;
 
   const { text: statusText, variant: statusVariant } = formatPoolStatus(stats);

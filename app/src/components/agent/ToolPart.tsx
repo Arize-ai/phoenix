@@ -309,14 +309,13 @@ function ToolInvocationPartDetails({ part }: { part: ToolInvocationPart }) {
       className="tool-part"
       css={toolPartCSS}
       open={isRenderedOpen}
-      onToggle={(event) => {
-        if (manualOpen != null) {
-          setManualOpen(event.currentTarget.open);
-        }
-      }}
     >
       <summary
-        onClick={() => {
+        onClick={(event) => {
+          // Keep <details> fully React-controlled. Letting the browser toggle
+          // natively can race the auto-open/manual override state during tool
+          // streaming updates and make the disclosure feel stuck.
+          event.preventDefault();
           setManualOpen(!isRenderedOpen);
         }}
       >
