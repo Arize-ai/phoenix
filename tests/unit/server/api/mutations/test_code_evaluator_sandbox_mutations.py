@@ -7,8 +7,11 @@ test app, backed by seed_sandbox_providers DB fixtures.
 
 from __future__ import annotations
 
+from secrets import token_hex
+from typing import Any
 from unittest.mock import patch
 
+import sqlalchemy as sa
 from sqlalchemy import select
 from strawberry.relay import GlobalID
 
@@ -441,6 +444,23 @@ mutation CreateCodeEvaluator($input: CreateCodeEvaluatorInput!) {
         evaluator {
             id
             ... on CodeEvaluator {
+                currentVersion {
+                    id
+                }
+            }
+        }
+    }
+}
+"""
+
+_PATCH_CODE_EVALUATOR = """
+mutation PatchCodeEvaluator($input: PatchCodeEvaluatorInput!) {
+    patchCodeEvaluator(input: $input) {
+        evaluator {
+            id
+            ... on CodeEvaluator {
+                name
+                description
                 sandboxConfig {
                     id
                 }
@@ -450,14 +470,16 @@ mutation CreateCodeEvaluator($input: CreateCodeEvaluatorInput!) {
 }
 """
 
-_UPDATE_CODE_EVALUATOR = """
-mutation UpdateCodeEvaluator($input: UpdateCodeEvaluatorInput!) {
-    updateCodeEvaluator(input: $input) {
+_CREATE_CODE_EVALUATOR_VERSION = """
+mutation CreateCodeEvaluatorVersion($input: CreateCodeEvaluatorVersionInput!) {
+    createCodeEvaluatorVersion(input: $input) {
+        wasCreated
         evaluator {
             id
             ... on CodeEvaluator {
-                sandboxConfig {
+                currentVersion {
                     id
+                    sourceCode
                 }
             }
         }
@@ -470,19 +492,58 @@ async def _create_code_evaluator_with_config(
     db: DbSessionFactory,
     sandbox_config: models.SandboxConfig,
 ) -> int:
-    """Insert a CodeEvaluator row linked to the given sandbox config."""
+    """Insert a CodeEvaluator with one version linked to the given sandbox config."""
     async with db() as session:
+        provider = await session.get(models.SandboxProvider, sandbox_config.sandbox_provider_id)
+        assert provider is not None
         code_eval = models.CodeEvaluator(
             name=Identifier(root="test-disabled-guard-eval"),
             description=None,
             metadata_={},
-            source_code="def evaluate(input): return {'score': 1.0}",
             language=sandbox_config.language,
             sandbox_config_id=sandbox_config.id,
         )
         session.add(code_eval)
         await session.flush()
+        version = models.CodeEvaluatorVersion(
+            code_evaluator_id=code_eval.id,
+            source_code="def evaluate(input): return {'score': 1.0}",
+        )
+        session.add(version)
+        await session.flush()
         return code_eval.id
+
+
+async def _create_code_evaluator_with_two_versions(
+    db: DbSessionFactory,
+    sandbox_config: models.SandboxConfig,
+) -> tuple[int, int, int]:
+    async with db() as session:
+        provider = await session.get(models.SandboxProvider, sandbox_config.sandbox_provider_id)
+        assert provider is not None
+        code_eval = models.CodeEvaluator(
+            name=Identifier(root=f"test-history-eval-{token_hex(4)}"),
+            description=None,
+            metadata_={},
+            language=provider.language,
+            sandbox_config_id=sandbox_config.id,
+        )
+        session.add(code_eval)
+        await session.flush()
+        common_kwargs: dict[str, Any] = dict(
+            code_evaluator_id=code_eval.id,
+        )
+        first_version = models.CodeEvaluatorVersion(
+            source_code="def evaluate(input): return {'score': 0.0}",
+            **common_kwargs,
+        )
+        second_version = models.CodeEvaluatorVersion(
+            source_code="def evaluate(input): return {'score': 1.0}",
+            **common_kwargs,
+        )
+        session.add_all([first_version, second_version])
+        await session.flush()
+        return code_eval.id, first_version.id, second_version.id
 
 
 class TestDisabledProviderAndConfigGuards:
@@ -519,13 +580,17 @@ class TestDisabledProviderAndConfigGuards:
                         {
                             "evaluator": {"codeEvaluatorId": evaluator_gid},
                             "context": {"output": "test"},
-                            "inputMapping": {},
+                            "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                         }
                     ]
                 }
             },
         )
         assert result.errors
+        assert (
+            "Sandbox provider 'WASM' is disabled. Enable it before testing this evaluator."
+            in str(result.errors)
+        )
 
 
 class TestCodeEvaluatorSandboxMutationIds:
@@ -560,7 +625,7 @@ class TestCodeEvaluatorSandboxMutationIds:
         )
         assert result.data and not result.errors
         evaluator = result.data["createCodeEvaluator"]["evaluator"]
-        assert evaluator["sandboxConfig"]["id"] == _config_global_id(sandbox_config.id)
+        assert evaluator["currentVersion"]["id"]
 
         evaluator_id = GlobalID.from_id(evaluator["id"])
         async with db() as session:
@@ -568,41 +633,184 @@ class TestCodeEvaluatorSandboxMutationIds:
         assert row is not None
         assert row.sandbox_config_id == sandbox_config.id
 
-    async def test_update_code_evaluator_accepts_sandbox_global_id(
+    async def test_create_code_evaluator_version_appends_when_code_changes(
         self,
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
         sandbox_config: models.SandboxConfig,
     ) -> None:
+        """createCodeEvaluatorVersion appends a new immutable row when the
+        source_code changes. Sandbox binding is not part of the version row."""
         async with db() as session:
             code_eval = models.CodeEvaluator(
                 name=Identifier(root="test_update_code_evaluator"),
                 description=None,
                 metadata_={},
-                source_code="def evaluate(output): return {'score': 0.0}",
                 language="PYTHON",
+                sandbox_config_id=sandbox_config.id,
             )
             session.add(code_eval)
+            await session.flush()
+            seed = models.CodeEvaluatorVersion(
+                code_evaluator_id=code_eval.id,
+                source_code="def evaluate(output): return {'score': 0.0}",
+            )
+            session.add(seed)
             await session.flush()
             evaluator_gid = str(GlobalID("CodeEvaluator", str(code_eval.id)))
 
         result = await gql_client.execute(
-            _UPDATE_CODE_EVALUATOR,
+            _CREATE_CODE_EVALUATOR_VERSION,
             variables={
                 "input": {
-                    "id": evaluator_gid,
-                    "sandboxConfigId": _config_global_id(sandbox_config.id),
+                    "codeEvaluatorId": evaluator_gid,
+                    "sourceCode": "def evaluate(output): return {'score': 1.0}",
                 }
             },
         )
         assert result.data and not result.errors
-        evaluator = result.data["updateCodeEvaluator"]["evaluator"]
-        assert evaluator["sandboxConfig"]["id"] == _config_global_id(sandbox_config.id)
+        payload = result.data["createCodeEvaluatorVersion"]
+        assert payload["wasCreated"] is True
+        assert (
+            payload["evaluator"]["currentVersion"]["sourceCode"]
+            == "def evaluate(output): return {'score': 1.0}"
+        )
 
         async with db() as session:
             row = await session.get(models.CodeEvaluator, code_eval.id)
         assert row is not None
         assert row.sandbox_config_id == sandbox_config.id
+
+    async def test_create_code_evaluator_version_dedups_identical_content(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        evaluator_db_id, _, current_version_id = await _create_code_evaluator_with_two_versions(
+            db, sandbox_config
+        )
+        evaluator_gid = str(GlobalID("CodeEvaluator", str(evaluator_db_id)))
+
+        result = await gql_client.execute(
+            _CREATE_CODE_EVALUATOR_VERSION,
+            variables={
+                "input": {
+                    "codeEvaluatorId": evaluator_gid,
+                    "sourceCode": "def evaluate(input): return {'score': 1.0}",
+                }
+            },
+        )
+
+        assert result.data and not result.errors
+        payload = result.data["createCodeEvaluatorVersion"]
+        assert payload["wasCreated"] is False
+        current_version = payload["evaluator"]["currentVersion"]
+        assert current_version["id"] == str(
+            GlobalID("CodeEvaluatorVersion", str(current_version_id))
+        )
+        async with db() as session:
+            version_count = await session.scalar(
+                select(sa.func.count(models.CodeEvaluatorVersion.id)).where(
+                    models.CodeEvaluatorVersion.code_evaluator_id == evaluator_db_id
+                )
+            )
+        assert version_count == 2
+
+    async def test_create_code_evaluator_version_rejects_uninferable_source(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        evaluator_db_id, _, _ = await _create_code_evaluator_with_two_versions(db, sandbox_config)
+        evaluator_gid = str(GlobalID("CodeEvaluator", str(evaluator_db_id)))
+
+        result = await gql_client.execute(
+            _CREATE_CODE_EVALUATOR_VERSION,
+            variables={
+                "input": {
+                    "codeEvaluatorId": evaluator_gid,
+                    "sourceCode": "def not_evaluate(input): return {'score': 1.0}",
+                }
+            },
+        )
+
+        assert result.errors
+        assert "evaluate" in str(result.errors)
+
+    async def test_patch_code_evaluator_rejects_source_and_language_fields(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        evaluator_db_id = await _create_code_evaluator_with_config(db, sandbox_config)
+        evaluator_gid = str(GlobalID("CodeEvaluator", str(evaluator_db_id)))
+
+        result = await gql_client.execute(
+            _PATCH_CODE_EVALUATOR,
+            variables={
+                "input": {
+                    "id": evaluator_gid,
+                    "sourceCode": "def evaluate(input): return {'score': 0.0}",
+                    "language": "PYTHON",
+                }
+            },
+        )
+
+        assert result.errors
+        assert len(result.errors) == 2
+
+    async def test_patch_code_evaluator_updates_sandbox_binding(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        sandbox_config: models.SandboxConfig,
+        seed_sandbox_providers: None,
+    ) -> None:
+        """Happy path: patchCodeEvaluator(sandboxConfigId=B) updates the tip's
+        sandbox binding without bumping a version — sandbox is binding state on
+        the tip, not version content."""
+        # Build a second WASM/Python config (B) to switch the binding to.
+        async with db() as session:
+            python_provider = await session.scalar(
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
+            )
+            assert python_provider is not None
+            sandbox_config_b = models.SandboxConfig(
+                sandbox_provider_id=python_provider.id,
+                language=python_provider.language,
+                name=f"sandbox-b-{token_hex(4)}",
+                description=None,
+                config={},
+                timeout=45,
+            )
+            session.add(sandbox_config_b)
+            await session.flush()
+            sandbox_config_b_id = sandbox_config_b.id
+
+        evaluator_db_id = await _create_code_evaluator_with_config(db, sandbox_config)
+        evaluator_gid = str(GlobalID("CodeEvaluator", str(evaluator_db_id)))
+        sandbox_b_gid = str(GlobalID("SandboxConfig", str(sandbox_config_b_id)))
+
+        patch_result = await gql_client.execute(
+            _PATCH_CODE_EVALUATOR,
+            variables={
+                "input": {
+                    "id": evaluator_gid,
+                    "sandboxConfigId": sandbox_b_gid,
+                }
+            },
+        )
+        assert patch_result.data and not patch_result.errors, patch_result.errors
+        patched = patch_result.data["patchCodeEvaluator"]["evaluator"]
+        assert patched["sandboxConfig"]["id"] == sandbox_b_gid
+
+        async with db() as session:
+            row = await session.get(models.CodeEvaluator, evaluator_db_id)
+        assert row is not None
+        assert row.sandbox_config_id == sandbox_config_b_id
 
     async def test_disabled_config_blocks_execution(
         self,
@@ -630,13 +838,17 @@ class TestCodeEvaluatorSandboxMutationIds:
                         {
                             "evaluator": {"codeEvaluatorId": evaluator_gid},
                             "context": {"output": "test"},
-                            "inputMapping": {},
+                            "inputMapping": {"literalMapping": {}, "pathMapping": {}},
                         }
                     ]
                 }
             },
         )
         assert result.errors
+        assert (
+            f"Sandbox configuration '{sandbox_config.name}' is disabled. "
+            "Enable it before testing this evaluator."
+        ) in str(result.errors)
 
 
 class TestMultiConfigOrdering:
@@ -1054,7 +1266,7 @@ class TestConfigValidationPath:
 
 
 # ---------------------------------------------------------------------------
-# Admin gate (D10): IsAdminIfAuthEnabled on createSandboxConfig / updateSandboxConfig
+# Admin gate: IsAdminIfAuthEnabled on createSandboxConfig / updateSandboxConfig
 # ---------------------------------------------------------------------------
 
 

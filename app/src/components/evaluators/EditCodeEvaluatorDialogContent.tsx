@@ -385,6 +385,7 @@ export const EditCodeEvaluatorDialogContent = ({
                   selectedSandboxConfigId={selectedSandboxConfigId}
                   onSandboxChange={setSandboxConfigId}
                   showSandboxHelperText={hasNoSandboxConfigs}
+                  isLanguageEditable={mode === "create"}
                 />
                 <CodeEditor
                   language={language}
@@ -429,6 +430,7 @@ const EvaluatorMetadataForm = ({
   selectedSandboxConfigId,
   onSandboxChange,
   showSandboxHelperText,
+  isLanguageEditable,
 }: {
   language: CodeEvaluatorLanguage;
   onLanguageChange: (language: CodeEvaluatorLanguage) => void;
@@ -436,6 +438,7 @@ const EvaluatorMetadataForm = ({
   selectedSandboxConfigId: string | null;
   onSandboxChange: (sandboxConfigId: string | null) => void;
   showSandboxHelperText?: boolean;
+  isLanguageEditable?: boolean;
 }) => {
   return (
     <div css={metadataFormCSS}>
@@ -446,6 +449,7 @@ const EvaluatorMetadataForm = ({
         <CodeEvaluatorLanguageField
           language={language}
           onChange={onLanguageChange}
+          isDisabled={!isLanguageEditable}
         />
       </div>
       <div style={{ flex: "0 0 260px" }}>

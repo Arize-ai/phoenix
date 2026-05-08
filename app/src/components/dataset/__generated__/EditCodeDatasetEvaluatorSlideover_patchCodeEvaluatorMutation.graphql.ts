@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<83a6be7eef1afeaf049ba2e145ff8fde>>
+ * @generated SignedSource<<4b38dbcd49360ad57de3886ca8167bf4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,17 +9,18 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type Language = "PYTHON" | "TYPESCRIPT";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
-export type UpdateCodeEvaluatorInput = {
+export type PatchCodeEvaluatorInput = {
   description?: string | null;
   id: string;
   inputMapping?: EvaluatorInputMappingInput | null;
-  language?: Language | null;
   name?: string | null;
   outputConfigs?: ReadonlyArray<AnnotationConfigInput> | null;
   sandboxConfigId?: string | null;
-  sourceCode?: string | null;
+};
+export type EvaluatorInputMappingInput = {
+  literalMapping: any;
+  pathMapping: any;
 };
 export type AnnotationConfigInput = {
   categorical?: CategoricalAnnotationConfigInput | null;
@@ -47,23 +48,19 @@ export type FreeformAnnotationConfigInput = {
   description?: string | null;
   name: string;
 };
-export type EvaluatorInputMappingInput = {
-  literalMapping: any;
-  pathMapping: any;
+export type EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation$variables = {
+  input: PatchCodeEvaluatorInput;
 };
-export type EditCodeDatasetEvaluatorSlideover_updateCodeEvaluatorMutation$variables = {
-  input: UpdateCodeEvaluatorInput;
-};
-export type EditCodeDatasetEvaluatorSlideover_updateCodeEvaluatorMutation$data = {
-  readonly updateCodeEvaluator: {
+export type EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation$data = {
+  readonly patchCodeEvaluator: {
     readonly evaluator: {
       readonly id: string;
     };
   };
 };
-export type EditCodeDatasetEvaluatorSlideover_updateCodeEvaluatorMutation = {
-  response: EditCodeDatasetEvaluatorSlideover_updateCodeEvaluatorMutation$data;
-  variables: EditCodeDatasetEvaluatorSlideover_updateCodeEvaluatorMutation$variables;
+export type EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation = {
+  response: EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation$data;
+  variables: EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -86,7 +83,7 @@ v1 = [
     ],
     "concreteType": "CodeEvaluatorMutationPayload",
     "kind": "LinkedField",
-    "name": "updateCodeEvaluator",
+    "name": "patchCodeEvaluator",
     "plural": false,
     "selections": [
       {
@@ -116,7 +113,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "EditCodeDatasetEvaluatorSlideover_updateCodeEvaluatorMutation",
+    "name": "EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation",
     "selections": (v1/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -125,20 +122,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "EditCodeDatasetEvaluatorSlideover_updateCodeEvaluatorMutation",
+    "name": "EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "faa84b0c319a62c888f7aec62a90da99",
+    "cacheID": "e8017618901f470fcef19d443b2fb526",
     "id": null,
     "metadata": {},
-    "name": "EditCodeDatasetEvaluatorSlideover_updateCodeEvaluatorMutation",
+    "name": "EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation EditCodeDatasetEvaluatorSlideover_updateCodeEvaluatorMutation(\n  $input: UpdateCodeEvaluatorInput!\n) {\n  updateCodeEvaluator(input: $input) {\n    evaluator {\n      id\n    }\n  }\n}\n"
+    "text": "mutation EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation(\n  $input: PatchCodeEvaluatorInput!\n) {\n  patchCodeEvaluator(input: $input) {\n    evaluator {\n      id\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "6e0ca3adbe91f05c0c850fe8130d413e";
+(node as any).hash = "81192f715f22de037984cf405b8b8848";
 
 export default node;

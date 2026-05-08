@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<521f17b6275170cd63127b3a6854b154>>
+ * @generated SignedSource<<f2bc5138c35e454fdab8aaab13fd1715>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,6 +15,9 @@ export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 import { FragmentRefs } from "relay-runtime";
 export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
   readonly evaluator: {
+    readonly currentVersion?: {
+      readonly sourceCode: string;
+    } | null;
     readonly description?: string | null;
     readonly id?: string;
     readonly kind: EvaluatorKind;
@@ -41,7 +44,6 @@ export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
       };
       readonly timeout: number;
     } | null;
-    readonly sourceCode?: string;
   };
   readonly id: string;
   readonly inputMapping: {
@@ -224,13 +226,7 @@ return {
             (v1/*: any*/),
             (v4/*: any*/),
             (v5/*: any*/),
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "sourceCode",
-              "storageKey": null
-            },
+            (v3/*: any*/),
             {
               "alias": null,
               "args": null,
@@ -246,14 +242,14 @@ return {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
-                  "name": "config",
+                  "name": "timeout",
                   "storageKey": null
                 },
                 {
                   "alias": null,
                   "args": null,
                   "kind": "ScalarField",
-                  "name": "timeout",
+                  "name": "config",
                   "storageKey": null
                 },
                 {
@@ -278,7 +274,24 @@ return {
               ],
               "storageKey": null
             },
-            (v3/*: any*/)
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": "CodeEvaluatorVersion",
+              "kind": "LinkedField",
+              "name": "currentVersion",
+              "plural": false,
+              "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "sourceCode",
+                  "storageKey": null
+                }
+              ],
+              "storageKey": null
+            }
           ],
           "type": "CodeEvaluator",
           "abstractKey": null
@@ -292,6 +305,6 @@ return {
 };
 })();
 
-(node as any).hash = "88fd86cc602541670d30c2d0f1a2c25b";
+(node as any).hash = "bb4bbd88be4773bb0ae55a8598ade320";
 
 export default node;
