@@ -62,9 +62,7 @@ def _make_daytona_mocks() -> tuple[MagicMock, MagicMock]:
     daytona_mod.CreateSandboxFromSnapshotParams = _CreateSandboxFromSnapshotParams
 
     workspace = MagicMock()
-    workspace.process.code_run = AsyncMock(
-        return_value=MagicMock(result="ok", exit_code=0)
-    )
+    workspace.process.code_run = AsyncMock(return_value=MagicMock(result="ok", exit_code=0))
     client = daytona_mod.AsyncDaytona.return_value
     client.create = AsyncMock(return_value=workspace)
     client.delete = AsyncMock()
