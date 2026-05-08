@@ -3744,6 +3744,7 @@ class TestGetEvaluators:
                 language=provider.language,
                 name="disabled-runtime-config",
                 config={},
+                timeout=30,
                 enabled=False,
             )
             dataset = models.Dataset(name="test-disabled-runtime-config", metadata_={})
@@ -3815,6 +3816,7 @@ class TestGetEvaluators:
                 language=provider.language,
                 name="shared-runtime-config",
                 config={},
+                timeout=30,
             )
             dataset = models.Dataset(name="test-shared-runtime-config", metadata_={})
             session.add_all([sandbox_config, dataset])
