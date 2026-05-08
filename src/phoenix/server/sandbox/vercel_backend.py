@@ -284,7 +284,7 @@ def _probe_vercel_sdk() -> None:
 class VercelPythonAdapter(SandboxAdapter):
     key = "VERCEL_PYTHON"
     family = "VERCEL"
-    display_name = "Vercel Sandbox"
+    display_name = "Vercel"
     language = "PYTHON"
     config_model = VercelPythonConfig
     credential_specs = _VERCEL_ENV_VAR_SPECS
@@ -325,7 +325,7 @@ class VercelPythonAdapter(SandboxAdapter):
 class VercelTypescriptAdapter(SandboxAdapter):
     key = "VERCEL_TYPESCRIPT"
     family = "VERCEL"
-    display_name = "Vercel Sandbox"
+    display_name = "Vercel"
     language = "TYPESCRIPT"
     config_model = VercelTypescriptConfig
     credential_specs = _VERCEL_ENV_VAR_SPECS

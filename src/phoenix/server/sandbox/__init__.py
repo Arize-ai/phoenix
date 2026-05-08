@@ -254,7 +254,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
     # then. Until that lands, both Vercel adapters remain internet_access="none".
     **{
         f"VERCEL_{lang}": AdapterMetadata(
-            display_name="Vercel Sandbox",
+            display_name="Vercel",
             language=lang,
             dependency_hints=[
                 "Install Phoenix with the `vercel` extra.",
