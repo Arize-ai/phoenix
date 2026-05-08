@@ -115,8 +115,29 @@ def correct_tools_called(output: Any, expected: Any) -> dict[str, Any]:
     return evaluate_tools_called(output, expected)
 
 
-@create_evaluator(name="tool_call_args_match", kind="code")
-def tool_call_args_match(output: Any, expected: Any) -> dict[str, Any]:
+def _normalize_arg_value(value: Any) -> Any:
+    """Make string values that look like ``and``-joined SQL conjunctions
+    invariant to clause ordering.
+
+    Phoenix tool arg values like ``"span_kind == 'LLM' and latency_ms >= 5000"``
+    are semantically equivalent regardless of clause order. The evaluator
+    compares strings exactly otherwise, so without normalization a model that
+    emits the clauses in the opposite order from the dataset would silently
+    fail. The normalization is intentionally narrow: only string values that
+    contain `` and `` are split, trimmed, and returned as a frozenset.
+    """
+    if not isinstance(value, str) or " and " not in value:
+        return value
+    return frozenset(clause.strip() for clause in value.split(" and ") if clause.strip())
+
+
+def evaluate_tool_call_args(output: Any, expected: Any) -> dict[str, Any]:
+    """Pure-Python implementation of :func:`tool_call_args_match`.
+
+    Exists separately so unit tests can call it without going through the
+    :class:`phoenix.evals.Evaluator` wrapper produced by
+    ``@create_evaluator``.
+    """
     expected_args_by_tool = _expected_tool_call_args(expected)
     observed_calls = _tool_calls(output)
     failures: dict[str, Any] = {}
@@ -129,7 +150,10 @@ def tool_call_args_match(output: Any, expected: Any) -> dict[str, Any]:
             failures[tool_name] = {"reason": "tool was not called"}
             continue
         if any(
-            all(_tool_args(call).get(key) == value for key, value in expected_args.items())
+            all(
+                _normalize_arg_value(_tool_args(call).get(key)) == _normalize_arg_value(value)
+                for key, value in expected_args.items()
+            )
             for call in matching_calls
         ):
             continue
@@ -141,3 +165,28 @@ def tool_call_args_match(output: Any, expected: Any) -> dict[str, Any]:
     if failures:
         return _failure("Tool call arguments did not match expected values", metadata=failures)
     return _success()
+
+
+@create_evaluator(name="tool_call_args_match", kind="code")
+def tool_call_args_match(output: Any, expected: Any) -> dict[str, Any]:
+    """Check that observed tool-call arguments match the dataset's expectations.
+
+    The expected shape is ``expected.tool_call_args[tool_name] -> {key: value}``
+    — at most one expected arg map per tool name. The match has two
+    intentional permissive properties documented here so future readers and
+    dataset authors aren't surprised:
+
+    - **Subset match.** A call passes the per-tool check when *all* expected
+      ``(key, value)`` pairs are present; the observed call may carry extra
+      arg keys that the dataset doesn't mention.
+    - **Any-of match across multiple calls.** When a tool is called more
+      than once in a single turn, the check passes if *any* of those calls
+      satisfies the expected arg pairs. The schema cannot express
+      "expectation N for the Nth call to this tool"; if you need that,
+      widen the schema before relying on multi-call ordering.
+
+    String values are compared with :func:`_normalize_arg_value`, which
+    treats `` and ``-joined conjunctions as order-independent. Other types
+    are compared with ``==``.
+    """
+    return evaluate_tool_call_args(output, expected)

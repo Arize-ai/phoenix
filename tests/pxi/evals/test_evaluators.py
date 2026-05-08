@@ -12,7 +12,11 @@ from typing import Any
 
 import pytest
 
-from tests.pxi.evals.evaluators.tools import evaluate_tools_called
+from tests.pxi.evals.evaluators.tools import (
+    _normalize_arg_value,
+    evaluate_tool_call_args,
+    evaluate_tools_called,
+)
 
 
 def _output(*tool_names: str) -> dict[str, Any]:
@@ -139,3 +143,113 @@ class TestCorrectToolsCalled:
             expected=expected,
         )
         assert result["label"] == "correct"
+
+
+def _output_with_args(name: str, args: dict[str, Any]) -> dict[str, Any]:
+    return {"tool_calls": [{"name": name, "args": args}]}
+
+
+class TestNormalizeArgValue:
+    def test_passes_non_strings_through(self) -> None:
+        assert _normalize_arg_value(True) is True
+        assert _normalize_arg_value(5) == 5
+        assert _normalize_arg_value(None) is None
+
+    def test_passes_strings_without_and_through(self) -> None:
+        assert _normalize_arg_value("span_kind == 'LLM'") == "span_kind == 'LLM'"
+        assert _normalize_arg_value("") == ""
+
+    def test_normalizes_and_conjunction_to_set(self) -> None:
+        result = _normalize_arg_value("span_kind == 'LLM' and latency_ms >= 5000")
+        assert result == frozenset({"span_kind == 'LLM'", "latency_ms >= 5000"})
+
+    def test_conjunction_order_does_not_matter(self) -> None:
+        a = _normalize_arg_value("span_kind == 'LLM' and latency_ms >= 5000")
+        b = _normalize_arg_value("latency_ms >= 5000 and span_kind == 'LLM'")
+        assert a == b
+
+
+class TestToolCallArgsMatch:
+    def _expected(self, **per_tool: dict[str, Any]) -> dict[str, Any]:
+        return {"tool_call_args": per_tool}
+
+    def test_passes_when_all_expected_keys_match(self) -> None:
+        result = evaluate_tool_call_args(
+            output=_output_with_args(
+                "set_spans_filter", {"condition": "span_kind == 'LLM'", "rootSpansOnly": False}
+            ),
+            expected=self._expected(
+                set_spans_filter={"condition": "span_kind == 'LLM'", "rootSpansOnly": False},
+            ),
+        )
+        assert result["score"] == 1.0
+        assert result["label"] == "pass"
+
+    def test_subset_match_allows_extra_observed_keys(self) -> None:
+        # Observed call carries an extra arg the dataset doesn't mention.
+        # Documented behavior: subset match passes.
+        result = evaluate_tool_call_args(
+            output=_output_with_args(
+                "set_spans_filter",
+                {"condition": "span_kind == 'LLM'", "rootSpansOnly": False, "limit": 100},
+            ),
+            expected=self._expected(
+                set_spans_filter={"condition": "span_kind == 'LLM'"},
+            ),
+        )
+        assert result["label"] == "pass"
+
+    def test_fails_when_value_differs(self) -> None:
+        result = evaluate_tool_call_args(
+            output=_output_with_args(
+                "set_spans_filter", {"condition": "span_kind == 'LLM'", "rootSpansOnly": True}
+            ),
+            expected=self._expected(
+                set_spans_filter={"condition": "span_kind == 'LLM'", "rootSpansOnly": False},
+            ),
+        )
+        assert result["label"] == "fail"
+        assert "set_spans_filter" in result["metadata"]
+
+    def test_fails_when_tool_not_called(self) -> None:
+        result = evaluate_tool_call_args(
+            output={"tool_calls": []},
+            expected=self._expected(set_spans_filter={"condition": ""}),
+        )
+        assert result["label"] == "fail"
+        assert result["metadata"]["set_spans_filter"]["reason"] == "tool was not called"
+
+    def test_and_conjunction_order_does_not_fail(self) -> None:
+        # Composite condition emitted in opposite order from the dataset
+        # should still pass — this is exactly the ``slow-llm-spans``
+        # scenario flagged in review.
+        result = evaluate_tool_call_args(
+            output=_output_with_args(
+                "set_spans_filter",
+                {
+                    "condition": "latency_ms >= 5000 and span_kind == 'LLM'",
+                    "rootSpansOnly": False,
+                },
+            ),
+            expected=self._expected(
+                set_spans_filter={
+                    "condition": "span_kind == 'LLM' and latency_ms >= 5000",
+                    "rootSpansOnly": False,
+                }
+            ),
+        )
+        assert result["label"] == "pass"
+
+    def test_any_of_match_across_multiple_calls(self) -> None:
+        # When a tool is called twice, the check passes if ANY call
+        # satisfies the expected pairs.
+        result = evaluate_tool_call_args(
+            output={
+                "tool_calls": [
+                    {"name": "set_spans_filter", "args": {"condition": "wrong"}},
+                    {"name": "set_spans_filter", "args": {"condition": "right"}},
+                ],
+            },
+            expected=self._expected(set_spans_filter={"condition": "right"}),
+        )
+        assert result["label"] == "pass"

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from collections.abc import Mapping
 from typing import Any, Literal, cast
 
@@ -14,19 +15,28 @@ from phoenix.server.agents.chat_v2.mintlify_docs import build_mintlify_docs_tool
 from phoenix.server.agents.chat_v2.pxi_agent import create_pxi_agent
 from phoenix.server.agents.context import ProjectContext, ResolvedContexts
 from phoenix.server.agents.model_factory import (
-    _anthropic_cache_settings,
-    _build_openai_model,
+    anthropic_cache_settings,
     azure_endpoint_to_base_url,
+    build_openai_model,
 )
 from tests.pxi.evals.types import AgentTaskOutput, ToolCall
 
 DEFAULT_ASSISTANT_PROVIDER = "OPENAI"
 DEFAULT_ASSISTANT_MODEL = "gpt-5.4"
 DEFAULT_PROJECT_NODE_ID = "UHJvamVjdDox"
+_MAX_ERROR_MESSAGE_LEN = 200
 
 
 async def _empty_db_context() -> Any:
     raise RuntimeError("PXI eval task does not provide a database session")
+
+
+def _warn_placeholder_api_key(provider: str, base_url: str) -> None:
+    print(
+        f"warning: {provider} placeholder API key is being used against custom "
+        f"base URL {base_url}. Verify this URL is intentional before running.",
+        file=sys.stderr,
+    )
 
 
 async def _build_model() -> Any:
@@ -45,6 +55,8 @@ async def _build_model() -> Any:
         base_url = os.getenv("OPENAI_BASE_URL")
         if not api_key and not base_url:
             raise RuntimeError("OPENAI_API_KEY is required for OPENAI PXI eval runs")
+        if not api_key and base_url:
+            _warn_placeholder_api_key("OPENAI", base_url)
         openai_provider = OpenAIProvider(
             openai_client=AsyncOpenAI(
                 api_key=api_key or "sk-placeholder",
@@ -52,7 +64,7 @@ async def _build_model() -> Any:
                 max_retries=0,
             )
         )
-        return _build_openai_model(
+        return build_openai_model(
             model_name=model_name,
             provider=openai_provider,
             openai_api_type=typed_openai_api_type,
@@ -66,6 +78,8 @@ async def _build_model() -> Any:
         endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
         if not endpoint:
             raise RuntimeError("AZURE_OPENAI_ENDPOINT is required for AZURE_OPENAI PXI eval runs")
+        if not api_key:
+            _warn_placeholder_api_key("AZURE_OPENAI", endpoint)
         openai_provider = OpenAIProvider(
             openai_client=AsyncOpenAI(
                 api_key=api_key or "sk-placeholder",
@@ -73,7 +87,7 @@ async def _build_model() -> Any:
                 max_retries=0,
             )
         )
-        return _build_openai_model(
+        return build_openai_model(
             model_name=model_name,
             provider=openai_provider,
             openai_api_type=typed_openai_api_type,
@@ -92,7 +106,7 @@ async def _build_model() -> Any:
             provider=AnthropicProvider(
                 anthropic_client=AsyncAnthropic(api_key=api_key, max_retries=0)
             ),
-            settings=_anthropic_cache_settings(),
+            settings=anthropic_cache_settings(),
         )
 
     raise RuntimeError(f"Unsupported PXI_E2E_ASSISTANT_PROVIDER for evals: {provider}")
@@ -104,7 +118,7 @@ def _build_dependencies() -> ChatDependencies:
             type="project",
             project_node_id=os.getenv("PXI_E2E_PROJECT_NODE_ID", DEFAULT_PROJECT_NODE_ID),
             span_filter="",
-            root_spans_only=True,
+            root_spans_only=False,
         )
     )
     docs_mcp_toolset = (
@@ -131,7 +145,7 @@ def _jsonish(value: Any) -> Any:
             return {
                 key: _jsonish(item) for key, item in vars(value).items() if not key.startswith("_")
             }
-        return repr(value)
+        return f"<unserializable {type(value).__name__}>"
     return value
 
 
@@ -208,6 +222,11 @@ def _assistant_text_from_messages(messages: list[dict[str, Any]]) -> str | None:
     return "\n".join(text_parts) if text_parts else None
 
 
+def _tool_call_key(call: ToolCall) -> tuple[str, str]:
+    """Stable identity for a tool call independent of arg normalization path."""
+    return call.name, json.dumps(call.args, sort_keys=True, default=str)
+
+
 def normalize_agent_output(result: Any) -> AgentTaskOutput:
     output = getattr(result, "output", result)
     raw_output_type = type(output).__name__
@@ -224,16 +243,22 @@ def normalize_agent_output(result: Any) -> AgentTaskOutput:
         )
 
     if isinstance(output, DeferredToolRequests):
-        calls = []
+        seen_keys = {_tool_call_key(call) for call in tool_calls}
+        deferred_calls: list[Any] = []
         for attr in ("calls", "tool_calls", "deferred_calls"):
             value = getattr(output, attr, None)
             if value:
-                calls = list(value)
+                deferred_calls = list(value)
                 break
-        for item in calls:
+        for item in deferred_calls:
             call = _normalize_tool_call(item)
-            if call is not None and call not in tool_calls:
-                tool_calls.append(call)
+            if call is None:
+                continue
+            key = _tool_call_key(call)
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            tool_calls.append(call)
         return AgentTaskOutput(
             assistant_text=assistant_text,
             tool_calls=tool_calls,
@@ -250,6 +275,12 @@ def normalize_agent_output(result: Any) -> AgentTaskOutput:
 
 
 async def task(example: dict[str, Any]) -> dict[str, Any]:
+    """Phoenix experiment task callable.
+
+    Receives an experiment example dict (`{id, input, ...}`) and routes it
+    to :func:`run_pxi_example`, attaching the example's stable id so the
+    failure report can map back to YAML example IDs.
+    """
     return await run_pxi_example(
         example["input"],
         stable_example_id=example.get("id"),
@@ -261,16 +292,31 @@ async def run_pxi_example(
     *,
     stable_example_id: str | None = None,
 ) -> dict[str, Any]:
-    query = input["query"]
-    model = await _build_model()
-    agent = create_pxi_agent(model)
+    """Run a single PXI agent turn imperatively.
+
+    ``input`` is an ``ExampleInput``-shaped dict; only ``input["query"]`` is
+    consumed. Failures anywhere in setup or in ``agent.run`` are caught and
+    returned as an :class:`AgentTaskOutput` with ``error`` set, so the
+    failure report can still resolve a stable example ID for the row.
+
+    The returned ``error`` field is bounded in length and contains only the
+    exception type plus a truncated message (no stack traces). When the
+    harness is pointed at a shared Phoenix the value is uploaded as-is, so
+    avoid pasting credentials into request URLs while debugging.
+    """
     try:
+        query = input["query"]
+        model = await _build_model()
+        agent = create_pxi_agent(model)
         result = await agent.run(query, deps=_build_dependencies())
         output = normalize_agent_output(result)
     except Exception as exc:
+        message = str(exc)
+        if len(message) > _MAX_ERROR_MESSAGE_LEN:
+            message = message[:_MAX_ERROR_MESSAGE_LEN] + "…"
         output = AgentTaskOutput(
             raw_output_type=type(exc).__name__,
-            error=f"{type(exc).__name__}: {exc}",
+            error=f"{type(exc).__name__}: {message}" if message else type(exc).__name__,
         )
     payload = output.model_dump(mode="json")
     if stable_example_id is not None:

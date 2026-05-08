@@ -28,6 +28,8 @@ DEFAULT_BASE_URL = "http://localhost:6006"
 
 @dataclass(frozen=True)
 class ExperimentConfig:
+    """Resolved configuration for a single PXI eval experiment run."""
+
     dataset: str
     base_url: str
     bearer_token: str | None
@@ -41,19 +43,24 @@ def _configured_base_url() -> tuple[str, bool]:
     return (value or DEFAULT_BASE_URL).rstrip("/"), value is not None
 
 
-def _check_local_healthz(base_url: str, explicitly_configured: bool) -> None:
-    if explicitly_configured or base_url.rstrip("/") != DEFAULT_BASE_URL:
-        return
+def _check_phoenix_healthz(base_url: str) -> None:
+    """Verify the configured Phoenix is reachable before uploading anything.
+
+    Runs against whichever ``base_url`` is configured (default or via
+    ``PXI_E2E_EXPERIMENT_BASE_URL``) so misconfigured ports and unreachable
+    remote endpoints surface as a clear error rather than a deep client
+    traceback.
+    """
     try:
         with urllib.request.urlopen(urljoin(base_url + "/", "healthz"), timeout=2) as response:
             if response.status >= 400:
                 raise RuntimeError(
-                    f"Local Phoenix health check failed with HTTP {response.status}: {base_url}"
+                    f"Phoenix health check failed with HTTP {response.status}: {base_url}"
                 )
     except (OSError, urllib.error.URLError) as exc:
         raise RuntimeError(
-            "Local Phoenix is unavailable at http://localhost:6006. "
-            "Start Phoenix or set PXI_E2E_EXPERIMENT_BASE_URL."
+            f"Phoenix is unavailable at {base_url}. "
+            "Start Phoenix or fix PXI_E2E_EXPERIMENT_BASE_URL."
         ) from exc
 
 
@@ -195,7 +202,7 @@ def _print_report(dataset: EvalDataset, experiment: Any, base_url: str) -> bool:
 
 
 async def _run_async(config: ExperimentConfig) -> int:
-    _check_local_healthz(config.base_url, os.getenv("PXI_E2E_EXPERIMENT_BASE_URL") is not None)
+    _check_phoenix_healthz(config.base_url)
     dataset = load_dataset(config.dataset)
     client = AsyncClient(base_url=config.base_url, api_key=config.bearer_token)
     try:
@@ -228,33 +235,53 @@ async def _run_async(config: ExperimentConfig) -> int:
             retries=0,
         )
     finally:
-        await client._client.aclose()
-    for task_run in experiment["task_runs"]:
-        output = task_run.get("output")
-        if isinstance(output, dict) and isinstance(output.get("stable_example_id"), str):
-            task_run["dataset_example_id"] = output["stable_example_id"]
+        # ``AsyncClient`` does not yet expose a public ``aclose``; reach for
+        # the underlying httpx client and tolerate it disappearing in a
+        # future refactor so cleanup never shadows a real failure.
+        underlying = getattr(client, "_client", None)
+        aclose = getattr(underlying, "aclose", None)
+        if callable(aclose):
+            try:
+                await aclose()
+            except Exception as cleanup_exc:  # pragma: no cover - best-effort cleanup
+                print(f"warning: AsyncClient cleanup failed: {cleanup_exc}", file=sys.stderr)
     has_failures = _print_report(dataset, experiment, config.base_url)
     return 1 if has_failures and config.fail_on_regression else 0
 
 
 def run(config: ExperimentConfig) -> int:
+    """Synchronous entrypoint that drives the async experiment run."""
     return asyncio.run(_run_async(config))
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Construct the CLI argument parser for the eval runner."""
     parser = argparse.ArgumentParser(
         description="Run PXI server-side evals as Phoenix experiments."
     )
     parser.add_argument(
-        "--dataset", required=True, help="Dataset name from tests/pxi/evals/datasets"
+        "--dataset",
+        required=True,
+        help="YAML file stem under tests/pxi/evals/datasets (e.g. set_spans_filter)",
     )
-    parser.add_argument("--experiment-name", help="Full experiment name override")
-    parser.add_argument("--experiment-name-suffix", help="Suffix appended to the generated name")
-    parser.add_argument("--fail-on-regression", action="store_true")
+    parser.add_argument(
+        "--experiment-name",
+        help="Override the auto-generated experiment name (default: pxi-eval-<dataset>-<branch>)",
+    )
+    parser.add_argument(
+        "--experiment-name-suffix",
+        help="Suffix appended to the auto-generated experiment name (e.g. a run tag)",
+    )
+    parser.add_argument(
+        "--fail-on-regression",
+        action="store_true",
+        help="Exit non-zero if any evaluator fails (use in CI gating)",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
+    """CLI entrypoint for ``run_experiment.py`` and ``python -m`` invocations."""
     args = build_parser().parse_args(argv)
     base_url, _ = _configured_base_url()
     config = ExperimentConfig(
