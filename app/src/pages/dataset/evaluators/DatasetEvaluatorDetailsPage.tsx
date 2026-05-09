@@ -1,6 +1,6 @@
 import { css } from "@emotion/react";
 import { Suspense, useState } from "react";
-import { Outlet, useLoaderData, useParams } from "react-router";
+import { Outlet, useLoaderData, useParams, useRevalidator } from "react-router";
 import invariant from "tiny-invariant";
 
 import {
@@ -17,11 +17,16 @@ import {
   Tabs,
   View,
 } from "@phoenix/components";
+import { Counter } from "@phoenix/components/core/counter";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import { EditBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditBuiltInDatasetEvaluatorSlideover";
+import { EditCodeDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditCodeDatasetEvaluatorSlideover";
+import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { datasetEvaluatorDetailsLoaderQuery } from "@phoenix/pages/dataset/evaluators/__generated__/datasetEvaluatorDetailsLoaderQuery.graphql";
 import { BuiltInDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/BuiltInDatasetEvaluatorDetails";
 import { CodeDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/CodeDatasetEvaluatorDetails";
+import { CodeDatasetEvaluatorVersions } from "@phoenix/pages/dataset/evaluators/CodeDatasetEvaluatorVersions";
 import type { datasetEvaluatorDetailsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { datasetEvaluatorDetailsLoaderGQL } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { DatasetEvaluatorSpans } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorSpans";
@@ -69,10 +74,13 @@ function DatasetEvaluatorDetailsPageContent({
   invariant(datasetEvaluator, "datasetEvaluator is required");
   const evaluator = datasetEvaluator.evaluator;
   const [isEditSlideoverOpen, setIsEditSlideoverOpen] = useState(false);
+  const { revalidate } = useRevalidator();
 
   const isLLMEvaluator = evaluator.__typename === "LLMEvaluator";
   const isBuiltInEvaluator = evaluator.__typename === "BuiltInEvaluator";
   const isCodeEvaluator = evaluator.__typename === "CodeEvaluator";
+  const versionsCount =
+    evaluator.__typename === "CodeEvaluator" ? evaluator.versionCount : 0;
 
   return (
     <main css={mainCSS}>
@@ -99,6 +107,11 @@ function DatasetEvaluatorDetailsPageContent({
       <Tabs defaultSelectedKey="configuration">
         <TabList>
           <Tab id="configuration">Configuration</Tab>
+          {isCodeEvaluator && (
+            <Tab id="versions">
+              Versions <Counter>{versionsCount}</Counter>
+            </Tab>
+          )}
           <Tab id="spans">Spans</Tab>
         </TabList>
         <LazyTabPanel id="configuration">
@@ -114,36 +127,63 @@ function DatasetEvaluatorDetailsPageContent({
                 {isLLMEvaluator && (
                   <LLMDatasetEvaluatorDetails
                     datasetEvaluatorRef={datasetEvaluator}
-                    datasetId={datasetId}
-                    isEditSlideoverOpen={isEditSlideoverOpen}
-                    onEditSlideoverOpenChange={setIsEditSlideoverOpen}
                   />
                 )}
                 {isBuiltInEvaluator && (
                   <BuiltInDatasetEvaluatorDetails
                     datasetEvaluatorRef={datasetEvaluator}
-                    datasetId={datasetId}
-                    isEditSlideoverOpen={isEditSlideoverOpen}
-                    onEditSlideoverOpenChange={setIsEditSlideoverOpen}
                   />
                 )}
                 {isCodeEvaluator && (
                   <CodeDatasetEvaluatorDetails
                     datasetEvaluatorRef={datasetEvaluator}
-                    datasetId={datasetId}
                     sandboxBackends={data.sandboxBackends}
-                    isEditSlideoverOpen={isEditSlideoverOpen}
-                    onEditSlideoverOpenChange={setIsEditSlideoverOpen}
                   />
                 )}
               </Flex>
             </View>
           </View>
         </LazyTabPanel>
+        {isCodeEvaluator && (
+          <LazyTabPanel id="versions">
+            <Suspense fallback={<Loading />}>
+              <CodeDatasetEvaluatorVersions
+                datasetEvaluatorId={datasetEvaluator.id}
+              />
+            </Suspense>
+          </LazyTabPanel>
+        )}
         <LazyTabPanel id="spans">
           <DatasetEvaluatorSpans projectRef={datasetEvaluator.project} />
         </LazyTabPanel>
       </Tabs>
+      {isLLMEvaluator && (
+        <EditLLMDatasetEvaluatorSlideover
+          datasetEvaluatorId={datasetEvaluator.id}
+          datasetId={datasetId}
+          isOpen={isEditSlideoverOpen}
+          onOpenChange={setIsEditSlideoverOpen}
+          onUpdate={() => revalidate()}
+        />
+      )}
+      {isBuiltInEvaluator && (
+        <EditBuiltInDatasetEvaluatorSlideover
+          datasetEvaluatorId={datasetEvaluator.id}
+          datasetId={datasetId}
+          isOpen={isEditSlideoverOpen}
+          onOpenChange={setIsEditSlideoverOpen}
+          onUpdate={() => revalidate()}
+        />
+      )}
+      {isCodeEvaluator && (
+        <EditCodeDatasetEvaluatorSlideover
+          datasetEvaluatorId={datasetEvaluator.id}
+          datasetId={datasetId}
+          isOpen={isEditSlideoverOpen}
+          onOpenChange={setIsEditSlideoverOpen}
+          onUpdate={() => revalidate()}
+        />
+      )}
       <Suspense>
         <Outlet />
       </Suspense>

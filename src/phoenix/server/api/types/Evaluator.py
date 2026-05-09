@@ -318,6 +318,13 @@ class CodeEvaluator(Evaluator, Node):
         return to_gql_code_evaluator_version(version)
 
     @strawberry.field
+    async def version_count(
+        self,
+        info: Info[Context, None],
+    ) -> int:
+        return await info.context.data_loaders.code_evaluator_version_count.load(self.id)
+
+    @strawberry.field
     async def versions(
         self,
         info: Info[Context, None],
