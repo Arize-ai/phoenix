@@ -238,7 +238,7 @@ function ProjectPageContentBody({
       <TopNavActions order={-1}>
         <StreamToggle project={data.project} />
       </TopNavActions>
-      <ProjectPageHeader project={data.project} />
+      <ProjectPageHeader />
       <ProjectPageQueryReferenceContext.Provider
         value={{
           spansQueryReference: spansQueryReference ?? null,

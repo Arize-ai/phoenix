@@ -61,7 +61,6 @@ import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
@@ -207,7 +206,6 @@ export function SpansTable(props: SpansTableProps) {
   useAdvertiseAgentContext(advertisedRootSpansOnlyContext);
 
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
-  const isTracingUxEnabled = useFeatureFlag("tracing_ux");
   const showTableAside = useProjectContext((state) => state.showTableAside);
   const setShowTableAside = useProjectContext(
     (state) => state.setShowTableAside
@@ -893,22 +891,20 @@ export function SpansTable(props: SpansTableProps) {
               </ToggleButtonGroup>
               <SpanColumnSelector columns={computedColumns} query={data} />
               <ProjectFilterConfigButton />
-              {isTracingUxEnabled ? (
-                <Button
-                  size="M"
-                  aria-label={
-                    showTableAside ? "Hide aside panel" : "Show aside panel"
-                  }
-                  leadingVisual={
-                    <Icon
-                      svg={
-                        showTableAside ? <Icons.SlideIn /> : <Icons.SlideOut />
-                      }
-                    />
-                  }
-                  onPress={() => setShowTableAside(!showTableAside)}
-                />
-              ) : null}
+              <Button
+                size="M"
+                aria-label={
+                  showTableAside ? "Hide aside panel" : "Show aside panel"
+                }
+                leadingVisual={
+                  <Icon
+                    svg={
+                      showTableAside ? <Icons.SlideIn /> : <Icons.SlideOut />
+                    }
+                  />
+                }
+                onPress={() => setShowTableAside(!showTableAside)}
+              />
             </Flex>
           </View>
           <div
@@ -1023,38 +1019,34 @@ export function SpansTable(props: SpansTableProps) {
           ) : null}
         </div>
       </Panel>
-      {isTracingUxEnabled ? (
-        <>
-          <Separator
-            css={compactResizeHandleCSS}
-            disabled={!showTableAside}
-            style={showTableAside ? undefined : { display: "none" }}
-          />
-          <Panel
-            panelRef={asidePanelRef}
-            defaultSize={ASIDE_PANEL_DEFAULT_SIZE_PIXELS}
-            collapsedSize={0}
-            minSize={ASIDE_PANEL_MIN_SIZE_PIXELS}
-            maxSize={ASIDE_PANEL_MAX_SIZE_PIXELS}
-            collapsible
-            onResize={(panelSize) => {
-              if (!didSyncAsideFromStoreRef.current) return;
-              const shouldBeVisible = panelSize.asPercentage > 0;
-              if (shouldBeVisible !== showTableAside) {
-                setShowTableAside(shouldBeVisible);
-              }
-            }}
-          >
-            {showTableAside ? (
-              <ErrorBoundary fallback={TextErrorBoundaryFallback}>
-                <Suspense fallback={<Loading size="S" />}>
-                  <SpansTableAside filterCondition={filterCondition} />
-                </Suspense>
-              </ErrorBoundary>
-            ) : null}
-          </Panel>
-        </>
-      ) : null}
+      <Separator
+        css={compactResizeHandleCSS}
+        disabled={!showTableAside}
+        style={showTableAside ? undefined : { display: "none" }}
+      />
+      <Panel
+        panelRef={asidePanelRef}
+        defaultSize={ASIDE_PANEL_DEFAULT_SIZE_PIXELS}
+        collapsedSize={0}
+        minSize={ASIDE_PANEL_MIN_SIZE_PIXELS}
+        maxSize={ASIDE_PANEL_MAX_SIZE_PIXELS}
+        collapsible
+        onResize={(panelSize) => {
+          if (!didSyncAsideFromStoreRef.current) return;
+          const shouldBeVisible = panelSize.asPercentage > 0;
+          if (shouldBeVisible !== showTableAside) {
+            setShowTableAside(shouldBeVisible);
+          }
+        }}
+      >
+        {showTableAside ? (
+          <ErrorBoundary fallback={TextErrorBoundaryFallback}>
+            <Suspense fallback={<Loading size="S" />}>
+              <SpansTableAside filterCondition={filterCondition} />
+            </Suspense>
+          </ErrorBoundary>
+        ) : null}
+      </Panel>
     </Group>
   );
 }
