@@ -1155,7 +1155,7 @@ class TestConfigValidationPath:
                             "env_vars": [
                                 {
                                     "kind": "literal",
-                                    "name": "PHOENIX_SANDBOX_E2B_API_KEY",
+                                    "name": "E2B_API_KEY",
                                     "value": "bad",
                                 }
                             ]
