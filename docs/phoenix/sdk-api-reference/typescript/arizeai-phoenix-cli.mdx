@@ -294,16 +294,19 @@ px span add-note abc123def456 --text "Reviewed by on-call" --format json
 List sessions (multi-turn conversations) for a project.
 
 ```bash
-px session list                                       # List recent sessions
-px session list --limit 20                            # More sessions
-px session list --order asc                           # Oldest first
-px session list --format raw --no-progress | jq       # Pipe to jq
+px session list                                              # List recent sessions
+px session list --limit 20                                   # More sessions
+px session list --order asc                                  # Oldest first
+px session list --include-annotations --include-notes        # With annotations and notes
+px session list --format raw --no-progress | jq              # Pipe to jq
 ```
 
 | Option | Description | Default |
 |--------|-------------|---------|
 | `-n, --limit <number>` | Maximum number of sessions to return | 10 |
 | `--order <order>` | Sort order: `asc` or `desc` | `desc` |
+| `--include-annotations` | Include session annotations, excluding notes | — |
+| `--include-notes` | Include session notes when present | — |
 | `--endpoint <url>` | Phoenix API endpoint | From env |
 | `--project <name>` | Project name or ID | From env |
 | `--api-key <key>` | Phoenix API key | From env |
@@ -318,18 +321,62 @@ View a session's conversation flow, including all traces (turns) in the session.
 px session get my-chat-session-001                              # By session_id
 px session get UHJvamVjdFNlc3Npb24...                           # By GlobalID
 px session get my-chat-session-001 --include-annotations        # With annotations
+px session get my-chat-session-001 --include-notes              # With notes
 px session get my-chat-session-001 --file session.json          # Save to file
 px session get my-chat-session-001 --format raw | jq            # Pipe to jq
 ```
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--include-annotations` | Include session annotations | Off |
+| `--include-annotations` | Include session annotations, excluding notes | Off |
+| `--include-notes` | Include session notes when present | Off |
 | `--file <path>` | Save to file instead of stdout | stdout |
 | `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
 | `--endpoint <url>` | Phoenix API endpoint | From env |
 | `--project <name>` | Project name or ID | From env |
 | `--api-key <key>` | Phoenix API key | From env |
+| `--no-progress` | Disable progress indicators | — |
+
+### `px session annotate <session-id>`
+
+Create or update a session annotation by GlobalID or user-provided `session_id`.
+
+```bash
+px session annotate my-session-id --name reviewer --label pass
+px session annotate my-session-id --name reviewer --score 0.9 --format raw --no-progress
+px session annotate my-session-id --name evaluator --label pass --annotator-kind LLM
+px session annotate my-session-id --name reviewer --explanation "needs follow-up"
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--name <name>` | Annotation name (what is being measured) | Required |
+| `--label <label>` | Categorical result (e.g. `pass`, `fail`) | — |
+| `--score <number>` | Numeric score | — |
+| `--explanation <text>` | Free-text justification | — |
+| `--annotator-kind <kind>` | `HUMAN`, `LLM`, or `CODE` | `HUMAN` |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
+| `--no-progress` | Disable progress indicators | — |
+
+At least one of `--label`, `--score`, or `--explanation` is required.
+
+### `px session add-note <session-id>`
+
+Add a free-text note to a session by GlobalID or user-provided `session_id`. Multiple notes can be added to the same session. Requires Phoenix server `>= 14.17.0`.
+
+```bash
+px session add-note my-session-id --text "needs follow-up"
+px session add-note my-session-id --text "agent triage complete" --format raw --no-progress
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--text <text>` | Note text to add | Required |
+| `--endpoint <url>` | Phoenix API endpoint | From env |
+| `--api-key <key>` | Phoenix API key | From env |
+| `--format <format>` | `pretty`, `json`, or `raw` | `pretty` |
 | `--no-progress` | Disable progress indicators | — |
 
 ### `px dataset list`

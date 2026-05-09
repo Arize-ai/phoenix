@@ -1,0 +1,92 @@
+---
+title: "Updating Datasets"
+description: "Diff and update existing dataset examples using stable IDs with arize-phoenix-client"
+---
+
+Use `example_id_key` with `create_dataset` or `add_examples_to_dataset` when you want Phoenix to diff incoming rows against an existing dataset version and apply the minimal set of adds, edits, and deletes — rather than always appending new examples.
+
+## When to Use
+
+- Your examples have stable IDs (e.g., a primary key from your database or a content hash).
+- You want to update a production dataset without losing experiment or evaluation links tied to existing examples.
+- You need a change summary (how many rows were created, updated, or deleted).
+
+If your examples have no stable IDs, use `action="append"` or omit `example_id_key` to append all rows unconditionally.
+
+## Create or Update a Dataset
+
+Pass `example_id_key` to `create_dataset`. Phoenix will create the dataset if it does not exist, or diff the incoming rows against the current version if it does.
+
+```python
+import pandas as pd
+from phoenix.client import Client
+
+client = Client()
+
+df = pd.DataFrame([
+    {"example_id": "ex-001", "question": "What is 2+2?", "answer": "4"},
+    {"example_id": "ex-002", "question": "Name a prime number.", "answer": "7"},
+])
+
+result = client.datasets.create_dataset(
+    name="my-eval-dataset",
+    dataframe=df,
+    input_keys=["question"],
+    output_keys=["answer"],
+    example_id_key="example_id",
+)
+
+print(result.data.num_created_examples)   # rows added
+print(result.data.num_updated_examples)   # rows changed
+print(result.data.num_deleted_examples)   # rows removed
+```
+
+`example_id_key` must not overlap with `input_keys`, `output_keys`, `metadata_keys`, or `split_key`. Phoenix raises a `ValueError` if it does.
+
+## Add or Update Examples in an Existing Dataset
+
+Use `add_examples_to_dataset` to add or update examples without touching rows whose IDs are absent from the upload. The default `action="update"` applies a diff; pass `action="append"` to always add new rows even when IDs match.
+
+```python
+from phoenix.client import Client
+
+client = Client()
+
+new_examples = [
+    {"example_id": "ex-003", "question": "What color is the sky?", "answer": "Blue"},
+]
+
+result = client.datasets.add_examples_to_dataset(
+    dataset={"name": "my-eval-dataset"},
+    examples=new_examples,
+    input_keys=["question"],
+    output_keys=["answer"],
+    example_id_key="example_id",
+)
+
+print(result.data.num_created_examples)
+print(result.data.num_updated_examples)
+print(result.data.num_deleted_examples)
+```
+
+## Diff Semantics
+
+When `example_id_key` is provided and `action="update"`:
+
+- **Incoming ID not in dataset** → example is **created**.
+- **Incoming ID matches an existing example** → example is **updated** if content changed; otherwise unchanged.
+- **Existing example ID absent from upload** → example is **deleted**.
+
+This makes `action="update"` a full-replace diff: the resulting dataset version matches exactly the set of examples in the upload.
+
+## Compatibility
+
+Older Phoenix servers (pre-upsert support) do not accept `action="update"`. The client automatically retries with `action="create"` in that case, which appends all rows without diffing.
+
+## Response Fields
+
+| Field | Description |
+|-------|-------------|
+| `num_created_examples` | Number of examples added in this operation |
+| `num_updated_examples` | Number of existing examples modified |
+| `num_deleted_examples` | Number of examples removed because their ID was absent from the upload |
