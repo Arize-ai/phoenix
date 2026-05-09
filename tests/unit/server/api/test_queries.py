@@ -5,6 +5,7 @@ from typing import Any, Optional
 
 import pytest
 from sqlalchemy import insert
+from starlette.datastructures import Secret
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -24,8 +25,13 @@ from phoenix.db.types.prompts import (
     PromptTemplateType,
 )
 from phoenix.server.encryption import EncryptionService
+from phoenix.server.redaction import Redactor
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
+
+# The in-process test app is constructed with no PHOENIX_SECRET, so the
+# server-side Redactor is keyed off Secret("").
+_REDACTOR = Redactor(secret=Secret(""))
 
 
 async def test_projects_omits_experiment_projects(
@@ -1184,7 +1190,8 @@ async def test_secrets_pagination(
     assert response.data is not None
     first_page = response.data["secrets"]
     first_page_secrets = [
-        (edge["secret"]["key"], edge["secret"]["value"]["value"]) for edge in first_page["edges"]
+        (edge["secret"]["key"], _REDACTOR.unredact(edge["secret"]["value"]["value"]))
+        for edge in first_page["edges"]
     ]
     assert first_page_secrets == [("secret-a", "value-a"), ("secret-b", "value-b")]
     assert first_page["pageInfo"]["hasNextPage"] is True
@@ -1200,7 +1207,8 @@ async def test_secrets_pagination(
     assert response.data is not None
     second_page = response.data["secrets"]
     second_page_secrets = [
-        (edge["secret"]["key"], edge["secret"]["value"]["value"]) for edge in second_page["edges"]
+        (edge["secret"]["key"], _REDACTOR.unredact(edge["secret"]["value"]["value"]))
+        for edge in second_page["edges"]
     ]
     assert second_page_secrets == [("secret-c", "value-c"), ("secret-d", "value-d")]
     assert second_page["pageInfo"]["hasNextPage"] is True
@@ -1216,7 +1224,8 @@ async def test_secrets_pagination(
     assert response.data is not None
     third_page = response.data["secrets"]
     third_page_secrets = [
-        (edge["secret"]["key"], edge["secret"]["value"]["value"]) for edge in third_page["edges"]
+        (edge["secret"]["key"], _REDACTOR.unredact(edge["secret"]["value"]["value"]))
+        for edge in third_page["edges"]
     ]
     assert third_page_secrets == [("secret-e", "value-e"), ("secret-f", "value-f")]
     assert third_page["pageInfo"]["hasNextPage"] is False
@@ -1232,7 +1241,7 @@ async def test_secrets_pagination(
     assert not response.errors
     assert response.data is not None
     filtered_secrets = [
-        (edge["secret"]["key"], edge["secret"]["value"]["value"])
+        (edge["secret"]["key"], _REDACTOR.unredact(edge["secret"]["value"]["value"]))
         for edge in response.data["secrets"]["edges"]
     ]
     assert filtered_secrets == [
@@ -1258,7 +1267,7 @@ async def test_secrets_pagination(
     assert not response.errors
     assert response.data is not None
     mixed_secrets = [
-        (edge["secret"]["key"], edge["secret"]["value"]["value"])
+        (edge["secret"]["key"], _REDACTOR.unredact(edge["secret"]["value"]["value"]))
         for edge in response.data["secrets"]["edges"]
     ]
     assert mixed_secrets == [("secret-b", "value-b")]
@@ -2691,212 +2700,3 @@ class TestEvaluatorsQuery:
         response = await gql_client.execute(query=self._EVALUATORS_QUERY)
         assert not response.errors
         assert response.data == {"evaluators": {"edges": []}}
-
-
-class TestModelInvocationParameters:
-    """Tests for the modelInvocationParameters query with openaiApiType support."""
-
-    _QUERY = """
-      query ($input: ModelsInput!) {
-        modelInvocationParameters(input: $input) {
-          __typename
-          ... on InvocationParameterBase {
-            invocationName
-            label
-          }
-        }
-      }
-    """
-
-    async def test_openai_chat_completions_returns_standard_params(
-        self,
-        gql_client: AsyncGraphQLClient,
-    ) -> None:
-        """OpenAI with CHAT_COMPLETIONS should return standard parameters like temperature."""
-        response = await gql_client.execute(
-            query=self._QUERY,
-            variables={
-                "input": {
-                    "providerKey": "OPENAI",
-                    "modelName": "gpt-4o",
-                    "openaiApiType": "CHAT_COMPLETIONS",
-                }
-            },
-        )
-        assert not response.errors
-        assert response.data is not None
-        param_names = [p["invocationName"] for p in response.data["modelInvocationParameters"]]
-        assert "temperature" in param_names
-        assert "top_p" in param_names
-        assert "frequency_penalty" in param_names
-        assert "reasoning_effort" not in param_names
-
-    async def test_openai_chat_completions_custom_model_returns_standard_params(
-        self,
-        gql_client: AsyncGraphQLClient,
-    ) -> None:
-        """Custom model names with CHAT_COMPLETIONS should return standard parameters."""
-        response = await gql_client.execute(
-            query=self._QUERY,
-            variables={
-                "input": {
-                    "providerKey": "OPENAI",
-                    "modelName": "my-custom-fine-tuned-model",
-                    "openaiApiType": "CHAT_COMPLETIONS",
-                }
-            },
-        )
-        assert not response.errors
-        assert response.data is not None
-        param_names = [p["invocationName"] for p in response.data["modelInvocationParameters"]]
-        assert "temperature" in param_names
-        assert "reasoning_effort" not in param_names
-
-    async def test_openai_responses_returns_reasoning_params(
-        self,
-        gql_client: AsyncGraphQLClient,
-    ) -> None:
-        """OpenAI with RESPONSES should return reasoning parameters."""
-        response = await gql_client.execute(
-            query=self._QUERY,
-            variables={
-                "input": {
-                    "providerKey": "OPENAI",
-                    "modelName": "gpt-4o",
-                    "openaiApiType": "RESPONSES",
-                }
-            },
-        )
-        assert not response.errors
-        assert response.data is not None
-        param_names = [p["invocationName"] for p in response.data["modelInvocationParameters"]]
-        assert "reasoning_effort" in param_names
-        assert "temperature" not in param_names
-        assert "top_p" not in param_names
-
-    async def test_openai_reasoning_model_with_chat_completions_returns_reasoning_params(
-        self,
-        gql_client: AsyncGraphQLClient,
-    ) -> None:
-        """Reasoning models (o1, o3) with CHAT_COMPLETIONS should return reasoning parameters."""
-        response = await gql_client.execute(
-            query=self._QUERY,
-            variables={
-                "input": {
-                    "providerKey": "OPENAI",
-                    "modelName": "o1",
-                    "openaiApiType": "CHAT_COMPLETIONS",
-                }
-            },
-        )
-        assert not response.errors
-        assert response.data is not None
-        param_names = [p["invocationName"] for p in response.data["modelInvocationParameters"]]
-        assert "reasoning_effort" in param_names
-        assert "temperature" not in param_names
-
-    async def test_azure_chat_completions_returns_standard_params(
-        self,
-        gql_client: AsyncGraphQLClient,
-    ) -> None:
-        """Azure OpenAI with CHAT_COMPLETIONS should return standard parameters."""
-        response = await gql_client.execute(
-            query=self._QUERY,
-            variables={
-                "input": {
-                    "providerKey": "AZURE_OPENAI",
-                    "modelName": "my-deployment",
-                    "openaiApiType": "CHAT_COMPLETIONS",
-                }
-            },
-        )
-        assert not response.errors
-        assert response.data is not None
-        param_names = [p["invocationName"] for p in response.data["modelInvocationParameters"]]
-        assert "temperature" in param_names
-        assert "reasoning_effort" not in param_names
-
-    async def test_azure_responses_returns_reasoning_params(
-        self,
-        gql_client: AsyncGraphQLClient,
-    ) -> None:
-        """Azure OpenAI with RESPONSES should return reasoning parameters."""
-        response = await gql_client.execute(
-            query=self._QUERY,
-            variables={
-                "input": {
-                    "providerKey": "AZURE_OPENAI",
-                    "modelName": "my-deployment",
-                    "openaiApiType": "RESPONSES",
-                }
-            },
-        )
-        assert not response.errors
-        assert response.data is not None
-        param_names = [p["invocationName"] for p in response.data["modelInvocationParameters"]]
-        assert "reasoning_effort" in param_names
-        assert "temperature" not in param_names
-
-    async def test_openai_without_api_type_uses_registry_fallback(
-        self,
-        gql_client: AsyncGraphQLClient,
-    ) -> None:
-        """OpenAI without openaiApiType should fall back to registry behavior."""
-        # Known model should use its registered client
-        response = await gql_client.execute(
-            query=self._QUERY,
-            variables={
-                "input": {
-                    "providerKey": "OPENAI",
-                    "modelName": "gpt-4o",
-                    # openaiApiType not provided
-                }
-            },
-        )
-        assert not response.errors
-        assert response.data is not None
-        param_names = [p["invocationName"] for p in response.data["modelInvocationParameters"]]
-        # gpt-4o is registered with OpenAIStreamingClient which has temperature
-        assert "temperature" in param_names
-
-    async def test_anthropic_ignores_openai_api_type(
-        self,
-        gql_client: AsyncGraphQLClient,
-    ) -> None:
-        """Non-OpenAI providers should ignore openaiApiType and use registry."""
-        response = await gql_client.execute(
-            query=self._QUERY,
-            variables={
-                "input": {
-                    "providerKey": "ANTHROPIC",
-                    "modelName": "claude-3-5-sonnet-latest",
-                    "openaiApiType": "CHAT_COMPLETIONS",  # Should be ignored
-                }
-            },
-        )
-        assert not response.errors
-        assert response.data is not None
-        param_names = [p["invocationName"] for p in response.data["modelInvocationParameters"]]
-        # Anthropic has its own parameters
-        assert "temperature" in param_names
-        assert "max_tokens" in param_names
-        # Should not have OpenAI-specific reasoning params
-        assert "reasoning_effort" not in param_names
-
-    async def test_null_provider_returns_empty(
-        self,
-        gql_client: AsyncGraphQLClient,
-    ) -> None:
-        """Null provider should return empty parameters."""
-        response = await gql_client.execute(
-            query=self._QUERY,
-            variables={
-                "input": {
-                    "providerKey": None,
-                    "modelName": "some-model",
-                }
-            },
-        )
-        assert not response.errors
-        assert response.data is not None
-        assert response.data["modelInvocationParameters"] == []

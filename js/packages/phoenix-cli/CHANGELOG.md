@@ -1,5 +1,56 @@
 # @arizeai/phoenix-cli
 
+## 1.4.2
+
+### Patch Changes
+
+- Updated dependencies [d0cc4c4]
+  - @arizeai/phoenix-client@6.9.2
+
+## 1.4.1
+
+### Patch Changes
+
+- 5d14f23: Add LinkedIn link to the Community section of the README.
+- Updated dependencies [5d14f23]
+  - @arizeai/phoenix-config@0.1.4
+  - @arizeai/phoenix-client@6.9.1
+
+## 1.4.0
+
+### Minor Changes
+
+- ab62d3d: Add named profiles to the Phoenix CLI: `px profile list|show|create|edit|use|delete`. Profiles persist to `~/.px/settings.json` (or `$XDG_CONFIG_HOME/px/settings.json`, mode `0600`) and feed into config resolution as a new tier between built-in defaults and environment variables. `px auth status` displays the active profile and accepts `--profile <name>` to scope the call. Other commands honour the stored active profile.
+
+  The settings file is JSON-Schema validated; the schema is committed to `schemas/phoenix-cli-settings.json` and can be referenced via the `$schema` field on `settings.json` for editor autocomplete.
+
+### Patch Changes
+
+- 4e20267: Add session annotation and note commands to the Phoenix CLI, and add a session note helper to the TypeScript client. Session note creation requires Phoenix server 14.17.0 or newer.
+- Updated dependencies [2993b04]
+- Updated dependencies [4e20267]
+- Updated dependencies [2993b04]
+  - @arizeai/phoenix-client@6.9.0
+
+## 1.3.1
+
+### Patch Changes
+
+- Updated dependencies [e381885]
+- Updated dependencies [187df7e]
+  - @arizeai/phoenix-client@6.8.1
+
+## 1.3.0
+
+### Minor Changes
+
+- a4dad8b: Add trace note support to `px`. New `px trace add-note <trace-id> --text <text>` command creates a trace note, and `--include-notes` is now supported on `px trace get` and `px trace list` to fetch and render trace notes and span notes separately from annotations. Requires Phoenix server >= 14.13.0.
+
+### Patch Changes
+
+- Updated dependencies [a4dad8b]
+  - @arizeai/phoenix-client@6.8.0
+
 ## 1.2.0
 
 ### Minor Changes

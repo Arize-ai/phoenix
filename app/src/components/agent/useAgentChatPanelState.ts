@@ -10,6 +10,7 @@ import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { ModelMenuValue } from "../generative/ModelMenu";
+import type { SummarizeQuery } from "./useGenerateSessionSummary";
 
 /**
  * Snapshot of the values that were current the last time the bash tool's
@@ -171,16 +172,41 @@ export function useAgentChatPanelState() {
     [defaultModelConfig, setDefaultModelConfig]
   );
 
-  const chatApiUrl = useMemo(() => {
-    const params = new URLSearchParams({
-      model_name: menuValue.modelName,
-      ...(menuValue.customProvider
-        ? { provider_type: "custom", provider_id: menuValue.customProvider.id }
-        : { provider_type: "builtin", provider: menuValue.provider }),
-    });
+  // TODO(chat-v2-migration): remove this selector once /chat-v2 is the only endpoint.
+  const useV2Endpoint = useAgentContext(
+    (state) => state.capabilities["chat.useV2Endpoint"]
+  );
+  const summarizeQuery = useMemo<SummarizeQuery>(
+    () =>
+      menuValue.customProvider
+        ? {
+            provider_type: "custom",
+            provider_id: menuValue.customProvider.id,
+            model_name: menuValue.modelName,
+          }
+        : {
+            provider_type: "builtin",
+            provider: menuValue.provider,
+            model_name: menuValue.modelName,
+          },
+    [menuValue]
+  );
 
-    return prependBasename(`/chat?${params}`);
-  }, [menuValue]);
+  const providerSearchParams = useMemo(() => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(summarizeQuery)) {
+      if (value != null) {
+        params.append(key, String(value));
+      }
+    }
+    return params.toString();
+  }, [summarizeQuery]);
+
+  const chatApiUrl = useMemo(() => {
+    // TODO(chat-v2-migration): inline `/chat-v2` once the toggle is removed.
+    const path = useV2Endpoint ? "/chat-v2" : "/chat";
+    return prependBasename(`${path}?${providerSearchParams}`);
+  }, [providerSearchParams, useV2Endpoint]);
 
   const refreshSessionContext = useCallback(
     async ({
@@ -241,6 +267,7 @@ export function useAgentChatPanelState() {
     activeSessionId,
     orderedSessions,
     chatApiUrl,
+    summarizeQuery,
     menuValue,
     createSession,
     setActiveSession,

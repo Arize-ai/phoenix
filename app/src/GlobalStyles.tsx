@@ -58,9 +58,12 @@ export const mediumRootCSS = css`
     --global-dimension-size-3000: 240px;
     --global-dimension-size-3400: 272px;
     --global-dimension-size-3600: 288px;
+    --global-dimension-size-4000: 320px;
     --global-dimension-size-4600: 368px;
     --global-dimension-size-5000: 400px;
     --global-dimension-size-6000: 480px;
+    --global-dimension-size-8000: 640px;
+    --global-dimension-size-8500: 680px;
   }
 `;
 
@@ -610,6 +613,7 @@ export const darkThemeCSS = css`
     --global-text-color-900: rgba(255, 255, 255, 0.9);
     --global-text-color-700: rgba(255, 255, 255, 0.7);
     --global-text-color-500: rgba(255, 255, 255, 0.5);
+    --global-text-color-400: rgba(255, 255, 255, 0.4);
     --global-text-color-300: rgba(255, 255, 255, 0.3);
 
     // Link colors
@@ -878,6 +882,7 @@ export const lightThemeCSS = css`
     --global-text-color-900: rgba(0, 0, 0, 0.9);
     --global-text-color-700: rgba(0, 0, 0, 0.7);
     --global-text-color-500: rgba(0, 0, 0, 0.5);
+    --global-text-color-400: rgba(0, 0, 0, 0.4);
     --global-text-color-300: rgba(0, 0, 0, 0.3);
 
     --global-link-color: var(--global-color-blue-800);
@@ -1021,8 +1026,15 @@ const cardCSS = (theme: Theme) => css`
   .theme--${theme} {
     --global-card-border-color: var(--global-border-color-default);
     --global-card-header-height: 46px;
+    --global-card-header-background-color: ${
+      theme === "light"
+        ? "var(--global-color-gray-100)"
+        : "var(--global-color-gray-75)"
+    };
     --global-card-header-background-color-hover: ${
-      theme === "dark" ? "rgba(255, 255, 255, 0.07)" : "rgba(0, 0, 0, 0.03)"
+      theme === "light"
+        ? "var(--global-color-gray-200)"
+        : "var(--global-color-gray-100)"
     };
   }
 `;
@@ -1031,16 +1043,19 @@ const toolCallCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
     --tool-call-border-color: var(--global-card-border-color);
+    --tool-call-border-color-hover: var(--global-color-gray-200);
     --tool-call-background-color: var(--global-color-gray-100);
-    --tool-call-header-background-color: var(--global-color-gray-75);
+    --tool-call-header-background-color: var(
+      --global-card-header-background-color
+    );
     --tool-call-header-background-color-hover: var(
       --global-card-header-background-color-hover
     );
-    --tool-call-body-background-color: var(--global-color-gray-50);
+    --tool-call-body-background-color: var(--global-color-gray-75);
     --tool-call-body-border-color: var(--global-color-gray-200);
     --tool-call-title-color: var(--global-text-color-700);
-    --tool-call-secondary-color: var(--global-text-color-500);
-    --tool-call-error-color: var(--global-color-danger);
+    --tool-call-secondary-color: var(--global-text-color-400);
+    --tool-call-error-color: var(--global-color-danger-700);
   }
 `;
 
@@ -1104,15 +1119,15 @@ const badgeSizingCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
     --global-badge-padding-y-s: 0px;
-    --global-badge-padding-x-s: var(--global-dimension-size-75);
+    --global-badge-padding-x-s: var(--global-dimension-size-50);
     --global-badge-font-size-s: var(--global-font-size-xs);
 
     --global-badge-padding-y-m: var(--global-dimension-size-25);
-    --global-badge-padding-x-m: var(--global-dimension-size-100);
+    --global-badge-padding-x-m: var(--global-dimension-size-75);
     --global-badge-font-size-m: var(--global-font-size-s);
 
     --global-badge-padding-y-l: var(--global-dimension-size-50);
-    --global-badge-padding-x-l: var(--global-dimension-size-100);
+    --global-badge-padding-x-l: var(--global-dimension-size-75);
     --global-badge-font-size-l: var(--global-font-size-m);
 
     --global-badge-gap: var(--global-dimension-size-50);

@@ -3016,8 +3016,52 @@
       ]
     },
     {
+      "name": "gpt-5.4-mini-2026-03-17",
+      "name_pattern": "gpt-5\\.4-mini-2026-03-17",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 7.5e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 4.5e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 7.5e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
       "name": "gpt-5.4-nano",
       "name_pattern": "gpt-5\\.4-nano",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 2e-7,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 1.25e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 2e-8,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "gpt-5.4-nano-2026-03-17",
+      "name_pattern": "gpt-5\\.4-nano-2026-03-17",
       "source": "litellm",
       "token_prices": [
         {
@@ -3098,6 +3142,72 @@
         },
         {
           "base_rate": 5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "gpt-5.5-2026-04-23",
+      "name_pattern": "gpt-5\\.5-2026-04-23",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00003,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "gpt-5.5-pro",
+      "name_pattern": "gpt-5\\.5-pro",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.00003,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00018,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "gpt-5.5-pro-2026-04-23",
+      "name_pattern": "gpt-5\\.5-pro-2026-04-23",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 0.00003,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00018,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 3e-6,
           "is_prompt": true,
           "token_type": "cache_read"
         }
@@ -3290,6 +3400,50 @@
     {
       "name": "gpt-image-1.5-2025-12-16",
       "name_pattern": "gpt-image-1\\.5-2025-12-16",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.25e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "gpt-image-2",
+      "name_pattern": "gpt-image-2",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 0.00001,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.25e-6,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        }
+      ]
+    },
+    {
+      "name": "gpt-image-2-2026-04-21",
+      "name_pattern": "gpt-image-2-2026-04-21",
       "source": "litellm",
       "token_prices": [
         {

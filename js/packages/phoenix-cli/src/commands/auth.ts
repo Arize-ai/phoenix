@@ -3,14 +3,21 @@ import { Command } from "commander";
 
 import { createPhoenixClient } from "../client";
 import { type PhoenixConfig, resolveConfig } from "../config";
-import { ExitCode } from "../exitCodes";
+import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput } from "../io";
+import {
+  ProfileResolutionError,
+  getProfileByName,
+  getStoredActiveProfile,
+  loadSettings,
+} from "../settings";
 
 type ViewerUser = componentsV1["schemas"]["GetViewerResponseBody"]["data"];
 
 interface AuthStatusOptions {
   endpoint?: string;
   apiKey?: string;
+  profile?: string;
 }
 
 /**
@@ -79,9 +86,14 @@ async function fetchViewer(config: PhoenixConfig): Promise<FetchViewerResult> {
 export function formatAuthStatus(
   endpoint: string,
   result: FetchViewerResult,
-  apiKey?: string
+  apiKey?: string,
+  profileName?: string
 ): string {
   const lines: string[] = [endpoint];
+
+  if (profileName) {
+    lines.push(`  - Profile: ${profileName}`);
+  }
 
   if (result.status === "success") {
     const user = result.user;
@@ -135,12 +147,22 @@ function exitCodeForResult(result: FetchViewerResult): ExitCode {
  * Auth status command handler
  */
 async function authStatusHandler(options: AuthStatusOptions): Promise<void> {
-  const config = resolveConfig({
-    cliOptions: {
-      endpoint: options.endpoint,
-      apiKey: options.apiKey,
-    },
-  });
+  let config: PhoenixConfig;
+  try {
+    config = resolveConfig({
+      cliOptions: {
+        endpoint: options.endpoint,
+        apiKey: options.apiKey,
+      },
+      profileName: options.profile,
+    });
+  } catch (err) {
+    if (err instanceof ProfileResolutionError) {
+      writeError({ message: err.message });
+      process.exit(getExitCodeForError(err));
+    }
+    throw err;
+  }
 
   if (!config.endpoint) {
     writeError({
@@ -149,8 +171,21 @@ async function authStatusHandler(options: AuthStatusOptions): Promise<void> {
     process.exit(ExitCode.INVALID_ARGUMENT);
   }
 
+  // Resolve the profile name for display purposes. Safe to call after
+  // resolveConfig — any invalid explicit profile would have thrown.
+  const settingsFile = loadSettings();
+  const activeProfileName =
+    options.profile !== undefined
+      ? getProfileByName(settingsFile, options.profile)?.name
+      : getStoredActiveProfile(settingsFile)?.name;
+
   const result = await fetchViewer(config);
-  const output = formatAuthStatus(config.endpoint, result, config.apiKey);
+  const output = formatAuthStatus(
+    config.endpoint,
+    result,
+    config.apiKey,
+    activeProfileName
+  );
   writeOutput({ message: output });
 
   const code = exitCodeForResult(result);
@@ -169,6 +204,7 @@ function createAuthStatusCommand(): Command {
     .description("Show current Phoenix authentication status")
     .option("--endpoint <url>", "Phoenix API endpoint")
     .option("--api-key <key>", "Phoenix API key for authentication")
+    .option("--profile <name>", "Profile to use")
     .action(authStatusHandler);
 
   return command;

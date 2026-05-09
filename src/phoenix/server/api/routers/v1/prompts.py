@@ -2,7 +2,7 @@ import logging
 from typing import Any, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
-from pydantic import ValidationError, model_validator
+from pydantic import ValidationError, field_validator, model_validator
 from sqlalchemy import delete, select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql import Select
@@ -22,6 +22,7 @@ from phoenix.db.types.prompts import (
     PromptTemplateFormat,
     PromptTemplateType,
     PromptTools,
+    normalize_invocation_parameters_for_write,
 )
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
@@ -60,6 +61,13 @@ class PromptVersionData(V1RoutesBaseModel):
     invocation_parameters: PromptInvocationParameters
     tools: Optional[PromptTools] = None
     response_format: Optional[PromptResponseFormat] = None
+
+    @field_validator("invocation_parameters", mode="after")
+    @classmethod
+    def normalize_openai_family_invocation_parameters(
+        cls, value: PromptInvocationParameters
+    ) -> PromptInvocationParameters:
+        return normalize_invocation_parameters_for_write(value)
 
     @model_validator(mode="after")
     def check_template_type_match(self) -> Self:

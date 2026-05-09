@@ -27,6 +27,5 @@ function formatNoteMutationPretty(note: NoteMutationResult): string {
     `  ID: ${note.id}`,
     `  Target: ${note.targetType} ${note.targetId}`,
     `  Text: ${note.text}`,
-    `  Annotator: ${note.annotatorKind}`,
   ].join("\n");
 }

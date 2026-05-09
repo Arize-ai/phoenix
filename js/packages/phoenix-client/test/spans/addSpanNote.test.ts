@@ -76,6 +76,22 @@ describe("addSpanNote", () => {
     ).rejects.toThrow("Failed to add span note: Span not found");
   });
 
+  it("should format FastAPI detail errors", async () => {
+    mockPOST.mockResolvedValueOnce({
+      data: undefined,
+      error: { detail: "Span not found" },
+    });
+
+    await expect(
+      addSpanNote({
+        spanNote: {
+          spanId: "nonexistent",
+          note: "This will fail",
+        },
+      })
+    ).rejects.toThrow("Failed to add span note: Span not found");
+  });
+
   it("should throw error when no data is returned", async () => {
     mockPOST.mockResolvedValueOnce({
       data: undefined,

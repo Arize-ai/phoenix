@@ -2,15 +2,7 @@ import { css } from "@emotion/react";
 import type { PropsWithChildren } from "react";
 import { startTransition, useEffect, useRef, useState } from "react";
 
-import {
-  Flex,
-  Heading,
-  Icon,
-  IconButton,
-  Icons,
-  Tooltip,
-  TooltipTrigger,
-} from "@phoenix/components";
+import { Flex, Icon, Icons } from "@phoenix/components";
 import type { TimelineBarProps } from "@phoenix/components/timeline/TimelineBar";
 import { TimelineBar } from "@phoenix/components/timeline/TimelineBar";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
@@ -21,7 +13,8 @@ import { classNames } from "@phoenix/utils/classNames";
 import { LatencyText } from "./LatencyText";
 import { SpanKindIcon } from "./SpanKindIcon";
 import { SpanStatusCodeIcon } from "./SpanStatusCodeIcon";
-import { TraceTreeProvider, useTraceTree } from "./TraceTreeContext";
+import { useTraceTree } from "./TraceTreeContext";
+import { NESTING_INDENT, traceTreeListCSS } from "./traceTreeStyles";
 import type { ISpanItem, SpanStatusCodeType } from "./types";
 import type { SpanTreeNode } from "./utils";
 import { createSpanTree } from "./utils";
@@ -30,29 +23,18 @@ export type TraceTreeProps = {
   spans: ISpanItem[];
   onSpanClick?: (span: ISpanItem) => void;
   selectedSpanNodeId: string;
+  scrollSelectedSpanIntoView?: boolean;
 };
 
-/**
- * The amount of padding to add to the left of the span item for each level of nesting.
- */
-const NESTING_INDENT = 25;
-
-/**
- * The breakpoint at which the trace tree switches to compact mode.
- */
-const COMPACT_BREAKPOINT = "300px";
-
-/**
- * The breakpoint at which to show the timing bars
- */
-const LARGE_BREAKPOINT = "500px";
-/**
- * The breakpoint at which the tree gets considered large
- */
-const EXTRA_LARGE_BREAKPOINT = "800px";
+export { TraceTreeProvider } from "./TraceTreeContext";
 
 export function TraceTree(props: TraceTreeProps) {
-  const { spans, onSpanClick, selectedSpanNodeId } = props;
+  const {
+    spans,
+    onSpanClick,
+    selectedSpanNodeId,
+    scrollSelectedSpanIntoView = true,
+  } = props;
   const spanTree = createSpanTree(spans);
   const rootSpan = spanTree[0].span;
   const overallTimeRange = {
@@ -60,165 +42,36 @@ export function TraceTree(props: TraceTreeProps) {
     end: rootSpan.endTime ? new Date(rootSpan.endTime) : new Date(),
   };
   return (
-    <TraceTreeProvider>
-      <div
-        css={css`
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-          height: 100%;
-          align-items: stretch;
-          container-type: inline-size;
-        `}
-      >
-        <TraceTreeToolbar />
-        <ul
-          css={css`
-            flex: 1 1 auto;
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            overflow: auto;
-            --trace-tree-nesting-indent: ${NESTING_INDENT}px;
-            @container (width < ${COMPACT_BREAKPOINT}) {
-              --trace-tree-nesting-indent: 0;
-              // Hide the collapse button
-              .span-controls,
-              .latency-text,
-              .token-count-item,
-              .span-tree-edge-connector,
-              .span-tree-edge,
-              .span-tree-timing {
-                display: none;
-                visibility: hidden;
-                width: 0;
-              }
-              .span-node-wrap {
-                padding-left: var(--global-dimension-static-size-200);
-              }
-            }
-            @container (width < ${LARGE_BREAKPOINT}) {
-              .span-tree-timing {
-                display: none;
-                visibility: hidden;
-                width: 0;
-              }
-            }
-            @container (width > ${EXTRA_LARGE_BREAKPOINT}) {
-              .span-tree-timing {
-                width: 33%;
-              }
-            }
-          `}
-          data-testid="trace-tree"
-        >
-          {spanTree.map((spanNode) => (
-            <SpanTreeItem
-              key={spanNode.span.id}
-              node={spanNode}
-              overallTimeRange={overallTimeRange}
-              onSpanClick={onSpanClick}
-              selectedSpanNodeId={selectedSpanNodeId}
-            />
-          ))}
-        </ul>
-      </div>
-    </TraceTreeProvider>
-  );
-}
-
-function TraceTreeToolbar() {
-  const showMetricsInTraceTree = usePreferencesContext(
-    (state) => state.showMetricsInTraceTree
-  );
-  const setShowMetricsInTraceTree = usePreferencesContext(
-    (state) => state.setShowMetricsInTraceTree
-  );
-  const { isCollapsed, setIsCollapsed } = useTraceTree();
-  return (
     <div
-      className="trace-tree-toolbar"
       css={css`
         display: flex;
-        flex-direction: row;
-        justify-content: space-between;
-        box-sizing: border-box;
-        width: 100%;
-        align-items: center;
-        padding: var(--global-dimension-size-100);
-        border-bottom: 1px solid var(--global-color-gray-300);
-        height: var(--global-dimension-size-600);
-        @container (width < ${COMPACT_BREAKPOINT}) {
-          button {
-            display: none;
-          }
-        }
+        flex-direction: column;
+        overflow: hidden;
+        height: 100%;
+        align-items: stretch;
+        container-type: inline-size;
       `}
     >
-      <Flex
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        flex="none"
-        gap="size-100"
-        width="100%"
+      <ul
+        css={[
+          traceTreeListCSS,
+          css`
+            overflow: auto;
+          `,
+        ]}
+        data-testid="trace-tree"
       >
-        <Heading level={3}>Trace</Heading>
-        <Flex direction="row" gap="size-100" className="trace-tree-controls">
-          <TooltipTrigger>
-            <IconButton
-              size="S"
-              aria-label={isCollapsed ? "Expand all" : "Collapse all"}
-              onPress={() => {
-                setIsCollapsed(!isCollapsed);
-              }}
-            >
-              <Icon
-                svg={
-                  isCollapsed ? (
-                    <Icons.RowCollapseOutline />
-                  ) : (
-                    <Icons.RowExpandOutline />
-                  )
-                }
-              />
-            </IconButton>
-            <Tooltip offset={-5}>
-              {isCollapsed
-                ? "Expand all nested spans"
-                : "Collapse all nested spans"}
-            </Tooltip>
-          </TooltipTrigger>
-          <TooltipTrigger>
-            <IconButton
-              size="S"
-              aria-label={
-                showMetricsInTraceTree
-                  ? "Hide metrics in trace tree"
-                  : "Show metrics in trace tree"
-              }
-              onPress={() => {
-                setShowMetricsInTraceTree(!showMetricsInTraceTree);
-              }}
-            >
-              <Icon
-                svg={
-                  showMetricsInTraceTree ? (
-                    <Icons.TimerOutline />
-                  ) : (
-                    <Icons.TimerOffOutline />
-                  )
-                }
-              />
-            </IconButton>
-            <Tooltip offset={-5}>
-              {showMetricsInTraceTree
-                ? "Hide metrics in trace tree"
-                : "Show metrics in trace tree"}
-            </Tooltip>
-          </TooltipTrigger>
-        </Flex>
-      </Flex>
+        {spanTree.map((spanNode) => (
+          <SpanTreeItem
+            key={spanNode.span.id}
+            node={spanNode}
+            overallTimeRange={overallTimeRange}
+            onSpanClick={onSpanClick}
+            selectedSpanNodeId={selectedSpanNodeId}
+            scrollSelectedSpanIntoView={scrollSelectedSpanIntoView}
+          />
+        ))}
+      </ul>
     </div>
   );
 }
@@ -235,6 +88,7 @@ const spanNameCSS = css`
 interface SpanTreeItemProps<TSpan extends ISpanItem> {
   node: SpanTreeNode<TSpan>;
   selectedSpanNodeId: string;
+  scrollSelectedSpanIntoView: boolean;
   overallTimeRange: TimeRange;
   onSpanClick?: (span: ISpanItem) => void;
   /**
@@ -250,6 +104,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
   const {
     node,
     selectedSpanNodeId,
+    scrollSelectedSpanIntoView,
     onSpanClick,
     nestingLevel = 0,
     overallTimeRange,
@@ -266,13 +121,13 @@ function SpanTreeItem<TSpan extends ISpanItem>(
 
   // Scroll into view when selected
   useEffect(() => {
-    if (isSelected && itemRef.current) {
+    if (scrollSelectedSpanIntoView && isSelected && itemRef.current) {
       itemRef.current.scrollIntoView({
         behavior: "smooth",
         block: "nearest",
       });
     }
-  }, [isSelected]);
+  }, [isSelected, scrollSelectedSpanIntoView]);
 
   // React to global changes to the trace tree state and change local state
   useEffect(() => {
@@ -397,6 +252,7 @@ function SpanTreeItem<TSpan extends ISpanItem>(
                   overallTimeRange={overallTimeRange}
                   onSpanClick={onSpanClick}
                   selectedSpanNodeId={selectedSpanNodeId}
+                  scrollSelectedSpanIntoView={scrollSelectedSpanIntoView}
                   nestingLevel={nestingLevel + 1}
                 />
               </li>

@@ -2,7 +2,7 @@ import gzip
 import zlib
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Path, Query
 from google.protobuf.message import DecodeError
@@ -10,8 +10,8 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
     ExportTraceServiceResponse,
 )
-from pydantic import Field
-from sqlalchemy import delete, or_, select
+from pydantic import BeforeValidator, Field
+from sqlalchemy import delete, insert, or_, select
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
@@ -22,13 +22,21 @@ from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
+from phoenix.server.api.helpers.annotations import get_note_identifier
+from phoenix.server.api.helpers.cumulative_token_count_queries import (
+    cumulative_token_counts_by_trace,
+)
 from phoenix.server.api.routers.v1.annotations import TraceAnnotationData
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project as ProjectNodeType
 from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSessionNodeType
 from phoenix.server.api.types.Span import Span as SpanNodeType
 from phoenix.server.api.types.Trace import Trace as TraceNodeType
-from phoenix.server.authorization import is_not_locked
+from phoenix.server.authorization import (
+    is_not_locked,
+    prevent_access_in_read_only_mode,
+    restrict_access_by_viewers,
+)
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanDeleteEvent, TraceAnnotationInsertEvent
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
@@ -66,6 +74,20 @@ class TraceData(V1RoutesBaseModel):
     project_id: str
     start_time: datetime
     end_time: datetime
+    token_count_prompt: int = Field(
+        default=0,
+        description="Cumulative prompt token count across all spans in the trace.",
+    )
+    token_count_completion: int = Field(
+        default=0,
+        description="Cumulative completion token count across all spans in the trace.",
+    )
+    token_count_total: int = Field(
+        default=0,
+        description=(
+            "Cumulative total token count across all spans in the trace (prompt + completion)."
+        ),
+    )
     spans: Optional[list[TraceSpanData]] = None
 
 
@@ -76,14 +98,20 @@ class GetTracesResponseBody(PaginatedResponseBody[TraceData]):
 def _to_trace_data(
     trace: models.Trace,
     project_id: int,
+    token_counts: Optional[tuple[int, int]] = None,
     spans: Optional[list[TraceSpanData]] = None,
 ) -> TraceData:
+    prompt = token_counts[0] if token_counts is not None else 0
+    completion = token_counts[1] if token_counts is not None else 0
     return TraceData(
         id=str(GlobalID(TraceNodeType.__name__, str(trace.id))),
         trace_id=trace.trace_id,
         project_id=str(GlobalID(ProjectNodeType.__name__, str(project_id))),
         start_time=trace.start_time,
         end_time=trace.end_time,
+        token_count_prompt=prompt,
+        token_count_completion=completion,
+        token_count_total=prompt + completion,
         spans=spans,
     )
 
@@ -203,11 +231,17 @@ async def list_project_traces(
             next_cursor = str(GlobalID(TraceNodeType.__name__, str(last_trace.id)))
             traces = traces[:-1]
 
+        trace_rowids = [t.id for t in traces]
+
+        # Batch-fetch cumulative token counts (one query per page, not per row)
+        token_counts_by_trace: dict[int, tuple[int, int]] = {}
+        for row in (await session.execute(cumulative_token_counts_by_trace(trace_rowids))).all():
+            token_counts_by_trace[row.id_] = (row.prompt, row.completion)
+
         # Optionally batch-fetch full span details (column projection to avoid
         # loading heavy attributes/events JSON blobs that aren't in the response)
         spans_by_trace: Optional[dict[int, list[TraceSpanData]]] = None
         if include_spans:
-            trace_ids = [t.id for t in traces]
             spans_by_trace = defaultdict(list)
             spans_stmt = (
                 select(
@@ -221,7 +255,7 @@ async def list_project_traces(
                     models.Span.start_time,
                     models.Span.end_time,
                 )
-                .filter(models.Span.trace_rowid.in_(trace_ids))
+                .filter(models.Span.trace_rowid.in_(trace_rowids))
                 .order_by(models.Span.start_time.asc())
             )
             for row in (await session.execute(spans_stmt)).all():
@@ -242,7 +276,8 @@ async def list_project_traces(
             _to_trace_data(
                 t,
                 project_rowid,
-                spans_by_trace.get(t.id, []) if spans_by_trace is not None else None,
+                token_counts=token_counts_by_trace.get(t.id),
+                spans=spans_by_trace.get(t.id, []) if spans_by_trace is not None else None,
             )
             for t in traces
         ]
@@ -293,6 +328,7 @@ async def post_traces(
     background_tasks: BackgroundTasks,
     content_type: Optional[str] = Header(default=None),
     content_encoding: Optional[str] = Header(default=None),
+    x_project_name: Optional[str] = Header(default=None),
 ) -> Response:
     if content_type != "application/x-protobuf":
         raise HTTPException(
@@ -317,7 +353,7 @@ async def post_traces(
             detail="Request body is invalid ExportTraceServiceRequest",
             status_code=422,
         )
-    background_tasks.add_task(_add_spans, req, request.state)
+    background_tasks.add_task(_add_spans, req, request.state, x_project_name)
 
     # "The server MUST use the same Content-Type in the response as it received in the request"
     response_message = ExportTraceServiceResponse()
@@ -355,6 +391,14 @@ async def annotate_traces(
 ) -> AnnotateTracesResponseBody:
     if not request_body.data:
         return AnnotateTracesResponseBody(data=[])
+    if any(data.name == "note" for data in request_body.data):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "The name 'note' is reserved for trace and span notes. "
+                "Use POST /v1/trace_notes instead."
+            ),
+        )
 
     user_id: Optional[int] = None
     if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
@@ -404,9 +448,116 @@ async def annotate_traces(
     )
 
 
-async def _add_spans(req: ExportTraceServiceRequest, state: State) -> None:
+class TraceNoteData(V1RoutesBaseModel):
+    trace_id: Annotated[
+        str, BeforeValidator(lambda value: value.strip() if isinstance(value, str) else value)
+    ] = Field(
+        min_length=1,
+        description="OpenTelemetry Trace ID (hex format w/o 0x prefix)",
+    )
+    note: Annotated[
+        str, BeforeValidator(lambda value: value.strip() if isinstance(value, str) else value)
+    ] = Field(
+        min_length=1,
+        description="The note text to add to the trace",
+    )
+
+
+class CreateTraceNoteRequestBody(RequestBody[TraceNoteData]):
+    data: TraceNoteData
+
+
+class CreateTraceNoteResponseBody(ResponseBody[InsertedTraceAnnotation]):
+    pass
+
+
+@router.post(
+    "/trace_notes",
+    dependencies=[
+        Depends(prevent_access_in_read_only_mode),
+        Depends(restrict_access_by_viewers),
+        Depends(is_not_locked),
+    ],
+    operation_id="createTraceNote",
+    summary="Create a trace note",
+    description=(
+        "Add a note annotation to a trace. Each call appends a new note with an "
+        "auto-generated UUIDv4 identifier, so multiple notes accumulate on the same "
+        "trace. Structured annotations, by contrast, are keyed by (name, trace_id, "
+        "identifier) — re-writing the same key overwrites the existing annotation, "
+        "so to keep multiple structured annotations with the same name on a trace you "
+        "must supply distinct identifiers."
+    ),
+    responses=add_errors_to_responses([{"status_code": 404, "description": "Trace not found"}]),
+    response_description="Trace note created successfully",
+    status_code=200,
+)
+async def create_trace_note(
+    request: Request,
+    request_body: CreateTraceNoteRequestBody,
+) -> CreateTraceNoteResponseBody:
+    note_data = request_body.data
+
+    user_id: Optional[int] = None
+    if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
+        user_id = int(request.user.identity)
+
+    async with request.app.state.db() as session:
+        trace_rowid = await session.scalar(
+            select(models.Trace.id).where(models.Trace.trace_id == note_data.trace_id)
+        )
+
+        if trace_rowid is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Trace with ID {note_data.trace_id} not found",
+            )
+
+        note_identifier = get_note_identifier("px-trace-note")
+
+        result = await session.execute(
+            insert(models.TraceAnnotation)
+            .values(
+                trace_rowid=trace_rowid,
+                name="note",
+                label=None,
+                score=None,
+                explanation=note_data.note,
+                annotator_kind="HUMAN",
+                metadata_=dict(),
+                identifier=note_identifier,
+                source="API",
+                user_id=user_id,
+            )
+            .returning(models.TraceAnnotation.id)
+        )
+        annotation_id = result.scalar_one()
+
+    request.state.event_queue.put(TraceAnnotationInsertEvent((annotation_id,)))
+    return CreateTraceNoteResponseBody(
+        data=InsertedTraceAnnotation(id=str(GlobalID("TraceAnnotation", str(annotation_id))))
+    )
+
+
+async def _add_spans(
+    req: ExportTraceServiceRequest,
+    state: State,
+    project_name_header: Optional[str] = None,
+) -> None:
+    """Ingest spans from an OTLP ExportTraceServiceRequest.
+
+    The project name is resolved in the following order of precedence:
+    1. The ``x-project-name`` HTTP header (if provided).
+    2. The ``openinference.project.name`` OTLP resource attribute on each
+       ``ResourceSpans`` message.
+    3. The server default project (``DEFAULT_PROJECT_NAME``).
+    """
     for resource_spans in req.resource_spans:
-        project_name = get_project_name(resource_spans.resource.attributes)
+        project_name = (
+            project_name_header
+            if project_name_header is not None
+            else get_project_name(resource_spans.resource.attributes)
+        )
         for scope_span in resource_spans.scope_spans:
             for otlp_span in scope_span.spans:
                 span = await run_in_threadpool(decode_otlp_span, otlp_span)

@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Outlet, useLoaderData } from "react-router";
 import invariant from "tiny-invariant";
 
+import { AgentContextSync } from "@phoenix/agent/context/AgentContextSync";
 import { isFullStoryEnabled, setIdentity } from "@phoenix/analytics/fullstory";
 import { AgentChatWidget } from "@phoenix/components/agent";
 import { AgentChatRuntimeProvider } from "@phoenix/contexts/AgentChatRuntimeContext";
@@ -43,6 +44,7 @@ export function AuthenticatedRoot() {
     <ViewerProvider query={data}>
       <AgentProvider agentsConfig={data.agentsConfig}>
         <AgentChatRuntimeProvider>
+          <AgentContextSync />
           <AgentChatWidget />
           <AppAlerts />
           <Outlet />

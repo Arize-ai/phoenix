@@ -15,6 +15,11 @@ import {
   getDocsToolPreview,
   isDocsToolName,
 } from "./DocsToolDetails";
+import {
+  ToolPartCodeBlock,
+  ToolPartLabel,
+  ToolPartStatus,
+} from "./ToolPartPrimitives";
 import type { MessagePart, ToolInvocationPart } from "./toolPartTypes";
 import { formatToolState, isToolUIPart } from "./toolPartTypes";
 
@@ -26,9 +31,14 @@ export type ToolPartType = MessagePart;
 export const toolPartCSS = css`
   margin-top: var(--global-dimension-size-150);
   border: 1px solid var(--tool-call-border-color);
-  border-radius: var(--global-rounding-medium);
+  border-radius: var(--global-rounding-small);
   background: var(--tool-call-background-color);
   overflow: hidden;
+  transition: border-color 150ms ease;
+
+  &:hover {
+    border-color: var(--tool-call-border-color-hover);
+  }
 
   &:has(+ :not(.tool-part)) {
     margin-bottom: var(--global-dimension-size-150);
@@ -37,14 +47,8 @@ export const toolPartCSS = css`
   summary {
     cursor: pointer;
     list-style: none;
-    padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
-    background: var(--tool-call-header-background-color);
-    border-radius: var(--global-rounding-medium);
-    transition: background 150ms ease;
-
-    &:hover {
-      background: var(--tool-call-header-background-color-hover);
-    }
+    padding: var(--global-dimension-size-50);
+    background: var(--global-code-block-header-background-color);
 
     &:focus-visible {
       outline: 2px solid var(--global-color-primary);
@@ -57,7 +61,7 @@ export const toolPartCSS = css`
   }
 
   &[open] summary {
-    border-radius: var(--global-rounding-medium) var(--global-rounding-medium) 0 0;
+    border-bottom: 1px solid var(--tool-call-body-border-color);
   }
 
   /* Rotate chevron when open */
@@ -65,17 +69,56 @@ export const toolPartCSS = css`
     transform: rotate(0deg);
   }
 
-  pre {
-    margin: 0;
-    padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
-    overflow-x: auto;
+  .tool-part__body {
+    background: var(--tool-call-body-background-color);
+    font-family: var(--ac-global-font-family-code);
+    font-size: var(--global-font-size-xs);
+    line-height: var(--global-line-height-xs);
     white-space: pre-wrap;
     word-break: break-word;
-    font-size: var(--global-font-size-xs);
-    line-height: var(--global-line-height-s);
-    font-family: var(--ac-global-font-family-code);
-    background: var(--tool-call-body-background-color);
-    border-top: 1px solid var(--tool-call-body-border-color);
+    overflow-x: auto;
+    padding-top: var(--global-dimension-size-125);
+    padding-bottom: var(--global-dimension-size-75);
+  }
+
+  .tool-part__line {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--global-dimension-size-100);
+    padding: var(--global-dimension-size-50) var(--global-dimension-size-250) 0;
+  
+    // Adds perimeter spacing when the last element isn't a copyable output,
+    // such as the EXIT CODE summary line.
+    &:last-child {
+      padding-bottom: var(--global-dimension-size-125);
+    }
+  }
+
+  .tool-part__line--copyable {
+    position: relative;
+    padding-bottom: var(--global-dimension-size-150);
+    padding-right: calc(var(--global-dimension-size-250) + 28px);
+
+    .copy-to-clipboard-button {
+      position: absolute;
+      top: 0;
+      right: var(--global-dimension-size-250);
+      opacity: 0;
+      transition: opacity 150ms ease;
+
+      &:focus-within {
+        opacity: 1;
+      }
+    }
+
+    &:hover .copy-to-clipboard-button {
+      opacity: 1;
+    }
+  }
+
+  .tool-part__code {
+    flex: 1;
+    min-width: 0;
   }
 
   .tool-part__summary {
@@ -91,9 +134,10 @@ export const toolPartCSS = css`
     display: flex;
     align-items: center;
     gap: var(--global-dimension-size-50);
-    font-weight: 600;
+    font-weight: 400;
     white-space: nowrap;
     flex-shrink: 0;
+    color: var(--global-text-color-800);
   }
 
   .tool-part__preview {
@@ -104,6 +148,7 @@ export const toolPartCSS = css`
     text-overflow: ellipsis;
     white-space: nowrap;
     min-width: 0;
+    transition: color 150ms ease;
   }
 
   .tool-part__status {
@@ -112,27 +157,100 @@ export const toolPartCSS = css`
     white-space: nowrap;
     font-size: var(--global-font-size-xs);
     color: var(--tool-call-secondary-color);
+    padding-inline-end: var(--global-dimension-size-50);
+    transition: color 150ms ease;
   }
 
-  .tool-part__status[data-tone="error"] {
+  .tool-part__status[data-variant="danger"] {
     color: var(--tool-call-error-color);
   }
 
+  .tool-part__status[data-variant="warning"] {
+    color: var(--global-color-orange-600);
+  }
+
+  .tool-part__status[data-variant="success"] {
+    color: var(--global-color-success);
+  }
+
+  summary:hover .tool-part__preview,
+  summary:hover .tool-part__status:not([data-variant]) {
+    color: var(--tool-call-title-color);
+    transition: none;
+  }
+
+  .tool-part__chevron,
+  .tool-part__tool-icon {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--tool-call-title-color);
+  }
+
   .tool-part__chevron {
-    font-size: 12px;
-    color: var(--tool-call-secondary-color);
+    font-size: 18px;
     transition: transform 150ms ease;
     transform: rotate(-90deg);
+    display: none;
+  }
+
+  .tool-part__tool-icon {
+    font-size: 0.75rem;
+  }
+
+  summary:hover .tool-part__chevron {
+    display: flex;
+  }
+
+  summary:hover .tool-part__tool-icon {
+    display: none;
   }
 
   .tool-part__label {
-    display: block;
-    padding: var(--global-dimension-size-100) var(--global-dimension-size-150) 0;
     color: var(--tool-call-secondary-color);
-    font-size: var(--global-font-size-xs);
-    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.02em;
+    font-size: var(--global-font-size-xs);
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+
+  .tool-part__label[data-variant="danger"] {
+    color: var(--tool-call-error-color);
+  }
+
+  .tool-part__label[data-variant="warning"] {
+    color: var(--global-color-orange-600);
+  }
+
+  .tool-part__label[data-variant="success"] {
+    color: var(--global-color-success);
+  }
+
+  .tool-part__meta {
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-200);
+    padding: var(--global-dimension-size-50) var(--global-dimension-size-250)
+      var(--global-dimension-size-150);
+  }
+
+  .tool-part__meta-group {
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-50);
+  }
+
+  .tool-part__meta-label {
+    color: var(--tool-call-secondary-color);
+    text-transform: uppercase;
+    font-size: var(--global-font-size-xs);
+    letter-spacing: 0.05em;
+  }
+
+  .tool-part__meta-value {
+    color: var(--tool-call-secondary-color);
   }
 `;
 
@@ -147,8 +265,10 @@ export function ToolPart({ part }: { part: MessagePart }) {
   }
 
   const toolName = getToolName(part);
-  const { preview, stateLabel, details } = getToolPresentation(toolName, part);
-  const isError = part.state === "output-error";
+  const { preview, stateLabel, statusVariant, details } = getToolPresentation(
+    toolName,
+    part
+  );
 
   return (
     <details className="tool-part" css={toolPartCSS}>
@@ -158,21 +278,14 @@ export function ToolPart({ part }: { part: MessagePart }) {
             <Icon svg={<Icons.ChevronDown />} className="tool-part__chevron" />
             <Icon
               svg={<Icons.WrenchOutline />}
-              css={css`
-                font-size: 0.75rem;
-              `}
+              className="tool-part__tool-icon"
             />
             {toolName}
           </span>
           {preview ? (
             <span className="tool-part__preview">{preview}</span>
           ) : null}
-          <span
-            className="tool-part__status"
-            data-tone={isError ? "error" : undefined}
-          >
-            {stateLabel}
-          </span>
+          <ToolPartStatus variant={statusVariant}>{stateLabel}</ToolPartStatus>
         </div>
       </summary>
       <div>{details}</div>
@@ -186,58 +299,89 @@ export function ToolPart({ part }: { part: MessagePart }) {
 
 /**
  * Returns the presentation elements for a given tool: the collapsed preview
- * string, the status label, and the expanded detail JSX. New tools are
- * added as additional cases here.
+ * string, the status label and variant, and the expanded detail JSX. New tools
+ * are added as additional cases here.
  */
+type StatusVariant = "danger" | "warning" | "success";
+
+function getStatusVariant(
+  state: ToolInvocationPart["state"]
+): StatusVariant | undefined {
+  switch (state) {
+    case "output-error":
+      return "danger";
+    case "output-denied":
+      return "warning";
+    case "approval-responded":
+      return "success";
+    default:
+      return undefined;
+  }
+}
+
 function getToolPresentation(
   toolName: string,
   part: ToolInvocationPart
 ): {
   preview: string;
   stateLabel: string;
+  statusVariant?: StatusVariant;
   details: React.ReactNode;
 } {
+  const statusVariant = getStatusVariant(part.state);
   switch (toolName) {
     case "bash":
       return {
         preview: getBashToolPreview(part),
         stateLabel: formatToolState(part.state),
+        statusVariant,
         details: <BashToolDetails part={part} />,
       };
-    case "ask_user":
+    case "ask_user": {
+      const stateLabel = formatAskUserState(part.state, part);
+      const isError = stateLabel === "Error";
       return {
         preview: getAskUserToolPreview(part),
-        stateLabel: formatAskUserState(part.state),
+        stateLabel,
+        statusVariant: isError ? "danger" : statusVariant,
         details: <AskUserToolDetails part={part} />,
       };
+    }
     default: {
       if (isDocsToolName(toolName)) {
         return {
           preview: getDocsToolPreview(part),
           stateLabel: formatDocsToolState(part.state, part),
+          statusVariant,
           details: <DocsToolDetails part={part} />,
         };
       }
+      const inputStr = JSON.stringify(part.input, null, 2);
+      const outputStr =
+        part.state === "output-available"
+          ? JSON.stringify(part.output, null, 2)
+          : "";
       return {
         preview: "",
         stateLabel: formatToolState(part.state),
+        statusVariant,
         details: (
-          <>
-            <span className="tool-part__label">Input</span>
-            <pre>{JSON.stringify(part.input, null, 2)}</pre>
+          <div className="tool-part__body">
+            <ToolPartLabel>Input</ToolPartLabel>
+            <ToolPartCodeBlock>{inputStr}</ToolPartCodeBlock>
             {part.state === "output-available" ? (
               <>
-                <span className="tool-part__label">Output</span>
-                <pre>{JSON.stringify(part.output, null, 2)}</pre>
+                <ToolPartLabel>Output</ToolPartLabel>
+                <ToolPartCodeBlock>{outputStr}</ToolPartCodeBlock>
               </>
             ) : null}
             {part.state === "output-error" ? (
               <>
-                <span className="tool-part__label">Error</span>
-                <pre>{part.errorText}</pre>
+                <ToolPartLabel variant="danger">Error</ToolPartLabel>
+                <ToolPartCodeBlock>{part.errorText ?? ""}</ToolPartCodeBlock>
               </>
             ) : null}
-          </>
+          </div>
         ),
       };
     }

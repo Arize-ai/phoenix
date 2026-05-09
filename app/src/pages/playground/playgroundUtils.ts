@@ -14,8 +14,8 @@ import {
   anthropicToolDefinitionSchema,
   awsToolDefinitionSchema,
   geminiToolDefinitionSchema,
+  openAIChatCompletionsToolDefinitionSchema,
   openAIResponsesToolDefinitionSchema,
-  openAIToolDefinitionSchema,
 } from "@phoenix/schemas";
 import type { JSONLiteral } from "@phoenix/schemas/jsonLiteralSchema";
 import type { PhoenixToolEditorType } from "@phoenix/schemas/phoenixToolTypeSchemas";
@@ -57,14 +57,12 @@ import {
   generateMessageId,
   generateToolId,
 } from "@phoenix/store/playground";
-import type { Mutable } from "@phoenix/typeUtils";
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 import {
   formatContentAsString,
   safelyParseJSON,
 } from "@phoenix/utils/jsonUtils";
 
-import type { InvocationParameter } from "../../components/playground/model/InvocationParametersFormFields";
 import type {
   ChatCompletionOverDatasetInput,
   EvaluatorInputMappingInput,
@@ -87,13 +85,20 @@ import {
   SPAN_ATTRIBUTES_PARSING_ERROR,
   TOOLS_PARSING_ERROR,
 } from "./constants";
-import type { InvocationParameterInput } from "./invocationParameterUtils";
 import {
-  areInvocationParamsEqual,
-  constrainInvocationParameterInputsToDefinition,
-  toCamelCase,
+  getActiveSpecsForPlayground,
+  getInvocationFamilyForProvider,
+  invocationValueKeyForSpec,
+  type ParamSpec,
+} from "./invocationParameterSpecs";
+import {
+  constrainInvocationParameterInputsToSpecs,
+  invocationParametersToObject,
+  objectToInvocationParameters,
+  type InvocationParameterInput,
 } from "./invocationParameterUtils";
-import type { JsonObjectSchema, LlmToolSchema, MessageSchema } from "./schemas";
+import { writePromptInvocationParametersMutationInput } from "./promptInvocationParameterCodecs";
+import type { LlmToolSchema, MessageSchema } from "./schemas";
 import {
   chatMessageRolesSchema,
   chatMessagesSchema,
@@ -110,6 +115,10 @@ import {
   promptTemplateSchema,
   urlSchema,
 } from "./schemas";
+import {
+  inferOpenAIApiTypeFromAttributes,
+  normalizeSpanInvocationParameters,
+} from "./spanInvocationParameterHydration";
 import type { PlaygroundSpan } from "./spanPlaygroundPageLoader";
 
 /**
@@ -426,6 +435,10 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
       provider === "AZURE_OPENAI" && azureConfig.deploymentName
         ? azureConfig.deploymentName
         : data.llm.model_name;
+    const openaiApiType =
+      provider === "OPENAI" || provider === "AZURE_OPENAI"
+        ? inferOpenAIApiTypeFromSpan(parsedAttributes)
+        : null;
     return {
       modelConfig: {
         ...Object.fromEntries(
@@ -436,13 +449,172 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
         ),
         modelName,
         provider,
+        ...(openaiApiType != null ? { openaiApiType } : {}),
         invocationParameters: [],
-        supportedInvocationParameters: [],
       },
       parsingErrors: [],
     };
   }
   return { modelConfig: null, parsingErrors: [MODEL_CONFIG_PARSING_ERROR] };
+}
+
+/**
+ * Tool `type` values that are exclusive to OpenAI Chat Completions (i.e. not
+ * accepted by the Responses API). Used as a negative list so that a tool with
+ * one of these types is NOT treated as a Responses signal even though its
+ * type isn't "function".
+ *
+ * Currently just "custom" (ChatCompletionCustomToolParam — a Chat-Completions
+ * tool that processes input via a specified format). If OpenAI ever ships
+ * another non-function Chat-Completions-only tool, add it here. Failure mode
+ * if we miss one: prompts containing it get misclassified as Responses, which
+ * surfaces as a confusing 400 from OpenAI at request time.
+ */
+const CHAT_COMPLETIONS_ONLY_NON_FUNCTION_TYPES: ReadonlySet<string> = new Set([
+  "custom",
+]);
+
+/**
+ * Two positive signals that a tool came from the OpenAI Responses API:
+ *
+ *   1. The tool's `type` is a non-"function" string AND is not in the
+ *      Chat-Completions-only set above (e.g. "web_search", "file_search",
+ *      "computer_use_preview"). Chat Completions otherwise only accepts
+ *      function tools, so seeing any other type is proof of Responses.
+ *   2. The tool is a function tool but in *flat* Responses shape:
+ *      `{ type: "function", name, parameters, ... }` with the function fields
+ *      at the top level. Chat Completions wraps them in a nested
+ *      `function: { name, parameters, ... }` sub-object instead.
+ *
+ * Either signal alone is sufficient. Returns null if neither is present (the
+ * tool could be Chat Completions or could be a Responses prompt that happens
+ * to contain only Chat-Completions-shaped tools — we can't distinguish those).
+ */
+function isResponsesShapedRawTool(definition: unknown): boolean {
+  if (!isStringKeyedObject(definition)) {
+    return false;
+  }
+  const type = definition.type;
+  if (typeof type !== "string") {
+    return false;
+  }
+  if (type !== "function") {
+    return !CHAT_COMPLETIONS_ONLY_NON_FUNCTION_TYPES.has(type);
+  }
+  // type: "function" — Chat Completions nests fields under `function`,
+  // Responses puts them at the top level.
+  return !isStringKeyedObject(definition.function);
+}
+
+/**
+ * Infer the OpenAI API surface from tool shape. A Responses-only shape on any
+ * tool ⇒ Responses; otherwise return `fallback` (Responses also accepts
+ * Chat-Completions-shaped function tools, so the absence of a positive signal
+ * isn't proof of Chat Completions).
+ *
+ * Spec: https://platform.openai.com/docs/api-reference/chat/create vs
+ * https://platform.openai.com/docs/api-reference/responses/create
+ *
+ * Only consults `kind: "raw"` tools — `kind: "function"` tools have already
+ * been normalized, losing the original shape signal.
+ */
+export function inferOpenAIApiTypeFromTools(
+  tools: readonly Tool[],
+  fallback: OpenAIApiType | null = null
+): OpenAIApiType | null {
+  const hasResponsesShape = tools.some(
+    (tool) => tool.kind === "raw" && isResponsesShapedRawTool(tool.raw)
+  );
+  return hasResponsesShape ? "RESPONSES" : fallback;
+}
+
+/**
+ * Same heuristic as {@link inferOpenAIApiTypeFromTools} but operating on
+ * already-deserialized raw OpenAI tool JSON (no Tool wrapper). Used when
+ * sniffing a span's `llm.tools[].tool.json_schema` payloads, where function
+ * tools have *not* been normalized — so the flat-vs-nested shape signal is
+ * still recoverable.
+ *
+ * NB: Only exported for testing.
+ */
+export function inferOpenAIApiTypeFromRawToolDefinitions(
+  rawDefinitions: readonly unknown[]
+): OpenAIApiType | null {
+  return rawDefinitions.some(isResponsesShapedRawTool) ? "RESPONSES" : null;
+}
+
+/**
+ * Heuristic: did this span come from the OpenAI Responses API?
+ *
+ * Pulls the OpenInference `llm.tools[].tool.json_schema` strings out of the
+ * span attributes, parses them, and applies the same Chat-Completions vs
+ * Responses tool-shape check {@link inferOpenAIApiTypeFromTools} uses. If
+ * any tool's `type` is a non-"function" string, the span must be a Responses
+ * call. Returns false for spans without recognizable tool attributes (so the
+ * caller falls back to the configured default).
+ *
+ * NB: Only exported for testing.
+ */
+export function isOpenAIResponsesSpan(parsedAttributes: unknown): boolean {
+  if (!isStringKeyedObject(parsedAttributes)) {
+    return false;
+  }
+  const { llm } = parsedAttributes;
+  if (!isStringKeyedObject(llm)) {
+    return false;
+  }
+  const toolEntries = Array.isArray(llm.tools) ? llm.tools : [];
+  const rawToolDefinitions = toolEntries
+    .map((entry) => {
+      if (!isStringKeyedObject(entry)) {
+        return null;
+      }
+      if (!isStringKeyedObject(entry.tool)) {
+        return null;
+      }
+      const rawSchema = entry.tool.json_schema;
+      if (typeof rawSchema !== "string") {
+        return null;
+      }
+      return safelyParseJSON(rawSchema).json;
+    })
+    .filter((definition): definition is NonNullable<typeof definition> => {
+      return definition != null;
+    });
+  return (
+    inferOpenAIApiTypeFromRawToolDefinitions(rawToolDefinitions) === "RESPONSES"
+  );
+}
+
+/**
+ * Best-effort OpenAI API classification from a span's parsed attributes,
+ * combining the available signals in order of rigor:
+ *
+ * 1. Tool shape (`isOpenAIResponsesSpan`) — *proof of origin*. Chat Completions
+ *    rejects tool shapes that Responses accepts (`web_search`, `file_search`,
+ *    flat-shape function tools), so seeing one is structural evidence the
+ *    request must have been Responses. No false positives.
+ * 2. Parameter keys (`inferOpenAIApiTypeFromAttributes`) — *correlation*.
+ *    Some keys lean one way (`max_output_tokens` → Responses,
+ *    `max_completion_tokens` → Chat) but others (`frequency_penalty`,
+ *    `presence_penalty`) are accepted by both APIs, so this only runs when
+ *    tool shape didn't already answer.
+ *
+ * Returns `null` when neither signal fires, letting the caller fall back to
+ * its configured default.
+ */
+export function inferOpenAIApiTypeFromSpan(
+  parsedAttributes: unknown
+): OpenAIApiType | null {
+  if (isOpenAIResponsesSpan(parsedAttributes)) {
+    return "RESPONSES";
+  }
+  const invocationParameters =
+    isStringKeyedObject(parsedAttributes) &&
+    isStringKeyedObject(parsedAttributes.llm)
+      ? parsedAttributes.llm.invocation_parameters
+      : undefined;
+  return inferOpenAIApiTypeFromAttributes(invocationParameters);
 }
 
 /**
@@ -527,14 +699,16 @@ export function getUrlInfoFromAttributes(parsedAttributes: unknown): {
  * Attempts to get llm.invocation_parameters from the span attributes.
  * Invocation parameters are then massaged into the InvocationParameterInput type.
  * @param parsedAttributes the JSON parsed span attributes
- * @param modelSupportedInvocationParameters the model supported invocation parameters
+ * @param provider resolved model provider for the span
+ * @param openaiApiType OpenAI/Azure API type (Chat vs Responses) for normalizing recorded kwargs
  * @returns the invocation parameters from the span attributes
  *
  * NB: Only exported for testing
  */
 export function getModelInvocationParametersFromAttributes(
   parsedAttributes: unknown,
-  modelSupportedInvocationParameters: InvocationParameter[] = []
+  provider: ModelProvider,
+  openaiApiType: OpenAIApiType
 ): {
   invocationParameters: InvocationParameterInput[];
   parsingErrors: string[];
@@ -547,14 +721,14 @@ export function getModelInvocationParametersFromAttributes(
     parsingErrors.push(MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR);
   }
 
-  const invocationParameters =
-    transformInvocationParametersFromAttributesToInvocationParameterInputs(
-      data?.llm.invocation_parameters ?? {},
-      modelSupportedInvocationParameters
-    );
+  const raw = data?.llm.invocation_parameters ?? {};
+  const family = getInvocationFamilyForProvider(provider);
+  const normalized = normalizeSpanInvocationParameters(raw, family);
 
   return {
-    invocationParameters,
+    invocationParameters: objectToInvocationParameters(normalized, {
+      openaiApiType,
+    }),
     parsingErrors,
   };
 }
@@ -870,10 +1044,38 @@ export function getResponseFormatFromAttributes(
 }
 
 /**
+ * Decide which {@link Tool} branch a provider-formatted tool definition lands
+ * on. See `Tool`'s docstring for why the union exists. Function tools that
+ * parse against any provider's known function-tool schema get normalized;
+ * everything else (vendor builtins, unrecognized shapes) becomes a raw
+ * passthrough. Returns null only for non-objects.
+ */
+function createToolFromRawDefinition(rawDefinition: unknown): Tool | null {
+  const normalizedFunctionDefinition = toCanonicalToolDefinition(rawDefinition);
+  if (normalizedFunctionDefinition != null) {
+    return {
+      kind: "function",
+      id: generateToolId(),
+      editorType: "json",
+      definition: normalizedFunctionDefinition,
+    };
+  }
+  if (isStringKeyedObject(rawDefinition)) {
+    return {
+      kind: "raw",
+      id: generateToolId(),
+      editorType: "json",
+      raw: rawDefinition,
+    };
+  }
+  return null;
+}
+
+/**
  * Processes the tools from the span attributes to be used in the playground.
- * Provider-specific formats (Gemini, Anthropic, AWS, etc.) are preserved as-is.
- * OpenAI Responses API tools are normalized to Chat Completions format since
- * the playground only supports Chat Completions tools for now.
+ * Provider-specific formats (Gemini, Anthropic, AWS, etc.) are preserved as-is
+ * via {@link createToolFromRawDefinition}. Function tools are normalized to the
+ * canonical function-tool form regardless of the source provider.
  * @param tools tools from the span attributes
  * @returns playground tools
  */
@@ -884,17 +1086,7 @@ function processAttributeTools(tools: LlmToolSchema): Tool[] {
         return null;
       }
       const rawDefinition = tool.tool.json_schema;
-      // Normalize to canonical hub form (OpenAI Responses API → Chat Completions
-      // is handled transparently by toCanonicalToolDefinition).
-      const definition = toCanonicalToolDefinition(rawDefinition);
-      if (definition == null) {
-        return null;
-      }
-      return {
-        id: generateToolId(),
-        editorType: "json",
-        definition,
-      } satisfies Tool;
+      return createToolFromRawDefinition(rawDefinition);
     })
     .filter((tool): tool is NonNullable<typeof tool> => tool != null);
 }
@@ -996,9 +1188,6 @@ export function transformSpanAttributesToPlaygroundInstance(
     };
   }
 
-  const modelSupportedInvocationParameters =
-    span.invocationParameters as Mutable<InvocationParameter[]>;
-
   const baseModelConfigResult =
     getBaseModelConfigFromAttributes(parsedAttributes);
   let { modelConfig } = baseModelConfigResult;
@@ -1013,17 +1202,37 @@ export function transformSpanAttributesToPlaygroundInstance(
     parsedAttributes,
   });
 
+  const spanProvider =
+    modelConfig?.provider ?? basePlaygroundInstance.model.provider;
+
+  const openaiApiTypeForParams =
+    spanProvider === "OPENAI" || spanProvider === "AZURE_OPENAI"
+      ? (modelConfig?.openaiApiType ??
+        inferOpenAIApiTypeFromSpan(parsedAttributes) ??
+        DEFAULT_OPENAI_API_TYPE)
+      : DEFAULT_OPENAI_API_TYPE;
+
+  if (
+    modelConfig &&
+    (modelConfig.provider === "OPENAI" ||
+      modelConfig.provider === "AZURE_OPENAI")
+  ) {
+    modelConfig = {
+      ...modelConfig,
+      openaiApiType: modelConfig.openaiApiType ?? openaiApiTypeForParams,
+    };
+  }
+
   const {
     invocationParameters,
     parsingErrors: invocationParametersParsingErrors,
   } = getModelInvocationParametersFromAttributes(
     parsedAttributes,
-    modelSupportedInvocationParameters
+    spanProvider,
+    openaiApiTypeForParams
   );
   const { variables, parsingErrors: promptTemplateVariablesParsingErrors } =
     getPromptTemplateVariablesFromAttributes(parsedAttributes);
-  const spanProvider =
-    modelConfig?.provider ?? basePlaygroundInstance.model.provider;
 
   // parse response format separately so that we can get distinct error messages from the rest of
   // the invocation parameters
@@ -1051,7 +1260,7 @@ export function transformSpanAttributesToPlaygroundInstance(
               param.invocationName !== "tool_choice" &&
               // Anthropic: strip output_config (promoted to responseFormat)
               (spanProvider !== "ANTHROPIC" ||
-                param.invocationName !== "output_config") &&
+                param.invocationName !== "outputConfig") &&
               // AWS: strip outputConfig (promoted to responseFormat)
               (spanProvider !== "AWS" ||
                 param.invocationName !== "outputConfig") &&
@@ -1248,40 +1457,26 @@ export const getVariablesMapFromInstances = ({
   return { variablesMap, variableKeys };
 };
 
+/** Discriminator predicate for the function-tool branch of {@link Tool}. */
+export const isFunctionTool = (
+  tool: Tool
+): tool is Extract<Tool, { kind: "function" }> => tool.kind === "function";
+
+/** Discriminator predicate for the raw-tool branch of {@link Tool}. */
+export const isRawTool = (tool: Tool): tool is Extract<Tool, { kind: "raw" }> =>
+  tool.kind === "raw";
+
 /**
- * Transform invocation parameters from span attributes into InvocationParameterInput type.
+ * Best-effort display name for any tool, function or raw. For raw tools the
+ * tool's own `name` field is preferred, falling back to its `type`.
  */
-export const transformInvocationParametersFromAttributesToInvocationParameterInputs =
-  (
-    invocationParameters: JsonObjectSchema,
-    modelSupportedInvocationParameters: InvocationParameter[]
-  ): InvocationParameterInput[] => {
-    return Object.entries(invocationParameters)
-      .map(([key, value]) => {
-        const invocationParameter = modelSupportedInvocationParameters.find(
-          (mp) =>
-            (mp.canonicalName &&
-              mp.canonicalName.toLowerCase() === key.toLowerCase()) ||
-            (mp.invocationName &&
-              mp.invocationName.toLowerCase() === key.toLowerCase())
-        );
-        if (
-          invocationParameter == null ||
-          invocationParameter.invocationInputField == null ||
-          invocationParameter.invocationName == null
-        ) {
-          return null;
-        }
-        return {
-          canonicalName: invocationParameter.canonicalName,
-          invocationName: invocationParameter.invocationName,
-          [toCamelCase(invocationParameter.invocationInputField)]: value,
-        };
-      })
-      .filter((ip): ip is NonNullable<typeof ip> => ip != null);
-  };
 export const getToolName = (tool: Tool): string | null => {
-  return tool.definition?.name ?? null;
+  if (isFunctionTool(tool)) {
+    return tool.definition?.name ?? null;
+  }
+  const rawName = typeof tool.raw.name === "string" ? tool.raw.name : null;
+  const rawType = typeof tool.raw.type === "string" ? tool.raw.type : null;
+  return rawName ?? rawType;
 };
 
 /**
@@ -1325,6 +1520,7 @@ export const createTool = ({
     definition ?? getDefaultCanonicalToolDefinition(toolNumber);
 
   return {
+    kind: "function",
     id: generateToolId(),
     editorType: type,
     definition: defaultDefinition,
@@ -1383,7 +1579,7 @@ export const normalizeInvocationParameters = (
       }
       return true;
     })
-    .map(({ dirty: _dirty, ...param }) => {
+    .map((param) => {
       return param;
     });
 };
@@ -1413,21 +1609,14 @@ const getBaseChatCompletionInput = ({
     throw new Error("We only support chat templates for now");
   }
 
-  const supportedInvocationParameters =
-    instance.model.supportedInvocationParameters;
+  const specs = getActiveSpecsForPlayground(instance.model);
 
   let invocationParameters: InvocationParameterInput[] =
     normalizeInvocationParameters(instance.model.invocationParameters);
-  // Filter invocation parameters to only include those that are supported by the model
-  // This will remove configured values that are not supported by the newly selected model
-  // If we don't have the list of supported invocation parameters in the store yet, we will just send
-  // them all.
-  if (supportedInvocationParameters.length) {
-    invocationParameters = constrainInvocationParameterInputsToDefinition(
-      invocationParameters,
-      supportedInvocationParameters
-    );
-  }
+  invocationParameters = constrainInvocationParameterInputsToSpecs(
+    invocationParameters,
+    specs
+  );
 
   const azureModelParams =
     instance.model.provider === "AZURE_OPENAI"
@@ -1606,42 +1795,6 @@ function chatMessageToPromptMessageInput(message: ChatMessage): {
 }
 
 /**
- * Extract the scalar value from an InvocationParameterInput (whichever value field is set).
- * Returns null if no value is set.
- */
-function extractInvocationParamValue(
-  p: InvocationParameterInput
-): unknown | null {
-  return (
-    p.valueFloat ??
-    p.valueInt ??
-    p.valueBool ??
-    p.valueBoolean ??
-    p.valueString ??
-    p.valueJson ??
-    p.valueStringList ??
-    null
-  );
-}
-
-/**
- * Convert an InvocationParameterInput[] to a plain object keyed by invocationName.
- * Only entries with a non-null value are included.
- */
-function invocationParamsToFlatObject(
-  params: InvocationParameterInput[]
-): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  for (const p of params) {
-    const value = extractInvocationParamValue(p);
-    if (value !== null && value !== undefined) {
-      result[p.invocationName] = value;
-    }
-  }
-  return result;
-}
-
-/**
  * Convert a Tool from the Zustand store to the PromptToolFunctionInput wire format.
  * This is a passthrough because Tool.definition is already CanonicalToolDefinition,
  * which is isomorphic to the wire format.
@@ -1764,8 +1917,15 @@ function canonicalParameters(parameters: unknown): unknown {
 export function toCanonicalToolDefinition(
   raw: unknown
 ): CanonicalToolDefinition | null {
+  if (
+    isStringKeyedObject(raw) &&
+    typeof raw.type === "string" &&
+    raw.type !== "function"
+  ) {
+    return null;
+  }
   // OpenAI Chat Completions: { type: "function", function: { name, description?, parameters, strict? } }
-  const openai = openAIToolDefinitionSchema.safeParse(raw);
+  const openai = openAIChatCompletionsToolDefinitionSchema.safeParse(raw);
   if (openai.success) {
     const fn = openai.data.function as Record<string, unknown>;
     return {
@@ -1798,12 +1958,14 @@ export function toCanonicalToolDefinition(
     };
   }
   // AWS: { toolSpec: { name, description, inputSchema: { json } } }
+  // Some Bedrock spans store the unwrapped inner shape; the schema accepts both.
   const aws = awsToolDefinitionSchema.safeParse(raw);
   if (aws.success) {
+    const spec = "toolSpec" in aws.data ? aws.data.toolSpec : aws.data;
     return {
-      name: aws.data.toolSpec.name,
-      description: aws.data.toolSpec.description ?? null,
-      parameters: canonicalParameters(aws.data.toolSpec.inputSchema.json),
+      name: spec.name,
+      description: spec.description ?? null,
+      parameters: canonicalParameters(spec.inputSchema.json),
       strict: null,
     };
   }
@@ -1938,6 +2100,128 @@ export function buildPromptToolFunctionInput(
 }
 
 /**
+ * Shape of a single tool element from any Relay `tools.tools` selection that
+ * spreads on `PromptToolFunction` and `PromptToolRaw` (e.g. the fragments in
+ * fetchPlaygroundPrompt.ts, experimentRehydration.ts, and PromptTools.tsx).
+ * Mirrors the generated discriminated union with `__typename` as the tag,
+ * including Relay's `"%other"` fallthrough variant.
+ */
+export type GraphQLPromptTool =
+  | {
+      readonly __typename: "PromptToolFunction";
+      readonly function: {
+        readonly name: string;
+        readonly description: string | null;
+        readonly parameters: unknown;
+        readonly strict: boolean | null;
+      };
+    }
+  | {
+      readonly __typename: "PromptToolRaw";
+      readonly raw: unknown;
+    }
+  | { readonly __typename: "%other" };
+
+export function promptToolFromGraphQL(tool: GraphQLPromptTool): Tool | null {
+  switch (tool.__typename) {
+    case "PromptToolFunction":
+      return {
+        kind: "function",
+        id: generateToolId(),
+        editorType: "json",
+        definition: {
+          name: tool.function.name,
+          description: tool.function.description ?? null,
+          parameters: tool.function.parameters,
+          strict: tool.function.strict ?? null,
+        },
+      };
+    case "PromptToolRaw":
+      if (!isStringKeyedObject(tool.raw)) {
+        return null;
+      }
+      return {
+        kind: "raw",
+        id: generateToolId(),
+        editorType: "json",
+        raw: tool.raw,
+      };
+    case "%other":
+      // Schema added a tool variant the client wasn't built against. Drop it
+      // (the alternative is crashing the prompt page on schema drift).
+      return null;
+    default:
+      return assertUnreachable(tool);
+  }
+}
+
+/**
+ * Pull the prompt's tools and inferred OpenAI API surface out of a GraphQL
+ * `tools.tools` array. Centralizes the logic shared by the prompt-loading and
+ * experiment-rehydration paths so they can't drift.
+ */
+export function deriveToolsAndOpenAIApiType(
+  rawTools: readonly GraphQLPromptTool[] | null | undefined,
+  provider: ModelProvider
+): { tools: Tool[]; openaiApiType: OpenAIApiType | null } {
+  const tools = (rawTools ?? [])
+    .map(promptToolFromGraphQL)
+    .filter((tool): tool is Tool => tool != null);
+  const isOpenAIProvider = provider === "OPENAI" || provider === "AZURE_OPENAI";
+  const openaiApiType = isOpenAIProvider
+    ? inferOpenAIApiTypeFromTools(tools, DEFAULT_OPENAI_API_TYPE)
+    : null;
+  return { tools, openaiApiType };
+}
+
+/**
+ * Build a {@link Tool} from the JSON the user typed into the tool editor.
+ * The user-typed value drives the function-vs-raw split (see Tool's docstring
+ * for why the union exists): if the JSON parses against any provider's known
+ * function-tool schema we normalize it; otherwise we keep it as a raw
+ * passthrough. Returns null for non-objects.
+ */
+export function toolFromEditorJSON({
+  value,
+  id,
+  editorType,
+}: {
+  value: unknown;
+  id: number;
+  editorType: PhoenixToolEditorType;
+}): Tool | null {
+  if (!isStringKeyedObject(value)) {
+    return null;
+  }
+  const normalizedFunctionDefinition = toCanonicalToolDefinition(value);
+  if (normalizedFunctionDefinition != null) {
+    return {
+      kind: "function",
+      id,
+      editorType,
+      definition: normalizedFunctionDefinition,
+    };
+  }
+  return {
+    kind: "raw",
+    id,
+    editorType,
+    raw: value,
+  };
+}
+
+export function toolToPromptToolInput(
+  tool: Tool
+):
+  | ReturnType<typeof buildPromptToolFunctionInput>
+  | { raw: Record<string, unknown> } {
+  if (isRawTool(tool)) {
+    return { raw: tool.raw };
+  }
+  return buildPromptToolFunctionInput(tool.definition);
+}
+
+/**
  * Convert a canonical tool choice to the PromptToolChoiceInput wire format
  * (isomorphic to DB PromptToolChoice).
  */
@@ -1960,6 +2244,46 @@ export function toCanonicalToolChoice(
     case "SPECIFIC_FUNCTION":
       return { functionName: toolChoice.functionName ?? "" };
   }
+}
+
+/**
+ * Shared prompt-version payload builder used by playground save/run paths.
+ */
+export function buildPromptVersionInput({
+  instance,
+  modelName,
+  templateFormat,
+  promptMessages,
+  invocationParameters,
+}: {
+  instance: Pick<PlaygroundInstance, "model" | "tools" | "toolChoice">;
+  modelName: string;
+  templateFormat: ChatPromptVersionInput["templateFormat"];
+  promptMessages: ChatPromptVersionInput["template"]["messages"];
+  invocationParameters: InvocationParameterInput[];
+}): ChatPromptVersionInput {
+  return {
+    templateFormat,
+    template: {
+      messages: promptMessages,
+    },
+    modelProvider: instance.model
+      .provider as ChatPromptVersionInput["modelProvider"],
+    modelName,
+    customProviderId: instance.model.customProvider?.id ?? null,
+    invocationParameters: writePromptInvocationParametersMutationInput(
+      invocationParametersToObject(invocationParameters, instance.model)
+    ),
+    tools: instance.tools.length
+      ? {
+          tools: instance.tools.map(toolToPromptToolInput),
+          toolChoice: toCanonicalToolChoice(instance.toolChoice),
+        }
+      : null,
+    responseFormat: buildPromptResponseFormatInput(
+      instance.model.responseFormat
+    ),
+  };
 }
 
 /**
@@ -2025,29 +2349,15 @@ export const getChatCompletionInput = ({
     chatMessageToPromptMessageInput
   );
 
-  const promptVersion: ChatPromptVersionInput = {
-    templateFormat: "NONE",
-    template: {
-      messages:
-        promptMessages as ChatPromptVersionInput["template"]["messages"],
-    },
-    modelProvider: instance.model
-      .provider as ChatPromptVersionInput["modelProvider"],
+  const promptVersion = buildPromptVersionInput({
+    instance,
     modelName: instance.model.modelName ?? "",
-    customProviderId: instance.model.customProvider?.id ?? null,
-    invocationParameters: invocationParamsToFlatObject(
-      baseChatCompletionVariables.invocationParameters ?? []
-    ),
-    tools: instance.tools.length
-      ? {
-          tools: instance.tools.map(toolToPromptToolFunctionInput),
-          toolChoice: toCanonicalToolChoice(instance.toolChoice),
-        }
-      : null,
-    responseFormat: buildPromptResponseFormatInput(
-      instance.model.responseFormat
-    ),
-  };
+    templateFormat: "NONE",
+    promptMessages:
+      promptMessages as ChatPromptVersionInput["template"]["messages"],
+    invocationParameters:
+      baseChatCompletionVariables.invocationParameters ?? [],
+  });
 
   return {
     promptVersion,
@@ -2129,29 +2439,15 @@ export const getChatCompletionOverDatasetInput = ({
     chatMessageToPromptMessageInput
   );
 
-  const promptVersion: ChatPromptVersionInput = {
-    templateFormat: templateFormat as ChatPromptVersionInput["templateFormat"],
-    template: {
-      messages:
-        promptMessages as ChatPromptVersionInput["template"]["messages"],
-    },
-    modelProvider: instance.model
-      .provider as ChatPromptVersionInput["modelProvider"],
+  const promptVersion = buildPromptVersionInput({
+    instance,
     modelName: instance.model.modelName ?? "",
-    customProviderId: instance.model.customProvider?.id ?? null,
-    invocationParameters: invocationParamsToFlatObject(
-      baseChatCompletionVariables.invocationParameters ?? []
-    ),
-    tools: instance.tools.length
-      ? {
-          tools: instance.tools.map(toolToPromptToolFunctionInput),
-          toolChoice: toCanonicalToolChoice(instance.toolChoice),
-        }
-      : null,
-    responseFormat: buildPromptResponseFormatInput(
-      instance.model.responseFormat
-    ),
-  };
+    templateFormat: templateFormat as ChatPromptVersionInput["templateFormat"],
+    promptMessages:
+      promptMessages as ChatPromptVersionInput["template"]["messages"],
+    invocationParameters:
+      baseChatCompletionVariables.invocationParameters ?? [],
+  });
 
   const playgroundDatasetState = stateByDatasetId[datasetId];
   const { appendedMessagesPath, templateVariablesPath, maxConcurrency } =
@@ -2182,17 +2478,30 @@ export const getChatCompletionOverDatasetInput = ({
   };
 };
 
+function invocationInputSatisfiesSpec(
+  ip: InvocationParameterInput,
+  spec: ParamSpec
+): boolean {
+  if (ip.invocationName !== spec.name) {
+    return false;
+  }
+  const field = invocationValueKeyForSpec(spec);
+  const v = ip[field];
+  return v !== null && v !== undefined;
+}
+
 export function areRequiredInvocationParametersConfigured(
   configuredInvocationParameters: InvocationParameterInput[],
-  supportedInvocationParameters: InvocationParameter[]
+  model: Pick<ModelConfig, "provider" | "openaiApiType">
 ) {
-  return supportedInvocationParameters
-    .filter((param) => param.required)
-    .every((param) =>
-      configuredInvocationParameters.some((ip) =>
-        areInvocationParamsEqual(ip, param)
-      )
-    );
+  const requiredSpecs = getActiveSpecsForPlayground(model).filter(
+    (s) => s.required
+  );
+  return requiredSpecs.every((spec) =>
+    configuredInvocationParameters.some((ip) =>
+      invocationInputSatisfiesSpec(ip, spec)
+    )
+  );
 }
 
 /**
@@ -2247,7 +2556,7 @@ const applyAnthropicInvocationParameterConstraints = (
   });
 };
 
-const ZERO_VALUE_INVOCATION_NAMES = ["frequency_penalty", "presence_penalty"];
+const ZERO_VALUE_INVOCATION_NAMES = ["frequencyPenalty", "presencePenalty"];
 
 /**
  * A function that filters out invocation parameters where 0 and null have the same effect

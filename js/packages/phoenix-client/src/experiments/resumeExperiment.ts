@@ -132,6 +132,7 @@ function buildExampleFromApiResponse(
 ): ExampleWithId {
   return {
     id: apiExample.id,
+    nodeId: apiExample.node_id,
     input: apiExample.input,
     output: apiExample.output || null,
     metadata: apiExample.metadata || {},
@@ -618,7 +619,7 @@ async function recordTaskResult({
         },
       },
       body: {
-        dataset_example_id: example.id,
+        dataset_example_id: example.nodeId,
         repetition_number: repetitionNumber,
         output: output as Record<string, unknown>,
         start_time: startTime.toISOString(),
@@ -694,7 +695,7 @@ async function runSingleTask({
         [SemanticConventions.INPUT_MIME_TYPE]: MimeType.JSON,
         ...objectAsAttributes({
           experiment_id: experimentId,
-          dataset_example_id: example.id,
+          dataset_example_id: example.nodeId,
           repetition_number: repetitionNumber,
         }),
       });

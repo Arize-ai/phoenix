@@ -1,7 +1,7 @@
 import { InvalidArgumentError } from "../exitCodes";
 import { parseNumber, trimToUndefined } from "../normalize";
 
-export type AnnotationTargetType = "span" | "trace";
+export type AnnotationTargetType = "span" | "trace" | "session";
 export type AnnotatorKind = "HUMAN" | "LLM" | "CODE";
 
 export interface AnnotationMutationResult {
@@ -34,7 +34,20 @@ function getTargetIdPlaceholder({
 }: {
   targetType: AnnotationTargetType;
 }): string {
-  return targetType === "span" ? "<span-id>" : "<trace-id>";
+  switch (targetType) {
+    case "span":
+      return "<span-id>";
+    case "trace":
+      return "<trace-id>";
+    case "session":
+      return "<session-id>";
+    default:
+      return assertNever(targetType);
+  }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unsupported annotation target type: ${String(value)}`);
 }
 
 function getAnnotateUsage({

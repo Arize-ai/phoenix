@@ -1,0 +1,127 @@
+name: Weekly Skills Audit
+
+on:
+  schedule:
+    # Every Wednesday at 17:00 UTC (after docs-gap-audit at 16:00)
+    - cron: "0 17 * * 3"
+  workflow_dispatch:
+    inputs:
+      window:
+        description: "Audit window (e.g. '7 days ago', '14 days ago')"
+        required: false
+        default: "7 days ago"
+
+concurrency:
+  group: skills-audit
+  cancel-in-progress: true
+
+jobs:
+  skills-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+    env:
+      GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+      AUDIT_WINDOW: ${{ inputs.window || '7 days ago' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+
+      - name: Set summary path
+        run: echo "SUMMARY_FILE=${RUNNER_TEMP}/skills-audit-summary.md" >> "$GITHUB_ENV"
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Create audit branch
+        id: branch
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          # Suffix with run id so re-runs on the same day don't collide
+          BRANCH="skills-audit/${DATE}-${{ github.run_id }}"
+          git checkout -b "$BRANCH"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "date=$DATE" >> "$GITHUB_OUTPUT"
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@094bd24d575e7b30ac1576024817bf1a97c81262 # v1.0.80
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          model: claude-opus-4-6
+          prompt: |
+            /phoenix-skills-audit
+
+            Audit commits since "${{ env.AUDIT_WINDOW }}" on origin/main for changes to the
+            Python clients, TypeScript clients, CLI, and REST/GraphQL APIs that should be
+            reflected in the three external-facing skills:
+
+              - .agents/skills/phoenix-tracing/
+              - .agents/skills/phoenix-cli/
+              - .agents/skills/phoenix-evals/
+
+            Follow the skill's guidance strictly — fetch origin/main first, breadth-first
+            triage, ground every edit in real code, and only patch files inside those three
+            skill directories.
+
+            Apply the patches directly to the working tree. Do not commit, do not push, do
+            not open a PR — the workflow handles that.
+
+            After all edits are applied, write the run summary (the markdown the skill's
+            "Phase 6" describes) to this exact path using the Write tool:
+
+              ${{ env.SUMMARY_FILE }}
+
+            That file is what the workflow uses to populate the PR body, so it must exist
+            even if there are no changes to apply. If there are no user-facing changes
+            (only deps, refactors, frontend, feature flags), still write the summary file
+            and have its first line be exactly: NO_CHANGES
+          claude_args: '--allowedTools Skill,Read,Glob,Grep,Edit,Write,Agent,"Bash(git:*)","Bash(gh:*)","Bash(date:*)","Bash(ls:*)"'
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if ! git diff --quiet -- .agents/skills/phoenix-tracing .agents/skills/phoenix-cli .agents/skills/phoenix-evals; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            git diff --stat -- .agents/skills/phoenix-tracing .agents/skills/phoenix-cli .agents/skills/phoenix-evals
+          elif [[ -n "$(git ls-files --others --exclude-standard .agents/skills/phoenix-tracing .agents/skills/phoenix-cli .agents/skills/phoenix-evals)" ]]; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            git ls-files --others --exclude-standard .agents/skills/phoenix-tracing .agents/skills/phoenix-cli .agents/skills/phoenix-evals
+          else
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No skill changes — exiting cleanly."
+          fi
+
+      - name: Commit and push
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          git add .agents/skills/phoenix-tracing .agents/skills/phoenix-cli .agents/skills/phoenix-evals
+          git commit -m "docs(skills): weekly audit — ${{ steps.branch.outputs.date }}"
+          git push origin "${{ steps.branch.outputs.branch }}"
+
+      - name: Open pull request
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          if [[ -s "${{ env.SUMMARY_FILE }}" ]]; then
+            BODY_FILE="${{ env.SUMMARY_FILE }}"
+          else
+            BODY_FILE=$(mktemp)
+            echo "Automated weekly audit of the three external-facing skills against recent changes on \`origin/main\`. (Run summary file was missing — see commit diff for details.)" > "$BODY_FILE"
+          fi
+
+          gh pr create \
+            --base main \
+            --head "${{ steps.branch.outputs.branch }}" \
+            --title "docs(skills): weekly audit — ${{ steps.branch.outputs.date }}" \
+            --body-file "$BODY_FILE" \
+            --label "documentation"

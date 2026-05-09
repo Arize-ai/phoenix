@@ -162,7 +162,7 @@ class TestChatCompletionSubscription:
         openai_api_key: str,
         custom_vcr: CustomVCR,
     ) -> None:
-        variables = {
+        variables: dict[str, Any] = {
             "input": {
                 "promptVersion": {
                     "templateFormat": "NONE",
@@ -182,7 +182,7 @@ class TestChatCompletionSubscription:
                     },
                     "modelProvider": "OPENAI",
                     "modelName": "gpt-4",
-                    "invocationParameters": {"temperature": 0.1},
+                    "invocationParameters": {"openai": {"temperature": 0.1}},
                     "tools": None,
                 },
                 "repetitions": 1,
@@ -313,7 +313,7 @@ class TestChatCompletionSubscription:
         openai_api_key: str,
         custom_vcr: CustomVCR,
     ) -> None:
-        variables = {
+        variables: dict[str, Any] = {
             "input": {
                 "promptVersion": {
                     "templateFormat": "NONE",
@@ -333,7 +333,7 @@ class TestChatCompletionSubscription:
                     },
                     "modelProvider": "OPENAI",
                     "modelName": "gpt-4",
-                    "invocationParameters": {"temperature": 0.1},
+                    "invocationParameters": {"openai": {"temperature": 0.1}},
                     "tools": None,
                 },
                 "repetitions": 1,
@@ -468,7 +468,7 @@ class TestChatCompletionSubscription:
                 "strict": None,
             },
         }
-        variables = {
+        variables: dict[str, Any] = {
             "input": {
                 "promptVersion": {
                     "templateFormat": "NONE",
@@ -484,7 +484,7 @@ class TestChatCompletionSubscription:
                     },
                     "modelProvider": "OPENAI",
                     "modelName": "gpt-4",
-                    "invocationParameters": {},
+                    "invocationParameters": {"openai": {}},
                     "tools": {
                         "tools": [
                             {
@@ -638,7 +638,7 @@ class TestChatCompletionSubscription:
         custom_vcr: CustomVCR,
     ) -> None:
         tool_call_id = "call_zz1hkqH3IakqnHfVhrrUemlQ"
-        variables = {
+        variables: dict[str, Any] = {
             "input": {
                 "promptVersion": {
                     "templateFormat": "NONE",
@@ -682,7 +682,7 @@ class TestChatCompletionSubscription:
                     },
                     "modelProvider": "OPENAI",
                     "modelName": "gpt-4",
-                    "invocationParameters": {},
+                    "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
                 "repetitions": 1,
@@ -830,7 +830,7 @@ class TestChatCompletionSubscription:
         anthropic_api_key: str,
         custom_vcr: CustomVCR,
     ) -> None:
-        variables = {
+        variables: dict[str, Any] = {
             "input": {
                 "promptVersion": {
                     "templateFormat": "NONE",
@@ -850,7 +850,7 @@ class TestChatCompletionSubscription:
                     },
                     "modelProvider": "ANTHROPIC",
                     "modelName": "claude-3-5-sonnet-20240620",
-                    "invocationParameters": {"temperature": 0.1, "max_tokens": 1024},
+                    "invocationParameters": {"anthropic": {"temperature": 0.1, "maxTokens": 1024}},
                     "tools": None,
                 },
                 "repetitions": 1,
@@ -1107,7 +1107,7 @@ class TestChatCompletionOverDatasetSubscription:
     ) -> None:
         dataset_id = str(GlobalID(type_name=Dataset.__name__, node_id=str(1)))
         version_id = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
-        variables = {
+        variables: dict[str, Any] = {
             "input": {
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
@@ -1129,7 +1129,7 @@ class TestChatCompletionOverDatasetSubscription:
                     },
                     "modelProvider": "OPENAI",
                     "modelName": "gpt-4",
-                    "invocationParameters": {},
+                    "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
                 "repetitions": 1,
@@ -1510,7 +1510,7 @@ class TestChatCompletionOverDatasetSubscription:
     ) -> None:
         dataset_id = str(GlobalID(type_name=Dataset.__name__, node_id=str(1)))
         version_id = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
-        variables = {
+        variables: dict[str, Any] = {
             "input": {
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
@@ -1535,7 +1535,7 @@ class TestChatCompletionOverDatasetSubscription:
                     },
                     "modelProvider": "OPENAI",
                     "modelName": "gpt-4",
-                    "invocationParameters": {},
+                    "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
                 "repetitions": 1,
@@ -1621,7 +1621,7 @@ class TestChatCompletionOverDatasetSubscription:
         version_id = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
         train_split_id = str(GlobalID(type_name="DatasetSplit", node_id=str(1)))
 
-        variables = {
+        variables: dict[str, Any] = {
             "input": {
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
@@ -1643,7 +1643,7 @@ class TestChatCompletionOverDatasetSubscription:
                     },
                     "modelProvider": "OPENAI",
                     "modelName": "gpt-4",
-                    "invocationParameters": {},
+                    "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
                 "repetitions": 1,
@@ -1713,7 +1713,7 @@ class TestChatCompletionOverDatasetSubscription:
         train_split_id = str(GlobalID(type_name="DatasetSplit", node_id=str(1)))
         test_split_id = str(GlobalID(type_name="DatasetSplit", node_id=str(2)))
 
-        variables = {
+        variables: dict[str, Any] = {
             "input": {
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
@@ -1735,7 +1735,7 @@ class TestChatCompletionOverDatasetSubscription:
                     },
                     "modelProvider": "OPENAI",
                     "modelName": "gpt-4",
-                    "invocationParameters": {},
+                    "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
                 "repetitions": 1,
@@ -1793,7 +1793,7 @@ class TestChatCompletionOverDatasetSubscription:
         dataset_id = str(GlobalID(type_name=Dataset.__name__, node_id=str(1)))
         version_id = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
 
-        variables = {
+        variables: dict[str, Any] = {
             "input": {
                 "datasetId": dataset_id,
                 "datasetVersionId": version_id,
@@ -1815,7 +1815,7 @@ class TestChatCompletionOverDatasetSubscription:
                     },
                     "modelProvider": "OPENAI",
                     "modelName": "gpt-4",
-                    "invocationParameters": {},
+                    "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
                 "repetitions": 1,
@@ -1893,7 +1893,7 @@ class TestChatCompletionOverDatasetSubscription:
             GlobalID(type_name=Dataset.__name__, node_id=str(single_example_dataset.id))
         )
         version_gid = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
-        variables = {
+        variables: dict[str, Any] = {
             "input": {
                 "datasetId": dataset_gid,
                 "datasetVersionId": version_gid,
@@ -1915,7 +1915,7 @@ class TestChatCompletionOverDatasetSubscription:
                     },
                     "modelProvider": "OPENAI",
                     "modelName": "gpt-4",
-                    "invocationParameters": {},
+                    "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
                 "repetitions": 1,
@@ -2481,7 +2481,7 @@ class TestChatCompletionOverDatasetSubscription:
             GlobalID(type_name=Dataset.__name__, node_id=str(single_example_dataset.id))
         )
         version_gid = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
-        variables = {
+        variables: dict[str, Any] = {
             "input": {
                 "datasetId": dataset_gid,
                 "datasetVersionId": version_gid,
@@ -2503,7 +2503,7 @@ class TestChatCompletionOverDatasetSubscription:
                     },
                     "modelProvider": "OPENAI",
                     "modelName": "gpt-nonexistent-model",
-                    "invocationParameters": {},
+                    "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
                 "repetitions": 1,
@@ -2592,7 +2592,7 @@ class TestChatCompletionOverDatasetSubscription:
             GlobalID(type_name=Dataset.__name__, node_id=str(single_example_dataset.id))
         )
         version_gid = str(GlobalID(type_name=DatasetVersion.__name__, node_id=str(1)))
-        variables = {
+        variables: dict[str, Any] = {
             "input": {
                 "datasetId": dataset_gid,
                 "datasetVersionId": version_gid,
@@ -2614,7 +2614,7 @@ class TestChatCompletionOverDatasetSubscription:
                     },
                     "modelProvider": "OPENAI",
                     "modelName": "gpt-4",
-                    "invocationParameters": {},
+                    "invocationParameters": {"openai": {}},
                     "tools": None,
                 },
                 "repetitions": 1,

@@ -7,10 +7,33 @@ from strawberry.scalars import JSON
 
 @strawberry.enum
 class OpenAIApiType(Enum):
-    """Chat Completions (chat.completions.create) or Responses API (responses.create)."""
+    """
+    Which OpenAI API surface a request targets — Chat Completions
+    (chat.completions.create) or Responses (responses.create).
 
-    CHAT_COMPLETIONS = "chat_completions"
-    RESPONSES = "responses"
+    The two APIs have structurally different `tools` payloads. Chat Completions
+    only accepts function tools (`{ type: "function", function: {...} }`).
+    Responses also accepts built-in tools whose `type` is something else (e.g.
+    `web_search`, `file_search`, `computer_use_preview`). Phoenix uses this
+    enum to route a prompt to the right SDK call and to fetch the right set
+    of supported invocation parameters.
+    """
+
+    CHAT_COMPLETIONS = strawberry.enum_value(
+        "chat_completions",
+        description=(
+            "OpenAI Chat Completions API. Only function tools are supported; "
+            "built-in tools (web_search etc.) are not."
+        ),
+    )
+    RESPONSES = strawberry.enum_value(
+        "responses",
+        description=(
+            "OpenAI Responses API. Accepts both function tools and built-in "
+            "tools (web_search, file_search, computer_use_preview, ...) as "
+            "vendor passthrough."
+        ),
+    )
 
 
 @strawberry.input

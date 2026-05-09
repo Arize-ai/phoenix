@@ -1,8 +1,7 @@
 import { InvalidArgumentError } from "../exitCodes";
 import { trimToUndefined } from "../normalize";
-import type { AnnotatorKind } from "./annotationMutationUtils";
 
-export type NoteTargetType = "span" | "trace";
+export type NoteTargetType = "span" | "trace" | "session";
 export const NOTE_ANNOTATION_NAME = "note";
 
 export interface NoteMutationResult {
@@ -10,7 +9,6 @@ export interface NoteMutationResult {
   targetType: NoteTargetType;
   targetId: string;
   text: string;
-  annotatorKind: AnnotatorKind;
 }
 
 function getTargetIdPlaceholder({
@@ -18,7 +16,20 @@ function getTargetIdPlaceholder({
 }: {
   targetType: NoteTargetType;
 }): string {
-  return targetType === "span" ? "<span-id>" : "<trace-id>";
+  switch (targetType) {
+    case "span":
+      return "<span-id>";
+    case "trace":
+      return "<trace-id>";
+    case "session":
+      return "<session-id>";
+    default:
+      return assertNever(targetType);
+  }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unsupported note target type: ${String(value)}`);
 }
 
 function getAddNoteUsage({
@@ -58,19 +69,16 @@ export function buildNoteMutationResult({
   targetType,
   targetId,
   text,
-  annotatorKind,
 }: {
   id: string;
   targetType: NoteTargetType;
   targetId: string;
   text: string;
-  annotatorKind?: AnnotatorKind;
 }): NoteMutationResult {
   return {
     id,
     targetType,
     targetId,
     text,
-    annotatorKind: annotatorKind ?? "HUMAN",
   };
 }

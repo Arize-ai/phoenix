@@ -15,7 +15,7 @@ import { phoenixContentPartSchema } from "./phoenixPrompt/messagePartSchemas";
 import { phoenixMessageSchema } from "./phoenixPrompt/messageSchemas";
 import { phoenixToolCallSchema } from "./phoenixPrompt/toolCallSchemas";
 import { phoenixToolChoiceSchema } from "./phoenixPrompt/toolChoiceSchemas";
-import { phoenixToolDefinitionSchema } from "./phoenixPrompt/toolSchemas";
+import { phoenixToolFunctionDefinitionSchema } from "./phoenixPrompt/toolSchemas";
 import { llmProviderToolDefinitionSchema } from "./schemas";
 import type {
   LLMMessagePart,
@@ -206,7 +206,7 @@ export const detectToolDefinitionProvider = (
     };
   }
   const { success: phoenixSuccess, data: phoenixData } =
-    phoenixToolDefinitionSchema.safeParse(toolDefinition);
+    phoenixToolFunctionDefinitionSchema.safeParse(toolDefinition);
   if (phoenixSuccess) {
     return { provider: "PHOENIX", validatedToolDefinition: phoenixData };
   }

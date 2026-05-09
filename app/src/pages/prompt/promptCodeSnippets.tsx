@@ -19,12 +19,9 @@ export type PromptToSDKSnippetFn = ({
   template,
 }: Pick<
   PromptVersion,
-  | "invocationParameters"
-  | "modelName"
-  | "modelProvider"
-  | "responseFormat"
-  | "tools"
+  "modelName" | "modelProvider" | "responseFormat" | "tools"
 > & {
+  invocationParameters: Record<string, unknown>;
   template: {
     messages: unknown[];
   };
@@ -298,6 +295,12 @@ type PreparePromptOptions = {
 };
 
 const defaultSerializeTool = (t: ToolEntry): unknown => {
+  if (t.__typename === "PromptToolRaw") {
+    return t.raw;
+  }
+  if (t.__typename !== "PromptToolFunction") {
+    return {};
+  }
   const fn = t.function;
   const functionDef: Record<string, unknown> = { name: fn.name };
   if (fn.description != null) functionDef.description = fn.description;
@@ -489,6 +492,12 @@ export const promptSDKCodeSnippets: Record<
       const config = languageConfigs.python.anthropic;
       const { args, messages } = preparePromptData(prompt, config, {
         serializeTool: (t) => {
+          if (t.__typename === "PromptToolRaw") {
+            return t.raw;
+          }
+          if (t.__typename !== "PromptToolFunction") {
+            return {};
+          }
           const fn = t.function;
           const tool: Record<string, unknown> = { name: fn.name };
           if (fn.description != null) tool.description = fn.description;
@@ -529,6 +538,12 @@ export const promptSDKCodeSnippets: Record<
       const config = languageConfigs.typescript.anthropic;
       const { args, messages } = preparePromptData(prompt, config, {
         serializeTool: (t) => {
+          if (t.__typename === "PromptToolRaw") {
+            return t.raw;
+          }
+          if (t.__typename !== "PromptToolFunction") {
+            return {};
+          }
           const fn = t.function;
           const tool: Record<string, unknown> = { name: fn.name };
           if (fn.description != null) tool.description = fn.description;
@@ -588,7 +603,12 @@ export const mapPromptToSDKSnippet = ({
   promptVersion,
   language,
 }: {
-  promptVersion: Omit<PromptVersion, " $fragmentType">;
+  promptVersion: Omit<
+    PromptVersion,
+    " $fragmentType" | "invocationParameters"
+  > & {
+    invocationParameters: Record<string, unknown>;
+  };
   language: ProgrammingLanguage;
 }) => {
   const generator =
@@ -632,7 +652,12 @@ export function mapPromptToClientSnippet({
   promptVersion,
   language,
 }: {
-  promptVersion: Omit<PromptVersion, " $fragmentType">;
+  promptVersion: Omit<
+    PromptVersion,
+    " $fragmentType" | "invocationParameters"
+  > & {
+    invocationParameters: Record<string, unknown>;
+  };
   language: ProgrammingLanguage;
 }) {
   const generator =

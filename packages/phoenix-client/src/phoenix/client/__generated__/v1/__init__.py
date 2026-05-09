@@ -8,6 +8,18 @@ from typing import Any, Literal, Mapping, Optional, Sequence, TypedDict, Union
 from typing_extensions import NotRequired
 
 
+class AgentCapabilities(TypedDict):
+    bash_retainInactiveSessions: NotRequired[bool]
+    graphql_mutations: NotRequired[bool]
+
+
+class AgentSpanContext(TypedDict):
+    type: Literal["span"]
+    projectNodeId: NotRequired[str]
+    spanNodeId: NotRequired[str]
+    otelSpanId: NotRequired[str]
+
+
 class AnnotationResult(TypedDict):
     label: NotRequired[str]
     score: NotRequired[float]
@@ -16,6 +28,12 @@ class AnnotationResult(TypedDict):
 
 class AnonymousUser(TypedDict):
     auth_method: Literal["ANONYMOUS"]
+
+
+class AppContext(TypedDict):
+    type: Literal["app"]
+    currentDateTime: str
+    timeZone: str
 
 
 class CategoricalAnnotationValue(TypedDict):
@@ -56,6 +74,12 @@ class CreateSpansResponseBody(TypedDict):
     total_queued: int
 
 
+class DataUIPart(TypedDict):
+    type: str
+    data: Any
+    id: NotRequired[str]
+
+
 class Dataset(TypedDict):
     id: str
     name: str
@@ -68,6 +92,7 @@ class Dataset(TypedDict):
 
 class DatasetExample(TypedDict):
     id: str
+    node_id: str
     input: Mapping[str, Any]
     output: Mapping[str, Any]
     metadata: Mapping[str, Any]
@@ -126,6 +151,14 @@ class ExperimentRun(TypedDict):
     experiment_id: str
     trace_id: NotRequired[str]
     error: NotRequired[str]
+
+
+class FileUIPart(TypedDict):
+    type: Literal["file"]
+    mediaType: str
+    url: str
+    filename: NotRequired[str]
+    providerMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
 
 
 class FreeformAnnotationConfig(TypedDict):
@@ -266,6 +299,13 @@ class Project(TypedDict):
     description: NotRequired[str]
 
 
+class ProjectContext(TypedDict):
+    type: Literal["project"]
+    projectNodeId: str
+    spanFilter: NotRequired[str]
+    rootSpansOnly: NotRequired[bool]
+
+
 class PromptData(TypedDict):
     name: str
     description: NotRequired[str]
@@ -277,6 +317,15 @@ class Prompt(PromptData):
     id: str
 
 
+class PromptAnthropicOutputConfig(TypedDict):
+    effort: NotRequired[Literal["low", "medium", "high", "xhigh", "max"]]
+
+
+class PromptAnthropicThinkingConfigAdaptive(TypedDict):
+    type: Literal["adaptive"]
+    display: NotRequired[Literal["summarized", "omitted"]]
+
+
 class PromptAnthropicThinkingConfigDisabled(TypedDict):
     type: Literal["disabled"]
 
@@ -284,12 +333,14 @@ class PromptAnthropicThinkingConfigDisabled(TypedDict):
 class PromptAnthropicThinkingConfigEnabled(TypedDict):
     type: Literal["enabled"]
     budget_tokens: int
+    display: NotRequired[Literal["summarized", "omitted"]]
 
 
 class PromptAwsInvocationParametersContent(TypedDict):
     max_tokens: NotRequired[int]
     temperature: NotRequired[float]
     top_p: NotRequired[float]
+    stop_sequences: NotRequired[Sequence[str]]
 
 
 class PromptAzureOpenAIInvocationParametersContent(TypedDict):
@@ -300,7 +351,9 @@ class PromptAzureOpenAIInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
 
 
 class PromptCerebrasInvocationParametersContent(TypedDict):
@@ -311,7 +364,9 @@ class PromptCerebrasInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
 
 
 class PromptDeepSeekInvocationParametersContent(TypedDict):
@@ -322,7 +377,9 @@ class PromptDeepSeekInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
 
 
 class PromptFireworksInvocationParametersContent(TypedDict):
@@ -333,17 +390,15 @@ class PromptFireworksInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
 
 
-class PromptGoogleInvocationParametersContent(TypedDict):
-    temperature: NotRequired[float]
-    max_output_tokens: NotRequired[int]
-    stop_sequences: NotRequired[Sequence[str]]
-    presence_penalty: NotRequired[float]
-    frequency_penalty: NotRequired[float]
-    top_p: NotRequired[float]
-    top_k: NotRequired[int]
+class PromptGoogleThinkingConfig(TypedDict):
+    thinking_budget: NotRequired[int]
+    thinking_level: NotRequired[Literal["minimal", "low", "medium", "high"]]
+    include_thoughts: NotRequired[bool]
 
 
 class PromptGroqInvocationParametersContent(TypedDict):
@@ -354,7 +409,9 @@ class PromptGroqInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
 
 
 class PromptMoonshotInvocationParametersContent(TypedDict):
@@ -365,7 +422,9 @@ class PromptMoonshotInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
 
 
 class PromptOllamaInvocationParametersContent(TypedDict):
@@ -376,7 +435,9 @@ class PromptOllamaInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
 
 
 class PromptOpenAIInvocationParametersContent(TypedDict):
@@ -387,7 +448,9 @@ class PromptOpenAIInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
 
 
 class PromptPerplexityInvocationParametersContent(TypedDict):
@@ -398,7 +461,9 @@ class PromptPerplexityInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
 
 
 class PromptResponseFormatJSONSchemaDefinition(TypedDict):
@@ -421,7 +486,9 @@ class PromptTogetherInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
 
 
 class PromptToolChoiceNone(TypedDict):
@@ -448,6 +515,11 @@ class PromptToolFunctionDefinition(TypedDict):
     strict: NotRequired[bool]
 
 
+class PromptToolRaw(TypedDict):
+    type: Literal["raw"]
+    raw: Mapping[str, Any]
+
+
 class PromptVersionTag(TypedDict):
     name: str
     id: str
@@ -467,7 +539,16 @@ class PromptXAIInvocationParametersContent(TypedDict):
     presence_penalty: NotRequired[float]
     top_p: NotRequired[float]
     seed: NotRequired[int]
+    stop: NotRequired[Sequence[str]]
     reasoning_effort: NotRequired[Literal["none", "minimal", "low", "medium", "high", "xhigh"]]
+    extra_body: NotRequired[Mapping[str, Any]]
+
+
+class ReasoningUIPart(TypedDict):
+    type: Literal["reasoning"]
+    text: str
+    state: NotRequired[Literal["streaming", "done"]]
+    providerMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
 
 
 class SecretKeyValue(TypedDict):
@@ -503,11 +584,33 @@ class SessionAnnotationsResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
+class SessionNoteData(TypedDict):
+    session_id: str
+    note: str
+
+
 class SessionTraceData(TypedDict):
     id: str
     trace_id: str
     start_time: str
     end_time: str
+
+
+class SourceDocumentUIPart(TypedDict):
+    type: Literal["source-document"]
+    sourceId: str
+    mediaType: str
+    title: str
+    filename: NotRequired[str]
+    providerMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+
+
+class SourceUrlUIPart(TypedDict):
+    type: Literal["source-url"]
+    sourceId: str
+    url: str
+    title: NotRequired[str]
+    providerMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
 
 
 class SpanAnnotationData(TypedDict):
@@ -558,15 +661,100 @@ class SpanNoteData(TypedDict):
     note: str
 
 
+class StepStartUIPart(TypedDict):
+    type: Literal["step-start"]
+
+
 class TextContentPart(TypedDict):
     type: Literal["text"]
     text: str
+
+
+class TextUIPart(TypedDict):
+    type: Literal["text"]
+    text: str
+    state: NotRequired[Literal["streaming", "done"]]
+    providerMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+
+
+class ToolApprovalRequested(TypedDict):
+    id: str
+
+
+class ToolApprovalResponded(TypedDict):
+    id: str
+    approved: bool
+    reason: NotRequired[str]
+
+
+class ToolApprovalRespondedPart(TypedDict):
+    type: str
+    toolCallId: str
+    state: NotRequired[str]
+    input: NotRequired[Any]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
 
 
 class ToolCallFunction(TypedDict):
     type: Literal["function"]
     name: str
     arguments: str
+
+
+class ToolInputAvailablePart(TypedDict):
+    type: str
+    toolCallId: str
+    state: NotRequired[str]
+    input: NotRequired[Any]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class ToolInputStreamingPart(TypedDict):
+    type: str
+    toolCallId: str
+    state: NotRequired[str]
+    input: NotRequired[Any]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class ToolOutputAvailablePart(TypedDict):
+    type: str
+    toolCallId: str
+    state: NotRequired[str]
+    input: NotRequired[Any]
+    output: NotRequired[Any]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    preliminary: NotRequired[bool]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class ToolOutputDeniedPart(TypedDict):
+    type: str
+    toolCallId: str
+    state: NotRequired[str]
+    input: NotRequired[Any]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class ToolOutputErrorPart(TypedDict):
+    type: str
+    toolCallId: str
+    errorText: str
+    state: NotRequired[str]
+    input: NotRequired[Any]
+    rawInput: NotRequired[Any]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
 
 
 class ToolResultContentPart(TypedDict):
@@ -603,6 +791,17 @@ class TraceAnnotationsResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
+class TraceContext(TypedDict):
+    type: Literal["trace"]
+    projectNodeId: str
+    otelTraceId: str
+
+
+class TraceNoteData(TypedDict):
+    trace_id: str
+    note: str
+
+
 class TraceSpanData(TypedDict):
     id: str
     span_id: str
@@ -625,6 +824,9 @@ class UpdateProjectResponseBody(TypedDict):
 class UploadDatasetData(TypedDict):
     dataset_id: str
     version_id: str
+    num_created_examples: int
+    num_updated_examples: int
+    num_deleted_examples: int
 
 
 class UploadDatasetResponseBody(TypedDict):
@@ -662,6 +864,10 @@ class ValidationError(TypedDict):
     type: str
     input: NotRequired[Any]
     ctx: NotRequired[Mapping[str, Any]]
+
+
+class FieldSummarizeResponse(TypedDict):
+    summary: str
 
 
 class AnnotateSessionsRequestBody(TypedDict):
@@ -748,12 +954,28 @@ class CreateProjectResponseBody(TypedDict):
     data: Project
 
 
+class CreateSessionNoteRequestBody(TypedDict):
+    data: SessionNoteData
+
+
+class CreateSessionNoteResponseBody(TypedDict):
+    data: InsertedSessionAnnotation
+
+
 class CreateSpanNoteRequestBody(TypedDict):
     data: SpanNoteData
 
 
 class CreateSpanNoteResponseBody(TypedDict):
     data: InsertedSpanAnnotation
+
+
+class CreateTraceNoteRequestBody(TypedDict):
+    data: TraceNoteData
+
+
+class CreateTraceNoteResponseBody(TypedDict):
+    data: InsertedTraceAnnotation
 
 
 class CreateUserRequestBody(TypedDict):
@@ -767,6 +989,79 @@ class CreateUserResponseBody(TypedDict):
 
 class DeleteAnnotationConfigResponseBody(TypedDict):
     data: Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig]
+
+
+class DynamicToolApprovalRequestedPart(TypedDict):
+    type: Literal["dynamic-tool"]
+    toolName: str
+    toolCallId: str
+    input: Any
+    state: NotRequired[str]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class DynamicToolApprovalRespondedPart(TypedDict):
+    type: Literal["dynamic-tool"]
+    toolName: str
+    toolCallId: str
+    input: Any
+    state: NotRequired[str]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class DynamicToolInputAvailablePart(TypedDict):
+    type: Literal["dynamic-tool"]
+    toolName: str
+    toolCallId: str
+    input: Any
+    state: NotRequired[str]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class DynamicToolInputStreamingPart(TypedDict):
+    type: Literal["dynamic-tool"]
+    toolName: str
+    toolCallId: str
+    state: NotRequired[str]
+    input: NotRequired[Any]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class DynamicToolOutputAvailablePart(TypedDict):
+    type: Literal["dynamic-tool"]
+    toolName: str
+    toolCallId: str
+    input: Any
+    output: Any
+    state: NotRequired[str]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    preliminary: NotRequired[bool]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class DynamicToolOutputDeniedPart(TypedDict):
+    type: Literal["dynamic-tool"]
+    toolName: str
+    toolCallId: str
+    input: Any
+    state: NotRequired[str]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
+class DynamicToolOutputErrorPart(TypedDict):
+    type: Literal["dynamic-tool"]
+    toolName: str
+    toolCallId: str
+    input: Any
+    errorText: str
+    state: NotRequired[str]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
 
 
 class GetAnnotationConfigResponseBody(TypedDict):
@@ -827,9 +1122,15 @@ class PromptAnthropicInvocationParametersContent(TypedDict):
     temperature: NotRequired[float]
     top_p: NotRequired[float]
     stop_sequences: NotRequired[Sequence[str]]
+    output_config: NotRequired[PromptAnthropicOutputConfig]
     thinking: NotRequired[
-        Union[PromptAnthropicThinkingConfigDisabled, PromptAnthropicThinkingConfigEnabled]
+        Union[
+            PromptAnthropicThinkingConfigDisabled,
+            PromptAnthropicThinkingConfigEnabled,
+            PromptAnthropicThinkingConfigAdaptive,
+        ]
     ]
+    extra_body: NotRequired[Mapping[str, Any]]
 
 
 class PromptAwsInvocationParameters(TypedDict):
@@ -857,9 +1158,15 @@ class PromptFireworksInvocationParameters(TypedDict):
     fireworks: PromptFireworksInvocationParametersContent
 
 
-class PromptGoogleInvocationParameters(TypedDict):
-    type: Literal["google"]
-    google: PromptGoogleInvocationParametersContent
+class PromptGoogleInvocationParametersContent(TypedDict):
+    temperature: NotRequired[float]
+    max_output_tokens: NotRequired[int]
+    stop_sequences: NotRequired[Sequence[str]]
+    presence_penalty: NotRequired[float]
+    frequency_penalty: NotRequired[float]
+    top_p: NotRequired[float]
+    top_k: NotRequired[int]
+    thinking_config: NotRequired[PromptGoogleThinkingConfig]
 
 
 class PromptGroqInvocationParameters(TypedDict):
@@ -904,7 +1211,7 @@ class PromptToolFunction(TypedDict):
 
 class PromptTools(TypedDict):
     type: Literal["tools"]
-    tools: Sequence[PromptToolFunction]
+    tools: Sequence[Union[PromptToolFunction, PromptToolRaw]]
     tool_choice: NotRequired[
         Union[
             PromptToolChoiceNone,
@@ -932,6 +1239,9 @@ class SessionData(TypedDict):
     start_time: str
     end_time: str
     traces: Sequence[SessionTraceData]
+    token_count_prompt: NotRequired[int]
+    token_count_completion: NotRequired[int]
+    token_count_total: NotRequired[int]
 
 
 class Span(TypedDict):
@@ -953,6 +1263,16 @@ class SpansResponseBody(TypedDict):
     next_cursor: Optional[str]
 
 
+class ToolApprovalRequestedPart(TypedDict):
+    type: str
+    toolCallId: str
+    state: NotRequired[str]
+    input: NotRequired[Any]
+    providerExecuted: NotRequired[bool]
+    callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
+    approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
+
+
 class ToolCallContentPart(TypedDict):
     type: Literal["tool_call"]
     tool_call_id: str
@@ -965,7 +1285,41 @@ class TraceData(TypedDict):
     project_id: str
     start_time: str
     end_time: str
+    token_count_prompt: NotRequired[int]
+    token_count_completion: NotRequired[int]
+    token_count_total: NotRequired[int]
     spans: NotRequired[Sequence[TraceSpanData]]
+
+
+class UIMessage(TypedDict):
+    id: str
+    role: Literal["system", "user", "assistant"]
+    parts: Sequence[
+        Union[
+            TextUIPart,
+            ReasoningUIPart,
+            ToolInputStreamingPart,
+            ToolInputAvailablePart,
+            ToolOutputAvailablePart,
+            ToolOutputErrorPart,
+            ToolApprovalRequestedPart,
+            ToolApprovalRespondedPart,
+            ToolOutputDeniedPart,
+            DynamicToolInputStreamingPart,
+            DynamicToolInputAvailablePart,
+            DynamicToolOutputAvailablePart,
+            DynamicToolOutputErrorPart,
+            DynamicToolApprovalRequestedPart,
+            DynamicToolApprovalRespondedPart,
+            DynamicToolOutputDeniedPart,
+            SourceUrlUIPart,
+            SourceDocumentUIPart,
+            FileUIPart,
+            DataUIPart,
+            StepStartUIPart,
+        ]
+    ]
+    metadata: NotRequired[Any]
 
 
 class UpdateAnnotationConfigResponseBody(TypedDict):
@@ -974,6 +1328,33 @@ class UpdateAnnotationConfigResponseBody(TypedDict):
 
 class UpsertExperimentEvaluationResponseBody(TypedDict):
     data: UpsertExperimentEvaluationResponseBodyData
+
+
+class FieldRegenerateMessage(TypedDict):
+    id: str
+    messages: Sequence[UIMessage]
+    sessionId: str
+    trigger: NotRequired[str]
+    messageId: NotRequired[str]
+    contexts: NotRequired[
+        Sequence[Union[AppContext, ProjectContext, TraceContext, AgentSpanContext]]
+    ]
+    capabilities: NotRequired[AgentCapabilities]
+
+
+class FieldSubmitMessage(TypedDict):
+    id: str
+    messages: Sequence[UIMessage]
+    sessionId: str
+    trigger: NotRequired[str]
+    contexts: NotRequired[
+        Sequence[Union[AppContext, ProjectContext, TraceContext, AgentSpanContext]]
+    ]
+    capabilities: NotRequired[AgentCapabilities]
+
+
+class FieldSummarizeRequest(TypedDict):
+    messages: Sequence[UIMessage]
 
 
 class CreateSpansRequestBody(TypedDict):
@@ -997,6 +1378,11 @@ class GetTracesResponseBody(TypedDict):
 class PromptAnthropicInvocationParameters(TypedDict):
     type: Literal["anthropic"]
     anthropic: PromptAnthropicInvocationParametersContent
+
+
+class PromptGoogleInvocationParameters(TypedDict):
+    type: Literal["google"]
+    google: PromptGoogleInvocationParametersContent
 
 
 class PromptMessage(TypedDict):

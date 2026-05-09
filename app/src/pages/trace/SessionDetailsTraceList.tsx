@@ -4,21 +4,24 @@ import {
 } from "@arizeai/openinference-semantic-conventions";
 import { css } from "@emotion/react";
 import { isNumber, isString, throttle } from "lodash";
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { graphql, usePaginationFragment } from "react-relay";
+import type { PreloadedQuery } from "react-relay";
+import { graphql, usePaginationFragment, usePreloadedQuery } from "react-relay";
 import {
   Group,
   Panel,
   Separator,
   useDefaultLayout,
 } from "react-resizable-panels";
-import { useSearchParams } from "react-router";
+import type { To } from "react-router";
+import { useLocation, useSearchParams } from "react-router";
 
 import {
   Flex,
   Icon,
   Icons,
-  Link,
+  LinkButton,
   ListBox,
   ListBoxItem,
   Loading,
@@ -37,6 +40,7 @@ import { TraceTokenCosts } from "@phoenix/components/trace/TraceTokenCosts";
 import {
   SELECTED_SPAN_NODE_ID_PARAM,
   SELECTED_TRACE_ID_PARAM,
+  SESSION_VIEW_PARAM,
 } from "@phoenix/constants/searchParams";
 import { useTimeFormatters } from "@phoenix/hooks";
 import { useChatMessageStyles } from "@phoenix/hooks/useChatMessageStyles";
@@ -44,11 +48,25 @@ import type {
   SessionDetailsTraceList_traces$data,
   SessionDetailsTraceList_traces$key,
 } from "@phoenix/pages/trace/__generated__/SessionDetailsTraceList_traces.graphql";
+import type { SessionDetailsTraceListQuery } from "@phoenix/pages/trace/__generated__/SessionDetailsTraceListQuery.graphql";
+import type { SessionDetailsTraceListRefetchQuery } from "@phoenix/pages/trace/__generated__/SessionDetailsTraceListRefetchQuery.graphql";
 import { SESSION_DETAILS_PAGE_SIZE } from "@phoenix/pages/trace/constants";
 import { isStringKeyedObject } from "@phoenix/typeUtils";
 import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { EditSpanAnnotationsButton } from "./EditSpanAnnotationsButton";
+import { SessionViewTabs } from "./SessionViewTabs";
+import type { SessionView } from "./SessionViewTabs";
+
+export const sessionDetailsTraceListQuery = graphql`
+  query SessionDetailsTraceListQuery($id: ID!, $first: Int!) {
+    session: node(id: $id) {
+      ... on ProjectSession {
+        ...SessionDetailsTraceList_traces @arguments(first: $first)
+      }
+    }
+  }
+`;
 
 const getUserFromRootSpanAttributes = (attributes: string) => {
   const { json: parsedAttributes } = safelyParseJSON(attributes);
@@ -63,29 +81,77 @@ const getUserFromRootSpanAttributes = (attributes: string) => {
   return isString(userId) || isNumber(userId) ? userId : null;
 };
 
-function RootSpanMessage({
-  role,
-  value,
+const getSessionTraceUrl = ({
+  pathname,
+  search,
+  traceId,
+  spanNodeId,
 }: {
-  role: "HUMAN" | "AI";
+  pathname: string;
+  search: string;
+  traceId: string;
+  spanNodeId: string;
+}): To => {
+  const params = new URLSearchParams(search);
+  params.set(SESSION_VIEW_PARAM, "traces");
+  params.set(SELECTED_TRACE_ID_PARAM, traceId);
+  params.set(SELECTED_SPAN_NODE_ID_PARAM, spanNodeId);
+  return {
+    pathname,
+    search: params.toString(),
+  };
+};
+
+const messageWrapCSS = css`
+  width: fit-content;
+  max-width: 70%;
+`;
+
+type RootSpanMessageRole = "INPUT" | "OUTPUT";
+
+type RootSpanMessageProps = {
+  /**
+   * Optional content rendered opposite the message label in the header,
+   * typically a small action like the trace link.
+   */
+  extra?: ReactNode;
+  label?: string;
+  role: RootSpanMessageRole;
   value: unknown;
-}) {
-  const styles = useChatMessageStyles(role === "HUMAN" ? "user" : "assistant");
+};
+
+function RootSpanMessage({ extra, label, role, value }: RootSpanMessageProps) {
+  const isInput = role === "INPUT";
+  const styles = useChatMessageStyles(isInput ? "user" : "assistant");
+  const defaultLabel = isInput ? "INPUT" : "OUTPUT";
   return (
-    <View
-      alignSelf={role === "HUMAN" ? "start" : "end"}
-      borderRadius={"medium"}
-      borderColor="default"
-      borderWidth={"thin"}
-      padding="size-200"
-      maxWidth={"70%"}
-      {...styles}
+    <Flex
+      direction="column"
+      gap="size-50"
+      alignSelf={isInput ? "start" : "end"}
+      alignItems={isInput ? "start" : "end"}
+      css={messageWrapCSS}
     >
-      <Flex direction={"column"} gap={"size-50"}>
-        <Text color="text-700">{role}</Text>
-        <DynamicContent value={value} />
+      <Flex
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        width="100%"
+      >
+        <Text color="text-700">{label ?? defaultLabel}</Text>
+        {extra}
       </Flex>
-    </View>
+      <View
+        borderRadius={"medium"}
+        borderColor="default"
+        borderWidth={"thin"}
+        padding="size-200"
+        width="100%"
+        {...styles}
+      >
+        <DynamicContent value={value} />
+      </View>
+    </Flex>
   );
 }
 
@@ -99,96 +165,107 @@ type RootSpanProps = {
   rootSpan: SessionTraceRootSpan;
 };
 
-function RootSpanDetails({
-  traceId,
-  rootSpan,
-  index,
-}: RootSpanProps & { traceId: string; index: number }) {
+function RootSpanStartTime({ rootSpan }: RootSpanProps) {
   const { fullTimeFormatter } = useTimeFormatters();
-  const startDate = useMemo(() => {
-    return new Date(rootSpan.startTime);
-  }, [rootSpan.startTime]);
+  const startDate = new Date(rootSpan.startTime);
 
-  const user = useMemo(
-    () => getUserFromRootSpanAttributes(rootSpan.attributes),
-    [rootSpan.attributes]
-  );
   return (
-    <View height={"100%"}>
-      <Flex
-        direction={"column"}
-        justifyContent={"space-between"}
-        height={"100%"}
-      >
-        <Flex direction={"column"} gap="size-200">
-          <Flex direction={"row"} justifyContent={"space-between"}>
-            <Text>Trace #{index + 1}</Text>
-            <Link
-              to={`/projects/${rootSpan.project.id}/traces/${traceId}?${SELECTED_SPAN_NODE_ID_PARAM}=${rootSpan.id}`}
-            >
-              <Flex alignItems={"center"}>
-                View Trace
-                <Icon svg={<Icons.ArrowIosForwardOutline />} />
-              </Flex>
-            </Link>
-          </Flex>
-          <Flex direction={"row"} justifyContent={"space-between"}>
-            {user != null ? <Text color="text-700">user: {user}</Text> : null}
-            <Text color="text-700" flex={"end"} marginStart={"auto"}>
-              {fullTimeFormatter(startDate)}
-            </Text>
-          </Flex>
-          <Flex direction={"row"} gap={"size-100"}>
-            <SpanCumulativeTokenCount
-              tokenCountTotal={rootSpan.cumulativeTokenCountTotal || 0}
-              nodeId={rootSpan.id}
-            />
-            {rootSpan.trace.costSummary?.total?.cost != null && (
-              <TraceTokenCosts
-                totalCost={rootSpan.trace.costSummary.total.cost}
-                nodeId={rootSpan.trace.id}
-              />
-            )}
-            {rootSpan.latencyMs != null ? (
-              <LatencyText latencyMs={rootSpan.latencyMs} />
-            ) : (
-              "--"
-            )}
-          </Flex>
-        </Flex>
-        <Flex
-          direction={"row"}
-          justifyContent={"space-between"}
-          alignItems="end"
-        >
-          <Flex direction={"column"} gap={"size-100"} maxWidth={"50%"}>
-            <Text>Feedback</Text>
-            <Flex gap={"size-50"} direction={"column"}>
-              <AnnotationSummaryGroupTokens
-                span={rootSpan}
-                renderEmptyState={() => "--"}
-              />
-            </Flex>
-          </Flex>
-          <span>
-            <EditSpanAnnotationsButton
-              size="S"
-              spanNodeId={rootSpan.id}
-              projectId={rootSpan.project.id}
-              buttonText="Annotate"
-            />
-          </span>
-        </Flex>
-      </Flex>
-    </View>
+    <Text color="text-700" size="XS">
+      {fullTimeFormatter(startDate)}
+    </Text>
   );
 }
 
-function RootSpanInputOutput({ rootSpan }: RootSpanProps) {
+function RootSpanTraceLink({
+  traceId,
+  rootSpan,
+}: RootSpanProps & { traceId: string }) {
+  const location = useLocation();
+
   return (
-    <Flex direction={"column"} gap={"size-100"}>
-      <RootSpanMessage role={"HUMAN"} value={rootSpan.input?.value} />
-      <RootSpanMessage role={"AI"} value={rootSpan.output?.value} />
+    <LinkButton
+      size="S"
+      variant="quiet"
+      leadingVisual={<Icon svg={<Icons.Trace />} />}
+      to={getSessionTraceUrl({
+        pathname: location.pathname,
+        search: location.search,
+        traceId,
+        spanNodeId: rootSpan.id,
+      })}
+    >
+      Trace
+    </LinkButton>
+  );
+}
+
+function RootSpanOutputMetadata({ rootSpan }: RootSpanProps) {
+  return (
+    <Flex direction="column" gap="size-100">
+      <Flex
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        gap="size-200"
+        wrap
+      >
+        <Flex direction="row" alignItems="center" gap="size-100" wrap>
+          <SpanCumulativeTokenCount
+            tokenCountTotal={rootSpan.cumulativeTokenCountTotal || 0}
+            nodeId={rootSpan.id}
+          />
+          {rootSpan.trace.costSummary?.total?.cost != null && (
+            <TraceTokenCosts
+              totalCost={rootSpan.trace.costSummary.total.cost}
+              nodeId={rootSpan.trace.id}
+            />
+          )}
+          {rootSpan.latencyMs != null ? (
+            <LatencyText latencyMs={rootSpan.latencyMs} />
+          ) : null}
+        </Flex>
+        <span>
+          <EditSpanAnnotationsButton
+            size="S"
+            spanNodeId={rootSpan.id}
+            projectId={rootSpan.project.id}
+            buttonText="Annotate"
+          />
+        </span>
+      </Flex>
+      <AnnotationSummaryGroupTokens
+        span={rootSpan}
+        renderEmptyState={() => null}
+      />
+    </Flex>
+  );
+}
+
+function SessionTurnDetail({
+  traceId,
+  rootSpan,
+}: RootSpanProps & { traceId: string }) {
+  const user = getUserFromRootSpanAttributes(rootSpan.attributes);
+  const inputLabel = user != null ? `USER: ${user}` : "INPUT";
+
+  return (
+    <Flex direction="column" gap="size-200">
+      <Flex direction="column" gap="size-100" alignItems="start">
+        <RootSpanMessage
+          label={inputLabel}
+          role="INPUT"
+          value={rootSpan.input?.value}
+        />
+        <RootSpanStartTime rootSpan={rootSpan} />
+      </Flex>
+      <Flex direction="column" gap="size-100">
+        <RootSpanMessage
+          extra={<RootSpanTraceLink traceId={traceId} rootSpan={rootSpan} />}
+          role="OUTPUT"
+          value={rootSpan.output?.value}
+        />
+        <RootSpanOutputMetadata rootSpan={rootSpan} />
+      </Flex>
     </Flex>
   );
 }
@@ -200,6 +277,37 @@ type SessionTurnRow = {
 
 type IndexedSessionTurnRow = SessionTurnRow & { index: number };
 
+function RootSpanPreviewLine({
+  role,
+  value,
+}: {
+  role: RootSpanMessageRole;
+  value?: string | null;
+}) {
+  const isInput = role === "INPUT";
+  const styles = useChatMessageStyles(isInput ? "user" : "assistant");
+  if (!value) {
+    return null;
+  }
+  return (
+    <View
+      borderStartColor={styles.borderColor}
+      borderStartWidth="thick"
+      minWidth={0}
+      paddingStart="size-75"
+      width="100%"
+    >
+      <Flex direction="row" alignItems="center" gap="size-75" minWidth={0}>
+        <Truncate maxWidth="100%" title={value}>
+          <Text color="text-700" size="XS">
+            {value}
+          </Text>
+        </Truncate>
+      </Flex>
+    </View>
+  );
+}
+
 const turnListCSS = css`
   height: 100%;
   max-height: 100%;
@@ -207,7 +315,8 @@ const turnListCSS = css`
 
   .react-aria-ListBoxItem {
     margin: 0;
-    padding: var(--global-dimension-static-size-200);
+    padding: var(--global-dimension-static-size-150)
+      var(--global-dimension-static-size-200);
     border-radius: 0;
     border-left: 4px solid transparent;
     border-bottom: 1px solid var(--global-border-color-default);
@@ -262,32 +371,44 @@ function SessionTurnList({
         const turnLabel = `${paddedIndex} | ${row.rootSpan.name}`;
         return (
           <ListBoxItem id={row.traceId} textValue={turnLabel}>
-            <Flex direction="column" gap="size-100">
+            <Flex direction="column" gap="size-50">
               <Flex
                 direction="row"
-                justifyContent="space-between"
                 alignItems="center"
+                justifyContent="space-between"
                 gap="size-100"
               >
                 <Flex
                   direction="row"
-                  gap="size-50"
                   alignItems="center"
+                  gap="size-75"
                   flex={1}
                   minWidth={0}
                 >
                   <Text fontFamily="mono" color="text-500">
                     {paddedIndex}
                   </Text>
-                  <Flex flex={1} minWidth={0}>
-                    <Truncate maxWidth="100%" title={row.rootSpan.name}>
-                      <Text weight="heavy">{row.rootSpan.name}</Text>
-                    </Truncate>
-                  </Flex>
+                  <Truncate maxWidth="100%" title={row.rootSpan.name}>
+                    <Text weight="heavy" size="S">
+                      {row.rootSpan.name}
+                    </Text>
+                  </Truncate>
                 </Flex>
-                <Text color="text-700" size="XS">
-                  {fullTimeFormatter(new Date(row.rootSpan.startTime))}
-                </Text>
+                <Flex flexShrink={0}>
+                  <Text color="text-700" size="XS">
+                    {fullTimeFormatter(new Date(row.rootSpan.startTime))}
+                  </Text>
+                </Flex>
+              </Flex>
+              <Flex direction="column" gap="size-50" minWidth={0}>
+                <RootSpanPreviewLine
+                  role="INPUT"
+                  value={row.rootSpan.input?.truncatedValue}
+                />
+                <RootSpanPreviewLine
+                  role="OUTPUT"
+                  value={row.rootSpan.output?.truncatedValue}
+                />
               </Flex>
               <Flex direction="row" gap="size-100" alignItems="center" wrap>
                 <TokenCount size="S">
@@ -316,12 +437,35 @@ const turnDetailRowCSS = css`
   }
 `;
 
+const panelContentCSS = css`
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+`;
+
 export function SessionDetailsTraceList({
-  tracesRef,
+  queryRef,
+  sessionView,
+  onSessionViewChange,
+  traceCount,
 }: {
-  tracesRef: SessionDetailsTraceList_traces$key;
+  queryRef: PreloadedQuery<SessionDetailsTraceListQuery>;
+  sessionView: SessionView;
+  onSessionViewChange: (view: SessionView) => void;
+  traceCount: number;
 }) {
-  const { data, loadNext, isLoadingNext, hasNext } = usePaginationFragment(
+  const queryData = usePreloadedQuery<SessionDetailsTraceListQuery>(
+    sessionDetailsTraceListQuery,
+    queryRef
+  );
+  if (queryData.session == null) {
+    throw new Error("Session not found");
+  }
+  const { data, loadNext, isLoadingNext, hasNext } = usePaginationFragment<
+    SessionDetailsTraceListRefetchQuery,
+    SessionDetailsTraceList_traces$key
+  >(
     graphql`
       fragment SessionDetailsTraceList_traces on ProjectSession
       @refetchable(queryName: "SessionDetailsTraceListRefetchQuery")
@@ -329,6 +473,7 @@ export function SessionDetailsTraceList({
         first: { type: "Int", defaultValue: 50 }
         after: { type: "String", defaultValue: null }
       ) {
+        numTraces
         traces(first: $first, after: $after)
           @connection(key: "SessionDetailsTraceList_traces") {
           edges {
@@ -352,10 +497,12 @@ export function SessionDetailsTraceList({
                 }
                 input {
                   value
+                  truncatedValue
                   mimeType
                 }
                 output {
                   value
+                  truncatedValue
                   mimeType
                 }
                 cumulativeTokenCountTotal
@@ -369,7 +516,7 @@ export function SessionDetailsTraceList({
         }
       }
     `,
-    tracesRef
+    queryData.session
   );
 
   const sessionRootSpans = useMemo(() => {
@@ -405,9 +552,9 @@ export function SessionDetailsTraceList({
   const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
     id: "session-details-layout",
+    panelIds: ["session-turns", "session-turn-details"],
     storage: localStorage,
   });
-
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedTraceId = searchParams.get(SELECTED_TRACE_ID_PARAM);
 
@@ -441,23 +588,21 @@ export function SessionDetailsTraceList({
     }
   }, [selectedTraceId, sessionRootSpans]);
 
-  // Clear the selected trace id from the URL when leaving the session
-  // details view so it does not leak into other pages. `setSearchParams`
-  // from react-router is not referentially stable — stash the latest
-  // setter in a ref so this cleanup only runs on true unmount.
-  const setSearchParamsRef = useRef(setSearchParams);
-  setSearchParamsRef.current = setSearchParams;
-  useEffect(() => {
-    return () => {
-      setSearchParamsRef.current(
-        (params) => {
-          params.delete(SELECTED_TRACE_ID_PARAM);
-          return params;
-        },
-        { replace: true }
-      );
-    };
-  }, []);
+  const turnListPanel = (
+    <div
+      css={css`
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+      `}
+    >
+      <SessionTurnList
+        rows={sessionRootSpans}
+        selectedTraceId={selectedTraceId}
+        onTurnClick={handleTurnClick}
+      />
+    </div>
+  );
 
   return (
     <Group
@@ -470,11 +615,15 @@ export function SessionDetailsTraceList({
       `}
     >
       <Panel id="session-turns" defaultSize="20%" minSize="10%">
-        <SessionTurnList
-          rows={sessionRootSpans}
-          selectedTraceId={selectedTraceId}
-          onTurnClick={handleTurnClick}
-        />
+        <div css={panelContentCSS}>
+          <SessionViewTabs
+            sessionView={sessionView}
+            onSessionViewChange={onSessionViewChange}
+            traceCount={traceCount}
+          >
+            {turnListPanel}
+          </SessionViewTabs>
+        </div>
       </Panel>
       <Separator css={compactResizeHandleCSS} />
       <Panel id="session-turn-details">
@@ -487,7 +636,7 @@ export function SessionDetailsTraceList({
             debouncedFetchMoreOnBottomReached(e.target as HTMLDivElement)
           }
         >
-          {sessionRootSpans.map(({ traceId, rootSpan }, index) => (
+          {sessionRootSpans.map(({ traceId, rootSpan }) => (
             <div
               key={rootSpan.spanId}
               css={turnDetailRowCSS}
@@ -500,24 +649,14 @@ export function SessionDetailsTraceList({
                 }
               }}
             >
-              <View borderBottomColor="default" borderBottomWidth={"thin"}>
-                <Flex direction={"row"}>
-                  <View
-                    borderRightWidth={"thin"}
-                    borderEndColor="default"
-                    padding="size-200"
-                    flex={"1 1 auto"}
-                  >
-                    <RootSpanInputOutput rootSpan={rootSpan} />
-                  </View>
-                  <View width={350} padding="size-200" flex="none">
-                    <RootSpanDetails
-                      traceId={traceId}
-                      rootSpan={rootSpan}
-                      index={index}
-                    />
-                  </View>
-                </Flex>
+              <View
+                borderBottomColor="default"
+                borderBottomWidth="thin"
+                padding="size-200"
+              >
+                <View width="100%" maxWidth="size-8500" marginX="auto">
+                  <SessionTurnDetail traceId={traceId} rootSpan={rootSpan} />
+                </View>
               </View>
             </div>
           ))}
@@ -527,7 +666,9 @@ export function SessionDetailsTraceList({
               borderBottomWidth={"thin"}
               padding="size-200"
             >
-              <Loading />
+              <View width="100%" maxWidth="size-8500" marginX="auto">
+                <Loading />
+              </View>
             </View>
           )}
         </div>

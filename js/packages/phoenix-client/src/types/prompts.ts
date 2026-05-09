@@ -161,10 +161,23 @@ export type PromptChatMessagePart =
   | components["schemas"]["ToolCallContentPart"]
   | components["schemas"]["ToolResultContentPart"];
 
+export type PromptToolFunction = components["schemas"]["PromptToolFunction"];
+export type PromptToolRaw = components["schemas"]["PromptToolRaw"];
+
 /**
  * The Phoenix prompt tool type from the API.
  */
 export type PromptTool = components["schemas"]["PromptTools"]["tools"][number];
+
+export function isPromptToolRaw(tool: PromptTool): tool is PromptToolRaw {
+  return tool.type === "raw";
+}
+
+export function isPromptToolFunction(
+  tool: PromptTool
+): tool is PromptToolFunction {
+  return tool.type === "function";
+}
 
 /**
  * The Phoenix prompt tool choice type from the API.

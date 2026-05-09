@@ -130,8 +130,25 @@ const mockTraceWithAnnotations: Trace = {
   ],
 };
 
-const mockTraceWithSpanNotes: Trace = {
+const mockTraceWithNotes: Trace = {
   traceId: "noted123",
+  notes: [
+    {
+      id: "trace-note-1",
+      created_at: "2026-01-13T10:00:00.500Z",
+      updated_at: "2026-01-13T10:00:00.500Z",
+      source: "API",
+      user_id: null,
+      name: "note",
+      annotator_kind: "HUMAN",
+      identifier: "px-trace-note:1",
+      metadata: null,
+      trace_id: "noted123",
+      result: {
+        explanation: "Trace note line 1\nTrace note line 2",
+      },
+    },
+  ],
   spans: [
     {
       ...mockSpan1,
@@ -152,7 +169,7 @@ const mockTraceWithSpanNotes: Trace = {
           metadata: null,
           span_id: "span1",
           result: {
-            explanation: "Span note content",
+            explanation: "Span note line 1\nSpan note line 2",
           },
         },
       ],
@@ -247,14 +264,18 @@ describe("Output Formatting", () => {
       );
     });
 
-    it("should render span notes when present", () => {
+    it("should render trace and span notes when present", () => {
       const output = formatTraceOutput({
-        trace: mockTraceWithSpanNotes,
+        trace: mockTraceWithNotes,
         format: "pretty",
       });
 
+      expect(output).toContain("Trace Notes:");
+      expect(output).toContain("│  - Trace note line 1");
+      expect(output).toContain("│    Trace note line 2");
       expect(output).toContain("notes:");
-      expect(output).toContain("- Span note content");
+      expect(output).toContain("- Span note line 1");
+      expect(output).toContain("  Span note line 2");
     });
 
     it("should format array of traces", () => {
@@ -313,14 +334,26 @@ describe("Output Formatting", () => {
   });
 
   describe("span output - pretty", () => {
+    it("should include requested empty annotation and note columns", () => {
+      const output = formatSpansOutput({
+        spans: [mockSpan1],
+        format: "pretty",
+        includeAnnotations: true,
+        includeNotes: true,
+      });
+
+      expect(output).toContain("annotations");
+      expect(output).toContain("notes");
+    });
+
     it("should include a notes column when notes are present", () => {
       const output = formatSpansOutput({
-        spans: mockTraceWithSpanNotes.spans,
+        spans: mockTraceWithNotes.spans,
         format: "pretty",
       });
 
       expect(output).toContain("notes");
-      expect(output).toContain("Span note content");
+      expect(output).toContain("Span note line 1 Span note line 2");
     });
   });
 });

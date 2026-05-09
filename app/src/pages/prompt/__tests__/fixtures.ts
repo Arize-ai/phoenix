@@ -1,6 +1,11 @@
 import type { PromptCodeExportCard__main$data as PromptVersion } from "../__generated__/PromptCodeExportCard__main.graphql";
 
-export type FixturePromptVersion = Omit<PromptVersion, " $fragmentType">;
+export type FixturePromptVersion = Omit<
+  PromptVersion,
+  " $fragmentType" | "invocationParameters"
+> & {
+  invocationParameters: Record<string, unknown>;
+};
 
 export const BASE_MOCK_PROMPT_VERSION = {
   id: "fake-version-id",
@@ -40,7 +45,7 @@ export const TOOL_FUNCTION = {
 };
 
 export const TOOLS_FIXTURE = {
-  tools: [{ function: TOOL_FUNCTION }],
+  tools: [{ __typename: "PromptToolFunction", function: TOOL_FUNCTION }],
   toolChoice: null,
   disableParallelToolCalls: null,
 } satisfies NonNullable<FixturePromptVersion["tools"]>;

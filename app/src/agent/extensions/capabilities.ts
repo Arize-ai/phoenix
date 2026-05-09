@@ -1,14 +1,16 @@
 /**
  * Runtime capabilities are feature flags that shape what the agent can do and
- * how the UI should expose those controls. This module is the single source of
- * truth for capability metadata, default values, and model-facing summaries.
+ * how the UI should expose those controls. The server owns model-facing
+ * capability guidance; the frontend sends the current capability state.
  *
- * For frontend tool-extension workflow guidance, see
- * `.agents/skills/phoenix-pxi/rules/extending-frontend-tool-registry.md`.
+ * For tool-extension workflow guidance, see
+ * `.agents/skills/phoenix-pxi/resources/extending-tool-registry.md`.
  */
 export type AgentCapabilityKey =
   | "bash.retainInactiveSessions"
-  | "graphql.mutations";
+  | "graphql.mutations"
+  // TODO(chat-v2-migration): remove once /chat-v2 is the only endpoint.
+  | "chat.useV2Endpoint";
 
 /** Describes one capability and how it should appear across the app. */
 export type AgentCapabilityDefinition = {
@@ -17,11 +19,7 @@ export type AgentCapabilityDefinition = {
   description: string;
   defaultValue: boolean;
   scope: "global" | "session";
-  controlSurface?: "debug-menu";
-  systemPromptState?: {
-    enabled: string;
-    disabled: string;
-  };
+  controlSurface?: "experimental-settings";
 };
 
 /** Boolean runtime snapshot keyed by capability name. */
@@ -30,6 +28,8 @@ export type AgentCapabilities = Record<AgentCapabilityKey, boolean>;
 const DEFAULT_AGENT_CAPABILITIES: AgentCapabilities = {
   "bash.retainInactiveSessions": false,
   "graphql.mutations": false,
+  // TODO(chat-v2-migration): remove once /chat-v2 is the only endpoint.
+  "chat.useV2Endpoint": false,
 };
 
 /** Ordered capability catalog used by the UI and runtime. */
@@ -41,7 +41,7 @@ export const AGENT_CAPABILITY_DEFINITIONS: AgentCapabilityDefinition[] = [
       "Keeps browser bash runtimes alive when switching sessions instead of eagerly garbage-collecting them.",
     defaultValue: false,
     scope: "global",
-    controlSurface: "debug-menu",
+    controlSurface: "experimental-settings",
   },
   {
     key: "graphql.mutations",
@@ -50,13 +50,17 @@ export const AGENT_CAPABILITY_DEFINITIONS: AgentCapabilityDefinition[] = [
       "Allows the phoenix-gql bash command to execute GraphQL mutations in addition to queries.",
     defaultValue: false,
     scope: "global",
-    controlSurface: "debug-menu",
-    systemPromptState: {
-      enabled:
-        "GraphQL mutations are enabled for phoenix-gql. Mutation operations may be executed when they are necessary and appropriate.",
-      disabled:
-        "GraphQL mutations are disabled for phoenix-gql. Only read-only GraphQL queries are permitted.",
-    },
+    controlSurface: "experimental-settings",
+  },
+  // TODO(chat-v2-migration): remove this entire definition once /chat-v2 is the only endpoint.
+  {
+    key: "chat.useV2Endpoint",
+    label: "Use chat v2 endpoint",
+    description:
+      "Routes chat requests to the new pydantic-ai-backed /chat-v2 endpoint instead of /chat. Experimental — many features are not yet wired up.",
+    defaultValue: false,
+    scope: "global",
+    controlSurface: "experimental-settings",
   },
 ];
 
@@ -80,22 +84,6 @@ for (const key of Object.keys(
   }
 }
 
-function getSystemPromptLine({
-  definition,
-  capabilities,
-}: {
-  definition: AgentCapabilityDefinition;
-  capabilities: AgentCapabilities;
-}) {
-  if (!definition.systemPromptState) {
-    return null;
-  }
-
-  return capabilities[definition.key]
-    ? definition.systemPromptState.enabled
-    : definition.systemPromptState.disabled;
-}
-
 /** Returns the default capability state for a fresh agent store. */
 export function createDefaultAgentCapabilities(): AgentCapabilities {
   return { ...DEFAULT_AGENT_CAPABILITIES };
@@ -115,27 +103,4 @@ export function getAgentCapabilitiesForControlSurface(
   return AGENT_CAPABILITY_DEFINITIONS.filter(
     (definition) => definition.controlSurface === controlSurface
   );
-}
-
-/**
- * Serializes runtime capability state into plain language that can be appended
- * to the base system prompt for a chat turn.
- */
-export function buildAgentCapabilitySystemPrompt({
-  capabilities,
-}: {
-  capabilities: AgentCapabilities;
-}): string {
-  const capabilityLines = AGENT_CAPABILITY_DEFINITIONS.map((definition) =>
-    getSystemPromptLine({ definition, capabilities })
-  ).filter((line): line is string => line !== null);
-
-  if (capabilityLines.length === 0) {
-    return "";
-  }
-
-  return [
-    "Runtime capability state for this conversation:",
-    ...capabilityLines.map((line) => `- ${line}`),
-  ].join("\n");
 }

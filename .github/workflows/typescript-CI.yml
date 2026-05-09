@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - main
+      - version-*
   pull_request:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -28,6 +29,7 @@ jobs:
           filters: |
             app:
               - "app/**"
+              - "schemas/openapi.json"
               - ".oxlintrc.json"
               - ".oxfmtrc.jsonc"
               - ".nvmrc"
@@ -68,6 +70,11 @@ jobs:
         working-directory: ./app
         run: |
           pnpm run build:relay
+          git diff --exit-code
+      - name: OpenAPI Codegen
+        working-directory: ./app
+        run: |
+          pnpm run generate:openapi
           git diff --exit-code
       - name: Test
         working-directory: ./app

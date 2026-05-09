@@ -3,8 +3,10 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from secrets import token_hex
 from typing import Any
+from uuid import UUID
 
 import httpx
+from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -13,6 +15,8 @@ from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project as ProjectNodeType
 from phoenix.server.api.types.ProjectSession import ProjectSession as ProjectSessionNodeType
 from phoenix.server.api.types.Trace import Trace as TraceNodeType
+from phoenix.server.dml_event import ProjectSessionAnnotationInsertEvent
+from phoenix.server.dml_event_handler import DmlEventHandler
 from phoenix.server.types import DbSessionFactory
 
 
@@ -248,6 +252,192 @@ class TestDeleteSessions:
         assert response.status_code == 422
 
 
+class TestAnnotateSessions:
+    async def test_rest_session_annotation_sync_returns_global_ids_and_emits_dml_event(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+        monkeypatch: Any,
+    ) -> None:
+        _, session_model, _ = await _insert_session_with_traces(db)
+        events: list[Any] = []
+        original_put = DmlEventHandler.put
+
+        def spy_put(self: DmlEventHandler, event: Any) -> None:
+            events.append(event)
+            original_put(self, event)
+
+        monkeypatch.setattr(DmlEventHandler, "put", spy_put)
+
+        request_body = {
+            "data": [
+                {
+                    "session_id": session_model.session_id,
+                    "name": "reviewer",
+                    "annotator_kind": "HUMAN",
+                    "result": {"label": "pass"},
+                    "metadata": {},
+                    "identifier": "identifier-name",
+                }
+            ]
+        }
+        response = await httpx_client.post("v1/session_annotations?sync=true", json=request_body)
+
+        assert response.status_code == 200
+        annotation_id = response.json()["data"][0]["id"]
+        rowid = from_global_id_with_expected_type(
+            GlobalID.from_id(annotation_id), "ProjectSessionAnnotation"
+        )
+        dml_events = [
+            event for event in events if isinstance(event, ProjectSessionAnnotationInsertEvent)
+        ]
+        assert dml_events == [ProjectSessionAnnotationInsertEvent((rowid,))]
+
+        async with db() as session:
+            orm_annotation = await session.scalar(
+                select(models.ProjectSessionAnnotation).where(
+                    models.ProjectSessionAnnotation.id == rowid,
+                    models.ProjectSessionAnnotation.name == "reviewer",
+                )
+            )
+
+        assert orm_annotation is not None
+        assert orm_annotation.project_session_id == session_model.id
+        assert orm_annotation.label == "pass"
+
+    async def test_rest_session_annotation_rejects_note_name(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        _, session_model, _ = await _insert_session_with_traces(db)
+
+        request_body = {
+            "data": [
+                {
+                    "session_id": session_model.session_id,
+                    "name": "note",
+                    "annotator_kind": "HUMAN",
+                    "result": {"explanation": "This should use the notes endpoint"},
+                }
+            ]
+        }
+        response = await httpx_client.post("v1/session_annotations?sync=true", json=request_body)
+
+        assert response.status_code == 400
+        assert (
+            "The name 'note' is reserved for session notes. Use POST /v1/session_notes instead."
+            in response.text
+        )
+
+
+class TestCreateSessionNote:
+    async def test_rest_create_session_note(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        _, session_model, _ = await _insert_session_with_traces(db)
+        note_text = "Review complete"
+
+        response = await httpx_client.post(
+            "v1/session_notes",
+            json={"data": {"session_id": session_model.session_id, "note": note_text}},
+        )
+
+        assert response.status_code == 200
+        annotation_id = response.json()["data"]["id"]
+        rowid = from_global_id_with_expected_type(
+            GlobalID.from_id(annotation_id), "ProjectSessionAnnotation"
+        )
+
+        async with db() as session:
+            orm_annotation = await session.scalar(
+                select(models.ProjectSessionAnnotation).where(
+                    models.ProjectSessionAnnotation.id == rowid,
+                    models.ProjectSessionAnnotation.name == "note",
+                    models.ProjectSessionAnnotation.explanation == note_text,
+                )
+            )
+
+        assert orm_annotation is not None
+        assert orm_annotation.project_session_id == session_model.id
+        assert orm_annotation.name == "note"
+        assert orm_annotation.label is None
+        assert orm_annotation.score is None
+        assert orm_annotation.explanation == note_text
+        assert orm_annotation.annotator_kind == "HUMAN"
+        assert orm_annotation.metadata_ == {}
+        assert orm_annotation.source == "API"
+        assert orm_annotation.identifier.startswith("px-session-note:")
+        assert UUID(orm_annotation.identifier.removeprefix("px-session-note:")).version == 4
+
+    async def test_rest_create_session_note_not_found(
+        self,
+        httpx_client: httpx.AsyncClient,
+    ) -> None:
+        missing_session_id = token_hex(16)
+
+        response = await httpx_client.post(
+            "v1/session_notes",
+            json={"data": {"session_id": missing_session_id, "note": "This should fail"}},
+        )
+
+        assert response.status_code == 404
+        assert f"Session with session_id {missing_session_id} not found" in response.text
+
+    async def test_rest_create_multiple_session_notes(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        _, session_model, _ = await _insert_session_with_traces(db)
+        note_texts = ["first note", "second note", "third note"]
+
+        for note_text in note_texts:
+            response = await httpx_client.post(
+                "v1/session_notes",
+                json={"data": {"session_id": session_model.session_id, "note": note_text}},
+            )
+            assert response.status_code == 200
+
+        async with db() as session:
+            annotations = list(
+                (
+                    await session.scalars(
+                        select(models.ProjectSessionAnnotation).where(
+                            models.ProjectSessionAnnotation.project_session_id == session_model.id,
+                            models.ProjectSessionAnnotation.name == "note",
+                        )
+                    )
+                ).all()
+            )
+
+        assert len(annotations) == 3
+        assert {annotation.explanation for annotation in annotations} == set(note_texts)
+        identifiers = [annotation.identifier for annotation in annotations]
+        assert len(set(identifiers)) == 3
+        assert all(identifier.startswith("px-session-note:") for identifier in identifiers)
+        assert all(
+            UUID(identifier.removeprefix("px-session-note:")).version == 4
+            for identifier in identifiers
+        )
+
+    async def test_rest_create_session_note_blank_text_rejected(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        _, session_model, _ = await _insert_session_with_traces(db)
+
+        response = await httpx_client.post(
+            "v1/session_notes",
+            json={"data": {"session_id": session_model.session_id, "note": "   "}},
+        )
+
+        assert response.status_code == 422
+
+
 class TestListProjectSessions:
     async def test_list_sessions_for_project_by_name(
         self,
@@ -399,6 +589,23 @@ class TestListProjectSessions:
         assert len(response_b.json()["data"]) == 3
 
 
+class TestSessionTokenCounts:
+    async def test_get_session_token_counts_single_trace(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        project, session_model, trace = await _insert_session_with_token_spans(
+            db, prompt=10, completion=20
+        )
+        response = await httpx_client.get(f"v1/sessions/{session_model.session_id}")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["token_count_prompt"] == 10
+        assert data["token_count_completion"] == 20
+        assert data["token_count_total"] == 30
+
+
 def _assert_session_data(
     data: dict[str, Any],
     project: models.Project,
@@ -460,6 +667,54 @@ async def _insert_session_with_traces(
         await session.flush()
 
     return project, project_session, traces
+
+
+async def _insert_session_with_token_spans(
+    db: DbSessionFactory,
+    prompt: int = 10,
+    completion: int = 20,
+) -> tuple[models.Project, models.ProjectSession, models.Trace]:
+    async with db() as session:
+        project = models.Project(name=token_hex(16))
+        session.add(project)
+        await session.flush()
+        now = datetime.now(timezone.utc)
+        project_session = models.ProjectSession(
+            session_id=token_hex(16),
+            project_id=project.id,
+            start_time=now,
+            end_time=now,
+        )
+        session.add(project_session)
+        await session.flush()
+        trace = models.Trace(
+            project_rowid=project.id,
+            project_session_rowid=project_session.id,
+            trace_id=token_hex(16),
+            start_time=now,
+            end_time=now,
+        )
+        session.add(trace)
+        await session.flush()
+        session.add(
+            models.Span(
+                name=token_hex(4),
+                span_id=token_hex(8),
+                parent_id=None,
+                span_kind="LLM",
+                start_time=now,
+                end_time=now,
+                status_code="OK",
+                status_message="",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=prompt,
+                cumulative_llm_token_count_completion=completion,
+                attributes={},
+                trace_rowid=trace.id,
+            )
+        )
+        await session.flush()
+    return project, project_session, trace
 
 
 async def _insert_project_with_sessions(

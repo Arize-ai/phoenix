@@ -11,14 +11,12 @@ import {
 } from "react";
 import type { Control, UseFormGetValues, UseFormReset } from "react-hook-form";
 import { Controller, useForm, useWatch } from "react-hook-form";
-import { fetchQuery, graphql, useRelayEnvironment } from "react-relay";
+import { graphql, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
 import {
   Alert,
   Button,
-  CredentialField,
-  CredentialInput,
   FieldError,
   Flex,
   Form,
@@ -27,6 +25,7 @@ import {
   ListBox,
   Popover,
   ProgressCircle,
+  RedactedCredentialField,
   Select,
   SelectChevronUpDownIcon,
   SelectItem,
@@ -51,7 +50,7 @@ import {
 } from "@phoenix/constants/generativeConstants";
 import { httpHeadersJSONSchema } from "@phoenix/schemas/httpHeadersSchema";
 
-import type { CustomProviderFormTestCredentialsQuery } from "./__generated__/CustomProviderFormTestCredentialsQuery.graphql";
+import type { CustomProviderFormTestCredentialsMutation } from "./__generated__/CustomProviderFormTestCredentialsMutation.graphql";
 import { providerFormSchema } from "./customProviderFormSchema";
 import {
   buildClientConfig,
@@ -220,17 +219,21 @@ function OpenAIFields({
         name="openai_api_key"
         control={control}
         rules={{ required: "API Key is required" }}
-        render={({ field, fieldState: { invalid, error } }) => (
-          <CredentialField
+        render={({
+          field: { name, value, onChange, onBlur },
+          fieldState: { error },
+        }) => (
+          <RedactedCredentialField
+            label="API Key"
+            placeholder="sk-..."
             isRequired
-            isInvalid={invalid}
-            {...field}
             isDisabled={isSubmitting}
-          >
-            <Label>API Key</Label>
-            <CredentialInput placeholder="sk-..." />
-            {error && <FieldError>{error.message}</FieldError>}
-          </CredentialField>
+            name={name}
+            value={value}
+            onChange={onChange}
+            onBlur={onBlur}
+            errorMessage={error?.message}
+          />
         )}
       />
       <Controller
@@ -416,17 +419,20 @@ function AzureOpenAIFields({
           name="azure_api_key"
           control={control}
           rules={{ required: "API Key is required" }}
-          render={({ field, fieldState: { invalid, error } }) => (
-            <CredentialField
+          render={({
+            field: { name, value, onChange, onBlur },
+            fieldState: { error },
+          }) => (
+            <RedactedCredentialField
+              label="API Key"
               isRequired
-              isInvalid={invalid}
-              {...field}
               isDisabled={isSubmitting}
-            >
-              <Label>API Key</Label>
-              <CredentialInput />
-              {error && <FieldError>{error.message}</FieldError>}
-            </CredentialField>
+              name={name}
+              value={value}
+              onChange={onChange}
+              onBlur={onBlur}
+              errorMessage={error?.message}
+            />
           )}
         />
       )}
@@ -470,17 +476,20 @@ function AzureOpenAIFields({
             name="azure_client_secret"
             control={control}
             rules={{ required: "Client Secret is required" }}
-            render={({ field, fieldState: { invalid, error } }) => (
-              <CredentialField
+            render={({
+              field: { name, value, onChange, onBlur },
+              fieldState: { error },
+            }) => (
+              <RedactedCredentialField
+                label="Client Secret"
                 isRequired
-                isInvalid={invalid}
-                {...field}
                 isDisabled={isSubmitting}
-              >
-                <Label>Client Secret</Label>
-                <CredentialInput />
-                {error && <FieldError>{error.message}</FieldError>}
-              </CredentialField>
+                name={name}
+                value={value}
+                onChange={onChange}
+                onBlur={onBlur}
+                errorMessage={error?.message}
+              />
             )}
           />
           <Controller
@@ -546,17 +555,21 @@ function AnthropicFields({
         name="anthropic_api_key"
         control={control}
         rules={{ required: "API Key is required" }}
-        render={({ field, fieldState: { invalid, error } }) => (
-          <CredentialField
+        render={({
+          field: { name, value, onChange, onBlur },
+          fieldState: { error },
+        }) => (
+          <RedactedCredentialField
+            label="API Key"
+            placeholder="sk-ant-..."
             isRequired
-            isInvalid={invalid}
-            {...field}
             isDisabled={isSubmitting}
-          >
-            <Label>API Key</Label>
-            <CredentialInput placeholder="sk-ant-..." />
-            {error && <FieldError>{error.message}</FieldError>}
-          </CredentialField>
+            name={name}
+            value={value}
+            onChange={onChange}
+            onBlur={onBlur}
+            errorMessage={error?.message}
+          />
         )}
       />
       <Controller
@@ -671,49 +684,58 @@ function AWSFields({
             name="aws_access_key_id"
             control={control}
             rules={{ required: "Access Key ID is required" }}
-            render={({ field, fieldState: { invalid, error } }) => (
-              <CredentialField
+            render={({
+              field: { name, value, onChange, onBlur },
+              fieldState: { error },
+            }) => (
+              <RedactedCredentialField
+                label="Access Key ID"
                 isRequired
-                isInvalid={invalid}
-                {...field}
                 isDisabled={isSubmitting}
-              >
-                <Label>Access Key ID</Label>
-                <CredentialInput />
-                {error && <FieldError>{error.message}</FieldError>}
-              </CredentialField>
+                name={name}
+                value={value}
+                onChange={onChange}
+                onBlur={onBlur}
+                errorMessage={error?.message}
+              />
             )}
           />
           <Controller
             name="aws_secret_access_key"
             control={control}
             rules={{ required: "Secret Access Key is required" }}
-            render={({ field, fieldState: { invalid, error } }) => (
-              <CredentialField
+            render={({
+              field: { name, value, onChange, onBlur },
+              fieldState: { error },
+            }) => (
+              <RedactedCredentialField
+                label="Secret Access Key"
                 isRequired
-                isInvalid={invalid}
-                {...field}
                 isDisabled={isSubmitting}
-              >
-                <Label>Secret Access Key</Label>
-                <CredentialInput />
-                {error && <FieldError>{error.message}</FieldError>}
-              </CredentialField>
+                name={name}
+                value={value}
+                onChange={onChange}
+                onBlur={onBlur}
+                errorMessage={error?.message}
+              />
             )}
           />
           <Controller
             name="aws_session_token"
             control={control}
-            render={({ field, fieldState: { invalid, error } }) => (
-              <CredentialField
-                isInvalid={invalid}
-                {...field}
+            render={({
+              field: { name, value, onChange, onBlur },
+              fieldState: { error },
+            }) => (
+              <RedactedCredentialField
+                label="Session Token"
                 isDisabled={isSubmitting}
-              >
-                <Label>Session Token</Label>
-                <CredentialInput />
-                {error && <FieldError>{error.message}</FieldError>}
-              </CredentialField>
+                name={name}
+                value={value}
+                onChange={onChange}
+                onBlur={onBlur}
+                errorMessage={error?.message}
+              />
             )}
           />
         </>
@@ -752,17 +774,21 @@ function GoogleFields({
         name="google_api_key"
         control={control}
         rules={{ required: "API Key is required" }}
-        render={({ field, fieldState: { invalid, error } }) => (
-          <CredentialField
+        render={({
+          field: { name, value, onChange, onBlur },
+          fieldState: { error },
+        }) => (
+          <RedactedCredentialField
+            label="API Key"
+            placeholder="AIza..."
             isRequired
-            isInvalid={invalid}
-            {...field}
             isDisabled={isSubmitting}
-          >
-            <Label>API Key</Label>
-            <CredentialInput placeholder="AIza..." />
-            {error && <FieldError>{error.message}</FieldError>}
-          </CredentialField>
+            name={name}
+            value={value}
+            onChange={onChange}
+            onBlur={onBlur}
+            errorMessage={error?.message}
+          />
         )}
       />
       <Controller
@@ -961,7 +987,7 @@ export const ProviderForm = ({
   } = useForm<ProviderFormData>({
     defaultValues,
     resolver: zodResolver(providerFormSchema),
-    mode: "onBlur", // Validate on blur for better UX
+    mode: "onChange",
   });
 
   useEffect(() => {
@@ -1071,8 +1097,8 @@ export const ProviderForm = ({
   );
 };
 
-const testCredentialsQuery = graphql`
-  query CustomProviderFormTestCredentialsQuery(
+const testCredentialsMutation = graphql`
+  mutation CustomProviderFormTestCredentialsMutation(
     $input: GenerativeModelCustomerProviderConfigInput!
   ) {
     testGenerativeModelCustomProviderCredentials(input: $input) {
@@ -1224,7 +1250,10 @@ function TestConnectionButton({
   getValues: UseFormGetValues<ProviderFormData>;
   sdk: GenerativeModelSDK;
 }) {
-  const environment = useRelayEnvironment();
+  const [commitTestCredentials] =
+    useMutation<CustomProviderFormTestCredentialsMutation>(
+      testCredentialsMutation
+    );
   const [testConnectionState, dispatchTestConnectionState] = useReducer(
     testConnectionReducer,
     INITIAL_TEST_CONNECTION_STATE
@@ -1288,11 +1317,15 @@ function TestConnectionButton({
     try {
       const formValues = getValues();
       const clientConfig = buildClientConfig(formValues);
-      const result = await fetchQuery<CustomProviderFormTestCredentialsQuery>(
-        environment,
-        testCredentialsQuery,
-        { input: clientConfig }
-      ).toPromise();
+      const result = await new Promise<
+        CustomProviderFormTestCredentialsMutation["response"] | null
+      >((resolve, reject) => {
+        commitTestCredentials({
+          variables: { input: clientConfig },
+          onCompleted: (response) => resolve(response),
+          onError: (error) => reject(error),
+        });
+      });
 
       // Ignore result if form changed during request
       if (shouldIgnoreResultRef.current) {
@@ -1348,7 +1381,7 @@ function TestConnectionButton({
     } finally {
       dispatchTestConnectionState({ type: "complete" });
     }
-  }, [canTest, environment, getValues]);
+  }, [canTest, commitTestCredentials, getValues]);
 
   const hasResult = testStatus !== "idle" && testStatus !== "testing";
 

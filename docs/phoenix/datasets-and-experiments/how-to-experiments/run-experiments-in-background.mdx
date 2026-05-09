@@ -1,0 +1,76 @@
+---
+title: "Run Experiments in the Background"
+description: "Start experiments from the Playground that keep running after you close the browser, survive server restarts, and can be stopped or resumed at any time."
+---
+
+<Info>
+background experiments are available in `arize-phoenix` [14.0.0](https://github.com/Arize-ai/phoenix/releases/tag/arize-phoenix-v14.0.0)+.
+</Info>
+
+Experiments that iterate over large datasets or call slow models can take a while. Tying them to a browser tab is fragile — close the laptop, lose the work. When you run an experiment from the Phoenix Playground, Phoenix executes it on the server as a **background job**, so you can close the tab, navigate away, or even restart the server and the experiment keeps going until every example has been evaluated.
+
+This page walks through starting, monitoring, stopping, and resuming these background jobs from the UI, and how to query their state via the API.
+
+## How Background Jobs Work
+
+Each experiment started from the Playground is backed by an **experiment job** on the server. The job:
+
+* Runs tasks across your dataset in batches, respecting provider rate limits.
+* Makes results visible progressively — any browser tab viewing the experiment polls the server, so progress appears without a manual refresh.
+* Continues running after the browser disconnects.
+* Is automatically resumed by the server after a restart or crash, so no runs are lost.
+
+Every job has a lifecycle status, surfaced as a badge in the experiments table:
+
+| Status | Meaning |
+| :----- | :------ |
+| `RUNNING` | The job is currently executing tasks or evaluations. |
+| `COMPLETED` | All tasks and evaluations finished successfully. |
+| `STOPPED` | The job was paused — either by user action, or by a connection drop for an ephemeral run. Can be resumed. |
+| `ERROR` | The job was halted by the server after repeated failures from the LLM provider. Can be resumed once the issue is addressed. |
+
+## Starting a Background Experiment
+
+From the Playground, configure your prompt, model, and dataset as usual (see [Run Experiments](/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments)) and click **Run**. The experiment immediately appears in the experiments table on the dataset page with a status badge reflecting its current job state.
+
+## Monitoring Running Experiments
+
+<Frame>
+  <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/images/phoenix-docs-images/experiments-background-jobs-table.png" alt="Experiments table with job status badges (completed, stopped, error, N/A) and job progress columns"/>
+</Frame>
+
+Open the experiments table for your dataset to see everything that's in flight. Relevant columns:
+
+* **Job status** — Running, Completed, Stopped, or Error.
+* **Job progress** — number of completed runs out of the total expected.
+* **Error rate** — percentage of runs that errored out.
+
+The table polls for updates while any experiment is running, so you don't need to refresh the page. To see the full error log for a single experiment, open its action menu and choose **View details** — the slideover lists every error the job has recorded, with timestamps and the task or evaluator the error came from.
+
+## Stopping and Resuming
+
+Stop and Resume live on the three-dot action menu next to each experiment in the experiments table. While an experiment is still running in the Playground itself, the **Run** button also acts as a Stop button — clicking it stops the job and cancels the in-browser run.
+
+From the action menu on an experiment row:
+
+* **Stop** — pauses the job. In-flight LLM calls are allowed to finish; no new work is dispatched. Only appears while status is `RUNNING`.
+* **Resume** — restarts a stopped or errored job. Phoenix re-queries the database for incomplete task runs and missing evaluations, so only outstanding work is executed. Already-completed runs are not re-run. Appears for any non-running job.
+
+Resume is also useful when you want to:
+
+* Attach a new dataset evaluator and score existing runs.
+* Re-run failed tasks after a transient provider outage.
+
+## The *Record* Toggle
+
+When *Record* is off, the experiment is ephemeral: it does not appear in the experiments list, and its database records are deleted after a set period.
+
+## Leaving the Playground Mid-Experiment
+
+With *Record* on, you can leave the Playground while an experiment is still running, and Phoenix will continue it in the background. With *Record* off, leaving stops the experiment.
+
+## Automatic Recovery
+
+If the Phoenix server restarts — or a replica crashes in a multi-replica deployment — any experiments that were running are automatically picked back up within a few minutes. No manual action is required.
+
+Recovery re-queries the database for incomplete runs and missing evaluations, so the experiment continues exactly where it left off.

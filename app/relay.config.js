@@ -12,6 +12,7 @@ module.exports = {
     Identifier: "string",
     CronExpression: "string",
     SecretString: "string",
+    RedactedString: "string",
   },
   typescriptExcludeUndefinedFromNullableUnion: true,
 };

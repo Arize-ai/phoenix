@@ -9,10 +9,11 @@ import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
+import { getActiveSpecsForPlayground } from "@phoenix/pages/playground/invocationParameterSpecs";
 import {
   areInvocationParamsEqual,
-  constrainInvocationParameterInputsToDefinition,
-  mergeInvocationParametersWithDefaults,
+  constrainInvocationParameterInputsToSpecs,
+  mergeInvocationParametersWithSpecDefaults,
 } from "@phoenix/pages/playground/invocationParameterUtils";
 import type { PartialOutputToolCall } from "@phoenix/pages/playground/PlaygroundToolCall";
 
@@ -128,7 +129,6 @@ export const DEFAULT_INSTANCE_PARAMS = () =>
       provider: DEFAULT_MODEL_PROVIDER,
       modelName: DEFAULT_MODEL_NAME,
       invocationParameters: [],
-      supportedInvocationParameters: [],
     },
     tools: [],
     // Default to auto tool choice as you are probably testing the LLM for it's ability to pick
@@ -378,9 +378,8 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         { type: "addInstance" }
       );
     },
-    updateModelSupportedInvocationParameters: ({
+    syncInvocationParametersWithSpecs: ({
       instanceId,
-      supportedInvocationParameters,
       modelConfigByProvider,
     }) => {
       const instances = get().instances;
@@ -388,26 +387,18 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         {
           instances: instances.map((instance) => {
             if (instance.id === instanceId) {
-              // if we have top level model config for the provider, merge it in
-              // this allows us to populate default values for baseUrl, endpoint, and region
-              // when the user has saved an azure prompt and we load it back in
               const { baseUrl, endpoint, region } =
                 modelConfigByProvider[instance.model.provider] ?? {};
-
-              // try to port dirty invocation parameters to the new supported invocation parameters
-              // ensure that the invocation parameters are only the ones that are supported by the model
-              const dirtyInvocationParameters =
-                instance.model.invocationParameters.filter((p) => p.dirty);
+              const specs = getActiveSpecsForPlayground(instance.model);
               const filteredInvocationParameters =
-                constrainInvocationParameterInputsToDefinition(
-                  dirtyInvocationParameters,
-                  supportedInvocationParameters
+                constrainInvocationParameterInputsToSpecs(
+                  instance.model.invocationParameters,
+                  specs
                 );
-              // merge the current invocation parameters with the defaults defined in supportedInvocationParameters
               const finalInvocationParameters =
-                mergeInvocationParametersWithDefaults(
+                mergeInvocationParametersWithSpecDefaults(
                   filteredInvocationParameters,
-                  supportedInvocationParameters
+                  specs
                 );
 
               return {
@@ -417,9 +408,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                   baseUrl: instance.model.baseUrl ?? baseUrl,
                   endpoint: instance.model.endpoint ?? endpoint,
                   region: instance.model.region ?? region,
-                  supportedInvocationParameters,
                   invocationParameters: finalInvocationParameters,
-                  // responseFormat lives on model directly — preserved by spread
                 },
               };
             }
@@ -427,7 +416,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           }),
         },
         false,
-        { type: "updateModelSupportedInvocationParameters" }
+        { type: "syncInvocationParametersWithSpecs" }
       );
     },
     updateProvider: ({ instanceId, provider, modelConfigByProvider }) => {
@@ -441,6 +430,19 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       }
 
       const savedProviderConfig = modelConfigByProvider[provider];
+      const functionTools = instance.tools.filter(
+        (tool) => tool.kind === "function"
+      );
+      const functionToolNames = new Set(
+        functionTools.map((tool) => tool.definition.name)
+      );
+      const toolChoice =
+        functionTools.length === 0
+          ? undefined
+          : instance.toolChoice?.type === "SPECIFIC_FUNCTION" &&
+              !functionToolNames.has(instance.toolChoice.functionName ?? "")
+            ? { type: "ZERO_OR_MORE" as const }
+            : (instance.toolChoice ?? undefined);
 
       // Set default baseUrl for OLLAMA if no saved config exists
       const getDefaultBaseUrl = (provider: ModelProvider) => {
@@ -486,8 +488,8 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
 
           return finalModel;
         })(),
-        toolChoice: instance.toolChoice ?? undefined,
-        tools: instance.tools,
+        toolChoice,
+        tools: functionTools,
       };
       const messageMapPatch: Record<number, ChatMessage> = {};
       if (instance.template.__type === "chat") {
@@ -534,6 +536,24 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       if (!instance) {
         return;
       }
+      const shouldDropRawTools =
+        patch.openaiApiType !== undefined &&
+        patch.openaiApiType !== instance.model.openaiApiType;
+      const tools = shouldDropRawTools
+        ? instance.tools.filter((tool) => tool.kind === "function")
+        : instance.tools;
+      const functionToolNames = new Set(
+        tools
+          .filter((tool) => tool.kind === "function")
+          .map((tool) => tool.definition.name)
+      );
+      const toolChoice =
+        tools.length === 0
+          ? undefined
+          : instance.toolChoice?.type === "SPECIFIC_FUNCTION" &&
+              !functionToolNames.has(instance.toolChoice.functionName ?? "")
+            ? { type: "ZERO_OR_MORE" as const }
+            : instance.toolChoice;
       set(
         {
           dirtyInstances: {
@@ -544,6 +564,8 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             if (instance.id === instanceId) {
               return {
                 ...instance,
+                tools,
+                toolChoice,
                 model: {
                   ...instance.model,
                   ...patch,

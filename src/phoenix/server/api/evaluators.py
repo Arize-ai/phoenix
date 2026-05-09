@@ -36,7 +36,6 @@ from phoenix.db.types.prompts import (
     PromptTools,
     RoleConversion,
     TextContentPart,
-    get_raw_invocation_parameters,
 )
 from phoenix.server.api.exceptions import BadRequest, NotFound
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
@@ -336,24 +335,13 @@ class LLMEvaluator(BaseEvaluator):
                     )
                     prompt_span.set_status(Status(StatusCode.OK))
 
-                invocation_parameters = get_raw_invocation_parameters(self._invocation_parameters)
-                # Only pass params the client supports (e.g. Responses API has no temperature)
-                supported_names = {
-                    p.invocation_name
-                    for p in self._llm_client.__class__.supported_invocation_parameters()
-                }
-                invocation_parameters = {
-                    k: v
-                    for k, v in invocation_parameters.items()
-                    if k in supported_names and v is not None
-                }
                 tool_call_by_id: dict[ToolCallId, ToolCall] = {}
 
                 async for chunk in self._llm_client.chat_completion_create(
                     messages=messages,
                     tools=self._tools,
                     tracer=tracer_,
-                    invocation_parameters=invocation_parameters,
+                    invocation_parameters=self._invocation_parameters,
                     stream_model_output=False,
                 ):
                     if isinstance(chunk, ToolCallChunk):

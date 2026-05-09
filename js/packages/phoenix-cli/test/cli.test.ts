@@ -54,7 +54,7 @@ describe("Phoenix CLI", () => {
 
     expect(traceCommand).toBeDefined();
     expect(traceCommand?.commands.map((command) => command.name())).toEqual(
-      expect.arrayContaining(["list", "get", "annotate"])
+      expect.arrayContaining(["list", "get", "annotate", "add-note"])
     );
     expect(
       program.commands.find((command) => command.name() === "traces")
@@ -97,7 +97,7 @@ describe("Phoenix CLI", () => {
     ).toBeUndefined();
   });
 
-  it("should register session list and session get as the primary session commands", () => {
+  it("should register session commands", () => {
     const program = createProgram();
     const sessionCommand = program.commands.find(
       (command) => command.name() === "session"
@@ -105,8 +105,13 @@ describe("Phoenix CLI", () => {
 
     expect(sessionCommand).toBeDefined();
     expect(sessionCommand?.commands.map((command) => command.name())).toEqual(
-      expect.arrayContaining(["list", "get"])
+      expect.arrayContaining(["list", "get", "annotate", "add-note"])
     );
+    const listCommand = sessionCommand?.commands.find(
+      (command) => command.name() === "list"
+    );
+    expect(listCommand?.helpInformation()).toContain("--include-annotations");
+    expect(listCommand?.helpInformation()).toContain("--include-notes");
     expect(
       program.commands.find((command) => command.name() === "sessions")
     ).toBeUndefined();
@@ -236,5 +241,43 @@ describe("Phoenix CLI", () => {
     expect(spanCommand?.commands.map((command) => command.name())).toContain(
       "delete"
     );
+  });
+
+  it("should register auth command with status subcommand only", () => {
+    const program = createProgram();
+    const authCommand = program.commands.find(
+      (command) => command.name() === "auth"
+    );
+
+    expect(authCommand).toBeDefined();
+    const subcommandNames = authCommand?.commands.map((c) => c.name());
+    expect(subcommandNames).toContain("status");
+    expect(subcommandNames).not.toContain("profile");
+    expect(subcommandNames).not.toContain("switch");
+  });
+
+  it("should register top-level profile command with list, create, delete, use, edit, show subcommands", () => {
+    const program = createProgram();
+    const profileCommand = program.commands.find(
+      (command) => command.name() === "profile"
+    );
+
+    expect(profileCommand).toBeDefined();
+    const subcommandNames = profileCommand?.commands.map((c) => c.name());
+    expect(subcommandNames).toEqual(
+      expect.arrayContaining([
+        "list",
+        "create",
+        "delete",
+        "use",
+        "edit",
+        "show",
+      ])
+    );
+  });
+
+  it("should include auth in the top-level help output", () => {
+    const program = createProgram();
+    expect(program.helpInformation()).toContain("auth");
   });
 });

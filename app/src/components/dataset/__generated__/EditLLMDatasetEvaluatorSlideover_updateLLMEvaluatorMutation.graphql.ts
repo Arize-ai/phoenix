@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b36c75c6d2ab74eb579d885ec1ea704e>>
+ * @generated SignedSource<<8665cd6a4bad0c952c87a41fee969f81>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,11 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type AnthropicOutputConfigEffort = "HIGH" | "LOW" | "MAX" | "MEDIUM" | "XHIGH";
+export type AnthropicThinkingDisplay = "OMITTED" | "SUMMARIZED";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type GoogleThinkingLevel = "HIGH" | "LOW" | "MEDIUM" | "MINIMAL";
+export type OpenAIReasoningEffort = "HIGH" | "LOW" | "MEDIUM" | "MINIMAL" | "NONE" | "XHIGH";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
 export type PromptTemplateFormat = "F_STRING" | "MUSTACHE" | "NONE";
@@ -27,7 +31,7 @@ export type UpdateDatasetLLMEvaluatorInput = {
 export type ChatPromptVersionInput = {
   customProviderId?: string | null;
   description?: string | null;
-  invocationParameters: any;
+  invocationParameters: PromptInvocationParametersInput;
   modelName: string;
   modelProvider: GenerativeProviderKey;
   responseFormat?: PromptResponseFormatJSONSchemaInput | null;
@@ -63,13 +67,80 @@ export type ToolResultContentValueInput = {
   result: any;
   toolCallId: string;
 };
+export type PromptInvocationParametersInput = {
+  anthropic?: PromptAnthropicInvocationParametersInput | null;
+  aws?: PromptAwsInvocationParametersInput | null;
+  google?: PromptGoogleInvocationParametersInput | null;
+  openai?: PromptOpenAIInvocationParametersInput | null;
+};
+export type PromptOpenAIInvocationParametersInput = {
+  extraBody?: any | null;
+  frequencyPenalty?: number | null;
+  maxCompletionTokens?: number | null;
+  maxTokens?: number | null;
+  presencePenalty?: number | null;
+  reasoningEffort?: OpenAIReasoningEffort | null;
+  seed?: number | null;
+  stop?: ReadonlyArray<string> | null;
+  temperature?: number | null;
+  topP?: number | null;
+};
+export type PromptAnthropicInvocationParametersInput = {
+  extraBody?: any | null;
+  maxTokens: number;
+  outputConfig?: PromptAnthropicOutputConfigInput | null;
+  stopSequences?: ReadonlyArray<string> | null;
+  temperature?: number | null;
+  thinking?: PromptAnthropicThinkingConfigInput | null;
+  topP?: number | null;
+};
+export type PromptAnthropicOutputConfigInput = {
+  effort?: AnthropicOutputConfigEffort | null;
+};
+export type PromptAnthropicThinkingConfigInput = {
+  adaptive?: AnthropicThinkingAdaptiveInput | null;
+  disabled?: AnthropicThinkingDisabledMarkerInput | null;
+  enabled?: AnthropicThinkingEnabledInput | null;
+};
+export type AnthropicThinkingDisabledMarkerInput = {
+  disabled?: boolean;
+};
+export type AnthropicThinkingEnabledInput = {
+  budgetTokens: number;
+  display?: AnthropicThinkingDisplay | null;
+};
+export type AnthropicThinkingAdaptiveInput = {
+  display?: AnthropicThinkingDisplay | null;
+};
+export type PromptGoogleInvocationParametersInput = {
+  frequencyPenalty?: number | null;
+  maxOutputTokens?: number | null;
+  presencePenalty?: number | null;
+  stopSequences?: ReadonlyArray<string> | null;
+  temperature?: number | null;
+  thinkingConfig?: PromptGoogleThinkingConfigInput | null;
+  topK?: number | null;
+  topP?: number | null;
+};
+export type PromptGoogleThinkingConfigInput = {
+  includeThoughts?: boolean | null;
+  thinkingBudget?: number | null;
+  thinkingLevel?: GoogleThinkingLevel | null;
+};
+export type PromptAwsInvocationParametersInput = {
+  maxTokens?: number | null;
+  stopSequences?: ReadonlyArray<string> | null;
+  temperature?: number | null;
+  topP?: number | null;
+};
 export type PromptToolsInput = {
   disableParallelToolCalls?: boolean | null;
   toolChoice?: PromptToolChoiceInput | null;
-  tools: ReadonlyArray<PromptToolFunctionInput>;
+  tools: ReadonlyArray<PromptToolInput>;
 };
-export type PromptToolFunctionInput = {
-  function: PromptToolFunctionDefinitionInput;
+export type PromptToolInput = {
+  function?: PromptToolFunctionDefinitionInput | null;
+  raw?: any | null;
 };
 export type PromptToolFunctionDefinitionInput = {
   description?: string | null;
@@ -363,10 +434,52 @@ v23 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "toolCallId",
+  "name": "temperature",
   "storageKey": null
 },
 v24 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "frequencyPenalty",
+  "storageKey": null
+},
+v25 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "presencePenalty",
+  "storageKey": null
+},
+v26 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "topP",
+  "storageKey": null
+},
+v27 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "extraBody",
+  "storageKey": null
+},
+v28 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "stopSequences",
+  "storageKey": null
+},
+v29 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "toolCallId",
+  "storageKey": null
+},
+v30 = {
   "kind": "InlineFragment",
   "selections": [
     (v3/*: any*/)
@@ -622,31 +735,53 @@ return {
                               {
                                 "alias": null,
                                 "args": null,
-                                "concreteType": "PromptToolFunction",
+                                "concreteType": null,
                                 "kind": "LinkedField",
                                 "name": "tools",
                                 "plural": true,
                                 "selections": [
+                                  (v21/*: any*/),
                                   {
-                                    "alias": null,
-                                    "args": null,
-                                    "concreteType": "PromptToolFunctionDefinition",
-                                    "kind": "LinkedField",
-                                    "name": "function",
-                                    "plural": false,
+                                    "kind": "InlineFragment",
+                                    "selections": [
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "concreteType": "PromptToolFunctionDefinition",
+                                        "kind": "LinkedField",
+                                        "name": "function",
+                                        "plural": false,
+                                        "selections": [
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "parameters",
+                                            "storageKey": null
+                                          },
+                                          (v4/*: any*/),
+                                          (v6/*: any*/),
+                                          (v22/*: any*/)
+                                        ],
+                                        "storageKey": null
+                                      }
+                                    ],
+                                    "type": "PromptToolFunction",
+                                    "abstractKey": null
+                                  },
+                                  {
+                                    "kind": "InlineFragment",
                                     "selections": [
                                       {
                                         "alias": null,
                                         "args": null,
                                         "kind": "ScalarField",
-                                        "name": "parameters",
+                                        "name": "raw",
                                         "storageKey": null
-                                      },
-                                      (v4/*: any*/),
-                                      (v6/*: any*/),
-                                      (v22/*: any*/)
+                                      }
                                     ],
-                                    "storageKey": null
+                                    "type": "PromptToolRaw",
+                                    "abstractKey": null
                                   }
                                 ],
                                 "storageKey": null
@@ -689,8 +824,236 @@ return {
                           {
                             "alias": null,
                             "args": null,
-                            "kind": "ScalarField",
+                            "concreteType": null,
+                            "kind": "LinkedField",
                             "name": "invocationParameters",
+                            "plural": false,
+                            "selections": [
+                              (v21/*: any*/),
+                              {
+                                "kind": "TypeDiscriminator",
+                                "abstractKey": "__isPromptInvocationParameters"
+                              },
+                              {
+                                "kind": "InlineFragment",
+                                "selections": [
+                                  (v23/*: any*/),
+                                  {
+                                    "alias": "openaiMaxTokens",
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "maxTokens",
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "maxCompletionTokens",
+                                    "storageKey": null
+                                  },
+                                  (v24/*: any*/),
+                                  (v25/*: any*/),
+                                  (v26/*: any*/),
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "seed",
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "stop",
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "reasoningEffort",
+                                    "storageKey": null
+                                  },
+                                  (v27/*: any*/)
+                                ],
+                                "type": "PromptOpenAIInvocationParameters",
+                                "abstractKey": null
+                              },
+                              {
+                                "kind": "InlineFragment",
+                                "selections": [
+                                  {
+                                    "alias": "anthropicMaxTokens",
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "maxTokens",
+                                    "storageKey": null
+                                  },
+                                  (v23/*: any*/),
+                                  (v26/*: any*/),
+                                  (v28/*: any*/),
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "PromptAnthropicOutputConfig",
+                                    "kind": "LinkedField",
+                                    "name": "outputConfig",
+                                    "plural": false,
+                                    "selections": [
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "effort",
+                                        "storageKey": null
+                                      }
+                                    ],
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": null,
+                                    "kind": "LinkedField",
+                                    "name": "thinking",
+                                    "plural": false,
+                                    "selections": [
+                                      (v21/*: any*/),
+                                      {
+                                        "kind": "InlineFragment",
+                                        "selections": [
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "disabled",
+                                            "storageKey": null
+                                          }
+                                        ],
+                                        "type": "PromptAnthropicThinkingDisabled",
+                                        "abstractKey": null
+                                      },
+                                      {
+                                        "kind": "InlineFragment",
+                                        "selections": [
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "budgetTokens",
+                                            "storageKey": null
+                                          },
+                                          {
+                                            "alias": "enabledDisplay",
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "display",
+                                            "storageKey": null
+                                          }
+                                        ],
+                                        "type": "PromptAnthropicThinkingEnabled",
+                                        "abstractKey": null
+                                      },
+                                      {
+                                        "kind": "InlineFragment",
+                                        "selections": [
+                                          {
+                                            "alias": "adaptiveDisplay",
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "display",
+                                            "storageKey": null
+                                          }
+                                        ],
+                                        "type": "PromptAnthropicThinkingAdaptive",
+                                        "abstractKey": null
+                                      }
+                                    ],
+                                    "storageKey": null
+                                  },
+                                  (v27/*: any*/)
+                                ],
+                                "type": "PromptAnthropicInvocationParameters",
+                                "abstractKey": null
+                              },
+                              {
+                                "kind": "InlineFragment",
+                                "selections": [
+                                  (v23/*: any*/),
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "maxOutputTokens",
+                                    "storageKey": null
+                                  },
+                                  (v28/*: any*/),
+                                  (v25/*: any*/),
+                                  (v24/*: any*/),
+                                  (v26/*: any*/),
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "topK",
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "PromptGoogleThinkingConfig",
+                                    "kind": "LinkedField",
+                                    "name": "thinkingConfig",
+                                    "plural": false,
+                                    "selections": [
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "thinkingBudget",
+                                        "storageKey": null
+                                      },
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "thinkingLevel",
+                                        "storageKey": null
+                                      },
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "includeThoughts",
+                                        "storageKey": null
+                                      }
+                                    ],
+                                    "storageKey": null
+                                  }
+                                ],
+                                "type": "PromptGoogleInvocationParameters",
+                                "abstractKey": null
+                              },
+                              {
+                                "kind": "InlineFragment",
+                                "selections": [
+                                  {
+                                    "alias": "awsMaxTokens",
+                                    "args": null,
+                                    "kind": "ScalarField",
+                                    "name": "maxTokens",
+                                    "storageKey": null
+                                  },
+                                  (v23/*: any*/),
+                                  (v26/*: any*/),
+                                  (v28/*: any*/)
+                                ],
+                                "type": "PromptAwsInvocationParameters",
+                                "abstractKey": null
+                              }
+                            ],
                             "storageKey": null
                           },
                           {
@@ -807,7 +1170,7 @@ return {
                                                 "name": "toolCall",
                                                 "plural": false,
                                                 "selections": [
-                                                  (v23/*: any*/),
+                                                  (v29/*: any*/),
                                                   {
                                                     "alias": null,
                                                     "args": null,
@@ -845,7 +1208,7 @@ return {
                                                 "name": "toolResult",
                                                 "plural": false,
                                                 "selections": [
-                                                  (v23/*: any*/),
+                                                  (v29/*: any*/),
                                                   {
                                                     "alias": null,
                                                     "args": null,
@@ -921,7 +1284,7 @@ return {
                         "selections": [
                           (v21/*: any*/),
                           (v19/*: any*/),
-                          (v24/*: any*/)
+                          (v30/*: any*/)
                         ],
                         "storageKey": null
                       }
@@ -962,7 +1325,7 @@ return {
                   (v21/*: any*/),
                   (v19/*: any*/),
                   (v20/*: any*/),
-                  (v24/*: any*/)
+                  (v30/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -996,12 +1359,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "01ce62798bbc0cacd94e6c92233cd5c7",
+    "cacheID": "6a6222efb7f42b038c502596ed352d0b",
     "id": null,
     "metadata": {},
     "name": "EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation(\n  $input: UpdateDatasetLLMEvaluatorInput!\n) {\n  updateDatasetLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      evaluator {\n        __typename\n        name\n        id\n      }\n      ...DatasetEvaluatorsTable_row\n      ...PlaygroundDatasetSection_evaluator\n      ...EditLLMDatasetEvaluatorSlideover_evaluator\n      ...LLMDatasetEvaluatorDetails_datasetEvaluator\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n  }\n}\n\nfragment EditLLMDatasetEvaluatorSlideover_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n  evaluator {\n    __typename\n    description\n    kind\n    name\n    ... on LLMEvaluator {\n      outputConfigs {\n        __typename\n        ... on CategoricalAnnotationConfig {\n          name\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n      prompt {\n        id\n        name\n      }\n      promptVersion {\n        tools {\n          tools {\n            function {\n              parameters\n            }\n          }\n        }\n        ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment LLMDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {\n  id\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    kind\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        tools {\n          tools {\n            function {\n              parameters\n            }\n          }\n        }\n        ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n        ...PromptChatMessagesCard__main\n        id\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n    id\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n\nfragment PromptChatMessagesCard__main on PromptVersion {\n  provider: modelProvider\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters\n  customProvider {\n    id\n    name\n  }\n  responseFormat {\n    jsonSchema {\n      name\n      description\n      schema\n      strict\n    }\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    tools {\n      function {\n        name\n        description\n        parameters\n        strict\n      }\n    }\n    toolChoice {\n      type\n      functionName\n    }\n    disableParallelToolCalls\n  }\n}\n"
+    "text": "mutation EditLLMDatasetEvaluatorSlideover_updateLLMEvaluatorMutation(\n  $input: UpdateDatasetLLMEvaluatorInput!\n) {\n  updateDatasetLlmEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n      evaluator {\n        __typename\n        name\n        id\n      }\n      ...DatasetEvaluatorsTable_row\n      ...PlaygroundDatasetSection_evaluator\n      ...EditLLMDatasetEvaluatorSlideover_evaluator\n      ...LLMDatasetEvaluatorDetails_datasetEvaluator\n    }\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n  }\n}\n\nfragment EditLLMDatasetEvaluatorSlideover_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n  evaluator {\n    __typename\n    description\n    kind\n    name\n    ... on LLMEvaluator {\n      outputConfigs {\n        __typename\n        ... on CategoricalAnnotationConfig {\n          name\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n      prompt {\n        id\n        name\n      }\n      promptVersion {\n        tools {\n          tools {\n            __typename\n            ... on PromptToolFunction {\n              function {\n                parameters\n              }\n            }\n            ... on PromptToolRaw {\n              raw\n            }\n          }\n        }\n        ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment LLMDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {\n  id\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    kind\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        tools {\n          tools {\n            __typename\n            ... on PromptToolFunction {\n              function {\n                parameters\n              }\n            }\n            ... on PromptToolRaw {\n              raw\n            }\n          }\n        }\n        ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n        ...PromptChatMessagesCard__main\n        id\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n    id\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n\nfragment PromptChatMessagesCard__main on PromptVersion {\n  provider: modelProvider\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment PromptInvocationParametersReadableFragment on PromptInvocationParameters {\n  __isPromptInvocationParameters: __typename\n  __typename\n  ... on PromptOpenAIInvocationParameters {\n    temperature\n    openaiMaxTokens: maxTokens\n    maxCompletionTokens\n    frequencyPenalty\n    presencePenalty\n    topP\n    seed\n    stop\n    reasoningEffort\n    extraBody\n  }\n  ... on PromptAnthropicInvocationParameters {\n    anthropicMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n    outputConfig {\n      effort\n    }\n    thinking {\n      __typename\n      ... on PromptAnthropicThinkingDisabled {\n        disabled\n      }\n      ... on PromptAnthropicThinkingEnabled {\n        budgetTokens\n        enabledDisplay: display\n      }\n      ... on PromptAnthropicThinkingAdaptive {\n        adaptiveDisplay: display\n      }\n    }\n    extraBody\n  }\n  ... on PromptGoogleInvocationParameters {\n    temperature\n    maxOutputTokens\n    stopSequences\n    presencePenalty\n    frequencyPenalty\n    topP\n    topK\n    thinkingConfig {\n      thinkingBudget\n      thinkingLevel\n      includeThoughts\n    }\n  }\n  ... on PromptAwsInvocationParameters {\n    awsMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters {\n    __typename\n    ...PromptInvocationParametersReadableFragment\n  }\n  customProvider {\n    id\n    name\n  }\n  responseFormat {\n    jsonSchema {\n      name\n      description\n      schema\n      strict\n    }\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    tools {\n      __typename\n      ... on PromptToolFunction {\n        function {\n          name\n          description\n          parameters\n          strict\n        }\n      }\n      ... on PromptToolRaw {\n        raw\n      }\n    }\n    toolChoice {\n      type\n      functionName\n    }\n    disableParallelToolCalls\n  }\n}\n"
   }
 };
 })();

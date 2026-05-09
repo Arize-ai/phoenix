@@ -7,7 +7,7 @@ from pydantic import (
     field_validator,
     model_validator,
 )
-from typing_extensions import Self, assert_never
+from typing_extensions import Self
 
 from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
@@ -55,6 +55,8 @@ def validate_evaluator_prompt_and_configs(
     ):
         raise ValueError(_LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_REQUIRED)
     if isinstance(prompt_tools.tool_choice, PromptToolChoiceSpecificFunctionTool):
+        if not prompt_tools.tools or not isinstance(prompt_tools.tools[0], PromptToolFunction):
+            raise ValueError(f"Tool {prompt_tools.tools[0]} is not a function tool")
         if prompt_tools.tool_choice.function_name != prompt_tools.tools[0].function.name:
             raise ValueError(
                 _LLMEvaluatorPromptErrorMessage.TOOL_CHOICE_SPECIFIC_FUNCTION_NAME_MUST_MATCH_DEFINED_FUNCTION_NAME
@@ -64,7 +66,7 @@ def validate_evaluator_prompt_and_configs(
     tools_by_name: dict[str, PromptToolFunction] = {}
     for tool in prompt_tools.tools:
         if not isinstance(tool, PromptToolFunction):
-            assert_never(tool)
+            raise ValueError(f"Tool {tool} is not a function tool")
         tools_by_name[tool.function.name] = tool
 
     # Validate each config against its matched tool

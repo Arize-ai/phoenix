@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import type { InvocationParameter } from "@phoenix/components/playground/model/InvocationParametersFormFields";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import type { InvocationParameterInput } from "@phoenix/pages/playground/invocationParameterUtils";
 import type { chatMessageSchema } from "@phoenix/pages/playground/schemas";
@@ -30,7 +29,7 @@ export type CanonicalResponseFormat = {
 
 /**
  * Provider-agnostic canonical tool definition stored on Tool.
- * Isomorphic to OpenAIToolDefinition.function but named independently
+ * Isomorphic to OpenAIChatCompletionsToolDefinition.function but named independently
  * of any provider, consistent with CanonicalToolChoice and CanonicalResponseFormat.
  */
 export type CanonicalToolDefinition = {
@@ -128,21 +127,74 @@ export type ModelConfig = {
    * Null means no response format is set.
    */
   responseFormat?: CanonicalResponseFormat | null;
-  invocationParameters: (InvocationParameterInput & { dirty?: boolean })[];
-  supportedInvocationParameters: InvocationParameter[];
+  invocationParameters: InvocationParameterInput[];
 };
 
 export type ModelInvocationParameterInput =
   ModelConfig["invocationParameters"][number];
 
 /**
- * The type of a tool in the playground
+ * A normalized function tool. The `definition` is the *canonical* (provider-
+ * agnostic) function shape — name, parameters (JSON Schema), strict flag,
+ * description. This is the shape Phoenix renders in the editor UI, references
+ * by name in tool-choice, and converts to the active provider's wire format
+ * at display time.
  */
-export type Tool = {
+export type FunctionTool = {
+  kind: "function";
   id: number;
   editorType: PhoenixToolEditorType;
   definition: CanonicalToolDefinition;
 };
+
+/**
+ * A vendor passthrough tool. Phoenix stores the raw JSON object verbatim and
+ * forwards it to the provider SDK at request time without parsing or
+ * validation. Used for builtin / vendor-specific tools (OpenAI Responses
+ * `web_search`, Anthropic `computer_use`, Bedrock provider-specific tool
+ * configs, etc.) whose schemas Phoenix doesn't model.
+ */
+export type RawTool = {
+  kind: "raw";
+  id: number;
+  editorType: PhoenixToolEditorType;
+  raw: Record<string, unknown>;
+};
+
+/**
+ * A tool attached to a prompt or playground instance. The `kind` discriminator
+ * splits two fundamentally different storage strategies, each chosen to match
+ * what the playground can actually do with the tool:
+ *
+ *   - `function` tools are *normalized*: parsed into a single canonical shape
+ *     (`CanonicalToolDefinition`) regardless of the source provider's wire
+ *     format. We do this because function tools across providers all describe
+ *     the same thing — a callable named function with JSON-Schema parameters —
+ *     so we can edit them in one UI, validate parameters, reference them by
+ *     name in tool-choice, and convert to the target provider's exact shape
+ *     only at the display/request boundary. Storing one shape lets us render
+ *     N provider formats with no schema drift.
+ *
+ *   - `raw` tools are *passthrough*: kept as opaque JSON and forwarded to the
+ *     provider SDK as-is. Vendor builtins (`web_search`, `computer_use`, ...)
+ *     have provider-specific config shapes that change frequently and aren't
+ *     useful to normalize — Phoenix has no editor UI for them beyond the JSON
+ *     blob, no parameter validation to do, and no cross-provider portability
+ *     to gain. Treating them as opaque means new vendor tools work the day
+ *     OpenAI / Anthropic ship them, with zero Phoenix code changes.
+ *
+ * Consequences callers should know about:
+ *   - Raw tools cannot be referenced by name in `SPECIFIC_FUNCTION` tool
+ *     choice (no schema = no name to bind).
+ *   - When the active provider/openaiApiType changes, raw tools may need to
+ *     be dropped because their shape doesn't carry over (e.g. an OpenAI
+ *     Responses `web_search` tool has no Chat Completions equivalent).
+ *   - The function-vs-raw split is decided once at ingest by
+ *     {@link toolFromEditorJSON} / {@link createToolFromRawDefinition} based
+ *     on whether the JSON parses against any provider's known function-tool
+ *     schema; once decided, the tool stays on its branch.
+ */
+export type Tool = FunctionTool | RawTool;
 
 export type PlaygroundInstancePrompt = {
   /**
@@ -495,9 +547,12 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
   /**
    * Update the supported invocation parameters for a model
    */
-  updateModelSupportedInvocationParameters: (params: {
+  /**
+   * Reconcile invocation parameters against the static frontend spec table when the model
+   * or OpenAI API type changes (replaces the former GraphQL `modelInvocationParameters` fetch).
+   */
+  syncInvocationParametersWithSpecs: (params: {
     instanceId: number;
-    supportedInvocationParameters: InvocationParameter[];
     modelConfigByProvider: ModelConfigByProvider;
   }) => void;
   /**

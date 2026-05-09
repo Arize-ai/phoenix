@@ -1,19 +1,25 @@
 import json
 from functools import cached_property
-from typing import Any, Optional, cast
+from typing import Any, Literal, Optional, cast
 
 import strawberry
 from strawberry import UNSET
 from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
+from typing_extensions import assert_never
 
 from phoenix.db import models
 from phoenix.db.types.db_helper_types import UNDEFINED
+from phoenix.db.types.model_provider import ModelProvider
 from phoenix.db.types.prompts import (
     ContentPart,
+    PromptAnthropicInvocationParameters,
+    PromptAwsInvocationParameters,
     PromptChatTemplate,
+    PromptGoogleInvocationParameters,
     PromptMessage,
     PromptMessageRole,
+    PromptOpenAIInvocationParameters,
     PromptResponseFormatJSONSchema,
     PromptResponseFormatJSONSchemaDefinition,
     PromptTemplateFormat,
@@ -25,18 +31,82 @@ from phoenix.db.types.prompts import (
     PromptToolChoiceZeroOrMore,
     PromptToolFunction,
     PromptToolFunctionDefinition,
+    PromptToolRaw,
     PromptTools,
     RoleConversion,
     TextContentPart,
     ToolCallContentPart,
     ToolCallFunction,
     ToolResultContentPart,
-    validate_invocation_parameters,
 )
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.input_types.PromptInvocationParametersInput import (
+    PromptInvocationParametersInput,
+)
 from phoenix.server.api.types.GenerativeModelCustomProvider import GenerativeModelCustomProvider
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+
+InvocationFamily = Literal["openai", "anthropic", "google", "aws"]
+
+
+def _expected_invocation_family(provider: ModelProvider) -> InvocationFamily:
+    if provider is ModelProvider.ANTHROPIC:
+        return "anthropic"
+    if provider is ModelProvider.GOOGLE:
+        return "google"
+    if provider is ModelProvider.AWS:
+        return "aws"
+    if (
+        provider is ModelProvider.OPENAI
+        or provider is ModelProvider.AZURE_OPENAI
+        or provider is ModelProvider.DEEPSEEK
+        or provider is ModelProvider.XAI
+        or provider is ModelProvider.OLLAMA
+        or provider is ModelProvider.CEREBRAS
+        or provider is ModelProvider.FIREWORKS
+        or provider is ModelProvider.GROQ
+        or provider is ModelProvider.MOONSHOT
+        or provider is ModelProvider.PERPLEXITY
+        or provider is ModelProvider.TOGETHER
+    ):
+        return "openai"
+    assert_never(provider)
+
+
+def _orm_invocation_family(
+    invocation_parameters: PromptOpenAIInvocationParameters
+    | PromptAnthropicInvocationParameters
+    | PromptGoogleInvocationParameters
+    | PromptAwsInvocationParameters,
+) -> InvocationFamily:
+    if isinstance(invocation_parameters, PromptAnthropicInvocationParameters):
+        return "anthropic"
+    if isinstance(invocation_parameters, PromptGoogleInvocationParameters):
+        return "google"
+    if isinstance(invocation_parameters, PromptAwsInvocationParameters):
+        return "aws"
+    if isinstance(invocation_parameters, PromptOpenAIInvocationParameters):
+        return "openai"
+    assert_never(invocation_parameters)
+
+
+def validate_invocation_parameters_match_provider(
+    model_provider: ModelProvider,
+    invocation_parameters: PromptOpenAIInvocationParameters
+    | PromptAnthropicInvocationParameters
+    | PromptGoogleInvocationParameters
+    | PromptAwsInvocationParameters,
+) -> None:
+    """Reject prompt versions whose invocation-parameters family doesn't match the provider."""
+    expected = _expected_invocation_family(model_provider)
+    actual = _orm_invocation_family(invocation_parameters)
+    if expected != actual:
+        raise BadRequest(
+            f"Invocation parameters variant '{actual}' does not match "
+            f"model provider '{model_provider.value}' (expected '{expected}')."
+        )
+
 
 # ---------------------------------------------------------------------------
 # Canonical tool input types  (isomorphic to DB PromptTools / PromptTool*)
@@ -59,12 +129,34 @@ class PromptToolFunctionDefinitionInput:
         )
 
 
-@strawberry.input
-class PromptToolFunctionInput:
-    function: PromptToolFunctionDefinitionInput
+@strawberry.input(
+    one_of=True,
+    description=(
+        "A single tool on a prompt — set exactly one of `function` or `raw`. "
+        "`function` is a normalized JSON-Schema-typed function tool that Phoenix "
+        "converts to each provider's native format. `raw` is a vendor passthrough "
+        "tool: an opaque JSON object forwarded to the provider SDK as-is (e.g. "
+        "OpenAI Responses `web_search`, Anthropic `computer_use`)."
+    ),
+)
+class PromptToolInput:
+    function: Optional[PromptToolFunctionDefinitionInput] = strawberry.field(
+        default=UNSET,
+        description="Normalized function tool — provider-agnostic, converted at request time.",
+    )
+    raw: Optional[JSON] = strawberry.field(
+        default=UNSET,
+        description="Vendor passthrough tool — opaque JSON forwarded to the provider SDK.",
+    )
 
-    def to_orm(self) -> PromptToolFunction:
-        return PromptToolFunction(type="function", function=self.function.to_orm())
+    def to_orm(self) -> PromptToolFunction | PromptToolRaw:
+        if self.function:
+            return PromptToolFunction(type="function", function=self.function.to_orm())
+        if self.raw:
+            if not isinstance(self.raw, dict):
+                raise BadRequest("PromptToolInput.raw must be a JSON object")
+            return PromptToolRaw(type="raw", raw=self.raw)
+        raise BadRequest("PromptToolInput: no field is set")
 
 
 @strawberry.input(one_of=True)
@@ -99,7 +191,7 @@ class PromptToolChoiceInput:
 
 @strawberry.input
 class PromptToolsInput:
-    tools: list[PromptToolFunctionInput]
+    tools: list[PromptToolInput]
     tool_choice: Optional[PromptToolChoiceInput] = None
     disable_parallel_tool_calls: Optional[bool] = None
 
@@ -242,7 +334,7 @@ class ChatPromptVersionInput:
     description: Optional[str] = None
     template_format: PromptTemplateFormat
     template: PromptChatTemplateInput
-    invocation_parameters: JSON
+    invocation_parameters: PromptInvocationParametersInput
     tools: Optional[PromptToolsInput] = None
     response_format: Optional[PromptResponseFormatJSONSchemaInput] = None
     model_provider: GenerativeProviderKey
@@ -259,26 +351,17 @@ class ChatPromptVersionInput:
             expected_type_name=GenerativeModelCustomProvider.__name__,
         )
 
-    def __post_init__(self) -> None:
-        self.invocation_parameters = JSON(
-            {
-                k: v
-                for k, v in cast(dict[str, Any], self.invocation_parameters).items()
-                if v is not None
-            }
-        )
-
     def to_orm_prompt_version(
         self,
         user_id: int | None = None,
     ) -> models.PromptVersion:
         model_provider = self.model_provider.to_model_provider()
-
         tools = self.tools.to_orm() if self.tools else None
         response_format = self.response_format.to_orm() if self.response_format else None
-        invocation_parameters = validate_invocation_parameters(
-            cast(dict[str, Any], self.invocation_parameters),
-            model_provider,
+        invocation_parameters = self.invocation_parameters.to_orm()
+        validate_invocation_parameters_match_provider(
+            model_provider=model_provider,
+            invocation_parameters=invocation_parameters,
         )
         custom_provider_id: Optional[int] = None
         if self.custom_provider_id is not None:

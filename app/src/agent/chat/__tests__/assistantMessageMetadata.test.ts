@@ -30,6 +30,30 @@ describe("assistantMessageMetadataSchema", () => {
     });
   });
 
+  it("accepts streamed token cache usage details", () => {
+    const parsed = assistantMessageMetadataSchema.parse({
+      traceId: "0123456789abcdef0123456789abcdef",
+      rootSpanId: "0123456789abcdef",
+      sessionId: "session-1",
+      usage: {
+        tokens: {
+          prompt: 10,
+          completion: 5,
+          total: 15,
+        },
+        promptDetails: {
+          cacheRead: 7,
+          cacheWrite: 3,
+        },
+      },
+    });
+
+    expect(parsed.usage?.promptDetails).toEqual({
+      cacheRead: 7,
+      cacheWrite: 3,
+    });
+  });
+
   it("rejects incomplete assistant metadata", () => {
     expect(() =>
       assistantMessageMetadataSchema.parse({

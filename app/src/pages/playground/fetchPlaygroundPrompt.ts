@@ -1,43 +1,18 @@
 import { fetchQuery, graphql, readInlineData } from "react-relay";
 
-import type {
-  GenerativeProviderKey,
-  OpenAIApiType,
-} from "@phoenix/components/playground/model/__generated__/ModelSupportedParamsFetcherQuery.graphql";
-import {
-  DEFAULT_MODEL_NAME,
-  DEFAULT_OPENAI_API_TYPE,
-} from "@phoenix/constants/generativeConstants";
+import { DEFAULT_MODEL_NAME } from "@phoenix/constants/generativeConstants";
 import type { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
-import type { fetchPlaygroundPromptSupportedInvocationParametersQuery } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPromptSupportedInvocationParametersQuery.graphql";
 import type { ChatPromptVersionInput } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
-import { toCamelCase } from "@phoenix/pages/playground/invocationParameterUtils";
 import {
   applyProviderInvocationParameterConstraints,
-  getChatRole,
+  buildPromptVersionInput,
   normalizeInvocationParameters,
-  toCanonicalToolChoice,
-  toolToPromptToolFunctionInput,
 } from "@phoenix/pages/playground/playgroundUtils";
+import { buildPlaygroundInstanceFieldsFromPromptConfig } from "@phoenix/pages/playground/promptConfigToPlaygroundInstance";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
-import type {
-  TextPart,
-  ToolCallPart,
-  ToolResultPart,
-} from "@phoenix/schemas/promptSchemas";
-import { fromPromptToolCallPart } from "@phoenix/schemas/toolCallSchemas";
 import type { PlaygroundInstance } from "@phoenix/store/playground";
+import { DEFAULT_INSTANCE_PARAMS } from "@phoenix/store/playground";
 import {
-  DEFAULT_INSTANCE_PARAMS,
-  generateMessageId,
-  generateToolId,
-} from "@phoenix/store/playground";
-import type { Mutable } from "@phoenix/typeUtils";
-import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
-import {
-  asTextPart,
-  asToolCallPart,
-  asToolResultPart,
   makeTextPart,
   makeToolCallPart,
   makeToolResultPart,
@@ -47,6 +22,8 @@ import type {
   fetchPlaygroundPromptQuery as fetchPlaygroundPromptQueryType,
   PromptMessageRole,
 } from "./__generated__/fetchPlaygroundPromptQuery.graphql";
+
+import "./PromptInvocationParametersReadableFragment";
 
 /**
  * Converts a playground chat message role to a prompt message role
@@ -71,66 +48,12 @@ export const chatMessageRoleToPromptMessageRole = (
 };
 
 /**
- * Converts an arbitrary object into a list of invocation parameters.
- *
- * Incoming invocation parameters are expecting to be provided alongside supported invocation parameters
- * to ensure that the invocation parameters are valid for the model of the instance, and so that we can
- * coerce the incoming invocation parameters to the expected format (e.g. {temperature: 0.5} -> {invocationName: "temperature", valueFloat: 0.5}).
- *
- * @param invocationParameters - The invocation parameters to convert
- * @param supportedInvocationParameters - The supported invocation parameters for the model of the instance
- * @returns The invocation parameters as a list
- */
-export const objectToInvocationParameters = (
-  invocationParameters: Record<string, unknown>,
-  supportedInvocationParameters: PlaygroundInstance["model"]["supportedInvocationParameters"]
-): PlaygroundInstance["model"]["invocationParameters"] => {
-  // build a lookup map of incoming invocation parameters to the closest matching supported invocation parameter
-  // we won't have canonical names at this point, because we don't know where the invocation parameters are coming from
-  // so we'll use the invocation name as the key
-  const invocationParameterDefinitionMap =
-    supportedInvocationParameters.length > 0
-      ? supportedInvocationParameters.reduce(
-          (acc, curr) => {
-            if (curr.invocationName) {
-              acc[curr.invocationName] = curr;
-            }
-            return acc;
-          },
-          {} as Record<string, (typeof supportedInvocationParameters)[number]>
-        )
-      : {};
-  // now we'll map the incoming invocation parameters to the supported invocation parameters
-  // we'll use the invocation name as the key
-  // we mark all parameters as dirty: true because these are explicitly saved values from the prompt
-  // that should be preserved when updateModelSupportedInvocationParameters runs
-  return Object.entries(invocationParameters).map(([key, value]) => {
-    const definition = invocationParameterDefinitionMap[key];
-    if (!definition || !definition.invocationInputField) {
-      return {
-        invocationName: key,
-        valueJson: value,
-        dirty: true,
-      };
-    }
-    return {
-      invocationName: key,
-      canonicalName: definition.canonicalName,
-      [toCamelCase(definition.invocationInputField)]: value,
-      dirty: true,
-    };
-  });
-};
-
-/**
  * Converts a prompt version to a playground instance.
  *
  * The playground instance is missing an id, it will need to be generated before usage.
  *
  * @param promptId - The prompt ID
  * @param promptVersionRef - Prompt version fragment reference
- * @param supportedInvocationParameters - The supported invocation parameters for the model of the instance, if available.
- *   invocation parameters will not be parsed if not provided.
  * @returns The playground instance
  */
 export const promptVersionToInstance = ({
@@ -138,13 +61,11 @@ export const promptVersionToInstance = ({
   promptName,
   promptVersionRef,
   promptVersionTag,
-  supportedInvocationParameters,
 }: {
   promptId: string;
   promptName: string;
   promptVersionRef: fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key;
   promptVersionTag: string | null;
-  supportedInvocationParameters?: PlaygroundInstance["model"]["supportedInvocationParameters"];
 }) => {
   const promptVersion = readInlineData(
     graphql`
@@ -153,7 +74,9 @@ export const promptVersionToInstance = ({
         id
         modelName
         modelProvider
-        invocationParameters
+        invocationParameters {
+          ...PromptInvocationParametersReadableFragment
+        }
         customProvider {
           id
           name
@@ -202,11 +125,17 @@ export const promptVersionToInstance = ({
         }
         tools {
           tools {
-            function {
-              name
-              description
-              parameters
-              strict
+            __typename
+            ... on PromptToolFunction {
+              function {
+                name
+                description
+                parameters
+                strict
+              }
+            }
+            ... on PromptToolRaw {
+              raw
             }
           }
           toolChoice {
@@ -232,188 +161,44 @@ export const promptVersionToInstance = ({
 
   const modelName = promptVersion.modelName;
   const provider = promptVersion.modelProvider;
-  const rawToolChoice = promptVersion.tools?.toolChoice;
-  const toolChoice = rawToolChoice
-    ? ({
-        type: rawToolChoice.type as
-          | "NONE"
-          | "ZERO_OR_MORE"
-          | "ONE_OR_MORE"
-          | "SPECIFIC_FUNCTION",
-        ...(rawToolChoice.functionName != null && {
-          functionName: rawToolChoice.functionName,
-        }),
-      } as const)
-    : undefined;
+  const instanceFields = buildPlaygroundInstanceFieldsFromPromptConfig({
+    provider,
+    modelName,
+    template: promptVersion.template,
+    tools: promptVersion.tools,
+    invocationParametersRef: promptVersion.invocationParameters,
+    responseFormat: promptVersion.responseFormat,
+    customProvider: promptVersion.customProvider
+      ? {
+          id: promptVersion.customProvider.id,
+          name: promptVersion.customProvider.name,
+        }
+      : null,
+  });
   return {
     ...newInstance,
     model: {
       ...newInstance.model,
-      modelName,
-      provider,
-      customProvider: promptVersion.customProvider
-        ? {
-            id: promptVersion.customProvider.id,
-            name: promptVersion.customProvider.name,
-          }
-        : null,
-      supportedInvocationParameters: supportedInvocationParameters || [],
-      responseFormat: promptVersion.responseFormat
-        ? {
-            type: "json_schema",
-            jsonSchema: promptVersion.responseFormat.jsonSchema,
-          }
-        : null,
-      invocationParameters: objectToInvocationParameters(
-        promptVersion.invocationParameters,
-        supportedInvocationParameters || []
-      ),
+      ...instanceFields.model,
     },
-    template: {
-      __type: "chat",
-      messages:
-        "messages" in promptVersion.template
-          ? promptVersion.template.messages.map((m) => {
-              // select all parts
-              const textContent = (
-                m.content.map(asTextPart).filter(Boolean) as TextPart[]
-              )
-                // summarize text parts into a single string, this is a temporary solution
-                // until the playground is updated to natively render message parts
-                .map((part) => part.text.text)
-                .join("");
-              const toolCallParts = m.content
-                .map(asToolCallPart)
-                .filter(Boolean) as ToolCallPart[];
-              const toolResultParts = m.content
-                .map(asToolResultPart)
-                .filter(Boolean) as ToolResultPart[];
-              const firstToolResultPart = toolResultParts.at(0);
-              const role = getChatRole(m.role);
-              // determine how to build the message based on the available parts
-              // ideally playground is updated in the future to natively render message parts
-
-              if (role === "tool" && firstToolResultPart) {
-                return {
-                  id: generateMessageId(),
-                  role: getChatRole(m.role),
-                  content:
-                    typeof firstToolResultPart.toolResult.result === "string"
-                      ? firstToolResultPart.toolResult.result
-                      : safelyStringifyJSON(
-                          firstToolResultPart.toolResult.result,
-                          null,
-                          2
-                        ).json || "",
-                  toolCallId: firstToolResultPart.toolResult.toolCallId,
-                };
-              }
-
-              if (role === "ai" && toolCallParts.length > 0) {
-                return {
-                  id: generateMessageId(),
-                  role: getChatRole(m.role),
-                  toolCalls: toolCallParts.map((toolCall) =>
-                    fromPromptToolCallPart(toolCall, provider)
-                  ),
-                };
-              }
-
-              return {
-                id: generateMessageId(),
-                role: getChatRole(m.role),
-                content: textContent,
-              };
-            })
-          : [],
-    },
-    tools: (promptVersion.tools?.tools ?? []).map((t) => ({
-      id: generateToolId(),
-      editorType: "json",
-      definition: {
-        name: t.function.name,
-        description: t.function.description ?? null,
-        parameters: t.function.parameters,
-        strict: t.function.strict ?? null,
-      },
-    })),
-    toolChoice,
+    template: instanceFields.template,
+    tools: instanceFields.tools,
+    toolChoice: instanceFields.toolChoice,
   } satisfies Omit<PlaygroundInstance, "id">;
-};
-
-/**
- * Converts invocation parameters to an object of key-value pairs, where the key is the invocation parameter name
- * and the value is the value of the invocation parameter.
- *
- * @param invocationParameters - The invocation parameters set in the instance
- * @param supportedInvocationParameters - The supported invocation parameters for the model of the instance
- *
- * @returns The invocation parameters as an object, constrained to the supported invocation parameters
- */
-export const invocationParametersToObject = (
-  invocationParameters: PlaygroundInstance["model"]["invocationParameters"],
-  supportedInvocationParameters: PlaygroundInstance["model"]["supportedInvocationParameters"]
-) => {
-  const invocationParameterDefinitionMap =
-    supportedInvocationParameters.length > 0
-      ? supportedInvocationParameters.reduce(
-          (acc, curr) => {
-            if (curr.canonicalName || curr.invocationName) {
-              acc[(curr.canonicalName || curr.invocationName) as string] = curr;
-            }
-            return acc;
-          },
-          {} as Record<string, (typeof supportedInvocationParameters)[number]>
-        )
-      : {};
-  return invocationParameters.reduce(
-    (acc, curr) => {
-      const definition =
-        invocationParameterDefinitionMap[
-          curr.canonicalName || curr.invocationName
-        ];
-      if (definition) {
-        acc[curr.invocationName] =
-          curr[
-            toCamelCase(
-              definition.invocationInputField as string
-            ) as keyof typeof curr
-          ];
-      } else {
-        // If no definition is found, preserve the parameter value
-        // This ensures parameters like reasoning_effort are not lost
-        // when supported parameters haven't been fetched yet
-        const value =
-          curr.valueString ??
-          curr.valueInt ??
-          curr.valueFloat ??
-          curr.valueBool ??
-          curr.valueBoolean ??
-          curr.valueJson ??
-          curr.valueStringList ??
-          null;
-        if (value !== null) {
-          acc[curr.invocationName] = value;
-        }
-      }
-      return acc;
-    },
-    {} as Record<
-      string,
-      string | number | boolean | null | Record<string, unknown> | unknown[]
-    >
-  );
 };
 
 /**
  * Converts a playground instance to a prompt version.
  *
  * @todo(apowell): The output may be better suited as PromptCreateInput
- *
- * @param instance - The playground instance
- * @returns The prompt version
  */
-export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
+export const instanceToPromptVersion = ({
+  instance,
+  templateFormat,
+}: {
+  instance: PlaygroundInstance;
+  templateFormat: ChatPromptVersionInput["templateFormat"];
+}) => {
   if (instance.template.__type === "text_completion") {
     // eslint-disable-next-line no-console
     console.warn(
@@ -455,30 +240,18 @@ export const instanceToPromptVersion = (instance: PlaygroundInstance) => {
   const invocationParameters = normalizeInvocationParameters(
     instance.model.invocationParameters
   );
-  const newPromptVersion = {
+
+  return buildPromptVersionInput({
+    instance,
     modelName: instance.model.modelName || DEFAULT_MODEL_NAME,
-    modelProvider: instance.model.provider,
-    customProviderId: instance.model.customProvider?.id ?? null,
-    template: {
-      messages: templateMessages,
-    },
-    tools: instance.tools.length
-      ? {
-          tools: instance.tools.map(toolToPromptToolFunctionInput),
-          toolChoice: toCanonicalToolChoice(instance.toolChoice),
-        }
-      : null,
-    responseFormat: instance.model.responseFormat ?? null,
-    invocationParameters: invocationParametersToObject(
-      applyProviderInvocationParameterConstraints(
-        invocationParameters,
-        instance.model.provider,
-        instance.model.modelName
-      ),
-      instance.model.supportedInvocationParameters
+    templateFormat,
+    promptMessages: templateMessages,
+    invocationParameters: applyProviderInvocationParameterConstraints(
+      invocationParameters,
+      instance.model.provider,
+      instance.model.modelName
     ),
-  } satisfies Partial<ChatPromptVersionInput>;
-  return newPromptVersion;
+  });
 };
 
 const fetchPlaygroundPromptQuery = graphql`
@@ -499,7 +272,9 @@ const fetchPlaygroundPromptQuery = graphql`
           description
           modelName
           modelProvider
-          invocationParameters
+          invocationParameters {
+            ...PromptInvocationParametersReadableFragment
+          }
           templateType
           templateFormat
           tags {
@@ -547,11 +322,17 @@ const fetchPlaygroundPromptQuery = graphql`
           }
           tools {
             tools {
-              function {
-                name
-                description
-                parameters
-                strict
+              __typename
+              ... on PromptToolFunction {
+                function {
+                  name
+                  description
+                  parameters
+                  strict
+                }
+              }
+              ... on PromptToolRaw {
+                raw
               }
             }
             toolChoice {
@@ -565,98 +346,6 @@ const fetchPlaygroundPromptQuery = graphql`
     }
   }
 `;
-
-const supportedInvocationParametersQuery = graphql`
-  query fetchPlaygroundPromptSupportedInvocationParametersQuery(
-    $modelsInput: ModelsInput!
-  ) {
-    modelInvocationParameters(input: $modelsInput) {
-      __typename
-      ... on InvocationParameterBase {
-        invocationName
-        canonicalName
-        required
-        label
-      }
-      # defaultValue must be aliased because Relay will not create a union type for fields with the same name
-      # follow the naming convention of the field type e.g. floatDefaultValue for FloatInvocationParameter
-      # default value mapping elsewhere in playground code relies on this naming convention
-      # https://github.com/facebook/relay/issues/3776
-      ... on BooleanInvocationParameter {
-        booleanDefaultValue: defaultValue
-        invocationInputField
-      }
-      ... on BoundedFloatInvocationParameter {
-        floatDefaultValue: defaultValue
-        invocationInputField
-        minValue
-        maxValue
-      }
-      ... on FloatInvocationParameter {
-        floatDefaultValue: defaultValue
-        invocationInputField
-      }
-      ... on IntInvocationParameter {
-        intDefaultValue: defaultValue
-        invocationInputField
-      }
-      ... on JSONInvocationParameter {
-        jsonDefaultValue: defaultValue
-        invocationInputField
-      }
-      ... on StringInvocationParameter {
-        stringDefaultValue: defaultValue
-        invocationInputField
-      }
-      ... on StringListInvocationParameter {
-        stringListDefaultValue: defaultValue
-        invocationInputField
-      }
-    }
-  }
-`;
-
-/**
- * Fetches the supported invocation parameters for a model.
- *
- * @param modelName - The model name
- * @param providerKey - The provider key
- * @param openaiApiType - The OpenAI API type (chat_completions or responses)
- * @returns The supported invocation parameters
- */
-export const fetchSupportedInvocationParameters = async ({
-  modelName,
-  providerKey,
-  openaiApiType,
-}: {
-  modelName: string;
-  providerKey?: GenerativeProviderKey | null;
-  openaiApiType?: OpenAIApiType | null;
-}) => {
-  const supportedInvocationParametersResponse =
-    await fetchQuery<fetchPlaygroundPromptSupportedInvocationParametersQuery>(
-      RelayEnvironment,
-      supportedInvocationParametersQuery,
-      {
-        modelsInput: {
-          modelName,
-          providerKey,
-          openaiApiType,
-        },
-      }
-    ).toPromise();
-
-  const supportedInvocationParameters =
-    supportedInvocationParametersResponse?.modelInvocationParameters as
-      | Mutable<
-          NonNullable<
-            typeof supportedInvocationParametersResponse
-          >["modelInvocationParameters"]
-        >
-      | undefined;
-
-  return supportedInvocationParameters;
-};
 
 /**
  * Fetches a prompt by ID.
@@ -717,16 +406,6 @@ export const fetchPlaygroundPromptAsInstance = async ({
   });
   const latestPromptVersion = response?.prompt?.version ?? null;
   if (latestPromptVersion && latestPromptVersion.templateType === "CHAT") {
-    // Only apply default openaiApiType for OpenAI/Azure providers
-    const isOpenAIProvider =
-      latestPromptVersion.modelProvider === "OPENAI" ||
-      latestPromptVersion.modelProvider === "AZURE_OPENAI";
-    const supportedInvocationParameters =
-      await fetchSupportedInvocationParameters({
-        modelName: latestPromptVersion.modelName,
-        providerKey: latestPromptVersion.modelProvider,
-        openaiApiType: isOpenAIProvider ? DEFAULT_OPENAI_API_TYPE : null,
-      });
     const promptName = response?.prompt?.name;
     if (!promptName) {
       throw new Error("Prompt name is required");
@@ -736,7 +415,6 @@ export const fetchPlaygroundPromptAsInstance = async ({
       promptName,
       promptVersionRef: latestPromptVersion,
       promptVersionTag: tagName || null,
-      supportedInvocationParameters,
     });
     return { instance: newInstance, promptVersion: latestPromptVersion };
   }

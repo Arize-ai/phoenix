@@ -41,14 +41,57 @@ class TestPromptMutations:
                     }
                   }
                 }
-                invocationParameters
+                invocationParameters {
+                  __typename
+                  ... on PromptOpenAIInvocationParameters {
+                    temperature
+                    openaiMaxTokens: maxTokens
+                    maxCompletionTokens
+                    frequencyPenalty
+                    presencePenalty
+                    topP
+                    seed
+                    reasoningEffort
+                  }
+                  ... on PromptAnthropicInvocationParameters {
+                    anthropicMaxTokens: maxTokens
+                    temperature
+                    topP
+                    stopSequences
+                    thinking {
+                      __typename
+                      ... on PromptAnthropicThinkingDisabled {
+                        disabled
+                      }
+                      ... on PromptAnthropicThinkingEnabled {
+                        budgetTokens
+                      }
+                    }
+                  }
+                  ... on PromptGoogleInvocationParameters {
+                    temperature
+                    maxOutputTokens
+                    topP
+                    topK
+                    stopSequences
+                    presencePenalty
+                    frequencyPenalty
+                  }
+                  ... on PromptAwsInvocationParameters {
+                    awsMaxTokens: maxTokens
+                    temperature
+                    topP
+                  }
+                }
                 tools {
                   tools {
-                    function {
-                      name
-                      description
-                      parameters
-                      strict
+                    ... on PromptToolFunction {
+                      function {
+                        name
+                        description
+                        parameters
+                        strict
+                      }
                     }
                   }
                   toolChoice {
@@ -103,14 +146,57 @@ class TestPromptMutations:
                     }
                   }
                 }
-                invocationParameters
+                invocationParameters {
+                  __typename
+                  ... on PromptOpenAIInvocationParameters {
+                    temperature
+                    openaiMaxTokens: maxTokens
+                    maxCompletionTokens
+                    frequencyPenalty
+                    presencePenalty
+                    topP
+                    seed
+                    reasoningEffort
+                  }
+                  ... on PromptAnthropicInvocationParameters {
+                    anthropicMaxTokens: maxTokens
+                    temperature
+                    topP
+                    stopSequences
+                    thinking {
+                      __typename
+                      ... on PromptAnthropicThinkingDisabled {
+                        disabled
+                      }
+                      ... on PromptAnthropicThinkingEnabled {
+                        budgetTokens
+                      }
+                    }
+                  }
+                  ... on PromptGoogleInvocationParameters {
+                    temperature
+                    maxOutputTokens
+                    topP
+                    topK
+                    stopSequences
+                    presencePenalty
+                    frequencyPenalty
+                  }
+                  ... on PromptAwsInvocationParameters {
+                    awsMaxTokens: maxTokens
+                    temperature
+                    topP
+                  }
+                }
                 tools {
                   tools {
-                    function {
-                      name
-                      description
-                      parameters
-                      strict
+                    ... on PromptToolFunction {
+                      function {
+                        name
+                        description
+                        parameters
+                        strict
+                      }
                     }
                   }
                   toolChoice {
@@ -168,14 +254,57 @@ class TestPromptMutations:
                     }
                   }
                 }
-                invocationParameters
+                invocationParameters {
+                  __typename
+                  ... on PromptOpenAIInvocationParameters {
+                    temperature
+                    openaiMaxTokens: maxTokens
+                    maxCompletionTokens
+                    frequencyPenalty
+                    presencePenalty
+                    topP
+                    seed
+                    reasoningEffort
+                  }
+                  ... on PromptAnthropicInvocationParameters {
+                    anthropicMaxTokens: maxTokens
+                    temperature
+                    topP
+                    stopSequences
+                    thinking {
+                      __typename
+                      ... on PromptAnthropicThinkingDisabled {
+                        disabled
+                      }
+                      ... on PromptAnthropicThinkingEnabled {
+                        budgetTokens
+                      }
+                    }
+                  }
+                  ... on PromptGoogleInvocationParameters {
+                    temperature
+                    maxOutputTokens
+                    topP
+                    topK
+                    stopSequences
+                    presencePenalty
+                    frequencyPenalty
+                  }
+                  ... on PromptAwsInvocationParameters {
+                    awsMaxTokens: maxTokens
+                    temperature
+                    topP
+                  }
+                }
                 tools {
                   tools {
-                    function {
-                      name
-                      description
-                      parameters
-                      strict
+                    ... on PromptToolFunction {
+                      function {
+                        name
+                        description
+                        parameters
+                        strict
+                      }
                     }
                   }
                   toolChoice {
@@ -220,7 +349,7 @@ class TestPromptMutations:
                                     }
                                 ]
                             },
-                            "invocationParameters": {"temperature": 0.4},
+                            "invocationParameters": {"openai": {"temperature": 0.4}},
                             "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                         },
@@ -246,7 +375,7 @@ class TestPromptMutations:
                                     }
                                 ]
                             },
-                            "invocationParameters": {"temperature": 0.4},
+                            "invocationParameters": {"openai": {"temperature": 0.4}},
                             "modelProvider": "OPENAI",
                             "modelName": "gpt-4o",
                             "tools": {
@@ -318,7 +447,7 @@ class TestPromptMutations:
                                     }
                                 ]
                             },
-                            "invocationParameters": {"temperature": 0.4},
+                            "invocationParameters": {"openai": {"temperature": 0.4}},
                             "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                             "tools": {
@@ -374,7 +503,9 @@ class TestPromptMutations:
                                     }
                                 ]
                             },
-                            "invocationParameters": {"max_tokens": 1024, "temperature": 0.4},
+                            "invocationParameters": {
+                                "anthropic": {"maxTokens": 1024, "temperature": 0.4}
+                            },
                             "modelProvider": "ANTHROPIC",
                             "modelName": "claude-2",
                             "tools": {
@@ -453,7 +584,7 @@ class TestPromptMutations:
                                     }
                                 ]
                             },
-                            "invocationParameters": {"temperature": 0.4},
+                            "invocationParameters": {"openai": {"temperature": 0.4}},
                             "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                             "responseFormat": {
@@ -511,7 +642,7 @@ class TestPromptMutations:
                                     }
                                 ]
                             },
-                            "invocationParameters": {"temperature": 0.4},
+                            "invocationParameters": {"openai": {"temperature": 0.4}},
                             "modelProvider": "OPENAI",
                             "modelName": "gpt-4o",
                         },
@@ -553,8 +684,33 @@ class TestPromptMutations:
         expected_model_name = variables["input"]["promptVersion"]["modelName"]
         assert prompt_version.pop("modelProvider") == expected_model_provider
         assert prompt_version.pop("modelName") == expected_model_name
-        expected_invocation_parameters = variables["input"]["promptVersion"]["invocationParameters"]
-        assert prompt_version.pop("invocationParameters") == expected_invocation_parameters
+        input_invocation_parameters = variables["input"]["promptVersion"]["invocationParameters"]
+        returned_invocation_parameters = prompt_version.pop("invocationParameters")
+        (input_variant,) = [k for k, v in input_invocation_parameters.items() if v is not None]
+        expected_variant_to_typename = {
+            "openai": "PromptOpenAIInvocationParameters",
+            "anthropic": "PromptAnthropicInvocationParameters",
+            "google": "PromptGoogleInvocationParameters",
+            "aws": "PromptAwsInvocationParameters",
+        }
+        assert (
+            returned_invocation_parameters["__typename"]
+            == expected_variant_to_typename[input_variant]
+        )
+        expected_content = input_invocation_parameters[input_variant]
+        for k, v in expected_content.items():
+            out_key = k
+            if k == "maxTokens":
+                out_key = {
+                    "openai": "openaiMaxTokens",
+                    "anthropic": "anthropicMaxTokens",
+                    "aws": "awsMaxTokens",
+                }[input_variant]
+            assert returned_invocation_parameters.get(out_key) == v, (
+                k,
+                v,
+                returned_invocation_parameters,
+            )
         assert prompt_version.pop("tools") == expected_tools_output
         assert prompt_version.pop("responseFormat") == expected_rf_output
         assert isinstance(prompt_version.pop("createdAt"), str)
@@ -595,7 +751,7 @@ class TestPromptMutations:
                             }
                         ]
                     },
-                    "invocationParameters": {"temperature": 0.4},
+                    "invocationParameters": {"openai": {"temperature": 0.4}},
                     "modelProvider": "OPENAI",
                     "modelName": "o1-mini",
                 },
@@ -623,7 +779,7 @@ class TestPromptMutations:
                             "description": "prompt-version-description",
                             "templateFormat": "MUSTACHE",
                             "template": {"messages": [{"role": "USER", "content": "hello world"}]},
-                            "invocationParameters": {"temperature": 0.4},
+                            "invocationParameters": {"openai": {"temperature": 0.4}},
                             "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                         },
@@ -647,7 +803,7 @@ class TestPromptMutations:
                                     }
                                 ]
                             },
-                            "invocationParameters": {"temperature": 0.4},
+                            "invocationParameters": {"openai": {"temperature": 0.4}},
                             "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                             "tools": [
@@ -674,7 +830,7 @@ class TestPromptMutations:
                                     }
                                 ]
                             },
-                            "invocationParameters": {"temperature": 0.4},
+                            "invocationParameters": {"openai": {"temperature": 0.4}},
                             "modelProvider": "ANTHROPIC",
                             "modelName": "claude-2",
                             "tools": [
@@ -732,7 +888,7 @@ class TestPromptMutations:
                                     }
                                 ]
                             },
-                            "invocationParameters": {"temperature": 0.4},
+                            "invocationParameters": {"openai": {"temperature": 0.4}},
                             "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                         },
@@ -757,7 +913,7 @@ class TestPromptMutations:
                                     }
                                 ]
                             },
-                            "invocationParameters": {"temperature": 0.4},
+                            "invocationParameters": {"openai": {"temperature": 0.4}},
                             "modelProvider": "OPENAI",
                             "modelName": "gpt-4o",
                             "tools": {
@@ -828,7 +984,7 @@ class TestPromptMutations:
                                     }
                                 ]
                             },
-                            "invocationParameters": {"temperature": 0.4},
+                            "invocationParameters": {"openai": {"temperature": 0.4}},
                             "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                             "tools": {
@@ -883,7 +1039,7 @@ class TestPromptMutations:
                                     }
                                 ]
                             },
-                            "invocationParameters": {"temperature": 0.4},
+                            "invocationParameters": {"openai": {"temperature": 0.4}},
                             "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                             "responseFormat": {
@@ -935,7 +1091,9 @@ class TestPromptMutations:
                                     }
                                 ]
                             },
-                            "invocationParameters": {"max_tokens": 1024, "temperature": 0.4},
+                            "invocationParameters": {
+                                "anthropic": {"maxTokens": 1024, "temperature": 0.4}
+                            },
                             "modelProvider": "ANTHROPIC",
                             "modelName": "claude-2",
                             "tools": {
@@ -1026,7 +1184,7 @@ class TestPromptMutations:
                                 }
                             ]
                         },
-                        "invocationParameters": {"temperature": 0.4},
+                        "invocationParameters": {"openai": {"temperature": 0.4}},
                         "modelProvider": "OPENAI",
                         "modelName": "o1-mini",
                     },
@@ -1056,8 +1214,33 @@ class TestPromptMutations:
         expected_model_name = variables["input"]["promptVersion"]["modelName"]
         assert latest_prompt_version.pop("modelProvider") == expected_model_provider
         assert latest_prompt_version.pop("modelName") == expected_model_name
-        expected_invocation_parameters = variables["input"]["promptVersion"]["invocationParameters"]
-        assert latest_prompt_version.pop("invocationParameters") == expected_invocation_parameters
+        input_invocation_parameters = variables["input"]["promptVersion"]["invocationParameters"]
+        returned_invocation_parameters = latest_prompt_version.pop("invocationParameters")
+        (input_variant,) = [k for k, v in input_invocation_parameters.items() if v is not None]
+        expected_variant_to_typename = {
+            "openai": "PromptOpenAIInvocationParameters",
+            "anthropic": "PromptAnthropicInvocationParameters",
+            "google": "PromptGoogleInvocationParameters",
+            "aws": "PromptAwsInvocationParameters",
+        }
+        assert (
+            returned_invocation_parameters["__typename"]
+            == expected_variant_to_typename[input_variant]
+        )
+        expected_content = input_invocation_parameters[input_variant]
+        for k, v in expected_content.items():
+            out_key = k
+            if k == "maxTokens":
+                out_key = {
+                    "openai": "openaiMaxTokens",
+                    "anthropic": "anthropicMaxTokens",
+                    "aws": "awsMaxTokens",
+                }[input_variant]
+            assert returned_invocation_parameters.get(out_key) == v, (
+                k,
+                v,
+                returned_invocation_parameters,
+            )
         assert latest_prompt_version.pop("tools") == expected_tools_output
         assert latest_prompt_version.pop("responseFormat") == expected_rf_output
         assert isinstance(latest_prompt_version.pop("id"), str)
@@ -1093,7 +1276,7 @@ class TestPromptMutations:
                             {"role": "USER", "content": [{"text": {"text": "hello world"}}]}
                         ]
                     },
-                    "invocationParameters": {"temperature": 0.4},
+                    "invocationParameters": {"openai": {"temperature": 0.4}},
                     "modelProvider": "OPENAI",
                     "modelName": "o1-mini",
                 },
@@ -1115,7 +1298,7 @@ class TestPromptMutations:
                             "description": "prompt-version-description",
                             "templateFormat": "MUSTACHE",
                             "template": {"messages": [{"role": "USER", "content": "hello world"}]},
-                            "invocationParameters": {"temperature": 0.4},
+                            "invocationParameters": {"openai": {"temperature": 0.4}},
                             "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                         },
@@ -1138,7 +1321,7 @@ class TestPromptMutations:
                                     }
                                 ]
                             },
-                            "invocationParameters": {"temperature": 0.4},
+                            "invocationParameters": {"openai": {"temperature": 0.4}},
                             "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                             "tools": [
@@ -1164,7 +1347,7 @@ class TestPromptMutations:
                                     }
                                 ]
                             },
-                            "invocationParameters": {"temperature": 0.4},
+                            "invocationParameters": {"openai": {"temperature": 0.4}},
                             "modelProvider": "anthropic",  # lowercase → invalid enum
                             "modelName": "claude-2",
                             "tools": {
@@ -1224,7 +1407,7 @@ class TestPromptMutations:
                                 }
                             ]
                         },
-                        "invocationParameters": {"temperature": 0.4},
+                        "invocationParameters": {"openai": {"temperature": 0.4}},
                         "modelProvider": "OPENAI",
                         "modelName": "o1-mini",
                     },
@@ -1264,7 +1447,7 @@ class TestPromptMutations:
                                     }
                                 ]
                             },
-                            "invocationParameters": {"temperature": 0.4},
+                            "invocationParameters": {"openai": {"temperature": 0.4}},
                             "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                         },
@@ -1297,7 +1480,7 @@ class TestPromptMutations:
                                     }
                                 ]
                             },
-                            "invocationParameters": {"temperature": 0.4},
+                            "invocationParameters": {"openai": {"temperature": 0.4}},
                             "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                         },
@@ -1390,7 +1573,7 @@ class TestPromptMutations:
                                     }
                                 ]
                             },
-                            "invocationParameters": {"temperature": 0.4},
+                            "invocationParameters": {"openai": {"temperature": 0.4}},
                             "modelProvider": "OPENAI",
                             "modelName": "o1-mini",
                         },
@@ -1457,7 +1640,7 @@ class TestPromptMutations:
                                     {"role": "USER", "content": [{"text": {"text": "test"}}]}
                                 ]
                             },
-                            "invocationParameters": {"temperature": 0.5},
+                            "invocationParameters": {"openai": {"temperature": 0.5}},
                             "modelProvider": "OPENAI",
                             "modelName": "gpt-4o",
                         },
@@ -1487,7 +1670,7 @@ class TestPromptMutations:
                                     {"role": "USER", "content": [{"text": {"text": "test"}}]}
                                 ]
                             },
-                            "invocationParameters": {"temperature": 0.5},
+                            "invocationParameters": {"openai": {"temperature": 0.5}},
                             "modelProvider": "OPENAI",
                             "modelName": "gpt-4o",
                         },
@@ -1517,7 +1700,7 @@ class TestPromptMutations:
                                     {"role": "USER", "content": [{"text": {"text": "test"}}]}
                                 ]
                             },
-                            "invocationParameters": {"temperature": 0.5},
+                            "invocationParameters": {"openai": {"temperature": 0.5}},
                             "modelProvider": "OPENAI",
                             "modelName": "gpt-4o",
                         },
@@ -1548,7 +1731,7 @@ class TestPromptMutations:
                                     {"role": "USER", "content": [{"text": {"text": "test"}}]}
                                 ]
                             },
-                            "invocationParameters": {"temperature": 0.5},
+                            "invocationParameters": {"openai": {"temperature": 0.5}},
                             "modelProvider": "OPENAI",
                             "modelName": "gpt-4o",
                         },
@@ -1578,7 +1761,7 @@ class TestPromptMutations:
                                     {"role": "USER", "content": [{"text": {"text": "test"}}]}
                                 ]
                             },
-                            "invocationParameters": {"temperature": 0.5},
+                            "invocationParameters": {"openai": {"temperature": 0.5}},
                             "modelProvider": "OPENAI",
                             "modelName": "gpt-4o",
                         },
@@ -1633,7 +1816,7 @@ class TestPromptMutations:
                         "template": {
                             "messages": [{"role": "USER", "content": [{"text": {"text": "test"}}]}]
                         },
-                        "invocationParameters": {"temperature": 0.5},
+                        "invocationParameters": {"openai": {"temperature": 0.5}},
                         "modelProvider": "OPENAI",
                         "modelName": "gpt-4o",
                     },
@@ -1690,7 +1873,7 @@ class TestPromptMutations:
                                     {"role": "USER", "content": [{"text": {"text": "test"}}]}
                                 ]
                             },
-                            "invocationParameters": {"temperature": 0.5},
+                            "invocationParameters": {"openai": {"temperature": 0.5}},
                             "modelProvider": "OPENAI",
                             "modelName": "gpt-4o",
                         },
@@ -1721,7 +1904,7 @@ class TestPromptMutations:
                                     {"role": "USER", "content": [{"text": {"text": "test"}}]}
                                 ]
                             },
-                            "invocationParameters": {"temperature": 0.5},
+                            "invocationParameters": {"openai": {"temperature": 0.5}},
                             "modelProvider": "OPENAI",
                             "modelName": "gpt-4o",
                         },
@@ -1752,7 +1935,7 @@ class TestPromptMutations:
                                     {"role": "USER", "content": [{"text": {"text": "test"}}]}
                                 ]
                             },
-                            "invocationParameters": {"temperature": 0.5},
+                            "invocationParameters": {"openai": {"temperature": 0.5}},
                             "modelProvider": "OPENAI",
                             "modelName": "gpt-4o",
                         },

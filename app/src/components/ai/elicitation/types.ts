@@ -9,10 +9,21 @@ import type {
 export interface ElicitationCarouselProps {
   /** Ordered list of questions to present. */
   questions: ElicitationQuestion[];
+  /** Called when question progress changes on navigation or submit. */
+  onProgressStateChange?: (draftState: ElicitationDraftState) => void;
   /** Called when the user submits all answers. */
   onSubmit: (output: ElicitToolOutput) => void;
   /** Called when the user cancels without answering. */
   onCancel?: () => void;
+}
+
+export interface ElicitationDraftState {
+  /** Captured answer selections keyed by question ID. */
+  answers: ElicitToolOutput["answers"];
+  /** Captured freeform texts keyed by question ID. */
+  freeformTexts: ElicitToolOutput["freeformTexts"];
+  /** Zero-based index of the question shown when the snapshot was captured. */
+  currentIndex: number;
 }
 
 /**

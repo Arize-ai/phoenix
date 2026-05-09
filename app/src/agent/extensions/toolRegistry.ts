@@ -1,22 +1,16 @@
 import type { Chat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 
-import {
-  bashToolDefinition,
-  getBashToolInput,
-} from "@phoenix/agent/tools/bash";
-import type { BashToolInput } from "@phoenix/agent/tools/bash";
 /**
- * For the workflow to add, edit, or remove a frontend tool, see
- * `.agents/skills/phoenix-pxi/rules/extending-frontend-tool-registry.md`.
+ * Frontend registry for executing PXI tools whose model-facing definitions are
+ * advertised by the server.
  */
+import { getBashToolInput } from "@phoenix/agent/tools/bash";
+import type { BashToolInput } from "@phoenix/agent/tools/bash";
 import { handleBashToolCall } from "@phoenix/agent/tools/bash/handleBashToolCall";
-import {
-  elicitToolDefinition,
-  parseElicitToolInput,
-} from "@phoenix/agent/tools/elicit";
+import { parseElicitToolInput } from "@phoenix/agent/tools/elicit";
 import type { ElicitToolInput } from "@phoenix/agent/tools/elicit";
-import type { FrontendToolDefinition } from "@phoenix/agent/tools/types";
+import type { TimeRangeKey } from "@phoenix/components/datetime/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
 import {
@@ -45,11 +39,11 @@ type AgentToolHandlerContext<TInput> = {
 };
 
 /**
- * One frontend tool entry: schema exposed to the model, parser for raw input,
+ * One frontend tool entry: server-advertised name, parser for raw input,
  * optional capability gates, and the implementation that handles the call.
  */
 type RegisteredAgentTool<TInput> = {
-  definition: FrontendToolDefinition;
+  name: string;
   parseInput: (input: unknown) => TInput | null;
   invalidInputErrorText: string;
   requiredCapabilities?: AgentCapabilityKey[];
@@ -65,7 +59,7 @@ function createRegisteredAgentTool<TInput>(
 
 /** Bash runs in the browser sandbox and is gated by runtime capabilities. */
 const bashAgentTool = createRegisteredAgentTool<BashToolInput>({
-  definition: bashToolDefinition,
+  name: "bash",
   parseInput: getBashToolInput,
   invalidInputErrorText: "Invalid bash tool input",
   execute: async ({
@@ -87,7 +81,7 @@ const bashAgentTool = createRegisteredAgentTool<BashToolInput>({
 
 /** ask_user pauses tool execution until the user answers in the UI. */
 const askUserAgentTool = createRegisteredAgentTool<ElicitToolInput>({
-  definition: elicitToolDefinition,
+  name: "ask_user",
   parseInput: parseElicitToolInput,
   invalidInputErrorText:
     "Invalid ask_user tool input. Expected { questions: ElicitationQuestion[] }.",
@@ -115,15 +109,173 @@ const askUserAgentTool = createRegisteredAgentTool<ElicitToolInput>({
   },
 });
 
+/**
+ * Server-advertised, client-executed: the server owns the canonical schema
+ * and description (see agents/tools/set_spans_filter.py); this name is the
+ * single source of truth for routing the call to the matching client action
+ * registered by SpanFilterConditionField. The tool consolidates control over
+ * both the freeform filter condition and the root-vs-all-spans toggle.
+ */
+export const SET_SPANS_FILTER_TOOL_NAME = "set_spans_filter";
+
+export type SetSpansFilterInput = {
+  condition: string;
+  rootSpansOnly: boolean;
+};
+
+export const SET_TIME_RANGE_TOOL_NAME = "set_time_range";
+
+export type SetTimeRangeInput = {
+  timeRangeKey: TimeRangeKey;
+  startTime?: string;
+  endTime?: string;
+};
+
+/**
+ * **Drift warning:** These allowed `timeRangeKey` values must stay in sync with
+ * the server-side enum in
+ * `src/phoenix/server/agents/tools/external/set_time_range.py`
+ * (`_SET_TIME_RANGE_PARAMETERS["properties"]["timeRangeKey"]["enum"]`) and
+ * the shared TypeScript type `TimeRangeKey` in
+ * `app/src/components/datetime/types.ts`.
+ */
+const TIME_RANGE_KEYS = ["15m", "1h", "12h", "1d", "7d", "30d", "custom"];
+
+function isValidTimeRangeKey(value: unknown): value is TimeRangeKey {
+  return typeof value === "string" && TIME_RANGE_KEYS.includes(value);
+}
+
+const setTimeRangeInvalidInputErrorText = `Invalid ${SET_TIME_RANGE_TOOL_NAME} input. Expected { timeRangeKey: ${TIME_RANGE_KEYS.map((key) => `"${key}"`).join(" | ")}, startTime?: string, endTime?: string }.`;
+
+function parseSetSpansFilterInput(input: unknown): SetSpansFilterInput | null {
+  if (typeof input !== "object" || input === null) return null;
+  const candidate = input as {
+    condition?: unknown;
+    rootSpansOnly?: unknown;
+  };
+  if (typeof candidate.condition !== "string") return null;
+  if (typeof candidate.rootSpansOnly !== "boolean") return null;
+  return {
+    condition: candidate.condition,
+    rootSpansOnly: candidate.rootSpansOnly,
+  };
+}
+
+const setSpansFilterAgentTool = createRegisteredAgentTool<SetSpansFilterInput>({
+  name: SET_SPANS_FILTER_TOOL_NAME,
+  parseInput: parseSetSpansFilterInput,
+  invalidInputErrorText: `Invalid ${SET_SPANS_FILTER_TOOL_NAME} input. Expected { condition: string, rootSpansOnly: boolean }.`,
+  execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+    const action =
+      agentStore.getState().registeredClientActions[SET_SPANS_FILTER_TOOL_NAME];
+    if (!action) {
+      await addToolOutput({
+        state: "output-error",
+        tool: SET_SPANS_FILTER_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        errorText:
+          "The span filter field is not mounted on this page; cannot update the spans filter.",
+      });
+      return;
+    }
+    const result = await action(input);
+    if (result.ok) {
+      await addToolOutput({
+        state: "output-available",
+        tool: SET_SPANS_FILTER_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        output: result.output ?? "Spans filter updated.",
+      });
+    } else {
+      await addToolOutput({
+        state: "output-error",
+        tool: SET_SPANS_FILTER_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        errorText: result.error,
+      });
+    }
+  },
+});
+
+/** Parse and validate the set_time_range tool input. */
+function parseSetTimeRangeInput(input: unknown): SetTimeRangeInput | null {
+  if (typeof input !== "object" || input === null) return null;
+  const candidate = input as {
+    timeRangeKey?: unknown;
+    startTime?: unknown;
+    endTime?: unknown;
+  };
+  if (!isValidTimeRangeKey(candidate.timeRangeKey)) {
+    return null;
+  }
+  if (
+    candidate.startTime !== undefined &&
+    typeof candidate.startTime !== "string"
+  ) {
+    return null;
+  }
+  if (
+    candidate.endTime !== undefined &&
+    typeof candidate.endTime !== "string"
+  ) {
+    return null;
+  }
+  return {
+    timeRangeKey: candidate.timeRangeKey,
+    ...(candidate.startTime !== undefined
+      ? { startTime: candidate.startTime }
+      : {}),
+    ...(candidate.endTime !== undefined ? { endTime: candidate.endTime } : {}),
+  };
+}
+
+const setTimeRangeAgentTool = createRegisteredAgentTool<SetTimeRangeInput>({
+  name: SET_TIME_RANGE_TOOL_NAME,
+  parseInput: parseSetTimeRangeInput,
+  invalidInputErrorText: setTimeRangeInvalidInputErrorText,
+  execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+    const action =
+      agentStore.getState().registeredClientActions[SET_TIME_RANGE_TOOL_NAME];
+    if (!action) {
+      await addToolOutput({
+        state: "output-error",
+        tool: SET_TIME_RANGE_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        errorText:
+          "The app time range selector is not mounted on this page; cannot update the time range.",
+      });
+      return;
+    }
+    const result = await action(input);
+    if (result.ok) {
+      await addToolOutput({
+        state: "output-available",
+        tool: SET_TIME_RANGE_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        output: result.output ?? "Time range updated.",
+      });
+    } else {
+      await addToolOutput({
+        state: "output-error",
+        tool: SET_TIME_RANGE_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        errorText: result.error,
+      });
+    }
+  },
+});
+
 /** Ordered registry of all frontend-executable tools. */
 const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   bashAgentTool as RegisteredAgentTool<unknown>,
   askUserAgentTool as RegisteredAgentTool<unknown>,
+  setTimeRangeAgentTool as RegisteredAgentTool<unknown>,
+  setSpansFilterAgentTool as RegisteredAgentTool<unknown>,
 ];
 
 /** Fast lookup map for runtime tool dispatch by name. */
 const agentToolRegistryByName = new Map<string, RegisteredAgentTool<unknown>>(
-  agentToolRegistry.map((tool) => [tool.definition.name, tool])
+  agentToolRegistry.map((tool) => [tool.name, tool])
 );
 
 function getMissingCapabilities({
@@ -151,11 +303,6 @@ function buildMissingCapabilitiesErrorText(
     ),
   ].join("\n");
 }
-
-/** Tool schemas sent with every chat request. */
-export const agentToolDefinitions = agentToolRegistry.map(
-  (tool) => tool.definition
-);
 
 /**
  * Validates and dispatches one tool call from the AI SDK runtime to the

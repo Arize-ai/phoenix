@@ -39,10 +39,12 @@ if TYPE_CHECKING:
         ImageBlockParam,
         MessageParam,
         ModelParam,
+        OutputConfigParam,
         RedactedThinkingBlockParam,
         TextBlock,
         TextBlockParam,
         ThinkingBlockParam,
+        ThinkingConfigAdaptiveParam,
         ThinkingConfigDisabledParam,
         ThinkingConfigEnabledParam,
         ToolChoiceAnyParam,
@@ -78,16 +80,21 @@ if TYPE_CHECKING:
 
 
 class _ToolKwargs(TypedDict, total=False):
-    tools: list[ToolParam]
+    tools: list[ToolUnionParam]
     tool_choice: ToolChoiceParam
 
 
 class _InvocationParameters(TypedDict, total=False):
     max_tokens: Required[int]
+    output_config: OutputConfigParam
     stop_sequences: list[str]
     temperature: float
     top_p: float
-    thinking: Union[ThinkingConfigEnabledParam, ThinkingConfigDisabledParam]
+    thinking: Union[
+        ThinkingConfigEnabledParam,
+        ThinkingConfigDisabledParam,
+        ThinkingConfigAdaptiveParam,
+    ]
 
 
 class AnthropicMessageModelKwargs(
@@ -234,6 +241,8 @@ class _InvocationParametersConversion:
             v1.PromptFireworksInvocationParameters,
             v1.PromptGroqInvocationParameters,
             v1.PromptMoonshotInvocationParameters,
+            v1.PromptPerplexityInvocationParameters,
+            v1.PromptTogetherInvocationParameters,
         ],
     ) -> _InvocationParameters:
         ans: _InvocationParameters = _InvocationParameters(
@@ -250,17 +259,32 @@ class _InvocationParametersConversion:
                 ans["top_p"] = anthropic_params["top_p"]
             if "stop_sequences" in anthropic_params:
                 ans["stop_sequences"] = list(anthropic_params["stop_sequences"])
+            if "output_config" in anthropic_params:
+                oc = anthropic_params["output_config"]
+                if oc:
+                    output_config: OutputConfigParam = {}
+                    if "effort" in oc:
+                        output_config["effort"] = oc["effort"]
+                    if output_config:
+                        ans["output_config"] = output_config
             if "thinking" in anthropic_params:
                 thinking = anthropic_params["thinking"]
                 if thinking["type"] == "disabled":
-                    ans["thinking"] = {
-                        "type": "disabled",
-                    }
+                    disabled_param: ThinkingConfigDisabledParam = {"type": "disabled"}
+                    ans["thinking"] = disabled_param
                 elif thinking["type"] == "enabled":
-                    ans["thinking"] = {
+                    enabled_param: ThinkingConfigEnabledParam = {
                         "type": "enabled",
                         "budget_tokens": thinking["budget_tokens"],
                     }
+                    if "display" in thinking:
+                        enabled_param["display"] = thinking["display"]
+                    ans["thinking"] = enabled_param
+                elif thinking["type"] == "adaptive":
+                    adaptive_param: ThinkingConfigAdaptiveParam = {"type": "adaptive"}
+                    if "display" in thinking:
+                        adaptive_param["display"] = thinking["display"]
+                    ans["thinking"] = adaptive_param
                 elif TYPE_CHECKING:
                     assert_never(thinking["type"])
         elif obj["type"] == "openai":
@@ -299,6 +323,8 @@ class _InvocationParametersConversion:
                 ans["temperature"] = aws_params["temperature"]
             if "top_p" in aws_params:
                 ans["top_p"] = aws_params["top_p"]
+            if "stop_sequences" in aws_params:
+                ans["stop_sequences"] = list(aws_params["stop_sequences"])
         elif obj["type"] == "deepseek":
             deepseek_params: v1.PromptDeepSeekInvocationParametersContent
             deepseek_params = obj["deepseek"]
@@ -362,6 +388,24 @@ class _InvocationParametersConversion:
                 ans["temperature"] = moonshot_params["temperature"]
             if "top_p" in moonshot_params:
                 ans["top_p"] = moonshot_params["top_p"]
+        elif obj["type"] == "perplexity":
+            perplexity_params: v1.PromptPerplexityInvocationParametersContent
+            perplexity_params = obj["perplexity"]
+            if "max_tokens" in perplexity_params:
+                ans["max_tokens"] = perplexity_params["max_tokens"]
+            if "temperature" in perplexity_params:
+                ans["temperature"] = perplexity_params["temperature"]
+            if "top_p" in perplexity_params:
+                ans["top_p"] = perplexity_params["top_p"]
+        elif obj["type"] == "together":
+            together_params: v1.PromptTogetherInvocationParametersContent
+            together_params = obj["together"]
+            if "max_tokens" in together_params:
+                ans["max_tokens"] = together_params["max_tokens"]
+            if "temperature" in together_params:
+                ans["temperature"] = together_params["temperature"]
+            if "top_p" in together_params:
+                ans["top_p"] = together_params["top_p"]
         elif TYPE_CHECKING:
             assert_never(obj["type"])
         return ans
@@ -382,17 +426,34 @@ class _InvocationParametersConversion:
             content["top_p"] = obj["top_p"]
         if "stop_sequences" in obj:
             content["stop_sequences"] = list(obj["stop_sequences"])
+        if "output_config" in obj:
+            oc_in = obj["output_config"]
+            if oc_in:
+                oc_out: v1.PromptAnthropicOutputConfig = {}
+                effort = oc_in.get("effort")
+                if effort is not None:
+                    oc_out["effort"] = effort
+                content["output_config"] = oc_out
         if "thinking" in obj:
             thinking = obj["thinking"]
             if thinking["type"] == "disabled":
-                content["thinking"] = {
-                    "type": "disabled",
-                }
+                disabled_content: v1.PromptAnthropicThinkingConfigDisabled = {"type": "disabled"}
+                content["thinking"] = disabled_content
             elif thinking["type"] == "enabled":
-                content["thinking"] = {
+                enabled_content: v1.PromptAnthropicThinkingConfigEnabled = {
                     "type": "enabled",
                     "budget_tokens": thinking["budget_tokens"],
                 }
+                display_enabled = thinking.get("display")
+                if display_enabled is not None:
+                    enabled_content["display"] = display_enabled
+                content["thinking"] = enabled_content
+            elif thinking["type"] == "adaptive":
+                adaptive_content: v1.PromptAnthropicThinkingConfigAdaptive = {"type": "adaptive"}
+                display_adaptive = thinking.get("display")
+                if display_adaptive is not None:
+                    adaptive_content["display"] = display_adaptive
+                content["thinking"] = adaptive_content
             elif TYPE_CHECKING:
                 assert_never(thinking["type"])
         return v1.PromptAnthropicInvocationParameters(
@@ -409,7 +470,9 @@ class _ToolKwargsConversion:
         ans: _ToolKwargs = {}
         if not obj:
             return ans
-        tools: list[ToolParam] = list(_ToolConversion.to_anthropic(obj["tools"]))
+        tools: list[ToolUnionParam] = list(_ToolConversion.to_anthropic(obj["tools"]))
+        if not tools:
+            return ans
         ans["tools"] = tools
         if "tool_choice" in obj:
             if obj["tool_choice"]["type"] == "none":
@@ -430,7 +493,9 @@ class _ToolKwargsConversion:
     ) -> Optional[v1.PromptTools]:
         if not obj or "tools" not in obj:
             return None
-        tools: list[v1.PromptToolFunction] = list(_ToolConversion.from_anthropic(obj["tools"]))
+        tools: list[Union[v1.PromptToolFunction, v1.PromptToolRaw]] = list(
+            _ToolConversion.from_anthropic(obj["tools"])
+        )
         if not tools:
             return None
         ans = v1.PromptTools(
@@ -517,34 +582,49 @@ class _ToolChoiceConversion:
 class _ToolConversion:
     @staticmethod
     def to_anthropic(
-        obj: Iterable[v1.PromptToolFunction],
-    ) -> Iterator[ToolParam]:
+        obj: Iterable[Union[v1.PromptToolFunction, v1.PromptToolRaw]],
+    ) -> Iterator[ToolUnionParam]:
         for tool in obj:
-            function = tool["function"]
-            input_schema: dict[str, Any] = (
-                dict(function["parameters"]) if "parameters" in function else {}
-            )
-            param: ToolParam = {
-                "name": function["name"],
-                "input_schema": input_schema,
-            }
-            if "description" in function:
-                param["description"] = function["description"]
-            yield param
+            if tool["type"] == "function":
+                function = tool["function"]
+                input_schema: dict[str, Any] = (
+                    dict(function["parameters"]) if "parameters" in function else {}
+                )
+                param: ToolParam = {
+                    "name": function["name"],
+                    "input_schema": input_schema,
+                }
+                if "description" in function:
+                    param["description"] = function["description"]
+                yield param
+            elif tool["type"] == "raw":
+                # Vendor passthrough: forward the raw dict as a ToolUnionParam
+                # (e.g. web_search_20250305, computer_20250124). No validation
+                # here; mismatches surface as Anthropic SDK errors at request
+                # time.
+                yield cast("ToolUnionParam", dict(tool["raw"]))
+            else:
+                assert_never(tool)
 
     @staticmethod
     def from_anthropic(
-        obj: Iterable[ToolParam],
-    ) -> Iterator[v1.PromptToolFunction]:
+        obj: Iterable[ToolUnionParam],
+    ) -> Iterator[Union[v1.PromptToolFunction, v1.PromptToolRaw]]:
         for tool in obj:
-            function = v1.PromptToolFunctionDefinition(
-                name=tool["name"],
-            )
-            if "description" in tool:
-                function["description"] = tool["description"]
+            # User-defined function tools are recognized by the presence of
+            # `input_schema`; everything else (web_search, computer_use,
+            # code_execution, ...) is round-tripped as a raw passthrough.
             if "input_schema" in tool:
-                function["parameters"] = tool["input_schema"]
-            yield v1.PromptToolFunction(type="function", function=function)
+                tool_param = cast("ToolParam", tool)  # pyright: ignore[reportUnnecessaryCast] -- mypy doesn't narrow ToolUnionParam on `key in tool`.
+                function = v1.PromptToolFunctionDefinition(
+                    name=tool_param["name"],
+                )
+                if "description" in tool_param:
+                    function["description"] = tool_param["description"]
+                function["parameters"] = tool_param["input_schema"]
+                yield v1.PromptToolFunction(type="function", function=function)
+            else:
+                yield v1.PromptToolRaw(type="raw", raw=dict(cast(Mapping[str, Any], tool)))
 
 
 class _MessageConversion:
@@ -569,7 +649,16 @@ class _MessageConversion:
     def from_anthropic(
         obj: MessageParam,
     ) -> v1.PromptMessage:
-        content = _ContentConversion.from_anthropic(obj["content"])
+        raw_content = obj["content"]
+        content_arg: Optional[Union[str, Iterable[Union[_BlockParam, ContentBlock]]]] = (
+            raw_content
+            if isinstance(raw_content, str)
+            else cast(
+                "Iterable[Union[_BlockParam, ContentBlock]]",
+                raw_content,
+            )
+        )
+        content = _ContentConversion.from_anthropic(content_arg)
         role = _RoleConversion.from_anthropic(obj)
         return v1.PromptMessage(role=role, content=content)
 
@@ -609,7 +698,12 @@ class _ToolCallContentPartConversion:
         id_ = obj["tool_call_id"]
         tool_call = obj["tool_call"]
         name = tool_call["name"]
-        input_ = tool_call["arguments"] if "arguments" in tool_call else "{}"
+        arguments = tool_call["arguments"] if "arguments" in tool_call else "{}"
+        try:
+            parsed = json.loads(arguments)
+        except (json.JSONDecodeError, TypeError):
+            parsed = None
+        input_: dict[str, object] = parsed if isinstance(parsed, dict) else {}
         return {
             "type": "tool_use",
             "id": id_,

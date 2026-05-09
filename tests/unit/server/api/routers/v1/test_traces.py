@@ -1,14 +1,20 @@
 from asyncio import sleep
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
 import httpx
+import opentelemetry.proto.trace.v1.trace_pb2 as otlp
 import pytest
 from faker import Faker
+from openinference.semconv.resource import ResourceAttributes
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
     ExportTraceServiceResponse,
 )
+from opentelemetry.proto.common.v1.common_pb2 import AnyValue, KeyValue
+from opentelemetry.proto.resource.v1.resource_pb2 import Resource
+from opentelemetry.proto.trace.v1.trace_pb2 import ResourceSpans, ScopeSpans
 from sqlalchemy import insert, select
 from strawberry.relay import GlobalID
 
@@ -107,6 +113,138 @@ async def test_rest_trace_annotation(
     assert orm_annotation.identifier == "identifier-name"
     assert orm_annotation.source == "API"
     assert orm_annotation.user_id is None
+
+
+async def test_rest_trace_annotation_rejects_note_name(
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+) -> None:
+    request_body = {
+        "data": [
+            {
+                "trace_id": "82c6c9c33ccc586e0d3bdf46b20db309",
+                "name": "note",
+                "annotator_kind": "HUMAN",
+                "result": {
+                    "explanation": "This should fail",
+                },
+                "metadata": {},
+            }
+        ]
+    }
+
+    response = await httpx_client.post("v1/trace_annotations?sync=true", json=request_body)
+    assert response.status_code == 400
+    assert (
+        "The name 'note' is reserved for trace and span notes. Use POST /v1/trace_notes instead."
+    ) in response.text
+
+
+async def test_rest_create_trace_note(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+    fake: Faker,
+) -> None:
+    note_text = fake.pystr()
+    request_body = {
+        "data": {
+            "trace_id": "82c6c9c33ccc586e0d3bdf46b20db309",
+            "note": note_text,
+        }
+    }
+
+    response = await httpx_client.post("v1/trace_notes", json=request_body)
+    assert response.status_code == 200
+
+    response_data = response.json()
+    assert "data" in response_data
+    assert "id" in response_data["data"]
+
+    async with db() as session:
+        orm_annotation = await session.scalar(
+            select(models.TraceAnnotation).where(
+                models.TraceAnnotation.name == "note",
+                models.TraceAnnotation.explanation == note_text,
+            )
+        )
+
+    assert orm_annotation is not None
+    assert orm_annotation.name == "note"
+    assert orm_annotation.annotator_kind == "HUMAN"
+    assert orm_annotation.explanation == note_text
+    assert orm_annotation.source == "API"
+    assert orm_annotation.identifier.startswith("px-trace-note:")
+    assert UUID(orm_annotation.identifier.removeprefix("px-trace-note:")).version == 4
+    assert orm_annotation.label is None
+    assert orm_annotation.score is None
+    assert orm_annotation.metadata_ == dict()
+
+
+async def test_rest_create_trace_note_not_found(
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+) -> None:
+    request_body = {
+        "data": {
+            "trace_id": "nonexistent-trace-id",
+            "note": "This should fail",
+        }
+    }
+
+    response = await httpx_client.post("v1/trace_notes", json=request_body)
+    assert response.status_code == 404
+    assert "not found" in response.text.lower()
+
+
+async def test_rest_create_multiple_trace_notes(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+    fake: Faker,
+) -> None:
+    note_texts = [fake.pystr() for _ in range(3)]
+
+    for note_text in note_texts:
+        request_body = {
+            "data": {
+                "trace_id": "82c6c9c33ccc586e0d3bdf46b20db309",
+                "note": note_text,
+            }
+        }
+        response = await httpx_client.post("v1/trace_notes", json=request_body)
+        assert response.status_code == 200
+
+    async with db() as session:
+        result = await session.execute(
+            select(models.TraceAnnotation).where(models.TraceAnnotation.name == "note")
+        )
+        annotations = list(result.scalars().all())
+
+    assert len(annotations) == 3
+    explanations = {annotation.explanation for annotation in annotations}
+    assert explanations == set(note_texts)
+
+    identifiers = [annotation.identifier for annotation in annotations]
+    assert len(identifiers) == len(set(identifiers))
+    assert all(
+        UUID(identifier.removeprefix("px-trace-note:")).version == 4 for identifier in identifiers
+    )
+
+
+async def test_rest_create_trace_note_blank_text_rejected(
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+) -> None:
+    request_body = {
+        "data": {
+            "trace_id": "82c6c9c33ccc586e0d3bdf46b20db309",
+            "note": "   ",
+        }
+    }
+
+    response = await httpx_client.post("v1/trace_notes", json=request_body)
+    assert response.status_code == 422
 
 
 async def test_traces_endpoint_otlp_compliance(
@@ -347,3 +485,92 @@ async def test_delete_trace_by_relay_id_not_found(
     response = await httpx_client.delete(url)
     assert response.status_code == 404
     assert f"Trace with relay ID '{non_existent_global_id}' not found" in response.text
+
+
+def _make_otlp_request(
+    *,
+    project_resource_attr: str | None = None,
+) -> ExportTraceServiceRequest:
+    """Build a minimal OTLP ExportTraceServiceRequest with one span.
+
+    Args:
+        project_resource_attr: If provided, sets the ``openinference.project.name``
+            resource attribute on the ResourceSpans.
+    """
+    resource_attrs: list[KeyValue] = []
+    if project_resource_attr is not None:
+        resource_attrs.append(
+            KeyValue(
+                key=ResourceAttributes.PROJECT_NAME,
+                value=AnyValue(string_value=project_resource_attr),
+            )
+        )
+
+    span = otlp.Span(
+        trace_id=bytes.fromhex("a" * 32),
+        span_id=bytes.fromhex("b" * 16),
+        name="test-span",
+        start_time_unix_nano=1_000_000_000,
+        end_time_unix_nano=2_000_000_000,
+    )
+    resource_spans = ResourceSpans(
+        resource=Resource(attributes=resource_attrs),
+        scope_spans=[ScopeSpans(spans=[span])],
+    )
+    return ExportTraceServiceRequest(resource_spans=[resource_spans])
+
+
+async def test_post_traces_project_header_overrides_resource_attribute(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """The x-project-name header takes precedence over the resource attribute."""
+    req = _make_otlp_request(project_resource_attr="resource-project")
+
+    response = await httpx_client.post(
+        "v1/traces",
+        content=req.SerializeToString(),
+        headers={
+            "Content-Type": "application/x-protobuf",
+            "x-project-name": "header-project",
+        },
+    )
+    assert response.status_code == 200
+
+    # Allow the background task to complete
+    await sleep(0.1)
+
+    async with db() as session:
+        header_project = await session.scalar(
+            select(models.Project).where(models.Project.name == "header-project")
+        )
+        resource_project = await session.scalar(
+            select(models.Project).where(models.Project.name == "resource-project")
+        )
+
+    assert header_project is not None, "Project named by the header should be created"
+    assert resource_project is None, "Resource attribute project should NOT be created"
+
+
+async def test_post_traces_resource_attribute_used_when_no_header(
+    httpx_client: httpx.AsyncClient,
+    db: DbSessionFactory,
+) -> None:
+    """When no header is sent, the openinference.project.name resource attribute is used."""
+    req = _make_otlp_request(project_resource_attr="attr-project")
+
+    response = await httpx_client.post(
+        "v1/traces",
+        content=req.SerializeToString(),
+        headers={"Content-Type": "application/x-protobuf"},
+    )
+    assert response.status_code == 200
+
+    await sleep(0.1)
+
+    async with db() as session:
+        project = await session.scalar(
+            select(models.Project).where(models.Project.name == "attr-project")
+        )
+
+    assert project is not None, "Project from resource attribute should be created"

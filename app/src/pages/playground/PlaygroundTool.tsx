@@ -13,18 +13,13 @@ import {
 import { SpanKindIcon } from "@phoenix/components/trace";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import { JSONToolEditor } from "@phoenix/pages/playground/PlaygroundToolType/JSONToolEditor";
-import {
-  anthropicToolDefinitionJSONSchema,
-  awsToolDefinitionJSONSchema,
-  geminiToolDefinitionJSONSchema,
-  openAIToolDefinitionJSONSchema,
-} from "@phoenix/schemas";
 import type { Tool } from "@phoenix/store";
 
 import {
-  displayToCanonicalToolDefinition,
   getToolDefinitionDisplay,
   getToolName,
+  isFunctionTool,
+  toolFromEditorJSON,
 } from "./playgroundUtils";
 import type { PlaygroundInstanceProps } from "./types";
 
@@ -71,7 +66,6 @@ export function PlaygroundTool({
   }
 
   const toolChoice = instance.toolChoice;
-  const instanceProvider = instance.model.provider;
   const instanceTools = instance.tools;
   const tool = instanceTools.find((t) => t.id === toolId);
 
@@ -79,42 +73,38 @@ export function PlaygroundTool({
     throw new Error(`Tool ${toolId} not found`);
   }
 
-  const toolDefinition = tool.definition;
-
   const toolName = useMemo(() => {
     return getToolName(tool);
   }, [tool]);
 
   const updateTool = useCallback(
-    (display: unknown) => {
-      // Convert provider-specific display value back to canonical before storing.
-      // Guard against null (invalid JSON mid-edit).
-      const canonical = displayToCanonicalToolDefinition(display);
-      if (canonical == null) return;
+    (value: unknown) => {
+      const nextTool = toolFromEditorJSON({
+        value,
+        id: tool.id,
+        editorType: tool.editorType,
+      });
+      if (nextTool == null) return;
       updateInstance({
         instanceId: playgroundInstanceId,
         patch: {
-          tools: instanceTools.map((t) =>
-            t.id === tool.id
-              ? {
-                  ...t,
-                  definition: canonical,
-                }
-              : t
-          ),
+          tools: instanceTools.map((t) => (t.id === tool.id ? nextTool : t)),
         },
         dirty: true,
       });
     },
-    [instanceTools, playgroundInstanceId, tool.id, updateInstance]
+    [instanceTools, playgroundInstanceId, tool, updateInstance]
   );
 
   const deleteTool = useCallback(() => {
     const newTools = instanceTools.filter((t) => t.id !== toolId);
+    const deletedFunctionToolName = isFunctionTool(tool)
+      ? (tool.definition?.name ?? null)
+      : null;
     const deletingToolChoice =
       toolChoice?.type === "SPECIFIC_FUNCTION" &&
-      toolName != null &&
-      toolChoice.functionName === toolName;
+      deletedFunctionToolName != null &&
+      toolChoice.functionName === deletedFunctionToolName;
     let newToolChoice = toolChoice;
     if (newTools.length === 0) {
       newToolChoice = undefined;
@@ -132,44 +122,21 @@ export function PlaygroundTool({
   }, [
     instanceTools,
     playgroundInstanceId,
+    tool,
     toolId,
     toolChoice,
-    toolName,
     updateInstance,
   ]);
 
   const toolDefinitionDisplay = useMemo(() => {
-    return toolDefinition != null
-      ? getToolDefinitionDisplay(toolDefinition, instanceProvider)
-      : toolDefinition;
-  }, [toolDefinition, instanceProvider]);
+    return tool.kind === "raw"
+      ? tool.raw
+      : getToolDefinitionDisplay(tool.definition, instance.model.provider);
+  }, [tool, instance.model.provider]);
 
   const toolDefinitionString = useMemo(() => {
     return JSON.stringify(toolDefinitionDisplay, null, 2);
   }, [toolDefinitionDisplay]);
-
-  const toolDefinitionJSONSchema = useMemo((): JSONSchema7 | null => {
-    switch (instanceProvider) {
-      case "OPENAI":
-      case "AZURE_OPENAI":
-      case "DEEPSEEK":
-      case "XAI":
-      case "OLLAMA":
-      case "CEREBRAS":
-      case "FIREWORKS":
-      case "GROQ":
-      case "MOONSHOT":
-      case "PERPLEXITY":
-      case "TOGETHER":
-        return openAIToolDefinitionJSONSchema as JSONSchema7;
-      case "ANTHROPIC":
-        return anthropicToolDefinitionJSONSchema as JSONSchema7;
-      case "AWS":
-        return awsToolDefinitionJSONSchema as JSONSchema7;
-      case "GOOGLE":
-        return geminiToolDefinitionJSONSchema as JSONSchema7;
-    }
-  }, [instanceProvider]);
 
   return (
     <Card
@@ -199,7 +166,7 @@ export function PlaygroundTool({
         tool={tool}
         displayDefinition={toolDefinitionDisplay}
         updateTool={updateTool}
-        toolDefinitionJSONSchema={toolDefinitionJSONSchema}
+        toolDefinitionJSONSchema={null}
       />
     </Card>
   );

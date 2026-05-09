@@ -7,7 +7,7 @@ import type {
   AnthropicToolDefinition,
   AwsToolDefinition,
   GeminiToolDefinition,
-  OpenAIToolDefinition,
+  OpenAIChatCompletionsToolDefinition,
 } from "../toolSchemas";
 
 const defaultToolParams = {
@@ -16,7 +16,7 @@ const defaultToolParams = {
   required: [] as string[],
 };
 
-const testOpenAIToolDefinition: OpenAIToolDefinition = {
+const testOpenAIToolDefinition: OpenAIChatCompletionsToolDefinition = {
   type: "function",
   function: {
     name: "new_function_1",
@@ -46,8 +46,8 @@ const testAwsToolDefinition: AwsToolDefinition = {
 };
 
 export const getTestOpenAIToolDefinition = (
-  config: Partial<OpenAIToolDefinition> = {}
-): OpenAIToolDefinition =>
+  config: Partial<OpenAIChatCompletionsToolDefinition> = {}
+): OpenAIChatCompletionsToolDefinition =>
   Object.assign({ ...testOpenAIToolDefinition }, config);
 
 export const getTestAnthropicToolDefinition = (

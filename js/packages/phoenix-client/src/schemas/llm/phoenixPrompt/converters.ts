@@ -16,7 +16,7 @@ import { phoenixMessageSchema } from "./messageSchemas";
 import { phoenixResponseFormatSchema } from "./responseFormatSchema";
 import { phoenixToolCallSchema } from "./toolCallSchemas";
 import { phoenixToolChoiceSchema } from "./toolChoiceSchemas";
-import { phoenixToolDefinitionSchema } from "./toolSchemas";
+import { phoenixToolFunctionDefinitionSchema } from "./toolSchemas";
 
 /*
  * Conversion Functions
@@ -150,7 +150,7 @@ export const phoenixToolCallToOpenAI = phoenixToolCallSchema.transform(
 );
 
 export const phoenixToolDefinitionToOpenAI =
-  phoenixToolDefinitionSchema.transform(
+  phoenixToolFunctionDefinitionSchema.transform(
     (phoenix): OpenAIToolDefinition => ({
       type: "function",
       function: {

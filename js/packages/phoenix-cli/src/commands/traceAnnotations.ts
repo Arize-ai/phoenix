@@ -1,5 +1,7 @@
 import type { componentsV1, PhoenixClient } from "@arizeai/phoenix-client";
 
+import { chunkArray } from "./chunkArray";
+
 export type TraceAnnotation = componentsV1["schemas"]["TraceAnnotation"];
 
 const DEFAULT_PAGE_LIMIT = 1000;
@@ -14,14 +16,6 @@ interface FetchTraceAnnotationsOptions {
   excludeAnnotationNames?: string[];
   pageLimit?: number;
   maxConcurrent?: number;
-}
-
-function chunkArray<T>(items: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < items.length; i += size) {
-    chunks.push(items.slice(i, i + size));
-  }
-  return chunks;
 }
 
 async function fetchTraceAnnotationsForChunk({
@@ -88,11 +82,14 @@ export async function fetchTraceAnnotations({
   }
 
   const uniqueTraceIds = Array.from(new Set(traceIds));
-  const chunks = chunkArray(uniqueTraceIds, DEFAULT_TRACE_IDS_CHUNK_SIZE);
+  const chunks = chunkArray({
+    items: uniqueTraceIds,
+    size: DEFAULT_TRACE_IDS_CHUNK_SIZE,
+  });
   const allAnnotations: TraceAnnotation[] = [];
 
-  for (let i = 0; i < chunks.length; i += maxConcurrent) {
-    const batch = chunks.slice(i, i + maxConcurrent);
+  for (let index = 0; index < chunks.length; index += maxConcurrent) {
+    const batch = chunks.slice(index, index + maxConcurrent);
     const batchResults = await Promise.all(
       batch.map((traceIdsChunk) =>
         fetchTraceAnnotationsForChunk({

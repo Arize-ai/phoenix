@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import functools
 from collections.abc import Iterator
 from secrets import token_hex
 from typing import TYPE_CHECKING, Any, Callable
 
 import httpx
 import pytest
+from starlette.datastructures import Secret
 
 from phoenix.server.api.exceptions import Unauthorized
+from phoenix.server.redaction import Redactor
 
 from .._helpers import (
     _ADMIN,
@@ -21,6 +24,17 @@ if TYPE_CHECKING:
     from .._helpers import _AppInfo, _GetUser, _SecurityArtifact
 
 _UNSET: Any = object()
+
+
+@functools.lru_cache(maxsize=None)
+def _redactor_for(phoenix_secret: str) -> Redactor:
+    """Cached Redactor keyed off the running server's PHOENIX_SECRET."""
+    return Redactor(Secret(phoenix_secret))
+
+
+def _unredact(app: _AppInfo, token: str) -> str:
+    """Un-redact a server-emitted RedactedString using the server's secret."""
+    return _redactor_for(app.env["PHOENIX_SECRET"]).unredact(token)
 
 
 @pytest.fixture()
@@ -86,14 +100,18 @@ def _put_secrets(
 
 
 def _query_secret_value(app: _AppInfo, key: str, auth: _SecurityArtifact | None = _UNSET) -> str:
-    """Read a single secret's decrypted value via GraphQL."""
+    """Read a single secret's decrypted value via GraphQL.
+
+    The server emits values as RedactedString tokens over the wire; this helper
+    un-redacts them so tests can compare against the original plaintext.
+    """
     effective_auth = app.admin_secret if auth is _UNSET else auth
     result, _ = _gql(app, effective_auth, query=SECRETS_QUERY, variables={"keys": [key]})
     assert not result.get("errors"), result.get("errors")
     edges = result["data"]["secrets"]["edges"]
     assert len(edges) == 1, f"Expected 1 secret, got {len(edges)}"
-    value: str = edges[0]["node"]["value"]["value"]
-    return value
+    token: str = edges[0]["node"]["value"]["value"]
+    return _unredact(app, token)
 
 
 def _assert_secret_absent(app: _AppInfo, key: str) -> None:
@@ -132,7 +150,7 @@ class TestSecretsEncryptionRoundtrip:
         upserted = result["data"]["upsertOrDeleteSecrets"]["upsertedSecrets"]
         assert len(upserted) == 1
         assert upserted[0]["key"] == key
-        assert upserted[0]["value"]["value"] == value
+        assert _unredact(_app, upserted[0]["value"]["value"]) == value
         assert _query_secret_value(_app, key) == value
 
     def test_update_secret_roundtrip(
@@ -238,7 +256,7 @@ class TestSecretsCRUDViaGraphQL:
         upserted = result["data"]["upsertOrDeleteSecrets"]["upsertedSecrets"]
         assert len(upserted) == 1
         assert upserted[0]["key"] == key
-        assert upserted[0]["value"]["value"] == value
+        assert _unredact(_app, upserted[0]["value"]["value"]) == value
         assert _query_secret_value(_app, key) == value
 
     def test_update_secret(self, _app: _AppInfo, _secret_keys: Callable[[str], str]) -> None:
@@ -259,7 +277,7 @@ class TestSecretsCRUDViaGraphQL:
         )
         assert not result.get("errors"), result.get("errors")
         upserted = result["data"]["upsertOrDeleteSecrets"]["upsertedSecrets"]
-        assert upserted[0]["value"]["value"] == "new"
+        assert _unredact(_app, upserted[0]["value"]["value"]) == "new"
         assert _query_secret_value(_app, key) == "new"
 
     def test_delete_secret(self, _app: _AppInfo) -> None:
@@ -339,7 +357,7 @@ class TestSecretsCRUDViaGraphQL:
         assert not result.get("errors"), result.get("errors")
         upserted = result["data"]["upsertOrDeleteSecrets"]["upsertedSecrets"]
         assert len(upserted) == 1
-        assert upserted[0]["value"]["value"] == "last"
+        assert _unredact(_app, upserted[0]["value"]["value"]) == "last"
         assert _query_secret_value(_app, key) == "last"
 
     def test_recreate_after_delete(
@@ -369,7 +387,7 @@ class TestSecretsCRUDViaGraphQL:
         )
         assert not result.get("errors"), result.get("errors")
         upserted = result["data"]["upsertOrDeleteSecrets"]["upsertedSecrets"]
-        assert upserted[0]["value"]["value"] == "recreated"
+        assert _unredact(_app, upserted[0]["value"]["value"]) == "recreated"
         assert _query_secret_value(_app, key) == "recreated"
 
 

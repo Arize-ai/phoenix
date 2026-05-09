@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<44e9479ad34b7cf3f7a33993f420ee11>>
+ * @generated SignedSource<<ad4021961170e99eab9685681b1766dc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,7 +19,9 @@ export type fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$data = {
     readonly name: string;
   } | null;
   readonly id: string;
-  readonly invocationParameters: any | null;
+  readonly invocationParameters: {
+    readonly " $fragmentSpreads": FragmentRefs<"PromptInvocationParametersReadableFragment">;
+  };
   readonly modelName: string;
   readonly modelProvider: ModelProvider;
   readonly responseFormat: {
@@ -75,12 +77,20 @@ export type fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$data = {
       readonly type: PromptToolChoiceType;
     } | null;
     readonly tools: ReadonlyArray<{
+      readonly __typename: "PromptToolFunction";
       readonly function: {
         readonly description: string | null;
         readonly name: string;
         readonly parameters: any;
         readonly strict: boolean | null;
       };
+    } | {
+      readonly __typename: "PromptToolRaw";
+      readonly raw: any;
+    } | {
+      // This will never be '%other', but we need some
+      // value in case none of the concrete values match.
+      readonly __typename: "%other";
     }>;
   } | null;
   readonly " $fragmentType": "fetchPlaygroundPrompt_promptVersionToInstance_promptVersion";
@@ -95,6 +105,6 @@ const node: ReaderInlineDataFragment = {
   "name": "fetchPlaygroundPrompt_promptVersionToInstance_promptVersion"
 };
 
-(node as any).hash = "cccc93bf9101868d1ff7d1b69643490b";
+(node as any).hash = "7e4c7139f27764907b329345e0b2dabc";
 
 export default node;

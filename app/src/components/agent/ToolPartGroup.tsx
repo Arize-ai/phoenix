@@ -89,7 +89,7 @@ const toolPoolCSS = css`
     color: var(--tool-call-secondary-color);
   }
 
-  .tool-pool__status[data-tone="error"] {
+  .tool-pool__status[data-variant="danger"] {
     color: var(--tool-call-error-color);
   }
 
@@ -178,7 +178,7 @@ function formatPoolStatus({
   failed: number;
   running: number;
   total: number;
-}): { text: string; tone?: "error" } {
+}): { text: string; variant?: "danger" } {
   if (running > 0) {
     return {
       text: `${completed + failed} of ${total} done, ${running} Running\u2026`,
@@ -187,7 +187,7 @@ function formatPoolStatus({
   if (failed > 0) {
     return {
       text: `${completed} Completed, ${failed} Failed`,
-      tone: "error",
+      variant: "danger",
     };
   }
   return { text: "Completed" };
@@ -206,7 +206,7 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
   const stats = useToolPoolStats(parts);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const { text: statusText, tone: statusTone } = formatPoolStatus(stats);
+  const { text: statusText, variant: statusVariant } = formatPoolStatus(stats);
 
   const handleToggle = () => {
     setIsExpanded((prev) => !prev);
@@ -253,7 +253,7 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
           </span>
           <span
             className="tool-pool__status"
-            data-tone={statusTone ?? undefined}
+            data-variant={statusVariant ?? undefined}
           >
             {statusText}
           </span>

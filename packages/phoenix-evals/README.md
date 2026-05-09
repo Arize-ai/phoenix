@@ -183,4 +183,5 @@ Join our community to connect with thousands of AI builders:
 - 🌟 Leave a star on our [GitHub](https://github.com/Arize-ai/phoenix).
 - 🐞 Report bugs with [GitHub Issues](https://github.com/Arize-ai/phoenix/issues).
 - 𝕏 Follow us on [𝕏](https://twitter.com/ArizePhoenix).
+- 💼 Follow us on [LinkedIn](https://www.linkedin.com/showcase/113218220).
 - 🗺️ Check out our [roadmap](https://github.com/orgs/Arize-ai/projects/45) to see where we're heading next.

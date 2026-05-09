@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8f77657804562f568c57c86d54352a3b>>
+ * @generated SignedSource<<82aeed48703114493bb0f864edad237e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -32,6 +32,17 @@ export type SecretsMutationMutation$data = {
         readonly profilePictureUrl: string | null;
         readonly username: string;
       } | null;
+      readonly value: {
+        readonly __typename: "DecryptedSecret";
+        readonly value: string;
+      } | {
+        readonly __typename: "UnparsableSecret";
+        readonly parseError: string;
+      } | {
+        // This will never be '%other', but we need some
+        // value in case none of the concrete values match.
+        readonly __typename: "%other";
+      };
     }>;
   };
 };
@@ -110,6 +121,52 @@ v4 = {
           "kind": "ScalarField",
           "name": "profilePictureUrl",
           "storageKey": null
+        }
+      ],
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": null,
+      "kind": "LinkedField",
+      "name": "value",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "__typename",
+          "storageKey": null
+        },
+        {
+          "kind": "InlineFragment",
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "value",
+              "storageKey": null
+            }
+          ],
+          "type": "DecryptedSecret",
+          "abstractKey": null
+        },
+        {
+          "kind": "InlineFragment",
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "parseError",
+              "storageKey": null
+            }
+          ],
+          "type": "UnparsableSecret",
+          "abstractKey": null
         }
       ],
       "storageKey": null
@@ -210,16 +267,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "78687ca4cb391bedea4d4cffe9d0484a",
+    "cacheID": "94bbf840ef147ffbbf93fd0612dab60e",
     "id": null,
     "metadata": {},
     "name": "SecretsMutationMutation",
     "operationKind": "mutation",
-    "text": "mutation SecretsMutationMutation(\n  $input: UpsertOrDeleteSecretsMutationInput!\n) {\n  upsertOrDeleteSecrets(input: $input) {\n    upsertedSecrets {\n      id\n      key\n      updatedAt\n      user {\n        id\n        username\n        profilePictureUrl\n      }\n    }\n    deletedIds\n  }\n}\n"
+    "text": "mutation SecretsMutationMutation(\n  $input: UpsertOrDeleteSecretsMutationInput!\n) {\n  upsertOrDeleteSecrets(input: $input) {\n    upsertedSecrets {\n      id\n      key\n      updatedAt\n      user {\n        id\n        username\n        profilePictureUrl\n      }\n      value {\n        __typename\n        ... on DecryptedSecret {\n          value\n        }\n        ... on UnparsableSecret {\n          parseError\n        }\n      }\n    }\n    deletedIds\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ac158c2cca394523ea36111a27ad7cff";
+(node as any).hash = "4c845f6228365664e81a6d181028147b";
 
 export default node;

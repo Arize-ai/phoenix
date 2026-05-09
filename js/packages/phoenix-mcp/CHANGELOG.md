@@ -1,5 +1,45 @@
 # @arizeai/phoenix-mcp
 
+## 4.0.11
+
+### Patch Changes
+
+- Updated dependencies [d0cc4c4]
+  - @arizeai/phoenix-client@6.9.2
+
+## 4.0.10
+
+### Patch Changes
+
+- 5d14f23: Add LinkedIn link to the Community section of the README.
+- Updated dependencies [5d14f23]
+  - @arizeai/phoenix-config@0.1.4
+  - @arizeai/phoenix-client@6.9.1
+
+## 4.0.9
+
+### Patch Changes
+
+- Updated dependencies [2993b04]
+- Updated dependencies [4e20267]
+- Updated dependencies [2993b04]
+  - @arizeai/phoenix-client@6.9.0
+
+## 4.0.8
+
+### Patch Changes
+
+- Updated dependencies [e381885]
+- Updated dependencies [187df7e]
+  - @arizeai/phoenix-client@6.8.1
+
+## 4.0.7
+
+### Patch Changes
+
+- Updated dependencies [a4dad8b]
+  - @arizeai/phoenix-client@6.8.0
+
 ## 4.0.6
 
 ### Patch Changes

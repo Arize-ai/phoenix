@@ -1,5 +1,31 @@
 # Changelog
 
+## [2.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.5.0...arize-phoenix-client-v2.6.0) (2026-04-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* dataset upsert ([#11860](https://github.com/Arize-ai/phoenix/issues/11860))
+
+### Features
+
+* **api:** add session notes endpoint ([#12902](https://github.com/Arize-ai/phoenix/issues/12902)) ([187df7e](https://github.com/Arize-ai/phoenix/commit/187df7e8abf20b3a6c3e851bcde373229d0e7f05))
+* **client:** gate v15 dataset upload params by server version ([#12934](https://github.com/Arize-ai/phoenix/issues/12934)) ([e381885](https://github.com/Arize-ai/phoenix/commit/e3818859ee858f5e67d32968633a5d0467801026))
+* dataset upsert ([#11860](https://github.com/Arize-ai/phoenix/issues/11860)) ([9575738](https://github.com/Arize-ai/phoenix/commit/957573865202d2ee49c21eb1c73265760e07f2f9))
+* extend db prompt types for invocation paramaters ([#12855](https://github.com/Arize-ai/phoenix/issues/12855)) ([1499ca9](https://github.com/Arize-ai/phoenix/commit/1499ca956de972ba523d57e7af49b84e693f895a))
+
+
+### Miscellaneous Chores
+
+* **client:** set release-please version to 2.6.0 ([#12930](https://github.com/Arize-ai/phoenix/issues/12930)) ([883a4eb](https://github.com/Arize-ai/phoenix/commit/883a4eb9a9b9df88576473092f80eaaff66a9bdb))
+
+## [2.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.4.0...arize-phoenix-client-v2.5.0) (2026-04-25)
+
+
+### Features
+
+* add trace note REST endpoint for Phoenix CLI ([#12710](https://github.com/Arize-ai/phoenix/issues/12710)) ([ed66c02](https://github.com/Arize-ai/phoenix/commit/ed66c02805ef17d9dcd812f998a62d66cb611f83))
+
 ## [2.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.3.1...arize-phoenix-client-v2.4.0) (2026-04-22)
 
 

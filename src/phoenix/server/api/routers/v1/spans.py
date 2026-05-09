@@ -1,5 +1,4 @@
 import json
-import warnings
 from asyncio import get_running_loop
 from collections.abc import AsyncIterator
 from datetime import datetime, timezone
@@ -22,11 +21,16 @@ from phoenix.datetime_utils import is_timezone_aware, normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect, get_ancestor_span_rowids
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
+from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.routers.utils import df_to_bytes
 from phoenix.server.api.routers.v1.annotations import SpanAnnotationData
 from phoenix.server.api.routers.v1.validators import validate_enum_filter
 from phoenix.server.api.types.node import from_global_id_with_expected_type
-from phoenix.server.authorization import is_not_locked
+from phoenix.server.authorization import (
+    is_not_locked,
+    prevent_access_in_read_only_mode,
+    restrict_access_by_viewers,
+)
 from phoenix.server.bearer_auth import PhoenixUser
 from phoenix.server.dml_event import SpanAnnotationInsertEvent, SpanDeleteEvent
 from phoenix.trace.attributes import flatten, unflatten
@@ -1117,22 +1121,20 @@ async def annotate_spans(
 ) -> AnnotateSpansResponseBody:
     if not request_body.data:
         return AnnotateSpansResponseBody(data=[])
+    if any(data.name == "note" for data in request_body.data):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "The name 'note' is reserved for trace and span notes. "
+                "Use POST /v1/span_notes instead."
+            ),
+        )
 
     user_id: Optional[int] = None
     if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
         user_id = int(request.user.identity)
 
-    span_annotations = request_body.data
-    filtered_span_annotations = list(filter(lambda d: d.name != "note", span_annotations))
-    if len(filtered_span_annotations) != len(span_annotations):
-        warnings.warn(
-            (
-                "Span annotations with the name 'note' are not supported in this endpoint. "
-                "They will be ignored."
-            ),
-            UserWarning,
-        )
-    precursors = [d.as_precursor(user_id=user_id) for d in filtered_span_annotations]
+    precursors = [d.as_precursor(user_id=user_id) for d in request_body.data]
     if not sync:
         await request.state.enqueue_annotations(*precursors)
         return AnnotateSpansResponseBody(data=[])
@@ -1195,13 +1197,20 @@ class CreateSpanNoteResponseBody(ResponseBody[InsertedSpanAnnotation]):
 
 @router.post(
     "/span_notes",
-    dependencies=[Depends(is_not_locked)],
+    dependencies=[
+        Depends(prevent_access_in_read_only_mode),
+        Depends(restrict_access_by_viewers),
+        Depends(is_not_locked),
+    ],
     operation_id="createSpanNote",
     summary="Create a span note",
     description=(
-        "Add a note annotation to a span. Notes are special annotations that allow "
-        "multiple entries per span (unlike regular annotations which are unique by name "
-        "and identifier). Each note gets a unique timestamp-based identifier."
+        "Add a note annotation to a span. Each call appends a new note with an "
+        "auto-generated UUIDv4 identifier, so multiple notes accumulate on the same "
+        "span. Structured annotations, by contrast, are keyed by (name, span_id, "
+        "identifier) — re-writing the same key overwrites the existing annotation, "
+        "so to keep multiple structured annotations with the same name on a span you "
+        "must supply distinct identifiers."
     ),
     responses=add_errors_to_responses([{"status_code": 404, "description": "Span not found"}]),
     response_description="Span note created successfully",
@@ -1216,7 +1225,7 @@ async def create_span_note(
 
     Notes are a special type of annotation that:
     - Have the fixed name "note"
-    - Use a timestamp-based identifier to allow multiple notes per span
+    - Use a UUIDv4 identifier to allow multiple notes per span
     - Are always created with annotator_kind="HUMAN" and source="API"
     - Store the note text in the explanation field
     """
@@ -1238,9 +1247,7 @@ async def create_span_note(
                 detail=f"Span with ID {note_data.span_id} not found",
             )
 
-        # Generate a unique identifier for the note using timestamp
-        timestamp = datetime.now(timezone.utc).isoformat()
-        note_identifier = f"px-span-note:{timestamp}"
+        note_identifier = get_note_identifier("px-span-note")
 
         # Create the annotation values
         values = {

@@ -1,3 +1,6 @@
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as ConfirmModule from "../src/confirm";
@@ -46,14 +49,16 @@ function makeFetchMock(
     const status = resp.status ?? (resp.ok ? 200 : 500);
     const url =
       requestOrUrl instanceof Request ? requestOrUrl.url : requestOrUrl;
+    const body = resp.body ?? {};
+    const text = JSON.stringify(body);
     return Promise.resolve({
       ok: resp.ok,
       status,
       statusText: resp.ok ? "OK" : "Error",
       url,
       headers: new Headers(),
-      json: () => Promise.resolve(resp.body ?? {}),
-      text: () => Promise.resolve(""),
+      json: () => Promise.resolve(body),
+      text: () => Promise.resolve(text),
     });
   });
 }
@@ -80,7 +85,31 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
+/**
+ * Point XDG_CONFIG_HOME at a clean temp dir for each test so the CLI's
+ * settings file resolution lands on an empty directory — keeping tests
+ * unaffected by a developer's real `~/.px/settings.json`.
+ */
+function useIsolatedProfilesDir() {
+  let tmpDir: string;
+  let originalXdg: string | undefined;
+  beforeEach(() => {
+    originalXdg = process.env.XDG_CONFIG_HOME;
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "phoenix-delete-test-"));
+    process.env.XDG_CONFIG_HOME = tmpDir;
+  });
+  afterEach(() => {
+    if (originalXdg === undefined) {
+      delete process.env.XDG_CONFIG_HOME;
+    } else {
+      process.env.XDG_CONFIG_HOME = originalXdg;
+    }
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+}
+
 describe("dataset delete", () => {
+  useIsolatedProfilesDir();
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
@@ -229,6 +258,7 @@ describe("dataset delete", () => {
 });
 
 describe("project delete", () => {
+  useIsolatedProfilesDir();
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
@@ -282,6 +312,7 @@ describe("project delete", () => {
 });
 
 describe("trace delete", () => {
+  useIsolatedProfilesDir();
   beforeEach(() => {
     // trace delete uses validateConfig which requires a project
     vi.stubEnv("PHOENIX_PROJECT", "default");
@@ -341,6 +372,7 @@ describe("trace delete", () => {
 });
 
 describe("experiment delete", () => {
+  useIsolatedProfilesDir();
   beforeEach(() => {
     vi.mocked(deleteExperimentModule.deleteExperiment).mockResolvedValue(
       undefined
@@ -408,6 +440,7 @@ describe("experiment delete", () => {
 });
 
 describe("session delete", () => {
+  useIsolatedProfilesDir();
   beforeEach(() => {
     vi.mocked(deleteSessionModule.deleteSession).mockResolvedValue(undefined);
   });
@@ -457,6 +490,7 @@ describe("session delete", () => {
 });
 
 describe("annotation-config delete", () => {
+  useIsolatedProfilesDir();
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
@@ -501,6 +535,7 @@ describe("annotation-config delete", () => {
 });
 
 describe("prompt delete", () => {
+  useIsolatedProfilesDir();
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
@@ -546,6 +581,7 @@ describe("prompt delete", () => {
 });
 
 describe("span delete", () => {
+  useIsolatedProfilesDir();
   beforeEach(() => {
     // span delete uses validateConfig which requires a project
     vi.stubEnv("PHOENIX_PROJECT", "default");

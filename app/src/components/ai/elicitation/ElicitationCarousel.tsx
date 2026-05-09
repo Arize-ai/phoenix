@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { FocusScope } from "react-aria";
 
 import type {
@@ -10,7 +10,7 @@ import { Button } from "@phoenix/components/core/button";
 
 import { ElicitationOptionButton } from "./ElicitationOptionButton";
 import { elicitationCarouselCSS } from "./styles";
-import type { ElicitationCarouselProps } from "./types";
+import type { ElicitationCarouselProps, ElicitationDraftState } from "./types";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -63,6 +63,7 @@ const entrySpring = {
  */
 export function ElicitationCarousel({
   questions,
+  onProgressStateChange,
   onSubmit,
   onCancel,
 }: ElicitationCarouselProps) {
@@ -74,6 +75,12 @@ export function ElicitationCarousel({
   const [direction, setDirection] = useState(0);
   const isInitialMount = useRef(true);
 
+  const emitProgressState = useEffectEvent(
+    (progressState: ElicitationDraftState) => {
+      onProgressStateChange?.(progressState);
+    }
+  );
+
   const total = questions.length;
   const question = questions[currentIndex];
 
@@ -84,9 +91,14 @@ export function ElicitationCarousel({
     return () => clearTimeout(timer);
   }, []);
 
+  useEffect(() => {
+    emitProgressState({ answers: {}, freeformTexts: {}, currentIndex: 0 });
+  }, []);
+
   const goTo = (idx: number) => {
     setDirection(idx > currentIndex ? 1 : -1);
     setCurrentIndex(idx);
+    emitProgressState({ answers, freeformTexts, currentIndex: idx });
   };
 
   const toggleOption = (
@@ -103,14 +115,18 @@ export function ElicitationCarousel({
         ? current.filter((id) => id !== optionId)
         : [...current, optionId];
     }
-    setAnswers({ ...answers, [questionId]: next });
+    setAnswers((currentAnswers) => ({ ...currentAnswers, [questionId]: next }));
   };
 
   const setFreeformAnswer = (questionId: string, value: string) => {
-    setAnswers({ ...answers, [questionId]: value });
+    setAnswers((currentAnswers) => ({
+      ...currentAnswers,
+      [questionId]: value,
+    }));
   };
 
   const handleSubmit = () => {
+    emitProgressState({ answers, freeformTexts, currentIndex });
     onSubmit({ answers, freeformTexts });
   };
 
@@ -273,8 +289,8 @@ export function ElicitationCarousel({
                           )
                         }
                         onTextChange={(v) =>
-                          setFreeformTexts((prev) => ({
-                            ...prev,
+                          setFreeformTexts((currentFreeformTexts) => ({
+                            ...currentFreeformTexts,
                             [question.id]: v,
                           }))
                         }

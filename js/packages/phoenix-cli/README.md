@@ -55,6 +55,54 @@ CLI flags (`--endpoint`, `--project`, `--api-key`) override environment variable
 
 Delete commands are disabled by default and require `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true`.
 
+## Profiles
+
+A profile saves the endpoint, project, API key, and headers for a Phoenix instance under a name like `prod` or `staging`. Activate a profile and every `px` command picks up those settings without re-exporting environment variables. Environment variables and CLI flags still override the active profile, so existing scripts keep working.
+
+```bash
+px profile create prod --endpoint https://phoenix.example.com --project main \
+                       --api-key sk-xxx --activate
+px profile list                # all profiles, kubectl-style "current" column
+px profile show                # the active profile (or pass <name>)
+px profile use prod            # switch the active profile
+px profile edit prod           # open in $EDITOR, validates on save
+px profile delete prod         # remove a profile (--yes to skip prompt)
+```
+
+Pass `--profile <name>` to `auth status` to scope a single invocation to a profile other than the active one.
+
+### Editor autocompletion via `$schema`
+
+The CLI writes a `$schema` field automatically the first time it creates
+your `settings.json`, so editors like VS Code and JetBrains validate and
+autocomplete the file out of the box:
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/Arize-ai/phoenix/main/schemas/phoenix-cli-settings.json",
+  "activeProfile": "prod",
+  "profiles": { ... }
+}
+```
+
+If you remove the line by hand, the CLI won't add it back. The schema
+lives at `schemas/phoenix-cli-settings.json` in the Phoenix repository
+and tracks the published Zod schema. The pointer is currently pinned to
+`main`; we'll switch to a SchemaStore entry once registered.
+
+For VS Code project-wide association add to `.vscode/settings.json`:
+
+```json
+{
+  "json.schemas": [
+    {
+      "fileMatch": ["settings.json"],
+      "url": "https://raw.githubusercontent.com/Arize-ai/phoenix/main/schemas/phoenix-cli-settings.json"
+    }
+  ]
+}
+```
+
 ## Commands
 
 ### `px self update`
@@ -90,8 +138,8 @@ px trace list --since 2026-01-13T10:00:00Z       # since ISO timestamp
 | `--since <timestamp>`       | Traces since ISO timestamp             | —        |
 | `--format <format>`         | `pretty`, `json`, or `raw`             | `pretty` |
 | `--no-progress`             | Suppress progress output               | —        |
-| `--include-annotations`     | Include span annotations               | —        |
-| `--include-notes`           | Include span notes                     | —        |
+| `--include-annotations`     | Include trace and span annotations     | —        |
+| `--include-notes`           | Include trace and span notes           | —        |
 
 ```bash
 # Find ERROR traces
@@ -115,7 +163,7 @@ Fetch a single trace by ID.
 px trace get abc123def456
 px trace get abc123def456 --format raw | jq '.spans[] | select(.status_code != "OK")'
 px trace get abc123def456 --file trace.json
-px trace get abc123def456 --include-notes --format raw | jq '.spans[].notes'
+px trace get abc123def456 --include-notes --format raw | jq '{traceNotes: .notes, spanNotes: [.spans[].notes]}'
 ```
 
 ---
@@ -129,6 +177,17 @@ px trace annotate abc123def456 --name reviewer --label pass
 px trace annotate abc123def456 --name reviewer --score 0.9 --format raw --no-progress
 px trace annotate abc123def456 --name evaluator --label pass --annotator-kind LLM
 px trace annotate abc123def456 --name reviewer --explanation "needs follow-up"
+```
+
+---
+
+### `px trace add-note <trace-id>`
+
+Add a note to a trace by OpenTelemetry trace ID.
+
+```bash
+px trace add-note abc123def456 --text "needs follow-up"
+px trace add-note abc123def456 --text "agent triage complete" --format raw --no-progress
 ```
 
 ---
@@ -304,14 +363,17 @@ List sessions for a project.
 px session list                                            # latest 10 sessions
 px session list --limit 20 --order asc                     # oldest first
 px session list --format raw --no-progress | jq '.[].session_id'
+px session list --include-annotations --include-notes --format raw | jq '.[].notes'
 ```
 
-| Option                 | Description                 | Default  |
-| ---------------------- | --------------------------- | -------- |
-| `-n, --limit <number>` | Maximum number of sessions  | `10`     |
-| `--order <order>`      | Sort order: `asc` or `desc` | `desc`   |
-| `--format <format>`    | `pretty`, `json`, or `raw`  | `pretty` |
-| `--no-progress`        | Suppress progress output    | —        |
+| Option                  | Description                                  | Default  |
+| ----------------------- | -------------------------------------------- | -------- |
+| `-n, --limit <number>`  | Maximum number of sessions                   | `10`     |
+| `--order <order>`       | Sort order: `asc` or `desc`                  | `desc`   |
+| `--include-annotations` | Include session annotations, excluding notes | —        |
+| `--include-notes`       | Include session notes when present           | —        |
+| `--format <format>`     | `pretty`, `json`, or `raw`                   | `pretty` |
+| `--no-progress`         | Suppress progress output                     | —        |
 
 ---
 
@@ -322,15 +384,41 @@ View a session's conversation flow.
 ```bash
 px session get my-session-id
 px session get my-session-id --file session.json
-px session get my-session-id --include-annotations --format raw | jq '.traces'
+px session get my-session-id --include-annotations --format raw | jq '.session.annotations'
+px session get my-session-id --include-notes --format raw | jq '.session.notes'
 ```
 
-| Option                  | Description                            | Default  |
-| ----------------------- | -------------------------------------- | -------- |
-| `--file <path>`         | Save session to file instead of stdout | —        |
-| `--include-annotations` | Include session annotations            | —        |
-| `--format <format>`     | `pretty`, `json`, or `raw`             | `pretty` |
-| `--no-progress`         | Suppress progress output               | —        |
+| Option                  | Description                                  | Default  |
+| ----------------------- | -------------------------------------------- | -------- |
+| `--file <path>`         | Save session to file instead of stdout       | —        |
+| `--include-annotations` | Include session annotations, excluding notes | —        |
+| `--include-notes`       | Include session notes when present           | —        |
+| `--format <format>`     | `pretty`, `json`, or `raw`                   | `pretty` |
+| `--no-progress`         | Suppress progress output                     | —        |
+
+---
+
+### `px session annotate <session-id>`
+
+Create or update a human session annotation by GlobalID or user-provided `session_id`.
+
+```bash
+px session annotate my-session-id --name reviewer --label pass
+px session annotate my-session-id --name reviewer --score 0.9 --format raw --no-progress
+px session annotate my-session-id --name evaluator --label pass --annotator-kind LLM
+px session annotate my-session-id --name reviewer --explanation "needs follow-up"
+```
+
+---
+
+### `px session add-note <session-id>`
+
+Add a note to a session by GlobalID or user-provided `session_id`. Requires Phoenix server `14.17.0` or newer.
+
+```bash
+px session add-note my-session-id --text "needs follow-up"
+px session add-note my-session-id --text "agent triage complete" --format raw --no-progress
+```
 
 ---
 
@@ -528,3 +616,4 @@ Trace JSON structure:
 - 🌟 [GitHub](https://github.com/Arize-ai/phoenix)
 - 🐞 [Report bugs](https://github.com/Arize-ai/phoenix/issues)
 - 𝕏 [@ArizePhoenix](https://twitter.com/ArizePhoenix)
+- 💼 [LinkedIn](https://www.linkedin.com/showcase/113218220)

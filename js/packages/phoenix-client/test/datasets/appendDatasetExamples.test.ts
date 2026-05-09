@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.unmock("../../src/utils/serverVersionUtils");
+
+import type { PhoenixClient } from "../../src/client";
 import { appendDatasetExamples } from "../../src/datasets/appendDatasetExamples";
 
 // Mock the fetch module
@@ -12,6 +15,22 @@ vi.mock("openapi-fetch", () => ({
     use: () => {},
   }),
 }));
+
+/**
+ * Build a stub {@link PhoenixClient} whose `getServerVersion` returns the
+ * given version.
+ *
+ * Tests that exercise the `example_ids` capability gate must supply such a
+ * client; otherwise the auto-created client would try to
+ * `fetch("/arize_phoenix_version")` for real.
+ */
+function makeClient(version: [number, number, number]): PhoenixClient {
+  return {
+    getServerVersion: async () => version,
+    POST: mockPost,
+    GET: mockGet,
+  } as unknown as PhoenixClient;
+}
 
 describe("appendDatasetExamples", () => {
   beforeEach(() => {
@@ -64,6 +83,7 @@ describe("appendDatasetExamples", () => {
 
     expect(result).toEqual({
       datasetId: "dataset-123",
+      versionId: "version-456",
     });
   });
 
@@ -116,6 +136,7 @@ describe("appendDatasetExamples", () => {
 
     expect(result).toEqual({
       datasetId: "dataset-123",
+      versionId: "version-456",
     });
   });
 
@@ -322,6 +343,112 @@ describe("appendDatasetExamples", () => {
     });
   });
 
+  it("should append examples with IDs", async () => {
+    const mockResponse = {
+      dataset_id: "dataset-123",
+      version_id: "version-456",
+    };
+
+    mockPost.mockResolvedValue({
+      data: { data: mockResponse },
+      error: null,
+    });
+
+    await appendDatasetExamples({
+      client: makeClient([15, 0, 0]),
+      dataset: { datasetName: "test-dataset" },
+      examples: [
+        {
+          input: { question: "What is AI?" },
+          output: { answer: "Artificial Intelligence" },
+          id: "example-ai",
+        },
+        {
+          input: { question: "What is ML?" },
+          output: { answer: "Machine Learning" },
+          id: "example-ml",
+        },
+      ],
+    });
+
+    expect(mockPost).toHaveBeenCalledWith("/v1/datasets/upload", {
+      params: { query: { sync: true } },
+      body: {
+        name: "test-dataset",
+        action: "append",
+        inputs: [{ question: "What is AI?" }, { question: "What is ML?" }],
+        outputs: [
+          { answer: "Artificial Intelligence" },
+          { answer: "Machine Learning" },
+        ],
+        metadata: [{}, {}],
+        splits: [null, null],
+        example_ids: ["example-ai", "example-ml"],
+      },
+    });
+  });
+
+  it("should append examples with mixed IDs (some null)", async () => {
+    const mockResponse = {
+      dataset_id: "dataset-123",
+      version_id: "version-456",
+    };
+
+    mockPost.mockResolvedValue({
+      data: { data: mockResponse },
+      error: null,
+    });
+
+    await appendDatasetExamples({
+      client: makeClient([15, 0, 0]),
+      dataset: { datasetName: "test-dataset" },
+      examples: [
+        {
+          input: { question: "What is AI?" },
+          id: "example-ai",
+        },
+        {
+          input: { question: "What is ML?" },
+          // No id
+        },
+        {
+          input: { question: "What is DL?" },
+          id: null,
+        },
+      ],
+    });
+
+    expect(mockPost).toHaveBeenCalledWith("/v1/datasets/upload", {
+      params: { query: { sync: true } },
+      body: expect.objectContaining({
+        example_ids: ["example-ai", null, null],
+      }),
+    });
+  });
+
+  it("should not include example_ids when no examples have IDs", async () => {
+    const mockResponse = {
+      dataset_id: "dataset-123",
+      version_id: "version-456",
+    };
+
+    mockPost.mockResolvedValue({
+      data: { data: mockResponse },
+      error: null,
+    });
+
+    await appendDatasetExamples({
+      dataset: { datasetName: "test-dataset" },
+      examples: [
+        { input: { question: "What is AI?" } },
+        { input: { question: "What is ML?" }, id: null },
+      ],
+    });
+
+    const callBody = mockPost.mock.calls[0][1].body;
+    expect(callBody).not.toHaveProperty("example_ids");
+  });
+
   it("should throw error when response data is missing", async () => {
     mockPost.mockResolvedValue({
       data: null,
@@ -374,6 +501,44 @@ describe("appendDatasetExamples", () => {
         splits: [null],
         span_ids: ["span-abc123"],
       },
+    });
+  });
+
+  describe("server version gating for example_ids", () => {
+    it("fails fast on Phoenix < 15.0.0 when an example carries a stable id", async () => {
+      await expect(
+        appendDatasetExamples({
+          client: makeClient([14, 17, 0]),
+          dataset: { datasetName: "ds" },
+          examples: [{ input: { q: 1 }, id: "stable-id" }],
+        })
+      ).rejects.toThrow(/requires Phoenix server >= 15\.0\.0/);
+
+      expect(mockPost).not.toHaveBeenCalled();
+    });
+
+    it("does not check server version when no example carries an id", async () => {
+      const client = makeClient([14, 17, 0]);
+      const getServerVersionSpy = vi.spyOn(client, "getServerVersion");
+
+      await appendDatasetExamples({
+        client,
+        dataset: { datasetName: "ds" },
+        examples: [{ input: { q: 1 } }],
+      });
+
+      expect(getServerVersionSpy).not.toHaveBeenCalled();
+      expect(mockPost).toHaveBeenCalled();
+    });
+
+    it("succeeds on Phoenix >= 15.0.0 when examples carry ids", async () => {
+      await appendDatasetExamples({
+        client: makeClient([15, 0, 0]),
+        dataset: { datasetName: "ds" },
+        examples: [{ input: { q: 1 }, id: "stable-id" }],
+      });
+
+      expect(mockPost).toHaveBeenCalled();
     });
   });
 });

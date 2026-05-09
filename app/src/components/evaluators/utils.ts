@@ -45,8 +45,10 @@ const createPromptVersionInput = ({
    */
   datasetId?: string;
 }) => {
-  const { promptInput, templateFormat, promptVersionId } =
-    getInstancePromptParamsFromStore(instanceId, playgroundStore);
+  const { promptInput, promptVersionId } = getInstancePromptParamsFromStore(
+    instanceId,
+    playgroundStore
+  );
 
   // Build one tool per categorical output config
   const categoricalConfigs = outputConfigs.filter(
@@ -81,7 +83,6 @@ const createPromptVersionInput = ({
 
   const prunedPromptInput: CreateDatasetLLMEvaluatorInput["promptVersion"] = {
     ...promptInput,
-    templateFormat,
     invocationParameters: promptInput.invocationParameters,
     tools: toolFunctions.length
       ? {
@@ -254,7 +255,8 @@ export const inferIncludeExplanationFromPrompt = (
   promptTools?:
     | {
         readonly tools: ReadonlyArray<{
-          readonly function: { readonly parameters: unknown };
+          readonly __typename?: string;
+          readonly function?: { readonly parameters: unknown } | null;
         }>;
       }
     | null
@@ -264,8 +266,10 @@ export const inferIncludeExplanationFromPrompt = (
     return false;
   }
 
-  const tool = promptTools.tools[0];
-  if (!tool) {
+  const tool = promptTools.tools.find(
+    (tool) => tool.__typename !== "PromptToolRaw" && tool.function != null
+  );
+  if (!tool?.function) {
     return false;
   }
 

@@ -16,8 +16,14 @@ Ensure you have Phoenix OTEL installed:
 <Tabs>
 <Tab title="Python" icon="python">
 ```bash
-pip install arize-phoenix-otel
+pip install "arize-phoenix-otel>=0.16.0"
 ```
+
+<Note>
+**Version `arize-phoenix-otel>=0.16.0` is required for the examples on this page.** Starting in 0.16.0, `phoenix.otel` re-exports the OpenInference context managers (`using_session`, `using_user`, `using_metadata`, `using_tags`, `using_attributes`, `using_prompt_template`, `suppress_tracing`) and semantic conventions (`SpanAttributes`, `OpenInferenceSpanKindValues`, `OpenInferenceMimeTypeValues`) directly — no need to also install `openinference-instrumentation` or `openinference-semantic-conventions`.
+
+On older versions, import the same symbols from `openinference.instrumentation` and `openinference.semconv.trace` instead.
+</Note>
 </Tab>
 
 <Tab title="TypeScript" icon="js">
@@ -545,11 +551,15 @@ openai_client.chat.completions.create(
 )
 ```
 
-The snippets above produce LLM spans with input and output values, but don't offer rich UI for messages, tools, invocation parameters, etc. In order to manually instrument LLM spans with these features, users can define their own functions to wrangle the input and output of their LLM calls into OpenInference format. The `openinference-instrumentation` library contains helper functions that produce valid OpenInference attributes for LLM spans:
+The snippets above produce LLM spans with input and output values, but don't offer rich UI for messages, tools, invocation parameters, etc. In order to manually instrument LLM spans with these features, users can define their own functions to wrangle the input and output of their LLM calls into OpenInference format. These richer LLM attribute helpers are not re-exported from `phoenix.otel` — install `openinference-instrumentation` to access them:
 
 * `get_llm_attributes`
 * `get_input_attributes`
 * `get_output_attributes`
+
+```bash
+pip install openinference-instrumentation
+```
 
 For OpenAI, these functions might look like this:
 
@@ -1104,6 +1114,8 @@ The OpenInference Tracer shown above respects context Managers for [Suppressing 
 <Tabs>
 <Tab title="Python" icon="python">
 ```python
+from phoenix.otel import suppress_tracing
+
 with suppress_tracing():
     # this trace will not be recorded
     with tracer.start_as_current_span(
@@ -1148,6 +1160,8 @@ await context.with(suppressTracing(context.active()), async () => {
 <Tabs>
 <Tab title="Python" icon="python">
 ```python
+from phoenix.otel import using_attributes
+
 with using_attributes(session_id="123"):
     # this trace has session id "123"
     with tracer.start_as_current_span(

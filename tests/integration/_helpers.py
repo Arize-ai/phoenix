@@ -2177,6 +2177,7 @@ _COMMON_RESOURCE_ENDPOINTS = (
     (422, "GET", "v1/datasets/fake-id-{}/versions"),
     (422, "GET", "v1/datasets/fake-id-{}/examples"),
     (422, "GET", "v1/datasets/fake-id-{}/csv"),
+    (422, "GET", "v1/datasets/fake-id-{}/jsonl"),
     (422, "GET", "v1/datasets/fake-id-{}/jsonl/openai_ft"),
     (422, "GET", "v1/datasets/fake-id-{}/jsonl/openai_evals"),
     # Experiments
@@ -2241,10 +2242,12 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (422, "POST", "v1/prompts"),
     (422, "POST", "v1/prompt_versions/fake-id-{}/tags"),
     (422, "POST", "v1/session_annotations"),
+    (422, "POST", "v1/session_notes"),
     (422, "POST", "v1/span_annotations"),
     (422, "POST", "v1/span_notes"),
     (422, "POST", "v1/spans"),
     (422, "POST", "v1/trace_annotations"),
+    (422, "POST", "v1/trace_notes"),
     (415, "POST", "v1/traces"),
     # PUT routes
     (422, "PUT", "v1/annotation_configs/fake-id-{}"),
@@ -2257,6 +2260,9 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (404, "DELETE", "v1/prompts/fake-id-{}"),
     (404, "DELETE", "v1/traces/fake-id-{}"),
     (422, "DELETE", "v1/prompt_versions/fake-id-{}/tags/test-tag"),
+    (422, "DELETE", "v1/projects/fake-id-{}/span_annotations"),
+    (422, "DELETE", "v1/projects/fake-id-{}/trace_annotations"),
+    (422, "DELETE", "v1/projects/fake-id-{}/session_annotations"),
     # Bulk delete routes
     (422, "POST", "v1/sessions/delete"),
 )

@@ -1,17 +1,21 @@
 import { Chat, useChat } from "@ai-sdk/react";
 import type { ChatStatus } from "ai";
-import {
-  DefaultChatTransport,
-  lastAssistantMessageIsCompleteWithToolCalls,
-} from "ai";
+import { DefaultChatTransport, isToolUIPart } from "ai";
 import { useEffect, useRef } from "react";
 
 import { buildAgentChatRequestBody } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
+import { getUnresolvedToolCalls } from "@phoenix/agent/chat/interruptToolCalls";
+import {
+  shouldSendAutomaticallyAfterToolOutput,
+  SYSTEM_INTERRUPT_ERROR,
+  USER_INTERRUPT_ERROR,
+} from "@phoenix/agent/chat/shouldSendAutomatically";
 import {
   assistantMessageMetadataSchema,
   type AgentUIMessage,
 } from "@phoenix/agent/chat/types";
+import { selectActiveContexts } from "@phoenix/agent/context/selectors";
 import type {
   ElicitToolOutput,
   PendingElicitation,
@@ -20,7 +24,10 @@ import { authFetch } from "@phoenix/authFetch";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 
-import { useGenerateSessionSummary } from "./useGenerateSessionSummary";
+import {
+  useGenerateSessionSummary,
+  type SummarizeQuery,
+} from "./useGenerateSessionSummary";
 
 /**
  * Subscribes the current render surface to the persistent AI SDK chat runtime
@@ -42,13 +49,15 @@ import { useGenerateSessionSummary } from "./useGenerateSessionSummary";
 export function useAgentChat({
   sessionId,
   chatApiUrl,
+  summarizeQuery,
 }: {
   sessionId: string | null;
   chatApiUrl: string;
+  summarizeQuery: SummarizeQuery;
 }) {
   const store = useAgentStore();
   const runtime = useAgentChatRuntime();
-  const { generateSummary } = useGenerateSessionSummary({ chatApiUrl });
+  const { generateSummary } = useGenerateSessionSummary({ summarizeQuery });
   const pendingElicitation = useAgentContext((state) =>
     sessionId ? (state.pendingElicitationBySessionId[sessionId] ?? null) : null
   );
@@ -87,13 +96,13 @@ export function useAgentChat({
                     messages,
                     trigger,
                     messageId,
-                    systemPrompt: store.getState().systemPrompt,
                     sessionId,
                     capabilities: store.getState().capabilities,
                     observability: store.getState().observability,
                     hasRemoteCollector: Boolean(
                       store.getState().agentsConfig.collectorEndpoint
                     ),
+                    contexts: selectActiveContexts(store.getState()),
                   }),
                 }),
               }),
@@ -108,12 +117,16 @@ export function useAgentChat({
                   agentStore: store,
                 });
               },
-              sendAutomaticallyWhen:
-                lastAssistantMessageIsCompleteWithToolCalls,
+              sendAutomaticallyWhen: shouldSendAutomaticallyAfterToolOutput,
               onFinish: ({ messages: finalMessages, message }) => {
                 const usage = message.metadata?.usage;
                 if (usage != null) {
-                  store.getState().setSessionUsage(sessionId, usage.tokens);
+                  store.getState().setSessionUsage(sessionId, {
+                    ...usage.tokens,
+                    ...(usage.promptDetails
+                      ? { promptDetails: usage.promptDetails }
+                      : {}),
+                  });
                 }
                 // Finalized history is mirrored into the durable store so idle
                 // runtimes can be reclaimed and later reconstructed from state.
@@ -133,7 +146,65 @@ export function useAgentChat({
   const chat = useChat<AgentUIMessage>(
     chatInstance ? { chat: chatInstance } : { id: undefined, messages: [] }
   );
-  const { messages, sendMessage, status, error, addToolOutput, stop } = chat;
+  const {
+    messages,
+    sendMessage,
+    status,
+    error,
+    addToolOutput,
+    stop,
+    setMessages,
+  } = chat;
+
+  // Anthropic doesn't accept unresolved tool calls, so we resolve them by marking
+  // as error
+  const addInterruptedToolOutputs = async ({
+    messages,
+    errorText,
+  }: {
+    messages: AgentUIMessage[];
+    errorText: string;
+  }) => {
+    const unresolvedToolCalls = getUnresolvedToolCalls(messages);
+
+    await Promise.all(
+      unresolvedToolCalls.map((toolCall) =>
+        addToolOutput({
+          tool: toolCall.tool,
+          toolCallId: toolCall.toolCallId,
+          errorText,
+          state: "output-error",
+        })
+      )
+    );
+  };
+
+  const handleStopWithToolCleanup = async () => {
+    await stop();
+    setMessages(removeInterruptedToolInputParts);
+
+    const latestMessages = chatInstance?.messages ?? messages;
+    await addInterruptedToolOutputs({
+      messages: latestMessages,
+      errorText: USER_INTERRUPT_ERROR,
+    });
+  };
+
+  const handleSendMessage = async (...args: Parameters<typeof sendMessage>) => {
+    if (chatInstance && isRequestActive(chatInstance.status)) {
+      await stop();
+    }
+
+    setMessages(removeInterruptedToolInputParts);
+
+    const latestMessages = chatInstance?.messages ?? messages;
+    await addInterruptedToolOutputs({
+      messages: latestMessages,
+      errorText: SYSTEM_INTERRUPT_ERROR,
+    });
+
+    await sendMessage(...args);
+  };
 
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
@@ -178,8 +249,8 @@ export function useAgentChat({
 
   return {
     messages,
-    sendMessage,
-    stop,
+    sendMessage: handleSendMessage,
+    stop: handleStopWithToolCleanup,
     status,
     error,
     pendingElicitation,
@@ -195,4 +266,25 @@ export function useAgentChat({
     handleElicitationSubmit: (output: ElicitToolOutput) => void;
     handleElicitationCancel: () => void;
   };
+}
+
+// Pydantic will error if given tool calls without inputs, so we filter them out
+function removeInterruptedToolInputParts(
+  messages: AgentUIMessage[]
+): AgentUIMessage[] {
+  return messages.map((message) => {
+    return {
+      ...message,
+      parts: message.parts.filter((part) => {
+        return (
+          !isToolUIPart(part) ||
+          (part.state !== "input-streaming" && part.state !== "input-available")
+        );
+      }),
+    };
+  });
+}
+
+function isRequestActive(status: ChatStatus): boolean {
+  return status === "submitted" || status === "streaming";
 }

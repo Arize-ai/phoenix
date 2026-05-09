@@ -2,6 +2,11 @@ import type { PropsWithChildren } from "react";
 import { createContext, useCallback, useContext, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 
+import {
+  SELECTED_SPAN_NODE_ID_PARAM,
+  SELECTED_TRACE_ID_PARAM,
+} from "@phoenix/constants/searchParams";
+
 /**
  * A sequence of session node IDs used to navigate between sessions.
  */
@@ -19,6 +24,20 @@ export const SessionPaginationContext =
 
 export const useSessionPagination = () => {
   return useContext(SessionPaginationContext);
+};
+
+const SESSION_DETAILS_SEARCH_PARAMS_TO_CLEAR = [
+  SELECTED_TRACE_ID_PARAM,
+  SELECTED_SPAN_NODE_ID_PARAM,
+];
+
+const getPreservedSearch = (search: string) => {
+  const searchParams = new URLSearchParams(search);
+  for (const searchParam of SESSION_DETAILS_SEARCH_PARAMS_TO_CLEAR) {
+    searchParams.delete(searchParam);
+  }
+  const nextSearch = searchParams.toString();
+  return nextSearch ? `?${nextSearch}` : "";
 };
 
 /**
@@ -53,8 +72,9 @@ export const makeSessionUrls = (
   const [projects, projectId, resource] = location.pathname
     .split("/")
     .filter((part) => part !== "");
+  const preservedSearch = getPreservedSearch(location.search);
   const makeUrl = (sessionId: string) =>
-    `/${projects}/${projectId}/${resource}/${encodeURIComponent(sessionId)}`;
+    `/${projects}/${projectId}/${resource}/${encodeURIComponent(sessionId)}${preservedSearch}${location.hash}`;
   return {
     nextSessionPath: nextSessionId ? makeUrl(nextSessionId) : null,
     previousSessionPath: previousSessionId ? makeUrl(previousSessionId) : null,

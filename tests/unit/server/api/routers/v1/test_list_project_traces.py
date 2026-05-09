@@ -522,3 +522,54 @@ class TestListProjectTraces:
         data = response.json()
         assert len(data["data"]) == 1
         assert data["data"][0]["trace_id"] == traces[2].trace_id
+
+    async def test_token_counts_llm_active(
+        self,
+        httpx_client: httpx.AsyncClient,
+        db: DbSessionFactory,
+    ) -> None:
+        base_time = datetime(2024, 1, 1, tzinfo=timezone.utc)
+        async with db() as session:
+            project_row_id = await session.scalar(
+                insert(models.Project).values(name=token_hex(16)).returning(models.Project.id)
+            )
+            trace_row_id = await session.scalar(
+                insert(models.Trace)
+                .values(
+                    trace_id=token_hex(16),
+                    project_rowid=project_row_id,
+                    start_time=base_time,
+                    end_time=base_time + timedelta(minutes=5),
+                )
+                .returning(models.Trace.id)
+            )
+            # Root span with non-zero cumulative token counts
+            await session.scalar(
+                insert(models.Span)
+                .values(
+                    trace_rowid=trace_row_id,
+                    span_id=token_hex(8),
+                    parent_id=None,
+                    name="root",
+                    span_kind="LLM",
+                    start_time=base_time,
+                    end_time=base_time + timedelta(seconds=5),
+                    attributes={},
+                    events=[],
+                    status_code="OK",
+                    status_message="",
+                    cumulative_error_count=0,
+                    cumulative_llm_token_count_prompt=100,
+                    cumulative_llm_token_count_completion=50,
+                )
+                .returning(models.Span.id)
+            )
+            project = await session.get(models.Project, project_row_id)
+            assert project is not None
+
+        response = await httpx_client.get(f"v1/projects/{project.name}/traces")
+        assert response.status_code == 200
+        trace_data = response.json()["data"][0]
+        assert trace_data["token_count_prompt"] == 100
+        assert trace_data["token_count_completion"] == 50
+        assert trace_data["token_count_total"] == 150

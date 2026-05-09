@@ -14,6 +14,7 @@ from strawberry.types import Info
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.db.types.model_provider import is_sdk_compatible_with_model_provider
+from phoenix.db.types.prompts import normalize_invocation_parameters_for_write
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
@@ -219,7 +220,9 @@ class PromptMutationMixin:
                     template_type=version.template_type,
                     template_format=version.template_format,
                     template=version.template,
-                    invocation_parameters=version.invocation_parameters,
+                    invocation_parameters=normalize_invocation_parameters_for_write(
+                        version.invocation_parameters
+                    ),
                     tools=version.tools,
                     response_format=version.response_format,
                     model_provider=version.model_provider,

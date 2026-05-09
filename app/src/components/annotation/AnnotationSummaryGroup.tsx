@@ -9,6 +9,7 @@ import { AnnotationSummaryPopover } from "@phoenix/components/annotation/Annotat
 import {
   Summary,
   SummaryValue,
+  SummaryValueLabelPreview,
   SummaryValuePreview,
 } from "@phoenix/pages/project/AnnotationSummary";
 import type { AnnotationConfigCategorical } from "@phoenix/pages/settings/types";
@@ -178,7 +179,11 @@ export const AnnotationSummaryGroupTokens = ({
                     categoricalAnnotationConfigsByName[latestAnnotation.name]
                   }
                 />
-              ) : null}
+              ) : (
+                <SummaryValueLabelPreview
+                  labelFractions={summary.labelFractions}
+                />
+              )}
             </AnnotationLabel>
           </AnnotationSummaryPopover>
         );

@@ -1,10 +1,19 @@
 import base64
 import json
 import logging
+import re
 from typing import Any, Dict, List, Type, cast
 from urllib.parse import urlparse
 
-from ...prompts import Message, MessageRole, PromptLike
+from ...prompts import (
+    Message,
+    MessageRole,
+    PromptLike,
+    classify_message_list_kind,
+    is_openai_native_message_dict,
+    normalize_role,
+    validate_message_dict,
+)
 from ...registries import register_adapter, register_provider
 from ...types import BaseLLMAdapter, ObjectGenerationMethod
 from .factories import OpenAIClientWrapper, create_azure_openai_client, create_openai_client
@@ -390,18 +399,30 @@ class OpenAIAdapter(BaseLLMAdapter):
         return tool_definition
 
     def _system_role(self) -> str:
-        # OpenAI uses different semantics for "system" roles for different models
-        if "gpt" in self.model_name:
+        """Pick the OpenAI system-role keyword for this adapter's model.
+
+        Policy:
+        - ``gpt-*`` (Chat Completions family) → ``"system"``
+        - ``o1-mini`` / ``o1-preview`` → ``"user"``
+        - Other OpenAI reasoning models (``o1``, ``o3``, ``o4``, ...) → ``"developer"``
+        - Anything else (empty, unknown) → ``"developer"`` (safe default for
+          modern OpenAI-compatible endpoints that follow the reasoning-model
+          convention).
+        """
+        model = self.model_name or ""
+        # Strip a leading provider segment, e.g. "azure/o3-mini" -> "o3-mini".
+        if "/" in model:
+            model = model.split("/", 1)[1]
+
+        if model.lower().startswith("o1-mini"):
+            return "user"
+        if model.lower().startswith("o1-preview"):
+            return "user"
+        if re.match(r"^o\d", model, flags=re.IGNORECASE):
+            return "developer"
+        if re.match(r"^gpt[-\d]", model, flags=re.IGNORECASE):
             return "system"
-        if "o1-mini" in self.model_name:
-            return "user"  # o1-mini does not support either "system" or "developer" roles
-        if "o1-preview" in self.model_name:
-            return "user"  # o1-preview does not support "system" or "developer" roles
-        if "o1" in self.model_name:
-            return "developer"
-        if "o3" in self.model_name:
-            return "developer"
-        return "system"
+        return "developer"
 
     def _transform_messages_to_openai(self, messages: List[Message]) -> list[dict[str, Any]]:
         """Transform List[Message] TypedDict to OpenAI message format.
@@ -452,12 +473,35 @@ class OpenAIAdapter(BaseLLMAdapter):
             return [{"role": "user", "content": prompt}]
 
         if isinstance(prompt, list):
-            # Check if this is List[Message] with MessageRole enum
-            if prompt and isinstance(prompt[0].get("role"), MessageRole):
+            if not prompt:
+                raise ValueError("Prompt message list cannot be empty.")
+            # Reject mixed lists (typed Message + raw dict) up front.
+            if classify_message_list_kind(prompt) == "typed":
                 # Transform List[Message] to OpenAI format
                 return self._transform_messages_to_openai(cast(List[Message], prompt))
-            # Otherwise, already in OpenAI message format (backward compatibility)
-            return cast(list[dict[str, Any]], prompt)
+            if any(
+                is_openai_native_message_dict(msg) for msg in cast(List[Dict[str, Any]], prompt)
+            ):
+                return cast(list[dict[str, Any]], prompt)
+            # Otherwise: OpenAI-style dict messages. Validate and canonicalize
+            # roles, then route through the same typed transform.  Preserve any
+            # caller-supplied keys other than ``role``/``content`` (e.g. the
+            # documented ``name`` field used to label few-shot exemplars or
+            # multi-participant turns) so the validating dict path matches the
+            # native pass-through's compatibility guarantee.
+            typed_messages: List[Message] = []
+            extras_per_msg: List[Dict[str, Any]] = []
+            for i, msg in enumerate(cast(List[Dict[str, Any]], prompt)):
+                validate_message_dict(msg, index=i)
+                role = normalize_role(msg["role"])
+                typed_messages.append(Message(role=role, content=msg["content"]))
+                extras_per_msg.append(
+                    {k: v for k, v in msg.items() if k not in ("role", "content")}
+                )
+            transformed = self._transform_messages_to_openai(typed_messages)
+            # Canonical role/content from the transform always win over caller
+            # extras with conflicting keys.
+            return [{**extras, **out} for extras, out in zip(extras_per_msg, transformed)]
 
         # If we get here, prompt is an unexpected type
         raise ValueError(f"Expected prompt to be str or list, got {type(prompt).__name__}")

@@ -413,6 +413,10 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/run-experiments-in-background</loc>
+    <lastmod>2026-04-28T22:15:51+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/datasets-and-experiments/how-to-experiments/using-evaluators</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -495,6 +499,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/prompt-engineering/how-to-prompts/using-a-prompt</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/prompt-engineering/how-to-prompts/use-provider-tools</loc>
+    <lastmod>2026-05-05T19:10:49+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/settings/access-control-rbac</loc>
@@ -791,6 +799,14 @@
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/typescript/mcp/mcp-tracing-typescript</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/typescript/tanstack-ai</loc>
+    <lastmod>2026-05-02T02:56:56+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/typescript/tanstack-ai/tanstack-ai-tracing</loc>
+    <lastmod>2026-05-02T02:56:56+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/integrations/typescript/vercel</loc>
@@ -1241,6 +1257,22 @@
     <lastmod>2026-04-06T06:15:15+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/get-session-annotations-for-a-list-of-session_ids</loc>
+    <lastmod>2026-05-03T19:50:00+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/delete-span-annotations-by-filter</loc>
+    <lastmod>2026-05-06T17:50:06+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/delete-trace-annotations-by-filter</loc>
+    <lastmod>2026-05-06T17:50:06+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/delete-session-annotations-by-filter</loc>
+    <lastmod>2026-05-06T17:50:06+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/list-datasets</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -1269,6 +1301,10 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-jsonl-file</loc>
+    <lastmod>2026-05-03T19:50:00+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/datasets/download-dataset-examples-as-openai-fine-tuning-jsonl-file</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -1289,6 +1325,10 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/delete-experiment-by-id</loc>
+    <lastmod>2026-05-03T19:50:00+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/download-experiment-runs-as-a-json-file</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -1305,8 +1345,20 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/get-incomplete-runs-for-an-experiment</loc>
+    <lastmod>2026-05-03T19:50:00+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/create-or-update-evaluation-for-an-experiment-run</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/experiments/get-incomplete-evaluations-for-an-experiment</loc>
+    <lastmod>2026-05-03T19:50:00+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/list-traces-for-a-project</loc>
+    <lastmod>2026-05-03T19:50:00+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/delete-a-trace-by-identifier</loc>
@@ -1315,6 +1367,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/create-trace-annotations</loc>
     <lastmod>2026-04-06T06:15:15+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/traces/create-a-trace-note</loc>
+    <lastmod>2026-05-03T19:50:00+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/search-spans-with-simple-filters-no-dsl</loc>
@@ -1333,6 +1389,10 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/create-a-span-note</loc>
+    <lastmod>2026-05-03T19:50:00+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/spans/annotate-span-documents</loc>
     <lastmod>2026-04-06T06:15:15+00:00</lastmod>
   </url>
@@ -1347,6 +1407,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/create-a-new-prompt</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/delete-a-prompt</loc>
+    <lastmod>2026-05-03T19:50:00+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/list-prompt-versions</loc>
@@ -1371,6 +1435,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/add-tag-to-prompt-version</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/prompts/delete-a-tag-from-a-prompt-version</loc>
+    <lastmod>2026-05-03T19:50:00+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/projects/list-all-projects</loc>
@@ -1401,12 +1469,24 @@
     <lastmod>2026-02-28T05:17:29+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/sessions/delete-a-session-by-identifier</loc>
+    <lastmod>2026-05-03T19:50:00+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/sessions/bulk-delete-sessions</loc>
+    <lastmod>2026-05-03T19:50:00+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/sessions/create-session-annotations</loc>
     <lastmod>2026-02-28T05:17:29+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/sessions/list-session-annotations</loc>
     <lastmod>2026-02-28T05:17:29+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/sessions/create-a-session-note</loc>
+    <lastmod>2026-05-03T19:50:00+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/secrets/upsert-or-delete-secrets</loc>
@@ -1423,6 +1503,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/users/delete-a-user-by-id</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/users/get-the-authenticated-user</loc>
+    <lastmod>2026-05-03T19:50:00+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/sdk-api-reference/openinference-sdk/openinference-python</loc>
@@ -1507,6 +1591,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/self-hosting/security/privacy</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/self-hosting/security/network-security</loc>
+    <lastmod>2026-05-01T21:59:49+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/self-hosting/misc/frequently-asked-questions</loc>
@@ -1679,6 +1767,42 @@
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/05-2026/05-05-2026-provider-tools</loc>
+    <lastmod>2026-05-06T17:07:52+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/05-2026/05-05-2026-rest-api-updates</loc>
+    <lastmod>2026-05-06T17:07:52+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/05-2026/05-01-2026-tanstack-ai-tracing</loc>
+    <lastmod>2026-05-02T02:56:56+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-30-2026-cli-auth-profiles</loc>
+    <lastmod>2026-05-06T17:07:52+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-30-2026-annotation-enhancements</loc>
+    <lastmod>2026-05-06T17:07:52+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-29-2026-dataset-upsert</loc>
+    <lastmod>2026-05-06T17:07:52+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-28-2026-session-notes-api</loc>
+    <lastmod>2026-04-30T02:26:41+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-24-2026-trace-notes-api</loc>
+    <lastmod>2026-04-30T02:26:41+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-24-2026-phoenix-otel-python-0-16</loc>
+    <lastmod>2026-04-24T18:57:47+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/04-2026/04-22-2026-secrets-ui-and-evaluator-trace-id</loc>

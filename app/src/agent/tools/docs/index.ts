@@ -1,4 +1,3 @@
-export { DOCS_TOOL_SYSTEM_PROMPT_LINES } from "./docsToolCapabilities";
 export {
   DOCS_TOOL_NAMES,
   isDocsToolName,

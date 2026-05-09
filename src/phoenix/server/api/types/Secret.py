@@ -10,6 +10,7 @@ from typing_extensions import TypeAlias
 from phoenix.db import models
 from phoenix.server.api.auth import IsAdminIfAuthEnabled
 from phoenix.server.api.context import Context
+from phoenix.server.api.types.RedactedString import RedactedString
 
 if TYPE_CHECKING:
     from .User import User
@@ -17,7 +18,7 @@ if TYPE_CHECKING:
 
 @strawberry.type
 class DecryptedSecret:
-    value: str
+    value: RedactedString
 
 
 @strawberry.type
@@ -56,7 +57,7 @@ class Secret(Node):
             decrypted_value = info.context.decrypt(raw_bytes).decode("utf-8")
         except Exception as e:
             return UnparsableSecret(parse_error=str(e))
-        return DecryptedSecret(value=decrypted_value)
+        return DecryptedSecret(value=RedactedString(decrypted_value))
 
     @strawberry.field
     async def updated_at(self, info: Info[Context, None]) -> datetime:

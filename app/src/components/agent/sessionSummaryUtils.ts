@@ -19,28 +19,6 @@ export function getFirstUserMessageText(messages: UIMessage[]): string | null {
   return textContent || null;
 }
 
-/**
- * Extracts the text content from the first assistant message, filtering out
- * tool call parts to keep token usage low when used for summary generation.
- * Returns `null` if no assistant message with text exists.
- */
-export function getFirstAssistantMessageText(
-  messages: UIMessage[]
-): string | null {
-  const firstAssistantMessage = messages.find(
-    (message) => message.role === "assistant"
-  );
-  if (!firstAssistantMessage) return null;
-
-  const textContent = firstAssistantMessage.parts
-    .filter(isTextUIPart)
-    .map((part) => part.text)
-    .join(" ")
-    .trim();
-
-  return textContent || null;
-}
-
 export const EMPTY_SESSION_DISPLAY_NAME = "New chat";
 
 /**

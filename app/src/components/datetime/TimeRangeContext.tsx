@@ -1,6 +1,18 @@
-import React, { createContext, useCallback, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useState,
+} from "react";
 
+import {
+  SET_TIME_RANGE_TOOL_NAME,
+  type SetTimeRangeInput,
+} from "@phoenix/agent/extensions/toolRegistry";
+import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
 import type { OpenTimeRangeWithKey } from "./types";
 import {
@@ -71,6 +83,8 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
     [setStoredLastNTimeRangeKey]
   );
 
+  useRegisterSetTimeRangeClientAction({ setTimeRange });
+
   return (
     <TimeRangeContext.Provider
       value={{
@@ -81,4 +95,87 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
       {children}
     </TimeRangeContext.Provider>
   );
+}
+
+/**
+ * Parse an optional tool-supplied datetime into the Date shape used by the
+ * shared time range context.
+ */
+function parseOptionalDateTime(value: string | undefined): Date | undefined {
+  if (value === undefined || value.trim() === "") {
+    return undefined;
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`Invalid ISO datetime: ${value}`);
+  }
+  return date;
+}
+
+/**
+ * Register the browser-side implementation of PXI's `set_time_range` tool
+ * while a time range provider is mounted.
+ */
+function useRegisterSetTimeRangeClientAction({
+  setTimeRange,
+}: {
+  setTimeRange: (timeRange: OpenTimeRangeWithKey) => void;
+}) {
+  const agentStore = useAgentStore();
+
+  const handleSetTimeRange = useEffectEvent(
+    async (input: SetTimeRangeInput): Promise<AgentClientActionResult> => {
+      if (input.timeRangeKey !== "custom") {
+        // Presets are recomputed at execution time so relative windows are
+        // anchored to the user's current browser time.
+        setTimeRange({
+          timeRangeKey: input.timeRangeKey,
+          ...getTimeRangeFromLastNTimeRangeKey(input.timeRangeKey),
+        });
+        return { ok: true, output: `Set time range to ${input.timeRangeKey}.` };
+      }
+
+      try {
+        // Custom ranges can be bounded on either side, matching OpenTimeRange.
+        const start = parseOptionalDateTime(input.startTime);
+        const end = parseOptionalDateTime(input.endTime);
+        if (start === undefined && end === undefined) {
+          return {
+            ok: false,
+            error:
+              "Custom time range requires at least one of startTime or endTime.",
+          };
+        }
+        if (start !== undefined && end !== undefined && start > end) {
+          return {
+            ok: false,
+            error: "Custom time range startTime must be before endTime.",
+          };
+        }
+        setTimeRange({ timeRangeKey: "custom", start, end });
+        const startText = start?.toISOString() ?? "open start";
+        const endText = end?.toISOString() ?? "open end";
+        return {
+          ok: true,
+          output: `Set custom time range from ${startText} to ${endText}.`,
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : "Invalid time range.",
+        };
+      }
+    }
+  );
+
+  useEffect(() => {
+    const { registerClientAction, unregisterClientAction } =
+      agentStore.getState();
+    registerClientAction(SET_TIME_RANGE_TOOL_NAME, (input) =>
+      handleSetTimeRange(input as SetTimeRangeInput)
+    );
+    return () => {
+      unregisterClientAction(SET_TIME_RANGE_TOOL_NAME);
+    };
+  }, [agentStore]);
 }

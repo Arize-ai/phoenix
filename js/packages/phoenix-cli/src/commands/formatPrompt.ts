@@ -150,12 +150,13 @@ function formatPromptPretty(promptVersion: PromptVersion): string {
   }
 
   // Tools
-  if (promptVersion.tools && promptVersion.tools.tools.length > 0) {
+  const toolsList = promptVersion.tools?.tools;
+  if (toolsList && Array.isArray(toolsList) && toolsList.length > 0) {
     lines.push(`│`);
     lines.push(`│  Tools:`);
 
     // Tool choice
-    if (promptVersion.tools.tool_choice) {
+    if (promptVersion.tools?.tool_choice) {
       const choice = promptVersion.tools.tool_choice;
       if (choice.type === "specific_function") {
         lines.push(`│    Tool Choice: ${choice.function_name} (required)`);
@@ -164,7 +165,7 @@ function formatPromptPretty(promptVersion: PromptVersion): string {
       }
     }
 
-    for (const tool of promptVersion.tools.tools) {
+    for (const tool of toolsList) {
       if (tool.type === "function") {
         const fn = tool.function;
         lines.push(`│`);

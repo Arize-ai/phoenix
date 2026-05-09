@@ -282,5 +282,14 @@ describe("Auth Commands", () => {
 
       expect(lines[0]).toBe(endpoint);
     });
+
+    it("includes the profile name line when a profile is active", () => {
+      const result: FetchViewerResult = {
+        status: "success",
+        user: { auth_method: "ANONYMOUS" },
+      };
+      const output = formatAuthStatus(endpoint, result, undefined, "prod");
+      expect(output).toContain("Profile: prod");
+    });
   });
 });

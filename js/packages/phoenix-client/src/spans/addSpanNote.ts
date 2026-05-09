@@ -1,5 +1,6 @@
 import { createClient } from "../client";
 import type { ClientFn } from "../types/core";
+import { formatApiError } from "../utils/apiErrorUtils";
 
 /**
  * Parameters for a single span note
@@ -25,9 +26,11 @@ export interface AddSpanNoteParams extends ClientFn {
 /**
  * Add a note to a span.
  *
- * Notes are a special type of annotation that allow multiple entries per span
- * (unlike regular annotations which are unique by name and identifier).
- * Each note gets a unique timestamp-based identifier.
+ * Notes are append-only: each call creates a new note with an auto-generated
+ * UUIDv4 identifier, so multiple notes accumulate on the same span. Structured
+ * annotations, by contrast, are keyed by `(name, spanId, identifier)` — to keep
+ * multiple structured annotations with the same name on a span, supply distinct
+ * identifiers; otherwise re-writing the same name overwrites the existing one.
  *
  * @param params - The parameters to add a span note
  * @returns The ID of the created note annotation
@@ -58,7 +61,7 @@ export async function addSpanNote({
   });
 
   if (error) {
-    throw new Error(`Failed to add span note: ${error}`);
+    throw new Error(`Failed to add span note: ${formatApiError(error)}`);
   }
 
   if (!data?.data) {

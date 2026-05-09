@@ -2,7 +2,8 @@ import {
   anthropicToolDefinitionSchema,
   awsToolDefinitionSchema,
   geminiToolDefinitionSchema,
-  openAIToolDefinitionSchema,
+  openAIChatCompletionsToolDefinitionSchema,
+  openAIResponsesToolDefinitionSchema,
 } from "../toolSchemas";
 import {
   getTestAnthropicToolDefinition,
@@ -12,10 +13,12 @@ import {
 } from "./fixtures";
 
 describe("toolSchemas", () => {
-  describe("openAIToolDefinitionSchema", () => {
+  describe("openAIChatCompletionsToolDefinitionSchema", () => {
     it("should parse a valid OpenAI tool definition", () => {
       const tool = getTestOpenAIToolDefinition();
-      expect(openAIToolDefinitionSchema.safeParse(tool).success).toBe(true);
+      expect(
+        openAIChatCompletionsToolDefinitionSchema.safeParse(tool).success
+      ).toBe(true);
     });
 
     it("should parse OpenAI tool with empty parameters (span/sdk shape)", () => {
@@ -27,11 +30,84 @@ describe("toolSchemas", () => {
           parameters: {},
         },
       };
-      const result = openAIToolDefinitionSchema.safeParse(tool);
+      const result = openAIChatCompletionsToolDefinitionSchema.safeParse(tool);
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.function.parameters).toEqual({});
       }
+    });
+
+    it("should reject unknown OpenAI wrapper fields", () => {
+      const tool = {
+        type: "function",
+        ignored: true,
+        function: {
+          name: "get_weather",
+          description: "Get weather",
+          ignored: true,
+          parameters: {
+            type: "object",
+            properties: {
+              location: {
+                type: "string",
+                pattern: "^[a-z]+$",
+              },
+            },
+            required: ["location"],
+          },
+          strict: false,
+        },
+      };
+
+      expect(
+        openAIChatCompletionsToolDefinitionSchema.safeParse(tool).success
+      ).toBe(false);
+    });
+
+    it("should preserve unknown JSON schema fields", () => {
+      const tool = {
+        type: "function",
+        function: {
+          name: "get_weather",
+          description: "Get weather",
+          parameters: {
+            type: "object",
+            properties: {
+              location: {
+                type: "string",
+                pattern: "^[a-z]+$",
+              },
+            },
+            required: ["location"],
+          },
+          strict: false,
+        },
+      };
+
+      const result = openAIChatCompletionsToolDefinitionSchema.safeParse(tool);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.function.strict).toBe(false);
+        expect(
+          result.data.function.parameters.properties?.location?.pattern
+        ).toBe("^[a-z]+$");
+      }
+    });
+  });
+
+  describe("openAIResponsesToolDefinitionSchema", () => {
+    it("should reject unknown OpenAI Responses wrapper fields", () => {
+      const tool = {
+        type: "function",
+        name: "get_weather",
+        description: "Get weather",
+        parameters: {},
+        strict: false,
+        ignored: true,
+      };
+
+      const result = openAIResponsesToolDefinitionSchema.safeParse(tool);
+      expect(result.success).toBe(false);
     });
   });
 
@@ -41,7 +117,7 @@ describe("toolSchemas", () => {
       expect(anthropicToolDefinitionSchema.safeParse(tool).success).toBe(true);
     });
 
-    it("should parse Anthropic tool with empty input_schema (normalizes to type: object)", () => {
+    it("should parse Anthropic tool with empty input_schema", () => {
       const tool = {
         name: "get_weather",
         description: "Get weather",
@@ -50,8 +126,16 @@ describe("toolSchemas", () => {
       const result = anthropicToolDefinitionSchema.safeParse(tool);
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.input_schema).toEqual({ type: "object" });
+        expect(result.data.input_schema).toEqual({});
       }
+    });
+
+    it("should reject Anthropic hosted tools without input_schema", () => {
+      const tool = {
+        type: "web_search_20250305",
+        name: "web_search",
+      };
+      expect(anthropicToolDefinitionSchema.safeParse(tool).success).toBe(false);
     });
   });
 
@@ -104,9 +188,32 @@ describe("toolSchemas", () => {
       };
       const result = awsToolDefinitionSchema.safeParse(tool);
       expect(result.success).toBe(true);
-      if (result.success) {
+      if (result.success && "toolSpec" in result.data) {
         expect(result.data.toolSpec.inputSchema.json).toEqual({
           type: "object",
+        });
+      }
+    });
+
+    it("should parse an unwrapped AWS tool definition (without toolSpec)", () => {
+      const tool = {
+        name: "get_weather",
+        description: "Get weather",
+        inputSchema: {
+          json: {
+            type: "object",
+            properties: { city: { type: "string" } },
+            required: ["city"],
+          },
+        },
+      };
+      const result = awsToolDefinitionSchema.safeParse(tool);
+      expect(result.success).toBe(true);
+      if (result.success && !("toolSpec" in result.data)) {
+        expect(result.data.inputSchema.json).toEqual({
+          type: "object",
+          properties: { city: { type: "string" } },
+          required: ["city"],
         });
       }
     });

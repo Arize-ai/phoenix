@@ -24,6 +24,8 @@ import {
 } from "react-resizable-panels";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 
+import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
+import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import {
   Button,
   CopyToClipboardButton,
@@ -79,6 +81,7 @@ import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { getVisibleSpanAnnotationColumnNames } from "./spanAnnotationUtils";
 import { SpanColumnSelector } from "./SpanColumnSelector";
 import { SpanFilterConditionField } from "./SpanFilterConditionField";
+import { useSpanFilters } from "./SpanFiltersContext";
 import { SpanNotesTableCell } from "./SpanNotesTableCell";
 import { SpanSelectionToolbar } from "./SpanSelectionToolbar";
 import { SpansTableAside } from "./SpansTableAside";
@@ -186,7 +189,23 @@ export function SpansTable(props: SpansTableProps) {
   const [rowSelection, setRowSelection] = useState({});
   const [sorting, setSorting] = useState<SortingState>([]);
   const [filterCondition, setFilterCondition] = useState<string>("");
-  const [rootSpansOnly, setRootSpansOnly] = useState<boolean>(true);
+  const { rootSpansOnly, setRootSpansOnly } = useSpanFilters();
+  const projectId = useTracingContext((state) => state.projectId);
+
+  // Advertise the current rootSpansOnly state so the agent's context message
+  // reflects whether the toggle is mounted on this tab.
+  const advertisedRootSpansOnlyContext = useMemo<AgentContext | null>(() => {
+    if (!projectId) {
+      return null;
+    }
+    return {
+      type: "project",
+      projectNodeId: projectId,
+      rootSpansOnly,
+    };
+  }, [projectId, rootSpansOnly]);
+  useAdvertiseAgentContext(advertisedRootSpansOnlyContext);
+
   const columnVisibility = useTracingContext((state) => state.columnVisibility);
   const isTracingUxEnabled = useFeatureFlag("tracing_ux");
   const showTableAside = useProjectContext((state) => state.showTableAside);
@@ -512,7 +531,7 @@ export function SpansTable(props: SpansTableProps) {
   const columns: ColumnDef<TableRow>[] = [
     {
       id: "select",
-      maxSize: 32,
+      maxSize: 24,
       header: ({ table }) => (
         <IndeterminateCheckboxCell
           {...{
@@ -538,7 +557,7 @@ export function SpansTable(props: SpansTableProps) {
       accessorKey: "statusCode",
       enableSorting: false,
       minSize: 50,
-      maxSize: 75,
+      maxSize: 50,
       cell: ({ getValue }) => {
         const statusCode = getValue() as SpanStatusCode;
         return <SpanStatusCodeIcon statusCode={statusCode} />;

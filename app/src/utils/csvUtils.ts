@@ -201,6 +201,16 @@ export async function parseCSVFile(
       throw new Error("CSV file is empty");
     }
 
+    const emptyHeaderIndices = columns
+      .map((col, idx) => (col === "" ? idx + 1 : -1))
+      .filter((idx) => idx !== -1);
+    if (emptyHeaderIndices.length > 0) {
+      throw new Error(
+        `CSV header has empty column name(s) at position(s) ${emptyHeaderIndices.join(", ")}. ` +
+          `Check for trailing or extra commas in the header row.`
+      );
+    }
+
     // Compute collapsible columns: columns where ALL preview rows have valid JSON object values
     const collapsibleColumns = columns.filter((_, colIndex) => {
       // Must have at least one preview row to determine collapsibility

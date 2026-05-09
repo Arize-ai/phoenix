@@ -88,7 +88,6 @@ from typing import (
     Callable,
     Hashable,
     Literal,
-    Mapping,
     Protocol,
     Sequence,
     overload,
@@ -118,7 +117,7 @@ from phoenix.db.types.experiment_log import (
     FailureDetail,
     RetriesExhaustedDetail,
 )
-from phoenix.db.types.prompts import PromptChatTemplate, get_raw_invocation_parameters
+from phoenix.db.types.prompts import PromptChatTemplate, PromptInvocationParameters
 from phoenix.server.api.evaluators import (
     BaseEvaluator,
     LLMEvaluator,
@@ -204,7 +203,7 @@ class LLMClient(Protocol):
         messages: Sequence[PlaygroundMessage],
         tools: PromptTools | None,
         response_format: PromptResponseFormat | None = None,
-        invocation_parameters: Mapping[str, Any] = ...,
+        invocation_parameters: PromptInvocationParameters | None = ...,
         tracer: Tracer | None = None,
         otel_context: Context | None = None,
         stream_model_output: bool = True,
@@ -231,7 +230,7 @@ class _NoOpLLMClient:
         messages: Sequence[PlaygroundMessage],
         tools: PromptTools | None,
         response_format: PromptResponseFormat | None = None,
-        invocation_parameters: Mapping[str, Any] | None = None,
+        invocation_parameters: PromptInvocationParameters | None = None,
         tracer: Tracer | None = None,
         otel_context: Context | None = None,
         stream_model_output: bool = True,
@@ -579,9 +578,7 @@ class TaskWorkItem(WorkItem):
                     messages=messages,
                     tools=self._prompt_task.tools,
                     response_format=self._prompt_task.response_format,
-                    invocation_parameters=get_raw_invocation_parameters(
-                        self._prompt_task.invocation_parameters
-                    ),
+                    invocation_parameters=self._prompt_task.invocation_parameters,
                     tracer=tracer,
                     otel_context=OtelContext(),
                     stream_model_output=self._prompt_task.stream_model_output,

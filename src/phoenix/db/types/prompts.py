@@ -5,7 +5,6 @@ from pydantic import Field, RootModel, model_validator
 from typing_extensions import Annotated, Self, TypeAlias, TypeGuard, assert_never
 
 from phoenix.db.types.db_helper_types import UNDEFINED, DBBaseModel
-from phoenix.db.types.model_provider import ModelProvider
 
 JSONSerializable = Union[None, bool, int, float, str, dict[str, Any], list[Any]]
 
@@ -134,7 +133,14 @@ class PromptToolFunction(DBBaseModel):
     function: PromptToolFunctionDefinition
 
 
-PromptTool: TypeAlias = Annotated[Union[PromptToolFunction], Field(..., discriminator="type")]
+class PromptToolRaw(DBBaseModel):
+    type: Literal["raw"]
+    raw: dict[str, Any]
+
+
+PromptTool: TypeAlias = Annotated[
+    Union[PromptToolFunction, PromptToolRaw], Field(..., discriminator="type")
+]
 
 
 class PromptToolChoiceNone(DBBaseModel):
@@ -201,7 +207,11 @@ class PromptOpenAIInvocationParametersContent(DBBaseModel):
     presence_penalty: float = UNDEFINED
     top_p: float = UNDEFINED
     seed: int = UNDEFINED
+    # https://github.com/openai/openai-python/blob/e507a4ebeea4c3f93cd48986014a3e2ca79230c2/src/openai/types/chat/completion_create_params.py#L264  # noqa: E501
+    stop: list[str] = UNDEFINED
+    # https://github.com/openai/openai-python/blob/e507a4ebeea4c3f93cd48986014a3e2ca79230c2/src/openai/types/chat/completion_create_params.py#L196  # noqa: E501
     reasoning_effort: Literal["none", "minimal", "low", "medium", "high", "xhigh"] = UNDEFINED
+    extra_body: dict[str, Any] = UNDEFINED
 
 
 class PromptOpenAIInvocationParameters(DBBaseModel):
@@ -305,7 +315,21 @@ class PromptAnthropicThinkingConfigDisabled(DBBaseModel):
 
 class PromptAnthropicThinkingConfigEnabled(DBBaseModel):
     type: Literal["enabled"]
+    # https://github.com/anthropics/anthropic-sdk-python/blob/78c73600b714fcb036893768df8ee122f33d4cb3/src/anthropic/types/thinking_config_enabled_param.py#L12  # noqa: E501
     budget_tokens: int = Field(..., ge=1024)
+    # https://github.com/anthropics/anthropic-sdk-python/blob/78c73600b714fcb036893768df8ee122f33d4cb3/src/anthropic/types/thinking_config_enabled_param.py#L27  # noqa: E501
+    display: Literal["summarized", "omitted"] = UNDEFINED
+
+
+class PromptAnthropicThinkingConfigAdaptive(DBBaseModel):
+    type: Literal["adaptive"]
+    # https://github.com/anthropics/anthropic-sdk-python/blob/78c73600b714fcb036893768df8ee122f33d4cb3/src/anthropic/types/thinking_config_adaptive_param.py#L14  # noqa: E501
+    display: Literal["summarized", "omitted"] = UNDEFINED
+
+
+class PromptAnthropicOutputConfig(DBBaseModel):
+    # https://github.com/anthropics/anthropic-sdk-python/blob/78c73600b714fcb036893768df8ee122f33d4cb3/src/anthropic/types/output_config_param.py#L14  # noqa: E501
+    effort: Literal["low", "medium", "high", "xhigh", "max"] = UNDEFINED
 
 
 class PromptAnthropicInvocationParametersContent(DBBaseModel):
@@ -313,10 +337,18 @@ class PromptAnthropicInvocationParametersContent(DBBaseModel):
     temperature: float = UNDEFINED
     top_p: float = UNDEFINED
     stop_sequences: list[str] = UNDEFINED
+    # https://github.com/anthropics/anthropic-sdk-python/blob/78c73600b714fcb036893768df8ee122f33d4cb3/src/anthropic/types/message_create_params.py#L138  # noqa: E501
+    output_config: PromptAnthropicOutputConfig = UNDEFINED
+    # https://github.com/anthropics/anthropic-sdk-python/blob/78c73600b714fcb036893768df8ee122f33d4cb3/src/anthropic/types/message_create_params.py#L181  # noqa: E501
     thinking: Annotated[
-        Union[PromptAnthropicThinkingConfigDisabled, PromptAnthropicThinkingConfigEnabled],
+        Union[
+            PromptAnthropicThinkingConfigDisabled,
+            PromptAnthropicThinkingConfigEnabled,
+            PromptAnthropicThinkingConfigAdaptive,
+        ],
         Field(..., discriminator="type"),
     ] = UNDEFINED
+    extra_body: dict[str, Any] = UNDEFINED
 
     @model_validator(mode="after")
     def check_thinking_budget_tokens_lt_max_tokens(self) -> Self:
@@ -336,11 +368,21 @@ class PromptAwsInvocationParametersContent(DBBaseModel):
     max_tokens: int = UNDEFINED
     temperature: float = UNDEFINED
     top_p: float = UNDEFINED
+    stop_sequences: list[str] = UNDEFINED
 
 
 class PromptAwsInvocationParameters(DBBaseModel):
     type: Literal["aws"]
     aws: PromptAwsInvocationParametersContent
+
+
+class PromptGoogleThinkingConfig(DBBaseModel):
+    # https://github.com/googleapis/python-genai/blob/aed41ecf4940f63446fc3e22744663be4d1057a6/google/genai/types.py#L5321  # noqa: E501
+    thinking_budget: int = UNDEFINED
+    # https://github.com/googleapis/python-genai/blob/aed41ecf4940f63446fc3e22744663be4d1057a6/google/genai/types.py#L316  # noqa: E501
+    thinking_level: Literal["minimal", "low", "medium", "high"] = UNDEFINED
+    # https://github.com/googleapis/python-genai/blob/aed41ecf4940f63446fc3e22744663be4d1057a6/google/genai/types.py#L5316  # noqa: E501
+    include_thoughts: bool = UNDEFINED
 
 
 class PromptGoogleInvocationParametersContent(DBBaseModel):
@@ -351,6 +393,7 @@ class PromptGoogleInvocationParametersContent(DBBaseModel):
     frequency_penalty: float = UNDEFINED
     top_p: float = UNDEFINED
     top_k: int = UNDEFINED
+    thinking_config: PromptGoogleThinkingConfig = UNDEFINED
 
 
 class PromptGoogleInvocationParameters(DBBaseModel):
@@ -379,38 +422,71 @@ PromptInvocationParameters: TypeAlias = Annotated[
 ]
 
 
-def get_raw_invocation_parameters(
+def openai_family_content_from_invocation_parameters(
     invocation_parameters: PromptInvocationParameters,
-) -> dict[str, Any]:
+) -> PromptOpenAIInvocationParametersContent | None:
+    """
+    Return the OpenAI-family content object for any persisted OpenAI-compat discriminator.
+    """
     if isinstance(invocation_parameters, PromptOpenAIInvocationParameters):
-        return invocation_parameters.openai.model_dump()
+        return invocation_parameters.openai
     if isinstance(invocation_parameters, PromptAzureOpenAIInvocationParameters):
-        return invocation_parameters.azure_openai.model_dump()
-    if isinstance(invocation_parameters, PromptAnthropicInvocationParameters):
-        return invocation_parameters.anthropic.model_dump()
-    if isinstance(invocation_parameters, PromptGoogleInvocationParameters):
-        return invocation_parameters.google.model_dump()
+        return PromptOpenAIInvocationParametersContent.model_validate(
+            invocation_parameters.azure_openai.model_dump(mode="python")
+        )
     if isinstance(invocation_parameters, PromptDeepSeekInvocationParameters):
-        return invocation_parameters.deepseek.model_dump()
+        return PromptOpenAIInvocationParametersContent.model_validate(
+            invocation_parameters.deepseek.model_dump(mode="python")
+        )
     if isinstance(invocation_parameters, PromptXAIInvocationParameters):
-        return invocation_parameters.xai.model_dump()
+        return PromptOpenAIInvocationParametersContent.model_validate(
+            invocation_parameters.xai.model_dump(mode="python")
+        )
     if isinstance(invocation_parameters, PromptOllamaInvocationParameters):
-        return invocation_parameters.ollama.model_dump()
-    if isinstance(invocation_parameters, PromptAwsInvocationParameters):
-        return invocation_parameters.aws.model_dump()
+        return PromptOpenAIInvocationParametersContent.model_validate(
+            invocation_parameters.ollama.model_dump(mode="python")
+        )
     if isinstance(invocation_parameters, PromptCerebrasInvocationParameters):
-        return invocation_parameters.cerebras.model_dump()
+        return PromptOpenAIInvocationParametersContent.model_validate(
+            invocation_parameters.cerebras.model_dump(mode="python")
+        )
     if isinstance(invocation_parameters, PromptFireworksInvocationParameters):
-        return invocation_parameters.fireworks.model_dump()
+        return PromptOpenAIInvocationParametersContent.model_validate(
+            invocation_parameters.fireworks.model_dump(mode="python")
+        )
     if isinstance(invocation_parameters, PromptGroqInvocationParameters):
-        return invocation_parameters.groq.model_dump()
+        return PromptOpenAIInvocationParametersContent.model_validate(
+            invocation_parameters.groq.model_dump(mode="python")
+        )
     if isinstance(invocation_parameters, PromptMoonshotInvocationParameters):
-        return invocation_parameters.moonshot.model_dump()
+        return PromptOpenAIInvocationParametersContent.model_validate(
+            invocation_parameters.moonshot.model_dump(mode="python")
+        )
     if isinstance(invocation_parameters, PromptPerplexityInvocationParameters):
-        return invocation_parameters.perplexity.model_dump()
+        return PromptOpenAIInvocationParametersContent.model_validate(
+            invocation_parameters.perplexity.model_dump(mode="python")
+        )
     if isinstance(invocation_parameters, PromptTogetherInvocationParameters):
-        return invocation_parameters.together.model_dump()
-    assert_never(invocation_parameters)
+        return PromptOpenAIInvocationParametersContent.model_validate(
+            invocation_parameters.together.model_dump(mode="python")
+        )
+    return None
+
+
+def normalize_invocation_parameters_for_write(
+    invocation_parameters: PromptInvocationParameters,
+) -> PromptInvocationParameters:
+    """
+    Coerce OpenAI-family invocation parameters to the single modern discriminator ``openai``.
+
+    Legacy rows may still store ``azure_openai``, ``deepseek``, etc.; new writes through
+    REST, GraphQL validation, and clone paths should persist only ``type=\"openai\"`` for
+    that family.
+    """
+    content = openai_family_content_from_invocation_parameters(invocation_parameters)
+    if content:
+        return PromptOpenAIInvocationParameters(type="openai", openai=content)
+    return invocation_parameters
 
 
 def is_prompt_invocation_parameters(
@@ -439,96 +515,3 @@ def is_prompt_invocation_parameters(
 
 class PromptInvocationParametersRootModel(RootModel[PromptInvocationParameters]):
     root: PromptInvocationParameters
-
-
-def validate_invocation_parameters(
-    invocation_parameters: dict[str, Any],
-    model_provider: ModelProvider,
-) -> PromptInvocationParameters:
-    if model_provider is ModelProvider.OPENAI:
-        return PromptOpenAIInvocationParameters(
-            type="openai",
-            openai=PromptOpenAIInvocationParametersContent.model_validate(invocation_parameters),
-        )
-    elif model_provider is ModelProvider.AZURE_OPENAI:
-        return PromptAzureOpenAIInvocationParameters(
-            type="azure_openai",
-            azure_openai=PromptAzureOpenAIInvocationParametersContent.model_validate(
-                invocation_parameters
-            ),
-        )
-    elif model_provider is ModelProvider.DEEPSEEK:
-        return PromptDeepSeekInvocationParameters(
-            type="deepseek",
-            deepseek=PromptDeepSeekInvocationParametersContent.model_validate(
-                invocation_parameters
-            ),
-        )
-    elif model_provider is ModelProvider.ANTHROPIC:
-        return PromptAnthropicInvocationParameters(
-            type="anthropic",
-            anthropic=PromptAnthropicInvocationParametersContent.model_validate(
-                invocation_parameters
-            ),
-        )
-    elif model_provider is ModelProvider.GOOGLE:
-        return PromptGoogleInvocationParameters(
-            type="google",
-            google=PromptGoogleInvocationParametersContent.model_validate(invocation_parameters),
-        )
-    elif model_provider is ModelProvider.XAI:
-        return PromptXAIInvocationParameters(
-            type="xai",
-            xai=PromptXAIInvocationParametersContent.model_validate(invocation_parameters),
-        )
-    elif model_provider is ModelProvider.OLLAMA:
-        return PromptOllamaInvocationParameters(
-            type="ollama",
-            ollama=PromptOllamaInvocationParametersContent.model_validate(invocation_parameters),
-        )
-    elif model_provider is ModelProvider.AWS:
-        return PromptAwsInvocationParameters(
-            type="aws",
-            aws=PromptAwsInvocationParametersContent.model_validate(invocation_parameters),
-        )
-    elif model_provider is ModelProvider.CEREBRAS:
-        return PromptCerebrasInvocationParameters(
-            type="cerebras",
-            cerebras=PromptCerebrasInvocationParametersContent.model_validate(
-                invocation_parameters
-            ),
-        )
-    elif model_provider is ModelProvider.FIREWORKS:
-        return PromptFireworksInvocationParameters(
-            type="fireworks",
-            fireworks=PromptFireworksInvocationParametersContent.model_validate(
-                invocation_parameters
-            ),
-        )
-    elif model_provider is ModelProvider.GROQ:
-        return PromptGroqInvocationParameters(
-            type="groq",
-            groq=PromptGroqInvocationParametersContent.model_validate(invocation_parameters),
-        )
-    elif model_provider is ModelProvider.MOONSHOT:
-        return PromptMoonshotInvocationParameters(
-            type="moonshot",
-            moonshot=PromptMoonshotInvocationParametersContent.model_validate(
-                invocation_parameters
-            ),
-        )
-    elif model_provider is ModelProvider.PERPLEXITY:
-        return PromptPerplexityInvocationParameters(
-            type="perplexity",
-            perplexity=PromptPerplexityInvocationParametersContent.model_validate(
-                invocation_parameters
-            ),
-        )
-    elif model_provider is ModelProvider.TOGETHER:
-        return PromptTogetherInvocationParameters(
-            type="together",
-            together=PromptTogetherInvocationParametersContent.model_validate(
-                invocation_parameters
-            ),
-        )
-    assert_never(model_provider)

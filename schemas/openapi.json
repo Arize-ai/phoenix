@@ -305,7 +305,8 @@
         "tags": [
           "annotations"
         ],
-        "summary": "Get span annotations for a list of span_ids.",
+        "summary": "Get span annotations filtered by span_ids and/or identifier.",
+        "description": "Return span annotations for a project, filtered by `span_ids`, `identifier`, or both. At least one of `span_ids` or `identifier` must be supplied. When both are supplied, results are the AND-intersection of the two filters.",
         "operationId": "listSpanAnnotationsBySpanIds",
         "parameters": [
           {
@@ -322,17 +323,45 @@
           {
             "name": "span_ids",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "minItems": 1,
-              "description": "One or more span id to fetch annotations for",
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of span ids to fetch annotations for. If omitted, `identifier` must be supplied.",
               "title": "Span Ids"
             },
-            "description": "One or more span id to fetch annotations for"
+            "description": "Optional list of span ids to fetch annotations for. If omitted, `identifier` must be supplied."
+          },
+          {
+            "name": "identifier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `span_ids` must be supplied. When combined with `span_ids`, results are the AND-intersection of both filters.",
+              "title": "Identifier"
+            },
+            "description": "Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `span_ids` must be supplied. When combined with `span_ids`, results are the AND-intersection of both filters."
           },
           {
             "name": "include_annotation_names",
@@ -451,6 +480,173 @@
             "description": "Invalid parameters"
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "annotations"
+        ],
+        "summary": "Delete span annotations in a project that match the supplied filter.",
+        "description": "Hard-delete span annotations within the named project that match the\nsupplied filter.\n\n- The request must either supply both `start_time` AND `end_time`\n  to bound the delete to a `[start_time, end_time)` time window,\n  OR set `delete_all=true` to acknowledge an unbounded sweep. A request\n  that satisfies neither is rejected with 422.\n- `name`, `identifier`, and `annotator_kind` are optional narrowing\n  filters; on their own they do NOT authorize the request \u2014 they only\n  narrow within an already-authorized request (bounded time range or\n  `delete_all=true`).\n- All supplied filters are combined with AND. `name` and `identifier`,\n  when present, must be non-empty.\n- `start_time` is inclusive (`>=`); `end_time` is exclusive\n  (`<`). When both are supplied, `start_time` must be strictly earlier\n  than `end_time` (else 422). A half-bounded range (only one of\n  the two) does NOT satisfy the gate and is rejected unless\n  `delete_all=true` is also set. Naive datetimes are interpreted as UTC.\n- The endpoint is idempotent: a request that matches no rows still\n  returns 204.\n- When authentication is enabled, non-admin callers can only delete rows\n  they own (`user_id == current_user.id`); admins delete all matching\n  rows.",
+        "operationId": "deleteSpanAnnotations",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional annotation name. When provided, must be non-empty and narrows the delete to annotations of that name.",
+              "title": "Name"
+            },
+            "description": "Optional annotation name. When provided, must be non-empty and narrows the delete to annotations of that name."
+          },
+          {
+            "name": "identifier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier.",
+              "title": "Identifier"
+            },
+            "description": "Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier."
+          },
+          {
+            "name": "annotator_kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "LLM",
+                    "CODE",
+                    "HUMAN"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind.",
+              "title": "Annotator Kind"
+            },
+            "description": "Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind."
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC.",
+              "title": "Start Time"
+            },
+            "description": "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC."
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC.",
+              "title": "End Time"
+            },
+            "description": "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC."
+          },
+          {
+            "name": "delete_all",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Opt-in flag that authorizes the request without a bounded `[start_time, end_time)` time window. When `false` (default) or absent, the request must supply both `start_time` AND `end_time` to bound the delete. When `true`, the time-range bound is waived and any other filters (`name`, `identifier`, `annotator_kind`) still narrow the delete within the project \u2014 e.g. `delete_all=true&name=X` deletes all annotations named X regardless of time.",
+              "default": false,
+              "title": "Delete All"
+            },
+            "description": "Opt-in flag that authorizes the request without a bounded `[start_time, end_time)` time window. When `false` (default) or absent, the request must supply both `start_time` AND `end_time` to bound the delete. When `true`, the time-range bound is waived and any other filters (`name`, `identifier`, `annotator_kind`) still narrow the delete within the project \u2014 e.g. `delete_all=true&name=X` deletes all annotations named X regardless of time."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Project not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid parameters"
+          }
+        }
       }
     },
     "/v1/projects/{project_identifier}/trace_annotations": {
@@ -458,7 +654,8 @@
         "tags": [
           "annotations"
         ],
-        "summary": "Get trace annotations for a list of trace_ids.",
+        "summary": "Get trace annotations filtered by trace_ids and/or identifier.",
+        "description": "Return trace annotations for a project, filtered by `trace_ids`, `identifier`, or both. At least one of `trace_ids` or `identifier` must be supplied. When both are supplied, results are the AND-intersection of the two filters.",
         "operationId": "listTraceAnnotationsByTraceIds",
         "parameters": [
           {
@@ -475,17 +672,45 @@
           {
             "name": "trace_ids",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "minItems": 1,
-              "description": "One or more trace id to fetch annotations for",
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of trace ids to fetch annotations for. If omitted, `identifier` must be supplied.",
               "title": "Trace Ids"
             },
-            "description": "One or more trace id to fetch annotations for"
+            "description": "Optional list of trace ids to fetch annotations for. If omitted, `identifier` must be supplied."
+          },
+          {
+            "name": "identifier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `trace_ids` must be supplied. When combined with `trace_ids`, results are the AND-intersection of both filters.",
+              "title": "Identifier"
+            },
+            "description": "Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `trace_ids` must be supplied. When combined with `trace_ids`, results are the AND-intersection of both filters."
           },
           {
             "name": "include_annotation_names",
@@ -604,6 +829,173 @@
             "description": "Invalid parameters"
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "annotations"
+        ],
+        "summary": "Delete trace annotations in a project that match the supplied filter.",
+        "description": "Hard-delete trace annotations within the named project that match the\nsupplied filter.\n\n- The request must either supply both `start_time` AND `end_time`\n  to bound the delete to a `[start_time, end_time)` time window,\n  OR set `delete_all=true` to acknowledge an unbounded sweep. A request\n  that satisfies neither is rejected with 422.\n- `name`, `identifier`, and `annotator_kind` are optional narrowing\n  filters; on their own they do NOT authorize the request \u2014 they only\n  narrow within an already-authorized request (bounded time range or\n  `delete_all=true`).\n- All supplied filters are combined with AND. `name` and `identifier`,\n  when present, must be non-empty.\n- `start_time` is inclusive (`>=`); `end_time` is exclusive\n  (`<`). When both are supplied, `start_time` must be strictly earlier\n  than `end_time` (else 422). A half-bounded range (only one of\n  the two) does NOT satisfy the gate and is rejected unless\n  `delete_all=true` is also set. Naive datetimes are interpreted as UTC.\n- The endpoint is idempotent: a request that matches no rows still\n  returns 204.\n- When authentication is enabled, non-admin callers can only delete rows\n  they own (`user_id == current_user.id`); admins delete all matching\n  rows.",
+        "operationId": "deleteTraceAnnotations",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional annotation name. When provided, must be non-empty and narrows the delete to annotations of that name.",
+              "title": "Name"
+            },
+            "description": "Optional annotation name. When provided, must be non-empty and narrows the delete to annotations of that name."
+          },
+          {
+            "name": "identifier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier.",
+              "title": "Identifier"
+            },
+            "description": "Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier."
+          },
+          {
+            "name": "annotator_kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "LLM",
+                    "CODE",
+                    "HUMAN"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind.",
+              "title": "Annotator Kind"
+            },
+            "description": "Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind."
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC.",
+              "title": "Start Time"
+            },
+            "description": "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC."
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC.",
+              "title": "End Time"
+            },
+            "description": "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC."
+          },
+          {
+            "name": "delete_all",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Opt-in flag that authorizes the request without a bounded `[start_time, end_time)` time window. When `false` (default) or absent, the request must supply both `start_time` AND `end_time` to bound the delete. When `true`, the time-range bound is waived and any other filters (`name`, `identifier`, `annotator_kind`) still narrow the delete within the project \u2014 e.g. `delete_all=true&name=X` deletes all annotations named X regardless of time.",
+              "default": false,
+              "title": "Delete All"
+            },
+            "description": "Opt-in flag that authorizes the request without a bounded `[start_time, end_time)` time window. When `false` (default) or absent, the request must supply both `start_time` AND `end_time` to bound the delete. When `true`, the time-range bound is waived and any other filters (`name`, `identifier`, `annotator_kind`) still narrow the delete within the project \u2014 e.g. `delete_all=true&name=X` deletes all annotations named X regardless of time."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Project not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid parameters"
+          }
+        }
       }
     },
     "/v1/projects/{project_identifier}/session_annotations": {
@@ -611,7 +1003,8 @@
         "tags": [
           "annotations"
         ],
-        "summary": "Get session annotations for a list of session_ids.",
+        "summary": "Get session annotations filtered by session_ids and/or identifier.",
+        "description": "Return session annotations for a project, filtered by `session_ids`, `identifier`, or both. At least one of `session_ids` or `identifier` must be supplied. When both are supplied, results are the AND-intersection of the two filters.",
         "operationId": "listSessionAnnotationsBySessionIds",
         "parameters": [
           {
@@ -628,17 +1021,45 @@
           {
             "name": "session_ids",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "minItems": 1,
-              "description": "One or more session id to fetch annotations for",
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of session ids to fetch annotations for. If omitted, `identifier` must be supplied.",
               "title": "Session Ids"
             },
-            "description": "One or more session id to fetch annotations for"
+            "description": "Optional list of session ids to fetch annotations for. If omitted, `identifier` must be supplied."
+          },
+          {
+            "name": "identifier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `session_ids` must be supplied. When combined with `session_ids`, results are the AND-intersection of both filters.",
+              "title": "Identifier"
+            },
+            "description": "Optional list of annotation identifiers to filter by. Each value must be non-empty. If omitted, `session_ids` must be supplied. When combined with `session_ids`, results are the AND-intersection of both filters."
           },
           {
             "name": "include_annotation_names",
@@ -745,6 +1166,173 @@
               }
             },
             "description": "Project or sessions not found"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid parameters"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "annotations"
+        ],
+        "summary": "Delete session annotations in a project that match the supplied filter.",
+        "description": "Hard-delete session annotations within the named project that match the\nsupplied filter.\n\n- The request must either supply both `start_time` AND `end_time`\n  to bound the delete to a `[start_time, end_time)` time window,\n  OR set `delete_all=true` to acknowledge an unbounded sweep. A request\n  that satisfies neither is rejected with 422.\n- `name`, `identifier`, and `annotator_kind` are optional narrowing\n  filters; on their own they do NOT authorize the request \u2014 they only\n  narrow within an already-authorized request (bounded time range or\n  `delete_all=true`).\n- All supplied filters are combined with AND. `name` and `identifier`,\n  when present, must be non-empty.\n- `start_time` is inclusive (`>=`); `end_time` is exclusive\n  (`<`). When both are supplied, `start_time` must be strictly earlier\n  than `end_time` (else 422). A half-bounded range (only one of\n  the two) does NOT satisfy the gate and is rejected unless\n  `delete_all=true` is also set. Naive datetimes are interpreted as UTC.\n- The endpoint is idempotent: a request that matches no rows still\n  returns 204.\n- When authentication is enabled, non-admin callers can only delete rows\n  they own (`user_id == current_user.id`); admins delete all matching\n  rows.",
+        "operationId": "deleteSessionAnnotations",
+        "parameters": [
+          {
+            "name": "project_identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters.",
+              "title": "Project Identifier"
+            },
+            "description": "The project identifier: either project ID or project name. If using a project name as the identifier, it cannot contain slash (/), question mark (?), or pound sign (#) characters."
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional annotation name. When provided, must be non-empty and narrows the delete to annotations of that name.",
+              "title": "Name"
+            },
+            "description": "Optional annotation name. When provided, must be non-empty and narrows the delete to annotations of that name."
+          },
+          {
+            "name": "identifier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier.",
+              "title": "Identifier"
+            },
+            "description": "Optional annotation identifier. When provided, must be non-empty and narrows the delete to annotations with that identifier."
+          },
+          {
+            "name": "annotator_kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "LLM",
+                    "CODE",
+                    "HUMAN"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind.",
+              "title": "Annotator Kind"
+            },
+            "description": "Optional annotator kind. When provided, narrows the delete to annotations produced by this annotator kind."
+          },
+          {
+            "name": "start_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC.",
+              "title": "Start Time"
+            },
+            "description": "Optional inclusive lower bound on `created_at` (>=). Naive datetimes are interpreted as UTC."
+          },
+          {
+            "name": "end_time",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC.",
+              "title": "End Time"
+            },
+            "description": "Optional exclusive upper bound on `created_at` (<). Naive datetimes are interpreted as UTC."
+          },
+          {
+            "name": "delete_all",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Opt-in flag that authorizes the request without a bounded `[start_time, end_time)` time window. When `false` (default) or absent, the request must supply both `start_time` AND `end_time` to bound the delete. When `true`, the time-range bound is waived and any other filters (`name`, `identifier`, `annotator_kind`) still narrow the delete within the project \u2014 e.g. `delete_all=true&name=X` deletes all annotations named X regardless of time.",
+              "default": false,
+              "title": "Delete All"
+            },
+            "description": "Opt-in flag that authorizes the request without a bounded `[start_time, end_time)` time window. When `false` (default) or absent, the request must supply both `start_time` AND `end_time` to bound the delete. When `true`, the time-range bound is waived and any other filters (`name`, `identifier`, `annotator_kind`) still narrow the delete within the project \u2014 e.g. `delete_all=true&name=X` deletes all annotations named X regardless of time."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Project not found"
           },
           "422": {
             "content": {
@@ -1113,7 +1701,7 @@
                 }
               }
             },
-            "description": "Dataset of the same name already exists"
+            "description": "Dataset with the given name already exists (action=create)."
           },
           "422": {
             "content": {
@@ -1140,7 +1728,8 @@
                     "type": "string",
                     "enum": [
                       "create",
-                      "append"
+                      "append",
+                      "update"
                     ]
                   },
                   "name": {
@@ -1200,6 +1789,20 @@
                       ]
                     },
                     "description": "Span IDs to link examples back to spans"
+                  },
+                  "example_ids": {
+                    "type": "array",
+                    "items": {
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "description": "Optional example ID per example. If provided, it is used as the example's stable public ID."
                   }
                 }
               }
@@ -1218,7 +1821,8 @@
                     "type": "string",
                     "enum": [
                       "create",
-                      "append"
+                      "append",
+                      "update"
                     ]
                   },
                   "name": {
@@ -1254,7 +1858,11 @@
                       "type": "string"
                     },
                     "uniqueItems": true,
-                    "description": "Column names for auto-assigning examples to splits"
+                    "description": "Deprecated: use split_key instead. Column names for auto-assigning examples to splits"
+                  },
+                  "split_key": {
+                    "type": "string",
+                    "description": "Single column name containing split names (plain string or JSON list) per row"
                   },
                   "flatten_keys[]": {
                     "type": "array",
@@ -1267,6 +1875,10 @@
                   "span_id_key": {
                     "type": "string",
                     "description": "Column name for span IDs to link examples back to spans"
+                  },
+                  "example_id_key": {
+                    "type": "string",
+                    "description": "Column name containing stable IDs for examples. When provided, examples with matching IDs are updated in place when their content changes."
                   },
                   "file": {
                     "type": "string",
@@ -1451,6 +2063,78 @@
               }
             },
             "description": "Unprocessable Entity"
+          }
+        }
+      }
+    },
+    "/v1/datasets/{id}/jsonl": {
+      "get": {
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Download dataset examples as JSONL file",
+        "operationId": "getDatasetJSONL",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The ID of the dataset",
+              "title": "Id"
+            },
+            "description": "The ID of the dataset"
+          },
+          {
+            "name": "version_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The ID of the dataset version (if omitted, returns data from the latest version)",
+              "title": "Version Id"
+            },
+            "description": "The ID of the dataset version (if omitted, returns data from the latest version)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Invalid dataset or version ID"
           }
         }
       }
@@ -2726,6 +3410,68 @@
         }
       }
     },
+    "/v1/trace_notes": {
+      "post": {
+        "tags": [
+          "traces"
+        ],
+        "summary": "Create a trace note",
+        "description": "Add a note annotation to a trace. Each call appends a new note with an auto-generated UUIDv4 identifier, so multiple notes accumulate on the same trace. Structured annotations, by contrast, are keyed by (name, trace_id, identifier) \u2014 re-writing the same key overwrites the existing annotation, so to keep multiple structured annotations with the same name on a trace you must supply distinct identifiers.",
+        "operationId": "createTraceNote",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTraceNoteRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Trace note created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateTraceNoteResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Trace not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/traces/{trace_identifier}": {
       "delete": {
         "tags": [
@@ -3443,7 +4189,7 @@
           "spans"
         ],
         "summary": "Create a span note",
-        "description": "Add a note annotation to a span. Notes are special annotations that allow multiple entries per span (unlike regular annotations which are unique by name and identifier). Each note gets a unique timestamp-based identifier.",
+        "description": "Add a note annotation to a span. Each call appends a new note with an auto-generated UUIDv4 identifier, so multiple notes accumulate on the same span. Structured annotations, by contrast, are keyed by (name, span_id, identifier) \u2014 re-writing the same key overwrites the existing annotation, so to keep multiple structured annotations with the same name on a span you must supply distinct identifiers.",
         "operationId": "createSpanNote",
         "requestBody": {
           "content": {
@@ -4967,6 +5713,68 @@
         }
       }
     },
+    "/v1/session_notes": {
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Create a session note",
+        "description": "Add a note annotation to a session. Each call appends a new note with an auto-generated UUIDv4 identifier, so multiple notes accumulate on the same session. Structured annotations, by contrast, are keyed by (name, session_id, identifier) \u2014 re-writing the same key overwrites the existing annotation, so to keep multiple structured annotations with the same name on a session you must supply distinct identifiers.",
+        "operationId": "createSessionNote",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSessionNoteRequestBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Session note created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateSessionNoteResponseBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session not found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/document_annotations": {
       "post": {
         "tags": [
@@ -5341,10 +6149,815 @@
           }
         }
       }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": " Login",
+        "description": "Authenticate user via email/password and return access/refresh tokens.",
+        "operationId": "_login_auth_login_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "get": {
+        "summary": " Logout",
+        "description": "Log out user by revoking tokens and clearing cookies.",
+        "operationId": "_logout_auth_logout_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "summary": " Refresh Tokens",
+        "description": "Refresh access and refresh tokens.",
+        "operationId": "_refresh_tokens_auth_refresh_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/password-reset-email": {
+      "post": {
+        "summary": " Initiate Password Reset",
+        "description": "Send password reset email to user.",
+        "operationId": "_initiate_password_reset_auth_password_reset_email_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/password-reset": {
+      "post": {
+        "summary": " Reset Password",
+        "description": "Reset user password using a valid reset token.",
+        "operationId": "_reset_password_auth_password_reset_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/ldap/login": {
+      "post": {
+        "summary": " Ldap Login",
+        "description": "Authenticate user via LDAP and return access/refresh tokens.",
+        "operationId": "_ldap_login_auth_ldap_login_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oauth2/{idp_name}/login": {
+      "post": {
+        "summary": "Login",
+        "operationId": "login_oauth2__idp_name__login_post",
+        "parameters": [
+          {
+            "name": "idp_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "[a-z0-9_]+",
+              "title": "Idp Name"
+            }
+          },
+          {
+            "name": "returnUrl",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Returnurl"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Login",
+        "operationId": "login_oauth2__idp_name__login_get",
+        "parameters": [
+          {
+            "name": "idp_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "[a-z0-9_]+",
+              "title": "Idp Name"
+            }
+          },
+          {
+            "name": "returnUrl",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Returnurl"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oauth2/{idp_name}/tokens": {
+      "get": {
+        "summary": "Create Tokens",
+        "operationId": "create_tokens_oauth2__idp_name__tokens_get",
+        "parameters": [
+          {
+            "name": "idp_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "[a-z0-9_]+",
+              "title": "Idp Name"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "State"
+            }
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Code"
+            }
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error"
+            }
+          },
+          {
+            "name": "error_description",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Error Description"
+            }
+          },
+          {
+            "name": "phoenix-oauth2-state",
+            "in": "cookie",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Phoenix-Oauth2-State"
+            }
+          },
+          {
+            "name": "phoenix-oauth2-nonce",
+            "in": "cookie",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Phoenix-Oauth2-Nonce"
+            }
+          },
+          {
+            "name": "phoenix-oauth2-code-verifier",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Phoenix-Oauth2-Code-Verifier"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Chat",
+        "operationId": "chat_chat_post",
+        "parameters": [
+          {
+            "name": "provider_type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "custom",
+                "builtin"
+              ],
+              "type": "string",
+              "title": "Provider Type"
+            }
+          },
+          {
+            "name": "model_name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Model Name"
+            }
+          },
+          {
+            "name": "provider_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider Id"
+            }
+          },
+          {
+            "name": "provider",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ModelProvider"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider"
+            }
+          },
+          {
+            "name": "openai_api_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "chat_completions",
+                "responses"
+              ],
+              "type": "string",
+              "default": "responses",
+              "title": "Openai Api Type"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chat-v2": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Chat V2",
+        "operationId": "chat_v2_chat_v2_post",
+        "parameters": [
+          {
+            "name": "provider_type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "custom",
+                "builtin"
+              ],
+              "type": "string",
+              "title": "Provider Type"
+            }
+          },
+          {
+            "name": "model_name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Model Name"
+            }
+          },
+          {
+            "name": "provider_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider Id"
+            }
+          },
+          {
+            "name": "provider",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ModelProvider"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider"
+            }
+          },
+          {
+            "name": "openai_api_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "chat_completions",
+                "responses"
+              ],
+              "type": "string",
+              "default": "responses",
+              "title": "Openai Api Type"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/_SubmitMessage"
+                  },
+                  {
+                    "$ref": "#/components/schemas/_RegenerateMessage"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "trigger",
+                  "mapping": {
+                    "submit-message": "#/components/schemas/_SubmitMessage",
+                    "regenerate-message": "#/components/schemas/_RegenerateMessage"
+                  }
+                },
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agents/{agent_id}/sessions/{session_id}/summary": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Summarize Endpoint",
+        "operationId": "summarize_endpoint_agents__agent_id__sessions__session_id__summary_post",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "provider_type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "custom",
+                "builtin"
+              ],
+              "type": "string",
+              "title": "Provider Type"
+            }
+          },
+          {
+            "name": "model_name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Model Name"
+            }
+          },
+          {
+            "name": "provider_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider Id"
+            }
+          },
+          {
+            "name": "provider",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ModelProvider"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider"
+            }
+          },
+          {
+            "name": "openai_api_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "chat_completions",
+                "responses"
+              ],
+              "type": "string",
+              "default": "responses",
+              "title": "Openai Api Type"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_SummarizeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/_SummarizeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/arize_phoenix_version": {
+      "get": {
+        "summary": "Version",
+        "operationId": "version_arize_phoenix_version_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/healthz": {
+      "get": {
+        "summary": "Check Healthz",
+        "operationId": "check_healthz_healthz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/readyz": {
+      "get": {
+        "summary": "Check Readyz",
+        "operationId": "check_readyz_readyz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AgentCapabilities": {
+        "properties": {
+          "bash.retainInactiveSessions": {
+            "type": "boolean",
+            "title": "Bash.Retaininactivesessions",
+            "default": false
+          },
+          "graphql.mutations": {
+            "type": "boolean",
+            "title": "Graphql.Mutations",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "AgentCapabilities",
+        "description": "Runtime capability state sent by the browser for a chat turn."
+      },
+      "AgentSpanContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "span",
+            "title": "Type"
+          },
+          "projectNodeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Projectnodeid"
+          },
+          "spanNodeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spannodeid"
+          },
+          "otelSpanId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Otelspanid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "AgentSpanContext",
+        "description": "Span the user has selected.\n\nExactly one of ``span_node_id`` (relay) or ``otel_span_id`` (OpenTelemetry\nhex) must be set. ``project_node_id`` is optional because a span can be\nselected from views outside a project route."
+      },
       "AnnotateSessionsRequestBody": {
         "properties": {
           "data": {
@@ -5529,6 +7142,31 @@
           "auth_method"
         ],
         "title": "AnonymousUser"
+      },
+      "AppContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "app",
+            "title": "Type"
+          },
+          "currentDateTime": {
+            "type": "string",
+            "title": "Currentdatetime"
+          },
+          "timeZone": {
+            "type": "string",
+            "title": "Timezone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "currentDateTime",
+          "timeZone"
+        ],
+        "title": "AppContext",
+        "description": "Per-turn browser clock context for resolving relative time requests."
       },
       "CategoricalAnnotationConfig": {
         "properties": {
@@ -6057,6 +7695,30 @@
         ],
         "title": "CreatePromptResponseBody"
       },
+      "CreateSessionNoteRequestBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SessionNoteData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateSessionNoteRequestBody"
+      },
+      "CreateSessionNoteResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/InsertedSessionAnnotation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateSessionNoteResponseBody"
+      },
       "CreateSpanNoteRequestBody": {
         "properties": {
           "data": {
@@ -6116,6 +7778,30 @@
           "total_queued"
         ],
         "title": "CreateSpansResponseBody"
+      },
+      "CreateTraceNoteRequestBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/TraceNoteData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateTraceNoteRequestBody"
+      },
+      "CreateTraceNoteResponseBody": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/InsertedTraceAnnotation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateTraceNoteResponseBody"
       },
       "CreateUserRequestBody": {
         "properties": {
@@ -6184,6 +7870,37 @@
         ],
         "title": "CreateUserResponseBody"
       },
+      "DataUIPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^data-",
+            "title": "Type"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "data": {
+            "title": "Data"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "data"
+        ],
+        "title": "DataUIPart",
+        "description": "Data part with dynamic type based on data name."
+      },
       "Dataset": {
         "properties": {
           "id": {
@@ -6243,6 +7960,10 @@
             "type": "string",
             "title": "Id"
           },
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
           "input": {
             "additionalProperties": true,
             "type": "object",
@@ -6267,6 +7988,7 @@
         "type": "object",
         "required": [
           "id",
+          "node_id",
           "input",
           "output",
           "metadata",
@@ -6411,6 +8133,486 @@
           "session_identifiers"
         ],
         "title": "DeleteSessionsRequestBody"
+      },
+      "DynamicToolApprovalRequestedPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dynamic-tool",
+            "title": "Type",
+            "default": "dynamic-tool"
+          },
+          "toolName": {
+            "type": "string",
+            "title": "Toolname"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "approval-requested",
+            "title": "State",
+            "default": "approval-requested"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "toolName",
+          "toolCallId",
+          "input"
+        ],
+        "title": "DynamicToolApprovalRequestedPart",
+        "description": "Dynamic tool part in approval-requested state (awaiting user decision)."
+      },
+      "DynamicToolApprovalRespondedPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dynamic-tool",
+            "title": "Type",
+            "default": "dynamic-tool"
+          },
+          "toolName": {
+            "type": "string",
+            "title": "Toolname"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "approval-responded",
+            "title": "State",
+            "default": "approval-responded"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "toolName",
+          "toolCallId",
+          "input"
+        ],
+        "title": "DynamicToolApprovalRespondedPart",
+        "description": "Dynamic tool part in approval-responded state (user approved/denied, execution pending)."
+      },
+      "DynamicToolInputAvailablePart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dynamic-tool",
+            "title": "Type",
+            "default": "dynamic-tool"
+          },
+          "toolName": {
+            "type": "string",
+            "title": "Toolname"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "input-available",
+            "title": "State",
+            "default": "input-available"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "toolName",
+          "toolCallId",
+          "input"
+        ],
+        "title": "DynamicToolInputAvailablePart",
+        "description": "Dynamic tool part in input-available state."
+      },
+      "DynamicToolInputStreamingPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dynamic-tool",
+            "title": "Type",
+            "default": "dynamic-tool"
+          },
+          "toolName": {
+            "type": "string",
+            "title": "Toolname"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "input-streaming",
+            "title": "State",
+            "default": "input-streaming"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "toolName",
+          "toolCallId"
+        ],
+        "title": "DynamicToolInputStreamingPart",
+        "description": "Dynamic tool part in input-streaming state."
+      },
+      "DynamicToolOutputAvailablePart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dynamic-tool",
+            "title": "Type",
+            "default": "dynamic-tool"
+          },
+          "toolName": {
+            "type": "string",
+            "title": "Toolname"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-available",
+            "title": "State",
+            "default": "output-available"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "output": {
+            "title": "Output"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "preliminary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preliminary"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "toolName",
+          "toolCallId",
+          "input",
+          "output"
+        ],
+        "title": "DynamicToolOutputAvailablePart",
+        "description": "Dynamic tool part in output-available state."
+      },
+      "DynamicToolOutputDeniedPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dynamic-tool",
+            "title": "Type",
+            "default": "dynamic-tool"
+          },
+          "toolName": {
+            "type": "string",
+            "title": "Toolname"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-denied",
+            "title": "State",
+            "default": "output-denied"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "toolName",
+          "toolCallId",
+          "input"
+        ],
+        "title": "DynamicToolOutputDeniedPart",
+        "description": "Dynamic tool part in output-denied state (tool was denied, terminal state)."
+      },
+      "DynamicToolOutputErrorPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "dynamic-tool",
+            "title": "Type",
+            "default": "dynamic-tool"
+          },
+          "toolName": {
+            "type": "string",
+            "title": "Toolname"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-error",
+            "title": "State",
+            "default": "output-error"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "errorText": {
+            "type": "string",
+            "title": "Errortext"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "toolName",
+          "toolCallId",
+          "input",
+          "errorText"
+        ],
+        "title": "DynamicToolOutputErrorPart",
+        "description": "Dynamic tool part in output-error state."
       },
       "Experiment": {
         "properties": {
@@ -6620,6 +8822,58 @@
           "experiment_id"
         ],
         "title": "ExperimentRun"
+      },
+      "FileUIPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "file",
+            "title": "Type",
+            "default": "file"
+          },
+          "mediaType": {
+            "type": "string",
+            "title": "Mediatype"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "providerMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providermetadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "mediaType",
+          "url"
+        ],
+        "title": "FileUIPart",
+        "description": "A file part of a message."
       },
       "FreeformAnnotationConfig": {
         "properties": {
@@ -8276,6 +10530,48 @@
         ],
         "title": "Project"
       },
+      "ProjectContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "project",
+            "title": "Type"
+          },
+          "projectNodeId": {
+            "type": "string",
+            "title": "Projectnodeid"
+          },
+          "spanFilter": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spanfilter"
+          },
+          "rootSpansOnly": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rootspansonly"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "projectNodeId"
+        ],
+        "title": "ProjectContext",
+        "description": "Project the user is currently viewing.\n\n``span_filter`` carries the project-scoped span filter expression when the\nspan filter field is mounted \u2014 empty string when the field is mounted with\nno condition applied, ``None`` when the field is not present at all.\n\n``root_spans_only`` carries the current state of the spans-table root vs.\nall toggle when that toggle is mounted \u2014 ``True`` when the table is\nrestricted to root spans, ``False`` when it shows every span, ``None``\nwhen the toggle is not present (e.g. on the traces tab)."
+      },
       "Prompt": {
         "properties": {
           "name": {
@@ -8367,6 +10663,9 @@
             "type": "array",
             "title": "Stop Sequences"
           },
+          "output_config": {
+            "$ref": "#/components/schemas/PromptAnthropicOutputConfig"
+          },
           "thinking": {
             "oneOf": [
               {
@@ -8374,16 +10673,25 @@
               },
               {
                 "$ref": "#/components/schemas/PromptAnthropicThinkingConfigEnabled"
+              },
+              {
+                "$ref": "#/components/schemas/PromptAnthropicThinkingConfigAdaptive"
               }
             ],
             "title": "Thinking",
             "discriminator": {
               "propertyName": "type",
               "mapping": {
+                "adaptive": "#/components/schemas/PromptAnthropicThinkingConfigAdaptive",
                 "disabled": "#/components/schemas/PromptAnthropicThinkingConfigDisabled",
                 "enabled": "#/components/schemas/PromptAnthropicThinkingConfigEnabled"
               }
             }
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -8392,6 +10700,47 @@
           "max_tokens"
         ],
         "title": "PromptAnthropicInvocationParametersContent"
+      },
+      "PromptAnthropicOutputConfig": {
+        "properties": {
+          "effort": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ],
+            "title": "Effort"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptAnthropicOutputConfig"
+      },
+      "PromptAnthropicThinkingConfigAdaptive": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "adaptive",
+            "title": "Type"
+          },
+          "display": {
+            "type": "string",
+            "enum": [
+              "summarized",
+              "omitted"
+            ],
+            "title": "Display"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "PromptAnthropicThinkingConfigAdaptive"
       },
       "PromptAnthropicThinkingConfigDisabled": {
         "properties": {
@@ -8419,6 +10768,14 @@
             "type": "integer",
             "minimum": 1024.0,
             "title": "Budget Tokens"
+          },
+          "display": {
+            "type": "string",
+            "enum": [
+              "summarized",
+              "omitted"
+            ],
+            "title": "Display"
           }
         },
         "additionalProperties": false,
@@ -8461,6 +10818,13 @@
           "top_p": {
             "type": "number",
             "title": "Top P"
+          },
+          "stop_sequences": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop Sequences"
           }
         },
         "additionalProperties": false,
@@ -8516,6 +10880,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -8527,6 +10898,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -8582,6 +10958,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -8593,6 +10976,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -8717,6 +11105,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -8728,6 +11123,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -8783,6 +11183,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -8794,6 +11201,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -8851,11 +11263,39 @@
           "top_k": {
             "type": "integer",
             "title": "Top K"
+          },
+          "thinking_config": {
+            "$ref": "#/components/schemas/PromptGoogleThinkingConfig"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "PromptGoogleInvocationParametersContent"
+      },
+      "PromptGoogleThinkingConfig": {
+        "properties": {
+          "thinking_budget": {
+            "type": "integer",
+            "title": "Thinking Budget"
+          },
+          "thinking_level": {
+            "type": "string",
+            "enum": [
+              "minimal",
+              "low",
+              "medium",
+              "high"
+            ],
+            "title": "Thinking Level"
+          },
+          "include_thoughts": {
+            "type": "boolean",
+            "title": "Include Thoughts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PromptGoogleThinkingConfig"
       },
       "PromptGroqInvocationParameters": {
         "properties": {
@@ -8906,6 +11346,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -8917,6 +11364,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -9029,6 +11481,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -9040,6 +11499,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -9095,6 +11559,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -9106,6 +11577,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -9161,6 +11637,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -9172,6 +11655,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -9227,6 +11715,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -9238,6 +11733,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -9376,6 +11876,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -9387,6 +11894,11 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
@@ -9504,6 +12016,27 @@
         ],
         "title": "PromptToolFunctionDefinition"
       },
+      "PromptToolRaw": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "raw",
+            "title": "Type"
+          },
+          "raw": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Raw"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "raw"
+        ],
+        "title": "PromptToolRaw"
+      },
       "PromptTools": {
         "properties": {
           "type": {
@@ -9516,12 +12049,16 @@
               "oneOf": [
                 {
                   "$ref": "#/components/schemas/PromptToolFunction"
+                },
+                {
+                  "$ref": "#/components/schemas/PromptToolRaw"
                 }
               ],
               "discriminator": {
                 "propertyName": "type",
                 "mapping": {
-                  "function": "#/components/schemas/PromptToolFunction"
+                  "function": "#/components/schemas/PromptToolFunction",
+                  "raw": "#/components/schemas/PromptToolRaw"
                 }
               }
             },
@@ -9979,6 +12516,13 @@
             "type": "integer",
             "title": "Seed"
           },
+          "stop": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Stop"
+          },
           "reasoning_effort": {
             "type": "string",
             "enum": [
@@ -9990,11 +12534,67 @@
               "xhigh"
             ],
             "title": "Reasoning Effort"
+          },
+          "extra_body": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Extra Body"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "PromptXAIInvocationParametersContent"
+      },
+      "ReasoningUIPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "reasoning",
+            "title": "Type",
+            "default": "reasoning"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "streaming",
+                  "done"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "providerMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providermetadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "ReasoningUIPart",
+        "description": "A reasoning part of a message."
       },
       "ResponseBody_UpsertOrDeleteSecretsResult_": {
         "properties": {
@@ -10253,6 +12853,24 @@
             },
             "type": "array",
             "title": "Traces"
+          },
+          "token_count_prompt": {
+            "type": "integer",
+            "title": "Token Count Prompt",
+            "description": "Cumulative prompt token count across all spans in the session.",
+            "default": 0
+          },
+          "token_count_completion": {
+            "type": "integer",
+            "title": "Token Count Completion",
+            "description": "Cumulative completion token count across all spans in the session.",
+            "default": 0
+          },
+          "token_count_total": {
+            "type": "integer",
+            "title": "Token Count Total",
+            "description": "Cumulative total token count across all spans in the session (prompt + completion).",
+            "default": 0
           }
         },
         "type": "object",
@@ -10265,6 +12883,28 @@
           "traces"
         ],
         "title": "SessionData"
+      },
+      "SessionNoteData": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Session Id",
+            "description": "Session ID"
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Note",
+            "description": "The note text to add to the session"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "note"
+        ],
+        "title": "SessionNoteData"
       },
       "SessionTraceData": {
         "properties": {
@@ -10295,6 +12935,115 @@
           "end_time"
         ],
         "title": "SessionTraceData"
+      },
+      "SourceDocumentUIPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "source-document",
+            "title": "Type",
+            "default": "source-document"
+          },
+          "sourceId": {
+            "type": "string",
+            "title": "Sourceid"
+          },
+          "mediaType": {
+            "type": "string",
+            "title": "Mediatype"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "providerMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providermetadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sourceId",
+          "mediaType",
+          "title"
+        ],
+        "title": "SourceDocumentUIPart",
+        "description": "A document source part of a message."
+      },
+      "SourceUrlUIPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "source-url",
+            "title": "Type",
+            "default": "source-url"
+          },
+          "sourceId": {
+            "type": "string",
+            "title": "Sourceid"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "providerMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providermetadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "sourceId",
+          "url"
+        ],
+        "title": "SourceUrlUIPart",
+        "description": "A source part of a message."
       },
       "Span": {
         "properties": {
@@ -10766,6 +13515,20 @@
         ],
         "title": "SpansResponseBody"
       },
+      "StepStartUIPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "step-start",
+            "title": "Type",
+            "default": "step-start"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "StepStartUIPart",
+        "description": "A step boundary part of a message."
+      },
       "TextContentPart": {
         "properties": {
           "type": {
@@ -10785,6 +13548,255 @@
           "text"
         ],
         "title": "TextContentPart"
+      },
+      "TextUIPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "text",
+            "title": "Type",
+            "default": "text"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "streaming",
+                  "done"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "providerMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providermetadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "TextUIPart",
+        "description": "A text part of a message."
+      },
+      "ToolApprovalRequested": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "ToolApprovalRequested",
+        "description": "Tool approval in requested state (awaiting user response)."
+      },
+      "ToolApprovalRequestedPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^tool-",
+            "title": "Type"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "approval-requested",
+            "title": "State",
+            "default": "approval-requested"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolCallId"
+        ],
+        "title": "ToolApprovalRequestedPart",
+        "description": "Tool part in approval-requested state (awaiting user decision)."
+      },
+      "ToolApprovalResponded": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "approved": {
+            "type": "boolean",
+            "title": "Approved"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "approved"
+        ],
+        "title": "ToolApprovalResponded",
+        "description": "Tool approval in responded state (user has approved or denied)."
+      },
+      "ToolApprovalRespondedPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^tool-",
+            "title": "Type"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "approval-responded",
+            "title": "State",
+            "default": "approval-responded"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolCallId"
+        ],
+        "title": "ToolApprovalRespondedPart",
+        "description": "Tool part in approval-responded state (user approved/denied, execution pending)."
       },
       "ToolCallContentPart": {
         "properties": {
@@ -10845,6 +13857,420 @@
           "arguments"
         ],
         "title": "ToolCallFunction"
+      },
+      "ToolInputAvailablePart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^tool-",
+            "title": "Type"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "input-available",
+            "title": "State",
+            "default": "input-available"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolCallId"
+        ],
+        "title": "ToolInputAvailablePart",
+        "description": "Tool part in input-available state."
+      },
+      "ToolInputStreamingPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^tool-",
+            "title": "Type"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "input-streaming",
+            "title": "State",
+            "default": "input-streaming"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolCallId"
+        ],
+        "title": "ToolInputStreamingPart",
+        "description": "Tool part in input-streaming state."
+      },
+      "ToolOutputAvailablePart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^tool-",
+            "title": "Type"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-available",
+            "title": "State",
+            "default": "output-available"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "output": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "preliminary": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preliminary"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolCallId"
+        ],
+        "title": "ToolOutputAvailablePart",
+        "description": "Tool part in output-available state."
+      },
+      "ToolOutputDeniedPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^tool-",
+            "title": "Type"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-denied",
+            "title": "State",
+            "default": "output-denied"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolCallId"
+        ],
+        "title": "ToolOutputDeniedPart",
+        "description": "Tool part in output-denied state (tool was denied, terminal state)."
+      },
+      "ToolOutputErrorPart": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^tool-",
+            "title": "Type"
+          },
+          "toolCallId": {
+            "type": "string",
+            "title": "Toolcallid"
+          },
+          "state": {
+            "type": "string",
+            "const": "output-error",
+            "title": "State",
+            "default": "output-error"
+          },
+          "input": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input"
+          },
+          "rawInput": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rawinput"
+          },
+          "errorText": {
+            "type": "string",
+            "title": "Errortext"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
+          },
+          "callProviderMetadata": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callprovidermetadata"
+          },
+          "approval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolApprovalRequested"
+              },
+              {
+                "$ref": "#/components/schemas/ToolApprovalResponded"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type",
+          "toolCallId",
+          "errorText"
+        ],
+        "title": "ToolOutputErrorPart",
+        "description": "Tool part in output-error state."
       },
       "ToolResultContentPart": {
         "properties": {
@@ -11083,6 +14509,30 @@
         ],
         "title": "TraceAnnotationsResponseBody"
       },
+      "TraceContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "trace",
+            "title": "Type"
+          },
+          "projectNodeId": {
+            "type": "string",
+            "title": "Projectnodeid"
+          },
+          "otelTraceId": {
+            "type": "string",
+            "title": "Oteltraceid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "projectNodeId",
+          "otelTraceId"
+        ],
+        "title": "TraceContext"
+      },
       "TraceData": {
         "properties": {
           "id": {
@@ -11106,6 +14556,24 @@
             "type": "string",
             "format": "date-time",
             "title": "End Time"
+          },
+          "token_count_prompt": {
+            "type": "integer",
+            "title": "Token Count Prompt",
+            "description": "Cumulative prompt token count across all spans in the trace.",
+            "default": 0
+          },
+          "token_count_completion": {
+            "type": "integer",
+            "title": "Token Count Completion",
+            "description": "Cumulative completion token count across all spans in the trace.",
+            "default": 0
+          },
+          "token_count_total": {
+            "type": "integer",
+            "title": "Token Count Total",
+            "description": "Cumulative total token count across all spans in the trace (prompt + completion).",
+            "default": 0
           },
           "spans": {
             "anyOf": [
@@ -11131,6 +14599,28 @@
           "end_time"
         ],
         "title": "TraceData"
+      },
+      "TraceNoteData": {
+        "properties": {
+          "trace_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Trace Id",
+            "description": "OpenTelemetry Trace ID (hex format w/o 0x prefix)"
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Note",
+            "description": "The note text to add to the trace"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trace_id",
+          "note"
+        ],
+        "title": "TraceNoteData"
       },
       "TraceSpanData": {
         "properties": {
@@ -11188,6 +14678,112 @@
           "end_time"
         ],
         "title": "TraceSpanData"
+      },
+      "UIMessage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "system",
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "metadata": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          },
+          "parts": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TextUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ReasoningUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolInputStreamingPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolInputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolOutputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolOutputErrorPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolApprovalRequestedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolApprovalRespondedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolOutputDeniedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolInputStreamingPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolInputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolOutputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolOutputErrorPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolApprovalRequestedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolApprovalRespondedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolOutputDeniedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/SourceUrlUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/SourceDocumentUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/FileUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DataUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/StepStartUIPart"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Parts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "role",
+          "parts"
+        ],
+        "title": "UIMessage",
+        "description": "A message as displayed in the UI by Vercel AI Elements."
       },
       "UpdateAnnotationConfigResponseBody": {
         "properties": {
@@ -11258,12 +14854,27 @@
           "version_id": {
             "type": "string",
             "title": "Version Id"
+          },
+          "num_created_examples": {
+            "type": "integer",
+            "title": "Num Created Examples"
+          },
+          "num_updated_examples": {
+            "type": "integer",
+            "title": "Num Updated Examples"
+          },
+          "num_deleted_examples": {
+            "type": "integer",
+            "title": "Num Deleted Examples"
           }
         },
         "type": "object",
         "required": [
           "dataset_id",
-          "version_id"
+          "version_id",
+          "num_created_examples",
+          "num_updated_examples",
+          "num_deleted_examples"
         ],
         "title": "UploadDatasetData"
       },
@@ -11479,6 +15090,179 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "_RegenerateMessage": {
+        "properties": {
+          "trigger": {
+            "type": "string",
+            "const": "regenerate-message",
+            "title": "Trigger"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/UIMessage"
+            },
+            "type": "array",
+            "title": "Messages"
+          },
+          "messageId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Messageid"
+          },
+          "contexts": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/AppContext"
+                },
+                {
+                  "$ref": "#/components/schemas/ProjectContext"
+                },
+                {
+                  "$ref": "#/components/schemas/TraceContext"
+                },
+                {
+                  "$ref": "#/components/schemas/AgentSpanContext"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "app": "#/components/schemas/AppContext",
+                  "project": "#/components/schemas/ProjectContext",
+                  "span": "#/components/schemas/AgentSpanContext",
+                  "trace": "#/components/schemas/TraceContext"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Contexts"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/AgentCapabilities"
+          },
+          "sessionId": {
+            "type": "string",
+            "title": "Sessionid"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "trigger",
+          "id",
+          "messages",
+          "sessionId"
+        ],
+        "title": "_RegenerateMessage",
+        "description": "Regenerate message extended with Phoenix-specific fields."
+      },
+      "_SubmitMessage": {
+        "properties": {
+          "trigger": {
+            "type": "string",
+            "const": "submit-message",
+            "title": "Trigger",
+            "default": "submit-message"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/UIMessage"
+            },
+            "type": "array",
+            "title": "Messages"
+          },
+          "contexts": {
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/AppContext"
+                },
+                {
+                  "$ref": "#/components/schemas/ProjectContext"
+                },
+                {
+                  "$ref": "#/components/schemas/TraceContext"
+                },
+                {
+                  "$ref": "#/components/schemas/AgentSpanContext"
+                }
+              ],
+              "discriminator": {
+                "propertyName": "type",
+                "mapping": {
+                  "app": "#/components/schemas/AppContext",
+                  "project": "#/components/schemas/ProjectContext",
+                  "span": "#/components/schemas/AgentSpanContext",
+                  "trace": "#/components/schemas/TraceContext"
+                }
+              }
+            },
+            "type": "array",
+            "title": "Contexts"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/AgentCapabilities"
+          },
+          "sessionId": {
+            "type": "string",
+            "title": "Sessionid"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "messages",
+          "sessionId"
+        ],
+        "title": "_SubmitMessage",
+        "description": "Submit message extended with Phoenix-specific fields."
+      },
+      "_SummarizeRequest": {
+        "properties": {
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/UIMessage"
+            },
+            "type": "array",
+            "title": "Messages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "messages"
+        ],
+        "title": "_SummarizeRequest",
+        "description": "Body for POST /agents/{agent_id}/sessions/{session_id}/summary.\n\nCarries the Vercel-style messages array; the backend owns the prompt and\nthe structured-output tool schema."
+      },
+      "_SummarizeResponse": {
+        "properties": {
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "summary"
+        ],
+        "title": "_SummarizeResponse"
       }
     }
   }

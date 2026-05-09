@@ -32,9 +32,11 @@ import grpc
 import strawberry
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from fastapi.utils import is_body_allowed_for_status_code
 from grpc.aio import ServerInterceptor
 from grpc_interceptor import AsyncServerInterceptor
+from pydantic_ai.mcp import MCPServerStreamableHTTP
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from starlette.datastructures import URL, Secret
@@ -79,6 +81,7 @@ from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.facilitator import Facilitator
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.types import AnnotationPrecursor
+from phoenix.server.agents.chat_v2.mintlify_docs import build_mintlify_docs_toolset
 from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
 from phoenix.server.api.context import Context, DataLoaders
 from phoenix.server.api.dataloaders import (
@@ -165,6 +168,7 @@ from phoenix.server.api.dataloaders.dataset_labels import DatasetLabelsDataLoade
 from phoenix.server.api.routers import (
     create_auth_router,
     create_chat_router,
+    create_chat_v2_router,
     create_v1_router,
     oauth2_router,
 )
@@ -185,6 +189,7 @@ from phoenix.server.jwt_store import JwtStore
 from phoenix.server.middleware.gzip import GZipMiddleware
 from phoenix.server.oauth2 import OAuth2Clients
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
+from phoenix.server.redaction import Redactor, current_redactor
 from phoenix.server.retention import TraceDataSweeper
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.server.types import (
@@ -226,7 +231,7 @@ mimetypes.add_type("text/javascript", ".mjs", strict=True)
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(include_in_schema=False)
+router = APIRouter()
 
 templates = Jinja2Templates(directory=SERVER_DIR / "templates")
 
@@ -398,6 +403,21 @@ class HeadersMiddleware(BaseHTTPMiddleware):
         response.headers["x-colab-notebook-cache-control"] = "no-cache"
         response.headers[PHOENIX_SERVER_VERSION_HEADER] = phoenix_version
         return response
+
+
+class RedactorMiddleware(BaseHTTPMiddleware):
+    """Binds the per-app Redactor to the `current_redactor` ContextVar."""
+
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: RequestResponseEndpoint,
+    ) -> Response:
+        token = current_redactor.set(request.app.state.redactor)
+        try:
+            return await call_next(request)
+        finally:
+            current_redactor.reset(token)
 
 
 def user_fastapi_middlewares() -> list[Middleware]:
@@ -635,6 +655,7 @@ def _lifespan(
     scaffolder_config: Optional[ScaffolderConfig] = None,
     grpc_interceptors: Iterable[ServerInterceptor] = (),
     welcome_message: str | None = None,
+    docs_mcp_toolset: Optional[MCPServerStreamableHTTP] = None,
 ) -> StatefulLifespan[FastAPI]:
     @contextlib.asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[dict[str, Any]]:
@@ -674,6 +695,8 @@ def _lifespan(
             await stack.enter_async_context(generative_model_store)
             await stack.enter_async_context(db_disk_usage_monitor)
             await stack.enter_async_context(experiment_runner)
+            if docs_mcp_toolset is not None:
+                await stack.enter_async_context(docs_mcp_toolset)
             if scaffolder_config:
                 scaffolder = Scaffolder(
                     config=scaffolder_config,
@@ -1066,7 +1089,10 @@ def create_app(
         CacheForDataLoaders() if db.dialect is SupportedSQLDialect.SQLITE else None
     )
     last_updated_at = LastUpdatedAt()
-    middlewares: list[Middleware] = [Middleware(HeadersMiddleware)]
+    middlewares: list[Middleware] = [
+        Middleware(HeadersMiddleware),
+        Middleware(RedactorMiddleware),
+    ]
     middlewares.extend(user_fastapi_middlewares())
     if origins := get_env_csrf_trusted_origins():
         trusted_hostnames = [h for o in origins if o and (h := urlparse(o).hostname)]
@@ -1135,6 +1161,7 @@ def create_app(
 
         graphql_schema_extensions.append(_OpenTelemetryExtension)
     encryption_service = EncryptionService(secret=secret)
+    redactor = Redactor(secret=secret or Secret(""))
     experiment_runner = ExperimentRunner(
         db,
         decrypt=encryption_service.decrypt,
@@ -1162,6 +1189,11 @@ def create_app(
         middlewares.append(Middleware(PrometheusMiddleware))
     grpc_interceptors: list[ServerInterceptor] = []
     grpc_interceptors.append(DbDiskUsageInterceptor(db))
+    docs_mcp_toolset = (
+        build_mintlify_docs_toolset()
+        if get_env_dangerously_enable_agents() and get_env_allow_external_resources()
+        else None
+    )
     app = FastAPI(
         title="Arize-Phoenix REST API",
         version=REST_API_VERSION,
@@ -1186,6 +1218,7 @@ def create_app(
             startup_callbacks=startup_callbacks_list,
             scaffolder_config=scaffolder_config,
             welcome_message=welcome_message,
+            docs_mcp_toolset=docs_mcp_toolset,
         ),
         middleware=middlewares,
         exception_handlers={
@@ -1199,12 +1232,33 @@ def create_app(
     app.include_router(create_v1_router(authentication_enabled))
     if get_env_dangerously_enable_agents():
         app.include_router(create_chat_router(authentication_enabled))
+        app.include_router(create_chat_v2_router(authentication_enabled))
     app.include_router(router)
     app.include_router(graphql_router)
     if authentication_enabled:
         # Only register LDAP endpoint if LDAP is configured
         app.include_router(create_auth_router(ldap_enabled=ldap_config is not None))
         app.include_router(oauth2_router)
+
+    def _v1_only_openapi() -> dict[str, Any]:
+        """Generate the OpenAPI schema served to Swagger UI, restricted to routes under ``/v1``."""
+        if app.openapi_schema:
+            return app.openapi_schema
+        schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            openapi_version=app.openapi_version,
+            description=app.description,
+            routes=app.routes,
+            separate_input_output_schemas=False,
+        )
+        schema["paths"] = {
+            path: ops for path, ops in schema["paths"].items() if path.startswith("/v1")
+        }
+        app.openapi_schema = schema
+        return schema
+
+    app.openapi = _v1_only_openapi  # type: ignore[method-assign]
     app.add_middleware(GZipMiddleware)
     static_dir = SERVER_DIR / "static"
     web_manifest_path = static_dir / ".vite" / "manifest.json"
@@ -1272,7 +1326,9 @@ def create_app(
     app.state.span_cost_calculator = span_cost_calculator
     app.state.encrypt = encryption_service.encrypt
     app.state.decrypt = encryption_service.decrypt
+    app.state.redactor = redactor
     app.state.span_queue_is_full = lambda: bulk_inserter.is_full
+    app.state.docs_mcp_toolset = docs_mcp_toolset
     app = _add_get_secret_method(app=app, secret=secret)
     app = _add_get_token_store_method(app=app, token_store=token_store)
     if tracer_provider:

@@ -1,8 +1,8 @@
-import isObject from "lodash/isObject";
 import { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import { Flex, List, ListItem, Text, View } from "@phoenix/components";
+import { readPromptInvocationParameters } from "@phoenix/pages/playground/PromptInvocationParametersReadableFragment";
 import { safelyStringifyJSON } from "@phoenix/utils/jsonUtils";
 
 import type { PromptInvocationParameters__main$key } from "./__generated__/PromptInvocationParameters__main.graphql";
@@ -59,7 +59,9 @@ export function PromptInvocationParameters({
     useFragment<PromptInvocationParameters__main$key>(
       graphql`
         fragment PromptInvocationParameters__main on PromptVersion {
-          invocationParameters
+          invocationParameters {
+            ...PromptInvocationParametersReadableFragment
+          }
           tools {
             toolChoice {
               type
@@ -71,10 +73,9 @@ export function PromptInvocationParameters({
       promptVersion
     );
   const parameters = useMemo(() => {
-    if (!isObject(invocationParameters)) {
-      return [];
-    }
-    return Object.entries(invocationParameters).map(([key, value]) => ({
+    const record = readPromptInvocationParameters(invocationParameters);
+    if (record == null) return [];
+    return Object.entries(record.parameters).map(([key, value]) => ({
       key,
       value,
     }));

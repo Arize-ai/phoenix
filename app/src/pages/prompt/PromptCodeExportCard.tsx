@@ -19,6 +19,7 @@ import {
   TypeScriptBlock,
 } from "@phoenix/components/code";
 import { usePreferencesContext } from "@phoenix/contexts";
+import { readPromptInvocationParameters } from "@phoenix/pages/playground/PromptInvocationParametersReadableFragment";
 import type { ProgrammingLanguage } from "@phoenix/types/code";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
@@ -43,7 +44,9 @@ export function PromptCodeExportCard({
     graphql`
       fragment PromptCodeExportCard__main on PromptVersion {
         id
-        invocationParameters
+        invocationParameters {
+          ...PromptInvocationParametersReadableFragment
+        }
         modelName
         modelProvider
         responseFormat {
@@ -56,11 +59,17 @@ export function PromptCodeExportCard({
         }
         tools {
           tools {
-            function {
-              name
-              description
-              parameters
-              strict
+            __typename
+            ... on PromptToolFunction {
+              function {
+                name
+                description
+                parameters
+                strict
+              }
+            }
+            ... on PromptToolRaw {
+              raw
             }
           }
           toolChoice {
@@ -111,20 +120,27 @@ export function PromptCodeExportCard({
     `,
     promptVersion
   );
+  const dataForSnippets = useMemo(() => {
+    const record = readPromptInvocationParameters(data.invocationParameters);
+    return {
+      ...data,
+      invocationParameters: record?.parameters ?? {},
+    };
+  }, [data]);
   const sdkSnippet = useMemo(
     () =>
       mapPromptToSDKSnippet({
-        promptVersion: data,
+        promptVersion: dataForSnippets,
         language: programmingLanguage,
       }),
-    [data, programmingLanguage]
+    [dataForSnippets, programmingLanguage]
   );
   const clientSnippet = useMemo(() => {
     return mapPromptToClientSnippet({
-      promptVersion: data,
+      promptVersion: dataForSnippets,
       language: programmingLanguage,
     });
-  }, [data, programmingLanguage]);
+  }, [dataForSnippets, programmingLanguage]);
   return (
     <Card
       title="Code"

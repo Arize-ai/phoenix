@@ -2,12 +2,12 @@
  * A Phoenix tool type is a pre-defined tool json that pre-configures
  * a tool for a specific use case.
  *
- * They are represented using the openAIToolDefinitionSchema schema.
+ * They are represented using the openAIChatCompletionsToolDefinitionSchema schema.
  */
 
 import z from "zod";
 
-import { openAIToolDefinitionSchema } from "@phoenix/schemas/toolSchemas";
+import { openAIChatCompletionsToolDefinitionSchema } from "@phoenix/schemas/toolSchemas";
 
 export const PhoenixToolEditorTypeSchema = z.union([
   z.literal("json"),
@@ -17,8 +17,8 @@ export const PhoenixToolEditorTypeSchema = z.union([
 export type PhoenixToolEditorType = z.infer<typeof PhoenixToolEditorTypeSchema>;
 
 export const CategoricalChoiceToolTypeSchema =
-  openAIToolDefinitionSchema.extend({
-    function: openAIToolDefinitionSchema.shape.function.extend({
+  openAIChatCompletionsToolDefinitionSchema.extend({
+    function: openAIChatCompletionsToolDefinitionSchema.shape.function.extend({
       parameters: z.object({
         type: z.literal("object"),
         properties: z.partialRecord(
