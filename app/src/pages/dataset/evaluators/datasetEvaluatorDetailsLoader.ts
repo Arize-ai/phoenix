@@ -32,6 +32,7 @@ export const datasetEvaluatorDetailsLoaderGQL = graphql`
           }
           ...BuiltInDatasetEvaluatorDetails_datasetEvaluator
           ...CodeDatasetEvaluatorDetails_datasetEvaluator
+          ...CodeDatasetEvaluatorVersions_datasetEvaluator
           ...LLMDatasetEvaluatorDetails_datasetEvaluator
         }
       }
