@@ -1,12 +1,10 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 import { useFragment } from "react-relay";
-import { useRevalidator } from "react-router";
 import { graphql } from "relay-runtime";
 
 import { Flex, Heading, Text } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
-import { EditBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditBuiltInDatasetEvaluatorSlideover";
 import { ContainsEvaluatorCodeBlock } from "@phoenix/components/evaluators/ContainsEvaluatorCodeBlock";
 import { ContainsEvaluatorDetails } from "@phoenix/components/evaluators/ContainsEvaluatorDetails";
 import { ExactMatchEvaluatorCodeBlock } from "@phoenix/components/evaluators/ExactMatchEvaluatorCodeBlock";
@@ -117,16 +115,9 @@ function OutputConfigsSection({
 
 export function BuiltInDatasetEvaluatorDetails({
   datasetEvaluatorRef,
-  datasetId,
-  isEditSlideoverOpen,
-  onEditSlideoverOpenChange,
 }: {
   datasetEvaluatorRef: BuiltInDatasetEvaluatorDetails_datasetEvaluator$key;
-  datasetId: string;
-  isEditSlideoverOpen: boolean;
-  onEditSlideoverOpenChange: (isOpen: boolean) => void;
 }) {
-  const { revalidate } = useRevalidator();
   const datasetEvaluator = useFragment(
     graphql`
       fragment BuiltInDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {
@@ -230,25 +221,16 @@ export function BuiltInDatasetEvaluatorDetails({
   const parseStrings = literalMapping?.parse_strings !== false;
 
   return (
-    <>
-      <Flex direction="column" gap="size-200">
-        <Section title="Input Mapping">
-          <DetailsComponent inputMapping={inputMapping} />
-        </Section>
-        <OutputConfigsSection configs={outputConfigs} />
-        {name === "json_distance" ? (
-          <JSONDistanceEvaluatorCodeBlock parseStrings={parseStrings} />
-        ) : (
-          <CodeBlockComponent />
-        )}
-      </Flex>
-      <EditBuiltInDatasetEvaluatorSlideover
-        datasetEvaluatorId={datasetEvaluator.id}
-        datasetId={datasetId}
-        isOpen={isEditSlideoverOpen}
-        onOpenChange={onEditSlideoverOpenChange}
-        onUpdate={() => revalidate()}
-      />
-    </>
+    <Flex direction="column" gap="size-200">
+      <Section title="Input Mapping">
+        <DetailsComponent inputMapping={inputMapping} />
+      </Section>
+      <OutputConfigsSection configs={outputConfigs} />
+      {name === "json_distance" ? (
+        <JSONDistanceEvaluatorCodeBlock parseStrings={parseStrings} />
+      ) : (
+        <CodeBlockComponent />
+      )}
+    </Flex>
   );
 }

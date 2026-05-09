@@ -10,6 +10,7 @@ from .average_experiment_repeated_run_group_latency import (
     AverageExperimentRepeatedRunGroupLatencyDataLoader,
 )
 from .average_experiment_run_latency import AverageExperimentRunLatencyDataLoader
+from .code_evaluator_version_count import CodeEvaluatorVersionCountDataLoader
 from .code_evaluator_version_sequence_number import CodeEvaluatorVersionSequenceNumberDataLoader
 from .dataset_dataset_splits import DatasetDatasetSplitsDataLoader
 from .dataset_evaluators import DatasetEvaluatorsDataLoader
@@ -109,6 +110,7 @@ __all__ = [
     "AverageExperimentRepeatedRunGroupLatencyDataLoader",
     "AverageExperimentRunLatencyDataLoader",
     "CacheForDataLoaders",
+    "CodeEvaluatorVersionCountDataLoader",
     "CodeEvaluatorVersionSequenceNumberDataLoader",
     "DatasetDatasetSplitsDataLoader",
     "DatasetEvaluatorsByEvaluatorDataLoader",

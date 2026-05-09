@@ -500,6 +500,7 @@ type CodeEvaluator implements Evaluator & Node {
   outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   currentVersion: CodeEvaluatorVersion
   version(versionId: ID!): CodeEvaluatorVersion
+  versionCount: Int!
   versions(first: Int = 50, last: Int, after: String, before: String): CodeEvaluatorVersionConnection!
   inputSchema: JSON
   sourceCode: String!

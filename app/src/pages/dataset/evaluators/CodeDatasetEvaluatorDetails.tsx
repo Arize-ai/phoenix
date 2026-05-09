@@ -2,7 +2,6 @@ import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { useFragment } from "react-relay";
-import { useRevalidator } from "react-router";
 import { graphql } from "relay-runtime";
 import invariant from "tiny-invariant";
 
@@ -18,7 +17,6 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { EditCodeDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditCodeDatasetEvaluatorSlideover";
 import { CodeEvaluatorSourceCodeBlock } from "@phoenix/components/evaluators/CodeEvaluatorSourceCodeBlock";
 import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
 import type { CodeDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/CodeDatasetEvaluatorDetails_datasetEvaluator.graphql";
@@ -410,18 +408,11 @@ function getDependenciesLabel(
 
 export function CodeDatasetEvaluatorDetails({
   datasetEvaluatorRef,
-  datasetId,
   sandboxBackends,
-  isEditSlideoverOpen,
-  onEditSlideoverOpenChange,
 }: {
   datasetEvaluatorRef: CodeDatasetEvaluatorDetails_datasetEvaluator$key;
-  datasetId: string;
   sandboxBackends: ReadonlyArray<SandboxBackendInfo>;
-  isEditSlideoverOpen: boolean;
-  onEditSlideoverOpenChange: (isOpen: boolean) => void;
 }) {
-  const { revalidate } = useRevalidator();
   const datasetEvaluator = useFragment(
     graphql`
       fragment CodeDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {
@@ -564,146 +555,131 @@ export function CodeDatasetEvaluatorDetails({
   invariant(evaluator.language, "code evaluator language is required");
 
   return (
-    <>
-      <Flex direction="column" gap="size-200">
-        <Card
-          title="Source Code"
-          extra={<LanguageWithIcon language={evaluator.language} />}
-        >
-          <CodeEvaluatorSourceCodeBlock
-            language={evaluator.language}
-            sourceCode={currentVersion.sourceCode}
-          />
-        </Card>
-        <div css={splitLayoutCSS}>
-          <Flex direction="column" gap="size-200" flex="2 1 0" minWidth={0}>
-            <Card
-              title={
-                outputConfigs.length > 1
-                  ? `Evaluator Annotations (${outputConfigs.length})`
-                  : "Evaluator Annotation"
-              }
-            >
-              <View padding="size-200">
-                <Flex direction="column" gap="size-200">
-                  {outputConfigs.map((config, idx) => (
-                    <OutputConfigBlock
-                      key={config.name || idx}
-                      config={config as OutputConfig}
-                    />
-                  ))}
-                </Flex>
-              </View>
-            </Card>
-            <Card title="Input Mapping">
-              <View padding="size-200">
-                <div css={mapGridCSS}>
-                  <MappingTile
-                    title="Path mapping"
-                    description="Map function args to fields on the example"
-                    entries={pathMappingEntries}
-                    emptyLabel="No paths set"
-                    formatValue={formatPathMappingValue}
+    <Flex direction="column" gap="size-200">
+      <Card
+        title="Source Code"
+        extra={<LanguageWithIcon language={evaluator.language} />}
+      >
+        <CodeEvaluatorSourceCodeBlock
+          language={evaluator.language}
+          sourceCode={currentVersion.sourceCode}
+        />
+      </Card>
+      <div css={splitLayoutCSS}>
+        <Flex direction="column" gap="size-200" flex="2 1 0" minWidth={0}>
+          <Card
+            title={
+              outputConfigs.length > 1
+                ? `Evaluator Annotations (${outputConfigs.length})`
+                : "Evaluator Annotation"
+            }
+          >
+            <View padding="size-200">
+              <Flex direction="column" gap="size-200">
+                {outputConfigs.map((config, idx) => (
+                  <OutputConfigBlock
+                    key={config.name || idx}
+                    config={config as OutputConfig}
                   />
-                  <MappingTile
-                    title="Literal mapping"
-                    description="Pass fixed literal values to function args"
-                    entries={literalMappingEntries}
-                    emptyLabel="No literals set"
-                    formatValue={formatLiteral}
-                  />
-                </div>
+                ))}
+              </Flex>
+            </View>
+          </Card>
+          <Card title="Input Mapping">
+            <View padding="size-200">
+              <div css={mapGridCSS}>
+                <MappingTile
+                  title="Path mapping"
+                  description="Map function args to fields on the example"
+                  entries={pathMappingEntries}
+                  emptyLabel="No paths set"
+                  formatValue={formatPathMappingValue}
+                />
+                <MappingTile
+                  title="Literal mapping"
+                  description="Pass fixed literal values to function args"
+                  entries={literalMappingEntries}
+                  emptyLabel="No literals set"
+                  formatValue={formatLiteral}
+                />
+              </div>
+            </View>
+          </Card>
+        </Flex>
+        <Flex direction="column" gap="size-200" flex="1 1 0" minWidth={0}>
+          <Card
+            title={
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <Icon svg={<Icons.HardDriveOutline />} />
+                <span>Sandbox</span>
+              </Flex>
+            }
+          >
+            {sandboxConfig == null ? (
+              <View padding="size-200">
+                <Text color="text-700">No sandbox configuration selected.</Text>
               </View>
-            </Card>
-          </Flex>
-          <Flex direction="column" gap="size-200" flex="1 1 0" minWidth={0}>
-            <Card
-              title={
-                <Flex direction="row" gap="size-100" alignItems="center">
-                  <Icon svg={<Icons.HardDriveOutline />} />
-                  <span>Sandbox</span>
-                </Flex>
-              }
-            >
-              {sandboxConfig == null ? (
-                <View padding="size-200">
-                  <Text color="text-700">
-                    No sandbox configuration selected.
-                  </Text>
-                </View>
-              ) : (
-                <List size="M">
+            ) : (
+              <List size="M">
+                <ListItem>
+                  <SandboxRow
+                    label="Config"
+                    value={
+                      <Text size="S" fontFamily="mono">
+                        {sandboxConfig.name}
+                      </Text>
+                    }
+                  />
+                </ListItem>
+                {sandboxConfig.description ? (
                   <ListItem>
                     <SandboxRow
-                      label="Config"
-                      value={
-                        <Text size="S" fontFamily="mono">
-                          {sandboxConfig.name}
-                        </Text>
-                      }
+                      label="Description"
+                      value={sandboxConfig.description}
                     />
                   </ListItem>
-                  {sandboxConfig.description ? (
-                    <ListItem>
-                      <SandboxRow
-                        label="Description"
-                        value={sandboxConfig.description}
+                ) : null}
+                <ListItem>
+                  <SandboxRow
+                    label="Provider"
+                    labelExtra={
+                      <ProviderCapabilitiesHelp
+                        sandboxBackend={sandboxBackend}
                       />
-                    </ListItem>
-                  ) : null}
-                  <ListItem>
-                    <SandboxRow
-                      label="Provider"
-                      labelExtra={
-                        <ProviderCapabilitiesHelp
-                          sandboxBackend={sandboxBackend}
+                    }
+                    value={
+                      <Flex direction="row" gap="size-100" alignItems="center">
+                        <SandboxProviderIcon
+                          backendType={sandboxConfig.provider.backendType}
+                          height={16}
                         />
-                      }
-                      value={
-                        <Flex
-                          direction="row"
-                          gap="size-100"
-                          alignItems="center"
-                        >
-                          <SandboxProviderIcon
-                            backendType={sandboxConfig.provider.backendType}
-                            height={16}
-                          />
-                          <Text size="S">
-                            {sandboxBackend?.displayName ??
-                              sandboxConfig.provider.backendType}
-                          </Text>
-                        </Flex>
-                      }
-                    />
-                  </ListItem>
-                  <ListItem>
+                        <Text size="S">
+                          {sandboxBackend?.displayName ??
+                            sandboxConfig.provider.backendType}
+                        </Text>
+                      </Flex>
+                    }
+                  />
+                </ListItem>
+                <ListItem>
+                  <SandboxRow
+                    label="Timeout"
+                    value={`${sandboxConfig.timeout} seconds`}
+                  />
+                </ListItem>
+                {flattenedCustomSettings.map(([key, v]) => (
+                  <ListItem key={key}>
                     <SandboxRow
-                      label="Timeout"
-                      value={`${sandboxConfig.timeout} seconds`}
+                      label={friendlySettingLabel(key)}
+                      value={<SettingValue keyPath={key} value={v} />}
                     />
                   </ListItem>
-                  {flattenedCustomSettings.map(([key, v]) => (
-                    <ListItem key={key}>
-                      <SandboxRow
-                        label={friendlySettingLabel(key)}
-                        value={<SettingValue keyPath={key} value={v} />}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              )}
-            </Card>
-          </Flex>
-        </div>
-      </Flex>
-      <EditCodeDatasetEvaluatorSlideover
-        datasetEvaluatorId={datasetEvaluator.id}
-        datasetId={datasetId}
-        isOpen={isEditSlideoverOpen}
-        onOpenChange={onEditSlideoverOpenChange}
-        onUpdate={() => revalidate()}
-      />
-    </>
+                ))}
+              </List>
+            )}
+          </Card>
+        </Flex>
+      </div>
+    </Flex>
   );
 }
