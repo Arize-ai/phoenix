@@ -1,6 +1,5 @@
 import { css } from "@emotion/react";
 import { Suspense, useState } from "react";
-import { useFragment } from "react-relay";
 import { Outlet, useLoaderData, useParams, useRevalidator } from "react-router";
 import invariant from "tiny-invariant";
 
@@ -24,14 +23,10 @@ import { EditBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/datase
 import { EditCodeDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditCodeDatasetEvaluatorSlideover";
 import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
-import type { CodeDatasetEvaluatorVersions_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/CodeDatasetEvaluatorVersions_datasetEvaluator.graphql";
 import type { datasetEvaluatorDetailsLoaderQuery } from "@phoenix/pages/dataset/evaluators/__generated__/datasetEvaluatorDetailsLoaderQuery.graphql";
 import { BuiltInDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/BuiltInDatasetEvaluatorDetails";
 import { CodeDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/CodeDatasetEvaluatorDetails";
-import {
-  CodeDatasetEvaluatorVersions,
-  codeDatasetEvaluatorVersionsFragment,
-} from "@phoenix/pages/dataset/evaluators/CodeDatasetEvaluatorVersions";
+import { CodeDatasetEvaluatorVersions } from "@phoenix/pages/dataset/evaluators/CodeDatasetEvaluatorVersions";
 import type { datasetEvaluatorDetailsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { datasetEvaluatorDetailsLoaderGQL } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorDetailsLoader";
 import { DatasetEvaluatorSpans } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorSpans";
@@ -84,15 +79,8 @@ function DatasetEvaluatorDetailsPageContent({
   const isLLMEvaluator = evaluator.__typename === "LLMEvaluator";
   const isBuiltInEvaluator = evaluator.__typename === "BuiltInEvaluator";
   const isCodeEvaluator = evaluator.__typename === "CodeEvaluator";
-  const versionsData =
-    useFragment<CodeDatasetEvaluatorVersions_datasetEvaluator$key>(
-      codeDatasetEvaluatorVersionsFragment,
-      datasetEvaluator
-    );
   const versionsCount =
-    versionsData.evaluator.__typename === "CodeEvaluator"
-      ? versionsData.evaluator.versions.edges.length
-      : 0;
+    evaluator.__typename === "CodeEvaluator" ? evaluator.versionCount : 0;
 
   return (
     <main css={mainCSS}>
@@ -158,9 +146,11 @@ function DatasetEvaluatorDetailsPageContent({
         </LazyTabPanel>
         {isCodeEvaluator && (
           <LazyTabPanel id="versions">
-            <CodeDatasetEvaluatorVersions
-              datasetEvaluatorRef={datasetEvaluator}
-            />
+            <Suspense fallback={<Loading />}>
+              <CodeDatasetEvaluatorVersions
+                datasetEvaluatorId={datasetEvaluator.id}
+              />
+            </Suspense>
           </LazyTabPanel>
         )}
         <LazyTabPanel id="spans">

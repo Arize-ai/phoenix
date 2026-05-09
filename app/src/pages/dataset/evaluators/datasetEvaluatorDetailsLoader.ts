@@ -25,6 +25,9 @@ export const datasetEvaluatorDetailsLoaderGQL = graphql`
             __typename
             kind
             description
+            ... on CodeEvaluator {
+              versionCount
+            }
           }
           project {
             id
@@ -32,7 +35,6 @@ export const datasetEvaluatorDetailsLoaderGQL = graphql`
           }
           ...BuiltInDatasetEvaluatorDetails_datasetEvaluator
           ...CodeDatasetEvaluatorDetails_datasetEvaluator
-          ...CodeDatasetEvaluatorVersions_datasetEvaluator
           ...LLMDatasetEvaluatorDetails_datasetEvaluator
         }
       }

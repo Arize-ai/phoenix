@@ -3,8 +3,8 @@ import { parseDiffFromFile } from "@pierre/diffs";
 import { FileDiff } from "@pierre/diffs/react";
 import { formatRelative } from "date-fns/formatRelative";
 import { useMemo, useState } from "react";
-import { useFragment } from "react-relay";
-import { graphql } from "relay-runtime";
+import { graphql, useLazyLoadQuery } from "react-relay";
+import invariant from "tiny-invariant";
 
 import {
   Card,
@@ -21,12 +21,15 @@ import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { useTheme } from "@phoenix/contexts";
 import { useCurrentTime } from "@phoenix/hooks";
 import type {
-  CodeDatasetEvaluatorVersions_datasetEvaluator$data,
-  CodeDatasetEvaluatorVersions_datasetEvaluator$key,
-} from "@phoenix/pages/dataset/evaluators/__generated__/CodeDatasetEvaluatorVersions_datasetEvaluator.graphql";
+  CodeDatasetEvaluatorVersionsQuery,
+  CodeDatasetEvaluatorVersionsQuery$data,
+} from "@phoenix/pages/dataset/evaluators/__generated__/CodeDatasetEvaluatorVersionsQuery.graphql";
 
 type CodeEvaluator = Extract<
-  CodeDatasetEvaluatorVersions_datasetEvaluator$data["evaluator"],
+  Extract<
+    CodeDatasetEvaluatorVersionsQuery$data["node"],
+    { readonly __typename: "DatasetEvaluator" }
+  >["evaluator"],
   { readonly __typename: "CodeEvaluator" }
 >;
 
@@ -213,50 +216,58 @@ function VersionDetail({
   );
 }
 
-export const codeDatasetEvaluatorVersionsFragment = graphql`
-  fragment CodeDatasetEvaluatorVersions_datasetEvaluator on DatasetEvaluator {
-    evaluator {
-      __typename
-      ... on CodeEvaluator {
-        id
-        language
-        versions(first: 50) {
-          edges {
-            node {
-              id
-              sequenceNumber
-              sourceCode
-              createdAt
-              user {
+export function CodeDatasetEvaluatorVersions({
+  datasetEvaluatorId,
+}: {
+  datasetEvaluatorId: string;
+}) {
+  const data = useLazyLoadQuery<CodeDatasetEvaluatorVersionsQuery>(
+    graphql`
+      query CodeDatasetEvaluatorVersionsQuery($datasetEvaluatorId: ID!) {
+        node(id: $datasetEvaluatorId) {
+          __typename
+          ... on DatasetEvaluator {
+            evaluator {
+              __typename
+              ... on CodeEvaluator {
                 id
-                username
-                profilePictureUrl
-              }
-              previousVersion {
-                id
-                sourceCode
+                language
+                versions(first: 50) {
+                  edges {
+                    node {
+                      id
+                      sequenceNumber
+                      sourceCode
+                      createdAt
+                      user {
+                        id
+                        username
+                        profilePictureUrl
+                      }
+                      previousVersion {
+                        id
+                        sourceCode
+                      }
+                    }
+                  }
+                }
               }
             }
           }
         }
       }
-    }
-  }
-`;
-
-export function CodeDatasetEvaluatorVersions({
-  datasetEvaluatorRef,
-}: {
-  datasetEvaluatorRef: CodeDatasetEvaluatorVersions_datasetEvaluator$key;
-}) {
-  const datasetEvaluator = useFragment(
-    codeDatasetEvaluatorVersionsFragment,
-    datasetEvaluatorRef
+    `,
+    { datasetEvaluatorId }
   );
-  const evaluator = datasetEvaluator.evaluator;
-  if (evaluator.__typename !== "CodeEvaluator") {
-    throw new Error("Invalid evaluator for CodeDatasetEvaluatorVersions");
-  }
+  invariant(
+    data.node.__typename === "DatasetEvaluator",
+    "Invalid node for CodeDatasetEvaluatorVersions"
+  );
+  const evaluator = data.node.evaluator;
+  invariant(
+    evaluator.__typename === "CodeEvaluator",
+    "Invalid evaluator for CodeDatasetEvaluatorVersions"
+  );
   const versions = useMemo(
     () => evaluator.versions.edges.map((edge) => edge.node),
     [evaluator.versions.edges]
@@ -264,8 +275,6 @@ export function CodeDatasetEvaluatorVersions({
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(
     versions[0]?.id ?? null
   );
-  const selectedVersion =
-    versions.find((v) => v.id === selectedVersionId) ?? versions[0] ?? null;
 
   if (versions.length === 0) {
     return (
@@ -275,6 +284,9 @@ export function CodeDatasetEvaluatorVersions({
     );
   }
 
+  const selectedVersion =
+    versions.find((v) => v.id === selectedVersionId) ?? versions[0];
+
   return (
     <div css={splitLayoutCSS}>
       <div css={listColCSS}>
@@ -283,19 +295,17 @@ export function CodeDatasetEvaluatorVersions({
             <VersionListItem
               key={version.id}
               version={version}
-              active={selectedVersion?.id === version.id}
+              active={selectedVersion.id === version.id}
               onSelect={setSelectedVersionId}
             />
           ))}
         </Flex>
       </div>
       <div css={detailColCSS}>
-        {selectedVersion && (
-          <VersionDetail
-            language={evaluator.language!}
-            version={selectedVersion}
-          />
-        )}
+        <VersionDetail
+          language={evaluator.language!}
+          version={selectedVersion}
+        />
       </div>
     </div>
   );
