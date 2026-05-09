@@ -90,6 +90,7 @@ from phoenix.server.api.dataloaders import (
     AverageExperimentRepeatedRunGroupLatencyDataLoader,
     AverageExperimentRunLatencyDataLoader,
     CacheForDataLoaders,
+    CodeEvaluatorVersionCountDataLoader,
     CodeEvaluatorVersionSequenceNumberDataLoader,
     DatasetDatasetSplitsDataLoader,
     DatasetEvaluatorsByEvaluatorDataLoader,
@@ -794,6 +795,7 @@ def create_graphql_router(
                 ),
                 average_experiment_run_latency=AverageExperimentRunLatencyDataLoader(db),
                 code_evaluator_fields=TableFieldsDataLoader(db, models.CodeEvaluator),
+                code_evaluator_version_count=CodeEvaluatorVersionCountDataLoader(db),
                 code_evaluator_version_sequence_number=CodeEvaluatorVersionSequenceNumberDataLoader(
                     db
                 ),

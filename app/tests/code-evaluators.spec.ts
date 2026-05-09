@@ -483,7 +483,12 @@ test.describe.serial("Code Evaluators", () => {
     await expectEvaluatorDetailsPage(page, updatedPythonEvaluatorName);
   });
 
-  test("submits a cleared sandbox when switching back to the original language", async ({
+  // Language is no longer editable in the Edit slideover (gated to create mode
+  // since the revision-history feature). The original scenario — switch
+  // language to force a sandbox clear and assert patchCodeEvaluator submits
+  // sandboxConfigId: null — can no longer be exercised via edit, so skip
+  // until the boundary is exposed through a different UI entry point.
+  test.skip("submits a cleared sandbox when switching back to the original language", async ({
     page,
   }) => {
     await gotoDatasetEvaluators(page, datasetName);
@@ -907,7 +912,11 @@ test.describe.serial("Code Evaluators", () => {
     await expect(page.getByTestId("dialog")).not.toBeVisible();
   });
 
-  test("language switch on categorical evaluator swaps the editor between Python and TypeScript defaults", async ({
+  // Language is no longer editable in the Edit slideover (gated to create mode
+  // since the revision-history feature). The original scenario depends on
+  // toggling Language inside the editor; revisit when language switching is
+  // exposed in another flow.
+  test.skip("language switch on categorical evaluator swaps the editor between Python and TypeScript defaults", async ({
     page,
   }) => {
     await gotoDatasetEvaluators(page, datasetName);

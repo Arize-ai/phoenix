@@ -261,17 +261,19 @@ const router = createBrowserRouter(
                   }}
                 />
               </Route>
-              <Route
-                id={EVALUATOR_DETAILS_ROUTE_ID}
-                path="evaluators/:evaluatorId"
-                element={<DatasetEvaluatorDetailsPage />}
-                loader={datasetEvaluatorDetailsLoader}
-                handle={{
-                  crumb: (data: DatasetEvaluatorDetailsLoaderData) =>
-                    data?.evaluatorDisplayName || "evaluator",
-                }}
-              >
-                <Route path=":traceId" element={<EvaluatorTracePage />} />
+              <Route path="evaluators" handle={{ crumb: () => "evaluators" }}>
+                <Route
+                  id={EVALUATOR_DETAILS_ROUTE_ID}
+                  path=":evaluatorId"
+                  element={<DatasetEvaluatorDetailsPage />}
+                  loader={datasetEvaluatorDetailsLoader}
+                  handle={{
+                    crumb: (data: DatasetEvaluatorDetailsLoaderData) =>
+                      data?.evaluatorDisplayName || "evaluator",
+                  }}
+                >
+                  <Route path=":traceId" element={<EvaluatorTracePage />} />
+                </Route>
               </Route>
               <Route
                 path="compare"
