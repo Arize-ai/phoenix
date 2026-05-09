@@ -121,7 +121,8 @@ class TestReservedCredentialNameHelper:
         assert is_reserved_credential_name(name)
 
     def test_non_modal_reserved_names_still_reserved(self) -> None:
-        assert is_reserved_credential_name("PHOENIX_SANDBOX_E2B_API_KEY")
+        assert is_reserved_credential_name("E2B_API_KEY")
+        assert is_reserved_credential_name("e2b_api_key")
         assert is_reserved_credential_name("VERCEL_TOKEN")
         assert is_reserved_credential_name("vercel_token")
         assert is_reserved_credential_name("VERCEL_OIDC_TOKEN")
