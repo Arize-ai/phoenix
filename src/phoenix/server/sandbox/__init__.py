@@ -227,7 +227,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         language="PYTHON",
         dependency_hints=[
             "Install Phoenix with the `e2b` extra.",
-            "Provide `PHOENIX_SANDBOX_E2B_API_KEY`.",
+            "Provide `E2B_API_KEY`.",
         ],
         supports_env_vars=True,
         internet_access_capability="boolean",
@@ -573,12 +573,10 @@ async def get_missing_sandbox_auth_detail(
         return None
 
     if backend_type == "E2B":
-        resolved = await _resolve_named_credentials(
-            session, decrypt, ["PHOENIX_SANDBOX_E2B_API_KEY"]
-        )
-        if "PHOENIX_SANDBOX_E2B_API_KEY" in resolved:
+        resolved = await _resolve_named_credentials(session, decrypt, ["E2B_API_KEY"])
+        if "E2B_API_KEY" in resolved:
             return None
-        return "Set `PHOENIX_SANDBOX_E2B_API_KEY`."
+        return "Set `E2B_API_KEY`."
 
     if backend_type == "DAYTONA_PYTHON":
         resolved = await _resolve_named_credentials(

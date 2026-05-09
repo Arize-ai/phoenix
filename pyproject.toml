@@ -96,6 +96,7 @@ dev = [
   "daytona-sdk>=0.140.0",  # type-checking only; runtime is gated by the [daytona] extra
   "debugpy",
   "deepdiff==8.6.2",
+  "e2b-code-interpreter>=0.0.12",  # type-checking only; runtime is gated by the [e2b] extra
   "Faker>=30.1.0",
   "freezegun",
   "google-genai>=1.0.0",
@@ -342,6 +343,16 @@ module = [
   "wasmtime",
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# e2b_code_interpreter and its e2b base ship without a top-level py.typed marker,
+# so opt mypy into following the untyped sources directly — preserves real
+# type-checking of SDK call sites in src/phoenix/server/sandbox/e2b_backend.py.
+module = [
+  "e2b_code_interpreter.*",
+  "e2b.*",
+]
+follow_untyped_imports = true
 
 [tool.basedpyright]
 # Resolve imports against the uv-managed environment and src-layout package root.
