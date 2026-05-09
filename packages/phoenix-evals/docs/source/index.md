@@ -112,6 +112,7 @@ print(results_df.head())
 :caption: API Reference
 
 api/evals
+executors
 ```
 
 ## Indices and tables
