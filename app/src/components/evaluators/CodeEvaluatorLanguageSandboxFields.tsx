@@ -4,7 +4,6 @@ import {
   Button,
   Flex,
   Label,
-  Link,
   ListBox,
   Popover,
   Select,
@@ -12,7 +11,6 @@ import {
   SelectItem,
   SelectValue,
   Text,
-  View,
 } from "@phoenix/components";
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
@@ -91,8 +89,6 @@ export type CodeEvaluatorSandboxFieldProps = {
   onSelectionChange: (sandboxConfigId: string | null) => void;
   /** Optional size variant */
   size?: "M" | "L";
-  /** Whether to show the helper text below the field */
-  showHelperText?: boolean;
 };
 
 /**
@@ -105,7 +101,6 @@ export const CodeEvaluatorSandboxField = ({
   selectedSandboxConfigId,
   onSelectionChange,
   size = "M",
-  showHelperText = false,
 }: CodeEvaluatorSandboxFieldProps) => {
   // Filter configs to only show those matching the current language
   const compatibleConfigs = useMemo(
@@ -121,66 +116,50 @@ export const CodeEvaluatorSandboxField = ({
     ? selectedSandboxConfigId
     : null;
 
-  if (sandboxConfigs.length === 0) {
-    // No sandbox providers enabled at all
-    return (
-      <Flex direction="column" gap="size-50">
-        <Label>Sandbox</Label>
-        <Text color="text-500" size="S">
-          No sandbox providers enabled.{" "}
-          <Link to="/settings/sandboxes">Configure in Settings</Link>.
-        </Text>
-      </Flex>
-    );
-  }
+  const hasNoProviders = sandboxConfigs.length === 0;
+  const hasNoCompatibleConfigs = compatibleConfigs.length === 0;
 
   return (
-    <View>
-      <Select
-        size={size}
-        selectedKey={validSelectedId != null ? String(validSelectedId) : null}
-        onSelectionChange={(key) => {
-          onSelectionChange(typeof key === "string" ? key : null);
-        }}
-        isDisabled={compatibleConfigs.length === 0}
-        placeholder={
-          compatibleConfigs.length > 0
-            ? "Select a sandbox..."
-            : "None available"
-        }
-      >
-        <Label>Sandbox</Label>
-        <Button>
-          <SelectValue />
-          <SelectChevronUpDownIcon />
-        </Button>
-        <Popover>
-          <ListBox items={compatibleConfigs}>
-            {(item) => (
-              <SelectItem
-                id={String(item.id)}
-                key={item.id}
-                textValue={item.name}
-              >
-                <Flex direction="row" gap="size-100" alignItems="center">
-                  <SandboxProviderIcon
-                    backendType={item.providerBackendType}
-                    height={18}
-                  />
-                  <Text>{item.name}</Text>
-                </Flex>
-              </SelectItem>
-            )}
-          </ListBox>
-        </Popover>
-      </Select>
-      {showHelperText && (
-        <Text color="text-500" size="S">
-          Code evaluators run in a sandbox. Configure reusable sandbox configs
-          in Settings if none are available here.
-        </Text>
-      )}
-    </View>
+    <Select
+      size={size}
+      selectedKey={validSelectedId != null ? String(validSelectedId) : null}
+      onSelectionChange={(key) => {
+        onSelectionChange(typeof key === "string" ? key : null);
+      }}
+      isDisabled={hasNoCompatibleConfigs}
+      placeholder={
+        hasNoProviders
+          ? "No sandboxes configured"
+          : hasNoCompatibleConfigs
+            ? "None available"
+            : "Select a sandbox..."
+      }
+    >
+      <Label>Sandbox</Label>
+      <Button>
+        <SelectValue />
+        <SelectChevronUpDownIcon />
+      </Button>
+      <Popover>
+        <ListBox items={compatibleConfigs}>
+          {(item) => (
+            <SelectItem
+              id={String(item.id)}
+              key={item.id}
+              textValue={item.name}
+            >
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <SandboxProviderIcon
+                  backendType={item.providerBackendType}
+                  height={18}
+                />
+                <Text>{item.name}</Text>
+              </Flex>
+            </SelectItem>
+          )}
+        </ListBox>
+      </Popover>
+    </Select>
   );
 };
 

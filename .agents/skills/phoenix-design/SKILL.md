@@ -25,3 +25,4 @@ Read the relevant file(s) based on the task:
 | `rules/bem.md` | Naming CSS classes |
 | `rules/tokens.md` | Creating or consuming CSS design tokens |
 | `rules/icons.md` | Picking an icon for a noun (project, trace, span, file, etc.) |
+| `rules/counters.md` | Displaying counts in tabs, headings, or filter buttons |
