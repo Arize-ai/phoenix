@@ -41,6 +41,7 @@ import {
   type PendingElicitationDraft,
 } from "./ElicitationDraftContext";
 import { useAgentChat } from "./useAgentChat";
+import type { SummarizeQuery } from "./useGenerateSessionSummary";
 
 export type { EmptyStateQuickAction } from "./ChatEmptyState";
 
@@ -197,6 +198,7 @@ const chatCSS = css`
 export function Chat({
   sessionId,
   chatApiUrl,
+  summarizeQuery,
   modelMenuValue,
   onModelChange,
   emptyStateSubtext,
@@ -204,6 +206,7 @@ export function Chat({
 }: {
   sessionId: string | null;
   chatApiUrl: string;
+  summarizeQuery: SummarizeQuery;
   modelMenuValue: ModelMenuValue;
   onModelChange: (model: ModelMenuValue) => void;
   emptyStateSubtext?: ReactNode;
@@ -218,7 +221,7 @@ export function Chat({
     pendingElicitation,
     handleElicitationSubmit,
     handleElicitationCancel,
-  } = useAgentChat({ sessionId, chatApiUrl });
+  } = useAgentChat({ sessionId, chatApiUrl, summarizeQuery });
 
   return (
     <ChatView

@@ -6499,26 +6499,71 @@
         "operationId": "chat_chat_post",
         "parameters": [
           {
-            "name": "root",
+            "name": "provider_type",
             "in": "query",
             "required": true,
             "schema": {
-              "oneOf": [
+              "enum": [
+                "custom",
+                "builtin"
+              ],
+              "type": "string",
+              "title": "Provider Type"
+            }
+          },
+          {
+            "name": "model_name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Model Name"
+            }
+          },
+          {
+            "name": "provider_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
                 {
-                  "$ref": "#/components/schemas/CustomProviderChatSearchParams"
+                  "type": "string"
                 },
                 {
-                  "$ref": "#/components/schemas/BuiltInProviderChatSearchParams"
+                  "type": "null"
                 }
               ],
-              "discriminator": {
-                "propertyName": "provider_type",
-                "mapping": {
-                  "custom": "#/components/schemas/CustomProviderChatSearchParams",
-                  "builtin": "#/components/schemas/BuiltInProviderChatSearchParams"
+              "title": "Provider Id"
+            }
+          },
+          {
+            "name": "provider",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ModelProvider"
+                },
+                {
+                  "type": "null"
                 }
-              },
-              "title": "Root"
+              ],
+              "title": "Provider"
+            }
+          },
+          {
+            "name": "openai_api_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "chat_completions",
+                "responses"
+              ],
+              "type": "string",
+              "default": "responses",
+              "title": "Openai Api Type"
             }
           }
         ],
@@ -6553,26 +6598,71 @@
         "operationId": "chat_v2_chat_v2_post",
         "parameters": [
           {
-            "name": "root",
+            "name": "provider_type",
             "in": "query",
             "required": true,
             "schema": {
-              "oneOf": [
+              "enum": [
+                "custom",
+                "builtin"
+              ],
+              "type": "string",
+              "title": "Provider Type"
+            }
+          },
+          {
+            "name": "model_name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Model Name"
+            }
+          },
+          {
+            "name": "provider_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
                 {
-                  "$ref": "#/components/schemas/CustomProviderChatSearchParams"
+                  "type": "string"
                 },
                 {
-                  "$ref": "#/components/schemas/BuiltInProviderChatSearchParams"
+                  "type": "null"
                 }
               ],
-              "discriminator": {
-                "propertyName": "provider_type",
-                "mapping": {
-                  "custom": "#/components/schemas/CustomProviderChatSearchParams",
-                  "builtin": "#/components/schemas/BuiltInProviderChatSearchParams"
+              "title": "Provider Id"
+            }
+          },
+          {
+            "name": "provider",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ModelProvider"
+                },
+                {
+                  "type": "null"
                 }
-              },
-              "title": "Root"
+              ],
+              "title": "Provider"
+            }
+          },
+          {
+            "name": "openai_api_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "chat_completions",
+                "responses"
+              ],
+              "type": "string",
+              "default": "responses",
+              "title": "Openai Api Type"
             }
           }
         ],
@@ -6607,6 +6697,135 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agents/{agent_id}/sessions/{session_id}/summary": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Summarize Endpoint",
+        "operationId": "summarize_endpoint_agents__agent_id__sessions__session_id__summary_post",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "provider_type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "custom",
+                "builtin"
+              ],
+              "type": "string",
+              "title": "Provider Type"
+            }
+          },
+          {
+            "name": "model_name",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Model Name"
+            }
+          },
+          {
+            "name": "provider_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider Id"
+            }
+          },
+          {
+            "name": "provider",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ModelProvider"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider"
+            }
+          },
+          {
+            "name": "openai_api_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "chat_completions",
+                "responses"
+              ],
+              "type": "string",
+              "default": "responses",
+              "title": "Openai Api Type"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_SummarizeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/_SummarizeResponse"
+                }
               }
             }
           },
@@ -6948,39 +7167,6 @@
         ],
         "title": "AppContext",
         "description": "Per-turn browser clock context for resolving relative time requests."
-      },
-      "BuiltInProviderChatSearchParams": {
-        "properties": {
-          "provider_type": {
-            "type": "string",
-            "const": "builtin",
-            "title": "Provider Type"
-          },
-          "provider": {
-            "$ref": "#/components/schemas/ModelProvider"
-          },
-          "model_name": {
-            "type": "string",
-            "title": "Model Name"
-          },
-          "openai_api_type": {
-            "type": "string",
-            "enum": [
-              "chat_completions",
-              "responses"
-            ],
-            "title": "Openai Api Type",
-            "default": "responses"
-          }
-        },
-        "type": "object",
-        "required": [
-          "provider_type",
-          "provider",
-          "model_name"
-        ],
-        "title": "BuiltInProviderChatSearchParams",
-        "description": "Chat against a Phoenix built-in provider.\n\nCredentials and connection details (base URL, Azure endpoint, AWS\nregion) are resolved from the secret store first and the process\nenvironment second. ``openai_api_type`` is honoured by the OpenAI and\nAzure OpenAI branches; other providers ignore it."
       },
       "CategoricalAnnotationConfig": {
         "properties": {
@@ -7683,31 +7869,6 @@
           "data"
         ],
         "title": "CreateUserResponseBody"
-      },
-      "CustomProviderChatSearchParams": {
-        "properties": {
-          "provider_type": {
-            "type": "string",
-            "const": "custom",
-            "title": "Provider Type"
-          },
-          "provider_id": {
-            "type": "integer",
-            "title": "Provider Id"
-          },
-          "model_name": {
-            "type": "string",
-            "title": "Model Name"
-          }
-        },
-        "type": "object",
-        "required": [
-          "provider_type",
-          "provider_id",
-          "model_name"
-        ],
-        "title": "CustomProviderChatSearchParams",
-        "description": "Chat against a stored custom provider record.\n\nThe wire format of ``provider_id`` is a relay GlobalID (e.g.\n``UHJvdmlkZXI6MTM=``). It is decoded to its integer node ID at\nparse time so downstream consumers don't need to know the GlobalID\nencoding."
       },
       "DataUIPart": {
         "properties": {
@@ -15072,6 +15233,36 @@
         ],
         "title": "_SubmitMessage",
         "description": "Submit message extended with Phoenix-specific fields."
+      },
+      "_SummarizeRequest": {
+        "properties": {
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/UIMessage"
+            },
+            "type": "array",
+            "title": "Messages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "messages"
+        ],
+        "title": "_SummarizeRequest",
+        "description": "Body for POST /agents/{agent_id}/sessions/{session_id}/summary.\n\nCarries the Vercel-style messages array; the backend owns the prompt and\nthe structured-output tool schema."
+      },
+      "_SummarizeResponse": {
+        "properties": {
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "summary"
+        ],
+        "title": "_SummarizeResponse"
       }
     }
   }

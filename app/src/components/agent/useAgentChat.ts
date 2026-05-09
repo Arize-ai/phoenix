@@ -24,7 +24,10 @@ import { authFetch } from "@phoenix/authFetch";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 
-import { useGenerateSessionSummary } from "./useGenerateSessionSummary";
+import {
+  useGenerateSessionSummary,
+  type SummarizeQuery,
+} from "./useGenerateSessionSummary";
 
 /**
  * Subscribes the current render surface to the persistent AI SDK chat runtime
@@ -46,13 +49,15 @@ import { useGenerateSessionSummary } from "./useGenerateSessionSummary";
 export function useAgentChat({
   sessionId,
   chatApiUrl,
+  summarizeQuery,
 }: {
   sessionId: string | null;
   chatApiUrl: string;
+  summarizeQuery: SummarizeQuery;
 }) {
   const store = useAgentStore();
   const runtime = useAgentChatRuntime();
-  const { generateSummary } = useGenerateSessionSummary({ chatApiUrl });
+  const { generateSummary } = useGenerateSessionSummary({ summarizeQuery });
   const pendingElicitation = useAgentContext((state) =>
     sessionId ? (state.pendingElicitationBySessionId[sessionId] ?? null) : null
   );
