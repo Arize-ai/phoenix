@@ -51,7 +51,7 @@ def test_build_backend_translates_internet_access_to_allow_flag(
     """E2BAdapter.build_backend translates internet_access.mode → allow_internet_access kwarg."""
     adapter = E2BAdapter()
     backend: E2BSandboxBackend = adapter.build_backend(  # type: ignore[assignment]
-        {"PHOENIX_SANDBOX_E2B_API_KEY": "k", **config}
+        {"E2B_API_KEY": "k", **config}
     )
     assert backend._create_kwargs()["allow_internet_access"] is expected
 
@@ -167,6 +167,6 @@ async def test_ephemeral_execute_installs_packages_before_run_code() -> None:
 def test_build_backend_wires_packages(config: dict[str, Any], expected_packages: list[str]) -> None:
     adapter = E2BAdapter()
     backend: E2BSandboxBackend = adapter.build_backend(  # type: ignore[assignment]
-        {"PHOENIX_SANDBOX_E2B_API_KEY": "k", **config}
+        {"E2B_API_KEY": "k", **config}
     )
     assert backend._packages == expected_packages
