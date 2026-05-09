@@ -22,6 +22,7 @@ if TYPE_CHECKING:
         AverageExperimentRepeatedRunGroupLatencyDataLoader,
         AverageExperimentRunLatencyDataLoader,
         CacheForDataLoaders,
+        CodeEvaluatorVersionCountDataLoader,
         CodeEvaluatorVersionSequenceNumberDataLoader,
         DatasetDatasetSplitsDataLoader,
         DatasetEvaluatorsByEvaluatorDataLoader,
@@ -123,6 +124,7 @@ class DataLoaders:
     )
     average_experiment_run_latency: AverageExperimentRunLatencyDataLoader
     code_evaluator_fields: TableFieldsDataLoader
+    code_evaluator_version_count: CodeEvaluatorVersionCountDataLoader
     code_evaluator_version_sequence_number: CodeEvaluatorVersionSequenceNumberDataLoader
     dataset_evaluator_fields: TableFieldsDataLoader
     dataset_evaluators_by_evaluator: DatasetEvaluatorsByEvaluatorDataLoader
