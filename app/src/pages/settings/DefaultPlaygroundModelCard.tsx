@@ -20,7 +20,7 @@ import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
  */
 export function DefaultPlaygroundModelCard() {
   return (
-    <Card title="Default Playground Model">
+    <Card title="Default Provider and Model">
       <View padding="size-200">
         <Flex direction="column" gap="size-150" alignItems="start">
           <Text size="XS" color="text-700">

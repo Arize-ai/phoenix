@@ -20,9 +20,9 @@ export function SettingsAIProvidersPage() {
   );
   return (
     <Flex direction="column" gap="size-200">
-      <DefaultPlaygroundModelCard />
       <GenerativeProvidersCard query={data} />
       <CustomProvidersCard query={data} />
+      <DefaultPlaygroundModelCard />
     </Flex>
   );
 }
