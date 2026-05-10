@@ -104,8 +104,7 @@ export function createEditPromptClientAction({
     if (before.output.revision !== parsed.expectedRevision) {
       return {
         ok: false,
-        error:
-          "The prompt changed since read_prompt_instance was called. Call read_prompt_instance again before proposing edits.",
+        error: "The prompt has changed since it was last viewed by PXI.",
       };
     }
     const proposed = buildProposedPromptSnapshot({

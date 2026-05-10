@@ -10,4 +10,4 @@ export const CLONE_PROMPT_INSTANCE_TOOL_NAME =
   PLAYGROUND_PROMPT_TOOL_NAMES.cloneInstance;
 
 export const EDIT_PROMPT_NAVIGATION_CANCEL_ERROR =
-  "The playground was closed before this prompt edit was reviewed. Call read_prompt_instance again before proposing another edit.";
+  "The playground was closed before this edit could be reviewed, so it was discarded.";

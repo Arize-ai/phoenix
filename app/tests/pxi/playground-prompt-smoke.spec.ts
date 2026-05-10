@@ -508,9 +508,7 @@ test.describe("PXI playground prompt smoke", () => {
     }
     await expect(
       page
-        .getByText(
-          /playground was closed before this prompt edit was reviewed/i
-        )
+        .getByText(/playground was closed before this edit could be reviewed/i)
         .first()
     ).toBeVisible({ timeout: 10000 });
 
@@ -526,7 +524,7 @@ test.describe("PXI playground prompt smoke", () => {
         await expect(
           page
             .getByText(
-              /playground was closed before this prompt edit was reviewed/i
+              /playground was closed before this edit could be reviewed/i
             )
             .first()
         ).toBeVisible();

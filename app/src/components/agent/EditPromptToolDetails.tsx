@@ -183,9 +183,8 @@ function PendingEditPromptDiff({
         </Flex>
         {!canRespond ? (
           <ToolPartCodeBlock>
-            This pending prompt edit was restored from saved chat state. Re-run
-            the request or ask PXI to call read_prompt_instance again before
-            applying it.
+            This edit was proposed in an earlier session and can&apos;t be
+            applied here. Re-run your request to have PXI propose it again.
           </ToolPartCodeBlock>
         ) : null}
       </View>

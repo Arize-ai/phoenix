@@ -283,7 +283,7 @@ describe("playground prompt agent tools", () => {
     expect(result).toEqual(
       expect.objectContaining({
         ok: false,
-        error: expect.stringContaining("read_prompt_instance"),
+        error: expect.stringContaining("prompt has changed"),
       })
     );
   });
