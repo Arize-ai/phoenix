@@ -1,7 +1,7 @@
 import json
 import re
 from datetime import datetime
-from typing import Any, Awaitable, Callable, Mapping, Optional
+from typing import Any, Awaitable, Callable, Mapping, Optional, cast
 
 from openinference.semconv.trace import (
     MessageAttributes,
@@ -11,6 +11,7 @@ from openinference.semconv.trace import (
     ToolAttributes,
     ToolCallAttributes,
 )
+from opentelemetry.context import Context as OtelContext
 from opentelemetry.semconv.attributes.url_attributes import URL_FULL, URL_PATH
 from sqlalchemy import select
 from strawberry.relay.types import GlobalID
@@ -24,6 +25,22 @@ from phoenix.db.types.annotation_configs import (
     OptimizationDirection,
 )
 from phoenix.db.types.evaluators import InputMapping
+from phoenix.db.types.prompts import PromptMessageRole, PromptTemplateFormat
+from phoenix.server.api.input_types.ChatCompletionInput import ChatCompletionInput
+from phoenix.server.api.input_types.PromptInvocationParametersInput import (
+    AnthropicThinkingEnabledInput,
+    PromptAnthropicInvocationParametersInput,
+    PromptAnthropicThinkingConfigInput,
+    PromptInvocationParametersInput,
+)
+from phoenix.server.api.input_types.PromptVersionInput import (
+    ChatPromptVersionInput,
+    ContentPartInput,
+    PromptChatTemplateInput,
+    PromptMessageInput,
+    TextContentValueInput,
+)
+from phoenix.server.api.subscriptions import _stream_single_chat_completion
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import (
     ChatCompletionSubscriptionError,
     ChatCompletionSubscriptionExperiment,
@@ -37,6 +54,7 @@ from phoenix.server.api.types.DatasetExample import DatasetExample
 from phoenix.server.api.types.DatasetVersion import DatasetVersion
 from phoenix.server.api.types.Evaluator import DatasetEvaluator
 from phoenix.server.api.types.Experiment import Experiment
+from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
 from phoenix.server.api.types.node import from_global_id
 from phoenix.server.experiments.utils import is_experiment_project_name
 from phoenix.server.types import DbSessionFactory
@@ -155,6 +173,58 @@ class TestChatCompletionSubscription:
         propagatedStatusCode
       }
     """
+
+    async def test_invocation_parameter_validation_error_is_emitted(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        class Client:
+            async def chat_completion_create(self, **_: Any) -> Any:
+                raise AssertionError("validation should fail before the LLM client is called")
+                yield
+
+        stream = _stream_single_chat_completion(
+            input=ChatCompletionInput(
+                prompt_version=ChatPromptVersionInput(
+                    template_format=PromptTemplateFormat.NONE,
+                    template=PromptChatTemplateInput(
+                        messages=[
+                            PromptMessageInput(
+                                role=PromptMessageRole.USER,
+                                content=[
+                                    ContentPartInput(text=TextContentValueInput(text="hello"))
+                                ],
+                            )
+                        ],
+                    ),
+                    invocation_parameters=PromptInvocationParametersInput(
+                        anthropic=PromptAnthropicInvocationParametersInput(
+                            max_tokens=1024,
+                            thinking=PromptAnthropicThinkingConfigInput(
+                                enabled=AnthropicThinkingEnabledInput(budget_tokens=1024)
+                            ),
+                        )
+                    ),
+                    model_provider=GenerativeProviderKey.ANTHROPIC,
+                    model_name="claude-3-5-sonnet-20240620",
+                    tools=None,
+                ),
+                repetitions=1,
+            ),
+            llm_client=cast(Any, Client()),
+            repetition_number=1,
+            db=db,
+            project_id=1,
+            on_span_insertion=lambda: None,
+            span_cost_calculator=cast(Any, object()),
+            otel_context=OtelContext(),
+        )
+
+        payloads = [payload async for payload in stream]
+
+        assert len(payloads) == 1
+        assert isinstance(payloads[0], ChatCompletionSubscriptionError)
+        assert "The thinking budget must be less than max tokens." in payloads[0].message
 
     async def test_openai_text_response_emits_expected_payloads_and_records_expected_span(
         self,
