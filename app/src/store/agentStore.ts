@@ -14,6 +14,7 @@ import {
   type AgentCapabilityKey,
 } from "@phoenix/agent/extensions/capabilities";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
+import type { PendingPromptEdit } from "@phoenix/agent/tools/playgroundPrompt";
 import { generateUUID } from "@phoenix/utils/uuidUtils";
 
 import type { ModelConfig } from "./playground/types";
@@ -227,6 +228,16 @@ export interface AgentState extends AgentProps {
   registeredClientActions: Record<string, AgentClientAction>;
   registerClientAction: (name: string, action: AgentClientAction) => void;
   unregisterClientAction: (name: string) => void;
+
+  // -- Prompt edit approvals advertised by edit_prompt_instance tool calls --
+  // TODO(pending-tool-rehydration): Replace this edit_prompt_instance-specific state
+  // with a generic pending tool state map keyed by toolCallId. The tool
+  // registry should own each tool's serializer and runtime rebinder.
+  pendingPromptEditsByToolCallId: Partial<Record<string, PendingPromptEdit>>;
+  setPendingPromptEdit: (
+    toolCallId: string,
+    edit: PendingPromptEdit | null
+  ) => void;
 }
 
 /**
@@ -240,7 +251,8 @@ export type AgentClientActionResult =
   | { ok: false; error: string };
 
 export type AgentClientAction = (
-  input: unknown
+  input: unknown,
+  context?: unknown
 ) => Promise<AgentClientActionResult>;
 
 /**
@@ -269,6 +281,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     capabilities: createDefaultAgentCapabilities(),
     routeContexts: [],
     mountedContexts: {},
+    pendingPromptEditsByToolCallId: {},
     setIsOpen: (isOpen) => {
       set({ isOpen }, false, { type: "setIsOpen" });
     },
@@ -627,13 +640,29 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       );
     },
 
+    setPendingPromptEdit: (toolCallId, edit) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingPromptEditsByToolCallId };
+          if (edit) {
+            next[toolCallId] = edit;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingPromptEditsByToolCallId: next };
+        },
+        false,
+        { type: "setPendingPromptEdit" }
+      );
+    },
+
     ...initialProps,
   });
 
   return create<AgentState>()(
     persist(devtools(agentStore, { name: "agentStore" }), {
       name: "arize-phoenix-agent",
-      version: 5,
+      version: 6,
       migrate: (persisted, version) => {
         const state = persisted as Partial<AgentProps> & {
           capabilities?: Partial<AgentCapabilities>;
@@ -679,6 +708,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             ...(state.observability ?? {}),
           },
           capabilities: migratedCapabilities,
+          pendingPromptEditsByToolCallId: {},
         } as AgentState;
       },
       partialize: (state) => ({

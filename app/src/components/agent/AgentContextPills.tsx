@@ -29,6 +29,8 @@ function contextLabel(context: AgentContext): string {
       // App context is request-only clock metadata injected at send time, not
       // user-visible page context, so it should never render as a pill.
       return "";
+    case "playground":
+      return "Playground";
     case "project":
       return "Project";
     case "trace":

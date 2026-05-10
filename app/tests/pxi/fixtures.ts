@@ -36,11 +36,17 @@ function getAssistantProjectName() {
   );
 }
 
-async function installAgentDefaults({ page }: { page: Page }) {
+async function installAgentDefaults({
+  page,
+  useV2Endpoint = false,
+}: {
+  page: Page;
+  useV2Endpoint?: boolean;
+}) {
   const assistantProvider = getAssistantProvider();
   const assistantModel = getAssistantModel();
   await page.addInitScript(
-    ({ provider, modelName }) => {
+    ({ provider, modelName, useV2 }) => {
       localStorage.clear();
       localStorage.setItem(
         "arize-phoenix-feature-flags",
@@ -67,6 +73,11 @@ async function installAgentDefaults({ page }: { page: Page }) {
               exportRemoteTraces: false,
               hasAcknowledgedConsent: false,
             },
+            capabilities: {
+              "bash.retainInactiveSessions": false,
+              "graphql.mutations": false,
+              "chat.useV2Endpoint": useV2,
+            },
           },
           version: 5,
         })
@@ -75,6 +86,7 @@ async function installAgentDefaults({ page }: { page: Page }) {
     {
       provider: assistantProvider,
       modelName: assistantModel,
+      useV2: useV2Endpoint,
     }
   );
 }
@@ -82,21 +94,28 @@ async function installAgentDefaults({ page }: { page: Page }) {
 export class PxiDriver {
   private page: Page;
   private request: APIRequestContext;
+  private useV2Endpoint: boolean;
 
   constructor({
     page,
     request,
+    useV2Endpoint = false,
   }: {
     page: Page;
     request: APIRequestContext;
     testInfo: TestInfo;
+    useV2Endpoint?: boolean;
   }) {
     this.page = page;
     this.request = request;
+    this.useV2Endpoint = useV2Endpoint;
   }
 
   async open() {
-    await installAgentDefaults({ page: this.page });
+    await installAgentDefaults({
+      page: this.page,
+      useV2Endpoint: this.useV2Endpoint,
+    });
     await this.page.goto("/projects");
     await this.page.getByRole("button", { name: "Open agent chat" }).click();
     await expect(
@@ -255,6 +274,18 @@ export class PxiDriver {
 export const test = base.extend<{ pxi: PxiDriver }>({
   pxi: async ({ page, request }, provide, testInfo) => {
     await provide(new PxiDriver({ page, request, testInfo }));
+  },
+});
+
+/**
+ * Test fixture that uses the chat v2 endpoint.
+ * Use this for tests that require v2-only features like playground prompt tools.
+ */
+export const testV2 = base.extend<{ pxi: PxiDriver }>({
+  pxi: async ({ page, request }, provide, testInfo) => {
+    await provide(
+      new PxiDriver({ page, request, testInfo, useV2Endpoint: true })
+    );
   },
 });
 

@@ -86,8 +86,15 @@ class AppContext(_ChatContextBase):
     time_zone: str = Field(alias="timeZone")
 
 
+class PlaygroundContext(_ChatContextBase):
+    """Playground prompt editor state mounted in the current browser route."""
+
+    type: Literal["playground"]
+    instance_ids: list[int] = Field(alias="instanceIds")
+
+
 ChatContext = Annotated[
-    AppContext | ProjectContext | TraceContext | AgentSpanContext,
+    AppContext | ProjectContext | TraceContext | AgentSpanContext | PlaygroundContext,
     Field(discriminator="type"),
 ]
 
@@ -98,6 +105,7 @@ class ResolvedContexts:
     project: ProjectContext | None = None
     trace: TraceContext | None = None
     span: AgentSpanContext | None = None
+    playground: PlaygroundContext | None = None
 
 
 ToolCallable = Callable[[dict[str, Any]], Awaitable[str]]
@@ -114,6 +122,8 @@ def resolve_contexts(items: list[ChatContext]) -> ResolvedContexts:
     for item in items:
         if isinstance(item, AppContext):
             resolved.app = item
+        elif isinstance(item, PlaygroundContext):
+            resolved.playground = item
         elif isinstance(item, ProjectContext):
             resolved.project = item
         elif isinstance(item, TraceContext):
@@ -215,6 +225,28 @@ def build_phoenix_context_user_message_content(
             )
         elif root_spans_only is False:
             body_lines.append("  - Spans table is showing all spans (root and non-root)")
+        has_context = True
+    if resolved.playground is not None:
+        instance_labels = ", ".join(
+            f"{chr(65 + index)} (instance ID {instance_id})"
+            for index, instance_id in enumerate(resolved.playground.instance_ids)
+        )
+        if instance_labels:
+            body_lines.append(
+                f"- Playground prompt editor is available with instances: {instance_labels}"
+            )
+        else:
+            body_lines.append("- Playground prompt editor is available")
+        body_lines.append(
+            "  - Use the alphabetic labels (A, B, C, D) when discussing instances with "
+            "the user, and pass the corresponding numeric instance ID when calling tools"
+        )
+        body_lines.append(
+            "  - Use `read_prompt_instance` before proposing edits, "
+            "`clone_prompt_instance` to create comparison variants, and "
+            "`edit_prompt_instance` to show the user an approval diff before changing "
+            "prompt messages"
+        )
         has_context = True
     if resolved.trace is not None:
         body_lines.append(f"- Trace (OpenTelemetry trace ID, hex): {resolved.trace.otel_trace_id}")

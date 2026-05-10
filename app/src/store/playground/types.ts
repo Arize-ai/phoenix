@@ -443,6 +443,12 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
   allInstanceMessages: Record<number, ChatMessage>;
 
   /**
+   * Per-message revision bumped only by external programmatic edits that need
+   * to reset the uncontrolled prompt editor. Normal typing does not update it.
+   */
+  externallyUpdatedMessageRevisionById: Record<number, number>;
+
+  /**
    * A map of instance id to whether the instance is dirty
    */
   dirtyInstances: Record<number, boolean>;

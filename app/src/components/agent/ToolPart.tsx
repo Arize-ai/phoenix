@@ -1,6 +1,9 @@
 import { css } from "@emotion/react";
 import { getToolName } from "ai";
+import { useEffect, useRef, useState } from "react";
 
+import { getAgentToolUIBehavior } from "@phoenix/agent/extensions/toolRegistry";
+import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
 import { Icon, Icons } from "@phoenix/components";
 
 import {
@@ -15,6 +18,11 @@ import {
   getDocsToolPreview,
   isDocsToolName,
 } from "./DocsToolDetails";
+import {
+  EditPromptToolDetails,
+  formatEditPromptState,
+  getEditPromptToolPreview,
+} from "./EditPromptToolDetails";
 import {
   ToolPartCodeBlock,
   ToolPartLabel,
@@ -264,15 +272,54 @@ export function ToolPart({ part }: { part: MessagePart }) {
     return null;
   }
 
+  return <ToolInvocationPartDetails part={part} />;
+}
+
+function ToolInvocationPartDetails({ part }: { part: ToolInvocationPart }) {
   const toolName = getToolName(part);
+  const uiBehavior = getAgentToolUIBehavior(toolName);
+  const detailsRef = useRef<HTMLDetailsElement>(null);
+  const hasAutoOpenedRef = useRef(false);
+  const [manualOpen, setManualOpen] = useState<boolean | null>(null);
   const { preview, stateLabel, statusVariant, details } = getToolPresentation(
     toolName,
     part
   );
+  const shouldAutoOpen = shouldAutoOpenToolPart(part, preview);
+  const isRenderedOpen = manualOpen ?? shouldAutoOpen;
+
+  useEffect(() => {
+    if (!shouldAutoOpen || hasAutoOpenedRef.current) {
+      return;
+    }
+    hasAutoOpenedRef.current = true;
+    if (uiBehavior?.scrollIntoViewOnMount !== true) {
+      return;
+    }
+    requestAnimationFrame(() => {
+      detailsRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
+  }, [shouldAutoOpen, uiBehavior?.scrollIntoViewOnMount]);
 
   return (
-    <details className="tool-part" css={toolPartCSS}>
-      <summary>
+    <details
+      ref={detailsRef}
+      className="tool-part"
+      css={toolPartCSS}
+      open={isRenderedOpen}
+    >
+      <summary
+        onClick={(event) => {
+          // Keep <details> fully React-controlled. Letting the browser toggle
+          // natively can race the auto-open/manual override state during tool
+          // streaming updates and make the disclosure feel stuck.
+          event.preventDefault();
+          setManualOpen(!isRenderedOpen);
+        }}
+      >
         <div className="tool-part__summary">
           <span className="tool-part__title">
             <Icon svg={<Icons.ChevronDown />} className="tool-part__chevron" />
@@ -291,6 +338,24 @@ export function ToolPart({ part }: { part: MessagePart }) {
       <div>{details}</div>
     </details>
   );
+}
+
+export function shouldAutoOpenToolPart(
+  part: ToolInvocationPart,
+  preview: string
+): boolean {
+  const toolName = getToolName(part);
+  const uiBehavior = getAgentToolUIBehavior(toolName);
+  if (uiBehavior?.autoOpen !== true) {
+    return false;
+  }
+  // Avoid opening an empty shell while tool arguments are still absent. Once the
+  // preview can be derived from arguments, the expanded details have context.
+  return preview !== "" || part.state !== "input-streaming";
+}
+
+export function getToolPartPreview(part: ToolInvocationPart): string {
+  return getToolPresentation(getToolName(part), part).preview;
 }
 
 // ---------------------------------------------------------------------------
@@ -347,6 +412,13 @@ function getToolPresentation(
         details: <AskUserToolDetails part={part} />,
       };
     }
+    case EDIT_PROMPT_TOOL_NAME:
+      return {
+        preview: getEditPromptToolPreview(part),
+        stateLabel: formatEditPromptState(part),
+        statusVariant,
+        details: <EditPromptToolDetails part={part} />,
+      };
     default: {
       if (isDocsToolName(toolName)) {
         return {

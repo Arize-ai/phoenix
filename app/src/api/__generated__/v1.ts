@@ -2882,6 +2882,19 @@ export interface components {
              */
             message?: string | null;
         };
+        /**
+         * PlaygroundContext
+         * @description Playground prompt editor state mounted in the current browser route.
+         */
+        PlaygroundContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "playground";
+            /** Instanceids */
+            instanceIds: number[];
+        };
         /** Project */
         Project: {
             /** Name */
@@ -4856,7 +4869,7 @@ export interface components {
             /** Messageid */
             messageId?: string | null;
             /** Contexts */
-            contexts?: (components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"])[];
+            contexts?: (components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"])[];
             capabilities?: components["schemas"]["AgentCapabilities"];
             /** Sessionid */
             sessionId: string;
@@ -4878,7 +4891,7 @@ export interface components {
             /** Messages */
             messages: components["schemas"]["UIMessage"][];
             /** Contexts */
-            contexts?: (components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"])[];
+            contexts?: (components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"])[];
             capabilities?: components["schemas"]["AgentCapabilities"];
             /** Sessionid */
             sessionId: string;

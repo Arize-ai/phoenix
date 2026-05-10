@@ -109,9 +109,17 @@ export type AgentAppContext = {
   timeZone: string;
 };
 
+/** Playground prompt editor state currently mounted in the browser. */
+export type AgentPlaygroundContext = {
+  type: "playground";
+  /** Playground instance IDs available for prompt read/edit tools. */
+  instanceIds: number[];
+};
+
 /** Discriminated union of every context type the agent understands. */
 export type AgentContext =
   | AgentAppContext
+  | AgentPlaygroundContext
   | AgentProjectContext
   | AgentTraceContext
   | AgentSpanContext;
@@ -126,6 +134,8 @@ export function agentContextKey(context: AgentContext): string {
   switch (context.type) {
     case "app":
       return "app";
+    case "playground":
+      return "playground";
     case "project":
       return `project:${context.projectNodeId}`;
     case "trace":
