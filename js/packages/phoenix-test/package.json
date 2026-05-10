@@ -1,0 +1,101 @@
+{
+  "name": "@arizeai/phoenix-test",
+  "version": "0.1.0",
+  "description": "Run dataset-backed evaluations as Vitest or Jest tests, syncing results to Phoenix",
+  "keywords": [
+    "arize",
+    "evals",
+    "evaluation",
+    "experiments",
+    "jest",
+    "llm",
+    "openinference",
+    "phoenix",
+    "tracing",
+    "vitest"
+  ],
+  "homepage": "https://github.com/Arize-ai/phoenix/tree/main/js/packages/phoenix-test",
+  "bugs": {
+    "url": "https://github.com/Arize-ai/phoenix/issues"
+  },
+  "license": "Apache-2.0",
+  "author": "oss@arize.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Arize-ai/phoenix.git"
+  },
+  "directories": {
+    "doc": "./docs"
+  },
+  "files": [
+    "dist",
+    "docs",
+    "src",
+    "package.json",
+    "README.md"
+  ],
+  "main": "dist/src/vitest/index.js",
+  "module": "dist/esm/vitest/index.js",
+  "types": "dist/src/vitest/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/esm/vitest/index.js",
+      "require": "./dist/src/vitest/index.js"
+    },
+    "./vitest": {
+      "import": "./dist/esm/vitest/index.js",
+      "require": "./dist/src/vitest/index.js"
+    },
+    "./vitest/reporter": {
+      "import": "./dist/esm/vitest/reporter.js",
+      "require": "./dist/src/vitest/reporter.js"
+    },
+    "./jest": {
+      "import": "./dist/esm/jest/index.js",
+      "require": "./dist/src/jest/index.js"
+    },
+    "./jest/reporter": {
+      "import": "./dist/esm/jest/reporter.js",
+      "require": "./dist/src/jest/reporter.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build tsconfig.json tsconfig.esm.json && tsc-alias -p tsconfig.esm.json",
+    "clean": "rimraf dist",
+    "postbuild": "echo '{\"type\": \"module\"}' > ./dist/esm/package.json",
+    "postpack": "node ../../scripts/sync-package-docs.mjs clean phoenix-test",
+    "prebuild": "pnpm run clean",
+    "prepack": "node ../../scripts/sync-package-docs.mjs phoenix-test",
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@arizeai/openinference-semantic-conventions": "^2.1.7",
+    "@arizeai/phoenix-client": "workspace:*",
+    "@arizeai/phoenix-otel": "workspace:*",
+    "@opentelemetry/api": "^1.9.0"
+  },
+  "devDependencies": {
+    "@arizeai/phoenix-evals": "workspace:*",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20.17.22",
+    "jest": "^29.7.0",
+    "vitest": "^4.1.0"
+  },
+  "peerDependencies": {
+    "jest": ">=27",
+    "vitest": ">=1"
+  },
+  "peerDependenciesMeta": {
+    "jest": {
+      "optional": true
+    },
+    "vitest": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

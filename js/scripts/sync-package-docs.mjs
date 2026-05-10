@@ -25,6 +25,11 @@ const packageDocMap = {
       "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel",
     targetDir: "js/packages/phoenix-otel/docs",
   },
+  "phoenix-test": {
+    sourceDir:
+      "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-test",
+    targetDir: "js/packages/phoenix-test/docs",
+  },
 };
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));

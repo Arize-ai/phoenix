@@ -1,0 +1,156 @@
+---
+title: "Annotations"
+description: "Record annotations and evaluator results on Phoenix experiment runs"
+---
+
+Annotations are how `@arizeai/phoenix-test` records scored, labeled, or
+explained results on an experiment run. They map directly to Phoenix's
+`experiment_evaluations` REST surface — each annotation becomes one
+`ExperimentEvaluation` with an `ExperimentEvaluationResult` body.
+
+## The `Annotation` Shape
+
+```ts
+interface Annotation {
+  /** Phoenix evaluation name. Required. */
+  name: string;
+  /** Numeric or boolean score. Booleans are stored as 0 / 1. */
+  score?: number | boolean | null;
+  /** Categorical label. */
+  label?: string | null;
+  /** Free-form explanation, shown in the Phoenix UI. */
+  explanation?: string | null;
+  /** Custom metadata. */
+  metadata?: Record<string, unknown>;
+  /** Source of the annotation. Defaults to "CODE". */
+  annotatorKind?: "LLM" | "CODE" | "HUMAN";
+}
+```
+
+The fields line up with Phoenix's
+`ExperimentEvaluationResult` plus the `name` and `annotator_kind` carried
+on the surrounding evaluation body.
+
+## `logAnnotation(annotation)`
+
+Records a single annotation against the current run. Must be called
+inside a `test()` body.
+
+```ts
+import * as px from "@arizeai/phoenix-test";
+
+px.describe("demo", () => {
+  px.test(
+    "manual annotation",
+    { input: { x: 1 }, expected: { y: 2 } },
+    async ({ input, expected }) => {
+      const result = myApp(input.x);
+      px.logOutput({ y: result });
+
+      px.logAnnotation({
+        name: "harmfulness",
+        score: 0.2,
+        explanation: "no PII detected",
+        annotatorKind: "CODE",
+      });
+    },
+  );
+});
+```
+
+## `wrapEvaluator(fn, options?)`
+
+Wraps an evaluator function so its execution shows up as a separate
+OpenInference `EVALUATOR` span in Phoenix. If the return value is
+`{ name, score, ... }`-shaped it is automatically logged as an
+annotation on the current run; otherwise it's just traced.
+
+```ts
+import * as px from "@arizeai/phoenix-test";
+
+const correctness = px.wrapEvaluator(
+  async ({ output, expected }: {
+    output: { sql: string };
+    expected: { sql: string };
+  }) => {
+    const grade = await llmAsJudge(output.sql, expected.sql);
+    return {
+      name: "correctness",
+      score: grade.score,
+      label: grade.passed ? "correct" : "incorrect",
+      explanation: grade.rationale,
+    };
+  },
+);
+
+px.describe("generate sql", () => {
+  px.test(
+    "select all",
+    {
+      input: { userQuery: "Get all users from the customers table" },
+      expected: { sql: "SELECT * FROM customers;" },
+    },
+    async ({ input, expected }) => {
+      const sql = await myApp(input.userQuery);
+      px.logOutput({ sql });
+      // Records a `correctness` annotation as a side effect:
+      await correctness({
+        output: { sql },
+        expected: expected ?? { sql: "" },
+      });
+    },
+  );
+});
+```
+
+The annotation `name` defaults to the wrapped function's name (or
+`"evaluator"` if the function is anonymous). Override it explicitly
+when you have several wrappers around the same callable:
+
+```ts
+const harshJudge = px.wrapEvaluator(judge, { name: "correctness-strict" });
+const lenientJudge = px.wrapEvaluator(judge, { name: "correctness-lenient" });
+```
+
+## Using `@arizeai/phoenix-evals`
+
+`wrapEvaluator()` accepts any function whose return value is
+annotation-shaped, so the built-in classifiers from
+`@arizeai/phoenix-evals` can be wired in directly:
+
+```ts
+import * as px from "@arizeai/phoenix-test";
+import { createClassifier } from "@arizeai/phoenix-evals";
+
+const isHallucination = createClassifier({
+  /* ... */
+});
+
+const hallucination = px.wrapEvaluator(
+  async ({ output }: { output: { answer: string } }) => {
+    const result = await isHallucination({ answer: output.answer });
+    return {
+      name: "hallucination",
+      score: result.score,
+      label: result.label,
+      explanation: result.explanation,
+      annotatorKind: "LLM",
+    };
+  },
+);
+```
+
+## Built-In `pass` Annotation
+
+Every test automatically records a `pass` boolean annotation based on
+whether the test body threw. You don't have to log it yourself; it's
+included in the reporter summary and on the run in Phoenix.
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/core/helpers.ts</code></li>
+    <li><code>src/core/phoenix.ts</code></li>
+    <li><code>src/core/types.ts</code></li>
+  </ul>
+</section>

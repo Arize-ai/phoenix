@@ -1,0 +1,41 @@
+---
+title: "@arizeai/phoenix-test"
+---
+
+[![NPM Version](https://img.shields.io/npm/v/%40arizeai%2Fphoenix-test)](https://www.npmjs.com/package/@arizeai/phoenix-test)
+
+Run dataset-backed Phoenix evaluations as Vitest or Jest tests. Each
+`describe()` block becomes a Phoenix dataset and a new experiment;
+each `test()` becomes a dataset example and a recorded experiment run;
+the assertion outcome is captured as a `pass` boolean annotation.
+
+## Installation
+
+```bash
+npm install -D @arizeai/phoenix-test
+```
+
+<Note>
+`@arizeai/phoenix-test` ships local docs and source code inside `node_modules/@arizeai/phoenix-test/`.
+
+Browse the website version under [@arizeai/phoenix-test Docs](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-test/overview).
+</Note>
+
+## Start Here
+
+- [Package overview](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-test/overview) for the module map, environment configuration, and dry-run mode
+- [Vitest](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-test/vitest) — config, reporter, and the full `describe` / `test` / `test.each` API
+- [Jest](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-test/jest) — same API, wired to Jest globals
+- [Annotations](/docs/phoenix/sdk-api-reference/typescript/packages/phoenix-test/annotations) — `logAnnotation`, `wrapEvaluator`, the `Annotation` shape
+
+## Local Install Pattern
+
+After install, a coding agent can inspect:
+
+```text
+node_modules/@arizeai/phoenix-test/docs/
+node_modules/@arizeai/phoenix-test/src/
+```
+
+That gives the agent version-matched prose plus the exact implementation
+that shipped with your project.

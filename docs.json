@@ -904,6 +904,16 @@
                   "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-otel/manual-spans"
                 ]
               },
+              {
+                "group": "@arizeai/phoenix-test",
+                "root": "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-test",
+                "pages": [
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-test/overview",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-test/vitest",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-test/jest",
+                  "docs/phoenix/sdk-api-reference/typescript/packages/phoenix-test/annotations"
+                ]
+              },
               "docs/phoenix/sdk-api-reference/typescript/arizeai-openinference-core",
               "docs/phoenix/sdk-api-reference/typescript/mcp-server",
               "docs/phoenix/sdk-api-reference/typescript/arizeai-phoenix-cli"

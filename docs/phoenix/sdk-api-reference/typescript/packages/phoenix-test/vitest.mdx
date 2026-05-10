@@ -1,0 +1,155 @@
+---
+title: "Vitest"
+description: "Wire @arizeai/phoenix-test into a Vitest project"
+---
+
+`@arizeai/phoenix-test` ships a Vitest entrypoint plus an optional
+reporter that prints a Phoenix-flavored summary at the end of the run.
+
+## Setup
+
+Create a separate `phoenix.vitest.config.ts` so eval files don't get
+swept into your normal unit-test config:
+
+```ts
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    include: ["**/*.eval.?(c|m)[jt]s"],
+    reporters: ["@arizeai/phoenix-test/vitest/reporter"],
+    setupFiles: ["dotenv/config"],
+    testTimeout: 30000,
+  },
+});
+```
+
+- `include` keeps eval suites separate from unit tests by matching the
+  `*.eval.ts` convention.
+- `reporters` enables the Phoenix summary block.
+- `setupFiles: ["dotenv/config"]` loads `PHOENIX_HOST`, `PHOENIX_API_KEY`,
+  and any other env vars from `.env`.
+- `testTimeout` is bumped because LLM calls can be slow.
+
+<Note>
+The `jsdom` test environment is not supported. Either omit `environment`
+or set it to `"node"`.
+</Note>
+
+Add a script to `package.json`:
+
+```json
+{
+  "scripts": {
+    "eval": "vitest run --config phoenix.vitest.config.ts"
+  }
+}
+```
+
+The script intentionally uses `vitest run` rather than watch mode —
+many evaluators include longer-running LLM calls.
+
+## API
+
+```ts
+import * as px from "@arizeai/phoenix-test";
+```
+
+### `describe(name, fn, config?)`
+
+Declares a Phoenix test suite. The suite name is the dataset and
+experiment name on the Phoenix server. `describe.only` and
+`describe.skip` work like Vitest's variants.
+
+```ts
+px.describe("my suite", () => { ... }, {
+  datasetName: "override-dataset-and-experiment-name",
+  description: "what this suite is for",
+  metadata: { model: "gpt-4o-mini" },
+  client: myCustomPhoenixClient, // overrides createClient()
+});
+```
+
+| Field | Type | Description |
+|--------|------|-------------|
+| `datasetName` | `string` | Override the dataset / experiment name (defaults to the suite name). |
+| `description` | `string` | Description recorded on the dataset and experiment. |
+| `metadata` | `Record<string, unknown>` | Suite-level metadata applied to the experiment. |
+| `client` | `PhoenixClient` | Pre-configured `@arizeai/phoenix-client` instance. |
+
+### `test(name, params, fn, timeout?)`
+
+Declares a single Phoenix test case. The `params` object carries the
+Phoenix `Example` fields. `test.only`, `test.skip`, and `test.each`
+mirror Vitest semantics. `it` is a re-export of `test`.
+
+```ts
+px.test(
+  "a case",
+  {
+    input: { userQuery: "..." },
+    expected: { sql: "..." },
+    metadata: { hard: true },
+    id: "stable-example-id",
+  },
+  async ({ input, expected, metadata }) => {
+    const sql = await myApp(input.userQuery);
+    px.logOutput({ sql });
+    expect(sql).toEqual(expected?.sql);
+  },
+);
+```
+
+| Param field | Maps to |
+|--------|---------|
+| `input` | `Example.input` |
+| `expected` | `Example.output` (reference) |
+| `metadata` | `Example.metadata` |
+| `id` | `Example.id` (stable upsert id) |
+
+### `test.each(table)(name, fn, timeout?)`
+
+Run the same test body across many examples.
+
+```ts
+const DATASET = [
+  { input: { userQuery: "whats up" }, expected: { sql: "n/a" } },
+  { input: { userQuery: "how are you?" }, expected: { sql: "n/a" } },
+];
+
+px.describe("offtopic inputs", () => {
+  px.test.each(DATASET)("offtopic input", async ({ input, expected }) => {
+    const sql = await myApp(input.userQuery);
+    px.logOutput({ sql });
+  });
+});
+```
+
+The name template supports `%i`, `%s`, and `%j` for parity with Vitest's
+`test.each`. Without a placeholder the row index is appended.
+
+### Logging
+
+- `px.logOutput(value)` records the actual `output` for the run.
+- `px.logAnnotation({ name, score, ... })` records an annotation.
+- `px.wrapEvaluator(fn)` traces the wrapped call as an OpenInference
+  `EVALUATOR` span and auto-files `{ name, score }`-shaped return
+  values as annotations.
+
+See [Annotations](./annotations) for the full annotation shape.
+
+## Reporter Output
+
+When `@arizeai/phoenix-test/vitest/reporter` is loaded, the runner prints
+a per-suite block at the end of the run with pass/fail counts,
+annotation aggregates, and links to the Phoenix dataset and experiment.
+The default Vitest reporter still runs alongside it.
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/vitest/index.ts</code></li>
+    <li><code>src/vitest/reporter.ts</code></li>
+    <li><code>src/core/runner.ts</code></li>
+  </ul>
+</section>

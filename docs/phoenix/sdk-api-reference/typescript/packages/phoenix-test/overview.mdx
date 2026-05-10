@@ -1,0 +1,130 @@
+---
+title: "Overview"
+description: "Run dataset-backed Phoenix evaluations as Vitest or Jest tests"
+---
+
+`@arizeai/phoenix-test` lets you write evaluations as ordinary Vitest or
+Jest tests. Each `describe()` block becomes a Phoenix dataset and a new
+experiment; each `test()` becomes a dataset example plus a recorded
+experiment run; the assertion outcome is captured as a `pass` boolean
+annotation. Anything you log via `logOutput()` / `logAnnotation()` /
+`wrapEvaluator()` lands on the run.
+
+Tracing is provided by `@arizeai/phoenix-otel` (OpenInference). LLM and
+agent calls instrumented with OpenInference appear as child spans of
+each test's task span.
+
+## Install
+
+```bash
+npm install -D @arizeai/phoenix-test vitest dotenv
+# or, for jest:
+npm install -D @arizeai/phoenix-test jest dotenv
+```
+
+## Minimal Example
+
+```ts
+import * as px from "@arizeai/phoenix-test";
+import { expect } from "vitest";
+
+px.describe("generate sql demo", () => {
+  px.test(
+    "generates select all",
+    {
+      input: { userQuery: "Get all users from the customers table" },
+      expected: { sql: "SELECT * FROM customers;" },
+    },
+    async ({ input, expected }) => {
+      const sql = await myApp(input.userQuery);
+      px.logOutput({ sql });
+      expect(sql).toEqual(expected?.sql);
+    },
+  );
+});
+```
+
+## Docs And Source In `node_modules`
+
+After install, a coding agent can inspect the installed package directly:
+
+```text
+node_modules/@arizeai/phoenix-test/docs/
+node_modules/@arizeai/phoenix-test/src/
+```
+
+That gives the agent version-matched docs plus the exact implementation
+that shipped with your project.
+
+## Module Map
+
+| Import | Purpose |
+|--------|---------|
+| `@arizeai/phoenix-test` | Default Vitest entrypoint (`describe`, `test`, `it`, `logOutput`, `logAnnotation`, `wrapEvaluator`) |
+| `@arizeai/phoenix-test/vitest` | Explicit Vitest entrypoint |
+| `@arizeai/phoenix-test/vitest/reporter` | Vitest reporter that prints a Phoenix-flavored summary at the end of the run |
+| `@arizeai/phoenix-test/jest` | Same API surface, wired to Jest globals |
+| `@arizeai/phoenix-test/jest/reporter` | Jest reporter |
+
+## Phoenix Terminology
+
+The public API uses Phoenix terms end-to-end. There is no LangSmith
+naming layer — what you read in this package matches what shows up in
+the Phoenix UI and the REST API.
+
+| `phoenix-test` field        | Phoenix concept                          |
+| --------------------------- | ---------------------------------------- |
+| `input`                     | `Example.input`                          |
+| `expected`                  | `Example.output` (reference)             |
+| `metadata`                  | `Example.metadata`                       |
+| `id`                        | `Example.id` (stable upsert id)          |
+| `logOutput(value)`          | `ExperimentRun.output`                   |
+| `Annotation.name`           | `ExperimentEvaluation.name`              |
+| `Annotation.score`          | `ExperimentEvaluationResult.score`       |
+| `Annotation.label`          | `ExperimentEvaluationResult.label`       |
+| `Annotation.explanation`    | `ExperimentEvaluationResult.explanation` |
+| `Annotation.annotatorKind`  | `annotator_kind` (`LLM` / `CODE` / `HUMAN`) |
+
+## Configuration
+
+`@arizeai/phoenix-test` reuses `@arizeai/phoenix-client` and
+`@arizeai/phoenix-otel`, so configuration goes through the standard
+Phoenix env vars.
+
+| Variable | Purpose |
+| --- | --- |
+| `PHOENIX_HOST` / `PHOENIX_COLLECTOR_ENDPOINT` | Phoenix base URL |
+| `PHOENIX_API_KEY` | Bearer token for Phoenix |
+| `PHOENIX_PROJECT_NAME` | Override project name for the experiment's traces |
+| `PHOENIX_TEST_TRACKING=false` | Disable sync to Phoenix for the current run |
+
+## Dry-Run Mode
+
+To run tests locally without uploading to Phoenix, set
+`PHOENIX_TEST_TRACKING=false` (or omit the standard Phoenix env vars).
+The suite runs as ordinary tests, the reporter prints a local summary,
+and no network calls are made.
+
+## Where To Start
+
+- [Vitest](./vitest) — config, reporter, and the full `describe` /
+  `test` / `test.each` API as it surfaces in Vitest
+- [Jest](./jest) — the same API surface in a Jest project
+- [Annotations](./annotations) — `logAnnotation`, `wrapEvaluator`, and
+  the `Annotation` shape
+
+<section className="hidden" data-agent-context="source-map" aria-label="Source map">
+  <h2>Source Map</h2>
+  <ul>
+    <li><code>src/vitest/index.ts</code></li>
+    <li><code>src/vitest/reporter.ts</code></li>
+    <li><code>src/jest/index.ts</code></li>
+    <li><code>src/jest/reporter.ts</code></li>
+    <li><code>src/core/runner.ts</code></li>
+    <li><code>src/core/helpers.ts</code></li>
+    <li><code>src/core/phoenix.ts</code></li>
+    <li><code>src/core/state.ts</code></li>
+    <li><code>src/core/types.ts</code></li>
+    <li><code>src/core/reporter-format.ts</code></li>
+  </ul>
+</section>
