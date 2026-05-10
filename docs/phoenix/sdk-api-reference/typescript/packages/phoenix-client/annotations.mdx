@@ -1,6 +1,6 @@
 ---
 title: "Annotations"
-description: "Attach structured feedback to spans, documents, and sessions with @arizeai/phoenix-client"
+description: "Attach structured feedback to spans, documents, traces, and sessions with @arizeai/phoenix-client"
 ---
 
 Annotations are structured feedback records — labels, scores, and explanations — attached to observability artifacts in Phoenix. They are the primary mechanism for recording quality signals, whether those signals come from end-users, LLM judges, or programmatic checks.
@@ -11,6 +11,7 @@ Annotations are structured feedback records — labels, scores, and explanations
     <li><code>src/types/annotations.ts</code> for the shared <code>Annotation</code> base interface</li>
     <li><code>src/spans/types.ts</code> for <code>SpanAnnotation</code> and <code>DocumentAnnotation</code></li>
     <li><code>src/sessions/types.ts</code> for <code>SessionAnnotation</code></li>
+    <li><code>src/traces/types.ts</code> for <code>TraceAnnotation</code></li>
   </ul>
 </section>
 
@@ -31,7 +32,7 @@ Phoenix supports four annotation targets, each focused on a different level of y
 - **[Span Annotations](./span-annotations)** — Feedback on individual traced operations: an LLM call, a tool invocation, a retrieval step. The most common annotation target.
 - **[Document Annotations](./document-annotations)** — Feedback on specific retrieved documents within a retriever span, indexed by position. Essential for evaluating RAG pipeline quality.
 - **[Session Annotations](./session-annotations)** — Feedback on multi-turn conversations or threads as a whole. Use for conversation-level quality signals like resolution rate or customer satisfaction.
-- **[Trace Annotations](./traces)** — Feedback attached to a specific trace (root span). Use `addTraceAnnotation` or `logTraceAnnotations` from `@arizeai/phoenix-client/traces` when you want to score a single LLM response by its trace ID. Use session annotations instead when scoring a multi-turn conversation as a whole.
+- **[Trace Annotations](./traces#annotate-a-single-trace)** — Feedback attached to a single trace, identified by its trace ID. Use `addTraceAnnotation` or `logTraceAnnotations` from `@arizeai/phoenix-client/traces` when scoring an end-to-end request. Reach for session annotations instead when scoring a multi-turn conversation as a whole.
 
 ## Annotator Kinds
 
@@ -60,7 +61,7 @@ interface Annotation {
 
 At least one of `label`, `score`, or `explanation` must be provided.
 
-Each target adds its own identifier field — `spanId` for spans, `spanId` + `documentPosition` for documents, and `sessionId` for sessions.
+Each target adds its own identifier field — `spanId` for spans, `spanId` + `documentPosition` for documents, `traceId` for traces, and `sessionId` for sessions.
 
 ## Sync vs. Async
 

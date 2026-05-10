@@ -339,13 +339,13 @@ px session get my-chat-session-001 --format raw | jq            # Pipe to jq
 
 ### `px session annotate <session-id>`
 
-Create or update a session annotation by GlobalID or user-provided `session_id`.
+Add or update an annotation on a session. Address the session by GlobalID or by user-provided `session_id`.
 
 ```bash
-px session annotate my-session-id --name reviewer --label pass
-px session annotate my-session-id --name reviewer --score 0.9 --format raw --no-progress
-px session annotate my-session-id --name evaluator --label pass --annotator-kind LLM
-px session annotate my-session-id --name reviewer --explanation "needs follow-up"
+px session annotate my-session-id --name correctness --label pass
+px session annotate my-session-id --name correctness --score 0.9 --format raw --no-progress
+px session annotate my-session-id --name groundedness --label pass --annotator-kind LLM
+px session annotate my-session-id --name correctness --explanation "needs follow-up"
 ```
 
 | Option | Description | Default |
@@ -364,7 +364,7 @@ At least one of `--label`, `--score`, or `--explanation` is required.
 
 ### `px session add-note <session-id>`
 
-Add a free-text note to a session by GlobalID or user-provided `session_id`. Multiple notes can be added to the same session. Requires Phoenix server `>= 14.17.0`.
+Add a free-text note to a session. Address the session by GlobalID or by user-provided `session_id`. A session can carry multiple notes; each receives a unique identifier. Requires Phoenix server `>= 14.17.0`.
 
 ```bash
 px session add-note my-session-id --text "needs follow-up"
