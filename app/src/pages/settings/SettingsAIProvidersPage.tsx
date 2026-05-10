@@ -2,8 +2,8 @@ import { usePreloadedQuery } from "react-relay";
 import { useLoaderData } from "react-router";
 
 import { Flex } from "@phoenix/components";
+import { AIProviderSettingsCard } from "@phoenix/pages/settings/AIProviderSettingsCard";
 import { CustomProvidersCard } from "@phoenix/pages/settings/CustomProvidersCard";
-import { DefaultPlaygroundModelCard } from "@phoenix/pages/settings/DefaultPlaygroundModelCard";
 import { GenerativeProvidersCard } from "@phoenix/pages/settings/GenerativeProvidersCard";
 import {
   settingsAIProvidersPageLoaderQuery,
@@ -22,7 +22,7 @@ export function SettingsAIProvidersPage() {
     <Flex direction="column" gap="size-200">
       <GenerativeProvidersCard query={data} />
       <CustomProvidersCard query={data} />
-      <DefaultPlaygroundModelCard />
+      <AIProviderSettingsCard />
     </Flex>
   );
 }
