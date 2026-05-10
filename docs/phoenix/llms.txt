@@ -155,6 +155,7 @@
 
 - [Datasets Overview](https://arize.com/docs/phoenix/datasets-and-experiments/overview-datasets): Understand datasets as versioned collections of examples with inputs and expected outputs
 - [Creating Datasets](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets/creating-datasets): Build from traces, code, CSV, or curated examples
+- [Updating Datasets](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets/updating-datasets): Diff and update existing dataset examples using stable IDs with example_id_key
 - [Exporting Datasets](https://arize.com/docs/phoenix/datasets-and-experiments/how-to-datasets/exporting-datasets): Export datasets in JSONL and CSV formats
 
 ### Experiments
@@ -466,6 +467,9 @@
 - [Get Span Annotations By Span IDs](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/get-span-annotations-for-a-list-of-span_ids): GET /v1/projects/{project_identifier}/span_annotations — fetch annotations across many spans in one call
 - [Get Trace Annotations By Trace IDs](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/get-trace-annotations-for-a-list-of-trace_ids): GET /v1/projects/{project_identifier}/trace_annotations — fetch annotations across many traces in one call
 - [Get Session Annotations By Session IDs](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/get-session-annotations-for-a-list-of-session_ids): GET /v1/projects/{project_identifier}/session_annotations — fetch annotations across many sessions in one call
+- [Delete Span Annotations By Filter](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/delete-span-annotations-by-filter): DELETE /v1/projects/{project_identifier}/span_annotations — hard-delete span annotations matching AND-ed filters (name, identifier, annotator_kind, created_after, created_before); at least one filter required
+- [Delete Trace Annotations By Filter](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/delete-trace-annotations-by-filter): DELETE /v1/projects/{project_identifier}/trace_annotations — hard-delete trace annotations matching AND-ed filters; returns 204 idempotently
+- [Delete Session Annotations By Filter](https://arize.com/docs/phoenix/sdk-api-reference/rest-api/api-reference/annotations/delete-session-annotations-by-filter): DELETE /v1/projects/{project_identifier}/session_annotations — hard-delete session annotations matching AND-ed filters; returns 204 idempotently
 
 ### REST API — Datasets
 

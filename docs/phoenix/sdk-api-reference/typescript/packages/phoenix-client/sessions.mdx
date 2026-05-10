@@ -70,6 +70,25 @@ await addSessionAnnotation({
 });
 ```
 
+## Add a Note to a Session
+
+Use `addSessionNote` to append a free-text note to a session. Multiple notes can be added to the same session; each receives a unique UUIDv4 identifier.
+
+Requires Phoenix server `>= 14.17.0`.
+
+```ts
+import { addSessionNote } from "@arizeai/phoenix-client/sessions";
+
+const result = await addSessionNote({
+  sessionNote: {
+    sessionId: "cst_123",
+    note: "Needs review — retrieval returned empty results on turn 3",
+  },
+});
+
+console.log(result.id); // UUIDv4 for the created note
+```
+
 ## Cleanup
 
 Use `deleteSession` or `deleteSessions` when you need to remove session records by identifier.
@@ -81,6 +100,7 @@ Use `deleteSession` or `deleteSessions` when you need to remove session records 
     <li><code>src/sessions/getSession.ts</code></li>
     <li><code>src/sessions/getSessionTurns.ts</code></li>
     <li><code>src/sessions/addSessionAnnotation.ts</code></li>
+    <li><code>src/sessions/addSessionNote.ts</code></li>
     <li><code>src/sessions/deleteSession.ts</code></li>
     <li><code>src/sessions/deleteSessions.ts</code></li>
   </ul>
