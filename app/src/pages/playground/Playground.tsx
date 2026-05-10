@@ -97,6 +97,12 @@ export function Playground(
   const modelConfigByProvider = usePreferencesContext(
     (state) => state.modelConfigByProvider
   );
+  const defaultModelProvider = usePreferencesContext(
+    (state) => state.defaultModelProvider
+  );
+  const defaultModelName = usePreferencesContext(
+    (state) => state.defaultModelName
+  );
 
   const playgroundStreamingEnabled = usePreferencesContext(
     (state) => state.playgroundStreamingEnabled
@@ -114,6 +120,8 @@ export function Playground(
       datasetId={datasetId}
       streaming={playgroundStreamingEnabled}
       modelConfigByProvider={modelConfigByProvider}
+      defaultModelProvider={defaultModelProvider}
+      defaultModelName={defaultModelName}
     >
       <div css={playgroundWrapCSS}>
         <View borderBottomColor="default" borderBottomWidth="thin">

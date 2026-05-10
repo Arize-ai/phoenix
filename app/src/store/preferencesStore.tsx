@@ -147,6 +147,16 @@ export interface PreferencesProps {
    * @default true
    */
   isAssistantAgentEnabled: boolean;
+  /**
+   * The user's preferred default model provider for the playground.
+   * When undefined, falls back to {@link DEFAULT_MODEL_PROVIDER}.
+   */
+  defaultModelProvider?: ModelProvider;
+  /**
+   * The user's preferred default model name for the playground.
+   * When undefined, falls back to {@link DEFAULT_MODEL_NAME}.
+   */
+  defaultModelName?: string;
 }
 
 export interface PreferencesState extends PreferencesProps {
@@ -229,6 +239,18 @@ export interface PreferencesState extends PreferencesProps {
    * Setter for enabling/disabling the assistant agent
    */
   setIsAssistantAgentEnabled: (isAssistantAgentEnabled: boolean) => void;
+  /**
+   * Setter for the user's preferred default model provider for the playground.
+   * Pass `undefined` to clear the preference.
+   */
+  setDefaultModelProvider: (
+    defaultModelProvider: ModelProvider | undefined
+  ) => void;
+  /**
+   * Setter for the user's preferred default model name for the playground.
+   * Pass `undefined` (or an empty string) to clear the preference.
+   */
+  setDefaultModelName: (defaultModelName: string | undefined) => void;
 }
 
 export const createPreferencesStore = (
@@ -341,6 +363,17 @@ export const createPreferencesStore = (
     setIsAssistantAgentEnabled: (isAssistantAgentEnabled) => {
       set({ isAssistantAgentEnabled }, false, {
         type: "setIsAssistantAgentEnabled",
+      });
+    },
+    defaultModelProvider: undefined,
+    setDefaultModelProvider: (defaultModelProvider) => {
+      set({ defaultModelProvider }, false, { type: "setDefaultModelProvider" });
+    },
+    defaultModelName: undefined,
+    setDefaultModelName: (defaultModelName) => {
+      const trimmed = defaultModelName?.trim();
+      set({ defaultModelName: trimmed ? trimmed : undefined }, false, {
+        type: "setDefaultModelName",
       });
     },
     ...initialProps,

@@ -3,6 +3,7 @@ import { useLoaderData } from "react-router";
 
 import { Flex } from "@phoenix/components";
 import { CustomProvidersCard } from "@phoenix/pages/settings/CustomProvidersCard";
+import { DefaultPlaygroundModelCard } from "@phoenix/pages/settings/DefaultPlaygroundModelCard";
 import { GenerativeProvidersCard } from "@phoenix/pages/settings/GenerativeProvidersCard";
 import {
   settingsAIProvidersPageLoaderQuery,
@@ -19,6 +20,7 @@ export function SettingsAIProvidersPage() {
   );
   return (
     <Flex direction="column" gap="size-200">
+      <DefaultPlaygroundModelCard />
       <GenerativeProvidersCard query={data} />
       <CustomProvidersCard query={data} />
     </Flex>
