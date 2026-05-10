@@ -1,5 +1,25 @@
 # Changelog
 
+## [15.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.5.1...arize-phoenix-v15.6.0) (2026-05-10)
+
+
+### Features
+
+* **agents:** add /agents/{agent_id}/sessions/{session_id}/summary endpoint ([#13095](https://github.com/Arize-ai/phoenix/issues/13095)) ([419c3a0](https://github.com/Arize-ai/phoenix/commit/419c3a06978abce8f611569228438929f8e7b995))
+* **agents:** Playground manipulation tools w/ confirmation ([#13093](https://github.com/Arize-ai/phoenix/issues/13093)) ([37dc417](https://github.com/Arize-ai/phoenix/commit/37dc417f8880a101b34a41f8d2ea3f58099df6c2))
+* **playground:** default provider/model as a user preference ([#13135](https://github.com/Arize-ai/phoenix/issues/13135)) ([4487740](https://github.com/Arize-ai/phoenix/commit/448774042ead173c1ed50938138d8aebb5bc48ec))
+* **tracing:** always show metrics aside, remove legacy stats header ([#13134](https://github.com/Arize-ai/phoenix/issues/13134)) ([ea3d7e7](https://github.com/Arize-ai/phoenix/commit/ea3d7e7b0304b17abcd40b4c1cadec2f80ef7bdf))
+
+
+### Bug Fixes
+
+* **pxi:** resolve interrupted tool calls ([#13123](https://github.com/Arize-ai/phoenix/issues/13123)) ([d37dfa0](https://github.com/Arize-ai/phoenix/commit/d37dfa0f54d7f97c76301d175937fd2500d970cc))
+
+
+### Documentation
+
+* fill 6 documentation gaps from weekly audit (closes [#13072](https://github.com/Arize-ai/phoenix/issues/13072)) ([#13133](https://github.com/Arize-ai/phoenix/issues/13133)) ([0883fa7](https://github.com/Arize-ai/phoenix/commit/0883fa7c8a0d89a27ee99e52eea40043aeb6813a))
+
 ## [15.5.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.5.0...arize-phoenix-v15.5.1) (2026-05-08)
 
 
