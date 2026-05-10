@@ -201,6 +201,18 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
   }
   const { instance, instanceMessages } = createNormalizedPlaygroundInstance();
 
+  const preferredProvider =
+    initialProps.defaultModelProvider ?? DEFAULT_MODEL_PROVIDER;
+  const preferredModelName =
+    initialProps.defaultModelName ?? DEFAULT_MODEL_NAME;
+  // Seed the instance with the user's preferred default provider/model so it
+  // is used when no saved config exists for that provider.
+  instance.model = {
+    ...instance.model,
+    provider: preferredProvider,
+    modelName: preferredModelName,
+  };
+
   const savedModelConfigs = Object.values(initialProps.modelConfigByProvider);
   const hasSavedModelConfig = savedModelConfigs.length > 0;
   if (!hasSavedModelConfig) {
@@ -209,14 +221,25 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
       instanceMessages,
     };
   }
-  const savedDefaultProviderConfig =
-    savedModelConfigs.find(
-      (config) => config.provider === DEFAULT_MODEL_PROVIDER
-    ) ?? savedModelConfigs[0];
-  instance.model = {
-    ...instance.model,
-    ...savedDefaultProviderConfig,
-  };
+  // A saved per-provider config (e.g. last-used invocation params for the
+  // preferred provider) takes precedence over the bare user preference. When
+  // the user has explicitly set a preferred provider but has no saved config
+  // for it, keep the bare user preference rather than falling back to an
+  // unrelated provider's saved config.
+  const savedPreferredProviderConfig = savedModelConfigs.find(
+    (config) => config.provider === preferredProvider
+  );
+  const savedConfigToUse =
+    savedPreferredProviderConfig ??
+    (initialProps.defaultModelProvider == null
+      ? savedModelConfigs[0]
+      : undefined);
+  if (savedConfigToUse) {
+    instance.model = {
+      ...instance.model,
+      ...savedConfigToUse,
+    };
+  }
   return {
     instances: [instance],
     instanceMessages,

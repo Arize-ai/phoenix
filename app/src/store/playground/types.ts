@@ -407,6 +407,18 @@ export type InitialPlaygroundState = Partial<PlaygroundProps> & {
   datasetId?: string | null;
   stateByDatasetId?: PlaygroundStateByDatasetId;
   selectedDatasetEvaluatorIds?: string[];
+  /**
+   * The user's preferred default model provider. Used as a bootstrap default
+   * when no instance has been previously configured. Falls through to the
+   * hardcoded {@link DEFAULT_MODEL_PROVIDER} when undefined.
+   */
+  defaultModelProvider?: ModelProvider;
+  /**
+   * The user's preferred default model name. Used as a bootstrap default
+   * when no instance has been previously configured for the chosen provider.
+   * Falls through to the hardcoded {@link DEFAULT_MODEL_NAME} when undefined.
+   */
+  defaultModelName?: string;
 };
 
 /**
