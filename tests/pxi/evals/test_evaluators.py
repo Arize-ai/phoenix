@@ -25,8 +25,7 @@ def _output(*tool_names: str) -> dict[str, Any]:
             {
                 "kind": "response",
                 "parts": [
-                    {"part_kind": "tool-call", "tool_name": name, "args": {}}
-                    for name in tool_names
+                    {"part_kind": "tool-call", "tool_name": name, "args": {}} for name in tool_names
                 ],
             }
         ]

@@ -130,10 +130,7 @@ def _print_score_summary(dataset: EvalDataset, experiment: dict[str, Any], base_
     if by_evaluator:
         print(f"Evaluator score summary (passing score >= {PASSING_SCORE:g}):")
         for name, summary in sorted(by_evaluator.items()):
-            detail = (
-                f"{summary['passing']}/{summary['total']} passed, "
-                f"{summary['failing']} failed"
-            )
+            detail = f"{summary['passing']}/{summary['total']} passed, {summary['failing']} failed"
             if summary["errors"]:
                 detail += f", {summary['errors']} errors"
             if summary["missing_score"]:
