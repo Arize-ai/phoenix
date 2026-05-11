@@ -26,6 +26,7 @@ import {
   formatTimestamp,
   getBackendDescription,
   LanguageWithIcon,
+  SandboxHostingTypeBadge,
   StatusText,
 } from "./utils";
 
@@ -68,6 +69,9 @@ export function SandboxProvidersCard({
                       height={18}
                     />
                     <span>{backend.displayName}</span>
+                    <SandboxHostingTypeBadge
+                      hostingType={backend.hostingType}
+                    />
                     <ContextualHelp variant="info">
                       {getBackendDescription(backend.backendType)}
                     </ContextualHelp>
