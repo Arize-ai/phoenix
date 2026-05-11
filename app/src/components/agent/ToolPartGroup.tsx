@@ -1,6 +1,6 @@
-import { css } from "@emotion/react";
+import { css, keyframes } from "@emotion/react";
 import { getToolName, isToolUIPart } from "ai";
-import { useMemo, useState } from "react";
+import { type CSSProperties, useMemo, useState } from "react";
 
 import { Icon, Icons } from "@phoenix/components";
 
@@ -21,6 +21,18 @@ const TERMINAL_STATES = new Set<ToolState>([
   "output-denied",
 ]);
 
+const toolPoolItemFadeUp = keyframes`
+  from {
+    opacity: 0.5;
+    transform: translate(-3px, 0px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
+`;
+
 const toolPoolCSS = css`
   width: 100%;
   margin-top: var(--global-dimension-size-150);
@@ -38,14 +50,18 @@ const toolPoolCSS = css`
 
   .tool-pool__header {
     cursor: pointer;
-    padding: var(--global-dimension-size-100) var(--global-dimension-size-100) 0
-      var(--global-dimension-size-150);
+    padding: var(--global-dimension-size-100) var(--global-dimension-size-150) 0
+      var(--global-dimension-size-100);
     user-select: none;
 
     &:focus-visible {
       outline: 2px solid var(--global-color-primary);
       outline-offset: 2px;
     }
+  }
+
+  .tool-pool__header[aria-expanded="false"] {
+    padding-bottom: var(--global-dimension-size-100);
   }
 
   .tool-pool__title-row {
@@ -121,11 +137,17 @@ const toolPoolCSS = css`
   .tool-pool__body {
     display: flex;
     flex-direction: column;
-    gap: var(--global-dimension-size-100);
-    padding: var(--global-dimension-size-100) var(--global-dimension-size-100) 0
-      var(--global-dimension-size-150);
+    gap: var(--global-dimension-size-150);
+    padding: var(--global-dimension-size-100) var(--global-dimension-size-100)
+      var(--global-dimension-size-100) var(--global-dimension-size-150);
 
-    & > .tool-part {
+    & > .tool-pool__item {
+      opacity: 0;
+      animation: ${toolPoolItemFadeUp} 200ms cubic-bezier(0.18, 0.9, 0.22, 1)
+        var(--tool-pool-item-delay, 0ms) forwards;
+    }
+
+    & > .tool-pool__item > .tool-part {
       margin-top: 0;
     }
   }
@@ -267,7 +289,17 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
       {isExpanded ? (
         <div className="tool-pool__body">
           {parts.map((part, i) => (
-            <ToolPart key={i} part={part} />
+            <div
+              key={i}
+              className="tool-pool__item"
+              style={
+                {
+                  "--tool-pool-item-delay": `${i * 40}ms`,
+                } as CSSProperties
+              }
+            >
+              <ToolPart part={part} />
+            </div>
           ))}
         </div>
       ) : null}
