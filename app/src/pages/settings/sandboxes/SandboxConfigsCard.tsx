@@ -1,7 +1,15 @@
 import { useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
-import { Card, Flex, Label, Switch, Text } from "@phoenix/components";
+import {
+  Card,
+  ContextualHelp,
+  Flex,
+  Label,
+  Switch,
+  Text,
+} from "@phoenix/components";
+import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
 import { TableEmpty } from "@phoenix/components/table";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -11,17 +19,15 @@ import { SandboxConfigDialogTrigger } from "./SandboxConfigDialog";
 import {
   configNameCSS,
   configNameCellCSS,
-  inlineTokenRowCSS,
   sandboxesTableCSS,
   sandboxesTableWrapCSS,
   subtitleCSS,
 } from "./styles";
 import type { ConfigRow, ProviderRow } from "./types";
 import {
-  ConfigStatusText,
-  hasConfig,
+  getSandboxConfigSettings,
   LanguageWithIcon,
-  summarizeConfig,
+  SandboxHostingTypeBadge,
 } from "./utils";
 
 export function SandboxConfigsCard({
@@ -33,8 +39,12 @@ export function SandboxConfigsCard({
 }) {
   return (
     <Card
-      title="Code Sandboxes"
-      subTitle="Configure reusable sandbox configurations for code evaluators."
+      title="Sandbox Configurations"
+      titleExtra={
+        <ContextualHelp variant="info">
+          Reusable sandbox configurations for code evaluators.
+        </ContextualHelp>
+      }
       extra={
         <SandboxConfigDialogTrigger mode="create" providers={providerRows} />
       }
@@ -46,79 +56,91 @@ export function SandboxConfigsCard({
               <th>Name</th>
               <th>Provider</th>
               <th>Language</th>
-              <th>Status</th>
               <th>Settings</th>
               <th />
             </tr>
           </thead>
           {configRows.length > 0 ? (
             <tbody>
-              {configRows.map(({ backend, provider, config }) => (
-                <tr key={config.id}>
-                  <td css={configNameCellCSS}>
-                    <Flex direction="column" gap="size-25">
-                      <span css={configNameCSS}>{config.name}</span>
-                      <span css={subtitleCSS}>
-                        {config.description || "No description"}
-                      </span>
-                    </Flex>
-                  </td>
-                  <td>
-                    <Text>{backend.displayName}</Text>
-                  </td>
-                  <td>
-                    <LanguageWithIcon language={provider.language} />
-                  </td>
-                  <td>
-                    <div css={inlineTokenRowCSS}>
-                      <ConfigStatusText
-                        config={config}
-                        provider={provider}
-                        backend={backend}
-                      />
-                    </div>
-                  </td>
-                  <td>
-                    <Flex direction="column" gap="size-25">
-                      <Text>{config.timeout}s timeout</Text>
-                      <Text
-                        color={
-                          hasConfig(config.config) ? undefined : "text-700"
-                        }
-                      >
-                        {hasConfig(config.config)
-                          ? summarizeConfig(config.config)
-                          : "No custom settings"}
-                      </Text>
-                    </Flex>
-                  </td>
-                  <td>
-                    <Flex
-                      gap="size-100"
-                      alignItems="center"
-                      justifyContent="space-between"
-                    >
-                      <ConfigEnabledSwitch
-                        config={config}
-                        canEnable={provider.enabled}
-                      />
+              {configRows.map(({ backend, provider, config }) => {
+                const settings = getSandboxConfigSettings(config.config);
+                return (
+                  <tr key={config.id}>
+                    <td css={configNameCellCSS}>
+                      <Flex direction="column" gap="size-25">
+                        <span css={configNameCSS}>{config.name}</span>
+                        <span css={subtitleCSS}>
+                          {config.description || "No description"}
+                        </span>
+                      </Flex>
+                    </td>
+                    <td>
+                      <Flex direction="row" gap="size-100" alignItems="center">
+                        <SandboxProviderIcon
+                          backendType={backend.backendType}
+                          height={18}
+                        />
+                        <Text>{backend.displayName}</Text>
+                        <SandboxHostingTypeBadge
+                          hostingType={backend.hostingType}
+                        />
+                      </Flex>
+                    </td>
+                    <td>
+                      <LanguageWithIcon language={provider.language} />
+                    </td>
+                    <td>
+                      <Flex direction="column" gap="size-50" alignItems="start">
+                        <Text>{config.timeout}s timeout</Text>
+                        {settings.length > 0 ? (
+                          settings.map(({ key, label, value }) => (
+                            <Flex
+                              key={key}
+                              direction="row"
+                              gap="size-50"
+                              alignItems="baseline"
+                            >
+                              <Text size="S" color="text-700">
+                                {label}:
+                              </Text>
+                              <Text size="S" fontFamily="mono">
+                                {value}
+                              </Text>
+                            </Flex>
+                          ))
+                        ) : (
+                          <Text color="text-700">No custom settings</Text>
+                        )}
+                      </Flex>
+                    </td>
+                    <td>
                       <Flex
-                        justifyContent="end"
                         gap="size-100"
                         alignItems="center"
+                        justifyContent="space-between"
                       >
-                        <SandboxConfigDialogTrigger
-                          mode="edit"
-                          provider={provider}
-                          backend={backend}
+                        <ConfigEnabledSwitch
                           config={config}
+                          canEnable={provider.enabled}
                         />
-                        <DeleteSandboxConfigButton config={config} />
+                        <Flex
+                          justifyContent="end"
+                          gap="size-100"
+                          alignItems="center"
+                        >
+                          <SandboxConfigDialogTrigger
+                            mode="edit"
+                            provider={provider}
+                            backend={backend}
+                            config={config}
+                          />
+                          <DeleteSandboxConfigButton config={config} />
+                        </Flex>
                       </Flex>
-                    </Flex>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           ) : (
             <TableEmpty message="No sandbox configs" />

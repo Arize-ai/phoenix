@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d2355cba6441cedff74a35c98be9b26a>>
+ * @generated SignedSource<<909f9fc51fcad3c92417a3b4ce03cad0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -171,6 +171,13 @@ return {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
+                    "name": "hostingType",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
                     "name": "dependencyHints",
                     "storageKey": null
                   },
@@ -308,12 +315,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "27d6be5f9728e43cf5b0f70698e5da26",
+    "cacheID": "e24595377279971053e84607e19b98b3",
     "id": null,
     "metadata": {},
     "name": "SandboxConfigDialogCreateSandboxConfigMutation",
     "operationKind": "mutation",
-    "text": "mutation SandboxConfigDialogCreateSandboxConfigMutation(\n  $input: CreateSandboxConfigInput!\n) {\n  createSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
+    "text": "mutation SandboxConfigDialogCreateSandboxConfigMutation(\n  $input: CreateSandboxConfigInput!\n) {\n  createSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();

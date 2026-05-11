@@ -26,6 +26,7 @@ import {
   formatTimestamp,
   getBackendDescription,
   LanguageWithIcon,
+  SandboxHostingTypeBadge,
   StatusText,
 } from "./utils";
 
@@ -39,7 +40,12 @@ export function SandboxProvidersCard({
   return (
     <Card
       title="Sandbox Providers"
-      subTitle="Manage shared provider settings and whether each sandbox runtime can be enabled."
+      titleExtra={
+        <ContextualHelp variant="info">
+          Shared provider settings and whether each sandbox runtime can be
+          enabled.
+        </ContextualHelp>
+      }
     >
       <table css={sandboxesTableCSS}>
         <thead>
@@ -63,6 +69,9 @@ export function SandboxProvidersCard({
                       height={18}
                     />
                     <span>{backend.displayName}</span>
+                    <SandboxHostingTypeBadge
+                      hostingType={backend.hostingType}
+                    />
                     <ContextualHelp variant="info">
                       {getBackendDescription(backend.backendType)}
                     </ContextualHelp>

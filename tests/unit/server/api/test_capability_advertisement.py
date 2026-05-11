@@ -16,6 +16,7 @@ _SANDBOX_BACKENDS_QUERY = """
     sandboxBackends {
       backendType
       displayName
+      hostingType
       supportedLanguages
       status
       dependencyHints
@@ -29,6 +30,8 @@ _SANDBOX_BACKENDS_QUERY = """
     }
   }
 """
+
+_LOCAL_BACKEND_TYPES = {"WASM", "DENO"}
 
 _CREATE = """
 mutation CreateSandboxConfig($input: CreateSandboxConfigInput!) {
@@ -75,6 +78,8 @@ async def test_sandbox_backends_full_ui_query_shape(
         assert "supportsEnvVars" in backend, bt
         assert "internetAccess" in backend, bt
         assert "dependenciesLanguage" in backend, bt
+        expected_hosting = "LOCAL" if bt in _LOCAL_BACKEND_TYPES else "HOSTED"
+        assert backend["hostingType"] == expected_hosting, bt
 
 
 @pytest.mark.parametrize("backend_type", list(SANDBOX_ADAPTER_METADATA.keys()))

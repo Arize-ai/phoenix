@@ -85,6 +85,18 @@ class InternetAccessMode(Enum):
     ALLOWLIST = "allowlist"
 
 
+@strawberry.enum
+class SandboxHostingType(Enum):
+    """Where a sandbox backend physically executes code."""
+
+    LOCAL = "local"
+    """The runtime executes on the same machine as the Phoenix server —
+    sandboxed, but consuming Phoenix's CPU/memory (e.g. WebAssembly, Deno)."""
+    HOSTED = "hosted"
+    """Execution is delegated to an external provider over the network
+    (e.g. E2B, Daytona, Vercel, Modal); Phoenix only orchestrates."""
+
+
 @strawberry.type
 class SandboxBackendInfo:
     """
@@ -96,6 +108,7 @@ class SandboxBackendInfo:
 
     backend_type: str
     display_name: str
+    hosting_type: SandboxHostingType
     supported_languages: list[Language]
     status: SandboxBackendStatus
     status_detail: Optional[str]
@@ -450,6 +463,7 @@ async def _get_sandbox_backend_info_with_session(
             SandboxBackendInfo(
                 backend_type=backend_type,
                 display_name=meta.display_name,
+                hosting_type=SandboxHostingType(meta.hosting_type),
                 supported_languages=[Language(meta.language)] if meta.language else [],
                 status=status,
                 status_detail=status_detail,
