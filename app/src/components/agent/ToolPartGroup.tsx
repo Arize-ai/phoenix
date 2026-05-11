@@ -99,9 +99,11 @@ const toolPoolCSS = css`
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--tool-call-title-color);
+    color: var(--tool-call-secondary-color);
     font-size: 18px;
-    transition: transform 150ms ease;
+    transition:
+      transform 150ms ease,
+      color 150ms ease;
   }
 
   .tool-pool__chevron[data-expanded="true"] {
@@ -145,7 +147,9 @@ const toolPoolCSS = css`
   }
 
   .tool-pool__header:hover .tool-pool__breakdown,
-  .tool-pool__header:hover .tool-pool__status:not([data-variant]) {
+  .tool-pool__header:hover .tool-pool__status:not([data-variant]),
+  .tool-pool__header:hover .tool-pool__chevron,
+  .tool-pool__header:focus-visible .tool-pool__chevron {
     color: var(--tool-call-title-color);
     transition: none;
   }
