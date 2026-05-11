@@ -315,8 +315,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             accept=request.headers.get("accept"),
         )
         deps = ChatDependencies(
-            user=request.scope.get("user") if hasattr(request, "scope") else None,
-            db=request.app.state.db,
             contexts=resolve_contexts(body.contexts),
             capabilities=body.capabilities,
             docs_mcp_toolset=request.app.state.docs_mcp_toolset,
