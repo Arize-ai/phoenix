@@ -20,7 +20,17 @@ from tests.pxi.evals.evaluators.tools import (
 
 
 def _output(*tool_names: str) -> dict[str, Any]:
-    return {"tool_calls": [{"name": name, "args": {}} for name in tool_names]}
+    return {
+        "messages": [
+            {
+                "kind": "response",
+                "parts": [
+                    {"part_kind": "tool-call", "tool_name": name, "args": {}}
+                    for name in tool_names
+                ],
+            }
+        ]
+    }
 
 
 def _expected(
@@ -41,6 +51,14 @@ class TestCorrectToolsCalled:
     def test_correct_when_required_called_no_forbidden(self) -> None:
         result = evaluate_tools_called(
             output=_output("set_spans_filter"),
+            expected=_expected(required=["set_spans_filter"]),
+        )
+        assert result["score"] == 1.0
+        assert result["label"] == "correct"
+
+    def test_reads_tool_calls_from_pydantic_ai_messages(self) -> None:
+        result = evaluate_tools_called(
+            output=_output("docs_search", "set_spans_filter"),
             expected=_expected(required=["set_spans_filter"]),
         )
         assert result["score"] == 1.0
@@ -146,7 +164,14 @@ class TestCorrectToolsCalled:
 
 
 def _output_with_args(name: str, args: dict[str, Any]) -> dict[str, Any]:
-    return {"tool_calls": [{"name": name, "args": args}]}
+    return {
+        "messages": [
+            {
+                "kind": "response",
+                "parts": [{"part_kind": "tool-call", "tool_name": name, "args": args}],
+            }
+        ]
+    }
 
 
 class TestNormalizeArgValue:
@@ -185,6 +210,17 @@ class TestToolCallArgsMatch:
         assert result["score"] == 1.0
         assert result["label"] == "pass"
 
+    def test_reads_args_from_pydantic_ai_messages(self) -> None:
+        result = evaluate_tool_call_args(
+            output=_output_with_args(
+                "set_spans_filter", {"condition": "span_kind == 'LLM'", "rootSpansOnly": False}
+            ),
+            expected=self._expected(
+                set_spans_filter={"condition": "span_kind == 'LLM'", "rootSpansOnly": False},
+            ),
+        )
+        assert result["label"] == "pass"
+
     def test_subset_match_allows_extra_observed_keys(self) -> None:
         # Observed call carries an extra arg the dataset doesn't mention.
         # Documented behavior: subset match passes.
@@ -213,7 +249,7 @@ class TestToolCallArgsMatch:
 
     def test_fails_when_tool_not_called(self) -> None:
         result = evaluate_tool_call_args(
-            output={"tool_calls": []},
+            output=_output(),
             expected=self._expected(set_spans_filter={"condition": ""}),
         )
         assert result["label"] == "fail"
@@ -245,10 +281,23 @@ class TestToolCallArgsMatch:
         # satisfies the expected pairs.
         result = evaluate_tool_call_args(
             output={
-                "tool_calls": [
-                    {"name": "set_spans_filter", "args": {"condition": "wrong"}},
-                    {"name": "set_spans_filter", "args": {"condition": "right"}},
-                ],
+                "messages": [
+                    {
+                        "kind": "response",
+                        "parts": [
+                            {
+                                "part_kind": "tool-call",
+                                "tool_name": "set_spans_filter",
+                                "args": {"condition": "wrong"},
+                            },
+                            {
+                                "part_kind": "tool-call",
+                                "tool_name": "set_spans_filter",
+                                "args": {"condition": "right"},
+                            },
+                        ],
+                    }
+                ]
             },
             expected=self._expected(set_spans_filter={"condition": "right"}),
         )

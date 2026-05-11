@@ -12,12 +12,13 @@ uv run python tests/pxi/evals/run_experiment.py --dataset set_spans_filter
 ```
 
 The runner checks `/healthz` against whichever Phoenix URL is configured
-(default `http://localhost:6006`, or `PXI_E2E_EXPERIMENT_BASE_URL` if set)
-before uploading anything. To use a shared Phoenix endpoint:
+(default `http://localhost:6006`, or `PHOENIX_COLLECTOR_ENDPOINT` /
+`OTEL_EXPORTER_OTLP_ENDPOINT` if set) before uploading anything. To use a
+shared Phoenix endpoint:
 
 ```bash
-export PXI_E2E_EXPERIMENT_BASE_URL=https://your-phoenix.example.com
-export PXI_E2E_EXPERIMENT_BEARER_TOKEN=...
+export PHOENIX_COLLECTOR_ENDPOINT=https://your-phoenix.example.com
+export PHOENIX_API_KEY=...
 uv run python tests/pxi/evals/run_experiment.py --dataset set_spans_filter
 ```
 
@@ -25,17 +26,32 @@ Task errors (exception type plus a truncated message, no stack traces) are
 uploaded to Phoenix as part of the experiment task output. Avoid pasting
 credentials into request URLs while debugging against a shared Phoenix.
 
+The task output stores the serialized Pydantic AI messages from the PXI
+agent run. Tool evaluators read `tool-call` parts from those messages, so
+tool selection and tool-argument checks cover every tool call emitted during
+the turn.
+
 ## Model Configuration
 
-The task uses the same assistant env vars as PXI E2E tests:
+The task uses Phoenix agent env vars for model selection:
 
 ```bash
-export PXI_E2E_ASSISTANT_PROVIDER=OPENAI
-export PXI_E2E_ASSISTANT_MODEL=gpt-5.4
+export PHOENIX_AGENTS_ASSISTANT_PROVIDER=OPENAI
+export PHOENIX_AGENTS_ASSISTANT_MODEL=gpt-5.4
 ```
 
 Provider credentials are read from the normal provider env vars, such as
 `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`.
+
+The docs MCP toolset follows the same production gates as the Phoenix server:
+
+```bash
+export PHOENIX_DANGEROUSLY_ENABLE_AGENTS=true
+export PHOENIX_ALLOW_EXTERNAL_RESOURCES=true
+```
+
+If either gate is disabled, the experiment still runs but the agent does not
+receive docs MCP tools.
 
 ## Datasets
 

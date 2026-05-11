@@ -1,41 +1,52 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
 from typing import Any
 
 from phoenix.evals import create_evaluator
 
 
-def _as_mapping(value: Any) -> Mapping[str, Any]:
-    return value if isinstance(value, Mapping) else {}
+def _as_dict(value: Any) -> dict[str, Any]:
+    return value if isinstance(value, dict) else {}
 
 
-def _tool_calls(output: Any) -> list[Mapping[str, Any]]:
-    value = _as_mapping(output).get("tool_calls", [])
-    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+def tool_calls_from_output(output: Any) -> list[dict[str, Any]]:
+    messages = _as_dict(output).get("messages", [])
+    if not isinstance(messages, list):
         return []
-    return [call for call in value if isinstance(call, Mapping)]
+    calls: list[dict[str, Any]] = []
+    for message in messages:
+        if not isinstance(message, dict):
+            continue
+        parts = message.get("parts", [])
+        if not isinstance(parts, list):
+            continue
+        calls.extend(
+            part
+            for part in parts
+            if isinstance(part, dict) and part.get("part_kind") == "tool-call"
+        )
+    return calls
 
 
-def _tool_name(call: Mapping[str, Any]) -> str | None:
-    name = call.get("name")
+def _tool_name(call: dict[str, Any]) -> str | None:
+    name = call.get("tool_name")
     return name if isinstance(name, str) else None
 
 
-def _tool_args(call: Mapping[str, Any]) -> Mapping[str, Any]:
+def _tool_args(call: dict[str, Any]) -> dict[str, Any]:
     args = call.get("args", {})
-    return args if isinstance(args, Mapping) else {}
+    return args if isinstance(args, dict) else {}
 
 
-def _expected_tools(expected: Any) -> Mapping[str, Any]:
-    return _as_mapping(_as_mapping(expected).get("tools", {}))
+def _expected_tools(expected: Any) -> dict[str, Any]:
+    return _as_dict(_as_dict(expected).get("tools", {}))
 
 
-def _expected_tool_call_args(expected: Any) -> Mapping[str, Any]:
-    return _as_mapping(_as_mapping(expected).get("tool_call_args", {}))
+def _expected_tool_call_args(expected: Any) -> dict[str, Any]:
+    return _as_dict(_as_dict(expected).get("tool_call_args", {}))
 
 
-def _failure(explanation: str, *, metadata: Mapping[str, Any] | None = None) -> dict[str, Any]:
+def _failure(explanation: str, *, metadata: dict[str, Any] | None = None) -> dict[str, Any]:
     result: dict[str, Any] = {
         "score": 0.0,
         "label": "fail",
@@ -72,7 +83,9 @@ def evaluate_tools_called(output: Any, expected: Any) -> dict[str, Any]:
     forbidden = list(tool_expectation.get("forbidden") or [])
     exact_match = bool(tool_expectation.get("exact_match", False))
 
-    observed = [name for call in _tool_calls(output) if (name := _tool_name(call)) is not None]
+    observed = [
+        name for call in tool_calls_from_output(output) if (name := _tool_name(call)) is not None
+    ]
 
     forbidden_observed = [name for name in forbidden if name in observed]
     if forbidden_observed:
@@ -139,11 +152,11 @@ def evaluate_tool_call_args(output: Any, expected: Any) -> dict[str, Any]:
     ``@create_evaluator``.
     """
     expected_args_by_tool = _expected_tool_call_args(expected)
-    observed_calls = _tool_calls(output)
+    observed_calls = tool_calls_from_output(output)
     failures: dict[str, Any] = {}
 
     for tool_name, expected_args in expected_args_by_tool.items():
-        if not isinstance(tool_name, str) or not isinstance(expected_args, Mapping):
+        if not isinstance(tool_name, str) or not isinstance(expected_args, dict):
             continue
         matching_calls = [call for call in observed_calls if _tool_name(call) == tool_name]
         if not matching_calls:
