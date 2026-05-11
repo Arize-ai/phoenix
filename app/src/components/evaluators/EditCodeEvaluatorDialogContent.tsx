@@ -10,6 +10,7 @@ import { Group, Panel, Separator } from "react-resizable-panels";
 import {
   Alert,
   Button,
+  CopyToClipboardButton,
   Flex,
   Heading,
   Icon,
@@ -21,10 +22,12 @@ import {
   ListItem,
   ListBox,
   Popover,
+  SectionHeading,
   Select,
   SelectChevronUpDownIcon,
   SelectItem,
   SelectValue,
+  Switch,
   Text,
   TextField,
   View,
@@ -35,12 +38,6 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
-import {
-  Disclosure,
-  DisclosureGroup,
-  DisclosurePanel,
-  DisclosureTrigger,
-} from "@phoenix/components/core/disclosure";
 import { createEvaluatorAutocompletion } from "@phoenix/components/evaluators/codeEvaluatorAutocomplete";
 import {
   CodeEvaluatorLanguageField,
@@ -476,178 +473,86 @@ const ConfiguratorSidebar = ({
   language: CodeEvaluatorLanguage;
 }) => {
   return (
-    <DisclosureGroup defaultExpandedKeys={["test-section"]}>
-      <Disclosure id="test-section" defaultExpanded={false}>
-        <DisclosureTrigger arrowPosition="start">
+    <>
+      {/* Scrollable "Test Evaluator" region */}
+      <div css={sidebarScrollAreaCSS}>
+        <SectionHeading bordered={false}>
           <Text weight="heavy" size="S">
             Test Evaluator
           </Text>
-        </DisclosureTrigger>
-        <DisclosurePanel>
-          <div css={accordionContentCSS}>
-            <View marginY="size-100" paddingX="size-200">
-              <CodeEvaluatorTestSection
-                sourceCode={sourceCode}
-                language={language}
-                sandboxConfigId={selectedSandboxConfigId}
-              />
-            </View>
-            <View paddingX="size-200" paddingTop="size-50">
-              <EvaluatorExampleDataset />
-            </View>
-            <View marginTop="size-100">
-              <EvaluatorInputPreview />
-            </View>
-          </div>
-        </DisclosurePanel>
-      </Disclosure>
+        </SectionHeading>
+        <div css={sectionContentCSS}>
+          <View marginY="size-100" paddingX="size-200">
+            <CodeEvaluatorTestSection
+              sourceCode={sourceCode}
+              language={language}
+              sandboxConfigId={selectedSandboxConfigId}
+            />
+          </View>
+          <View paddingX="size-200" paddingTop="size-50">
+            <EvaluatorExampleDataset />
+          </View>
+          <View marginTop="size-100">
+            <EvaluatorInputPreview />
+          </View>
+        </div>
+      </div>
 
-      <Disclosure id="sandbox-runtime" defaultExpanded={false}>
-        <DisclosureTrigger arrowPosition="start">
+      {/* "Sandbox Runtime" pinned to the bottom and always visible */}
+      <div css={sidebarFooterCSS}>
+        <SectionHeading bordered={false}>
           <Text weight="heavy" size="S">
             Sandbox Runtime
           </Text>
-        </DisclosureTrigger>
-        <DisclosurePanel>
-          <div css={accordionContentCSS}>
-            <View paddingTop="size-100">
-              <SandboxCapabilitySummaryCard
-                selectedSandboxConfig={selectedSandboxConfig}
-                description="Review the selected runtime before testing execution behavior or saving this evaluator."
-              />
-            </View>
-          </div>
-        </DisclosurePanel>
-      </Disclosure>
-    </DisclosureGroup>
+        </SectionHeading>
+        <SandboxRuntimeSummary selectedSandboxConfig={selectedSandboxConfig} />
+      </div>
+    </>
   );
 };
 
-const SandboxCapabilitySummaryCard = ({
+const SandboxRuntimeSummary = ({
   selectedSandboxConfig,
-  description,
 }: {
   selectedSandboxConfig: SandboxConfigOption | null;
-  description: string;
 }) => {
+  if (selectedSandboxConfig == null) {
+    return (
+      <View padding="size-200">
+        <Text color="text-500" size="XS">
+          Choose a sandbox to review its configured execution settings.
+        </Text>
+      </View>
+    );
+  }
   return (
-    <Flex direction="column" gap="size-100">
-      <Flex direction="column" gap="size-25">
-        <View paddingX="size-200">
-          <Text color="text-500" size="XS">
-            {description}
-          </Text>
-        </View>
-      </Flex>
-      {selectedSandboxConfig == null ? (
-        <View paddingX="size-200">
-          <Text color="text-500" size="XS">
-            Choose a sandbox to review its configured execution settings.
-          </Text>
-        </View>
-      ) : (
-        <Flex direction="column" gap="size-150">
-          <Flex direction="column" gap="size-50">
-            <View paddingX="size-200">
-              <Text weight="heavy" size="XS">
-                Runtime supports
-              </Text>
-            </View>
-            <List size="S">
-              <SandboxCapabilityRow
-                label="env_vars"
-                value={getRuntimeEnvVarsSupportLabel(selectedSandboxConfig)}
-              />
-              <SandboxCapabilityRow
-                label="internet_access"
-                value={getRuntimeInternetAccessSupportLabel(
-                  selectedSandboxConfig
-                )}
-              />
-              <SandboxCapabilityRow
-                label="dependencies"
-                value={getRuntimeDependenciesSupportLabel(
-                  selectedSandboxConfig
-                )}
-              />
-            </List>
-          </Flex>
-          <Flex direction="column" gap="size-50">
-            <View paddingX="size-200">
-              <Text weight="heavy" size="XS">
-                Configured
-              </Text>
-            </View>
-            <List size="S">
-              <SandboxCapabilityRow
-                label="config"
-                value={selectedSandboxConfig.name}
-              />
-              {selectedSandboxConfig.timeout != null ? (
-                <SandboxCapabilityRow
-                  label="timeout"
-                  value={`${selectedSandboxConfig.timeout} seconds`}
-                />
-              ) : null}
-              <SandboxCapabilityRow
-                label="env_vars"
-                value={getSandboxEnvVarsLabel(selectedSandboxConfig.config)}
-              />
-              <SandboxCapabilityRow
-                label="internet_access"
-                value={getSandboxInternetAccessConfigLabel(
-                  selectedSandboxConfig.config
-                )}
-              />
-              <SandboxCapabilityRow
-                label="dependencies"
-                value={getSandboxDependenciesConfigLabel(
-                  selectedSandboxConfig.config
-                )}
-              />
-            </List>
-          </Flex>
-        </Flex>
-      )}
-    </Flex>
+    <List size="S">
+      <SandboxConfigRow label="config" value={selectedSandboxConfig.name} />
+      {selectedSandboxConfig.timeout != null ? (
+        <SandboxConfigRow
+          label="timeout"
+          value={`${selectedSandboxConfig.timeout} seconds`}
+        />
+      ) : null}
+      <SandboxConfigRow
+        label="env_vars"
+        value={getSandboxEnvVarsLabel(selectedSandboxConfig.config)}
+      />
+      <SandboxConfigRow
+        label="internet_access"
+        value={getSandboxInternetAccessConfigLabel(
+          selectedSandboxConfig.config
+        )}
+      />
+      <SandboxConfigRow
+        label="dependencies"
+        value={getSandboxDependenciesConfigLabel(selectedSandboxConfig.config)}
+      />
+    </List>
   );
 };
 
-function getRuntimeEnvVarsSupportLabel(option: SandboxConfigOption) {
-  if (option.supportsEnvVars == null) {
-    return "not advertised";
-  }
-  return option.supportsEnvVars ? "supported" : "not supported";
-}
-
-function getRuntimeInternetAccessSupportLabel(option: SandboxConfigOption) {
-  const value = option.internetAccess;
-  if (value == null) {
-    return "not advertised";
-  }
-  switch (value) {
-    case "BOOLEAN":
-      return "configurable";
-    case "ALLOWLIST":
-      return "allowlist";
-    case "NONE":
-      return "not supported";
-    default:
-      return value;
-  }
-}
-
-function getRuntimeDependenciesSupportLabel(option: SandboxConfigOption) {
-  if (option.dependenciesLanguage === undefined) {
-    return "not advertised";
-  }
-  if (option.dependenciesLanguage == null) {
-    return "not supported";
-  }
-  return option.dependenciesLanguage === "PYTHON" ? "Python" : "TypeScript";
-}
-
-const SandboxCapabilityRow = ({
+const SandboxConfigRow = ({
   label,
   value,
 }: {
@@ -740,6 +645,9 @@ const CodeEditor = ({
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
 
+  // The auto-generated type footer is hidden by default.
+  const [showTypes, setShowTypes] = useState(false);
+
   // Get the evaluator mapping source from the store for type generation
   const evaluatorMappingSource = useEvaluatorStore(
     (state) => state.evaluatorMappingSource
@@ -768,28 +676,52 @@ const CodeEditor = ({
 
   return (
     <Flex direction="column" gap="size-100">
-      {/* Editor header with reset button */}
+      {/* Editor header with controls */}
       <Flex
         direction="row"
         justifyContent="space-between"
         alignItems="center"
+        gap="size-200"
         flex="none"
       >
         <Text color="text-500" size="XS">
           {descriptionText}
         </Text>
-        <Button
-          size="S"
-          variant="quiet"
-          onPress={() =>
-            onChange(
-              getDefaultCodeEvaluatorSource(language, outputShape, outputConfig)
-            )
-          }
-        >
-          <Icon svg={<Icons.Refresh />} />
-          Reset
-        </Button>
+        <Flex direction="row" alignItems="center" gap="size-100" flex="none">
+          <Button
+            size="S"
+            variant="quiet"
+            leadingVisual={<Icon svg={<Icons.Refresh />} />}
+            onPress={() =>
+              onChange(
+                getDefaultCodeEvaluatorSource(
+                  language,
+                  outputShape,
+                  outputConfig
+                )
+              )
+            }
+          >
+            Reset
+          </Button>
+          <CopyToClipboardButton
+            text={sourceCode}
+            size="S"
+            variant="quiet"
+            tooltipText="Copy code"
+          >
+            Copy
+          </CopyToClipboardButton>
+          {typeFooter ? (
+            <Switch
+              isSelected={showTypes}
+              onChange={setShowTypes}
+              labelPlacement="start"
+            >
+              <Text size="S">Show types</Text>
+            </Switch>
+          ) : null}
+        </Flex>
       </Flex>
 
       {/* Code editor and type footer with resizable panels */}
@@ -828,7 +760,7 @@ const CodeEditor = ({
           </Panel>
 
           {/* Read-only type footer panel */}
-          {typeFooter && (
+          {showTypes && typeFooter && (
             <>
               <Separator css={compactResizeHandleCSS} />
               <Panel defaultSize="25%" minSize="10%" style={editorPanelStyle}>
@@ -1200,11 +1132,28 @@ const sidebarPanelCSS = css`
   height: 100%;
   padding: 0;
   box-sizing: border-box;
-  overflow-y: auto;
+  overflow: hidden;
   border-left: 1px solid var(--global-border-color-default);
 `;
 
-const accordionContentCSS = css`
+// The "Test Evaluator" region grows to fill the panel and scrolls on overflow.
+const sidebarScrollAreaCSS = css`
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+`;
+
+// The "Sandbox Runtime" region is pinned to the bottom of the panel and stays
+// visible. It scrolls internally if its content gets tall, but is capped so the
+// test region always keeps room.
+const sidebarFooterCSS = css`
+  flex: 0 0 auto;
+  max-height: 50%;
+  overflow-y: auto;
+  border-top: 1px solid var(--global-border-color-default);
+`;
+
+const sectionContentCSS = css`
   padding: var(--global-dimension-size-50) 0;
   padding-bottom: var(--global-dimension-size-150);
 `;

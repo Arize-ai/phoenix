@@ -666,22 +666,20 @@ test.describe.serial("Code Evaluators", () => {
       await selectSandbox(page, dialog, pythonSandboxName);
     }
 
-    // The Test Evaluator disclosure is expanded by default in the editor
-    // (DisclosureGroup defaultExpandedKeys includes test-section), so the
-    // contents should be visible without an explicit click.
+    // The "Test Evaluator" region is always rendered in the sidebar (no
+    // disclosure to expand), labeled by a section heading, so its contents
+    // are visible without any interaction.
+    await expect(
+      dialog.getByRole("heading", { name: "Test Evaluator" })
+    ).toBeVisible();
+
     const testButton = dialog.getByRole("button", {
       name: "Test",
       exact: true,
     });
     await expect(testButton).toBeVisible();
 
-    // The disclosure trigger lives inside the dialog as a button labeled
-    // "Test Evaluator" with aria-expanded=true on first render.
-    await expect(
-      dialog.getByRole("button", { name: "Test Evaluator" })
-    ).toHaveAttribute("aria-expanded", "true");
-
-    // The descriptive copy under the Test button.
+    // The descriptive copy next to the Test button.
     await expect(
       dialog.getByText(
         "Run your evaluator against the example data to verify it works correctly"
