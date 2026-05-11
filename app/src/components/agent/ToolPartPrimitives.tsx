@@ -4,11 +4,11 @@ export const TOOL_CALL_SUMMARY_LANE_RULES = {
   titleFlex: "0 1 auto",
   titleMinWidth: "0",
   titleMaxWidth: "55%",
-  middleFlex: "1 1 10ch",
-  middleMinWidth: "8ch",
-  statusFlex: "0.8 1 14ch",
-  statusMinWidth: "7ch",
-  statusMaxWidth: "14ch",
+  middleFlex: "1 1 50px",
+  middleMinWidth: "50px",
+  statusFlex: "0 1 auto",
+  statusMinWidth: "0",
+  statusMaxWidth: "none",
 } as const;
 
 /**
