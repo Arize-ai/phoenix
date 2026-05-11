@@ -38,9 +38,6 @@ const toolPoolCSS = css`
 
   .tool-pool__header {
     cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    gap: var(--global-dimension-size-50);
     padding: var(--global-dimension-size-100) var(--global-dimension-size-100) 0
       var(--global-dimension-size-150);
     user-select: none;
@@ -53,36 +50,31 @@ const toolPoolCSS = css`
 
   .tool-pool__title-row {
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    flex-wrap: wrap;
+    align-items: center;
     gap: var(--global-dimension-size-100);
+    color: var(--tool-call-title-color);
+    font-size: var(--global-font-size-xs);
+    min-width: 0;
   }
 
   .tool-pool__title {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: var(--global-dimension-size-50);
-    flex: 1 1 20rem;
-    min-width: 0;
-  }
-
-  .tool-pool__title-copy {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-  }
-
-  .tool-pool__title-summary {
-    font-size: var(--global-font-size-xs);
-    font-weight: 600;
-    color: var(--tool-call-title-color);
+    font-weight: 400;
+    white-space: nowrap;
+    flex-shrink: 0;
+    color: var(--global-text-color-800);
   }
 
   .tool-pool__chevron {
-    font-size: 12px;
-    color: var(--tool-call-secondary-color);
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--tool-call-title-color);
+    font-size: 18px;
     transition: transform 150ms ease;
   }
 
@@ -95,12 +87,14 @@ const toolPoolCSS = css`
   }
 
   .tool-pool__status {
+    margin-left: auto;
+    flex-shrink: 0;
+    white-space: nowrap;
     font-weight: 400;
     font-size: var(--global-font-size-xs);
     color: var(--tool-call-secondary-color);
-    flex: 0 1 auto;
-    max-width: 100%;
-    text-align: right;
+    padding-inline-end: var(--global-dimension-size-50);
+    transition: color 150ms ease;
   }
 
   .tool-pool__status[data-variant="danger"] {
@@ -108,11 +102,20 @@ const toolPoolCSS = css`
   }
 
   .tool-pool__breakdown {
-    font-size: var(--global-font-size-xs);
     font-weight: 400;
+    font-family: var(--ac-global-font-family-code);
     color: var(--tool-call-secondary-color);
     min-width: 0;
-    overflow-wrap: anywhere;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: color 150ms ease;
+  }
+
+  .tool-pool__header:hover .tool-pool__breakdown,
+  .tool-pool__header:hover .tool-pool__status:not([data-variant]) {
+    color: var(--tool-call-title-color);
+    transition: none;
   }
 
   .tool-pool__body {
@@ -212,6 +215,9 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
   const [isHeaderActive, setIsHeaderActive] = useState(false);
 
   const { text: statusText, variant: statusVariant } = formatPoolStatus(stats);
+  const breakdownText = Array.from(stats.byName.entries())
+    .map(([name, count]) => `${name}${count > 1 ? ` \u00D7${count}` : ""}`)
+    .join(", ");
 
   const handleToggle = () => {
     setIsExpanded((prev) => !prev);
@@ -247,27 +253,9 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
               className="tool-pool__chevron"
               data-expanded={isExpanded}
             />
-            <Icon
-              svg={<Icons.WrenchOutline />}
-              css={css`
-                font-size: 0.75rem;
-              `}
-            />
-            <span className="tool-pool__title-copy">
-              <span className="tool-pool__title-summary">
-                {stats.total} tool call{stats.total === 1 ? "" : "s"}
-              </span>
-              <span className="tool-pool__breakdown">
-                {Array.from(stats.byName.entries())
-                  .map(
-                    ([name, count]) =>
-                      `${name}${count > 1 ? ` \u00D7${count}` : ""}`
-                  )
-                  .join(", ")}
-                {stats.failed > 0 ? ` \u2014 ${stats.failed} failed` : ""}
-              </span>
-            </span>
+            {stats.total} tool call{stats.total === 1 ? "" : "s"}
           </span>
+          <span className="tool-pool__breakdown">{breakdownText}</span>
           <span
             className="tool-pool__status"
             data-variant={statusVariant ?? undefined}
