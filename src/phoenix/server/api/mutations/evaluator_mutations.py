@@ -24,7 +24,7 @@ from phoenix.db.types.annotation_configs import (
     OutputConfigType,
 )
 from phoenix.db.types.identifier import Identifier as IdentifierModel
-from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
+from phoenix.server.api.auth import IsAdminIfAuthEnabled, IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
     _infer_python_evaluate_input_schema,
@@ -1225,7 +1225,9 @@ class EvaluatorMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsAdminIfAuthEnabled, IsLocked]
+    )  # type: ignore
     async def create_code_evaluator(
         self,
         info: Info[Context, None],
@@ -1287,7 +1289,9 @@ class EvaluatorMutationMixin:
             query=Query(),
         )
 
-    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    @strawberry.mutation(
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsAdminIfAuthEnabled, IsLocked]
+    )  # type: ignore
     async def patch_code_evaluator(
         self,
         info: Info[Context, None],

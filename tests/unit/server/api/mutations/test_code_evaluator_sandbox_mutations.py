@@ -1275,3 +1275,296 @@ class TestAdminGate:
             f"updateSandboxConfig is missing IsAdminIfAuthEnabled in permission_classes; "
             f"found: {field.permission_classes}"
         )
+
+    # ------------------------------------------------------------------
+    # Read-side admin gates (Vuln 1: secret exfil via GraphQL config read)
+    # ------------------------------------------------------------------
+
+    def test_sandbox_config_config_field_has_admin_gate(self) -> None:
+        """SandboxConfig.config field exposes admin-authored env_vars / secret_refs;
+        must be gated so non-admin readers cannot exfil decrypted env-var literals.
+        """
+        from phoenix.server.api.auth import IsAdminIfAuthEnabled
+        from phoenix.server.api.types.SandboxConfig import SandboxConfig
+
+        defn = SandboxConfig.__strawberry_definition__  # type: ignore[attr-defined]
+        field = next(f for f in defn.fields if f.name == "config")
+        assert IsAdminIfAuthEnabled in field.permission_classes, (
+            f"SandboxConfig.config is missing IsAdminIfAuthEnabled in permission_classes; "
+            f"found: {field.permission_classes}"
+        )
+
+    def test_sandbox_provider_config_field_has_admin_gate(self) -> None:
+        """SandboxProvider.config field exposes admin-authored provider credentials;
+        must be gated so non-admin readers cannot read provider config plaintext.
+        """
+        from phoenix.server.api.auth import IsAdminIfAuthEnabled
+        from phoenix.server.api.types.SandboxConfig import SandboxProvider
+
+        defn = SandboxProvider.__strawberry_definition__  # type: ignore[attr-defined]
+        field = next(f for f in defn.fields if f.name == "config")
+        assert IsAdminIfAuthEnabled in field.permission_classes, (
+            f"SandboxProvider.config is missing IsAdminIfAuthEnabled in permission_classes; "
+            f"found: {field.permission_classes}"
+        )
+
+    def test_query_sandbox_backends_has_admin_gate(self) -> None:
+        """Query.sandboxBackends returns admin-managed backend info; must be admin-gated."""
+        from phoenix.server.api.auth import IsAdminIfAuthEnabled
+        from phoenix.server.api.queries import Query
+
+        defn = Query.__strawberry_definition__  # type: ignore[attr-defined]
+        field = next(f for f in defn.fields if f.name == "sandbox_backends")
+        assert IsAdminIfAuthEnabled in field.permission_classes, (
+            f"Query.sandboxBackends is missing IsAdminIfAuthEnabled in permission_classes; "
+            f"found: {field.permission_classes}"
+        )
+
+    def test_query_sandbox_providers_has_admin_gate(self) -> None:
+        """Query.sandboxProviders is the primary enumerator non-admins use to discover
+        admin-authored sandbox_config_id values; must be admin-gated so the enumerate-
+        then-pivot attack on the preview path has no input."""
+        from phoenix.server.api.auth import IsAdminIfAuthEnabled
+        from phoenix.server.api.queries import Query
+
+        defn = Query.__strawberry_definition__  # type: ignore[attr-defined]
+        field = next(f for f in defn.fields if f.name == "sandbox_providers")
+        assert IsAdminIfAuthEnabled in field.permission_classes, (
+            f"Query.sandboxProviders is missing IsAdminIfAuthEnabled in permission_classes; "
+            f"found: {field.permission_classes}"
+        )
+
+    # ------------------------------------------------------------------
+    # Persisted code-evaluator admin gates (Vuln 2: persisted-then-preview path)
+    # ------------------------------------------------------------------
+
+    def test_create_code_evaluator_has_admin_gate(self) -> None:
+        """createCodeEvaluator can bind a CodeEvaluator to an admin-authored
+        sandbox_config_id; must be admin-gated so non-admins cannot seed an
+        admin-sandbox-backed evaluator they later preview / run."""
+        from phoenix.server.api.auth import IsAdminIfAuthEnabled
+        from phoenix.server.api.mutations.evaluator_mutations import EvaluatorMutationMixin
+
+        defn = EvaluatorMutationMixin.__strawberry_definition__  # type: ignore[attr-defined]
+        field = next(f for f in defn.fields if f.name == "create_code_evaluator")
+        assert IsAdminIfAuthEnabled in field.permission_classes, (
+            f"createCodeEvaluator is missing IsAdminIfAuthEnabled in permission_classes; "
+            f"found: {field.permission_classes}"
+        )
+
+    def test_patch_code_evaluator_has_admin_gate(self) -> None:
+        """patchCodeEvaluator can rebind an existing CodeEvaluator to a different
+        sandbox_config_id; must be admin-gated so non-admins cannot redirect a
+        code evaluator at an admin-authored sandbox config."""
+        from phoenix.server.api.auth import IsAdminIfAuthEnabled
+        from phoenix.server.api.mutations.evaluator_mutations import EvaluatorMutationMixin
+
+        defn = EvaluatorMutationMixin.__strawberry_definition__  # type: ignore[attr-defined]
+        field = next(f for f in defn.fields if f.name == "patch_code_evaluator")
+        assert IsAdminIfAuthEnabled in field.permission_classes, (
+            f"patchCodeEvaluator is missing IsAdminIfAuthEnabled in permission_classes; "
+            f"found: {field.permission_classes}"
+        )
+
+    # ------------------------------------------------------------------
+    # Branch-level admin gate inside evaluator_previews (Vuln 2 primary)
+    # ------------------------------------------------------------------
+
+    def test_require_admin_if_auth_enabled_raises_for_non_admin(self) -> None:
+        """The branch-local gate inside evaluator_previews must raise Unauthorized
+        for non-admin callers when auth is enabled — this is the gate that closes
+        the exfil-via-preview path before _resolve_user_env runs."""
+        from phoenix.server.api.auth import MSG_ADMIN_ONLY
+        from phoenix.server.api.exceptions import Unauthorized
+        from phoenix.server.api.mutations.chat_mutations import (
+            _require_admin_if_auth_enabled,
+        )
+
+        info = self._make_info(auth_enabled=True, is_admin=False)
+        try:
+            _require_admin_if_auth_enabled(info)  # type: ignore[arg-type]
+        except Unauthorized as exc:
+            assert str(exc) == MSG_ADMIN_ONLY
+        else:
+            raise AssertionError(
+                "_require_admin_if_auth_enabled must raise Unauthorized for non-admin "
+                "when auth is enabled; this is the gate that prevents secret exfil via "
+                "evaluator_previews."
+            )
+
+    def test_require_admin_if_auth_enabled_passes_for_admin(self) -> None:
+        """The branch-local gate must allow admin callers when auth is enabled."""
+        from phoenix.server.api.mutations.chat_mutations import (
+            _require_admin_if_auth_enabled,
+        )
+
+        info = self._make_info(auth_enabled=True, is_admin=True)
+        _require_admin_if_auth_enabled(info)  # type: ignore[arg-type]
+
+    def test_require_admin_if_auth_enabled_passes_when_auth_disabled(self) -> None:
+        """The branch-local gate must NOT block when auth is disabled — preserves
+        the existing single-user / local-dev behaviour where evaluator_previews
+        runs for any caller (matches the rest of the IsAdminIfAuthEnabled surface)."""
+        from phoenix.server.api.mutations.chat_mutations import (
+            _require_admin_if_auth_enabled,
+        )
+
+        info = self._make_info(auth_enabled=False, is_admin=False)
+        _require_admin_if_auth_enabled(info)  # type: ignore[arg-type]
+
+    # ------------------------------------------------------------------
+    # Vuln 2 exploit-chain regression: gate fires before sandbox resolution
+    # ------------------------------------------------------------------
+
+    async def test_evaluator_previews_inline_branch_rejects_non_admin_before_resolving_sandbox(
+        self,
+    ) -> None:
+        """End-to-end regression for the Vuln 2 exploit chain.
+
+        Constructs the exact exploit payload from the security-review notes —
+        a non-admin caller, an inline_code_evaluator referencing an admin-authored
+        sandbox_config_id, and source code that returns os.environ via the
+        explanation field — and asserts the runtime composition (gate ->
+        resolver -> secret lookup -> harness -> response) is short-circuited
+        at the gate. Verified by:
+
+        1) Unauthorized is raised before any sandbox resolution.
+        2) `_resolve_inline_code_evaluator_backend` is never reached.
+        3) The error message matches the standard admin-only contract so the
+           UI / clients can handle it identically to the rest of the surface.
+        """
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from phoenix.server.api.auth import MSG_ADMIN_ONLY
+        from phoenix.server.api.exceptions import Unauthorized
+        from phoenix.server.api.input_types.EvaluatorPreviewInput import (
+            EvaluatorPreviewsInput,
+        )
+        from phoenix.server.api.mutations.chat_mutations import (
+            ChatCompletionMutationMixin,
+        )
+
+        info = self._make_info(auth_enabled=True, is_admin=False)
+
+        # Build the exploit payload shape: inline_code_evaluator referencing an
+        # admin-authored sandbox_config_id with source code that would exfil
+        # os.environ via the explanation field. We don't need a real DB row
+        # because the gate must fire before any DB / sandbox access.
+        inline_input = MagicMock()
+        inline_input.language.value = "PYTHON"
+        inline_input.name = "exfil-attempt"
+        inline_input.description = None
+        inline_input.source_code = (
+            "import os, json\n"
+            "def evaluate(**kw):\n"
+            "    return {'explanation': json.dumps(dict(os.environ))}\n"
+        )
+        inline_input.output_configs = []
+        inline_input.sandbox_config_id = str(GlobalID("SandboxConfig", "1"))
+
+        evaluator_input = MagicMock()
+        evaluator_input.built_in_evaluator_id = None
+        evaluator_input.inline_llm_evaluator = None
+        evaluator_input.code_evaluator_id = None
+        evaluator_input.inline_code_evaluator = inline_input
+
+        preview_item = MagicMock()
+        preview_item.evaluator = evaluator_input
+        preview_item.context = {}
+        preview_item.input_mapping = MagicMock()
+        preview_item.input_mapping.to_orm = MagicMock(return_value=MagicMock())
+
+        input_payload = MagicMock(spec=EvaluatorPreviewsInput)
+        input_payload.previews = [preview_item]
+        input_payload.credentials = []
+
+        # Sentinel: if the gate fails, the resolver would be reached. Patch
+        # `_resolve_inline_code_evaluator_backend` and assert it is never
+        # called — proving the gate runs upstream of any secret access.
+        resolver_path = (
+            "phoenix.server.api.mutations.chat_mutations._resolve_inline_code_evaluator_backend"
+        )
+        with patch(resolver_path, new=AsyncMock()) as resolver_spy:
+            try:
+                await ChatCompletionMutationMixin.evaluator_previews(
+                    info=info,
+                    input=input_payload,
+                )
+            except Unauthorized as exc:
+                # Standard admin-only contract — matches the message produced by
+                # IsAdminIfAuthEnabled.on_unauthorized so UI / clients can
+                # handle it the same way as gated mutation fields.
+                assert str(exc) == MSG_ADMIN_ONLY
+            else:
+                raise AssertionError(
+                    "Non-admin invocation of evaluator_previews with an "
+                    "inline_code_evaluator must raise Unauthorized — the "
+                    "Vuln 2 exfil chain is otherwise reachable."
+                )
+            assert resolver_spy.await_count == 0, (
+                "_resolve_inline_code_evaluator_backend must not run for a "
+                "non-admin caller — the branch-local gate must short-circuit "
+                "before any sandbox / secret access."
+            )
+
+    async def test_evaluator_previews_code_evaluator_branch_rejects_non_admin_before_db(
+        self,
+    ) -> None:
+        """Companion regression for the persisted code_evaluator branch.
+
+        Same shape as the inline test, but using a persisted code_evaluator_id
+        instead of an inline evaluator. Asserts the gate fires before the
+        branch's `info.context.db()` lookup runs.
+        """
+        from unittest.mock import MagicMock, patch
+
+        from phoenix.server.api.auth import MSG_ADMIN_ONLY
+        from phoenix.server.api.exceptions import Unauthorized
+        from phoenix.server.api.input_types.EvaluatorPreviewInput import (
+            EvaluatorPreviewsInput,
+        )
+        from phoenix.server.api.mutations.chat_mutations import (
+            ChatCompletionMutationMixin,
+        )
+
+        info = self._make_info(auth_enabled=True, is_admin=False)
+
+        evaluator_input = MagicMock()
+        evaluator_input.built_in_evaluator_id = None
+        evaluator_input.inline_llm_evaluator = None
+        evaluator_input.inline_code_evaluator = None
+        evaluator_input.code_evaluator_id = str(GlobalID("CodeEvaluator", "1"))
+
+        preview_item = MagicMock()
+        preview_item.evaluator = evaluator_input
+        preview_item.context = {}
+        preview_item.input_mapping = MagicMock()
+        preview_item.input_mapping.to_orm = MagicMock(return_value=MagicMock())
+
+        input_payload = MagicMock(spec=EvaluatorPreviewsInput)
+        input_payload.previews = [preview_item]
+        input_payload.credentials = []
+
+        # If the gate fails, the branch dispatches to the data loader.
+        # Patch the data loader entry so we can assert it is never called.
+        loader = info.context.data_loaders.latest_code_evaluator_versions  # type: ignore[attr-defined]
+        loader.load = MagicMock()
+
+        with patch.object(loader, "load") as load_spy:
+            try:
+                await ChatCompletionMutationMixin.evaluator_previews(
+                    info=info,
+                    input=input_payload,
+                )
+            except Unauthorized as exc:
+                assert str(exc) == MSG_ADMIN_ONLY
+            else:
+                raise AssertionError(
+                    "Non-admin invocation of evaluator_previews with a "
+                    "persisted code_evaluator_id must raise Unauthorized."
+                )
+            assert load_spy.call_count == 0, (
+                "latest_code_evaluator_versions.load must not run for a "
+                "non-admin caller — the branch-local gate must short-circuit "
+                "before any DB access in the persisted code-evaluator branch."
+            )

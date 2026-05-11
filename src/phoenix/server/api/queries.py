@@ -32,7 +32,7 @@ from phoenix.db.helpers import (
 from phoenix.db.models import LatencyMs
 from phoenix.db.types.annotation_configs import OptimizationDirection
 from phoenix.db.types.prompts import PromptMessageRole
-from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin
+from phoenix.server.api.auth import MSG_ADMIN_ONLY, IsAdmin, IsAdminIfAuthEnabled
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
     apply_input_mapping,
@@ -1690,12 +1690,12 @@ class Query:
         async with info.context.db.read() as session:
             return await session.scalar(stmt) or 0
 
-    @strawberry.field
+    @strawberry.field(permission_classes=[IsAdminIfAuthEnabled])  # type: ignore
     async def sandbox_backends(self, info: Info[Context, None]) -> list[SandboxBackendInfo]:
         """Return static + runtime info for all known sandbox backends."""
         return await get_sandbox_backend_info(info)
 
-    @strawberry.field
+    @strawberry.field(permission_classes=[IsAdminIfAuthEnabled])  # type: ignore
     async def sandbox_providers(self, info: Info[Context, None]) -> list[SandboxProvider]:
         """Return all persisted sandbox providers with their nested configs."""
         stmt = select(models.SandboxProvider).order_by(

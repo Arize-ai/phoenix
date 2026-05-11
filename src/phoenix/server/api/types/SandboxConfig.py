@@ -19,6 +19,7 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.server.api.auth import IsAdminIfAuthEnabled
 from phoenix.server.api.context import Context
 from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.sandbox import (
@@ -196,7 +197,7 @@ class SandboxConfig(Node):
         record = await self._get_record(info)
         return record.description
 
-    @strawberry.field
+    @strawberry.field(permission_classes=[IsAdminIfAuthEnabled])  # type: ignore
     async def config(self, info: Info[Context, None]) -> JSON:
         from phoenix.server.api.helpers.sandbox_redaction import redact_env_var_literals
 

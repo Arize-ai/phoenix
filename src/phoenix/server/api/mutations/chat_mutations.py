@@ -10,7 +10,7 @@ from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
     ContinuousOutputConfig,
 )
-from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
+from phoenix.server.api.auth import IsAdminIfAuthEnabled, IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
     EvaluationResult as EvaluationResultDict,
@@ -42,6 +42,28 @@ from phoenix.server.api.types.Trace import Trace
 logger = logging.getLogger(__name__)
 
 initialize_playground_clients()
+
+
+def _require_admin_if_auth_enabled(info: Info[Context, None]) -> None:
+    """Branch-local admin gate for resolver paths that reach admin-authored
+    sandbox configurations.
+
+    The top-level ``evaluator_previews`` mutation stays member-accessible so
+    builtin and inline-LLM evaluator previews continue to work for non-admin
+    callers. Branches that resolve a ``sandbox_config_id`` (which dereferences
+    admin-authored ``SandboxConfig`` / ``SandboxProvider`` rows and ultimately
+    decrypts admin-authored ``Secret`` rows via ``_resolve_user_env``) call
+    this helper at their entry point so non-admin callers receive the project's
+    standard ``Unauthorized("Only admin can perform this action")`` error
+    rather than reaching ``_resolve_user_env``.
+
+    Delegates to ``IsAdminIfAuthEnabled`` so the gate observes the same
+    auth-disabled (single-user / local-dev) bypass that Strawberry-level
+    ``permission_classes`` use on the rest of the sandbox surface.
+    """
+    perm = IsAdminIfAuthEnabled()
+    if not perm.has_permission(source=None, info=info):
+        perm.on_unauthorized()
 
 
 @strawberry.type
@@ -266,6 +288,15 @@ class ChatCompletionMutationMixin:
                     all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))
 
             elif code_evaluator_id := evaluator_input.code_evaluator_id:
+                # Branch-level admin gate: the persisted code-evaluator branch
+                # dereferences admin-authored SandboxConfig / SandboxProvider
+                # rows and decrypts admin-authored Secret rows via
+                # `_resolve_user_env`. Gate the branch entry so non-admin
+                # callers cannot reach `_resolve_user_env`. The top-level
+                # mutation stays member-accessible so builtin / inline-LLM
+                # evaluator branches continue to work for non-admin callers.
+                _require_admin_if_auth_enabled(info)
+
                 type_name, db_id = from_global_id(code_evaluator_id)
                 if type_name != CodeEvaluator.__name__:
                     raise BadRequest(f"Expected code evaluator, got {type_name}")
@@ -378,6 +409,19 @@ class ChatCompletionMutationMixin:
                     all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))
 
             elif inline_code_evaluator := evaluator_input.inline_code_evaluator:
+                # Branch-level admin gate: the inline code-evaluator branch
+                # accepts a user-supplied `sandbox_config_id` that
+                # `_resolve_inline_code_evaluator_backend` dereferences against
+                # admin-authored SandboxConfig / SandboxProvider rows and
+                # decrypts admin-authored Secret rows via `_resolve_user_env`.
+                # Gate the branch entry so non-admin callers cannot reach the
+                # resolver. The inline branch's helper also rejects a None
+                # sandbox_config_id with BadRequest, so there is no
+                # sandbox-less execution path on this branch — the gate fires
+                # unconditionally and is structurally equivalent to "gate when
+                # a sandbox_config_id will be resolved".
+                _require_admin_if_auth_enabled(info)
+
                 from phoenix.server.api.evaluators import CodeEvaluatorRunner
 
                 language = inline_code_evaluator.language.value
