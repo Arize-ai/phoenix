@@ -36,17 +36,11 @@ function getAssistantProjectName() {
   );
 }
 
-async function installAgentDefaults({
-  page,
-  useV2Endpoint = false,
-}: {
-  page: Page;
-  useV2Endpoint?: boolean;
-}) {
+async function installAgentDefaults({ page }: { page: Page }) {
   const assistantProvider = getAssistantProvider();
   const assistantModel = getAssistantModel();
   await page.addInitScript(
-    ({ provider, modelName, useV2 }) => {
+    ({ provider, modelName }) => {
       localStorage.clear();
       localStorage.setItem(
         "arize-phoenix-feature-flags",
@@ -76,7 +70,6 @@ async function installAgentDefaults({
             capabilities: {
               "bash.retainInactiveSessions": false,
               "graphql.mutations": false,
-              "chat.useV2Endpoint": useV2,
             },
           },
           version: 5,
@@ -86,7 +79,6 @@ async function installAgentDefaults({
     {
       provider: assistantProvider,
       modelName: assistantModel,
-      useV2: useV2Endpoint,
     }
   );
 }
@@ -94,28 +86,21 @@ async function installAgentDefaults({
 export class PxiDriver {
   private page: Page;
   private request: APIRequestContext;
-  private useV2Endpoint: boolean;
 
   constructor({
     page,
     request,
-    useV2Endpoint = false,
   }: {
     page: Page;
     request: APIRequestContext;
     testInfo: TestInfo;
-    useV2Endpoint?: boolean;
   }) {
     this.page = page;
     this.request = request;
-    this.useV2Endpoint = useV2Endpoint;
   }
 
   async open() {
-    await installAgentDefaults({
-      page: this.page,
-      useV2Endpoint: this.useV2Endpoint,
-    });
+    await installAgentDefaults({ page: this.page });
     await this.page.goto("/projects");
     await this.page.getByRole("button", { name: "Open agent chat" }).click();
     await expect(
@@ -154,7 +139,9 @@ export class PxiDriver {
                 role?: string;
                 parts?: unknown[];
                 metadata?: {
-                  traceId?: unknown;
+                  trace?: {
+                    traceId?: unknown;
+                  } | null;
                 };
               }>;
             }
@@ -170,7 +157,7 @@ export class PxiDriver {
         (candidate) => candidate.role === "assistant"
       );
       const latestAssistant = assistantMessages.at(-1);
-      const traceId = latestAssistant?.metadata?.traceId;
+      const traceId = latestAssistant?.metadata?.trace?.traceId;
       if (typeof traceId !== "string") {
         return null;
       }
@@ -269,6 +256,43 @@ export class PxiDriver {
       return toolName ? [toolName] : [];
     });
   }
+
+  async getActiveSessionId(): Promise<string> {
+    const handle = await this.page.waitForFunction(() => {
+      const stored = localStorage.getItem("arize-phoenix-agent");
+      if (!stored) return null;
+      const parsed = JSON.parse(stored) as {
+        state?: { activeSessionId?: string | null };
+      };
+      return parsed.state?.activeSessionId ?? null;
+    });
+    return (await handle.jsonValue()) as string;
+  }
+
+  async listRecentProjectTraces(sinceIsoTimestamp: string): Promise<
+    Array<{
+      trace_id: string;
+      spans: Array<{ span_kind: string; name: string }>;
+    }>
+  > {
+    const projectName = encodeURIComponent(getAssistantProjectName());
+    const response = await expectOK(
+      await this.request.get(`/v1/projects/${projectName}/traces`, {
+        params: {
+          start_time: sinceIsoTimestamp,
+          include_spans: "true",
+          limit: 50,
+        },
+      })
+    );
+    const traces = response.data;
+    return Array.isArray(traces)
+      ? (traces as Array<{
+          trace_id: string;
+          spans: Array<{ span_kind: string; name: string }>;
+        }>)
+      : [];
+  }
 }
 
 export const test = base.extend<{ pxi: PxiDriver }>({
@@ -278,15 +302,9 @@ export const test = base.extend<{ pxi: PxiDriver }>({
 });
 
 /**
- * Test fixture that uses the chat v2 endpoint.
- * Use this for tests that require v2-only features like playground prompt tools.
+ * Backwards-compatible alias for tests that previously opted into the v2
+ * endpoint. There is now a single chat endpoint, so this is just `test`.
  */
-export const testV2 = base.extend<{ pxi: PxiDriver }>({
-  pxi: async ({ page, request }, provide, testInfo) => {
-    await provide(
-      new PxiDriver({ page, request, testInfo, useV2Endpoint: true })
-    );
-  },
-});
+export const testV2 = test;
 
 export { expect };

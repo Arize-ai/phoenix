@@ -11,10 +11,7 @@ import {
   SYSTEM_INTERRUPT_ERROR,
   USER_INTERRUPT_ERROR,
 } from "@phoenix/agent/chat/shouldSendAutomatically";
-import {
-  assistantMessageMetadataSchema,
-  type AgentUIMessage,
-} from "@phoenix/agent/chat/types";
+import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { selectActiveContexts } from "@phoenix/agent/context/selectors";
 import type {
   ElicitToolOutput,
@@ -27,7 +24,7 @@ import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 
 import {
   useGenerateSessionSummary,
-  type SummarizeQuery,
+  type ChatSearchParams,
 } from "./useGenerateSessionSummary";
 
 /**
@@ -50,15 +47,15 @@ import {
 export function useAgentChat({
   sessionId,
   chatApiUrl,
-  summarizeQuery,
+  chatSearchParams,
 }: {
   sessionId: string | null;
   chatApiUrl: string;
-  summarizeQuery: SummarizeQuery;
+  chatSearchParams: ChatSearchParams;
 }) {
   const store = useAgentStore();
   const runtime = useAgentChatRuntime();
-  const { generateSummary } = useGenerateSessionSummary({ summarizeQuery });
+  const { generateSummary } = useGenerateSessionSummary({ chatSearchParams });
   const pendingElicitation = useAgentContext((state) =>
     sessionId ? (state.pendingElicitationBySessionId[sessionId] ?? null) : null
   );
@@ -80,7 +77,6 @@ export function useAgentChat({
             const chat = new Chat<AgentUIMessage>({
               id: sessionId,
               messages: initialMessages,
-              messageMetadataSchema: assistantMessageMetadataSchema,
               transport: new DefaultChatTransport({
                 api: chatApiUrl,
                 fetch: authFetch,
@@ -97,7 +93,6 @@ export function useAgentChat({
                     messages,
                     trigger,
                     messageId,
-                    sessionId,
                     capabilities: store.getState().capabilities,
                     observability: store.getState().observability,
                     hasRemoteCollector: Boolean(
@@ -157,8 +152,8 @@ export function useAgentChat({
     setMessages,
   } = chat;
 
-  // Anthropic doesn't accept unresolved tool calls, so we resolve them by marking
-  // as error
+  // Anthropic doesn't accept unresolved tool calls, so we resolve them by
+  // marking them as error before the next request goes out.
   const addInterruptedToolOutputs = async ({
     messages,
     errorText,
@@ -222,9 +217,6 @@ export function useAgentChat({
   // the visible surface moved, the active session changed, or the model swap
   // caused the runtime instance to be replaced.
   useEffect(() => {
-    if (!sessionId) {
-      return;
-    }
     return () => {
       if (sessionId && messagesRef.current.length > 0) {
         store.getState().setSessionMessages(sessionId, messagesRef.current);

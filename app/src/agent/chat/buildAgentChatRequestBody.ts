@@ -1,5 +1,6 @@
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import type { AgentCapabilities } from "@phoenix/agent/extensions/capabilities";
+import type { components } from "@phoenix/api/__generated__/v1";
 import type { AgentObservabilitySettings } from "@phoenix/store/agentStore";
 import { getTimeZone, toLocalISOWithOffset } from "@phoenix/utils/timeUtils";
 
@@ -16,8 +17,6 @@ type BuildAgentChatRequestBodyOptions = {
   trigger: "submit-message" | "regenerate-message";
   /** Optional message identifier for regenerate flows. */
   messageId: string | undefined;
-  /** Optional PXI session id used to associate traces across turns. */
-  sessionId?: string | null;
   /** Runtime capability snapshot to expose to the model for this turn. */
   capabilities: AgentCapabilities;
   /** Per-user PXI observability settings for this request. */
@@ -28,29 +27,7 @@ type BuildAgentChatRequestBodyOptions = {
   contexts: AgentContext[];
 };
 
-/** Request payload sent to the PXI agent chat endpoint. */
-type BuildAgentChatRequestBodyResult = Record<string, unknown> & {
-  /** Chat identifier used by the transport for this conversation. */
-  id: string;
-  /** Full UI message history sent with the request. */
-  messages: AgentUIMessage[];
-  /** Reason the transport is sending this request. */
-  trigger: "submit-message" | "regenerate-message";
-  /** Optional message identifier for regenerate flows. */
-  messageId: string | undefined;
-  /** Distinguishes normal chat turns from other PXI chat request types. */
-  traceNameSuffix: "Turn";
-  /** Optional PXI session id used to associate traces across turns. */
-  sessionId?: string;
-  /** Whether to persist PXI traces in the current Phoenix instance. */
-  ingestTraces: boolean;
-  /** Whether to also export PXI traces to the configured remote collector. */
-  exportRemoteTraces: boolean;
-  /** Typed contexts advertised to the backend for this turn. */
-  contexts: AgentContext[];
-  /** Runtime capability snapshot advertised to the backend for this turn. */
-  capabilities: AgentCapabilities;
-};
+type BuildAgentChatRequestBodyResult = components["schemas"]["ChatRequest"];
 
 /**
  * Build request-only browser clock context for resolving relative time phrases.
@@ -83,7 +60,6 @@ export function buildAgentChatRequestBody({
   messages,
   trigger,
   messageId,
-  sessionId,
   capabilities,
   observability,
   hasRemoteCollector,
@@ -98,11 +74,9 @@ export function buildAgentChatRequestBody({
     messages,
     trigger,
     messageId,
-    traceNameSuffix: "Turn",
     ingestTraces: observability.storeLocalTraces,
     exportRemoteTraces: observability.exportRemoteTraces && hasRemoteCollector,
     contexts: requestContexts,
     capabilities,
-    ...(sessionId ? { sessionId } : {}),
   };
 }

@@ -1294,7 +1294,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/chat": {
+    "/agents/{agent_id}/sessions/{session_id}/chat": {
         parameters: {
             query?: never;
             header?: never;
@@ -1304,24 +1304,7 @@ export interface paths {
         get?: never;
         put?: never;
         /** Chat */
-        post: operations["chat_chat_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/chat-v2": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Chat V2 */
-        post: operations["chat_v2_chat_v2_post"];
+        post: operations["chat_agents__agent_id__sessions__session_id__chat_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1521,6 +1504,60 @@ export interface components {
             /** Timezone */
             timeZone: string;
         };
+        /**
+         * AssistantMessageMetadata
+         * @description Wire schema for the chat stream's `message_metadata` payload.
+         */
+        AssistantMessageMetadata: {
+            /** Sessionid */
+            sessionId: string;
+            trace?: components["schemas"]["AssistantMessageMetadataTraceIds"] | null;
+            usage?: components["schemas"]["AssistantMessageMetadataUsage"] | null;
+        };
+        /** AssistantMessageMetadataTraceIds */
+        AssistantMessageMetadataTraceIds: {
+            /** Traceid */
+            traceId: string;
+            /** Rootspanid */
+            rootSpanId: string;
+        };
+        /** AssistantMessageMetadataUsage */
+        AssistantMessageMetadataUsage: {
+            tokens: components["schemas"]["AssistantMessageMetadataUsageTokens"];
+            promptDetails?: components["schemas"]["AssistantMessageMetadataUsageTokenDetails"] | null;
+        };
+        /** AssistantMessageMetadataUsageTokenDetails */
+        AssistantMessageMetadataUsageTokenDetails: {
+            /** Cacheread */
+            cacheRead: number;
+            /** Cachewrite */
+            cacheWrite: number;
+        };
+        /** AssistantMessageMetadataUsageTokens */
+        AssistantMessageMetadataUsageTokens: {
+            /** Prompt */
+            prompt: number;
+            /** Completion */
+            completion: number;
+            /** Total */
+            total: number;
+        };
+        /**
+         * AssistantMetadataUIMessage
+         * @description `UIMessage` with `metadata` narrowed to `AssistantMessageMetadata`.
+         */
+        AssistantMetadataUIMessage: {
+            /** Id */
+            id: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "system" | "user" | "assistant";
+            metadata?: components["schemas"]["AssistantMessageMetadata"] | null;
+            /** Parts */
+            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["ToolOutputAvailablePart"] | components["schemas"]["ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["DynamicToolOutputAvailablePart"] | components["schemas"]["DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
+        };
         /** CategoricalAnnotationConfig */
         CategoricalAnnotationConfig: {
             /** Name */
@@ -1559,6 +1596,82 @@ export interface components {
             label: string;
             /** Score */
             score?: number | null;
+        };
+        /**
+         * ChatContext
+         * @description Discriminated union of every UI-state context the agent understands.
+         *
+         *     Wrapped in ``RootModel`` so the generated OpenAPI schema exposes a single
+         *     named ``ChatContext`` component instead of inlining the ``oneOf`` at every
+         *     reference site. The actual member is accessible via ``.root``.
+         */
+        ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"];
+        /**
+         * ChatRegenerateMessage
+         * @description Regenerate message extended with Phoenix-specific fields.
+         */
+        ChatRegenerateMessage: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            trigger: "regenerate-message";
+            /** Id */
+            id: string;
+            /** Messages */
+            messages: components["schemas"]["AssistantMetadataUIMessage"][];
+            /** Messageid */
+            messageId?: string | null;
+            /**
+             * Ingesttraces
+             * @default false
+             */
+            ingestTraces?: boolean;
+            /**
+             * Exportremotetraces
+             * @default false
+             */
+            exportRemoteTraces?: boolean;
+            /** Contexts */
+            contexts?: components["schemas"]["ChatContext"][];
+            capabilities?: components["schemas"]["AgentCapabilities"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ChatRequest
+         * @description Discriminated union of chat request payloads.
+         */
+        ChatRequest: components["schemas"]["ChatSubmitMessage"] | components["schemas"]["ChatRegenerateMessage"];
+        /**
+         * ChatSubmitMessage
+         * @description Submit message extended with Phoenix-specific fields.
+         */
+        ChatSubmitMessage: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            trigger: "submit-message";
+            /** Id */
+            id: string;
+            /** Messages */
+            messages: components["schemas"]["AssistantMetadataUIMessage"][];
+            /**
+             * Ingesttraces
+             * @default false
+             */
+            ingestTraces?: boolean;
+            /**
+             * Exportremotetraces
+             * @default false
+             */
+            exportRemoteTraces?: boolean;
+            /** Contexts */
+            contexts?: components["schemas"]["ChatContext"][];
+            capabilities?: components["schemas"]["AgentCapabilities"];
+        } & {
+            [key: string]: unknown;
         };
         /** ContinuousAnnotationConfig */
         ContinuousAnnotationConfig: {
@@ -4853,52 +4966,6 @@ export interface components {
             ctx?: Record<string, unknown>;
         };
         /**
-         * _RegenerateMessage
-         * @description Regenerate message extended with Phoenix-specific fields.
-         */
-        _RegenerateMessage: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            trigger: "regenerate-message";
-            /** Id */
-            id: string;
-            /** Messages */
-            messages: components["schemas"]["UIMessage"][];
-            /** Messageid */
-            messageId?: string | null;
-            /** Contexts */
-            contexts?: (components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"])[];
-            capabilities?: components["schemas"]["AgentCapabilities"];
-            /** Sessionid */
-            sessionId: string;
-        } & {
-            [key: string]: unknown;
-        };
-        /**
-         * _SubmitMessage
-         * @description Submit message extended with Phoenix-specific fields.
-         */
-        _SubmitMessage: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            trigger: "submit-message";
-            /** Id */
-            id: string;
-            /** Messages */
-            messages: components["schemas"]["UIMessage"][];
-            /** Contexts */
-            contexts?: (components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"])[];
-            capabilities?: components["schemas"]["AgentCapabilities"];
-            /** Sessionid */
-            sessionId: string;
-        } & {
-            [key: string]: unknown;
-        };
-        /**
          * _SummarizeRequest
          * @description Body for POST /agents/{agent_id}/sessions/{session_id}/summary.
          *
@@ -4906,6 +4973,16 @@ export interface components {
          *     the structured-output tool schema.
          */
         _SummarizeRequest: {
+            /**
+             * Ingesttraces
+             * @default false
+             */
+            ingestTraces?: boolean;
+            /**
+             * Exportremotetraces
+             * @default false
+             */
+            exportRemoteTraces?: boolean;
             /** Messages */
             messages: components["schemas"]["UIMessage"][];
         };
@@ -8723,7 +8800,7 @@ export interface operations {
             };
         };
     };
-    chat_chat_post: {
+    chat_agents__agent_id__sessions__session_id__chat_post: {
         parameters: {
             query: {
                 provider_type: "custom" | "builtin";
@@ -8733,57 +8810,25 @@ export interface operations {
                 openai_api_type?: "chat_completions" | "responses";
             };
             header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
+            path: {
+                agent_id: string;
+                session_id: string;
             };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    chat_v2_chat_v2_post: {
-        parameters: {
-            query: {
-                provider_type: "custom" | "builtin";
-                model_name: string;
-                provider_id?: string | null;
-                provider?: components["schemas"]["ModelProvider"] | null;
-                openai_api_type?: "chat_completions" | "responses";
-            };
-            header?: never;
-            path?: never;
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["_SubmitMessage"] | components["schemas"]["_RegenerateMessage"];
+                "application/json": components["schemas"]["ChatRequest"];
             };
         };
         responses: {
-            /** @description Successful Response */
+            /** @description Vercel-AI-style SSE stream. The turn ends with a `message-metadata` chunk whose `messageMetadata` payload matches `AssistantMessageMetadata`. Declared here so the model is included in the generated OpenAPI components. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["AssistantMessageMetadata"];
                 };
             };
             /** @description Validation Error */

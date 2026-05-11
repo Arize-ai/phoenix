@@ -1,35 +1,11 @@
 import type { UIMessage } from "ai";
-import { z } from "zod";
+
+import type { components } from "@phoenix/api/__generated__/v1";
 
 /**
- * Assistant-message metadata emitted by the `/chat` stream.
- *
- * The IDs are the raw OpenTelemetry identifiers for the root AGENT span that
- * represents the current agent turn.
+ * AI SDK `UIMessage` parameterized with the backend's assistant-message
+ * metadata shape, sourced from the generated OpenAPI types.
  */
-export const assistantMessageMetadataSchema = z.object({
-  traceId: z.string(),
-  rootSpanId: z.string(),
-  sessionId: z.string(),
-  usage: z
-    .object({
-      tokens: z.object({
-        prompt: z.number().min(0),
-        completion: z.number().min(0),
-        total: z.number().min(0),
-      }),
-      promptDetails: z
-        .object({
-          cacheRead: z.number().min(0),
-          cacheWrite: z.number().min(0),
-        })
-        .optional(),
-    })
-    .optional(),
-});
-
-export type AssistantMessageMetadata = z.infer<
-  typeof assistantMessageMetadataSchema
+export type AgentUIMessage = UIMessage<
+  components["schemas"]["AssistantMessageMetadata"]
 >;
-
-export type AgentUIMessage = UIMessage<AssistantMessageMetadata>;

@@ -1,16 +1,11 @@
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Annotated, Any, Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
-
-if TYPE_CHECKING:
-    from pydantic_ai.messages import ModelMessage
-
-    from phoenix.server.types import DbSessionFactory
-
+from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
+from pydantic_ai.messages import ModelMessage
 
 # ID format conventions
 # ---------------------
@@ -93,10 +88,20 @@ class PlaygroundContext(_ChatContextBase):
     instance_ids: list[int] = Field(alias="instanceIds")
 
 
-ChatContext = Annotated[
-    AppContext | ProjectContext | TraceContext | AgentSpanContext | PlaygroundContext,
-    Field(discriminator="type"),
-]
+class ChatContext(
+    RootModel[
+        Annotated[
+            AppContext | ProjectContext | TraceContext | AgentSpanContext | PlaygroundContext,
+            Field(discriminator="type"),
+        ]
+    ]
+):
+    """Discriminated union of every UI-state context the agent understands.
+
+    Wrapped in ``RootModel`` so the generated OpenAPI schema exposes a single
+    named ``ChatContext`` component instead of inlining the ``oneOf`` at every
+    reference site. The actual member is accessible via ``.root``.
+    """
 
 
 @dataclass
@@ -108,28 +113,20 @@ class ResolvedContexts:
     playground: PlaygroundContext | None = None
 
 
-ToolCallable = Callable[[dict[str, Any]], Awaitable[str]]
-
-
-@dataclass
-class ToolExecutionEnv:
-    user: Any
-    db: "DbSessionFactory"
-
-
-def resolve_contexts(items: list[ChatContext]) -> ResolvedContexts:
+def resolve_contexts(contexts: list[ChatContext]) -> ResolvedContexts:
     resolved = ResolvedContexts()
-    for item in items:
-        if isinstance(item, AppContext):
-            resolved.app = item
-        elif isinstance(item, PlaygroundContext):
-            resolved.playground = item
-        elif isinstance(item, ProjectContext):
-            resolved.project = item
-        elif isinstance(item, TraceContext):
-            resolved.trace = item
-        elif isinstance(item, AgentSpanContext):
-            resolved.span = item
+    for context in contexts:
+        context_value = context.root
+        if isinstance(context_value, AppContext):
+            resolved.app = context_value
+        elif isinstance(context_value, PlaygroundContext):
+            resolved.playground = context_value
+        elif isinstance(context_value, ProjectContext):
+            resolved.project = context_value
+        elif isinstance(context_value, TraceContext):
+            resolved.trace = context_value
+        elif isinstance(context_value, AgentSpanContext):
+            resolved.span = context_value
     return resolved
 
 

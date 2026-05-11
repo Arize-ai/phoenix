@@ -6490,113 +6490,32 @@
         }
       }
     },
-    "/chat": {
+    "/agents/{agent_id}/sessions/{session_id}/chat": {
       "post": {
         "tags": [
           "chat"
         ],
         "summary": "Chat",
-        "operationId": "chat_chat_post",
+        "operationId": "chat_agents__agent_id__sessions__session_id__chat_post",
         "parameters": [
           {
-            "name": "provider_type",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "enum": [
-                "custom",
-                "builtin"
-              ],
-              "type": "string",
-              "title": "Provider Type"
-            }
-          },
-          {
-            "name": "model_name",
-            "in": "query",
+            "name": "agent_id",
+            "in": "path",
             "required": true,
             "schema": {
               "type": "string",
-              "title": "Model Name"
+              "title": "Agent Id"
             }
           },
           {
-            "name": "provider_id",
-            "in": "query",
-            "required": false,
+            "name": "session_id",
+            "in": "path",
+            "required": true,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Provider Id"
-            }
-          },
-          {
-            "name": "provider",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/ModelProvider"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Provider"
-            }
-          },
-          {
-            "name": "openai_api_type",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "enum": [
-                "chat_completions",
-                "responses"
-              ],
               "type": "string",
-              "default": "responses",
-              "title": "Openai Api Type"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
+              "title": "Session Id"
             }
           },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/chat-v2": {
-      "post": {
-        "tags": [
-          "chat"
-        ],
-        "summary": "Chat V2",
-        "operationId": "chat_v2_chat_v2_post",
-        "parameters": [
           {
             "name": "provider_type",
             "in": "query",
@@ -6671,32 +6590,19 @@
           "content": {
             "application/json": {
               "schema": {
-                "oneOf": [
-                  {
-                    "$ref": "#/components/schemas/_SubmitMessage"
-                  },
-                  {
-                    "$ref": "#/components/schemas/_RegenerateMessage"
-                  }
-                ],
-                "discriminator": {
-                  "propertyName": "trigger",
-                  "mapping": {
-                    "submit-message": "#/components/schemas/_SubmitMessage",
-                    "regenerate-message": "#/components/schemas/_RegenerateMessage"
-                  }
-                },
-                "title": "Body"
+                "$ref": "#/components/schemas/ChatRequest"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "Vercel-AI-style SSE stream. The turn ends with a `message-metadata` chunk whose `messageMetadata` payload matches `AssistantMessageMetadata`. Declared here so the model is included in the generated OpenAPI components.",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantMessageMetadata"
+                }
               }
             }
           },
@@ -7168,6 +7074,228 @@
         "title": "AppContext",
         "description": "Per-turn browser clock context for resolving relative time requests."
       },
+      "AssistantMessageMetadata": {
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "title": "Sessionid"
+          },
+          "trace": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssistantMessageMetadataTraceIds"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssistantMessageMetadataUsage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "sessionId"
+        ],
+        "title": "AssistantMessageMetadata",
+        "description": "Wire schema for the chat stream's `message_metadata` payload."
+      },
+      "AssistantMessageMetadataTraceIds": {
+        "properties": {
+          "traceId": {
+            "type": "string",
+            "title": "Traceid"
+          },
+          "rootSpanId": {
+            "type": "string",
+            "title": "Rootspanid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "traceId",
+          "rootSpanId"
+        ],
+        "title": "AssistantMessageMetadataTraceIds"
+      },
+      "AssistantMessageMetadataUsage": {
+        "properties": {
+          "tokens": {
+            "$ref": "#/components/schemas/AssistantMessageMetadataUsageTokens"
+          },
+          "promptDetails": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssistantMessageMetadataUsageTokenDetails"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "tokens"
+        ],
+        "title": "AssistantMessageMetadataUsage"
+      },
+      "AssistantMessageMetadataUsageTokenDetails": {
+        "properties": {
+          "cacheRead": {
+            "type": "integer",
+            "title": "Cacheread"
+          },
+          "cacheWrite": {
+            "type": "integer",
+            "title": "Cachewrite"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cacheRead",
+          "cacheWrite"
+        ],
+        "title": "AssistantMessageMetadataUsageTokenDetails"
+      },
+      "AssistantMessageMetadataUsageTokens": {
+        "properties": {
+          "prompt": {
+            "type": "integer",
+            "title": "Prompt"
+          },
+          "completion": {
+            "type": "integer",
+            "title": "Completion"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt",
+          "completion",
+          "total"
+        ],
+        "title": "AssistantMessageMetadataUsageTokens"
+      },
+      "AssistantMetadataUIMessage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "system",
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AssistantMessageMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "parts": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/TextUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ReasoningUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolInputStreamingPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolInputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolOutputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolOutputErrorPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolApprovalRequestedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolApprovalRespondedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolOutputDeniedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolInputStreamingPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolInputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolOutputAvailablePart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolOutputErrorPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolApprovalRequestedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolApprovalRespondedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DynamicToolOutputDeniedPart"
+                },
+                {
+                  "$ref": "#/components/schemas/SourceUrlUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/SourceDocumentUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/FileUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/DataUIPart"
+                },
+                {
+                  "$ref": "#/components/schemas/StepStartUIPart"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Parts"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "role",
+          "parts"
+        ],
+        "title": "AssistantMetadataUIMessage",
+        "description": "`UIMessage` with `metadata` narrowed to `AssistantMessageMetadata`."
+      },
       "CategoricalAnnotationConfig": {
         "properties": {
           "name": {
@@ -7280,6 +7408,165 @@
           "label"
         ],
         "title": "CategoricalAnnotationValue"
+      },
+      "ChatContext": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/AppContext"
+          },
+          {
+            "$ref": "#/components/schemas/ProjectContext"
+          },
+          {
+            "$ref": "#/components/schemas/TraceContext"
+          },
+          {
+            "$ref": "#/components/schemas/AgentSpanContext"
+          },
+          {
+            "$ref": "#/components/schemas/PlaygroundContext"
+          }
+        ],
+        "title": "ChatContext",
+        "description": "Discriminated union of every UI-state context the agent understands.\n\nWrapped in ``RootModel`` so the generated OpenAPI schema exposes a single\nnamed ``ChatContext`` component instead of inlining the ``oneOf`` at every\nreference site. The actual member is accessible via ``.root``.",
+        "discriminator": {
+          "propertyName": "type",
+          "mapping": {
+            "app": "#/components/schemas/AppContext",
+            "playground": "#/components/schemas/PlaygroundContext",
+            "project": "#/components/schemas/ProjectContext",
+            "span": "#/components/schemas/AgentSpanContext",
+            "trace": "#/components/schemas/TraceContext"
+          }
+        }
+      },
+      "ChatRegenerateMessage": {
+        "properties": {
+          "trigger": {
+            "type": "string",
+            "const": "regenerate-message",
+            "title": "Trigger"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/AssistantMetadataUIMessage"
+            },
+            "type": "array",
+            "title": "Messages"
+          },
+          "messageId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Messageid"
+          },
+          "ingestTraces": {
+            "type": "boolean",
+            "title": "Ingesttraces",
+            "default": false
+          },
+          "exportRemoteTraces": {
+            "type": "boolean",
+            "title": "Exportremotetraces",
+            "default": false
+          },
+          "contexts": {
+            "items": {
+              "$ref": "#/components/schemas/ChatContext"
+            },
+            "type": "array",
+            "title": "Contexts"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/AgentCapabilities"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "trigger",
+          "id",
+          "messages"
+        ],
+        "title": "ChatRegenerateMessage",
+        "description": "Regenerate message extended with Phoenix-specific fields."
+      },
+      "ChatRequest": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ChatSubmitMessage"
+          },
+          {
+            "$ref": "#/components/schemas/ChatRegenerateMessage"
+          }
+        ],
+        "title": "ChatRequest",
+        "description": "Discriminated union of chat request payloads.",
+        "discriminator": {
+          "propertyName": "trigger",
+          "mapping": {
+            "regenerate-message": "#/components/schemas/ChatRegenerateMessage",
+            "submit-message": "#/components/schemas/ChatSubmitMessage"
+          }
+        }
+      },
+      "ChatSubmitMessage": {
+        "properties": {
+          "trigger": {
+            "type": "string",
+            "const": "submit-message",
+            "title": "Trigger",
+            "default": "submit-message"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/AssistantMetadataUIMessage"
+            },
+            "type": "array",
+            "title": "Messages"
+          },
+          "ingestTraces": {
+            "type": "boolean",
+            "title": "Ingesttraces",
+            "default": false
+          },
+          "exportRemoteTraces": {
+            "type": "boolean",
+            "title": "Exportremotetraces",
+            "default": false
+          },
+          "contexts": {
+            "items": {
+              "$ref": "#/components/schemas/ChatContext"
+            },
+            "type": "array",
+            "title": "Contexts"
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/AgentCapabilities"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "id",
+          "messages"
+        ],
+        "title": "ChatSubmitMessage",
+        "description": "Submit message extended with Phoenix-specific fields."
       },
       "ContinuousAnnotationConfig": {
         "properties": {
@@ -15114,159 +15401,18 @@
         ],
         "title": "ValidationError"
       },
-      "_RegenerateMessage": {
-        "properties": {
-          "trigger": {
-            "type": "string",
-            "const": "regenerate-message",
-            "title": "Trigger"
-          },
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "messages": {
-            "items": {
-              "$ref": "#/components/schemas/UIMessage"
-            },
-            "type": "array",
-            "title": "Messages"
-          },
-          "messageId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Messageid"
-          },
-          "contexts": {
-            "items": {
-              "oneOf": [
-                {
-                  "$ref": "#/components/schemas/AppContext"
-                },
-                {
-                  "$ref": "#/components/schemas/ProjectContext"
-                },
-                {
-                  "$ref": "#/components/schemas/TraceContext"
-                },
-                {
-                  "$ref": "#/components/schemas/AgentSpanContext"
-                },
-                {
-                  "$ref": "#/components/schemas/PlaygroundContext"
-                }
-              ],
-              "discriminator": {
-                "propertyName": "type",
-                "mapping": {
-                  "app": "#/components/schemas/AppContext",
-                  "playground": "#/components/schemas/PlaygroundContext",
-                  "project": "#/components/schemas/ProjectContext",
-                  "span": "#/components/schemas/AgentSpanContext",
-                  "trace": "#/components/schemas/TraceContext"
-                }
-              }
-            },
-            "type": "array",
-            "title": "Contexts"
-          },
-          "capabilities": {
-            "$ref": "#/components/schemas/AgentCapabilities"
-          },
-          "sessionId": {
-            "type": "string",
-            "title": "Sessionid"
-          }
-        },
-        "additionalProperties": true,
-        "type": "object",
-        "required": [
-          "trigger",
-          "id",
-          "messages",
-          "sessionId"
-        ],
-        "title": "_RegenerateMessage",
-        "description": "Regenerate message extended with Phoenix-specific fields."
-      },
-      "_SubmitMessage": {
-        "properties": {
-          "trigger": {
-            "type": "string",
-            "const": "submit-message",
-            "title": "Trigger",
-            "default": "submit-message"
-          },
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "messages": {
-            "items": {
-              "$ref": "#/components/schemas/UIMessage"
-            },
-            "type": "array",
-            "title": "Messages"
-          },
-          "contexts": {
-            "items": {
-              "oneOf": [
-                {
-                  "$ref": "#/components/schemas/AppContext"
-                },
-                {
-                  "$ref": "#/components/schemas/ProjectContext"
-                },
-                {
-                  "$ref": "#/components/schemas/TraceContext"
-                },
-                {
-                  "$ref": "#/components/schemas/AgentSpanContext"
-                },
-                {
-                  "$ref": "#/components/schemas/PlaygroundContext"
-                }
-              ],
-              "discriminator": {
-                "propertyName": "type",
-                "mapping": {
-                  "app": "#/components/schemas/AppContext",
-                  "playground": "#/components/schemas/PlaygroundContext",
-                  "project": "#/components/schemas/ProjectContext",
-                  "span": "#/components/schemas/AgentSpanContext",
-                  "trace": "#/components/schemas/TraceContext"
-                }
-              }
-            },
-            "type": "array",
-            "title": "Contexts"
-          },
-          "capabilities": {
-            "$ref": "#/components/schemas/AgentCapabilities"
-          },
-          "sessionId": {
-            "type": "string",
-            "title": "Sessionid"
-          }
-        },
-        "additionalProperties": true,
-        "type": "object",
-        "required": [
-          "id",
-          "messages",
-          "sessionId"
-        ],
-        "title": "_SubmitMessage",
-        "description": "Submit message extended with Phoenix-specific fields."
-      },
       "_SummarizeRequest": {
         "properties": {
+          "ingestTraces": {
+            "type": "boolean",
+            "title": "Ingesttraces",
+            "default": false
+          },
+          "exportRemoteTraces": {
+            "type": "boolean",
+            "title": "Exportremotetraces",
+            "default": false
+          },
           "messages": {
             "items": {
               "$ref": "#/components/schemas/UIMessage"

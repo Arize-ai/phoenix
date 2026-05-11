@@ -20,6 +20,7 @@ from __future__ import annotations
 from os import getenv
 from typing import Any, Callable, Literal, Protocol, cast
 
+from opentelemetry.trace import NoOpTracerProvider, TracerProvider
 from pydantic import ValidationError
 from pydantic_ai.models import Model as PydanticAIModel
 from pydantic_ai.models.anthropic import AnthropicModelSettings
@@ -44,6 +45,7 @@ from phoenix.server.agents.exceptions import (
     ProviderNotFoundError,
     ProviderUnsupportedError,
 )
+from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.playground_clients import _resolve_secrets
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -146,12 +148,13 @@ def _placeholder_or_error_for_openai_compatible_provider(
     raise ProviderCredentialsError(missing_credential_message)
 
 
-async def build_chat_model(
+async def build_model(
     params: ChatSearchParams,
     *,
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
-) -> "PydanticAIModel":
+    tracer_provider: TracerProvider | None = None,
+) -> OpenInferenceModelWrapper:
     """Build a ``pydantic_ai`` model for a chat request.
 
     Args:
@@ -160,6 +163,7 @@ async def build_chat_model(
         session: Open async session used for secret-store and provider
             lookups.
         decrypt: Callable that decrypts secret/provider config payloads.
+        tracer_provider: Optional provider for OpenInference spans.
 
     Returns:
         A ready-to-use ``pydantic_ai.models.Model`` instance.
@@ -186,21 +190,26 @@ async def build_chat_model(
         )
         if provider is None:
             raise ProviderNotFoundError("Custom provider not found.")
-        return await _get_pydantic_ai_model_from_generative_model_custom_provider(
+        model = await _get_pydantic_ai_model_from_generative_model_custom_provider(
             provider_record=provider,
             model_name=params.model_name,
             decrypt=decrypt,
         )
-    if isinstance(params, BuiltInProviderChatSearchParams):
-        return await _get_pydantic_ai_model_from_builtin_provider(
+    elif isinstance(params, BuiltInProviderChatSearchParams):
+        model = await _get_pydantic_ai_model_from_builtin_provider(
             params,
             session=session,
             decrypt=decrypt,
         )
-    # See ``_build_openai_model`` for why ``assert_never`` and ``raise``
-    # both appear.
-    assert_never(params)
-    raise ValueError(f"Unsupported chat search params type: {type(params).__name__}")
+    else:
+        # See ``_build_openai_model`` for why ``assert_never`` and ``raise``
+        # both appear.
+        assert_never(params)
+        raise ValueError(f"Unsupported chat search params type: {type(params).__name__}")
+    return OpenInferenceModelWrapper(
+        model,
+        tracer_provider=tracer_provider or NoOpTracerProvider(),
+    )
 
 
 async def _get_pydantic_ai_model_from_generative_model_custom_provider(
