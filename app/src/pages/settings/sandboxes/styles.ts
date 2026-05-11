@@ -24,6 +24,6 @@ export const configNameCSS = css`
 `;
 
 export const subtitleCSS = css`
-  color: var(--ac-global-text-color-700);
+  color: var(--global-text-color-700);
   font-size: var(--global-font-size-s);
 `;
