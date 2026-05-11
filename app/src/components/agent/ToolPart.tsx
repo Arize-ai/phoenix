@@ -136,11 +136,20 @@ export const toolPartCSS = css`
     gap: var(--global-dimension-size-50);
     font-weight: 400;
     white-space: nowrap;
-    flex-shrink: 0;
+    flex: 0 1 auto;
+    min-width: 0;
     color: var(--global-text-color-800);
   }
 
+  .tool-part__title-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
   .tool-part__preview {
+    flex: 1 1 auto;
     font-weight: 400;
     font-family: var(--ac-global-font-family-code);
     color: var(--tool-call-secondary-color);
@@ -181,31 +190,45 @@ export const toolPartCSS = css`
 
   .tool-part__chevron,
   .tool-part__tool-icon {
+    color: var(--tool-call-title-color);
+  }
+
+  .tool-part__icon-slot {
+    position: relative;
     width: 18px;
     height: 18px;
+    flex: 0 0 18px;
+  }
+
+  .tool-part__icon-slot .tool-part__chevron,
+  .tool-part__icon-slot .tool-part__tool-icon {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--tool-call-title-color);
   }
 
   .tool-part__chevron {
     font-size: 18px;
     transition: transform 150ms ease;
     transform: rotate(-90deg);
-    display: none;
+    opacity: 0;
   }
 
   .tool-part__tool-icon {
     font-size: 0.75rem;
+    opacity: 1;
   }
 
   summary:hover .tool-part__chevron {
-    display: flex;
+    opacity: 1;
   }
 
   summary:hover .tool-part__tool-icon {
-    display: none;
+    opacity: 0;
   }
 
   .tool-part__label {
@@ -275,12 +298,17 @@ export function ToolPart({ part }: { part: MessagePart }) {
       <summary>
         <div className="tool-part__summary">
           <span className="tool-part__title">
-            <Icon svg={<Icons.ChevronDown />} className="tool-part__chevron" />
-            <Icon
-              svg={<Icons.WrenchOutline />}
-              className="tool-part__tool-icon"
-            />
-            {toolName}
+            <span className="tool-part__icon-slot">
+              <Icon
+                svg={<Icons.ChevronDown />}
+                className="tool-part__chevron"
+              />
+              <Icon
+                svg={<Icons.WrenchOutline />}
+                className="tool-part__tool-icon"
+              />
+            </span>
+            <span className="tool-part__title-text">{toolName}</span>
           </span>
           {preview ? (
             <span className="tool-part__preview">{preview}</span>
