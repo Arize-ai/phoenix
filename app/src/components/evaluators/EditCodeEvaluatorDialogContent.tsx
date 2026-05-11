@@ -21,6 +21,7 @@ import {
   ListItem,
   ListBox,
   Popover,
+  SectionHeading,
   Select,
   SelectChevronUpDownIcon,
   SelectItem,
@@ -35,12 +36,6 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
-import {
-  Disclosure,
-  DisclosureGroup,
-  DisclosurePanel,
-  DisclosureTrigger,
-} from "@phoenix/components/core/disclosure";
 import { createEvaluatorAutocompletion } from "@phoenix/components/evaluators/codeEvaluatorAutocomplete";
 import {
   CodeEvaluatorLanguageField,
@@ -476,50 +471,48 @@ const ConfiguratorSidebar = ({
   language: CodeEvaluatorLanguage;
 }) => {
   return (
-    <DisclosureGroup defaultExpandedKeys={["test-section"]}>
-      <Disclosure id="test-section" defaultExpanded={false}>
-        <DisclosureTrigger arrowPosition="start">
+    <>
+      {/* Scrollable "Test Evaluator" region */}
+      <div css={sidebarScrollAreaCSS}>
+        <SectionHeading bordered={false}>
           <Text weight="heavy" size="S">
             Test Evaluator
           </Text>
-        </DisclosureTrigger>
-        <DisclosurePanel>
-          <div css={accordionContentCSS}>
-            <View marginY="size-100" paddingX="size-200">
-              <CodeEvaluatorTestSection
-                sourceCode={sourceCode}
-                language={language}
-                sandboxConfigId={selectedSandboxConfigId}
-              />
-            </View>
-            <View paddingX="size-200" paddingTop="size-50">
-              <EvaluatorExampleDataset />
-            </View>
-            <View marginTop="size-100">
-              <EvaluatorInputPreview />
-            </View>
-          </div>
-        </DisclosurePanel>
-      </Disclosure>
+        </SectionHeading>
+        <div css={sectionContentCSS}>
+          <View marginY="size-100" paddingX="size-200">
+            <CodeEvaluatorTestSection
+              sourceCode={sourceCode}
+              language={language}
+              sandboxConfigId={selectedSandboxConfigId}
+            />
+          </View>
+          <View paddingX="size-200" paddingTop="size-50">
+            <EvaluatorExampleDataset />
+          </View>
+          <View marginTop="size-100">
+            <EvaluatorInputPreview />
+          </View>
+        </div>
+      </div>
 
-      <Disclosure id="sandbox-runtime" defaultExpanded={false}>
-        <DisclosureTrigger arrowPosition="start">
+      {/* "Sandbox Runtime" pinned to the bottom and always visible */}
+      <div css={sidebarFooterCSS}>
+        <SectionHeading bordered={false}>
           <Text weight="heavy" size="S">
             Sandbox Runtime
           </Text>
-        </DisclosureTrigger>
-        <DisclosurePanel>
-          <div css={accordionContentCSS}>
-            <View paddingTop="size-100">
-              <SandboxCapabilitySummaryCard
-                selectedSandboxConfig={selectedSandboxConfig}
-                description="Review the selected runtime before testing execution behavior or saving this evaluator."
-              />
-            </View>
-          </div>
-        </DisclosurePanel>
-      </Disclosure>
-    </DisclosureGroup>
+        </SectionHeading>
+        <div css={sectionContentCSS}>
+          <View paddingTop="size-100">
+            <SandboxCapabilitySummaryCard
+              selectedSandboxConfig={selectedSandboxConfig}
+              description="Review the selected runtime before testing execution behavior or saving this evaluator."
+            />
+          </View>
+        </div>
+      </div>
+    </>
   );
 };
 
@@ -1200,11 +1193,28 @@ const sidebarPanelCSS = css`
   height: 100%;
   padding: 0;
   box-sizing: border-box;
-  overflow-y: auto;
+  overflow: hidden;
   border-left: 1px solid var(--global-border-color-default);
 `;
 
-const accordionContentCSS = css`
+// The "Test Evaluator" region grows to fill the panel and scrolls on overflow.
+const sidebarScrollAreaCSS = css`
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+`;
+
+// The "Sandbox Runtime" region is pinned to the bottom of the panel and stays
+// visible. It scrolls internally if its content gets tall, but is capped so the
+// test region always keeps room.
+const sidebarFooterCSS = css`
+  flex: 0 0 auto;
+  max-height: 50%;
+  overflow-y: auto;
+  border-top: 1px solid var(--global-border-color-default);
+`;
+
+const sectionContentCSS = css`
   padding: var(--global-dimension-size-50) 0;
   padding-bottom: var(--global-dimension-size-150);
 `;
