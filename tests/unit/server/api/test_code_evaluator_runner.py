@@ -34,6 +34,9 @@ from phoenix.server.sandbox.types import ExecutionResult
 OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
 INPUT_VALUE = SpanAttributes.INPUT_VALUE
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
+METADATA = SpanAttributes.METADATA
+TOOL_NAME = SpanAttributes.TOOL_NAME
+TOOL_PARAMETERS = SpanAttributes.TOOL_PARAMETERS
 
 
 def _categorical_config(name: str = "score") -> CategoricalOutputConfig:
@@ -648,20 +651,20 @@ class TestEvaluateTracing:
         assert names == {
             "Evaluator: my-eval",
             "Input Mapping",
-            "Sandbox Execution",
+            f"Sandbox: {runner._name}",
             "Parse Eval Result",
         }
 
         spans_by_name = {span.name: span for span in spans}
         evaluator_attrs = dict(spans_by_name["Evaluator: my-eval"].attributes or {})
         input_mapping_attrs = dict(spans_by_name["Input Mapping"].attributes or {})
-        sandbox_attrs = dict(spans_by_name["Sandbox Execution"].attributes or {})
+        sandbox_attrs = dict(spans_by_name[f"Sandbox: {runner._name}"].attributes or {})
         parse_attrs = dict(spans_by_name["Parse Eval Result"].attributes or {})
 
         # Span kinds.
         assert evaluator_attrs[OPENINFERENCE_SPAN_KIND] == "EVALUATOR"
         assert input_mapping_attrs[OPENINFERENCE_SPAN_KIND] == "CHAIN"
-        assert sandbox_attrs[OPENINFERENCE_SPAN_KIND] == "CHAIN"
+        assert sandbox_attrs[OPENINFERENCE_SPAN_KIND] == "TOOL"
         assert parse_attrs[OPENINFERENCE_SPAN_KIND] == "CHAIN"
 
         # Root span carries INPUT_VALUE, OUTPUT_VALUE, code.value, code.mime_type.
@@ -683,11 +686,21 @@ class TestEvaluateTracing:
             "literal_mapping",
         }
 
-        # Sandbox Execution scalar attributes.
-        assert sandbox_attrs["sandbox.backend_type"] == "AsyncMock"
-        assert sandbox_attrs["sandbox.language"] == "PYTHON"
-        assert sandbox_attrs["sandbox.session_key"] == runner._name
-        assert sandbox_attrs["sandbox.timeout"] == 30
+        # Sandbox span carries tool semantic conventions and the inputs pushed in.
+        assert sandbox_attrs[TOOL_NAME] == runner._name
+        raw_tool_parameters = sandbox_attrs[TOOL_PARAMETERS]
+        assert isinstance(raw_tool_parameters, str)
+        assert json.loads(raw_tool_parameters) == runner.input_schema
+        assert INPUT_VALUE in sandbox_attrs
+
+        # Sandbox metadata (serialized JSON under the metadata attribute).
+        raw_sandbox_metadata = sandbox_attrs[METADATA]
+        assert isinstance(raw_sandbox_metadata, str)
+        sandbox_metadata = json.loads(raw_sandbox_metadata)
+        assert sandbox_metadata["backend_type"] == "AsyncMock"
+        assert sandbox_metadata["language"] == "PYTHON"
+        assert sandbox_metadata["session_key"] == runner._name
+        assert sandbox_metadata["timeout"] == 30
 
         # trace_id is set on every result when a real tracer was passed.
         assert len(results) == 1
@@ -706,8 +719,10 @@ class TestEvaluateTracing:
         )
 
         spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
-        sandbox_attrs = dict(spans_by_name["Sandbox Execution"].attributes or {})
-        assert "sandbox.timeout" not in sandbox_attrs
+        sandbox_attrs = dict(spans_by_name[f"Sandbox: {runner._name}"].attributes or {})
+        raw_sandbox_metadata = sandbox_attrs[METADATA]
+        assert isinstance(raw_sandbox_metadata, str)
+        assert "timeout" not in json.loads(raw_sandbox_metadata)
 
     async def test_no_tracer_yields_none_trace_id(self) -> None:
         runner, _ = _make_runner(backend_stdout='"pass"')
@@ -841,7 +856,7 @@ class TestRedactionContracts:
         )
 
         spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
-        sandbox_attrs = dict(spans_by_name["Sandbox Execution"].attributes or {})
+        sandbox_attrs = dict(spans_by_name[f"Sandbox: {runner._name}"].attributes or {})
         output_val = str(sandbox_attrs.get(OUTPUT_VALUE, ""))
         assert secret not in output_val
         assert "<redacted:" in output_val
@@ -938,7 +953,7 @@ class TestRedactionContracts:
         )
 
         spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
-        sandbox_attrs = dict(spans_by_name["Sandbox Execution"].attributes or {})
+        sandbox_attrs = dict(spans_by_name[f"Sandbox: {runner._name}"].attributes or {})
         output_val = str(sandbox_attrs.get(OUTPUT_VALUE, ""))
         assert "<redacted:" not in output_val
 

@@ -898,7 +898,7 @@ async def get_evaluators(
                 backend = backend_by_sandbox_key[sandbox_key]
 
             evaluator_base = evaluator_base_by_id.get(code_row.id)
-            eval_name = evaluator_base.name if evaluator_base else str(code_row.id)
+            eval_name = evaluator_base.name.root if evaluator_base else str(code_row.id)
             eval_description = evaluator_base.description if evaluator_base else None
 
             if backend is not None:
@@ -908,7 +908,7 @@ async def get_evaluators(
                     if isinstance(c, (CategoricalOutputConfig, ContinuousOutputConfig))
                 ]
                 runner = CodeEvaluatorRunner(
-                    name=str(eval_name),
+                    name=eval_name,
                     description=eval_description,
                     source_code=code_version.source_code,
                     stored_output_configs=output_cfgs,
@@ -2717,20 +2717,29 @@ class CodeEvaluatorRunner(BaseEvaluator):
             else:
                 code = self._build_typescript_harness(mapped_inputs)
 
-            sandbox_attributes: dict[str, Any] = {
-                "sandbox.backend_type": type(self._sandbox_backend).__name__,
-                "sandbox.language": self._language,
-                "sandbox.session_key": self._name,
+            sandbox_metadata: dict[str, Any] = {
+                "backend_type": type(self._sandbox_backend).__name__,
+                "language": self._language,
+                "session_key": self._name,
             }
             if self._timeout is not None:
-                sandbox_attributes["sandbox.timeout"] = int(self._timeout)
+                sandbox_metadata["timeout"] = int(self._timeout)
 
             with tracer_.start_as_current_span(
-                "Sandbox Execution",
-                attributes={
-                    **oi.get_span_kind_attributes("chain"),
-                    **sandbox_attributes,
-                },
+                f"Sandbox: {self._name}",
+                attributes=_mask_attrs(
+                    {
+                        **oi.get_span_kind_attributes("tool"),
+                        **oi.get_tool_attributes(
+                            name=self._name,
+                            description=self._description,
+                            parameters=input_schema,
+                        ),
+                        **oi.get_input_attributes(mapped_inputs),
+                        **oi.get_metadata_attributes(metadata=sandbox_metadata),
+                    },
+                    masker,
+                ),
             ) as sandbox_span:
                 try:
                     execution = await asyncio.wait_for(
