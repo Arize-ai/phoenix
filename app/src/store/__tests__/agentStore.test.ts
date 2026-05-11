@@ -173,5 +173,34 @@ describe("agentStore", () => {
         hasAcknowledgedConsent: false,
       });
     });
+
+    it("drops legacy pending prompt edits during migration", async () => {
+      localStorage.setItem(
+        "arize-phoenix-agent",
+        JSON.stringify({
+          state: {
+            sessions: [],
+            sessionMap: {},
+            pendingPromptEditsByToolCallId: {
+              "tool-call-1": {
+                toolCallId: "tool-call-1",
+                sessionId: "session-1",
+                instanceId: 0,
+                expectedRevision: "prompt-old",
+                before: { messages: [] },
+                after: { messages: [] },
+                operations: [],
+              },
+            },
+          },
+          version: 5,
+        })
+      );
+
+      const store = createAgentStore();
+      await store.persist.rehydrate();
+
+      expect(store.getState().pendingPromptEditsByToolCallId).toEqual({});
+    });
   });
 });

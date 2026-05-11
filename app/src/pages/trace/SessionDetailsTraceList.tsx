@@ -19,6 +19,7 @@ import { useLocation, useSearchParams } from "react-router";
 
 import {
   Flex,
+  ExpandableContent,
   Icon,
   Icons,
   LinkButton,
@@ -107,6 +108,8 @@ const messageWrapCSS = css`
   max-width: 70%;
 `;
 
+const SESSION_TURN_MESSAGE_MAX_HEIGHT = 280;
+
 type RootSpanMessageRole = "INPUT" | "OUTPUT";
 
 type RootSpanMessageProps = {
@@ -124,6 +127,9 @@ function RootSpanMessage({ extra, label, role, value }: RootSpanMessageProps) {
   const isInput = role === "INPUT";
   const styles = useChatMessageStyles(isInput ? "user" : "assistant");
   const defaultLabel = isInput ? "INPUT" : "OUTPUT";
+  const overlayBackgroundColor = isInput
+    ? "var(--global-color-gray-100)"
+    : "var(--global-color-blue-100)";
   return (
     <Flex
       direction="column"
@@ -149,7 +155,13 @@ function RootSpanMessage({ extra, label, role, value }: RootSpanMessageProps) {
         width="100%"
         {...styles}
       >
-        <DynamicContent value={value} />
+        <ExpandableContent
+          height={SESSION_TURN_MESSAGE_MAX_HEIGHT}
+          expandedBehavior="grow"
+          overlayBackgroundColor={overlayBackgroundColor}
+        >
+          <DynamicContent value={value} />
+        </ExpandableContent>
       </View>
     </Flex>
   );

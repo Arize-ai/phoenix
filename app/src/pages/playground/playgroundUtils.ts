@@ -57,14 +57,12 @@ import {
   generateMessageId,
   generateToolId,
 } from "@phoenix/store/playground";
-import type { Mutable } from "@phoenix/typeUtils";
 import { assertUnreachable, isStringKeyedObject } from "@phoenix/typeUtils";
 import {
   formatContentAsString,
   safelyParseJSON,
 } from "@phoenix/utils/jsonUtils";
 
-import type { InvocationParameter } from "../../components/playground/model/InvocationParametersFormFields";
 import type {
   ChatCompletionOverDatasetInput,
   EvaluatorInputMappingInput,
@@ -87,13 +85,20 @@ import {
   SPAN_ATTRIBUTES_PARSING_ERROR,
   TOOLS_PARSING_ERROR,
 } from "./constants";
-import type { InvocationParameterInput } from "./invocationParameterUtils";
 import {
-  areInvocationParamsEqual,
-  constrainInvocationParameterInputsToDefinition,
-  toCamelCase,
+  getActiveSpecsForPlayground,
+  getInvocationFamilyForProvider,
+  invocationValueKeyForSpec,
+  type ParamSpec,
+} from "./invocationParameterSpecs";
+import {
+  constrainInvocationParameterInputsToSpecs,
+  invocationParametersToObject,
+  objectToInvocationParameters,
+  type InvocationParameterInput,
 } from "./invocationParameterUtils";
-import type { JsonObjectSchema, LlmToolSchema, MessageSchema } from "./schemas";
+import { writePromptInvocationParametersMutationInput } from "./promptInvocationParameterCodecs";
+import type { LlmToolSchema, MessageSchema } from "./schemas";
 import {
   chatMessageRolesSchema,
   chatMessagesSchema,
@@ -110,6 +115,10 @@ import {
   promptTemplateSchema,
   urlSchema,
 } from "./schemas";
+import {
+  inferOpenAIApiTypeFromAttributes,
+  normalizeSpanInvocationParameters,
+} from "./spanInvocationParameterHydration";
 import type { PlaygroundSpan } from "./spanPlaygroundPageLoader";
 
 /**
@@ -426,6 +435,10 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
       provider === "AZURE_OPENAI" && azureConfig.deploymentName
         ? azureConfig.deploymentName
         : data.llm.model_name;
+    const openaiApiType =
+      provider === "OPENAI" || provider === "AZURE_OPENAI"
+        ? inferOpenAIApiTypeFromSpan(parsedAttributes)
+        : null;
     return {
       modelConfig: {
         ...Object.fromEntries(
@@ -436,43 +449,13 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
         ),
         modelName,
         provider,
-        ...getOpenAIApiTypeConfigFromAttributes({
-          parsedAttributes,
-          provider,
-        }),
+        ...(openaiApiType != null ? { openaiApiType } : {}),
         invocationParameters: [],
-        supportedInvocationParameters: [],
       },
       parsingErrors: [],
     };
   }
   return { modelConfig: null, parsingErrors: [MODEL_CONFIG_PARSING_ERROR] };
-}
-
-/**
- * Decide which OpenAI API surface ("openaiApiType") to record on a playground
- * instance reconstructed from a span's attributes.
- *
- * The OpenAI Chat Completions and Responses APIs accept structurally different
- * `tools` payloads (see {@link inferOpenAIApiTypeFromTools}); when we rebuild
- * a playground instance from a span, we need to know which API the span came
- * from so we route a re-run through the same SDK call. Returns an empty patch
- * for non-OpenAI providers and for spans we can't classify (the store falls
- * back to the configured default in that case).
- */
-function getOpenAIApiTypeConfigFromAttributes({
-  parsedAttributes,
-  provider,
-}: {
-  parsedAttributes: unknown;
-  provider: ModelProvider;
-}): Pick<ModelConfig, "openaiApiType"> {
-  if (provider !== "OPENAI" && provider !== "AZURE_OPENAI") {
-    return {};
-  }
-  return isOpenAIResponsesSpan(parsedAttributes)
-    ? { openaiApiType: "RESPONSES" }
-    : {};
 }
 
 /**
@@ -524,38 +507,16 @@ function isResponsesShapedRawTool(definition: unknown): boolean {
 }
 
 /**
- * Decide which OpenAI API surface ("openaiApiType") to use based on the tools
- * attached to a prompt or span.
+ * Infer the OpenAI API surface from tool shape. A Responses-only shape on any
+ * tool ⇒ Responses; otherwise return `fallback` (Responses also accepts
+ * Chat-Completions-shaped function tools, so the absence of a positive signal
+ * isn't proof of Chat Completions).
  *
- * Why this exists: OpenAI exposes two structurally different chat APIs and we
- * need to know which one a prompt was written for so the playground routes a
- * re-run through the matching SDK call (and fetches the matching set of
- * supported invocation parameters). Spans saved before openaiApiType was
- * stored, and prompts imported from external sources, don't carry the
- * answer — so we infer it from tool shape.
+ * Spec: https://platform.openai.com/docs/api-reference/chat/create vs
+ * https://platform.openai.com/docs/api-reference/responses/create
  *
- * Why we can infer: the two APIs accept *partially disjoint* sets of tool
- * shapes, and seeing one that's exclusive to Responses is proof of origin.
- *   - Chat Completions only accepts function tools nested under `function`:
- *     `{ type: "function", function: { name, parameters, ... } }`
- *     (https://platform.openai.com/docs/api-reference/chat/create — see the
- *     `tools[]` parameter and `tool` definition).
- *   - Responses additionally accepts:
- *       (a) builtin tools whose `type` is something else (`web_search`,
- *           `file_search`, `computer_use_preview`, ...).
- *       (b) function tools in *flat* shape with `name` / `parameters` at the
- *           top level, no nested `function: {...}`.
- *     (https://platform.openai.com/docs/api-reference/responses/create —
- *     see the `tools[]` parameter and the function-tool variant.)
- * Either (a) or (b) on any tool ⇒ the prompt must be Responses. Otherwise
- * we can't distinguish (Responses is permissive enough to also accept
- * Chat-Completions-shaped function tools), so we return `fallback`.
- *
- * Applies {@link isResponsesShapedRawTool} to each `kind: "raw"` tool. Function
- * tools whose definition reached the playground as `kind: "function"` have
- * already been normalized to canonical shape, so the original Chat-Completions
- * vs Responses signal is no longer recoverable from them — we only consult
- * raw tools here.
+ * Only consults `kind: "raw"` tools — `kind: "function"` tools have already
+ * been normalized, losing the original shape signal.
  */
 export function inferOpenAIApiTypeFromTools(
   tools: readonly Tool[],
@@ -623,6 +584,37 @@ export function isOpenAIResponsesSpan(parsedAttributes: unknown): boolean {
   return (
     inferOpenAIApiTypeFromRawToolDefinitions(rawToolDefinitions) === "RESPONSES"
   );
+}
+
+/**
+ * Best-effort OpenAI API classification from a span's parsed attributes,
+ * combining the available signals in order of rigor:
+ *
+ * 1. Tool shape (`isOpenAIResponsesSpan`) — *proof of origin*. Chat Completions
+ *    rejects tool shapes that Responses accepts (`web_search`, `file_search`,
+ *    flat-shape function tools), so seeing one is structural evidence the
+ *    request must have been Responses. No false positives.
+ * 2. Parameter keys (`inferOpenAIApiTypeFromAttributes`) — *correlation*.
+ *    Some keys lean one way (`max_output_tokens` → Responses,
+ *    `max_completion_tokens` → Chat) but others (`frequency_penalty`,
+ *    `presence_penalty`) are accepted by both APIs, so this only runs when
+ *    tool shape didn't already answer.
+ *
+ * Returns `null` when neither signal fires, letting the caller fall back to
+ * its configured default.
+ */
+export function inferOpenAIApiTypeFromSpan(
+  parsedAttributes: unknown
+): OpenAIApiType | null {
+  if (isOpenAIResponsesSpan(parsedAttributes)) {
+    return "RESPONSES";
+  }
+  const invocationParameters =
+    isStringKeyedObject(parsedAttributes) &&
+    isStringKeyedObject(parsedAttributes.llm)
+      ? parsedAttributes.llm.invocation_parameters
+      : undefined;
+  return inferOpenAIApiTypeFromAttributes(invocationParameters);
 }
 
 /**
@@ -707,14 +699,16 @@ export function getUrlInfoFromAttributes(parsedAttributes: unknown): {
  * Attempts to get llm.invocation_parameters from the span attributes.
  * Invocation parameters are then massaged into the InvocationParameterInput type.
  * @param parsedAttributes the JSON parsed span attributes
- * @param modelSupportedInvocationParameters the model supported invocation parameters
+ * @param provider resolved model provider for the span
+ * @param openaiApiType OpenAI/Azure API type (Chat vs Responses) for normalizing recorded kwargs
  * @returns the invocation parameters from the span attributes
  *
  * NB: Only exported for testing
  */
 export function getModelInvocationParametersFromAttributes(
   parsedAttributes: unknown,
-  modelSupportedInvocationParameters: InvocationParameter[] = []
+  provider: ModelProvider,
+  openaiApiType: OpenAIApiType
 ): {
   invocationParameters: InvocationParameterInput[];
   parsingErrors: string[];
@@ -727,14 +721,14 @@ export function getModelInvocationParametersFromAttributes(
     parsingErrors.push(MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR);
   }
 
-  const invocationParameters =
-    transformInvocationParametersFromAttributesToInvocationParameterInputs(
-      data?.llm.invocation_parameters ?? {},
-      modelSupportedInvocationParameters
-    );
+  const raw = data?.llm.invocation_parameters ?? {};
+  const family = getInvocationFamilyForProvider(provider);
+  const normalized = normalizeSpanInvocationParameters(raw, family);
 
   return {
-    invocationParameters,
+    invocationParameters: objectToInvocationParameters(normalized, {
+      openaiApiType,
+    }),
     parsingErrors,
   };
 }
@@ -1194,9 +1188,6 @@ export function transformSpanAttributesToPlaygroundInstance(
     };
   }
 
-  const modelSupportedInvocationParameters =
-    span.invocationParameters as Mutable<InvocationParameter[]>;
-
   const baseModelConfigResult =
     getBaseModelConfigFromAttributes(parsedAttributes);
   let { modelConfig } = baseModelConfigResult;
@@ -1211,17 +1202,37 @@ export function transformSpanAttributesToPlaygroundInstance(
     parsedAttributes,
   });
 
+  const spanProvider =
+    modelConfig?.provider ?? basePlaygroundInstance.model.provider;
+
+  const openaiApiTypeForParams =
+    spanProvider === "OPENAI" || spanProvider === "AZURE_OPENAI"
+      ? (modelConfig?.openaiApiType ??
+        inferOpenAIApiTypeFromSpan(parsedAttributes) ??
+        DEFAULT_OPENAI_API_TYPE)
+      : DEFAULT_OPENAI_API_TYPE;
+
+  if (
+    modelConfig &&
+    (modelConfig.provider === "OPENAI" ||
+      modelConfig.provider === "AZURE_OPENAI")
+  ) {
+    modelConfig = {
+      ...modelConfig,
+      openaiApiType: modelConfig.openaiApiType ?? openaiApiTypeForParams,
+    };
+  }
+
   const {
     invocationParameters,
     parsingErrors: invocationParametersParsingErrors,
   } = getModelInvocationParametersFromAttributes(
     parsedAttributes,
-    modelSupportedInvocationParameters
+    spanProvider,
+    openaiApiTypeForParams
   );
   const { variables, parsingErrors: promptTemplateVariablesParsingErrors } =
     getPromptTemplateVariablesFromAttributes(parsedAttributes);
-  const spanProvider =
-    modelConfig?.provider ?? basePlaygroundInstance.model.provider;
 
   // parse response format separately so that we can get distinct error messages from the rest of
   // the invocation parameters
@@ -1249,7 +1260,7 @@ export function transformSpanAttributesToPlaygroundInstance(
               param.invocationName !== "tool_choice" &&
               // Anthropic: strip output_config (promoted to responseFormat)
               (spanProvider !== "ANTHROPIC" ||
-                param.invocationName !== "output_config") &&
+                param.invocationName !== "outputConfig") &&
               // AWS: strip outputConfig (promoted to responseFormat)
               (spanProvider !== "AWS" ||
                 param.invocationName !== "outputConfig") &&
@@ -1446,38 +1457,6 @@ export const getVariablesMapFromInstances = ({
   return { variablesMap, variableKeys };
 };
 
-/**
- * Transform invocation parameters from span attributes into InvocationParameterInput type.
- */
-export const transformInvocationParametersFromAttributesToInvocationParameterInputs =
-  (
-    invocationParameters: JsonObjectSchema,
-    modelSupportedInvocationParameters: InvocationParameter[]
-  ): InvocationParameterInput[] => {
-    return Object.entries(invocationParameters)
-      .map(([key, value]) => {
-        const invocationParameter = modelSupportedInvocationParameters.find(
-          (mp) =>
-            (mp.canonicalName &&
-              mp.canonicalName.toLowerCase() === key.toLowerCase()) ||
-            (mp.invocationName &&
-              mp.invocationName.toLowerCase() === key.toLowerCase())
-        );
-        if (
-          invocationParameter == null ||
-          invocationParameter.invocationInputField == null ||
-          invocationParameter.invocationName == null
-        ) {
-          return null;
-        }
-        return {
-          canonicalName: invocationParameter.canonicalName,
-          invocationName: invocationParameter.invocationName,
-          [toCamelCase(invocationParameter.invocationInputField)]: value,
-        };
-      })
-      .filter((ip): ip is NonNullable<typeof ip> => ip != null);
-  };
 /** Discriminator predicate for the function-tool branch of {@link Tool}. */
 export const isFunctionTool = (
   tool: Tool
@@ -1600,7 +1579,7 @@ export const normalizeInvocationParameters = (
       }
       return true;
     })
-    .map(({ dirty: _dirty, ...param }) => {
+    .map((param) => {
       return param;
     });
 };
@@ -1630,21 +1609,14 @@ const getBaseChatCompletionInput = ({
     throw new Error("We only support chat templates for now");
   }
 
-  const supportedInvocationParameters =
-    instance.model.supportedInvocationParameters;
+  const specs = getActiveSpecsForPlayground(instance.model);
 
   let invocationParameters: InvocationParameterInput[] =
     normalizeInvocationParameters(instance.model.invocationParameters);
-  // Filter invocation parameters to only include those that are supported by the model
-  // This will remove configured values that are not supported by the newly selected model
-  // If we don't have the list of supported invocation parameters in the store yet, we will just send
-  // them all.
-  if (supportedInvocationParameters.length) {
-    invocationParameters = constrainInvocationParameterInputsToDefinition(
-      invocationParameters,
-      supportedInvocationParameters
-    );
-  }
+  invocationParameters = constrainInvocationParameterInputsToSpecs(
+    invocationParameters,
+    specs
+  );
 
   const azureModelParams =
     instance.model.provider === "AZURE_OPENAI"
@@ -1820,42 +1792,6 @@ function chatMessageToPromptMessageInput(message: ChatMessage): {
   }
 
   return { role: chatRoleToPromptRole(message.role), content };
-}
-
-/**
- * Extract the scalar value from an InvocationParameterInput (whichever value field is set).
- * Returns null if no value is set.
- */
-function extractInvocationParamValue(
-  p: InvocationParameterInput
-): unknown | null {
-  return (
-    p.valueFloat ??
-    p.valueInt ??
-    p.valueBool ??
-    p.valueBoolean ??
-    p.valueString ??
-    p.valueJson ??
-    p.valueStringList ??
-    null
-  );
-}
-
-/**
- * Convert an InvocationParameterInput[] to a plain object keyed by invocationName.
- * Only entries with a non-null value are included.
- */
-function invocationParamsToFlatObject(
-  params: InvocationParameterInput[]
-): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  for (const p of params) {
-    const value = extractInvocationParamValue(p);
-    if (value !== null && value !== undefined) {
-      result[p.invocationName] = value;
-    }
-  }
-  return result;
 }
 
 /**
@@ -2311,6 +2247,46 @@ export function toCanonicalToolChoice(
 }
 
 /**
+ * Shared prompt-version payload builder used by playground save/run paths.
+ */
+export function buildPromptVersionInput({
+  instance,
+  modelName,
+  templateFormat,
+  promptMessages,
+  invocationParameters,
+}: {
+  instance: Pick<PlaygroundInstance, "model" | "tools" | "toolChoice">;
+  modelName: string;
+  templateFormat: ChatPromptVersionInput["templateFormat"];
+  promptMessages: ChatPromptVersionInput["template"]["messages"];
+  invocationParameters: InvocationParameterInput[];
+}): ChatPromptVersionInput {
+  return {
+    templateFormat,
+    template: {
+      messages: promptMessages,
+    },
+    modelProvider: instance.model
+      .provider as ChatPromptVersionInput["modelProvider"],
+    modelName,
+    customProviderId: instance.model.customProvider?.id ?? null,
+    invocationParameters: writePromptInvocationParametersMutationInput(
+      invocationParametersToObject(invocationParameters, instance.model)
+    ),
+    tools: instance.tools.length
+      ? {
+          tools: instance.tools.map(toolToPromptToolInput),
+          toolChoice: toCanonicalToolChoice(instance.toolChoice),
+        }
+      : null,
+    responseFormat: buildPromptResponseFormatInput(
+      instance.model.responseFormat
+    ),
+  };
+}
+
+/**
  * Gets chat completion input for running over variables.
  *
  * Builds the hub-and-spoke ChatCompletionInput shape where prompt content
@@ -2373,29 +2349,15 @@ export const getChatCompletionInput = ({
     chatMessageToPromptMessageInput
   );
 
-  const promptVersion: ChatPromptVersionInput = {
-    templateFormat: "NONE",
-    template: {
-      messages:
-        promptMessages as ChatPromptVersionInput["template"]["messages"],
-    },
-    modelProvider: instance.model
-      .provider as ChatPromptVersionInput["modelProvider"],
+  const promptVersion = buildPromptVersionInput({
+    instance,
     modelName: instance.model.modelName ?? "",
-    customProviderId: instance.model.customProvider?.id ?? null,
-    invocationParameters: invocationParamsToFlatObject(
-      baseChatCompletionVariables.invocationParameters ?? []
-    ),
-    tools: instance.tools.length
-      ? {
-          tools: instance.tools.map(toolToPromptToolInput),
-          toolChoice: toCanonicalToolChoice(instance.toolChoice),
-        }
-      : null,
-    responseFormat: buildPromptResponseFormatInput(
-      instance.model.responseFormat
-    ),
-  };
+    templateFormat: "NONE",
+    promptMessages:
+      promptMessages as ChatPromptVersionInput["template"]["messages"],
+    invocationParameters:
+      baseChatCompletionVariables.invocationParameters ?? [],
+  });
 
   return {
     promptVersion,
@@ -2477,29 +2439,15 @@ export const getChatCompletionOverDatasetInput = ({
     chatMessageToPromptMessageInput
   );
 
-  const promptVersion: ChatPromptVersionInput = {
-    templateFormat: templateFormat as ChatPromptVersionInput["templateFormat"],
-    template: {
-      messages:
-        promptMessages as ChatPromptVersionInput["template"]["messages"],
-    },
-    modelProvider: instance.model
-      .provider as ChatPromptVersionInput["modelProvider"],
+  const promptVersion = buildPromptVersionInput({
+    instance,
     modelName: instance.model.modelName ?? "",
-    customProviderId: instance.model.customProvider?.id ?? null,
-    invocationParameters: invocationParamsToFlatObject(
-      baseChatCompletionVariables.invocationParameters ?? []
-    ),
-    tools: instance.tools.length
-      ? {
-          tools: instance.tools.map(toolToPromptToolInput),
-          toolChoice: toCanonicalToolChoice(instance.toolChoice),
-        }
-      : null,
-    responseFormat: buildPromptResponseFormatInput(
-      instance.model.responseFormat
-    ),
-  };
+    templateFormat: templateFormat as ChatPromptVersionInput["templateFormat"],
+    promptMessages:
+      promptMessages as ChatPromptVersionInput["template"]["messages"],
+    invocationParameters:
+      baseChatCompletionVariables.invocationParameters ?? [],
+  });
 
   const playgroundDatasetState = stateByDatasetId[datasetId];
   const { appendedMessagesPath, templateVariablesPath, maxConcurrency } =
@@ -2530,17 +2478,30 @@ export const getChatCompletionOverDatasetInput = ({
   };
 };
 
+function invocationInputSatisfiesSpec(
+  ip: InvocationParameterInput,
+  spec: ParamSpec
+): boolean {
+  if (ip.invocationName !== spec.name) {
+    return false;
+  }
+  const field = invocationValueKeyForSpec(spec);
+  const v = ip[field];
+  return v !== null && v !== undefined;
+}
+
 export function areRequiredInvocationParametersConfigured(
   configuredInvocationParameters: InvocationParameterInput[],
-  supportedInvocationParameters: InvocationParameter[]
+  model: Pick<ModelConfig, "provider" | "openaiApiType">
 ) {
-  return supportedInvocationParameters
-    .filter((param) => param.required)
-    .every((param) =>
-      configuredInvocationParameters.some((ip) =>
-        areInvocationParamsEqual(ip, param)
-      )
-    );
+  const requiredSpecs = getActiveSpecsForPlayground(model).filter(
+    (s) => s.required
+  );
+  return requiredSpecs.every((spec) =>
+    configuredInvocationParameters.some((ip) =>
+      invocationInputSatisfiesSpec(ip, spec)
+    )
+  );
 }
 
 /**
@@ -2595,7 +2556,7 @@ const applyAnthropicInvocationParameterConstraints = (
   });
 };
 
-const ZERO_VALUE_INVOCATION_NAMES = ["frequency_penalty", "presence_penalty"];
+const ZERO_VALUE_INVOCATION_NAMES = ["frequencyPenalty", "presencePenalty"];
 
 /**
  * A function that filters out invocation parameters where 0 and null have the same effect

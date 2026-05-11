@@ -1294,7 +1294,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/chat": {
+    "/agents/{agent_id}/sessions/{session_id}/chat": {
         parameters: {
             query?: never;
             header?: never;
@@ -1304,14 +1304,14 @@ export interface paths {
         get?: never;
         put?: never;
         /** Chat */
-        post: operations["chat_chat_post"];
+        post: operations["chat_agents__agent_id__sessions__session_id__chat_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/chat-v2": {
+    "/agents/{agent_id}/sessions/{session_id}/summary": {
         parameters: {
             query?: never;
             header?: never;
@@ -1320,8 +1320,8 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Chat V2 */
-        post: operations["chat_v2_chat_v2_post"];
+        /** Summarize Endpoint */
+        post: operations["summarize_endpoint_agents__agent_id__sessions__session_id__summary_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1505,29 +1505,58 @@ export interface components {
             timeZone: string;
         };
         /**
-         * BuiltInProviderChatSearchParams
-         * @description Chat against a Phoenix built-in provider.
-         *
-         *     Credentials and connection details (base URL, Azure endpoint, AWS
-         *     region) are resolved from the secret store first and the process
-         *     environment second. ``openai_api_type`` is honoured by the OpenAI and
-         *     Azure OpenAI branches; other providers ignore it.
+         * AssistantMessageMetadata
+         * @description Wire schema for the chat stream's `message_metadata` payload.
          */
-        BuiltInProviderChatSearchParams: {
+        AssistantMessageMetadata: {
+            /** Sessionid */
+            sessionId: string;
+            trace?: components["schemas"]["AssistantMessageMetadataTraceIds"] | null;
+            usage?: components["schemas"]["AssistantMessageMetadataUsage"] | null;
+        };
+        /** AssistantMessageMetadataTraceIds */
+        AssistantMessageMetadataTraceIds: {
+            /** Traceid */
+            traceId: string;
+            /** Rootspanid */
+            rootSpanId: string;
+        };
+        /** AssistantMessageMetadataUsage */
+        AssistantMessageMetadataUsage: {
+            tokens: components["schemas"]["AssistantMessageMetadataUsageTokens"];
+            promptDetails?: components["schemas"]["AssistantMessageMetadataUsageTokenDetails"] | null;
+        };
+        /** AssistantMessageMetadataUsageTokenDetails */
+        AssistantMessageMetadataUsageTokenDetails: {
+            /** Cacheread */
+            cacheRead: number;
+            /** Cachewrite */
+            cacheWrite: number;
+        };
+        /** AssistantMessageMetadataUsageTokens */
+        AssistantMessageMetadataUsageTokens: {
+            /** Prompt */
+            prompt: number;
+            /** Completion */
+            completion: number;
+            /** Total */
+            total: number;
+        };
+        /**
+         * AssistantMetadataUIMessage
+         * @description `UIMessage` with `metadata` narrowed to `AssistantMessageMetadata`.
+         */
+        AssistantMetadataUIMessage: {
+            /** Id */
+            id: string;
             /**
-             * @description discriminator enum property added by openapi-typescript
+             * Role
              * @enum {string}
              */
-            provider_type: "builtin";
-            provider: components["schemas"]["ModelProvider"];
-            /** Model Name */
-            model_name: string;
-            /**
-             * Openai Api Type
-             * @default responses
-             * @enum {string}
-             */
-            openai_api_type?: "chat_completions" | "responses";
+            role: "system" | "user" | "assistant";
+            metadata?: components["schemas"]["AssistantMessageMetadata"] | null;
+            /** Parts */
+            parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["ToolOutputAvailablePart"] | components["schemas"]["ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["DynamicToolOutputAvailablePart"] | components["schemas"]["DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
         };
         /** CategoricalAnnotationConfig */
         CategoricalAnnotationConfig: {
@@ -1567,6 +1596,82 @@ export interface components {
             label: string;
             /** Score */
             score?: number | null;
+        };
+        /**
+         * ChatContext
+         * @description Discriminated union of every UI-state context the agent understands.
+         *
+         *     Wrapped in ``RootModel`` so the generated OpenAPI schema exposes a single
+         *     named ``ChatContext`` component instead of inlining the ``oneOf`` at every
+         *     reference site. The actual member is accessible via ``.root``.
+         */
+        ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"];
+        /**
+         * ChatRegenerateMessage
+         * @description Regenerate message extended with Phoenix-specific fields.
+         */
+        ChatRegenerateMessage: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            trigger: "regenerate-message";
+            /** Id */
+            id: string;
+            /** Messages */
+            messages: components["schemas"]["AssistantMetadataUIMessage"][];
+            /** Messageid */
+            messageId?: string | null;
+            /**
+             * Ingesttraces
+             * @default false
+             */
+            ingestTraces?: boolean;
+            /**
+             * Exportremotetraces
+             * @default false
+             */
+            exportRemoteTraces?: boolean;
+            /** Contexts */
+            contexts?: components["schemas"]["ChatContext"][];
+            capabilities?: components["schemas"]["AgentCapabilities"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ChatRequest
+         * @description Discriminated union of chat request payloads.
+         */
+        ChatRequest: components["schemas"]["ChatSubmitMessage"] | components["schemas"]["ChatRegenerateMessage"];
+        /**
+         * ChatSubmitMessage
+         * @description Submit message extended with Phoenix-specific fields.
+         */
+        ChatSubmitMessage: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            trigger: "submit-message";
+            /** Id */
+            id: string;
+            /** Messages */
+            messages: components["schemas"]["AssistantMetadataUIMessage"][];
+            /**
+             * Ingesttraces
+             * @default false
+             */
+            ingestTraces?: boolean;
+            /**
+             * Exportremotetraces
+             * @default false
+             */
+            exportRemoteTraces?: boolean;
+            /** Contexts */
+            contexts?: components["schemas"]["ChatContext"][];
+            capabilities?: components["schemas"]["AgentCapabilities"];
+        } & {
+            [key: string]: unknown;
         };
         /** ContinuousAnnotationConfig */
         ContinuousAnnotationConfig: {
@@ -1782,26 +1887,6 @@ export interface components {
         CreateUserResponseBody: {
             /** Data */
             data: components["schemas"]["LocalUser"] | components["schemas"]["OAuth2User"] | components["schemas"]["LDAPUser"];
-        };
-        /**
-         * CustomProviderChatSearchParams
-         * @description Chat against a stored custom provider record.
-         *
-         *     The wire format of ``provider_id`` is a relay GlobalID (e.g.
-         *     ``UHJvdmlkZXI6MTM=``). It is decoded to its integer node ID at
-         *     parse time so downstream consumers don't need to know the GlobalID
-         *     encoding.
-         */
-        CustomProviderChatSearchParams: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            provider_type: "custom";
-            /** Provider Id */
-            provider_id: number;
-            /** Model Name */
-            model_name: string;
         };
         /**
          * DataUIPart
@@ -2909,6 +2994,19 @@ export interface components {
              * @description A developer-facing human readable error message.
              */
             message?: string | null;
+        };
+        /**
+         * PlaygroundContext
+         * @description Playground prompt editor state mounted in the current browser route.
+         */
+        PlaygroundContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "playground";
+            /** Instanceids */
+            instanceIds: number[];
         };
         /** Project */
         Project: {
@@ -4868,50 +4966,30 @@ export interface components {
             ctx?: Record<string, unknown>;
         };
         /**
-         * _RegenerateMessage
-         * @description Regenerate message extended with Phoenix-specific fields.
+         * _SummarizeRequest
+         * @description Body for POST /agents/{agent_id}/sessions/{session_id}/summary.
+         *
+         *     Carries the Vercel-style messages array; the backend owns the prompt and
+         *     the structured-output tool schema.
          */
-        _RegenerateMessage: {
+        _SummarizeRequest: {
             /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
+             * Ingesttraces
+             * @default false
              */
-            trigger: "regenerate-message";
-            /** Id */
-            id: string;
+            ingestTraces?: boolean;
+            /**
+             * Exportremotetraces
+             * @default false
+             */
+            exportRemoteTraces?: boolean;
             /** Messages */
             messages: components["schemas"]["UIMessage"][];
-            /** Messageid */
-            messageId?: string | null;
-            /** Contexts */
-            contexts?: (components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"])[];
-            capabilities?: components["schemas"]["AgentCapabilities"];
-            /** Sessionid */
-            sessionId: string;
-        } & {
-            [key: string]: unknown;
         };
-        /**
-         * _SubmitMessage
-         * @description Submit message extended with Phoenix-specific fields.
-         */
-        _SubmitMessage: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            trigger: "submit-message";
-            /** Id */
-            id: string;
-            /** Messages */
-            messages: components["schemas"]["UIMessage"][];
-            /** Contexts */
-            contexts?: (components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"])[];
-            capabilities?: components["schemas"]["AgentCapabilities"];
-            /** Sessionid */
-            sessionId: string;
-        } & {
-            [key: string]: unknown;
+        /** _SummarizeResponse */
+        _SummarizeResponse: {
+            /** Summary */
+            summary: string;
         };
     };
     responses: never;
@@ -8722,24 +8800,35 @@ export interface operations {
             };
         };
     };
-    chat_chat_post: {
+    chat_agents__agent_id__sessions__session_id__chat_post: {
         parameters: {
             query: {
-                root: components["schemas"]["CustomProviderChatSearchParams"] | components["schemas"]["BuiltInProviderChatSearchParams"];
+                provider_type: "custom" | "builtin";
+                model_name: string;
+                provider_id?: string | null;
+                provider?: components["schemas"]["ModelProvider"] | null;
+                openai_api_type?: "chat_completions" | "responses";
             };
             header?: never;
-            path?: never;
+            path: {
+                agent_id: string;
+                session_id: string;
+            };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequest"];
+            };
+        };
         responses: {
-            /** @description Successful Response */
+            /** @description Vercel-AI-style SSE stream. The turn ends with a `message-metadata` chunk whose `messageMetadata` payload matches `AssistantMessageMetadata`. Declared here so the model is included in the generated OpenAPI components. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["AssistantMessageMetadata"];
                 };
             };
             /** @description Validation Error */
@@ -8753,18 +8842,25 @@ export interface operations {
             };
         };
     };
-    chat_v2_chat_v2_post: {
+    summarize_endpoint_agents__agent_id__sessions__session_id__summary_post: {
         parameters: {
             query: {
-                root: components["schemas"]["CustomProviderChatSearchParams"] | components["schemas"]["BuiltInProviderChatSearchParams"];
+                provider_type: "custom" | "builtin";
+                model_name: string;
+                provider_id?: string | null;
+                provider?: components["schemas"]["ModelProvider"] | null;
+                openai_api_type?: "chat_completions" | "responses";
             };
             header?: never;
-            path?: never;
+            path: {
+                agent_id: string;
+                session_id: string;
+            };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["_SubmitMessage"] | components["schemas"]["_RegenerateMessage"];
+                "application/json": components["schemas"]["_SummarizeRequest"];
             };
         };
         responses: {
@@ -8774,7 +8870,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["_SummarizeResponse"];
                 };
             };
             /** @description Validation Error */

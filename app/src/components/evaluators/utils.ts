@@ -45,8 +45,10 @@ const createPromptVersionInput = ({
    */
   datasetId?: string;
 }) => {
-  const { promptInput, templateFormat, promptVersionId } =
-    getInstancePromptParamsFromStore(instanceId, playgroundStore);
+  const { promptInput, promptVersionId } = getInstancePromptParamsFromStore(
+    instanceId,
+    playgroundStore
+  );
 
   // Build one tool per categorical output config
   const categoricalConfigs = outputConfigs.filter(
@@ -81,7 +83,6 @@ const createPromptVersionInput = ({
 
   const prunedPromptInput: CreateDatasetLLMEvaluatorInput["promptVersion"] = {
     ...promptInput,
-    templateFormat,
     invocationParameters: promptInput.invocationParameters,
     tools: toolFunctions.length
       ? {

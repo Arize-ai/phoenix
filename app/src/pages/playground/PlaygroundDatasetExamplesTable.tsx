@@ -31,6 +31,7 @@ import { requestSubscription } from "relay-runtime";
 
 import {
   Alert,
+  ExpandableContent,
   Flex,
   Icon,
   IconButton,
@@ -65,7 +66,7 @@ import {
   ExperimentRunCellAnnotationsList,
 } from "@phoenix/components/experiment";
 import type { AnnotationSummary } from "@phoenix/components/experiment/ExperimentAnnotationAggregates";
-import { CellTop, OverflowCell } from "@phoenix/components/table";
+import { CellTop } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { SpanTokenCosts } from "@phoenix/components/trace";
@@ -314,13 +315,13 @@ function EmptyExampleOutput({
   return (
     <Flex direction="column" height="100%">
       <CellTop>{cellTopContent}</CellTop>
-      <OverflowCell
+      <ExpandableContent
         height={CELL_PRIMARY_CONTENT_HEIGHT}
         isExpanded={isExpanded}
         onExpandedChange={onExpandedChange}
       >
         <div css={outputContentCSS}>{content}</div>
-      </OverflowCell>
+      </ExpandableContent>
       <ExperimentRunCellAnnotationsList
         annotations={[]}
         annotationConfigs={evaluatorOutputConfigs}
@@ -450,7 +451,7 @@ function ExampleOutputContent({
       <CellTop extra={spanControls}>
         <CellRunStatus span={span} isRunning={isRunning} />
       </CellTop>
-      <OverflowCell
+      <ExpandableContent
         height={CELL_PRIMARY_CONTENT_HEIGHT}
         isExpanded={isExpanded}
         onExpandedChange={onExpandedChange}
@@ -476,7 +477,7 @@ function ExampleOutputContent({
               : null}
           </Flex>
         </div>
-      </OverflowCell>
+      </ExpandableContent>
       <ExperimentRunCellAnnotationsList
         annotations={successfulEvaluations}
         annotationErrors={evaluationErrors}

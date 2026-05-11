@@ -1,5 +1,56 @@
 # Changelog
 
+## [15.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.5.1...arize-phoenix-v15.6.0) (2026-05-10)
+
+
+### Features
+
+* **agents:** add /agents/{agent_id}/sessions/{session_id}/summary endpoint ([#13095](https://github.com/Arize-ai/phoenix/issues/13095)) ([419c3a0](https://github.com/Arize-ai/phoenix/commit/419c3a06978abce8f611569228438929f8e7b995))
+* **agents:** Playground manipulation tools w/ confirmation ([#13093](https://github.com/Arize-ai/phoenix/issues/13093)) ([37dc417](https://github.com/Arize-ai/phoenix/commit/37dc417f8880a101b34a41f8d2ea3f58099df6c2))
+* **playground:** default provider/model as a user preference ([#13135](https://github.com/Arize-ai/phoenix/issues/13135)) ([4487740](https://github.com/Arize-ai/phoenix/commit/448774042ead173c1ed50938138d8aebb5bc48ec))
+* **tracing:** always show metrics aside, remove legacy stats header ([#13134](https://github.com/Arize-ai/phoenix/issues/13134)) ([ea3d7e7](https://github.com/Arize-ai/phoenix/commit/ea3d7e7b0304b17abcd40b4c1cadec2f80ef7bdf))
+
+
+### Bug Fixes
+
+* **pxi:** resolve interrupted tool calls ([#13123](https://github.com/Arize-ai/phoenix/issues/13123)) ([d37dfa0](https://github.com/Arize-ai/phoenix/commit/d37dfa0f54d7f97c76301d175937fd2500d970cc))
+
+
+### Documentation
+
+* fill 6 documentation gaps from weekly audit (closes [#13072](https://github.com/Arize-ai/phoenix/issues/13072)) ([#13133](https://github.com/Arize-ai/phoenix/issues/13133)) ([0883fa7](https://github.com/Arize-ai/phoenix/commit/0883fa7c8a0d89a27ee99e52eea40043aeb6813a))
+
+## [15.5.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.5.0...arize-phoenix-v15.5.1) (2026-05-08)
+
+
+### Bug Fixes
+
+* **evaluators:** preserve built-in evaluator on dataset evaluator delete ([#13104](https://github.com/Arize-ai/phoenix/issues/13104)) ([9c8068b](https://github.com/Arize-ai/phoenix/commit/9c8068b594295a9b663dd536136e3bc1abe4a1d6))
+
+## [15.5.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.4.0...arize-phoenix-v15.5.0) (2026-05-08)
+
+
+### Features
+
+* **agents:** wire /chat-v2 with tools behind experimental toggle ([#13009](https://github.com/Arize-ai/phoenix/issues/13009)) ([7706554](https://github.com/Arize-ai/phoenix/commit/7706554981f8eb3888876ec6d8f7f69cd7406788))
+* **app:** type frontend REST calls against the OpenAPI schema ([#13060](https://github.com/Arize-ai/phoenix/issues/13060)) ([590669d](https://github.com/Arize-ai/phoenix/commit/590669d1a68f48b3af7b7d1b5666f854d0465b63))
+* support x-project-name HTTP header for OTLP trace ingestion ([#12865](https://github.com/Arize-ai/phoenix/issues/12865)) ([7d10386](https://github.com/Arize-ai/phoenix/commit/7d10386609abc5066d1a76992d5435739cd78b84))
+* Update session details turns layout ([#13042](https://github.com/Arize-ai/phoenix/issues/13042)) ([a1be820](https://github.com/Arize-ai/phoenix/commit/a1be82022859c1320c12eb97330d05d57f89d403))
+
+
+### Bug Fixes
+
+* add types-aiobotocore-bedrock-runtime in container/aws extras ([#13113](https://github.com/Arize-ai/phoenix/issues/13113)) ([0e2c175](https://github.com/Arize-ai/phoenix/commit/0e2c175e9e3f71c3e8c81478aa9ddfc4a536a196))
+* **deps:** bump litellm floor to 1.83.14 to fix multiple CVEs ([#13020](https://github.com/Arize-ai/phoenix/issues/13020)) ([ccf1880](https://github.com/Arize-ai/phoenix/commit/ccf1880cffba887688328801247f524823869dff))
+
+
+### Documentation
+
+* Add Phoenix release notes for 04-29-2026 through 05-05-2026 ([#13058](https://github.com/Arize-ai/phoenix/issues/13058)) ([bdb6684](https://github.com/Arize-ai/phoenix/commit/bdb668442cd70b2ee3d1e69e63b07efe60d0a239))
+* add REST API pages for filter-based annotation DELETE endpoints ([#13075](https://github.com/Arize-ai/phoenix/issues/13075)) ([e8c3b13](https://github.com/Arize-ai/phoenix/commit/e8c3b13a64674b10f1991a276e808ecb96eb6c56))
+* disable sidebar drilldown navigation ([#13049](https://github.com/Arize-ai/phoenix/issues/13049)) ([fc01ed7](https://github.com/Arize-ai/phoenix/commit/fc01ed75510b42b2eab5135639508570735992dc))
+* **skills:** weekly audit — 2026-05-06 ([#13074](https://github.com/Arize-ai/phoenix/issues/13074)) ([a5d970b](https://github.com/Arize-ai/phoenix/commit/a5d970b491196fc2a26e9dfb55907107107069b8))
+
 ## [15.4.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.3.0...arize-phoenix-v15.4.0) (2026-05-05)
 
 

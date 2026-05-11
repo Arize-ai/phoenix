@@ -21,6 +21,7 @@ import { useSearchParams } from "react-router";
 
 import {
   Empty,
+  ExpandableContent,
   Flex,
   Icon,
   IconButton,
@@ -49,7 +50,7 @@ import {
   useExperimentColors,
 } from "@phoenix/components/experiment";
 import { ExperimentActionMenu } from "@phoenix/components/experiment/ExperimentActionMenu";
-import { CellTop, OverflowCell, PaddedCell } from "@phoenix/components/table";
+import { CellTop, PaddedCell } from "@phoenix/components/table";
 import { borderedTableCSS, tableCSS } from "@phoenix/components/table/styles";
 import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { ExampleDetailsDialog } from "@phoenix/pages/example/ExampleDetailsDialog";
@@ -846,11 +847,11 @@ function ExperimentRunOutput(
 
   return (
     <Flex direction="column" height="100%" justifyContent="space-between">
-      <OverflowCell height={height}>
+      <ExpandableContent height={height}>
         <div css={outputContentCSS}>
           <ExperimentOutputContent value={output} />
         </div>
-      </OverflowCell>
+      </ExpandableContent>
       <ExperimentRunCellAnnotationsList
         annotations={annotationsList}
         annotationSummaries={props.annotationSummaries}

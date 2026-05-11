@@ -409,23 +409,23 @@ def _canonical_prompt_tools(output_name: str) -> dict[str, Any]:
 
 
 def _openai_invocation_params() -> dict[str, Any]:
-    """OpenAI invocation parameters."""
-    return {}
+    """OpenAI invocation parameters (PromptInvocationParametersInput @oneOf: openai)."""
+    return {"openai": {}}
 
 
 def _anthropic_invocation_params() -> dict[str, Any]:
-    """Anthropic invocation parameters (max_tokens is required)."""
-    return {"max_tokens": 1024}
+    """Anthropic invocation parameters (maxTokens is required in PromptAnthropicInvocationParametersInput)."""
+    return {"anthropic": {"maxTokens": 1024}}
 
 
 def _bedrock_invocation_params() -> dict[str, Any]:
-    """AWS Bedrock invocation parameters."""
-    return {}
+    """AWS Bedrock invocation parameters (PromptInvocationParametersInput @oneOf: aws)."""
+    return {"aws": {}}
 
 
 def _google_invocation_params() -> dict[str, Any]:
-    """Google Gemini invocation parameters."""
-    return {}
+    """Google Gemini invocation parameters (PromptInvocationParametersInput @oneOf: google)."""
+    return {"google": {}}
 
 
 def _evaluator_prompt_version(

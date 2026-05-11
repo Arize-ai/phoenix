@@ -4,7 +4,12 @@ import { type CSSProperties, useMemo, useState } from "react";
 
 import { Icon, Icons } from "@phoenix/components";
 
-import { ToolPart, type ToolPartType } from "./ToolPart";
+import {
+  getToolPartPreview,
+  shouldAutoOpenToolPart,
+  ToolPart,
+  type ToolPartType,
+} from "./ToolPart";
 import { TOOL_CALL_SUMMARY_LANE_RULES } from "./ToolPartPrimitives";
 
 type ToolState =
@@ -247,13 +252,21 @@ function formatPoolStatus({
  * header with tool-type breakdown badges. Expands to reveal individual
  * {@link ToolPart} details.
  *
- * Starts collapsed. The user controls open/close exclusively — no automatic
- * toggling as tool states change, which avoids jitter during rapid tool
- * execution.
+ * Starts collapsed, except for tools that explicitly request auto-open after
+ * they have enough streamed input to render meaningful details.
  */
 export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
   const stats = useToolPoolStats(parts);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const hasAutoOpenTool = parts.some(
+    (part) =>
+      isToolUIPart(part) &&
+      shouldAutoOpenToolPart(part, getToolPartPreview(part))
+  );
+  const [manualExpanded, setManualExpanded] = useState<boolean | null>(null);
+  // Auto-open is only the initial/default state. Once the user toggles the
+  // group, their manual choice must win even if a child tool still requests
+  // auto-open (for example, an edit_prompt_instance diff that remains previewable).
+  const isRenderedExpanded = manualExpanded ?? hasAutoOpenTool;
   const [isHeaderActive, setIsHeaderActive] = useState(false);
 
   const { text: statusText, variant: statusVariant } = formatPoolStatus(stats);
@@ -262,7 +275,9 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
     .join(", ");
 
   const handleToggle = () => {
-    setIsExpanded((prev) => !prev);
+    setManualExpanded(
+      (previousManualExpanded) => !(previousManualExpanded ?? hasAutoOpenTool)
+    );
   };
 
   return (
@@ -275,7 +290,7 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
         className="tool-pool__header"
         role="button"
         tabIndex={0}
-        aria-expanded={isExpanded}
+        aria-expanded={isRenderedExpanded}
         onMouseEnter={() => setIsHeaderActive(true)}
         onMouseLeave={() => setIsHeaderActive(false)}
         onFocus={() => setIsHeaderActive(true)}
@@ -293,7 +308,7 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
             <Icon
               svg={<Icons.ChevronDown />}
               className="tool-pool__chevron"
-              data-expanded={isExpanded}
+              data-expanded={isRenderedExpanded}
             />
             <span className="tool-pool__title-text">
               {stats.total} tool call{stats.total === 1 ? "" : "s"}
@@ -308,7 +323,7 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
           </span>
         </div>
       </div>
-      {isExpanded ? (
+      {isRenderedExpanded ? (
         <div className="tool-pool__body">
           {parts.map((part, i) => (
             <div

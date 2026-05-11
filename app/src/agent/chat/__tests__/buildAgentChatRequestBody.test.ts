@@ -13,7 +13,6 @@ describe("buildAgentChatRequestBody", () => {
       messages: [] as AgentUIMessage[],
       trigger: "submit-message",
       messageId: undefined,
-      sessionId: "session-1",
       capabilities: createDefaultAgentCapabilities(),
       observability: {
         storeLocalTraces: true,
@@ -26,9 +25,9 @@ describe("buildAgentChatRequestBody", () => {
 
     expect(body).toMatchObject({
       existing: true,
-      traceNameSuffix: "Turn",
+      trigger: "submit-message",
     });
-    expect(body.contexts[0]).toMatchObject({
+    expect(body.contexts?.[0]).toMatchObject({
       type: "app",
       currentDateTime: expect.any(String),
       timeZone: expect.any(String),

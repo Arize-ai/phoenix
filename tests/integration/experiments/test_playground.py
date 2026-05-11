@@ -190,7 +190,7 @@ async def _run_subscription_with_evaluators(
                         },
                     ]
                 },
-                "invocationParameters": {},
+                "invocationParameters": {"openai": {}},
                 "modelProvider": "OPENAI",
                 "modelName": "gpt-4o-mini",
                 "customProviderId": custom_provider_id,
@@ -327,24 +327,6 @@ async def _run_subscription_with_evaluators(
         raise AssertionError("Subscription timed out after 120 seconds")
 
 
-def _invocation_params_list_to_dict(
-    params: list[dict[str, Any]] | None,
-) -> dict[str, Any]:
-    """Convert list of InvocationParameterInput dicts to a plain dict."""
-    if not params:
-        return {}
-    result: dict[str, Any] = {}
-    for p in params:
-        name = p.get("invocationName")
-        if name is None:
-            continue
-        for value_key in ("valueString", "valueInt", "valueFloat", "valueBool", "valueJson"):
-            if value_key in p and p[value_key] is not None:
-                result[name] = p[value_key]
-                break
-    return result
-
-
 async def _run_subscription_without_evaluators(
     client: httpx.AsyncClient,
     *,
@@ -352,7 +334,7 @@ async def _run_subscription_without_evaluators(
     model_name: str,
     model_provider: str,
     dataset_id: str,
-    invocation_parameters: list[dict[str, Any]] | None = None,
+    invocation_parameters: dict[str, Any],
     stream_model_output: bool = True,
 ) -> tuple[str, list[dict[str, Any]]]:
     """Run chatCompletionOverDataset subscription without evaluators.
@@ -362,7 +344,6 @@ async def _run_subscription_without_evaluators(
     Returns ``(experiment_id, subscription_results)`` where ``subscription_results``
     lists ``ChatCompletionSubscriptionResult`` payloads from the stream.
     """
-    invocation_params_dict = _invocation_params_list_to_dict(invocation_parameters)
     variables = {
         "input": {
             "promptVersion": {
@@ -379,7 +360,7 @@ async def _run_subscription_without_evaluators(
                         },
                     ]
                 },
-                "invocationParameters": invocation_params_dict,
+                "invocationParameters": invocation_parameters,
                 "modelProvider": model_provider,
                 "modelName": model_name,
                 "customProviderId": custom_provider_id,
@@ -626,20 +607,32 @@ class TestChatCompletionOverDataset:
         ],
     )
     @pytest.mark.parametrize(
-        "provider_key,model_name,model_provider,invocation_params",
+        "provider_key,model_name,model_provider,invocation_parameters",
         [
-            pytest.param("openai", "gpt-4o-mini", "OPENAI", [], id="openai"),
-            pytest.param("openai_responses", "gpt-4o-mini", "OPENAI", [], id="openai_responses"),
+            pytest.param("openai", "gpt-4o-mini", "OPENAI", {"openai": {}}, id="openai"),
+            pytest.param(
+                "openai_responses",
+                "gpt-4o-mini",
+                "OPENAI",
+                {"openai": {}},
+                id="openai_responses",
+            ),
             pytest.param(
                 "anthropic",
                 "claude-3-5-sonnet-latest",
                 "ANTHROPIC",
-                [{"invocationName": "max_tokens", "valueInt": 1024}],
+                {"anthropic": {"maxTokens": 1024}},
                 id="anthropic",
             ),
-            pytest.param("google_genai", "gemini-2.0-flash", "GOOGLE", [], id="google_genai"),
             pytest.param(
-                "bedrock", "anthropic.claude-3-haiku-20240307-v1:0", "AWS", [], id="bedrock"
+                "google_genai", "gemini-2.0-flash", "GOOGLE", {"google": {}}, id="google_genai"
+            ),
+            pytest.param(
+                "bedrock",
+                "anthropic.claude-3-haiku-20240307-v1:0",
+                "AWS",
+                {"aws": {}},
+                id="bedrock",
             ),
         ],
     )
@@ -651,7 +644,7 @@ class TestChatCompletionOverDataset:
         provider_key: str,
         model_name: str,
         model_provider: str,
-        invocation_params: list[dict[str, Any]],
+        invocation_parameters: dict[str, Any],
         stream_model_output: bool,
     ) -> None:
         """Test chatCompletionOverDataset with a provider on primary prompt.
@@ -671,7 +664,7 @@ class TestChatCompletionOverDataset:
                 model_name=model_name,
                 model_provider=model_provider,
                 dataset_id=_dataset_id,
-                invocation_parameters=invocation_params,
+                invocation_parameters=invocation_parameters,
                 stream_model_output=stream_model_output,
             )
 

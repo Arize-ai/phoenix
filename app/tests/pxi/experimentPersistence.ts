@@ -24,6 +24,54 @@ export const PXI_EXPERIMENT_EXAMPLES = {
     experimentDescription:
       "PXI time range smoke test driven through the Phoenix frontend.",
   },
+  playgroundPromptSmoke: {
+    id: "pxi-playground-prompt-smoke:edit-system-message-v1",
+    prompt:
+      "I'm on the playground page. Read the current prompt, then edit it to add a system message that says 'Always respond in valid JSON format.' at the beginning. Wait for me to accept or reject the change.",
+    expectedOutput:
+      "PXI reads the playground prompt, proposes an edit with a diff preview, and waits for user approval.",
+    experimentNamePrefix: "pxi-e2e-playground-prompt-smoke",
+    experimentDescription:
+      "PXI playground prompt tools smoke test: read_prompt_instance, edit_prompt_instance with approval flow.",
+  },
+  playgroundCloneSmoke: {
+    id: "pxi-playground-prompt-smoke:clone-instance-v1",
+    prompt:
+      "Clone the current playground prompt instance so I can compare two versions side by side.",
+    expectedOutput:
+      "PXI clones the playground instance for side-by-side comparison.",
+    experimentNamePrefix: "pxi-e2e-playground-clone-smoke",
+    experimentDescription:
+      "PXI playground prompt tools smoke test: clone_prompt_instance tool.",
+  },
+  playgroundRejectSmoke: {
+    id: "pxi-playground-prompt-smoke:reject-edit-v1",
+    prompt:
+      "Edit the playground prompt to add a system message saying 'You are a pirate.' I want to review the diff first.",
+    expectedOutput:
+      "PXI proposes an edit that the user rejects, and the change is not applied.",
+    experimentNamePrefix: "pxi-e2e-playground-reject-smoke",
+    experimentDescription:
+      "PXI playground prompt tools smoke test: edit_prompt_instance with reject flow.",
+  },
+  playgroundNavigationCancelSmoke: {
+    id: "pxi-playground-prompt-smoke:navigation-cancels-edit-v1",
+    prompt:
+      "Edit the playground prompt to add a system message saying 'NAVIGATION CANCEL MARKER'. Wait for me to accept or reject the change.",
+    expectedOutput:
+      "PXI proposes an edit, then the pending edit is cancelled when the user leaves the playground before review.",
+    experimentNamePrefix: "pxi-e2e-playground-navigation-cancel-smoke",
+    experimentDescription:
+      "PXI playground prompt tools smoke test: pending edit_prompt_instance is cancelled on route navigation.",
+  },
+  ingestTracesSmoke: {
+    id: "pxi-ingest-traces-smoke:chat-and-summary",
+    prompt: "Say hello in one short sentence.",
+    expectedOutput: "Assistant produces any non-empty greeting response.",
+    experimentNamePrefix: "pxi-e2e-ingest-traces-smoke",
+    experimentDescription:
+      "PXI ingest-traces smoke test: confirms chat + summary traces persist locally.",
+  },
 } as const;
 
 type PxiExperimentExample =

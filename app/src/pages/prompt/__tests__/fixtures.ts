@@ -1,6 +1,11 @@
 import type { PromptCodeExportCard__main$data as PromptVersion } from "../__generated__/PromptCodeExportCard__main.graphql";
 
-export type FixturePromptVersion = Omit<PromptVersion, " $fragmentType">;
+export type FixturePromptVersion = Omit<
+  PromptVersion,
+  " $fragmentType" | "invocationParameters"
+> & {
+  invocationParameters: Record<string, unknown>;
+};
 
 export const BASE_MOCK_PROMPT_VERSION = {
   id: "fake-version-id",

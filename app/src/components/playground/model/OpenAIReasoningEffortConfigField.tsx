@@ -10,6 +10,10 @@ import {
 import { Button } from "@phoenix/components/core/button";
 import { SelectChevronUpDownIcon } from "@phoenix/components/core/icon";
 import { Popover } from "@phoenix/components/core/overlay";
+import {
+  OPENAI_REASONING_EFFORT_ENUM_VALUES,
+  OPENAI_REASONING_EFFORT_FORM_VALUE_BY_ENUM,
+} from "@phoenix/pages/playground/openAIReasoningEffort";
 
 type OpenAIReasoningEffortConfigFieldProps = {
   value: unknown;
@@ -48,12 +52,15 @@ export const OpenAIReasoningEffortConfigField = ({
               unset
             </Text>
           </SelectItem>
-          <SelectItem id="none">none</SelectItem>
-          <SelectItem id="minimal">minimal</SelectItem>
-          <SelectItem id="low">low</SelectItem>
-          <SelectItem id="medium">medium</SelectItem>
-          <SelectItem id="high">high</SelectItem>
-          <SelectItem id="xhigh">xhigh</SelectItem>
+          {OPENAI_REASONING_EFFORT_ENUM_VALUES.map((enumValue) => {
+            const optionValue =
+              OPENAI_REASONING_EFFORT_FORM_VALUE_BY_ENUM[enumValue];
+            return (
+              <SelectItem key={enumValue} id={optionValue}>
+                {optionValue}
+              </SelectItem>
+            );
+          })}
         </ListBox>
       </Popover>
     </Select>

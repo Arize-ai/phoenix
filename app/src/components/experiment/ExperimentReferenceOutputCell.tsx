@@ -1,9 +1,9 @@
 import { css } from "@emotion/react";
 
-import { Flex, Text } from "@phoenix/components";
+import { ExpandableContent, Flex, Text } from "@phoenix/components";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
 import { MarkdownBlock } from "@phoenix/components/markdown";
-import { CellTop, OverflowCell } from "@phoenix/components/table";
+import { CellTop } from "@phoenix/components/table";
 import { useExtractedOutputContent } from "@phoenix/hooks/useExtractedOutputContent";
 
 const contentCSS = css`
@@ -39,7 +39,7 @@ export function ExperimentReferenceOutputCell({
       <CellTop>
         <Text color="text-500">reference output</Text>
       </CellTop>
-      <OverflowCell height={height}>
+      <ExpandableContent height={height}>
         <div css={contentCSS}>
           {result.isExtracted ? (
             <MarkdownBlock mode="markdown" margin="none">
@@ -49,7 +49,7 @@ export function ExperimentReferenceOutputCell({
             <DynamicContent value={result.content} />
           )}
         </div>
-      </OverflowCell>
+      </ExpandableContent>
     </Flex>
   );
 }

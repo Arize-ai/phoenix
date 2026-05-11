@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import type { InvocationParameter } from "@phoenix/components/playground/model/InvocationParametersFormFields";
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
 import type { InvocationParameterInput } from "@phoenix/pages/playground/invocationParameterUtils";
 import type { chatMessageSchema } from "@phoenix/pages/playground/schemas";
@@ -128,8 +127,7 @@ export type ModelConfig = {
    * Null means no response format is set.
    */
   responseFormat?: CanonicalResponseFormat | null;
-  invocationParameters: (InvocationParameterInput & { dirty?: boolean })[];
-  supportedInvocationParameters: InvocationParameter[];
+  invocationParameters: InvocationParameterInput[];
 };
 
 export type ModelInvocationParameterInput =
@@ -409,6 +407,18 @@ export type InitialPlaygroundState = Partial<PlaygroundProps> & {
   datasetId?: string | null;
   stateByDatasetId?: PlaygroundStateByDatasetId;
   selectedDatasetEvaluatorIds?: string[];
+  /**
+   * The user's preferred default model provider. Used as a bootstrap default
+   * when no instance has been previously configured. Falls through to the
+   * hardcoded {@link DEFAULT_MODEL_PROVIDER} when undefined.
+   */
+  defaultModelProvider?: ModelProvider;
+  /**
+   * The user's preferred default model name. Used as a bootstrap default
+   * when no instance has been previously configured for the chosen provider.
+   * Falls through to the hardcoded {@link DEFAULT_MODEL_NAME} when undefined.
+   */
+  defaultModelName?: string;
 };
 
 /**
@@ -443,6 +453,12 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    * message ids must be globally unique across all instances
    */
   allInstanceMessages: Record<number, ChatMessage>;
+
+  /**
+   * Per-message revision bumped only by external programmatic edits that need
+   * to reset the uncontrolled prompt editor. Normal typing does not update it.
+   */
+  externallyUpdatedMessageRevisionById: Record<number, number>;
 
   /**
    * A map of instance id to whether the instance is dirty
@@ -549,9 +565,12 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
   /**
    * Update the supported invocation parameters for a model
    */
-  updateModelSupportedInvocationParameters: (params: {
+  /**
+   * Reconcile invocation parameters against the static frontend spec table when the model
+   * or OpenAI API type changes (replaces the former GraphQL `modelInvocationParameters` fetch).
+   */
+  syncInvocationParametersWithSpecs: (params: {
     instanceId: number;
-    supportedInvocationParameters: InvocationParameter[];
     modelConfigByProvider: ModelConfigByProvider;
   }) => void;
   /**

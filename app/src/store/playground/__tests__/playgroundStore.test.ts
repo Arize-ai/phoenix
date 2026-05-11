@@ -1,4 +1,3 @@
-import type { InvocationParameter } from "@phoenix/components/playground/model/InvocationParametersFormFields";
 import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
@@ -39,7 +38,6 @@ describe("getInitialInstances", () => {
         modelName: "test-model",
         provider: "OPENAI" as const,
         invocationParameters: [],
-        supportedInvocationParameters: [],
       },
     };
 
@@ -137,6 +135,76 @@ describe("getInitialInstances", () => {
     expect(instances).toHaveLength(1);
     expect(instances[0].model.provider).toBe("ANTHROPIC");
     expect(instances[0].model.modelName).toBe("test-model-anthropic");
+  });
+
+  it("should use the user's preferred default provider and model when no saved configs exist", () => {
+    const initialProps: InitialPlaygroundState = {
+      datasetId: null,
+      modelConfigByProvider: {},
+      defaultModelProvider: "AWS",
+      defaultModelName: "anthropic.claude-sonnet-4-5-20250929-v1:0",
+    };
+
+    const { instances } = getInitialInstances(initialProps);
+
+    expect(instances).toHaveLength(1);
+    expect(instances[0].model.provider).toBe("AWS");
+    expect(instances[0].model.modelName).toBe(
+      "anthropic.claude-sonnet-4-5-20250929-v1:0"
+    );
+  });
+
+  it("should prefer the user's default provider when picking among saved configs", () => {
+    const initialProps: InitialPlaygroundState = {
+      datasetId: null,
+      modelConfigByProvider: {
+        OPENAI: {
+          modelName: "test-model-openai",
+          provider: "OPENAI",
+          invocationParameters: [],
+        },
+        ANTHROPIC: {
+          modelName: "test-model-anthropic",
+          provider: "ANTHROPIC",
+          invocationParameters: [],
+        },
+      },
+      defaultModelProvider: "ANTHROPIC",
+      defaultModelName: "claude-3-5-sonnet-latest",
+    };
+
+    const { instances } = getInitialInstances(initialProps);
+
+    expect(instances).toHaveLength(1);
+    // The saved config for the preferred provider wins over the bare model name
+    // pref so that previously chosen invocation params are preserved.
+    expect(instances[0].model.provider).toBe("ANTHROPIC");
+    expect(instances[0].model.modelName).toBe("test-model-anthropic");
+  });
+
+  it("should keep the user's preference when no saved config exists for the preferred provider", () => {
+    const initialProps: InitialPlaygroundState = {
+      datasetId: null,
+      modelConfigByProvider: {
+        OPENAI: {
+          modelName: "test-model-openai",
+          provider: "OPENAI",
+          invocationParameters: [],
+        },
+      },
+      defaultModelProvider: "AWS",
+      defaultModelName: "anthropic.claude-sonnet-4-5-20250929-v1:0",
+    };
+
+    const { instances } = getInitialInstances(initialProps);
+
+    expect(instances).toHaveLength(1);
+    // The user's explicit preference for AWS should win over an unrelated
+    // saved config for a different provider.
+    expect(instances[0].model.provider).toBe("AWS");
+    expect(instances[0].model.modelName).toBe(
+      "anthropic.claude-sonnet-4-5-20250929-v1:0"
+    );
   });
 });
 
@@ -729,20 +797,8 @@ describe("updateModelSupportedInvocationParameters", () => {
       TEST_RESPONSE_FORMAT
     );
 
-    const supportedInvocationParameters: InvocationParameter[] = [
-      {
-        __typename: "FloatInvocationParameter",
-        invocationName: "temperature",
-        canonicalName: "TEMPERATURE",
-        required: false,
-        floatDefaultValue: 1.0,
-        invocationInputField: "value_float",
-      },
-    ];
-
-    store.getState().updateModelSupportedInvocationParameters({
+    store.getState().syncInvocationParametersWithSpecs({
       instanceId,
-      supportedInvocationParameters,
       modelConfigByProvider: {},
     });
 
@@ -772,20 +828,8 @@ describe("updateModelSupportedInvocationParameters", () => {
       TEST_RESPONSE_FORMAT
     );
 
-    const supportedInvocationParameters: InvocationParameter[] = [
-      {
-        __typename: "FloatInvocationParameter",
-        invocationName: "temperature",
-        canonicalName: "TEMPERATURE",
-        required: false,
-        floatDefaultValue: 1.0,
-        invocationInputField: "value_float",
-      },
-    ];
-
-    store.getState().updateModelSupportedInvocationParameters({
+    store.getState().syncInvocationParametersWithSpecs({
       instanceId: secondInstanceId,
-      supportedInvocationParameters,
       modelConfigByProvider: {},
     });
 

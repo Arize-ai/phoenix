@@ -32,7 +32,6 @@ from phoenix.db.types.prompts import (
     PromptToolFunctionDefinition,
     PromptTools,
     TextContentPart,
-    get_raw_invocation_parameters,
 )
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -57,38 +56,6 @@ def _canonical_tools(
         ],
         toolChoice=dict(functionName=tool_choice_name) if tool_choice_name else None,
     )
-
-
-def _prompt_tools_to_canonical_input(tools: Any) -> dict[str, Any]:
-    """Convert a PromptTools DB model to canonical PromptToolsInput dict."""
-    from phoenix.db.types.prompts import (
-        PromptToolChoiceZeroOrMore,
-    )
-
-    tools_list = []
-    for t in tools.tools:
-        func: dict[str, Any] = {"name": t.function.name}
-        if t.function.description and bool(t.function.description):
-            func["description"] = t.function.description
-        if t.function.parameters and bool(t.function.parameters):
-            func["parameters"] = t.function.parameters
-        if isinstance(t.function.strict, bool):
-            func["strict"] = t.function.strict
-        tools_list.append({"function": func})
-
-    tool_choice: dict[str, Any] | None = None
-    if tools.tool_choice is not None:
-        tc = tools.tool_choice
-        if isinstance(tc, PromptToolChoiceZeroOrMore):
-            tool_choice = {"zeroOrMore": True}
-        elif isinstance(tc, PromptToolChoiceOneOrMore):
-            tool_choice = {"oneOrMore": True}
-        elif isinstance(tc, PromptToolChoiceSpecificFunctionTool):
-            tool_choice = {"functionName": tc.function_name}
-        else:
-            tool_choice = {"none": True}
-
-    return {"tools": tools_list, "toolChoice": tool_choice}
 
 
 class TestDatasetLLMEvaluatorMutations:
@@ -176,7 +143,7 @@ class TestDatasetLLMEvaluatorMutations:
                 template=dict(
                     messages=[dict(role="USER", content=[dict(text=dict(text="Eval {{input}}"))])]
                 ),
-                invocationParameters=dict(temperature=0.0),
+                invocationParameters=dict(openai=dict(temperature=0.0)),
                 tools=_canonical_tools(
                     name="correctness",
                     description="test description",
@@ -261,7 +228,7 @@ class TestDatasetLLMEvaluatorMutations:
                 description="anthropic version",
                 templateFormat="MUSTACHE",
                 template=dict(messages=[dict(role="USER", content=[dict(text=dict(text="Rate"))])]),
-                invocationParameters=dict(temperature=0.7, max_tokens=50),
+                invocationParameters=dict(anthropic=dict(temperature=0.7, maxTokens=50)),
                 tools=_canonical_tools(
                     name="correctness",
                     description="anthropic",
@@ -313,7 +280,7 @@ class TestDatasetLLMEvaluatorMutations:
                 template=dict(
                     messages=[dict(role="USER", content=[dict(text=dict(text="Second"))])]
                 ),
-                invocationParameters=dict(temperature=0.5, max_tokens=100),
+                invocationParameters=dict(anthropic=dict(temperature=0.5, maxTokens=100)),
                 tools=_canonical_tools(
                     name="correctness",
                     description="second",
@@ -370,7 +337,7 @@ class TestDatasetLLMEvaluatorMutations:
             promptVersion=dict(
                 templateFormat="MUSTACHE",
                 template=dict(messages=[dict(role="USER", content=[dict(text=dict(text="Test"))])]),
-                invocationParameters=dict(temperature=0.5),
+                invocationParameters=dict(openai=dict(temperature=0.5)),
                 tools=_canonical_tools(
                     name="correctness",
                     description="test",
@@ -414,7 +381,7 @@ class TestDatasetLLMEvaluatorMutations:
             promptVersion=dict(
                 templateFormat="MUSTACHE",
                 template=dict(messages=[dict(role="USER", content="invalid")]),
-                invocationParameters=dict(temperature=0.5),
+                invocationParameters=dict(openai=dict(temperature=0.5)),
                 modelProvider="OPENAI",
                 modelName="gpt-4",
             ),
@@ -526,7 +493,7 @@ class TestDatasetLLMEvaluatorMutations:
                         dict(role="USER", content=[dict(text=dict(text="Updated: {{input}}"))])
                     ]
                 ),
-                invocationParameters=dict(temperature=0.5),
+                invocationParameters=dict(openai=dict(temperature=0.5)),
                 tools=_canonical_tools(
                     name="correctness",
                     description="test description",
@@ -623,7 +590,7 @@ class TestDatasetLLMEvaluatorMutations:
                 template=dict(
                     messages=[dict(role="USER", content=[dict(text=dict(text="New: {{input}}"))])]
                 ),
-                invocationParameters=dict(temperature=0.0),
+                invocationParameters=dict(openai=dict(temperature=0.0)),
                 tools=_canonical_tools(
                     name="correctness",
                     description="test description",
@@ -780,7 +747,7 @@ class TestDatasetLLMEvaluatorMutations:
                         dict(role="USER", content=[dict(text=dict(text="Original: {{input}}"))])
                     ]
                 ),
-                invocationParameters=dict(temperature=0.5),
+                invocationParameters=dict(openai=dict(temperature=0.5)),
                 tools=_canonical_tools(
                     name="correctness",
                     description="test description",
@@ -862,7 +829,7 @@ class TestDatasetLLMEvaluatorMutations:
             promptVersion=dict(
                 templateFormat="MUSTACHE",
                 template=dict(messages=[dict(role="USER", content=[dict(text=dict(text="x"))])]),
-                invocationParameters=dict(),
+                invocationParameters=dict(openai=dict()),
                 tools=_canonical_tools(
                     name="out",
                     description="desc",
@@ -934,7 +901,7 @@ class TestDatasetLLMEvaluatorMutations:
                 template=dict(
                     messages=[dict(role="USER", content=[dict(text=dict(text="Test: {{input}}"))])]
                 ),
-                invocationParameters=dict(temperature=0.0),
+                invocationParameters=dict(openai=dict(temperature=0.0)),
                 tools=_canonical_tools(
                     name="correctness",
                     description="test description",
@@ -994,7 +961,7 @@ class TestDatasetLLMEvaluatorMutations:
                 template=dict(
                     messages=[dict(role="USER", content=[dict(text=dict(text="Eval {{input}}"))])]
                 ),
-                invocationParameters=dict(temperature=0.0),
+                invocationParameters=dict(openai=dict(temperature=0.0)),
                 tools=_canonical_tools(
                     name="correctness",
                     description="test description",
@@ -1066,7 +1033,7 @@ class TestDatasetLLMEvaluatorMutations:
             promptVersion=dict(
                 templateFormat="MUSTACHE",
                 template=dict(messages=[dict(role="USER", content=[dict(text=dict(text="Test"))])]),
-                invocationParameters=dict(temperature=0.5),
+                invocationParameters=dict(openai=dict(temperature=0.5)),
                 tools=_canonical_tools(
                     name="test",
                     description="test",
@@ -1163,7 +1130,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                 )
                             ]
                         ),
-                        invocationParameters=dict(temperature=0.5),
+                        invocationParameters=dict(openai=dict(temperature=0.5)),
                         tools=_canonical_tools(
                             name="result",
                             description="updated description",
@@ -1246,7 +1213,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                 )
                             ]
                         ),
-                        invocationParameters=dict(temperature=0.5),
+                        invocationParameters=dict(openai=dict(temperature=0.5)),
                         tools=dict(
                             tools=[
                                 dict(
@@ -1393,7 +1360,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                 )
                             ]
                         ),
-                        invocationParameters=dict(temperature=0.7),
+                        invocationParameters=dict(openai=dict(temperature=0.7)),
                         tools=dict(
                             tools=[
                                 dict(
@@ -1575,7 +1542,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                 )
                             ]
                         ),
-                        invocationParameters=dict(temperature=0.5),
+                        invocationParameters=dict(openai=dict(temperature=0.5)),
                         tools=dict(
                             tools=[
                                 dict(
@@ -1688,7 +1655,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                 )
                             ]
                         ),
-                        invocationParameters=dict(temperature=0.8),
+                        invocationParameters=dict(openai=dict(temperature=0.8)),
                         tools=dict(
                             tools=[
                                 dict(
@@ -1763,12 +1730,12 @@ class TestUpdateDatasetLLMEvaluatorMutation:
     ) -> None:
         """Test that updating with prompt_version_id and unchanged content doesn't create new version."""
         dataset_id = str(GlobalID("Dataset", str(empty_dataset.id)))
+        original_prompt_id = llm_evaluator.prompt_id
 
-        # Get the current prompt version and extract all fields to match exactly
         async with db() as session:
             current_prompt_version = await session.scalar(
                 select(models.PromptVersion)
-                .where(models.PromptVersion.prompt_id == llm_evaluator.prompt_id)
+                .where(models.PromptVersion.prompt_id == original_prompt_id)
                 .order_by(models.PromptVersion.id.desc())
                 .limit(1)
             )
@@ -1776,16 +1743,6 @@ class TestUpdateDatasetLLMEvaluatorMutation:
             current_prompt_version_id = str(
                 GlobalID("PromptVersion", str(current_prompt_version.id))
             )
-            original_prompt_id = llm_evaluator.prompt_id
-
-            # Extract invocation parameters (need raw dict, not the typed object)
-            raw_invocation_parameters = get_raw_invocation_parameters(
-                current_prompt_version.invocation_parameters
-            )
-
-            # Extract tools (convert to canonical GraphQL format)
-            assert current_prompt_version.tools is not None
-            tools = _prompt_tools_to_canonical_input(current_prompt_version.tools)
 
             dataset_evaluator = await session.scalar(
                 select(models.DatasetEvaluators).where(
@@ -1796,36 +1753,52 @@ class TestUpdateDatasetLLMEvaluatorMutation:
             assert dataset_evaluator is not None
             dataset_evaluator_id = str(GlobalID("DatasetEvaluator", str(dataset_evaluator.id)))
 
-        # Update with prompt_version_id and identical content (matching all fields)
-        # Only update the name (which doesn't affect prompt version content)
-        new_evaluator_name = "updated-evaluator"
-
-        # Create template_messages that match the fixture exactly
-        template_messages = [
-            dict(
-                role="USER",
-                content=[dict(text=dict(text="Test evaluator: {input}"))],
-            )
-        ]
-
         result = await gql_client.execute(
             self._UPDATE_MUTATION,
             {
                 "input": {
                     "datasetEvaluatorId": dataset_evaluator_id,
                     "datasetId": dataset_id,
-                    "name": new_evaluator_name,
-                    "description": llm_evaluator.description,  # Keep same as fixture
+                    "name": "updated-evaluator",
+                    "description": llm_evaluator.description,
                     "promptVersionId": current_prompt_version_id,
                     "promptVersion": dict(
-                        description=current_prompt_version.description,
-                        templateFormat=current_prompt_version.template_format.value,
-                        template=dict(messages=template_messages),
-                        invocationParameters=raw_invocation_parameters,
-                        tools=tools,
+                        description=None,
+                        templateFormat="F_STRING",
+                        template=dict(
+                            messages=[
+                                dict(
+                                    role="USER",
+                                    content=[dict(text=dict(text="Test evaluator: {input}"))],
+                                )
+                            ]
+                        ),
+                        invocationParameters=dict(openai=dict()),
+                        tools=dict(
+                            tools=[
+                                dict(
+                                    function=dict(
+                                        name="correctness",
+                                        description="test llm evaluator",
+                                        parameters={
+                                            "type": "object",
+                                            "properties": {
+                                                "label": {
+                                                    "type": "string",
+                                                    "enum": ["correct", "incorrect"],
+                                                    "description": "correctness",
+                                                }
+                                            },
+                                            "required": ["label"],
+                                        },
+                                    ),
+                                )
+                            ],
+                            toolChoice=dict(oneOrMore=True),
+                        ),
                         responseFormat=None,
-                        modelProvider=current_prompt_version.model_provider.value,
-                        modelName=current_prompt_version.model_name,
+                        modelProvider="OPENAI",
+                        modelName="gpt-4",
                     ),
                     "outputConfigs": [
                         dict(
@@ -1968,7 +1941,7 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                                 )
                             ]
                         ),
-                        invocationParameters=dict(temperature=0.0),
+                        invocationParameters=dict(openai=dict(temperature=0.0)),
                         tools=dict(
                             tools=[
                                 dict(
@@ -2906,12 +2879,95 @@ class TestDeleteDatasetEvaluators:
         )
 
         # Verify the DatasetEvaluators row and associated project are deleted
+        # but the shared built-in evaluator definition is preserved.
         async with db() as session:
             deleted_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_id)
             assert deleted_evaluator is None
 
             deleted_project = await session.get(models.Project, project_id)
             assert deleted_project is None
+
+            preserved_builtin = await session.get(models.BuiltinEvaluator, builtin_evaluator_id)
+            assert preserved_builtin is not None
+
+    async def test_delete_dataset_link_to_builtin_preserves_other_dataset_links(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+        empty_dataset: models.Dataset,
+        synced_builtin_evaluators: None,
+    ) -> None:
+        """Regression test for #13090.
+
+        Deleting one dataset's link to a shared built-in must not delete the built-in
+        itself, nor any other dataset's link that points to the same built-in.
+        """
+        async with db() as session:
+            builtin_evaluator_id = await session.scalar(select(models.BuiltinEvaluator.id).limit(1))
+        assert builtin_evaluator_id is not None, "No builtin evaluators available for testing"
+
+        async with db() as session:
+            dataset_b = models.Dataset(
+                name=f"dataset-b-{token_hex(4)}",
+                description="second dataset for shared-builtin test",
+                metadata_={},
+            )
+            session.add(dataset_b)
+            await session.flush()
+            dataset_b_id = dataset_b.id
+
+            link_a = models.DatasetEvaluators(
+                dataset_id=empty_dataset.id,
+                evaluator_id=builtin_evaluator_id,
+                name=IdentifierModel.model_validate(f"shared-builtin-a-{token_hex(4)}"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                project=models.Project(
+                    name=f"{empty_dataset.name}/shared-builtin-a-{token_hex(4)}",
+                    description="Project for dataset A link",
+                ),
+            )
+            link_b = models.DatasetEvaluators(
+                dataset_id=dataset_b_id,
+                evaluator_id=builtin_evaluator_id,
+                name=IdentifierModel.model_validate(f"shared-builtin-b-{token_hex(4)}"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                project=models.Project(
+                    name=f"{dataset_b.name}/shared-builtin-b-{token_hex(4)}",
+                    description="Project for dataset B link",
+                ),
+            )
+            session.add_all([link_a, link_b])
+            await session.flush()
+            link_a_id = link_a.id
+            link_b_id = link_b.id
+            link_b_project_id = link_b.project_id
+            link_a_gid = str(GlobalID("DatasetEvaluator", str(link_a_id)))
+
+        # Delete only dataset A's link to the built-in.
+        result = await gql_client.execute(
+            self._DELETE_MUTATION,
+            {"input": {"datasetEvaluatorIds": [link_a_gid]}},
+        )
+
+        assert not result.errors
+        assert result.data is not None
+        assert result.data["deleteDatasetEvaluators"]["datasetEvaluatorIds"] == [link_a_gid]
+
+        async with db() as session:
+            assert await session.get(models.DatasetEvaluators, link_a_id) is None
+
+            preserved_builtin = await session.get(models.BuiltinEvaluator, builtin_evaluator_id)
+            assert preserved_builtin is not None, (
+                "shared built-in evaluator must not be deleted when one dataset's link is removed"
+            )
+
+            preserved_link_b = await session.get(models.DatasetEvaluators, link_b_id)
+            assert preserved_link_b is not None, (
+                "dataset B's link must not be cascade-deleted by removing dataset A's link"
+            )
+
+            preserved_link_b_project = await session.get(models.Project, link_b_project_id)
+            assert preserved_link_b_project is not None
 
     async def test_delete_llm_evaluator(
         self,
@@ -3547,7 +3603,7 @@ class TestMultiOutputEvaluators:
                                 )
                             ]
                         ),
-                        invocationParameters=dict(temperature=0.0),
+                        invocationParameters=dict(openai=dict(temperature=0.0)),
                         tools=dict(
                             tools=[
                                 dict(
@@ -3681,7 +3737,7 @@ class TestMultiOutputEvaluators:
                                 )
                             ]
                         ),
-                        invocationParameters=dict(temperature=0.0),
+                        invocationParameters=dict(openai=dict(temperature=0.0)),
                         tools=dict(
                             tools=[
                                 dict(

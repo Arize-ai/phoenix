@@ -6,10 +6,37 @@ import {
   useCurrentAgentPageContext,
   type AgentPageContext,
 } from "@phoenix/agent/tools/bash";
+import type { paths } from "@phoenix/api/__generated__/v1";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { ModelMenuValue } from "../generative/ModelMenu";
+import type { ChatSearchParams } from "./useGenerateSessionSummary";
+
+const CHAT_PATH_TEMPLATE =
+  "/agents/{agent_id}/sessions/{session_id}/chat" satisfies keyof paths;
+
+const ASSISTANT_AGENT_ID = "assistant";
+
+function buildChatApiUrl({
+  sessionId,
+  searchParams,
+}: {
+  sessionId: string;
+  searchParams: ChatSearchParams;
+}): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(searchParams)) {
+    if (value != null) {
+      params.append(key, String(value));
+    }
+  }
+  const path = CHAT_PATH_TEMPLATE.replace(
+    "{agent_id}",
+    ASSISTANT_AGENT_ID
+  ).replace("{session_id}", encodeURIComponent(sessionId));
+  return prependBasename(`${path}?${params.toString()}`);
+}
 
 /**
  * Snapshot of the values that were current the last time the bash tool's
@@ -171,22 +198,32 @@ export function useAgentChatPanelState() {
     [defaultModelConfig, setDefaultModelConfig]
   );
 
-  // TODO(chat-v2-migration): remove this selector once /chat-v2 is the only endpoint.
-  const useV2Endpoint = useAgentContext(
-    (state) => state.capabilities["chat.useV2Endpoint"]
+  const chatSearchParams = useMemo<ChatSearchParams>(
+    () =>
+      menuValue.customProvider
+        ? {
+            provider_type: "custom",
+            provider_id: menuValue.customProvider.id,
+            model_name: menuValue.modelName,
+          }
+        : {
+            provider_type: "builtin",
+            provider: menuValue.provider,
+            model_name: menuValue.modelName,
+          },
+    [menuValue]
   );
-  const chatApiUrl = useMemo(() => {
-    const params = new URLSearchParams({
-      model_name: menuValue.modelName,
-      ...(menuValue.customProvider
-        ? { provider_type: "custom", provider_id: menuValue.customProvider.id }
-        : { provider_type: "builtin", provider: menuValue.provider }),
-    });
 
-    // TODO(chat-v2-migration): inline `/chat-v2` once the toggle is removed.
-    const path = useV2Endpoint ? "/chat-v2" : "/chat";
-    return prependBasename(`${path}?${params}`);
-  }, [menuValue, useV2Endpoint]);
+  const chatApiUrl = useMemo(() => {
+    // The session id is part of the path so the URL is session-scoped. Until
+    // a session exists the chat hook short-circuits all network activity, so
+    // this empty string is never actually fetched.
+    if (activeSessionId === null) return "";
+    return buildChatApiUrl({
+      sessionId: activeSessionId,
+      searchParams: chatSearchParams,
+    });
+  }, [chatSearchParams, activeSessionId]);
 
   const refreshSessionContext = useCallback(
     async ({
@@ -247,6 +284,7 @@ export function useAgentChatPanelState() {
     activeSessionId,
     orderedSessions,
     chatApiUrl,
+    chatSearchParams,
     menuValue,
     createSession,
     setActiveSession,

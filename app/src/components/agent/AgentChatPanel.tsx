@@ -12,6 +12,7 @@ import {
 } from "./sessionSummaryUtils";
 import { useAgentChat } from "./useAgentChat";
 import { useAgentChatPanelState } from "./useAgentChatPanelState";
+import type { ChatSearchParams } from "./useGenerateSessionSummary";
 
 /**
  * Always-mounted controller for the agent chat. The panel UI is conditional,
@@ -25,6 +26,7 @@ export function AgentChatPanel() {
     activeSessionId,
     orderedSessions,
     chatApiUrl,
+    chatSearchParams,
     menuValue,
     createSession,
     setActiveSession,
@@ -52,6 +54,7 @@ export function AgentChatPanel() {
       orderedSessions={orderedSessions}
       sessionDisplayName={sessionDisplayName}
       chatApiUrl={chatApiUrl}
+      chatSearchParams={chatSearchParams}
       menuValue={menuValue}
       createSession={createSession}
       setActiveSession={setActiveSession}
@@ -68,6 +71,7 @@ function AgentChatController({
   orderedSessions,
   sessionDisplayName,
   chatApiUrl,
+  chatSearchParams,
   menuValue,
   createSession,
   setActiveSession,
@@ -80,6 +84,7 @@ function AgentChatController({
   orderedSessions: ReturnType<typeof useAgentChatPanelState>["orderedSessions"];
   sessionDisplayName: string;
   chatApiUrl: string;
+  chatSearchParams: ChatSearchParams;
   menuValue: ReturnType<typeof useAgentChatPanelState>["menuValue"];
   createSession: ReturnType<typeof useAgentChatPanelState>["createSession"];
   setActiveSession: ReturnType<
@@ -103,6 +108,7 @@ function AgentChatController({
   } = useAgentChat({
     sessionId: activeSessionId,
     chatApiUrl,
+    chatSearchParams,
   });
 
   if (!isOpen) {

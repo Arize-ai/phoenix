@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Annotated, Optional, Union, cast
 
 import strawberry
 from strawberry.relay import Node, NodeID
-from strawberry.scalars import JSON
 from strawberry.types import Info
 from typing_extensions import assert_never
 
@@ -27,10 +26,13 @@ from phoenix.db.types import experiment_config as config_types
 from phoenix.db.types.prompts import (
     PromptTemplateFormat,
     PromptTemplateType,
-    get_raw_invocation_parameters,
 )
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+from phoenix.server.api.types.PromptInvocationParameters import (
+    PromptInvocationParameters,
+    gql_prompt_invocation_parameters_from_orm,
+)
 from phoenix.server.api.types.PromptResponseFormat import (
     PromptResponseFormatJSONSchema,
 )
@@ -161,7 +163,7 @@ class PromptConfig:
     template: PromptTemplate
     tools: Optional[PromptTools] = None
     response_format: Optional[PromptResponseFormatJSONSchema] = None
-    invocation_parameters: JSON
+    invocation_parameters: PromptInvocationParameters
     model_provider: GenerativeProviderKey = strawberry.field(
         description="The model provider (OPENAI, ANTHROPIC, etc.)"
     )
@@ -206,8 +208,8 @@ class PromptTaskConfig(Node):
                     if obj.response_format
                     else None
                 ),
-                invocation_parameters=JSON(
-                    get_raw_invocation_parameters(obj.invocation_parameters)
+                invocation_parameters=gql_prompt_invocation_parameters_from_orm(
+                    obj.invocation_parameters
                 ),
                 model_provider=GenerativeProviderKey.from_model_provider(obj.model_provider),
                 model_name=obj.model_name,

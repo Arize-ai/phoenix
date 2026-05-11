@@ -29,12 +29,19 @@ function contextLabel(context: AgentContext): string {
       // App context is request-only clock metadata injected at send time, not
       // user-visible page context, so it should never render as a pill.
       return "";
+    case "playground":
+      return "Playground";
     case "project":
       return "Project";
     case "trace":
       return `Trace: ${truncateId(context.otelTraceId)}`;
-    case "span":
-      return `Span: ${truncateId(context.spanNodeId ?? context.otelSpanId)}`;
+    case "span": {
+      const spanId = context.spanNodeId ?? context.otelSpanId;
+      if (spanId == null) {
+        throw new Error("span context must have spanNodeId or otelSpanId");
+      }
+      return `Span: ${truncateId(spanId)}`;
+    }
   }
 }
 

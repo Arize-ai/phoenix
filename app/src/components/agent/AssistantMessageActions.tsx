@@ -137,13 +137,8 @@ export function AssistantMessageActions({
   const messageText = getAssistantMessageText(message);
   const hasMessageText = messageText.trim().length > 0;
   const metadata = message.metadata;
-  const canAnnotate =
-    storeLocalTraces &&
-    typeof metadata?.traceId === "string" &&
-    typeof metadata?.rootSpanId === "string" &&
-    typeof metadata?.sessionId === "string";
-  const canOpenTrace =
-    storeLocalTraces && typeof metadata?.traceId === "string";
+  const canAnnotate = storeLocalTraces && metadata?.trace != null;
+  const canOpenTrace = storeLocalTraces && metadata?.trace != null;
 
   if (!hasMessageText && !canAnnotate && !canOpenTrace) {
     return null;
@@ -157,20 +152,22 @@ export function AssistantMessageActions({
   };
 
   const handleOpenTrace = () => {
-    if (!canOpenTrace || !metadata) {
+    if (!canOpenTrace || !metadata?.trace) {
       return;
     }
     window.open(
-      prependBasename(`/redirects/traces/${metadata.traceId}`),
+      prependBasename(`/redirects/traces/${metadata.trace.traceId}`),
       "_blank",
       "noopener,noreferrer"
     );
   };
 
   const handleFeedback = async (feedback: AssistantFeedback) => {
-    if (!canAnnotate || !metadata || isSubmittingFeedback) {
+    if (!canAnnotate || !metadata?.trace || isSubmittingFeedback) {
       return;
     }
+    const { traceId, rootSpanId } = metadata.trace;
+    const { sessionId } = metadata;
     if (selectedFeedback === feedback) {
       return;
     }
@@ -187,9 +184,9 @@ export function AssistantMessageActions({
       metadata: {
         assistant_message_id: message.id,
         feedback,
-        root_span_id: metadata.rootSpanId,
-        session_id: metadata.sessionId,
-        trace_id: metadata.traceId,
+        root_span_id: rootSpanId,
+        session_id: sessionId,
+        trace_id: traceId,
       },
       name: FEEDBACK_ANNOTATION_NAME,
       result: toFeedbackResult(feedback),
@@ -199,11 +196,11 @@ export function AssistantMessageActions({
       await Promise.all([
         postAnnotation({
           endpoint: "/v1/span_annotations",
-          payload: { ...base, span_id: metadata.rootSpanId },
+          payload: { ...base, span_id: rootSpanId },
         }),
         postAnnotation({
           endpoint: "/v1/trace_annotations",
-          payload: { ...base, trace_id: metadata.traceId },
+          payload: { ...base, trace_id: traceId },
         }),
       ]);
       setSelectedFeedback(feedback);

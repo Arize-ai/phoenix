@@ -9,10 +9,11 @@ import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
+import { getActiveSpecsForPlayground } from "@phoenix/pages/playground/invocationParameterSpecs";
 import {
   areInvocationParamsEqual,
-  constrainInvocationParameterInputsToDefinition,
-  mergeInvocationParametersWithDefaults,
+  constrainInvocationParameterInputsToSpecs,
+  mergeInvocationParametersWithSpecDefaults,
 } from "@phoenix/pages/playground/invocationParameterUtils";
 import type { PartialOutputToolCall } from "@phoenix/pages/playground/PlaygroundToolCall";
 
@@ -128,7 +129,6 @@ export const DEFAULT_INSTANCE_PARAMS = () =>
       provider: DEFAULT_MODEL_PROVIDER,
       modelName: DEFAULT_MODEL_NAME,
       invocationParameters: [],
-      supportedInvocationParameters: [],
     },
     tools: [],
     // Default to auto tool choice as you are probably testing the LLM for it's ability to pick
@@ -201,6 +201,18 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
   }
   const { instance, instanceMessages } = createNormalizedPlaygroundInstance();
 
+  const preferredProvider =
+    initialProps.defaultModelProvider ?? DEFAULT_MODEL_PROVIDER;
+  const preferredModelName =
+    initialProps.defaultModelName ?? DEFAULT_MODEL_NAME;
+  // Seed the instance with the user's preferred default provider/model so it
+  // is used when no saved config exists for that provider.
+  instance.model = {
+    ...instance.model,
+    provider: preferredProvider,
+    modelName: preferredModelName,
+  };
+
   const savedModelConfigs = Object.values(initialProps.modelConfigByProvider);
   const hasSavedModelConfig = savedModelConfigs.length > 0;
   if (!hasSavedModelConfig) {
@@ -209,14 +221,25 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
       instanceMessages,
     };
   }
-  const savedDefaultProviderConfig =
-    savedModelConfigs.find(
-      (config) => config.provider === DEFAULT_MODEL_PROVIDER
-    ) ?? savedModelConfigs[0];
-  instance.model = {
-    ...instance.model,
-    ...savedDefaultProviderConfig,
-  };
+  // A saved per-provider config (e.g. last-used invocation params for the
+  // preferred provider) takes precedence over the bare user preference. When
+  // the user has explicitly set a preferred provider but has no saved config
+  // for it, keep the bare user preference rather than falling back to an
+  // unrelated provider's saved config.
+  const savedPreferredProviderConfig = savedModelConfigs.find(
+    (config) => config.provider === preferredProvider
+  );
+  const savedConfigToUse =
+    savedPreferredProviderConfig ??
+    (initialProps.defaultModelProvider == null
+      ? savedModelConfigs[0]
+      : undefined);
+  if (savedConfigToUse) {
+    instance.model = {
+      ...instance.model,
+      ...savedConfigToUse,
+    };
+  }
   return {
     instances: [instance],
     instanceMessages,
@@ -245,6 +268,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
     ...props,
     instances,
     allInstanceMessages: instanceMessages,
+    externallyUpdatedMessageRevisionById: {},
     stateByDatasetId: props.stateByDatasetId
       ? props.stateByDatasetId
       : props.datasetId
@@ -378,9 +402,8 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         { type: "addInstance" }
       );
     },
-    updateModelSupportedInvocationParameters: ({
+    syncInvocationParametersWithSpecs: ({
       instanceId,
-      supportedInvocationParameters,
       modelConfigByProvider,
     }) => {
       const instances = get().instances;
@@ -388,26 +411,18 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         {
           instances: instances.map((instance) => {
             if (instance.id === instanceId) {
-              // if we have top level model config for the provider, merge it in
-              // this allows us to populate default values for baseUrl, endpoint, and region
-              // when the user has saved an azure prompt and we load it back in
               const { baseUrl, endpoint, region } =
                 modelConfigByProvider[instance.model.provider] ?? {};
-
-              // try to port dirty invocation parameters to the new supported invocation parameters
-              // ensure that the invocation parameters are only the ones that are supported by the model
-              const dirtyInvocationParameters =
-                instance.model.invocationParameters.filter((p) => p.dirty);
+              const specs = getActiveSpecsForPlayground(instance.model);
               const filteredInvocationParameters =
-                constrainInvocationParameterInputsToDefinition(
-                  dirtyInvocationParameters,
-                  supportedInvocationParameters
+                constrainInvocationParameterInputsToSpecs(
+                  instance.model.invocationParameters,
+                  specs
                 );
-              // merge the current invocation parameters with the defaults defined in supportedInvocationParameters
               const finalInvocationParameters =
-                mergeInvocationParametersWithDefaults(
+                mergeInvocationParametersWithSpecDefaults(
                   filteredInvocationParameters,
-                  supportedInvocationParameters
+                  specs
                 );
 
               return {
@@ -417,9 +432,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                   baseUrl: instance.model.baseUrl ?? baseUrl,
                   endpoint: instance.model.endpoint ?? endpoint,
                   region: instance.model.region ?? region,
-                  supportedInvocationParameters,
                   invocationParameters: finalInvocationParameters,
-                  // responseFormat lives on model directly — preserved by spread
                 },
               };
             }
@@ -427,7 +440,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           }),
         },
         false,
-        { type: "updateModelSupportedInvocationParameters" }
+        { type: "syncInvocationParametersWithSpecs" }
       );
     },
     updateProvider: ({ instanceId, provider, modelConfigByProvider }) => {

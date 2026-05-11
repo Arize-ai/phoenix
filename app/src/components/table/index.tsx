@@ -12,4 +12,3 @@ export * from "./CellTop";
 export * from "./LargeTextWrap";
 export * from "./JSONCell";
 export * from "./PaddedCell";
-export * from "./OverflowCell";

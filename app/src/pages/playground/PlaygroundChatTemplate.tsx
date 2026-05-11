@@ -332,6 +332,9 @@ function SortableMessageItem({
     [messageId]
   );
   const message = usePlaygroundContext(messageSelector);
+  const externalMessageRevision = usePlaygroundContext(
+    (state) => state.externallyUpdatedMessageRevisionById[messageId] ?? 0
+  );
   const messageCardStyles = useChatMessageStyles(message.role);
   const dragAndDropLiStyles = {
     transform: CSS.Translate.toString(transform),
@@ -481,7 +484,10 @@ function SortableMessageItem({
       >
         <div>
           <MessageEditor
-            key={`${message.id}-${templateFormat}`}
+            // TemplateEditor is intentionally uncontrolled. External PXI edits
+            // bump this revision so accepted changes remount the editor without
+            // remounting on every local keystroke.
+            key={`${message.id}-${templateFormat}-${externalMessageRevision}`}
             message={message}
             messageMode={aiMessageMode}
             playgroundInstanceId={playgroundInstanceId}

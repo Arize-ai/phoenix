@@ -46,7 +46,6 @@ export const makeLLMEvaluatorInstance = ({
         modelName: DEFAULT_MODEL_NAME,
       }),
       invocationParameters: [],
-      supportedInvocationParameters: [],
     },
     toolChoice: { type: "ONE_OR_MORE" },
     experiment: null,

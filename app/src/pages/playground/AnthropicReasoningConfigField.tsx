@@ -7,7 +7,7 @@ const MINIMUM_BUDGET_TOKENS = 1024;
 
 const thinkingSchema = z.object({
   type: z.literal("enabled"),
-  budget_tokens: z.number().min(MINIMUM_BUDGET_TOKENS),
+  budgetTokens: z.number().min(MINIMUM_BUDGET_TOKENS),
 });
 
 type AnthropicReasoningConfigFieldProps = {
@@ -23,14 +23,14 @@ export const AnthropicReasoningConfigField = ({
   const validation = thinkingSchema.safeParse(value);
   const configuration = validation.data;
   const lastBudgetTokens = useRef<number | undefined>(
-    configuration?.budget_tokens
+    configuration?.budgetTokens
   );
 
   const handleEnabledChange = (enabled: boolean) => {
     if (enabled) {
       onChange({
         type: "enabled",
-        budget_tokens: lastBudgetTokens.current || MINIMUM_BUDGET_TOKENS,
+        budgetTokens: lastBudgetTokens.current || MINIMUM_BUDGET_TOKENS,
       });
     } else {
       onChange(null);
@@ -42,7 +42,7 @@ export const AnthropicReasoningConfigField = ({
     lastBudgetTokens.current = hasBudget ? value : MINIMUM_BUDGET_TOKENS;
     onChange({
       type: "enabled",
-      budget_tokens: lastBudgetTokens.current,
+      budgetTokens: lastBudgetTokens.current,
     });
     if (!hasBudget) {
       setThinkingBudgetVersion((v) => v + 1);
@@ -60,7 +60,7 @@ export const AnthropicReasoningConfigField = ({
       {configuration?.type === "enabled" && (
         <NumberField
           key={thinkingBudgetVersion}
-          value={configuration?.budget_tokens}
+          value={configuration?.budgetTokens}
           onChange={handleBudgetTokensChange}
           isDisabled={configuration?.type !== "enabled"}
           isRequired={true}

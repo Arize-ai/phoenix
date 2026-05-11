@@ -10,6 +10,15 @@ import {
 import type { BlockerFunction } from "react-router";
 import { useBlocker, useSearchParams } from "react-router";
 
+import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
+import {
+  CLONE_PROMPT_INSTANCE_TOOL_NAME,
+  createClonePromptInstanceClientAction,
+  createEditPromptClientAction,
+  createReadPromptClientAction,
+  EDIT_PROMPT_TOOL_NAME,
+  READ_PROMPT_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundPrompt";
 import {
   Button,
   Disclosure,
@@ -27,9 +36,11 @@ import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
+import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import {
   PlaygroundProvider,
   usePlaygroundContext,
+  usePlaygroundStore,
 } from "@phoenix/contexts/PlaygroundContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
 import { ConfirmExperimentNavigationDialog } from "@phoenix/pages/playground/ConfirmExperimentNavigationDialog";
@@ -86,6 +97,12 @@ export function Playground(
   const modelConfigByProvider = usePreferencesContext(
     (state) => state.modelConfigByProvider
   );
+  const defaultModelProvider = usePreferencesContext(
+    (state) => state.defaultModelProvider
+  );
+  const defaultModelName = usePreferencesContext(
+    (state) => state.defaultModelName
+  );
 
   const playgroundStreamingEnabled = usePreferencesContext(
     (state) => state.playgroundStreamingEnabled
@@ -103,6 +120,8 @@ export function Playground(
       datasetId={datasetId}
       streaming={playgroundStreamingEnabled}
       modelConfigByProvider={modelConfigByProvider}
+      defaultModelProvider={defaultModelProvider}
+      defaultModelName={defaultModelName}
     >
       <div css={playgroundWrapCSS}>
         <View borderBottomColor="default" borderBottomWidth="thin">
@@ -203,6 +222,8 @@ const DEFAULT_EXPANDED_PROMPTS = ["prompts"];
 const DEFAULT_EXPANDED_PARAMS = ["input", "output"];
 
 function PlaygroundContent() {
+  const agentStore = useAgentStore();
+  const playgroundStore = usePlaygroundStore();
   const templateFormat = usePlaygroundContext((state) => state.templateFormat);
   const [searchParams, setSearchParams] = useSearchParams();
   const storeDatasetId = usePlaygroundContext((state) => state.datasetId);
@@ -240,6 +261,44 @@ function PlaygroundContent() {
       left.length === right.length &&
       left.every((id, index) => id === right[index])
   );
+
+  const advertisedPlaygroundContext = useMemo(
+    () => ({ type: "playground" as const, instanceIds }),
+    [instanceIds]
+  );
+  useAdvertiseAgentContext(advertisedPlaygroundContext);
+
+  useEffect(() => {
+    const {
+      registerClientAction,
+      unregisterClientAction,
+      setPendingPromptEdit,
+    } = agentStore.getState();
+    registerClientAction(
+      READ_PROMPT_TOOL_NAME,
+      createReadPromptClientAction({ playgroundStore })
+    );
+    registerClientAction(
+      CLONE_PROMPT_INSTANCE_TOOL_NAME,
+      createClonePromptInstanceClientAction({ playgroundStore })
+    );
+    registerClientAction(
+      EDIT_PROMPT_TOOL_NAME,
+      createEditPromptClientAction({ playgroundStore, setPendingPromptEdit })
+    );
+    return () => {
+      unregisterClientAction(READ_PROMPT_TOOL_NAME);
+      unregisterClientAction(CLONE_PROMPT_INSTANCE_TOOL_NAME);
+      unregisterClientAction(EDIT_PROMPT_TOOL_NAME);
+      for (const pendingEdit of Object.values(
+        agentStore.getState().pendingPromptEditsByToolCallId
+      )) {
+        if (pendingEdit) {
+          void pendingEdit.cancel?.();
+        }
+      }
+    };
+  }, [agentStore, playgroundStore]);
 
   const playgroundDatasetStateByDatasetId = usePlaygroundContext(
     (state) => state.stateByDatasetId

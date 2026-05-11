@@ -149,16 +149,3 @@ def build_agent_dynamic_system_prompt(
     if not sections:
         return None
     return "\n\n".join(sections)
-
-
-def build_agent_system_prompts(
-    *,
-    capabilities: AgentCapabilities,
-) -> list[str]:
-    """Return PXI system prompt blocks ordered for provider prompt caching."""
-    prompts = [AGENT_STATIC_SYSTEM_PROMPT]
-    if dynamic_prompt := build_agent_dynamic_system_prompt(
-        capabilities=capabilities,
-    ):
-        prompts.append(dynamic_prompt)
-    return prompts
