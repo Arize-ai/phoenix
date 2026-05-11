@@ -22,9 +22,9 @@ land in the spans table and are visible to anyone with trace-read access.
 In scope:
     Verbatim plaintext occurrences of known secret values inside strings
     that ``CodeEvaluatorRunner`` is about to attach to a span. "Known" =
-    the union of ``user_env`` values and the backend's
-    ``_provider_secret_values`` at construction time (see
-    ``get_or_create_backend``). Substring match, ``min_length=8``,
+    the backend's ``secret_values`` set, composed in each backend's
+    ``__init__`` via ``compose_secret_values(user_env, *credentials)``
+    (see ``sandbox/types.py``). Substring match, ``min_length=8``,
     longest-first replacement.
 
 Out of scope (and not fixable by extending this class):

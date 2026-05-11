@@ -19,6 +19,7 @@ from .types import (
     ProviderCredentialSpec,
     SandboxAdapter,
     SandboxBackend,
+    compose_secret_values,
 )
 
 if TYPE_CHECKING:
@@ -58,7 +59,7 @@ class E2BSandboxBackend(SandboxBackend):
         self._allow_internet_access = allow_internet_access
         self._packages: list[str] = packages or []
         self._sessions: dict[str, AsyncSandbox] = {}
-        self._provider_secret_values: frozenset[str] = frozenset({v for v in (self._api_key,) if v})
+        self.secret_values = compose_secret_values(user_env, self._api_key)
 
     def _get_sandbox_cls(self) -> type[AsyncSandbox]:
         from e2b_code_interpreter.code_interpreter_async import AsyncSandbox

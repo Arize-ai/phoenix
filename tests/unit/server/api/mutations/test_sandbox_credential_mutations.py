@@ -52,11 +52,7 @@ class _TestCredAdapter(SandboxAdapter):
         config: dict,  # type: ignore[type-arg]
         user_env: dict | None = None,  # type: ignore[type-arg]
     ) -> SandboxBackend:
-        backend = MagicMock(spec=SandboxBackend)
-        # get_or_create_backend reads _provider_secret_values; spec does
-        # not declare it.
-        backend._provider_secret_values = frozenset()
-        return backend
+        return MagicMock(spec=SandboxBackend)
 
 
 @pytest.fixture(autouse=True)

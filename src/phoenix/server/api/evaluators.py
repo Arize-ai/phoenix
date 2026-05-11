@@ -7,7 +7,7 @@ import traceback as _traceback
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from datetime import datetime, timezone
-from typing import Any, Callable, Optional, Protocol, Sequence, TypeAlias, TypeVar, cast
+from typing import Any, Callable, Optional, Sequence, TypeAlias, TypeVar
 
 import openinference.instrumentation as oi
 from jsonpath_ng import parse as parse_jsonpath
@@ -63,10 +63,6 @@ from phoenix.server.sandbox import MissingSecretError  # noqa: E402
 from phoenix.server.sandbox.types import ExecutionResult, SandboxBackend, UnsupportedOperation
 
 logger = logging.getLogger(__name__)
-
-
-class _SecretAwareBackend(Protocol):
-    secret_values: frozenset[str]
 
 
 def _mask_attrs(
@@ -2645,7 +2641,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
 
         start_time = datetime.now(timezone.utc)
         tracer_ = tracer or NoOpTracer()
-        masker = SandboxSecretMasker(cast(_SecretAwareBackend, self._sandbox_backend).secret_values)
+        masker = SandboxSecretMasker(self._sandbox_backend.secret_values)
 
         with tracer_.start_as_current_span(
             f"Evaluator: {name}",

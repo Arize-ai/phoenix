@@ -39,6 +39,7 @@ from .types import (
     SandboxBackend,
     VercelPythonConfig,
     VercelTypescriptConfig,
+    compose_secret_values,
 )
 
 if TYPE_CHECKING:
@@ -127,9 +128,7 @@ class VercelSandboxBackend(SandboxBackend):
         self._user_env: dict[str, str] = user_env or {}
         self._sessions: dict[str, AsyncSandbox] = {}
         self._session_locks: dict[str, asyncio.Lock] = {}
-        self._provider_secret_values: frozenset[str] = frozenset(
-            {v for v in (self._oidc_token, self._token) if v}
-        )
+        self.secret_values = compose_secret_values(user_env, self._oidc_token, self._token)
 
     def _lang_cfg(self) -> _LanguageConfig:
         return _LANGUAGE_CONFIGS.get(self._language, _LANGUAGE_CONFIGS[_DEFAULT_LANGUAGE])

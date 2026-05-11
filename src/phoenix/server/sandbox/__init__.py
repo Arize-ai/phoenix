@@ -33,8 +33,6 @@ from typing import (
     Literal,
     MutableMapping,
     Optional,
-    Protocol,
-    cast,
 )
 
 from phoenix.config import get_env_allowed_sandbox_providers
@@ -55,11 +53,6 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
-
-
-class _ProviderSecretAwareBackend(Protocol):
-    _provider_secret_values: frozenset[str]
-    secret_values: frozenset[str]
 
 
 # JSON Schema "type" → ConfigFieldSpec.field_type mapping.
@@ -723,11 +716,12 @@ async def get_or_create_backend(
     from pydantic import ValidationError
 
     try:
+        # Each backend populates self.secret_values in __init__ via
+        # compose_secret_values(user_env, *credentials). The factory does not
+        # post-construct it — the contract lives on SandboxBackend itself
+        # (class-level frozenset() default), so any backend reached here is
+        # already secret-mask-ready.
         backend = adapter.build_backend(effective_config, user_env=user_env)
-        secret_backend = cast(_ProviderSecretAwareBackend, backend)
-        secret_backend.secret_values = (
-            frozenset((user_env or {}).values()) | secret_backend._provider_secret_values
-        )
         _BACKEND_CACHE[cache_key] = backend
         return backend
     except (MissingSecretError, UnsupportedOperation, ValidationError, ValueError):

@@ -912,11 +912,7 @@ class TestPhase1WrapperInputShape:
             ]
 
             def build_backend(self, config, user_env=None):  # type: ignore[no-untyped-def]
-                backend = MagicMock(spec=SandboxBackend)
-                # get_or_create_backend reads _provider_secret_values; spec
-                # does not declare it.
-                backend._provider_secret_values = frozenset()
-                return backend
+                return MagicMock(spec=SandboxBackend)
 
         _SANDBOX_ADAPTERS[backend_type] = _Adapter()
         try:
