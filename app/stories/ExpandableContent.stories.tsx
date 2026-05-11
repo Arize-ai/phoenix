@@ -5,21 +5,21 @@ import { useState } from "react";
 import { Text, View } from "@phoenix/components";
 import { JSONBlock } from "@phoenix/components/code";
 
-import { OverflowCell } from "../src/components/table/OverflowCell";
+import { ExpandableContent } from "../src/components/core/content/ExpandableContent";
 
-const meta: Meta<typeof OverflowCell> = {
-  title: "Table/Overflow Cell",
-  component: OverflowCell,
+const meta: Meta<typeof ExpandableContent> = {
+  title: "Core/Content/ExpandableContent",
+  component: ExpandableContent,
   parameters: {
     layout: "centered",
     docs: {
       description: {
         component: `
-A cell component that handles overflowing content with an expandable interface.
+A content wrapper that handles overflowing content with an expandable interface.
 
 - Shows a gradient overlay and "expand" button when content exceeds the specified height
 - Supports both uncontrolled (internal state) and controlled modes
-- When expanded, content becomes scrollable
+- Supports fixed-height containers and max-height regions that grow to full height when expanded
         `,
       },
     },
@@ -27,7 +27,17 @@ A cell component that handles overflowing content with an expandable interface.
   argTypes: {
     height: {
       control: { type: "number" },
-      description: "The fixed height of the cell in pixels",
+      description: "The fixed or maximum collapsed height in pixels",
+    },
+    expandedBehavior: {
+      control: { type: "radio" },
+      options: ["scroll", "grow"],
+      description:
+        "Whether expanded content scrolls internally or grows to full height",
+    },
+    overlayBackgroundColor: {
+      control: { type: "text" },
+      description: "Background color used by the expand gradient overlay",
     },
     isExpanded: {
       control: { type: "boolean" },
@@ -56,13 +66,13 @@ A cell component that handles overflowing content with an expandable interface.
 };
 
 export default meta;
-type Story = StoryObj<typeof OverflowCell>;
+type Story = StoryObj<typeof ExpandableContent>;
 
 const shortContent =
-  "This is a short piece of content that fits within the cell.";
+  "This is a short piece of content that fits within the container.";
 
-const longContent = `This is a much longer piece of content that will definitely overflow the cell boundaries.
-It contains multiple paragraphs of text to demonstrate how the OverflowCell component handles content
+const longContent = `This is a much longer piece of content that will definitely overflow the container boundaries.
+It contains multiple paragraphs of text to demonstrate how the ExpandableContent component handles content
 that exceeds the specified height.
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore
@@ -102,7 +112,7 @@ const jsonContent = JSON.stringify(
 );
 
 /**
- * Default state with content that overflows the cell.
+ * Default state with content that overflows the container.
  * Click the "expand" button to reveal all content.
  */
 export const Default: Story = {
@@ -113,7 +123,7 @@ export const Default: Story = {
 };
 
 /**
- * Content that fits within the cell height.
+ * Content that fits within the collapsed height.
  * No expand button is shown since there's no overflow.
  */
 export const NoOverflow: Story = {
@@ -135,7 +145,7 @@ export const JSONContent: Story = {
 };
 
 /**
- * A smaller cell height showing more dramatic overflow.
+ * A smaller collapsed height showing more dramatic overflow.
  */
 export const SmallHeight: Story = {
   args: {
@@ -145,7 +155,7 @@ export const SmallHeight: Story = {
 };
 
 /**
- * A larger cell that can show more content before overflowing.
+ * A larger collapsed height that can show more content before overflowing.
  */
 export const LargeHeight: Story = {
   args: {
@@ -155,8 +165,20 @@ export const LargeHeight: Story = {
 };
 
 /**
+ * Uses a collapsed max height, then grows to the full content height when expanded.
+ * This is useful outside of tables where nested scrolling should be avoided.
+ */
+export const MaxHeightGrow: Story = {
+  args: {
+    height: 120,
+    expandedBehavior: "grow",
+    children: <Text>{longContent}</Text>,
+  },
+};
+
+/**
  * Controlled mode where the parent manages the expanded state.
- * Useful when you need to synchronize expansion state across multiple cells.
+ * Useful when you need to synchronize expansion state across multiple content regions.
  */
 const ControlledTemplate = () => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -172,13 +194,13 @@ const ControlledTemplate = () => {
           Controlled state: {isExpanded ? "Expanded" : "Collapsed"}
         </Text>
       </View>
-      <OverflowCell
+      <ExpandableContent
         height={100}
         isExpanded={isExpanded}
         onExpandedChange={setIsExpanded}
       >
         <Text>{longContent}</Text>
-      </OverflowCell>
+      </ExpandableContent>
     </View>
   );
 };
@@ -196,8 +218,8 @@ export const Controlled: Story = {
 };
 
 /**
- * Multiple OverflowCells in a table-like layout.
- * Demonstrates how cells work in a realistic context.
+ * Multiple ExpandableContent regions in a table-like layout.
+ * Demonstrates how the component works in a realistic context.
  */
 const TableLayoutTemplate = () => {
   return (
@@ -220,27 +242,27 @@ const TableLayoutTemplate = () => {
         <Text weight="heavy">Output</Text>
       </div>
       <div>
-        <OverflowCell height={80}>
+        <ExpandableContent height={80}>
           <Text>{shortContent}</Text>
-        </OverflowCell>
+        </ExpandableContent>
       </div>
       <div>
-        <OverflowCell height={80}>
+        <ExpandableContent height={80}>
           <Text>{longContent}</Text>
-        </OverflowCell>
+        </ExpandableContent>
       </div>
       <div>
-        <OverflowCell height={80}>
+        <ExpandableContent height={80}>
           <JSONBlock value={jsonContent} />
-        </OverflowCell>
+        </ExpandableContent>
       </div>
       <div>
-        <OverflowCell height={80}>
+        <ExpandableContent height={80}>
           <Text>
             A moderate amount of text that may or may not overflow depending on
             the exact styling applied.
           </Text>
-        </OverflowCell>
+        </ExpandableContent>
       </div>
     </div>
   );
@@ -266,7 +288,7 @@ export const TableLayout: Story = {
     docs: {
       description: {
         story:
-          "Multiple OverflowCells in a grid layout, simulating a table with expandable cells.",
+          "Multiple ExpandableContent regions in a grid layout, simulating a table with expandable content.",
       },
     },
   },
@@ -285,7 +307,7 @@ export const InitiallyExpanded: Story = {
     docs: {
       description: {
         story:
-          "When `isExpanded` is set to `true`, the cell starts in its expanded state showing all content.",
+          "When `isExpanded` is set to `true`, the content starts in its expanded state showing all content.",
       },
     },
   },
