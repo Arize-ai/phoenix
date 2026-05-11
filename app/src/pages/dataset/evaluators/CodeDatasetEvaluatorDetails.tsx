@@ -12,6 +12,7 @@ import {
   Flex,
   Icon,
   Icons,
+  LinkButton,
   List,
   ListItem,
   Text,
@@ -19,6 +20,7 @@ import {
 } from "@phoenix/components";
 import { CodeEvaluatorSourceCodeBlock } from "@phoenix/components/evaluators/CodeEvaluatorSourceCodeBlock";
 import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
+import { useViewerCanManageSandboxes } from "@phoenix/contexts";
 import type { CodeDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/CodeDatasetEvaluatorDetails_datasetEvaluator.graphql";
 import type { datasetEvaluatorDetailsLoaderQuery } from "@phoenix/pages/dataset/evaluators/__generated__/datasetEvaluatorDetailsLoaderQuery.graphql";
 import {
@@ -508,6 +510,8 @@ export function CodeDatasetEvaluatorDetails({
     [datasetEvaluator.inputMapping.literalMapping]
   );
 
+  const canManageSandboxes = useViewerCanManageSandboxes();
+
   const customSettings = useMemo(() => {
     if (sandboxConfig == null) return null;
     if (summarizeConfig(sandboxConfig.config) === "No custom settings") {
@@ -593,6 +597,16 @@ export function CodeDatasetEvaluatorDetails({
                 <Icon svg={<Icons.HardDriveOutline />} />
                 <span>Sandbox</span>
               </Flex>
+            }
+            extra={
+              canManageSandboxes ? (
+                <LinkButton
+                  size="S"
+                  to="/settings/sandboxes"
+                  aria-label="Configure sandboxes"
+                  leadingVisual={<Icon svg={<Icons.SettingsOutline />} />}
+                />
+              ) : undefined
             }
           >
             {sandboxConfig == null ? (
