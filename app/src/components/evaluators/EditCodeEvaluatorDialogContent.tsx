@@ -503,13 +503,7 @@ const ConfiguratorSidebar = ({
             Sandbox Runtime
           </Text>
         </SectionHeading>
-        <div css={sectionContentCSS}>
-          <View paddingTop="size-100">
-            <SandboxRuntimeSummary
-              selectedSandboxConfig={selectedSandboxConfig}
-            />
-          </View>
-        </div>
+        <SandboxRuntimeSummary selectedSandboxConfig={selectedSandboxConfig} />
       </div>
     </>
   );
@@ -522,7 +516,7 @@ const SandboxRuntimeSummary = ({
 }) => {
   if (selectedSandboxConfig == null) {
     return (
-      <View paddingX="size-200">
+      <View padding="size-200">
         <Text color="text-500" size="XS">
           Choose a sandbox to review its configured execution settings.
         </Text>
