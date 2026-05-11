@@ -12,7 +12,9 @@ import { makeLLMEvaluatorInstance } from "../utils";
 
 describe("makeLLMEvaluatorInstance", () => {
   it("uses default provider/model and default invocation config when no saved config exists", () => {
-    const instance = makeLLMEvaluatorInstance({ modelConfigByProvider: {} })![0];
+    const instance = makeLLMEvaluatorInstance({
+      modelConfigByProvider: {},
+    })![0];
     expect(instance.model.provider).toBe(DEFAULT_MODEL_PROVIDER);
     expect(instance.model.modelName).toBe(DEFAULT_MODEL_NAME);
     expect(instance.model.invocationParameters).toEqual(
