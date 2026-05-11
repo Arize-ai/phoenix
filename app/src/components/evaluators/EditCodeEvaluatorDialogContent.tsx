@@ -687,33 +687,11 @@ const CodeEditor = ({
         <Text color="text-500" size="XS">
           {descriptionText}
         </Text>
-        <Flex
-          direction="row"
-          alignItems="center"
-          gap="size-150"
-          flex="none"
-          minWidth={0}
-        >
-          {typeFooter ? (
-            <Switch
-              isSelected={showTypes}
-              onChange={setShowTypes}
-              labelPlacement="end"
-            >
-              <Text size="XS" color="text-700">
-                Show types
-              </Text>
-            </Switch>
-          ) : null}
-          <CopyToClipboardButton
-            text={sourceCode}
-            size="S"
-            variant="quiet"
-            tooltipText="Copy code"
-          />
+        <Flex direction="row" alignItems="center" gap="size-100" flex="none">
           <Button
             size="S"
             variant="quiet"
+            leadingVisual={<Icon svg={<Icons.Refresh />} />}
             onPress={() =>
               onChange(
                 getDefaultCodeEvaluatorSource(
@@ -724,9 +702,25 @@ const CodeEditor = ({
               )
             }
           >
-            <Icon svg={<Icons.Refresh />} />
             Reset
           </Button>
+          <CopyToClipboardButton
+            text={sourceCode}
+            size="S"
+            variant="quiet"
+            tooltipText="Copy code"
+          >
+            Copy
+          </CopyToClipboardButton>
+          {typeFooter ? (
+            <Switch
+              isSelected={showTypes}
+              onChange={setShowTypes}
+              labelPlacement="start"
+            >
+              <Text size="S">Show types</Text>
+            </Switch>
+          ) : null}
         </Flex>
       </Flex>
 
