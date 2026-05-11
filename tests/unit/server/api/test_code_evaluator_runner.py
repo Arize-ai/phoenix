@@ -14,6 +14,11 @@ import json
 from unittest.mock import AsyncMock
 
 import pytest
+from openinference.semconv.trace import SpanAttributes
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace import StatusCode, Tracer
 
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
@@ -23,7 +28,15 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.server.api.evaluators import CodeEvaluatorRunner
+from phoenix.server.api.helpers.sandbox_redaction import SandboxSecretMasker
 from phoenix.server.sandbox.types import ExecutionResult
+
+OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
+INPUT_VALUE = SpanAttributes.INPUT_VALUE
+OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
+METADATA = SpanAttributes.METADATA
+TOOL_NAME = SpanAttributes.TOOL_NAME
+TOOL_PARAMETERS = SpanAttributes.TOOL_PARAMETERS
 
 
 def _categorical_config(name: str = "score") -> CategoricalOutputConfig:
@@ -57,6 +70,7 @@ def _make_runner(
     timeout: int | None = None,
 ) -> tuple[CodeEvaluatorRunner, AsyncMock]:
     backend = AsyncMock()
+    backend.secret_values = frozenset()
     if backend_raises is not None:
         backend.execute = AsyncMock(side_effect=backend_raises)
     else:
@@ -610,3 +624,411 @@ class TestExplanationPlumbing:
         results_by_name = {r["name"]: r for r in results}
         assert results_by_name["eval.a"]["explanation"] == "config-specific"
         assert results_by_name["eval.b"]["explanation"] == "shared fallback"
+
+
+def _make_tracer() -> tuple[Tracer, InMemorySpanExporter]:
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    return provider.get_tracer(__name__), exporter
+
+
+class TestEvaluateTracing:
+    async def test_happy_path_emits_four_spans_with_expected_attributes(self) -> None:
+        runner, _ = _make_runner(backend_stdout='"pass"', timeout=30)
+        tracer, exporter = _make_tracer()
+
+        results = await runner.evaluate(
+            context={"output": "answer"},
+            input_mapping=_EMPTY_MAPPING,
+            name="my-eval",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        spans = exporter.get_finished_spans()
+        names = {span.name for span in spans}
+        assert names == {
+            "Evaluator: my-eval",
+            "Input Mapping",
+            f"Sandbox: {runner._name}",
+            "Parse Eval Result",
+        }
+
+        spans_by_name = {span.name: span for span in spans}
+        evaluator_attrs = dict(spans_by_name["Evaluator: my-eval"].attributes or {})
+        input_mapping_attrs = dict(spans_by_name["Input Mapping"].attributes or {})
+        sandbox_attrs = dict(spans_by_name[f"Sandbox: {runner._name}"].attributes or {})
+        parse_attrs = dict(spans_by_name["Parse Eval Result"].attributes or {})
+
+        # Span kinds.
+        assert evaluator_attrs[OPENINFERENCE_SPAN_KIND] == "EVALUATOR"
+        assert input_mapping_attrs[OPENINFERENCE_SPAN_KIND] == "CHAIN"
+        assert sandbox_attrs[OPENINFERENCE_SPAN_KIND] == "TOOL"
+        assert parse_attrs[OPENINFERENCE_SPAN_KIND] == "CHAIN"
+
+        # Root span carries INPUT_VALUE and OUTPUT_VALUE.
+        assert INPUT_VALUE in evaluator_attrs
+        assert OUTPUT_VALUE in evaluator_attrs
+        # output.value is the raw user-function return ("pass"), not the {results:[...]} wrapper.
+        # oi.get_output_attributes serializes str as-is (text/plain), so no JSON-decode needed.
+        assert evaluator_attrs[OUTPUT_VALUE] == "pass"
+        # Source code is intentionally NOT emitted on the span — bloat + sensitive-content risk.
+        assert "code.value" not in evaluator_attrs
+        assert "code.mime_type" not in evaluator_attrs
+
+        # Input Mapping JSON shape.
+        raw_input_mapping = input_mapping_attrs[INPUT_VALUE]
+        assert isinstance(raw_input_mapping, str)
+        input_mapping_json = json.loads(raw_input_mapping)
+        assert set(input_mapping_json.keys()) == {"input_mapping", "template_variables"}
+        assert set(input_mapping_json["input_mapping"].keys()) == {
+            "path_mapping",
+            "literal_mapping",
+        }
+
+        # Sandbox span carries tool semantic conventions and the inputs pushed in.
+        assert sandbox_attrs[TOOL_NAME] == runner._name
+        raw_tool_parameters = sandbox_attrs[TOOL_PARAMETERS]
+        assert isinstance(raw_tool_parameters, str)
+        assert json.loads(raw_tool_parameters) == runner.input_schema
+        assert INPUT_VALUE in sandbox_attrs
+
+        # Sandbox metadata (serialized JSON under the metadata attribute).
+        raw_sandbox_metadata = sandbox_attrs[METADATA]
+        assert isinstance(raw_sandbox_metadata, str)
+        sandbox_metadata = json.loads(raw_sandbox_metadata)
+        assert sandbox_metadata["backend_type"] == "AsyncMock"
+        assert sandbox_metadata["language"] == "PYTHON"
+        assert sandbox_metadata["session_key"] == runner._name
+        assert sandbox_metadata["timeout"] == 30
+
+        # trace_id is set on every result when a real tracer was passed.
+        assert len(results) == 1
+        assert results[0]["trace_id"] is not None
+
+    async def test_timeout_omitted_when_not_configured(self) -> None:
+        runner, _ = _make_runner(backend_stdout='"pass"', timeout=None)
+        tracer, exporter = _make_tracer()
+
+        await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="t",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        sandbox_attrs = dict(spans_by_name[f"Sandbox: {runner._name}"].attributes or {})
+        raw_sandbox_metadata = sandbox_attrs[METADATA]
+        assert isinstance(raw_sandbox_metadata, str)
+        assert "timeout" not in json.loads(raw_sandbox_metadata)
+
+    async def test_no_tracer_yields_none_trace_id(self) -> None:
+        runner, _ = _make_runner(backend_stdout='"pass"')
+        results = await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="t",
+            output_configs=[_categorical_config()],
+        )
+        assert results[0]["trace_id"] is None
+
+    async def test_backend_error_field_sets_root_error_status_and_trace_id(self) -> None:
+        runner, _ = _make_runner(backend_error="SyntaxError: bad")
+        tracer, exporter = _make_tracer()
+
+        results = await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="err",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        evaluator_span = spans_by_name["Evaluator: err"]
+        assert evaluator_span.status.status_code == StatusCode.ERROR
+
+        # No synthetic exception event for the returned-error path.
+        assert not any(event.name == "exception" for event in evaluator_span.events)
+
+        assert results[0]["trace_id"] is not None
+        assert results[0]["error"] == "SyntaxError: bad"
+
+    async def test_backend_raises_records_exception_on_root(self) -> None:
+        runner, _ = _make_runner(backend_raises=RuntimeError("boom"))
+        tracer, exporter = _make_tracer()
+
+        results = await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="err",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        evaluator_span = spans_by_name["Evaluator: err"]
+        assert evaluator_span.status.status_code == StatusCode.ERROR
+        assert any(event.name == "exception" for event in evaluator_span.events)
+        assert results[0]["trace_id"] is not None
+
+
+class TestSandboxSecretMasker:
+    def test_masks_verbatim_secret_in_text(self) -> None:
+        masker = SandboxSecretMasker({"supersecret123"})
+        assert masker.mask("output: supersecret123") == "output: <redacted:0>"
+
+    def test_short_secret_below_threshold_not_masked(self) -> None:
+        masker = SandboxSecretMasker({"short"})
+        assert masker.mask("output: short") == "output: short"
+
+    def test_empty_secret_set_is_noop(self) -> None:
+        masker = SandboxSecretMasker(set())
+        assert masker.mask("output: supersecret123") == "output: supersecret123"
+
+    def test_longest_first_prevents_prefix_corruption(self) -> None:
+        # "sk-abcdefgh" is a prefix of "sk-abcdefghijkl" — longest must replace first
+        masker = SandboxSecretMasker({"sk-abcdefgh", "sk-abcdefghijkl"})
+        result = masker.mask("key=sk-abcdefghijkl end")
+        assert result == "key=<redacted:0> end"
+        assert "<redacted:1>" not in result
+
+    def test_multiple_secrets_in_same_string(self) -> None:
+        masker = SandboxSecretMasker({"secretone1", "secrettwo2"})
+        result = masker.mask("a=secretone1 b=secrettwo2")
+        assert "secretone1" not in result
+        assert "secrettwo2" not in result
+        assert "<redacted:" in result
+
+    def test_exactly_min_length_secret_is_masked(self) -> None:
+        masker = SandboxSecretMasker({"12345678"})
+        assert masker.mask("value=12345678") == "value=<redacted:0>"
+
+    def test_one_below_min_length_not_masked(self) -> None:
+        masker = SandboxSecretMasker({"1234567"})
+        assert masker.mask("value=1234567") == "value=1234567"
+
+
+def _make_runner_with_secret(
+    secret: str,
+    backend_stdout: str = '"pass"',
+    backend_error: str | None = None,
+    backend_raises: Exception | None = None,
+) -> tuple[CodeEvaluatorRunner, AsyncMock]:
+    backend = AsyncMock()
+    backend.secret_values = frozenset({secret})
+    if backend_raises is not None:
+        backend.execute = AsyncMock(side_effect=backend_raises)
+    else:
+        backend.execute = AsyncMock(
+            return_value=ExecutionResult(
+                stdout=backend_stdout,
+                stderr="",
+                error=backend_error,
+            )
+        )
+    runner = CodeEvaluatorRunner(
+        name="test-runner",
+        description=None,
+        source_code='def evaluate(**kw): return "pass"',
+        stored_output_configs=[_categorical_config()],
+        sandbox_backend=backend,
+        language="PYTHON",
+        timeout=None,
+    )
+    return runner, backend
+
+
+class TestRedactionContracts:
+    async def test_stdout_secret_redacted_in_sandbox_output_value(self) -> None:
+        secret = "mysupersecretkey"
+        runner, _ = _make_runner_with_secret(secret, backend_stdout=f'"{secret}"')
+        tracer, exporter = _make_tracer()
+
+        await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="t",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        sandbox_attrs = dict(spans_by_name[f"Sandbox: {runner._name}"].attributes or {})
+        output_val = str(sandbox_attrs.get(OUTPUT_VALUE, ""))
+        assert secret not in output_val
+        assert "<redacted:" in output_val
+
+    async def test_secret_in_context_redacted_in_input_value(self) -> None:
+        secret = "mysupersecretkey"
+        runner, _ = _make_runner_with_secret(secret)
+        tracer, exporter = _make_tracer()
+
+        await runner.evaluate(
+            context={"api_key": secret},
+            input_mapping=_EMPTY_MAPPING,
+            name="t",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        evaluator_attrs = dict(spans_by_name["Evaluator: t"].attributes or {})
+        input_val = str(evaluator_attrs.get(INPUT_VALUE, ""))
+        assert secret not in input_val
+        assert "<redacted:" in input_val
+
+    async def test_exception_message_redacted(self) -> None:
+        secret = "mysupersecretkey"
+        runner, _ = _make_runner_with_secret(
+            secret, backend_raises=RuntimeError(f"connection failed: {secret}")
+        )
+        tracer, exporter = _make_tracer()
+
+        await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="t",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        evaluator_span = spans_by_name["Evaluator: t"]
+        exception_events = [e for e in evaluator_span.events if e.name == "exception"]
+        assert exception_events
+        event_attrs = dict(exception_events[0].attributes or {})
+        assert secret not in str(event_attrs.get("exception.message", ""))
+        assert "<redacted:" in str(event_attrs.get("exception.message", ""))
+
+    async def test_status_description_redacted(self) -> None:
+        secret = "mysupersecretkey"
+        runner, _ = _make_runner_with_secret(secret, backend_error=f"SyntaxError: {secret}")
+        tracer, exporter = _make_tracer()
+
+        await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="t",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        evaluator_span = spans_by_name["Evaluator: t"]
+        assert evaluator_span.status.status_code == StatusCode.ERROR
+        assert secret not in (evaluator_span.status.description or "")
+        assert "<redacted:" in (evaluator_span.status.description or "")
+
+    async def test_wasm_empty_secret_set_emits_verbatim(self) -> None:
+        runner, _ = _make_runner(backend_stdout='"pass"')
+        tracer, exporter = _make_tracer()
+
+        await runner.evaluate(
+            context={"key": "value"},
+            input_mapping=_EMPTY_MAPPING,
+            name="t",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        evaluator_attrs = dict(spans_by_name["Evaluator: t"].attributes or {})
+        input_val = str(evaluator_attrs.get(INPUT_VALUE, ""))
+        assert "value" in input_val
+        assert "<redacted:" not in input_val
+
+    async def test_sub_threshold_secret_not_redacted(self) -> None:
+        runner, _ = _make_runner_with_secret("short", backend_stdout='"short"')
+        tracer, exporter = _make_tracer()
+
+        await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="t",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        sandbox_attrs = dict(spans_by_name[f"Sandbox: {runner._name}"].attributes or {})
+        output_val = str(sandbox_attrs.get(OUTPUT_VALUE, ""))
+        assert "<redacted:" not in output_val
+
+    async def test_input_mapping_span_exception_masked_on_inner_span(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Regression guard for the OTel auto-record bug Roger flagged: when
+        # apply_input_mapping raises, the Input Mapping span's `with` __exit__
+        # used to auto-record the unmasked exception before the outer except
+        # ever ran. Verify both spans now carry only the masked text.
+        secret = "mysupersecretkey"
+        runner, _ = _make_runner_with_secret(secret)
+
+        def _boom(**_: object) -> dict[str, object]:
+            raise RuntimeError(f"path resolution failed for {secret}")
+
+        monkeypatch.setattr("phoenix.server.api.evaluators.apply_input_mapping", _boom)
+        tracer, exporter = _make_tracer()
+
+        await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="t",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        input_mapping_span = spans_by_name["Input Mapping"]
+
+        # Inner span: exception event must be masked.
+        exc_events = [e for e in input_mapping_span.events if e.name == "exception"]
+        assert exc_events, "expected exception event on Input Mapping span"
+        msg = str(dict(exc_events[0].attributes or {}).get("exception.message", ""))
+        assert secret not in msg
+        assert "<redacted:" in msg
+
+        # Inner span: status description must be masked.
+        assert input_mapping_span.status.status_code == StatusCode.ERROR
+        assert secret not in (input_mapping_span.status.description or "")
+        assert "<redacted:" in (input_mapping_span.status.description or "")
+
+        # Outer evaluator span: same guarantee (already covered by other tests,
+        # but worth asserting at the same call site so a future regression on
+        # either span is caught by one test).
+        evaluator_span = spans_by_name["Evaluator: t"]
+        evaluator_exc_events = [e for e in evaluator_span.events if e.name == "exception"]
+        assert evaluator_exc_events
+        evaluator_msg = str(
+            dict(evaluator_exc_events[0].attributes or {}).get("exception.message", "")
+        )
+        assert secret not in evaluator_msg
+        assert secret not in (evaluator_span.status.description or "")
+
+    async def test_source_code_not_emitted_on_root_span(self) -> None:
+        # Regression guard: user-authored source code must NOT be attached to
+        # the evaluator span. It bloats telemetry and can carry sensitive
+        # content (hardcoded prompts, private logic) that the secret masker
+        # does not cover.
+        source = 'def evaluate(**kw): return "pass"'
+        runner, _ = _make_runner(source_code=source, backend_stdout='"pass"')
+        tracer, exporter = _make_tracer()
+
+        await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="t",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        for span in exporter.get_finished_spans():
+            attrs = dict(span.attributes or {})
+            assert "code.value" not in attrs, f"{span.name} leaked code.value"
+            assert "code.mime_type" not in attrs, f"{span.name} leaked code.mime_type"
+            for v in attrs.values():
+                assert source not in str(v), f"{span.name} leaked source via another attr"

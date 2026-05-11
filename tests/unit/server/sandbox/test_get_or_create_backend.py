@@ -60,6 +60,9 @@ def _make_adapter(received: dict[str, Any], cred_key: str = "CRED_X") -> Sandbox
         ) -> SandboxBackend:
             received["config"] = dict(config)
             received["user_env"] = user_env
+            # secret_values is now a class-level attribute on SandboxBackend
+            # (default frozenset()), so a spec'd Mock inherits it automatically —
+            # no per-mock setup needed.
             return MagicMock(spec=SandboxBackend)
 
     return _StubAdapter()

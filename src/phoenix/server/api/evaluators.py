@@ -3,6 +3,7 @@ import asyncio
 import json
 import logging
 import re
+import traceback as _traceback
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -47,6 +48,7 @@ from phoenix.server.api.helpers.playground_clients import (
     get_playground_client,
 )
 from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
+from phoenix.server.api.helpers.sandbox_redaction import SandboxSecretMasker
 from phoenix.server.api.input_types.GenerativeCredentialInput import (
     GenerativeCredentialInput,
 )
@@ -60,6 +62,37 @@ from phoenix.server.sandbox import MissingSecretError  # noqa: E402
 from phoenix.server.sandbox.types import ExecutionResult, SandboxBackend, UnsupportedOperation
 
 logger = logging.getLogger(__name__)
+
+
+def _mask_attrs(
+    attrs: dict[str, Any],
+    masker: SandboxSecretMasker,
+) -> dict[str, Any]:
+    return {k: masker.mask(v) if isinstance(v, str) else v for k, v in attrs.items()}
+
+
+def _set_masked_status(
+    span: Any,
+    status_code: StatusCode,
+    description: str,
+    masker: SandboxSecretMasker,
+) -> None:
+    span.set_status(Status(status_code, masker.mask(description)))
+
+
+def _record_masked_exception(
+    span: Any,
+    exc: BaseException,
+    masker: SandboxSecretMasker,
+) -> None:
+    span.add_event(
+        "exception",
+        {
+            "exception.type": type(exc).__name__,
+            "exception.message": masker.mask(str(exc)),
+            "exception.stacktrace": masker.mask(_traceback.format_exc()),
+        },
+    )
 
 
 ToolCallId: TypeAlias = str
@@ -845,7 +878,7 @@ async def get_evaluators(
                 backend = backend_by_sandbox_key[sandbox_key]
 
             evaluator_base = evaluator_base_by_id.get(code_row.id)
-            eval_name = evaluator_base.name if evaluator_base else str(code_row.id)
+            eval_name = evaluator_base.name.root if evaluator_base else str(code_row.id)
             eval_description = evaluator_base.description if evaluator_base else None
 
             if backend is not None:
@@ -855,7 +888,7 @@ async def get_evaluators(
                     if isinstance(c, (CategoricalOutputConfig, ContinuousOutputConfig))
                 ]
                 runner = CodeEvaluatorRunner(
-                    name=str(eval_name),
+                    name=eval_name,
                     description=eval_description,
                     source_code=code_version.source_code,
                     stored_output_configs=output_cfgs,
@@ -2568,6 +2601,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
         name: str,
         error: str,
         start_time: datetime,
+        trace_id: Optional[str] = None,
     ) -> EvaluationResult:
         return EvaluationResult(
             name=name,
@@ -2577,7 +2611,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
             explanation=None,
             metadata={},
             error=error,
-            trace_id=None,
+            trace_id=trace_id,
             start_time=start_time,
             end_time=datetime.now(timezone.utc),
         )
@@ -2594,119 +2628,303 @@ class CodeEvaluatorRunner(BaseEvaluator):
         from phoenix.server.api.coerce_output import _coerce_output
 
         start_time = datetime.now(timezone.utc)
+        tracer_ = tracer or NoOpTracer()
+        masker = SandboxSecretMasker(self._sandbox_backend.secret_values)
 
-        input_schema, inference_error = self._infer_input_schema()
-        if inference_error is not None:
-            return [
-                self._make_error_result(name, inference_error, start_time)
-                for _ in (output_configs or [None])  # type: ignore[list-item]
-            ]
-
-        try:
-            mapped_inputs = apply_input_mapping(
-                input_schema=input_schema,
-                input_mapping=input_mapping,
-                context=context,
+        with tracer_.start_as_current_span(
+            f"Evaluator: {name}",
+            attributes=_mask_attrs(
+                {
+                    **oi.get_span_kind_attributes("evaluator"),
+                    **oi.get_input_attributes(context),
+                },
+                masker,
+            ),
+            context=Context(),
+        ) as evaluator_span:
+            trace_id = (
+                format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
             )
-        except Exception as exc:
-            err = f"Input mapping failed: {exc}"
-            return [
-                self._make_error_result(name, err, start_time)
-                for _ in (output_configs or [None])  # type: ignore[list-item]
-            ]
 
-        # Build language-appropriate harness
-        if self._language == "PYTHON":
-            code = self._build_python_harness(mapped_inputs)
-        else:
-            code = self._build_typescript_harness(mapped_inputs)
+            input_schema, inference_error = self._infer_input_schema()
+            if inference_error is not None:
+                evaluator_span.set_status(Status(StatusCode.ERROR, inference_error))
+                return [
+                    self._make_error_result(name, inference_error, start_time, trace_id=trace_id)
+                    for _ in (output_configs or [None])  # type: ignore[list-item]
+                ]
 
-        try:
-            execution = await asyncio.wait_for(
-                self._sandbox_backend.execute(
-                    code,
-                    session_key=self._name,
-                    timeout=self._timeout,
+            # `record_exception=False` + `set_status_on_exception=False` disables
+            # OTel's default auto-recording on the span's `with` __exit__. If we
+            # let the default fire, the unmasked exception lands on the span
+            # BEFORE the `except` below ever runs — masked records added later
+            # would be additive, and on an already-ended span are silently
+            # dropped. With auto-record disabled, our explicit
+            # `_record_masked_exception` / `_set_masked_status` calls are the
+            # only thing persisted, and the try/return-inside-with shape (mirror
+            # of the Sandbox span pattern below) ensures __exit__ sees no
+            # exception so the span ends cleanly with the masked content.
+            with tracer_.start_as_current_span(
+                "Input Mapping",
+                attributes=_mask_attrs(
+                    {
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
+                            {
+                                "input_mapping": {
+                                    "path_mapping": input_mapping.path_mapping or {},
+                                    "literal_mapping": input_mapping.literal_mapping or {},
+                                },
+                                "template_variables": context,
+                            }
+                        ),
+                    },
+                    masker,
                 ),
-                timeout=self._timeout,
+                record_exception=False,
+                set_status_on_exception=False,
+            ) as input_mapping_span:
+                try:
+                    mapped_inputs = apply_input_mapping(
+                        input_schema=input_schema,
+                        input_mapping=input_mapping,
+                        context=context,
+                    )
+                    input_mapping_span.set_attributes(
+                        _mask_attrs(oi.get_output_attributes(mapped_inputs), masker)
+                    )
+                    input_mapping_span.set_status(Status(StatusCode.OK))
+                except Exception as exc:
+                    err = f"Input mapping failed: {exc}"
+                    _record_masked_exception(input_mapping_span, exc, masker)
+                    _set_masked_status(input_mapping_span, StatusCode.ERROR, err, masker)
+                    _record_masked_exception(evaluator_span, exc, masker)
+                    _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
+                    return [
+                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        for _ in (output_configs or [None])  # type: ignore[list-item]
+                    ]
+
+            # Build language-appropriate harness
+            if self._language == "PYTHON":
+                code = self._build_python_harness(mapped_inputs)
+            else:
+                code = self._build_typescript_harness(mapped_inputs)
+
+            sandbox_metadata: dict[str, Any] = {
+                "backend_type": type(self._sandbox_backend).__name__,
+                "language": self._language,
+                "session_key": self._name,
+            }
+            if self._timeout is not None:
+                sandbox_metadata["timeout"] = int(self._timeout)
+
+            # See Input Mapping above for rationale on the OTel auto-record
+            # kwargs — our explicit _record_masked_exception calls must be the
+            # sole exception/status writers so unmasked content never lands.
+            with tracer_.start_as_current_span(
+                f"Sandbox: {self._name}",
+                attributes=_mask_attrs(
+                    {
+                        **oi.get_span_kind_attributes("tool"),
+                        **oi.get_tool_attributes(
+                            name=self._name,
+                            description=self._description,
+                            parameters=input_schema,
+                        ),
+                        **oi.get_input_attributes(mapped_inputs),
+                        **oi.get_metadata_attributes(metadata=sandbox_metadata),
+                    },
+                    masker,
+                ),
+                record_exception=False,
+                set_status_on_exception=False,
+            ) as sandbox_span:
+                try:
+                    execution = await asyncio.wait_for(
+                        self._sandbox_backend.execute(
+                            code,
+                            session_key=self._name,
+                            timeout=self._timeout,
+                        ),
+                        timeout=self._timeout,
+                    )
+                except asyncio.TimeoutError as exc:
+                    asyncio.create_task(
+                        _stop_session_quietly(self._sandbox_backend, self._name, logger)
+                    )
+                    execution = ExecutionResult(stdout="", stderr="", error="timeout")
+                    _record_masked_exception(sandbox_span, exc, masker)
+                    sandbox_span.set_status(Status(StatusCode.ERROR, "timeout"))
+                    _record_masked_exception(evaluator_span, exc, masker)
+                    evaluator_span.set_status(Status(StatusCode.ERROR, "timeout"))
+                    return [
+                        self._make_error_result(
+                            name, execution.error or "timeout", start_time, trace_id=trace_id
+                        )
+                        for _ in (output_configs or [None])  # type: ignore[list-item]
+                    ]
+                except UnsupportedOperation as exc:
+                    err = f"Sandbox backend does not support this operation: {exc}"
+                    _record_masked_exception(sandbox_span, exc, masker)
+                    _set_masked_status(sandbox_span, StatusCode.ERROR, err, masker)
+                    _record_masked_exception(evaluator_span, exc, masker)
+                    _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
+                    return [
+                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        for _ in (output_configs or [None])  # type: ignore[list-item]
+                    ]
+                except Exception as exc:
+                    err = f"Sandbox execution failed: {exc}"
+                    _record_masked_exception(sandbox_span, exc, masker)
+                    _set_masked_status(sandbox_span, StatusCode.ERROR, err, masker)
+                    _record_masked_exception(evaluator_span, exc, masker)
+                    _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
+                    return [
+                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        for _ in (output_configs or [None])  # type: ignore[list-item]
+                    ]
+
+                if execution.error:
+                    _set_masked_status(sandbox_span, StatusCode.ERROR, execution.error, masker)
+                else:
+                    sandbox_span.set_attributes(
+                        _mask_attrs(
+                            oi.get_output_attributes(execution.stdout, mime_type="text/plain"),
+                            masker,
+                        )
+                    )
+                    sandbox_span.set_status(Status(StatusCode.OK))
+
+            if execution.error:
+                _set_masked_status(evaluator_span, StatusCode.ERROR, execution.error, masker)
+                return [
+                    self._make_error_result(name, execution.error, start_time, trace_id=trace_id)
+                    for _ in (output_configs or [None])  # type: ignore[list-item]
+                ]
+
+            # Parse the JSON-printed return value from stdout
+            raw_value: Any = None
+            stdout = execution.stdout.strip()
+            if stdout:
+                try:
+                    raw_value = json.loads(stdout)
+                except json.JSONDecodeError:
+                    raw_value = stdout
+
+            multi_output = len(output_configs) > 1
+
+            # Multi-output routing: when raw_value is a dict whose keys cover every
+            # config.name, dispatch each named sub-value to _coerce_output individually.
+            # Top-level "explanation" acts as a shared fallback when a per-config
+            # sub-value omits its own explanation.
+            routed = (
+                multi_output
+                and isinstance(raw_value, dict)
+                and all(c.name in raw_value for c in output_configs)
             )
-        except asyncio.TimeoutError:
-            asyncio.create_task(_stop_session_quietly(self._sandbox_backend, self._name, logger))
-            execution = ExecutionResult(stdout="", stderr="", error="timeout")
-        except UnsupportedOperation as exc:
-            err = f"Sandbox backend does not support this operation: {exc}"
-            return [
-                self._make_error_result(name, err, start_time)
-                for _ in (output_configs or [None])  # type: ignore[list-item]
-            ]
-        except Exception as exc:
-            err = f"Sandbox execution failed: {exc}"
-            return [
-                self._make_error_result(name, err, start_time)
-                for _ in (output_configs or [None])  # type: ignore[list-item]
-            ]
+            shared_explanation: Optional[str] = None
+            if routed and isinstance(raw_value, dict):
+                top_level_explanation = raw_value.get("explanation")
+                if isinstance(top_level_explanation, str):
+                    shared_explanation = top_level_explanation
 
-        if execution.error:
-            return [
-                self._make_error_result(name, execution.error, start_time)
-                for _ in (output_configs or [None])  # type: ignore[list-item]
-            ]
+            results: list[EvaluationResult] = []
+            any_coerce_error = False
+            last_coerce_error: Optional[str] = None
+            # See Input Mapping above for rationale on the OTel auto-record
+            # kwargs.
+            with tracer_.start_as_current_span(
+                "Parse Eval Result",
+                attributes=_mask_attrs(
+                    {
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(raw_value),
+                    },
+                    masker,
+                ),
+                record_exception=False,
+                set_status_on_exception=False,
+            ) as parse_span:
+                for config in output_configs:
+                    annotation_name = f"{name}.{config.name}" if multi_output else name
+                    coerce_value = (
+                        raw_value[config.name]
+                        if routed and isinstance(raw_value, dict)
+                        else raw_value
+                    )
+                    try:
+                        label, score, explanation = _coerce_output(
+                            coerce_value, config, language=self._language
+                        )
+                    except ValueError as exc:
+                        any_coerce_error = True
+                        last_coerce_error = str(exc)
+                        results.append(
+                            self._make_error_result(
+                                annotation_name, str(exc), start_time, trace_id=trace_id
+                            )
+                        )
+                        continue
+                    # Per-config explanation wins; fall back to shared top-level explanation.
+                    if explanation is None:
+                        explanation = shared_explanation
+                    results.append(
+                        EvaluationResult(
+                            name=annotation_name,
+                            annotator_kind="CODE",
+                            label=label,
+                            score=score,
+                            explanation=explanation,
+                            metadata={},
+                            error=None,
+                            trace_id=trace_id,
+                            start_time=start_time,
+                            end_time=datetime.now(timezone.utc),
+                        )
+                    )
 
-        # Parse the JSON-printed return value from stdout
-        raw_value: Any = None
-        stdout = execution.stdout.strip()
-        if stdout:
-            try:
-                raw_value = json.loads(stdout)
-            except json.JSONDecodeError:
-                raw_value = stdout
-
-        multi_output = len(output_configs) > 1
-
-        # Multi-output routing: when raw_value is a dict whose keys cover every
-        # config.name, dispatch each named sub-value to _coerce_output individually.
-        # Top-level "explanation" acts as a shared fallback when a per-config
-        # sub-value omits its own explanation.
-        routed = (
-            multi_output
-            and isinstance(raw_value, dict)
-            and all(c.name in raw_value for c in output_configs)
-        )
-        shared_explanation: Optional[str] = None
-        if routed and isinstance(raw_value, dict):
-            top_level_explanation = raw_value.get("explanation")
-            if isinstance(top_level_explanation, str):
-                shared_explanation = top_level_explanation
-
-        results: list[EvaluationResult] = []
-        for config in output_configs:
-            annotation_name = f"{name}.{config.name}" if multi_output else name
-            coerce_value = (
-                raw_value[config.name] if routed and isinstance(raw_value, dict) else raw_value
-            )
-            try:
-                label, score, explanation = _coerce_output(
-                    coerce_value, config, language=self._language
+                parse_span.set_attributes(
+                    _mask_attrs(
+                        oi.get_output_attributes(
+                            {
+                                "results": [
+                                    {
+                                        "name": r["name"],
+                                        "label": r["label"],
+                                        "score": r["score"],
+                                        "explanation": r["explanation"],
+                                        "error": r["error"],
+                                    }
+                                    for r in results
+                                ]
+                            }
+                        ),
+                        masker,
+                    )
                 )
-            except ValueError as exc:
-                results.append(self._make_error_result(annotation_name, str(exc), start_time))
-                continue
-            # Per-config explanation wins; fall back to shared top-level explanation.
-            if explanation is None:
-                explanation = shared_explanation
-            results.append(
-                EvaluationResult(
-                    name=annotation_name,
-                    annotator_kind="CODE",
-                    label=label,
-                    score=score,
-                    explanation=explanation,
-                    metadata={},
-                    error=None,
-                    trace_id=None,
-                    start_time=start_time,
-                    end_time=datetime.now(timezone.utc),
+                if any_coerce_error:
+                    _set_masked_status(
+                        parse_span, StatusCode.ERROR, last_coerce_error or "coerce failed", masker
+                    )
+                else:
+                    parse_span.set_status(Status(StatusCode.OK))
+
+            # Root span: emit raw user-function return as output.value.
+            # Source code is intentionally NOT emitted on the span — it bloats
+            # telemetry and can carry sensitive content (hardcoded prompts,
+            # private logic) that masking does not cover.
+            evaluator_span.set_attributes(
+                _mask_attrs(
+                    dict(oi.get_output_attributes(raw_value)),
+                    masker,
                 )
             )
+            if any_coerce_error:
+                _set_masked_status(
+                    evaluator_span, StatusCode.ERROR, last_coerce_error or "coerce failed", masker
+                )
+            else:
+                evaluator_span.set_status(Status(StatusCode.OK))
 
         return results
