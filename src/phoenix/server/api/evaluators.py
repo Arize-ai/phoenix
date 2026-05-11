@@ -3,10 +3,11 @@ import asyncio
 import json
 import logging
 import re
+import traceback as _traceback
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from datetime import datetime, timezone
-from typing import Any, Callable, Optional, Sequence, TypeAlias, TypeVar
+from typing import Any, Callable, Optional, Protocol, Sequence, TypeAlias, TypeVar, cast
 
 import openinference.instrumentation as oi
 from jsonpath_ng import parse as parse_jsonpath
@@ -48,6 +49,7 @@ from phoenix.server.api.helpers.playground_clients import (
     get_playground_client,
 )
 from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
+from phoenix.server.api.helpers.sandbox_redaction import SandboxSecretMasker
 from phoenix.server.api.input_types.GenerativeCredentialInput import (
     GenerativeCredentialInput,
 )
@@ -61,6 +63,45 @@ from phoenix.server.sandbox import MissingSecretError  # noqa: E402
 from phoenix.server.sandbox.types import ExecutionResult, SandboxBackend, UnsupportedOperation
 
 logger = logging.getLogger(__name__)
+
+# code.value / code.mime_type are not in openinference.semconv.trace as of this writing.
+CODE_VALUE = "code.value"
+CODE_MIME_TYPE = "code.mime_type"
+
+
+class _SecretAwareBackend(Protocol):
+    secret_values: frozenset[str]
+
+
+def _mask_attrs(
+    attrs: dict[str, Any],
+    masker: SandboxSecretMasker,
+) -> dict[str, Any]:
+    return {k: masker.mask(v) if isinstance(v, str) else v for k, v in attrs.items()}
+
+
+def _set_masked_status(
+    span: Any,
+    status_code: StatusCode,
+    description: str,
+    masker: SandboxSecretMasker,
+) -> None:
+    span.set_status(Status(status_code, masker.mask(description)))
+
+
+def _record_masked_exception(
+    span: Any,
+    exc: BaseException,
+    masker: SandboxSecretMasker,
+) -> None:
+    span.add_event(
+        "exception",
+        {
+            "exception.type": type(exc).__name__,
+            "exception.message": masker.mask(str(exc)),
+            "exception.stacktrace": masker.mask(_traceback.format_exc()),
+        },
+    )
 
 
 ToolCallId: TypeAlias = str
@@ -2608,13 +2649,17 @@ class CodeEvaluatorRunner(BaseEvaluator):
 
         start_time = datetime.now(timezone.utc)
         tracer_ = tracer or NoOpTracer()
+        masker = SandboxSecretMasker(cast(_SecretAwareBackend, self._sandbox_backend).secret_values)
 
         with tracer_.start_as_current_span(
             f"Evaluator: {name}",
-            attributes={
-                **oi.get_span_kind_attributes("evaluator"),
-                **oi.get_input_attributes(context),
-            },
+            attributes=_mask_attrs(
+                {
+                    **oi.get_span_kind_attributes("evaluator"),
+                    **oi.get_input_attributes(context),
+                },
+                masker,
+            ),
             context=Context(),
         ) as evaluator_span:
             trace_id = (
@@ -2632,30 +2677,35 @@ class CodeEvaluatorRunner(BaseEvaluator):
             try:
                 with tracer_.start_as_current_span(
                     "Input Mapping",
-                    attributes={
-                        **oi.get_span_kind_attributes("chain"),
-                        **oi.get_input_attributes(
-                            {
-                                "input_mapping": {
-                                    "path_mapping": input_mapping.path_mapping or {},
-                                    "literal_mapping": input_mapping.literal_mapping or {},
-                                },
-                                "template_variables": context,
-                            }
-                        ),
-                    },
+                    attributes=_mask_attrs(
+                        {
+                            **oi.get_span_kind_attributes("chain"),
+                            **oi.get_input_attributes(
+                                {
+                                    "input_mapping": {
+                                        "path_mapping": input_mapping.path_mapping or {},
+                                        "literal_mapping": input_mapping.literal_mapping or {},
+                                    },
+                                    "template_variables": context,
+                                }
+                            ),
+                        },
+                        masker,
+                    ),
                 ) as input_mapping_span:
                     mapped_inputs = apply_input_mapping(
                         input_schema=input_schema,
                         input_mapping=input_mapping,
                         context=context,
                     )
-                    input_mapping_span.set_attributes(oi.get_output_attributes(mapped_inputs))
+                    input_mapping_span.set_attributes(
+                        _mask_attrs(oi.get_output_attributes(mapped_inputs), masker)
+                    )
                     input_mapping_span.set_status(Status(StatusCode.OK))
             except Exception as exc:
                 err = f"Input mapping failed: {exc}"
-                evaluator_span.record_exception(exc)
-                evaluator_span.set_status(Status(StatusCode.ERROR, err))
+                _record_masked_exception(evaluator_span, exc, masker)
+                _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
                 return [
                     self._make_error_result(name, err, start_time, trace_id=trace_id)
                     for _ in (output_configs or [None])  # type: ignore[list-item]
@@ -2696,9 +2746,9 @@ class CodeEvaluatorRunner(BaseEvaluator):
                         _stop_session_quietly(self._sandbox_backend, self._name, logger)
                     )
                     execution = ExecutionResult(stdout="", stderr="", error="timeout")
-                    sandbox_span.record_exception(exc)
+                    _record_masked_exception(sandbox_span, exc, masker)
                     sandbox_span.set_status(Status(StatusCode.ERROR, "timeout"))
-                    evaluator_span.record_exception(exc)
+                    _record_masked_exception(evaluator_span, exc, masker)
                     evaluator_span.set_status(Status(StatusCode.ERROR, "timeout"))
                     return [
                         self._make_error_result(
@@ -2708,35 +2758,38 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     ]
                 except UnsupportedOperation as exc:
                     err = f"Sandbox backend does not support this operation: {exc}"
-                    sandbox_span.record_exception(exc)
-                    sandbox_span.set_status(Status(StatusCode.ERROR, err))
-                    evaluator_span.record_exception(exc)
-                    evaluator_span.set_status(Status(StatusCode.ERROR, err))
+                    _record_masked_exception(sandbox_span, exc, masker)
+                    _set_masked_status(sandbox_span, StatusCode.ERROR, err, masker)
+                    _record_masked_exception(evaluator_span, exc, masker)
+                    _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
                     return [
                         self._make_error_result(name, err, start_time, trace_id=trace_id)
                         for _ in (output_configs or [None])  # type: ignore[list-item]
                     ]
                 except Exception as exc:
                     err = f"Sandbox execution failed: {exc}"
-                    sandbox_span.record_exception(exc)
-                    sandbox_span.set_status(Status(StatusCode.ERROR, err))
-                    evaluator_span.record_exception(exc)
-                    evaluator_span.set_status(Status(StatusCode.ERROR, err))
+                    _record_masked_exception(sandbox_span, exc, masker)
+                    _set_masked_status(sandbox_span, StatusCode.ERROR, err, masker)
+                    _record_masked_exception(evaluator_span, exc, masker)
+                    _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
                     return [
                         self._make_error_result(name, err, start_time, trace_id=trace_id)
                         for _ in (output_configs or [None])  # type: ignore[list-item]
                     ]
 
                 if execution.error:
-                    sandbox_span.set_status(Status(StatusCode.ERROR, execution.error))
+                    _set_masked_status(sandbox_span, StatusCode.ERROR, execution.error, masker)
                 else:
                     sandbox_span.set_attributes(
-                        oi.get_output_attributes(execution.stdout, mime_type="text/plain")
+                        _mask_attrs(
+                            oi.get_output_attributes(execution.stdout, mime_type="text/plain"),
+                            masker,
+                        )
                     )
                     sandbox_span.set_status(Status(StatusCode.OK))
 
             if execution.error:
-                evaluator_span.set_status(Status(StatusCode.ERROR, execution.error))
+                _set_masked_status(evaluator_span, StatusCode.ERROR, execution.error, masker)
                 return [
                     self._make_error_result(name, execution.error, start_time, trace_id=trace_id)
                     for _ in (output_configs or [None])  # type: ignore[list-item]
@@ -2773,10 +2826,13 @@ class CodeEvaluatorRunner(BaseEvaluator):
             last_coerce_error: Optional[str] = None
             with tracer_.start_as_current_span(
                 "Parse Eval Result",
-                attributes={
-                    **oi.get_span_kind_attributes("chain"),
-                    **oi.get_input_attributes(raw_value),
-                },
+                attributes=_mask_attrs(
+                    {
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(raw_value),
+                    },
+                    masker,
+                ),
             ) as parse_span:
                 for config in output_configs:
                     annotation_name = f"{name}.{config.name}" if multi_output else name
@@ -2817,47 +2873,46 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     )
 
                 parse_span.set_attributes(
-                    oi.get_output_attributes(
-                        {
-                            "results": [
-                                {
-                                    "name": r["name"],
-                                    "label": r["label"],
-                                    "score": r["score"],
-                                    "explanation": r["explanation"],
-                                    "error": r["error"],
-                                }
-                                for r in results
-                            ]
-                        }
+                    _mask_attrs(
+                        oi.get_output_attributes(
+                            {
+                                "results": [
+                                    {
+                                        "name": r["name"],
+                                        "label": r["label"],
+                                        "score": r["score"],
+                                        "explanation": r["explanation"],
+                                        "error": r["error"],
+                                    }
+                                    for r in results
+                                ]
+                            }
+                        ),
+                        masker,
                     )
                 )
                 if any_coerce_error:
-                    parse_span.set_status(
-                        Status(StatusCode.ERROR, last_coerce_error or "coerce failed")
+                    _set_masked_status(
+                        parse_span, StatusCode.ERROR, last_coerce_error or "coerce failed", masker
                     )
                 else:
                     parse_span.set_status(Status(StatusCode.OK))
 
+            # Root span: emit raw user-function return as output.value, plus source code.
+            code_mime = "text/x-python" if self._language == "PYTHON" else "text/x-typescript"
             evaluator_span.set_attributes(
-                oi.get_output_attributes(
+                _mask_attrs(
                     {
-                        "results": [
-                            {
-                                "name": r["name"],
-                                "label": r["label"],
-                                "score": r["score"],
-                                "explanation": r["explanation"],
-                                "error": r["error"],
-                            }
-                            for r in results
-                        ]
-                    }
+                        **oi.get_output_attributes(raw_value),
+                        CODE_VALUE: self._source_code,
+                        CODE_MIME_TYPE: code_mime,
+                    },
+                    masker,
                 )
             )
             if any_coerce_error:
-                evaluator_span.set_status(
-                    Status(StatusCode.ERROR, last_coerce_error or "coerce failed")
+                _set_masked_status(
+                    evaluator_span, StatusCode.ERROR, last_coerce_error or "coerce failed", masker
                 )
             else:
                 evaluator_span.set_status(Status(StatusCode.OK))

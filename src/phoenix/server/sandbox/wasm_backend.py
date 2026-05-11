@@ -127,6 +127,7 @@ class WASMBackend(BaseNoSessionBackend):
         binary_path: Optional[Path] = None,
     ) -> None:
         self._binary_path = binary_path
+        self._provider_secret_values: frozenset[str] = frozenset()
 
     def _resolve_binary(self) -> Path:
         if self._binary_path is not None:

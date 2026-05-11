@@ -62,6 +62,7 @@ class DaytonaSandboxBackend(SandboxBackend):
         self._network_block_all = network_block_all
         self._sessions: dict[str, AsyncSandbox] = {}
         self._client: Optional[AsyncDaytona] = None
+        self._provider_secret_values: frozenset[str] = frozenset({v for v in (self._api_key,) if v})
 
     def _get_client(self) -> AsyncDaytona:
         if self._client is not None:

@@ -28,6 +28,7 @@ from phoenix.db.types.annotation_configs import (
 )
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.server.api.evaluators import CodeEvaluatorRunner
+from phoenix.server.api.helpers.sandbox_redaction import SandboxSecretMasker
 from phoenix.server.sandbox.types import ExecutionResult
 
 OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
@@ -66,6 +67,7 @@ def _make_runner(
     timeout: int | None = None,
 ) -> tuple[CodeEvaluatorRunner, AsyncMock]:
     backend = AsyncMock()
+    backend.secret_values = frozenset()
     if backend_raises is not None:
         backend.execute = AsyncMock(side_effect=backend_raises)
     else:
@@ -662,9 +664,14 @@ class TestEvaluateTracing:
         assert sandbox_attrs[OPENINFERENCE_SPAN_KIND] == "CHAIN"
         assert parse_attrs[OPENINFERENCE_SPAN_KIND] == "CHAIN"
 
-        # Root span carries INPUT_VALUE and OUTPUT_VALUE.
+        # Root span carries INPUT_VALUE, OUTPUT_VALUE, code.value, code.mime_type.
         assert INPUT_VALUE in evaluator_attrs
         assert OUTPUT_VALUE in evaluator_attrs
+        # output.value is the raw user-function return ("pass"), not the {results:[...]} wrapper.
+        # oi.get_output_attributes serializes str as-is (text/plain), so no JSON-decode needed.
+        assert evaluator_attrs[OUTPUT_VALUE] == "pass"
+        assert evaluator_attrs["code.value"] == runner._source_code
+        assert evaluator_attrs["code.mime_type"] == "text/x-python"
 
         # Input Mapping JSON shape.
         raw_input_mapping = input_mapping_attrs[INPUT_VALUE]
@@ -751,3 +758,204 @@ class TestEvaluateTracing:
         assert evaluator_span.status.status_code == StatusCode.ERROR
         assert any(event.name == "exception" for event in evaluator_span.events)
         assert results[0]["trace_id"] is not None
+
+
+class TestSandboxSecretMasker:
+    def test_masks_verbatim_secret_in_text(self) -> None:
+        masker = SandboxSecretMasker({"supersecret123"})
+        assert masker.mask("output: supersecret123") == "output: <redacted:0>"
+
+    def test_short_secret_below_threshold_not_masked(self) -> None:
+        masker = SandboxSecretMasker({"short"})
+        assert masker.mask("output: short") == "output: short"
+
+    def test_empty_secret_set_is_noop(self) -> None:
+        masker = SandboxSecretMasker(set())
+        assert masker.mask("output: supersecret123") == "output: supersecret123"
+
+    def test_longest_first_prevents_prefix_corruption(self) -> None:
+        # "sk-abcdefgh" is a prefix of "sk-abcdefghijkl" — longest must replace first
+        masker = SandboxSecretMasker({"sk-abcdefgh", "sk-abcdefghijkl"})
+        result = masker.mask("key=sk-abcdefghijkl end")
+        assert result == "key=<redacted:0> end"
+        assert "<redacted:1>" not in result
+
+    def test_multiple_secrets_in_same_string(self) -> None:
+        masker = SandboxSecretMasker({"secretone1", "secrettwo2"})
+        result = masker.mask("a=secretone1 b=secrettwo2")
+        assert "secretone1" not in result
+        assert "secrettwo2" not in result
+        assert "<redacted:" in result
+
+    def test_exactly_min_length_secret_is_masked(self) -> None:
+        masker = SandboxSecretMasker({"12345678"})
+        assert masker.mask("value=12345678") == "value=<redacted:0>"
+
+    def test_one_below_min_length_not_masked(self) -> None:
+        masker = SandboxSecretMasker({"1234567"})
+        assert masker.mask("value=1234567") == "value=1234567"
+
+
+def _make_runner_with_secret(
+    secret: str,
+    backend_stdout: str = '"pass"',
+    backend_error: str | None = None,
+    backend_raises: Exception | None = None,
+) -> tuple[CodeEvaluatorRunner, AsyncMock]:
+    backend = AsyncMock()
+    backend.secret_values = frozenset({secret})
+    if backend_raises is not None:
+        backend.execute = AsyncMock(side_effect=backend_raises)
+    else:
+        backend.execute = AsyncMock(
+            return_value=ExecutionResult(
+                stdout=backend_stdout,
+                stderr="",
+                error=backend_error,
+            )
+        )
+    runner = CodeEvaluatorRunner(
+        name="test-runner",
+        description=None,
+        source_code='def evaluate(**kw): return "pass"',
+        stored_output_configs=[_categorical_config()],
+        sandbox_backend=backend,
+        language="PYTHON",
+        timeout=None,
+    )
+    return runner, backend
+
+
+class TestRedactionContracts:
+    async def test_stdout_secret_redacted_in_sandbox_output_value(self) -> None:
+        secret = "mysupersecretkey"
+        runner, _ = _make_runner_with_secret(secret, backend_stdout=f'"{secret}"')
+        tracer, exporter = _make_tracer()
+
+        await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="t",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        sandbox_attrs = dict(spans_by_name["Sandbox Execution"].attributes or {})
+        output_val = str(sandbox_attrs.get(OUTPUT_VALUE, ""))
+        assert secret not in output_val
+        assert "<redacted:" in output_val
+
+    async def test_secret_in_context_redacted_in_input_value(self) -> None:
+        secret = "mysupersecretkey"
+        runner, _ = _make_runner_with_secret(secret)
+        tracer, exporter = _make_tracer()
+
+        await runner.evaluate(
+            context={"api_key": secret},
+            input_mapping=_EMPTY_MAPPING,
+            name="t",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        evaluator_attrs = dict(spans_by_name["Evaluator: t"].attributes or {})
+        input_val = str(evaluator_attrs.get(INPUT_VALUE, ""))
+        assert secret not in input_val
+        assert "<redacted:" in input_val
+
+    async def test_exception_message_redacted(self) -> None:
+        secret = "mysupersecretkey"
+        runner, _ = _make_runner_with_secret(
+            secret, backend_raises=RuntimeError(f"connection failed: {secret}")
+        )
+        tracer, exporter = _make_tracer()
+
+        await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="t",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        evaluator_span = spans_by_name["Evaluator: t"]
+        exception_events = [e for e in evaluator_span.events if e.name == "exception"]
+        assert exception_events
+        event_attrs = dict(exception_events[0].attributes or {})
+        assert secret not in str(event_attrs.get("exception.message", ""))
+        assert "<redacted:" in str(event_attrs.get("exception.message", ""))
+
+    async def test_status_description_redacted(self) -> None:
+        secret = "mysupersecretkey"
+        runner, _ = _make_runner_with_secret(secret, backend_error=f"SyntaxError: {secret}")
+        tracer, exporter = _make_tracer()
+
+        await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="t",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        evaluator_span = spans_by_name["Evaluator: t"]
+        assert evaluator_span.status.status_code == StatusCode.ERROR
+        assert secret not in (evaluator_span.status.description or "")
+        assert "<redacted:" in (evaluator_span.status.description or "")
+
+    async def test_wasm_empty_secret_set_emits_verbatim(self) -> None:
+        runner, _ = _make_runner(backend_stdout='"pass"')
+        tracer, exporter = _make_tracer()
+
+        await runner.evaluate(
+            context={"key": "value"},
+            input_mapping=_EMPTY_MAPPING,
+            name="t",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        evaluator_attrs = dict(spans_by_name["Evaluator: t"].attributes or {})
+        input_val = str(evaluator_attrs.get(INPUT_VALUE, ""))
+        assert "value" in input_val
+        assert "<redacted:" not in input_val
+
+    async def test_sub_threshold_secret_not_redacted(self) -> None:
+        runner, _ = _make_runner_with_secret("short", backend_stdout='"short"')
+        tracer, exporter = _make_tracer()
+
+        await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="t",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        sandbox_attrs = dict(spans_by_name["Sandbox Execution"].attributes or {})
+        output_val = str(sandbox_attrs.get(OUTPUT_VALUE, ""))
+        assert "<redacted:" not in output_val
+
+    async def test_source_code_on_root_span(self) -> None:
+        source = 'def evaluate(**kw): return "pass"'
+        runner, _ = _make_runner(source_code=source, backend_stdout='"pass"')
+        tracer, exporter = _make_tracer()
+
+        await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="t",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        evaluator_attrs = dict(spans_by_name["Evaluator: t"].attributes or {})
+        assert evaluator_attrs["code.value"] == source
+        assert evaluator_attrs["code.mime_type"] == "text/x-python"

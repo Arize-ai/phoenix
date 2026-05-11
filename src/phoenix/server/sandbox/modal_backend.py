@@ -72,6 +72,9 @@ class ModalSandboxBackend(SandboxBackend):
         # client init time. Inject DB-resolved values before the SDK is touched
         # so admins can configure Modal via the secrets table without having to
         # also export the variables in the server process.
+        self._provider_secret_values: frozenset[str] = frozenset(
+            {v for v in (token_id, token_secret) if v}
+        )
         if token_id:
             os.environ["MODAL_TOKEN_ID"] = token_id
         if token_secret:

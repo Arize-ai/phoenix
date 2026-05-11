@@ -25,7 +25,17 @@ import json
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Literal, MutableMapping, Optional
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Iterator,
+    Literal,
+    MutableMapping,
+    Optional,
+    Protocol,
+    cast,
+)
 
 from phoenix.config import get_env_allowed_sandbox_providers
 from phoenix.server.sandbox.types import (
@@ -45,6 +55,12 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
+
+
+class _ProviderSecretAwareBackend(Protocol):
+    _provider_secret_values: frozenset[str]
+    secret_values: frozenset[str]
+
 
 # JSON Schema "type" → ConfigFieldSpec.field_type mapping.
 _JSON_SCHEMA_TYPE_MAP: dict[str, str] = {
@@ -708,6 +724,10 @@ async def get_or_create_backend(
 
     try:
         backend = adapter.build_backend(effective_config, user_env=user_env)
+        secret_backend = cast(_ProviderSecretAwareBackend, backend)
+        secret_backend.secret_values = (
+            frozenset((user_env or {}).values()) | secret_backend._provider_secret_values
+        )
         _BACKEND_CACHE[cache_key] = backend
         return backend
     except (MissingSecretError, UnsupportedOperation, ValidationError, ValueError):

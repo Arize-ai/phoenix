@@ -41,6 +41,7 @@ class DenoSandboxBackend(BaseNoSessionBackend):
     ) -> None:
         self._deno_executable = deno_executable
         self._user_env: dict[str, str] = user_env or {}
+        self._provider_secret_values: frozenset[str] = frozenset()
 
     def _build_command(self) -> list[str]:
         # Deno security docs: permissions are denied by default, but config

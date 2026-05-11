@@ -2,14 +2,47 @@
 
 ``redact_env_var_literals`` is used by the ``SandboxConfig.config`` GraphQL
 resolver to redact literal env-var values at read time.
+
+``SandboxSecretMasker`` masks verbatim plaintext secrets from OTEL span
+attributes, status descriptions, and exception events emitted by
+``CodeEvaluatorRunner``. Encoded or transformed variants (base64, hex,
+URL-encoded, etc.) are explicitly out of scope — only verbatim substring
+occurrences are matched.
 """
 
 from __future__ import annotations
 
 import hashlib
-from typing import Any
+from typing import Any, Iterable
 
 REDACTED_ENV_VAR_VALUE = "<redacted>"
+
+
+class SandboxSecretMasker:
+    """Replace verbatim plaintext secrets in strings with stable ``<redacted:N>`` markers.
+
+    Secrets shorter than ``min_length`` (default 8) are ignored — empty strings
+    and short strings have too high a collision rate with legitimate content.
+    Replacement order is longest-first with lexical tie-break so that a shorter
+    prefix of a longer secret cannot corrupt the longer secret's marker.
+    """
+
+    def __init__(
+        self,
+        secret_values: Iterable[str],
+        *,
+        min_length: int = 8,
+    ) -> None:
+        filtered = sorted(
+            (s for s in secret_values if s and len(s) >= min_length),
+            key=lambda s: (-len(s), s),
+        )
+        self._secrets: tuple[str, ...] = tuple(filtered)
+
+    def mask(self, text: str) -> str:
+        for idx, secret in enumerate(self._secrets):
+            text = text.replace(secret, f"<redacted:{idx}>")
+        return text
 
 
 def redact_env_var_literals(config: Any) -> Any:
