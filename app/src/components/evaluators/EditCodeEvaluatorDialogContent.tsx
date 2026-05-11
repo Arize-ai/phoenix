@@ -10,6 +10,7 @@ import { Group, Panel, Separator } from "react-resizable-panels";
 import {
   Alert,
   Button,
+  CopyToClipboardButton,
   Flex,
   Heading,
   Icon,
@@ -26,6 +27,7 @@ import {
   SelectChevronUpDownIcon,
   SelectItem,
   SelectValue,
+  Switch,
   Text,
   TextField,
   View,
@@ -643,6 +645,9 @@ const CodeEditor = ({
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
 
+  // The auto-generated type footer is hidden by default.
+  const [showTypes, setShowTypes] = useState(false);
+
   // Get the evaluator mapping source from the store for type generation
   const evaluatorMappingSource = useEvaluatorStore(
     (state) => state.evaluatorMappingSource
@@ -731,7 +736,7 @@ const CodeEditor = ({
           </Panel>
 
           {/* Read-only type footer panel */}
-          {typeFooter && (
+          {showTypes && typeFooter && (
             <>
               <Separator css={compactResizeHandleCSS} />
               <Panel defaultSize="25%" minSize="10%" style={editorPanelStyle}>
@@ -756,6 +761,28 @@ const CodeEditor = ({
             </>
           )}
         </Group>
+        {/* Editor footer toolbar: copy code + toggle the type footer */}
+        <div css={editorFooterCSS}>
+          {typeFooter ? (
+            <Switch
+              isSelected={showTypes}
+              onChange={setShowTypes}
+              labelPlacement="end"
+            >
+              <Text size="XS" color="text-700">
+                Show types
+              </Text>
+            </Switch>
+          ) : (
+            <span />
+          )}
+          <CopyToClipboardButton
+            text={sourceCode}
+            size="S"
+            variant="quiet"
+            tooltipText="Copy code"
+          />
+        </div>
       </div>
     </Flex>
   );
@@ -1196,6 +1223,17 @@ const typeFooterCSS = css`
   & .cm-scroller {
     overflow: auto !important;
   }
+`;
+
+const editorFooterCSS = css`
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--global-dimension-size-100);
+  padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
+  border-top: 1px solid var(--global-border-color-default);
+  background-color: var(--ac-global-color-grey-100);
 `;
 
 const choiceGridCSS = css`
