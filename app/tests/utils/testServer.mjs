@@ -19,6 +19,15 @@ process.env["PHOENIX_SQL_DATABASE_URL"] = "sqlite:///:memory:";
 // The rate-limit.spec.ts test will re-enable it for its specific test
 process.env["PHOENIX_DISABLE_RATE_LIMIT"] = "True";
 
+// Fake credentials for hosted sandbox providers so they advertise
+// `status=AVAILABLE` (instead of `MISSING_CREDENTIALS`) and surface in the
+// New Sandbox Config dropdown — which now filters out unavailable/disabled
+// providers (#13117). The adapter `build_backend()` calls are pure object
+// construction; no network is performed at probe time, so a synthetic key
+// is sufficient. Tests that exercise live execution stub the runtime
+// separately.
+process.env["E2B_API_KEY"] = "phoenix-e2e-fake-e2b-key";
+
 if (process.env["PXI_E2E"] === "true") {
   process.env["PHOENIX_DANGEROUSLY_ENABLE_AGENTS"] = "True";
   process.env["PHOENIX_ALLOW_EXTERNAL_RESOURCES"] = "True";
