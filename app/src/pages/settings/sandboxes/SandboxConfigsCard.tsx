@@ -9,6 +9,7 @@ import {
   Switch,
   Text,
 } from "@phoenix/components";
+import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
 import { TableEmpty } from "@phoenix/components/table";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
@@ -23,7 +24,11 @@ import {
   subtitleCSS,
 } from "./styles";
 import type { ConfigRow, ProviderRow } from "./types";
-import { getSandboxConfigSettings, LanguageWithIcon } from "./utils";
+import {
+  getSandboxConfigSettings,
+  LanguageWithIcon,
+  SandboxHostingTypeBadge,
+} from "./utils";
 
 export function SandboxConfigsCard({
   configRows,
@@ -70,7 +75,16 @@ export function SandboxConfigsCard({
                       </Flex>
                     </td>
                     <td>
-                      <Text>{backend.displayName}</Text>
+                      <Flex direction="row" gap="size-100" alignItems="center">
+                        <SandboxProviderIcon
+                          backendType={backend.backendType}
+                          height={18}
+                        />
+                        <Text>{backend.displayName}</Text>
+                        <SandboxHostingTypeBadge
+                          hostingType={backend.hostingType}
+                        />
+                      </Flex>
                     </td>
                     <td>
                       <LanguageWithIcon language={provider.language} />

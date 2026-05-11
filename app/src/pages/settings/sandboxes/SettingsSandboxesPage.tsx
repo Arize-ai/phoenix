@@ -53,6 +53,7 @@ function SettingsSandboxesPageContent({
         sandboxBackends {
           backendType
           displayName
+          hostingType
           dependencyHints
           supportedLanguages
           status
@@ -108,8 +109,8 @@ function SettingsSandboxesPageContent({
       .sort((a, b) => {
         // Local providers first, then alphabetical by display name, then by
         // language for stable ordering when two providers share a name.
-        const aLocal = a.backend.displayName.includes("(local)") ? 0 : 1;
-        const bLocal = b.backend.displayName.includes("(local)") ? 0 : 1;
+        const aLocal = a.backend.hostingType === "LOCAL" ? 0 : 1;
+        const bLocal = b.backend.hostingType === "LOCAL" ? 0 : 1;
         if (aLocal !== bLocal) return aLocal - bLocal;
         const nameCmp = a.backend.displayName.localeCompare(
           b.backend.displayName
