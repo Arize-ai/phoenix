@@ -16,6 +16,7 @@ import {
   isDocsToolName,
 } from "./DocsToolDetails";
 import {
+  TOOL_CALL_SUMMARY_LANE_RULES,
   ToolPartCodeBlock,
   ToolPartLabel,
   ToolPartStatus,
@@ -136,8 +137,9 @@ export const toolPartCSS = css`
     gap: var(--global-dimension-size-50);
     font-weight: 400;
     white-space: nowrap;
-    flex: 0 1 auto;
-    min-width: 0;
+    flex: ${TOOL_CALL_SUMMARY_LANE_RULES.titleFlex};
+    min-width: ${TOOL_CALL_SUMMARY_LANE_RULES.titleMinWidth};
+    max-width: ${TOOL_CALL_SUMMARY_LANE_RULES.titleMaxWidth};
     color: var(--global-text-color-800);
   }
 
@@ -149,21 +151,26 @@ export const toolPartCSS = css`
   }
 
   .tool-part__preview {
-    flex: 1 1 auto;
+    flex: ${TOOL_CALL_SUMMARY_LANE_RULES.middleFlex};
     font-weight: 400;
     font-family: var(--ac-global-font-family-code);
     color: var(--tool-call-secondary-color);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    min-width: 0;
+    min-width: ${TOOL_CALL_SUMMARY_LANE_RULES.middleMinWidth};
     transition: color 150ms ease;
   }
 
   .tool-part__status {
     margin-left: auto;
-    flex-shrink: 0;
+    flex: ${TOOL_CALL_SUMMARY_LANE_RULES.statusFlex};
+    min-width: ${TOOL_CALL_SUMMARY_LANE_RULES.statusMinWidth};
+    max-width: ${TOOL_CALL_SUMMARY_LANE_RULES.statusMaxWidth};
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: right;
     font-size: var(--global-font-size-xs);
     color: var(--tool-call-secondary-color);
     padding-inline-end: var(--global-dimension-size-50);

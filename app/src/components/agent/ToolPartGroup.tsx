@@ -5,6 +5,7 @@ import { type CSSProperties, useMemo, useState } from "react";
 import { Icon, Icons } from "@phoenix/components";
 
 import { ToolPart, type ToolPartType } from "./ToolPart";
+import { TOOL_CALL_SUMMARY_LANE_RULES } from "./ToolPartPrimitives";
 
 type ToolState =
   | "input-streaming"
@@ -79,8 +80,17 @@ const toolPoolCSS = css`
     gap: var(--global-dimension-size-50);
     font-weight: 400;
     white-space: nowrap;
-    flex-shrink: 0;
+    flex: ${TOOL_CALL_SUMMARY_LANE_RULES.titleFlex};
+    min-width: ${TOOL_CALL_SUMMARY_LANE_RULES.titleMinWidth};
+    max-width: ${TOOL_CALL_SUMMARY_LANE_RULES.titleMaxWidth};
     color: var(--global-text-color-800);
+  }
+
+  .tool-pool__title-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
   }
 
   .tool-pool__chevron {
@@ -104,8 +114,13 @@ const toolPoolCSS = css`
 
   .tool-pool__status {
     margin-left: auto;
-    flex-shrink: 0;
+    flex: ${TOOL_CALL_SUMMARY_LANE_RULES.statusFlex};
+    min-width: ${TOOL_CALL_SUMMARY_LANE_RULES.statusMinWidth};
+    max-width: ${TOOL_CALL_SUMMARY_LANE_RULES.statusMaxWidth};
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: right;
     font-weight: 400;
     font-size: var(--global-font-size-xs);
     color: var(--tool-call-secondary-color);
@@ -118,10 +133,11 @@ const toolPoolCSS = css`
   }
 
   .tool-pool__breakdown {
+    flex: ${TOOL_CALL_SUMMARY_LANE_RULES.middleFlex};
+    min-width: ${TOOL_CALL_SUMMARY_LANE_RULES.middleMinWidth};
     font-weight: 400;
     font-family: var(--ac-global-font-family-code);
     color: var(--tool-call-secondary-color);
-    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -275,7 +291,9 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
               className="tool-pool__chevron"
               data-expanded={isExpanded}
             />
-            {stats.total} tool call{stats.total === 1 ? "" : "s"}
+            <span className="tool-pool__title-text">
+              {stats.total} tool call{stats.total === 1 ? "" : "s"}
+            </span>
           </span>
           <span className="tool-pool__breakdown">{breakdownText}</span>
           <span

@@ -1,5 +1,16 @@
 import { CopyToClipboardButton } from "@phoenix/components";
 
+export const TOOL_CALL_SUMMARY_LANE_RULES = {
+  titleFlex: "0 1 auto",
+  titleMinWidth: "0",
+  titleMaxWidth: "55%",
+  middleFlex: "1 1 10ch",
+  middleMinWidth: "8ch",
+  statusFlex: "0.8 1 14ch",
+  statusMinWidth: "7ch",
+  statusMaxWidth: "14ch",
+} as const;
+
 /**
  * A label row for a tool part section (e.g., "Command", "Output", "Error").
  */
