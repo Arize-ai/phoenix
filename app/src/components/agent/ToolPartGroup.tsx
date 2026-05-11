@@ -55,15 +55,28 @@ const toolPoolCSS = css`
 
   .tool-pool__title-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
+    flex-wrap: wrap;
     gap: var(--global-dimension-size-100);
   }
 
   .tool-pool__title {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--global-dimension-size-50);
+    flex: 1 1 20rem;
+    min-width: 0;
+  }
+
+  .tool-pool__title-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .tool-pool__title-summary {
     font-size: var(--global-font-size-xs);
     font-weight: 600;
     color: var(--tool-call-title-color);
@@ -87,6 +100,9 @@ const toolPoolCSS = css`
     font-weight: 400;
     font-size: var(--global-font-size-xs);
     color: var(--tool-call-secondary-color);
+    flex: 0 1 auto;
+    max-width: 100%;
+    text-align: right;
   }
 
   .tool-pool__status[data-variant="danger"] {
@@ -97,10 +113,8 @@ const toolPoolCSS = css`
     font-size: var(--global-font-size-xs);
     font-weight: 400;
     color: var(--tool-call-secondary-color);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .tool-pool__body {
@@ -240,15 +254,19 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
                 font-size: 0.75rem;
               `}
             />
-            {stats.total} tool call{stats.total === 1 ? "" : "s"}
-            <span className="tool-pool__breakdown">
-              {Array.from(stats.byName.entries())
-                .map(
-                  ([name, count]) =>
-                    `${name}${count > 1 ? ` \u00D7${count}` : ""}`
-                )
-                .join(", ")}
-              {stats.failed > 0 ? ` \u2014 ${stats.failed} failed` : ""}
+            <span className="tool-pool__title-copy">
+              <span className="tool-pool__title-summary">
+                {stats.total} tool call{stats.total === 1 ? "" : "s"}
+              </span>
+              <span className="tool-pool__breakdown">
+                {Array.from(stats.byName.entries())
+                  .map(
+                    ([name, count]) =>
+                      `${name}${count > 1 ? ` \u00D7${count}` : ""}`
+                  )
+                  .join(", ")}
+                {stats.failed > 0 ? ` \u2014 ${stats.failed} failed` : ""}
+              </span>
             </span>
           </span>
           <span
