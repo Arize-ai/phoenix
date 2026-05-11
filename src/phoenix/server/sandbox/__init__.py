@@ -162,6 +162,15 @@ class AdapterMetadata:
     dependency_hints: list[str] = field(default_factory=list)
     config_field_specs: list[ConfigFieldSpec] = field(default_factory=list)
 
+    # Where the sandbox's code execution physically happens.
+    # 'local' → the runtime executes on the same machine as the Phoenix
+    # server (sandboxed, but consuming Phoenix's CPU/memory; e.g. WASM, Deno).
+    # 'hosted' → execution is delegated to an external provider over the
+    # network (e.g. E2B, Daytona, Vercel, Modal); Phoenix only orchestrates.
+    # UI: rendered as a "Local" / "Hosted" badge on the providers table with a
+    # tooltip explaining the resource trade-off.
+    hosting_type: Literal["local", "hosted"] = "hosted"
+
     # True/False semantics: True → build_backend MUST accept user_env (the
     # pre-resolved name→value dict) and pass it to the runtime at constructor
     # time; execute() has no per-call env override. False → build_backend MUST
@@ -209,8 +218,9 @@ class AdapterMetadata:
 # ---------------------------------------------------------------------------
 SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
     "WASM": AdapterMetadata(
-        display_name="WebAssembly (local)",
+        display_name="WebAssembly",
         language="PYTHON",
+        hosting_type="local",
         dependency_hints=[
             "Install Phoenix with the `wasm` extra so `wasmtime` is available.",
             (
@@ -225,6 +235,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
     "E2B": AdapterMetadata(
         display_name="E2B",
         language="PYTHON",
+        hosting_type="hosted",
         dependency_hints=[
             "Install Phoenix with the `e2b` extra.",
             "Provide `E2B_API_KEY`.",
@@ -237,6 +248,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
     "DAYTONA_PYTHON": AdapterMetadata(
         display_name="Daytona",
         language="PYTHON",
+        hosting_type="hosted",
         dependency_hints=[
             "Install Phoenix with the `daytona` extra.",
             "Provide `PHOENIX_SANDBOX_DAYTONA_API_KEY`.",
@@ -256,6 +268,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         f"VERCEL_{lang}": AdapterMetadata(
             display_name="Vercel",
             language=lang,
+            hosting_type="hosted",
             dependency_hints=[
                 "Install Phoenix with the `vercel` extra.",
                 (
@@ -270,8 +283,9 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         for lang in ("PYTHON", "TYPESCRIPT")
     },
     "DENO": AdapterMetadata(
-        display_name="Deno (local)",
+        display_name="Deno",
         language="TYPESCRIPT",
+        hosting_type="local",
         dependency_hints=[
             "Install the Deno runtime and ensure the `deno` binary is available on PATH.",
         ],
@@ -282,6 +296,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
     "MODAL": AdapterMetadata(
         display_name="Modal",
         language="PYTHON",
+        hosting_type="hosted",
         dependency_hints=[
             "Install Phoenix with the `modal` extra.",
             "Provide `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` environment variables.",

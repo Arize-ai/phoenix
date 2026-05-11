@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6c18fc33d917bf8ade66ce1c90a65da2>>
+ * @generated SignedSource<<e9fbe1a105812ef8281214dcfa3826e7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -101,6 +101,13 @@ return {
         "selections": [
           (v0/*: any*/),
           (v1/*: any*/),
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "hostingType",
+            "storageKey": null
+          },
           {
             "alias": null,
             "args": null,
@@ -236,16 +243,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "cd9fbbdf0396ecc309ca3d5d25ac79b7",
+    "cacheID": "f7b2b8496f4a7be87f46483d0b1e7c14",
     "id": null,
     "metadata": {},
     "name": "SettingsSandboxesPageRefetchQuery",
     "operationKind": "query",
-    "text": "query SettingsSandboxesPageRefetchQuery {\n  ...SettingsSandboxesPageFragment\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
+    "text": "query SettingsSandboxesPageRefetchQuery {\n  ...SettingsSandboxesPageFragment\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "ecf4493da709473f1f05e97b6ab7e787";
+(node as any).hash = "1f6d50525ca2ee2e7197dc1a1347ea5e";
 
 export default node;

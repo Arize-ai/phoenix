@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dfb8d81b3e841aee3814228b2438b13b>>
+ * @generated SignedSource<<908dff9764ea3cae7111c6063bb67c1d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -171,6 +171,13 @@ return {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
+                    "name": "hostingType",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
                     "name": "dependencyHints",
                     "storageKey": null
                   },
@@ -308,12 +315,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "913db21ba8f034bf568f88dfc915ebb8",
+    "cacheID": "9bed11c7d4b9657bf2f0291d47f2d54a",
     "id": null,
     "metadata": {},
     "name": "SandboxConfigsCardConfigEnabledSwitchMutation",
     "operationKind": "mutation",
-    "text": "mutation SandboxConfigsCardConfigEnabledSwitchMutation(\n  $input: UpdateSandboxConfigInput!\n) {\n  updateSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
+    "text": "mutation SandboxConfigsCardConfigEnabledSwitchMutation(\n  $input: UpdateSandboxConfigInput!\n) {\n  updateSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();

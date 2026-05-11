@@ -3337,6 +3337,7 @@ enum RevisionKind {
 type SandboxBackendInfo {
   backendType: String!
   displayName: String!
+  hostingType: SandboxHostingType!
   supportedLanguages: [Language!]!
   status: SandboxBackendStatus!
   statusDetail: String
@@ -3370,6 +3371,11 @@ type SandboxConfig implements Node {
   provider: SandboxProvider!
   createdAt: DateTime!
   updatedAt: DateTime!
+}
+
+enum SandboxHostingType {
+  LOCAL
+  HOSTED
 }
 
 type SandboxProvider implements Node {
