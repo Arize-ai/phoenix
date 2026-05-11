@@ -2,7 +2,7 @@
  * Shared `@inline` fragment for the PromptInvocationParameters union (read path).
  * Consumers spread `...PromptInvocationParametersReadableFragment` in their
  * query and call {@link readPromptInvocationParameters} on the returned fragment
- * reference to get a `PromptInvocationParametersRecord` (camelCase).
+ * reference to get a display-friendly invocation parameter record.
  */
 import { graphql, readInlineData } from "react-relay";
 
@@ -11,9 +11,9 @@ import type {
   PromptInvocationParametersReadableFragment$key,
 } from "./__generated__/PromptInvocationParametersReadableFragment.graphql";
 import {
-  type RawPromptInvocationParametersRecord,
-  readPromptInvocationParametersUnion,
-} from "./promptInvocationParameterCodecs";
+  type PromptInvocationParameterDisplayRecord,
+  promptInvocationDataToDisplayRecord,
+} from "./providerAdapters";
 
 const fragment = graphql`
   fragment PromptInvocationParametersReadableFragment on PromptInvocationParameters
@@ -78,17 +78,30 @@ const fragment = graphql`
 `;
 
 /**
- * Reads the invocation parameters fragment into the family-discriminated
- * bridge record. Returns `null` when the ref is null/undefined — callers that
- * want a default-empty record substitute `emptyPromptInvocationParametersRecord(family)`
- * since the family is only knowable from outside this read.
+ * Reads the invocation parameters fragment into the family-discriminated display
+ * record. Returns `null` when the ref is null/undefined.
  */
 export function readPromptInvocationParameters(
   ref: PromptInvocationParametersReadableFragment$key | null | undefined
-): RawPromptInvocationParametersRecord | null {
+): PromptInvocationParameterDisplayRecord | null {
   if (ref == null) return null;
   const data = readInlineData(fragment, ref);
-  return readPromptInvocationParametersUnion(
+  return promptInvocationDataToDisplayRecord(
     data as PromptInvocationParametersReadableFragment$data
   );
+}
+
+/**
+ * Reads the invocation parameters fragment into the raw GraphQL union data
+ * (still typed-by-`__typename`), without converting to the bridge record.
+ * Provider adapters consume this directly via `fromPromptInvocationParameters`.
+ */
+export function readPromptInvocationParametersData(
+  ref: PromptInvocationParametersReadableFragment$key | null | undefined
+): PromptInvocationParametersReadableFragment$data | null {
+  if (ref == null) return null;
+  return readInlineData(
+    fragment,
+    ref
+  ) as PromptInvocationParametersReadableFragment$data;
 }

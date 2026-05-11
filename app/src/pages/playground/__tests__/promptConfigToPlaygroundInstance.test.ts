@@ -4,14 +4,19 @@ import { _resetMessageId, _resetToolId } from "@phoenix/store/playground";
 
 import { buildPlaygroundInstanceFieldsFromPromptConfig } from "../promptConfigToPlaygroundInstance";
 
-const { readPromptInvocationParametersMock } = vi.hoisted(() => ({
+const {
+  readPromptInvocationParametersMock,
+  readPromptInvocationParametersDataMock,
+} = vi.hoisted(() => ({
   readPromptInvocationParametersMock: vi.fn(),
+  readPromptInvocationParametersDataMock: vi.fn(),
 }));
 
 vi.mock(
   "@phoenix/pages/playground/PromptInvocationParametersReadableFragment",
   () => ({
     readPromptInvocationParameters: readPromptInvocationParametersMock,
+    readPromptInvocationParametersData: readPromptInvocationParametersDataMock,
   })
 );
 
@@ -20,12 +25,26 @@ describe("buildPlaygroundInstanceFieldsFromPromptConfig", () => {
     _resetMessageId();
     _resetToolId();
     readPromptInvocationParametersMock.mockReset();
+    readPromptInvocationParametersDataMock.mockReset();
   });
 
   it("hydrates shared prompt fields consistently for prompt and experiment paths", () => {
     readPromptInvocationParametersMock.mockReturnValue({
       family: "openai",
       parameters: { temperature: 0.3, maxCompletionTokens: 222 },
+    });
+    readPromptInvocationParametersDataMock.mockReturnValue({
+      __typename: "PromptOpenAIInvocationParameters",
+      temperature: 0.3,
+      topP: null,
+      maxCompletionTokens: 222,
+      openaiMaxTokens: null,
+      frequencyPenalty: null,
+      presencePenalty: null,
+      seed: null,
+      stop: null,
+      reasoningEffort: null,
+      extraBody: null,
     });
 
     const result = buildPlaygroundInstanceFieldsFromPromptConfig({
@@ -110,18 +129,10 @@ describe("buildPlaygroundInstanceFieldsFromPromptConfig", () => {
         strict: true,
       },
     });
-    expect(result.model.invocationParameters).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          invocationName: "temperature",
-          valueFloat: 0.3,
-        }),
-        expect.objectContaining({
-          invocationName: "maxCompletionTokens",
-          valueInt: 222,
-        }),
-      ])
-    );
+    expect(result.model.invocationParameters).toEqual({
+      temperature: 0.3,
+      maxCompletionTokens: 222,
+    });
 
     expect(result.template.__type).toBe("chat");
     expect(result.template.messages).toHaveLength(3);
@@ -174,6 +185,16 @@ describe("buildPlaygroundInstanceFieldsFromPromptConfig", () => {
         stopSequences: ["STOP"],
       },
     });
+    readPromptInvocationParametersDataMock.mockReturnValue({
+      __typename: "PromptAnthropicInvocationParameters",
+      anthropicMaxTokens: 1024,
+      temperature: 0.7,
+      topP: null,
+      stopSequences: ["STOP"],
+      outputConfig: null,
+      thinking: null,
+      extraBody: null,
+    });
 
     const result = buildPlaygroundInstanceFieldsFromPromptConfig({
       provider: "ANTHROPIC",
@@ -195,22 +216,11 @@ describe("buildPlaygroundInstanceFieldsFromPromptConfig", () => {
     expect(result.model.provider).toBe("ANTHROPIC");
     expect(result.model.customProvider).toBeNull();
     expect(result.model.responseFormat).toBeNull();
-    expect(result.model.invocationParameters).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          invocationName: "maxTokens",
-          valueInt: 1024,
-        }),
-        expect.objectContaining({
-          invocationName: "temperature",
-          valueFloat: 0.7,
-        }),
-        expect.objectContaining({
-          invocationName: "stopSequences",
-          valueStringList: ["STOP"],
-        }),
-      ])
-    );
+    expect(result.model.invocationParameters).toEqual({
+      maxTokens: 1024,
+      temperature: 0.7,
+      stopSequences: ["STOP"],
+    });
 
     expect(result.template.messages).toEqual([
       expect.objectContaining({
@@ -226,6 +236,19 @@ describe("buildPlaygroundInstanceFieldsFromPromptConfig", () => {
     readPromptInvocationParametersMock.mockReturnValue({
       family: "openai",
       parameters: { reasoningEffort: "high" },
+    });
+    readPromptInvocationParametersDataMock.mockReturnValue({
+      __typename: "PromptOpenAIInvocationParameters",
+      temperature: null,
+      topP: null,
+      maxCompletionTokens: null,
+      openaiMaxTokens: null,
+      frequencyPenalty: null,
+      presencePenalty: null,
+      seed: null,
+      stop: null,
+      reasoningEffort: "HIGH",
+      extraBody: null,
     });
 
     const result = buildPlaygroundInstanceFieldsFromPromptConfig({
@@ -245,13 +268,9 @@ describe("buildPlaygroundInstanceFieldsFromPromptConfig", () => {
       responseFormat: null,
     });
 
-    expect(result.model.invocationParameters).toEqual([
-      expect.objectContaining({
-        invocationName: "reasoningEffort",
-        canonicalName: "REASONING_EFFORT",
-        valueString: "high",
-      }),
-    ]);
+    expect(result.model.invocationParameters).toEqual({
+      reasoningEffort: "high",
+    });
   });
 
   it("infers OpenAI Responses API type from raw prompt tools", () => {
@@ -261,6 +280,22 @@ describe("buildPlaygroundInstanceFieldsFromPromptConfig", () => {
         maxOutputTokens: 333,
         reasoning: { effort: "low" },
       },
+    });
+    readPromptInvocationParametersDataMock.mockReturnValue({
+      __typename: "PromptOpenAIInvocationParameters",
+      temperature: null,
+      topP: null,
+      // Prompt schema only exposes maxCompletionTokens / openaiMaxTokens; the
+      // Responses-only maxOutputTokens variant is folded into maxCompletionTokens
+      // at the read seam. Mirror that here so the adapter sees the expected key.
+      maxCompletionTokens: 333,
+      openaiMaxTokens: null,
+      frequencyPenalty: null,
+      presencePenalty: null,
+      seed: null,
+      stop: null,
+      reasoningEffort: "LOW",
+      extraBody: null,
     });
 
     const result = buildPlaygroundInstanceFieldsFromPromptConfig({
@@ -294,18 +329,10 @@ describe("buildPlaygroundInstanceFieldsFromPromptConfig", () => {
     });
 
     expect(result.model.openaiApiType).toBe("RESPONSES");
-    expect(result.model.invocationParameters).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          invocationName: "maxCompletionTokens",
-          valueInt: 333,
-        }),
-        expect.objectContaining({
-          invocationName: "reasoningEffort",
-          valueString: "low",
-        }),
-      ])
-    );
+    expect(result.model.invocationParameters).toEqual({
+      maxCompletionTokens: 333,
+      reasoningEffort: "low",
+    });
     expect(result.tools).toEqual([
       expect.objectContaining({
         kind: "raw",

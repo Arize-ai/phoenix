@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { TemplateFormat } from "@phoenix/components/templateEditor/types";
-import type { InvocationParameterInput } from "@phoenix/pages/playground/invocationParameterUtils";
+import type { ProviderInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
 import type { chatMessageSchema } from "@phoenix/pages/playground/schemas";
 import type { PhoenixToolEditorType } from "@phoenix/schemas/phoenixToolTypeSchemas";
 /**
@@ -127,11 +127,13 @@ export type ModelConfig = {
    * Null means no response format is set.
    */
   responseFormat?: CanonicalResponseFormat | null;
-  invocationParameters: InvocationParameterInput[];
+  /**
+   * Provider-owned canonical invocation configuration. UI form rows, GraphQL
+   * prompt input, and span payloads are projections of this config, not the
+   * state shape itself.
+   */
+  invocationParameters: ProviderInvocationConfig;
 };
-
-export type ModelInvocationParameterInput =
-  ModelConfig["invocationParameters"][number];
 
 /**
  * A normalized function tool. The `definition` is the *canonical* (provider-
@@ -542,25 +544,22 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
     dirty: boolean | null;
   }) => void;
   /**
-   * Update the invocation parameters for a model
+   * Replace the canonical invocation config for a model wholesale. Used for
+   * bulk hydration (saved prompt loads, span replay).
    */
   updateInstanceModelInvocationParameters: (params: {
     instanceId: number;
-    invocationParameters: InvocationParameterInput[];
+    invocationParameters: ProviderInvocationConfig;
   }) => void;
   /**
-   * Upsert an invocation parameter input for a model
+   * Set a single user-facing leaf on the canonical invocation config. Passing
+   * `value === undefined` clears the leaf when possible. Cross-field
+   * invariants are enforced inside the adapter's `writeField`.
    */
-  upsertInvocationParameterInput: (params: {
+  setInvocationParameterField: (params: {
     instanceId: number;
-    invocationParameterInput: ModelInvocationParameterInput;
-  }) => void;
-  /**
-   * Delete an invocation parameter input for a model
-   */
-  deleteInvocationParameterInput: (params: {
-    instanceId: number;
-    invocationParameterInputInvocationName: string;
+    fieldName: string;
+    value: unknown;
   }) => void;
   /**
    * Update the supported invocation parameters for a model

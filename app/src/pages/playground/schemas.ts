@@ -214,36 +214,6 @@ export const modelConfigWithOpenAIResponsesFormatSchema = z.object({
   }),
 });
 
-export const modelConfigWithAnthropicOutputConfigSchema = z.object({
-  [SemanticAttributePrefixes.llm]: z.object({
-    [LLMAttributePostfixes.invocation_parameters]:
-      stringToInvocationParametersSchema.pipe(
-        z.object({
-          output_config: z
-            .object({
-              format: z
-                .object({
-                  type: z.literal("json_schema"),
-                  schema: jsonObjectSchema,
-                })
-                .optional(),
-            })
-            .optional(),
-        }) as z.ZodType<
-          {
-            output_config?: {
-              format?: {
-                type: "json_schema";
-                schema: { [key: string]: JSONLiteral };
-              };
-            };
-          },
-          { [key: string]: JSONLiteral }
-        >
-      ),
-  }),
-});
-
 export const modelConfigWithGoogleResponseFormatSchema = z.object({
   [SemanticAttributePrefixes.llm]: z.object({
     [LLMAttributePostfixes.invocation_parameters]:

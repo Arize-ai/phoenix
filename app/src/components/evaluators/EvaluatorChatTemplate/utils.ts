@@ -3,6 +3,10 @@ import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
+import {
+  getDefaultInvocationConfig,
+  parseInvocationConfig,
+} from "@phoenix/pages/playground/providerAdapters";
 import type { InitialPlaygroundState } from "@phoenix/store";
 import {
   DEFAULT_INSTANCE_PARAMS,
@@ -45,7 +49,15 @@ export const makeLLMEvaluatorInstance = ({
         provider: DEFAULT_MODEL_PROVIDER,
         modelName: DEFAULT_MODEL_NAME,
       }),
-      invocationParameters: [],
+      invocationParameters:
+        modelConfigByProvider[DEFAULT_MODEL_PROVIDER]?.invocationParameters !=
+        null
+          ? parseInvocationConfig(
+              DEFAULT_MODEL_PROVIDER,
+              modelConfigByProvider[DEFAULT_MODEL_PROVIDER]
+                ?.invocationParameters
+            )
+          : getDefaultInvocationConfig(DEFAULT_MODEL_PROVIDER),
     },
     toolChoice: { type: "ONE_OR_MORE" },
     experiment: null,

@@ -3,9 +3,14 @@ import { Suspense } from "react";
 
 import { Flex, Icon, Icons, Text } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
+import {
+  getInvocationFamilyForProvider,
+  InvocationFamily,
+} from "@phoenix/pages/playground/invocationParameterSpecs";
 import { areRequiredInvocationParametersConfigured } from "@phoenix/pages/playground/playgroundUtils";
 
 import { CustomHeadersModelConfigFormField } from "./CustomHeadersModelConfigFormField";
+import { ExtraBodyModelConfigFormField } from "./ExtraBodyModelConfigFormField";
 import { InvocationParametersFormFields } from "./InvocationParametersFormFields";
 
 const modelParametersFormCSS = css`
@@ -51,12 +56,17 @@ export function ModelInvocationParametersFormFields(
     throw new Error(`Playground instance ${playgroundInstanceId} not found`);
   }
 
-  const configuredInvocationParameters = instance.model.invocationParameters;
   const requiredInvocationParametersConfigured =
     areRequiredInvocationParametersConfigured(
-      configuredInvocationParameters,
+      instance.model.invocationParameters,
       instance.model
     );
+  const invocationFamily = getInvocationFamilyForProvider(
+    instance.model.provider
+  );
+  const canConfigureExtraBody =
+    invocationFamily === InvocationFamily.OPENAI ||
+    invocationFamily === InvocationFamily.ANTHROPIC;
 
   return (
     <div css={modelParametersFormCSS}>
@@ -78,6 +88,12 @@ export function ModelInvocationParametersFormFields(
           onErrorChange={onCustomHeadersErrorChange}
         />
       )}
+      {canConfigureExtraBody ? (
+        <ExtraBodyModelConfigFormField
+          key={`${instance.model.provider}-extra-body`}
+          instance={instance}
+        />
+      ) : null}
     </div>
   );
 }

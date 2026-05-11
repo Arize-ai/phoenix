@@ -22,9 +22,9 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
  * This exercises the typed-union save path
  * (`PromptInvocationParametersInput.{openai,anthropic,google,aws}.*`) and
  * the typed-union read path (`PromptInvocationParameters` GraphQL union →
- * `readPromptInvocationParameters` codec → `InvocationParametersFormFields`),
- * plus mixed function/raw prompt tool persistence.
- * A break anywhere in that chain — wire shape, codec branch, hydration, or
+ * provider adapters → `InvocationParametersFormFields`), plus mixed
+ * function/raw prompt tool persistence.
+ * A break anywhere in that chain — wire shape, adapter branch, hydration, or
  * form rendering — surfaces here.
  */
 
@@ -251,7 +251,9 @@ async function setCodeMirrorValue(
 ): Promise<void> {
   const editorValue = JSON.stringify(value, null, 2);
   await expect(editor).toBeVisible();
-  await editor.fill(editorValue);
+  await editor.click();
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.insertText(editorValue);
 }
 
 async function addTool({
@@ -485,7 +487,26 @@ test.describe("Playground prompt configuration round-trip", () => {
   }
 
   test("Anthropic: prompt configuration survives reload", async ({ page }) => {
-    const expectedMaxTokens = randomTokenCount();
+    // Anthropic constraints: budget ≥ 1024 (SDK floor) and budget < max_tokens
+    // (backend validator). Both values land in NumberFields that render with
+    // a locale thousand-separator above 999, so we format with `Intl` so the
+    // string we fill matches what `toHaveValue` reads back.
+    const numberFmt = new Intl.NumberFormat("en-US");
+    const budgetNum = 1024 + Math.floor(Math.random() * 1500); // [1024, 2523]
+    const maxTokensNum = budgetNum + 1 + Math.floor(Math.random() * 2500);
+    const expectedBudgetTokens = numberFmt.format(budgetNum);
+    const expectedMaxTokens = numberFmt.format(maxTokensNum);
+    const thinkingDisplayChoices = ["summarized", "omitted"] as const;
+    const expectedThinkingDisplay =
+      thinkingDisplayChoices[
+        Math.floor(Math.random() * thinkingDisplayChoices.length)
+      ];
+    // Pick a concrete non-default effort so this proves the select write and
+    // prompt round-trip, rather than passing because the adapter default is
+    // already "high".
+    const effortChoices = ["low", "medium", "xhigh", "max"] as const;
+    const expectedEffort =
+      effortChoices[Math.floor(Math.random() * effortChoices.length)];
 
     await page.goto("/playground");
     await page.waitForURL("**/playground");
@@ -499,6 +520,26 @@ test.describe("Playground prompt configuration round-trip", () => {
     await popover
       .getByRole("textbox", { name: "Max Tokens" })
       .fill(expectedMaxTokens);
+
+    // Switch Thinking to "Enabled" so the budget path is exercised. The Budget
+    // Tokens NumberField only renders in Enabled mode. The negative lookahead
+    // disambiguates the Thinking-mode Select from the Thinking-Display Select.
+    await popover.getByRole("button", { name: /Thinking(?! Display)/ }).click();
+    await page.getByRole("option", { name: "enabled", exact: true }).click();
+    await popover
+      .getByRole("textbox", { name: "Budget Tokens" })
+      .fill(expectedBudgetTokens);
+
+    await popover.getByRole("button", { name: /Thinking Display/ }).click();
+    await page
+      .getByRole("option", { name: expectedThinkingDisplay, exact: true })
+      .click();
+
+    await popover.getByRole("button", { name: /Effort/ }).click();
+    await page
+      .getByRole("option", { name: expectedEffort, exact: true })
+      .click();
+
     await closeModelConfigPopover(popover);
     await addResponseFormat({
       page,
@@ -520,6 +561,18 @@ test.describe("Playground prompt configuration round-trip", () => {
     await expect(
       reopened.getByRole("textbox", { name: "Max Tokens" })
     ).toHaveValue(expectedMaxTokens);
+    await expect(
+      reopened.getByRole("button", { name: /Thinking(?! Display)/ })
+    ).toContainText("enabled");
+    await expect(
+      reopened.getByRole("textbox", { name: "Budget Tokens" })
+    ).toHaveValue(expectedBudgetTokens);
+    await expect(
+      reopened.getByRole("button", { name: /Thinking Display/ })
+    ).toContainText(expectedThinkingDisplay);
+    await expect(
+      reopened.getByRole("button", { name: /Effort/ })
+    ).toContainText(expectedEffort);
     await expectResponseFormat({ page, label: "Response Format" });
     await expectFunctionAndRawTools({
       page,
@@ -531,19 +584,36 @@ test.describe("Playground prompt configuration round-trip", () => {
 
   test("Google: prompt configuration survives reload", async ({ page }) => {
     const expectedMaxOutputTokens = randomTokenCount();
+    const expectedThinkingLevel = "high";
 
     await page.goto("/playground");
     await page.waitForURL("**/playground");
 
     await selectModel(page, {
       providerDisplayName: "Google Gemini",
-      modelName: "gemini-2.0-flash",
+      modelName: "gemini-3-flash-preview",
     });
 
     const popover = await openModelConfigPopover(page);
     await popover
       .getByRole("textbox", { name: "Max Output Tokens" })
       .fill(expectedMaxOutputTokens);
+    await expect(
+      popover.getByRole("button", { name: /Thinking Level/ })
+    ).toContainText("medium");
+    await expect(
+      popover.getByRole("switch", { name: "Include Thoughts" })
+    ).toBeChecked();
+    await popover.getByRole("button", { name: /Thinking Level/ }).click();
+    await page
+      .getByRole("option", { name: expectedThinkingLevel, exact: true })
+      .click();
+    await popover
+      .getByRole("switch", { name: "Include Thoughts" })
+      .press("Space");
+    await expect(
+      popover.getByRole("switch", { name: "Include Thoughts" })
+    ).not.toBeChecked();
     await closeModelConfigPopover(popover);
     await addResponseFormat({
       page,
@@ -565,6 +635,12 @@ test.describe("Playground prompt configuration round-trip", () => {
     await expect(
       reopened.getByRole("textbox", { name: "Max Output Tokens" })
     ).toHaveValue(expectedMaxOutputTokens);
+    await expect(
+      reopened.getByRole("button", { name: /Thinking Level/ })
+    ).toContainText(expectedThinkingLevel);
+    await expect(
+      reopened.getByRole("switch", { name: "Include Thoughts" })
+    ).not.toBeChecked();
     await expectResponseFormat({ page, label: "Response Schema" });
     await expectFunctionAndRawTools({
       page,
