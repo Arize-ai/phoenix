@@ -505,9 +505,8 @@ const ConfiguratorSidebar = ({
         </SectionHeading>
         <div css={sectionContentCSS}>
           <View paddingTop="size-100">
-            <SandboxCapabilitySummaryCard
+            <SandboxRuntimeSummary
               selectedSandboxConfig={selectedSandboxConfig}
-              description="Review the selected runtime before testing execution behavior or saving this evaluator."
             />
           </View>
         </div>
@@ -516,131 +515,48 @@ const ConfiguratorSidebar = ({
   );
 };
 
-const SandboxCapabilitySummaryCard = ({
+const SandboxRuntimeSummary = ({
   selectedSandboxConfig,
-  description,
 }: {
   selectedSandboxConfig: SandboxConfigOption | null;
-  description: string;
 }) => {
+  if (selectedSandboxConfig == null) {
+    return (
+      <View paddingX="size-200">
+        <Text color="text-500" size="XS">
+          Choose a sandbox to review its configured execution settings.
+        </Text>
+      </View>
+    );
+  }
   return (
-    <Flex direction="column" gap="size-100">
-      <Flex direction="column" gap="size-25">
-        <View paddingX="size-200">
-          <Text color="text-500" size="XS">
-            {description}
-          </Text>
-        </View>
-      </Flex>
-      {selectedSandboxConfig == null ? (
-        <View paddingX="size-200">
-          <Text color="text-500" size="XS">
-            Choose a sandbox to review its configured execution settings.
-          </Text>
-        </View>
-      ) : (
-        <Flex direction="column" gap="size-150">
-          <Flex direction="column" gap="size-50">
-            <View paddingX="size-200">
-              <Text weight="heavy" size="XS">
-                Runtime supports
-              </Text>
-            </View>
-            <List size="S">
-              <SandboxCapabilityRow
-                label="env_vars"
-                value={getRuntimeEnvVarsSupportLabel(selectedSandboxConfig)}
-              />
-              <SandboxCapabilityRow
-                label="internet_access"
-                value={getRuntimeInternetAccessSupportLabel(
-                  selectedSandboxConfig
-                )}
-              />
-              <SandboxCapabilityRow
-                label="dependencies"
-                value={getRuntimeDependenciesSupportLabel(
-                  selectedSandboxConfig
-                )}
-              />
-            </List>
-          </Flex>
-          <Flex direction="column" gap="size-50">
-            <View paddingX="size-200">
-              <Text weight="heavy" size="XS">
-                Configured
-              </Text>
-            </View>
-            <List size="S">
-              <SandboxCapabilityRow
-                label="config"
-                value={selectedSandboxConfig.name}
-              />
-              {selectedSandboxConfig.timeout != null ? (
-                <SandboxCapabilityRow
-                  label="timeout"
-                  value={`${selectedSandboxConfig.timeout} seconds`}
-                />
-              ) : null}
-              <SandboxCapabilityRow
-                label="env_vars"
-                value={getSandboxEnvVarsLabel(selectedSandboxConfig.config)}
-              />
-              <SandboxCapabilityRow
-                label="internet_access"
-                value={getSandboxInternetAccessConfigLabel(
-                  selectedSandboxConfig.config
-                )}
-              />
-              <SandboxCapabilityRow
-                label="dependencies"
-                value={getSandboxDependenciesConfigLabel(
-                  selectedSandboxConfig.config
-                )}
-              />
-            </List>
-          </Flex>
-        </Flex>
-      )}
-    </Flex>
+    <List size="S">
+      <SandboxConfigRow label="config" value={selectedSandboxConfig.name} />
+      {selectedSandboxConfig.timeout != null ? (
+        <SandboxConfigRow
+          label="timeout"
+          value={`${selectedSandboxConfig.timeout} seconds`}
+        />
+      ) : null}
+      <SandboxConfigRow
+        label="env_vars"
+        value={getSandboxEnvVarsLabel(selectedSandboxConfig.config)}
+      />
+      <SandboxConfigRow
+        label="internet_access"
+        value={getSandboxInternetAccessConfigLabel(
+          selectedSandboxConfig.config
+        )}
+      />
+      <SandboxConfigRow
+        label="dependencies"
+        value={getSandboxDependenciesConfigLabel(selectedSandboxConfig.config)}
+      />
+    </List>
   );
 };
 
-function getRuntimeEnvVarsSupportLabel(option: SandboxConfigOption) {
-  if (option.supportsEnvVars == null) {
-    return "not advertised";
-  }
-  return option.supportsEnvVars ? "supported" : "not supported";
-}
-
-function getRuntimeInternetAccessSupportLabel(option: SandboxConfigOption) {
-  const value = option.internetAccess;
-  if (value == null) {
-    return "not advertised";
-  }
-  switch (value) {
-    case "BOOLEAN":
-      return "configurable";
-    case "ALLOWLIST":
-      return "allowlist";
-    case "NONE":
-      return "not supported";
-    default:
-      return value;
-  }
-}
-
-function getRuntimeDependenciesSupportLabel(option: SandboxConfigOption) {
-  if (option.dependenciesLanguage === undefined) {
-    return "not advertised";
-  }
-  if (option.dependenciesLanguage == null) {
-    return "not supported";
-  }
-  return option.dependenciesLanguage === "PYTHON" ? "Python" : "TypeScript";
-}
-
-const SandboxCapabilityRow = ({
+const SandboxConfigRow = ({
   label,
   value,
 }: {
