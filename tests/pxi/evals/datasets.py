@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import yaml
 
-from tests.pxi.evals.types import EvalDataset
+from tests.pxi.evals.types import EvalDataset, JsonObject, PhoenixExample
 
 DATASETS_DIR = Path(__file__).parent / "datasets"
 
@@ -52,14 +52,14 @@ def load_dataset(dataset: str | Path) -> EvalDataset:
         raise DatasetValidationError(f"Invalid dataset {path}: {exc}") from exc
 
 
-def to_phoenix_examples(dataset: EvalDataset) -> list[dict[str, Any]]:
+def to_phoenix_examples(dataset: EvalDataset) -> list[PhoenixExample]:
     """Convert a validated dataset into the dict shape Phoenix client upserts."""
     return [
         {
-            "id": example.id,
-            "input": example.input.model_dump(mode="json"),
-            "output": example.expected.model_dump(mode="json", by_alias=True),
-            "metadata": example.metadata,
+            "id": example["id"],
+            "input": example["input"],
+            "output": example["expected"],
+            "metadata": cast(JsonObject, example.get("metadata") or {}),
         }
         for example in dataset.examples
     ]

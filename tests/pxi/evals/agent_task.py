@@ -4,16 +4,19 @@ import json
 import os
 import sys
 from collections.abc import Mapping
-from typing import Any, Literal, cast
+from typing import Literal, NoReturn, cast
 
+from phoenix.client.resources.datasets import DatasetExample as PhoenixDatasetExample
+from phoenix.client.resources.experiments.types import ExperimentTask
 from pydantic_ai import DeferredToolRequests
 from pydantic_ai.mcp import MCPServerStreamableHTTP
+from pydantic_ai.models import Model as PydanticAIModel
 
 from phoenix.config import get_env_allow_external_resources, get_env_dangerously_enable_agents
 from phoenix.server.agents.capabilities import AgentCapabilities
 from phoenix.server.agents.chat_v2.dependencies import ChatDependencies
 from phoenix.server.agents.chat_v2.mintlify_docs import build_mintlify_docs_toolset
-from phoenix.server.agents.chat_v2.pxi_agent import create_pxi_agent
+from phoenix.server.agents.chat_v2.pxi_agent import ChatOutput, create_pxi_agent
 from phoenix.server.agents.context import ProjectContext, ResolvedContexts
 from phoenix.server.agents.model_factory import (
     _anthropic_cache_settings as anthropic_cache_settings,
@@ -24,7 +27,14 @@ from phoenix.server.agents.model_factory import (
 from phoenix.server.agents.model_factory import (
     azure_endpoint_to_base_url,
 )
-from tests.pxi.evals.types import AgentTaskOutput, ToolCall
+from phoenix.server.types import DbSessionFactory
+from tests.pxi.evals.types import (
+    AgentTaskOutput,
+    ExampleInput,
+    JsonObject,
+    JsonValue,
+    ToolCall,
+)
 
 DEFAULT_ASSISTANT_PROVIDER = "OPENAI"
 DEFAULT_ASSISTANT_MODEL = "gpt-5.4"
@@ -32,7 +42,7 @@ DEFAULT_PROJECT_NODE_ID = "UHJvamVjdDox"
 _MAX_ERROR_MESSAGE_LEN = 200
 
 
-async def _empty_db_context() -> Any:
+async def _empty_db_context() -> NoReturn:
     raise RuntimeError("PXI eval task does not provide a database session")
 
 
@@ -44,7 +54,7 @@ def _warn_placeholder_api_key(provider: str, base_url: str) -> None:
     )
 
 
-async def _build_model() -> Any:
+async def _build_model() -> PydanticAIModel:
     provider = os.getenv("PXI_E2E_ASSISTANT_PROVIDER", DEFAULT_ASSISTANT_PROVIDER).upper()
     model_name = os.getenv("PXI_E2E_ASSISTANT_MODEL", DEFAULT_ASSISTANT_MODEL)
     openai_api_type = os.getenv("PXI_E2E_ASSISTANT_OPENAI_API_TYPE", "responses")
@@ -155,28 +165,28 @@ def _build_dependencies(
     )
     return ChatDependencies(
         user=None,
-        db=cast(Any, _empty_db_context),
+        db=cast(DbSessionFactory, _empty_db_context),
         contexts=contexts,
         capabilities=AgentCapabilities(),
         docs_mcp_toolset=docs_mcp_toolset,
     )
 
 
-def _jsonish(value: Any) -> Any:
+def _jsonish(value: object) -> JsonValue:
     try:
         json.dumps(value)
     except TypeError:
         if hasattr(value, "model_dump"):
-            return value.model_dump(mode="json")
+            return cast(JsonValue, value.model_dump(mode="json"))
         if hasattr(value, "__dict__"):
             return {
                 key: _jsonish(item) for key, item in vars(value).items() if not key.startswith("_")
             }
         return f"<unserializable {type(value).__name__}>"
-    return value
+    return cast(JsonValue, value)
 
 
-def _normalize_args(args: Any) -> dict[str, Any]:
+def _normalize_args(args: object) -> JsonObject:
     if args is None:
         return {}
     if hasattr(args, "args_as_dict"):
@@ -185,34 +195,36 @@ def _normalize_args(args: Any) -> dict[str, Any]:
         try:
             args = json.loads(args)
         except json.JSONDecodeError:
-            return {"__raw_args": args}
-    return args if isinstance(args, dict) else {"__raw_args": _jsonish(args)}
+            return {"__raw_args": cast(str, args)}
+    return cast(JsonObject, args) if isinstance(args, dict) else {"__raw_args": _jsonish(args)}
 
 
-def _normalize_tool_call(call: Any) -> ToolCall | None:
+def _normalize_tool_call(call: object) -> ToolCall | None:
     name = getattr(call, "tool_name", None) or getattr(call, "name", None)
     if not isinstance(name, str):
         return None
     args = getattr(call, "args", None) or getattr(call, "arguments", None)
-    return ToolCall(name=name, args=_normalize_args(args))
+    return {"name": name, "args": _normalize_args(args)}
 
 
-def _normalize_part(part: Any) -> dict[str, Any]:
+def _normalize_part(part: object) -> JsonObject:
     part_kind = getattr(part, "part_kind", type(part).__name__)
-    normalized: dict[str, Any] = {"part_kind": part_kind}
+    normalized: JsonObject = {"part_kind": part_kind}
     content = getattr(part, "content", None)
     if content is not None:
         normalized["content"] = _jsonish(content)
-    if tool_name := getattr(part, "tool_name", None):
+    tool_name = getattr(part, "tool_name", None)
+    if isinstance(tool_name, str):
         normalized["tool_name"] = tool_name
     if hasattr(part, "args"):
         normalized["args"] = _normalize_args(getattr(part, "args"))
-    if tool_call_id := getattr(part, "tool_call_id", None):
+    tool_call_id = getattr(part, "tool_call_id", None)
+    if isinstance(tool_call_id, str):
         normalized["tool_call_id"] = tool_call_id
     return normalized
 
 
-def _normalize_messages(result: Any) -> list[dict[str, Any]]:
+def _normalize_messages(result: object) -> list[JsonObject]:
     new_messages = getattr(result, "new_messages", None)
     if not callable(new_messages):
         return []
@@ -225,53 +237,72 @@ def _normalize_messages(result: Any) -> list[dict[str, Any]]:
     ]
 
 
-def _tool_calls_from_messages(messages: list[dict[str, Any]]) -> list[ToolCall]:
-    calls = []
+def _tool_calls_from_messages(messages: list[JsonObject]) -> list[ToolCall]:
+    calls: list[ToolCall] = []
     for message in messages:
-        for part in message.get("parts", []):
+        parts = message.get("parts", [])
+        if not isinstance(parts, list):
+            continue
+        for part in parts:
             if not isinstance(part, Mapping) or part.get("part_kind") != "tool-call":
                 continue
             tool_name = part.get("tool_name")
             if isinstance(tool_name, str):
-                calls.append(ToolCall(name=tool_name, args=_normalize_args(part.get("args"))))
+                calls.append({"name": tool_name, "args": _normalize_args(part.get("args"))})
     return calls
 
 
-def _assistant_text_from_messages(messages: list[dict[str, Any]]) -> str | None:
+def _assistant_text_from_messages(messages: list[JsonObject]) -> str | None:
     text_parts = [
-        part["content"]
+        content
         for message in messages
-        for part in message.get("parts", [])
+        for part in cast(list[object], message.get("parts", []))
         if isinstance(part, Mapping)
         and part.get("part_kind") == "text"
-        and isinstance(part.get("content"), str)
+        and isinstance(content := part.get("content"), str)
     ]
     return "\n".join(text_parts) if text_parts else None
 
 
-def _tool_call_key(call: ToolCall) -> tuple[str, str]:
+def _tool_call_key(call: Mapping[str, object]) -> tuple[str, str]:
     """Stable identity for a tool call independent of arg normalization path."""
-    return call.name, json.dumps(call.args, sort_keys=True, default=str)
+    return str(call.get("name") or ""), json.dumps(
+        call.get("args") or {}, sort_keys=True, default=str
+    )
 
 
-def normalize_agent_output(result: Any) -> AgentTaskOutput:
-    output = getattr(result, "output", result)
-    raw_output_type = type(output).__name__
+def _task_output(
+    *,
+    output: ChatOutput | object,
+    assistant_text: str | None,
+    tool_calls: list[ToolCall],
+    messages: list[JsonObject],
+) -> AgentTaskOutput:
+    return {
+        "assistant_text": assistant_text,
+        "tool_calls": tool_calls,
+        "messages": messages,
+        "raw_output_type": type(output).__name__,
+    }
+
+
+def normalize_agent_output(result: object) -> AgentTaskOutput:
+    output: ChatOutput | object = getattr(result, "output", result)
     messages = _normalize_messages(result)
     tool_calls = _tool_calls_from_messages(messages)
     assistant_text = _assistant_text_from_messages(messages)
 
     if isinstance(output, str):
-        return AgentTaskOutput(
+        return _task_output(
+            output=output,
             assistant_text=assistant_text or output,
             tool_calls=tool_calls,
             messages=messages,
-            raw_output_type=raw_output_type,
         )
 
     if isinstance(output, DeferredToolRequests):
         seen_keys = {_tool_call_key(call) for call in tool_calls}
-        deferred_calls: list[Any] = []
+        deferred_calls: list[object] = []
         for attr in ("calls", "tool_calls", "deferred_calls"):
             value = getattr(output, attr, None)
             if value:
@@ -286,24 +317,24 @@ def normalize_agent_output(result: Any) -> AgentTaskOutput:
                 continue
             seen_keys.add(key)
             tool_calls.append(call)
-        return AgentTaskOutput(
+        return _task_output(
+            output=output,
             assistant_text=assistant_text,
             tool_calls=tool_calls,
             messages=messages,
-            raw_output_type=raw_output_type,
         )
 
-    return AgentTaskOutput(
+    return _task_output(
+        output=output,
         assistant_text=assistant_text or (str(output) if output is not None else None),
         tool_calls=tool_calls,
         messages=messages,
-        raw_output_type=raw_output_type,
     )
 
 
 def make_task(
     docs_mcp_toolset: MCPServerStreamableHTTP | None = None,
-) -> Any:
+) -> ExperimentTask:
     """Build a Phoenix experiment task callable bound to a shared toolset.
 
     The returned coroutine receives an experiment example dict
@@ -314,17 +345,21 @@ def make_task(
     scope rule.
     """
 
-    async def task(example: dict[str, Any]) -> dict[str, Any]:
+    async def task(example: PhoenixDatasetExample) -> AgentTaskOutput:
+        input_value = example["input"]
+        query = input_value.get("query")
+        if not isinstance(query, str):
+            raise ValueError("PXI eval examples must define input.query")
         return await run_pxi_example(
-            example["input"],
+            {"query": query},
             stable_example_id=example.get("id"),
             docs_mcp_toolset=docs_mcp_toolset,
         )
 
-    return task
+    return cast(ExperimentTask, task)
 
 
-async def task(example: dict[str, Any]) -> dict[str, Any]:
+async def task(example: PhoenixDatasetExample) -> AgentTaskOutput:
     """Backwards-compatible task callable that builds no docs MCP toolset.
 
     Prefer :func:`make_task` so the toolset is shared across concurrent
@@ -332,24 +367,25 @@ async def task(example: dict[str, Any]) -> dict[str, Any]:
     toolset and for backwards compatibility with the original
     ``from tests.pxi.evals.agent_task import task`` import.
     """
-    return await run_pxi_example(
-        example["input"],
-        stable_example_id=example.get("id"),
-    )
+    input_value = example["input"]
+    query = input_value.get("query")
+    if not isinstance(query, str):
+        raise ValueError("PXI eval examples must define input.query")
+    return await run_pxi_example({"query": query}, stable_example_id=example.get("id"))
 
 
 async def run_pxi_example(
-    input: dict[str, Any],
+    input: ExampleInput,
     *,
     stable_example_id: str | None = None,
     docs_mcp_toolset: MCPServerStreamableHTTP | None = None,
-) -> dict[str, Any]:
+) -> AgentTaskOutput:
     """Run a single PXI agent turn imperatively.
 
-    ``input`` is an ``ExampleInput``-shaped dict; only ``input["query"]`` is
+    ``input`` is an example input dict; only ``input["query"]`` is
     consumed. Failures anywhere in setup or in ``agent.run`` are caught and
-    returned as an :class:`AgentTaskOutput` with ``error`` set, so the
-    failure report can still resolve a stable example ID for the row.
+    returned with ``error`` set, so the failure report can still resolve a
+    stable example ID for the row.
 
     ``docs_mcp_toolset`` should be a single shared, already-entered
     :class:`MCPServerStreamableHTTP` (built via
@@ -371,11 +407,14 @@ async def run_pxi_example(
         message = str(exc)
         if len(message) > _MAX_ERROR_MESSAGE_LEN:
             message = message[:_MAX_ERROR_MESSAGE_LEN] + "…"
-        output = AgentTaskOutput(
-            raw_output_type=type(exc).__name__,
-            error=f"{type(exc).__name__}: {message}" if message else type(exc).__name__,
-        )
-    payload = output.model_dump(mode="json")
+        output = {
+            "assistant_text": None,
+            "tool_calls": [],
+            "messages": [],
+            "raw_output_type": type(exc).__name__,
+            "error": f"{type(exc).__name__}: {message}" if message else type(exc).__name__,
+        }
+    payload = output
     if stable_example_id is not None:
         payload["stable_example_id"] = stable_example_id
     return payload

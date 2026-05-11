@@ -1,45 +1,42 @@
 from __future__ import annotations
 
-from typing import Any
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
+from typing_extensions import NotRequired, TypeAlias, TypedDict
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-
-
-class ToolExpectation(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    required: list[str] = Field(default_factory=list)
-    forbidden: list[str] = Field(default_factory=list)
-    exact_match: bool = False
+JsonValue: TypeAlias = str | int | float | bool | None | list[object] | dict[str, object]
+JsonObject: TypeAlias = dict[str, object]
 
 
-class ExampleExpected(BaseModel):
-    model_config = ConfigDict(populate_by_name=True, extra="forbid")
-
-    tools: ToolExpectation
-    tool_call_args: dict[str, dict[str, Any]] = Field(default_factory=dict)
-
-
-class ExampleInput(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
+class ExampleInput(TypedDict):
     query: str
 
 
-class DatasetExample(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
+class DatasetExample(TypedDict):
     id: str
     input: ExampleInput
-    expected: ExampleExpected
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    expected: JsonObject
+    metadata: NotRequired[JsonObject]
 
-    @field_validator("id")
-    @classmethod
-    def _id_not_empty(cls, value: str) -> str:
-        if not value.strip():
-            raise ValueError("example id cannot be empty")
-        return value
+
+class PhoenixExample(TypedDict):
+    id: str
+    input: ExampleInput
+    output: JsonObject
+    metadata: JsonObject
+
+
+class ToolCall(TypedDict):
+    name: str
+    args: JsonObject
+
+
+class AgentTaskOutput(TypedDict, total=False):
+    assistant_text: str | None
+    tool_calls: list[ToolCall]
+    messages: list[JsonObject]
+    raw_output_type: str
+    error: str
+    stable_example_id: str
 
 
 class EvalDataset(BaseModel):
@@ -60,25 +57,27 @@ class EvalDataset(BaseModel):
     def _validate_examples(self) -> "EvalDataset":
         if not self.examples:
             raise ValueError("dataset must contain at least one example")
-        ids = [example.id for example in self.examples]
+        ids: list[str] = []
+        for index, example in enumerate(self.examples):
+            if not isinstance(example, dict):
+                raise ValueError(f"example {index} must be an object")
+            example_id = example.get("id")
+            if not isinstance(example_id, str) or not example_id.strip():
+                raise ValueError(f"example {index} id cannot be empty")
+            ids.append(example_id)
+            input_value = example.get("input")
+            if not isinstance(input_value, dict) or not isinstance(input_value.get("query"), str):
+                raise ValueError(f"example {example_id} must define input.query")
+            expected = example.get("expected")
+            if not isinstance(expected, dict):
+                raise ValueError(f"example {example_id} must define expected")
+            tools = expected.get("tools")
+            if not isinstance(tools, dict):
+                raise ValueError(f"example {example_id} must define expected.tools")
+            metadata = example.setdefault("metadata", {})
+            if not isinstance(metadata, dict):
+                raise ValueError(f"example {example_id} metadata must be an object")
         duplicates = sorted({example_id for example_id in ids if ids.count(example_id) > 1})
         if duplicates:
             raise ValueError(f"duplicate example ids: {', '.join(duplicates)}")
         return self
-
-
-class ToolCall(BaseModel):
-    model_config = ConfigDict(extra="allow")
-
-    name: str
-    args: dict[str, Any] = Field(default_factory=dict)
-
-
-class AgentTaskOutput(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    assistant_text: str | None = None
-    tool_calls: list[ToolCall] = Field(default_factory=list)
-    messages: list[dict[str, Any]] = Field(default_factory=list)
-    raw_output_type: str
-    error: str | None = None

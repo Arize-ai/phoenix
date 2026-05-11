@@ -8,6 +8,7 @@ Run directly:
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -17,7 +18,7 @@ from tests.pxi.evals.datasets import (
     load_dataset,
     to_phoenix_examples,
 )
-from tests.pxi.evals.types import EvalDataset
+from tests.pxi.evals.types import EvalDataset, JsonObject
 
 _VALID_YAML = """\
 dataset_name: example_suite
@@ -59,7 +60,7 @@ class TestLoadDataset:
         assert isinstance(dataset, EvalDataset)
         assert dataset.dataset_name == "example_suite"
         assert len(dataset.examples) == 1
-        assert dataset.examples[0].id == "ex-1"
+        assert dataset.examples[0]["id"] == "ex-1"
 
     def test_malformed_yaml_raises_validation_error(self, tmp_path: Path) -> None:
         path = _write(tmp_path / "bad.yaml", "dataset_name: [unterminated\n")
@@ -126,6 +127,8 @@ class TestToPhoenixExamples:
         assert ex["input"] == {"query": "hello"}
         # ``output`` carries expected (which is the dataset's expected
         # behavior) so Phoenix can show it alongside actual outputs.
-        assert ex["output"]["tools"]["required"] == ["foo"]
-        assert ex["output"]["tool_call_args"] == {"foo": {"a": 1}}
+        output = ex["output"]
+        tools = cast(JsonObject, output["tools"])
+        assert tools["required"] == ["foo"]
+        assert output["tool_call_args"] == {"foo": {"a": 1}}
         assert ex["metadata"] == {"category": "greeting"}
