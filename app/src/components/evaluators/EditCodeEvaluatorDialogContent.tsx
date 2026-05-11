@@ -676,28 +676,58 @@ const CodeEditor = ({
 
   return (
     <Flex direction="column" gap="size-100">
-      {/* Editor header with reset button */}
+      {/* Editor header with controls */}
       <Flex
         direction="row"
         justifyContent="space-between"
         alignItems="center"
+        gap="size-200"
         flex="none"
       >
         <Text color="text-500" size="XS">
           {descriptionText}
         </Text>
-        <Button
-          size="S"
-          variant="quiet"
-          onPress={() =>
-            onChange(
-              getDefaultCodeEvaluatorSource(language, outputShape, outputConfig)
-            )
-          }
+        <Flex
+          direction="row"
+          alignItems="center"
+          gap="size-150"
+          flex="none"
+          minWidth={0}
         >
-          <Icon svg={<Icons.Refresh />} />
-          Reset
-        </Button>
+          {typeFooter ? (
+            <Switch
+              isSelected={showTypes}
+              onChange={setShowTypes}
+              labelPlacement="end"
+            >
+              <Text size="XS" color="text-700">
+                Show types
+              </Text>
+            </Switch>
+          ) : null}
+          <CopyToClipboardButton
+            text={sourceCode}
+            size="S"
+            variant="quiet"
+            tooltipText="Copy code"
+          />
+          <Button
+            size="S"
+            variant="quiet"
+            onPress={() =>
+              onChange(
+                getDefaultCodeEvaluatorSource(
+                  language,
+                  outputShape,
+                  outputConfig
+                )
+              )
+            }
+          >
+            <Icon svg={<Icons.Refresh />} />
+            Reset
+          </Button>
+        </Flex>
       </Flex>
 
       {/* Code editor and type footer with resizable panels */}
@@ -761,28 +791,6 @@ const CodeEditor = ({
             </>
           )}
         </Group>
-        {/* Editor footer toolbar: copy code + toggle the type footer */}
-        <div css={editorFooterCSS}>
-          {typeFooter ? (
-            <Switch
-              isSelected={showTypes}
-              onChange={setShowTypes}
-              labelPlacement="end"
-            >
-              <Text size="XS" color="text-700">
-                Show types
-              </Text>
-            </Switch>
-          ) : (
-            <span />
-          )}
-          <CopyToClipboardButton
-            text={sourceCode}
-            size="S"
-            variant="quiet"
-            tooltipText="Copy code"
-          />
-        </div>
       </div>
     </Flex>
   );
@@ -1223,17 +1231,6 @@ const typeFooterCSS = css`
   & .cm-scroller {
     overflow: auto !important;
   }
-`;
-
-const editorFooterCSS = css`
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--global-dimension-size-100);
-  padding: var(--global-dimension-size-50) var(--global-dimension-size-100);
-  border-top: 1px solid var(--global-border-color-default);
-  background-color: var(--ac-global-color-grey-100);
 `;
 
 const choiceGridCSS = css`
