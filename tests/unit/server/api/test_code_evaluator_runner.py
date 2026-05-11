@@ -14,6 +14,11 @@ import json
 from unittest.mock import AsyncMock
 
 import pytest
+from openinference.semconv.trace import SpanAttributes
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+from opentelemetry.trace import StatusCode, Tracer
 
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
@@ -24,6 +29,10 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.db.types.evaluators import InputMapping
 from phoenix.server.api.evaluators import CodeEvaluatorRunner
 from phoenix.server.sandbox.types import ExecutionResult
+
+OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
+INPUT_VALUE = SpanAttributes.INPUT_VALUE
+OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 
 
 def _categorical_config(name: str = "score") -> CategoricalOutputConfig:
@@ -610,3 +619,135 @@ class TestExplanationPlumbing:
         results_by_name = {r["name"]: r for r in results}
         assert results_by_name["eval.a"]["explanation"] == "config-specific"
         assert results_by_name["eval.b"]["explanation"] == "shared fallback"
+
+
+def _make_tracer() -> tuple[Tracer, InMemorySpanExporter]:
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    return provider.get_tracer(__name__), exporter
+
+
+class TestEvaluateTracing:
+    async def test_happy_path_emits_four_spans_with_expected_attributes(self) -> None:
+        runner, _ = _make_runner(backend_stdout='"pass"', timeout=30)
+        tracer, exporter = _make_tracer()
+
+        results = await runner.evaluate(
+            context={"output": "answer"},
+            input_mapping=_EMPTY_MAPPING,
+            name="my-eval",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        spans = exporter.get_finished_spans()
+        names = {span.name for span in spans}
+        assert names == {
+            "Evaluator: my-eval",
+            "Input Mapping",
+            "Sandbox Execution",
+            "Parse Eval Result",
+        }
+
+        spans_by_name = {span.name: span for span in spans}
+        evaluator_attrs = dict(spans_by_name["Evaluator: my-eval"].attributes or {})
+        input_mapping_attrs = dict(spans_by_name["Input Mapping"].attributes or {})
+        sandbox_attrs = dict(spans_by_name["Sandbox Execution"].attributes or {})
+        parse_attrs = dict(spans_by_name["Parse Eval Result"].attributes or {})
+
+        # Span kinds.
+        assert evaluator_attrs[OPENINFERENCE_SPAN_KIND] == "EVALUATOR"
+        assert input_mapping_attrs[OPENINFERENCE_SPAN_KIND] == "CHAIN"
+        assert sandbox_attrs[OPENINFERENCE_SPAN_KIND] == "CHAIN"
+        assert parse_attrs[OPENINFERENCE_SPAN_KIND] == "CHAIN"
+
+        # Root span carries INPUT_VALUE and OUTPUT_VALUE.
+        assert INPUT_VALUE in evaluator_attrs
+        assert OUTPUT_VALUE in evaluator_attrs
+
+        # Input Mapping JSON shape.
+        raw_input_mapping = input_mapping_attrs[INPUT_VALUE]
+        assert isinstance(raw_input_mapping, str)
+        input_mapping_json = json.loads(raw_input_mapping)
+        assert set(input_mapping_json.keys()) == {"input_mapping", "template_variables"}
+        assert set(input_mapping_json["input_mapping"].keys()) == {
+            "path_mapping",
+            "literal_mapping",
+        }
+
+        # Sandbox Execution scalar attributes.
+        assert sandbox_attrs["sandbox.backend_type"] == "AsyncMock"
+        assert sandbox_attrs["sandbox.language"] == "PYTHON"
+        assert sandbox_attrs["sandbox.session_key"] == runner._name
+        assert sandbox_attrs["sandbox.timeout"] == 30
+
+        # trace_id is set on every result when a real tracer was passed.
+        assert len(results) == 1
+        assert results[0]["trace_id"] is not None
+
+    async def test_timeout_omitted_when_not_configured(self) -> None:
+        runner, _ = _make_runner(backend_stdout='"pass"', timeout=None)
+        tracer, exporter = _make_tracer()
+
+        await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="t",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        sandbox_attrs = dict(spans_by_name["Sandbox Execution"].attributes or {})
+        assert "sandbox.timeout" not in sandbox_attrs
+
+    async def test_no_tracer_yields_none_trace_id(self) -> None:
+        runner, _ = _make_runner(backend_stdout='"pass"')
+        results = await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="t",
+            output_configs=[_categorical_config()],
+        )
+        assert results[0]["trace_id"] is None
+
+    async def test_backend_error_field_sets_root_error_status_and_trace_id(self) -> None:
+        runner, _ = _make_runner(backend_error="SyntaxError: bad")
+        tracer, exporter = _make_tracer()
+
+        results = await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="err",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        evaluator_span = spans_by_name["Evaluator: err"]
+        assert evaluator_span.status.status_code == StatusCode.ERROR
+
+        # No synthetic exception event for the returned-error path.
+        assert not any(event.name == "exception" for event in evaluator_span.events)
+
+        assert results[0]["trace_id"] is not None
+        assert results[0]["error"] == "SyntaxError: bad"
+
+    async def test_backend_raises_records_exception_on_root(self) -> None:
+        runner, _ = _make_runner(backend_raises=RuntimeError("boom"))
+        tracer, exporter = _make_tracer()
+
+        results = await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="err",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        evaluator_span = spans_by_name["Evaluator: err"]
+        assert evaluator_span.status.status_code == StatusCode.ERROR
+        assert any(event.name == "exception" for event in evaluator_span.events)
+        assert results[0]["trace_id"] is not None

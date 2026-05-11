@@ -2580,6 +2580,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
         name: str,
         error: str,
         start_time: datetime,
+        trace_id: Optional[str] = None,
     ) -> EvaluationResult:
         return EvaluationResult(
             name=name,
@@ -2589,7 +2590,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
             explanation=None,
             metadata={},
             error=error,
-            trace_id=None,
+            trace_id=trace_id,
             start_time=start_time,
             end_time=datetime.now(timezone.utc),
         )
@@ -2606,119 +2607,259 @@ class CodeEvaluatorRunner(BaseEvaluator):
         from phoenix.server.api.coerce_output import _coerce_output
 
         start_time = datetime.now(timezone.utc)
+        tracer_ = tracer or NoOpTracer()
 
-        input_schema, inference_error = self._infer_input_schema()
-        if inference_error is not None:
-            return [
-                self._make_error_result(name, inference_error, start_time)
-                for _ in (output_configs or [None])  # type: ignore[list-item]
-            ]
-
-        try:
-            mapped_inputs = apply_input_mapping(
-                input_schema=input_schema,
-                input_mapping=input_mapping,
-                context=context,
+        with tracer_.start_as_current_span(
+            f"Evaluator: {name}",
+            attributes={
+                **oi.get_span_kind_attributes("evaluator"),
+                **oi.get_input_attributes(context),
+            },
+            context=Context(),
+        ) as evaluator_span:
+            trace_id = (
+                format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
             )
-        except Exception as exc:
-            err = f"Input mapping failed: {exc}"
-            return [
-                self._make_error_result(name, err, start_time)
-                for _ in (output_configs or [None])  # type: ignore[list-item]
-            ]
 
-        # Build language-appropriate harness
-        if self._language == "PYTHON":
-            code = self._build_python_harness(mapped_inputs)
-        else:
-            code = self._build_typescript_harness(mapped_inputs)
+            input_schema, inference_error = self._infer_input_schema()
+            if inference_error is not None:
+                evaluator_span.set_status(Status(StatusCode.ERROR, inference_error))
+                return [
+                    self._make_error_result(name, inference_error, start_time, trace_id=trace_id)
+                    for _ in (output_configs or [None])  # type: ignore[list-item]
+                ]
 
-        try:
-            execution = await asyncio.wait_for(
-                self._sandbox_backend.execute(
-                    code,
-                    session_key=self._name,
-                    timeout=self._timeout,
-                ),
-                timeout=self._timeout,
-            )
-        except asyncio.TimeoutError:
-            asyncio.create_task(_stop_session_quietly(self._sandbox_backend, self._name, logger))
-            execution = ExecutionResult(stdout="", stderr="", error="timeout")
-        except UnsupportedOperation as exc:
-            err = f"Sandbox backend does not support this operation: {exc}"
-            return [
-                self._make_error_result(name, err, start_time)
-                for _ in (output_configs or [None])  # type: ignore[list-item]
-            ]
-        except Exception as exc:
-            err = f"Sandbox execution failed: {exc}"
-            return [
-                self._make_error_result(name, err, start_time)
-                for _ in (output_configs or [None])  # type: ignore[list-item]
-            ]
-
-        if execution.error:
-            return [
-                self._make_error_result(name, execution.error, start_time)
-                for _ in (output_configs or [None])  # type: ignore[list-item]
-            ]
-
-        # Parse the JSON-printed return value from stdout
-        raw_value: Any = None
-        stdout = execution.stdout.strip()
-        if stdout:
             try:
-                raw_value = json.loads(stdout)
-            except json.JSONDecodeError:
-                raw_value = stdout
+                with tracer_.start_as_current_span(
+                    "Input Mapping",
+                    attributes={
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
+                            {
+                                "input_mapping": {
+                                    "path_mapping": input_mapping.path_mapping or {},
+                                    "literal_mapping": input_mapping.literal_mapping or {},
+                                },
+                                "template_variables": context,
+                            }
+                        ),
+                    },
+                ) as input_mapping_span:
+                    mapped_inputs = apply_input_mapping(
+                        input_schema=input_schema,
+                        input_mapping=input_mapping,
+                        context=context,
+                    )
+                    input_mapping_span.set_attributes(oi.get_output_attributes(mapped_inputs))
+                    input_mapping_span.set_status(Status(StatusCode.OK))
+            except Exception as exc:
+                err = f"Input mapping failed: {exc}"
+                evaluator_span.record_exception(exc)
+                evaluator_span.set_status(Status(StatusCode.ERROR, err))
+                return [
+                    self._make_error_result(name, err, start_time, trace_id=trace_id)
+                    for _ in (output_configs or [None])  # type: ignore[list-item]
+                ]
 
-        multi_output = len(output_configs) > 1
+            # Build language-appropriate harness
+            if self._language == "PYTHON":
+                code = self._build_python_harness(mapped_inputs)
+            else:
+                code = self._build_typescript_harness(mapped_inputs)
 
-        # Multi-output routing: when raw_value is a dict whose keys cover every
-        # config.name, dispatch each named sub-value to _coerce_output individually.
-        # Top-level "explanation" acts as a shared fallback when a per-config
-        # sub-value omits its own explanation.
-        routed = (
-            multi_output
-            and isinstance(raw_value, dict)
-            and all(c.name in raw_value for c in output_configs)
-        )
-        shared_explanation: Optional[str] = None
-        if routed and isinstance(raw_value, dict):
-            top_level_explanation = raw_value.get("explanation")
-            if isinstance(top_level_explanation, str):
-                shared_explanation = top_level_explanation
+            sandbox_attributes: dict[str, Any] = {
+                "sandbox.backend_type": type(self._sandbox_backend).__name__,
+                "sandbox.language": self._language,
+                "sandbox.session_key": self._name,
+            }
+            if self._timeout is not None:
+                sandbox_attributes["sandbox.timeout"] = int(self._timeout)
 
-        results: list[EvaluationResult] = []
-        for config in output_configs:
-            annotation_name = f"{name}.{config.name}" if multi_output else name
-            coerce_value = (
-                raw_value[config.name] if routed and isinstance(raw_value, dict) else raw_value
+            with tracer_.start_as_current_span(
+                "Sandbox Execution",
+                attributes={
+                    **oi.get_span_kind_attributes("chain"),
+                    **sandbox_attributes,
+                },
+            ) as sandbox_span:
+                try:
+                    execution = await asyncio.wait_for(
+                        self._sandbox_backend.execute(
+                            code,
+                            session_key=self._name,
+                            timeout=self._timeout,
+                        ),
+                        timeout=self._timeout,
+                    )
+                except asyncio.TimeoutError as exc:
+                    asyncio.create_task(
+                        _stop_session_quietly(self._sandbox_backend, self._name, logger)
+                    )
+                    execution = ExecutionResult(stdout="", stderr="", error="timeout")
+                    sandbox_span.record_exception(exc)
+                    sandbox_span.set_status(Status(StatusCode.ERROR, "timeout"))
+                    evaluator_span.record_exception(exc)
+                    evaluator_span.set_status(Status(StatusCode.ERROR, "timeout"))
+                    return [
+                        self._make_error_result(
+                            name, execution.error or "timeout", start_time, trace_id=trace_id
+                        )
+                        for _ in (output_configs or [None])  # type: ignore[list-item]
+                    ]
+                except UnsupportedOperation as exc:
+                    err = f"Sandbox backend does not support this operation: {exc}"
+                    sandbox_span.record_exception(exc)
+                    sandbox_span.set_status(Status(StatusCode.ERROR, err))
+                    evaluator_span.record_exception(exc)
+                    evaluator_span.set_status(Status(StatusCode.ERROR, err))
+                    return [
+                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        for _ in (output_configs or [None])  # type: ignore[list-item]
+                    ]
+                except Exception as exc:
+                    err = f"Sandbox execution failed: {exc}"
+                    sandbox_span.record_exception(exc)
+                    sandbox_span.set_status(Status(StatusCode.ERROR, err))
+                    evaluator_span.record_exception(exc)
+                    evaluator_span.set_status(Status(StatusCode.ERROR, err))
+                    return [
+                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        for _ in (output_configs or [None])  # type: ignore[list-item]
+                    ]
+
+                if execution.error:
+                    sandbox_span.set_status(Status(StatusCode.ERROR, execution.error))
+                else:
+                    sandbox_span.set_attributes(
+                        oi.get_output_attributes(execution.stdout, mime_type="text/plain")
+                    )
+                    sandbox_span.set_status(Status(StatusCode.OK))
+
+            if execution.error:
+                evaluator_span.set_status(Status(StatusCode.ERROR, execution.error))
+                return [
+                    self._make_error_result(name, execution.error, start_time, trace_id=trace_id)
+                    for _ in (output_configs or [None])  # type: ignore[list-item]
+                ]
+
+            # Parse the JSON-printed return value from stdout
+            raw_value: Any = None
+            stdout = execution.stdout.strip()
+            if stdout:
+                try:
+                    raw_value = json.loads(stdout)
+                except json.JSONDecodeError:
+                    raw_value = stdout
+
+            multi_output = len(output_configs) > 1
+
+            # Multi-output routing: when raw_value is a dict whose keys cover every
+            # config.name, dispatch each named sub-value to _coerce_output individually.
+            # Top-level "explanation" acts as a shared fallback when a per-config
+            # sub-value omits its own explanation.
+            routed = (
+                multi_output
+                and isinstance(raw_value, dict)
+                and all(c.name in raw_value for c in output_configs)
             )
-            try:
-                label, score, explanation = _coerce_output(
-                    coerce_value, config, language=self._language
+            shared_explanation: Optional[str] = None
+            if routed and isinstance(raw_value, dict):
+                top_level_explanation = raw_value.get("explanation")
+                if isinstance(top_level_explanation, str):
+                    shared_explanation = top_level_explanation
+
+            results: list[EvaluationResult] = []
+            any_coerce_error = False
+            last_coerce_error: Optional[str] = None
+            with tracer_.start_as_current_span(
+                "Parse Eval Result",
+                attributes={
+                    **oi.get_span_kind_attributes("chain"),
+                    **oi.get_input_attributes(raw_value),
+                },
+            ) as parse_span:
+                for config in output_configs:
+                    annotation_name = f"{name}.{config.name}" if multi_output else name
+                    coerce_value = (
+                        raw_value[config.name]
+                        if routed and isinstance(raw_value, dict)
+                        else raw_value
+                    )
+                    try:
+                        label, score, explanation = _coerce_output(
+                            coerce_value, config, language=self._language
+                        )
+                    except ValueError as exc:
+                        any_coerce_error = True
+                        last_coerce_error = str(exc)
+                        results.append(
+                            self._make_error_result(
+                                annotation_name, str(exc), start_time, trace_id=trace_id
+                            )
+                        )
+                        continue
+                    # Per-config explanation wins; fall back to shared top-level explanation.
+                    if explanation is None:
+                        explanation = shared_explanation
+                    results.append(
+                        EvaluationResult(
+                            name=annotation_name,
+                            annotator_kind="CODE",
+                            label=label,
+                            score=score,
+                            explanation=explanation,
+                            metadata={},
+                            error=None,
+                            trace_id=trace_id,
+                            start_time=start_time,
+                            end_time=datetime.now(timezone.utc),
+                        )
+                    )
+
+                parse_span.set_attributes(
+                    oi.get_output_attributes(
+                        {
+                            "results": [
+                                {
+                                    "name": r["name"],
+                                    "label": r["label"],
+                                    "score": r["score"],
+                                    "explanation": r["explanation"],
+                                    "error": r["error"],
+                                }
+                                for r in results
+                            ]
+                        }
+                    )
                 )
-            except ValueError as exc:
-                results.append(self._make_error_result(annotation_name, str(exc), start_time))
-                continue
-            # Per-config explanation wins; fall back to shared top-level explanation.
-            if explanation is None:
-                explanation = shared_explanation
-            results.append(
-                EvaluationResult(
-                    name=annotation_name,
-                    annotator_kind="CODE",
-                    label=label,
-                    score=score,
-                    explanation=explanation,
-                    metadata={},
-                    error=None,
-                    trace_id=None,
-                    start_time=start_time,
-                    end_time=datetime.now(timezone.utc),
+                if any_coerce_error:
+                    parse_span.set_status(
+                        Status(StatusCode.ERROR, last_coerce_error or "coerce failed")
+                    )
+                else:
+                    parse_span.set_status(Status(StatusCode.OK))
+
+            evaluator_span.set_attributes(
+                oi.get_output_attributes(
+                    {
+                        "results": [
+                            {
+                                "name": r["name"],
+                                "label": r["label"],
+                                "score": r["score"],
+                                "explanation": r["explanation"],
+                                "error": r["error"],
+                            }
+                            for r in results
+                        ]
+                    }
                 )
             )
+            if any_coerce_error:
+                evaluator_span.set_status(
+                    Status(StatusCode.ERROR, last_coerce_error or "coerce failed")
+                )
+            else:
+                evaluator_span.set_status(Status(StatusCode.OK))
 
         return results
