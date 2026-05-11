@@ -10,7 +10,10 @@ import {
   ToolPart,
   type ToolPartType,
 } from "./ToolPart";
-import { TOOL_CALL_SUMMARY_LANE_RULES } from "./ToolPartPrimitives";
+import {
+  TOOL_CALL_SUMMARY_LANE_RULES,
+  TOOL_PART_ENTRY_KEYFRAMES,
+} from "./ToolPartPrimitives";
 
 type ToolState =
   | "input-streaming"
@@ -43,6 +46,9 @@ const toolPoolCSS = css`
   width: 100%;
   margin-top: var(--global-dimension-size-150);
   border-left: 1px solid var(--tool-call-body-border-color);
+  opacity: 0;
+  transform: translateY(-2px);
+  animation: ${TOOL_PART_ENTRY_KEYFRAMES} 250ms ease-out forwards;
   transition: border-color 150ms ease;
 
   &[data-header-active="true"] {

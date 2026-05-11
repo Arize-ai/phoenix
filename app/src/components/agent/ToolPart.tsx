@@ -24,6 +24,7 @@ import {
   getEditPromptToolPreview,
 } from "./EditPromptToolDetails";
 import {
+  TOOL_PART_ENTRY_KEYFRAMES,
   TOOL_CALL_SUMMARY_LANE_RULES,
   ToolPartCodeBlock,
   ToolPartLabel,
@@ -43,6 +44,9 @@ export const toolPartCSS = css`
   border-radius: var(--global-rounding-small);
   background: var(--tool-call-background-color);
   overflow: hidden;
+  opacity: 0;
+  transform: translateY(-2px);
+  animation: ${TOOL_PART_ENTRY_KEYFRAMES} 250ms ease-out forwards;
   transition: border-color 150ms ease;
 
   &:hover {
