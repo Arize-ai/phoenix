@@ -126,6 +126,8 @@ class WASMBackend(BaseNoSessionBackend):
         self,
         binary_path: Optional[Path] = None,
     ) -> None:
+        # secret_values stays at the SandboxBackend class default (frozenset()):
+        # WASM takes no provider credentials and does not support user_env.
         self._binary_path = binary_path
 
     def _resolve_binary(self) -> Path:

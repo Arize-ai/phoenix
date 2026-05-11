@@ -20,6 +20,7 @@ from .types import (
     ProviderCredentialSpec,
     SandboxAdapter,
     SandboxBackend,
+    compose_secret_values,
 )
 
 if TYPE_CHECKING:
@@ -62,6 +63,7 @@ class DaytonaSandboxBackend(SandboxBackend):
         self._network_block_all = network_block_all
         self._sessions: dict[str, AsyncSandbox] = {}
         self._client: Optional[AsyncDaytona] = None
+        self.secret_values = compose_secret_values(user_env, self._api_key)
 
     def _get_client(self) -> AsyncDaytona:
         if self._client is not None:

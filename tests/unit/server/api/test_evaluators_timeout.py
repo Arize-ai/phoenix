@@ -48,6 +48,11 @@ _EMPTY_MAPPING = InputMapping(literal_mapping={}, path_mapping={})
 class _SlowBackend(SandboxBackend):
     """Backend whose execute sleeps indefinitely; stop_session is tracked."""
 
+    # CodeEvaluatorRunner reads secret_values to seed SandboxSecretMasker;
+    # real backends get this attached by get_or_create_backend(). Direct
+    # test fixtures must declare it themselves.
+    secret_values: frozenset[str] = frozenset()
+
     def __init__(self, stop_raises: Exception | None = None) -> None:
         self.stop_session_calls: list[str] = []
         self._stop_raises = stop_raises
@@ -75,6 +80,9 @@ class _SlowBackend(SandboxBackend):
 
 class _FastBackend(SandboxBackend):
     """Backend that returns immediately with a configurable result."""
+
+    # See _SlowBackend.secret_values for rationale.
+    secret_values: frozenset[str] = frozenset()
 
     def __init__(self, result: ExecutionResult) -> None:
         self._result = result

@@ -25,7 +25,15 @@ import json
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Literal, MutableMapping, Optional
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Iterator,
+    Literal,
+    MutableMapping,
+    Optional,
+)
 
 from phoenix.config import get_env_allowed_sandbox_providers
 from phoenix.server.sandbox.types import (
@@ -45,6 +53,7 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
+
 
 # JSON Schema "type" → ConfigFieldSpec.field_type mapping.
 _JSON_SCHEMA_TYPE_MAP: dict[str, str] = {
@@ -707,6 +716,11 @@ async def get_or_create_backend(
     from pydantic import ValidationError
 
     try:
+        # Each backend populates self.secret_values in __init__ via
+        # compose_secret_values(user_env, *credentials). The factory does not
+        # post-construct it — the contract lives on SandboxBackend itself
+        # (class-level frozenset() default), so any backend reached here is
+        # already secret-mask-ready.
         backend = adapter.build_backend(effective_config, user_env=user_env)
         _BACKEND_CACHE[cache_key] = backend
         return backend
