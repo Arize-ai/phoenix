@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import {
@@ -37,6 +37,17 @@ export function SandboxConfigsCard({
   configRows: ConfigRow[];
   providerRows: ProviderRow[];
 }) {
+  // Only providers whose backend is available AND whose admin toggle is
+  // enabled can produce a working config — hide the rest so the create
+  // dropdown isn't cluttered with options the user can't actually use.
+  const selectableProviderRows = useMemo(
+    () =>
+      providerRows.filter(
+        ({ backend, provider }) =>
+          backend.status === "AVAILABLE" && provider.enabled
+      ),
+    [providerRows]
+  );
   return (
     <Card
       title="Sandbox Configurations"
@@ -46,7 +57,10 @@ export function SandboxConfigsCard({
         </ContextualHelp>
       }
       extra={
-        <SandboxConfigDialogTrigger mode="create" providers={providerRows} />
+        <SandboxConfigDialogTrigger
+          mode="create"
+          providers={selectableProviderRows}
+        />
       }
     >
       <div css={sandboxesTableWrapCSS}>
