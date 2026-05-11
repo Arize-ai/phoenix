@@ -4,11 +4,13 @@ import {
   FeedbackActionToolbar,
   type FeedbackValue,
 } from "@phoenix/components/feedback";
+import {
+  getUserFeedbackIdentifier,
+  getUserFeedbackScore,
+} from "@phoenix/constants";
 import { useViewer } from "@phoenix/contexts";
 import type { TraceFeedbackActionToolbar_trace$key } from "@phoenix/pages/trace/__generated__/TraceFeedbackActionToolbar_trace.graphql";
-import type { TraceFeedbackActionToolbarSetFeedbackMutation } from "@phoenix/pages/trace/__generated__/TraceFeedbackActionToolbarSetFeedbackMutation.graphql";
-
-const USER_FEEDBACK_ANNOTATION_NAME = "user_feedback";
+import type { TraceFeedbackActionToolbarCreateAnnotationMutation } from "@phoenix/pages/trace/__generated__/TraceFeedbackActionToolbarCreateAnnotationMutation.graphql";
 
 function getFeedbackValue(
   label: string | null | undefined
@@ -17,29 +19,6 @@ function getFeedbackValue(
     return label;
   }
   return null;
-}
-
-function getSelectedFeedback({
-  userFeedbackAnnotations,
-  viewerId,
-}: {
-  userFeedbackAnnotations: ReadonlyArray<{
-    readonly name: string;
-    readonly label: string | null;
-    readonly user: { readonly id: string } | null;
-  }>;
-  viewerId: string | null;
-}): FeedbackValue | null {
-  const currentUserFeedback = userFeedbackAnnotations.find((annotation) => {
-    if (annotation.name !== USER_FEEDBACK_ANNOTATION_NAME) {
-      return false;
-    }
-    if (viewerId == null) {
-      return annotation.user == null;
-    }
-    return annotation.user?.id === viewerId;
-  });
-  return getFeedbackValue(currentUserFeedback?.label);
 }
 
 export function TraceFeedbackActionToolbar({
@@ -53,28 +32,40 @@ export function TraceFeedbackActionToolbar({
     graphql`
       fragment TraceFeedbackActionToolbar_trace on Trace {
         id
-        userFeedbackAnnotations: traceAnnotations(
-          filter: { include: { names: ["user_feedback"] } }
+        viewerUserFeedbackAnnotations: traceAnnotations(
+          filter: { include: { names: ["user_feedback"], sources: [APP] } }
         ) {
           id
-          name
           label
-          user {
-            id
-          }
+          identifier
         }
       }
     `,
     trace
   );
   const { viewer } = useViewer();
-  const [setTraceUserFeedback, isSubmittingFeedback] =
-    useMutation<TraceFeedbackActionToolbarSetFeedbackMutation>(graphql`
-      mutation TraceFeedbackActionToolbarSetFeedbackMutation(
+  const [createTraceAnnotation, isSubmittingFeedback] =
+    useMutation<TraceFeedbackActionToolbarCreateAnnotationMutation>(graphql`
+      mutation TraceFeedbackActionToolbarCreateAnnotationMutation(
         $traceId: ID!
         $label: String!
+        $score: Float!
+        $identifier: String!
       ) {
-        setTraceUserFeedback(input: { traceId: $traceId, label: $label }) {
+        createTraceAnnotations(
+          input: [
+            {
+              traceId: $traceId
+              name: "user_feedback"
+              annotatorKind: HUMAN
+              label: $label
+              score: $score
+              metadata: {}
+              source: APP
+              identifier: $identifier
+            }
+          ]
+        ) {
           query {
             node(id: $traceId) {
               ... on Trace {
@@ -86,10 +77,12 @@ export function TraceFeedbackActionToolbar({
         }
       }
     `);
-  const selectedFeedback = getSelectedFeedback({
-    userFeedbackAnnotations: data.userFeedbackAnnotations,
-    viewerId: viewer?.id ?? null,
-  });
+  const userFeedbackIdentifier = getUserFeedbackIdentifier(viewer?.id);
+  const selectedFeedback = getFeedbackValue(
+    data.viewerUserFeedbackAnnotations.find(
+      (annotation) => annotation.identifier === userFeedbackIdentifier
+    )?.label
+  );
 
   return (
     <FeedbackActionToolbar
@@ -100,10 +93,12 @@ export function TraceFeedbackActionToolbar({
         if (isSubmittingFeedback || selectedFeedback === feedback) {
           return;
         }
-        setTraceUserFeedback({
+        createTraceAnnotation({
           variables: {
             traceId: data.id,
             label: feedback,
+            score: getUserFeedbackScore(feedback),
+            identifier: userFeedbackIdentifier,
           },
         });
       }}

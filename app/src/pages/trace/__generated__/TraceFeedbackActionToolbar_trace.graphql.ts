@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<52afe7632e6b78947c6d87fa501276bc>>
+ * @generated SignedSource<<b26f6c6da25e46b62ea40269e85c9635>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,13 +12,10 @@ import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type TraceFeedbackActionToolbar_trace$data = {
   readonly id: string;
-  readonly userFeedbackAnnotations: ReadonlyArray<{
+  readonly viewerUserFeedbackAnnotations: ReadonlyArray<{
     readonly id: string;
+    readonly identifier: string;
     readonly label: string | null;
-    readonly name: string;
-    readonly user: {
-      readonly id: string;
-    } | null;
   }>;
   readonly " $fragmentType": "TraceFeedbackActionToolbar_trace";
 };
@@ -43,7 +40,7 @@ return {
   "selections": [
     (v0/*: any*/),
     {
-      "alias": "userFeedbackAnnotations",
+      "alias": "viewerUserFeedbackAnnotations",
       "args": [
         {
           "kind": "Literal",
@@ -52,6 +49,9 @@ return {
             "include": {
               "names": [
                 "user_feedback"
+              ],
+              "sources": [
+                "APP"
               ]
             }
           }
@@ -67,30 +67,18 @@ return {
           "alias": null,
           "args": null,
           "kind": "ScalarField",
-          "name": "name",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
           "name": "label",
           "storageKey": null
         },
         {
           "alias": null,
           "args": null,
-          "concreteType": "User",
-          "kind": "LinkedField",
-          "name": "user",
-          "plural": false,
-          "selections": [
-            (v0/*: any*/)
-          ],
+          "kind": "ScalarField",
+          "name": "identifier",
           "storageKey": null
         }
       ],
-      "storageKey": "traceAnnotations(filter:{\"include\":{\"names\":[\"user_feedback\"]}})"
+      "storageKey": "traceAnnotations(filter:{\"include\":{\"names\":[\"user_feedback\"],\"sources\":[\"APP\"]}})"
     }
   ],
   "type": "Trace",
@@ -98,6 +86,6 @@ return {
 };
 })();
 
-(node as any).hash = "08ea2a0a48588efd8bb65e5386e8c7de";
+(node as any).hash = "0c5d87b67c12b6ded73afbec9333176f";
 
 export default node;
