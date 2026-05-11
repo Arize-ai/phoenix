@@ -7,7 +7,6 @@ import {
   Card,
   DialogTrigger,
   Flex,
-  Heading,
   Icon,
   IconButton,
   Icons,
@@ -326,11 +325,12 @@ export const CodeEvaluatorTestSection = ({
         </Flex>
       )}
 
-      {/* Test button and description */}
-      <Flex justifyContent="space-between" alignItems="center">
-        <Heading weight="heavy" level={3}>
-          Test Evaluator
-        </Heading>
+      {/* Description and test button */}
+      <Flex justifyContent="space-between" alignItems="center" gap="size-200">
+        <Text color="text-500" size="XS">
+          Run your evaluator against the example data to verify it works
+          correctly before saving.
+        </Text>
         <Button
           size="S"
           onPress={onTestEvaluator}
@@ -351,10 +351,6 @@ export const CodeEvaluatorTestSection = ({
           {isLoading ? "Testing..." : "Test"}
         </Button>
       </Flex>
-      <Text color="text-500" size="XS">
-        Run your evaluator against the example data to verify it works correctly
-        before saving.
-      </Text>
     </Flex>
   );
 };
