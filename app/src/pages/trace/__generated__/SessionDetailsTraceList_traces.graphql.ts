@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b2251451b1d896ce98e2932fc46b6802>>
+ * @generated SignedSource<<6f0cd7e6a485625912c984ba759ad709>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -21,7 +21,6 @@ export type SessionDetailsTraceList_traces$data = {
         readonly rootSpan: {
           readonly attributes: string;
           readonly cumulativeTokenCountTotal: number | null;
-          readonly endTime: string | null;
           readonly id: string;
           readonly input: {
             readonly mimeType: MimeType;
@@ -47,6 +46,7 @@ export type SessionDetailsTraceList_traces$data = {
               };
             };
             readonly id: string;
+            readonly " $fragmentSpreads": FragmentRefs<"TraceAnnotationSummaryGroup" | "TraceFeedbackActionToolbar_trace">;
           };
           readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
         } | null;
@@ -198,6 +198,16 @@ return {
                       "selections": [
                         (v1/*: any*/),
                         {
+                          "args": null,
+                          "kind": "FragmentSpread",
+                          "name": "TraceAnnotationSummaryGroup"
+                        },
+                        {
+                          "args": null,
+                          "kind": "FragmentSpread",
+                          "name": "TraceFeedbackActionToolbar_trace"
+                        },
+                        {
                           "alias": null,
                           "args": null,
                           "concreteType": "SpanCostSummary",
@@ -301,13 +311,6 @@ return {
                       "alias": null,
                       "args": null,
                       "kind": "ScalarField",
-                      "name": "endTime",
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
                       "name": "spanId",
                       "storageKey": null
                     },
@@ -385,6 +388,6 @@ return {
 };
 })();
 
-(node as any).hash = "c465f9a1ea6cf2748901dbc8583c4a17";
+(node as any).hash = "55939c5eb02c537f41c35cddf5a7a08a";
 
 export default node;
