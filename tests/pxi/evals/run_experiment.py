@@ -18,8 +18,8 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from phoenix.client import AsyncClient
+from phoenix.client.resources.experiments.types import ExperimentEvaluationRun, RanExperiment
 from phoenix.client.utils.config import get_base_url, get_env_phoenix_api_key
-
 from tests.pxi.evals.agent_task import (
     DEFAULT_ASSISTANT_MODEL,
     DEFAULT_ASSISTANT_PROVIDER,
@@ -84,34 +84,33 @@ def _experiment_name(dataset: EvalDataset, config: ExperimentConfig) -> str:
     return "-".join(parts)
 
 
-def _experiment_url(base_url: str, experiment: dict[str, Any]) -> str:
-    experiment_id = experiment.get("id") or experiment.get("experiment_id")
+def _experiment_url(base_url: str, experiment: RanExperiment) -> str:
+    experiment_id = experiment.get("experiment_id")
     return f"{base_url.rstrip('/')}/experiments/{experiment_id}" if experiment_id else base_url
 
 
-def _score(evaluation_run: dict[str, Any]) -> float | None:
-    result = evaluation_run.get("result")
-    if isinstance(result, dict):
-        value = result.get("score")
-    else:
-        value = result
+def _score(evaluation_run: ExperimentEvaluationRun) -> float | None:
+    result = evaluation_run.result
+    if not isinstance(result, dict):
+        return None
+    value = result.get("score")
     return float(value) if isinstance(value, (int, float)) else None
 
 
-def _print_score_summary(dataset: EvalDataset, experiment: dict[str, Any], base_url: str) -> bool:
+def _print_score_summary(dataset: EvalDataset, experiment: RanExperiment, base_url: str) -> bool:
     evaluation_runs = list(experiment.get("evaluation_runs") or [])
     by_evaluator: dict[str, dict[str, Any]] = {}
     has_regressions = False
 
     for evaluation_run in evaluation_runs:
-        name = str(evaluation_run.get("name") or "unknown")
+        name = str(evaluation_run.name or "unknown")
         summary = by_evaluator.setdefault(
             name,
             {"total": 0, "passing": 0, "failing": 0, "missing_score": 0, "errors": 0},
         )
         summary["total"] += 1
         score = _score(evaluation_run)
-        if evaluation_run.get("error") is not None:
+        if evaluation_run.error is not None:
             summary["errors"] += 1
             summary["failing"] += 1
             has_regressions = True
