@@ -8,17 +8,15 @@ Run directly:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import cast
 
 import pytest
 
 from tests.pxi.evals.datasets import (
     DatasetValidationError,
+    EvalDataset,
     dataset_path,
     load_dataset,
-    to_phoenix_examples,
 )
-from tests.pxi.evals.types import EvalDataset, JsonObject
 
 _VALID_YAML = """\
 dataset_name: example_suite
@@ -114,21 +112,3 @@ examples:
         dataset = load_dataset("set_spans_filter")
         assert dataset.dataset_name == "set_spans_filter"
         assert len(dataset.examples) >= 1
-
-
-class TestToPhoenixExamples:
-    def test_round_trip_preserves_id_input_expected_metadata(self, tmp_path: Path) -> None:
-        path = _write(tmp_path / "ds.yaml", _VALID_YAML)
-        dataset = load_dataset(path)
-        examples = to_phoenix_examples(dataset)
-        assert len(examples) == 1
-        ex = examples[0]
-        assert ex["id"] == "ex-1"
-        assert ex["input"] == {"query": "hello"}
-        # ``output`` carries expected (which is the dataset's expected
-        # behavior) so Phoenix can show it alongside actual outputs.
-        output = ex["output"]
-        tools = cast(JsonObject, output["tools"])
-        assert tools["required"] == ["foo"]
-        assert output["tool_call_args"] == {"foo": {"a": 1}}
-        assert ex["metadata"] == {"category": "greeting"}

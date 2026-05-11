@@ -1,13 +1,56 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import yaml
-
-from tests.pxi.evals.types import EvalDataset, JsonObject, PhoenixExample
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 DATASETS_DIR = Path(__file__).parent / "datasets"
+
+
+class EvalDataset(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    dataset_name: str
+    description: str | None = None
+    examples: list[dict[str, Any]]
+
+    @field_validator("dataset_name")
+    @classmethod
+    def _dataset_name_not_empty(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("dataset_name cannot be empty")
+        return value
+
+    @model_validator(mode="after")
+    def _validate_examples(self) -> "EvalDataset":
+        if not self.examples:
+            raise ValueError("dataset must contain at least one example")
+        ids: list[str] = []
+        for index, example in enumerate(self.examples):
+            if not isinstance(example, dict):
+                raise ValueError(f"example {index} must be an object")
+            example_id = example.get("id")
+            if not isinstance(example_id, str) or not example_id.strip():
+                raise ValueError(f"example {index} id cannot be empty")
+            ids.append(example_id)
+            input_value = example.get("input")
+            if not isinstance(input_value, dict) or not isinstance(input_value.get("query"), str):
+                raise ValueError(f"example {example_id} must define input.query")
+            expected = example.get("expected")
+            if not isinstance(expected, dict):
+                raise ValueError(f"example {example_id} must define expected")
+            tools = expected.get("tools")
+            if not isinstance(tools, dict):
+                raise ValueError(f"example {example_id} must define expected.tools")
+            metadata = example.setdefault("metadata", {})
+            if not isinstance(metadata, dict):
+                raise ValueError(f"example {example_id} metadata must be an object")
+        duplicates = sorted({example_id for example_id in ids if ids.count(example_id) > 1})
+        if duplicates:
+            raise ValueError(f"duplicate example ids: {', '.join(duplicates)}")
+        return self
 
 
 class DatasetValidationError(ValueError):
@@ -50,16 +93,3 @@ def load_dataset(dataset: str | Path) -> EvalDataset:
         return EvalDataset.model_validate(raw)
     except ValueError as exc:
         raise DatasetValidationError(f"Invalid dataset {path}: {exc}") from exc
-
-
-def to_phoenix_examples(dataset: EvalDataset) -> list[PhoenixExample]:
-    """Convert a validated dataset into the dict shape Phoenix client upserts."""
-    return [
-        {
-            "id": example["id"],
-            "input": example["input"],
-            "output": example["expected"],
-            "metadata": cast(JsonObject, example.get("metadata") or {}),
-        }
-        for example in dataset.examples
-    ]
