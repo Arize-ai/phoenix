@@ -13,9 +13,12 @@ import {
   createProfileCommand,
   createProjectCommand,
   createPromptCommand,
+  createSessionAnnotationsCommand,
   createSessionCommand,
   createSelfCommand,
+  createSpanAnnotationsCommand,
   createSpanCommand,
+  createTraceAnnotationsCommand,
   createTraceCommand,
 } from "./commands";
 import { CLI_VERSION } from "./version";
@@ -33,9 +36,12 @@ export function createProgram(): Command {
   program.addCommand(createProfileCommand());
   program.addCommand(createProjectCommand());
   program.addCommand(createTraceCommand());
+  program.addCommand(createTraceAnnotationsCommand());
   program.addCommand(createSpanCommand());
+  program.addCommand(createSpanAnnotationsCommand());
   program.addCommand(createDatasetCommand());
   program.addCommand(createSessionCommand());
+  program.addCommand(createSessionAnnotationsCommand());
   program.addCommand(createExperimentCommand());
   program.addCommand(createPromptCommand());
   program.addCommand(createApiCommand());

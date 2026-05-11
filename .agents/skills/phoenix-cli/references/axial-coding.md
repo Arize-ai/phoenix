@@ -153,11 +153,11 @@ encoded=$(python3 -c 'import urllib.parse, sys; print(urllib.parse.quote(sys.arg
 echo "Phoenix UI: $PHOENIX_HOST/projects/$project_id/traces?filterCondition=$encoded"
 ```
 
-If the user wants to discard everything this run produced (open-coding notes, axial-coding labels, and `coding_session_id` annotations on the server, plus the local sidecars), three identifier-bound deletes handle the server side and one `rm` handles the local sidecars. **Confirm before running** — destructive. Each `delete-annotations` call requires `--all` to authorize the unbounded sweep; `--identifier` only narrows. Set `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` first if not already exported:
+If the user wants to discard everything this run produced (open-coding notes, axial-coding labels, and `coding_session_id` annotations on the server, plus the local sidecars), three identifier-bound deletes handle the server side and one `rm` handles the local sidecars. **Confirm before running** — destructive. Each `px <entity>-annotations delete` call requires `--all` to authorize the unbounded sweep; `--identifier` only narrows. Set `PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES=true` first if not already exported:
 
 ```bash
 for kind in trace span session; do
-  px "$kind" delete-annotations \
+  px "$kind-annotations" delete \
     --identifier "$CODING_ANNOTATION_IDENTIFIER" \
     --all -y \
     --format raw --no-progress
@@ -165,7 +165,7 @@ done
 rm -f "$NOTES_SIDECAR" "$AXIAL_SIDECAR"
 ```
 
-Each `delete-annotations` call removes notes, axial-coding labels, and `coding_session_id` annotations together because they share the underlying annotation table; the `rm` clears the local sidecars.
+Each `px <entity>-annotations delete` call removes notes, axial-coding labels, and `coding_session_id` annotations together because they share the underlying annotation table; the `rm` clears the local sidecars.
 
 ## Agent Failure Taxonomy
 

@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createSessionCommand } from "../src/commands/session";
-import { createSpanCommand } from "../src/commands/span";
-import { createTraceCommand } from "../src/commands/trace";
+import { createSessionAnnotationsCommand } from "../src/commands/sessionAnnotationsCommand";
+import { createSpanAnnotationsCommand } from "../src/commands/spanAnnotationsCommand";
+import { createTraceAnnotationsCommand } from "../src/commands/traceAnnotationsCommand";
 import { ENV_PHOENIX_CLI_DANGEROUSLY_ENABLE_DELETES } from "../src/confirm";
 import { ExitCode } from "../src/exitCodes";
 
@@ -74,16 +74,16 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("trace delete-annotations", () => {
+describe("trace-annotations delete", () => {
   it("DELETEs with delete_all=true when --all is set, then emits structured success", async () => {
     const fetchMock = makeFetchMock([PROJECT_RESPONSE, DELETE_204]);
     vi.stubGlobal("fetch", fetchMock);
     const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
 
-    await createTraceCommand().parseAsync(
+    await createTraceAnnotationsCommand().parseAsync(
       [
-        "delete-annotations",
+        "delete",
         "--identifier",
         "coding-session:demo",
         "--all",
@@ -116,9 +116,9 @@ describe("trace delete-annotations", () => {
     const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
 
-    await createTraceCommand().parseAsync(
+    await createTraceAnnotationsCommand().parseAsync(
       [
-        "delete-annotations",
+        "delete",
         "--start-time",
         "2026-01-01T00:00:00Z",
         "--end-time",
@@ -158,9 +158,9 @@ describe("trace delete-annotations", () => {
     }) as never);
 
     await expect(
-      createTraceCommand().parseAsync(
+      createTraceAnnotationsCommand().parseAsync(
         [
-          "delete-annotations",
+          "delete",
           "--identifier",
           "coding-session:demo",
           "-y",
@@ -186,9 +186,9 @@ describe("trace delete-annotations", () => {
     vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
 
-    await createTraceCommand().parseAsync(
+    await createTraceAnnotationsCommand().parseAsync(
       [
-        "delete-annotations",
+        "delete",
         "--identifier",
         "coding-session:demo",
         "--name",
@@ -209,16 +209,16 @@ describe("trace delete-annotations", () => {
   });
 });
 
-describe("span delete-annotations", () => {
+describe("span-annotations delete", () => {
   it("DELETEs /span_annotations with delete_all=true and emits structured success", async () => {
     const fetchMock = makeFetchMock([PROJECT_RESPONSE, DELETE_204]);
     vi.stubGlobal("fetch", fetchMock);
     const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
 
-    await createSpanCommand().parseAsync(
+    await createSpanAnnotationsCommand().parseAsync(
       [
-        "delete-annotations",
+        "delete",
         "--identifier",
         "coding-session:demo",
         "--all",
@@ -253,9 +253,9 @@ describe("span delete-annotations", () => {
     }) as never);
 
     await expect(
-      createSpanCommand().parseAsync(
+      createSpanAnnotationsCommand().parseAsync(
         [
-          "delete-annotations",
+          "delete",
           "--identifier",
           "coding-session:demo",
           "-y",
@@ -270,16 +270,16 @@ describe("span delete-annotations", () => {
   });
 });
 
-describe("session delete-annotations", () => {
+describe("session-annotations delete", () => {
   it("DELETEs /session_annotations with delete_all=true and emits structured success", async () => {
     const fetchMock = makeFetchMock([PROJECT_RESPONSE, DELETE_204]);
     vi.stubGlobal("fetch", fetchMock);
     const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
 
-    await createSessionCommand().parseAsync(
+    await createSessionAnnotationsCommand().parseAsync(
       [
-        "delete-annotations",
+        "delete",
         "--identifier",
         "coding-session:demo",
         "--all",
@@ -316,9 +316,9 @@ describe("session delete-annotations", () => {
     }) as never);
 
     await expect(
-      createSessionCommand().parseAsync(
+      createSessionAnnotationsCommand().parseAsync(
         [
-          "delete-annotations",
+          "delete",
           "--identifier",
           "coding-session:demo",
           "-y",
@@ -344,9 +344,9 @@ describe("session delete-annotations", () => {
     }) as never);
 
     await expect(
-      createSessionCommand().parseAsync(
+      createSessionAnnotationsCommand().parseAsync(
         [
-          "delete-annotations",
+          "delete",
           "--identifier",
           "coding-session:demo",
           "--all",

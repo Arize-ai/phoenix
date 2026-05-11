@@ -133,7 +133,7 @@ Always pipe through `jq` with `--format raw --no-progress` when scripting.
 Use the `add-note` command matching the unit committed in [Choosing the unit](#choosing-the-unit-of-analysis): `px trace add-note`, `px span add-note`, or `px session add-note`. Every call carries an explicit `--identifier "$CODING_ANNOTATION_IDENTIFIER"` and `--format raw --no-progress`.
 
 Passing `--identifier "$CODING_ANNOTATION_IDENTIFIER"` does two things:
-- Tags the note row with the coding annotation identifier on the server, so the cleanup `delete-annotations --identifier "$CODING_ANNOTATION_IDENTIFIER" --all` sweep removes every artifact this run produced.
+- Tags the note row with the coding annotation identifier on the server, so the cleanup `px <entity>-annotations delete --identifier "$CODING_ANNOTATION_IDENTIFIER" --all` sweep removes every artifact this run produced.
 - Makes the call **upsert** on `(entity_id, name='note', identifier)` — re-running open coding on the same entity within the same coding annotation identifier overwrites the prior note instead of appending a second row. (Without `--identifier`, the server stamps a unique `px-{kind}-note:<uuid>` and each call appends.)
 
 After every successful `add-note`, record one JSONL line in `$SIDECAR`. The sidecar is what axial coding reads — no server round-trip. It is a content handoff, not code: keep it readable, inspect it directly, and use whatever simple tooling is convenient.
@@ -231,7 +231,7 @@ If the user wants to discard everything this run produced, three identifier-boun
 
 ```bash
 for kind in trace span session; do
-  px "$kind" delete-annotations \
+  px "$kind-annotations" delete \
     --identifier "$CODING_ANNOTATION_IDENTIFIER" \
     --all -y \
     --format raw --no-progress
@@ -239,7 +239,7 @@ done
 rm -f "$SIDECAR" ".px/coding/${SLUG}-axial.jsonl"
 ```
 
-Each `delete-annotations` call covers notes, structured annotations, and the `coding_session_id` annotation in one shot because they share the underlying annotation table.
+Each `px <entity>-annotations delete` call covers notes, structured annotations, and the `coding_session_id` annotation in one shot because they share the underlying annotation table.
 
 ## Principles
 

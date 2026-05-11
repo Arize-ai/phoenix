@@ -24,16 +24,16 @@ px trace list
 px trace get <trace-id>
 px trace annotate <trace-id>
 px trace add-note <trace-id>
-px trace delete-annotations
+px trace-annotations delete
 px span list
 px span annotate <span-id>
 px span add-note <span-id>
-px span delete-annotations
+px span-annotations delete
 px session list
 px session get <session-id>
 px session annotate <session-id>
 px session add-note <session-id>
-px session delete-annotations
+px session-annotations delete
 px dataset list
 px dataset get <name>
 px project list
@@ -142,17 +142,16 @@ px trace annotate <trace-id> --name reviewer --score 0.9 --format raw --no-progr
 px trace annotate <trace-id> --name reviewer --label pass --identifier "<coding-annotation-id>"  # tag with a coding annotation identifier
 px trace add-note <trace-id> --text "needs follow-up"
 px trace add-note <trace-id> --text "needs follow-up" --identifier "<coding-annotation-id>"  # tag + upsert on identifier
-px trace delete-annotations --identifier "<coding-annotation-id>" --all -y            # nuke every annotation tied to this coding annotation identifier
+px trace-annotations delete --identifier "<coding-annotation-id>" --all -y            # nuke every annotation tied to this coding annotation identifier
 ```
 
-`delete-annotations` requires `--all` or both `--start-time` and `--end-time` and emits `{deleted: true, target, filter}` on success.
+`px <entity>-annotations delete` requires `--all` or both `--start-time` and `--end-time` and emits `{deleted: true, target, filter}` on success.
 
 ### Trace JSON shape
 
 ```
 Trace
   traceId, status ("OK"|"ERROR"), duration (ms), startTime, endTime
-  token_count_prompt, token_count_completion, token_count_total  — cumulative across all LLM spans (int, default 0)
   annotations[] (with --include-annotations, excludes note)
     name, result { score, label, explanation }
   notes[] (with --include-notes)
@@ -201,7 +200,7 @@ px span annotate <span-id> --name checker --score 1 --annotator-kind CODE
 px span annotate <span-id> --name reviewer --label pass --identifier "<coding-annotation-id>"  # tag with a coding annotation identifier
 px span add-note <span-id> --text "verified by agent"
 px span add-note <span-id> --text "verified by agent" --identifier "<coding-annotation-id>"  # tag + upsert on identifier
-px span delete-annotations --identifier "<coding-annotation-id>" --all -y           # nuke every annotation tied to this coding annotation identifier
+px span-annotations delete --identifier "<coding-annotation-id>" --all -y           # nuke every annotation tied to this coding annotation identifier
 ```
 
 ### Span JSON shape
@@ -240,7 +239,7 @@ px session annotate <session-id> --name reviewer --score 0.9 --format raw --no-p
 px session annotate <session-id> --name reviewer --label pass --identifier "<coding-annotation-id>"  # tag with a coding annotation identifier
 px session add-note <session-id> --text "verified by agent"
 px session add-note <session-id> --text "verified by agent" --identifier "<coding-annotation-id>"  # tag + upsert on identifier
-px session delete-annotations --identifier "<coding-annotation-id>" --all -y              # nuke every annotation tied to this coding annotation identifier
+px session-annotations delete --identifier "<coding-annotation-id>" --all -y              # nuke every annotation tied to this coding annotation identifier
 ```
 
 ### Session JSON shape
