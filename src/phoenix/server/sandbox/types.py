@@ -255,6 +255,20 @@ class ExecutionResult:
         return self.error is None
 
 
+def compose_secret_values(
+    user_env: Optional[dict[str, str]],
+    *credentials: Optional[str],
+) -> frozenset[str]:
+    """Combine user-env plaintext values with provider credential plaintexts.
+
+    Called by each ``SandboxBackend.__init__`` to populate ``self.secret_values``
+    in a single place. Empty/None credential entries are dropped so optional
+    auth args (e.g. Vercel's ``oidc_token`` vs ``token``) don't introduce
+    empty-string entries that would mask everywhere.
+    """
+    return frozenset((user_env or {}).values()) | frozenset(c for c in credentials if c)
+
+
 class SandboxBackend(ABC):
     """
     Protocol for sandbox backends.
@@ -262,7 +276,17 @@ class SandboxBackend(ABC):
     Surface: execute + start_session + stop_session + close.
     Session reuse is controlled by the caller-provided session_key passed to
     execute(). start_session/stop_session manage the lifecycle explicitly.
+
+    ``secret_values`` is the union of user-env plaintexts and provider
+    credential plaintexts that ``CodeEvaluatorRunner`` will mask out of
+    emitted span attributes, status descriptions, and exception events.
+    Subclasses populate it in ``__init__`` via ``compose_secret_values``;
+    the class-level default ``frozenset()`` means a backend that takes no
+    credentials and no user_env (e.g. WASM) needs no extra wiring, and
+    mocks via ``MagicMock(spec=SandboxBackend)`` inherit it for free.
     """
+
+    secret_values: frozenset[str] = frozenset()
 
     @abstractmethod
     async def start_session(self, session_key: str) -> None:
