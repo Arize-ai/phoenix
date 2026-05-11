@@ -1366,6 +1366,22 @@ class TestAdminGate:
             f"found: {field.permission_classes}"
         )
 
+    def test_create_code_evaluator_version_has_admin_gate(self) -> None:
+        """createCodeEvaluatorVersion appends new immutable source_code to a
+        CodeEvaluator's version chain — and the MAX(id) tip is what the next
+        evaluator run executes inside the (potentially admin-authored) sandbox.
+        Must be admin-gated to close the last write seam for evaluator source
+        code, matching create/patch above."""
+        from phoenix.server.api.auth import IsAdminIfAuthEnabled
+        from phoenix.server.api.mutations.evaluator_mutations import EvaluatorMutationMixin
+
+        defn = EvaluatorMutationMixin.__strawberry_definition__  # type: ignore[attr-defined]
+        field = next(f for f in defn.fields if f.name == "create_code_evaluator_version")
+        assert IsAdminIfAuthEnabled in field.permission_classes, (
+            f"createCodeEvaluatorVersion is missing IsAdminIfAuthEnabled in permission_classes; "
+            f"found: {field.permission_classes}"
+        )
+
     # ------------------------------------------------------------------
     # Branch-level admin gate inside evaluator_previews (Vuln 2 primary)
     # ------------------------------------------------------------------

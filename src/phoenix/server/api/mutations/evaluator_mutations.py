@@ -1358,7 +1358,7 @@ class EvaluatorMutationMixin:
         )
 
     @strawberry.mutation(  # type: ignore
-        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsAdminIfAuthEnabled, IsLocked],
         description=(
             "Append a new immutable CodeEvaluatorVersion. If the proposed source_code"
             " is identical to the current tip version, no new row is appended"
