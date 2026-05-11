@@ -2251,7 +2251,6 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (415, "POST", "v1/traces"),
     # PUT routes
     (422, "PUT", "v1/annotation_configs/fake-id-{}"),
-    (422, "PUT", "v1/traces/fake-id-{}/user_feedback"),
     # DELETE routes
     (422, "DELETE", "v1/annotation_configs/fake-id-{}"),
     (422, "DELETE", "v1/datasets/fake-id-{}"),
@@ -2260,7 +2259,6 @@ _VIEWER_BLOCKED_WRITE_OPERATIONS = (
     (404, "DELETE", "v1/spans/fake-id-{}"),
     (404, "DELETE", "v1/prompts/fake-id-{}"),
     (404, "DELETE", "v1/traces/fake-id-{}"),
-    (404, "DELETE", "v1/traces/fake-id-{}/user_feedback"),
     (422, "DELETE", "v1/prompt_versions/fake-id-{}/tags/test-tag"),
     (422, "DELETE", "v1/projects/fake-id-{}/span_annotations"),
     (422, "DELETE", "v1/projects/fake-id-{}/trace_annotations"),

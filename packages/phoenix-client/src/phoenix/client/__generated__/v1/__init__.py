@@ -602,10 +602,6 @@ class SessionTraceData(TypedDict):
     end_time: str
 
 
-class SetTraceUserFeedbackResponseBody(TypedDict):
-    data: InsertedTraceAnnotation
-
-
 class SourceDocumentUIPart(TypedDict):
     type: Literal["source-document"]
     sourceId: str
@@ -821,10 +817,6 @@ class TraceSpanData(TypedDict):
     status_code: str
     start_time: str
     end_time: str
-
-
-class TraceUserFeedbackData(TypedDict):
-    label: Literal["positive", "negative"]
 
 
 class UpdateProjectRequestBody(TypedDict):
@@ -1274,10 +1266,6 @@ class SessionData(TypedDict):
     token_count_prompt: NotRequired[int]
     token_count_completion: NotRequired[int]
     token_count_total: NotRequired[int]
-
-
-class SetTraceUserFeedbackRequestBody(TypedDict):
-    data: TraceUserFeedbackData
 
 
 class Span(TypedDict):

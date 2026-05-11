@@ -1186,15 +1186,6 @@ input DeletePromptVersionTagInput {
   promptVersionTagId: ID!
 }
 
-input DeleteTraceUserFeedbackInput {
-  traceId: ID!
-}
-
-type DeleteTraceUserFeedbackPayload {
-  traceAnnotation: TraceAnnotation!
-  query: Query!
-}
-
 input DeleteUsersInput {
   userIds: [ID!]!
 }
@@ -2188,8 +2179,6 @@ type Mutation {
   createProjectSessionAnnotations(input: CreateProjectSessionAnnotationInput!): ProjectSessionAnnotationMutationPayload!
   updateProjectSessionAnnotations(input: UpdateAnnotationInput!): ProjectSessionAnnotationMutationPayload!
   deleteProjectSessionAnnotation(id: ID!): ProjectSessionAnnotationMutationPayload!
-  setTraceUserFeedback(input: SetTraceUserFeedbackInput!): SetTraceUserFeedbackPayload!
-  deleteTraceUserFeedback(input: DeleteTraceUserFeedbackInput!): DeleteTraceUserFeedbackPayload!
   createTraceAnnotations(input: [CreateTraceAnnotationInput!]!): TraceAnnotationMutationPayload!
   patchTraceAnnotations(input: [PatchAnnotationInput!]!): TraceAnnotationMutationPayload!
   deleteTraceAnnotations(input: DeleteAnnotationsInput!): TraceAnnotationMutationPayload!
@@ -3132,16 +3121,6 @@ input SetPromptVersionTagInput {
   promptVersionId: ID!
   name: Identifier!
   description: String = null
-}
-
-input SetTraceUserFeedbackInput {
-  traceId: ID!
-  label: String!
-}
-
-type SetTraceUserFeedbackPayload {
-  traceAnnotation: TraceAnnotation!
-  query: Query!
 }
 
 enum SortDir {

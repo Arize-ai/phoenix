@@ -47,11 +47,12 @@ from phoenix.db.types.trace_retention import (
     TraceRetentionCronExpression,
     TraceRetentionRule,
 )
-from phoenix.server.api.helpers.annotations import USER_FEEDBACK_ANNOTATION_NAME
 from phoenix.server.email.types import WelcomeEmailSender
 from phoenix.server.types import DbSessionFactory
 
 logger = logging.getLogger(__name__)
+
+USER_FEEDBACK_ANNOTATION_NAME = "user_feedback"
 
 
 class Facilitator:

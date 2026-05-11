@@ -12,7 +12,6 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 )
 from pydantic import BeforeValidator, Field
 from sqlalchemy import delete, insert, or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import State
 from starlette.requests import Request
@@ -23,17 +22,9 @@ from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
-from phoenix.server.api.helpers.annotations import (
-    USER_FEEDBACK_ANNOTATION_NAME,
-    get_note_identifier,
-)
+from phoenix.server.api.helpers.annotations import get_note_identifier
 from phoenix.server.api.helpers.cumulative_token_count_queries import (
     cumulative_token_counts_by_trace,
-)
-from phoenix.server.api.helpers.trace_user_feedback import (
-    delete_trace_user_feedback,
-    get_trace_rowid_by_identifier,
-    upsert_trace_user_feedback,
 )
 from phoenix.server.api.routers.v1.annotations import TraceAnnotationData
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -47,11 +38,7 @@ from phoenix.server.authorization import (
     restrict_access_by_viewers,
 )
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.dml_event import (
-    SpanDeleteEvent,
-    TraceAnnotationDeleteEvent,
-    TraceAnnotationInsertEvent,
-)
+from phoenix.server.dml_event import SpanDeleteEvent, TraceAnnotationInsertEvent
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
 from phoenix.trace.otel import decode_otlp_span
 from phoenix.utilities.project import get_project_name
@@ -412,14 +399,6 @@ async def annotate_traces(
                 "Use POST /v1/trace_notes instead."
             ),
         )
-    if any(data.name == USER_FEEDBACK_ANNOTATION_NAME for data in request_body.data):
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "The name 'user_feedback' is reserved for trace user feedback. "
-                "Use PUT /v1/traces/{trace_identifier}/user_feedback instead."
-            ),
-        )
 
     user_id: Optional[int] = None
     if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
@@ -492,20 +471,6 @@ class CreateTraceNoteResponseBody(ResponseBody[InsertedTraceAnnotation]):
     pass
 
 
-class TraceUserFeedbackData(V1RoutesBaseModel):
-    label: Literal["positive", "negative"] = Field(
-        description="The user feedback label to apply to the trace.",
-    )
-
-
-class SetTraceUserFeedbackRequestBody(RequestBody[TraceUserFeedbackData]):
-    data: TraceUserFeedbackData
-
-
-class SetTraceUserFeedbackResponseBody(ResponseBody[InsertedTraceAnnotation]):
-    pass
-
-
 @router.post(
     "/trace_notes",
     dependencies=[
@@ -572,114 +537,6 @@ async def create_trace_note(
     return CreateTraceNoteResponseBody(
         data=InsertedTraceAnnotation(id=str(GlobalID("TraceAnnotation", str(annotation_id))))
     )
-
-
-async def _get_trace_rowid_by_relay_id_or_trace_id(
-    session: AsyncSession,
-    trace_identifier: str,
-) -> tuple[Optional[int], str]:
-    try:
-        relay_trace_rowid = from_global_id_with_expected_type(
-            GlobalID.from_id(trace_identifier),
-            "Trace",
-        )
-        if await session.get(models.Trace, relay_trace_rowid) is None:
-            return None, f"Trace with relay ID '{trace_identifier}' not found"
-        return relay_trace_rowid, f"Trace with relay ID '{trace_identifier}' not found"
-    except Exception:
-        trace_rowid = await get_trace_rowid_by_identifier(session, trace_identifier)
-        return trace_rowid, f"Trace with trace_id '{trace_identifier}' not found"
-
-
-@router.put(
-    "/traces/{trace_identifier}/user_feedback",
-    dependencies=[
-        Depends(prevent_access_in_read_only_mode),
-        Depends(restrict_access_by_viewers),
-        Depends(is_not_locked),
-    ],
-    operation_id="setTraceUserFeedback",
-    summary="Set trace user feedback",
-    responses=add_errors_to_responses([{"status_code": 404, "description": "Trace not found"}]),
-    response_description="Trace user feedback set successfully",
-    response_model=SetTraceUserFeedbackResponseBody,
-    response_model_by_alias=True,
-    response_model_exclude_unset=True,
-    response_model_exclude_defaults=True,
-    status_code=200,
-)
-async def set_trace_user_feedback(
-    request: Request,
-    request_body: SetTraceUserFeedbackRequestBody,
-    trace_identifier: str = Path(
-        description="The trace identifier: either a relay GlobalID or OpenTelemetry trace_id"
-    ),
-) -> SetTraceUserFeedbackResponseBody:
-    user_id: Optional[int] = None
-    if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
-        user_id = int(request.user.identity)
-
-    async with request.app.state.db() as session:
-        trace_rowid, error_detail = await _get_trace_rowid_by_relay_id_or_trace_id(
-            session,
-            trace_identifier,
-        )
-        if trace_rowid is None:
-            raise HTTPException(status_code=404, detail=error_detail)
-        trace_annotation = await upsert_trace_user_feedback(
-            session,
-            trace_rowid=trace_rowid,
-            label=request_body.data.label,
-            source="API",
-            user_id=user_id,
-        )
-
-    request.state.event_queue.put(TraceAnnotationInsertEvent((trace_annotation.id,)))
-    return SetTraceUserFeedbackResponseBody(
-        data=InsertedTraceAnnotation(
-            id=str(GlobalID("TraceAnnotation", str(trace_annotation.id))),
-        )
-    )
-
-
-@router.delete(
-    "/traces/{trace_identifier}/user_feedback",
-    dependencies=[
-        Depends(prevent_access_in_read_only_mode),
-        Depends(restrict_access_by_viewers),
-    ],
-    operation_id="deleteTraceUserFeedback",
-    summary="Delete trace user feedback",
-    responses=add_errors_to_responses([{"status_code": 404, "description": "Trace not found"}]),
-    status_code=204,
-)
-async def delete_trace_user_feedback_route(
-    request: Request,
-    trace_identifier: str = Path(
-        description="The trace identifier: either a relay GlobalID or OpenTelemetry trace_id"
-    ),
-) -> None:
-    user_id: Optional[int] = None
-    if request.app.state.authentication_enabled and isinstance(request.user, PhoenixUser):
-        user_id = int(request.user.identity)
-
-    async with request.app.state.db() as session:
-        trace_rowid, error_detail = await _get_trace_rowid_by_relay_id_or_trace_id(
-            session,
-            trace_identifier,
-        )
-        if trace_rowid is None:
-            raise HTTPException(status_code=404, detail=error_detail)
-        trace_annotation = await delete_trace_user_feedback(
-            session,
-            trace_rowid=trace_rowid,
-            user_id=user_id,
-        )
-
-    if trace_annotation is None:
-        return None
-    request.state.event_queue.put(TraceAnnotationDeleteEvent((trace_annotation.id,)))
-    return None
 
 
 async def _add_spans(
