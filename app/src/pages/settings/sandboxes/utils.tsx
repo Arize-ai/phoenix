@@ -1,6 +1,7 @@
 import { css } from "@emotion/react";
 
 import {
+  Badge,
   Flex,
   RichTooltip,
   Text,
@@ -35,7 +36,7 @@ export function StatusText({
       ? "var(--global-color-success)"
       : status === "UNAVAILABLE" || status === "MISSING_CREDENTIALS"
         ? "var(--global-color-warning)"
-        : "var(--ac-global-text-color-700)";
+        : "var(--global-text-color-700)";
   const label = statusLabel(status);
   const tooltipLines = detail ? [detail] : dependencyHints;
 
@@ -63,6 +64,57 @@ export function StatusText({
             <Text key={line}>{line}</Text>
           ))}
         </Flex>
+      </RichTooltip>
+    </TooltipTrigger>
+  );
+}
+
+type HostingType = BackendInfo["hostingType"];
+
+export function hostingTypeLabel(hostingType: HostingType) {
+  switch (hostingType) {
+    case "LOCAL":
+      return "Local";
+    case "HOSTED":
+      return "Hosted";
+    default:
+      assertUnreachable(hostingType);
+  }
+}
+
+const HOSTING_TYPE_TOOLTIP: Record<HostingType, string> = {
+  LOCAL:
+    "Runs on the same machine as the Phoenix server. Code is sandboxed, but " +
+    "execution consumes Phoenix's CPU and memory.",
+  HOSTED:
+    "Code runs on an external provider's infrastructure. Execution happens " +
+    "off-server — Phoenix only orchestrates the run.",
+};
+
+/**
+ * A badge identifying whether a sandbox backend executes locally (on the
+ * Phoenix server) or on a hosted provider, with a tooltip explaining the
+ * resource trade-off.
+ */
+export function SandboxHostingTypeBadge({
+  hostingType,
+}: {
+  hostingType: HostingType;
+}) {
+  return (
+    <TooltipTrigger delay={100}>
+      <TriggerWrap>
+        <Badge
+          variant={hostingType === "LOCAL" ? "warning" : "info"}
+          css={css`
+            cursor: help;
+          `}
+        >
+          {hostingTypeLabel(hostingType)}
+        </Badge>
+      </TriggerWrap>
+      <RichTooltip width={280}>
+        <Text>{HOSTING_TYPE_TOOLTIP[hostingType]}</Text>
       </RichTooltip>
     </TooltipTrigger>
   );
@@ -318,7 +370,9 @@ function summarizeSandboxSettingValue(key: string, value: unknown): string {
       if (!isPlainObject(value)) {
         return "configured";
       }
-      const packages = Array.isArray(value["packages"]) ? value["packages"] : [];
+      const packages = Array.isArray(value["packages"])
+        ? value["packages"]
+        : [];
       return packages.length > 0
         ? packages.map((p) => String(p)).join(", ")
         : "none";

@@ -124,7 +124,7 @@ class DenoSandboxBackend(BaseNoSessionBackend):
 class DenoAdapter(SandboxAdapter):
     key = "DENO"
     family = "DENO"
-    display_name = "Deno (local)"
+    display_name = "Deno"
     language = "TYPESCRIPT"
     config_model = DenoConfig
 
