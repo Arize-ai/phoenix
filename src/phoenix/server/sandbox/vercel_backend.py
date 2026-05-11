@@ -115,6 +115,7 @@ class VercelSandboxBackend(SandboxBackend):
         team_id: Optional[str] = None,
         language: str = _DEFAULT_LANGUAGE,
         user_env: Optional[dict[str, str]] = None,
+        packages: Optional[list[str]] = None,
     ) -> None:
         self._oidc_token = oidc_token
         self._token = token
@@ -126,6 +127,7 @@ class VercelSandboxBackend(SandboxBackend):
             )
         self._language = language.upper() if language else _DEFAULT_LANGUAGE
         self._user_env: dict[str, str] = user_env or {}
+        self._packages: list[str] = packages or []
         self._sessions: dict[str, AsyncSandbox] = {}
         self._session_locks: dict[str, asyncio.Lock] = {}
         self.secret_values = compose_secret_values(user_env, self._oidc_token, self._token)
@@ -160,6 +162,34 @@ class VercelSandboxBackend(SandboxBackend):
         create_kwargs["team_id"] = self._team_id
         return await AsyncSandbox.create(**create_kwargs)
 
+    async def _install_packages(self, sandbox: AsyncSandbox) -> None:
+        """Run language-routed install for configured packages before user code.
+
+        PYTHON → `python3 -m pip install --user <pkgs>` (invoked through the
+        same `python3` binary the exec path uses, so install and execute target
+        the same interpreter; `--user` avoids needing sudo and writes to the
+        sandbox user's ~/.local).
+        TYPESCRIPT → `npm install <pkgs>` from the default cwd.
+
+        Raises RuntimeError(stderr) on non-zero exit so callers (start_session
+        and ephemeral execute) can either propagate as a fail-fast session
+        startup error or surface as an ExecutionResult.error.
+        """
+        if not self._packages:
+            return
+        if self._language == "PYTHON":
+            cmd = "python3"
+            args = ["-m", "pip", "install", "--user", *self._packages]
+        else:
+            cmd = "npm"
+            args = ["install", *self._packages]
+        result = await sandbox.run_command(cmd, args)
+        if result.exit_code != 0:
+            stderr = await result.stderr()
+            raise RuntimeError(
+                f"{cmd} install {self._packages!r} failed (exit {result.exit_code}): {stderr}"
+            )
+
     async def start_session(self, session_key: str) -> None:
         if session_key not in self._session_locks:
             self._session_locks[session_key] = asyncio.Lock()
@@ -168,6 +198,29 @@ class VercelSandboxBackend(SandboxBackend):
                 logger.debug(f"Vercel session '{session_key}' already exists; reusing")
                 return
             sandbox = await self._create_sandbox()
+            try:
+                await self._install_packages(sandbox)
+            except Exception:
+                # Install failed — the sandbox is live but unusable. Stop and
+                # close it before re-raising so we don't leak a billable
+                # Vercel resource that lingers until the SDK's idle timeout.
+                try:
+                    await sandbox.stop()
+                except Exception:
+                    logger.debug(
+                        f"Error stopping Vercel sandbox after install failure for "
+                        f"session '{session_key}'",
+                        exc_info=True,
+                    )
+                try:
+                    await sandbox.client.aclose()
+                except Exception:
+                    logger.debug(
+                        f"Error closing Vercel client after install failure for "
+                        f"session '{session_key}'",
+                        exc_info=True,
+                    )
+                raise
             self._sessions[session_key] = sandbox
         logger.debug(f"Started Vercel session '{session_key}'")
 
@@ -213,9 +266,10 @@ class VercelSandboxBackend(SandboxBackend):
             if sandbox is not None:
                 return await self._exec_code(sandbox, code, env=session_env)
             else:
-                # Ephemeral: create, exec, stop.
+                # Ephemeral: create, install (if configured), exec, stop.
                 sandbox = await self._create_sandbox()
                 try:
+                    await self._install_packages(sandbox)
                     return await self._exec_code(sandbox, code, env=session_env)
                 finally:
                     try:
@@ -302,8 +356,15 @@ class VercelPythonAdapter(SandboxAdapter):
     ) -> SandboxBackend:
         self._enforce_capabilities(config, user_env)
         oidc_token = _resolve_vercel_oidc_token(config)
+        deps = config.get("dependencies") or {}
+        packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
         if oidc_token:
-            return VercelSandboxBackend(oidc_token=oidc_token, language="PYTHON", user_env=user_env)
+            return VercelSandboxBackend(
+                oidc_token=oidc_token,
+                language="PYTHON",
+                user_env=user_env,
+                packages=packages,
+            )
 
         token = _resolve_vercel_access_token(config)
         project_id = _resolve_vercel_project_id(config)
@@ -315,6 +376,7 @@ class VercelPythonAdapter(SandboxAdapter):
                 team_id=team_id,
                 language="PYTHON",
                 user_env=user_env,
+                packages=packages,
             )
         raise ValueError(
             "Vercel sandbox authentication is not configured. Set "
@@ -343,9 +405,14 @@ class VercelTypescriptAdapter(SandboxAdapter):
     ) -> SandboxBackend:
         self._enforce_capabilities(config, user_env)
         oidc_token = _resolve_vercel_oidc_token(config)
+        deps = config.get("dependencies") or {}
+        packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
         if oidc_token:
             return VercelSandboxBackend(
-                oidc_token=oidc_token, language="TYPESCRIPT", user_env=user_env
+                oidc_token=oidc_token,
+                language="TYPESCRIPT",
+                user_env=user_env,
+                packages=packages,
             )
 
         token = _resolve_vercel_access_token(config)
@@ -358,6 +425,7 @@ class VercelTypescriptAdapter(SandboxAdapter):
                 team_id=team_id,
                 language="TYPESCRIPT",
                 user_env=user_env,
+                packages=packages,
             )
         raise ValueError(
             "Vercel sandbox authentication is not configured. Set "

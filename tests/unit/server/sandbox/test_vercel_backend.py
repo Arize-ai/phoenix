@@ -136,3 +136,185 @@ async def test_access_token_path_does_not_touch_oidc_env(
 def test_constructor_rejects_no_credentials() -> None:
     with pytest.raises(ValueError, match="oidc_token"):
         VercelSandboxBackend(language="PYTHON")
+
+
+# ---------------------------------------------------------------------------
+# Package install — language-routed run_command argv shape
+# ---------------------------------------------------------------------------
+
+
+def _make_install_sandbox_mock(
+    install_exit_code: int = 0,
+    install_stderr: str = "",
+) -> tuple[MagicMock, list[tuple[str, list[str]]]]:
+    """Return (sandbox mock, list of (cmd, args) captured from run_command calls).
+
+    The first run_command call records the install command shape; subsequent
+    calls record exec invocations. exit_code/stderr on the install result are
+    configurable to exercise the failure path.
+    """
+    captured: list[tuple[str, list[str]]] = []
+
+    async def _run_command(cmd: str, args: list[str], **kwargs: Any) -> Any:
+        captured.append((cmd, list(args)))
+        result = MagicMock()
+        # First call is the install; subsequent (exec) calls behave normally.
+        is_install = len(captured) == 1
+        result.exit_code = install_exit_code if is_install else 0
+        result.stdout = AsyncMock(return_value="")
+        result.stderr = AsyncMock(return_value=install_stderr if is_install else "")
+        return result
+
+    sandbox = MagicMock()
+    sandbox.run_command = _run_command
+    sandbox.stop = AsyncMock()
+    sandbox.client = MagicMock()
+    sandbox.client.aclose = AsyncMock()
+    return sandbox, captured
+
+
+@pytest.mark.asyncio
+async def test_start_session_installs_python_packages_with_pip_user(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """PYTHON + packages → start_session issues `python3 -m pip install --user <pkgs>`."""
+    sandbox_mock, captured = _make_install_sandbox_mock()
+    backend = VercelSandboxBackend(
+        oidc_token="t",
+        language="PYTHON",
+        packages=["requests", "numpy"],
+    )
+
+    async def _fake_create_sandbox() -> Any:
+        return sandbox_mock
+
+    monkeypatch.setattr(backend, "_create_sandbox", _fake_create_sandbox)
+    await backend.start_session("s1")
+
+    assert captured == [("python3", ["-m", "pip", "install", "--user", "requests", "numpy"])], (
+        f"Expected python3 -m pip install --user argv; got {captured!r}"
+    )
+    assert "s1" in backend._sessions
+
+
+@pytest.mark.asyncio
+async def test_start_session_installs_typescript_packages_with_npm(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """TYPESCRIPT + packages → start_session issues `npm install <pkgs>`."""
+    sandbox_mock, captured = _make_install_sandbox_mock()
+    backend = VercelSandboxBackend(
+        oidc_token="t",
+        language="TYPESCRIPT",
+        packages=["lodash"],
+    )
+
+    async def _fake_create_sandbox() -> Any:
+        return sandbox_mock
+
+    monkeypatch.setattr(backend, "_create_sandbox", _fake_create_sandbox)
+    await backend.start_session("s1")
+
+    assert captured == [("npm", ["install", "lodash"])], (
+        f"Expected npm install argv; got {captured!r}"
+    )
+    assert "s1" in backend._sessions
+
+
+@pytest.mark.asyncio
+async def test_start_session_install_failure_stops_sandbox_and_does_not_cache(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When _install_packages raises, start_session must stop the sandbox,
+    aclose the client, NOT cache the session, and propagate the RuntimeError.
+    """
+    sandbox_mock, _captured = _make_install_sandbox_mock(
+        install_exit_code=1,
+        install_stderr="pip: package not found",
+    )
+    backend = VercelSandboxBackend(
+        oidc_token="t",
+        language="PYTHON",
+        packages=["nonexistent-package"],
+    )
+
+    async def _fake_create_sandbox() -> Any:
+        return sandbox_mock
+
+    monkeypatch.setattr(backend, "_create_sandbox", _fake_create_sandbox)
+
+    with pytest.raises(RuntimeError, match="pip: package not found"):
+        await backend.start_session("s1")
+
+    sandbox_mock.stop.assert_awaited_once()
+    sandbox_mock.client.aclose.assert_awaited_once()
+    assert "s1" not in backend._sessions, (
+        "Failed install must not leave a session cached in self._sessions"
+    )
+
+
+@pytest.mark.asyncio
+async def test_ephemeral_execute_runs_install_before_user_code(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When execute() runs without a cached session, the ephemeral branch must
+    issue the install run_command before the user-code run_command, then stop
+    the sandbox and aclose the client in the finally block.
+    """
+    sandbox_mock, captured = _make_install_sandbox_mock()
+    backend = VercelSandboxBackend(
+        oidc_token="t",
+        language="PYTHON",
+        packages=["requests"],
+    )
+
+    async def _fake_create_sandbox() -> Any:
+        return sandbox_mock
+
+    monkeypatch.setattr(backend, "_create_sandbox", _fake_create_sandbox)
+
+    result = await backend.execute("print('hello')", session_key="ephemeral")
+
+    # First run_command call is the install; second is the user-code exec.
+    assert len(captured) >= 2, f"Expected install + exec calls; got {captured!r}"
+    assert captured[0] == ("python3", ["-m", "pip", "install", "--user", "requests"]), (
+        f"Install must run before user code; first call was {captured[0]!r}"
+    )
+    # Ephemeral path always stops + acloses the sandbox in finally.
+    sandbox_mock.stop.assert_awaited_once()
+    sandbox_mock.client.aclose.assert_awaited_once()
+    # Nothing is cached on the ephemeral path.
+    assert "ephemeral" not in backend._sessions
+    # Successful exec returns a normal ExecutionResult (no error).
+    assert result.error is None or result.error == ""
+
+
+@pytest.mark.asyncio
+async def test_ephemeral_execute_install_failure_surfaces_as_execution_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An install failure on the ephemeral path must surface as
+    ExecutionResult.error (not a raised exception) while stop + aclose still
+    run in the finally block.
+    """
+    sandbox_mock, _captured = _make_install_sandbox_mock(
+        install_exit_code=1,
+        install_stderr="pip: package not found",
+    )
+    backend = VercelSandboxBackend(
+        oidc_token="t",
+        language="PYTHON",
+        packages=["nonexistent-package"],
+    )
+
+    async def _fake_create_sandbox() -> Any:
+        return sandbox_mock
+
+    monkeypatch.setattr(backend, "_create_sandbox", _fake_create_sandbox)
+
+    result = await backend.execute("print('hello')", session_key="ephemeral")
+
+    assert result.error is not None and "pip: package not found" in result.error
+    sandbox_mock.stop.assert_awaited_once()
+    sandbox_mock.client.aclose.assert_awaited_once()
+    assert "ephemeral" not in backend._sessions

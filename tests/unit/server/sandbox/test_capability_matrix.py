@@ -257,6 +257,21 @@ def test_daytona_build_backend_wires_packages_to_backend() -> None:
     assert backend._packages == packages
 
 
+@pytest.mark.parametrize("adapter_key", ["VERCEL_PYTHON", "VERCEL_TYPESCRIPT"])
+def test_vercel_build_backend_wires_packages_to_backend(adapter_key: str) -> None:
+    """VERCEL_* build_backend forwards packages list to VercelSandboxBackend._packages."""
+    adapter = _get_adapter(adapter_key)
+    packages = ["requests", "numpy"]
+    config = {
+        "VERCEL_TOKEN": "t",
+        "VERCEL_PROJECT_ID": "p",
+        "VERCEL_TEAM_ID": "m",
+        "dependencies": {"packages": packages},
+    }
+    backend = adapter.build_backend(config)
+    assert backend._packages == packages
+
+
 def test_modal_build_backend_wires_packages_to_image() -> None:
     """MODAL build_backend calls Image.pip_install with packages."""
     modal_mock = _modal_mock()
