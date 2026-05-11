@@ -22,6 +22,7 @@ import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProvider
 import type { CodeDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/CodeDatasetEvaluatorDetails_datasetEvaluator.graphql";
 import type { datasetEvaluatorDetailsLoaderQuery } from "@phoenix/pages/dataset/evaluators/__generated__/datasetEvaluatorDetailsLoaderQuery.graphql";
 import {
+  friendlySettingLabel,
   getDisplaySandboxConfig,
   LanguageWithIcon,
   languageLabel,
@@ -271,27 +272,6 @@ function OutputConfigBlock({ config }: { config: OutputConfig }) {
 // Keys that are presented as a single row (not flattened into dot-paths) so
 // we can apply a friendly human-readable summary value.
 const COLLAPSED_SETTING_KEYS = new Set(["env_vars", "internet_access"]);
-
-const FRIENDLY_SETTING_LABELS: Record<string, string> = {
-  env_vars: "Environment Variables",
-  internet_access: "Internet Access",
-  dependencies: "Dependencies",
-};
-
-function friendlySettingLabel(key: string): string {
-  if (FRIENDLY_SETTING_LABELS[key]) return FRIENDLY_SETTING_LABELS[key];
-  return key
-    .split(".")
-    .map((part) =>
-      part
-        .split("_")
-        .map((s) =>
-          s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1)
-        )
-        .join(" ")
-    )
-    .join(" / ");
-}
 
 function flattenSettings(
   value: unknown,

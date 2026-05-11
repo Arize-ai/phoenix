@@ -39,7 +39,12 @@ export function SandboxProvidersCard({
   return (
     <Card
       title="Sandbox Providers"
-      subTitle="Manage shared provider settings and whether each sandbox runtime can be enabled."
+      titleExtra={
+        <ContextualHelp variant="info">
+          Shared provider settings and whether each sandbox runtime can be
+          enabled.
+        </ContextualHelp>
+      }
     >
       <table css={sandboxesTableCSS}>
         <thead>
