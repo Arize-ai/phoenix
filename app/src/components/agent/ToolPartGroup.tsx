@@ -24,10 +24,13 @@ const TERMINAL_STATES = new Set<ToolState>([
 const toolPoolCSS = css`
   width: 100%;
   margin-top: var(--global-dimension-size-150);
-  border: 1px solid var(--tool-call-border-color);
-  border-radius: var(--global-rounding-medium);
-  background: var(--tool-call-background-color);
-  overflow: hidden;
+  border-left: 1px solid var(--tool-call-body-border-color);
+  transition: border-color 150ms ease;
+
+  &[data-header-active="true"] {
+    border-left-color: var(--tool-call-border-color-hover);
+    transition: none;
+  }
 
   &:has(+ :not(.tool-pool)) {
     margin-bottom: var(--global-dimension-size-150);
@@ -38,18 +41,13 @@ const toolPoolCSS = css`
     display: flex;
     flex-direction: column;
     gap: var(--global-dimension-size-50);
-    padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
-    background: var(--tool-call-header-background-color);
+    padding: var(--global-dimension-size-100) var(--global-dimension-size-100) 0
+      var(--global-dimension-size-150);
     user-select: none;
-    transition: background 150ms ease;
-
-    &:hover {
-      background: var(--tool-call-header-background-color-hover);
-    }
 
     &:focus-visible {
       outline: 2px solid var(--global-color-primary);
-      outline-offset: -2px;
+      outline-offset: 2px;
     }
   }
 
@@ -118,22 +116,14 @@ const toolPoolCSS = css`
   }
 
   .tool-pool__body {
-    border-top: 1px solid var(--tool-call-body-border-color);
+    display: flex;
+    flex-direction: column;
+    gap: var(--global-dimension-size-100);
+    padding: var(--global-dimension-size-100) var(--global-dimension-size-100) 0
+      var(--global-dimension-size-150);
 
     & > .tool-part {
       margin-top: 0;
-      border: none;
-      border-radius: 0;
-      border-bottom: 1px solid var(--tool-call-body-border-color);
-
-      &:last-child {
-        border-bottom: none;
-      }
-
-      /* Remove inner border-radius when nested inside a pool */
-      summary {
-        border-radius: 0;
-      }
     }
   }
 `;
@@ -219,6 +209,7 @@ function formatPoolStatus({
 export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
   const stats = useToolPoolStats(parts);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isHeaderActive, setIsHeaderActive] = useState(false);
 
   const { text: statusText, variant: statusVariant } = formatPoolStatus(stats);
 
@@ -227,12 +218,20 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
   };
 
   return (
-    <div className="tool-pool" css={toolPoolCSS}>
+    <div
+      className="tool-pool"
+      css={toolPoolCSS}
+      data-header-active={isHeaderActive}
+    >
       <div
         className="tool-pool__header"
         role="button"
         tabIndex={0}
         aria-expanded={isExpanded}
+        onMouseEnter={() => setIsHeaderActive(true)}
+        onMouseLeave={() => setIsHeaderActive(false)}
+        onFocus={() => setIsHeaderActive(true)}
+        onBlur={() => setIsHeaderActive(false)}
         onClick={handleToggle}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
