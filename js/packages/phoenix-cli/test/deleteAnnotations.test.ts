@@ -254,13 +254,7 @@ describe("span-annotations delete", () => {
 
     await expect(
       createSpanAnnotationsCommand().parseAsync(
-        [
-          "delete",
-          "--identifier",
-          "coding-session:demo",
-          "-y",
-          ...BASE_ARGS,
-        ],
+        ["delete", "--identifier", "coding-session:demo", "-y", ...BASE_ARGS],
         { from: "user" }
       )
     ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
@@ -317,13 +311,7 @@ describe("session-annotations delete", () => {
 
     await expect(
       createSessionAnnotationsCommand().parseAsync(
-        [
-          "delete",
-          "--identifier",
-          "coding-session:demo",
-          "-y",
-          ...BASE_ARGS,
-        ],
+        ["delete", "--identifier", "coding-session:demo", "-y", ...BASE_ARGS],
         { from: "user" }
       )
     ).rejects.toThrow(`process.exit:${ExitCode.INVALID_ARGUMENT}`);
