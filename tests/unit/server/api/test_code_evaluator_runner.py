@@ -667,14 +667,15 @@ class TestEvaluateTracing:
         assert sandbox_attrs[OPENINFERENCE_SPAN_KIND] == "TOOL"
         assert parse_attrs[OPENINFERENCE_SPAN_KIND] == "CHAIN"
 
-        # Root span carries INPUT_VALUE, OUTPUT_VALUE, code.value, code.mime_type.
+        # Root span carries INPUT_VALUE and OUTPUT_VALUE.
         assert INPUT_VALUE in evaluator_attrs
         assert OUTPUT_VALUE in evaluator_attrs
         # output.value is the raw user-function return ("pass"), not the {results:[...]} wrapper.
         # oi.get_output_attributes serializes str as-is (text/plain), so no JSON-decode needed.
         assert evaluator_attrs[OUTPUT_VALUE] == "pass"
-        assert evaluator_attrs["code.value"] == runner._source_code
-        assert evaluator_attrs["code.mime_type"] == "text/x-python"
+        # Source code is intentionally NOT emitted on the span — bloat + sensitive-content risk.
+        assert "code.value" not in evaluator_attrs
+        assert "code.mime_type" not in evaluator_attrs
 
         # Input Mapping JSON shape.
         raw_input_mapping = input_mapping_attrs[INPUT_VALUE]
@@ -957,7 +958,11 @@ class TestRedactionContracts:
         output_val = str(sandbox_attrs.get(OUTPUT_VALUE, ""))
         assert "<redacted:" not in output_val
 
-    async def test_source_code_on_root_span(self) -> None:
+    async def test_source_code_not_emitted_on_root_span(self) -> None:
+        # Regression guard: user-authored source code must NOT be attached to
+        # the evaluator span. It bloats telemetry and can carry sensitive
+        # content (hardcoded prompts, private logic) that the secret masker
+        # does not cover.
         source = 'def evaluate(**kw): return "pass"'
         runner, _ = _make_runner(source_code=source, backend_stdout='"pass"')
         tracer, exporter = _make_tracer()
@@ -970,7 +975,9 @@ class TestRedactionContracts:
             tracer=tracer,
         )
 
-        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
-        evaluator_attrs = dict(spans_by_name["Evaluator: t"].attributes or {})
-        assert evaluator_attrs["code.value"] == source
-        assert evaluator_attrs["code.mime_type"] == "text/x-python"
+        for span in exporter.get_finished_spans():
+            attrs = dict(span.attributes or {})
+            assert "code.value" not in attrs, f"{span.name} leaked code.value"
+            assert "code.mime_type" not in attrs, f"{span.name} leaked code.mime_type"
+            for v in attrs.values():
+                assert source not in str(v), f"{span.name} leaked source via another attr"

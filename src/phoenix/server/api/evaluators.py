@@ -64,10 +64,6 @@ from phoenix.server.sandbox.types import ExecutionResult, SandboxBackend, Unsupp
 
 logger = logging.getLogger(__name__)
 
-# code.value / code.mime_type are not in openinference.semconv.trace as of this writing.
-CODE_VALUE = "code.value"
-CODE_MIME_TYPE = "code.mime_type"
-
 
 class _SecretAwareBackend(Protocol):
     secret_values: frozenset[str]
@@ -2907,15 +2903,13 @@ class CodeEvaluatorRunner(BaseEvaluator):
                 else:
                     parse_span.set_status(Status(StatusCode.OK))
 
-            # Root span: emit raw user-function return as output.value, plus source code.
-            code_mime = "text/x-python" if self._language == "PYTHON" else "text/x-typescript"
+            # Root span: emit raw user-function return as output.value.
+            # Source code is intentionally NOT emitted on the span — it bloats
+            # telemetry and can carry sensitive content (hardcoded prompts,
+            # private logic) that masking does not cover.
             evaluator_span.set_attributes(
                 _mask_attrs(
-                    {
-                        **oi.get_output_attributes(raw_value),
-                        CODE_VALUE: self._source_code,
-                        CODE_MIME_TYPE: code_mime,
-                    },
+                    dict(oi.get_output_attributes(raw_value)),
                     masker,
                 )
             )
