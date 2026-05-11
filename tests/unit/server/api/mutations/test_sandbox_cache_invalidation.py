@@ -102,6 +102,10 @@ class _CapturingAdapter(SandboxAdapter):
         self.received_user_envs.append(dict(user_env) if user_env is not None else None)
         backend = MagicMock(spec=SandboxBackend)
         backend.close = AsyncMock()
+        # get_or_create_backend reads _provider_secret_values to compose the
+        # effective secret_values set; SandboxBackend's spec does not declare
+        # this attr (convention-attached by real backends).
+        backend._provider_secret_values = frozenset()
         return backend
 
 
