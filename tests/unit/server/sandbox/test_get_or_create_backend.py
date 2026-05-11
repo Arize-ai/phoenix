@@ -60,7 +60,13 @@ def _make_adapter(received: dict[str, Any], cred_key: str = "CRED_X") -> Sandbox
         ) -> SandboxBackend:
             received["config"] = dict(config)
             received["user_env"] = user_env
-            return MagicMock(spec=SandboxBackend)
+            # get_or_create_backend reads _provider_secret_values to compose
+            # the effective secret_values set; the SandboxBackend spec does not
+            # declare these attrs (they are convention-attached by real
+            # backends), so set them explicitly on the spec'd Mock.
+            backend = MagicMock(spec=SandboxBackend)
+            backend._provider_secret_values = frozenset()
+            return backend
 
     return _StubAdapter()
 

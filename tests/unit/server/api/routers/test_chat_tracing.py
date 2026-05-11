@@ -324,7 +324,9 @@ class TestSpanHierarchy:
         tool_attrs = tool_spans[0].attributes
         assert tool_spans[0].name == "calculator"
         assert tool_attrs["tool"]["name"] == "calculator"
-        assert tool_attrs["tool"]["parameters"] == '{"expr": "2+2"}'
+        # tool.parameters is decoded from its JSON-string form by
+        # Tracer.get_db_traces (mirroring OTLP ingestion), so callers see a dict.
+        assert tool_attrs["tool"]["parameters"] == {"expr": "2+2"}
         assert tool_attrs["output"]["value"] == '{"result": 4}'
 
         llm_attrs = llm_spans[0].attributes
