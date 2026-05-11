@@ -13,7 +13,6 @@ import { isPlainObject } from "@phoenix/utils/jsonUtils";
 
 import type {
   BackendInfo,
-  SandboxConfig,
   SandboxConfigFormValues,
   SandboxProvider,
 } from "./types";
@@ -21,79 +20,6 @@ import type {
 type Language =
   | SandboxProvider["language"]
   | BackendInfo["supportedLanguages"][number];
-
-/**
- * Status pill for a config row: a "union" of backend health and the
- * config/provider enabled toggles.
- *
- * Precedence (top wins): config-disabled > provider-disabled > backend status.
- *
- * Why user toggles win over backend health: a disabled config is "off" by
- * explicit user intent — its backend health is moot until re-enabled, and
- * any backend issue stays visible in the providers section above. Showing
- * "Disabled" matches the toggle UI in the actions column.
- */
-export function ConfigStatusText({
-  config,
-  provider,
-  backend,
-}: {
-  config: Pick<SandboxConfig, "enabled">;
-  provider: Pick<SandboxProvider, "enabled">;
-  backend: Pick<BackendInfo, "status" | "statusDetail" | "dependencyHints">;
-}) {
-  if (!config.enabled) {
-    return (
-      <DisabledStatusText
-        label="Disabled"
-        tooltip="Toggle this config on to make it available."
-      />
-    );
-  }
-  if (!provider.enabled) {
-    return (
-      <DisabledStatusText
-        label="Provider disabled"
-        tooltip="Enable the provider in the Sandbox Providers section above."
-      />
-    );
-  }
-  return (
-    <StatusText
-      status={backend.status}
-      detail={backend.statusDetail}
-      dependencyHints={backend.dependencyHints}
-    />
-  );
-}
-
-function DisabledStatusText({
-  label,
-  tooltip,
-}: {
-  label: string;
-  tooltip: string;
-}) {
-  return (
-    <TooltipTrigger delay={100}>
-      <TriggerWrap>
-        <Text
-          color="text-700"
-          css={css`
-            text-decoration: underline dotted;
-            text-underline-offset: 2px;
-            cursor: help;
-          `}
-        >
-          {label}
-        </Text>
-      </TriggerWrap>
-      <RichTooltip width={320}>
-        <Text>{tooltip}</Text>
-      </RichTooltip>
-    </TooltipTrigger>
-  );
-}
 
 export function StatusText({
   status,
@@ -314,8 +240,111 @@ export function summarizeConfig(config: unknown) {
   return `${keys.length} settings: ${keys.slice(0, 2).join(", ")}${keys.length > 2 ? ", ..." : ""}`;
 }
 
-export function hasConfig(config: unknown) {
-  return isPlainObject(config) && Object.keys(config).length > 0;
+const FRIENDLY_SETTING_LABELS: Record<string, string> = {
+  env_vars: "Environment Variables",
+  internet_access: "Internet Access",
+  dependencies: "Dependencies",
+};
+
+/**
+ * Human-readable label for a sandbox config setting key. Falls back to
+ * title-casing snake_case segments and joining dot-paths with " / " so
+ * unknown keys still render cleanly.
+ */
+export function friendlySettingLabel(key: string): string {
+  if (FRIENDLY_SETTING_LABELS[key]) return FRIENDLY_SETTING_LABELS[key];
+  return key
+    .split(".")
+    .map((part) =>
+      part
+        .split("_")
+        .map((s) =>
+          s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1)
+        )
+        .join(" ")
+    )
+    .join(" / ");
+}
+
+export type SandboxConfigSetting = {
+  /** The raw config key, e.g. "env_vars". */
+  key: string;
+  /** Human-readable label, e.g. "Environment Variables". */
+  label: string;
+  /** Compact, display-safe value summary, e.g. "FOO, BAR" or "on". */
+  value: string;
+};
+
+/**
+ * Flattens a sandbox config into display-ready `label → value` pairs for the
+ * settings summary shown in the configs table.
+ *
+ * Env-var literal values are already redacted by {@link getDisplaySandboxConfig};
+ * we surface the variable *names* (not values) so it is clear which variables
+ * are set without leaking secrets. Internet access is normalized to a plain
+ * "on" / "off" (or an allowlist) so it is obvious whether it is enabled.
+ */
+export function getSandboxConfigSettings(
+  config: unknown
+): SandboxConfigSetting[] {
+  const display = getDisplaySandboxConfig(config);
+  if (!isPlainObject(display)) {
+    return [];
+  }
+  return Object.entries(display).map(([key, value]) => ({
+    key,
+    label: friendlySettingLabel(key),
+    value: summarizeSandboxSettingValue(key, value),
+  }));
+}
+
+function summarizeSandboxSettingValue(key: string, value: unknown): string {
+  switch (key) {
+    case "env_vars": {
+      if (!Array.isArray(value) || value.length === 0) {
+        return "none";
+      }
+      return value
+        .map((entry) =>
+          isPlainObject(entry) && typeof entry["name"] === "string"
+            ? entry["name"]
+            : "?"
+        )
+        .join(", ");
+    }
+    case "internet_access":
+      return summarizeInternetAccess(value);
+    case "dependencies": {
+      if (!isPlainObject(value)) {
+        return "configured";
+      }
+      const packages = Array.isArray(value["packages"]) ? value["packages"] : [];
+      return packages.length > 0
+        ? packages.map((p) => String(p)).join(", ")
+        : "none";
+    }
+    default:
+      if (value == null) return "—";
+      return typeof value === "object" ? JSON.stringify(value) : String(value);
+  }
+}
+
+function summarizeInternetAccess(value: unknown): string {
+  if (value == null) return "off";
+  if (typeof value === "string") {
+    return value.toLowerCase() === "deny" ? "off" : value;
+  }
+  if (isPlainObject(value)) {
+    const rawMode = value["mode"];
+    const mode = typeof rawMode === "string" ? rawMode.toLowerCase() : null;
+    if (mode == null || mode === "deny") return "off";
+    const domains = value["domains"];
+    if (Array.isArray(domains) && domains.length > 0) {
+      return `allowlist · ${domains.map((d) => String(d)).join(", ")}`;
+    }
+    return mode === "allow" ? "on" : mode;
+  }
+  return "on";
 }
 
 export function formValuesToConfigPatch(
