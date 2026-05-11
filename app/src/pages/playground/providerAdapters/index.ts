@@ -193,9 +193,11 @@ export function spanInvocationToConfigAndPromoted(
 }
 
 /**
- * Canonical provider config → normalized canonical provider config. Store
- * mutations call this before committing config so field-rippling invalid
- * combinations cannot persist in playground state.
+ * Canonical provider config → normalized canonical provider config, i.e. one
+ * with no field-rippling invalid combinations (e.g. Anthropic `temperature`
+ * alongside adaptive thinking). Prefer {@link writeInvocationConfigField} for
+ * single-leaf edits, which normalizes internally; use this only when committing
+ * a config produced outside the adapter (bulk patches, migrations).
  */
 export function normalizeInvocationConfig(
   provider: ModelProvider,
