@@ -20,6 +20,7 @@ from .types import (
     ExecutionResult,
     SandboxAdapter,
     SandboxBackend,
+    compose_secret_values,
 )
 
 logger = logging.getLogger(__name__)
@@ -41,6 +42,7 @@ class DenoSandboxBackend(BaseNoSessionBackend):
     ) -> None:
         self._deno_executable = deno_executable
         self._user_env: dict[str, str] = user_env or {}
+        self.secret_values = compose_secret_values(user_env)
 
     def _build_command(self) -> list[str]:
         # Deno security docs: permissions are denied by default, but config

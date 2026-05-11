@@ -289,6 +289,9 @@ def _get_db_span(
 
     attributes = {}
     if otel_span.attributes:
+        # Mirror OTLP ingestion: decode JSON-string attributes (e.g. metadata,
+        # tool.parameters) into structured values before unflattening so the UI
+        # renders them as objects rather than escaped strings.
         attributes = unflatten(load_json_strings(otel_span.attributes.items()))
 
     span_kind_attribute_value = get_attribute_value(
