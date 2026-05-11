@@ -20,6 +20,7 @@ if __package__ in {None, ""}:
 from phoenix.client import AsyncClient
 from phoenix.client.resources.experiments.types import ExperimentEvaluationRun, RanExperiment
 from phoenix.client.utils.config import get_base_url, get_env_phoenix_api_key
+
 from tests.pxi.evals.agent_task import (
     DEFAULT_ASSISTANT_MODEL,
     DEFAULT_ASSISTANT_PROVIDER,
