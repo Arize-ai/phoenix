@@ -8,6 +8,7 @@ import invariant from "tiny-invariant";
 
 import {
   Card,
+  CopyToClipboardButton,
   Empty,
   Flex,
   Switch,
@@ -188,14 +189,21 @@ function VersionDetail({
         <Card
           title={`Version ${version.sequenceNumber}`}
           extra={
-            <Switch
-              labelPlacement="start"
-              isSelected={showDiff && hasPreviousVersion}
-              isDisabled={!hasPreviousVersion}
-              onChange={setShowDiff}
-            >
-              Diff
-            </Switch>
+            <Flex direction="row" alignItems="center" gap="size-200">
+              <Switch
+                labelPlacement="start"
+                isSelected={showDiff && hasPreviousVersion}
+                isDisabled={!hasPreviousVersion}
+                onChange={setShowDiff}
+              >
+                Diff
+              </Switch>
+              <CopyToClipboardButton
+                text={version.sourceCode}
+                size="S"
+                tooltipText="Copy code"
+              />
+            </Flex>
           }
         >
           {showDiff && previousVersion ? (
