@@ -958,6 +958,57 @@ class TestRedactionContracts:
         output_val = str(sandbox_attrs.get(OUTPUT_VALUE, ""))
         assert "<redacted:" not in output_val
 
+    async def test_input_mapping_span_exception_masked_on_inner_span(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Regression guard for the OTel auto-record bug Roger flagged: when
+        # apply_input_mapping raises, the Input Mapping span's `with` __exit__
+        # used to auto-record the unmasked exception before the outer except
+        # ever ran. Verify both spans now carry only the masked text.
+        secret = "mysupersecretkey"
+        runner, _ = _make_runner_with_secret(secret)
+
+        def _boom(**_: object) -> dict[str, object]:
+            raise RuntimeError(f"path resolution failed for {secret}")
+
+        monkeypatch.setattr("phoenix.server.api.evaluators.apply_input_mapping", _boom)
+        tracer, exporter = _make_tracer()
+
+        await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="t",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        input_mapping_span = spans_by_name["Input Mapping"]
+
+        # Inner span: exception event must be masked.
+        exc_events = [e for e in input_mapping_span.events if e.name == "exception"]
+        assert exc_events, "expected exception event on Input Mapping span"
+        msg = str(dict(exc_events[0].attributes or {}).get("exception.message", ""))
+        assert secret not in msg
+        assert "<redacted:" in msg
+
+        # Inner span: status description must be masked.
+        assert input_mapping_span.status.status_code == StatusCode.ERROR
+        assert secret not in (input_mapping_span.status.description or "")
+        assert "<redacted:" in (input_mapping_span.status.description or "")
+
+        # Outer evaluator span: same guarantee (already covered by other tests,
+        # but worth asserting at the same call site so a future regression on
+        # either span is caught by one test).
+        evaluator_span = spans_by_name["Evaluator: t"]
+        evaluator_exc_events = [e for e in evaluator_span.events if e.name == "exception"]
+        assert evaluator_exc_events
+        evaluator_msg = str(
+            dict(evaluator_exc_events[0].attributes or {}).get("exception.message", "")
+        )
+        assert secret not in evaluator_msg
+        assert secret not in (evaluator_span.status.description or "")
+
     async def test_source_code_not_emitted_on_root_span(self) -> None:
         # Regression guard: user-authored source code must NOT be attached to
         # the evaluator span. It bloats telemetry and can carry sensitive

@@ -2666,25 +2666,37 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     for _ in (output_configs or [None])  # type: ignore[list-item]
                 ]
 
-            try:
-                with tracer_.start_as_current_span(
-                    "Input Mapping",
-                    attributes=_mask_attrs(
-                        {
-                            **oi.get_span_kind_attributes("chain"),
-                            **oi.get_input_attributes(
-                                {
-                                    "input_mapping": {
-                                        "path_mapping": input_mapping.path_mapping or {},
-                                        "literal_mapping": input_mapping.literal_mapping or {},
-                                    },
-                                    "template_variables": context,
-                                }
-                            ),
-                        },
-                        masker,
-                    ),
-                ) as input_mapping_span:
+            # `record_exception=False` + `set_status_on_exception=False` disables
+            # OTel's default auto-recording on the span's `with` __exit__. If we
+            # let the default fire, the unmasked exception lands on the span
+            # BEFORE the `except` below ever runs — masked records added later
+            # would be additive, and on an already-ended span are silently
+            # dropped. With auto-record disabled, our explicit
+            # `_record_masked_exception` / `_set_masked_status` calls are the
+            # only thing persisted, and the try/return-inside-with shape (mirror
+            # of the Sandbox span pattern below) ensures __exit__ sees no
+            # exception so the span ends cleanly with the masked content.
+            with tracer_.start_as_current_span(
+                "Input Mapping",
+                attributes=_mask_attrs(
+                    {
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
+                            {
+                                "input_mapping": {
+                                    "path_mapping": input_mapping.path_mapping or {},
+                                    "literal_mapping": input_mapping.literal_mapping or {},
+                                },
+                                "template_variables": context,
+                            }
+                        ),
+                    },
+                    masker,
+                ),
+                record_exception=False,
+                set_status_on_exception=False,
+            ) as input_mapping_span:
+                try:
                     mapped_inputs = apply_input_mapping(
                         input_schema=input_schema,
                         input_mapping=input_mapping,
@@ -2694,14 +2706,16 @@ class CodeEvaluatorRunner(BaseEvaluator):
                         _mask_attrs(oi.get_output_attributes(mapped_inputs), masker)
                     )
                     input_mapping_span.set_status(Status(StatusCode.OK))
-            except Exception as exc:
-                err = f"Input mapping failed: {exc}"
-                _record_masked_exception(evaluator_span, exc, masker)
-                _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
-                return [
-                    self._make_error_result(name, err, start_time, trace_id=trace_id)
-                    for _ in (output_configs or [None])  # type: ignore[list-item]
-                ]
+                except Exception as exc:
+                    err = f"Input mapping failed: {exc}"
+                    _record_masked_exception(input_mapping_span, exc, masker)
+                    _set_masked_status(input_mapping_span, StatusCode.ERROR, err, masker)
+                    _record_masked_exception(evaluator_span, exc, masker)
+                    _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
+                    return [
+                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        for _ in (output_configs or [None])  # type: ignore[list-item]
+                    ]
 
             # Build language-appropriate harness
             if self._language == "PYTHON":
@@ -2717,6 +2731,9 @@ class CodeEvaluatorRunner(BaseEvaluator):
             if self._timeout is not None:
                 sandbox_metadata["timeout"] = int(self._timeout)
 
+            # See Input Mapping above for rationale on the OTel auto-record
+            # kwargs — our explicit _record_masked_exception calls must be the
+            # sole exception/status writers so unmasked content never lands.
             with tracer_.start_as_current_span(
                 f"Sandbox: {self._name}",
                 attributes=_mask_attrs(
@@ -2732,6 +2749,8 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     },
                     masker,
                 ),
+                record_exception=False,
+                set_status_on_exception=False,
             ) as sandbox_span:
                 try:
                     execution = await asyncio.wait_for(
@@ -2825,6 +2844,8 @@ class CodeEvaluatorRunner(BaseEvaluator):
             results: list[EvaluationResult] = []
             any_coerce_error = False
             last_coerce_error: Optional[str] = None
+            # See Input Mapping above for rationale on the OTel auto-record
+            # kwargs.
             with tracer_.start_as_current_span(
                 "Parse Eval Result",
                 attributes=_mask_attrs(
@@ -2834,6 +2855,8 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     },
                     masker,
                 ),
+                record_exception=False,
+                set_status_on_exception=False,
             ) as parse_span:
                 for config in output_configs:
                     annotation_name = f"{name}.{config.name}" if multi_output else name
