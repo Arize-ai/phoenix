@@ -317,10 +317,6 @@ async def _persist_db_traces(
     session: AsyncSession,
     db_traces: list[models.Trace],
 ) -> None:
-    """
-    Upsert any ProjectSession rows attached to ``db_traces``, re-point each
-    trace at the resolved rowid, then add the traces to the session and flush.
-    """
     project_sessions = [
         db_trace.project_session for db_trace in db_traces if db_trace.project_session is not None
     ]
