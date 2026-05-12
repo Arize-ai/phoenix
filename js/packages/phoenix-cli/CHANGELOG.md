@@ -1,5 +1,11 @@
 # @arizeai/phoenix-cli
 
+## 1.4.3
+
+### Patch Changes
+
+- @arizeai/phoenix-client@6.9.3
+
 ## 1.4.2
 
 ### Patch Changes
@@ -123,6 +129,7 @@
 ### Patch Changes
 
 - b4ded15: Update package READMEs with latest capabilities
+
   - phoenix-client: Add Sessions section documenting `listSessions`, `getSession`, and `addSessionAnnotation`
   - phoenix-evals: Add full pre-built evaluators table (conciseness, correctness, document relevance, refusal, tool evaluators), fix import paths for `bindEvaluator`
   - phoenix-mcp: Expand Tool Coverage section with complete, accurate tool list
@@ -141,6 +148,7 @@
   and upgrade itself in place.
 
   The command now:
+
   - shows the current and latest published CLI versions
   - supports `--check` for status-only checks
   - updates global installs managed by `npm`, `pnpm`, and `bun`
@@ -346,6 +354,7 @@
 ### Minor Changes
 
 - 32343ff: Add datasets and experiments commands to the CLI:
+
   - `px datasets` - List all available Phoenix datasets with example counts and metadata
   - `px dataset <name-or-id>` - Fetch examples from a dataset with optional `--split` and `--version` filters
   - `px experiments --dataset <name-or-id>` - List experiments for a dataset, optionally export full experiment data to a directory
