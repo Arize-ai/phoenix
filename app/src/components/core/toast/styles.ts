@@ -35,7 +35,7 @@ const slideInFromTop = keyframes`
  * `--toast-count` and `--toast-row-height` are written by `attachToastRegion`
  * in `ToastRegion.tsx` once the toasts have been measured.
  */
-export const toastRegionCss = css`
+export const toastRegionCSS = css`
   position: fixed;
   top: var(--global-dimension-static-size-200);
   left: 50%;
@@ -81,7 +81,7 @@ export const toastRegionCss = css`
  * Wraps each toast and owns its position within the stack. `--toast-index`
  * (0 = front / newest) is set inline by the `Toast` component.
  */
-export const toastPositionerCss = css`
+export const toastPositionerCSS = css`
   position: absolute;
   top: 0;
   left: 0;
@@ -101,7 +101,7 @@ export const toastPositionerCss = css`
   }
 `;
 
-export const toastCss = css`
+export const toastCSS = css`
   display: flex;
   flex-direction: column;
   gap: var(--global-dimension-static-size-100);

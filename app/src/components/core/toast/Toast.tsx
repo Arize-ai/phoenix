@@ -11,8 +11,8 @@ import { Button } from "@phoenix/components/core/button";
 import { Text } from "@phoenix/components/core/content";
 import { Icon, Icons } from "@phoenix/components/core/icon";
 import {
-  toastCss,
-  toastPositionerCss,
+  toastCSS,
+  toastPositionerCSS,
 } from "@phoenix/components/core/toast/styles";
 import {
   type NotificationParams,
@@ -62,7 +62,7 @@ export const Toast = <T extends QueuedToast<NotificationParams>>({
   return (
     <div
       className="toast-positioner"
-      css={toastPositionerCss}
+      css={toastPositionerCSS}
       style={{
         // @ts-expect-error custom css property
         "--toast-index": stackIndex,
@@ -71,7 +71,7 @@ export const Toast = <T extends QueuedToast<NotificationParams>>({
     >
       <AriaToast
         toast={toast}
-        css={toastCss}
+        css={toastCSS}
         className="react-aria-Toast"
         style={{
           // @ts-expect-error incorrect react types
