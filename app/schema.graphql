@@ -2121,38 +2121,10 @@ input InlineLLMEvaluatorInput {
   description: String = null
 }
 
-type IntInvocationParameter implements InvocationParameterBase {
-  invocationName: String!
-  canonicalName: CanonicalParameterName
-  label: String!
-  required: Boolean!
-  invocationInputField: InvocationInputField!
-  defaultValue: Int
-}
-
 enum InternetAccessMode {
   NONE
   BOOLEAN
   ALLOWLIST
-}
-
-enum InvocationInputField {
-  value_int
-  value_float
-  value_bool
-  value_string
-  value_json
-  value_string_list
-  value_boolean
-}
-
-union InvocationParameter = IntInvocationParameter | FloatInvocationParameter | BoundedFloatInvocationParameter | StringInvocationParameter | JSONInvocationParameter | StringListInvocationParameter | BooleanInvocationParameter
-
-interface InvocationParameterBase {
-  invocationName: String!
-  canonicalName: CanonicalParameterName
-  label: String!
-  required: Boolean!
 }
 
 """
