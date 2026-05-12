@@ -257,32 +257,32 @@ async def _upsert_project_sessions(
     then re-point each trace at the resolved rowid. Does NOT persist the traces
     themselves — the caller is responsible for adding them to the session.
     """
-    sessions_by_session_id: dict[str, models.ProjectSession] = {}
+    project_sessions_by_session_id: dict[str, models.ProjectSession] = {}
     for db_trace in db_traces:
-        ps = db_trace.project_session
-        if ps is None:
+        project_session = db_trace.project_session
+        if project_session is None:
             continue
-        existing = sessions_by_session_id.get(ps.session_id)
+        existing = project_sessions_by_session_id.get(project_session.session_id)
         if existing is None:
-            sessions_by_session_id[ps.session_id] = ps
+            project_sessions_by_session_id[project_session.session_id] = project_session
         else:
-            if ps.start_time < existing.start_time:
-                existing.start_time = ps.start_time
-            if existing.end_time < ps.end_time:
-                existing.end_time = ps.end_time
+            if project_session.start_time < existing.start_time:
+                existing.start_time = project_session.start_time
+            if existing.end_time < project_session.end_time:
+                existing.end_time = project_session.end_time
 
-    if not sessions_by_session_id:
+    if not project_sessions_by_session_id:
         return
 
     dialect = SupportedSQLDialect(session.bind.dialect.name)
     records = [
         {
-            "session_id": ps.session_id,
-            "project_id": ps.project_id,
-            "start_time": ps.start_time,
-            "end_time": ps.end_time,
+            "session_id": project_session.session_id,
+            "project_id": project_session.project_id,
+            "start_time": project_session.start_time,
+            "end_time": project_session.end_time,
         }
-        for ps in sessions_by_session_id.values()
+        for project_session in project_sessions_by_session_id.values()
     ]
     await session.execute(
         insert_on_conflict(
@@ -295,18 +295,18 @@ async def _upsert_project_sessions(
     )
     id_rows = await session.execute(
         select(models.ProjectSession.id, models.ProjectSession.session_id).where(
-            models.ProjectSession.session_id.in_(sessions_by_session_id.keys())
+            models.ProjectSession.session_id.in_(project_sessions_by_session_id.keys())
         )
     )
-    session_id_to_rowid = {session_id: id_ for id_, session_id in id_rows.all()}
+    rowid_by_session_id = {session_id: rowid for rowid, session_id in id_rows.all()}
     for db_trace in db_traces:
-        ps = db_trace.project_session
-        if ps is None:
+        project_session = db_trace.project_session
+        if project_session is None:
             continue
         # detach in-memory ProjectSession to avoid cascading insert; use the
         # resolved rowid from the upsert instead.
         db_trace.project_session = None  # type: ignore[assignment]
-        db_trace.project_session_rowid = session_id_to_rowid[ps.session_id]
+        db_trace.project_session_rowid = rowid_by_session_id[project_session.session_id]
 
 
 def create_agents_router(authentication_enabled: bool) -> APIRouter:
