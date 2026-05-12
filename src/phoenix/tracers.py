@@ -165,6 +165,7 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
 
         db_spans_by_trace_id: defaultdict[int, list[models.Span]] = defaultdict(list)
         db_span_costs_by_trace_id: defaultdict[int, list[models.SpanCost]] = defaultdict(list)
+        session_id_by_trace_id: dict[int, str] = {}
 
         for otel_span in otel_spans:
             trace_id = otel_span.get_span_context().trace_id  # type: ignore[no-untyped-call]
@@ -177,8 +178,16 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
             db_spans_by_trace_id[trace_id].append(db_span)
             if db_span_cost:
                 db_span_costs_by_trace_id[trace_id].append(db_span_cost)
+            if trace_id not in session_id_by_trace_id:
+                session_id_value = get_attribute_value(
+                    db_span.attributes, SpanAttributes.SESSION_ID
+                )
+                session_id = str(session_id_value).strip() if session_id_value is not None else ""
+                if session_id:
+                    session_id_by_trace_id[trace_id] = session_id
 
         db_traces = []
+        project_sessions_by_session_id: dict[str, models.ProjectSession] = {}
         for trace_id in db_spans_by_trace_id:
             db_spans = db_spans_by_trace_id[trace_id]
             db_span_costs = db_span_costs_by_trace_id[trace_id]
@@ -193,6 +202,23 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
             )
             db_trace.spans = db_spans  # explicitly set relationship to avoid lazy load
             db_trace.span_costs = db_span_costs  # explicitly set relationship to avoid lazy load
+            trace_session_id = session_id_by_trace_id.get(trace_id)
+            if trace_session_id is not None:
+                project_session = project_sessions_by_session_id.get(trace_session_id)
+                if project_session is None:
+                    project_session = models.ProjectSession(
+                        session_id=trace_session_id,
+                        project_id=project_id,
+                        start_time=db_trace.start_time,
+                        end_time=db_trace.end_time,
+                    )
+                    project_sessions_by_session_id[trace_session_id] = project_session
+                else:
+                    if db_trace.start_time < project_session.start_time:
+                        project_session.start_time = db_trace.start_time
+                    if project_session.end_time < db_trace.end_time:
+                        project_session.end_time = db_trace.end_time
+                db_trace.project_session = project_session
             db_traces.append(db_trace)
 
         return db_traces

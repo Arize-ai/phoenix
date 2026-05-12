@@ -76,6 +76,45 @@ class TestTracer:
         return Tracer(span_cost_calculator=span_cost_calculator)
 
     @pytest.mark.asyncio
+    async def test_get_db_traces_attaches_project_session_when_session_id_present(
+        self, db: DbSessionFactory, project: models.Project, tracer: Tracer
+    ) -> None:
+        with tracer.start_as_current_span(
+            "parent",
+            attributes={OPENINFERENCE_SPAN_KIND: "CHAIN"},
+        ) as parent_span:
+            parent_span.set_attribute(SpanAttributes.SESSION_ID, "session-abc")
+            with tracer.start_as_current_span(
+                "child",
+                attributes={OPENINFERENCE_SPAN_KIND: "LLM"},
+            ) as child_span:
+                child_span.set_attribute(SpanAttributes.SESSION_ID, "session-abc")
+
+        returned_traces = tracer.get_db_traces(project_id=project.id)
+        assert len(returned_traces) == 1
+        returned_trace = returned_traces[0]
+        project_session = returned_trace.project_session
+        assert project_session is not None
+        assert project_session.session_id == "session-abc"
+        assert project_session.project_id == project.id
+        assert project_session.start_time == returned_trace.start_time
+        assert project_session.end_time == returned_trace.end_time
+
+    @pytest.mark.asyncio
+    async def test_get_db_traces_leaves_project_session_unset_without_session_id(
+        self, db: DbSessionFactory, project: models.Project, tracer: Tracer
+    ) -> None:
+        with tracer.start_as_current_span(
+            "parent",
+            attributes={OPENINFERENCE_SPAN_KIND: "CHAIN"},
+        ):
+            pass
+
+        returned_traces = tracer.get_db_traces(project_id=project.id)
+        assert len(returned_traces) == 1
+        assert returned_traces[0].project_session is None
+
+    @pytest.mark.asyncio
     async def test_save_db_traces_persists_nested_spans(
         self, db: DbSessionFactory, project: models.Project, tracer: Tracer
     ) -> None:
