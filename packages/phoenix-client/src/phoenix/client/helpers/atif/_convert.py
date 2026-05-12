@@ -43,7 +43,7 @@ def _stable_trajectory_hash(trajectory: Mapping[str, Any]) -> str:
     trajectory_for_hash = {
         key: value
         for key, value in trajectory.items()
-        if not (isinstance(key, str) and key.startswith("_phoenix_"))
+        if not key.startswith("_phoenix_")
     }
     serialized = json.dumps(trajectory_for_hash, sort_keys=True, default=str)
     return hashlib.sha256(serialized.encode()).hexdigest()[:16]

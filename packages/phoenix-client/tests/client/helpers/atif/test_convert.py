@@ -634,7 +634,7 @@ class TestATIFV17Conversion:
         assert kinds["TOOL"] == 1
 
         tool_span = [s for s in spans if s["span_kind"] == "TOOL"][0]
-        metadata = tool_span["attributes"]["metadata"]
+        metadata = tool_span.get("attributes", {}).get("metadata", {})
         assert metadata["llm_call_count"] == 0
         assert metadata["tool_call_extra"] == {"runtime": "graph-dispatch"}
         assert metadata["observation_extra"] == {"confidence": 0.91}
@@ -644,7 +644,7 @@ class TestATIFV17Conversion:
     ) -> None:
         spans = _convert_atif_trajectory_to_spans(v17_embedded_subagents)
         llm_span = [s for s in spans if s["span_kind"] == "LLM"][0]
-        attrs = llm_span["attributes"]
+        attrs = llm_span.get("attributes", {})
         assert attrs["llm.input_messages.0.message.role"] == "system"
         assert "Compacted context" in attrs["llm.input_messages.0.message.content"]
         assert "Research current ATIF" not in attrs["input.value"]
@@ -660,15 +660,16 @@ class TestATIFV17Conversion:
 
         child_spans = _convert_atif_trajectory_to_spans(child, parent_span_context=parent_ctx)
         child_root = child_spans[0]
+        child_attrs = child_root.get("attributes", {})
         expected_trace_id = _sha256_trace_id(f"{parent['session_id']}:trace")
-        assert child_root["parent_id"] == _sha256_span_id(
+        assert child_root.get("parent_id") == _sha256_span_id(
             f"{expected_trace_id}:parent-doc:step:2:tool:call_delegate"
         )
         assert child_root["context"]["trace_id"] == _sha256_trace_id(
             f"{parent['session_id']}:trace"
         )
-        assert child_root["attributes"]["session.id"] == parent["session_id"]
-        assert child_root["attributes"]["metadata"]["trajectory_id"] == "child-doc"
+        assert child_attrs["session.id"] == parent["session_id"]
+        assert child_attrs.get("metadata", {})["trajectory_id"] == "child-doc"
 
     def test_v17_same_session_without_trajectory_id_has_distinct_ids(self) -> None:
         shared_session_id = "shared-v17-run"
@@ -843,12 +844,13 @@ class TestATIFV17Conversion:
             _sha256_span_id(f"{trace_id}:child-doc:step:2:tool:call_grandchild"),
             trace_id,
         )
+        assert grandchild_parent_ctx is not None
 
         grandchild_spans = _convert_atif_trajectory_to_spans(
             grandchild_flat,
             parent_span_context=grandchild_parent_ctx,
         )
-        assert grandchild_spans[0]["parent_id"] == grandchild_parent_ctx[0]
+        assert grandchild_spans[0].get("parent_id") == grandchild_parent_ctx[0]
         assert grandchild_spans[0]["context"]["trace_id"] == trace_id
 
     def test_context_management_replace_preserves_empty_context(self) -> None:
@@ -881,7 +883,7 @@ class TestATIFV17Conversion:
 
         spans = _convert_atif_trajectory_to_spans(trajectory)
         llm_span = [span for span in spans if span["span_kind"] == "LLM"][-1]
-        attrs = llm_span["attributes"]
+        attrs = llm_span.get("attributes", {})
 
         assert attrs["llm.input_messages.0.message.role"] == "system"
         assert attrs["llm.input_messages.0.message.content"] == ""
