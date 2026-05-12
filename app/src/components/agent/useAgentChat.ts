@@ -196,7 +196,7 @@ export function useAgentChat({
 
   const handleSendMessage = async (...args: Parameters<typeof sendMessage>) => {
     if (chatInstance && isRequestActive(chatInstance.status)) {
-      await stop();
+      return;
     }
 
     setMessages(removeInterruptedToolInputParts);

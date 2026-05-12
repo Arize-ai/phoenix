@@ -25,7 +25,7 @@ export interface PromptInputContextValue {
   status: PromptInputStatus;
   /** Whether the entire prompt input tree is disabled. */
   isDisabled: boolean;
-  /** Trigger a submit. Called by PromptInputTextarea (Enter) and PromptInputSubmit. */
+  /** Trigger a submit when the input is idle. Called by PromptInputTextarea (Enter) and PromptInputSubmit. */
   onSubmit: () => void;
   /** The current text content of the textarea. */
   value: string;
