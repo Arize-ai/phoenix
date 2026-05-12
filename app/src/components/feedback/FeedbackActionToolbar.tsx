@@ -1,4 +1,5 @@
-import { MessageAction, MessageActions } from "@phoenix/components/ai/message";
+import { MessageAction } from "@phoenix/components/ai/message/MessageAction";
+import { MessageActions } from "@phoenix/components/ai/message/MessageActions";
 import { Icon, Icons } from "@phoenix/components/core/icon";
 
 export type FeedbackValue = "positive" | "negative";
