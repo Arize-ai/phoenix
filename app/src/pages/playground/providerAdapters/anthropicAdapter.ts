@@ -661,7 +661,16 @@ export function anthropicWriteField(
           budgetTokens,
         };
         if (display !== undefined) enabled.display = display;
-        return normalizeAnthropicConfig({ ...config, thinking: enabled });
+        // Anthropic requires `budgetTokens < maxTokens`. If the existing
+        // `maxTokens` would render an unsatisfiable budget range, bump it so
+        // the form opens in a valid state instead of failing only at submit.
+        const maxTokens =
+          config.maxTokens > budgetTokens ? config.maxTokens : budgetTokens + 1;
+        return normalizeAnthropicConfig({
+          ...config,
+          maxTokens,
+          thinking: enabled,
+        });
       }
       if (value === "adaptive") {
         const prev = config.thinking;

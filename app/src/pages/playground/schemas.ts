@@ -181,59 +181,6 @@ export const modelConfigWithInvocationParametersSchema = z.object({
   }),
 });
 
-export const modelConfigWithResponseFormatSchema = z.object({
-  [SemanticAttributePrefixes.llm]: z.object({
-    [LLMAttributePostfixes.invocation_parameters]:
-      stringToInvocationParametersSchema.pipe(
-        // Cast unavoidable: z.lazy() (used by jsonObjectSchema) erases the
-        // Input type to `unknown`, but .pipe() requires the target's Input to
-        // match the source's Output ({ [key: string]: JSONLiteral }).
-        z.object({
-          response_format: jsonObjectSchema.optional(),
-        }) as z.ZodType<
-          { response_format?: { [key: string]: JSONLiteral } },
-          { [key: string]: JSONLiteral }
-        >
-      ),
-  }),
-});
-
-export const modelConfigWithOpenAIResponsesFormatSchema = z.object({
-  [SemanticAttributePrefixes.llm]: z.object({
-    [LLMAttributePostfixes.invocation_parameters]:
-      stringToInvocationParametersSchema.pipe(
-        z.object({
-          text: z.object({ format: jsonObjectSchema.optional() }).optional(),
-        }) as z.ZodType<
-          {
-            text?: { format?: { [key: string]: JSONLiteral } };
-          },
-          { [key: string]: JSONLiteral }
-        >
-      ),
-  }),
-});
-
-export const modelConfigWithGoogleResponseFormatSchema = z.object({
-  [SemanticAttributePrefixes.llm]: z.object({
-    [LLMAttributePostfixes.invocation_parameters]:
-      stringToInvocationParametersSchema.pipe(
-        z.object({
-          response_json_schema: jsonObjectSchema.optional(),
-          response_schema: jsonObjectSchema.optional(),
-          response_mime_type: z.string().optional(),
-        }) as z.ZodType<
-          {
-            response_json_schema?: { [key: string]: JSONLiteral };
-            response_schema?: { [key: string]: JSONLiteral };
-            response_mime_type?: string;
-          },
-          { [key: string]: JSONLiteral }
-        >
-      ),
-  }),
-});
-
 export const urlSchema = z.object({
   url: z.object({
     full: z.string(),

@@ -28,6 +28,19 @@ type CanonicalParameterName =
   | "TEMPERATURE"
   | "TOP_P";
 
+/**
+ * Discriminator for Phoenix's canonical, normalized invocation-parameter
+ * representation. Each family corresponds to one of the canonical config
+ * shapes — `OpenAIConfig`, `AnthropicConfig`, `GoogleConfig`, `AwsConfig` —
+ * and selects which provider adapter (storage, form-field projection, prompt
+ * serialization) to use.
+ *
+ * The grouping is about Phoenix's internal representation, not SDK wire
+ * formats. The many providers under `OPENAI` (AZURE_OPENAI, DEEPSEEK, XAI,
+ * GROQ, TOGETHER, OLLAMA, …) all consume the OpenAI SDK in practice, but
+ * what makes them share a family here is that Phoenix stores and edits
+ * their invocation parameters with one canonical shape.
+ */
 export const InvocationFamily = {
   OPENAI: "openai",
   ANTHROPIC: "anthropic",
@@ -37,6 +50,13 @@ export const InvocationFamily = {
 export type InvocationFamily =
   (typeof InvocationFamily)[keyof typeof InvocationFamily];
 
+/**
+ * Resolves the canonical-config family for a given `ModelProvider`. Used to
+ * pick the right Phoenix provider adapter (canonical config type, form-field
+ * projection, prompt serialization) for a model.
+ *
+ * See {@link InvocationFamily} for what the family represents.
+ */
 export function getInvocationFamilyForProvider(
   provider: ModelProvider
 ): InvocationFamily {

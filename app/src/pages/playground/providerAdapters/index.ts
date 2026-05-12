@@ -193,20 +193,6 @@ export function spanInvocationToConfigAndPromoted(
 }
 
 /**
- * Canonical provider config → normalized canonical provider config, i.e. one
- * with no field-rippling invalid combinations (e.g. Anthropic `temperature`
- * alongside adaptive thinking). Prefer {@link writeInvocationConfigField} for
- * single-leaf edits, which normalizes internally; use this only when committing
- * a config produced outside the adapter (bulk patches, migrations).
- */
-export function normalizeInvocationConfig(
-  provider: ModelProvider,
-  config: ProviderInvocationConfig
-): ProviderInvocationConfig {
-  return getAdapterForProvider(provider).normalize(config);
-}
-
-/**
  * Read a single user-facing leaf from canonical config by spec name. Returns
  * the value the generic form widget expects (lowercased enum values, etc.) or
  * `undefined` when the leaf isn't reachable.

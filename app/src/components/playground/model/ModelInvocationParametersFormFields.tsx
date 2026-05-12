@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { Suspense } from "react";
+import { Suspense, useCallback, useState } from "react";
 
 import { Flex, Icon, Icons, Text } from "@phoenix/components";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
@@ -34,9 +34,11 @@ export type ModelInvocationParametersFormFieldsProps = {
    */
   playgroundInstanceId: number;
   /**
-   * Callback when custom headers validation error state changes
+   * Fired when the validity of any JSON-object field (custom headers, extra
+   * body) flips. Use this to disable downstream save actions so users can't
+   * persist a stale "last good" value while invalid text is in the editor.
    */
-  onCustomHeadersErrorChange?: (hasError: boolean) => void;
+  onValidityChange?: (isValid: boolean) => void;
 };
 
 /**
@@ -46,7 +48,34 @@ export type ModelInvocationParametersFormFieldsProps = {
 export function ModelInvocationParametersFormFields(
   props: ModelInvocationParametersFormFieldsProps
 ) {
-  const { playgroundInstanceId, onCustomHeadersErrorChange } = props;
+  const { playgroundInstanceId, onValidityChange } = props;
+  const [headersHasError, setHeadersHasError] = useState(false);
+  const [extraBodyHasError, setExtraBodyHasError] = useState(false);
+
+  const reportValidity = useCallback(
+    (next: { headers?: boolean; extraBody?: boolean }) => {
+      const headers = next.headers ?? headersHasError;
+      const extraBody = next.extraBody ?? extraBodyHasError;
+      onValidityChange?.(!(headers || extraBody));
+    },
+    [headersHasError, extraBodyHasError, onValidityChange]
+  );
+
+  const handleHeadersErrorChange = useCallback(
+    (hasError: boolean) => {
+      setHeadersHasError(hasError);
+      reportValidity({ headers: hasError });
+    },
+    [reportValidity]
+  );
+
+  const handleExtraBodyErrorChange = useCallback(
+    (hasError: boolean) => {
+      setExtraBodyHasError(hasError);
+      reportValidity({ extraBody: hasError });
+    },
+    [reportValidity]
+  );
 
   const instance = usePlaygroundContext((state) =>
     state.instances.find((instance) => instance.id === playgroundInstanceId)
@@ -85,13 +114,14 @@ export function ModelInvocationParametersFormFields(
         <CustomHeadersModelConfigFormField
           key={instance.model.provider}
           instance={instance}
-          onErrorChange={onCustomHeadersErrorChange}
+          onErrorChange={handleHeadersErrorChange}
         />
       )}
       {canConfigureExtraBody ? (
         <ExtraBodyModelConfigFormField
           key={`${instance.model.provider}-extra-body`}
           instance={instance}
+          onErrorChange={handleExtraBodyErrorChange}
         />
       ) : null}
     </div>

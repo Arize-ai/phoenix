@@ -56,6 +56,23 @@ describe("parseGoogleConfig", () => {
       },
     });
   });
+
+  it("drops malformed fields rather than failing the whole parse", () => {
+    expect(
+      parseGoogleConfig({
+        temperature: "not a number",
+        maxOutputTokens: "also bad",
+        topP: 0.9,
+      })
+    ).toEqual({ topP: 0.9 });
+  });
+
+  it("falls back to an empty config for non-object input", () => {
+    expect(parseGoogleConfig(null)).toEqual({});
+    expect(parseGoogleConfig(undefined)).toEqual({});
+    expect(parseGoogleConfig("string")).toEqual({});
+    expect(parseGoogleConfig(42)).toEqual({});
+  });
 });
 
 describe("googleConfigToPromptInput", () => {

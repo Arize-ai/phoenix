@@ -526,6 +526,22 @@ describe("anthropicReadField / anthropicWriteField", () => {
     });
   });
 
+  it("flipping thinkingType=enabled bumps maxTokens when it would block the budget", () => {
+    const tooSmall: AnthropicConfig = { maxTokens: 500 };
+    const config = anthropicWriteField(tooSmall, "thinkingType", "enabled");
+    expect(config.thinking).toEqual({
+      type: "enabled",
+      budgetTokens: ANTHROPIC_MINIMUM_BUDGET_TOKENS,
+    });
+    expect(config.maxTokens).toBeGreaterThan(ANTHROPIC_MINIMUM_BUDGET_TOKENS);
+    expect(validateAnthropicConfigForSubmit(config)).toEqual([]);
+  });
+
+  it("flipping thinkingType=enabled preserves maxTokens when already valid", () => {
+    const config = anthropicWriteField(base, "thinkingType", "enabled");
+    expect(config.maxTokens).toBe(ANTHROPIC_DEFAULT_MAX_TOKENS);
+  });
+
   it("flipping thinkingType preserves display across enabled/adaptive", () => {
     const enabled = anthropicWriteField(base, "thinkingType", "enabled");
     const withDisplay = anthropicWriteField(

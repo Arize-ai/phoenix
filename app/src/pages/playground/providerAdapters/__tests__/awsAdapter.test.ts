@@ -25,6 +25,23 @@ describe("parseAwsConfig", () => {
       stopSequences: ["END"],
     });
   });
+
+  it("drops malformed fields rather than failing the whole parse", () => {
+    expect(
+      parseAwsConfig({
+        maxTokens: "not a number",
+        temperature: "also bad",
+        topP: 0.9,
+      })
+    ).toEqual({ topP: 0.9 });
+  });
+
+  it("falls back to an empty config for non-object input", () => {
+    expect(parseAwsConfig(null)).toEqual({});
+    expect(parseAwsConfig(undefined)).toEqual({});
+    expect(parseAwsConfig("string")).toEqual({});
+    expect(parseAwsConfig(42)).toEqual({});
+  });
 });
 
 describe("awsConfigToPromptInput", () => {

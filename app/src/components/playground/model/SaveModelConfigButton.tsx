@@ -88,7 +88,7 @@ export function SaveModelConfigButton({
       </Button>
       <Tooltip placement="bottom" offset={5}>
         {isDisabled
-          ? "Fix custom headers validation errors before saving"
+          ? "Fix validation errors before saving"
           : `Saves the current configuration as the default for ${providerName}.`}
       </Tooltip>
     </TooltipTrigger>
