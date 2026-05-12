@@ -234,7 +234,43 @@ class TestV17Validation:
                 },
             ],
         }
-        with pytest.raises(ValueError, match="trajectory_id or trajectory_path"):
+        with pytest.raises(ValueError, match="trajectory_id is required"):
+            _validate_atif_trajectory(trajectory)
+
+    def test_path_only_subagent_ref_rejected(self) -> None:
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": "run-v17-path-only",
+            "trajectory_id": "parent",
+            "agent": {"name": "agent", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "delegate"},
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "",
+                    "llm_call_count": 0,
+                    "tool_calls": [
+                        {
+                            "tool_call_id": "call_child",
+                            "function_name": "delegate",
+                            "arguments": {},
+                        }
+                    ],
+                    "observation": {
+                        "results": [
+                            {
+                                "source_call_id": "call_child",
+                                "subagent_trajectory_ref": [
+                                    {"trajectory_path": "child-trajectory.json"}
+                                ],
+                            }
+                        ]
+                    },
+                },
+            ],
+        }
+        with pytest.raises(ValueError, match="trajectory_path-only.*not supported"):
             _validate_atif_trajectory(trajectory)
 
     def test_unembedded_trajectory_id_ref_rejected(self) -> None:
