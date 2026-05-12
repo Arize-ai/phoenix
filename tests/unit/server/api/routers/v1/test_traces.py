@@ -247,6 +247,42 @@ async def test_rest_create_trace_note_blank_text_rejected(
     assert response.status_code == 422
 
 
+async def test_rest_create_trace_note_with_identifier_upserts(
+    db: DbSessionFactory,
+    httpx_client: httpx.AsyncClient,
+    project_with_a_single_trace_and_span: Any,
+    fake: Faker,
+) -> None:
+    identifier = "px-coding-session:test-upsert"
+    first_note, second_note = fake.pystr(), fake.pystr()
+
+    for note_text in (first_note, second_note):
+        response = await httpx_client.post(
+            "v1/trace_notes",
+            json={
+                "data": {
+                    "trace_id": "82c6c9c33ccc586e0d3bdf46b20db309",
+                    "note": note_text,
+                    "identifier": identifier,
+                }
+            },
+        )
+        assert response.status_code == 200
+
+    async with db() as session:
+        annotations = list(
+            (
+                await session.scalars(
+                    select(models.TraceAnnotation).where(models.TraceAnnotation.name == "note")
+                )
+            ).all()
+        )
+
+    assert len(annotations) == 1
+    assert annotations[0].identifier == identifier
+    assert annotations[0].explanation == second_note
+
+
 async def test_traces_endpoint_otlp_compliance(
     httpx_client: httpx.AsyncClient,
 ) -> None:

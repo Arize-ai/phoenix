@@ -246,8 +246,8 @@ async def list_span_annotations(
         default=None,
         description=(
             "Optional list of annotation names to include. If provided, only annotations with "
-            "these names will be returned. 'note' annotations are excluded by default unless "
-            "explicitly included in this list."
+            "these names will be returned (allowlist). When omitted, the response includes "
+            "every matching row regardless of name (no annotation names are excluded by default)."
         ),
     ),
     exclude_annotation_names: Optional[list[str]] = Query(
@@ -426,8 +426,8 @@ async def list_trace_annotations(
         default=None,
         description=(
             "Optional list of annotation names to include. If provided, only annotations with "
-            "these names will be returned. 'note' annotations are excluded by default unless "
-            "explicitly included in this list."
+            "these names will be returned (allowlist). When omitted, the response includes "
+            "every matching row regardless of name (no annotation names are excluded by default)."
         ),
     ),
     exclude_annotation_names: Optional[list[str]] = Query(
@@ -602,8 +602,8 @@ async def list_session_annotations(
         default=None,
         description=(
             "Optional list of annotation names to include. If provided, only annotations with "
-            "these names will be returned. 'note' annotations are excluded by default unless "
-            "explicitly included in this list."
+            "these names will be returned (allowlist). When omitted, the response includes "
+            "every matching row regardless of name (no annotation names are excluded by default)."
         ),
     ),
     exclude_annotation_names: Optional[list[str]] = Query(

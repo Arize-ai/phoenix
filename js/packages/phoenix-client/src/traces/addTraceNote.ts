@@ -1,5 +1,8 @@
 import { createClient } from "../client";
-import { ADD_TRACE_NOTE } from "../constants/serverRequirements";
+import {
+  ADD_TRACE_NOTE,
+  ADD_TRACE_NOTE_IDENTIFIER,
+} from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
 import { formatApiError } from "../utils/apiErrorUtils";
 import { ensureServerCapability } from "../utils/serverVersionUtils";
@@ -16,6 +19,13 @@ export interface TraceNote {
    * The note text to add to the trace.
    */
   note: string;
+  /**
+   * Optional caller-supplied identifier. When non-empty, the note is upserted
+   * on `(traceId, name='note', identifier)` — repeated calls with the same
+   * identifier overwrite the existing note. When omitted, the server stamps a
+   * unique `px-trace-note:<uuid>` identifier so each call appends a new note.
+   */
+  identifier?: string;
 }
 
 /**
@@ -28,11 +38,10 @@ export interface AddTraceNoteParams extends ClientFn {
 /**
  * Add a note to a trace.
  *
- * Notes are append-only: each call creates a new note with an auto-generated
- * UUIDv4 identifier, so multiple notes accumulate on the same trace. Structured
- * annotations, by contrast, are keyed by `(name, traceId, identifier)` — to keep
- * multiple structured annotations with the same name on a trace, supply distinct
- * identifiers; otherwise re-writing the same name overwrites the existing one.
+ * When `traceNote.identifier` is omitted, each call appends a new note with an
+ * auto-generated identifier. When `identifier` is non-empty, repeated calls
+ * with the same `(traceId, name='note', identifier)` overwrite the existing
+ * note.
  *
  * @param params - The parameters to add a trace note.
  * @returns The ID of the created note annotation.
@@ -53,12 +62,19 @@ export async function addTraceNote({
 }: AddTraceNoteParams): Promise<{ id: string }> {
   const client = _client ?? createClient();
   await ensureServerCapability({ client, requirement: ADD_TRACE_NOTE });
+  if (traceNote.identifier) {
+    await ensureServerCapability({
+      client,
+      requirement: ADD_TRACE_NOTE_IDENTIFIER,
+    });
+  }
 
   const { data, error } = await client.POST("/v1/trace_notes", {
     body: {
       data: {
         trace_id: traceNote.traceId.trim(),
         note: traceNote.note,
+        identifier: traceNote.identifier,
       },
     },
   });

@@ -38,8 +38,8 @@ describe("Phoenix CLI", () => {
     );
 
     expect(projectCommand).toBeDefined();
-    expect(projectCommand?.commands.map((command) => command.name())).toContain(
-      "list"
+    expect(projectCommand?.commands.map((command) => command.name())).toEqual(
+      expect.arrayContaining(["list", "get"])
     );
     expect(
       program.commands.find((command) => command.name() === "projects")
@@ -57,6 +57,9 @@ describe("Phoenix CLI", () => {
       expect.arrayContaining(["list", "get", "annotate", "add-note"])
     );
     expect(
+      traceCommand?.commands.map((command) => command.name())
+    ).not.toContain("delete-annotations");
+    expect(
       program.commands.find((command) => command.name() === "traces")
     ).toBeUndefined();
   });
@@ -68,15 +71,12 @@ describe("Phoenix CLI", () => {
     );
 
     expect(spanCommand).toBeDefined();
-    expect(spanCommand?.commands.map((command) => command.name())).toContain(
-      "list"
+    expect(spanCommand?.commands.map((command) => command.name())).toEqual(
+      expect.arrayContaining(["list", "annotate", "add-note"])
     );
-    expect(spanCommand?.commands.map((command) => command.name())).toContain(
-      "annotate"
-    );
-    expect(spanCommand?.commands.map((command) => command.name())).toContain(
-      "add-note"
-    );
+    expect(
+      spanCommand?.commands.map((command) => command.name())
+    ).not.toContain("delete-annotations");
     expect(
       program.commands.find((command) => command.name() === "spans")
     ).toBeUndefined();
@@ -107,6 +107,9 @@ describe("Phoenix CLI", () => {
     expect(sessionCommand?.commands.map((command) => command.name())).toEqual(
       expect.arrayContaining(["list", "get", "annotate", "add-note"])
     );
+    expect(
+      sessionCommand?.commands.map((command) => command.name())
+    ).not.toContain("delete-annotations");
     const listCommand = sessionCommand?.commands.find(
       (command) => command.name() === "list"
     );
@@ -279,5 +282,41 @@ describe("Phoenix CLI", () => {
   it("should include auth in the top-level help output", () => {
     const program = createProgram();
     expect(program.helpInformation()).toContain("auth");
+  });
+
+  it("should register span-annotations as a top-level command with a delete subcommand", () => {
+    const program = createProgram();
+    const spanAnnotationsCommand = program.commands.find(
+      (command) => command.name() === "span-annotations"
+    );
+
+    expect(spanAnnotationsCommand).toBeDefined();
+    expect(
+      spanAnnotationsCommand?.commands.map((command) => command.name())
+    ).toEqual(expect.arrayContaining(["delete"]));
+  });
+
+  it("should register trace-annotations as a top-level command with a delete subcommand", () => {
+    const program = createProgram();
+    const traceAnnotationsCommand = program.commands.find(
+      (command) => command.name() === "trace-annotations"
+    );
+
+    expect(traceAnnotationsCommand).toBeDefined();
+    expect(
+      traceAnnotationsCommand?.commands.map((command) => command.name())
+    ).toEqual(expect.arrayContaining(["delete"]));
+  });
+
+  it("should register session-annotations as a top-level command with a delete subcommand", () => {
+    const program = createProgram();
+    const sessionAnnotationsCommand = program.commands.find(
+      (command) => command.name() === "session-annotations"
+    );
+
+    expect(sessionAnnotationsCommand).toBeDefined();
+    expect(
+      sessionAnnotationsCommand?.commands.map((command) => command.name())
+    ).toEqual(expect.arrayContaining(["delete"]));
   });
 });
