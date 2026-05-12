@@ -20,11 +20,13 @@ from pydantic_ai.ui.vercel_ai.request_types import (
 )
 from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, MessageMetadataChunk
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from starlette.responses import Response
 
 from phoenix.config import get_env_phoenix_agents_assistant_project_name
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.agents.agent_factory import ChatOutput, build_agent
 from phoenix.server.agents.capabilities import AgentCapabilities
@@ -246,14 +248,14 @@ async def _ensure_project_exists(db: DbSessionFactory, project_name: str) -> int
         return project_id
 
 
-async def _persist_db_traces_with_sessions(
-    db: DbSessionFactory,
+async def _upsert_project_sessions(
+    session: AsyncSession,
     db_traces: list[models.Trace],
 ) -> None:
     """
-    Persist tracer-built traces, upserting any attached ProjectSession rows by
-    session_id so concurrent requests sharing a session don't collide on the
-    UNIQUE constraint.
+    Upsert any ProjectSession rows attached to ``db_traces`` (keyed by session_id),
+    then re-point each trace at the resolved rowid. Does NOT persist the traces
+    themselves — the caller is responsible for adding them to the session.
     """
     sessions_by_session_id: dict[str, models.ProjectSession] = {}
     for db_trace in db_traces:
@@ -269,42 +271,42 @@ async def _persist_db_traces_with_sessions(
             if existing.end_time < ps.end_time:
                 existing.end_time = ps.end_time
 
-    async with db() as session:
-        if sessions_by_session_id:
-            records = [
-                {
-                    "session_id": ps.session_id,
-                    "project_id": ps.project_id,
-                    "start_time": ps.start_time,
-                    "end_time": ps.end_time,
-                }
-                for ps in sessions_by_session_id.values()
-            ]
-            await session.execute(
-                insert_on_conflict(
-                    *records,
-                    table=models.ProjectSession,
-                    dialect=db.dialect,
-                    unique_by=("session_id",),
-                    on_conflict=OnConflict.DO_UPDATE,
-                )
-            )
-            id_rows = await session.execute(
-                select(models.ProjectSession.id, models.ProjectSession.session_id).where(
-                    models.ProjectSession.session_id.in_(sessions_by_session_id.keys())
-                )
-            )
-            session_id_to_rowid = {session_id: id_ for id_, session_id in id_rows.all()}
-            for db_trace in db_traces:
-                ps = db_trace.project_session
-                if ps is None:
-                    continue
-                # detach in-memory ProjectSession to avoid cascading insert; use the
-                # resolved rowid from the upsert instead.
-                db_trace.project_session = None  # type: ignore[assignment]
-                db_trace.project_session_rowid = session_id_to_rowid[ps.session_id]
-        session.add_all(db_traces)
-        await session.flush()
+    if not sessions_by_session_id:
+        return
+
+    dialect = SupportedSQLDialect(session.bind.dialect.name)
+    records = [
+        {
+            "session_id": ps.session_id,
+            "project_id": ps.project_id,
+            "start_time": ps.start_time,
+            "end_time": ps.end_time,
+        }
+        for ps in sessions_by_session_id.values()
+    ]
+    await session.execute(
+        insert_on_conflict(
+            *records,
+            table=models.ProjectSession,
+            dialect=dialect,
+            unique_by=("session_id",),
+            on_conflict=OnConflict.DO_UPDATE,
+        )
+    )
+    id_rows = await session.execute(
+        select(models.ProjectSession.id, models.ProjectSession.session_id).where(
+            models.ProjectSession.session_id.in_(sessions_by_session_id.keys())
+        )
+    )
+    session_id_to_rowid = {session_id: id_ for id_, session_id in id_rows.all()}
+    for db_trace in db_traces:
+        ps = db_trace.project_session
+        if ps is None:
+            continue
+        # detach in-memory ProjectSession to avoid cascading insert; use the
+        # resolved rowid from the upsert instead.
+        db_trace.project_session = None  # type: ignore[assignment]
+        db_trace.project_session_rowid = session_id_to_rowid[ps.session_id]
 
 
 def create_agents_router(authentication_enabled: bool) -> APIRouter:
@@ -403,7 +405,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         )
                         db_traces = tracer.get_db_traces(project_id=project_id)
                         if db_traces:
-                            await _persist_db_traces_with_sessions(request.app.state.db, db_traces)
+                            async with request.app.state.db() as session:
+                                await _upsert_project_sessions(session, db_traces)
+                                session.add_all(db_traces)
+                                await session.flush()
                     tracer.tracer_provider.shutdown()
 
         return adapter.streaming_response(_stream_with_session())
@@ -457,7 +462,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     project_id = await _ensure_project_exists(request.app.state.db, project_name)
                     db_traces = tracer.get_db_traces(project_id=project_id)
                     if db_traces:
-                        await _persist_db_traces_with_sessions(request.app.state.db, db_traces)
+                        async with request.app.state.db() as session:
+                            await _upsert_project_sessions(session, db_traces)
+                            session.add_all(db_traces)
+                            await session.flush()
                 tracer.tracer_provider.shutdown()
         return _SummarizeResponse(summary=result.summary.strip())
 
