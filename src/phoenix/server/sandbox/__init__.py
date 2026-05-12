@@ -267,30 +267,46 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         dependencies_language="PYTHON",
         installs_packages_at_runtime=True,
     ),
-    # Vercel Python SDK checked: pyproject minimum vercel>=0.5.1; uv.lock resolves
-    # vercel==0.5.7. AsyncSandbox.create() in 0.5.7 does not accept `env` or
-    # `network_policy` kwargs — the TypeScript Vercel SDK exposes both, but the
-    # Python SDK has not yet ported them. Re-evaluate when Python SDK >=0.5.8
-    # ships; flip internet_access_capability to "boolean" and wire network_policy
-    # then. Until that lands, both Vercel adapters remain internet_access="none".
-    **{
-        f"VERCEL_{lang}": AdapterMetadata(
-            display_name="Vercel",
-            language=lang,
-            hosting_type="hosted",
-            dependency_hints=[
-                "Install Phoenix with the `vercel` extra.",
-                (
-                    "Set all of `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, and `VERCEL_TEAM_ID`. "
-                    "See https://vercel.com/docs/vercel-sandbox/concepts/authentication"
-                ),
-            ],
-            supports_env_vars=True,
-            internet_access_capability="none",
-            dependencies_language=None,
-        )
-        for lang in ("PYTHON", "TYPESCRIPT")
-    },
+    # Vercel Python SDK checked: pyproject minimum vercel>=0.5.8; uv.lock resolves
+    # vercel==0.5.8. Runtime dependency install is wired via `_install_packages`
+    # in VercelSandboxBackend: PYTHON → `python3 -m pip install --user <pkgs>`,
+    # TYPESCRIPT → `npm install <pkgs>`. AsyncSandbox.create() in 0.5.8 accepts a
+    # `network_policy` kwarg — VercelSandboxBackend maps internet_access.mode
+    # to "allow-all" / "deny-all" string forms. internet_access_capability is
+    # "boolean"; the runtime-install + network-deny interlock at types.py:688 /
+    # :812 now rejects deny + non-empty dependencies.packages eagerly.
+    "VERCEL_PYTHON": AdapterMetadata(
+        display_name="Vercel",
+        language="PYTHON",
+        hosting_type="hosted",
+        dependency_hints=[
+            "Install Phoenix with the `vercel` extra.",
+            (
+                "Set all of `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, and `VERCEL_TEAM_ID`. "
+                "See https://vercel.com/docs/vercel-sandbox/concepts/authentication"
+            ),
+        ],
+        supports_env_vars=True,
+        internet_access_capability="boolean",
+        dependencies_language="PYTHON",
+        installs_packages_at_runtime=True,
+    ),
+    "VERCEL_TYPESCRIPT": AdapterMetadata(
+        display_name="Vercel",
+        language="TYPESCRIPT",
+        hosting_type="hosted",
+        dependency_hints=[
+            "Install Phoenix with the `vercel` extra.",
+            (
+                "Set all of `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, and `VERCEL_TEAM_ID`. "
+                "See https://vercel.com/docs/vercel-sandbox/concepts/authentication"
+            ),
+        ],
+        supports_env_vars=True,
+        internet_access_capability="boolean",
+        dependencies_language="TYPESCRIPT",
+        installs_packages_at_runtime=True,
+    ),
     "DENO": AdapterMetadata(
         display_name="Deno",
         language="TYPESCRIPT",
