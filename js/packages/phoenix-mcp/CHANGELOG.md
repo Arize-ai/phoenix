@@ -1,5 +1,11 @@
 # @arizeai/phoenix-mcp
 
+## 4.0.12
+
+### Patch Changes
+
+- @arizeai/phoenix-client@6.9.3
+
 ## 4.0.11
 
 ### Patch Changes
@@ -80,6 +86,7 @@
 ### Patch Changes
 
 - b4ded15: Update package READMEs with latest capabilities
+
   - phoenix-client: Add Sessions section documenting `listSessions`, `getSession`, and `addSessionAnnotation`
   - phoenix-evals: Add full pre-built evaluators table (conciseness, correctness, document relevance, refusal, tool evaluators), fix import paths for `bindEvaluator`
   - phoenix-mcp: Expand Tool Coverage section with complete, accurate tool list
@@ -97,16 +104,19 @@
 - e4bdcf6: Expand phoenix-mcp server coverage with breaking parameter changes
 
   ### Breaking changes
+
   - Tool parameters renamed to snake_case (`datasetIdentifier` → `dataset_id`/`dataset_name`, `experiment_id` replaces `experiment_id`, `prompt_identifier`, `project_identifier`, etc.)
   - `resolveTraceIdByPrefix` removed — `get-trace` now requires an exact trace ID
   - Legacy identifier fallback patterns removed (`requirePreferredIdentifier`, `legacyProjectIdentifier`)
 
   ### New tools
+
   - `list-projects`, `get-project`, `list-traces`, `get-trace`, `get-spans`, `get-span-annotations`
   - `list-sessions`, `get-session`, `list-annotation-configs`, `phoenix-support`
   - `get-prompt-version-by-tag`, `list-prompt-version-tags`, `add-prompt-version-tag`
 
   ### Improvements
+
   - Generic `fetchAllPages` pagination helper replaces duplicated cursor loops
   - Centralized constants, deduplicated `extractSpanIds`, cached RunLLM client
   - `ENV_PHOENIX_PROJECT` moved to `@arizeai/phoenix-config` for reuse
