@@ -437,11 +437,15 @@ const preview: Preview = {
     },
     docs: {
       container: ThemedDocsContainer,
+      canvas: {
+        withToolbar: false,
+      },
     },
     options: {
       storySort: {
         order: [
           "Reference",
+          ["Storybook frames", "Lines: border, divider"],
           "Core",
           [
             "Content",

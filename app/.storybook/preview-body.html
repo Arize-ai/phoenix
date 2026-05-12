@@ -52,4 +52,22 @@
     padding: 0;
     width: 100%;
   }
+
+  /* h1 styles for readability */
+  .sbdocs.sbdocs-wrapper h1 {
+    border-bottom: 3px solid  color-mix(in srgb, currentColor 15%, transparent);
+    padding-bottom: 10px;
+  }
+  .sbdocs.sbdocs-wrapper h1:not(:first-of-type) {
+    padding-top: 150px;
+  }
+
+  /* subtler story borders (helps w flush elements) */
+  .sbdocs .sbdocs-preview {
+    border: none;
+    box-shadow: none;
+  }
+  .sbdocs-preview-actions button:not(:hover) {
+    opacity: 0.6;
+  }
 </style>

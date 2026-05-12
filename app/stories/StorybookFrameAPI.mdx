@@ -1,0 +1,117 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import * as AlertStories from "./Alert.stories.tsx";
+import * as ToolPartStories from "./ToolPart.stories.tsx";
+
+<Meta title="Reference/Storybook frames" />
+
+# Storybook frames
+We use a global decorator to wrap stories with additional controls for layout, spacing, and theme.
+
+### Default behavior
+
+Stories with no explicit frame parameters render as if they used:
+
+```tsx
+parameters: {
+  width: "intrinsic",
+  inset: true,
+  themeLayout: "row",
+}
+```
+
+This lets small components self-manage the space they take, without bumping into the edge of the story frame.
+
+<Canvas of={AlertStories.Info} />
+
+# Layout parameters
+
+### `inset`
+
+```tsx
+parameters: {
+  inset: true,
+}
+```
+
+The `inset` boolean (default true) provides padding around the story. This separates the story from the canvas edge, as well as other themed instances (so that dark and light components don't abut within the same story canvas).
+
+This can be set false for components that naturally run edge-to-edge, such as page sections or full screen alerts.
+
+### `width`
+
+```tsx
+parameters: {
+  width: "intrinsic",
+}
+```
+
+The `width` param accepts either `intrinsic` (default) or `fill`, with the option to override with custom maxWidth arguments.
+
+Numbers and arbitrary strings are treated as bounded max widths, not fixed
+widths. The story can shrink below the value. If a story needs a true fixed
+width, wrap it in its own container.
+
+#### Keywords
+- `"intrinsic"` sizes to content and centers the story.
+- `"fill"` stretches to the available width.
+- `number | string` custom max width rule
+#### Overrides
+- `780` applies bounded mode with `max-width: 780px`.
+- `"min(100%, 48rem)"` applies bounded mode with that `max-width` value.
+
+## `themeLayout`
+
+The `Both` theme toolbar mode shows light and dark mode stories simultaneously. This makes it easy to verify and customize per-theme presentations. Small components that fit easily in the canvas should use `row` mode. Wider components that cramp should use `column`.
+
+```tsx
+parameters: {
+  themeLayout: "row",
+}
+```
+
+- `"row"` shows themes side by side.
+- `"column"` stacks themes vertically.
+
+
+# Example usage
+
+### Fill a page-level surface
+
+Use `inset: false` with `width: "fill"` for banners, app surfaces, and stories
+that should read like real page chrome.
+
+```tsx
+parameters: {
+  inset: false,
+  width: "fill",
+}
+```
+
+<Canvas of={AlertStories.Banner} />
+
+### Bounded width
+
+Use a number or CSS width string when the story should stay readable at large
+canvas sizes without becoming full bleed.
+
+```tsx
+parameters: {
+  inset: true,
+  width: 780,
+}
+```
+
+<Canvas of={ToolPartStories.BashCompleted} />
+
+## Legacy compatibility
+
+The older Storybook-specific parameters still resolve during migration. This compatibility behavior should be short lived while we convert old stories.
+
+```tsx
+layout: "centered";
+layout: "padded";
+layout: "fullscreen";
+
+contentMode: "bounded";
+contentMaxWidth: 780;
+```
