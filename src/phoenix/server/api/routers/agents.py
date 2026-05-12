@@ -312,6 +312,30 @@ def _apply_project_session_rowid(
     db_trace.project_session_rowid = project_session_rowid
 
 
+async def _link_project_sessions_to_traces(
+    *,
+    session: AsyncSession,
+    db_traces: list[models.Trace],
+) -> None:
+    """
+    For any traces with an attached in-memory ProjectSession, upsert the
+    ProjectSession rows and re-point each trace at the resolved rowid. Mutates
+    ``db_traces`` in place. Does not add or flush the traces themselves.
+    """
+    project_sessions = [
+        db_trace.project_session for db_trace in db_traces if db_trace.project_session is not None
+    ]
+    rowid_by_session_id = await _upsert_project_sessions(session, project_sessions)
+    for db_trace in db_traces:
+        project_session = db_trace.project_session
+        if project_session is None:
+            continue
+        _apply_project_session_rowid(
+            db_trace=db_trace,
+            project_session_rowid=rowid_by_session_id[project_session.session_id],
+        )
+
+
 def create_agents_router(authentication_enabled: bool) -> APIRouter:
     dependencies = [Depends(is_authenticated)] if authentication_enabled else []
     router = APIRouter(tags=["chat"], dependencies=dependencies)
@@ -409,24 +433,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         db_traces = tracer.get_db_traces(project_id=project_id)
                         if db_traces:
                             async with request.app.state.db() as session:
-                                project_sessions = [
-                                    db_trace.project_session
-                                    for db_trace in db_traces
-                                    if db_trace.project_session is not None
-                                ]
-                                rowid_by_session_id = await _upsert_project_sessions(
-                                    session, project_sessions
+                                await _link_project_sessions_to_traces(
+                                    session=session, db_traces=db_traces
                                 )
-                                for db_trace in db_traces:
-                                    project_session = db_trace.project_session
-                                    if project_session is None:
-                                        continue
-                                    _apply_project_session_rowid(
-                                        db_trace=db_trace,
-                                        project_session_rowid=rowid_by_session_id[
-                                            project_session.session_id
-                                        ],
-                                    )
                                 session.add_all(db_traces)
                                 await session.flush()
                     tracer.tracer_provider.shutdown()
@@ -483,24 +492,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     db_traces = tracer.get_db_traces(project_id=project_id)
                     if db_traces:
                         async with request.app.state.db() as session:
-                            project_sessions = [
-                                db_trace.project_session
-                                for db_trace in db_traces
-                                if db_trace.project_session is not None
-                            ]
-                            rowid_by_session_id = await _upsert_project_sessions(
-                                session, project_sessions
+                            await _link_project_sessions_to_traces(
+                                session=session, db_traces=db_traces
                             )
-                            for db_trace in db_traces:
-                                project_session = db_trace.project_session
-                                if project_session is None:
-                                    continue
-                                _apply_project_session_rowid(
-                                    db_trace=db_trace,
-                                    project_session_rowid=rowid_by_session_id[
-                                        project_session.session_id
-                                    ],
-                                )
                             session.add_all(db_traces)
                             await session.flush()
                 tracer.tracer_provider.shutdown()
