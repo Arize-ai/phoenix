@@ -207,8 +207,8 @@ def _validate_atif_trajectory(
                         errors.append(
                             f"{prefix}: '{field}' must be absent when llm_call_count is 0"
                         )
-                tool_calls = step_dict.get("tool_calls")
-                if not isinstance(tool_calls, list) or not tool_calls:
+                llm_zero_tool_calls = step_dict.get("tool_calls")
+                if not isinstance(llm_zero_tool_calls, list) or not llm_zero_tool_calls:
                     errors.append(f"{prefix}: tool_calls are required when llm_call_count is 0")
 
         # Tool call validation
