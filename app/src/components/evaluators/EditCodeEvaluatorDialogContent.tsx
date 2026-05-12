@@ -38,12 +38,19 @@ import {
   DialogTitle,
   DialogTitleExtra,
 } from "@phoenix/components/core/dialog";
+import {
+  Menu,
+  MenuContainer,
+  MenuItem,
+  MenuTrigger,
+} from "@phoenix/components/core/menu";
 import { createEvaluatorAutocompletion } from "@phoenix/components/evaluators/codeEvaluatorAutocomplete";
 import {
   CodeEvaluatorLanguageField,
   CodeEvaluatorSandboxField,
   type SandboxConfigOption,
 } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
+import { CODE_EVALUATOR_TEMPLATES } from "@phoenix/components/evaluators/codeEvaluatorTemplates";
 import { CodeEvaluatorTestSection } from "@phoenix/components/evaluators/CodeEvaluatorTestSection";
 import { generateEvaluatorTypes } from "@phoenix/components/evaluators/codeEvaluatorTypeGeneration";
 import {
@@ -455,7 +462,7 @@ const EvaluatorMetadataForm = ({
         />
       </div>
       <div style={{ flex: "1 1 240px", minWidth: 180 }}>
-        <EvaluatorDescriptionInput />
+        <EvaluatorDescriptionInput placeholder="e.g. code evaluator description" />
       </div>
     </div>
   );
@@ -644,6 +651,7 @@ const CodeEditor = ({
 }) => {
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
+  const store = useEvaluatorStoreInstance();
 
   // The auto-generated type footer is hidden by default.
   const [showTypes, setShowTypes] = useState(false);
@@ -688,6 +696,49 @@ const CodeEditor = ({
           {descriptionText}
         </Text>
         <Flex direction="row" alignItems="center" gap="size-100" flex="none">
+          <MenuTrigger>
+            <Button
+              size="S"
+              variant="quiet"
+              leadingVisual={<Icon svg={<Icons.Code />} />}
+            >
+              Templates
+            </Button>
+            <MenuContainer placement="bottom end" maxWidth={360}>
+              <Menu
+                onAction={(key) => {
+                  const template = CODE_EVALUATOR_TEMPLATES.find(
+                    (t) => t.id === key
+                  );
+                  if (!template) {
+                    return;
+                  }
+                  onChange(template.getSource(language));
+                  const { evaluator, setOutputConfigs } = store.getState();
+                  const evaluatorName =
+                    evaluator.name || evaluator.globalName || "";
+                  setOutputConfigs([
+                    { ...template.outputConfig, name: evaluatorName },
+                  ]);
+                }}
+              >
+                {CODE_EVALUATOR_TEMPLATES.map((template) => (
+                  <MenuItem
+                    key={template.id}
+                    id={template.id}
+                    textValue={`${template.name}\n${template.description}`}
+                  >
+                    <Flex direction="column" gap="size-50">
+                      <Text weight="heavy">{template.name}</Text>
+                      <Text size="S" color="text-700">
+                        {template.description}
+                      </Text>
+                    </Flex>
+                  </MenuItem>
+                ))}
+              </Menu>
+            </MenuContainer>
+          </MenuTrigger>
           <Button
             size="S"
             variant="quiet"
