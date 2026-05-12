@@ -299,6 +299,7 @@ async def _upsert_project_sessions(
 
 
 def _apply_project_session_rowid(
+    *,
     db_trace: models.Trace,
     project_session_rowid: int,
 ) -> None:
@@ -421,8 +422,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                     if project_session is None:
                                         continue
                                     _apply_project_session_rowid(
-                                        db_trace,
-                                        rowid_by_session_id[project_session.session_id],
+                                        db_trace=db_trace,
+                                        project_session_rowid=rowid_by_session_id[
+                                            project_session.session_id
+                                        ],
                                     )
                                 session.add_all(db_traces)
                                 await session.flush()
@@ -493,8 +496,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                 if project_session is None:
                                     continue
                                 _apply_project_session_rowid(
-                                    db_trace,
-                                    rowid_by_session_id[project_session.session_id],
+                                    db_trace=db_trace,
+                                    project_session_rowid=rowid_by_session_id[
+                                        project_session.session_id
+                                    ],
                                 )
                             session.add_all(db_traces)
                             await session.flush()
