@@ -27,7 +27,7 @@ import { LineClamp } from "@phoenix/components/core/utility/LineClamp";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { EvaluatorKindToken } from "@phoenix/components/evaluators/EvaluatorKindToken";
 import { GenerativeProviderIcon } from "@phoenix/components/generative";
-import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
+import { SandboxConfigLabel } from "@phoenix/components/sandbox/SandboxConfigLabel";
 import { TextCell } from "@phoenix/components/table";
 import { selectableTableCSS } from "@phoenix/components/table/styles";
 import { TableEmptyWrap } from "@phoenix/components/table/TableEmptyWrap";
@@ -388,20 +388,11 @@ export const DatasetEvaluatorsTable = ({
             return <Text color="text-700">—</Text>;
           }
           return (
-            <Flex
-              direction="row"
-              gap="size-100"
-              alignItems="center"
-              minWidth={0}
-            >
-              <SandboxProviderIcon
-                backendType={sandboxConfig.provider.backendType}
-                height={18}
-              />
-              <Text minWidth={0}>
-                <Truncate>{sandboxConfig.name}</Truncate>
-              </Text>
-            </Flex>
+            <SandboxConfigLabel
+              sandboxConfigId={sandboxConfig.id}
+              name={sandboxConfig.name}
+              backendType={sandboxConfig.provider.backendType}
+            />
           );
         },
       },
