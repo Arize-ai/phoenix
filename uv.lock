@@ -712,8 +712,8 @@ requires-dist = [
     { name = "typing-extensions", specifier = ">=4.6" },
     { name = "uvicorn" },
     { name = "uvloop", marker = "sys_platform != 'win32' and extra == 'container'" },
-    { name = "vercel", marker = "extra == 'container'", specifier = ">=0.5.1" },
-    { name = "vercel", marker = "extra == 'vercel'", specifier = ">=0.5.1" },
+    { name = "vercel", marker = "extra == 'container'", specifier = ">=0.5.8" },
+    { name = "vercel", marker = "extra == 'vercel'", specifier = ">=0.5.8" },
     { name = "wasmtime", marker = "extra == 'container'", specifier = ">=15.0" },
     { name = "wasmtime", marker = "extra == 'wasm'", specifier = ">=15.0" },
     { name = "websockets", marker = "extra == 'container'", specifier = ">=14.0" },
@@ -817,7 +817,7 @@ dev = [
     { name = "typing-extensions" },
     { name = "uvloop", marker = "sys_platform != 'win32'" },
     { name = "vcrpy" },
-    { name = "vercel", specifier = ">=0.5.1" },
+    { name = "vercel", specifier = ">=0.5.8" },
 ]
 
 [[package]]

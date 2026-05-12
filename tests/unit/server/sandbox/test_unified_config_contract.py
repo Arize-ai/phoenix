@@ -19,8 +19,8 @@ or deploy; targeted coverage is added then.
 
 SDK mocking strategy:
 - Modal: sys.modules["modal"] must be patched before ModalSandboxBackend.__init__
-- Vercel: the unsupported-capability guard fires before credential access so no
-  env patching is needed for the rejection tests.
+- Vercel: the unsupported-capability and interlock guards fire before credential
+  access so no env patching is needed for the rejection tests.
 - Deno/Daytona/E2B/WASM: construct without external SDKs.
 """
 
@@ -104,11 +104,6 @@ def test_internet_access_none_raises_for_non_none_config(adapter_key: str) -> No
             adapter = _get_adapter(adapter_key)
             with pytest.raises(UnsupportedOperation):
                 adapter.build_backend(_INTERNET_ACCESS_CONFIG)
-    elif adapter_key in ("VERCEL_PYTHON", "VERCEL_TYPESCRIPT"):
-        # Guard fires before credential check; no env patching needed.
-        adapter = _get_adapter(adapter_key)
-        with pytest.raises(UnsupportedOperation):
-            adapter.build_backend(_INTERNET_ACCESS_CONFIG)
     else:
         adapter = _get_adapter(adapter_key)
         with pytest.raises(UnsupportedOperation):
