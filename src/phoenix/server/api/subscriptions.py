@@ -83,24 +83,25 @@ async def _stream_single_chat_completion(
     span_cost_calculator: SpanCostCalculator,
     otel_context: OtelContext,
 ) -> ChatStream:
-    messages = prompt_chat_template_to_playground_messages(input.prompt_version.template.to_orm())
-    if template_options := input.template:
-        messages = formatted_messages(
-            messages=messages,
-            template_format=template_options.format,
-            template_variables=cast(Mapping[str, Any], template_options.variables),
-        )
-    invocation_parameters = input.prompt_version.invocation_parameters.to_orm()
-
-    tools = input.prompt_version.tools.to_orm() if input.prompt_version.tools else None
-    response_format = (
-        input.prompt_version.response_format.to_orm()
-        if input.prompt_version.response_format
-        else None
-    )
-
     tracer = Tracer(span_cost_calculator=span_cost_calculator)
     try:
+        messages = prompt_chat_template_to_playground_messages(
+            input.prompt_version.template.to_orm()
+        )
+        if template_options := input.template:
+            messages = formatted_messages(
+                messages=messages,
+                template_format=template_options.format,
+                template_variables=cast(Mapping[str, Any], template_options.variables),
+            )
+        invocation_parameters = input.prompt_version.invocation_parameters.to_orm()
+        tools = input.prompt_version.tools.to_orm() if input.prompt_version.tools else None
+        response_format = (
+            input.prompt_version.response_format.to_orm()
+            if input.prompt_version.response_format
+            else None
+        )
+
         async for chunk in llm_client.chat_completion_create(
             messages=messages,
             tools=tools,
