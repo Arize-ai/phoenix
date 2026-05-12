@@ -359,6 +359,11 @@ describe("add-note --identifier round-trip", () => {
   it("threads --identifier into the span_notes request body", async () => {
     const fetchMock = makeFetchMock([
       {
+        // identifier-body capability check (>= 15.5.0)
+        ok: true,
+        text: "15.5.0",
+      },
+      {
         ok: true,
         body: { data: { id: "span-note-id" } },
       },
@@ -382,9 +387,9 @@ describe("add-note --identifier round-trip", () => {
       { from: "user" }
     );
 
-    expect(getFetchUrl(fetchMock.mock.calls[0][0])).toContain("/v1/span_notes");
+    expect(getFetchUrl(fetchMock.mock.calls[1][0])).toContain("/v1/span_notes");
     await expect(
-      getFetchBody(fetchMock.mock.calls[0][0], fetchMock.mock.calls[0][1])
+      getFetchBody(fetchMock.mock.calls[1][0], fetchMock.mock.calls[1][1])
     ).resolves.toEqual({
       data: {
         span_id: "span-123",
@@ -397,9 +402,9 @@ describe("add-note --identifier round-trip", () => {
   it("threads --identifier into the trace_notes request body", async () => {
     const fetchMock = makeFetchMock([
       {
-        // capability check
+        // capability check (route + identifier-body both gated on this version)
         ok: true,
-        text: "14.13.0",
+        text: "15.5.0",
       },
       {
         ok: true,
