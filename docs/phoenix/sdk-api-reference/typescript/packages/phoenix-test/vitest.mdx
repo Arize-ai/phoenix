@@ -67,6 +67,8 @@ px.describe("my suite", () => { ... }, {
   description: "what this suite is for",
   metadata: { model: "gpt-4o-mini" },
   client: myCustomPhoenixClient, // overrides createClient()
+  repetitions: 3,                // run each test in this suite 3x
+  dryRun: true,                  // run this suite locally; sync nothing
 });
 ```
 
@@ -76,6 +78,8 @@ px.describe("my suite", () => { ... }, {
 | `description` | `string` | Description recorded on the dataset and experiment. |
 | `metadata` | `Record<string, unknown>` | Suite-level metadata applied to the experiment. |
 | `client` | `PhoenixClient` | Pre-configured `@arizeai/phoenix-client` instance. |
+| `repetitions` | `number` | Run each test in the suite this many times (default `1`; `PHOENIX_TEST_REPETITIONS` overrides the default). Per-test `repetitions` wins. |
+| `dryRun` | `boolean` | Run the whole suite locally — no dataset, experiment, runs, or annotations are created in Phoenix. Same effect as `PHOENIX_TEST_TRACKING=false`, scoped to this suite. |
 
 ### `test(name, params, fn, timeout?)`
 
@@ -106,6 +110,8 @@ px.test(
 | `expected` | `Example.output` (reference) |
 | `metadata` | `Example.metadata` |
 | `id` | `Example.id` (stable upsert id) |
+| `repetitions` | Number of runs against this example (overrides the suite value). Reported as `"<name> [rep i/N]"`. |
+| `dryRun` | When `true`, this case runs as an ordinary local test — no dataset example, no run, nothing uploaded — even if the suite syncs. |
 
 ### `test.each(table)(name, fn, timeout?)`
 

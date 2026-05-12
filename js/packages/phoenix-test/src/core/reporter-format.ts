@@ -44,8 +44,9 @@ export function formatSuiteSummary(suite: SuiteState): string {
         : result.status === "failed"
           ? "FAIL"
           : "SKIP";
+    const tag = result.dryRun ? " (dry run — not uploaded)" : "";
     lines.push(
-      `    [${status}] ${result.testName} (${formatDuration(result.durationMs)})`
+      `    [${status}] ${result.testName} (${formatDuration(result.durationMs)})${tag}`
     );
     if (result.output !== undefined) {
       lines.push(`      output: ${stringifyForLog(result.output)}`);

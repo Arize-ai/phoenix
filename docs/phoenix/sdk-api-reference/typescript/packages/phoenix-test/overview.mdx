@@ -97,13 +97,33 @@ Phoenix env vars.
 | `PHOENIX_API_KEY` | Bearer token for Phoenix |
 | `PHOENIX_PROJECT_NAME` | Override project name for the experiment's traces |
 | `PHOENIX_TEST_TRACKING=false` | Disable sync to Phoenix for the current run |
+| `PHOENIX_TEST_DRY_RUN=true` | Alias of `PHOENIX_TEST_TRACKING=false` |
+| `PHOENIX_TEST_REPETITIONS` | Default number of times to run each test |
+
+`describe()` also accepts `repetitions` and `dryRun` on its config object,
+and `test()` accepts `repetitions` and `dryRun` on its params — see
+[Vitest](./vitest) / [Jest](./jest).
+
+## Repetitions
+
+Run a test (or a whole suite) more than once to measure non-determinism.
+Each repetition is a separate experiment run against the same dataset
+example, carrying its own `repetition_number`, so the Phoenix compare view
+lines them up. Resolution order: per-test `repetitions` → suite
+`repetitions` → `PHOENIX_TEST_REPETITIONS` → `1`.
 
 ## Dry-Run Mode
 
-To run tests locally without uploading to Phoenix, set
-`PHOENIX_TEST_TRACKING=false` (or omit the standard Phoenix env vars).
-The suite runs as ordinary tests, the reporter prints a local summary,
-and no network calls are made.
+Dry-run executes test bodies (and tracing, when a tracer is attached) but
+creates no dataset, experiment, run, or annotations in Phoenix. The
+reporter still prints a local summary.
+
+- **Whole process** — `PHOENIX_TEST_TRACKING=false` or
+  `PHOENIX_TEST_DRY_RUN=true` (or omit the standard Phoenix env vars).
+- **One suite** — `describe(name, fn, { dryRun: true })`.
+- **One test** — `test(name, { input, dryRun: true }, fn)`; that case runs
+  as an ordinary local test, with no dataset example and nothing uploaded,
+  even when the rest of the suite syncs.
 
 ## Where To Start
 

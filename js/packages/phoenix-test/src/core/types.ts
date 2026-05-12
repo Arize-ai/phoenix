@@ -27,6 +27,19 @@ export interface PhoenixTestParams<
   metadata?: KVMap;
   /** Per-test config (tags + metadata recorded on the run). */
   config?: PhoenixTestConfig;
+  /**
+   * Number of times to run this test case. Each repetition becomes a
+   * separate experiment run against the same dataset example (carrying a
+   * distinct `repetition_number`). Overrides the suite-level `repetitions`.
+   * Defaults to the suite value, then `PHOENIX_TEST_REPETITIONS`, then `1`.
+   */
+  repetitions?: number;
+  /**
+   * When `true`, this test runs as an ordinary local test only — no dataset
+   * example is created and no experiment run or annotations are uploaded to
+   * Phoenix. Useful for scaffolding a case before it's ready to track.
+   */
+  dryRun?: boolean;
 }
 
 /** Per-test runtime configuration. */
@@ -45,6 +58,19 @@ export interface PhoenixSuiteConfig {
   metadata?: KVMap;
   /** Override the Phoenix client used for syncing this suite. */
   client?: PhoenixClient;
+  /**
+   * Number of times to run each test case in this suite. Individual tests
+   * may override this via `PhoenixTestParams.repetitions`. Defaults to the
+   * `PHOENIX_TEST_REPETITIONS` env var, then `1`.
+   */
+  repetitions?: number;
+  /**
+   * When `true`, the whole suite runs as ordinary local tests — no dataset
+   * is uploaded and no experiment, runs, or annotations are created in
+   * Phoenix. Equivalent to `PHOENIX_TEST_TRACKING=false` scoped to this
+   * suite. The reporter still prints a local summary.
+   */
+  dryRun?: boolean;
 }
 
 /** Arguments passed to a `test()` body. */
@@ -91,4 +117,8 @@ export type PhoenixTestEachRow<
   input: I;
   expected?: E;
   metadata?: KVMap;
+  /** Per-row repetition count; see `PhoenixTestParams.repetitions`. */
+  repetitions?: number;
+  /** Per-row dry-run flag; see `PhoenixTestParams.dryRun`. */
+  dryRun?: boolean;
 } & Record<string, unknown>;

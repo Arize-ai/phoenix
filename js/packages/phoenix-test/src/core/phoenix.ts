@@ -17,21 +17,60 @@ import {
 import { currentRun, type RunState, type SuiteState } from "./state";
 import type { Annotation, KVMap } from "./types";
 
+function isTruthyFlag(value: string | undefined): boolean {
+  const v = (value ?? "").toLowerCase();
+  return v === "true" || v === "1" || v === "on" || v === "yes";
+}
+
+function isFalsyFlag(value: string | undefined): boolean {
+  const v = (value ?? "").toLowerCase();
+  return v === "false" || v === "0" || v === "off" || v === "no";
+}
+
 /**
  * Decide whether tests should sync to Phoenix.
  *
- * Tracking is enabled by default. It can be disabled by setting
- * `PHOENIX_TEST_TRACKING=false`.
+ * Tracking is enabled by default. It can be disabled globally by setting
+ * `PHOENIX_TEST_TRACKING=false` (or `PHOENIX_TEST_DRY_RUN=true`), or per
+ * suite via `PhoenixSuiteConfig.dryRun`.
  */
-export function isTrackingEnabled(): {
+export function isTrackingEnabled(suite?: SuiteState): {
   enabled: boolean;
   reason?: string;
 } {
-  const flag = (process.env.PHOENIX_TEST_TRACKING ?? "").toLowerCase();
-  if (flag === "false" || flag === "0" || flag === "off") {
+  if (isFalsyFlag(process.env.PHOENIX_TEST_TRACKING)) {
     return { enabled: false, reason: "PHOENIX_TEST_TRACKING is disabled" };
   }
+  if (isTruthyFlag(process.env.PHOENIX_TEST_DRY_RUN)) {
+    return { enabled: false, reason: "PHOENIX_TEST_DRY_RUN is enabled" };
+  }
+  if (suite?.config.dryRun) {
+    return { enabled: false, reason: "suite configured dryRun" };
+  }
   return { enabled: true };
+}
+
+/**
+ * Resolve the repetition count for a test: per-test value, else suite-level,
+ * else the `PHOENIX_TEST_REPETITIONS` env var, else `1`. Non-positive or
+ * non-finite values fall back to `1`.
+ */
+export function resolveRepetitions(
+  perTest: number | undefined,
+  suite: SuiteState
+): number {
+  const envValue = Number(process.env.PHOENIX_TEST_REPETITIONS);
+  const candidates = [
+    perTest,
+    suite.config.repetitions,
+    Number.isFinite(envValue) ? envValue : undefined,
+  ];
+  for (const c of candidates) {
+    if (typeof c === "number" && Number.isFinite(c) && c >= 1) {
+      return Math.floor(c);
+    }
+  }
+  return 1;
 }
 
 /** Stringify a value for OpenInference span attributes. */
@@ -163,7 +202,7 @@ function buildLinks(
  * this populates a no-op tracer and exits without making any network calls.
  */
 export async function initializeSuite(suite: SuiteState): Promise<void> {
-  const tracking = isTrackingEnabled();
+  const tracking = isTrackingEnabled(suite);
   if (!tracking.enabled) {
     suite.trackingDisabled = true;
     suite.trackingDisabledReason = tracking.reason;
@@ -265,7 +304,7 @@ export async function initializeSuite(suite: SuiteState): Promise<void> {
           description,
           metadata: { ...(suite.config.metadata ?? {}), ...envMetadata() },
           project_name: projectName,
-          repetitions: 1,
+          repetitions: Math.max(1, suite.maxRepetitions ?? 1),
         },
       })
       .then((res) => res.data?.data);
@@ -321,6 +360,19 @@ export async function initializeSuite(suite: SuiteState): Promise<void> {
   }
 }
 
+/** Lazily-created no-op tracer reused for dry runs / fallbacks. */
+let noOpTracer: Tracer | undefined;
+function getNoOpTracer(): Tracer {
+  if (!noOpTracer) noOpTracer = createNoOpProvider().getTracer("no-op");
+  return noOpTracer;
+}
+
+/** The tracer to use for the currently-running test — no-op when dry. */
+function taskTracer(suite: SuiteState): Tracer {
+  if (currentRun()?.dryRun) return getNoOpTracer();
+  return suite.tracer ?? getNoOpTracer();
+}
+
 /**
  * Wrap the user's test body in an OpenInference task span and return the
  * trace id so we can submit it with the experiment run.
@@ -330,8 +382,7 @@ export async function runTaskWithTracing<T>(
   testName: string,
   fn: () => Promise<T>
 ): Promise<{ traceId: string; result: T } | { traceId: string; error: Error }> {
-  const tracer: Tracer =
-    suite.tracer ?? createNoOpProvider().getTracer("no-op");
+  const tracer: Tracer = taskTracer(suite);
   return tracer.startActiveSpan(`Test: ${testName}`, async (span) => {
     const traceId = span.spanContext().traceId;
     try {
@@ -371,10 +422,15 @@ export async function postExperimentRun(
   suite: SuiteState,
   run: RunState
 ): Promise<string | undefined> {
-  if (suite.trackingDisabled || !suite.client || !suite.experimentId) {
+  if (
+    run.dryRun ||
+    suite.trackingDisabled ||
+    !suite.client ||
+    !suite.experimentId
+  ) {
     return undefined;
   }
-  const example = suite.exampleIdsByTest.get(run.testName);
+  const example = suite.exampleIdsByTest.get(run.logicalName);
   if (!example) {
     return undefined;
   }
@@ -388,7 +444,7 @@ export async function postExperimentRun(
           output: run.outputSet
             ? (run.output as Record<string, unknown> | string | null)
             : null,
-          repetition_number: 1,
+          repetition_number: run.repetitionNumber,
           start_time: run.startTime.toISOString(),
           end_time: (run.endTime ?? new Date()).toISOString(),
           trace_id: run.traceId ?? null,
@@ -448,10 +504,9 @@ export async function runEvaluatorWithTracing<P extends KVMap, R>(
   params: P,
   fn: (params: P) => R | Promise<R>
 ): Promise<R> {
-  const tracer: Tracer =
-    suite.evaluatorTracer ??
-    suite.tracer ??
-    createNoOpProvider().getTracer("no-op");
+  const tracer: Tracer = currentRun()?.dryRun
+    ? getNoOpTracer()
+    : (suite.evaluatorTracer ?? suite.tracer ?? getNoOpTracer());
   return tracer.startActiveSpan(`Evaluation: ${name}`, async (span) => {
     try {
       const result = await fn(params);

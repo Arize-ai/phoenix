@@ -158,6 +158,8 @@ test.each = <I extends KVMap, E extends KVMap>(
           input: row.input,
           expected: row.expected,
           metadata: row.metadata,
+          repetitions: row.repetitions,
+          dryRun: row.dryRun,
         },
         fn,
         "default",

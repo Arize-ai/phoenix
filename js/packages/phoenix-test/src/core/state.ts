@@ -59,6 +59,12 @@ export interface SuiteState {
   setupError?: Error;
   /** Count of best-effort POSTs (runs + annotations) that failed during upload. */
   uploadFailureCount?: number;
+  /**
+   * Highest per-test repetition count seen in this suite. Used as the
+   * experiment's `repetitions` value (informational; runs are keyed by
+   * example + repetition number regardless).
+   */
+  maxRepetitions?: number;
 }
 
 /** Per-test registration captured when `test()` is declared. */
@@ -70,7 +76,14 @@ export interface RegisteredExample {
 /** Run-time state attached via AsyncLocalStorage to each running test. */
 export interface RunState {
   suite: SuiteState;
+  /** Runner-facing test name (may include a `[rep i/N]` suffix). */
   testName: string;
+  /** The logical test name; the key into `registeredExamples`. */
+  logicalName: string;
+  /** 1-based repetition index for this run. */
+  repetitionNumber: number;
+  /** When true, this run is local-only: no dataset example, no upload. */
+  dryRun: boolean;
   params: PhoenixTestParams;
   output?: unknown;
   outputSet: boolean;
@@ -93,6 +106,12 @@ export interface TestResult {
   annotations: Annotation[];
   error?: string;
   durationMs: number;
+  /** 1-based repetition index, when the test ran more than once. */
+  repetitionNumber?: number;
+  /** Total repetitions configured for this test (≥ 1). */
+  repetitions?: number;
+  /** True when this test ran local-only (not uploaded to Phoenix). */
+  dryRun?: boolean;
 }
 
 /**
