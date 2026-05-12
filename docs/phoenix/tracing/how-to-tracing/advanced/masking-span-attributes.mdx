@@ -21,7 +21,10 @@ The possible settings are:
 | OPENINFERENCE\_HIDE\_EMBEDDING\_VECTORS          | Hides returned embedding vectors                             | bool | False   |
 | OPENINFERENCE\_HIDE\_LLM\_INVOCATION\_PARAMETERS | Hides LLM invocation parameters                              | bool | False   |
 | OPENINFERENCE\_HIDE\_LLM\_PROMPTS                | Hides LLM prompts span attributes                            | bool | False   |
+| OPENINFERENCE\_HIDE\_LLM\_TOOLS                  | Hides tool definitions advertised to the LLM (`llm.tools.*`)  | bool | False   |
 | OPENINFERENCE\_BASE64\_IMAGE\_MAX\_LENGTH        | Limits characters of a base64 encoding of an image           | int  | 32,000  |
+
+Note: `OPENINFERENCE_HIDE_LLM_TOOLS` is also applied when `OPENINFERENCE_HIDE_INPUTS` is enabled, consistent with how `OPENINFERENCE_HIDE_INPUT_MESSAGES` and `OPENINFERENCE_HIDE_LLM_PROMPTS` behave.
 
 To set up this configuration you can either:
 
@@ -58,6 +61,7 @@ Below is an example of how to set these values in code using our OpenAI Python a
         hide_embedding_vectors=...,
         hide_llm_invocation_parameters=...,
         hide_llm_prompts=...,
+        hide_llm_tools=...,
         base64_image_max_length=...,
     )
 
@@ -77,7 +81,10 @@ Below is an example of how to set these values in code using our OpenAI Python a
     * Everything left out of here will fallback to
     * environment variables then defaults
     */
-    const traceConfig = { hideInputs: true }
+    const traceConfig = {
+      hideInputs: true,
+      hideLLMTools: true,
+    }
 
     const instrumentation = new OpenAIInstrumentation({ traceConfig })
     ```
