@@ -45,11 +45,7 @@ export default defineConfig(() => {
     server: {
       port: parseInt(process.env.VITE_PORT || "5173"),
       warmup: {
-        clientFiles: [
-          "./index.tsx",
-          "./App.tsx",
-          "./Routes.tsx",
-        ],
+        clientFiles: ["./index.tsx", "./App.tsx", "./Routes.tsx"],
       },
       headers: {
         // Prevent browser caching during development to ensure fresh assets
