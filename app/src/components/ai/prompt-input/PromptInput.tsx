@@ -60,6 +60,10 @@ export function PromptInput({
   valueRef.current = value;
 
   const handleSubmit = () => {
+    if (status === "submitted" || status === "streaming") {
+      return;
+    }
+
     const trimmed = valueRef.current.trim();
     if (trimmed) {
       onSubmit?.(trimmed);
