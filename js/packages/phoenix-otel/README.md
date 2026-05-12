@@ -365,6 +365,7 @@ const tracer = new OITracer({
     hideInputs: true,
     hideOutputText: true,
     hideEmbeddingVectors: true,
+    hideLLMTools: true,
     base64ImageMaxLength: 8_000,
   },
 });
@@ -391,6 +392,7 @@ Supported environment variables include:
 - `OPENINFERENCE_HIDE_EMBEDDING_VECTORS`
 - `OPENINFERENCE_BASE64_IMAGE_MAX_LENGTH`
 - `OPENINFERENCE_HIDE_PROMPTS`
+- `OPENINFERENCE_HIDE_LLM_TOOLS`
 
 ### Raw OpenTelemetry Spans
 
