@@ -1,11 +1,16 @@
 import { useCallback } from "react";
 import { UNSTABLE_ToastQueue as ToastQueue } from "react-aria-components";
-import { flushSync } from "react-dom";
 
 /**
  * Default duration in milliseconds before toasts expire by default.
  */
 const DEFAULT_EXPIRY = 5_000;
+
+/**
+ * Maximum number of toasts rendered at once. Additional toasts are queued and
+ * shown as visible ones are dismissed. Matches the sonner-style stacked region.
+ */
+const MAX_VISIBLE_TOASTS = 3;
 
 type NotificationVariant = "success" | "error";
 
@@ -39,16 +44,7 @@ export type NotificationParams = {
 };
 
 export const toastQueue = new ToastQueue<NotificationParams>({
-  // Wrap state updates in a CSS view transition.
-  wrapUpdate(fn) {
-    if ("startViewTransition" in document) {
-      document?.startViewTransition(() => {
-        flushSync(fn);
-      });
-    } else {
-      fn();
-    }
-  },
+  maxVisibleToasts: MAX_VISIBLE_TOASTS,
 });
 
 export type NotificationHookParams = Omit<NotificationParams, "variant"> & {

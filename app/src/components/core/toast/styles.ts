@@ -1,14 +1,104 @@
-import { css } from "@emotion/react";
+import { css, keyframes } from "@emotion/react";
 
+/**
+ * How far (in px) each stacked toast peeks out from behind the front toast
+ * while the stack is collapsed.
+ */
+const COLLAPSED_PEEK = 16;
+/**
+ * Vertical gap (in px) between toasts when the stack is expanded (hovered /
+ * focused).
+ */
+const EXPANDED_GAP = 8;
+/**
+ * Amount each toast is scaled down per step behind the front toast while
+ * collapsed (sonner-like depth effect).
+ */
+const SCALE_STEP = 0.05;
+
+const slideInFromTop = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(-130%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+/**
+ * The toast region is a fixed, top-centered container that lays out the toast
+ * stack. Toasts are absolutely positioned inside it; the region only owns the
+ * width and the (animated) height so the hover target tracks the visible stack.
+ *
+ * `--toast-count` and `--toast-row-height` are written by `attachToastRegion`
+ * in `ToastRegion.tsx` once the toasts have been measured.
+ */
 export const toastRegionCss = css`
   position: fixed;
-  bottom: 24px;
-  right: 24px;
-  display: flex;
-  flex-direction: column-reverse;
-  gap: 8px;
-  border-radius: 8px;
+  top: var(--global-dimension-static-size-200);
+  left: 50%;
+  width: 400px;
+  max-width: calc(100vw - var(--global-dimension-static-size-400));
+  transform: translateX(-50%);
   outline: none;
+  z-index: 100000;
+
+  --collapsed-peek: ${COLLAPSED_PEEK}px;
+  --expanded-gap: ${EXPANDED_GAP}px;
+  --toast-row-height: 72px;
+  --toast-count: 1;
+
+  height: calc(
+    var(--toast-row-height) + (var(--toast-count) - 1) * var(--collapsed-peek)
+  );
+  transition: height 300ms cubic-bezier(0.21, 1.02, 0.73, 1);
+
+  &[data-hovered],
+  &[data-focused] {
+    height: calc(
+      var(--toast-stack-height, var(--toast-row-height)) +
+        (var(--toast-count) - 1) * var(--expanded-gap)
+    );
+  }
+
+  /* Expand (un-stack) the toasts when the region is hovered or focused. */
+  &[data-hovered] .toast-positioner,
+  &[data-focused] .toast-positioner {
+    transform: translateY(
+      calc(var(--toast-offset, 0px) + var(--toast-index) * var(--expanded-gap))
+    );
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+`;
+
+/**
+ * Wraps each toast and owns its position within the stack. `--toast-index`
+ * (0 = front / newest) is set inline by the `Toast` component.
+ */
+export const toastPositionerCss = css`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  transform-origin: top center;
+  transform: translateY(
+      calc(var(--toast-index) * var(--collapsed-peek, ${COLLAPSED_PEEK}px))
+    )
+    scale(calc(1 - var(--toast-index) * ${SCALE_STEP}));
+  opacity: calc(1 - var(--toast-index) * 0.1);
+  transition:
+    transform 300ms cubic-bezier(0.21, 1.02, 0.73, 1),
+    opacity 300ms ease;
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
 `;
 
 export const toastCss = css`
@@ -19,8 +109,11 @@ export const toastCss = css`
     var(--global-dimension-static-size-100);
   border-radius: 8px;
   outline: none;
-  width: 400px;
+  width: 100%;
+  box-sizing: border-box;
   position: relative;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: ${slideInFromTop} 280ms cubic-bezier(0.21, 1.02, 0.73, 1);
   --toast-border: 1px solid var(--global-border-color-default);
   --toast-color: var(--global-static-color-900);
   &[data-theme="light"] {
@@ -44,6 +137,10 @@ export const toastCss = css`
   background-color: var(--toast-background-color);
   border: var(--toast-border);
   color: var(--toast-color);
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
 
   &[data-focus-visible] {
     outline: 2px solid slateblue;

@@ -1,14 +1,19 @@
 import { css } from "@emotion/react";
+import { useContext } from "react";
 import type { QueuedToast } from "react-aria-components";
 import {
   UNSTABLE_Toast as AriaToast,
   UNSTABLE_ToastContent as AriaToastContent,
+  UNSTABLE_ToastStateContext as ToastStateContext,
 } from "react-aria-components";
 
 import { Button } from "@phoenix/components/core/button";
 import { Text } from "@phoenix/components/core/content";
 import { Icon, Icons } from "@phoenix/components/core/icon";
-import { toastCss } from "@phoenix/components/core/toast/styles";
+import {
+  toastCss,
+  toastPositionerCss,
+} from "@phoenix/components/core/toast/styles";
 import {
   type NotificationParams,
   toastQueue,
@@ -47,75 +52,90 @@ export const Toast = <T extends QueuedToast<NotificationParams>>({
   toast: T;
 }) => {
   const { theme } = useTheme();
+  const state = useContext(ToastStateContext);
+  // 0 = front / newest toast in the stack.
+  const stackIndex = Math.max(
+    0,
+    state?.visibleToasts.findIndex((t) => t.key === toast.key) ?? 0
+  );
   const icon = iconFromVariant(toast.content.variant);
   return (
-    <AriaToast
-      toast={toast}
-      css={toastCss}
-      className="react-aria-Toast"
+    <div
+      className="toast-positioner"
+      css={toastPositionerCss}
       style={{
-        viewTransitionName: toast.key,
-        // @ts-expect-error incorrect react types
-        "--internal-token-color": colorFromVariant(toast.content.variant),
+        // @ts-expect-error custom css property
+        "--toast-index": stackIndex,
+        zIndex: 100 - stackIndex,
       }}
-      data-variant={toast.content.variant}
-      data-theme={theme}
     >
-      <div
-        css={css`
-          display: flex;
-          justify-content: space-between;
-          width: 100%;
-        `}
+      <AriaToast
+        toast={toast}
+        css={toastCss}
+        className="react-aria-Toast"
+        style={{
+          // @ts-expect-error incorrect react types
+          "--internal-token-color": colorFromVariant(toast.content.variant),
+        }}
+        data-variant={toast.content.variant}
+        data-theme={theme}
       >
-        <AriaToastContent>
-          <Text slot="title" size="M">
-            {icon}
-            {toast.content.title}
-          </Text>
-          <Text slot="description">{toast.content.message}</Text>
-        </AriaToastContent>
-        <Button
-          slot="close"
-          size="S"
-          type="button"
-          leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
-        />
-      </div>
-      {toast.content.action ? (
-        <div className="toast-action-container">
-          {typeof toast.content.action === "object" &&
-          "text" in toast.content.action ? (
-            <Button
-              className="toast-action-button"
-              onPress={() => {
-                const action = toast.content.action;
-                if (
-                  typeof action === "object" &&
-                  action &&
-                  "onClick" in action
-                ) {
-                  // close on click by default
-                  const closeOnClick = action.closeOnClick ?? true;
-                  const close = () => {
-                    toastQueue?.close(toast.key);
-                  };
-                  // pass close callback to action for manual close ability
-                  action.onClick(close);
-                  if (closeOnClick) {
-                    close();
-                  }
-                }
-              }}
-              size="S"
-            >
-              {toast.content.action.text}
-            </Button>
-          ) : (
-            toast.content.action
-          )}
+        <div
+          css={css`
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+          `}
+        >
+          <AriaToastContent>
+            <Text slot="title" size="M">
+              {icon}
+              {toast.content.title}
+            </Text>
+            <Text slot="description">{toast.content.message}</Text>
+          </AriaToastContent>
+          <Button
+            slot="close"
+            size="S"
+            type="button"
+            leadingVisual={<Icon svg={<Icons.CloseOutline />} />}
+          />
         </div>
-      ) : null}
-    </AriaToast>
+        {toast.content.action ? (
+          <div className="toast-action-container">
+            {typeof toast.content.action === "object" &&
+            "text" in toast.content.action ? (
+              <Button
+                className="toast-action-button"
+                onPress={() => {
+                  const action = toast.content.action;
+                  if (
+                    typeof action === "object" &&
+                    action &&
+                    "onClick" in action
+                  ) {
+                    // close on click by default
+                    const closeOnClick = action.closeOnClick ?? true;
+                    const close = () => {
+                      toastQueue?.close(toast.key);
+                    };
+                    // pass close callback to action for manual close ability
+                    action.onClick(close);
+                    if (closeOnClick) {
+                      close();
+                    }
+                  }
+                }}
+                size="S"
+              >
+                {toast.content.action.text}
+              </Button>
+            ) : (
+              toast.content.action
+            )}
+          </div>
+        ) : null}
+      </AriaToast>
+    </div>
   );
 };
