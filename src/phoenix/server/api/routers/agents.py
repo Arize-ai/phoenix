@@ -298,22 +298,17 @@ async def _upsert_project_sessions(
     return {session_id: rowid for rowid, session_id in id_rows.all()}
 
 
-def _apply_project_session_rowids(
-    db_traces: list[models.Trace],
-    rowid_by_session_id: dict[str, int],
+def _apply_project_session_rowid(
+    db_trace: models.Trace,
+    project_session_rowid: int,
 ) -> None:
     """
-    For each trace with an attached in-memory ProjectSession, detach the
-    relationship and assign the resolved rowid as the foreign key. Mutates
-    ``db_traces`` in place. Detaching avoids a duplicate INSERT via the ORM's
-    save-update cascade when the trace is later added to a session.
+    Detach the in-memory ProjectSession from ``db_trace`` and assign the
+    resolved rowid as the foreign key. Detaching avoids a duplicate INSERT via
+    the ORM's save-update cascade when the trace is later added to a session.
     """
-    for db_trace in db_traces:
-        project_session = db_trace.project_session
-        if project_session is None:
-            continue
-        db_trace.project_session = None  # type: ignore[assignment]
-        db_trace.project_session_rowid = rowid_by_session_id[project_session.session_id]
+    db_trace.project_session = None  # type: ignore[assignment]
+    db_trace.project_session_rowid = project_session_rowid
 
 
 def create_agents_router(authentication_enabled: bool) -> APIRouter:
@@ -421,7 +416,14 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                                 rowid_by_session_id = await _upsert_project_sessions(
                                     session, project_sessions
                                 )
-                                _apply_project_session_rowids(db_traces, rowid_by_session_id)
+                                for db_trace in db_traces:
+                                    project_session = db_trace.project_session
+                                    if project_session is None:
+                                        continue
+                                    _apply_project_session_rowid(
+                                        db_trace,
+                                        rowid_by_session_id[project_session.session_id],
+                                    )
                                 session.add_all(db_traces)
                                 await session.flush()
                     tracer.tracer_provider.shutdown()
@@ -486,7 +488,14 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                             rowid_by_session_id = await _upsert_project_sessions(
                                 session, project_sessions
                             )
-                            _apply_project_session_rowids(db_traces, rowid_by_session_id)
+                            for db_trace in db_traces:
+                                project_session = db_trace.project_session
+                                if project_session is None:
+                                    continue
+                                _apply_project_session_rowid(
+                                    db_trace,
+                                    rowid_by_session_id[project_session.session_id],
+                                )
                             session.add_all(db_traces)
                             await session.flush()
                 tracer.tracer_provider.shutdown()
