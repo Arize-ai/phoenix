@@ -67,6 +67,11 @@ type CustomProviderInfo = {
   modelNames: readonly string[];
 };
 
+export type ModelMenuBuiltInModelFilter = (params: {
+  providerKey: GenerativeProviderKey;
+  modelName: string;
+}) => boolean;
+
 /**
  * Maps GenerativeModelSDK to GenerativeProviderKey for icon display
  */
@@ -169,6 +174,20 @@ export type ModelMenuProps = Pick<PopoverProps, "placement" | "shouldFlip"> & {
   onChange?: (model: ModelMenuValue) => void;
   isDisabled?: boolean;
   /**
+   * Optional filter applied only to built-in provider models. Custom provider
+   * models bypass this filter.
+   */
+  builtInModelFilter?: ModelMenuBuiltInModelFilter;
+  /**
+   * Whether built-in provider submenus should allow arbitrary typed model names
+   * in addition to their listed models.
+   */
+  allowBuiltInCustomModelEntry?: boolean;
+  /**
+   * Whether built-in providers should be shown before custom providers.
+   */
+  builtInProvidersFirst?: boolean;
+  /**
    * Visual variant of the trigger button.
    * - `"default"` — standard bordered button with chevron icon.
    * - `"quiet"` — borderless, no chevron icon.
@@ -181,6 +200,9 @@ export function ModelMenu({
   value,
   onChange,
   isDisabled = false,
+  builtInModelFilter,
+  allowBuiltInCustomModelEntry = true,
+  builtInProvidersFirst = false,
   placement,
   shouldFlip,
   variant = "default",
@@ -236,12 +258,21 @@ export function ModelMenu({
   const modelsByProvider = useMemo(() => {
     const grouped = new Map<string, string[]>();
     for (const model of data.playgroundModels) {
+      if (
+        builtInModelFilter &&
+        !builtInModelFilter({
+          providerKey: model.providerKey,
+          modelName: model.name,
+        })
+      ) {
+        continue;
+      }
       const existing = grouped.get(model.providerKey) ?? [];
       existing.push(model.name);
       grouped.set(model.providerKey, existing);
     }
     return grouped;
-  }, [data.playgroundModels]);
+  }, [builtInModelFilter, data.playgroundModels]);
 
   // Create a map of provider key to provider info for quick lookup
   const providerInfoMap = useMemo(() => {
@@ -308,6 +339,15 @@ export function ModelMenu({
   }, [searchValue, customProviders, contains]);
 
   const isSearching = searchValue.trim().length > 0;
+  const visibleProviders = useMemo(
+    () =>
+      builtInModelFilter
+        ? data.modelProviders.filter((provider) =>
+            modelsByProvider.has(provider.key)
+          )
+        : data.modelProviders,
+    [builtInModelFilter, data.modelProviders, modelsByProvider]
+  );
 
   const searchFilter = useCallback(
     (textValue: string, inputValue: string) => contains(textValue, inputValue),
@@ -363,13 +403,16 @@ export function ModelMenu({
               providerInfoMap={providerInfoMap}
               customProviders={filteredCustomProviders}
               onChange={handleModelChange}
+              builtInProvidersFirst={builtInProvidersFirst}
             />
           ) : (
             <ProviderMenu
-              providers={data.modelProviders}
+              providers={visibleProviders}
               modelsByProvider={modelsByProvider}
               customProviders={customProviders}
               onChange={handleModelChange}
+              allowBuiltInCustomModelEntry={allowBuiltInCustomModelEntry}
+              builtInProvidersFirst={builtInProvidersFirst}
             />
           )}
         </Autocomplete>
@@ -396,6 +439,7 @@ type ModelsByProviderMenuProps = {
   >;
   customProviders: CustomProviderInfo[];
   onChange?: (model: ModelMenuValue) => void;
+  builtInProvidersFirst: boolean;
 };
 
 /**
@@ -407,6 +451,7 @@ function ModelsByProviderMenu({
   providerInfoMap,
   customProviders,
   onChange,
+  builtInProvidersFirst,
 }: ModelsByProviderMenuProps) {
   const awsBedrockModelPrefix = usePreferencesContext(
     (state) => state.awsBedrockModelPrefix
@@ -433,6 +478,68 @@ function ModelsByProviderMenu({
   const hasBuiltInResults = modelsByProvider.size > 0;
   const hasCustomResults = customProviders.length > 0;
   const hasResults = hasBuiltInResults || hasCustomResults;
+
+  const customProviderSections = customProviders.map((customProvider) => {
+    const providerKey = SDK_TO_PROVIDER_KEY[customProvider.sdk];
+    return (
+      <MenuSection key={`custom-${customProvider.id}`}>
+        <MenuSectionTitle title={customProvider.name} />
+        {customProvider.modelNames.map((modelName) => {
+          const itemKey = encodeCustomKey({
+            customProviderId: customProvider.id,
+            modelName,
+          });
+          return (
+            <MenuItem
+              key={itemKey}
+              id={itemKey}
+              textValue={displayModelName(providerKey, modelName)}
+            >
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <GenerativeProviderIcon provider={providerKey} height={16} />
+                <Text>{displayModelName(providerKey, modelName)}</Text>
+              </Flex>
+            </MenuItem>
+          );
+        })}
+      </MenuSection>
+    );
+  });
+
+  const builtInProviderSections = Array.from(modelsByProvider.entries()).map(
+    ([providerKey, models]) => {
+      const providerInfo = providerInfoMap.get(providerKey);
+      const isValidProvider = isModelProvider(providerKey);
+      return (
+        <MenuSection key={providerKey}>
+          <MenuSectionTitle title={providerInfo?.name ?? providerKey} />
+          {models.map((modelName) => {
+            const itemKey = encodeBuiltInKey({
+              providerKey,
+              modelName,
+            });
+            return (
+              <MenuItem
+                key={itemKey}
+                id={itemKey}
+                textValue={displayModelName(providerKey, modelName)}
+              >
+                <Flex direction="row" gap="size-100" alignItems="center">
+                  {isValidProvider && (
+                    <GenerativeProviderIcon
+                      provider={providerKey}
+                      height={16}
+                    />
+                  )}
+                  <Text>{displayModelName(providerKey, modelName)}</Text>
+                </Flex>
+              </MenuItem>
+            );
+          })}
+        </MenuSection>
+      );
+    }
+  );
 
   return (
     <Menu
@@ -468,77 +575,9 @@ function ModelsByProviderMenu({
     >
       {hasResults ? (
         <>
-          {/* Custom providers */}
-          {customProviders.map((customProvider) => {
-            const providerKey = SDK_TO_PROVIDER_KEY[customProvider.sdk];
-            return (
-              <MenuSection key={`custom-${customProvider.id}`}>
-                <MenuSectionTitle title={customProvider.name} />
-                {customProvider.modelNames.map((modelName) => {
-                  const itemKey = encodeCustomKey({
-                    customProviderId: customProvider.id,
-                    modelName,
-                  });
-                  return (
-                    <MenuItem
-                      key={itemKey}
-                      id={itemKey}
-                      textValue={displayModelName(providerKey, modelName)}
-                    >
-                      <Flex direction="row" gap="size-100" alignItems="center">
-                        <GenerativeProviderIcon
-                          provider={providerKey}
-                          height={16}
-                        />
-                        <Text>{displayModelName(providerKey, modelName)}</Text>
-                      </Flex>
-                    </MenuItem>
-                  );
-                })}
-              </MenuSection>
-            );
-          })}
-          {/* Built-in providers */}
-          {Array.from(modelsByProvider.entries()).map(
-            ([providerKey, models]) => {
-              const providerInfo = providerInfoMap.get(providerKey);
-              const isValidProvider = isModelProvider(providerKey);
-              return (
-                <MenuSection key={providerKey}>
-                  <MenuSectionTitle title={providerInfo?.name ?? providerKey} />
-                  {models.map((modelName) => {
-                    const itemKey = encodeBuiltInKey({
-                      providerKey,
-                      modelName,
-                    });
-                    return (
-                      <MenuItem
-                        key={itemKey}
-                        id={itemKey}
-                        textValue={displayModelName(providerKey, modelName)}
-                      >
-                        <Flex
-                          direction="row"
-                          gap="size-100"
-                          alignItems="center"
-                        >
-                          {isValidProvider && (
-                            <GenerativeProviderIcon
-                              provider={providerKey}
-                              height={16}
-                            />
-                          )}
-                          <Text>
-                            {displayModelName(providerKey, modelName)}
-                          </Text>
-                        </Flex>
-                      </MenuItem>
-                    );
-                  })}
-                </MenuSection>
-              );
-            }
-          )}
+          {builtInProvidersFirst && builtInProviderSections}
+          {customProviderSections}
+          {!builtInProvidersFirst && builtInProviderSections}
         </>
       ) : (
         <MenuItem id="no-results" textValue="No results" isDisabled>
@@ -558,6 +597,8 @@ type ProviderMenuProps = {
   modelsByProvider: Map<string, string[]>;
   customProviders: CustomProviderInfo[];
   onChange?: (model: ModelMenuValue) => void;
+  allowBuiltInCustomModelEntry: boolean;
+  builtInProvidersFirst: boolean;
 };
 
 /**
@@ -569,63 +610,69 @@ function ProviderMenu({
   modelsByProvider,
   customProviders,
   onChange,
+  allowBuiltInCustomModelEntry,
+  builtInProvidersFirst,
 }: ProviderMenuProps) {
+  const customProviderSubmenus = customProviders.map((customProvider) => {
+    const providerKey = SDK_TO_PROVIDER_KEY[customProvider.sdk];
+    return (
+      <SubmenuTrigger key={`custom-${customProvider.id}`}>
+        <MenuItem
+          id={`custom-${customProvider.id}`}
+          textValue={customProvider.name}
+        >
+          <Flex direction="row" gap="size-100" alignItems="center">
+            <GenerativeProviderIcon provider={providerKey} height={16} />
+            <Text>{customProvider.name}</Text>
+          </Flex>
+        </MenuItem>
+        <ProviderModelsSubmenu
+          providerKey={providerKey}
+          models={customProvider.modelNames}
+          customProvider={{
+            id: customProvider.id,
+            name: customProvider.name,
+          }}
+          onChange={onChange}
+        />
+      </SubmenuTrigger>
+    );
+  });
+
+  const builtInProviderSubmenus = providers.map((provider) => {
+    const providerKey = provider.key;
+    const isValidProvider = isModelProvider(providerKey);
+    const models = modelsByProvider.get(providerKey) ?? [];
+
+    return (
+      <SubmenuTrigger key={provider.key}>
+        <MenuItem
+          id={provider.key}
+          textValue={provider.name}
+          isDisabled={!provider.dependenciesInstalled}
+        >
+          <Flex direction="row" gap="size-100" alignItems="center">
+            {isValidProvider && (
+              <GenerativeProviderIcon provider={providerKey} height={16} />
+            )}
+            <Text>{provider.name}</Text>
+          </Flex>
+        </MenuItem>
+        <ProviderModelsSubmenu
+          providerKey={providerKey}
+          models={models}
+          onChange={onChange}
+          allowCustomEntry={allowBuiltInCustomModelEntry}
+        />
+      </SubmenuTrigger>
+    );
+  });
+
   return (
     <Menu css={menuWidthCSS}>
-      {/* Custom providers */}
-      {customProviders.map((customProvider) => {
-        const providerKey = SDK_TO_PROVIDER_KEY[customProvider.sdk];
-        return (
-          <SubmenuTrigger key={`custom-${customProvider.id}`}>
-            <MenuItem
-              id={`custom-${customProvider.id}`}
-              textValue={customProvider.name}
-            >
-              <Flex direction="row" gap="size-100" alignItems="center">
-                <GenerativeProviderIcon provider={providerKey} height={16} />
-                <Text>{customProvider.name}</Text>
-              </Flex>
-            </MenuItem>
-            <ProviderModelsSubmenu
-              providerKey={providerKey}
-              models={customProvider.modelNames}
-              customProvider={{
-                id: customProvider.id,
-                name: customProvider.name,
-              }}
-              onChange={onChange}
-            />
-          </SubmenuTrigger>
-        );
-      })}
-      {/* Built-in providers */}
-      {providers.map((provider) => {
-        const providerKey = provider.key;
-        const isValidProvider = isModelProvider(providerKey);
-        const models = modelsByProvider.get(providerKey) ?? [];
-
-        return (
-          <SubmenuTrigger key={provider.key}>
-            <MenuItem
-              id={provider.key}
-              textValue={provider.name}
-              isDisabled={!provider.dependenciesInstalled}
-            >
-              <Flex direction="row" gap="size-100" alignItems="center">
-                {isValidProvider && (
-                  <GenerativeProviderIcon provider={providerKey} height={16} />
-                )}
-                <Text>{provider.name}</Text>
-              </Flex>
-            </MenuItem>
-            <ProviderModelsSubmenu
-              providerKey={providerKey}
-              models={models}
-              onChange={onChange}
-            />
-          </SubmenuTrigger>
-        );
-      })}
+      {builtInProvidersFirst && builtInProviderSubmenus}
+      {customProviderSubmenus}
+      {!builtInProvidersFirst && builtInProviderSubmenus}
     </Menu>
   );
 }
@@ -634,6 +681,7 @@ type ProviderModelsSubmenuProps = {
   providerKey: GenerativeProviderKey;
   models: readonly string[];
   onChange?: (model: ModelMenuValue) => void;
+  allowCustomEntry?: boolean;
   /**
    * If provided, this is a custom provider and the ref will be included in the selection
    */
@@ -649,6 +697,7 @@ function ProviderModelsSubmenu({
   providerKey,
   models,
   onChange,
+  allowCustomEntry = true,
   customProvider,
 }: ProviderModelsSubmenuProps) {
   const { contains } = useFilter({ sensitivity: "base" });
@@ -674,7 +723,7 @@ function ProviderModelsSubmenu({
 
     // If there's a search value and it doesn't exactly match an existing model, add it as custom
     const existsInItems = baseItems.some((item) => item.name === trimmedSearch);
-    if (trimmedSearch && !existsInItems) {
+    if (allowCustomEntry && trimmedSearch && !existsInItems) {
       // Check if any existing models match the search (would be shown by filter)
       const hasMatches = baseItems.some((item) =>
         contains(item.name, trimmedSearch)
@@ -691,7 +740,7 @@ function ProviderModelsSubmenu({
     }
 
     return baseItems;
-  }, [models, searchValue, contains]);
+  }, [allowCustomEntry, models, searchValue, contains]);
 
   // Custom filter that always shows the custom option and matches against the display name
   const customFilter = (textValue: string, inputValue: string) => {
@@ -714,7 +763,13 @@ function ProviderModelsSubmenu({
             onChange={setSearchValue}
           >
             <SearchIcon />
-            <Input placeholder="Search or enter model name" />
+            <Input
+              placeholder={
+                allowCustomEntry
+                  ? "Search or enter model name"
+                  : "Search models"
+              }
+            />
           </SearchField>
         </MenuHeader>
         <Menu
