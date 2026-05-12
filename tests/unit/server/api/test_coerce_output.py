@@ -158,6 +158,17 @@ class TestCategoricalCoerce:
         assert label == "maybe"
         assert score is None
 
+    def test_none_canonical_score_falls_back_to_user_score(self) -> None:
+        cat = _cat([("maybe", None)])  # type: ignore[list-item]
+        label, score, explanation = _coerce_output({"label": "maybe", "score": 0.7}, cat)
+        assert label == "maybe"
+        assert score == pytest.approx(0.7)
+
+    def test_none_canonical_score_rejects_bool_user_score(self) -> None:
+        cat = _cat([("maybe", None)])  # type: ignore[list-item]
+        with pytest.raises(ValueError, match="must not be bool"):
+            _coerce_output({"label": "maybe", "score": True}, cat)
+
     def test_dict_with_label_key_accepted(self) -> None:
         label, score, explanation = _coerce_output({"label": "pass"}, _cat())
         assert label == "pass"
