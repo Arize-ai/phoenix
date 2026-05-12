@@ -47,16 +47,18 @@ async function fetchSummary({
  * structured-output tool schema. Fire-and-forget so the UI never blocks on
  * it.
  */
-export function useGenerateSessionSummary({
-  modelSelection,
-}: {
-  modelSelection: AgentModelSelection;
-}) {
+export function useGenerateSessionSummary() {
   const store = useAgentStore();
   const requestedSessionsRef = useRef(new Set<string>());
 
   const generateSummary = useCallback(
-    ({ sessionId }: { sessionId: string }) => {
+    ({
+      sessionId,
+      modelSelection,
+    }: {
+      sessionId: string;
+      modelSelection: AgentModelSelection;
+    }) => {
       if (requestedSessionsRef.current.has(sessionId)) return;
 
       const state = store.getState();
@@ -86,7 +88,7 @@ export function useGenerateSessionSummary({
           requestedSessionsRef.current.delete(sessionId);
         });
     },
-    [modelSelection, store]
+    [store]
   );
 
   return { generateSummary };

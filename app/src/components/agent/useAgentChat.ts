@@ -55,10 +55,17 @@ export function useAgentChat({
 }) {
   const store = useAgentStore();
   const runtime = useAgentChatRuntime();
-  const { generateSummary } = useGenerateSessionSummary({ modelSelection });
+  const { generateSummary } = useGenerateSessionSummary();
   const pendingElicitation = useAgentContext((state) =>
     sessionId ? (state.pendingElicitationBySessionId[sessionId] ?? null) : null
   );
+
+  // The Chat is cached per-session in the runtime registry, so its transport
+  // and onFinish closures are captured once and reused across model changes.
+  // Read through the ref so the latest model selection takes effect on the
+  // next send/summary without rebuilding the Chat.
+  const modelSelectionRef = useRef(modelSelection);
+  modelSelectionRef.current = modelSelection;
 
   // Resolve the imperative runtime instance for this session/model pair. The
   // runtime owns replacement semantics when the transport changes, while the
@@ -99,7 +106,7 @@ export function useAgentChat({
                       store.getState().agentsConfig.collectorEndpoint
                     ),
                     contexts: selectActiveContexts(store.getState()),
-                    modelSelection,
+                    modelSelection: modelSelectionRef.current,
                   }),
                 }),
               }),
@@ -129,7 +136,10 @@ export function useAgentChat({
                 // runtimes can be reclaimed and later reconstructed from state.
                 if (finalMessages) {
                   store.getState().setSessionMessages(sessionId, finalMessages);
-                  generateSummary({ sessionId });
+                  generateSummary({
+                    sessionId,
+                    modelSelection: modelSelectionRef.current,
+                  });
                 }
               },
             });
