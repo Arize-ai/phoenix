@@ -66,6 +66,9 @@ export function SandboxConfigLabel({
 }
 
 const settingsListCSS = css`
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: var(--global-dimension-static-size-50);
@@ -107,21 +110,21 @@ function SandboxConfigLabelDetails({
   const settings = getSandboxConfigSettings(sandboxConfig.config);
 
   return (
-    <div css={settingsListCSS}>
-      <div css={settingRowCSS}>
+    <ul css={settingsListCSS}>
+      <li css={settingRowCSS}>
         <Text size="S" color="text-700">
           Timeout
         </Text>
         <Text size="S">{sandboxConfig.timeout}s</Text>
-      </div>
+      </li>
       {settings.map((setting) => (
-        <div css={settingRowCSS} key={setting.key}>
+        <li css={settingRowCSS} key={setting.key}>
           <Text size="S" color="text-700">
             {setting.label}
           </Text>
           <Text size="S">{setting.value}</Text>
-        </div>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }
