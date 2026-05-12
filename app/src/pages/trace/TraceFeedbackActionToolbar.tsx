@@ -11,6 +11,7 @@ import {
 import { useViewer } from "@phoenix/contexts";
 import type { TraceFeedbackActionToolbar_trace$key } from "@phoenix/pages/trace/__generated__/TraceFeedbackActionToolbar_trace.graphql";
 import type { TraceFeedbackActionToolbarCreateAnnotationMutation } from "@phoenix/pages/trace/__generated__/TraceFeedbackActionToolbarCreateAnnotationMutation.graphql";
+import type { TraceFeedbackActionToolbarDeleteAnnotationMutation } from "@phoenix/pages/trace/__generated__/TraceFeedbackActionToolbarDeleteAnnotationMutation.graphql";
 
 function getFeedbackValue(
   label: string | null | undefined
@@ -44,7 +45,7 @@ export function TraceFeedbackActionToolbar({
     trace
   );
   const { viewer } = useViewer();
-  const [createTraceAnnotation, isSubmittingFeedback] =
+  const [createTraceAnnotation, isCreatingFeedback] =
     useMutation<TraceFeedbackActionToolbarCreateAnnotationMutation>(graphql`
       mutation TraceFeedbackActionToolbarCreateAnnotationMutation(
         $traceId: ID!
@@ -77,12 +78,30 @@ export function TraceFeedbackActionToolbar({
         }
       }
     `);
+  const [deleteTraceAnnotation, isDeletingFeedback] =
+    useMutation<TraceFeedbackActionToolbarDeleteAnnotationMutation>(graphql`
+      mutation TraceFeedbackActionToolbarDeleteAnnotationMutation(
+        $traceId: ID!
+        $annotationId: ID!
+      ) {
+        deleteTraceAnnotations(input: { annotationIds: [$annotationId] }) {
+          query {
+            node(id: $traceId) {
+              ... on Trace {
+                ...TraceAnnotationSummaryGroup
+                ...TraceFeedbackActionToolbar_trace
+              }
+            }
+          }
+        }
+      }
+    `);
   const userFeedbackIdentifier = getUserFeedbackIdentifier(viewer?.id);
-  const selectedFeedback = getFeedbackValue(
-    data.viewerUserFeedbackAnnotations.find(
-      (annotation) => annotation.identifier === userFeedbackIdentifier
-    )?.label
+  const selectedFeedbackAnnotation = data.viewerUserFeedbackAnnotations.find(
+    (annotation) => annotation.identifier === userFeedbackIdentifier
   );
+  const selectedFeedback = getFeedbackValue(selectedFeedbackAnnotation?.label);
+  const isSubmittingFeedback = isCreatingFeedback || isDeletingFeedback;
 
   return (
     <FeedbackActionToolbar
@@ -90,7 +109,19 @@ export function TraceFeedbackActionToolbar({
       selectedFeedback={selectedFeedback}
       isSubmittingFeedback={isSubmittingFeedback}
       onFeedback={({ feedback }) => {
-        if (isSubmittingFeedback || selectedFeedback === feedback) {
+        if (isSubmittingFeedback) {
+          return;
+        }
+        if (
+          selectedFeedback === feedback &&
+          selectedFeedbackAnnotation != null
+        ) {
+          deleteTraceAnnotation({
+            variables: {
+              traceId: data.id,
+              annotationId: selectedFeedbackAnnotation.id,
+            },
+          });
           return;
         }
         createTraceAnnotation({

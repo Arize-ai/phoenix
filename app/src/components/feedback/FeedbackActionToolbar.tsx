@@ -32,7 +32,11 @@ export function FeedbackActionToolbar({
       ) : null}
       <MessageAction
         label="Thumbs up"
-        tooltip="Set feedback to positive"
+        tooltip={
+          isPositiveSelected
+            ? "Remove positive feedback"
+            : "Set feedback to positive"
+        }
         isDisabled={isSubmittingFeedback}
         onPress={() => {
           onFeedback({ feedback: "positive" });
@@ -45,7 +49,11 @@ export function FeedbackActionToolbar({
       </MessageAction>
       <MessageAction
         label="Thumbs down"
-        tooltip="Set feedback to negative"
+        tooltip={
+          isNegativeSelected
+            ? "Remove negative feedback"
+            : "Set feedback to negative"
+        }
         isDisabled={isSubmittingFeedback}
         onPress={() => {
           onFeedback({ feedback: "negative" });
