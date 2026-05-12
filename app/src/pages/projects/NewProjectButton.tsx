@@ -56,6 +56,7 @@ export function NewProjectButton({
     <div>
       <DialogTrigger>
         <Button
+          data-testid="create-project-button"
           leadingVisual={<Icon svg={<Icons.GridOutline />} />}
           size="M"
           variant={variant}

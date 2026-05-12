@@ -77,8 +77,17 @@ test.describe("Feature Name", () => {
 4. **Test IDs** (when available):
 
    ```typescript
-   page.getByTestId("modal");
+   page.getByTestId("create-dataset-button");
+   // element with state — select the stable id, filter on the data attribute
+   page.locator('[data-testid="llm-evaluator-form-submit-button"][data-mode="create"]');
    ```
+
+   `data-testid`s are scoped, fully spelled out (`...-button`, never `...-btn`), and
+   **constant regardless of state** — state is exposed via a sibling `data-*`
+   attribute (`data-mode`, `data-state`, …), so never key a `getByTestId` off a value
+   that only exists in one mode. If you need a `data-testid` that doesn't exist yet,
+   add it following `rules/test-ids.md` in the `phoenix-frontend` skill (pattern:
+   `<scope>-<subject>-<role>`).
 
 5. **CSS locators** (last resort):
    ```typescript
