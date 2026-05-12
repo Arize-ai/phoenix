@@ -41,7 +41,7 @@ import {
   type PendingElicitationDraft,
 } from "./ElicitationDraftContext";
 import { useAgentChat } from "./useAgentChat";
-import type { ChatSearchParams } from "./useGenerateSessionSummary";
+import type { AgentModelSelection } from "./useGenerateSessionSummary";
 
 export type { EmptyStateQuickAction } from "./ChatEmptyState";
 
@@ -198,7 +198,7 @@ const chatCSS = css`
 export function Chat({
   sessionId,
   chatApiUrl,
-  chatSearchParams,
+  modelSelection,
   modelMenuValue,
   onModelChange,
   emptyStateSubtext,
@@ -206,7 +206,7 @@ export function Chat({
 }: {
   sessionId: string | null;
   chatApiUrl: string;
-  chatSearchParams: ChatSearchParams;
+  modelSelection: AgentModelSelection;
   modelMenuValue: ModelMenuValue;
   onModelChange: (model: ModelMenuValue) => void;
   emptyStateSubtext?: ReactNode;
@@ -221,7 +221,7 @@ export function Chat({
     pendingElicitation,
     handleElicitationSubmit,
     handleElicitationCancel,
-  } = useAgentChat({ sessionId, chatApiUrl, chatSearchParams });
+  } = useAgentChat({ sessionId, chatApiUrl, modelSelection });
 
   return (
     <ChatView

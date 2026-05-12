@@ -24,7 +24,7 @@ import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 
 import {
   useGenerateSessionSummary,
-  type ChatSearchParams,
+  type AgentModelSelection,
 } from "./useGenerateSessionSummary";
 
 /**
@@ -47,15 +47,15 @@ import {
 export function useAgentChat({
   sessionId,
   chatApiUrl,
-  chatSearchParams,
+  modelSelection,
 }: {
   sessionId: string | null;
   chatApiUrl: string;
-  chatSearchParams: ChatSearchParams;
+  modelSelection: AgentModelSelection;
 }) {
   const store = useAgentStore();
   const runtime = useAgentChatRuntime();
-  const { generateSummary } = useGenerateSessionSummary({ chatSearchParams });
+  const { generateSummary } = useGenerateSessionSummary({ modelSelection });
   const pendingElicitation = useAgentContext((state) =>
     sessionId ? (state.pendingElicitationBySessionId[sessionId] ?? null) : null
   );
@@ -99,6 +99,7 @@ export function useAgentChat({
                       store.getState().agentsConfig.collectorEndpoint
                     ),
                     contexts: selectActiveContexts(store.getState()),
+                    modelSelection,
                   }),
                 }),
               }),
