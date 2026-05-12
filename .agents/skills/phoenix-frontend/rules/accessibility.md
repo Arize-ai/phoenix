@@ -3,7 +3,7 @@
 ## Semantic elements
 
 - Interactive actions MUST use buttons, not clickable divs
-- Lists MUST use `<ul>`/`<ol>`
+- Lists MUST use `<ul>`/`<ol>` + `<li>`, never a stack of `<div>`s — even for non-bulleted layouts (key/value rows, menus, tag lists). Reset chrome with `list-style: none; margin: 0; padding: 0;` and apply your flex/grid layout on top.
 
 ## WCAG 2.1 AA baseline
 

@@ -67,6 +67,7 @@ export const AddEvaluatorMenu = ({
     <>
       <MenuTrigger {...props}>
         <Button
+          variant="primary"
           size={size}
           leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
         >

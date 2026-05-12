@@ -97,7 +97,7 @@ export function SandboxConfigDialogTrigger(
         />
       )}
       <ModalOverlay>
-        <Modal size="L">
+        <Modal size="M">
           <Dialog>
             <DialogContent>
               <DialogHeader>
