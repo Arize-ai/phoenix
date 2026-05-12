@@ -33,7 +33,7 @@ export function TraceFeedbackActionToolbar({
       fragment TraceFeedbackActionToolbar_trace on Trace {
         id
         viewerUserFeedbackAnnotations: traceAnnotations(
-          filter: { include: { names: ["user_feedback"], sources: [APP] } }
+          filter: { include: { names: ["user_feedback"] } }
         ) {
           id
           label

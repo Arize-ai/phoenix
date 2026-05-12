@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<b26f6c6da25e46b62ea40269e85c9635>>
+ * @generated SignedSource<<5c167b4ae90e4e877f1e77bc09f20ee5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -49,9 +49,6 @@ return {
             "include": {
               "names": [
                 "user_feedback"
-              ],
-              "sources": [
-                "APP"
               ]
             }
           }
@@ -78,7 +75,7 @@ return {
           "storageKey": null
         }
       ],
-      "storageKey": "traceAnnotations(filter:{\"include\":{\"names\":[\"user_feedback\"],\"sources\":[\"APP\"]}})"
+      "storageKey": "traceAnnotations(filter:{\"include\":{\"names\":[\"user_feedback\"]}})"
     }
   ],
   "type": "Trace",
@@ -86,6 +83,6 @@ return {
 };
 })();
 
-(node as any).hash = "0c5d87b67c12b6ded73afbec9333176f";
+(node as any).hash = "3f52c62b0ee88fb6be09253ed8477ff4";
 
 export default node;

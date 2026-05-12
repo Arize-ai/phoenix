@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3d5809da2521f910e2e53aa5549e677b>>
+ * @generated SignedSource<<6afa23b4d361a4c573844ff72ea006e5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -453,9 +453,6 @@ return {
                               "include": {
                                 "names": [
                                   "user_feedback"
-                                ],
-                                "sources": [
-                                  "APP"
                                 ]
                               }
                             }
@@ -476,7 +473,7 @@ return {
                             "storageKey": null
                           }
                         ],
-                        "storageKey": "traceAnnotations(filter:{\"include\":{\"names\":[\"user_feedback\"],\"sources\":[\"APP\"]}})"
+                        "storageKey": "traceAnnotations(filter:{\"include\":{\"names\":[\"user_feedback\"]}})"
                       }
                     ],
                     "type": "Trace",
@@ -494,12 +491,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "7b5b0eaf4a180144cab75f2132f8c5de",
+    "cacheID": "3ffc17961080f380e1fc93d0320fa67e",
     "id": null,
     "metadata": {},
     "name": "TraceFeedbackActionToolbarCreateAnnotationMutation",
     "operationKind": "mutation",
-    "text": "mutation TraceFeedbackActionToolbarCreateAnnotationMutation(\n  $traceId: ID!\n  $label: String!\n  $score: Float!\n  $identifier: String!\n) {\n  createTraceAnnotations(input: [{traceId: $traceId, name: \"user_feedback\", annotatorKind: HUMAN, label: $label, score: $score, metadata: {}, source: APP, identifier: $identifier}]) {\n    query {\n      node(id: $traceId) {\n        __typename\n        ... on Trace {\n          ...TraceAnnotationSummaryGroup\n          ...TraceFeedbackActionToolbar_trace\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  traceAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  traceAnnotationSummaries {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment TraceFeedbackActionToolbar_trace on Trace {\n  id\n  viewerUserFeedbackAnnotations: traceAnnotations(filter: {include: {names: [\"user_feedback\"], sources: [APP]}}) {\n    id\n    label\n    identifier\n  }\n}\n"
+    "text": "mutation TraceFeedbackActionToolbarCreateAnnotationMutation(\n  $traceId: ID!\n  $label: String!\n  $score: Float!\n  $identifier: String!\n) {\n  createTraceAnnotations(input: [{traceId: $traceId, name: \"user_feedback\", annotatorKind: HUMAN, label: $label, score: $score, metadata: {}, source: APP, identifier: $identifier}]) {\n    query {\n      node(id: $traceId) {\n        __typename\n        ... on Trace {\n          ...TraceAnnotationSummaryGroup\n          ...TraceFeedbackActionToolbar_trace\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  traceAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  traceAnnotationSummaries {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment TraceFeedbackActionToolbar_trace on Trace {\n  id\n  viewerUserFeedbackAnnotations: traceAnnotations(filter: {include: {names: [\"user_feedback\"]}}) {\n    id\n    label\n    identifier\n  }\n}\n"
   }
 };
 })();
