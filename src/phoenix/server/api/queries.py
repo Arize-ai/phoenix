@@ -127,6 +127,7 @@ from phoenix.server.api.types.PromptVersionTemplate import (
 )
 from phoenix.server.api.types.SandboxConfig import (
     SandboxBackendInfo,
+    SandboxConfig,
     SandboxProvider,
     get_sandbox_backend_info,
 )
@@ -1066,6 +1067,10 @@ class Query:
             return BuiltInEvaluator(id=node_id)
         elif type_name == DatasetEvaluator.__name__:
             return DatasetEvaluator(id=node_id)
+        elif type_name == SandboxConfig.__name__:
+            return SandboxConfig(id=node_id)
+        elif type_name == SandboxProvider.__name__:
+            return SandboxProvider(id=node_id)
         if type_name == GenerativeModelCustomProvider.__name__:
             return GenerativeModelCustomProvider(id=node_id)
         raise NotFound(f"Unknown node type: {type_name}")

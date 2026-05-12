@@ -505,20 +505,20 @@ const ConfiguratorSidebar = ({
         </div>
       </div>
 
-      {/* "Sandbox Runtime" pinned to the bottom and always visible */}
+      {/* "Sandbox Config" pinned to the bottom and always visible */}
       <div css={sidebarFooterCSS}>
         <SectionHeading bordered={false}>
-          <Text weight="heavy" size="S">
-            Sandbox Runtime
+          <Text weight="heavy" size="M">
+            Sandbox Config
           </Text>
         </SectionHeading>
-        <SandboxRuntimeSummary selectedSandboxConfig={selectedSandboxConfig} />
+        <SandboxConfigSummary selectedSandboxConfig={selectedSandboxConfig} />
       </div>
     </>
   );
 };
 
-const SandboxRuntimeSummary = ({
+const SandboxConfigSummary = ({
   selectedSandboxConfig,
 }: {
   selectedSandboxConfig: SandboxConfigOption | null;
@@ -533,26 +533,26 @@ const SandboxRuntimeSummary = ({
     );
   }
   return (
-    <List size="S">
-      <SandboxConfigRow label="config" value={selectedSandboxConfig.name} />
+    <List size="M">
+      <SandboxConfigRow label="Name" value={selectedSandboxConfig.name} />
       {selectedSandboxConfig.timeout != null ? (
         <SandboxConfigRow
-          label="timeout"
+          label="Timeout"
           value={`${selectedSandboxConfig.timeout} seconds`}
         />
       ) : null}
       <SandboxConfigRow
-        label="env_vars"
+        label="Environment variables"
         value={getSandboxEnvVarsLabel(selectedSandboxConfig.config)}
       />
       <SandboxConfigRow
-        label="internet_access"
+        label="Internet access"
         value={getSandboxInternetAccessConfigLabel(
           selectedSandboxConfig.config
         )}
       />
       <SandboxConfigRow
-        label="dependencies"
+        label="Dependencies"
         value={getSandboxDependenciesConfigLabel(selectedSandboxConfig.config)}
       />
     </List>
@@ -569,11 +569,11 @@ const SandboxConfigRow = ({
   return (
     <ListItem>
       <View paddingStart="size-100" paddingEnd="size-100">
-        <Flex direction="row" justifyContent="space-between">
-          <Text size="XS" color="text-700">
+        <Flex direction="row" justifyContent="space-between" gap="size-200">
+          <Text size="S" color="text-700">
             {label}
           </Text>
-          <Text size="XS">{value}</Text>
+          <Text size="S">{value}</Text>
         </Flex>
       </View>
     </ListItem>
@@ -1194,7 +1194,7 @@ const sidebarScrollAreaCSS = css`
   overflow-y: auto;
 `;
 
-// The "Sandbox Runtime" region is pinned to the bottom of the panel and stays
+// The "Sandbox Config" region is pinned to the bottom of the panel and stays
 // visible. It scrolls internally if its content gets tall, but is capped so the
 // test region always keeps room.
 const sidebarFooterCSS = css`
