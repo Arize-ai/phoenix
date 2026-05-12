@@ -55,6 +55,7 @@ export const EditLLMEvaluatorDialogContent = ({
             isDisabled={isSubmitting}
             isPending={isSubmitting}
             onPress={handleSubmit}
+            data-testid="create-eval-btn"
           >
             {mode === "create" ? "Create" : "Update"}
           </Button>

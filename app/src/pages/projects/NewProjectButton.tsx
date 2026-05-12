@@ -59,6 +59,7 @@ export function NewProjectButton({
           leadingVisual={<Icon svg={<Icons.GridOutline />} />}
           size="M"
           variant={variant}
+          data-testid="new-project-btn"
         >
           New Project
         </Button>
