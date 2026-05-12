@@ -267,16 +267,14 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         dependencies_language="PYTHON",
         installs_packages_at_runtime=True,
     ),
-    # Vercel Python SDK checked: pyproject minimum vercel>=0.5.1; uv.lock resolves
-    # vercel==0.5.7. Runtime dependency install is wired via `_install_packages`
+    # Vercel Python SDK checked: pyproject minimum vercel>=0.5.8; uv.lock resolves
+    # vercel==0.5.8. Runtime dependency install is wired via `_install_packages`
     # in VercelSandboxBackend: PYTHON → `python3 -m pip install --user <pkgs>`,
-    # TYPESCRIPT → `npm install <pkgs>`. AsyncSandbox.create() in 0.5.7 does not
-    # yet accept a `network_policy` kwarg — the TypeScript Vercel SDK exposes
-    # it but the Python SDK has not ported it. Re-evaluate when Python SDK
-    # >=0.5.8 ships; flip internet_access_capability to "boolean" and wire
-    # network_policy then. Until that lands, both Vercel adapters remain
-    # internet_access="none"; the runtime-install + network-deny interlock at
-    # types.py:664 / :788 is dormant because deny mode is unreachable.
+    # TYPESCRIPT → `npm install <pkgs>`. AsyncSandbox.create() in 0.5.8 accepts a
+    # `network_policy` kwarg — VercelSandboxBackend maps internet_access.mode
+    # to "allow-all" / "deny-all" string forms. internet_access_capability is
+    # "boolean"; the runtime-install + network-deny interlock at types.py:688 /
+    # :812 now rejects deny + non-empty dependencies.packages eagerly.
     "VERCEL_PYTHON": AdapterMetadata(
         display_name="Vercel",
         language="PYTHON",
@@ -289,7 +287,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
             ),
         ],
         supports_env_vars=True,
-        internet_access_capability="none",
+        internet_access_capability="boolean",
         dependencies_language="PYTHON",
         installs_packages_at_runtime=True,
     ),
@@ -305,7 +303,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
             ),
         ],
         supports_env_vars=True,
-        internet_access_capability="none",
+        internet_access_capability="boolean",
         dependencies_language="TYPESCRIPT",
         installs_packages_at_runtime=True,
     ),

@@ -93,7 +93,7 @@ _VERCEL_OIDC_ENV_LOCK = asyncio.Lock()
 
 
 class VercelSandboxBackend(SandboxBackend):
-    """Sandbox backend executing code via Vercel Sandbox (vercel >= 0.5.1).
+    """Sandbox backend executing code via Vercel Sandbox (vercel >= 0.5.8).
 
     Supports named sessions via start_session/stop_session for sandbox reuse
     across multiple execute() calls, or ephemeral execution (no session) which
@@ -104,6 +104,11 @@ class VercelSandboxBackend(SandboxBackend):
     the SDK only autodiscovers OIDC from env), or the access-token triple
     ``token``/``project_id``/``team_id`` (forwarded directly to
     ``AsyncSandbox.create`` as kwargs).
+
+    Network policy: pass ``internet_access`` as ``True`` (allow-all),
+    ``False`` (deny-all), or ``None`` (omit — let the SDK default apply).
+    The string form is forwarded to ``AsyncSandbox.create(network_policy=)``;
+    the SDK accepts ``"allow-all"`` / ``"deny-all"`` and converts internally.
     """
 
     def __init__(
@@ -116,6 +121,7 @@ class VercelSandboxBackend(SandboxBackend):
         language: str = _DEFAULT_LANGUAGE,
         user_env: Optional[dict[str, str]] = None,
         packages: Optional[list[str]] = None,
+        internet_access: Optional[bool] = None,
     ) -> None:
         self._oidc_token = oidc_token
         self._token = token
@@ -128,6 +134,7 @@ class VercelSandboxBackend(SandboxBackend):
         self._language = language.upper() if language else _DEFAULT_LANGUAGE
         self._user_env: dict[str, str] = user_env or {}
         self._packages: list[str] = packages or []
+        self._internet_access = internet_access
         self._sessions: dict[str, AsyncSandbox] = {}
         self._session_locks: dict[str, asyncio.Lock] = {}
         self.secret_values = compose_secret_values(user_env, self._oidc_token, self._token)
@@ -135,11 +142,25 @@ class VercelSandboxBackend(SandboxBackend):
     def _lang_cfg(self) -> _LanguageConfig:
         return _LANGUAGE_CONFIGS.get(self._language, _LANGUAGE_CONFIGS[_DEFAULT_LANGUAGE])
 
+    def _network_policy(self) -> Optional[str]:
+        """Map ``internet_access`` (True/False/None) to the SDK string form.
+
+        Returned values: ``"allow-all"``, ``"deny-all"``, or ``None`` to omit
+        the kwarg entirely (SDK default applies). The Vercel SDK accepts these
+        string aliases on ``AsyncSandbox.create(network_policy=)`` as of 0.5.8.
+        """
+        if self._internet_access is None:
+            return None
+        return "allow-all" if self._internet_access else "deny-all"
+
     async def _create_sandbox(self) -> AsyncSandbox:
         from vercel.sandbox import AsyncSandbox
 
         runtime: str = self._lang_cfg()["runtime"]
         create_kwargs: dict[str, Any] = {"runtime": runtime}
+        network_policy = self._network_policy()
+        if network_policy is not None:
+            create_kwargs["network_policy"] = network_policy
         if self._oidc_token:
             # SDK reads VERCEL_OIDC_TOKEN from os.environ synchronously at the
             # top of AsyncSandbox.create() (before any await), then captures
@@ -301,6 +322,29 @@ def _resolve_vercel_oidc_token(config: dict[str, Any]) -> str:
     return str(config.get(ENV_VERCEL_OIDC_TOKEN) or "") or os.environ.get(ENV_VERCEL_OIDC_TOKEN, "")
 
 
+def _resolve_internet_access(config: dict[str, Any]) -> Optional[bool]:
+    """Project an InternetAccessConfig mode onto a tri-state bool/None.
+
+    ``None`` means the config did not specify internet_access at all — let
+    the Vercel SDK default apply (i.e., omit network_policy=). ``True`` →
+    "allow-all", ``False`` → "deny-all"; the string mapping lives in
+    ``VercelSandboxBackend._network_policy``.
+    """
+    internet_access = config.get("internet_access")
+    if internet_access is None:
+        return None
+    mode = (
+        internet_access.get("mode")
+        if isinstance(internet_access, dict)
+        else getattr(internet_access, "mode", None)
+    )
+    if mode == "deny":
+        return False
+    if mode == "allow":
+        return True
+    return None
+
+
 # UI surfaces only the access-token triple. OIDC is still honored when
 # VERCEL_OIDC_TOKEN is present in the process environment (e.g. `vercel env
 # pull` or running on Vercel) — see get_missing_sandbox_auth_detail and
@@ -358,12 +402,14 @@ class VercelPythonAdapter(SandboxAdapter):
         oidc_token = _resolve_vercel_oidc_token(config)
         deps = config.get("dependencies") or {}
         packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
+        internet_access = _resolve_internet_access(config)
         if oidc_token:
             return VercelSandboxBackend(
                 oidc_token=oidc_token,
                 language="PYTHON",
                 user_env=user_env,
                 packages=packages,
+                internet_access=internet_access,
             )
 
         token = _resolve_vercel_access_token(config)
@@ -377,6 +423,7 @@ class VercelPythonAdapter(SandboxAdapter):
                 language="PYTHON",
                 user_env=user_env,
                 packages=packages,
+                internet_access=internet_access,
             )
         raise ValueError(
             "Vercel sandbox authentication is not configured. Set "
@@ -407,12 +454,14 @@ class VercelTypescriptAdapter(SandboxAdapter):
         oidc_token = _resolve_vercel_oidc_token(config)
         deps = config.get("dependencies") or {}
         packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
+        internet_access = _resolve_internet_access(config)
         if oidc_token:
             return VercelSandboxBackend(
                 oidc_token=oidc_token,
                 language="TYPESCRIPT",
                 user_env=user_env,
                 packages=packages,
+                internet_access=internet_access,
             )
 
         token = _resolve_vercel_access_token(config)
@@ -426,6 +475,7 @@ class VercelTypescriptAdapter(SandboxAdapter):
                 language="TYPESCRIPT",
                 user_env=user_env,
                 packages=packages,
+                internet_access=internet_access,
             )
         raise ValueError(
             "Vercel sandbox authentication is not configured. Set "

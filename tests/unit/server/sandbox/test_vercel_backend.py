@@ -19,18 +19,26 @@ from phoenix.server.sandbox.vercel_backend import (
 )
 
 
-def _make_vercel_sdk_mock() -> tuple[MagicMock, list[str | None]]:
+def _make_vercel_sdk_mock(
+    captured_kwargs: list[dict[str, Any]] | None = None,
+) -> tuple[MagicMock, list[str | None]]:
     """Return (sdk module mock, list capturing os.environ[VERCEL_OIDC_TOKEN]
     snapshots taken at AsyncSandbox.create() invocation time).
 
     The captured snapshots let tests assert what the SDK would have read from
     the env synchronously at the top of create() — i.e. whether Phoenix's env
     injection actually took effect at the moment the SDK reads it.
+
+    If ``captured_kwargs`` is provided, every create() call appends a snapshot
+    of its kwargs dict so tests can assert the SDK kwarg shape (e.g.,
+    network_policy presence/value).
     """
     captured_env: list[str | None] = []
 
-    async def _create(**_: Any) -> Any:
+    async def _create(**kwargs: Any) -> Any:
         captured_env.append(os.environ.get(ENV_VERCEL_OIDC_TOKEN))
+        if captured_kwargs is not None:
+            captured_kwargs.append(dict(kwargs))
         sandbox = MagicMock()
         sandbox.stop = AsyncMock()
         sandbox.client = MagicMock()
@@ -53,6 +61,20 @@ def patched_vercel_sdk() -> Any:
     parent.sandbox = sdk
     with patch.dict(sys.modules, {"vercel": parent, "vercel.sandbox": sdk}):
         yield sdk, captured_env
+
+
+@pytest.fixture
+def patched_vercel_sdk_with_kwargs() -> Any:
+    """Like ``patched_vercel_sdk`` but also yields a list capturing the kwargs
+    passed to every AsyncSandbox.create() call. Tests use this to assert the
+    network_policy kwarg shape forwarded to the Vercel SDK.
+    """
+    captured_kwargs: list[dict[str, Any]] = []
+    sdk, captured_env = _make_vercel_sdk_mock(captured_kwargs=captured_kwargs)
+    parent = MagicMock()
+    parent.sandbox = sdk
+    with patch.dict(sys.modules, {"vercel": parent, "vercel.sandbox": sdk}):
+        yield sdk, captured_env, captured_kwargs
 
 
 @pytest.mark.asyncio
@@ -318,3 +340,149 @@ async def test_ephemeral_execute_install_failure_surfaces_as_execution_error(
     sandbox_mock.stop.assert_awaited_once()
     sandbox_mock.client.aclose.assert_awaited_once()
     assert "ephemeral" not in backend._sessions
+
+
+# ---------------------------------------------------------------------------
+# network_policy forwarding — internet_access → AsyncSandbox.create(network_policy=)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_create_sandbox_forwards_network_policy_allow_all(
+    patched_vercel_sdk_with_kwargs: tuple[MagicMock, list[str | None], list[dict[str, Any]]],
+) -> None:
+    """internet_access=True → AsyncSandbox.create receives network_policy='allow-all'.
+
+    Vercel SDK >=0.5.8 accepts the string alias and converts internally; we
+    forward the alias rather than constructing a NetworkPolicyCustom.
+    """
+    _, _captured_env, captured_kwargs = patched_vercel_sdk_with_kwargs
+    backend = VercelSandboxBackend(oidc_token="t", language="PYTHON", internet_access=True)
+    await backend._create_sandbox()
+    assert len(captured_kwargs) == 1
+    assert captured_kwargs[0].get("network_policy") == "allow-all", (
+        f"Expected network_policy='allow-all'; got {captured_kwargs[0]!r}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_create_sandbox_forwards_network_policy_deny_all(
+    patched_vercel_sdk_with_kwargs: tuple[MagicMock, list[str | None], list[dict[str, Any]]],
+) -> None:
+    """internet_access=False → AsyncSandbox.create receives network_policy='deny-all'."""
+    _, _captured_env, captured_kwargs = patched_vercel_sdk_with_kwargs
+    backend = VercelSandboxBackend(oidc_token="t", language="PYTHON", internet_access=False)
+    await backend._create_sandbox()
+    assert len(captured_kwargs) == 1
+    assert captured_kwargs[0].get("network_policy") == "deny-all", (
+        f"Expected network_policy='deny-all'; got {captured_kwargs[0]!r}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_create_sandbox_omits_network_policy_when_internet_access_unset(
+    patched_vercel_sdk_with_kwargs: tuple[MagicMock, list[str | None], list[dict[str, Any]]],
+) -> None:
+    """internet_access=None → network_policy kwarg is not forwarded.
+
+    Omitting (rather than passing None) lets the SDK default apply. If the SDK
+    changes its default behavior in the future we won't accidentally override it.
+    """
+    _, _captured_env, captured_kwargs = patched_vercel_sdk_with_kwargs
+    backend = VercelSandboxBackend(oidc_token="t", language="PYTHON")
+    await backend._create_sandbox()
+    assert len(captured_kwargs) == 1
+    assert "network_policy" not in captured_kwargs[0], (
+        f"network_policy must be omitted when internet_access is None; got {captured_kwargs[0]!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Adapter-level wiring — config internet_access.mode → backend internet_access
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "adapter_module_path,adapter_cls_name,language",
+    [
+        ("phoenix.server.sandbox.vercel_backend", "VercelPythonAdapter", "PYTHON"),
+        ("phoenix.server.sandbox.vercel_backend", "VercelTypescriptAdapter", "TYPESCRIPT"),
+    ],
+)
+def test_adapter_build_backend_maps_internet_access_allow(
+    adapter_module_path: str, adapter_cls_name: str, language: str
+) -> None:
+    """Adapter build_backend extracts internet_access.mode='allow' from config
+    and constructs VercelSandboxBackend(internet_access=True).
+    """
+    import importlib
+
+    mod = importlib.import_module(adapter_module_path)
+    adapter = getattr(mod, adapter_cls_name)()
+    backend = adapter.build_backend(
+        {
+            "internet_access": {"mode": "allow"},
+            "VERCEL_TOKEN": "t",
+            "VERCEL_PROJECT_ID": "p",
+            "VERCEL_TEAM_ID": "m",
+        }
+    )
+    assert backend._internet_access is True
+    assert backend._language == language
+
+
+@pytest.mark.parametrize(
+    "adapter_module_path,adapter_cls_name",
+    [
+        ("phoenix.server.sandbox.vercel_backend", "VercelPythonAdapter"),
+        ("phoenix.server.sandbox.vercel_backend", "VercelTypescriptAdapter"),
+    ],
+)
+def test_adapter_build_backend_maps_internet_access_deny_no_packages(
+    adapter_module_path: str, adapter_cls_name: str
+) -> None:
+    """internet_access.mode='deny' without packages → backend(internet_access=False).
+
+    The runtime-install + deny interlock only fires when packages are non-empty;
+    deny alone is permitted.
+    """
+    import importlib
+
+    mod = importlib.import_module(adapter_module_path)
+    adapter = getattr(mod, adapter_cls_name)()
+    backend = adapter.build_backend(
+        {
+            "internet_access": {"mode": "deny"},
+            "VERCEL_TOKEN": "t",
+            "VERCEL_PROJECT_ID": "p",
+            "VERCEL_TEAM_ID": "m",
+        }
+    )
+    assert backend._internet_access is False
+
+
+@pytest.mark.parametrize(
+    "adapter_module_path,adapter_cls_name",
+    [
+        ("phoenix.server.sandbox.vercel_backend", "VercelPythonAdapter"),
+        ("phoenix.server.sandbox.vercel_backend", "VercelTypescriptAdapter"),
+    ],
+)
+def test_adapter_build_backend_omits_internet_access_when_absent(
+    adapter_module_path: str, adapter_cls_name: str
+) -> None:
+    """When config has no internet_access field, backend._internet_access is None
+    so AsyncSandbox.create is called without the network_policy kwarg.
+    """
+    import importlib
+
+    mod = importlib.import_module(adapter_module_path)
+    adapter = getattr(mod, adapter_cls_name)()
+    backend = adapter.build_backend(
+        {
+            "VERCEL_TOKEN": "t",
+            "VERCEL_PROJECT_ID": "p",
+            "VERCEL_TEAM_ID": "m",
+        }
+    )
+    assert backend._internet_access is None
