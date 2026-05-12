@@ -10,6 +10,16 @@ const meta: Meta = {
   parameters: {
     layout: "centered",
   },
+  decorators: [
+    // A single Toast positions itself absolutely within the toast region.
+    // Provide a relatively-positioned, region-sized container so it renders
+    // the way it would inside `ToastRegion`.
+    (Story) => (
+      <div style={{ position: "relative", width: 400, minHeight: 96 }}>
+        <Story />
+      </div>
+    ),
+  ],
 };
 
 export default meta;
