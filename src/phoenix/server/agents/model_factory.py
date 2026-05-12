@@ -1,10 +1,9 @@
 """Construct ``pydantic_ai`` model instances for the chat endpoint.
 
-Two entry points: ``build_chat_model`` dispatches on
-``ChatSearchParams`` to either a stored custom-provider record (Anthropic,
-Azure OpenAI, AWS Bedrock, Google GenAI, OpenAI-compatible) or to a
-built-in provider whose credentials are resolved from the secret store
-first and the environment second.
+``build_model`` dispatches on ``AgentModelSelection`` to either a stored
+custom-provider record (Anthropic, Azure OpenAI, AWS Bedrock, Google
+GenAI, OpenAI-compatible) or to a built-in provider whose credentials
+are resolved from the secret store first and the environment second.
 
 This module is **transport-neutral**: it does not import ``fastapi`` or
 raise ``HTTPException``. Failures surface as ``AgentError`` subclasses
@@ -33,17 +32,17 @@ from phoenix.db.types.model_provider import (
     GenerativeModelCustomerProviderConfig,
     ModelProvider,
 )
-from phoenix.server.agents.chat_params import (
-    BuiltInProviderChatSearchParams,
-    ChatSearchParams,
-    CustomProviderChatSearchParams,
-)
 from phoenix.server.agents.exceptions import (
     ProviderConfigError,
     ProviderCredentialsError,
     ProviderDependencyError,
     ProviderNotFoundError,
     ProviderUnsupportedError,
+)
+from phoenix.server.agents.model_selection import (
+    AgentModelSelection,
+    BuiltInProviderModelSelection,
+    CustomProviderModelSelection,
 )
 from phoenix.server.agents.pydantic_ai import OpenInferenceModelWrapper
 from phoenix.server.api.exceptions import BadRequest
@@ -149,7 +148,7 @@ def _placeholder_or_error_for_openai_compatible_provider(
 
 
 async def build_model(
-    params: ChatSearchParams,
+    model: AgentModelSelection,
     *,
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
@@ -158,8 +157,8 @@ async def build_model(
     """Build a ``pydantic_ai`` model for a chat request.
 
     Args:
-        params: Discriminated request schema selecting either a stored
-            custom provider or a built-in provider.
+        model: Discriminated schema selecting either a stored custom
+            provider or a built-in provider.
         session: Open async session used for secret-store and provider
             lookups.
         decrypt: Callable that decrypts secret/provider config payloads.
@@ -179,9 +178,9 @@ async def build_model(
         ProviderUnsupportedError: The requested provider type is not
             recognised by this builder.
     """
-    if isinstance(params, CustomProviderChatSearchParams):
+    if isinstance(model, CustomProviderModelSelection):
         provider_id = from_global_id_with_expected_type(
-            GlobalID.from_id(params.provider_id),
+            GlobalID.from_id(model.provider_id),
             "GenerativeModelCustomProvider",
         )
         provider = await session.get(
@@ -190,24 +189,24 @@ async def build_model(
         )
         if provider is None:
             raise ProviderNotFoundError("Custom provider not found.")
-        model = await _get_pydantic_ai_model_from_generative_model_custom_provider(
+        pydantic_ai_model = await _get_pydantic_ai_model_from_generative_model_custom_provider(
             provider_record=provider,
-            model_name=params.model_name,
+            model_name=model.model_name,
             decrypt=decrypt,
         )
-    elif isinstance(params, BuiltInProviderChatSearchParams):
-        model = await _get_pydantic_ai_model_from_builtin_provider(
-            params,
+    elif isinstance(model, BuiltInProviderModelSelection):
+        pydantic_ai_model = await _get_pydantic_ai_model_from_builtin_provider(
+            model,
             session=session,
             decrypt=decrypt,
         )
     else:
         # See ``_build_openai_model`` for why ``assert_never`` and ``raise``
         # both appear.
-        assert_never(params)
-        raise ValueError(f"Unsupported chat search params type: {type(params).__name__}")
+        assert_never(model)
+        raise ValueError(f"Unsupported model selection type: {type(model).__name__}")
     return OpenInferenceModelWrapper(
-        model,
+        pydantic_ai_model,
         tracer_provider=tracer_provider or NoOpTracerProvider(),
     )
 
@@ -372,7 +371,7 @@ async def _get_pydantic_ai_model_from_generative_model_custom_provider(
 
 
 async def _get_pydantic_ai_model_from_builtin_provider(
-    params: BuiltInProviderChatSearchParams,
+    params: BuiltInProviderModelSelection,
     *,
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],

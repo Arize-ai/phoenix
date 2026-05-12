@@ -28,7 +28,6 @@ from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.agents.agent_factory import ChatOutput, build_agent
 from phoenix.server.agents.capabilities import AgentCapabilities
-from phoenix.server.agents.chat_params import ChatSearchParams, parse_chat_search_params
 from phoenix.server.agents.context import (
     ChatContext,
     resolve_contexts,
@@ -36,6 +35,7 @@ from phoenix.server.agents.context import (
 from phoenix.server.agents.dependencies import ChatDependencies
 from phoenix.server.agents.exceptions import AgentError, SummarizationError
 from phoenix.server.agents.model_factory import build_model
+from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.summarization import summarize_messages
 from phoenix.server.bearer_auth import is_authenticated
 from phoenix.server.types import DbSessionFactory
@@ -95,9 +95,14 @@ class _ObservabilityMixin(BaseModel):
 class _ChatMessageMixin(_ObservabilityMixin):
     """Phoenix-specific extensions added to Vercel AI request messages."""
 
+    model_config = ConfigDict(
+        protected_namespaces=(),  # allow ``model`` field; pydantic reserves ``model_*``
+    )
+
     contexts: list[ChatContext] = Field(default_factory=list)
     capabilities: AgentCapabilities = Field(default_factory=AgentCapabilities)
     messages: list[AssistantMetadataUIMessage]
+    model: AgentModelSelection
 
 
 class ChatSubmitMessage(_ChatMessageMixin, SubmitMessage):
@@ -125,7 +130,12 @@ class _SummarizeRequest(_ObservabilityMixin):
     Carries the Vercel-style messages array; the backend owns the prompt and
     the structured-output tool schema."""
 
+    model_config = ConfigDict(
+        protected_namespaces=(),  # allow ``model`` field; pydantic reserves ``model_*``
+    )
+
     messages: list[UIMessage]
+    model: AgentModelSelection
 
     @field_validator("messages", mode="before")
     @classmethod
@@ -268,7 +278,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         agent_id: str,
         session_id: str,
         request: Request,
-        params: Annotated[ChatSearchParams, Depends(parse_chat_search_params)],
         request_body: ChatRequest,
     ) -> Response:
         if agent_id != _ASSISTANT_AGENT_ID:
@@ -293,7 +302,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         try:
             async with request.app.state.db() as session:
                 model = await build_model(
-                    params,
+                    body.model,
                     session=session,
                     decrypt=request.app.state.decrypt,
                     tracer_provider=tracer_provider,
@@ -357,7 +366,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         agent_id: str,
         session_id: str,
         request: Request,
-        params: Annotated[ChatSearchParams, Depends(parse_chat_search_params)],
         body: _SummarizeRequest,
     ) -> _SummarizeResponse:
         if agent_id != _ASSISTANT_AGENT_ID:
@@ -377,7 +385,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         try:
             async with request.app.state.db() as session:
                 model = await build_model(
-                    params,
+                    body.model,
                     session=session,
                     decrypt=request.app.state.decrypt,
                     tracer_provider=tracer_provider,

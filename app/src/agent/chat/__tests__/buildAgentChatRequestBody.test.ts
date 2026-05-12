@@ -21,11 +21,21 @@ describe("buildAgentChatRequestBody", () => {
       },
       hasRemoteCollector: false,
       contexts: [],
+      modelSelection: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-4o-mini",
+      },
     });
 
     expect(body).toMatchObject({
       existing: true,
       trigger: "submit-message",
+      model: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-4o-mini",
+      },
     });
     expect(body.contexts?.[0]).toMatchObject({
       type: "app",

@@ -6515,74 +6515,6 @@
               "type": "string",
               "title": "Session Id"
             }
-          },
-          {
-            "name": "provider_type",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "enum": [
-                "custom",
-                "builtin"
-              ],
-              "type": "string",
-              "title": "Provider Type"
-            }
-          },
-          {
-            "name": "model_name",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Model Name"
-            }
-          },
-          {
-            "name": "provider_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Provider Id"
-            }
-          },
-          {
-            "name": "provider",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/ModelProvider"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Provider"
-            }
-          },
-          {
-            "name": "openai_api_type",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "enum": [
-                "chat_completions",
-                "responses"
-              ],
-              "type": "string",
-              "default": "responses",
-              "title": "Openai Api Type"
-            }
           }
         ],
         "requestBody": {
@@ -6643,74 +6575,6 @@
             "schema": {
               "type": "string",
               "title": "Session Id"
-            }
-          },
-          {
-            "name": "provider_type",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "enum": [
-                "custom",
-                "builtin"
-              ],
-              "type": "string",
-              "title": "Provider Type"
-            }
-          },
-          {
-            "name": "model_name",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Model Name"
-            }
-          },
-          {
-            "name": "provider_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Provider Id"
-            }
-          },
-          {
-            "name": "provider",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/ModelProvider"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Provider"
-            }
-          },
-          {
-            "name": "openai_api_type",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "enum": [
-                "chat_completions",
-                "responses"
-              ],
-              "type": "string",
-              "default": "responses",
-              "title": "Openai Api Type"
             }
           }
         ],
@@ -7296,6 +7160,39 @@
         "title": "AssistantMetadataUIMessage",
         "description": "`UIMessage` with `metadata` narrowed to `AssistantMessageMetadata`."
       },
+      "BuiltInProviderModelSelection": {
+        "properties": {
+          "providerType": {
+            "type": "string",
+            "const": "builtin",
+            "title": "Providertype"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/ModelProvider"
+          },
+          "modelName": {
+            "type": "string",
+            "title": "Modelname"
+          },
+          "openaiApiType": {
+            "type": "string",
+            "enum": [
+              "chat_completions",
+              "responses"
+            ],
+            "title": "Openaiapitype",
+            "default": "responses"
+          }
+        },
+        "type": "object",
+        "required": [
+          "providerType",
+          "provider",
+          "modelName"
+        ],
+        "title": "BuiltInProviderModelSelection",
+        "description": "Chat against a Phoenix built-in provider.\n\nCredentials and connection details (base URL, Azure endpoint, AWS\nregion) are resolved from the secret store first and the process\nenvironment second. ``openai_api_type`` is honoured by the OpenAI and\nAzure OpenAI branches; other providers ignore it."
+      },
       "CategoricalAnnotationConfig": {
         "properties": {
           "name": {
@@ -7488,6 +7385,24 @@
           },
           "capabilities": {
             "$ref": "#/components/schemas/AgentCapabilities"
+          },
+          "model": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CustomProviderModelSelection"
+              },
+              {
+                "$ref": "#/components/schemas/BuiltInProviderModelSelection"
+              }
+            ],
+            "title": "Model",
+            "discriminator": {
+              "propertyName": "providerType",
+              "mapping": {
+                "builtin": "#/components/schemas/BuiltInProviderModelSelection",
+                "custom": "#/components/schemas/CustomProviderModelSelection"
+              }
+            }
           }
         },
         "additionalProperties": true,
@@ -7495,7 +7410,8 @@
         "required": [
           "trigger",
           "id",
-          "messages"
+          "messages",
+          "model"
         ],
         "title": "ChatRegenerateMessage",
         "description": "Regenerate message extended with Phoenix-specific fields."
@@ -7557,13 +7473,32 @@
           },
           "capabilities": {
             "$ref": "#/components/schemas/AgentCapabilities"
+          },
+          "model": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CustomProviderModelSelection"
+              },
+              {
+                "$ref": "#/components/schemas/BuiltInProviderModelSelection"
+              }
+            ],
+            "title": "Model",
+            "discriminator": {
+              "propertyName": "providerType",
+              "mapping": {
+                "builtin": "#/components/schemas/BuiltInProviderModelSelection",
+                "custom": "#/components/schemas/CustomProviderModelSelection"
+              }
+            }
           }
         },
         "additionalProperties": true,
         "type": "object",
         "required": [
           "id",
-          "messages"
+          "messages",
+          "model"
         ],
         "title": "ChatSubmitMessage",
         "description": "Submit message extended with Phoenix-specific fields."
@@ -8156,6 +8091,31 @@
           "data"
         ],
         "title": "CreateUserResponseBody"
+      },
+      "CustomProviderModelSelection": {
+        "properties": {
+          "providerType": {
+            "type": "string",
+            "const": "custom",
+            "title": "Providertype"
+          },
+          "providerId": {
+            "type": "string",
+            "title": "Providerid"
+          },
+          "modelName": {
+            "type": "string",
+            "title": "Modelname"
+          }
+        },
+        "type": "object",
+        "required": [
+          "providerType",
+          "providerId",
+          "modelName"
+        ],
+        "title": "CustomProviderModelSelection",
+        "description": "Chat against a stored custom provider record."
       },
       "DataUIPart": {
         "properties": {
@@ -15437,11 +15397,30 @@
             },
             "type": "array",
             "title": "Messages"
+          },
+          "model": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CustomProviderModelSelection"
+              },
+              {
+                "$ref": "#/components/schemas/BuiltInProviderModelSelection"
+              }
+            ],
+            "title": "Model",
+            "discriminator": {
+              "propertyName": "providerType",
+              "mapping": {
+                "builtin": "#/components/schemas/BuiltInProviderModelSelection",
+                "custom": "#/components/schemas/CustomProviderModelSelection"
+              }
+            }
           }
         },
         "type": "object",
         "required": [
-          "messages"
+          "messages",
+          "model"
         ],
         "title": "_SummarizeRequest",
         "description": "Body for POST /agents/{agent_id}/sessions/{session_id}/summary.\n\nCarries the Vercel-style messages array; the backend owns the prompt and\nthe structured-output tool schema."

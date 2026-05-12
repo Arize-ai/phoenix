@@ -9,10 +9,6 @@ from phoenix.db.types.model_provider import (
     AzureOpenAICustomProviderConfig,
     OpenAICustomProviderConfig,
 )
-from phoenix.server.agents.chat_params import (
-    BuiltInProviderChatSearchParams,
-    CustomProviderChatSearchParams,
-)
 from phoenix.server.agents.exceptions import (
     ProviderConfigError,
     ProviderCredentialsError,
@@ -22,6 +18,10 @@ from phoenix.server.agents.model_factory import (
     _get_pydantic_ai_model_from_generative_model_custom_provider,
     azure_endpoint_to_base_url,
     build_model,
+)
+from phoenix.server.agents.model_selection import (
+    BuiltInProviderModelSelection,
+    CustomProviderModelSelection,
 )
 from phoenix.server.types import DbSessionFactory
 
@@ -33,7 +33,7 @@ class _ProviderRecord:
 
 class TestBuildModel:
     async def test_returns_404_for_missing_custom_provider(self, db: DbSessionFactory) -> None:
-        params = CustomProviderChatSearchParams(
+        params = CustomProviderModelSelection(
             provider_type="custom",
             provider_id=_global_id("GenerativeModelCustomProvider", "999999"),
             model_name="gpt-4o-mini",
@@ -53,7 +53,7 @@ class TestBuildModel:
     ) -> None:
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
-        params = BuiltInProviderChatSearchParams(
+        params = BuiltInProviderModelSelection(
             provider_type="builtin",
             provider="OPENAI",
             model_name="gpt-4o-mini",
@@ -185,7 +185,7 @@ class TestSecretResolutionErrorTranslation:
             )
             await session.commit()
 
-        params = BuiltInProviderChatSearchParams(
+        params = BuiltInProviderModelSelection(
             provider_type="builtin",
             provider="OPENAI",
             model_name="gpt-4o-mini",

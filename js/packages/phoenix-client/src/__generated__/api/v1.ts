@@ -1558,6 +1558,31 @@ export interface components {
             /** Parts */
             parts: (components["schemas"]["TextUIPart"] | components["schemas"]["ReasoningUIPart"] | components["schemas"]["ToolInputStreamingPart"] | components["schemas"]["ToolInputAvailablePart"] | components["schemas"]["ToolOutputAvailablePart"] | components["schemas"]["ToolOutputErrorPart"] | components["schemas"]["ToolApprovalRequestedPart"] | components["schemas"]["ToolApprovalRespondedPart"] | components["schemas"]["ToolOutputDeniedPart"] | components["schemas"]["DynamicToolInputStreamingPart"] | components["schemas"]["DynamicToolInputAvailablePart"] | components["schemas"]["DynamicToolOutputAvailablePart"] | components["schemas"]["DynamicToolOutputErrorPart"] | components["schemas"]["DynamicToolApprovalRequestedPart"] | components["schemas"]["DynamicToolApprovalRespondedPart"] | components["schemas"]["DynamicToolOutputDeniedPart"] | components["schemas"]["SourceUrlUIPart"] | components["schemas"]["SourceDocumentUIPart"] | components["schemas"]["FileUIPart"] | components["schemas"]["DataUIPart"] | components["schemas"]["StepStartUIPart"])[];
         };
+        /**
+         * BuiltInProviderModelSelection
+         * @description Chat against a Phoenix built-in provider.
+         *
+         *     Credentials and connection details (base URL, Azure endpoint, AWS
+         *     region) are resolved from the secret store first and the process
+         *     environment second. ``openai_api_type`` is honoured by the OpenAI and
+         *     Azure OpenAI branches; other providers ignore it.
+         */
+        BuiltInProviderModelSelection: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            providerType: "builtin";
+            provider: components["schemas"]["ModelProvider"];
+            /** Modelname */
+            modelName: string;
+            /**
+             * Openaiapitype
+             * @default responses
+             * @enum {string}
+             */
+            openaiApiType?: "chat_completions" | "responses";
+        };
         /** CategoricalAnnotationConfig */
         CategoricalAnnotationConfig: {
             /** Name */
@@ -1635,6 +1660,8 @@ export interface components {
             /** Contexts */
             contexts?: components["schemas"]["ChatContext"][];
             capabilities?: components["schemas"]["AgentCapabilities"];
+            /** Model */
+            model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
         } & {
             [key: string]: unknown;
         };
@@ -1670,6 +1697,8 @@ export interface components {
             /** Contexts */
             contexts?: components["schemas"]["ChatContext"][];
             capabilities?: components["schemas"]["AgentCapabilities"];
+            /** Model */
+            model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
         } & {
             [key: string]: unknown;
         };
@@ -1887,6 +1916,21 @@ export interface components {
         CreateUserResponseBody: {
             /** Data */
             data: components["schemas"]["LocalUser"] | components["schemas"]["OAuth2User"] | components["schemas"]["LDAPUser"];
+        };
+        /**
+         * CustomProviderModelSelection
+         * @description Chat against a stored custom provider record.
+         */
+        CustomProviderModelSelection: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            providerType: "custom";
+            /** Providerid */
+            providerId: string;
+            /** Modelname */
+            modelName: string;
         };
         /**
          * DataUIPart
@@ -5003,6 +5047,8 @@ export interface components {
             exportRemoteTraces?: boolean;
             /** Messages */
             messages: components["schemas"]["UIMessage"][];
+            /** Model */
+            model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
         };
         /** _SummarizeResponse */
         _SummarizeResponse: {
@@ -8820,13 +8866,7 @@ export interface operations {
     };
     chat_agents__agent_id__sessions__session_id__chat_post: {
         parameters: {
-            query: {
-                provider_type: "custom" | "builtin";
-                model_name: string;
-                provider_id?: string | null;
-                provider?: components["schemas"]["ModelProvider"] | null;
-                openai_api_type?: "chat_completions" | "responses";
-            };
+            query?: never;
             header?: never;
             path: {
                 agent_id: string;
@@ -8862,13 +8902,7 @@ export interface operations {
     };
     summarize_endpoint_agents__agent_id__sessions__session_id__summary_post: {
         parameters: {
-            query: {
-                provider_type: "custom" | "builtin";
-                model_name: string;
-                provider_id?: string | null;
-                provider?: components["schemas"]["ModelProvider"] | null;
-                openai_api_type?: "chat_completions" | "responses";
-            };
+            query?: never;
             header?: never;
             path: {
                 agent_id: string;

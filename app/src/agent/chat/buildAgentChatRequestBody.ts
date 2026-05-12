@@ -1,6 +1,7 @@
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import type { AgentCapabilities } from "@phoenix/agent/extensions/capabilities";
 import type { components } from "@phoenix/api/__generated__/v1";
+import type { AgentModelSelection } from "@phoenix/components/agent/useGenerateSessionSummary";
 import type { AgentObservabilitySettings } from "@phoenix/store/agentStore";
 import { getTimeZone, toLocalISOWithOffset } from "@phoenix/utils/timeUtils";
 
@@ -25,6 +26,8 @@ type BuildAgentChatRequestBodyOptions = {
   hasRemoteCollector: boolean;
   /** Typed page and mounted UI contexts for the current turn. */
   contexts: AgentContext[];
+  /** Provider + model selection for this turn. */
+  modelSelection: AgentModelSelection;
 };
 
 type BuildAgentChatRequestBodyResult = components["schemas"]["ChatRequest"];
@@ -64,6 +67,7 @@ export function buildAgentChatRequestBody({
   observability,
   hasRemoteCollector,
   contexts,
+  modelSelection,
 }: BuildAgentChatRequestBodyOptions): BuildAgentChatRequestBodyResult {
   // Prepend volatile app context so server-rendered per-turn context includes
   // the current browser-local clock alongside stable route/mounted contexts.
@@ -78,5 +82,6 @@ export function buildAgentChatRequestBody({
     exportRemoteTraces: observability.exportRemoteTraces && hasRemoteCollector,
     contexts: requestContexts,
     capabilities,
+    model: modelSelection,
   };
 }
