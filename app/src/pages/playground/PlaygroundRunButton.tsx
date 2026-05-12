@@ -88,6 +88,7 @@ export function PlaygroundRunButton() {
   );
   return (
     <Button
+      data-testid="run-btn"
       variant="primary"
       leadingVisual={
         <Icon
@@ -100,7 +101,6 @@ export function PlaygroundRunButton() {
       onPress={() => {
         toggleRunning();
       }}
-      data-testid="run-btn"
       trailingVisual={
         <Keyboard>
           <VisuallyHidden>{modifierKey}</VisuallyHidden>

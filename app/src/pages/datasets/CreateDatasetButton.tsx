@@ -110,12 +110,12 @@ export function CreateDatasetButton({
   return (
     <DialogTrigger onOpenChange={setIsOpen} isOpen={isOpen}>
       <Button
+        data-testid="create-dataset-btn"
         variant="primary"
         size="M"
         leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}
         onPress={() => setIsOpen(true)}
         aria-label="Create a new dataset"
-        data-testid="create-dataset-btn"
       >
         New Dataset
       </Button>

@@ -969,6 +969,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
           </>
         ) : (
           <Button
+            data-testid="submit-create-dataset-btn"
             variant="primary"
             size="S"
             type="button"
@@ -979,7 +980,6 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
                 <Icon svg={<Icons.LoadingOutline />} />
               ) : undefined
             }
-            data-testid="submit-create-dataset-btn"
           >
             {pendingAction === "create" ? "Creating..." : "Create Dataset"}
           </Button>
