@@ -10,10 +10,8 @@ import {
 import { Button } from "@phoenix/components/core/button";
 import { Text } from "@phoenix/components/core/content";
 import { Icon, Icons } from "@phoenix/components/core/icon";
-import {
-  toastCSS,
-  toastPositionerCSS,
-} from "@phoenix/components/core/toast/styles";
+import { toastCSS } from "@phoenix/components/core/toast/styles";
+import { ToastPositioner } from "@phoenix/components/core/toast/ToastPositioner";
 import {
   type NotificationParams,
   toastQueue,
@@ -60,15 +58,7 @@ export const Toast = <T extends QueuedToast<NotificationParams>>({
   );
   const icon = iconFromVariant(toast.content.variant);
   return (
-    <div
-      className="toast-positioner"
-      css={toastPositionerCSS}
-      style={{
-        // @ts-expect-error custom css property
-        "--toast-index": stackIndex,
-        zIndex: 100 - stackIndex,
-      }}
-    >
+    <ToastPositioner stackIndex={stackIndex}>
       <AriaToast
         toast={toast}
         css={toastCSS}
@@ -136,6 +126,6 @@ export const Toast = <T extends QueuedToast<NotificationParams>>({
           </div>
         ) : null}
       </AriaToast>
-    </div>
+    </ToastPositioner>
   );
 };
