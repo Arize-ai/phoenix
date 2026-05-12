@@ -10,8 +10,8 @@ import type { PromptInputSubmitProps } from "./types";
  *
  * - **ready / error** — arrow icon; pressing sends the message.
  * - **streaming, empty input** — stop icon; pressing stops generation.
- * - **streaming, user has typed** — arrow icon; pressing stops generation
- *   then sends the message.
+ * - **streaming, user has typed** — arrow icon; pressing submits through the
+ *   chat owner, which handles interruption before sending the next message.
  *
  * Automatically disables when `status` is `"ready"` and the textarea is empty.
  */
@@ -37,7 +37,7 @@ export function PromptInputSubmit({
     ariaLabel ?? (showSend ? "Send message" : "Stop generation");
 
   const handlePress = () => {
-    if (isStreaming) {
+    if (isStreaming && isEmpty) {
       onStop?.();
     }
     if (!isEmpty) {

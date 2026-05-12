@@ -6,6 +6,17 @@ import { createContext, useContext, useEffect, useState } from "react";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 
+export type AgentChatTurn = {
+  generation: number;
+  isCurrent: () => boolean;
+};
+
+export type AgentChatRuntimeChat = {
+  chat: Chat<AgentUIMessage>;
+} & AgentChatTurn;
+
+type CreateAgentChat = (turn: AgentChatTurn) => Chat<AgentUIMessage>;
+
 type AgentChatRuntime = {
   /**
    * Returns the runtime-owned AI SDK chat for a session/model pair, creating or
@@ -23,8 +34,21 @@ type AgentChatRuntime = {
   }: {
     sessionId: string;
     chatApiUrl: string;
-    createChat: () => Chat<AgentUIMessage>;
-  }) => Chat<AgentUIMessage>;
+    createChat: CreateAgentChat;
+  }) => AgentChatRuntimeChat;
+  /**
+   * Invalidates the current chat generation and replaces the runtime-owned
+   * chat with a fresh instance seeded by the caller's `createChat` function.
+   */
+  replaceChat: ({
+    sessionId,
+    chatApiUrl,
+    createChat,
+  }: {
+    sessionId: string;
+    chatApiUrl: string;
+    createChat: CreateAgentChat;
+  }) => AgentChatRuntimeChat;
   /**
    * Reconciles the runtime registry against current app state, reclaiming chats
    * that no longer need to remain imperative singletons.
@@ -96,37 +120,97 @@ export function AgentChatRuntimeProvider({ children }: PropsWithChildren) {
         chatApiUrl: string;
         chat: Chat<AgentUIMessage>;
         unsubscribe: () => void;
+        generation: number;
       }
     >();
+    const chatGenerations = new Map<string, number>();
+
+    const createTurn = ({
+      sessionId,
+      generation,
+    }: {
+      sessionId: string;
+      generation: number;
+    }): AgentChatTurn => ({
+      generation,
+      isCurrent: () => chatRegistry.get(sessionId)?.generation === generation,
+    });
+
+    const setEntry = ({
+      sessionId,
+      chatApiUrl,
+      createChat,
+      generation,
+    }: {
+      sessionId: string;
+      chatApiUrl: string;
+      createChat: CreateAgentChat;
+      generation: number;
+    }): AgentChatRuntimeChat => {
+      const existingEntry = chatRegistry.get(sessionId);
+      if (existingEntry) {
+        existingEntry.unsubscribe();
+        chatRegistry.delete(sessionId);
+        void existingEntry.chat.stop();
+      }
+
+      chatGenerations.set(sessionId, generation);
+      const turn = createTurn({ sessionId, generation });
+      const chat = createChat(turn);
+      // Mirror transient AI SDK status into the store so other surfaces
+      // (session list, FAB, retention policy) can react without holding a
+      // direct reference to the runtime instance. Stale generations are ignored
+      // because their callbacks can still unwind after replacement.
+      const unsubscribe = chat["~registerStatusCallback"](() => {
+        if (turn.isCurrent()) {
+          store.getState().setSessionChatStatus(sessionId, chat.status);
+        }
+      });
+      chatRegistry.set(sessionId, {
+        chatApiUrl,
+        chat,
+        unsubscribe,
+        generation,
+      });
+      // Defer initial status sync to avoid updating state during render,
+      // which triggers React warnings and can break component lifecycles.
+      queueMicrotask(() => {
+        if (turn.isCurrent()) {
+          store.getState().setSessionChatStatus(sessionId, chat.status);
+        }
+      });
+      return { chat, ...turn };
+    };
 
     return {
       getOrCreateChat: ({ sessionId, chatApiUrl, createChat }) => {
         const existingEntry = chatRegistry.get(sessionId);
         if (existingEntry && existingEntry.chatApiUrl === chatApiUrl) {
-          return existingEntry.chat;
+          return {
+            chat: existingEntry.chat,
+            ...createTurn({
+              sessionId,
+              generation: existingEntry.generation,
+            }),
+          };
         }
 
-        // A model/transport swap replaces the runtime for this session. We do
-        // not keep multiple chat variants per session alive; instead we detach
-        // the old status subscription and let retention/pruning reclaim it.
-        if (existingEntry) {
-          existingEntry.unsubscribe();
-        }
-
-        const chat = createChat();
-        // Mirror transient AI SDK status into the store so other surfaces
-        // (session list, FAB, retention policy) can react without holding a
-        // direct reference to the runtime instance.
-        const unsubscribe = chat["~registerStatusCallback"](() => {
-          store.getState().setSessionChatStatus(sessionId, chat.status);
+        const generation =
+          existingEntry == null ? 0 : (chatGenerations.get(sessionId) ?? 0) + 1;
+        return setEntry({
+          sessionId,
+          chatApiUrl,
+          createChat,
+          generation,
         });
-        chatRegistry.set(sessionId, { chatApiUrl, chat, unsubscribe });
-        // Defer initial status sync to avoid updating state during render,
-        // which triggers React warnings and can break component lifecycles.
-        queueMicrotask(() => {
-          store.getState().setSessionChatStatus(sessionId, chat.status);
+      },
+      replaceChat: ({ sessionId, chatApiUrl, createChat }) => {
+        return setEntry({
+          sessionId,
+          chatApiUrl,
+          createChat,
+          generation: (chatGenerations.get(sessionId) ?? 0) + 1,
         });
-        return chat;
       },
       pruneChats: ({ activeSessionId, liveSessionIds }) => {
         const liveSessionIdSet = new Set(liveSessionIds);
@@ -148,6 +232,7 @@ export function AgentChatRuntimeProvider({ children }: PropsWithChildren) {
           // becomes the only durable source of truth until the chat is created
           // again for a future surface/session visit.
           entry?.unsubscribe();
+          void entry?.chat.stop();
           chatRegistry.delete(sessionId);
           store.getState().setSessionChatStatus(sessionId, "ready");
         }

@@ -192,7 +192,8 @@ export interface PromptInputTextareaProps {
  * | Status                    | Icon              | Press action               |
  * |---------------------------|-------------------|----------------------------|
  * | `"ready"` or `"error"`    | Arrow up (send)   | Calls `context.onSubmit()` |
- * | `"submitted"` / `"streaming"` | Stop circle   | Calls `onPress` prop       |
+ * | `"submitted"` / `"streaming"` with empty input | Stop circle | Calls `onPress` prop |
+ * | `"submitted"` / `"streaming"` with typed input | Arrow up | Calls `context.onSubmit()` |
  *
  * Automatically disables when `status` is `"ready"` and the textarea is empty.
  */
