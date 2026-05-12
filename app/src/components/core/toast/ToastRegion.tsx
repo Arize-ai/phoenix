@@ -26,8 +26,8 @@ function attachToastRegion(region: HTMLElement | null) {
     let stackHeight = 0;
     positioners.forEach((positioner) => {
       positioner.style.setProperty("--toast-offset", `${stackHeight}px`);
-      const card = positioner.querySelector<HTMLElement>(".react-aria-Toast");
-      const height = card ? card.offsetHeight : 0;
+      const toast = positioner.querySelector<HTMLElement>(".react-aria-Toast");
+      const height = toast ? toast.offsetHeight : 0;
       rowHeight = Math.max(rowHeight, height);
       stackHeight += height;
     });
@@ -38,17 +38,17 @@ function attachToastRegion(region: HTMLElement | null) {
   };
   const resizeObserver = new ResizeObserver(measure);
   resizeObserver.observe(region);
-  const observeCards = () => {
+  const observeToasts = () => {
     region
       .querySelectorAll<HTMLElement>(".react-aria-Toast")
-      .forEach((card) => resizeObserver.observe(card));
+      .forEach((toast) => resizeObserver.observe(toast));
   };
   const mutationObserver = new MutationObserver(() => {
-    observeCards();
+    observeToasts();
     measure();
   });
   mutationObserver.observe(region, { childList: true, subtree: true });
-  observeCards();
+  observeToasts();
   measure();
   return () => {
     resizeObserver.disconnect();
