@@ -312,15 +312,14 @@ def _apply_project_session_rowid(
     db_trace.project_session_rowid = project_session_rowid
 
 
-async def _link_project_sessions_to_traces(
+async def _persist_db_traces(
     *,
     session: AsyncSession,
     db_traces: list[models.Trace],
 ) -> None:
     """
-    For any traces with an attached in-memory ProjectSession, upsert the
-    ProjectSession rows and re-point each trace at the resolved rowid. Mutates
-    ``db_traces`` in place. Does not add or flush the traces themselves.
+    Upsert any ProjectSession rows attached to ``db_traces``, re-point each
+    trace at the resolved rowid, then add the traces to the session and flush.
     """
     project_sessions = [
         db_trace.project_session for db_trace in db_traces if db_trace.project_session is not None
@@ -334,6 +333,8 @@ async def _link_project_sessions_to_traces(
             db_trace=db_trace,
             project_session_rowid=rowid_by_session_id[project_session.session_id],
         )
+    session.add_all(db_traces)
+    await session.flush()
 
 
 def create_agents_router(authentication_enabled: bool) -> APIRouter:
@@ -433,11 +434,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         db_traces = tracer.get_db_traces(project_id=project_id)
                         if db_traces:
                             async with request.app.state.db() as session:
-                                await _link_project_sessions_to_traces(
-                                    session=session, db_traces=db_traces
-                                )
-                                session.add_all(db_traces)
-                                await session.flush()
+                                await _persist_db_traces(session=session, db_traces=db_traces)
                     tracer.tracer_provider.shutdown()
 
         return adapter.streaming_response(_stream_with_session())
@@ -492,11 +489,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     db_traces = tracer.get_db_traces(project_id=project_id)
                     if db_traces:
                         async with request.app.state.db() as session:
-                            await _link_project_sessions_to_traces(
-                                session=session, db_traces=db_traces
-                            )
-                            session.add_all(db_traces)
-                            await session.flush()
+                            await _persist_db_traces(session=session, db_traces=db_traces)
                 tracer.tracer_provider.shutdown()
         return _SummarizeResponse(summary=result.summary.strip())
 
