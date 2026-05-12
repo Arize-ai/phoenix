@@ -44,19 +44,34 @@ const previewInset = "var(--global-dimension-size-500)";
 const defaultBoundedContentWidth = "780px";
 
 type StorySurfaceLayout = "centered" | "padded" | "fullscreen";
-type StoryContentMode = "intrinsic" | "bounded" | "fill" | "overflow";
+type StoryWidthKeyword = "intrinsic" | "fill";
+type ResolvedStoryWidth =
+  | StoryWidthKeyword
+  | "bounded"
+  | "overflow";
+
+type ResolvedStoryFrame = {
+  hasInset: boolean;
+  width: ResolvedStoryWidth;
+  maxWidth?: string;
+};
 
 const getSystemTheme = (): ProviderTheme =>
   window.matchMedia(darkModeQuery).matches ? "dark" : "light";
 
-function getStorySurfaceLayout(layout: unknown): StorySurfaceLayout {
+function getLegacyStorySurfaceLayout(
+  layout: unknown
+): StorySurfaceLayout | undefined {
   if (layout === "centered" || layout === "padded" || layout === "fullscreen") {
     return layout;
   }
-  return "padded";
+  return undefined;
 }
 
-function getStoryStageStyle(layout: StorySurfaceLayout): React.CSSProperties {
+function getStoryStageStyle({
+  hasInset,
+  width,
+}: Pick<ResolvedStoryFrame, "hasInset" | "width">): React.CSSProperties {
   const baseStyle: React.CSSProperties = {
     boxSizing: "border-box",
     minHeight: "100%",
@@ -64,18 +79,18 @@ function getStoryStageStyle(layout: StorySurfaceLayout): React.CSSProperties {
     width: "100%",
   };
 
-  if (layout === "fullscreen") {
-    return baseStyle;
-  }
-
-  if (layout === "centered") {
+  if (width === "intrinsic") {
     return {
       ...baseStyle,
       alignItems: "center",
       display: "flex",
       justifyContent: "center",
-      padding: previewInset,
+      padding: hasInset ? previewInset : 0,
     };
+  }
+
+  if (!hasInset) {
+    return baseStyle;
   }
 
   return {
@@ -84,24 +99,80 @@ function getStoryStageStyle(layout: StorySurfaceLayout): React.CSSProperties {
   };
 }
 
-function getStoryContentMode(
-  contentMode: unknown,
-  layout: StorySurfaceLayout
-): StoryContentMode {
+function getStoryInset(
+  inset: unknown,
+  legacyLayout?: StorySurfaceLayout
+): boolean {
+  if (typeof inset === "boolean") {
+    return inset;
+  }
+
+  return legacyLayout !== "fullscreen";
+}
+
+function getExplicitStoryWidth(
+  width: unknown
+): Pick<ResolvedStoryFrame, "width" | "maxWidth"> | undefined {
+  if (width === "intrinsic" || width === "fill") {
+    return { width };
+  }
+
+  if (typeof width === "number") {
+    return {
+      width: "bounded",
+      maxWidth: `${width}px`,
+    };
+  }
+
+  if (typeof width === "string") {
+    const trimmedWidth = width.trim();
+
+    if (!trimmedWidth) {
+      return undefined;
+    }
+
+    if (trimmedWidth === "intrinsic" || trimmedWidth === "fill") {
+      return { width: trimmedWidth };
+    }
+
+    return {
+      width: "bounded",
+      maxWidth: trimmedWidth,
+    };
+  }
+
+  return undefined;
+}
+
+function getLegacyStoryWidth({
+  contentMode,
+  contentMaxWidth,
+  legacyLayout,
+}: {
+  contentMode: unknown;
+  contentMaxWidth: unknown;
+  legacyLayout?: StorySurfaceLayout;
+}): Pick<ResolvedStoryFrame, "width" | "maxWidth"> {
   if (
     contentMode === "intrinsic" ||
-    contentMode === "bounded" ||
     contentMode === "fill" ||
     contentMode === "overflow"
   ) {
-    return contentMode;
+    return { width: contentMode };
   }
 
-  if (layout === "centered") {
-    return "intrinsic";
+  if (contentMode === "bounded") {
+    return {
+      width: "bounded",
+      maxWidth: getContentMaxWidth(contentMaxWidth) ?? defaultBoundedContentWidth,
+    };
   }
 
-  return "fill";
+  if (legacyLayout === "padded" || legacyLayout === "fullscreen") {
+    return { width: "fill" };
+  }
+
+  return { width: "intrinsic" };
 }
 
 function getContentMaxWidth(contentMaxWidth: unknown): string | undefined {
@@ -116,16 +187,37 @@ function getContentMaxWidth(contentMaxWidth: unknown): string | undefined {
   return undefined;
 }
 
+function getStoryFrame(parameters: {
+  inset?: unknown;
+  width?: unknown;
+  layout?: unknown;
+  contentMode?: unknown;
+  contentMaxWidth?: unknown;
+}): ResolvedStoryFrame {
+  const legacyLayout = getLegacyStorySurfaceLayout(parameters.layout);
+  const explicitWidth = getExplicitStoryWidth(parameters.width);
+  const legacyWidth = getLegacyStoryWidth({
+    contentMode: parameters.contentMode,
+    contentMaxWidth: parameters.contentMaxWidth,
+    legacyLayout,
+  });
+
+  return {
+    hasInset: getStoryInset(parameters.inset, legacyLayout),
+    ...(explicitWidth ?? legacyWidth),
+  };
+}
+
 function getStoryContentStyle(
-  contentMode: StoryContentMode,
-  contentMaxWidth?: string
+  width: ResolvedStoryWidth,
+  maxWidth?: string
 ): React.CSSProperties {
   const baseStyle: React.CSSProperties = {
     boxSizing: "border-box",
     minWidth: 0,
   };
 
-  if (contentMode === "intrinsic") {
+  if (width === "intrinsic") {
     return {
       ...baseStyle,
       display: "inline-block",
@@ -133,16 +225,16 @@ function getStoryContentStyle(
     };
   }
 
-  if (contentMode === "bounded") {
+  if (width === "bounded") {
     return {
       ...baseStyle,
       marginInline: "auto",
-      maxWidth: contentMaxWidth ?? defaultBoundedContentWidth,
+      maxWidth: maxWidth ?? defaultBoundedContentWidth,
       width: "100%",
     };
   }
 
-  if (contentMode === "overflow") {
+  if (width === "overflow") {
     return {
       ...baseStyle,
       minWidth: "max-content",
@@ -262,15 +354,11 @@ function ThemedDocsContainer(props: DocsContainerProps) {
 function ThemedStory({
   children,
   theme,
-  layout,
-  contentMode,
-  contentMaxWidth,
+  frame,
 }: {
   children: React.ReactNode;
   theme: ProviderTheme;
-  layout: StorySurfaceLayout;
-  contentMode: StoryContentMode;
-  contentMaxWidth?: string;
+  frame: ResolvedStoryFrame;
 }) {
   return (
     <ThemeProvider themeMode={theme} disableBodyTheme>
@@ -291,10 +379,10 @@ function ThemedStory({
               width: "100%",
             }}
           >
-            <div data-testid="story-stage" style={getStoryStageStyle(layout)}>
+            <div data-testid="story-stage" style={getStoryStageStyle(frame)}>
               <div
                 data-testid="story-content"
-                style={getStoryContentStyle(contentMode, contentMaxWidth)}
+                style={getStoryContentStyle(frame.width, frame.maxWidth)}
               >
                 {children}
               </div>
@@ -393,10 +481,8 @@ const preview: Preview = {
       const themeMode = globals.theme ?? "auto";
       const { resolvedThemes, systemTheme } = useResolvedThemes(themeMode);
       const isBoth = resolvedThemes.length > 1;
-      const layout = getStorySurfaceLayout(parameters.layout);
-      const contentMode = getStoryContentMode(parameters.contentMode, layout);
-      const contentMaxWidth = getContentMaxWidth(parameters.contentMaxWidth);
-      const themeLayout = parameters.themeLayout ?? "row";
+      const frame = getStoryFrame(parameters);
+      const themeLayout = parameters.themeLayout === "column" ? "column" : "row";
 
       if (!isBoth) {
         return (
@@ -406,9 +492,7 @@ const preview: Preview = {
           >
             <ThemedStory
               theme={resolvedThemes[0]}
-              layout={layout}
-              contentMode={contentMode}
-              contentMaxWidth={contentMaxWidth}
+              frame={frame}
             >
               <Story />
             </ThemedStory>
@@ -435,9 +519,7 @@ const preview: Preview = {
             >
               <ThemedStory
                 theme={theme}
-                layout={layout}
-                contentMode={contentMode}
-                contentMaxWidth={contentMaxWidth}
+                frame={frame}
               >
                 <Story />
               </ThemedStory>
