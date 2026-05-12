@@ -1,1 +1,1 @@
-../../../../../docs/phoenix/custom-llms.txt
+../../../../../docs/phoenix/llms.txt
