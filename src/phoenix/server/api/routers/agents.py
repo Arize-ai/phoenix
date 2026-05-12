@@ -1,5 +1,5 @@
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterable
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -250,18 +250,15 @@ async def _ensure_project_exists(db: DbSessionFactory, project_name: str) -> int
 
 async def _upsert_project_sessions(
     session: AsyncSession,
-    db_traces: list[models.Trace],
-) -> None:
+    project_sessions: Iterable[models.ProjectSession],
+) -> dict[str, int]:
     """
-    Upsert any ProjectSession rows attached to ``db_traces`` (keyed by session_id),
-    then re-point each trace at the resolved rowid. Does NOT persist the traces
-    themselves — the caller is responsible for adding them to the session.
+    Upsert ProjectSession rows keyed by session_id, returning a {session_id: rowid}
+    map. Duplicates in the input are merged by session_id, widening the start/end
+    time range across duplicates.
     """
     project_sessions_by_session_id: dict[str, models.ProjectSession] = {}
-    for db_trace in db_traces:
-        project_session = db_trace.project_session
-        if project_session is None:
-            continue
+    for project_session in project_sessions:
         existing = project_sessions_by_session_id.get(project_session.session_id)
         if existing is None:
             project_sessions_by_session_id[project_session.session_id] = project_session
@@ -272,7 +269,7 @@ async def _upsert_project_sessions(
                 existing.end_time = project_session.end_time
 
     if not project_sessions_by_session_id:
-        return
+        return {}
 
     dialect = SupportedSQLDialect(session.bind.dialect.name)
     records = [
@@ -298,15 +295,7 @@ async def _upsert_project_sessions(
             models.ProjectSession.session_id.in_(project_sessions_by_session_id.keys())
         )
     )
-    rowid_by_session_id = {session_id: rowid for rowid, session_id in id_rows.all()}
-    for db_trace in db_traces:
-        project_session = db_trace.project_session
-        if project_session is None:
-            continue
-        # detach in-memory ProjectSession to avoid cascading insert; use the
-        # resolved rowid from the upsert instead.
-        db_trace.project_session = None  # type: ignore[assignment]
-        db_trace.project_session_rowid = rowid_by_session_id[project_session.session_id]
+    return {session_id: rowid for rowid, session_id in id_rows.all()}
 
 
 def create_agents_router(authentication_enabled: bool) -> APIRouter:
@@ -406,7 +395,24 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         db_traces = tracer.get_db_traces(project_id=project_id)
                         if db_traces:
                             async with request.app.state.db() as session:
-                                await _upsert_project_sessions(session, db_traces)
+                                project_sessions = [
+                                    db_trace.project_session
+                                    for db_trace in db_traces
+                                    if db_trace.project_session is not None
+                                ]
+                                rowid_by_session_id = await _upsert_project_sessions(
+                                    session, project_sessions
+                                )
+                                for db_trace in db_traces:
+                                    project_session = db_trace.project_session
+                                    if project_session is None:
+                                        continue
+                                    # detach in-memory ProjectSession to avoid cascading
+                                    # insert; use the resolved rowid from the upsert.
+                                    db_trace.project_session = None  # type: ignore[assignment]
+                                    db_trace.project_session_rowid = rowid_by_session_id[
+                                        project_session.session_id
+                                    ]
                                 session.add_all(db_traces)
                                 await session.flush()
                     tracer.tracer_provider.shutdown()
@@ -463,7 +469,24 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     db_traces = tracer.get_db_traces(project_id=project_id)
                     if db_traces:
                         async with request.app.state.db() as session:
-                            await _upsert_project_sessions(session, db_traces)
+                            project_sessions = [
+                                db_trace.project_session
+                                for db_trace in db_traces
+                                if db_trace.project_session is not None
+                            ]
+                            rowid_by_session_id = await _upsert_project_sessions(
+                                session, project_sessions
+                            )
+                            for db_trace in db_traces:
+                                project_session = db_trace.project_session
+                                if project_session is None:
+                                    continue
+                                # detach in-memory ProjectSession to avoid cascading
+                                # insert; use the resolved rowid from the upsert.
+                                db_trace.project_session = None  # type: ignore[assignment]
+                                db_trace.project_session_rowid = rowid_by_session_id[
+                                    project_session.session_id
+                                ]
                             session.add_all(db_traces)
                             await session.flush()
                 tracer.tracer_provider.shutdown()
