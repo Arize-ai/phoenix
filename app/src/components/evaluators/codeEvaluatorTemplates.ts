@@ -26,18 +26,15 @@ export type CodeEvaluatorTemplate = {
 };
 
 /**
- * Builds a two-value categorical config where `passLabel` scores 1 and
- * `failLabel` scores 0 — the shape every template below emits.
+ * Builds a categorical config from a `{ label: score }` map — the shape every
+ * template below emits.
  */
-const categoricalConfig =
-  (passLabel: string, failLabel: string) =>
+const getCategoricalConfigFromChoices =
+  (choices: Record<string, number>) =>
   (name: string): AnnotationConfig => ({
     name,
     optimizationDirection: "NONE",
-    values: [
-      { label: passLabel, score: 1 },
-      { label: failLabel, score: 0 },
-    ],
+    values: Object.entries(choices).map(([label, score]) => ({ label, score })),
   });
 
 const PYTHON_SOURCES: Record<string, string> = {
@@ -226,30 +223,30 @@ export const CODE_EVALUATOR_TEMPLATES: readonly CodeEvaluatorTemplate[] = [
     "exact_match",
     "Exact match",
     "Match/mismatch when the output equals the reference.",
-    categoricalConfig("match", "mismatch")
+    getCategoricalConfigFromChoices({ match: 1, mismatch: 0 })
   ),
   makeTemplate(
     "contains",
     "Contains",
     "Whether the output contains the reference text.",
-    categoricalConfig("contains", "missing")
+    getCategoricalConfigFromChoices({ contains: 1, missing: 0 })
   ),
   makeTemplate(
     "regex",
     "Regex",
     "Whether the output matches a regular expression.",
-    categoricalConfig("match", "no_match")
+    getCategoricalConfigFromChoices({ match: 1, no_match: 0 })
   ),
   makeTemplate(
     "levenshtein_distance",
     "Levenshtein distance",
     "Normalized edit-distance similarity between output and reference.",
-    categoricalConfig("similar", "different")
+    getCategoricalConfigFromChoices({ similar: 1, different: 0 })
   ),
   makeTemplate(
     "json_distance",
     "JSON distance",
     "Whether the output and reference are equal parsed as JSON.",
-    categoricalConfig("equal", "not_equal")
+    getCategoricalConfigFromChoices({ equal: 1, not_equal: 0 })
   ),
 ];
