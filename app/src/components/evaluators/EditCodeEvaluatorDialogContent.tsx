@@ -717,7 +717,9 @@ const CodeEditor = ({
                   const { evaluator, setOutputConfigs } = store.getState();
                   const evaluatorName =
                     evaluator.name || evaluator.globalName || "";
-                  setOutputConfigs([template.getOutputConfig(evaluatorName)]);
+                  setOutputConfigs([
+                    { ...template.outputConfig, name: evaluatorName },
+                  ]);
                 }}
               >
                 {CODE_EVALUATOR_TEMPLATES.map((template) => (

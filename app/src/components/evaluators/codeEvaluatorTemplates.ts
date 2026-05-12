@@ -1,5 +1,13 @@
-import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
-import type { CodeEvaluatorLanguage } from "@phoenix/types";
+import type {
+  ClassificationEvaluatorAnnotationConfig,
+  CodeEvaluatorLanguage,
+} from "@phoenix/types";
+
+/** A template's annotation config, minus the name (set from the evaluator). */
+type TemplateOutputConfig = Omit<
+  ClassificationEvaluatorAnnotationConfig,
+  "name"
+>;
 
 /**
  * A pre-defined code evaluator snippet. The same idea as the built-in
@@ -18,24 +26,20 @@ export type CodeEvaluatorTemplate = {
   name: string;
   description: string;
   getSource: (language: CodeEvaluatorLanguage) => string;
-  /**
-   * Annotation (output) config matching the labels this template emits. The
-   * `name` is the evaluator name (the annotation name is fixed to it).
-   */
-  getOutputConfig: (name: string) => AnnotationConfig;
+  /** Annotation (output) config matching the labels this template emits. */
+  outputConfig: TemplateOutputConfig;
 };
 
 /**
  * Builds a categorical config from a `{ label: score }` map — the shape every
  * template below emits.
  */
-const getCategoricalConfigFromChoices =
-  (choices: Record<string, number>) =>
-  (name: string): AnnotationConfig => ({
-    name,
-    optimizationDirection: "NONE",
-    values: Object.entries(choices).map(([label, score]) => ({ label, score })),
-  });
+const getCategoricalConfigFromChoices = (
+  choices: Record<string, number>
+): TemplateOutputConfig => ({
+  optimizationDirection: "NONE",
+  values: Object.entries(choices).map(([label, score]) => ({ label, score })),
+});
 
 const PYTHON_SOURCES: Record<string, string> = {
   exact_match: `def evaluate(output, reference=None, input=None, metadata=None):
@@ -208,14 +212,14 @@ const makeTemplate = (
   id: string,
   name: string,
   description: string,
-  getOutputConfig: (name: string) => AnnotationConfig
+  outputConfig: TemplateOutputConfig
 ): CodeEvaluatorTemplate => ({
   id,
   name,
   description,
   getSource: (language) =>
     language === "PYTHON" ? PYTHON_SOURCES[id] : TYPESCRIPT_SOURCES[id],
-  getOutputConfig,
+  outputConfig,
 });
 
 export const CODE_EVALUATOR_TEMPLATES: readonly CodeEvaluatorTemplate[] = [
