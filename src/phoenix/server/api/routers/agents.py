@@ -238,20 +238,21 @@ async def _persist_db_traces(
 ) -> None:
     """
     Upsert any ProjectSession rows attached to ``db_traces``, re-point each
-    trace at the resolved rowid, then add the traces to the session and flush.
+    trace at the persistent ORM object, then add the traces to the session and
+    flush.
     """
     project_sessions = [
         db_trace.project_session for db_trace in db_traces if db_trace.project_session is not None
     ]
-    rowid_by_session_id = await _upsert_project_sessions(session, project_sessions)
+    persistent_by_session_id = await _upsert_project_sessions(session, project_sessions)
     for db_trace in db_traces:
         project_session = db_trace.project_session
         if project_session is None:
             continue
-        _apply_project_session_rowid(
-            db_trace=db_trace,
-            project_session_rowid=rowid_by_session_id[project_session.session_id],
-        )
+        # Replace the transient ProjectSession (built by Tracer) with the
+        # persistent one loaded from the upsert, so SQLAlchemy resolves the FK
+        # from the relationship and doesn't try to cascade-insert a duplicate.
+        db_trace.project_session = persistent_by_session_id[project_session.session_id]
     session.add_all(db_traces)
     await session.flush()
 
@@ -276,11 +277,12 @@ async def _ensure_project_exists(db: DbSessionFactory, project_name: str) -> int
 async def _upsert_project_sessions(
     session: AsyncSession,
     project_sessions: Iterable[models.ProjectSession],
-) -> dict[str, int]:
+) -> dict[str, models.ProjectSession]:
     """
-    Upsert ProjectSession rows keyed by session_id, returning a {session_id: rowid}
-    map. Duplicates in the input are merged by session_id, widening the start/end
-    time range across duplicates.
+    Upsert ProjectSession rows keyed by session_id, returning a
+    {session_id: ProjectSession} map of persistent ORM objects (loaded into the
+    session's identity map). Duplicates in the input are merged by session_id,
+    widening the start/end time range across duplicates.
     """
     project_sessions_by_session_id: dict[str, models.ProjectSession] = {}
     for project_session in project_sessions:
@@ -315,26 +317,12 @@ async def _upsert_project_sessions(
             on_conflict=OnConflict.DO_UPDATE,
         )
     )
-    id_rows = await session.execute(
-        select(models.ProjectSession.id, models.ProjectSession.session_id).where(
+    persistent_rows = await session.scalars(
+        select(models.ProjectSession).where(
             models.ProjectSession.session_id.in_(project_sessions_by_session_id.keys())
         )
     )
-    return {session_id: rowid for rowid, session_id in id_rows.all()}
-
-
-def _apply_project_session_rowid(
-    *,
-    db_trace: models.Trace,
-    project_session_rowid: int,
-) -> None:
-    """
-    Detach the in-memory ProjectSession from ``db_trace`` and assign the
-    resolved rowid as the foreign key. Detaching avoids a duplicate INSERT via
-    the ORM's save-update cascade when the trace is later added to a session.
-    """
-    db_trace.project_session = None  # type: ignore[assignment]
-    db_trace.project_session_rowid = project_session_rowid
+    return {row.session_id: row for row in persistent_rows}
 
 
 def create_agents_router(authentication_enabled: bool) -> APIRouter:
