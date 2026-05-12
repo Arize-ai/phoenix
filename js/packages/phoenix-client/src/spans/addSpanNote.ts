@@ -1,6 +1,8 @@
 import { createClient } from "../client";
+import { ADD_SPAN_NOTE_IDENTIFIER } from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
 import { formatApiError } from "../utils/apiErrorUtils";
+import { ensureServerCapability } from "../utils/serverVersionUtils";
 
 /**
  * Parameters for a single span note
@@ -56,6 +58,12 @@ export async function addSpanNote({
   spanNote,
 }: AddSpanNoteParams): Promise<{ id: string }> {
   const client = _client ?? createClient();
+  if (spanNote.identifier) {
+    await ensureServerCapability({
+      client,
+      requirement: ADD_SPAN_NOTE_IDENTIFIER,
+    });
+  }
 
   const { data, error } = await client.POST("/v1/span_notes", {
     body: {

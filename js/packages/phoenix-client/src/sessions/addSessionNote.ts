@@ -1,5 +1,8 @@
 import { createClient } from "../client";
-import { ADD_SESSION_NOTE } from "../constants/serverRequirements";
+import {
+  ADD_SESSION_NOTE,
+  ADD_SESSION_NOTE_IDENTIFIER,
+} from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
 import { formatApiError } from "../utils/apiErrorUtils";
 import { ensureServerCapability } from "../utils/serverVersionUtils";
@@ -61,6 +64,12 @@ export async function addSessionNote({
 }: AddSessionNoteParams): Promise<{ id: string }> {
   const client = _client ?? createClient();
   await ensureServerCapability({ client, requirement: ADD_SESSION_NOTE });
+  if (sessionNote.identifier) {
+    await ensureServerCapability({
+      client,
+      requirement: ADD_SESSION_NOTE_IDENTIFIER,
+    });
+  }
 
   const { data, error } = await client.POST("/v1/session_notes", {
     body: {

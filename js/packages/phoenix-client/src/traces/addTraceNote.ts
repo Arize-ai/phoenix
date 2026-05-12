@@ -1,5 +1,8 @@
 import { createClient } from "../client";
-import { ADD_TRACE_NOTE } from "../constants/serverRequirements";
+import {
+  ADD_TRACE_NOTE,
+  ADD_TRACE_NOTE_IDENTIFIER,
+} from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
 import { formatApiError } from "../utils/apiErrorUtils";
 import { ensureServerCapability } from "../utils/serverVersionUtils";
@@ -59,6 +62,12 @@ export async function addTraceNote({
 }: AddTraceNoteParams): Promise<{ id: string }> {
   const client = _client ?? createClient();
   await ensureServerCapability({ client, requirement: ADD_TRACE_NOTE });
+  if (traceNote.identifier) {
+    await ensureServerCapability({
+      client,
+      requirement: ADD_TRACE_NOTE_IDENTIFIER,
+    });
+  }
 
   const { data, error } = await client.POST("/v1/trace_notes", {
     body: {
