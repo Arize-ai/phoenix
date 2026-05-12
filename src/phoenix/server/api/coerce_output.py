@@ -175,7 +175,8 @@ def _validate_triple_categorical(
                 f"Remove the 'score' key or use the canonical value {looked_up_score!r}."
             )
 
-    return Triple(label=label, score=looked_up_score, explanation=triple.explanation)
+    score = looked_up_score if looked_up_score is not None else triple.score
+    return Triple(label=label, score=score, explanation=triple.explanation)
 
 
 def _validate_triple_continuous(
