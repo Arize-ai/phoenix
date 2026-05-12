@@ -49,7 +49,8 @@ export const EditBuiltInEvaluatorDialogContent = ({
             Cancel
           </Button>
           <Button
-            data-testid={mode === "create" ? "create-eval-btn" : undefined}
+            data-testid="builtin-evaluator-form-submit-button"
+            data-mode={mode}
             variant="primary"
             isDisabled={isSubmitting}
             isPending={isSubmitting}

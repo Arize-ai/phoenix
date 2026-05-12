@@ -110,7 +110,7 @@ export function CreateDatasetButton({
   return (
     <DialogTrigger onOpenChange={setIsOpen} isOpen={isOpen}>
       <Button
-        data-testid="create-dataset-btn"
+        data-testid="create-dataset-button"
         variant="primary"
         size="M"
         leadingVisual={<Icon svg={<Icons.DatabaseOutline />} />}

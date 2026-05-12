@@ -969,7 +969,7 @@ export function DatasetFromFileForm(props: DatasetFromFileFormProps) {
           </>
         ) : (
           <Button
-            data-testid="submit-create-dataset-btn"
+            data-testid="dataset-from-file-form-submit-button"
             variant="primary"
             size="S"
             type="button"

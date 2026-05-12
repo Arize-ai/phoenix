@@ -165,9 +165,8 @@ export function DatasetForm({
           </Button>
         )}
         <Button
-          data-testid={
-            formMode === "create" ? "submit-create-dataset-btn" : undefined
-          }
+          data-testid="dataset-form-submit-button"
+          data-mode={formMode}
           isDisabled={(formMode === "edit" ? !isDirty : false) || isSubmitting}
           variant={isDirty ? "primary" : "default"}
           size="M"

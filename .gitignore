@@ -88,3 +88,4 @@ helm/charts/*.tgz
 # mypy
 .mypy_cache
 .hypothesis
+.claude/worktrees/
