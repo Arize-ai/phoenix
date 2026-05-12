@@ -1,3 +1,5 @@
+from pydantic_ai.tools import ToolDefinition
+
 from phoenix.server.agents.toolsets.external.tools.ask_user import ASK_USER_TOOL_DEFINITION
 from phoenix.server.agents.toolsets.external.tools.bash import BASH_TOOL_DEFINITION
 from phoenix.server.agents.toolsets.external.tools.clone_prompt_instance import (
@@ -16,6 +18,25 @@ from phoenix.server.agents.toolsets.external.tools.set_time_range import (
     SET_TIME_RANGE_TOOL_DEFINITION,
 )
 
+_EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
+    tool_def.name: tool_def
+    for tool_def in (
+        ASK_USER_TOOL_DEFINITION,
+        BASH_TOOL_DEFINITION,
+        CLONE_PROMPT_INSTANCE_TOOL_DEFINITION,
+        EDIT_PROMPT_TOOL_DEFINITION,
+        READ_PROMPT_TOOL_DEFINITION,
+        SET_SPANS_FILTER_TOOL_DEFINITION,
+        SET_TIME_RANGE_TOOL_DEFINITION,
+    )
+}
+
+
+def get_external_tool_definition(name: str) -> ToolDefinition | None:
+    """Look up a registered external tool definition by name."""
+    return _EXTERNAL_TOOL_DEFINITIONS_BY_NAME.get(name)
+
+
 __all__ = [
     "ASK_USER_TOOL_DEFINITION",
     "BASH_TOOL_DEFINITION",
@@ -24,4 +45,5 @@ __all__ = [
     "READ_PROMPT_TOOL_DEFINITION",
     "SET_SPANS_FILTER_TOOL_DEFINITION",
     "SET_TIME_RANGE_TOOL_DEFINITION",
+    "get_external_tool_definition",
 ]

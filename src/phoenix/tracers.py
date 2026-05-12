@@ -26,7 +26,7 @@ from phoenix.db import models
 from phoenix.db.insertion.helpers import should_calculate_span_cost
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
 from phoenix.server.telemetry import normalize_http_collector_endpoint
-from phoenix.trace.attributes import get_attribute_value, unflatten
+from phoenix.trace.attributes import get_attribute_value, load_json_strings, unflatten
 
 logger = logging.getLogger(__name__)
 
@@ -269,7 +269,7 @@ def _get_db_span(
 
     attributes = {}
     if otel_span.attributes:
-        attributes = unflatten(otel_span.attributes.items())
+        attributes = unflatten(load_json_strings(otel_span.attributes.items()))
 
     span_kind_attribute_value = get_attribute_value(
         attributes, SpanAttributes.OPENINFERENCE_SPAN_KIND
