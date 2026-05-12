@@ -231,6 +231,31 @@ def _build_message_metadata_chunk(
     )
 
 
+async def _persist_db_traces(
+    *,
+    session: AsyncSession,
+    db_traces: list[models.Trace],
+) -> None:
+    """
+    Upsert any ProjectSession rows attached to ``db_traces``, re-point each
+    trace at the resolved rowid, then add the traces to the session and flush.
+    """
+    project_sessions = [
+        db_trace.project_session for db_trace in db_traces if db_trace.project_session is not None
+    ]
+    rowid_by_session_id = await _upsert_project_sessions(session, project_sessions)
+    for db_trace in db_traces:
+        project_session = db_trace.project_session
+        if project_session is None:
+            continue
+        _apply_project_session_rowid(
+            db_trace=db_trace,
+            project_session_rowid=rowid_by_session_id[project_session.session_id],
+        )
+    session.add_all(db_traces)
+    await session.flush()
+
+
 async def _ensure_project_exists(db: DbSessionFactory, project_name: str) -> int:
     """Resolve project_id by name, creating the project row if missing."""
     async with db() as session:
@@ -310,27 +335,6 @@ def _apply_project_session_rowid(
     """
     db_trace.project_session = None  # type: ignore[assignment]
     db_trace.project_session_rowid = project_session_rowid
-
-
-async def _persist_db_traces(
-    *,
-    session: AsyncSession,
-    db_traces: list[models.Trace],
-) -> None:
-    project_sessions = [
-        db_trace.project_session for db_trace in db_traces if db_trace.project_session is not None
-    ]
-    rowid_by_session_id = await _upsert_project_sessions(session, project_sessions)
-    for db_trace in db_traces:
-        project_session = db_trace.project_session
-        if project_session is None:
-            continue
-        _apply_project_session_rowid(
-            db_trace=db_trace,
-            project_session_rowid=rowid_by_session_id[project_session.session_id],
-        )
-    session.add_all(db_traces)
-    await session.flush()
 
 
 def create_agents_router(authentication_enabled: bool) -> APIRouter:
