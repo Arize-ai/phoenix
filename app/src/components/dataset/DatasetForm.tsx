@@ -169,6 +169,9 @@ export function DatasetForm({
           variant={isDirty ? "primary" : "default"}
           size="M"
           type="submit"
+          data-testid={
+            formMode === "create" ? "submit-create-dataset-btn" : undefined
+          }
         >
           {submitButtonText}
         </Button>
