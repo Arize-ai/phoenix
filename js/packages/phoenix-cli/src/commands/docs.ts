@@ -5,7 +5,7 @@ import { Command } from "commander";
 import { ExitCode, getExitCodeForError } from "../exitCodes";
 import { writeError, writeOutput } from "../io";
 
-const LLMS_TXT_URL = "https://arize.com/docs/phoenix/custom-llms.txt";
+const LLMS_TXT_URL = "https://arize.com/docs/phoenix/llms.txt";
 const PHOENIX_DOCS_PREFIX = "https://arize.com/docs/phoenix/";
 const DEFAULT_OUTPUT_DIR = ".px/docs";
 const DEFAULT_WORKERS = 10;
