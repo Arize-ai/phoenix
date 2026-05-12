@@ -19,18 +19,26 @@ from phoenix.server.sandbox.vercel_backend import (
 )
 
 
-def _make_vercel_sdk_mock() -> tuple[MagicMock, list[str | None]]:
+def _make_vercel_sdk_mock(
+    captured_kwargs: list[dict[str, Any]] | None = None,
+) -> tuple[MagicMock, list[str | None]]:
     """Return (sdk module mock, list capturing os.environ[VERCEL_OIDC_TOKEN]
     snapshots taken at AsyncSandbox.create() invocation time).
 
     The captured snapshots let tests assert what the SDK would have read from
     the env synchronously at the top of create() — i.e. whether Phoenix's env
     injection actually took effect at the moment the SDK reads it.
+
+    If ``captured_kwargs`` is provided, every create() call appends a snapshot
+    of its kwargs dict so tests can assert the SDK kwarg shape (e.g.,
+    network_policy presence/value).
     """
     captured_env: list[str | None] = []
 
-    async def _create(**_: Any) -> Any:
+    async def _create(**kwargs: Any) -> Any:
         captured_env.append(os.environ.get(ENV_VERCEL_OIDC_TOKEN))
+        if captured_kwargs is not None:
+            captured_kwargs.append(dict(kwargs))
         sandbox = MagicMock()
         sandbox.stop = AsyncMock()
         sandbox.client = MagicMock()
@@ -53,6 +61,20 @@ def patched_vercel_sdk() -> Any:
     parent.sandbox = sdk
     with patch.dict(sys.modules, {"vercel": parent, "vercel.sandbox": sdk}):
         yield sdk, captured_env
+
+
+@pytest.fixture
+def patched_vercel_sdk_with_kwargs() -> Any:
+    """Like ``patched_vercel_sdk`` but also yields a list capturing the kwargs
+    passed to every AsyncSandbox.create() call. Tests use this to assert the
+    network_policy kwarg shape forwarded to the Vercel SDK.
+    """
+    captured_kwargs: list[dict[str, Any]] = []
+    sdk, captured_env = _make_vercel_sdk_mock(captured_kwargs=captured_kwargs)
+    parent = MagicMock()
+    parent.sandbox = sdk
+    with patch.dict(sys.modules, {"vercel": parent, "vercel.sandbox": sdk}):
+        yield sdk, captured_env, captured_kwargs
 
 
 @pytest.mark.asyncio
@@ -136,3 +158,331 @@ async def test_access_token_path_does_not_touch_oidc_env(
 def test_constructor_rejects_no_credentials() -> None:
     with pytest.raises(ValueError, match="oidc_token"):
         VercelSandboxBackend(language="PYTHON")
+
+
+# ---------------------------------------------------------------------------
+# Package install — language-routed run_command argv shape
+# ---------------------------------------------------------------------------
+
+
+def _make_install_sandbox_mock(
+    install_exit_code: int = 0,
+    install_stderr: str = "",
+) -> tuple[MagicMock, list[tuple[str, list[str]]]]:
+    """Return (sandbox mock, list of (cmd, args) captured from run_command calls).
+
+    The first run_command call records the install command shape; subsequent
+    calls record exec invocations. exit_code/stderr on the install result are
+    configurable to exercise the failure path.
+    """
+    captured: list[tuple[str, list[str]]] = []
+
+    async def _run_command(cmd: str, args: list[str], **kwargs: Any) -> Any:
+        captured.append((cmd, list(args)))
+        result = MagicMock()
+        # First call is the install; subsequent (exec) calls behave normally.
+        is_install = len(captured) == 1
+        result.exit_code = install_exit_code if is_install else 0
+        result.stdout = AsyncMock(return_value="")
+        result.stderr = AsyncMock(return_value=install_stderr if is_install else "")
+        return result
+
+    sandbox = MagicMock()
+    sandbox.run_command = _run_command
+    sandbox.stop = AsyncMock()
+    sandbox.client = MagicMock()
+    sandbox.client.aclose = AsyncMock()
+    return sandbox, captured
+
+
+@pytest.mark.asyncio
+async def test_start_session_installs_python_packages_with_pip_user(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """PYTHON + packages → start_session issues `python3 -m pip install --user <pkgs>`."""
+    sandbox_mock, captured = _make_install_sandbox_mock()
+    backend = VercelSandboxBackend(
+        oidc_token="t",
+        language="PYTHON",
+        packages=["requests", "numpy"],
+    )
+
+    async def _fake_create_sandbox() -> Any:
+        return sandbox_mock
+
+    monkeypatch.setattr(backend, "_create_sandbox", _fake_create_sandbox)
+    await backend.start_session("s1")
+
+    assert captured == [("python3", ["-m", "pip", "install", "--user", "requests", "numpy"])], (
+        f"Expected python3 -m pip install --user argv; got {captured!r}"
+    )
+    assert "s1" in backend._sessions
+
+
+@pytest.mark.asyncio
+async def test_start_session_installs_typescript_packages_with_npm(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """TYPESCRIPT + packages → start_session issues `npm install <pkgs>`."""
+    sandbox_mock, captured = _make_install_sandbox_mock()
+    backend = VercelSandboxBackend(
+        oidc_token="t",
+        language="TYPESCRIPT",
+        packages=["lodash"],
+    )
+
+    async def _fake_create_sandbox() -> Any:
+        return sandbox_mock
+
+    monkeypatch.setattr(backend, "_create_sandbox", _fake_create_sandbox)
+    await backend.start_session("s1")
+
+    assert captured == [("npm", ["install", "lodash"])], (
+        f"Expected npm install argv; got {captured!r}"
+    )
+    assert "s1" in backend._sessions
+
+
+@pytest.mark.asyncio
+async def test_start_session_install_failure_stops_sandbox_and_does_not_cache(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When _install_packages raises, start_session must stop the sandbox,
+    aclose the client, NOT cache the session, and propagate the RuntimeError.
+    """
+    sandbox_mock, _captured = _make_install_sandbox_mock(
+        install_exit_code=1,
+        install_stderr="pip: package not found",
+    )
+    backend = VercelSandboxBackend(
+        oidc_token="t",
+        language="PYTHON",
+        packages=["nonexistent-package"],
+    )
+
+    async def _fake_create_sandbox() -> Any:
+        return sandbox_mock
+
+    monkeypatch.setattr(backend, "_create_sandbox", _fake_create_sandbox)
+
+    with pytest.raises(RuntimeError, match="pip: package not found"):
+        await backend.start_session("s1")
+
+    sandbox_mock.stop.assert_awaited_once()
+    sandbox_mock.client.aclose.assert_awaited_once()
+    assert "s1" not in backend._sessions, (
+        "Failed install must not leave a session cached in self._sessions"
+    )
+
+
+@pytest.mark.asyncio
+async def test_ephemeral_execute_runs_install_before_user_code(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When execute() runs without a cached session, the ephemeral branch must
+    issue the install run_command before the user-code run_command, then stop
+    the sandbox and aclose the client in the finally block.
+    """
+    sandbox_mock, captured = _make_install_sandbox_mock()
+    backend = VercelSandboxBackend(
+        oidc_token="t",
+        language="PYTHON",
+        packages=["requests"],
+    )
+
+    async def _fake_create_sandbox() -> Any:
+        return sandbox_mock
+
+    monkeypatch.setattr(backend, "_create_sandbox", _fake_create_sandbox)
+
+    result = await backend.execute("print('hello')", session_key="ephemeral")
+
+    # First run_command call is the install; second is the user-code exec.
+    assert len(captured) >= 2, f"Expected install + exec calls; got {captured!r}"
+    assert captured[0] == ("python3", ["-m", "pip", "install", "--user", "requests"]), (
+        f"Install must run before user code; first call was {captured[0]!r}"
+    )
+    # Ephemeral path always stops + acloses the sandbox in finally.
+    sandbox_mock.stop.assert_awaited_once()
+    sandbox_mock.client.aclose.assert_awaited_once()
+    # Nothing is cached on the ephemeral path.
+    assert "ephemeral" not in backend._sessions
+    # Successful exec returns a normal ExecutionResult (no error).
+    assert result.error is None or result.error == ""
+
+
+@pytest.mark.asyncio
+async def test_ephemeral_execute_install_failure_surfaces_as_execution_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An install failure on the ephemeral path must surface as
+    ExecutionResult.error (not a raised exception) while stop + aclose still
+    run in the finally block.
+    """
+    sandbox_mock, _captured = _make_install_sandbox_mock(
+        install_exit_code=1,
+        install_stderr="pip: package not found",
+    )
+    backend = VercelSandboxBackend(
+        oidc_token="t",
+        language="PYTHON",
+        packages=["nonexistent-package"],
+    )
+
+    async def _fake_create_sandbox() -> Any:
+        return sandbox_mock
+
+    monkeypatch.setattr(backend, "_create_sandbox", _fake_create_sandbox)
+
+    result = await backend.execute("print('hello')", session_key="ephemeral")
+
+    assert result.error is not None and "pip: package not found" in result.error
+    sandbox_mock.stop.assert_awaited_once()
+    sandbox_mock.client.aclose.assert_awaited_once()
+    assert "ephemeral" not in backend._sessions
+
+
+# ---------------------------------------------------------------------------
+# network_policy forwarding — internet_access → AsyncSandbox.create(network_policy=)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_create_sandbox_forwards_network_policy_allow_all(
+    patched_vercel_sdk_with_kwargs: tuple[MagicMock, list[str | None], list[dict[str, Any]]],
+) -> None:
+    """internet_access=True → AsyncSandbox.create receives network_policy='allow-all'.
+
+    Vercel SDK >=0.5.8 accepts the string alias and converts internally; we
+    forward the alias rather than constructing a NetworkPolicyCustom.
+    """
+    _, _captured_env, captured_kwargs = patched_vercel_sdk_with_kwargs
+    backend = VercelSandboxBackend(oidc_token="t", language="PYTHON", internet_access=True)
+    await backend._create_sandbox()
+    assert len(captured_kwargs) == 1
+    assert captured_kwargs[0].get("network_policy") == "allow-all", (
+        f"Expected network_policy='allow-all'; got {captured_kwargs[0]!r}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_create_sandbox_forwards_network_policy_deny_all(
+    patched_vercel_sdk_with_kwargs: tuple[MagicMock, list[str | None], list[dict[str, Any]]],
+) -> None:
+    """internet_access=False → AsyncSandbox.create receives network_policy='deny-all'."""
+    _, _captured_env, captured_kwargs = patched_vercel_sdk_with_kwargs
+    backend = VercelSandboxBackend(oidc_token="t", language="PYTHON", internet_access=False)
+    await backend._create_sandbox()
+    assert len(captured_kwargs) == 1
+    assert captured_kwargs[0].get("network_policy") == "deny-all", (
+        f"Expected network_policy='deny-all'; got {captured_kwargs[0]!r}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_create_sandbox_omits_network_policy_when_internet_access_unset(
+    patched_vercel_sdk_with_kwargs: tuple[MagicMock, list[str | None], list[dict[str, Any]]],
+) -> None:
+    """internet_access=None → network_policy kwarg is not forwarded.
+
+    Omitting (rather than passing None) lets the SDK default apply. If the SDK
+    changes its default behavior in the future we won't accidentally override it.
+    """
+    _, _captured_env, captured_kwargs = patched_vercel_sdk_with_kwargs
+    backend = VercelSandboxBackend(oidc_token="t", language="PYTHON")
+    await backend._create_sandbox()
+    assert len(captured_kwargs) == 1
+    assert "network_policy" not in captured_kwargs[0], (
+        f"network_policy must be omitted when internet_access is None; got {captured_kwargs[0]!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Adapter-level wiring — config internet_access.mode → backend internet_access
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "adapter_module_path,adapter_cls_name,language",
+    [
+        ("phoenix.server.sandbox.vercel_backend", "VercelPythonAdapter", "PYTHON"),
+        ("phoenix.server.sandbox.vercel_backend", "VercelTypescriptAdapter", "TYPESCRIPT"),
+    ],
+)
+def test_adapter_build_backend_maps_internet_access_allow(
+    adapter_module_path: str, adapter_cls_name: str, language: str
+) -> None:
+    """Adapter build_backend extracts internet_access.mode='allow' from config
+    and constructs VercelSandboxBackend(internet_access=True).
+    """
+    import importlib
+
+    mod = importlib.import_module(adapter_module_path)
+    adapter = getattr(mod, adapter_cls_name)()
+    backend = adapter.build_backend(
+        {
+            "internet_access": {"mode": "allow"},
+            "VERCEL_TOKEN": "t",
+            "VERCEL_PROJECT_ID": "p",
+            "VERCEL_TEAM_ID": "m",
+        }
+    )
+    assert backend._internet_access is True
+    assert backend._language == language
+
+
+@pytest.mark.parametrize(
+    "adapter_module_path,adapter_cls_name",
+    [
+        ("phoenix.server.sandbox.vercel_backend", "VercelPythonAdapter"),
+        ("phoenix.server.sandbox.vercel_backend", "VercelTypescriptAdapter"),
+    ],
+)
+def test_adapter_build_backend_maps_internet_access_deny_no_packages(
+    adapter_module_path: str, adapter_cls_name: str
+) -> None:
+    """internet_access.mode='deny' without packages → backend(internet_access=False).
+
+    The runtime-install + deny interlock only fires when packages are non-empty;
+    deny alone is permitted.
+    """
+    import importlib
+
+    mod = importlib.import_module(adapter_module_path)
+    adapter = getattr(mod, adapter_cls_name)()
+    backend = adapter.build_backend(
+        {
+            "internet_access": {"mode": "deny"},
+            "VERCEL_TOKEN": "t",
+            "VERCEL_PROJECT_ID": "p",
+            "VERCEL_TEAM_ID": "m",
+        }
+    )
+    assert backend._internet_access is False
+
+
+@pytest.mark.parametrize(
+    "adapter_module_path,adapter_cls_name",
+    [
+        ("phoenix.server.sandbox.vercel_backend", "VercelPythonAdapter"),
+        ("phoenix.server.sandbox.vercel_backend", "VercelTypescriptAdapter"),
+    ],
+)
+def test_adapter_build_backend_omits_internet_access_when_absent(
+    adapter_module_path: str, adapter_cls_name: str
+) -> None:
+    """When config has no internet_access field, backend._internet_access is None
+    so AsyncSandbox.create is called without the network_policy kwarg.
+    """
+    import importlib
+
+    mod = importlib.import_module(adapter_module_path)
+    adapter = getattr(mod, adapter_cls_name)()
+    backend = adapter.build_backend(
+        {
+            "VERCEL_TOKEN": "t",
+            "VERCEL_PROJECT_ID": "p",
+            "VERCEL_TEAM_ID": "m",
+        }
+    )
+    assert backend._internet_access is None
