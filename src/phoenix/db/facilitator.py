@@ -36,6 +36,12 @@ from phoenix.config import (
 from phoenix.db import models
 from phoenix.db.constants import DEFAULT_PROJECT_TRACE_RETENTION_POLICY_ID
 from phoenix.db.enums import ENUM_COLUMNS
+from phoenix.db.types.annotation_configs import (
+    AnnotationType,
+    CategoricalAnnotationConfig,
+    CategoricalAnnotationValue,
+    OptimizationDirection,
+)
 from phoenix.db.types.trace_retention import (
     MaxDaysRule,
     TraceRetentionCronExpression,
@@ -45,6 +51,8 @@ from phoenix.server.email.types import WelcomeEmailSender
 from phoenix.server.types import DbSessionFactory
 
 logger = logging.getLogger(__name__)
+
+USER_FEEDBACK_ANNOTATION_NAME = "user_feedback"
 
 
 class Facilitator:
@@ -73,6 +81,7 @@ class Facilitator:
             _ensure_default_project_trace_retention_policy,
             _ensure_model_costs,
             _ensure_builtin_evaluators,
+            _ensure_user_feedback_annotation_config,
             _delete_expired_childless_records,
         ):
             await fn(self._db)
@@ -162,6 +171,37 @@ async def _get_system_user_id(db: DbSessionFactory) -> None:
     if system_user_id is None:
         raise ValueError("System user not found in database")
     config.SYSTEM_USER_ID = system_user_id
+
+
+async def _ensure_user_feedback_annotation_config(db: DbSessionFactory) -> None:
+    """
+    Ensure the app-owned user feedback annotation config exists.
+
+    Existing configs named "user_feedback" are left unchanged so startup is idempotent and
+    does not overwrite user data if a deployment already has a config with that name.
+    """
+    async with db() as session:
+        existing_config_id = await session.scalar(
+            sa.select(models.AnnotationConfig.id).where(
+                models.AnnotationConfig.name == USER_FEEDBACK_ANNOTATION_NAME
+            )
+        )
+        if existing_config_id is not None:
+            return
+        session.add(
+            models.AnnotationConfig(
+                name=USER_FEEDBACK_ANNOTATION_NAME,
+                config=CategoricalAnnotationConfig(
+                    type=AnnotationType.CATEGORICAL.value,
+                    description="User feedback labels for traces.",
+                    optimization_direction=OptimizationDirection.MAXIMIZE,
+                    values=[
+                        CategoricalAnnotationValue(label="positive", score=1.0),
+                        CategoricalAnnotationValue(label="negative", score=0.0),
+                    ],
+                ),
+            )
+        )
 
 
 async def _ensure_admins(

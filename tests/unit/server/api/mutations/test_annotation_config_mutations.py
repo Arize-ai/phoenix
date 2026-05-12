@@ -284,8 +284,9 @@ class TestAnnotationConfigMutations:
         assert not list_response.errors
         assert (data := list_response.data) is not None
         configs = data["annotationConfigs"]["edges"]
-        assert len(configs) == 1
-        assert configs[0]["node"] == created_config
+        assert len(configs) == 2  # Includes the seeded user_feedback config.
+        assert any(config["node"] == created_config for config in configs)
+        assert any(config["node"]["name"] == "user_feedback" for config in configs)
 
         # Update the annotation config
         update_response = await gql_client.execute(
@@ -374,7 +375,8 @@ class TestAnnotationConfigMutations:
         assert not list_response.errors
         assert (data := list_response.data) is not None
         configs = data["annotationConfigs"]["edges"]
-        assert len(configs) == 0
+        assert len(configs) == 1  # Only the seeded user_feedback config remains.
+        assert configs[0]["node"]["name"] == "user_feedback"
 
     @pytest.mark.parametrize(
         "config,annotation_type",
@@ -842,8 +844,9 @@ class TestAnnotationConfigMutations:
         assert not list_response.errors
         assert (data := list_response.data) is not None
         configs = data["annotationConfigs"]["edges"]
-        assert len(configs) == 1
-        assert configs[0]["node"]["id"] == config_id
+        assert len(configs) == 2  # Includes the seeded user_feedback config.
+        assert any(config["node"]["id"] == config_id for config in configs)
+        assert any(config["node"]["name"] == "user_feedback" for config in configs)
 
     async def test_cannot_add_same_annotation_config_to_project_twice(
         self,
