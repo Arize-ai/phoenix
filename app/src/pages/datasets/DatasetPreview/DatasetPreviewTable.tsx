@@ -106,6 +106,9 @@ export type DatasetPreviewTableProps = {
   exampleIdColumn?: string | null;
 };
 
+/** Keys that must never be written to, to prevent prototype pollution. */
+const UNSAFE_KEYS = new Set(["__proto__", "prototype", "constructor"]);
+
 /**
  * Preview table showing how data will look in the final dataset.
  * Each row shows input/output/metadata as JSON objects.
@@ -141,11 +144,16 @@ export function DatasetPreviewTable({
       value: unknown
     ) => {
       const parts = key.split(".");
+      // Guard against prototype pollution via crafted column names like
+      // "__proto__.polluted" or "constructor.prototype.polluted".
+      if (parts.some((part) => UNSAFE_KEYS.has(part))) {
+        return;
+      }
       let current = obj;
       for (let i = 0; i < parts.length - 1; i++) {
         const part = parts[i];
         if (
-          !(part in current) ||
+          !Object.prototype.hasOwnProperty.call(current, part) ||
           typeof current[part] !== "object" ||
           current[part] === null
         ) {
