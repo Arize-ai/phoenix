@@ -1,4 +1,4 @@
-from phoenix.server.agents.capabilities import AgentCapabilities
+from phoenix.server.agents.agent_capabilities import AgentCapabilities
 from phoenix.server.agents.prompts import (
     AGENT_STATIC_SYSTEM_PROMPT,
     build_agent_dynamic_system_prompt,
