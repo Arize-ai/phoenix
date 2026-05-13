@@ -158,7 +158,7 @@ jobs:
       - name: Check if package needs building
         id: check
         run: |
-          if echo '${NEEDS_LIST_PYTHON_PACKAGES_OUTPUTS_PACKAGE_PATHS}' | jq -e --arg p "${{ matrix.path }}" 'index($p)' > /dev/null 2>&1; then
+          if echo "${NEEDS_LIST_PYTHON_PACKAGES_OUTPUTS_PACKAGE_PATHS}" | jq -e --arg p "${{ matrix.path }}" 'index($p)' > /dev/null 2>&1; then
             echo "needed=true" >> $GITHUB_OUTPUT
           else
             echo "Skipping ${{ matrix.path }} — already on PyPI"
@@ -231,7 +231,7 @@ jobs:
       - name: Check if package needs publishing
         id: check
         run: |
-          if echo '${NEEDS_LIST_PYTHON_PACKAGES_OUTPUTS_PACKAGE_PATHS}' | jq -e --arg p "${{ matrix.path }}" 'index($p)' > /dev/null 2>&1; then
+          if echo "${NEEDS_LIST_PYTHON_PACKAGES_OUTPUTS_PACKAGE_PATHS}" | jq -e --arg p "${{ matrix.path }}" 'index($p)' > /dev/null 2>&1; then
             echo "needed=true" >> $GITHUB_OUTPUT
           else
             echo "needed=false" >> $GITHUB_OUTPUT
@@ -268,7 +268,7 @@ jobs:
       - name: Check if package was published
         id: check
         run: |
-          if echo '${NEEDS_LIST_PYTHON_PACKAGES_OUTPUTS_PACKAGE_PATHS}' | jq -e --arg p "${{ matrix.path }}" 'index($p)' > /dev/null 2>&1; then
+          if echo "${NEEDS_LIST_PYTHON_PACKAGES_OUTPUTS_PACKAGE_PATHS}" | jq -e --arg p "${{ matrix.path }}" 'index($p)' > /dev/null 2>&1; then
             echo "needed=true" >> $GITHUB_OUTPUT
           else
             echo "needed=false" >> $GITHUB_OUTPUT
