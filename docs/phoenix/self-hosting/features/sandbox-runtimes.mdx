@@ -100,7 +100,7 @@ The rows below correspond exactly to the entries in `SANDBOX_ADAPTER_METADATA`. 
 | **WebAssembly (local)** (`WASM`) | Python | Yes — CPython WASM bundled at `$PHOENIX_WASM_BINARY_PATH` | `pip install 'arize-phoenix[wasm]'`; optionally set `PHOENIX_WASM_BINARY_PATH` | None | In-process (`wasmtime`) |
 | **E2B** (`E2B`) | Python | Ready with credentials — SDK in container | `pip install 'arize-phoenix[e2b]'` | `E2B_API_KEY` | External API |
 | **Daytona** (`DAYTONA_PYTHON`) | Python | Ready with credentials — SDK in container | `pip install 'arize-phoenix[daytona]'` | `PHOENIX_SANDBOX_DAYTONA_API_KEY` | External API |
-| **Vercel Sandbox — Python** (`VERCEL_PYTHON`) | Python | Ready with credentials — SDK in container | `pip install 'arize-phoenix[vercel]'` | `VERCEL_OIDC_TOKEN`, or `VERCEL_TOKEN` + `VERCEL_PROJECT_ID` + `VERCEL_TEAM_ID` ([auth docs](https://vercel.com/docs/vercel-sandbox/concepts/authentication)) | External API |
+| **Vercel Sandbox — Python** (`VERCEL_PYTHON`) | Python | Ready with credentials — SDK in container | `pip install 'arize-phoenix[vercel]'` | `VERCEL_TOKEN` + `VERCEL_PROJECT_ID` + `VERCEL_TEAM_ID` ([auth docs](https://vercel.com/docs/vercel-sandbox/concepts/authentication)) | External API |
 | **Vercel Sandbox — TypeScript** (`VERCEL_TYPESCRIPT`) | TypeScript | Ready with credentials — SDK in container | `pip install 'arize-phoenix[vercel]'` | Same as `VERCEL_PYTHON` ([auth docs](https://vercel.com/docs/vercel-sandbox/concepts/authentication)) | External API |
 | **Modal** (`MODAL`) | Python | Ready with credentials — SDK in container | `pip install 'arize-phoenix[modal]'` | `MODAL_TOKEN_ID` + `MODAL_TOKEN_SECRET` | External API |
 

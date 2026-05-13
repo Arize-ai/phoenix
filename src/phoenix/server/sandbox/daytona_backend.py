@@ -12,7 +12,9 @@ error during evaluation.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
+
+from starlette.datastructures import Secret
 
 from .types import (
     DaytonaPythonConfig,
@@ -50,16 +52,16 @@ class DaytonaSandboxBackend(SandboxBackend):
 
     def __init__(
         self,
-        api_key: str,
+        api_key: Secret,
         server_url: str = "",
-        user_env: Optional[dict[str, str]] = None,
-        packages: Optional[list[str]] = None,
+        user_env: Optional[Mapping[str, str]] = None,
+        packages: Optional[Sequence[str]] = None,
         network_block_all: bool = False,
     ) -> None:
         self._api_key = api_key
         self._server_url = server_url
-        self._user_env: dict[str, str] = user_env or {}
-        self._packages: list[str] = packages or []
+        self._user_env: dict[str, str] = dict(user_env or {})
+        self._packages: list[str] = list(packages) if packages else []
         self._network_block_all = network_block_all
         self._sessions: dict[str, AsyncSandbox] = {}
         self._client: Optional[AsyncDaytona] = None
@@ -72,7 +74,7 @@ class DaytonaSandboxBackend(SandboxBackend):
 
         self._client = AsyncDaytona(
             DaytonaConfig(
-                api_key=self._api_key,
+                api_key=str(self._api_key),
                 api_url=self._server_url or None,
             )
         )
@@ -188,17 +190,29 @@ class DaytonaPythonAdapter(SandboxAdapter):
         import daytona_sdk  # noqa: F401
 
     def build_backend(
-        self, config: dict[str, Any], user_env: Optional[dict[str, str]] = None
+        self, config: Mapping[str, Any], user_env: Optional[Mapping[str, str]] = None
     ) -> SandboxBackend:
         self._enforce_capabilities(config, user_env)
+        # Fail-closed on missing credential. Passing an empty api_key would let
+        # the Daytona SDK silently fall back to ``DAYTONA_API_KEY`` from the
+        # process env (daytona_sdk/_async/daytona.py:168). The SDK's autodiscovery
+        # name differs from Phoenix's declared name
+        # (``PHOENIX_SANDBOX_DAYTONA_API_KEY``) so that fallback would bypass
+        # Phoenix's credential resolution entirely.
         api_key: str = config.get("PHOENIX_SANDBOX_DAYTONA_API_KEY") or ""
+        if not api_key:
+            raise ValueError(
+                "Daytona sandbox authentication is not configured. Set "
+                "PHOENIX_SANDBOX_DAYTONA_API_KEY via setSandboxCredential or as "
+                "a process environment variable."
+            )
         deps = config.get("dependencies") or {}
         packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
         internet_access = config.get("internet_access") or {}
         mode: str = internet_access.get("mode", "") if isinstance(internet_access, dict) else ""
         network_block_all = mode == "deny"
         return DaytonaSandboxBackend(
-            api_key=api_key,
+            api_key=Secret(api_key),
             server_url="",
             user_env=user_env,
             packages=packages,
