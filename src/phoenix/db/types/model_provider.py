@@ -127,6 +127,7 @@ class ModelProvider(Enum):
     AZURE_OPENAI = "AZURE_OPENAI"
     ANTHROPIC = "ANTHROPIC"
     GOOGLE = "GOOGLE"
+    VERTEX_AI = "VERTEX_AI"
     DEEPSEEK = "DEEPSEEK"
     XAI = "XAI"
     OLLAMA = "OLLAMA"
