@@ -226,6 +226,7 @@
 - [MistralAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/mistralai/mistralai-tracing): Auto-instrument MistralAI SDK
 - [OpenRouter Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/openrouter/openai-tracing): Trace OpenRouter API calls
 - [VertexAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/vertexai/vertexai-tracing): Auto-instrument VertexAI SDK
+- [VertexAI Playground](https://arize.com/docs/phoenix/integrations/llm-providers/vertexai/vertexai-playground): Use Google Vertex AI (Gemini and Claude) from the Phoenix playground with Application Default Credentials.
 
 ### Python Frameworks
 

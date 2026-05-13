@@ -1,0 +1,24 @@
+---
+title: "05.13.2026: Vertex AI support in Playground"
+description: "Native support for Google Cloud Vertex AI in the Phoenix playground, with Application Default Credentials and both Gemini and Claude."
+---
+
+**Available in arize-phoenix 15.5.0+**
+
+The Phoenix Playground now supports **Google Cloud Vertex AI** as a first-class provider — Gemini and Claude models, authenticated via Application Default Credentials.
+
+## What's new
+
+- **Native Vertex AI provider** in the playground, settings, prompt management, and dataset LLM-evaluator surfaces
+- **Application Default Credentials**: no API key required. Works locally with `gcloud auth application-default login` and on GCP workloads with attached service accounts.
+- **Gemini and Claude**: a single Vertex AI provider covers both Gemini (via `google-genai`) and Claude (via Anthropic's Vertex SDK)
+- **Distinct OpenInference attribution**: Vertex traffic emits spans with `llm.provider="vertex_ai"`, separate from AI Studio Gemini (`google`)
+
+<CardGroup cols={2}>
+  <Card title="Vertex AI Playground Docs" icon="book" href="/docs/phoenix/integrations/llm-providers/vertexai/vertexai-playground">
+    Setup with ADC, supported models, and differences from AI Studio Gemini.
+  </Card>
+  <Card title="Vertex AI" icon="globe" href="https://cloud.google.com/vertex-ai">
+    Learn more about Google Cloud Vertex AI.
+  </Card>
+</CardGroup>

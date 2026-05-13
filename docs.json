@@ -507,7 +507,8 @@
                 "group": "VertexAI",
                 "pages": [
                   "docs/phoenix/integrations/llm-providers/vertexai",
-                  "docs/phoenix/integrations/llm-providers/vertexai/vertexai-tracing"
+                  "docs/phoenix/integrations/llm-providers/vertexai/vertexai-tracing",
+                  "docs/phoenix/integrations/llm-providers/vertexai/vertexai-playground"
                 ]
               }
             ]

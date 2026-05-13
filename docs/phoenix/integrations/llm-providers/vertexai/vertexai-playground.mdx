@@ -1,0 +1,53 @@
+---
+title: Use Vertex AI in the Phoenix Playground
+description: Run Gemini and Claude on Google Cloud Vertex AI from the Phoenix playground using Application Default Credentials.
+---
+
+# Use Vertex AI in the Phoenix Playground
+
+Phoenix's playground supports Google Cloud Vertex AI as a first-class provider. You can run **Gemini** and **Claude** models on Vertex from:
+
+- The playground UI (single completion or comparison runs)
+- Dataset LLM evaluators authored in the UI
+- Prompt iteration and management
+
+Authentication uses **Application Default Credentials (ADC)**. No API key or service-account JSON file needs to be uploaded into Phoenix.
+
+## Requirements
+
+- A Google Cloud project with the Vertex AI API enabled
+- ADC available to the Phoenix server, via one of:
+  - **Local development**: `gcloud auth application-default login`
+  - **GCP workload (Cloud Run, GKE, etc.)**: an attached service account with the `roles/aiplatform.user` role
+  - **Service account JSON file**: `GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json` env var on the Phoenix process
+
+## Configuration
+
+In Phoenix, go to **Settings → Models → Vertex AI** and provide:
+
+- **`GOOGLE_CLOUD_PROJECT`** (required) — your GCP project ID
+- **`GOOGLE_CLOUD_LOCATION`** (optional, default `us-central1`) — the Vertex region
+
+No API key is needed. Phoenix calls `google.auth.default()` at request time and uses the resolved credentials for both Gemini (via `google-genai`) and Claude (via the Anthropic SDK's Vertex client).
+
+## Supported models
+
+- **Gemini** — all models supported by the `google-genai` SDK with `vertexai=True`, including `gemini-2.0-flash-001`, `gemini-2.5-pro`, `gemini-3-pro-preview`.
+- **Claude** — all models served by Anthropic on Vertex AI, including `claude-sonnet-4-6`, `claude-opus-4-7`.
+
+## Tracing
+
+Vertex calls emit OpenInference spans with `llm.provider="vertex_ai"`, distinct from AI Studio Gemini calls (`llm.provider="google"`). Filter on this attribute when comparing Vertex vs AI Studio behavior.
+
+## Differences from the AI Studio Gemini integration
+
+| | AI Studio Gemini (`GOOGLE`) | Vertex AI (`VERTEX_AI`) |
+|---|---|---|
+| Auth | `GEMINI_API_KEY` | ADC |
+| Models | Gemini only | Gemini and Claude |
+| `llm.provider` | `google` | `vertex_ai` |
+| Best for | Quick local prototyping | Hosted GCP deployments |
+
+## Compared to `phoenix-evals`
+
+The `phoenix-evals` Python SDK has its own Vertex integration via LiteLLM (`LLM(provider="vertex", ...)`) for users running evals in their own Python scripts or notebooks. The playground path documented here is for driving evals **from the Phoenix UI** — no Python required on the client side.
