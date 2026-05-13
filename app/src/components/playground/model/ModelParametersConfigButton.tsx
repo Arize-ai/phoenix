@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 
 import {
   Button,
@@ -95,6 +95,7 @@ export function ModelParametersConfigButton(
   props: ModelParametersConfigButtonProps
 ) {
   const { playgroundInstanceId, disableEphemeralRouting } = props;
+  const [isModelConfigValid, setIsModelConfigValid] = useState(true);
 
   const model = usePlaygroundContext(
     (state) =>
@@ -200,6 +201,7 @@ export function ModelParametersConfigButton(
             <Suspense>
               <ModelInvocationParametersFormFields
                 playgroundInstanceId={playgroundInstanceId}
+                onValidityChange={setIsModelConfigValid}
               />
             </Suspense>
           </div>
@@ -208,6 +210,7 @@ export function ModelParametersConfigButton(
           <SaveModelConfigButton
             playgroundInstanceId={playgroundInstanceId}
             variant="quiet"
+            isDisabled={!isModelConfigValid}
             style={{
               width: "100%",
             }}

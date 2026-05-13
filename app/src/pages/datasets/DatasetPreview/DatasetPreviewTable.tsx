@@ -107,6 +107,29 @@ export type DatasetPreviewTableProps = {
 };
 
 /**
+ * Creates a prototype-less object for accumulating user-supplied keys. Because
+ * it has no prototype, writing keys like `__proto__` or `constructor` just adds
+ * plain own properties instead of polluting `Object.prototype`.
+ */
+const createPollutionSafeRecord = (): Record<string, unknown> =>
+  Object.create(null);
+
+const isPollutionSafeRecord = (
+  value: unknown
+): value is Record<string, unknown> =>
+  typeof value === "object" &&
+  value !== null &&
+  Object.getPrototypeOf(value) === null;
+
+const toPollutionSafeRecord = (value: unknown): Record<string, unknown> => {
+  const record = createPollutionSafeRecord();
+  if (typeof value === "object" && value !== null) {
+    Object.assign(record, value);
+  }
+  return record;
+};
+
+/**
  * Preview table showing how data will look in the final dataset.
  * Each row shows input/output/metadata as JSON objects.
  */
@@ -144,12 +167,8 @@ export function DatasetPreviewTable({
       let current = obj;
       for (let i = 0; i < parts.length - 1; i++) {
         const part = parts[i];
-        if (
-          !(part in current) ||
-          typeof current[part] !== "object" ||
-          current[part] === null
-        ) {
-          current[part] = {};
+        if (!isPollutionSafeRecord(current[part])) {
+          current[part] = toPollutionSafeRecord(current[part]);
         }
         current = current[part] as Record<string, unknown>;
       }
@@ -206,9 +225,9 @@ export function DatasetPreviewTable({
     };
 
     return rows.map((row): DatasetPreviewRow => {
-      const input: Record<string, unknown> = {};
-      const output: Record<string, unknown> = {};
-      const metadata: Record<string, unknown> = {};
+      const input = createPollutionSafeRecord();
+      const output = createPollutionSafeRecord();
+      const metadata = createPollutionSafeRecord();
       let splits: string[] = [];
       let exampleId: string | null = null;
 

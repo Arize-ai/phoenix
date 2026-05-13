@@ -106,6 +106,30 @@ export const DATASET_UPLOAD_EXAMPLE_IDS: ParameterRequirement = {
   minServerVersion: [15, 0, 0],
 };
 
+export const ADD_TRACE_NOTE_IDENTIFIER: ParameterRequirement = {
+  kind: "parameter",
+  parameterName: "identifier",
+  parameterLocation: "body",
+  route: "POST /v1/trace_notes",
+  minServerVersion: [15, 5, 0],
+};
+
+export const ADD_SPAN_NOTE_IDENTIFIER: ParameterRequirement = {
+  kind: "parameter",
+  parameterName: "identifier",
+  parameterLocation: "body",
+  route: "POST /v1/span_notes",
+  minServerVersion: [15, 5, 0],
+};
+
+export const ADD_SESSION_NOTE_IDENTIFIER: ParameterRequirement = {
+  kind: "parameter",
+  parameterName: "identifier",
+  parameterLocation: "body",
+  route: "POST /v1/session_notes",
+  minServerVersion: [15, 5, 0],
+};
+
 /**
  * Aggregate list of every known capability requirement.
  *
@@ -125,4 +149,7 @@ export const ALL_REQUIREMENTS: readonly CapabilityRequirement[] = [
   GET_SPANS_BY_ATTRIBUTE,
   LIST_PROJECT_TRACES,
   DATASET_UPLOAD_EXAMPLE_IDS,
+  ADD_TRACE_NOTE_IDENTIFIER,
+  ADD_SPAN_NOTE_IDENTIFIER,
+  ADD_SESSION_NOTE_IDENTIFIER,
 ] as const;

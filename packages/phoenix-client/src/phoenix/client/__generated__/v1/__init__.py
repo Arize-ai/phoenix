@@ -90,6 +90,12 @@ class CreateSpansResponseBody(TypedDict):
     total_queued: int
 
 
+class CustomProviderModelSelection(TypedDict):
+    providerId: str
+    modelName: str
+    providerType: Literal["custom"]
+
+
 class DataUIPart(TypedDict):
     type: str
     data: Any
@@ -608,6 +614,7 @@ class SessionAnnotationsResponseBody(TypedDict):
 class SessionNoteData(TypedDict):
     session_id: str
     note: str
+    identifier: NotRequired[str]
 
 
 class SessionTraceData(TypedDict):
@@ -680,6 +687,7 @@ class SpanEvent(TypedDict):
 class SpanNoteData(TypedDict):
     span_id: str
     note: str
+    identifier: NotRequired[str]
 
 
 class StepStartUIPart(TypedDict):
@@ -821,6 +829,7 @@ class TraceContext(TypedDict):
 class TraceNoteData(TypedDict):
     trace_id: str
     note: str
+    identifier: NotRequired[str]
 
 
 class TraceSpanData(TypedDict):
@@ -926,6 +935,28 @@ class AnnotateTracesResponseBody(TypedDict):
 class AssistantMessageMetadataUsage(TypedDict):
     tokens: AssistantMessageMetadataUsageTokens
     promptDetails: NotRequired[AssistantMessageMetadataUsageTokenDetails]
+
+
+class BuiltInProviderModelSelection(TypedDict):
+    provider: Literal[
+        "OPENAI",
+        "AZURE_OPENAI",
+        "ANTHROPIC",
+        "GOOGLE",
+        "DEEPSEEK",
+        "XAI",
+        "OLLAMA",
+        "AWS",
+        "CEREBRAS",
+        "FIREWORKS",
+        "GROQ",
+        "MOONSHOT",
+        "PERPLEXITY",
+        "TOGETHER",
+    ]
+    modelName: str
+    providerType: Literal["builtin"]
+    openaiApiType: NotRequired[Literal["chat_completions", "responses"]]
 
 
 class CategoricalAnnotationConfig(TypedDict):
@@ -1358,6 +1389,7 @@ class UpsertExperimentEvaluationResponseBody(TypedDict):
 
 class FieldSummarizeRequest(TypedDict):
     messages: Sequence[UIMessage]
+    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]
 
@@ -1402,6 +1434,7 @@ class AssistantMetadataUIMessage(TypedDict):
 class ChatRegenerateMessage(TypedDict):
     id: str
     messages: Sequence[AssistantMetadataUIMessage]
+    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
     trigger: Literal["regenerate-message"]
     messageId: NotRequired[str]
     ingestTraces: NotRequired[bool]
@@ -1417,6 +1450,7 @@ class ChatRegenerateMessage(TypedDict):
 class ChatSubmitMessage(TypedDict):
     id: str
     messages: Sequence[AssistantMetadataUIMessage]
+    model: Union[CustomProviderModelSelection, BuiltInProviderModelSelection]
     trigger: Literal["submit-message"]
     ingestTraces: NotRequired[bool]
     exportRemoteTraces: NotRequired[bool]

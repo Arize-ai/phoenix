@@ -44,6 +44,9 @@ export default defineConfig(() => {
     publicDir: resolve(__dirname, "static"),
     server: {
       port: parseInt(process.env.VITE_PORT || "5173"),
+      warmup: {
+        clientFiles: ["./index.tsx", "./App.tsx", "./Routes.tsx"],
+      },
       headers: {
         // Prevent browser caching during development to ensure fresh assets
         // after code changes. This fixes 304 responses causing stale files.

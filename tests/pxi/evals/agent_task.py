@@ -26,7 +26,7 @@ from phoenix.server.agents.model_factory import (
 from phoenix.server.agents.model_factory import (
     azure_endpoint_to_base_url,
 )
-from phoenix.server.agents.tools.docs_mcp_toolset import build_docs_mcp_toolset
+from phoenix.server.agents.toolsets.docs_mcp import build_docs_mcp_toolset
 
 DEFAULT_ASSISTANT_PROVIDER = "OPENAI"
 DEFAULT_ASSISTANT_MODEL = "gpt-5.4"

@@ -9,9 +9,7 @@ import type { PromptInputSubmitProps } from "./types";
  * Submit / stop button that adapts its icon and behavior to the current status.
  *
  * - **ready / error** — arrow icon; pressing sends the message.
- * - **streaming, empty input** — stop icon; pressing stops generation.
- * - **streaming, user has typed** — arrow icon; pressing stops generation
- *   then sends the message.
+ * - **submitted / streaming** — stop icon; pressing stops generation.
  *
  * Automatically disables when `status` is `"ready"` and the textarea is empty.
  */
@@ -30,8 +28,7 @@ export function PromptInputSubmit({
   const computedDisabled =
     isDisabledProp ?? (context.status === "ready" && isEmpty);
 
-  // Send icon overrides the stop icon when user input is entered during streaming.
-  const showSend = !isStreaming || !isEmpty;
+  const showSend = !isStreaming;
 
   const computedAriaLabel =
     ariaLabel ?? (showSend ? "Send message" : "Stop generation");
@@ -39,10 +36,9 @@ export function PromptInputSubmit({
   const handlePress = () => {
     if (isStreaming) {
       onStop?.();
+      return;
     }
-    if (!isEmpty) {
-      context.onSubmit();
-    }
+    context.onSubmit();
   };
 
   return (

@@ -51,6 +51,8 @@ export const EditLLMEvaluatorDialogContent = ({
             Cancel
           </Button>
           <Button
+            data-testid="llm-evaluator-form-submit-button"
+            data-mode={mode}
             variant="primary"
             isDisabled={isSubmitting}
             isPending={isSubmitting}

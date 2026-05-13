@@ -76,36 +76,31 @@ export function AgentObservabilitySettings() {
           </span>
         </Switch>
       </div>
-      <div css={settingRowCSS}>
-        <Switch
-          isSelected={
-            isRemoteCollectorConfigured && observability.exportRemoteTraces
-          }
-          isDisabled={!isRemoteCollectorConfigured}
-          onChange={(exportRemoteTraces) => {
-            setObservability({ exportRemoteTraces });
-          }}
-          labelPlacement="start"
-          css={settingSwitchCSS}
-        >
-          <span className="agent-observability__label">
-            <Text weight="heavy" size="M">
-              Share PXI session traces with the team improving PXI
-            </Text>
-            <Text color="text-500">
-              {agentsConfig.collectorEndpoint ? (
-                <>
-                  Transmits the same unredacted traces to{" "}
-                  <code css={codeCSS}>{agentsConfig.collectorEndpoint}</code>.
-                  Browser-only setting.
-                </>
-              ) : (
-                "Sharing to the PXI improvement team is not configured for this Phoenix app."
-              )}
-            </Text>
-          </span>
-        </Switch>
-      </div>
+      {isRemoteCollectorConfigured ? (
+        <div css={settingRowCSS}>
+          <Switch
+            isSelected={
+              isRemoteCollectorConfigured && observability.exportRemoteTraces
+            }
+            onChange={(exportRemoteTraces) => {
+              setObservability({ exportRemoteTraces });
+            }}
+            labelPlacement="start"
+            css={settingSwitchCSS}
+          >
+            <span className="agent-observability__label">
+              <Text weight="heavy" size="M">
+                Share PXI session traces with the team improving PXI
+              </Text>
+              <Text color="text-500">
+                Transmits the same unredacted traces to{" "}
+                <code css={codeCSS}>{agentsConfig.collectorEndpoint}</code>.
+                Browser-only setting.
+              </Text>
+            </span>
+          </Switch>
+        </div>
+      ) : null}
       <Text css={footerNoteCSS} size="S">
         Trace links and feedback buttons only work when traces are saved in this
         Phoenix app.

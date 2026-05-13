@@ -1,5 +1,5 @@
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterable
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -19,16 +19,20 @@ from pydantic_ai.ui.vercel_ai.request_types import (
     UIMessage,
 )
 from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, MessageMetadataChunk
-from sqlalchemy import select
+from sqlalchemy import Insert, func, select
+from sqlalchemy.dialects.postgresql import insert as insert_postgresql
+from sqlalchemy.dialects.sqlite import insert as insert_sqlite
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from starlette.responses import Response
+from typing_extensions import assert_never
 
 from phoenix.config import get_env_phoenix_agents_assistant_project_name
 from phoenix.db import models
+from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.agents.agent_factory import ChatOutput, build_agent
 from phoenix.server.agents.capabilities import AgentCapabilities
-from phoenix.server.agents.chat_params import ChatSearchParams, parse_chat_search_params
 from phoenix.server.agents.context import (
     ChatContext,
     resolve_contexts,
@@ -36,6 +40,7 @@ from phoenix.server.agents.context import (
 from phoenix.server.agents.dependencies import ChatDependencies
 from phoenix.server.agents.exceptions import AgentError, SummarizationError
 from phoenix.server.agents.model_factory import build_model
+from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.summarization import summarize_messages
 from phoenix.server.bearer_auth import is_authenticated
 from phoenix.server.types import DbSessionFactory
@@ -95,9 +100,14 @@ class _ObservabilityMixin(BaseModel):
 class _ChatMessageMixin(_ObservabilityMixin):
     """Phoenix-specific extensions added to Vercel AI request messages."""
 
+    model_config = ConfigDict(
+        protected_namespaces=(),  # allow ``model`` field; pydantic reserves ``model_*``
+    )
+
     contexts: list[ChatContext] = Field(default_factory=list)
     capabilities: AgentCapabilities = Field(default_factory=AgentCapabilities)
     messages: list[AssistantMetadataUIMessage]
+    model: AgentModelSelection
 
 
 class ChatSubmitMessage(_ChatMessageMixin, SubmitMessage):
@@ -125,7 +135,12 @@ class _SummarizeRequest(_ObservabilityMixin):
     Carries the Vercel-style messages array; the backend owns the prompt and
     the structured-output tool schema."""
 
+    model_config = ConfigDict(
+        protected_namespaces=(),  # allow ``model`` field; pydantic reserves ``model_*``
+    )
+
     messages: list[UIMessage]
+    model: AgentModelSelection
 
     @field_validator("messages", mode="before")
     @classmethod
@@ -229,6 +244,26 @@ def _build_message_metadata_chunk(
     )
 
 
+async def _persist_db_traces(
+    *,
+    session: AsyncSession,
+    db_traces: list[models.Trace],
+) -> None:
+    project_sessions = [
+        db_trace.project_session for db_trace in db_traces if db_trace.project_session is not None
+    ]
+    persistent_by_session_id = await _upsert_project_sessions(session, project_sessions)
+    for db_trace in db_traces:
+        project_session = db_trace.project_session
+        if project_session is None:
+            continue
+        # Replace the transient ProjectSession (built by Tracer) with the
+        # persistent one loaded from the upsert, so SQLAlchemy resolves the FK
+        # from the relationship and doesn't try to cascade-insert a duplicate.
+        db_trace.project_session = persistent_by_session_id[project_session.session_id]
+    session.add_all(db_traces)
+
+
 async def _ensure_project_exists(db: DbSessionFactory, project_name: str) -> int:
     """Resolve project_id by name, creating the project row if missing."""
     async with db() as session:
@@ -244,6 +279,75 @@ async def _ensure_project_exists(db: DbSessionFactory, project_name: str) -> int
         project_id = await session.scalar(select(models.Project.id).filter_by(name=project_name))
         assert project_id is not None
         return project_id
+
+
+async def _upsert_project_sessions(
+    session: AsyncSession,
+    project_sessions: Iterable[models.ProjectSession],
+) -> dict[str, models.ProjectSession]:
+    """
+    Upsert ProjectSession rows keyed by session_id, returning a
+    {session_id: ProjectSession} map of persistent ORM objects (loaded into the
+    session's identity map). Duplicates in the input are merged by session_id,
+    widening the start/end time range across duplicates.
+    """
+    project_sessions_by_session_id: dict[str, models.ProjectSession] = {}
+    for project_session in project_sessions:
+        existing = project_sessions_by_session_id.get(project_session.session_id)
+        if existing is None:
+            project_sessions_by_session_id[project_session.session_id] = project_session
+        else:
+            if project_session.start_time < existing.start_time:
+                existing.start_time = project_session.start_time
+            if existing.end_time < project_session.end_time:
+                existing.end_time = project_session.end_time
+
+    if not project_sessions_by_session_id:
+        return {}
+
+    dialect = SupportedSQLDialect(session.bind.dialect.name)
+    records = [
+        {
+            "session_id": project_session.session_id,
+            "project_id": project_session.project_id,
+            "start_time": project_session.start_time,
+            "end_time": project_session.end_time,
+        }
+        for project_session in project_sessions_by_session_id.values()
+    ]
+    upsert: Insert
+    if dialect is SupportedSQLDialect.POSTGRESQL:
+        pg_insert = insert_postgresql(models.ProjectSession).values(records)
+        upsert = pg_insert.on_conflict_do_update(
+            index_elements=["session_id"],
+            set_={
+                "start_time": func.least(
+                    models.ProjectSession.start_time, pg_insert.excluded.start_time
+                ),
+                "end_time": func.greatest(
+                    models.ProjectSession.end_time, pg_insert.excluded.end_time
+                ),
+            },
+        )
+    elif dialect is SupportedSQLDialect.SQLITE:
+        # SQLite has no LEAST/GREATEST; min(a, b) / max(a, b) as scalar
+        # functions (i.e. with >1 argument) are the equivalent.
+        sqlite_insert = insert_sqlite(models.ProjectSession).values(records)
+        upsert = sqlite_insert.on_conflict_do_update(
+            index_elements=["session_id"],
+            set_={
+                "start_time": func.min(
+                    models.ProjectSession.start_time, sqlite_insert.excluded.start_time
+                ),
+                "end_time": func.max(
+                    models.ProjectSession.end_time, sqlite_insert.excluded.end_time
+                ),
+            },
+        )
+    else:
+        assert_never(dialect)
+    returned_rows = await session.scalars(upsert.returning(models.ProjectSession))
+    return {row.session_id: row for row in returned_rows}
 
 
 def create_agents_router(authentication_enabled: bool) -> APIRouter:
@@ -268,7 +372,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         agent_id: str,
         session_id: str,
         request: Request,
-        params: Annotated[ChatSearchParams, Depends(parse_chat_search_params)],
         request_body: ChatRequest,
     ) -> Response:
         if agent_id != _ASSISTANT_AGENT_ID:
@@ -293,7 +396,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         try:
             async with request.app.state.db() as session:
                 model = await build_model(
-                    params,
+                    body.model,
                     session=session,
                     decrypt=request.app.state.decrypt,
                     tracer_provider=tracer_provider,
@@ -343,7 +446,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         db_traces = tracer.get_db_traces(project_id=project_id)
                         if db_traces:
                             async with request.app.state.db() as session:
-                                session.add_all(db_traces)
+                                await _persist_db_traces(session=session, db_traces=db_traces)
                                 await session.flush()
                     tracer.tracer_provider.shutdown()
 
@@ -357,7 +460,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         agent_id: str,
         session_id: str,
         request: Request,
-        params: Annotated[ChatSearchParams, Depends(parse_chat_search_params)],
         body: _SummarizeRequest,
     ) -> _SummarizeResponse:
         if agent_id != _ASSISTANT_AGENT_ID:
@@ -377,7 +479,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         try:
             async with request.app.state.db() as session:
                 model = await build_model(
-                    params,
+                    body.model,
                     session=session,
                     decrypt=request.app.state.decrypt,
                     tracer_provider=tracer_provider,
@@ -399,7 +501,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     db_traces = tracer.get_db_traces(project_id=project_id)
                     if db_traces:
                         async with request.app.state.db() as session:
-                            session.add_all(db_traces)
+                            await _persist_db_traces(session=session, db_traces=db_traces)
                             await session.flush()
                 tracer.tracer_provider.shutdown()
         return _SummarizeResponse(summary=result.summary.strip())

@@ -79,6 +79,16 @@ class SessionNoteData(V1RoutesBaseModel):
     note: Annotated[
         str, BeforeValidator(lambda value: value.strip() if isinstance(value, str) else value)
     ] = Field(min_length=1, description="The note text to add to the session")
+    identifier: str = Field(
+        default="",
+        description=(
+            "Optional caller-supplied identifier. When non-empty, the note is upserted "
+            "on (session_id, name='note', identifier) — repeated calls with the same "
+            "identifier overwrite the existing note. When omitted or empty, the server "
+            "stamps a unique 'px-session-note:<uuid>' identifier so each call appends a "
+            "new note."
+        ),
+    )
 
 
 class CreateSessionNoteRequestBody(RequestBody[SessionNoteData]):
@@ -504,12 +514,12 @@ async def annotate_sessions(
     operation_id="createSessionNote",
     summary="Create a session note",
     description=(
-        "Add a note annotation to a session. Each call appends a new note with an "
-        "auto-generated UUIDv4 identifier, so multiple notes accumulate on the same "
-        "session. Structured annotations, by contrast, are keyed by (name, session_id, "
-        "identifier) — re-writing the same key overwrites the existing annotation, "
-        "so to keep multiple structured annotations with the same name on a session "
-        "you must supply distinct identifiers."
+        "Add a note annotation to a session. By default each call appends a new note "
+        "with an auto-generated UUIDv4 identifier, so multiple notes accumulate on "
+        "the same session. Callers may supply a non-empty `identifier` to upsert on "
+        "(session_id, name='note', identifier) — repeated calls with the same "
+        "identifier overwrite the existing note, matching the semantics of "
+        "structured annotations."
     ),
     responses=add_errors_to_responses([{"status_code": 404, "description": "Session not found"}]),
     response_description="Session note created successfully",
@@ -538,22 +548,36 @@ async def create_session_note(
                 detail=f"Session with session_id {note_data.session_id} not found",
             )
 
-        result = await session.execute(
-            insert(models.ProjectSessionAnnotation)
-            .values(
-                project_session_id=project_session_id,
-                name="note",
-                label=None,
-                score=None,
-                explanation=note_data.note,
-                annotator_kind="HUMAN",
-                metadata_={},
-                identifier=get_note_identifier("px-session-note"),
-                source="API",
-                user_id=user_id,
+        note_identifier = note_data.identifier or get_note_identifier("px-session-note")
+        values = {
+            "project_session_id": project_session_id,
+            "name": "note",
+            "label": None,
+            "score": None,
+            "explanation": note_data.note,
+            "annotator_kind": "HUMAN",
+            "metadata_": {},
+            "identifier": note_identifier,
+            "source": "API",
+            "user_id": user_id,
+        }
+
+        if note_data.identifier:
+            dialect = SupportedSQLDialect(session.bind.dialect.name)
+            result = await session.execute(
+                insert_on_conflict(
+                    values,
+                    dialect=dialect,
+                    table=models.ProjectSessionAnnotation,
+                    unique_by=("name", "project_session_id", "identifier"),
+                ).returning(models.ProjectSessionAnnotation.id)
             )
-            .returning(models.ProjectSessionAnnotation.id)
-        )
+        else:
+            result = await session.execute(
+                insert(models.ProjectSessionAnnotation)
+                .values(**values)
+                .returning(models.ProjectSessionAnnotation.id)
+            )
         annotation_id = result.scalar_one()
 
     request.state.event_queue.put(ProjectSessionAnnotationInsertEvent((annotation_id,)))

@@ -17,7 +17,6 @@ import {
   SPAN_ATTRIBUTES_PARSING_ERROR,
   TOOLS_PARSING_ERROR,
 } from "../constants";
-import { areInvocationParamsEqual } from "../invocationParameterUtils";
 import {
   extractRootVariable,
   extractRootVariables,
@@ -44,6 +43,7 @@ import {
   toolToPromptToolInput,
   transformSpanAttributesToPlaygroundInstance,
 } from "../playgroundUtils";
+import { getDefaultInvocationConfig } from "../providerAdapters";
 import type { PlaygroundSpan } from "../spanPlaygroundPageLoader";
 import type { SpanTool, SpanToolCall } from "./fixtures";
 import {
@@ -65,7 +65,7 @@ const baseTestPlaygroundInstance: PlaygroundInstance = {
   model: {
     provider: "OPENAI",
     modelName: "gpt-3.5-turbo",
-    invocationParameters: [],
+    invocationParameters: getDefaultInvocationConfig("OPENAI"),
     openaiApiType: "CHAT_COMPLETIONS",
   },
   tools: [],
@@ -92,7 +92,7 @@ const expectedPlaygroundInstanceWithIO: PlaygroundInstance = {
   model: {
     provider: "OPENAI",
     modelName: "gpt-3.5-turbo",
-    invocationParameters: [],
+    invocationParameters: getDefaultInvocationConfig("OPENAI"),
     openaiApiType: "CHAT_COMPLETIONS",
   },
   tools: [],
@@ -150,7 +150,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         model: {
           provider: "OPENAI",
           modelName: "gpt-4o",
-          invocationParameters: [],
+          invocationParameters: getDefaultInvocationConfig("OPENAI"),
           openaiApiType: "RESPONSES",
         },
         template: defaultTemplate,
@@ -181,6 +181,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
           ...expectedPlaygroundInstanceWithIO.model,
           provider: "OPENAI",
           modelName: "gpt-4o",
+          invocationParameters: {},
         },
         template: defaultTemplate,
         repetitions: {
@@ -313,6 +314,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
           ...expectedPlaygroundInstanceWithIO.model,
           provider: "OPENAI",
           modelName: "gpt-4o",
+          invocationParameters: {},
         },
         template: {
           __type: "chat",
@@ -432,6 +434,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
           ...expectedPlaygroundInstanceWithIO.model,
           provider: "OPENAI",
           modelName: "gpt-4o",
+          invocationParameters: {},
         },
         tools: [
           {
@@ -581,31 +584,61 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
               strict: true,
             },
           },
-          invocationParameters: [
-            {
-              canonicalName: "TOP_P",
-              invocationName: "topP",
-              valueFloat: 0.5,
-            },
-            {
-              canonicalName: "MAX_COMPLETION_TOKENS",
-              invocationName: "maxTokens",
-              valueInt: 100,
-            },
-            {
-              canonicalName: "RANDOM_SEED",
-              invocationName: "seed",
-              valueInt: 12345,
-            },
-            {
-              canonicalName: "STOP_SEQUENCES",
-              invocationName: "stop",
-              valueStringList: ["stop", "me"],
-            },
-          ],
+          invocationParameters: {
+            topP: 0.5,
+            maxCompletionTokens: 100,
+            seed: 12345,
+            stop: ["stop", "me"],
+          },
         },
       } satisfies PlaygroundInstance,
       parsingErrors: [],
+    });
+  });
+
+  it("preserves Anthropic output_config effort while promoting output_config format", () => {
+    const responseSchema = {
+      type: "object",
+      properties: {},
+      required: [],
+      additionalProperties: false,
+    };
+    const span: PlaygroundSpan = {
+      ...basePlaygroundSpan,
+      attributes: JSON.stringify({
+        ...spanAttributesWithInputMessages,
+        llm: {
+          ...spanAttributesWithInputMessages.llm,
+          model_name: "claude-3-5-sonnet-20240620",
+          invocation_parameters: JSON.stringify({
+            max_tokens: 2048,
+            output_config: {
+              effort: "xhigh",
+              format: {
+                type: "json_schema",
+                schema: responseSchema,
+              },
+            },
+          }),
+        },
+      }),
+    };
+    const result = transformSpanAttributesToPlaygroundInstance(span);
+    expect(result.parsingErrors).toEqual([]);
+    expect(result.playgroundInstance.model).toMatchObject({
+      provider: "ANTHROPIC",
+      modelName: "claude-3-5-sonnet-20240620",
+      responseFormat: {
+        type: "json_schema",
+        jsonSchema: {
+          name: "response",
+          schema: responseSchema,
+        },
+      },
+      invocationParameters: {
+        maxTokens: 2048,
+        effort: "XHIGH",
+      },
     });
   });
 
@@ -628,13 +661,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
         ...expectedPlaygroundInstanceWithIO,
         model: {
           ...expectedPlaygroundInstanceWithIO.model,
-          invocationParameters: [
-            {
-              canonicalName: "MAX_COMPLETION_TOKENS",
-              invocationName: "maxCompletionTokens",
-              valueInt: 100,
-            },
-          ],
+          invocationParameters: { maxCompletionTokens: 100 },
         },
       } satisfies PlaygroundInstance,
       parsingErrors: [],
@@ -655,6 +682,10 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
     expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
       playgroundInstance: {
         ...expectedPlaygroundInstanceWithIO,
+        model: {
+          ...expectedPlaygroundInstanceWithIO.model,
+          invocationParameters: {},
+        },
       },
       parsingErrors: [
         MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR,
@@ -678,6 +709,10 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
     expect(transformSpanAttributesToPlaygroundInstance(span)).toEqual({
       playgroundInstance: {
         ...expectedPlaygroundInstanceWithIO,
+        model: {
+          ...expectedPlaygroundInstanceWithIO.model,
+          invocationParameters: {},
+        },
       },
       parsingErrors: [
         MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR,
@@ -702,13 +737,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       );
 
     expect(parsingErrors).toEqual([]);
-    expect(invocationParameters).toEqual([
-      {
-        invocationName: "maxCompletionTokens",
-        canonicalName: "MAX_COMPLETION_TOKENS",
-        valueInt: 321,
-      },
-    ]);
+    expect(invocationParameters).toEqual({ maxCompletionTokens: 321 });
   });
 
   it("normalizes OpenAI Responses parameters during span hydration", () => {
@@ -728,18 +757,10 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       );
 
     expect(parsingErrors).toEqual([]);
-    expect(invocationParameters).toEqual([
-      {
-        invocationName: "maxCompletionTokens",
-        canonicalName: "MAX_COMPLETION_TOKENS",
-        valueInt: 77,
-      },
-      {
-        invocationName: "reasoningEffort",
-        canonicalName: "REASONING_EFFORT",
-        valueString: "high",
-      },
-    ]);
+    expect(invocationParameters).toEqual({
+      maxCompletionTokens: 77,
+      reasoningEffort: "high",
+    });
   });
 
   it("should return invocation parameters parsing errors if they are malformed", () => {
@@ -769,7 +790,7 @@ describe("transformSpanAttributesToPlaygroundInstance", () => {
       modelConfig: {
         modelName: "gpt-3.5-turbo",
         provider: "OPENAI",
-        invocationParameters: [],
+        invocationParameters: {},
       },
       parsingErrors: [MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR],
     });
@@ -1062,7 +1083,7 @@ describe("getModelConfigFromAttributes", () => {
         modelName: "gpt-3.5-turbo",
         provider: "OPENAI",
         // getBaseModelConfigFromAttributes does not parse invocation parameters
-        invocationParameters: [],
+        invocationParameters: getDefaultInvocationConfig("OPENAI"),
       },
       parsingErrors: [],
     });
@@ -1095,7 +1116,7 @@ describe("getModelConfigFromAttributes", () => {
       modelConfig: {
         modelName: "gpt-3.5-turbo",
         provider: "OPENAI",
-        invocationParameters: [],
+        invocationParameters: {},
       },
       parsingErrors: [MODEL_CONFIG_WITH_INVOCATION_PARAMETERS_PARSING_ERROR],
     });
@@ -1122,7 +1143,7 @@ describe("getModelConfigFromAttributes", () => {
       modelConfig: {
         modelName: "gpt-3.5-turbo",
         provider: "OPENAI",
-        invocationParameters: [],
+        invocationParameters: getDefaultInvocationConfig("OPENAI"),
         baseUrl: "https://api.openai.com/v1/chat/completions",
       },
       parsingErrors: [],
@@ -1151,7 +1172,7 @@ describe("getModelConfigFromAttributes", () => {
       modelConfig: {
         modelName: "gpt-3.5-turbo",
         provider: "OPENAI",
-        invocationParameters: [],
+        invocationParameters: getDefaultInvocationConfig("OPENAI"),
         baseUrl: "https://api.openai.com/v1/",
       },
       parsingErrors: [],
@@ -1179,7 +1200,7 @@ describe("getModelConfigFromAttributes", () => {
       modelConfig: {
         modelName: "gpt-3.5-turbo",
         provider: "OPENAI",
-        invocationParameters: [],
+        invocationParameters: getDefaultInvocationConfig("OPENAI"),
         baseUrl: "https://api.openai.com/v1/chat/completions",
       },
       parsingErrors: [],
@@ -1283,7 +1304,7 @@ describe("getVariablesMapFromInstances", () => {
     model: {
       provider: "OPENAI",
       modelName: "gpt-3.5-turbo",
-      invocationParameters: [],
+      invocationParameters: getDefaultInvocationConfig("OPENAI"),
     },
     tools: [],
     toolChoice: { type: "ZERO_OR_MORE" },
@@ -2107,77 +2128,6 @@ describe("toolFromEditorJSON", () => {
   });
 });
 
-describe("areInvocationParamsEqual", () => {
-  it("should return true if invocation names are equal", () => {
-    const paramA = {
-      invocationName: "maxTokens",
-      canonicalName: null,
-      valueInt: 100,
-    };
-    const paramB = {
-      invocationName: "maxTokens",
-      canonicalName: null,
-      valueInt: 200,
-    };
-    expect(areInvocationParamsEqual(paramA, paramB)).toBe(true);
-  });
-
-  it("should return true if canonical names are equal", () => {
-    const paramA = {
-      invocationName: "maxTokens",
-      canonicalName: "MAX_COMPLETION_TOKENS" as const,
-      valueInt: 100,
-    };
-    const paramB = {
-      invocationName: "max_tokens_alt",
-      canonicalName: "MAX_COMPLETION_TOKENS" as const,
-      valueInt: 200,
-    };
-    expect(areInvocationParamsEqual(paramA, paramB)).toBe(true);
-  });
-
-  it("should return false if neither invocation names nor canonical names are equal", () => {
-    const paramA = {
-      invocationName: "maxTokens",
-      canonicalName: "MAX_COMPLETION_TOKENS" as const,
-      valueInt: 100,
-    };
-    const paramB = {
-      invocationName: "topP",
-      canonicalName: "TOP_P" as const,
-      valueFloat: 0.9,
-    };
-    expect(areInvocationParamsEqual(paramA, paramB)).toBe(false);
-  });
-
-  it("should return false if one canonical name is null and invocation names are not equal", () => {
-    const paramA = {
-      invocationName: "maxTokens",
-      canonicalName: null,
-      valueInt: 100,
-    };
-    const paramB = {
-      invocationName: "topP",
-      canonicalName: "TOP_P" as const,
-      valueFloat: 0.9,
-    };
-    expect(areInvocationParamsEqual(paramA, paramB)).toBe(false);
-  });
-
-  it("should return false if both canonical names are null and invocation names are not equal", () => {
-    const paramA = {
-      invocationName: "maxTokens",
-      canonicalName: null,
-      valueInt: 100,
-    };
-    const paramB = {
-      invocationName: "topP",
-      canonicalName: null,
-      valueFloat: 0.9,
-    };
-    expect(areInvocationParamsEqual(paramA, paramB)).toBe(false);
-  });
-});
 describe("getPromptTemplateVariablesFromAttributes", () => {
   it("should return parsing errors if prompt template variables are invalid", () => {
     const parsedAttributes = { llm: { prompt_template: "invalid" } };

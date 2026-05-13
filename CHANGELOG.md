@@ -1,5 +1,39 @@
 # Changelog
 
+## [15.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.7.0...arize-phoenix-v15.8.0) (2026-05-13)
+
+
+### Features
+
+* **agents:** populate project_sessions for /chat and /summary traces ([#13187](https://github.com/Arize-ai/phoenix/issues/13187)) ([11275b4](https://github.com/Arize-ai/phoenix/commit/11275b48d383cbdcdbf6406a4c9b80bfba58e55f))
+* **playground:** Add Anthropic and Google thinking controls ([#13164](https://github.com/Arize-ai/phoenix/issues/13164)) ([c132f0c](https://github.com/Arize-ai/phoenix/commit/c132f0c139dd3d42d91329f9d0236c057c3bd71a))
+* pxi tool layout rebalancing ([#13168](https://github.com/Arize-ai/phoenix/issues/13168)) ([d8d5322](https://github.com/Arize-ai/phoenix/commit/d8d5322eaea824387c3b4d5d345e0e5d123f8fa9))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#13203](https://github.com/Arize-ai/phoenix/issues/13203)) ([dde26f6](https://github.com/Arize-ai/phoenix/commit/dde26f67b7717e181b0bec64c59d7e5f7a6a77db))
+* prevent prototype pollution in DatasetPreviewTable ([#13199](https://github.com/Arize-ai/phoenix/issues/13199)) ([f0a2f9e](https://github.com/Arize-ai/phoenix/commit/f0a2f9e9d9c8be02db120e407447ba4a79e7ea2f))
+* validate projection expressions and sandbox eval globals ([#13213](https://github.com/Arize-ai/phoenix/issues/13213)) ([9ca0a3f](https://github.com/Arize-ai/phoenix/commit/9ca0a3ffb0802017a80f3e2796657e1771212858))
+
+## [15.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.6.0...arize-phoenix-v15.7.0) (2026-05-13)
+
+
+### Features
+
+* add trace user feedback annotations ([#13099](https://github.com/Arize-ai/phoenix/issues/13099)) ([3797110](https://github.com/Arize-ai/phoenix/commit/3797110fed28223b0e879722d1bef960f389e8ec))
+* **agents:** rip v1 /chat route and associated code ([#13140](https://github.com/Arize-ai/phoenix/issues/13140)) ([71ceeb3](https://github.com/Arize-ai/phoenix/commit/71ceeb3fa68ceac509e0cd38bb3497c0737774c0))
+* make session turn messages expandable ([#13057](https://github.com/Arize-ai/phoenix/issues/13057)) ([f898dc0](https://github.com/Arize-ai/phoenix/commit/f898dc08930b99e9d263bb71e71ce71a5ceeeac9))
+* session-tagged identifiers for open/axial coding workflows ([#13083](https://github.com/Arize-ai/phoenix/issues/13083)) ([6dceb10](https://github.com/Arize-ai/phoenix/commit/6dceb101b6409cb50e90baeb83e1e7c1784745e1))
+* **ui:** move toasts to top-center with sonner-style stacking ([#13177](https://github.com/Arize-ai/phoenix/issues/13177)) ([1cc1ce7](https://github.com/Arize-ai/phoenix/commit/1cc1ce7b871bb90279706fbc829c420bc24f51d5))
+
+
+### Bug Fixes
+
+* keep PXI send button in stop mode while streaming ([#13188](https://github.com/Arize-ai/phoenix/issues/13188)) ([73b0d62](https://github.com/Arize-ai/phoenix/commit/73b0d6262de8de62e7e3c1fbf97c3354234c5594))
+* prevent format-string injection in f-string template formatter ([#13197](https://github.com/Arize-ai/phoenix/issues/13197)) ([e7224a6](https://github.com/Arize-ai/phoenix/commit/e7224a685589f2ffae1fefcc68ff210bd6ad28b8))
+* surface playground validation errors ([#13139](https://github.com/Arize-ai/phoenix/issues/13139)) ([44b07ac](https://github.com/Arize-ai/phoenix/commit/44b07acf6a922c0f360cee3a4f5ca34a0f3b87dd))
+
 ## [15.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.5.1...arize-phoenix-v15.6.0) (2026-05-10)
 
 

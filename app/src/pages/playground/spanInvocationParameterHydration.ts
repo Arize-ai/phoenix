@@ -1,34 +1,11 @@
 /**
- * Reverse translators: recorded span attributes (`llm.invocation_parameters`) →
- * family-discriminated bridge record.
+ * Best-effort OpenAI API classification from recorded span attributes.
+ * Standalone helper — span → canonical config goes through the provider
+ * adapter dispatcher's `spanInvocationToConfigAndPromoted` instead.
  */
-
-import type { InvocationFamily } from "./invocationParameterSpecs";
-import {
-  emptyRawPromptInvocationParametersRecord,
-  INVOCATION_PARAMETERS_SCHEMA_BY_FAMILY,
-  type RawPromptInvocationParametersRecord,
-} from "./promptInvocationParameterCodecs";
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return v != null && typeof v === "object" && !Array.isArray(v);
-}
-
-/**
- * Single snake_case → camelCase normalization point for span attribute JSON.
- * Per-field `.catch(undefined)` in the family schemas drops malformed values
- * field-by-field; an unparseable payload returns an empty record.
- */
-export function normalizeSpanInvocationParameters(
-  raw: unknown,
-  family: InvocationFamily
-): RawPromptInvocationParametersRecord {
-  if (!isPlainObject(raw))
-    return emptyRawPromptInvocationParametersRecord(family);
-  const parsed = INVOCATION_PARAMETERS_SCHEMA_BY_FAMILY[family].safeParse(raw);
-  return parsed.success
-    ? parsed.data
-    : emptyRawPromptInvocationParametersRecord(family);
 }
 
 /**

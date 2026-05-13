@@ -892,3 +892,128 @@ describe("trace get", () => {
     ]);
   });
 });
+
+describe("annotate --identifier round-trip", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("threads --identifier into the span_annotations request body", async () => {
+    const fetchMock = makeFetchMock([
+      {
+        ok: true,
+        body: { data: [{ id: "span-annotation-id" }] },
+      },
+    ]);
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await createSpanCommand().parseAsync(
+      [
+        "annotate",
+        "span-123",
+        "--name",
+        "axial_coding_category",
+        "--label",
+        "off-topic",
+        "--identifier",
+        "px-coding-session:abc12345",
+        "--format",
+        "raw",
+        ...BASE_ARGS,
+      ],
+      { from: "user" }
+    );
+
+    await expect(
+      getFetchBody(fetchMock.mock.calls[0][0], fetchMock.mock.calls[0][1])
+    ).resolves.toEqual({
+      data: [
+        {
+          span_id: "span-123",
+          name: "axial_coding_category",
+          annotator_kind: "HUMAN",
+          result: { label: "off-topic" },
+          identifier: "px-coding-session:abc12345",
+        },
+      ],
+    });
+  });
+
+  it("threads --identifier into the trace_annotations request body", async () => {
+    const fetchMock = makeFetchMock([
+      {
+        ok: true,
+        body: { data: [{ id: "trace-annotation-id" }] },
+      },
+    ]);
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await createTraceCommand().parseAsync(
+      [
+        "annotate",
+        "trace-123",
+        "--name",
+        "axial_coding_category",
+        "--label",
+        "off-topic",
+        "--identifier",
+        "px-coding-session:abc12345",
+        "--format",
+        "raw",
+        ...BASE_ARGS,
+      ],
+      { from: "user" }
+    );
+
+    await expect(
+      getFetchBody(fetchMock.mock.calls[0][0], fetchMock.mock.calls[0][1])
+    ).resolves.toEqual({
+      data: [
+        {
+          trace_id: "trace-123",
+          name: "axial_coding_category",
+          annotator_kind: "HUMAN",
+          result: { label: "off-topic" },
+          identifier: "px-coding-session:abc12345",
+        },
+      ],
+    });
+  });
+
+  it("echoes the supplied --identifier in the raw mutation result", async () => {
+    const fetchMock = makeFetchMock([
+      {
+        ok: true,
+        body: { data: [{ id: "trace-annotation-id" }] },
+      },
+    ]);
+    vi.stubGlobal("fetch", fetchMock);
+    const stdoutSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await createTraceCommand().parseAsync(
+      [
+        "annotate",
+        "trace-123",
+        "--name",
+        "axial_coding_category",
+        "--label",
+        "off-topic",
+        "--identifier",
+        "px-coding-session:abc12345",
+        "--format",
+        "raw",
+        ...BASE_ARGS,
+      ],
+      { from: "user" }
+    );
+
+    const echoed = JSON.parse(String(stdoutSpy.mock.calls[0]?.[0]));
+    expect(echoed.identifier).toBe("px-coding-session:abc12345");
+  });
+});

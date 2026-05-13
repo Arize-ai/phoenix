@@ -1,13 +1,46 @@
 /**
  * Frontend-owned invocation parameter metadata (labels, bounds, widget kinds).
+ *
+ * This file is intentionally pure data + simple helpers. Provider adapters
+ * project these static specs into the visible form fields for a model/config.
  */
 
-import { DEFAULT_OPENAI_API_TYPE } from "@phoenix/constants/generativeConstants";
-import type { ModelConfig } from "@phoenix/store/playground";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
-import type { CanonicalParameterName } from "./invocationParameterUtils";
+import {
+  ANTHROPIC_OUTPUT_CONFIG_EFFORT_FORM_VALUES,
+  ANTHROPIC_THINKING_DISPLAY_FORM_VALUES,
+  ANTHROPIC_THINKING_TYPE_VALUES,
+  GOOGLE_THINKING_LEVEL_FORM_VALUES,
+  OPENAI_REASONING_EFFORT_FORM_VALUES,
+} from "./invocationParameterEnumOptions";
 
+// Canonical names group provider-specific fields that represent the same
+// parameter concept, such as Anthropic `maxTokens` and Google
+// `maxOutputTokens`.
+type CanonicalParameterName =
+  | "ANTHROPIC_EXTENDED_THINKING"
+  | "MAX_COMPLETION_TOKENS"
+  | "RANDOM_SEED"
+  | "REASONING_EFFORT"
+  | "RESPONSE_FORMAT"
+  | "STOP_SEQUENCES"
+  | "TEMPERATURE"
+  | "TOP_P";
+
+/**
+ * Discriminator for Phoenix's canonical, normalized invocation-parameter
+ * representation. Each family corresponds to one of the canonical config
+ * shapes — `OpenAIConfig`, `AnthropicConfig`, `GoogleConfig`, `AwsConfig` —
+ * and selects which provider adapter (storage, form-field projection, prompt
+ * serialization) to use.
+ *
+ * The grouping is about Phoenix's internal representation, not SDK wire
+ * formats. The many providers under `OPENAI` (AZURE_OPENAI, DEEPSEEK, XAI,
+ * GROQ, TOGETHER, OLLAMA, …) all consume the OpenAI SDK in practice, but
+ * what makes them share a family here is that Phoenix stores and edits
+ * their invocation parameters with one canonical shape.
+ */
 export const InvocationFamily = {
   OPENAI: "openai",
   ANTHROPIC: "anthropic",
@@ -17,6 +50,13 @@ export const InvocationFamily = {
 export type InvocationFamily =
   (typeof InvocationFamily)[keyof typeof InvocationFamily];
 
+/**
+ * Resolves the canonical-config family for a given `ModelProvider`. Used to
+ * pick the right Phoenix provider adapter (canonical config type, form-field
+ * projection, prompt serialization) for a model.
+ *
+ * See {@link InvocationFamily} for what the family represents.
+ */
 export function getInvocationFamilyForProvider(
   provider: ModelProvider
 ): InvocationFamily {
@@ -45,27 +85,18 @@ export function getInvocationFamilyForProvider(
 
 type CommonSpec = {
   name: string;
-  wirePath?: string;
   label: string;
   required?: boolean;
-  ui?: "anthropic_thinking";
   applicableOpenAIApiTypes?: readonly ("CHAT_COMPLETIONS" | "RESPONSES")[];
-  /** Optional default merged when syncing specs (server defaults formerly came from GraphQL). */
-  defaultValue?: unknown;
   canonicalName?: CanonicalParameterName;
 };
 
 export type ParamSpec =
   | (CommonSpec & { type: "int"; min?: number; max?: number })
-  | (CommonSpec & {
-      type: "float" | "bounded_float";
-      min?: number;
-      max?: number;
-    })
+  | (CommonSpec & { type: "float"; min?: number; max?: number })
   | (CommonSpec & { type: "string" })
   | (CommonSpec & { type: "bool" })
   | (CommonSpec & { type: "string_list" })
-  | (CommonSpec & { type: "json" })
   | (CommonSpec & {
       type: "enum";
       values: readonly string[];
@@ -75,7 +106,7 @@ export type ParamSpec =
 export const OPENAI_INVOCATION_PARAMETERS = [
   {
     name: "temperature",
-    type: "bounded_float",
+    type: "float",
     min: 0,
     max: 2,
     label: "Temperature",
@@ -83,7 +114,7 @@ export const OPENAI_INVOCATION_PARAMETERS = [
   },
   {
     name: "topP",
-    type: "bounded_float",
+    type: "float",
     min: 0,
     max: 1,
     label: "Top P",
@@ -97,26 +128,24 @@ export const OPENAI_INVOCATION_PARAMETERS = [
   },
   {
     name: "frequencyPenalty",
-    type: "bounded_float",
+    type: "float",
     min: -2,
     max: 2,
     label: "Frequency Penalty",
-    defaultValue: 0,
     applicableOpenAIApiTypes: ["CHAT_COMPLETIONS"] as const,
   },
   {
     name: "presencePenalty",
-    type: "bounded_float",
+    type: "float",
     min: -2,
     max: 2,
     label: "Presence Penalty",
-    defaultValue: 0,
     applicableOpenAIApiTypes: ["CHAT_COMPLETIONS"] as const,
   },
   {
     name: "reasoningEffort",
     type: "enum",
-    values: ["none", "minimal", "low", "medium", "high", "xhigh"] as const,
+    values: OPENAI_REASONING_EFFORT_FORM_VALUES,
     label: "Reasoning Effort",
     canonicalName: "REASONING_EFFORT",
   },
@@ -134,16 +163,16 @@ export const ANTHROPIC_INVOCATION_PARAMETERS = [
     type: "int",
     label: "Max Tokens",
     required: true,
-    defaultValue: 1024,
+    // Keep above the default thinking budget (1024) so enabling Anthropic
+    // thinking starts from a valid budget < max_tokens configuration.
     canonicalName: "MAX_COMPLETION_TOKENS",
   },
   {
     name: "temperature",
-    type: "bounded_float",
+    type: "float",
     min: 0,
     max: 1,
     label: "Temperature",
-    defaultValue: 1,
     canonicalName: "TEMPERATURE",
   },
   {
@@ -154,29 +183,50 @@ export const ANTHROPIC_INVOCATION_PARAMETERS = [
   },
   {
     name: "topP",
-    type: "bounded_float",
+    type: "float",
     min: 0,
     max: 1,
     label: "Top P",
     canonicalName: "TOP_P",
   },
   {
-    name: "thinking",
-    type: "json",
+    name: "thinkingType",
+    type: "enum",
+    values: ANTHROPIC_THINKING_TYPE_VALUES,
     label: "Thinking",
-    ui: "anthropic_thinking",
     canonicalName: "ANTHROPIC_EXTENDED_THINKING",
+  },
+  {
+    name: "thinkingBudgetTokens",
+    type: "int",
+    // Anthropic's documented minimum for `thinking.budget_tokens`. Upper bound
+    // is synthesized at resolve time from the current `maxTokens` row (strict
+    // less-than per the API contract).
+    min: 1024,
+    label: "Budget Tokens",
+  },
+  {
+    name: "thinkingDisplay",
+    type: "enum",
+    values: ANTHROPIC_THINKING_DISPLAY_FORM_VALUES,
+    label: "Thinking Display",
+  },
+  {
+    name: "effort",
+    type: "enum",
+    values: ANTHROPIC_OUTPUT_CONFIG_EFFORT_FORM_VALUES,
+    label: "Effort",
+    canonicalName: "REASONING_EFFORT",
   },
 ] as const satisfies readonly ParamSpec[];
 
 export const GOOGLE_INVOCATION_PARAMETERS = [
   {
     name: "temperature",
-    type: "bounded_float",
+    type: "float",
     min: 0,
     max: 2,
     label: "Temperature",
-    defaultValue: 1,
     canonicalName: "TEMPERATURE",
   },
   {
@@ -195,17 +245,15 @@ export const GOOGLE_INVOCATION_PARAMETERS = [
     name: "presencePenalty",
     type: "float",
     label: "Presence Penalty",
-    defaultValue: 0,
   },
   {
     name: "frequencyPenalty",
     type: "float",
     label: "Frequency Penalty",
-    defaultValue: 0,
   },
   {
     name: "topP",
-    type: "bounded_float",
+    type: "float",
     min: 0,
     max: 1,
     label: "Top P",
@@ -216,6 +264,23 @@ export const GOOGLE_INVOCATION_PARAMETERS = [
     type: "int",
     label: "Top K",
   },
+  {
+    name: "thinkingBudget",
+    type: "int",
+    min: 0,
+    label: "Thinking Budget",
+  },
+  {
+    name: "thinkingLevel",
+    type: "enum",
+    values: GOOGLE_THINKING_LEVEL_FORM_VALUES,
+    label: "Thinking Level",
+  },
+  {
+    name: "includeThoughts",
+    type: "bool",
+    label: "Include Thoughts",
+  },
 ] as const satisfies readonly ParamSpec[];
 
 export const AWS_INVOCATION_PARAMETERS = [
@@ -223,21 +288,19 @@ export const AWS_INVOCATION_PARAMETERS = [
     name: "maxTokens",
     type: "int",
     label: "Max Tokens",
-    defaultValue: 1024,
     canonicalName: "MAX_COMPLETION_TOKENS",
   },
   {
     name: "temperature",
-    type: "bounded_float",
+    type: "float",
     min: 0,
     max: 1,
     label: "Temperature",
-    defaultValue: 1,
     canonicalName: "TEMPERATURE",
   },
   {
     name: "topP",
-    type: "bounded_float",
+    type: "float",
     min: 0,
     max: 1,
     label: "Top P",
@@ -259,52 +322,4 @@ export function getSpecsForFamily<F extends InvocationFamily>(
   family: F
 ): (typeof INVOCATION_PARAMETERS)[F] {
   return INVOCATION_PARAMETERS[family];
-}
-
-/**
- * Specs applicable to the current playground model (filters OpenAI family by API type).
- */
-export function getActiveSpecsForPlayground(
-  model: Pick<ModelConfig, "provider" | "openaiApiType">
-): readonly ParamSpec[] {
-  const family = getInvocationFamilyForProvider(model.provider);
-  const specs = [...INVOCATION_PARAMETERS[family]];
-  if (family !== InvocationFamily.OPENAI) {
-    return specs;
-  }
-  const api = model.openaiApiType ?? DEFAULT_OPENAI_API_TYPE;
-  return specs.filter((s) => {
-    if (!("applicableOpenAIApiTypes" in s) || !s.applicableOpenAIApiTypes) {
-      return true;
-    }
-    return s.applicableOpenAIApiTypes.includes(api);
-  });
-}
-
-export function invocationValueKeyForSpec(
-  spec: ParamSpec
-):
-  | "valueBool"
-  | "valueBoolean"
-  | "valueFloat"
-  | "valueInt"
-  | "valueJson"
-  | "valueString"
-  | "valueStringList" {
-  switch (spec.type) {
-    case "int":
-      return "valueInt";
-    case "float":
-    case "bounded_float":
-      return "valueFloat";
-    case "string":
-    case "enum":
-      return "valueString";
-    case "bool":
-      return "valueBool";
-    case "string_list":
-      return "valueStringList";
-    case "json":
-      return "valueJson";
-  }
 }

@@ -40,8 +40,8 @@ dev = [
   "boto3",
   "litellm>=1.83.14,<1.84",  # >=1.83.14 fixes CVE-2026-42208 (SQLi), MCP stdio RCE, SSTI, OIDC bypass, password hash exposure, privilege escalation; excludes 1.82.7-1.82.8 supply chain compromise; <1.84 caps the minor
   "openai>=1.0.0",
-  "vertexai",
-  "mistralai>=1.0.0",
+  # TODO: un-comment this when mistralai is un-quarantined on PyPI
+  # "mistralai>=1.0.0",
 ]
 test = [
   "openinference-semantic-conventions",
@@ -52,8 +52,8 @@ test = [
   "boto3",
   "litellm>=1.83.14,<1.84",  # >=1.83.14 fixes CVE-2026-42208 (SQLi), MCP stdio RCE, SSTI, OIDC bypass, password hash exposure, privilege escalation; excludes 1.82.7-1.82.8 supply chain compromise; <1.84 caps the minor
   "openai>=1.0.0",
-  "mistralai>=1.0.0",
-  "vertexai",
+  # TODO: un-comment this when mistralai is un-quarantined on PyPI
+  # "mistralai>=1.0.0",
   "respx",
   "nest_asyncio",
   "pandas-stubs==2.0.3.230814",

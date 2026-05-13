@@ -11,7 +11,12 @@ from sqlalchemy import select
 import phoenix.trace.dsl.filter
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
-from phoenix.trace.dsl.filter import SpanFilter, _apply_eval_aliasing, _get_attribute_keys_list
+from phoenix.trace.dsl.filter import (
+    Projector,
+    SpanFilter,
+    _apply_eval_aliasing,
+    _get_attribute_keys_list,
+)
 
 
 @pytest.mark.parametrize(
@@ -272,4 +277,70 @@ def test_apply_eval_aliasing(filter_condition: str, expected: str) -> None:
         return_value=UUID(hex="00000000000000000000000000000000"),
     ):
         aliased, _ = _apply_eval_aliasing(filter_condition)
-    assert aliased == expected
+        assert aliased == expected
+
+
+class TestProjectorValidationGap:
+    """
+    Pins the two structural defects in ``Projector`` in
+    ``src/phoenix/trace/dsl/filter.py``:
+
+    1. Unlike ``SpanFilter``, ``Projector`` does NOT call
+       ``_validate_expression``. It only runs ``_ProjectionTranslator.visit()``,
+       which leaves many AST constructs unchecked.
+    2. The ``eval()`` namespace is ``{**_NAMES}`` — it does not pin
+       ``__builtins__`` to ``{}``, so Python auto-populates the full
+       builtins dict into the namespace.
+
+    These tests assert that ``Projector`` rejects dangerous inputs the
+    same way ``SpanFilter`` does, and that the eval namespace is
+    sandboxed. They are expected to FAIL on the current code,
+    demonstrating the vulnerability.
+    """
+
+    def test_projector_rejects_what_spanfilter_rejects(self) -> None:
+        # ``SpanFilter`` rejects this via ``_validate_expression`` — but
+        # ``Projector`` accepts it because it has no equivalent validation.
+        # An attacker who reaches the projection code path (e.g. via the
+        # SpanQuery REST/GraphQL projection key) can submit arbitrary AST
+        # shapes that bypass the structural guardrails ``SpanFilter`` enforces.
+        dangerous_expression = "10 ** 100000000"
+
+        with pytest.raises(SyntaxError):
+            SpanFilter(dangerous_expression)
+
+        # This assertion FAILS on current code: ``Projector`` happily
+        # compiles the unbounded-exponent expression with no validation.
+        with pytest.raises(SyntaxError):
+            Projector(dangerous_expression)
+
+    def test_projector_eval_namespace_has_no_builtins_access(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # ``Projector.__call__`` evaluates the compiled AST inside an ``eval``
+        # call. The eval namespace must pin ``__builtins__`` to ``{}``;
+        # otherwise CPython auto-populates the full builtins dict, exposing
+        # ``__import__``, ``open``, ``exec``, ``eval``, etc. to anything that
+        # survives the AST translator.
+        projector = Projector("name")
+
+        captured_globals: list[dict[str, Any]] = []
+        real_eval = eval
+
+        def spy_eval(code: Any, globals_dict: dict[str, Any], locals_dict: Any = None) -> Any:
+            captured_globals.append(globals_dict)
+            return real_eval(code, globals_dict, locals_dict)
+
+        # Inject the spy into the module's namespace; Python looks up bare
+        # ``eval`` in module globals before falling back to builtins, so this
+        # intercepts the call inside ``Projector.__call__``.
+        monkeypatch.setattr("phoenix.trace.dsl.filter.eval", spy_eval, raising=False)
+        projector()
+
+        assert len(captured_globals) == 1
+        builtins_obj = captured_globals[0].get("__builtins__")
+        assert builtins_obj == {}, (
+            "Projector eval namespace must pin __builtins__ to {} to prevent "
+            "code-injection vectors; instead it exposes "
+            f"{len(builtins_obj) if builtins_obj else 0} builtins."
+        )

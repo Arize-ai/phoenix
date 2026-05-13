@@ -16,7 +16,7 @@ from phoenix.server.agents.pydantic_ai import (
     OpenInferenceAgentWrapper,
     OpenInferenceToolsetWrapper,
 )
-from phoenix.server.agents.tools import build_toolset
+from phoenix.server.agents.toolsets import build_toolset
 
 ChatOutput = str | DeferredToolRequests
 

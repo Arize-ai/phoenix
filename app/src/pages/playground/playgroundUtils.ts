@@ -45,7 +45,6 @@ import type {
   CanonicalToolDefinition,
   ChatMessage,
   ModelConfig,
-  ModelInvocationParameterInput,
   PlaygroundInput,
   PlaygroundInstance,
   PlaygroundNormalizedInstance,
@@ -86,18 +85,13 @@ import {
   TOOLS_PARSING_ERROR,
 } from "./constants";
 import {
-  getActiveSpecsForPlayground,
-  getInvocationFamilyForProvider,
-  invocationValueKeyForSpec,
-  type ParamSpec,
-} from "./invocationParameterSpecs";
-import {
-  constrainInvocationParameterInputsToSpecs,
-  invocationParametersToObject,
-  objectToInvocationParameters,
-  type InvocationParameterInput,
-} from "./invocationParameterUtils";
-import { writePromptInvocationParametersMutationInput } from "./promptInvocationParameterCodecs";
+  getVisibleInvocationParameterSpecs,
+  getDefaultInvocationConfig,
+  invocationConfigToPromptInput,
+  readInvocationConfigField,
+  spanInvocationToConfigAndPromoted,
+  type ProviderInvocationConfig,
+} from "./providerAdapters";
 import type { LlmToolSchema, MessageSchema } from "./schemas";
 import {
   chatMessageRolesSchema,
@@ -106,19 +100,12 @@ import {
   llmOutputMessageSchema,
   llmToolSchema,
   modelConfigSchema,
-  modelConfigWithAnthropicOutputConfigSchema,
-  modelConfigWithGoogleResponseFormatSchema,
   modelConfigWithInvocationParametersSchema,
-  modelConfigWithOpenAIResponsesFormatSchema,
-  modelConfigWithResponseFormatSchema,
   outputSchema,
   promptTemplateSchema,
   urlSchema,
 } from "./schemas";
-import {
-  inferOpenAIApiTypeFromAttributes,
-  normalizeSpanInvocationParameters,
-} from "./spanInvocationParameterHydration";
+import { inferOpenAIApiTypeFromAttributes } from "./spanInvocationParameterHydration";
 import type { PlaygroundSpan } from "./spanPlaygroundPageLoader";
 
 /**
@@ -450,7 +437,7 @@ export function getBaseModelConfigFromAttributes(parsedAttributes: unknown): {
         modelName,
         provider,
         ...(openaiApiType != null ? { openaiApiType } : {}),
-        invocationParameters: [],
+        invocationParameters: getDefaultInvocationConfig(provider),
       },
       parsingErrors: [],
     };
@@ -710,7 +697,7 @@ export function getModelInvocationParametersFromAttributes(
   provider: ModelProvider,
   openaiApiType: OpenAIApiType
 ): {
-  invocationParameters: InvocationParameterInput[];
+  invocationParameters: ProviderInvocationConfig;
   parsingErrors: string[];
 } {
   const { success, data } =
@@ -722,15 +709,13 @@ export function getModelInvocationParametersFromAttributes(
   }
 
   const raw = data?.llm.invocation_parameters ?? {};
-  const family = getInvocationFamilyForProvider(provider);
-  const normalized = normalizeSpanInvocationParameters(raw, family);
+  const { invocationParameters } = spanInvocationToConfigAndPromoted(
+    provider,
+    raw,
+    { openaiApiType }
+  );
 
-  return {
-    invocationParameters: objectToInvocationParameters(normalized, {
-      openaiApiType,
-    }),
-    parsingErrors,
-  };
+  return { invocationParameters, parsingErrors };
 }
 
 /**
@@ -858,189 +843,23 @@ export function getResponseFormatFromAttributes(
   responseFormat: CanonicalResponseFormat | undefined;
   parsingErrors: string[];
 } {
-  if (provider === "ANTHROPIC") {
-    const { success, data } =
-      modelConfigWithAnthropicOutputConfigSchema.safeParse(parsedAttributes);
-    if (!success) {
-      return { responseFormat: undefined, parsingErrors: [] };
-    }
-    const format = data.llm.invocation_parameters.output_config?.format;
-    if (!format) {
-      return { responseFormat: undefined, parsingErrors: [] };
-    }
+  // Provider falls back to OPENAI for the historical "no provider given"
+  // path (used by code that just has a span and wants to try the OpenAI
+  // response_format / text.format shapes).
+  const resolvedProvider: ModelProvider = provider ?? "OPENAI";
+  const { success, data } =
+    modelConfigWithInvocationParametersSchema.safeParse(parsedAttributes);
+  if (!success) {
     return {
-      responseFormat: {
-        type: "json_schema",
-        jsonSchema: { name: "response", schema: format.schema },
-      },
-      parsingErrors: [],
+      responseFormat: undefined,
+      parsingErrors: [MODEL_CONFIG_WITH_RESPONSE_FORMAT_PARSING_ERROR],
     };
   }
-
-  if (provider === "GOOGLE") {
-    const { success, data } =
-      modelConfigWithGoogleResponseFormatSchema.safeParse(parsedAttributes);
-    if (!success) {
-      return { responseFormat: undefined, parsingErrors: [] };
-    }
-    const { response_json_schema, response_schema, response_mime_type } =
-      data.llm.invocation_parameters;
-    const schema = response_json_schema ?? response_schema;
-    if (!schema || response_mime_type !== "application/json") {
-      return { responseFormat: undefined, parsingErrors: [] };
-    }
-    return {
-      responseFormat: {
-        type: "json_schema",
-        jsonSchema: { name: "response", schema },
-      },
-      parsingErrors: [],
-    };
-  }
-
-  // AWS Bedrock: outputConfig.textFormat.structure.jsonSchema with schema as JSON string
-  if (provider === "AWS") {
-    const llm = (parsedAttributes as Record<string, unknown>)?.llm;
-    const rawInv =
-      llm != null && typeof llm === "object"
-        ? (llm as Record<string, unknown>).invocation_parameters
-        : undefined;
-    const invParams: Record<string, unknown> | null =
-      rawInv == null
-        ? null
-        : typeof rawInv === "string"
-          ? (() => {
-              const { json } = safelyParseJSON(rawInv);
-              return isStringKeyedObject(json) ? json : null;
-            })()
-          : isStringKeyedObject(rawInv)
-            ? rawInv
-            : null;
-    const jsonSchema = invParams?.outputConfig as
-      | {
-          textFormat?: {
-            structure?: {
-              jsonSchema?: {
-                schema?: string | object;
-                name?: string;
-                description?: string;
-              };
-            };
-          };
-        }
-      | undefined;
-    const js = jsonSchema?.textFormat?.structure?.jsonSchema;
-    if (!js) {
-      return { responseFormat: undefined, parsingErrors: [] };
-    }
-    const rawSchema = js.schema;
-    const schemaObj: object | null =
-      rawSchema == null
-        ? null
-        : typeof rawSchema === "string"
-          ? (() => {
-              const { json } = safelyParseJSON(rawSchema);
-              return json != null &&
-                typeof json === "object" &&
-                !Array.isArray(json)
-                ? (json as object)
-                : null;
-            })()
-          : typeof rawSchema === "object" &&
-              rawSchema !== null &&
-              !Array.isArray(rawSchema)
-            ? (rawSchema as object)
-            : null;
-    if (!schemaObj) {
-      return { responseFormat: undefined, parsingErrors: [] };
-    }
-    return {
-      responseFormat: {
-        type: "json_schema",
-        jsonSchema: {
-          name: typeof js.name === "string" ? js.name : "response",
-          schema: schemaObj,
-          ...(typeof js.description === "string" && {
-            description: js.description,
-          }),
-        },
-      },
-      parsingErrors: [],
-    };
-  }
-
-  // Try Chat Completions shape: invocation_parameters.response_format.
-  // Schema SUCCESS means the format is either absent (optional) or well-formed.
-  // Schema FAILURE means the field was present but malformed.
-  const { success: ccSuccess, data: ccData } =
-    modelConfigWithResponseFormatSchema.safeParse(parsedAttributes);
-  if (ccSuccess) {
-    const rf = ccData.llm.invocation_parameters.response_format as
-      | {
-          type?: string;
-          json_schema?: {
-            name?: string;
-            schema?: unknown;
-            strict?: boolean | null;
-            description?: string | null;
-          };
-        }
-      | undefined;
-    if (rf?.json_schema) {
-      return {
-        responseFormat: {
-          type: "json_schema",
-          jsonSchema: {
-            name: rf.json_schema.name ?? "response",
-            ...(rf.json_schema.schema !== undefined && {
-              schema: rf.json_schema.schema,
-            }),
-            ...(rf.json_schema.strict !== undefined && {
-              strict: rf.json_schema.strict,
-            }),
-            ...(rf.json_schema.description !== undefined && {
-              description: rf.json_schema.description,
-            }),
-          },
-        },
-        parsingErrors: [],
-      };
-    }
-    // response_format absent — try Responses API (text.format) before giving up
-    const { success: respSuccess, data: respData } =
-      modelConfigWithOpenAIResponsesFormatSchema.safeParse(parsedAttributes);
-    if (respSuccess && respData.llm.invocation_parameters.text?.format) {
-      const fmt = respData.llm.invocation_parameters.text.format as {
-        type?: string;
-        name?: string;
-        schema?: unknown;
-        strict?: boolean;
-        description?: string;
-      };
-      return {
-        responseFormat: {
-          type: "json_schema",
-          jsonSchema: {
-            name: fmt.name ?? "response",
-            ...(fmt.schema !== undefined && { schema: fmt.schema }),
-            ...(fmt.strict !== undefined && { strict: fmt.strict }),
-            ...(fmt.description !== undefined && {
-              description: fmt.description,
-            }),
-          },
-        },
-        parsingErrors: [],
-      };
-    }
-    // Neither format present — not an error, just no response format
-    return { responseFormat: undefined, parsingErrors: [] };
-  }
-
-  // CC schema failed — response_format was present but malformed
-  return {
-    responseFormat: undefined,
-    parsingErrors: [MODEL_CONFIG_WITH_RESPONSE_FORMAT_PARSING_ERROR],
-  };
+  const { responseFormat } = spanInvocationToConfigAndPromoted(
+    resolvedProvider,
+    data.llm.invocation_parameters
+  );
+  return { responseFormat, parsingErrors: [] };
 }
 
 /**
@@ -1254,25 +1073,10 @@ export function transformSpanAttributesToPlaygroundInstance(
           responseFormatParsingErrors.length === 0
             ? { responseFormat: spanResponseFormat }
             : {}),
-          invocationParameters: invocationParameters.filter(
-            (param) =>
-              // All providers: strip tool_choice (promoted to instance.toolChoice)
-              param.invocationName !== "tool_choice" &&
-              // Anthropic: strip output_config (promoted to responseFormat)
-              (spanProvider !== "ANTHROPIC" ||
-                param.invocationName !== "outputConfig") &&
-              // AWS: strip outputConfig (promoted to responseFormat)
-              (spanProvider !== "AWS" ||
-                param.invocationName !== "outputConfig") &&
-              // Google: strip response_json_schema / response_schema / response_mime_type
-              (spanProvider !== "GOOGLE" ||
-                (param.invocationName !== "response_json_schema" &&
-                  param.invocationName !== "response_schema" &&
-                  param.invocationName !== "response_mime_type")) &&
-              // OpenAI Responses API: strip text (promoted via text.format)
-              ((spanProvider !== "OPENAI" && spanProvider !== "AZURE_OPENAI") ||
-                param.invocationName !== "text")
-          ),
+          // The adapter's fromSpanInvocationParameters splits promoted fields
+          // before producing canonical provider config, so we no longer need a
+          // per-provider strip pass here.
+          invocationParameters,
         }
       : null;
 
@@ -1560,31 +1364,6 @@ export const createToolCallForProvider = (
 };
 
 /**
- * Normalizes invocation parameters by removing unset float values or invalid float values
- * @param invocationParameters - the invocation parameters to normalize
- * @returns the normalized invocation parameters
- */
-export const normalizeInvocationParameters = (
-  invocationParameters: ModelInvocationParameterInput[]
-): InvocationParameterInput[] => {
-  return invocationParameters
-    .filter((param) => {
-      // Remove unset float values or invalid float values
-      if (
-        param.valueFloat !== null &&
-        typeof param.valueFloat === "number" &&
-        isNaN(param.valueFloat)
-      ) {
-        return false;
-      }
-      return true;
-    })
-    .map((param) => {
-      return param;
-    });
-};
-
-/**
  * Gets chat completion input for either running over a dataset or using variable input
  */
 const getBaseChatCompletionInput = ({
@@ -1609,14 +1388,13 @@ const getBaseChatCompletionInput = ({
     throw new Error("We only support chat templates for now");
   }
 
-  const specs = getActiveSpecsForPlayground(instance.model);
-
-  let invocationParameters: InvocationParameterInput[] =
-    normalizeInvocationParameters(instance.model.invocationParameters);
-  invocationParameters = constrainInvocationParameterInputsToSpecs(
-    invocationParameters,
-    specs
-  );
+  // The canonical config in the store is already normalized — every writeField
+  // and every store action runs through the adapter's `normalize`, which
+  // enforces field-rippling invariants (e.g., Anthropic strips temperature /
+  // top_p when extended thinking is active). NaN values are rejected at the
+  // writeField boundary in each adapter, so the canonical config is always
+  // wire-safe.
+  const invocationParameters = instance.model.invocationParameters;
 
   const azureModelParams =
     instance.model.provider === "AZURE_OPENAI"
@@ -1660,11 +1438,7 @@ const getBaseChatCompletionInput = ({
     connectionConfig,
     headers,
     credentials: toGqlCredentials(credentials),
-    invocationParameters: applyProviderInvocationParameterConstraints(
-      invocationParameters,
-      instance.model.provider,
-      instance.model.modelName
-    ),
+    invocationParameters,
     promptName: instance.prompt?.name,
     repetitions: playgroundStore.getState().repetitions,
   };
@@ -2260,7 +2034,7 @@ export function buildPromptVersionInput({
   modelName: string;
   templateFormat: ChatPromptVersionInput["templateFormat"];
   promptMessages: ChatPromptVersionInput["template"]["messages"];
-  invocationParameters: InvocationParameterInput[];
+  invocationParameters: ProviderInvocationConfig;
 }): ChatPromptVersionInput {
   return {
     templateFormat,
@@ -2271,8 +2045,9 @@ export function buildPromptVersionInput({
       .provider as ChatPromptVersionInput["modelProvider"],
     modelName,
     customProviderId: instance.model.customProvider?.id ?? null,
-    invocationParameters: writePromptInvocationParametersMutationInput(
-      invocationParametersToObject(invocationParameters, instance.model)
+    invocationParameters: invocationConfigToPromptInput(
+      instance.model.provider,
+      invocationParameters
     ),
     tools: instance.tools.length
       ? {
@@ -2478,131 +2253,19 @@ export const getChatCompletionOverDatasetInput = ({
   };
 };
 
-function invocationInputSatisfiesSpec(
-  ip: InvocationParameterInput,
-  spec: ParamSpec
-): boolean {
-  if (ip.invocationName !== spec.name) {
-    return false;
-  }
-  const field = invocationValueKeyForSpec(spec);
-  const v = ip[field];
-  return v !== null && v !== undefined;
-}
-
 export function areRequiredInvocationParametersConfigured(
-  configuredInvocationParameters: InvocationParameterInput[],
+  config: ProviderInvocationConfig,
   model: Pick<ModelConfig, "provider" | "openaiApiType">
 ) {
-  const requiredSpecs = getActiveSpecsForPlayground(model).filter(
-    (s) => s.required
-  );
-  return requiredSpecs.every((spec) =>
-    configuredInvocationParameters.some((ip) =>
-      invocationInputSatisfiesSpec(ip, spec)
-    )
+  const requiredSpecs = getVisibleInvocationParameterSpecs(
+    model,
+    config
+  ).filter((s) => s.required);
+  return requiredSpecs.every(
+    (spec) =>
+      readInvocationConfigField(model.provider, config, spec.name) !== undefined
   );
 }
-
-/**
- * Schema for validating if Anthropic extended thinking is enabled.
- */
-const anthropicExtendedThinkingEnabledSchema = z.looseObject({
-  type: z.literal("enabled"),
-});
-
-/**
- * Applies Anthropic-specific constraints to the invocation parameters.
- *
- * @param invocationParameters - The invocation parameters to be constrained.
- * @param model - The model name.
- * @returns The constrained invocation parameters.
- */
-const applyAnthropicInvocationParameterConstraints = (
-  invocationParameters: InvocationParameterInput[],
-  model: string | null
-): InvocationParameterInput[] => {
-  if (!model) {
-    return invocationParameters;
-  }
-  // First determine if extended thinking is enabled
-  const hasExtendedThinking = invocationParameters.some(
-    (param) =>
-      param.canonicalName === "ANTHROPIC_EXTENDED_THINKING" &&
-      param.valueJson &&
-      anthropicExtendedThinkingEnabledSchema.safeParse(param.valueJson).success
-  );
-  // Filter parameters in a single pass
-  return invocationParameters.filter((param) => {
-    // Skip null/undefined valueJson for extended thinking
-    if (
-      param.canonicalName === "ANTHROPIC_EXTENDED_THINKING" &&
-      !param.valueJson
-    ) {
-      return false;
-    }
-    // If extended thinking is enabled, apply specific constraints
-    if (hasExtendedThinking) {
-      // Remove temperature and top_p when extended thinking is enabled
-      if (
-        param.canonicalName === "TEMPERATURE" ||
-        param.canonicalName === "TOP_P"
-      ) {
-        return false;
-      }
-    }
-    // Keep all other parameters
-    return true;
-  });
-};
-
-const ZERO_VALUE_INVOCATION_NAMES = ["frequencyPenalty", "presencePenalty"];
-
-/**
- * A function that filters out invocation parameters where 0 and null have the same effect
- * For these parameters, we can omit the 0 value because it's the same as null
- * @param invocationParameters
- * @returns
- */
-const filterZeroValueInvocationParameters = (
-  invocationParameters: InvocationParameterInput[]
-): InvocationParameterInput[] => {
-  const filtered = invocationParameters.filter((param) => {
-    if (
-      param.invocationName &&
-      ZERO_VALUE_INVOCATION_NAMES.includes(param.invocationName)
-    ) {
-      return !(param.valueFloat === 0 || param.valueInt === 0);
-    }
-    return true;
-  });
-  return filtered;
-};
-
-/**
- * Applies provider-specific constraints to the invocation parameters.
- *
- * @param invocationParameters - The invocation parameters to be constrained.
- * @param provider - The provider of the model.
- * @param model - The model name.
- * @returns The constrained invocation parameters.
- */
-export const applyProviderInvocationParameterConstraints = (
-  invocationParameters: InvocationParameterInput[],
-  provider: ModelProvider,
-  model: string | null
-): InvocationParameterInput[] => {
-  // We want to remove 0 values for parameters where 0 and null have the same effect
-  const filteredInvocationParameters =
-    filterZeroValueInvocationParameters(invocationParameters);
-  if (provider === "ANTHROPIC") {
-    return applyAnthropicInvocationParameterConstraints(
-      filteredInvocationParameters,
-      model
-    );
-  }
-  return filteredInvocationParameters;
-};
 
 // --- Azure helpers (module-level) --------------------------------------------------------------
 // Regex to extract deployment name from a path like: deployments/<name>/chat/completions

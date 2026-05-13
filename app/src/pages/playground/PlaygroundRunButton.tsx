@@ -88,6 +88,7 @@ export function PlaygroundRunButton() {
   );
   return (
     <Button
+      data-testid="playground-run-button"
       variant="primary"
       leadingVisual={
         <Icon

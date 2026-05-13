@@ -1,5 +1,11 @@
 # @arizeai/phoenix-otel
 
+## 1.0.2
+
+### Patch Changes
+
+- 559acf8: Document `hideLLMTools` / `OPENINFERENCE_HIDE_LLM_TOOLS` trace config option in README
+
 ## 1.0.1
 
 ### Patch Changes

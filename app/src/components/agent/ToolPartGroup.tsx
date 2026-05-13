@@ -1,6 +1,6 @@
-import { css } from "@emotion/react";
+import { css, keyframes } from "@emotion/react";
 import { getToolName, isToolUIPart } from "ai";
-import { useMemo, useState } from "react";
+import { type CSSProperties, useMemo, useState } from "react";
 
 import { Icon, Icons } from "@phoenix/components";
 
@@ -10,6 +10,10 @@ import {
   ToolPart,
   type ToolPartType,
 } from "./ToolPart";
+import {
+  TOOL_CALL_SUMMARY_LANE_RULES,
+  TOOL_PART_ENTRY_KEYFRAMES,
+} from "./ToolPartPrimitives";
 
 type ToolState =
   | "input-streaming"
@@ -26,13 +30,31 @@ const TERMINAL_STATES = new Set<ToolState>([
   "output-denied",
 ]);
 
+const toolPoolItemFadeUp = keyframes`
+  from {
+    opacity: 0.5;
+    transform: translate(-3px, 0px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
+`;
+
 const toolPoolCSS = css`
   width: 100%;
   margin-top: var(--global-dimension-size-150);
-  border: 1px solid var(--tool-call-border-color);
-  border-radius: var(--global-rounding-medium);
-  background: var(--tool-call-background-color);
-  overflow: hidden;
+  border-left: 1px solid var(--tool-call-body-border-color);
+  opacity: 0;
+  transform: translateY(-2px);
+  animation: ${TOOL_PART_ENTRY_KEYFRAMES} 250ms ease-out forwards;
+  transition: border-color 150ms ease;
+
+  &[data-header-active="true"] {
+    border-left-color: var(--tool-call-border-color-hover);
+    transition: none;
+  }
 
   &:has(+ :not(.tool-pool)) {
     margin-bottom: var(--global-dimension-size-150);
@@ -40,44 +62,59 @@ const toolPoolCSS = css`
 
   .tool-pool__header {
     cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    gap: var(--global-dimension-size-50);
-    padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
-    background: var(--tool-call-header-background-color);
+    padding: var(--global-dimension-size-100) var(--global-dimension-size-150) 0
+      var(--global-dimension-size-100);
     user-select: none;
-    transition: background 150ms ease;
-
-    &:hover {
-      background: var(--tool-call-header-background-color-hover);
-    }
 
     &:focus-visible {
       outline: 2px solid var(--global-color-primary);
-      outline-offset: -2px;
+      outline-offset: 2px;
     }
+  }
+
+  .tool-pool__header[aria-expanded="false"] {
+    padding-bottom: var(--global-dimension-size-100);
   }
 
   .tool-pool__title-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: var(--global-dimension-size-100);
+    color: var(--tool-call-title-color);
+    font-size: var(--global-font-size-xs);
+    min-width: 0;
   }
 
   .tool-pool__title {
     display: flex;
     align-items: center;
     gap: var(--global-dimension-size-50);
-    font-size: var(--global-font-size-xs);
-    font-weight: 600;
-    color: var(--tool-call-title-color);
+    font-weight: 400;
+    white-space: nowrap;
+    flex: ${TOOL_CALL_SUMMARY_LANE_RULES.titleFlex};
+    min-width: ${TOOL_CALL_SUMMARY_LANE_RULES.titleMinWidth};
+    max-width: ${TOOL_CALL_SUMMARY_LANE_RULES.titleMaxWidth};
+    color: var(--global-text-color-800);
+  }
+
+  .tool-pool__title-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
   }
 
   .tool-pool__chevron {
-    font-size: 12px;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     color: var(--tool-call-secondary-color);
-    transition: transform 150ms ease;
+    font-size: 18px;
+    transition:
+      transform 150ms ease,
+      color 150ms ease;
   }
 
   .tool-pool__chevron[data-expanded="true"] {
@@ -89,9 +126,19 @@ const toolPoolCSS = css`
   }
 
   .tool-pool__status {
+    margin-left: auto;
+    flex: ${TOOL_CALL_SUMMARY_LANE_RULES.statusFlex};
+    min-width: ${TOOL_CALL_SUMMARY_LANE_RULES.statusMinWidth};
+    max-width: ${TOOL_CALL_SUMMARY_LANE_RULES.statusMaxWidth};
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: right;
     font-weight: 400;
     font-size: var(--global-font-size-xs);
     color: var(--tool-call-secondary-color);
+    padding-inline-end: var(--global-dimension-size-50);
+    transition: color 150ms ease;
   }
 
   .tool-pool__status[data-variant="danger"] {
@@ -99,32 +146,40 @@ const toolPoolCSS = css`
   }
 
   .tool-pool__breakdown {
-    font-size: var(--global-font-size-xs);
+    flex: ${TOOL_CALL_SUMMARY_LANE_RULES.middleFlex};
+    min-width: ${TOOL_CALL_SUMMARY_LANE_RULES.middleMinWidth};
     font-weight: 400;
+    font-family: var(--ac-global-font-family-code);
     color: var(--tool-call-secondary-color);
-    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    min-width: 0;
+    white-space: nowrap;
+    transition: color 150ms ease;
+  }
+
+  .tool-pool__header:hover .tool-pool__breakdown,
+  .tool-pool__header:hover .tool-pool__status:not([data-variant]),
+  .tool-pool__header:hover .tool-pool__chevron,
+  .tool-pool__header:focus-visible .tool-pool__chevron {
+    color: var(--tool-call-title-color);
+    transition: none;
   }
 
   .tool-pool__body {
-    border-top: 1px solid var(--tool-call-body-border-color);
+    display: flex;
+    flex-direction: column;
+    gap: var(--global-dimension-size-150);
+    padding: var(--global-dimension-size-100) var(--global-dimension-size-100)
+      var(--global-dimension-size-100) var(--global-dimension-size-150);
 
-    & > .tool-part {
+    & > .tool-pool__item {
+      opacity: 0;
+      animation: ${toolPoolItemFadeUp} 200ms cubic-bezier(0.18, 0.9, 0.22, 1)
+        var(--tool-pool-item-delay, 0ms) forwards;
+    }
+
+    & > .tool-pool__item > .tool-part {
       margin-top: 0;
-      border: none;
-      border-radius: 0;
-      border-bottom: 1px solid var(--tool-call-body-border-color);
-
-      &:last-child {
-        border-bottom: none;
-      }
-
-      /* Remove inner border-radius when nested inside a pool */
-      summary {
-        border-radius: 0;
-      }
     }
   }
 `;
@@ -218,8 +273,12 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
   // group, their manual choice must win even if a child tool still requests
   // auto-open (for example, an edit_prompt_instance diff that remains previewable).
   const isRenderedExpanded = manualExpanded ?? hasAutoOpenTool;
+  const [isHeaderActive, setIsHeaderActive] = useState(false);
 
   const { text: statusText, variant: statusVariant } = formatPoolStatus(stats);
+  const breakdownText = Array.from(stats.byName.entries())
+    .map(([name, count]) => `${name}${count > 1 ? ` \u00D7${count}` : ""}`)
+    .join(", ");
 
   const handleToggle = () => {
     setManualExpanded(
@@ -228,12 +287,20 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
   };
 
   return (
-    <div className="tool-pool" css={toolPoolCSS}>
+    <div
+      className="tool-pool"
+      css={toolPoolCSS}
+      data-header-active={isHeaderActive}
+    >
       <div
         className="tool-pool__header"
         role="button"
         tabIndex={0}
         aria-expanded={isRenderedExpanded}
+        onMouseEnter={() => setIsHeaderActive(true)}
+        onMouseLeave={() => setIsHeaderActive(false)}
+        onFocus={() => setIsHeaderActive(true)}
+        onBlur={() => setIsHeaderActive(false)}
         onClick={handleToggle}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
@@ -249,23 +316,11 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
               className="tool-pool__chevron"
               data-expanded={isRenderedExpanded}
             />
-            <Icon
-              svg={<Icons.WrenchOutline />}
-              css={css`
-                font-size: 0.75rem;
-              `}
-            />
-            {stats.total} tool call{stats.total === 1 ? "" : "s"}
-            <span className="tool-pool__breakdown">
-              {Array.from(stats.byName.entries())
-                .map(
-                  ([name, count]) =>
-                    `${name}${count > 1 ? ` \u00D7${count}` : ""}`
-                )
-                .join(", ")}
-              {stats.failed > 0 ? ` \u2014 ${stats.failed} failed` : ""}
+            <span className="tool-pool__title-text">
+              {stats.total} tool call{stats.total === 1 ? "" : "s"}
             </span>
           </span>
+          <span className="tool-pool__breakdown">{breakdownText}</span>
           <span
             className="tool-pool__status"
             data-variant={statusVariant ?? undefined}
@@ -277,7 +332,17 @@ export function ToolPartGroup({ parts }: { parts: ToolPartType[] }) {
       {isRenderedExpanded ? (
         <div className="tool-pool__body">
           {parts.map((part, i) => (
-            <ToolPart key={i} part={part} />
+            <div
+              key={i}
+              className="tool-pool__item"
+              style={
+                {
+                  "--tool-pool-item-delay": `${i * 40}ms`,
+                } as CSSProperties
+              }
+            >
+              <ToolPart part={part} />
+            </div>
           ))}
         </div>
       ) : null}

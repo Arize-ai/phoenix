@@ -24,16 +24,20 @@ px trace list
 px trace get <trace-id>
 px trace annotate <trace-id>
 px trace add-note <trace-id>
+px trace-annotations delete
 px span list
 px span annotate <span-id>
 px span add-note <span-id>
+px span-annotations delete
 px session list
 px session get <session-id>
 px session annotate <session-id>
 px session add-note <session-id>
+px session-annotations delete
 px dataset list
 px dataset get <name>
 px project list
+px project get <name>
 px annotation-config list
 px auth status
 px profile list
@@ -58,8 +62,12 @@ Always use `--format raw --no-progress` when piping to `jq`.
 
 | Task | Files |
 | ---- | ----- |
-| Look at sampled traces and write specific notes about what went wrong (no taxonomy yet) | [references/open-coding](references/open-coding.md) |
+| Look at sampled traces, spans, or sessions and write specific notes about what went wrong (no taxonomy yet) | [references/open-coding](references/open-coding.md) |
 | Group those notes into a structured failure taxonomy and quantify what matters | [references/axial-coding](references/axial-coding.md) |
+
+Both stages tag every artifact with one shared **coding annotation identifier** (descriptive shape, e.g. `coding-run:chatbot-context-loss-2026-05-06`) so the run is queryable, reversible, and viewable as a unit. Pass `--identifier <value>` explicitly on every `px` call — shell inheritance is unreliable across agent harnesses. Open coding writes notes via `px ... add-note` and records a small local JSONL sidecar at `.px/coding/<sanitized-identifier>.jsonl`; axial coding reads that sidecar as the deterministic handoff and records labels in `.px/coding/<sanitized-identifier>-axial.jsonl`. Pick the identifier once per run (see [references/open-coding.md](references/open-coding.md#coding-annotation-identifier-pick-this-first)), then share the Phoenix UI link from the wrap-up section. Revert is opt-in and runs three identifier-bound DELETEs only after explicit user confirmation.
+
+> **Workflow term vs. server annotation name.** The skill prose calls this value the **coding annotation identifier** (shell-variable hint: `CODING_ANNOTATION_IDENTIFIER`). The server-side annotation NAME used for the UI filter is unchanged — `coding_session_id` — for data compatibility with rows already written by previous runs. Don't try to rename the server-side annotation; treat the asymmetry as load-bearing.
 
 ## Workflows
 
@@ -70,7 +78,7 @@ Always use `--format raw --no-progress` when piping to `jq`.
 
 | Prefix | Description |
 | ------ | ----------- |
-| `references/open-coding` | Free-form notes against sampled traces — reach for it whenever the user wants to make sense of traces but has no failure categories yet |
+| `references/open-coding` | Free-form notes against sampled traces, spans, or sessions — reach for it whenever the user wants to make sense of LLM traffic but has no failure categories yet. Includes a unit-of-analysis diagnostic so the workflow runs at the level the failure modes actually live at (trace for stateless single-shot calls, session for multi-turn agents, span for mechanical/in-isolation failures). |
 | `references/axial-coding` | Inductive grouping of notes into a MECE taxonomy with counts — reach for it whenever the user has observations and needs categories or eval targets |
 
 ## Auth
@@ -112,7 +120,11 @@ px auth status --profile prod
 ```bash
 px project list                                            # list all projects (table view)
 px project list --format raw --no-progress | jq '.[].name' # project names as JSON
+px project get my-project --format raw --no-progress       # single record by exact name
+px project get my-project --format raw --no-progress | jq -r '.id'  # extract project id
 ```
+
+`project get` exits with `ExitCode.FAILURE` (1) on a name miss and writes a `StructuredError` `{error, code: "FAILURE", hint}` to stderr in `--format json|raw`.
 
 ## Traces
 
@@ -127,15 +139,19 @@ px trace get <trace-id> --format raw | jq '.spans[] | select(.status_code != "OK
 px trace get <trace-id> --include-notes --format raw | jq '.notes'
 px trace annotate <trace-id> --name reviewer --label pass
 px trace annotate <trace-id> --name reviewer --score 0.9 --format raw --no-progress
+px trace annotate <trace-id> --name reviewer --label pass --identifier "<coding-annotation-id>"  # tag with a coding annotation identifier
 px trace add-note <trace-id> --text "needs follow-up"
+px trace add-note <trace-id> --text "needs follow-up" --identifier "<coding-annotation-id>"  # tag + upsert on identifier
+px trace-annotations delete --identifier "<coding-annotation-id>" --all -y            # nuke every annotation tied to this coding annotation identifier
 ```
+
+`px <entity>-annotations delete` requires `--all` or both `--start-time` and `--end-time` and emits `{deleted: true, target, filter}` on success.
 
 ### Trace JSON shape
 
 ```
 Trace
   traceId, status ("OK"|"ERROR"), duration (ms), startTime, endTime
-  token_count_prompt, token_count_completion, token_count_total  — cumulative across all LLM spans (int, default 0)
   annotations[] (with --include-annotations, excludes note)
     name, result { score, label, explanation }
   notes[] (with --include-notes)
@@ -181,7 +197,10 @@ px span list output.json --limit 100                       # save to JSON file
 px span list --format raw --no-progress | jq '.[] | select(.status_code == "ERROR")'
 px span annotate <span-id> --name reviewer --label pass
 px span annotate <span-id> --name checker --score 1 --annotator-kind CODE
+px span annotate <span-id> --name reviewer --label pass --identifier "<coding-annotation-id>"  # tag with a coding annotation identifier
 px span add-note <span-id> --text "verified by agent"
+px span add-note <span-id> --text "verified by agent" --identifier "<coding-annotation-id>"  # tag + upsert on identifier
+px span-annotations delete --identifier "<coding-annotation-id>" --all -y           # nuke every annotation tied to this coding annotation identifier
 ```
 
 ### Span JSON shape
@@ -217,7 +236,10 @@ px session get <session-id> --include-annotations --format raw | jq '.session.an
 px session get <session-id> --include-notes --format raw | jq '.session.notes'
 px session annotate <session-id> --name reviewer --label pass
 px session annotate <session-id> --name reviewer --score 0.9 --format raw --no-progress
+px session annotate <session-id> --name reviewer --label pass --identifier "<coding-annotation-id>"  # tag with a coding annotation identifier
 px session add-note <session-id> --text "verified by agent"
+px session add-note <session-id> --text "verified by agent" --identifier "<coding-annotation-id>"  # tag + upsert on identifier
+px session-annotations delete --identifier "<coding-annotation-id>" --all -y              # nuke every annotation tied to this coding annotation identifier
 ```
 
 ### Session JSON shape

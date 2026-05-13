@@ -1,6 +1,8 @@
 import { createClient } from "../client";
+import { ADD_SPAN_NOTE_IDENTIFIER } from "../constants/serverRequirements";
 import type { ClientFn } from "../types/core";
 import { formatApiError } from "../utils/apiErrorUtils";
+import { ensureServerCapability } from "../utils/serverVersionUtils";
 
 /**
  * Parameters for a single span note
@@ -14,6 +16,13 @@ export interface SpanNote {
    * The note text to add to the span
    */
   note: string;
+  /**
+   * Optional caller-supplied identifier. When non-empty, the note is upserted
+   * on `(spanId, name='note', identifier)` — repeated calls with the same
+   * identifier overwrite the existing note. When omitted, the server stamps a
+   * unique `px-span-note:<uuid>` identifier so each call appends a new note.
+   */
+  identifier?: string;
 }
 
 /**
@@ -26,11 +35,10 @@ export interface AddSpanNoteParams extends ClientFn {
 /**
  * Add a note to a span.
  *
- * Notes are append-only: each call creates a new note with an auto-generated
- * UUIDv4 identifier, so multiple notes accumulate on the same span. Structured
- * annotations, by contrast, are keyed by `(name, spanId, identifier)` — to keep
- * multiple structured annotations with the same name on a span, supply distinct
- * identifiers; otherwise re-writing the same name overwrites the existing one.
+ * When `spanNote.identifier` is omitted, each call appends a new note with an
+ * auto-generated identifier. When `identifier` is non-empty, repeated calls
+ * with the same `(spanId, name='note', identifier)` overwrite the existing
+ * note.
  *
  * @param params - The parameters to add a span note
  * @returns The ID of the created note annotation
@@ -50,12 +58,19 @@ export async function addSpanNote({
   spanNote,
 }: AddSpanNoteParams): Promise<{ id: string }> {
   const client = _client ?? createClient();
+  if (spanNote.identifier) {
+    await ensureServerCapability({
+      client,
+      requirement: ADD_SPAN_NOTE_IDENTIFIER,
+    });
+  }
 
   const { data, error } = await client.POST("/v1/span_notes", {
     body: {
       data: {
         span_id: spanNote.spanId.trim(),
         note: spanNote.note,
+        identifier: spanNote.identifier,
       },
     },
   });

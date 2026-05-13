@@ -1,31 +1,27 @@
 import { useCallback, useRef } from "react";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
-import type { paths } from "@phoenix/api/__generated__/v1";
+import type { components, paths } from "@phoenix/api/__generated__/v1";
 import { authApiFetch } from "@phoenix/api/authApiFetch";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 
 const SUMMARIZE_PATH =
-  "/agents/{agent_id}/sessions/{session_id}/summary" as const;
+  "/agents/{agent_id}/sessions/{session_id}/summary" as const satisfies keyof paths;
 
 const ASSISTANT_AGENT_ID = "assistant";
 
-// TODO: move these query parameters into the request body and remove this
-// shared type. The /chat and /summary endpoints currently advertise the same
-// model-selection query params; once they live in the payload, each route can
-// own its own request schema.
-export type ChatSearchParams =
-  paths[typeof SUMMARIZE_PATH]["post"]["parameters"]["query"];
+export type AgentModelSelection =
+  components["schemas"]["_SummarizeRequest"]["model"];
 
 async function fetchSummary({
   sessionId,
-  chatSearchParams,
+  modelSelection,
   messages,
   ingestTraces,
   exportRemoteTraces,
 }: {
   sessionId: string;
-  chatSearchParams: ChatSearchParams;
+  modelSelection: AgentModelSelection;
   messages: AgentUIMessage[];
   ingestTraces: boolean;
   exportRemoteTraces: boolean;
@@ -33,9 +29,8 @@ async function fetchSummary({
   const { data, response } = await authApiFetch.POST(SUMMARIZE_PATH, {
     params: {
       path: { agent_id: ASSISTANT_AGENT_ID, session_id: sessionId },
-      query: chatSearchParams,
     },
-    body: { messages, ingestTraces, exportRemoteTraces },
+    body: { messages, ingestTraces, exportRemoteTraces, model: modelSelection },
   });
   if (!response.ok || !data) {
     throw new Error(`summarize request failed: ${response.status}`);
@@ -52,16 +47,18 @@ async function fetchSummary({
  * structured-output tool schema. Fire-and-forget so the UI never blocks on
  * it.
  */
-export function useGenerateSessionSummary({
-  chatSearchParams,
-}: {
-  chatSearchParams: ChatSearchParams;
-}) {
+export function useGenerateSessionSummary() {
   const store = useAgentStore();
   const requestedSessionsRef = useRef(new Set<string>());
 
   const generateSummary = useCallback(
-    ({ sessionId }: { sessionId: string }) => {
+    ({
+      sessionId,
+      modelSelection,
+    }: {
+      sessionId: string;
+      modelSelection: AgentModelSelection;
+    }) => {
       if (requestedSessionsRef.current.has(sessionId)) return;
 
       const state = store.getState();
@@ -76,7 +73,7 @@ export function useGenerateSessionSummary({
 
       void fetchSummary({
         sessionId,
-        chatSearchParams,
+        modelSelection,
         messages: session.messages,
         ingestTraces: state.observability.storeLocalTraces,
         exportRemoteTraces:
@@ -91,7 +88,7 @@ export function useGenerateSessionSummary({
           requestedSessionsRef.current.delete(sessionId);
         });
     },
-    [chatSearchParams, store]
+    [store]
   );
 
   return { generateSummary };

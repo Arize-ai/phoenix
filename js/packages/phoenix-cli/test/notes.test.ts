@@ -355,6 +355,96 @@ describe("trace add-note", () => {
   });
 });
 
+describe("add-note --identifier round-trip", () => {
+  it("threads --identifier into the span_notes request body", async () => {
+    const fetchMock = makeFetchMock([
+      {
+        // identifier-body capability check (>= 15.5.0)
+        ok: true,
+        text: "15.5.0",
+      },
+      {
+        ok: true,
+        body: { data: { id: "span-note-id" } },
+      },
+    ]);
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await createSpanCommand().parseAsync(
+      [
+        "add-note",
+        "span-123",
+        "--text",
+        "needs review",
+        "--identifier",
+        "px-coding-session:abc12345",
+        "--format",
+        "raw",
+        ...BASE_ARGS,
+      ],
+      { from: "user" }
+    );
+
+    expect(getFetchUrl(fetchMock.mock.calls[1][0])).toContain("/v1/span_notes");
+    await expect(
+      getFetchBody(fetchMock.mock.calls[1][0], fetchMock.mock.calls[1][1])
+    ).resolves.toEqual({
+      data: {
+        span_id: "span-123",
+        note: "needs review",
+        identifier: "px-coding-session:abc12345",
+      },
+    });
+  });
+
+  it("threads --identifier into the trace_notes request body", async () => {
+    const fetchMock = makeFetchMock([
+      {
+        // capability check (route + identifier-body both gated on this version)
+        ok: true,
+        text: "15.5.0",
+      },
+      {
+        ok: true,
+        body: { data: { id: "trace-note-id" } },
+      },
+    ]);
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await createTraceCommand().parseAsync(
+      [
+        "add-note",
+        "trace-123",
+        "--text",
+        "needs review",
+        "--identifier",
+        "px-coding-session:abc12345",
+        "--format",
+        "raw",
+        ...BASE_ARGS,
+      ],
+      { from: "user" }
+    );
+
+    expect(getFetchUrl(fetchMock.mock.calls[1][0])).toContain(
+      "/v1/trace_notes"
+    );
+    await expect(
+      getFetchBody(fetchMock.mock.calls[1][0], fetchMock.mock.calls[1][1])
+    ).resolves.toEqual({
+      data: {
+        trace_id: "trace-123",
+        note: "needs review",
+        identifier: "px-coding-session:abc12345",
+      },
+    });
+  });
+});
+
 describe("span note readback", () => {
   it("includes notes in span list raw output when requested", async () => {
     const fetchMock = makeFetchMock([

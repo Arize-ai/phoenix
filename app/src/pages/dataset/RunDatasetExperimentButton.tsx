@@ -47,6 +47,7 @@ export function RunDatasetExperimentButton(
     <>
       <MenuTrigger>
         <Button
+          data-testid="run-dataset-experiment-button"
           size={size}
           variant={variant}
           leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
@@ -69,13 +70,19 @@ export function RunDatasetExperimentButton(
               }
             }}
           >
-            <MenuItem id={ExperimentAction.RUN_VIA_SDK}>
+            <MenuItem
+              data-testid="run-dataset-experiment-via-sdk-menu-item"
+              id={ExperimentAction.RUN_VIA_SDK}
+            >
               <Flex direction="row" gap="size-100" alignItems="center">
                 <Icon svg={<Icons.Code />} />
                 <Text>Run via SDK</Text>
               </Flex>
             </MenuItem>
-            <MenuItem id={ExperimentAction.RUN_IN_PLAYGROUND}>
+            <MenuItem
+              data-testid="run-dataset-experiment-in-playground-menu-item"
+              id={ExperimentAction.RUN_IN_PLAYGROUND}
+            >
               <Flex direction="row" gap="size-100" alignItems="center">
                 <Icon svg={<Icons.PlayCircleOutline />} />
                 <Text>Run in Playground</Text>

@@ -1867,14 +1867,6 @@ class TestApiAccessViaCookiesOrApiKeys:
 
 class TestVercelChatStreamRouterAuth:
     @pytest.fixture
-    def _params(self) -> dict[str, str]:
-        return {
-            "provider_type": "builtin",
-            "provider": "ANTHROPIC",
-            "model_name": "claude-3-5-sonnet-20241022",
-        }
-
-    @pytest.fixture
     def _body(self) -> dict[str, Any]:
         return {
             "trigger": "submit-message",
@@ -1882,6 +1874,11 @@ class TestVercelChatStreamRouterAuth:
             "messages": [
                 {"id": "msg-1", "role": "user", "parts": [{"type": "text", "text": "hi"}]}
             ],
+            "model": {
+                "providerType": "builtin",
+                "provider": "ANTHROPIC",
+                "modelName": "claude-3-5-sonnet-20241022",
+            },
         }
 
     @pytest.fixture
@@ -1891,11 +1888,10 @@ class TestVercelChatStreamRouterAuth:
     def test_unauthenticated_request_is_rejected(
         self,
         _app: _AppInfo,
-        _params: dict[str, str],
         _body: dict[str, Any],
         _path: str,
     ) -> None:
-        response = _httpx_client(_app).post(_path, params=_params, json=_body)
+        response = _httpx_client(_app).post(_path, json=_body)
         with _EXPECTATION_401:
             response.raise_for_status()
 
@@ -1905,15 +1901,12 @@ class TestVercelChatStreamRouterAuth:
         role_or_user: _RoleOrUser,
         _get_user: _GetUser,
         _app: _AppInfo,
-        _params: dict[str, str],
         _body: dict[str, Any],
         _path: str,
     ) -> None:
         user = _get_user(_app, role_or_user)
         logged_in_user = user.log_in(_app)
-        response = _httpx_client(_app, logged_in_user.tokens).post(
-            _path, params=_params, json=_body
-        )
+        response = _httpx_client(_app, logged_in_user.tokens).post(_path, json=_body)
         assert response.status_code == 200
 
     @pytest.mark.parametrize("role_or_user", list(UserRoleInput) + [_DEFAULT_ADMIN])
@@ -1922,14 +1915,13 @@ class TestVercelChatStreamRouterAuth:
         role_or_user: _RoleOrUser,
         _get_user: _GetUser,
         _app: _AppInfo,
-        _params: dict[str, str],
         _body: dict[str, Any],
         _path: str,
     ) -> None:
         user = _get_user(_app, role_or_user)
         logged_in_user = user.log_in(_app)
         api_key = logged_in_user.create_api_key(_app)
-        response = _httpx_client(_app, api_key).post(_path, params=_params, json=_body)
+        response = _httpx_client(_app, api_key).post(_path, json=_body)
         assert response.status_code == 200
 
 

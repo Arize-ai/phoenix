@@ -45,6 +45,9 @@ export function AgentConsentGate() {
   const acknowledgeConsent = useAgentContext(
     (state) => state.acknowledgeConsent
   );
+  const hasRemoteCollector = useAgentContext((state) =>
+    Boolean(state.agentsConfig.collectorEndpoint)
+  );
 
   return (
     <div css={consentCSS}>
@@ -60,8 +63,9 @@ export function AgentConsentGate() {
       </div>
       <ul css={consentListCSS}>
         <li>
-          Review how your PXI session traces are saved and shared before you
-          continue.
+          {hasRemoteCollector
+            ? "Review how your PXI session traces are saved and shared before you continue."
+            : "Review how your PXI session traces are saved before you continue."}
         </li>
         <li>You can change these settings later from Agent Settings.</li>
       </ul>

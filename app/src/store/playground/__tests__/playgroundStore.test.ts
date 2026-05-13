@@ -2,6 +2,7 @@ import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
+import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
 
 import {
   _resetInstanceId,
@@ -37,7 +38,7 @@ describe("getInitialInstances", () => {
       model: {
         modelName: "test-model",
         provider: "OPENAI" as const,
-        invocationParameters: [],
+        invocationParameters: getDefaultInvocationConfig("OPENAI"),
       },
     };
 
@@ -82,7 +83,7 @@ describe("getInitialInstances", () => {
         OPENAI: {
           modelName: "test-model",
           provider: "OPENAI",
-          invocationParameters: [],
+          invocationParameters: getDefaultInvocationConfig("OPENAI"),
         },
       },
     };
@@ -101,12 +102,12 @@ describe("getInitialInstances", () => {
         OPENAI: {
           modelName: "test-model-openai",
           provider: "OPENAI",
-          invocationParameters: [],
+          invocationParameters: getDefaultInvocationConfig("OPENAI"),
         },
         ANTHROPIC: {
           modelName: "test-model-anthropic",
           provider: "ANTHROPIC",
-          invocationParameters: [],
+          invocationParameters: getDefaultInvocationConfig("ANTHROPIC"),
         },
       },
     };
@@ -125,7 +126,7 @@ describe("getInitialInstances", () => {
         ANTHROPIC: {
           modelName: "test-model-anthropic",
           provider: "ANTHROPIC",
-          invocationParameters: [],
+          invocationParameters: getDefaultInvocationConfig("ANTHROPIC"),
         },
       },
     };
@@ -161,12 +162,12 @@ describe("getInitialInstances", () => {
         OPENAI: {
           modelName: "test-model-openai",
           provider: "OPENAI",
-          invocationParameters: [],
+          invocationParameters: getDefaultInvocationConfig("OPENAI"),
         },
         ANTHROPIC: {
           modelName: "test-model-anthropic",
           provider: "ANTHROPIC",
-          invocationParameters: [],
+          invocationParameters: getDefaultInvocationConfig("ANTHROPIC"),
         },
       },
       defaultModelProvider: "ANTHROPIC",
@@ -189,7 +190,7 @@ describe("getInitialInstances", () => {
         OPENAI: {
           modelName: "test-model-openai",
           provider: "OPENAI",
-          invocationParameters: [],
+          invocationParameters: getDefaultInvocationConfig("OPENAI"),
         },
       },
       defaultModelProvider: "AWS",
@@ -780,6 +781,178 @@ describe("cancelPlaygroundInstances", () => {
 });
 
 describe("updateModelSupportedInvocationParameters", () => {
+  it("stores canonical Anthropic config after individual row edits", () => {
+    const store = createPlaygroundStore({
+      modelConfigByProvider: {},
+      datasetId: null,
+    });
+    const instanceId = store.getState().instances[0].id;
+
+    store.getState().updateProvider({
+      instanceId,
+      provider: "ANTHROPIC",
+      modelConfigByProvider: {},
+    });
+    store.getState().setInvocationParameterField({
+      instanceId,
+      fieldName: "temperature",
+      value: 0.7,
+    });
+    store.getState().setInvocationParameterField({
+      instanceId,
+      fieldName: "topP",
+      value: 0.9,
+    });
+    store.getState().setInvocationParameterField({
+      instanceId,
+      fieldName: "thinkingType",
+      value: "enabled",
+    });
+    store.getState().setInvocationParameterField({
+      instanceId,
+      fieldName: "thinkingBudgetTokens",
+      value: 1024,
+    });
+
+    expect(store.getState().instances[0].model.invocationParameters).toEqual({
+      maxTokens: 2000,
+      thinking: {
+        type: "enabled",
+        budgetTokens: 1024,
+        display: "SUMMARIZED",
+      },
+      effort: "HIGH",
+    });
+  });
+
+  it("normalizes bulk invocation-config updates before storing", () => {
+    const store = createPlaygroundStore({
+      modelConfigByProvider: {},
+      datasetId: null,
+    });
+    const instanceId = store.getState().instances[0].id;
+
+    store.getState().updateProvider({
+      instanceId,
+      provider: "ANTHROPIC",
+      modelConfigByProvider: {},
+    });
+    // Setting thinkingType=adaptive should make normalize strip temperature
+    // (Anthropic rejects temp/top_p while extended thinking is active).
+    store.getState().setInvocationParameterField({
+      instanceId,
+      fieldName: "temperature",
+      value: 0.7,
+    });
+    store.getState().setInvocationParameterField({
+      instanceId,
+      fieldName: "thinkingType",
+      value: "adaptive",
+    });
+
+    expect(store.getState().instances[0].model.invocationParameters).toEqual({
+      maxTokens: 2000,
+      thinking: { type: "adaptive", display: "SUMMARIZED" },
+      effort: "HIGH",
+    });
+  });
+
+  it("switches providers through the new provider's canonical config", () => {
+    const store = createPlaygroundStore({
+      modelConfigByProvider: {},
+      datasetId: null,
+    });
+    const instanceId = store.getState().instances[0].id;
+
+    // Set some OpenAI-shape values; switching to Anthropic drops them because
+    // we no longer carry values across providers (provider configs are
+    // different shapes; new provider starts from defaults).
+    store.getState().setInvocationParameterField({
+      instanceId,
+      fieldName: "frequencyPenalty",
+      value: 0.4,
+    });
+    store.getState().setInvocationParameterField({
+      instanceId,
+      fieldName: "temperature",
+      value: 0.3,
+    });
+    store.getState().updateProvider({
+      instanceId,
+      provider: "ANTHROPIC",
+      modelConfigByProvider: {},
+    });
+
+    // Anthropic defaults from getDefaultInvocationConfig.
+    expect(store.getState().instances[0].model.invocationParameters).toEqual({
+      maxTokens: 2000,
+      thinking: { type: "adaptive", display: "SUMMARIZED" },
+      effort: "HIGH",
+    });
+  });
+
+  it("preserves saved provider config exactly when switching providers", () => {
+    const store = createPlaygroundStore({
+      modelConfigByProvider: {},
+      datasetId: null,
+    });
+    const instanceId = store.getState().instances[0].id;
+
+    store.getState().updateProvider({
+      instanceId,
+      provider: "ANTHROPIC",
+      modelConfigByProvider: {
+        ANTHROPIC: {
+          provider: "ANTHROPIC",
+          modelName: "claude-sonnet-4-5",
+          invocationParameters: { maxTokens: 3000 },
+        },
+      },
+    });
+
+    expect(store.getState().instances[0].model.invocationParameters).toEqual({
+      maxTokens: 3000,
+    });
+  });
+
+  it("syncs connection metadata without changing canonical invocation config", () => {
+    const store = createPlaygroundStore({
+      modelConfigByProvider: {},
+      datasetId: null,
+    });
+    const instanceId = store.getState().instances[0].id;
+
+    store.getState().updateProvider({
+      instanceId,
+      provider: "ANTHROPIC",
+      modelConfigByProvider: {},
+    });
+    store.getState().setInvocationParameterField({
+      instanceId,
+      fieldName: "thinkingType",
+      value: "enabled",
+    });
+    store.getState().setInvocationParameterField({
+      instanceId,
+      fieldName: "thinkingBudgetTokens",
+      value: 1024,
+    });
+    store.getState().syncInvocationParametersWithSpecs({
+      instanceId,
+      modelConfigByProvider: {},
+    });
+
+    expect(store.getState().instances[0].model.invocationParameters).toEqual({
+      maxTokens: 2000,
+      thinking: {
+        type: "enabled",
+        budgetTokens: 1024,
+        display: "SUMMARIZED",
+      },
+      effort: "HIGH",
+    });
+  });
+
   it("should preserve response format when updating supported invocation parameters", () => {
     const initialProps: InitialPlaygroundState = {
       modelConfigByProvider: {},

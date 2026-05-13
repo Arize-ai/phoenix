@@ -188,6 +188,7 @@ class SpanFilter:
             eval(
                 self.compiled,
                 {
+                    "__builtins__": {},
                     **_NAMES,
                     **self._aliased_annotation_attributes,
                     "not_": sqlalchemy.not_,
@@ -246,6 +247,32 @@ class SpanFilter:
         return stmt
 
 
+_VALID_PROJECTION_NODE_TYPES: tuple[type, ...] = (
+    ast.Expression,
+    ast.Attribute,
+    ast.Subscript,
+    ast.Name,
+    ast.Constant,
+    ast.List,
+    ast.Tuple,
+    ast.Load,
+)
+
+
+def _validate_projection_expression(expression: ast.Expression) -> None:
+    """
+    Reject any AST construct that isn't a simple attribute/subscript lookup.
+    Projection keys are paths like ``name``, ``output.value``,
+    ``attributes['key']``, or ``attributes[['a','b']]`` — never function calls,
+    operators, comprehensions, lambdas, or f-strings.
+    """
+    if not isinstance(expression, ast.Expression):
+        raise SyntaxError(f"invalid projection: {ast.unparse(expression)}")
+    for node in ast.walk(expression.body):
+        if not isinstance(node, _VALID_PROJECTION_NODE_TYPES):
+            raise SyntaxError(f"invalid projection: {ast.unparse(node)}")
+
+
 @dataclass(frozen=True)
 class Projector:
     expression: str
@@ -256,6 +283,7 @@ class Projector:
         if not (source := self.expression):
             raise ValueError("missing expression")
         root = ast.parse(source, mode="eval")
+        _validate_projection_expression(root)
         translated = _ProjectionTranslator(source).visit(root)
         ast.fix_missing_locations(translated)
         compiled = compile(translated, filename="", mode="eval")
@@ -265,7 +293,7 @@ class Projector:
     def __call__(self) -> sqlalchemy.SQLColumnExpression[typing.Any]:
         return typing.cast(
             sqlalchemy.SQLColumnExpression[typing.Any],
-            eval(self.compiled, {**_NAMES}),
+            eval(self.compiled, {"__builtins__": {}, **_NAMES}),
         )
 
 
