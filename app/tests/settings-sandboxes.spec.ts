@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { expect, test, type Response } from "@playwright/test";
+import { expect, test, type Locator, type Response } from "@playwright/test";
 
 function isGraphQLMutationResponse(response: Response, operationName: string) {
   if (!response.url().includes("/graphql") || response.status() !== 200) {
@@ -7,6 +7,30 @@ function isGraphQLMutationResponse(response: Response, operationName: string) {
   }
   const postData = response.request().postData();
   return postData?.includes(operationName) ?? false;
+}
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Pick the provider from the `<Select>` in the New/Edit Sandbox dialog. The
+ * trigger is a `<button>` whose accessible name ends with the field label
+ * "Sandbox Provider"; the option content is a provider icon plus its display
+ * name, so match the option on a substring regex.
+ */
+async function selectProvider(dialog: Locator, providerName: string | RegExp) {
+  await dialog.getByRole("button", { name: /\bSandbox Provider\s*$/ }).click();
+  await dialog
+    .page()
+    .getByRole("option", {
+      name:
+        typeof providerName === "string"
+          ? new RegExp(escapeRegex(providerName))
+          : providerName,
+    })
+    .first()
+    .click();
 }
 
 test.describe("Settings Sandboxes", () => {
@@ -23,15 +47,8 @@ test.describe("Settings Sandboxes", () => {
       const dialog = page.getByRole("dialog");
       await expect(dialog).toBeVisible();
 
-      // Select WASM provider. Two elements expose the "Provider" name (the
-      // ComboBox input and the disclosure button), so anchor on role.
-      await dialog
-        .getByRole("combobox", { name: "Provider" })
-        .fill("WebAssembly");
-      await page
-        .getByRole("option", { name: /WebAssembly/i })
-        .first()
-        .click();
+      // Select WASM provider.
+      await selectProvider(dialog, /WebAssembly/i);
 
       // For unsupported capabilities, the dialog renders the section
       // heading plus a "Not supported by the selected backend." copy
@@ -75,8 +92,7 @@ test.describe("Settings Sandboxes", () => {
       await expect(dialog).toBeVisible();
 
       // Select E2B provider
-      await dialog.getByRole("combobox", { name: "Provider" }).fill("E2B");
-      await page.getByRole("option", { name: /E2B/i }).first().click();
+      await selectProvider(dialog, /E2B/i);
 
       // E2B supports env vars — section heading must be visible. Use
       // exact match so the empty-state copy "No environment variables

@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import type { BackendInfo, SandboxConfigFormValues } from "../types";
 import {
   formValuesToConfigPatch,
-  getDependencyPackages,
   getDependencyPreview,
   getDisplaySandboxConfig,
 } from "../utils";
@@ -124,20 +123,6 @@ describe("formValuesToConfigPatch — capability-only output", () => {
   });
 });
 
-describe("getDependencyPackages", () => {
-  it("trims whitespace and drops empty lines", () => {
-    expect(getDependencyPackages("  numpy  \n\n pandas\n")).toEqual([
-      "numpy",
-      "pandas",
-    ]);
-  });
-
-  it("returns empty array for empty input", () => {
-    expect(getDependencyPackages("")).toEqual([]);
-    expect(getDependencyPackages("   \n  ")).toEqual([]);
-  });
-});
-
 describe("getDependencyPreview", () => {
   it("returns null when no language is advertised", () => {
     expect(
@@ -203,14 +188,14 @@ describe("getDependencyPreview", () => {
     ).toBe('image.pip_install("numpy", "pandas==2.0")');
   });
 
-  it("renders unavailable for TypeScript", () => {
+  it("renders npm install for TypeScript", () => {
     expect(
       getDependencyPreview({
-        packagesText: "lodash",
+        packagesText: "lodash\n@scope/pkg@1.2.3",
         dependenciesLanguage: "TYPESCRIPT",
         backendType: "DENO",
       })
-    ).toBe("preview unavailable for typescript");
+    ).toBe("npm install lodash @scope/pkg@1.2.3");
   });
 });
 
