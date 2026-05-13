@@ -22,6 +22,11 @@ import {
   type EditPromptInput,
   type ReadPromptInput,
 } from "@phoenix/agent/tools/playgroundPrompt";
+import {
+  GENERATIVE_UI_TOOL_NAME,
+  JSON_RENDER_DATA_PART_TYPE,
+  renderGeneratedUISpecSchema,
+} from "@phoenix/components/agent/generativeUICatalog";
 import type { TimeRangeKey } from "@phoenix/components/datetime/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
@@ -32,6 +37,7 @@ import {
 } from "./capabilities";
 
 type AddToolOutput = Chat<UIMessage>["addToolOutput"];
+type AppendMessagePart = (part: UIMessage["parts"][number]) => void;
 
 /** Minimal tool-call shape produced by the AI SDK runtime. */
 export type AgentToolCall = {
@@ -46,6 +52,7 @@ type AgentToolHandlerContext<TInput> = {
   input: TInput;
   sessionId: string | null;
   addToolOutput: AddToolOutput;
+  appendMessagePart: AppendMessagePart;
   agentStore: AgentStore;
   capabilities: AgentCapabilities;
 };
@@ -152,6 +159,11 @@ export type SetTimeRangeInput = {
   timeRangeKey: TimeRangeKey;
   startTime?: string;
   endTime?: string;
+};
+
+export type RenderGeneratedUIInput = {
+  spec: Record<string, unknown>;
+  state: Record<string, unknown>;
 };
 
 /**
@@ -288,6 +300,49 @@ const setTimeRangeAgentTool = createRegisteredAgentTool<SetTimeRangeInput>({
   },
 });
 
+function parseRenderGeneratedUIInput(
+  input: unknown
+): RenderGeneratedUIInput | null {
+  if (typeof input !== "object" || input === null) return null;
+  const candidate = input as { spec?: unknown; state?: unknown };
+  const specResult = renderGeneratedUISpecSchema.safeParse(candidate.spec);
+  if (!specResult.success) {
+    return null;
+  }
+  if (candidate.state !== undefined && !isRecord(candidate.state)) {
+    return null;
+  }
+  return {
+    spec: specResult.data,
+    state: candidate.state ?? {},
+  };
+}
+
+const renderGeneratedUIAgentTool =
+  createRegisteredAgentTool<RenderGeneratedUIInput>({
+    name: GENERATIVE_UI_TOOL_NAME,
+    parseInput: parseRenderGeneratedUIInput,
+    invalidInputErrorText: "I couldn't render that generated UI.",
+    execute: async ({ toolCall, input, addToolOutput, appendMessagePart }) => {
+      appendMessagePart({
+        type: JSON_RENDER_DATA_PART_TYPE,
+        id: toolCall.toolCallId,
+        data: {
+          type: "flat",
+          spec: input.spec,
+          state: input.state,
+        },
+      } as UIMessage["parts"][number]);
+
+      await addToolOutput({
+        state: "output-available",
+        tool: GENERATIVE_UI_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        output: "Generated UI rendered in chat.",
+      });
+    },
+  });
+
 const readPromptAgentTool = createRegisteredAgentTool<ReadPromptInput>({
   name: READ_PROMPT_TOOL_NAME,
   parseInput: parseReadPromptInput,
@@ -421,6 +476,7 @@ const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   bashAgentTool as RegisteredAgentTool<unknown>,
   askUserAgentTool as RegisteredAgentTool<unknown>,
   setTimeRangeAgentTool as RegisteredAgentTool<unknown>,
+  renderGeneratedUIAgentTool as RegisteredAgentTool<unknown>,
   setSpansFilterAgentTool as RegisteredAgentTool<unknown>,
   readPromptAgentTool as RegisteredAgentTool<unknown>,
   clonePromptInstanceAgentTool as RegisteredAgentTool<unknown>,
@@ -472,11 +528,13 @@ export async function handleRegisteredAgentToolCall({
   toolCall,
   sessionId,
   addToolOutput,
+  appendMessagePart,
   agentStore,
 }: {
   toolCall: AgentToolCall;
   sessionId: string | null;
   addToolOutput: AddToolOutput;
+  appendMessagePart?: AppendMessagePart;
   agentStore: AgentStore;
 }) {
   const registeredTool = agentToolRegistryByName.get(toolCall.toolName);
@@ -524,7 +582,12 @@ export async function handleRegisteredAgentToolCall({
     input,
     sessionId,
     addToolOutput,
+    appendMessagePart: appendMessagePart ?? (() => {}),
     agentStore,
     capabilities,
   });
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

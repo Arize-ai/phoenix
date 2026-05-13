@@ -118,6 +118,13 @@ export function useAgentChat({
                   toolCall,
                   sessionId,
                   addToolOutput: chat.addToolOutput,
+                  appendMessagePart: (part) => {
+                    chat.messages = appendPartToToolMessage({
+                      messages: chat.messages,
+                      toolCallId: toolCall.toolCallId,
+                      part,
+                    });
+                  },
                   agentStore: store,
                 });
               },
@@ -302,4 +309,33 @@ function removeInterruptedToolInputParts(
 
 function isRequestActive(status: ChatStatus): boolean {
   return status === "submitted" || status === "streaming";
+}
+
+function appendPartToToolMessage({
+  messages,
+  toolCallId,
+  part,
+}: {
+  messages: AgentUIMessage[];
+  toolCallId: string;
+  part: AgentUIMessage["parts"][number];
+}): AgentUIMessage[] {
+  const messageIndex = messages.findIndex((message) =>
+    message.parts.some(
+      (messagePart) =>
+        isToolUIPart(messagePart) && messagePart.toolCallId === toolCallId
+    )
+  );
+  if (messageIndex === -1) {
+    return messages;
+  }
+  return messages.map((message, index) => {
+    if (index !== messageIndex) {
+      return message;
+    }
+    return {
+      ...message,
+      parts: [...message.parts, part],
+    };
+  });
 }

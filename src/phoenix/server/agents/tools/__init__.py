@@ -12,6 +12,7 @@ from phoenix.server.agents.tools.external_tools import (
     CLONE_PROMPT_INSTANCE_TOOL_DEFINITION,
     EDIT_PROMPT_TOOL_DEFINITION,
     READ_PROMPT_TOOL_DEFINITION,
+    RENDER_GENERATED_UI_TOOL_DEFINITION,
     SET_SPANS_FILTER_TOOL_DEFINITION,
     SET_TIME_RANGE_TOOL_DEFINITION,
 )
@@ -27,6 +28,7 @@ def build_toolset(
         BASH_TOOL_DEFINITION,
         ASK_USER_TOOL_DEFINITION,
         SET_TIME_RANGE_TOOL_DEFINITION,
+        RENDER_GENERATED_UI_TOOL_DEFINITION,
     ]
     project = deps.contexts.project
     playground = deps.contexts.playground
