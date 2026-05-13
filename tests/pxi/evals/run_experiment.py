@@ -269,14 +269,22 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Exit non-zero if any evaluator fails (use in CI gating)",
     )
+    # The dataset YAML's ``evaluators:`` field is the source of truth for
+    # what gets scored in normal use. This flag is a transient per-run
+    # override -- useful for iterating on a single evaluator (halves eval
+    # cost while debugging), trying a new evaluator across existing
+    # datasets without committing a YAML change, or skipping a slow or
+    # noisy evaluator during a quick check. If you want a different
+    # combination permanently, edit the dataset YAML instead.
     parser.add_argument(
         "--evaluator",
         action="append",
         dest="evaluators",
         metavar="NAME",
         help=(
-            "Override the evaluators declared in the dataset YAML. Repeatable. "
-            f"Valid names: {', '.join(sorted(EVALUATORS_BY_NAME))}."
+            "Override the evaluators declared in the dataset YAML for this "
+            "run only. Repeatable. Use for ad-hoc iteration; edit the YAML "
+            f"for permanent changes. Valid names: {', '.join(sorted(EVALUATORS_BY_NAME))}."
         ),
     )
     return parser
