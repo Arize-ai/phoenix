@@ -44,7 +44,7 @@ test.describe("Settings Sandboxes", () => {
       await page.waitForURL("**/settings/sandboxes");
 
       await page.getByRole("button", { name: "New Sandbox" }).click();
-      const dialog = page.getByRole("dialog");
+      const dialog = page.getByTestId("dialog");
       await expect(dialog).toBeVisible();
 
       // Select WASM provider.
@@ -88,7 +88,7 @@ test.describe("Settings Sandboxes", () => {
       await page.waitForURL("**/settings/sandboxes");
 
       await page.getByRole("button", { name: "New Sandbox" }).click();
-      const dialog = page.getByRole("dialog");
+      const dialog = page.getByTestId("dialog");
       await expect(dialog).toBeVisible();
 
       // Select E2B provider
@@ -150,7 +150,7 @@ test.describe("Settings Sandboxes", () => {
       await configRow
         .getByRole("button", { name: new RegExp(`Edit ${configName}`) })
         .click();
-      const dialog = page.getByRole("dialog");
+      const dialog = page.getByTestId("dialog");
       await expect(dialog).toBeVisible();
 
       // Env vars editor should appear (E2B supports env vars). Use exact
