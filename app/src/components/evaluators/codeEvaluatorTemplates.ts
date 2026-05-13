@@ -1,3 +1,4 @@
+import { DEFAULT_OPTIMIZATION_DIRECTION } from "@phoenix/components/evaluators/OptimizationDirectionField";
 import type {
   ClassificationEvaluatorAnnotationConfig,
   CodeEvaluatorLanguage,
@@ -37,7 +38,7 @@ export type CodeEvaluatorTemplate = {
 const getCategoricalConfigFromChoices = (
   choices: Record<string, number>
 ): TemplateOutputConfig => ({
-  optimizationDirection: "NONE",
+  optimizationDirection: DEFAULT_OPTIMIZATION_DIRECTION,
   values: Object.entries(choices).map(([label, score]) => ({ label, score })),
 });
 
