@@ -314,24 +314,33 @@ class TestProjectorValidationGap:
         with pytest.raises(SyntaxError):
             Projector(dangerous_expression)
 
-    def test_projector_eval_namespace_has_no_builtins_access(self) -> None:
-        # ``Projector.__call__`` evaluates the compiled AST with
-        # ``eval(self.compiled, {**_NAMES})``. Because ``__builtins__`` is not
-        # explicitly set to ``{}``, Python injects the full builtins dict
-        # into the namespace, exposing ``__import__``, ``open``, ``exec``,
-        # ``eval``, etc. to anything that survives the AST translator.
-        projector = Projector("name")  # any valid expression to trigger compile
+    def test_projector_eval_namespace_has_no_builtins_access(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # ``Projector.__call__`` evaluates the compiled AST inside an ``eval``
+        # call. The eval namespace must pin ``__builtins__`` to ``{}``;
+        # otherwise CPython auto-populates the full builtins dict, exposing
+        # ``__import__``, ``open``, ``exec``, ``eval``, etc. to anything that
+        # survives the AST translator.
+        projector = Projector("name")
 
-        # Recreate the same namespace the projector uses at eval time and
-        # confirm that builtins leak in.
-        namespace = {**phoenix.trace.dsl.filter._NAMES}
-        eval(projector.compiled, namespace)
+        captured_globals: list[dict[str, Any]] = []
+        real_eval = eval
 
-        # This assertion FAILS on current code: ``__builtins__`` is present
-        # and exposes the entire CPython builtins dict.
-        builtins_obj: Any = namespace.get("__builtins__")
-        assert builtins_obj is None or builtins_obj == {}, (
+        def spy_eval(code: Any, globals_dict: dict[str, Any], locals_dict: Any = None) -> Any:
+            captured_globals.append(globals_dict)
+            return real_eval(code, globals_dict, locals_dict)
+
+        # Inject the spy into the module's namespace; Python looks up bare
+        # ``eval`` in module globals before falling back to builtins, so this
+        # intercepts the call inside ``Projector.__call__``.
+        monkeypatch.setattr("phoenix.trace.dsl.filter.eval", spy_eval, raising=False)
+        projector()
+
+        assert len(captured_globals) == 1
+        builtins_obj = captured_globals[0].get("__builtins__")
+        assert builtins_obj == {}, (
             "Projector eval namespace must pin __builtins__ to {} to prevent "
             "code-injection vectors; instead it exposes "
-            f"{len(builtins_obj)} builtins."
+            f"{len(builtins_obj) if builtins_obj else 0} builtins."
         )
