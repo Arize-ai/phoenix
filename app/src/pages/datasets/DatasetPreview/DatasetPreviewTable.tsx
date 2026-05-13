@@ -111,7 +111,8 @@ export type DatasetPreviewTableProps = {
  * it has no prototype, writing keys like `__proto__` or `constructor` just adds
  * plain own properties instead of polluting `Object.prototype`.
  */
-const emptyBucket = (): Record<string, unknown> => Object.create(null);
+const createPollutionSafeRecord = (): Record<string, unknown> =>
+  Object.create(null);
 
 /**
  * Preview table showing how data will look in the final dataset.
@@ -152,7 +153,7 @@ export function DatasetPreviewTable({
       for (let i = 0; i < parts.length - 1; i++) {
         const part = parts[i];
         if (typeof current[part] !== "object" || current[part] === null) {
-          current[part] = emptyBucket();
+          current[part] = createPollutionSafeRecord();
         }
         current = current[part] as Record<string, unknown>;
       }
@@ -209,9 +210,9 @@ export function DatasetPreviewTable({
     };
 
     return rows.map((row): DatasetPreviewRow => {
-      const input = emptyBucket();
-      const output = emptyBucket();
-      const metadata = emptyBucket();
+      const input = createPollutionSafeRecord();
+      const output = createPollutionSafeRecord();
+      const metadata = createPollutionSafeRecord();
       let splits: string[] = [];
       let exampleId: string | null = null;
 
