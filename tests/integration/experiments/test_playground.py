@@ -634,6 +634,34 @@ class TestChatCompletionOverDataset:
                 {"aws": {}},
                 id="bedrock",
             ),
+            # VERTEX_AI is a builtin provider that resolves credentials via
+            # Application Default Credentials inside the Phoenix server
+            # subprocess; the existing custom-provider/mock-server harness used
+            # by the other cases here cannot intercept those SDK calls. The
+            # parametrize entry is preserved so the case is exercised once a
+            # cassette is recorded against a live GCP project. To enable:
+            #   1. Set GOOGLE_CLOUD_PROJECT and run
+            #      `gcloud auth application-default login`.
+            #   2. Drop a cassette (or live-creds harness) under
+            #      tests/integration/experiments/cassettes/test_playground/
+            #      following the README in that directory.
+            #   3. Remove the skip marker below.
+            pytest.param(
+                "google_genai",
+                "gemini-2.5-flash",
+                "VERTEX_AI",
+                {"google": {}},
+                id="vertex_gemini",
+                marks=pytest.mark.skip(
+                    reason=(
+                        "Vertex AI builtin provider requires live GCP ADC inside "
+                        "the Phoenix server subprocess; the integration harness "
+                        "uses a mock HTTP server which does not implement the "
+                        "Vertex AI surface. Record a cassette before enabling. "
+                        "See tests/integration/experiments/cassettes/test_playground/README.md"
+                    )
+                ),
+            ),
         ],
     )
     async def test_provider_without_evaluators(
