@@ -114,6 +114,21 @@ export type DatasetPreviewTableProps = {
 const createPollutionSafeRecord = (): Record<string, unknown> =>
   Object.create(null);
 
+const isPollutionSafeRecord = (
+  value: unknown
+): value is Record<string, unknown> =>
+  typeof value === "object" &&
+  value !== null &&
+  Object.getPrototypeOf(value) === null;
+
+const toPollutionSafeRecord = (value: unknown): Record<string, unknown> => {
+  const record = createPollutionSafeRecord();
+  if (typeof value === "object" && value !== null) {
+    Object.assign(record, value);
+  }
+  return record;
+};
+
 /**
  * Preview table showing how data will look in the final dataset.
  * Each row shows input/output/metadata as JSON objects.
@@ -152,8 +167,8 @@ export function DatasetPreviewTable({
       let current = obj;
       for (let i = 0; i < parts.length - 1; i++) {
         const part = parts[i];
-        if (typeof current[part] !== "object" || current[part] === null) {
-          current[part] = createPollutionSafeRecord();
+        if (!isPollutionSafeRecord(current[part])) {
+          current[part] = toPollutionSafeRecord(current[part]);
         }
         current = current[part] as Record<string, unknown>;
       }
