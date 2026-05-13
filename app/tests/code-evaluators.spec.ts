@@ -187,7 +187,7 @@ async function ensureSandboxConfig(
   const providerName = await getEnabledProviderName(page, language);
 
   await page.getByRole("button", { name: "New Sandbox" }).click();
-  const dialog = page.getByRole("dialog");
+  const dialog = page.getByTestId("dialog");
   await expect(
     dialog.getByRole("heading", { name: "New Sandbox Config" })
   ).toBeVisible();
@@ -274,7 +274,7 @@ async function createCustomCodeEvaluator({
     .getByRole("menuitem", { name: "Create new code evaluator" })
     .click();
 
-  const dialog = page.getByRole("dialog");
+  const dialog = page.getByTestId("dialog");
   await expect(
     dialog.getByRole("heading", { name: "Create Code Evaluator" })
   ).toBeVisible();
@@ -322,7 +322,7 @@ async function createE2BSandboxWithLiteralEnvVar(
   await page.waitForURL("**/settings/sandboxes");
 
   await page.getByRole("button", { name: "New Sandbox" }).click();
-  const dialog = page.getByRole("dialog");
+  const dialog = page.getByTestId("dialog");
   await expect(dialog).toBeVisible();
 
   await selectFromSelect(page, dialog, "Sandbox Provider", "E2B");
@@ -453,7 +453,7 @@ test.describe.serial("Code Evaluators", () => {
     await gotoDatasetEvaluators(page, datasetName);
     await openEvaluatorEditor(page, pythonEvaluatorName);
 
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByTestId("dialog");
     const nameInput = dialog.getByRole("textbox", {
       name: /^Name(\s*\*)?$/,
     });
@@ -469,10 +469,12 @@ test.describe.serial("Code Evaluators", () => {
 
     await openEvaluatorEditor(page, updatedPythonEvaluatorName);
     await expect(
-      page.getByRole("dialog").getByRole("textbox", { name: /^Name(\s*\*)?$/ })
+      page
+        .getByTestId("dialog")
+        .getByRole("textbox", { name: /^Name(\s*\*)?$/ })
     ).toHaveValue(updatedPythonEvaluatorName);
     await page
-      .getByRole("dialog")
+      .getByTestId("dialog")
       .getByRole("button", { name: "Cancel" })
       .click();
     await expect(page.getByTestId("dialog")).not.toBeVisible();
@@ -491,7 +493,7 @@ test.describe.serial("Code Evaluators", () => {
     await gotoDatasetEvaluators(page, datasetName);
     await openEvaluatorEditor(page, updatedPythonEvaluatorName);
 
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByTestId("dialog");
 
     await expect(selectTrigger(dialog, "Sandbox")).toContainText(
       pythonSandboxName
@@ -552,9 +554,9 @@ test.describe.serial("Code Evaluators", () => {
     ).toBeVisible();
 
     await openEvaluatorEditor(page, updatedPythonEvaluatorName);
-    await expectSandboxCleared(page.getByRole("dialog"));
+    await expectSandboxCleared(page.getByTestId("dialog"));
     await page
-      .getByRole("dialog")
+      .getByTestId("dialog")
       .getByRole("button", { name: "Cancel" })
       .click();
     await expect(page.getByTestId("dialog")).not.toBeVisible();
@@ -587,7 +589,7 @@ test.describe.serial("Code Evaluators", () => {
 
     // Reopen editor and verify description persisted
     await openEvaluatorEditor(page, evaluatorWithDescriptionName);
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByTestId("dialog");
     const descriptionInput = dialog.getByRole("textbox", {
       name: /Description/i,
     });
@@ -601,10 +603,10 @@ test.describe.serial("Code Evaluators", () => {
     // Verify updated description persisted
     await openEvaluatorEditor(page, evaluatorWithDescriptionName);
     await expect(
-      page.getByRole("dialog").getByRole("textbox", { name: /Description/i })
+      page.getByTestId("dialog").getByRole("textbox", { name: /Description/i })
     ).toHaveValue(updatedDescription);
     await page
-      .getByRole("dialog")
+      .getByTestId("dialog")
       .getByRole("button", { name: "Cancel" })
       .click();
     await expect(page.getByTestId("dialog")).not.toBeVisible();
@@ -620,7 +622,7 @@ test.describe.serial("Code Evaluators", () => {
       .getByRole("menuitem", { name: "Create new code evaluator" })
       .click();
 
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByTestId("dialog");
     await expect(
       dialog.getByRole("heading", { name: "Create Code Evaluator" })
     ).toBeVisible();
@@ -655,7 +657,7 @@ test.describe.serial("Code Evaluators", () => {
     await gotoDatasetEvaluators(page, datasetName);
     await openEvaluatorEditor(page, evaluatorWithDescriptionName);
 
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByTestId("dialog");
 
     // Ensure a sandbox is set so the Test button has a runtime to call.
     const sandboxTrigger = selectTrigger(dialog, "Sandbox");
@@ -702,7 +704,7 @@ test.describe.serial("Code Evaluators", () => {
       .getByRole("menuitem", { name: "Create new code evaluator" })
       .click();
 
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByTestId("dialog");
     await expect(
       dialog.getByRole("heading", { name: "Create Code Evaluator" })
     ).toBeVisible();
@@ -750,7 +752,7 @@ test.describe.serial("Code Evaluators", () => {
 
     // Reopen and verify categorical config persisted.
     await openEvaluatorEditor(page, categoricalEvaluatorName);
-    const reopenedDialog = page.getByRole("dialog");
+    const reopenedDialog = page.getByTestId("dialog");
     await expect(
       reopenedDialog.getByText("Choices", { exact: true })
     ).toBeVisible();
@@ -779,7 +781,7 @@ test.describe.serial("Code Evaluators", () => {
       .getByRole("menuitem", { name: "Create new code evaluator" })
       .click();
 
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByTestId("dialog");
     await expect(
       dialog.getByRole("heading", { name: "Create Code Evaluator" })
     ).toBeVisible();
@@ -824,7 +826,7 @@ test.describe.serial("Code Evaluators", () => {
       .getByRole("menuitem", { name: "Create new code evaluator" })
       .click();
 
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByTestId("dialog");
     await expect(
       dialog.getByRole("heading", { name: "Create Code Evaluator" })
     ).toBeVisible();
@@ -856,7 +858,7 @@ test.describe.serial("Code Evaluators", () => {
     await gotoDatasetEvaluators(page, datasetName);
     await openEvaluatorEditor(page, categoricalEvaluatorName);
 
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByTestId("dialog");
 
     // Clear all choice labels.
     const choiceInputs = dialog.locator('input[placeholder^="Choice"]');
@@ -883,7 +885,7 @@ test.describe.serial("Code Evaluators", () => {
     await gotoDatasetEvaluators(page, datasetName);
     await openEvaluatorEditor(page, categoricalEvaluatorName);
 
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByTestId("dialog");
 
     // Overwrite the editor with custom code.
     const editor = dialog.locator(".cm-content").first();
@@ -913,7 +915,7 @@ test.describe.serial("Code Evaluators", () => {
     await gotoDatasetEvaluators(page, datasetName);
     await openEvaluatorEditor(page, categoricalEvaluatorName);
 
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByTestId("dialog");
 
     // Pin the editor source to a known generated default by Resetting against
     // the current categorical config (saved labels are "Good"/"Bad"), so the
@@ -954,7 +956,7 @@ test.describe.serial("Code Evaluators", () => {
       .getByRole("menuitem", { name: "Create new code evaluator" })
       .click();
 
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByTestId("dialog");
     await expect(
       dialog.getByRole("heading", { name: "Create Code Evaluator" })
     ).toBeVisible();
@@ -995,7 +997,7 @@ test.describe.serial("Code Evaluators", () => {
     await page
       .getByRole("menuitem", { name: "Create new code evaluator" })
       .click();
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByTestId("dialog");
     await expect(
       dialog.getByRole("heading", { name: "Create Code Evaluator" })
     ).toBeVisible();
@@ -1076,7 +1078,7 @@ test.describe
     await page.waitForURL("**/settings/sandboxes");
 
     await page.getByRole("button", { name: "New Sandbox" }).click();
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByTestId("dialog");
     await expect(dialog).toBeVisible();
 
     await selectFromSelect(page, dialog, "Sandbox Provider", "E2B");
