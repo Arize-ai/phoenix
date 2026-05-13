@@ -20,6 +20,7 @@ if __package__ in {None, ""}:
 from phoenix.client import AsyncClient
 from phoenix.client.resources.experiments.types import ExperimentEvaluationRun, RanExperiment
 from phoenix.client.utils.config import get_base_url, get_env_phoenix_api_key
+
 from tests.pxi.evals.agent_task import (
     DEFAULT_ASSISTANT_MODEL,
     DEFAULT_ASSISTANT_PROVIDER,
@@ -28,7 +29,10 @@ from tests.pxi.evals.agent_task import (
     build_shared_docs_mcp_toolset,
     make_task,
 )
-from tests.pxi.evals.datasets import EvalDataset, load_dataset  # type: ignore[attr-defined]
+from tests.pxi.evals.datasets import (  # type: ignore[attr-defined, unused-ignore]
+    EvalDataset,
+    load_dataset,
+)
 from tests.pxi.evals.evaluators import EVALUATORS_BY_NAME
 
 DEFAULT_BASE_URL = "http://localhost:6006"

@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.pxi.evals.datasets import (  # type: ignore[attr-defined]
+from tests.pxi.evals.datasets import (  # type: ignore[attr-defined, unused-ignore]
     DatasetValidationError,
     EvalDataset,
     dataset_path,
