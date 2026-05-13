@@ -9,13 +9,12 @@ import {
   DEFAULT_MODEL_NAME,
   DEFAULT_MODEL_PROVIDER,
 } from "@phoenix/constants/generativeConstants";
-import { getActiveSpecsForPlayground } from "@phoenix/pages/playground/invocationParameterSpecs";
-import {
-  areInvocationParamsEqual,
-  constrainInvocationParameterInputsToSpecs,
-  mergeInvocationParametersWithSpecDefaults,
-} from "@phoenix/pages/playground/invocationParameterUtils";
 import type { PartialOutputToolCall } from "@phoenix/pages/playground/PlaygroundToolCall";
+import {
+  getDefaultInvocationConfig,
+  parseInvocationConfig,
+  writeInvocationConfigField,
+} from "@phoenix/pages/playground/providerAdapters";
 
 import { convertMessageToolCallsToProvider } from "./playgroundStoreUtils";
 import {
@@ -128,7 +127,7 @@ export const DEFAULT_INSTANCE_PARAMS = () =>
     model: {
       provider: DEFAULT_MODEL_PROVIDER,
       modelName: DEFAULT_MODEL_NAME,
-      invocationParameters: [],
+      invocationParameters: getDefaultInvocationConfig(DEFAULT_MODEL_PROVIDER),
     },
     tools: [],
     // Default to auto tool choice as you are probably testing the LLM for it's ability to pick
@@ -211,6 +210,7 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
     ...instance.model,
     provider: preferredProvider,
     modelName: preferredModelName,
+    invocationParameters: getDefaultInvocationConfig(preferredProvider),
   };
 
   const savedModelConfigs = Object.values(initialProps.modelConfigByProvider);
@@ -238,6 +238,10 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
     instance.model = {
       ...instance.model,
       ...savedConfigToUse,
+      invocationParameters: parseInvocationConfig(
+        savedConfigToUse.provider,
+        savedConfigToUse.invocationParameters
+      ),
     };
   }
   return {
@@ -413,18 +417,6 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             if (instance.id === instanceId) {
               const { baseUrl, endpoint, region } =
                 modelConfigByProvider[instance.model.provider] ?? {};
-              const specs = getActiveSpecsForPlayground(instance.model);
-              const filteredInvocationParameters =
-                constrainInvocationParameterInputsToSpecs(
-                  instance.model.invocationParameters,
-                  specs
-                );
-              const finalInvocationParameters =
-                mergeInvocationParametersWithSpecDefaults(
-                  filteredInvocationParameters,
-                  specs
-                );
-
               return {
                 ...instance,
                 model: {
@@ -432,7 +424,6 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                   baseUrl: instance.model.baseUrl ?? baseUrl,
                   endpoint: instance.model.endpoint ?? endpoint,
                   region: instance.model.region ?? region,
-                  invocationParameters: finalInvocationParameters,
                 },
               };
             }
@@ -477,13 +468,27 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
       };
 
       const patch: Partial<PlaygroundNormalizedInstance> = {
-        // If we have a saved config for the provider, use it as the default otherwise reset the
-        // model config entirely to defaults / unset which will be controlled by invocation params coming from the server
+        // A saved provider config wins on provider switch. Without one, start
+        // from provider defaults so the new provider owns its own invocation
+        // parameter semantics.
         model: (() => {
-          // Start with base instance model
+          // Keep unrelated model fields unless the provider switch below
+          // deliberately resets them.
           const baseModel = { ...instance.model };
+          // When switching providers without a saved config, start from the new
+          // provider's defaults. Cross-provider scalar carry-over would require
+          // explicit semantic mapping (e.g. whether a source provider's
+          // temperature should apply to the new provider), so do not infer it
+          // from shared field names.
+          const invocationParameters = savedProviderConfig?.invocationParameters
+            ? parseInvocationConfig(
+                provider,
+                savedProviderConfig.invocationParameters
+              )
+            : getDefaultInvocationConfig(provider);
 
-          // Reset contamination-prone fields
+          // Routing fields are provider-specific and must be rebuilt for the
+          // selected provider.
           const resetFields = {
             modelName: null,
             baseUrl: getDefaultBaseUrl(provider),
@@ -494,15 +499,13 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             openaiApiType: null,
           };
 
-          // Build final model config
+          // Merge saved provider fields last, then force the selected provider
+          // and normalized invocation parameters.
           const finalModel = {
             ...baseModel,
             ...resetFields,
             ...(savedProviderConfig || {}),
-            // Only override invocation parameters if we have saved config
-            ...(savedProviderConfig && {
-              invocationParameters: savedProviderConfig.invocationParameters,
-            }),
+            invocationParameters,
             // responseFormat is canonical (provider-agnostic) — carry through if present
             ...(instance.model.responseFormat != null
               ? { responseFormat: instance.model.responseFormat }
@@ -593,6 +596,10 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                 model: {
                   ...instance.model,
                   ...patch,
+                  invocationParameters: parseInvocationConfig(
+                    instance.model.provider,
+                    instance.model.invocationParameters
+                  ),
                 },
               };
             }
@@ -997,7 +1004,10 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
             if (instance.id === instanceId) {
               return {
                 ...instance,
-                model: { ...instance.model, invocationParameters },
+                model: {
+                  ...instance.model,
+                  invocationParameters,
+                },
               };
             }
             return instance;
@@ -1007,83 +1017,17 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         { type: "updateInstanceModelInvocationParameters" }
       );
     },
-    upsertInvocationParameterInput: ({
-      instanceId,
-      invocationParameterInput,
-    }) => {
+    setInvocationParameterField: ({ instanceId, fieldName, value }) => {
       const instance = get().instances.find((i) => i.id === instanceId);
       if (!instance) {
         return;
       }
-      const currentInvocationParameterInput =
-        instance.model.invocationParameters.find((p) =>
-          areInvocationParamsEqual(p, invocationParameterInput)
-        );
-
-      if (currentInvocationParameterInput) {
-        set(
-          {
-            dirtyInstances: {
-              ...get().dirtyInstances,
-              [instanceId]: true,
-            },
-            instances: get().instances.map((instance) => {
-              if (instance.id === instanceId) {
-                return {
-                  ...instance,
-                  model: {
-                    ...instance.model,
-                    invocationParameters:
-                      instance.model.invocationParameters.map((p) =>
-                        areInvocationParamsEqual(p, invocationParameterInput)
-                          ? invocationParameterInput
-                          : p
-                      ),
-                  },
-                };
-              }
-              return instance;
-            }),
-          },
-          false,
-          { type: "upsertInvocationParameterInput/update" }
-        );
-      } else {
-        set(
-          {
-            dirtyInstances: {
-              ...get().dirtyInstances,
-              [instanceId]: true,
-            },
-            instances: get().instances.map((instance) => {
-              if (instance.id === instanceId) {
-                return {
-                  ...instance,
-                  model: {
-                    ...instance.model,
-                    invocationParameters: [
-                      ...instance.model.invocationParameters,
-                      invocationParameterInput,
-                    ],
-                  },
-                };
-              }
-              return instance;
-            }),
-          },
-          false,
-          { type: "upsertInvocationParameterInput/insert" }
-        );
-      }
-    },
-    deleteInvocationParameterInput: ({
-      instanceId,
-      invocationParameterInputInvocationName,
-    }) => {
-      const instance = get().instances.find((i) => i.id === instanceId);
-      if (!instance) {
-        return;
-      }
+      const canonical = writeInvocationConfigField(
+        instance.model.provider,
+        instance.model.invocationParameters,
+        fieldName,
+        value
+      );
       set(
         {
           dirtyInstances: {
@@ -1096,12 +1040,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                 ...instance,
                 model: {
                   ...instance.model,
-                  invocationParameters:
-                    instance.model.invocationParameters.filter(
-                      (p) =>
-                        p.invocationName !==
-                        invocationParameterInputInvocationName
-                    ),
+                  invocationParameters: canonical,
                 },
               };
             }
@@ -1109,7 +1048,12 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           }),
         },
         false,
-        { type: "deleteInvocationParameterInput" }
+        {
+          type:
+            value === undefined
+              ? "setInvocationParameterField/clear"
+              : "setInvocationParameterField/set",
+        }
       );
     },
     setResponseFormat: ({ instanceId, responseFormat }) => {

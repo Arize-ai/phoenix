@@ -3,11 +3,7 @@ import { fetchQuery, graphql, readInlineData } from "react-relay";
 import { DEFAULT_MODEL_NAME } from "@phoenix/constants/generativeConstants";
 import type { fetchPlaygroundPrompt_promptVersionToInstance_promptVersion$key } from "@phoenix/pages/playground/__generated__/fetchPlaygroundPrompt_promptVersionToInstance_promptVersion.graphql";
 import type { ChatPromptVersionInput } from "@phoenix/pages/playground/__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
-import {
-  applyProviderInvocationParameterConstraints,
-  buildPromptVersionInput,
-  normalizeInvocationParameters,
-} from "@phoenix/pages/playground/playgroundUtils";
+import { buildPromptVersionInput } from "@phoenix/pages/playground/playgroundUtils";
 import { buildPlaygroundInstanceFieldsFromPromptConfig } from "@phoenix/pages/playground/promptConfigToPlaygroundInstance";
 import RelayEnvironment from "@phoenix/RelayEnvironment";
 import type { PlaygroundInstance } from "@phoenix/store/playground";
@@ -237,20 +233,18 @@ export const instanceToPromptVersion = ({
     // we do a proper typecheck above to ensure that this cast is safe
   }) as ChatPromptVersionInput["template"]["messages"];
 
-  const invocationParameters = normalizeInvocationParameters(
-    instance.model.invocationParameters
-  );
-
+  // The canonical config in the store is already normalized — the adapter's
+  // `normalize` (called by every writeField) enforces field-rippling
+  // invariants, and `writeField` rejects NaN. `buildPromptVersionInput` calls
+  // `invocationConfigToPromptInput` which handles provider-specific
+  // serialization (e.g., OpenAI's zero-value drop for frequency/presence
+  // penalty). No row trip needed.
   return buildPromptVersionInput({
     instance,
     modelName: instance.model.modelName || DEFAULT_MODEL_NAME,
     templateFormat,
     promptMessages: templateMessages,
-    invocationParameters: applyProviderInvocationParameterConstraints(
-      invocationParameters,
-      instance.model.provider,
-      instance.model.modelName
-    ),
+    invocationParameters: instance.model.invocationParameters,
   });
 };
 

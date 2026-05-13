@@ -15,6 +15,7 @@ import {
 } from "@phoenix/agent/extensions/capabilities";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
 import type { PendingPromptEdit } from "@phoenix/agent/tools/playgroundPrompt";
+import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
 import { generateUUID } from "@phoenix/utils/uuidUtils";
 
 import type { ModelConfig } from "./playground/types";
@@ -101,7 +102,7 @@ export type AgentSession = {
 const DEFAULT_MODEL_CONFIG: ModelConfig = {
   provider: "ANTHROPIC",
   modelName: "claude-opus-4-6",
-  invocationParameters: [],
+  invocationParameters: getDefaultInvocationConfig("ANTHROPIC"),
 };
 
 const DEFAULT_AGENT_SERVER_CONFIG: AgentServerConfig = {

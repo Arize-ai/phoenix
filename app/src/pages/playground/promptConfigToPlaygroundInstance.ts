@@ -1,12 +1,10 @@
-import { getInvocationFamilyForProvider } from "@phoenix/pages/playground/invocationParameterSpecs";
-import { objectToInvocationParameters } from "@phoenix/pages/playground/invocationParameterUtils";
 import {
   deriveToolsAndOpenAIApiType,
   getChatRole,
   type GraphQLPromptTool,
 } from "@phoenix/pages/playground/playgroundUtils";
-import { emptyPromptInvocationParametersRecord } from "@phoenix/pages/playground/promptInvocationParameterCodecs";
-import { readPromptInvocationParameters } from "@phoenix/pages/playground/PromptInvocationParametersReadableFragment";
+import { readPromptInvocationParametersData } from "@phoenix/pages/playground/PromptInvocationParametersReadableFragment";
+import { promptInvocationDataToInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
 import { fromPromptToolCallPart } from "@phoenix/schemas/toolCallSchemas";
 import { generateMessageId } from "@phoenix/store/playground";
 import type {
@@ -149,25 +147,24 @@ export function buildPlaygroundInstanceFieldsFromPromptConfig({
   modelName: string;
   template: PromptTemplateLike;
   tools: PromptToolsLike;
-  invocationParametersRef: Parameters<typeof readPromptInvocationParameters>[0];
+  invocationParametersRef: Parameters<
+    typeof readPromptInvocationParametersData
+  >[0];
   responseFormat: PromptResponseFormatLike;
   customProvider?: ModelConfig["customProvider"];
   connectionFields?: Partial<
     Pick<ModelConfig, "baseUrl" | "endpoint" | "region" | "openaiApiType">
   >;
 }): PlaygroundInstanceFieldsFromPromptConfig {
-  const family = getInvocationFamilyForProvider(provider);
-  const rawInvocationParameters =
-    readPromptInvocationParameters(invocationParametersRef) ??
-    emptyPromptInvocationParametersRecord(family);
   const derivedTools = deriveToolsAndOpenAIApiType(tools?.tools, provider);
   const isOpenAIProvider = provider === "OPENAI" || provider === "AZURE_OPENAI";
   const openaiApiType = isOpenAIProvider
     ? (connectionFields.openaiApiType ?? derivedTools.openaiApiType)
     : null;
-  const invocationParameters = objectToInvocationParameters(
-    rawInvocationParameters,
-    { openaiApiType }
+  const data = readPromptInvocationParametersData(invocationParametersRef);
+  const invocationParameters = promptInvocationDataToInvocationConfig(
+    provider,
+    data
   );
 
   return {

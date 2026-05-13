@@ -1,35 +1,40 @@
-import { css } from "@emotion/react";
 import type { JSONSchema7 } from "json-schema";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 
-import { Label, Text } from "@phoenix/components";
-import { CodeWrap, JSONEditor } from "@phoenix/components/code";
-import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import { usePlaygroundContext } from "@phoenix/contexts/PlaygroundContext";
 import {
   httpHeadersJSONSchema,
   stringToHttpHeadersSchema,
 } from "@phoenix/schemas/httpHeadersSchema";
 import type { PlaygroundNormalizedInstance } from "@phoenix/store";
-/**
- * Format headers object for JSON editor with proper indentation and empty state handling
- */
-const formatHeadersForEditor = (
-  headers: Record<string, string> | null | undefined
-): string => {
-  if (!headers) {
-    return "{\n  \n}";
-  }
 
-  const hasContent = Object.keys(headers).length > 0;
-  return hasContent ? JSON.stringify(headers, null, 2) : "{\n  \n}";
+import type { JSONObjectFieldCodec } from "./JSONObjectModelConfigFormField";
+import { JSONObjectModelConfigFormField } from "./JSONObjectModelConfigFormField";
+
+const HEADERS_SCHEMA = httpHeadersJSONSchema as JSONSchema7;
+
+const headersCodec: JSONObjectFieldCodec<Record<string, string>> = {
+  format: (headers) => {
+    if (!headers || Object.keys(headers).length === 0) {
+      return "{\n  \n}";
+    }
+    return JSON.stringify(headers, null, 2);
+  },
+  parse: (raw) => {
+    const result = stringToHttpHeadersSchema.safeParse(raw);
+    if (result.success) {
+      return { success: true, data: result.data ?? undefined };
+    }
+    const firstError = result.error.issues[0];
+    return {
+      success: false,
+      message:
+        firstError?.message ??
+        firstError?.path?.join(".") ??
+        "Invalid headers format",
+    };
+  },
 };
-
-const fieldContainerCSS = css`
-  & .view {
-    width: 100%;
-  }
-`;
 
 export function CustomHeadersModelConfigFormField({
   instance,
@@ -39,67 +44,27 @@ export function CustomHeadersModelConfigFormField({
   onErrorChange?: (hasError: boolean) => void;
 }) {
   const updateModel = usePlaygroundContext((state) => state.updateModel);
-  const { customHeaders } = instance.model;
-
-  const [editorValue, setEditorValue] = useState(() =>
-    formatHeadersForEditor(customHeaders)
-  );
-  const [errorMessage, setErrorMessage] = useState<string | undefined>();
-
-  // Cleanup: reset error state when component unmounts
-  useEffect(() => {
-    return () => onErrorChange?.(false);
-  }, [onErrorChange]);
 
   const handleChange = useCallback(
-    (value: string) => {
-      setEditorValue(value);
-
-      const result = stringToHttpHeadersSchema.safeParse(value);
-      if (result.success) {
-        setErrorMessage(undefined);
-        onErrorChange?.(false);
-        updateModel({
-          instanceId: instance.id,
-          patch: { customHeaders: result.data },
-        });
-      } else {
-        const firstError = result.error.issues[0];
-        setErrorMessage(
-          firstError?.message ??
-            firstError?.path?.join(".") ??
-            "Invalid headers format"
-        );
-        onErrorChange?.(true);
-      }
+    (next: Record<string, string> | undefined) => {
+      updateModel({
+        instanceId: instance.id,
+        patch: { customHeaders: next ?? null },
+      });
     },
-    [instance.id, updateModel, onErrorChange]
+    [instance.id, updateModel]
   );
 
   return (
-    <div css={fieldContainerCSS}>
-      <div css={fieldBaseCSS}>
-        <Label>Custom Headers</Label>
-        <CodeWrap>
-          <JSONEditor
-            value={editorValue}
-            onChange={handleChange}
-            jsonSchema={httpHeadersJSONSchema as JSONSchema7}
-            optionalLint
-            placeholder={`{"X-Custom-Header": "custom-value"}`}
-          />
-        </CodeWrap>
-        {errorMessage ? (
-          <Text slot="errorMessage" color="danger">
-            {errorMessage}
-          </Text>
-        ) : null}
-        {!errorMessage ? (
-          <Text slot="description">
-            Custom HTTP headers to send with requests to the LLM provider
-          </Text>
-        ) : null}
-      </div>
-    </div>
+    <JSONObjectModelConfigFormField
+      label="Custom Headers"
+      description="Custom HTTP headers to send with requests to the LLM provider"
+      placeholder={`{"X-Custom-Header": "custom-value"}`}
+      jsonSchema={HEADERS_SCHEMA}
+      value={instance.model.customHeaders ?? undefined}
+      codec={headersCodec}
+      onChange={handleChange}
+      onErrorChange={onErrorChange}
+    />
   );
 }

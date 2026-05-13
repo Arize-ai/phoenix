@@ -1,8 +1,8 @@
 import type { PlaygroundInstance } from "@phoenix/store/playground";
 
 import type { ChatPromptVersionInput } from "../__generated__/UpsertPromptFromTemplateDialogCreateMutation.graphql";
-import type { InvocationParameterInput } from "../invocationParameterUtils";
 import { buildPromptVersionInput } from "../playgroundUtils";
+import { getDefaultInvocationConfig } from "../providerAdapters";
 
 describe("buildPromptVersionInput", () => {
   it("builds an OpenAI prompt version payload from canonical instance state", () => {
@@ -28,7 +28,7 @@ describe("buildPromptVersionInput", () => {
             strict: true,
           },
         },
-        invocationParameters: [],
+        invocationParameters: getDefaultInvocationConfig("OPENAI"),
       },
       tools: [
         {
@@ -54,18 +54,16 @@ describe("buildPromptVersionInput", () => {
         content: [{ text: { text: "hello" } }],
       },
     ] as ChatPromptVersionInput["template"]["messages"];
-    const invocationParameters: InvocationParameterInput[] = [
-      { invocationName: "temperature", valueFloat: 0.25 },
-      { invocationName: "maxCompletionTokens", valueInt: 128 },
-      { invocationName: "topP", valueFloat: 0.9 },
-    ];
-
     const result = buildPromptVersionInput({
       instance,
       modelName: "gpt-4o-mini",
       templateFormat: "MUSTACHE",
       promptMessages,
-      invocationParameters,
+      invocationParameters: {
+        temperature: 0.25,
+        maxCompletionTokens: 128,
+        topP: 0.9,
+      },
     });
 
     expect(result).toEqual({
@@ -128,7 +126,7 @@ describe("buildPromptVersionInput", () => {
         modelName: "gpt-5",
         customProvider: null,
         responseFormat: null,
-        invocationParameters: [],
+        invocationParameters: getDefaultInvocationConfig("OPENAI"),
       },
       tools: [],
       toolChoice: null,
@@ -139,16 +137,12 @@ describe("buildPromptVersionInput", () => {
         content: [{ text: { text: "You are helpful." } }],
       },
     ] as ChatPromptVersionInput["template"]["messages"];
-    const invocationParameters: InvocationParameterInput[] = [
-      { invocationName: "maxCompletionTokens", valueInt: 777 },
-    ];
-
     const result = buildPromptVersionInput({
       instance,
       modelName: "gpt-5",
       templateFormat: "NONE",
       promptMessages,
-      invocationParameters,
+      invocationParameters: { maxCompletionTokens: 777 },
     });
 
     expect(result.invocationParameters).toEqual({
@@ -176,7 +170,7 @@ describe("buildPromptVersionInput", () => {
         modelName: "gpt-5",
         customProvider: null,
         responseFormat: null,
-        invocationParameters: [],
+        invocationParameters: getDefaultInvocationConfig("OPENAI"),
       },
       tools: [
         {
@@ -216,7 +210,7 @@ describe("buildPromptVersionInput", () => {
       modelName: "gpt-5",
       templateFormat: "NONE",
       promptMessages,
-      invocationParameters: [],
+      invocationParameters: getDefaultInvocationConfig("OPENAI"),
     });
 
     expect(result.tools).toEqual({
