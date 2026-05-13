@@ -3069,6 +3069,54 @@ class Gemini3GoogleStreamingClient(Gemini25GoogleStreamingClient):
             yield chunk
 
 
+@register_llm_client(
+    provider_key=GenerativeProviderKey.VERTEX_AI,
+    model_names=GEMINI_2_0_MODELS,
+)
+class VertexAIGemini20StreamingClient(GoogleStreamingClient):
+    def __init__(
+        self,
+        *,
+        client_factory: ClientFactory["GoogleAsyncClient"],
+        model_name: str,
+        provider: str = "vertex_ai",
+    ) -> None:
+        super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
+        self.provider = "vertex_ai"
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.VERTEX_AI,
+    model_names=GEMINI_2_5_MODELS,
+)
+class VertexAIGemini25StreamingClient(Gemini25GoogleStreamingClient):
+    def __init__(
+        self,
+        *,
+        client_factory: ClientFactory["GoogleAsyncClient"],
+        model_name: str,
+        provider: str = "vertex_ai",
+    ) -> None:
+        super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
+        self.provider = "vertex_ai"
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.VERTEX_AI,
+    model_names=GEMINI_3_MODELS,
+)
+class VertexAIGemini3StreamingClient(Gemini3GoogleStreamingClient):
+    def __init__(
+        self,
+        *,
+        client_factory: ClientFactory["GoogleAsyncClient"],
+        model_name: str,
+        provider: str = "vertex_ai",
+    ) -> None:
+        super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
+        self.provider = "vertex_ai"
+
+
 def initialize_playground_clients() -> None:
     """
     Ensure that all playground clients are registered at import time.

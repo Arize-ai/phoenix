@@ -36,10 +36,16 @@ from phoenix.server.api.helpers.playground_clients import (
     AzureOpenAIReasoningNonStreamingClient,
     AzureOpenAIResponsesAPIStreamingClient,
     AzureOpenAIStreamingClient,
+    Gemini3GoogleStreamingClient,
+    Gemini25GoogleStreamingClient,
+    GoogleStreamingClient,
     OpenAIBaseStreamingClient,
     OpenAIReasoningNonStreamingClient,
     OpenAIResponsesAPIStreamingClient,
     OpenAIStreamingClient,
+    VertexAIGemini3StreamingClient,
+    VertexAIGemini20StreamingClient,
+    VertexAIGemini25StreamingClient,
     get_openai_client_class,
 )
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
@@ -703,3 +709,37 @@ class TestGetOpenAIClientClass:
             None,
         )
         assert client_class is None
+
+
+class TestVertexAIGeminiStreamingClient:
+    @staticmethod
+    def _factory() -> LLMClientFactory[Any]:
+        @asynccontextmanager
+        async def create_client() -> AsyncIterator[Any]:
+            yield None
+
+        return LLMClientFactory(create_client, ("vertex_ai", "test"))
+
+    def test_gemini20_subclass_sets_vertex_ai_provider(self) -> None:
+        client = VertexAIGemini20StreamingClient(
+            client_factory=self._factory(),
+            model_name="gemini-2.0-flash-001",
+        )
+        assert client.provider == "vertex_ai"
+        assert isinstance(client, GoogleStreamingClient)
+
+    def test_gemini25_subclass_sets_vertex_ai_provider(self) -> None:
+        client = VertexAIGemini25StreamingClient(
+            client_factory=self._factory(),
+            model_name="gemini-2.5-pro",
+        )
+        assert client.provider == "vertex_ai"
+        assert isinstance(client, Gemini25GoogleStreamingClient)
+
+    def test_gemini3_subclass_sets_vertex_ai_provider(self) -> None:
+        client = VertexAIGemini3StreamingClient(
+            client_factory=self._factory(),
+            model_name="gemini-3-pro-preview",
+        )
+        assert client.provider == "vertex_ai"
+        assert isinstance(client, Gemini3GoogleStreamingClient)
