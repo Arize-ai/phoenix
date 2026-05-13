@@ -472,7 +472,7 @@ class TestCreateSandboxConfigNonCapabilityKeyRejected:
         assert result.errors
 
 
-class TestPhase1AdminGates:
+class TestSandboxAdminGates:
     """Structural permission tests for the two newly-gated mutations."""
 
     def test_delete_sandbox_config_has_admin_gate(self) -> None:
@@ -496,7 +496,7 @@ class TestPhase1AdminGates:
         assert IsAdminIfAuthEnabled in field.permission_classes
 
 
-class TestPhase1ValidationErrors:
+class TestSandboxValidationErrors:
     """Integration tests for create/update SandboxConfig validation paths."""
 
     async def test_create_duplicate_name_returns_error(
@@ -686,7 +686,7 @@ class TestPhase1ValidationErrors:
         assert cfg["name"] == original_name
 
 
-class TestPhase1WrapperInputShape:
+class TestSandboxWrapperInputShape:
     """Confirm the new wrapper input types route through the GraphQL parser."""
 
     async def test_set_sandbox_credential_accepts_input_wrapper(
