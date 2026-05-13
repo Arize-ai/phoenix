@@ -28,15 +28,18 @@ import {
   DialogTitle,
   DialogTitleExtra,
   DialogTrigger,
+  FieldError,
   Flex,
   Form,
   Icon,
   Icons,
+  Input,
   Label,
   Modal,
   ModalOverlay,
   RedactedCredentialField,
   Text,
+  TextField,
   ToggleButton,
   ToggleButtonGroup,
   View,
@@ -56,6 +59,30 @@ import type { GenerativeProvidersCardUpsertOrDeleteSecretsMutation } from "./__g
 
 // Form values type for react-hook-form
 type ServerCredentialsFormValues = Record<string, string>;
+
+/**
+ * Providers whose "credentials" are non-secret configuration (project IDs,
+ * regions) and where runtime authentication is sourced from the host
+ * environment (Application Default Credentials, IAM role, etc.) rather than
+ * an API key. These render plain text inputs and surface an ADC help string.
+ */
+const NON_SECRET_CREDENTIAL_PROVIDERS: ReadonlySet<ModelProvider> = new Set([
+  "VERTEX_AI",
+]);
+
+const VERTEX_ADC_HELP_TEXT =
+  "Authentication uses Application Default Credentials. Run `gcloud auth application-default login` locally, or attach a service account to your GCP workload.";
+
+function VertexAdcHelp() {
+  return (
+    <Alert
+      variant="info"
+      title="Authentication: Application Default Credentials"
+    >
+      {VERTEX_ADC_HELP_TEXT}
+    </Alert>
+  );
+}
 
 export function GenerativeProvidersCard({
   query,
@@ -259,6 +286,8 @@ function ProviderCredentialsDialog({
   const isAdmin = !viewer || viewer.role?.name === "ADMIN";
   const [credentialView, setCredentialView] =
     useState<CredentialViewType>("browser");
+  const isVertex =
+    isModelProvider(provider.key) && provider.key === "VERTEX_AI";
 
   return (
     <Dialog>
@@ -275,6 +304,7 @@ function ProviderCredentialsDialog({
         <View padding="size-200">
           {isAdmin ? (
             <Flex direction="column" gap="size-200">
+              {isVertex && <VertexAdcHelp />}
               <ToggleButtonGroup
                 selectedKeys={[credentialView]}
                 size="S"
@@ -300,8 +330,9 @@ function ProviderCredentialsDialog({
                 <>
                   <View paddingBottom="size-100">
                     <Text size="XS" color="text-700">
-                      Credentials stored in your browser. Only you can see
-                      these, and they are sent with each API request.
+                      {isVertex
+                        ? "Project and location stored in your browser. Sent with each API request; runtime auth uses ADC."
+                        : "Credentials stored in your browser. Only you can see these, and they are sent with each API request."}
                     </Text>
                   </View>
                   <Form>
@@ -313,8 +344,9 @@ function ProviderCredentialsDialog({
                 <>
                   <View paddingBottom="size-100">
                     <Text size="XS" color="text-700">
-                      Credentials stored in the database. These are shared
-                      across all users and override environment variables.
+                      {isVertex
+                        ? "Project and location stored in the database. Shared across all users and override environment variables. Runtime auth uses ADC."
+                        : "Credentials stored in the database. These are shared across all users and override environment variables."}
                     </Text>
                   </View>
                   <Suspense fallback={<Text color="text-700">Loading...</Text>}>
@@ -326,18 +358,19 @@ function ProviderCredentialsDialog({
               )}
             </Flex>
           ) : (
-            <>
+            <Flex direction="column" gap="size-200">
+              {isVertex && <VertexAdcHelp />}
               <View paddingBottom="size-100">
                 <Text size="XS">
-                  Set the credentials for the {provider.name} API. These
-                  credentials will be stored entirely in your browser and will
-                  only be sent to the server during API requests.
+                  {isVertex
+                    ? `Set the project and location for ${provider.name}. These values are stored entirely in your browser and only sent to the server during API requests. Runtime authentication uses Application Default Credentials.`
+                    : `Set the credentials for the ${provider.name} API. These credentials will be stored entirely in your browser and will only be sent to the server during API requests.`}
                 </Text>
               </View>
               <Form>
                 <BrowserCredentials provider={provider} />
               </Form>
-            </>
+            </Flex>
           )}
         </View>
       </DialogContent>
@@ -378,25 +411,45 @@ function BrowserCredentials({
     return <Text color="text-700">Browser credentials are not required.</Text>;
   }
 
+  const useNonSecretInputs = NON_SECRET_CREDENTIAL_PROVIDERS.has(providerKey);
+
   return (
     <Flex direction="column" gap="size-100">
-      {credentialRequirements.map(({ envVarName, isRequired }) => (
-        <CredentialField
-          key={envVarName}
-          isRequired={isRequired}
-          onChange={(value) => {
-            setCredential({
-              provider: providerKey,
-              envVarName,
-              value,
-            });
-          }}
-          value={credentials?.[envVarName] ?? ""}
-        >
-          <Label>{envVarName}</Label>
-          <CredentialInput />
-        </CredentialField>
-      ))}
+      {credentialRequirements.map(({ envVarName, isRequired }) =>
+        useNonSecretInputs ? (
+          <TextField
+            key={envVarName}
+            isRequired={isRequired}
+            value={credentials?.[envVarName] ?? ""}
+            onChange={(value) => {
+              setCredential({
+                provider: providerKey,
+                envVarName,
+                value,
+              });
+            }}
+          >
+            <Label>{envVarName}</Label>
+            <Input />
+          </TextField>
+        ) : (
+          <CredentialField
+            key={envVarName}
+            isRequired={isRequired}
+            onChange={(value) => {
+              setCredential({
+                provider: providerKey,
+                envVarName,
+                value,
+              });
+            }}
+            value={credentials?.[envVarName] ?? ""}
+          >
+            <Label>{envVarName}</Label>
+            <CredentialInput />
+          </CredentialField>
+        )
+      )}
       <Button
         onPress={clearLocalCredentials}
         css={css`
@@ -601,6 +654,10 @@ function ServerCredentials({
     );
   }
 
+  const useNonSecretInputs =
+    isModelProvider(provider.key) &&
+    NON_SECRET_CREDENTIAL_PROVIDERS.has(provider.key);
+
   return (
     <Flex direction="column" gap="size-100">
       {error && <Alert variant="danger">{error}</Alert>}
@@ -624,17 +681,32 @@ function ServerCredentials({
           render={({
             field: { name, onChange, onBlur, value },
             fieldState: { error },
-          }) => (
-            <RedactedCredentialField
-              label={credentialConfig.envVarName}
-              isRequired={credentialConfig.isRequired}
-              name={name}
-              value={value ?? ""}
-              onChange={onChange}
-              onBlur={onBlur}
-              errorMessage={error?.message}
-            />
-          )}
+          }) =>
+            useNonSecretInputs ? (
+              <TextField
+                isRequired={credentialConfig.isRequired}
+                isInvalid={!!error}
+                name={name}
+                value={value ?? ""}
+                onChange={onChange}
+                onBlur={onBlur}
+              >
+                <Label>{credentialConfig.envVarName}</Label>
+                <Input />
+                {error?.message && <FieldError>{error.message}</FieldError>}
+              </TextField>
+            ) : (
+              <RedactedCredentialField
+                label={credentialConfig.envVarName}
+                isRequired={credentialConfig.isRequired}
+                name={name}
+                value={value ?? ""}
+                onChange={onChange}
+                onBlur={onBlur}
+                errorMessage={error?.message}
+              />
+            )
+          }
         />
       ))}
       <Flex

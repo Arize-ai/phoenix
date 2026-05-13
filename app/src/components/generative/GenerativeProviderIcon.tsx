@@ -256,12 +256,41 @@ const TogetherSVG = ({ height }: { height: number }) => (
   </svg>
 );
 
+const VertexAISVG = ({ height }: { height: number }) => (
+  <svg
+    viewBox="0 0 24 24"
+    width={height}
+    height={height}
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title>Vertex AI</title>
+    <defs>
+      <linearGradient
+        id="lobe-icons-vertex-ai-fill"
+        x1="0%"
+        x2="68.73%"
+        y1="100%"
+        y2="30.395%"
+      >
+        <stop offset="0%" stopColor="#4285F4"></stop>
+        <stop offset="100%" stopColor="#669DF6"></stop>
+      </linearGradient>
+    </defs>
+    <path
+      d="M12 2.25 2.25 12 12 21.75 21.75 12 12 2.25Zm0 3.182L18.568 12 12 18.568 5.432 12 12 5.432Z"
+      fill="url(#lobe-icons-vertex-ai-fill)"
+    ></path>
+    <path d="M12 8.25 8.25 12 12 15.75 15.75 12 12 8.25Z" fill="#4285F4"></path>
+  </svg>
+);
+
 const PROVIDER_ICONS: Record<
   ModelProvider,
   ({ height }: { height: number }) => React.ReactNode
 > = {
   AZURE_OPENAI: AzureSVG,
   GOOGLE: GoogleSVG,
+  VERTEX_AI: VertexAISVG,
   OPENAI: OpenAISVG,
   ANTHROPIC: AnthropicSVG,
   DEEPSEEK: DeepSeekSVG,
