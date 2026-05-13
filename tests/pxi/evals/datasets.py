@@ -14,6 +14,7 @@ class EvalDataset(BaseModel):
 
     dataset_name: str
     description: str | None = None
+    evaluators: list[str]
     examples: list[dict[str, Any]]
 
     @field_validator("dataset_name")
@@ -21,6 +22,22 @@ class EvalDataset(BaseModel):
     def _dataset_name_not_empty(cls, value: str) -> str:
         if not value.strip():
             raise ValueError("dataset_name cannot be empty")
+        return value
+
+    @field_validator("evaluators")
+    @classmethod
+    def _evaluators_non_empty(cls, value: list[str]) -> list[str]:
+        if not value:
+            raise ValueError(
+                "evaluators must be a non-empty list of evaluator names "
+                "(see tests/pxi/evals/evaluators/__init__.py for valid names)"
+            )
+        for name in value:
+            if not isinstance(name, str) or not name.strip():
+                raise ValueError("evaluators entries must be non-empty strings")
+        duplicates = sorted({n for n in value if value.count(n) > 1})
+        if duplicates:
+            raise ValueError(f"duplicate evaluator names: {', '.join(duplicates)}")
         return value
 
     @model_validator(mode="after")

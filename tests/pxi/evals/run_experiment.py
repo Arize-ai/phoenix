@@ -20,7 +20,6 @@ if __package__ in {None, ""}:
 from phoenix.client import AsyncClient
 from phoenix.client.resources.experiments.types import ExperimentEvaluationRun, RanExperiment
 from phoenix.client.utils.config import get_base_url, get_env_phoenix_api_key
-
 from tests.pxi.evals.agent_task import (
     DEFAULT_ASSISTANT_MODEL,
     DEFAULT_ASSISTANT_PROVIDER,
@@ -29,8 +28,8 @@ from tests.pxi.evals.agent_task import (
     build_shared_docs_mcp_toolset,
     make_task,
 )
-from tests.pxi.evals.datasets import EvalDataset, load_dataset
-from tests.pxi.evals.evaluators import correct_tools_called, tool_call_args_match
+from tests.pxi.evals.datasets import EvalDataset, load_dataset  # type: ignore[attr-defined]
+from tests.pxi.evals.evaluators import EVALUATORS_BY_NAME
 
 DEFAULT_BASE_URL = "http://localhost:6006"
 PASSING_SCORE = 1.0
@@ -46,6 +45,23 @@ class ExperimentConfig:
     experiment_name: str | None
     experiment_name_suffix: str | None
     fail_on_regression: bool
+    evaluator_override: tuple[str, ...] | None
+
+
+def _resolve_evaluators(dataset: EvalDataset, override: tuple[str, ...] | None) -> list[Any]:
+    """Resolve evaluator names (from CLI override or dataset YAML) to
+    concrete ``@create_evaluator`` objects, failing fast on unknown names.
+    """
+    requested = list(override) if override else list(dataset.evaluators)
+    if not requested:
+        raise ValueError(
+            "no evaluators selected: pass --evaluator or set `evaluators:` in the dataset YAML"
+        )
+    unknown = [name for name in requested if name not in EVALUATORS_BY_NAME]
+    if unknown:
+        available = ", ".join(sorted(EVALUATORS_BY_NAME))
+        raise ValueError(f"unknown evaluator name(s): {', '.join(unknown)}. Available: {available}")
+    return [EVALUATORS_BY_NAME[name] for name in requested]
 
 
 def _configured_base_url() -> tuple[str, bool]:
@@ -154,6 +170,10 @@ def _phoenix_examples(dataset: EvalDataset) -> list[dict[str, Any]]:
 async def _run_async(config: ExperimentConfig) -> int:
     _check_phoenix_healthz(config.base_url)
     dataset = load_dataset(config.dataset)
+    evaluators = _resolve_evaluators(dataset, config.evaluator_override)
+    print(
+        f"Evaluators: {', '.join(name for name in (config.evaluator_override or dataset.evaluators))}"
+    )
     client = AsyncClient(base_url=config.base_url, api_key=config.bearer_token)
     # Build the docs MCP toolset once and enter its async context manager for
     # the duration of the run, mirroring the production server's FastAPI
@@ -197,7 +217,7 @@ async def _run_async(config: ExperimentConfig) -> int:
                     task_run["dataset_example_id"] = output["stable_example_id"]
             experiment = await client.experiments.evaluate_experiment(
                 experiment=experiment,
-                evaluators=cast(Any, [correct_tools_called, tool_call_args_match]),
+                evaluators=cast(Any, evaluators),
                 print_summary=False,
                 concurrency=3,
                 timeout=180,
@@ -249,6 +269,16 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Exit non-zero if any evaluator fails (use in CI gating)",
     )
+    parser.add_argument(
+        "--evaluator",
+        action="append",
+        dest="evaluators",
+        metavar="NAME",
+        help=(
+            "Override the evaluators declared in the dataset YAML. Repeatable. "
+            f"Valid names: {', '.join(sorted(EVALUATORS_BY_NAME))}."
+        ),
+    )
     return parser
 
 
@@ -263,6 +293,7 @@ def main(argv: list[str] | None = None) -> int:
         experiment_name=args.experiment_name,
         experiment_name_suffix=args.experiment_name_suffix,
         fail_on_regression=args.fail_on_regression,
+        evaluator_override=tuple(args.evaluators) if args.evaluators else None,
     )
     try:
         return run(config)
