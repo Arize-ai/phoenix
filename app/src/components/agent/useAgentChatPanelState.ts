@@ -95,6 +95,9 @@ export function useAgentChatPanelState() {
   const deleteSession = useAgentContext((state) => state.deleteSession);
   const sessionIds = useAgentContext((state) => state.sessions);
   const sessionMap = useAgentContext((state) => state.sessionMap);
+  const showSessionHistory = useAgentContext(
+    (state) => state.capabilities["session.storeRecentSessions"]
+  );
   const defaultModelConfig = useAgentContext(
     (state) => state.defaultModelConfig
   );
@@ -264,6 +267,7 @@ export function useAgentChatPanelState() {
     isOpen,
     activeSessionId,
     orderedSessions,
+    showSessionHistory,
     chatApiUrl,
     modelSelection,
     menuValue,

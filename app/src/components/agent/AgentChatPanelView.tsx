@@ -55,6 +55,7 @@ export function AgentChatHeader({
   sessionDisplayName,
   orderedSessions,
   activeSessionId,
+  showSessionHistory,
   onSelectSession,
   onDeleteSession,
   onCreateSession,
@@ -63,6 +64,7 @@ export function AgentChatHeader({
   sessionDisplayName: string;
   orderedSessions: AgentSession[];
   activeSessionId: string | null;
+  showSessionHistory: boolean;
   onSelectSession: (sessionId: string | null) => void;
   onDeleteSession: (sessionId: string) => void;
   onCreateSession: () => void;
@@ -87,12 +89,14 @@ export function AgentChatHeader({
         gap="size-50"
         css={panelHeaderActionsCSS}
       >
-        <SessionListMenu
-          sessions={orderedSessions}
-          activeSessionId={activeSessionId}
-          onSelectSession={onSelectSession}
-          onDeleteSession={onDeleteSession}
-        />
+        {showSessionHistory ? (
+          <SessionListMenu
+            sessions={orderedSessions}
+            activeSessionId={activeSessionId}
+            onSelectSession={onSelectSession}
+            onDeleteSession={onDeleteSession}
+          />
+        ) : null}
         <Button
           variant="quiet"
           size="S"

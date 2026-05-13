@@ -86,7 +86,7 @@ export function SessionListMenu({
         aria-label="Sessions"
         leadingVisual={<Icon svg={<Icons.HistoryOutline />} />}
       />
-      <MenuContainer placement="bottom end" maxHeight={400}>
+      <MenuContainer placement="bottom end" minHeight="auto" maxHeight={400}>
         <Menu
           selectionMode="single"
           selectedKeys={selectedKeys}

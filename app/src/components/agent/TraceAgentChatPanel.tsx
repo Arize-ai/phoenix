@@ -38,6 +38,7 @@ function TraceAgentChatController() {
   const {
     activeSessionId,
     orderedSessions,
+    showSessionHistory,
     chatApiUrl,
     modelSelection,
     menuValue,
@@ -76,6 +77,7 @@ function TraceAgentChatController() {
         sessionDisplayName={sessionDisplayName}
         orderedSessions={orderedSessions}
         activeSessionId={activeSessionId}
+        showSessionHistory={showSessionHistory}
         onSelectSession={setActiveSession}
         onDeleteSession={deleteSession}
         onCreateSession={createSession}

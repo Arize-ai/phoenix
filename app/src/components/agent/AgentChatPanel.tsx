@@ -25,6 +25,7 @@ export function AgentChatPanel() {
     isOpen,
     activeSessionId,
     orderedSessions,
+    showSessionHistory,
     chatApiUrl,
     modelSelection,
     menuValue,
@@ -52,6 +53,7 @@ export function AgentChatPanel() {
       isOpen={isOpen}
       activeSessionId={activeSessionId}
       orderedSessions={orderedSessions}
+      showSessionHistory={showSessionHistory}
       sessionDisplayName={sessionDisplayName}
       chatApiUrl={chatApiUrl}
       modelSelection={modelSelection}
@@ -69,6 +71,7 @@ function AgentChatController({
   isOpen,
   activeSessionId,
   orderedSessions,
+  showSessionHistory,
   sessionDisplayName,
   chatApiUrl,
   modelSelection,
@@ -82,6 +85,9 @@ function AgentChatController({
   isOpen: boolean;
   activeSessionId: string | null;
   orderedSessions: ReturnType<typeof useAgentChatPanelState>["orderedSessions"];
+  showSessionHistory: ReturnType<
+    typeof useAgentChatPanelState
+  >["showSessionHistory"];
   sessionDisplayName: string;
   chatApiUrl: string;
   modelSelection: AgentModelSelection;
@@ -121,6 +127,7 @@ function AgentChatController({
         sessionDisplayName={sessionDisplayName}
         orderedSessions={orderedSessions}
         activeSessionId={activeSessionId}
+        showSessionHistory={showSessionHistory}
         onSelectSession={setActiveSession}
         onDeleteSession={deleteSession}
         onCreateSession={createSession}
