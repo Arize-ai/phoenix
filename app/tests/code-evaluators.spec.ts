@@ -25,7 +25,7 @@ function isGraphQLMutationResponse(response: Response, operationName: string) {
  */
 function selectTrigger(scope: Page | Locator, label: string): Locator {
   return scope.getByRole("button", {
-    name: new RegExp(`\\b${escapeRegex(label)}\\s*$`),
+    name: new RegExp(`\\b${escapeRegex(label)}(?:\\s*\\*)?\\s*$`),
   });
 }
 
