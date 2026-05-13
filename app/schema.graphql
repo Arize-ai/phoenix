@@ -1921,6 +1921,7 @@ enum GenerativeProviderKey {
   ANTHROPIC
   AZURE_OPENAI
   GOOGLE
+  VERTEX_AI
   DEEPSEEK
   XAI
   OLLAMA
@@ -2034,6 +2035,7 @@ enum ModelProvider {
   AZURE_OPENAI
   ANTHROPIC
   GOOGLE
+  VERTEX_AI
   DEEPSEEK
   XAI
   OLLAMA
