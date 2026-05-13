@@ -13,12 +13,13 @@ when the extra is absent. Adapter availability is gated by
 surfaces a missing extra as ``status=NOT_INSTALLED`` instead of a runtime
 error during evaluation.
 
-Authentication uses the Vercel Sandbox access-token triple: ``VERCEL_TOKEN``,
-``VERCEL_PROJECT_ID``, and ``VERCEL_TEAM_ID``, forwarded as explicit kwargs to
-``AsyncSandbox.create``. The SDK's alternative OIDC path is not supported —
-it relied on ``os.environ`` mutation since the SDK has no ``oidc_token=``
-kwarg, and Phoenix's deployment model (self-hosted server, not a Vercel
-runtime context) has no documented OIDC workflow. See
+Authentication uses the Vercel Sandbox access-token triple, forwarded as
+explicit kwargs to ``AsyncSandbox.create``. Phoenix resolves those credentials
+from the SDK-native ``VERCEL_TOKEN`` / ``VERCEL_PROJECT_ID`` / ``VERCEL_TEAM_ID``
+keys. The SDK's alternative OIDC path is not supported — it relied on
+``os.environ`` mutation since the SDK has no ``oidc_token=`` kwarg, and
+Phoenix's deployment model (self-hosted server, not a Vercel runtime context)
+has no documented OIDC workflow. See
 https://vercel.com/docs/vercel-sandbox/concepts/authentication
 
 Language routing
@@ -55,9 +56,7 @@ class _LanguageConfig(TypedDict):
     args_prefix: list[str]
 
 
-# Vercel SDK credential env-var names. Phoenix uses these names verbatim for
-# its DB-stored credentials so an operator who already exports them in the
-# process env gets the same value Phoenix would resolve from the DB.
+# Canonical Phoenix credential keys.
 ENV_VERCEL_TOKEN = "VERCEL_TOKEN"
 ENV_VERCEL_PROJECT_ID = "VERCEL_PROJECT_ID"
 ENV_VERCEL_TEAM_ID = "VERCEL_TEAM_ID"
@@ -353,8 +352,9 @@ def _build_vercel_backend(
     if not (token and project_id and team_id):
         raise ValueError(
             "Vercel sandbox authentication is not configured. Set "
-            "VERCEL_TOKEN, VERCEL_PROJECT_ID, and VERCEL_TEAM_ID via "
-            f"setSandboxCredential. See {_VERCEL_AUTH_DOCS_URL}"
+            "VERCEL_TOKEN, VERCEL_PROJECT_ID, "
+            "and VERCEL_TEAM_ID via setSandboxCredential. "
+            f"See {_VERCEL_AUTH_DOCS_URL}"
         )
     deps = config.get("dependencies") or {}
     packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []

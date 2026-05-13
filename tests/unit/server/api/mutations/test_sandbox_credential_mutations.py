@@ -10,6 +10,7 @@ import sqlalchemy as sa
 
 from phoenix.db import models
 from phoenix.server.sandbox import _BACKEND_CACHE, _SANDBOX_ADAPTERS
+from phoenix.server.sandbox.modal_backend import ModalAdapter
 from phoenix.server.sandbox.types import (
     ProviderCredentialSpec,
     SandboxAdapter,
@@ -38,6 +39,8 @@ _DELETE_MUTATION = """
 
 _TEST_BACKEND = "TEST_CRED_BACKEND"
 _TEST_KEY = "TEST_CRED_KEY"
+_MODAL_BACKEND = "MODAL"
+_MODAL_CANONICAL_TOKEN_ID = "MODAL_TOKEN_ID"
 
 
 class _TestCredAdapter(SandboxAdapter):
@@ -140,6 +143,40 @@ class TestSetSandboxCredential:
             operation_name="SetSandboxCredential",
         )
         assert result.errors
+
+    async def test_modal_canonical_key_succeeds(
+        self,
+        db: DbSessionFactory,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        previous = _SANDBOX_ADAPTERS.get(_MODAL_BACKEND)
+        _SANDBOX_ADAPTERS[_MODAL_BACKEND] = ModalAdapter()
+        try:
+            result = await gql_client.execute(
+                query=_SET_MUTATION,
+                variables={
+                    "input": {
+                        "backendType": _MODAL_BACKEND,
+                        "key": _MODAL_CANONICAL_TOKEN_ID,
+                        "value": "canonical-token-id",
+                    }
+                },
+                operation_name="SetSandboxCredential",
+            )
+        finally:
+            if previous is None:
+                _SANDBOX_ADAPTERS.pop(_MODAL_BACKEND, None)
+            else:
+                _SANDBOX_ADAPTERS[_MODAL_BACKEND] = previous
+
+        assert not result.errors
+        assert result.data is not None
+        assert result.data["setSandboxCredential"]["key"] == _MODAL_CANONICAL_TOKEN_ID
+        async with db() as session:
+            row = await session.scalar(
+                sa.select(models.Secret).where(models.Secret.key == _MODAL_CANONICAL_TOKEN_ID)
+            )
+        assert row is not None
 
     async def test_empty_value_raises(
         self,
