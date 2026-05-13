@@ -8,11 +8,6 @@ export interface ProgressCircleProps extends ReactAriaProgressBarProps {
    * @default 'M'
    */
   size?: Exclude<ComponentSize, "L">;
-  /**
-   * Color variant. Use `inverted` when rendering on a dark surface.
-   * @default 'default'
-   */
-  variant?: "default" | "inverted";
 }
 
 export interface ProgressBarProps extends ReactAriaProgressBarProps {

@@ -268,7 +268,6 @@ export function AgentChatWidgetButton({
   thinkingGlyphVariant = "orbit-reveal",
   variant = "dark",
 }: AgentChatWidgetButtonProps) {
-  const isDark = variant === "dark" || variant === "dark-glyph";
   const isGlyph = variant === "dark-glyph";
   const { theme } = useTheme();
   return (
@@ -289,7 +288,9 @@ export function AgentChatWidgetButton({
             ? [thinkingBorderCSS, restingHoverWipeCSS, restingHoverShimmerCSS]
             : undefined,
           isStreaming ? thinkingBorderCSS : undefined,
-          isStreaming && !isDark ? lightThinkingShapeCSS : undefined,
+          isStreaming && variant === "light"
+            ? lightThinkingShapeCSS
+            : undefined,
         ]}
         data-theme={theme}
         initial={false}
@@ -328,7 +329,6 @@ export function AgentChatWidgetButton({
                 <ProgressCircle
                   isIndeterminate
                   size="S"
-                  variant={isDark ? "inverted" : "default"}
                   aria-label="PXI is thinking"
                 />
               )}
