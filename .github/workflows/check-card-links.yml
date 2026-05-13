@@ -19,6 +19,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
@@ -64,10 +66,12 @@ jobs:
       - name: Comment on PR with summary
         if: ${{ github.event_name == 'pull_request' && always() }}
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          SUMMARY_PATH: ${{ steps.run-check.outputs.summary_path }}
         with:
           script: |
             const fs = require('fs');
-            const summaryPath = '${{ steps.run-check.outputs.summary_path }}';
+            const summaryPath = process.env.SUMMARY_PATH;
             const body = '<!-- card-links-check -->\n' + fs.readFileSync(summaryPath, 'utf8');
             await github.rest.issues.createComment({
               owner: context.repo.owner,
@@ -78,7 +82,9 @@ jobs:
 
       - name: Write to Job Summary
         if: always()
-        run: cat ${{ steps.run-check.outputs.summary_path }} >> $GITHUB_STEP_SUMMARY
+        env:
+          SUMMARY_PATH: ${{ steps.run-check.outputs.summary_path }}
+        run: cat "$SUMMARY_PATH" >> $GITHUB_STEP_SUMMARY
 
       - name: Fail if errors detected
         if: ${{ steps.run-check.outputs.exit_code != '' }}

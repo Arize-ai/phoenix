@@ -28,6 +28,6 @@ jobs:
         run: |
           jq '.paths |= with_entries(select(.key | startswith("/agent") | not))' \
             schemas/openapi.json > base.json
-      - uses: docker://openapitools/openapi-diff
+      - uses: docker://openapitools/openapi-diff@sha256:82291446e5554742d9c0725d7b315d18e93958c5526f9a663e8885227bdd6cb6 # latest
         with:
           args: --fail-on-incompatible base.json head.json
