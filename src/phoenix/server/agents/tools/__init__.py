@@ -15,6 +15,7 @@ from phoenix.server.agents.tools.external_tools import (
     SET_SPANS_FILTER_TOOL_DEFINITION,
     SET_TIME_RANGE_TOOL_DEFINITION,
 )
+from phoenix.server.agents.toolsets import build_skills_toolset
 
 
 def build_toolset(
@@ -40,7 +41,10 @@ def build_toolset(
                 EDIT_PROMPT_TOOL_DEFINITION,
             ]
         )
-    toolsets: list[AbstractToolset[ChatDependencies]] = [ExternalToolset(external_tools)]
+    toolsets: list[AbstractToolset[ChatDependencies]] = [
+        ExternalToolset(external_tools),
+        build_skills_toolset(),
+    ]
     if deps.docs_mcp_toolset is not None:
         toolsets.append(deps.docs_mcp_toolset)
     return OpenInferenceToolsetWrapper(
