@@ -1000,7 +1000,10 @@ class Query:
                 dataset_example_rowid=dataset_example_rowid,
             )
 
-        global_id = GlobalID.from_id(id)
+        try:
+            global_id = GlobalID.from_id(id)
+        except ValueError:
+            raise NotFound(f"Unknown node: {id}") from None
         type_name = global_id.type_name
         if type_name == Secret.__name__:
             return Secret(id=global_id.node_id)
