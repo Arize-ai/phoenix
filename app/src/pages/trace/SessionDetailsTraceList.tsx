@@ -134,9 +134,8 @@ function RootSpanMessage({ extra, label, role, value }: RootSpanMessageProps) {
     <Flex
       direction="column"
       gap="size-50"
-      alignSelf={isInput ? "start" : "end"}
       alignItems={isInput ? "start" : "end"}
-      css={messageWrapCSS}
+      width="100%"
     >
       <Flex
         direction="row"
@@ -188,6 +187,20 @@ function RootSpanStartTime({ rootSpan }: RootSpanProps) {
   );
 }
 
+function RootSpanEndTime({ rootSpan }: RootSpanProps) {
+  const { fullTimeFormatter } = useTimeFormatters();
+  if (rootSpan.endTime == null) {
+    return null;
+  }
+  const endDate = new Date(rootSpan.endTime);
+
+  return (
+    <Text color="text-700" size="XS">
+      {fullTimeFormatter(endDate)}
+    </Text>
+  );
+}
+
 function RootSpanTraceLink({
   traceId,
   rootSpan,
@@ -213,15 +226,22 @@ function RootSpanTraceLink({
 
 function RootSpanOutputMetadata({ rootSpan }: RootSpanProps) {
   return (
-    <Flex direction="column" gap="size-100">
-      <Flex
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        gap="size-200"
-        wrap
-      >
-        <Flex direction="row" alignItems="center" gap="size-100" wrap>
+    <Flex
+      direction="row"
+      justifyContent="space-between"
+      alignItems="start"
+      gap="size-200"
+      width="100%"
+    >
+      <RootSpanEndTime rootSpan={rootSpan} />
+      <Flex direction="column" alignItems="end" gap="size-100" minWidth={0}>
+        <Flex
+          direction="row"
+          justifyContent="end"
+          alignItems="center"
+          gap="size-100"
+          wrap
+        >
           <SpanCumulativeTokenCount
             tokenCountTotal={rootSpan.cumulativeTokenCountTotal || 0}
             nodeId={rootSpan.id}
@@ -244,11 +264,11 @@ function RootSpanOutputMetadata({ rootSpan }: RootSpanProps) {
             buttonText="Annotate"
           />
         </span>
+        <AnnotationSummaryGroupTokens
+          span={rootSpan}
+          renderEmptyState={() => null}
+        />
       </Flex>
-      <AnnotationSummaryGroupTokens
-        span={rootSpan}
-        renderEmptyState={() => null}
-      />
     </Flex>
   );
 }
@@ -262,7 +282,13 @@ function SessionTurnDetail({
 
   return (
     <Flex direction="column" gap="size-200">
-      <Flex direction="column" gap="size-100" alignItems="start">
+      <Flex
+        direction="column"
+        gap="size-100"
+        alignSelf="start"
+        alignItems="start"
+        css={messageWrapCSS}
+      >
         <RootSpanMessage
           label={inputLabel}
           role="INPUT"
@@ -270,7 +296,13 @@ function SessionTurnDetail({
         />
         <RootSpanStartTime rootSpan={rootSpan} />
       </Flex>
-      <Flex direction="column" gap="size-100">
+      <Flex
+        direction="column"
+        gap="size-100"
+        alignSelf="end"
+        alignItems="end"
+        css={messageWrapCSS}
+      >
         <RootSpanMessage
           extra={<RootSpanTraceLink traceId={traceId} rootSpan={rootSpan} />}
           role="OUTPUT"
@@ -520,6 +552,7 @@ export function SessionDetailsTraceList({
                 cumulativeTokenCountTotal
                 latencyMs
                 startTime
+                endTime
                 spanId
                 ...AnnotationSummaryGroup
               }
