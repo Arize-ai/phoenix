@@ -21,6 +21,7 @@ import {
   EditCodeEvaluatorDialogContent,
 } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
 import { buildOutputConfigsInput } from "@phoenix/components/evaluators/utils";
+import { useViewerCanManageSandboxes } from "@phoenix/contexts";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
 import {
@@ -123,6 +124,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
   onUpdate?: () => void;
 }) {
   const notifySuccess = useNotifySuccess();
+  const canManageSandboxes = useViewerCanManageSandboxes();
   const [error, setError] = useState<string | undefined>();
   const data =
     useLazyLoadQuery<EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery>(
@@ -130,6 +132,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
         query EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery(
           $datasetEvaluatorId: ID!
           $datasetId: ID!
+          $canManageSandboxes: Boolean!
         ) {
           dataset: node(id: $datasetId) {
             id
@@ -201,7 +204,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
               name
               description
               timeout
-              config
+              config @include(if: $canManageSandboxes)
             }
           }
           sandboxBackends {
@@ -213,7 +216,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
           }
         }
       `,
-      { datasetEvaluatorId, datasetId },
+      { datasetEvaluatorId, datasetId, canManageSandboxes },
       { fetchPolicy: "network-only" }
     );
   const { dataset, sandboxProviders, sandboxBackends } = data;
@@ -262,6 +265,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
       mutation EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation(
         $input: UpdateDatasetCodeEvaluatorInput!
         $connectionIds: [ID!]!
+        $canManageSandboxes: Boolean!
       ) {
         updateDatasetCodeEvaluator(input: $input) {
           evaluator
@@ -272,6 +276,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
             ...DatasetEvaluatorsTable_row
             ...PlaygroundDatasetSection_evaluator
             ...CodeDatasetEvaluatorDetails_datasetEvaluator
+              @arguments(canManageSandboxes: $canManageSandboxes)
             id
           }
         }
@@ -379,6 +384,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
                   inputMapping,
                 },
                 connectionIds: updateConnectionIds ?? [],
+                canManageSandboxes,
               },
               onCompleted: () => {
                 notifySuccess({ title: "Evaluator updated" });

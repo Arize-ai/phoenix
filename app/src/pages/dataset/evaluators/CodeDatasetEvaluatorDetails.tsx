@@ -32,8 +32,9 @@ import {
 } from "@phoenix/pages/settings/sandboxes/utils";
 import { isPlainObject } from "@phoenix/utils/jsonUtils";
 
-type SandboxBackendInfo =
-  datasetEvaluatorDetailsLoaderQuery["response"]["sandboxBackends"][number];
+type SandboxBackendInfo = NonNullable<
+  datasetEvaluatorDetailsLoaderQuery["response"]["sandboxBackends"]
+>[number];
 
 type OutputConfig = {
   name: string;
@@ -397,7 +398,8 @@ export function CodeDatasetEvaluatorDetails({
 }) {
   const datasetEvaluator = useFragment(
     graphql`
-      fragment CodeDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {
+      fragment CodeDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator
+      @argumentDefinitions(canManageSandboxes: { type: "Boolean!" }) {
         id
         inputMapping {
           literalMapping
@@ -447,7 +449,7 @@ export function CodeDatasetEvaluatorDetails({
               name
               description
               timeout
-              config
+              config @include(if: $canManageSandboxes)
               provider {
                 backendType
                 language
@@ -514,6 +516,11 @@ export function CodeDatasetEvaluatorDetails({
 
   const customSettings = useMemo(() => {
     if (sandboxConfig == null) return null;
+    // `config` is admin-gated via `@include(if: $canManageSandboxes)`; if a
+    // non-admin viewer loads this page, the field is omitted from the response
+    // and we suppress the custom-settings rows entirely in favor of an
+    // admin-only affordance below.
+    if (sandboxConfig.config == null) return null;
     if (summarizeConfig(sandboxConfig.config) === "No custom settings") {
       return null;
     }
@@ -669,6 +676,13 @@ export function CodeDatasetEvaluatorDetails({
                     />
                   </ListItem>
                 ))}
+                {!canManageSandboxes ? (
+                  <ListItem>
+                    <Text size="S" color="text-500" fontStyle="italic">
+                      Sandbox details visible to admins only
+                    </Text>
+                  </ListItem>
+                ) : null}
               </List>
             )}
           </Card>

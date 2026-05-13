@@ -16,6 +16,23 @@ PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO
 
 Accepted values: `WASM`, `E2B`, `DAYTONA`, `VERCEL`, `DENO`, `MODAL` (case-insensitive). Listing a family covers all of its language variants — for example, `VERCEL` covers both `VERCEL_PYTHON` and `VERCEL_TYPESCRIPT`.
 
+### Sandbox and code-evaluator GraphQL surfaces require admin role
+
+PR #13147 closed three HIGH-severity source-code exfiltration paths by tightening the role required to read sandbox configuration and to create, modify, or preview persisted code evaluators. When auth is enabled, eight GraphQL surfaces — four read fields and four write paths (three mutations plus two `evaluatorPreviews` branches) — now require the `admin` role; non-admin viewers and members receive an `Unauthorized` error if they request these fields or invoke these mutations. When auth is disabled, all surfaces remain accessible (the gate is `IsAdminIfAuthEnabled`).
+
+| Surface | Type | Required role when auth enabled |
+| :--- | :--- | :--- |
+| `SandboxConfig.config` | Query field | admin |
+| `SandboxProvider.config` | Query field | admin |
+| `Query.sandboxBackends` | Query | admin |
+| `Query.sandboxProviders` | Query | admin |
+| `createCodeEvaluator` | Mutation | admin |
+| `patchCodeEvaluator` | Mutation | admin |
+| `createCodeEvaluatorVersion` | Mutation | admin |
+| `evaluatorPreviews` (`code_evaluator` + `inline_code_evaluator` branches) | Mutation branch | admin |
+
+The `evaluatorPreviews` `builtin` and `inline_llm_evaluator` branches remain member-accessible — only the sandbox-executing branches (`code_evaluator`, `inline_code_evaluator`) are gated.
+
 ## v14.x to v15.0.0
 
 No action is required to upgrade from v14.x to v15.0.0.

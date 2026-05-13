@@ -137,7 +137,7 @@ function DatasetEvaluatorDetailsPageContent({
                 {isCodeEvaluator && (
                   <CodeDatasetEvaluatorDetails
                     datasetEvaluatorRef={datasetEvaluator}
-                    sandboxBackends={data.sandboxBackends}
+                    sandboxBackends={data.sandboxBackends ?? []}
                   />
                 )}
               </Flex>

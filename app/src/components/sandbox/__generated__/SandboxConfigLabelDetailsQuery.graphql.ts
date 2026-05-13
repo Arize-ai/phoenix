@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7e34ba99a8ba3848064821c2bbd6ceda>>
+ * @generated SignedSource<<69b6b27b959b46efdf7a0b319e91e453>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,12 +10,13 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type SandboxConfigLabelDetailsQuery$variables = {
+  canManageSandboxes: boolean;
   id: string;
 };
 export type SandboxConfigLabelDetailsQuery$data = {
   readonly node: {
     readonly __typename: "SandboxConfig";
-    readonly config: any;
+    readonly config?: any;
     readonly timeout: number;
   } | {
     // This will never be '%other', but we need some
@@ -29,28 +30,31 @@ export type SandboxConfigLabelDetailsQuery = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = [
-  {
-    "defaultValue": null,
-    "kind": "LocalArgument",
-    "name": "id"
-  }
-],
-v1 = [
+var v0 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "canManageSandboxes"
+},
+v1 = {
+  "defaultValue": null,
+  "kind": "LocalArgument",
+  "name": "id"
+},
+v2 = [
   {
     "kind": "Variable",
     "name": "id",
     "variableName": "id"
   }
 ],
-v2 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v3 = {
+v4 = {
   "kind": "InlineFragment",
   "selections": [
     {
@@ -61,11 +65,18 @@ v3 = {
       "storageKey": null
     },
     {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "config",
-      "storageKey": null
+      "condition": "canManageSandboxes",
+      "kind": "Condition",
+      "passingValue": true,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "config",
+          "storageKey": null
+        }
+      ]
     }
   ],
   "type": "SandboxConfig",
@@ -73,21 +84,24 @@ v3 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v0/*: any*/),
+      (v1/*: any*/)
+    ],
     "kind": "Fragment",
     "metadata": null,
     "name": "SandboxConfigLabelDetailsQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v2/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
-          (v3/*: any*/)
+          (v3/*: any*/),
+          (v4/*: any*/)
         ],
         "storageKey": null
       }
@@ -97,20 +111,23 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": (v0/*: any*/),
+    "argumentDefinitions": [
+      (v1/*: any*/),
+      (v0/*: any*/)
+    ],
     "kind": "Operation",
     "name": "SandboxConfigLabelDetailsQuery",
     "selections": [
       {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v2/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "node",
         "plural": false,
         "selections": [
-          (v2/*: any*/),
           (v3/*: any*/),
+          (v4/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -124,16 +141,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "143c987b1e62b57f1d7d1427b77e7f49",
+    "cacheID": "1393c008b2581ba66c111a61cd6c9d23",
     "id": null,
     "metadata": {},
     "name": "SandboxConfigLabelDetailsQuery",
     "operationKind": "query",
-    "text": "query SandboxConfigLabelDetailsQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on SandboxConfig {\n      timeout\n      config\n    }\n    id\n  }\n}\n"
+    "text": "query SandboxConfigLabelDetailsQuery(\n  $id: ID!\n  $canManageSandboxes: Boolean!\n) {\n  node(id: $id) {\n    __typename\n    ... on SandboxConfig {\n      timeout\n      config @include(if: $canManageSandboxes)\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3290cd829ca344394ae719da9a22f8bc";
+(node as any).hash = "77b090e6f1f4a3a3ea6ae015e6a20edc";
 
 export default node;

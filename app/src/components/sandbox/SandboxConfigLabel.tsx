@@ -14,6 +14,7 @@ import {
 } from "@phoenix/components";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
+import { useViewerCanManageSandboxes } from "@phoenix/contexts";
 import { getSandboxConfigSettings } from "@phoenix/pages/settings/sandboxes/utils";
 
 import type { SandboxConfigLabelDetailsQuery } from "./__generated__/SandboxConfigLabelDetailsQuery.graphql";
@@ -87,19 +88,20 @@ function SandboxConfigLabelDetails({
 }: {
   sandboxConfigId: string;
 }) {
+  const canManageSandboxes = useViewerCanManageSandboxes();
   const data = useLazyLoadQuery<SandboxConfigLabelDetailsQuery>(
     graphql`
-      query SandboxConfigLabelDetailsQuery($id: ID!) {
+      query SandboxConfigLabelDetailsQuery($id: ID!, $canManageSandboxes: Boolean!) {
         node(id: $id) {
           __typename
           ... on SandboxConfig {
             timeout
-            config
+            config @include(if: $canManageSandboxes)
           }
         }
       }
     `,
-    { id: sandboxConfigId }
+    { id: sandboxConfigId, canManageSandboxes }
   );
 
   if (data.node.__typename !== "SandboxConfig") {
@@ -107,7 +109,9 @@ function SandboxConfigLabelDetails({
   }
   const sandboxConfig = data.node;
 
-  const settings = getSandboxConfigSettings(sandboxConfig.config);
+  const settings = canManageSandboxes
+    ? getSandboxConfigSettings(sandboxConfig.config)
+    : [];
 
   return (
     <ul css={settingsListCSS}>
@@ -125,6 +129,13 @@ function SandboxConfigLabelDetails({
           <Text size="S">{setting.value}</Text>
         </li>
       ))}
+      {!canManageSandboxes ? (
+        <li css={settingRowCSS}>
+          <Text size="S" color="text-500" fontStyle="italic">
+            Sandbox details visible to admins only
+          </Text>
+        </li>
+      ) : null}
     </ul>
   );
 }

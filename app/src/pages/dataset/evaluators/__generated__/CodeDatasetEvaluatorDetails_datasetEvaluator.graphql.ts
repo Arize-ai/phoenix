@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f2bc5138c35e454fdab8aaab13fd1715>>
+ * @generated SignedSource<<cca35c3bf130cb8a401b556e3e4db939>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -34,7 +34,7 @@ export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
       }>;
     }>;
     readonly sandboxConfig?: {
-      readonly config: any;
+      readonly config?: any;
       readonly description: string | null;
       readonly id: string;
       readonly name: string;
@@ -172,7 +172,13 @@ v5 = {
   "storageKey": null
 };
 return {
-  "argumentDefinitions": [],
+  "argumentDefinitions": [
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "canManageSandboxes"
+    }
+  ],
   "kind": "Fragment",
   "metadata": null,
   "name": "CodeDatasetEvaluatorDetails_datasetEvaluator",
@@ -246,11 +252,18 @@ return {
                   "storageKey": null
                 },
                 {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "config",
-                  "storageKey": null
+                  "condition": "canManageSandboxes",
+                  "kind": "Condition",
+                  "passingValue": true,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "config",
+                      "storageKey": null
+                    }
+                  ]
                 },
                 {
                   "alias": null,
@@ -305,6 +318,6 @@ return {
 };
 })();
 
-(node as any).hash = "bb4bbd88be4773bb0ae55a8598ade320";
+(node as any).hash = "fd87052fc40331699d08db7209a3d694";
 
 export default node;
