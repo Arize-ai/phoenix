@@ -7,6 +7,10 @@ import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from starlette.datastructures import Secret
+
+_API_KEY = Secret("test-key")
+_ALT_KEY = Secret("key")
 
 
 class _CodeRunParams:
@@ -85,7 +89,7 @@ class TestCodeRunParamsKwarg:
         with patch.dict(sys.modules, modules):
             from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
 
-            backend = DaytonaSandboxBackend(api_key="test-key", user_env=user_env)
+            backend = DaytonaSandboxBackend(api_key=_API_KEY, user_env=user_env)
             await backend.execute("print('hi')", session_key="s1")
 
         workspace = daytona_mod.AsyncDaytona.return_value.create.return_value
@@ -117,7 +121,7 @@ class TestCodeRunParamsKwarg:
         with patch.dict(sys.modules, modules):
             from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
 
-            backend = DaytonaSandboxBackend(api_key="test-key", user_env={})
+            backend = DaytonaSandboxBackend(api_key=_API_KEY, user_env={})
             await backend.execute("1+1", session_key="s1")
 
         workspace = daytona_mod.AsyncDaytona.return_value.create.return_value
@@ -143,7 +147,7 @@ class TestNetworkBlockAll:
         with patch.dict(sys.modules, modules):
             from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
 
-            backend = DaytonaSandboxBackend(api_key="key", network_block_all=True)
+            backend = DaytonaSandboxBackend(api_key=_ALT_KEY, network_block_all=True)
             await backend.execute("1", session_key="s1")
 
         create_call = daytona_mod.AsyncDaytona.return_value.create.call_args
@@ -169,7 +173,7 @@ class TestNetworkBlockAll:
         with patch.dict(sys.modules, modules):
             from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
 
-            backend = DaytonaSandboxBackend(api_key="key", network_block_all=False)
+            backend = DaytonaSandboxBackend(api_key=_ALT_KEY, network_block_all=False)
             await backend.execute("1", session_key="s1")
 
         create_call = daytona_mod.AsyncDaytona.return_value.create.call_args
@@ -192,7 +196,7 @@ class TestNetworkBlockAll:
         with patch.dict(sys.modules, modules):
             from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
 
-            backend = DaytonaSandboxBackend(api_key="key", network_block_all=True)
+            backend = DaytonaSandboxBackend(api_key=_ALT_KEY, network_block_all=True)
             await backend.start_session("sess")
 
         create_call = daytona_mod.AsyncDaytona.return_value.create.call_args
@@ -223,7 +227,7 @@ class TestEphemeralTeardown:
         with patch.dict(sys.modules, modules):
             from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
 
-            backend = DaytonaSandboxBackend(api_key="test-key")
+            backend = DaytonaSandboxBackend(api_key=_API_KEY)
             result = await backend.execute("raise RuntimeError()", session_key="ephemeral")
 
         assert result.error is not None
@@ -249,7 +253,7 @@ class TestEphemeralTeardown:
         with patch.dict(sys.modules, modules):
             from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
 
-            backend = DaytonaSandboxBackend(api_key="test-key")
+            backend = DaytonaSandboxBackend(api_key=_API_KEY)
             with pytest.raises((asyncio.TimeoutError, TimeoutError)):
                 await asyncio.wait_for(
                     backend.execute("sleep(10)", session_key="ephemeral"),
@@ -258,3 +262,25 @@ class TestEphemeralTeardown:
 
         assert client.create.call_count == 1
         assert client.delete.call_count == 1
+
+
+class TestBuildBackendCredentialValidation:
+    """``DaytonaPythonAdapter.build_backend`` must fail closed when api_key
+    is missing, instead of letting the SDK fall back to ``DAYTONA_API_KEY``
+    autodiscovery from process env (which differs from Phoenix's declared
+    ``PHOENIX_SANDBOX_DAYTONA_API_KEY`` and would bypass Phoenix's resolution).
+    """
+
+    def test_missing_api_key_raises_value_error(self) -> None:
+        from phoenix.server.sandbox.daytona_backend import DaytonaPythonAdapter
+
+        adapter = DaytonaPythonAdapter()
+        with pytest.raises(ValueError, match="PHOENIX_SANDBOX_DAYTONA_API_KEY"):
+            adapter.build_backend({})
+
+    def test_empty_api_key_raises_value_error(self) -> None:
+        from phoenix.server.sandbox.daytona_backend import DaytonaPythonAdapter
+
+        adapter = DaytonaPythonAdapter()
+        with pytest.raises(ValueError, match="PHOENIX_SANDBOX_DAYTONA_API_KEY"):
+            adapter.build_backend({"PHOENIX_SANDBOX_DAYTONA_API_KEY": ""})

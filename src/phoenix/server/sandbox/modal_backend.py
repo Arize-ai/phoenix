@@ -2,16 +2,18 @@
 Modal sandbox backend.
 
 Requires the ``modal`` package (optional extra). The SDK import is lazy (in
-``ModalSandboxBackend.__init__`` and ``_create_sandbox``) so the module remains
-importable when the extra is absent. Adapter availability is gated by
+``ModalSandboxBackend.__init__`` and the ``_ensure_*`` helpers) so the module
+remains importable when the extra is absent. Adapter availability is gated by
 ``ModalAdapter.probe_dependencies`` at registration time, which surfaces a
 missing extra as ``status=NOT_INSTALLED`` instead of a runtime error during
 evaluation.
 
-Authentication: Modal SDK reads MODAL_TOKEN_ID and MODAL_TOKEN_SECRET from
-``os.environ``. When DB-stored secrets are resolved for these keys, the
-backend writes them into ``os.environ`` before invoking the Modal SDK so
-the SDK picks them up.
+Authentication: credentials are passed explicitly to the Modal SDK via
+``modal.Client.from_credentials(token_id, token_secret)`` and threaded through
+``modal.App.lookup`` and ``modal.Sandbox.create`` as a ``client=`` kwarg. The
+backend never mutates ``os.environ`` — DB-resolved tokens stay scoped to the
+adapter instance and cannot leak into the Phoenix process env, subprocesses,
+logs, or crash dumps.
 
 Session lifecycle
 -----------------
@@ -28,8 +30,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
+
+from starlette.datastructures import Secret
 
 from .types import (
     ExecutionResult,
@@ -41,6 +44,7 @@ from .types import (
 )
 
 if TYPE_CHECKING:
+    from modal import App, Client
     from modal.image import Image
     from modal.sandbox import Sandbox
 
@@ -56,46 +60,92 @@ class ModalSandboxBackend(SandboxBackend):
     Supports named sessions via start_session/stop_session for sandbox reuse
     across multiple execute() calls, or ephemeral execution (no session) which
     spins up a fresh sandbox per call.
+
+    Credentials are passed explicitly to the SDK via ``modal.Client.from_credentials``
+    rather than via ``os.environ``. The client + app are constructed lazily on
+    first use so a missing/invalid token surfaces at sandbox-creation time —
+    consistent with how the rest of Phoenix's SDK adapters fail.
     """
 
     def __init__(
         self,
+        token_id: Secret,
+        token_secret: Secret,
+        *,
         timeout: int = _DEFAULT_TIMEOUT,
         idle_timeout: int = _DEFAULT_IDLE_TIMEOUT,
         app_name: str = "phoenix-sandbox",
-        user_env: Optional[dict[str, str]] = None,
-        packages: Optional[list[str]] = None,
+        user_env: Optional[Mapping[str, str]] = None,
+        packages: Optional[Sequence[str]] = None,
         block_network: bool = False,
-        token_id: Optional[str] = None,
-        token_secret: Optional[str] = None,
     ) -> None:
-        # Modal SDK reads MODAL_TOKEN_ID / MODAL_TOKEN_SECRET from os.environ at
-        # client init time. Inject DB-resolved values before the SDK is touched
-        # so admins can configure Modal via the secrets table without having to
-        # also export the variables in the server process.
-        self.secret_values = compose_secret_values(user_env, token_id, token_secret)
-        if token_id:
-            os.environ["MODAL_TOKEN_ID"] = token_id
-        if token_secret:
-            os.environ["MODAL_TOKEN_SECRET"] = token_secret
+        if not token_id or not token_secret:
+            raise ValueError(
+                "Modal sandbox requires both MODAL_TOKEN_ID and MODAL_TOKEN_SECRET. "
+                "Set them via setSandboxCredential or as process environment variables."
+            )
 
         import modal
 
+        self._token_id = token_id
+        self._token_secret = token_secret
         self._timeout = timeout
         self._idle_timeout = idle_timeout
-        self._user_env: dict[str, str] = user_env or {}
+        self._app_name = app_name
+        self._user_env: dict[str, str] = dict(user_env or {})
         self._block_network = block_network
         self._sessions: dict[str, Sandbox] = {}
         self._session_locks: dict[str, asyncio.Lock] = {}
-        self._app = modal.App.lookup(app_name, create_if_missing=True)
+        self._client: Optional[Client] = None
+        self._app: Optional[App] = None
+        self._client_lock = asyncio.Lock()
         base_image = modal.Image.debian_slim()
-        self._image: Image = base_image.pip_install(packages) if packages else base_image
+        self._image: Image = base_image.pip_install(list(packages)) if packages else base_image
+        self.secret_values = compose_secret_values(user_env, token_id, token_secret)
+
+    async def _ensure_client(self) -> Client:
+        """Construct (or reuse) a typed Modal Client bound to this backend's credentials.
+
+        Double-checked locking: the unlocked fast path serves the steady-state
+        cache hit, and the re-check inside the lock prevents two concurrent
+        first-time callers from each constructing a client.
+        """
+        import modal
+
+        if self._client is not None:
+            return self._client
+        async with self._client_lock:
+            if self._client is None:
+                self._client = await modal.Client.from_credentials.aio(
+                    str(self._token_id), str(self._token_secret)
+                )
+        return self._client
+
+    async def _ensure_app(self) -> App:
+        """Look up (or create) the Modal App for sandbox association, using our client.
+
+        Double-checked locking, same rationale as ``_ensure_client``.
+        """
+        import modal
+
+        if self._app is not None:
+            return self._app
+        client = await self._ensure_client()
+        async with self._client_lock:
+            if self._app is None:
+                self._app = await modal.App.lookup.aio(
+                    self._app_name, client=client, create_if_missing=True
+                )
+        return self._app
 
     async def _create_sandbox(self) -> Sandbox:
         import modal
 
+        client = await self._ensure_client()
+        app = await self._ensure_app()
         kwargs: dict[str, Any] = {
-            "app": self._app,
+            "app": app,
+            "client": client,
             "image": self._image,
             "timeout": self._timeout,
             "idle_timeout": self._idle_timeout,
@@ -188,24 +238,30 @@ class ModalAdapter(SandboxAdapter):
 
     def build_backend(
         self,
-        config: dict[str, Any],
-        user_env: Optional[dict[str, str]] = None,
+        config: Mapping[str, Any],
+        user_env: Optional[Mapping[str, str]] = None,
     ) -> SandboxBackend:
         self._enforce_capabilities(config, user_env)
+        token_id = config.get("MODAL_TOKEN_ID") or ""
+        token_secret = config.get("MODAL_TOKEN_SECRET") or ""
+        if not token_id or not token_secret:
+            raise ValueError(
+                "Modal sandbox authentication is not configured. Set both "
+                "MODAL_TOKEN_ID and MODAL_TOKEN_SECRET via setSandboxCredential "
+                "or as process environment variables."
+            )
         deps = config.get("dependencies") or {}
         packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
         ia = config.get("internet_access") or {}
         mode = ia.get("mode") if isinstance(ia, dict) else getattr(ia, "mode", None)
         block_network: bool = mode == "deny"
-        token_id = config.get("MODAL_TOKEN_ID") or None
-        token_secret = config.get("MODAL_TOKEN_SECRET") or None
         return ModalSandboxBackend(
+            token_id=Secret(token_id),
+            token_secret=Secret(token_secret),
             timeout=_DEFAULT_TIMEOUT,
             idle_timeout=_DEFAULT_IDLE_TIMEOUT,
             app_name="phoenix-sandbox",
             user_env=user_env,
             packages=packages or None,
             block_network=block_network,
-            token_id=token_id,
-            token_secret=token_secret,
         )

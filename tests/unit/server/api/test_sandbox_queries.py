@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Mapping, Optional
 from unittest.mock import MagicMock
 
 import pytest
@@ -33,8 +33,8 @@ class _TestAuthAdapter(SandboxAdapter):
 
     def build_backend(
         self,
-        config: dict,  # type: ignore[type-arg]
-        user_env: dict | None = None,  # type: ignore[type-arg]
+        config: Mapping[str, Any],
+        user_env: Optional[Mapping[str, str]] = None,
     ) -> SandboxBackend:
         return MagicMock(spec=SandboxBackend)
 

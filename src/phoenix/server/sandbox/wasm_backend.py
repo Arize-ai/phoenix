@@ -24,7 +24,7 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Mapping, Optional
 
 if TYPE_CHECKING:
     import wasmtime
@@ -187,8 +187,8 @@ class WASMAdapter(SandboxAdapter):
 
     def build_backend(
         self,
-        config: dict[str, Any],
-        user_env: Optional[dict[str, str]] = None,
+        config: Mapping[str, Any],
+        user_env: Optional[Mapping[str, str]] = None,
     ) -> SandboxBackend:
         self._enforce_capabilities(config, user_env)
         return WASMBackend()
