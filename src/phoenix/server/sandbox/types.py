@@ -7,7 +7,9 @@ import unconditionally regardless of optional sandbox extras.
 
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import (
     Annotated,
@@ -20,12 +22,81 @@ from typing import (
     get_args,
 )
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from starlette.datastructures import Secret
 
 
 class UnsupportedOperation(Exception):
     """Raised when a sandbox backend does not support a requested operation."""
+
+
+# ---------------------------------------------------------------------------
+# Dependency-spec grammar. npm and Python requirement strings are validated
+# independently — there is intentionally no cross-conversion: a TypeScript
+# sandbox takes npm syntax (`lodash@^4.17`), a Python sandbox takes pip
+# syntax (`numpy==1.26.0`), and a spec in the wrong dialect is rejected with
+# a hint rather than silently translated. The frontend mirrors these in
+# app/src/pages/settings/sandboxes/utils.tsx; keep the two in sync.
+# ---------------------------------------------------------------------------
+
+#: One identifier segment: starts/ends alphanumeric, allows ``.``/``_``/``-``/``~`` inside.
+_IDENT = r"[A-Za-z0-9](?:[A-Za-z0-9._~-]*[A-Za-z0-9])?"
+
+#: npm package name — optional ``@scope/`` prefix, then a name segment.
+_NPM_NAME = rf"(?:@{_IDENT}/)?{_IDENT}"
+#: npm version selector — anything non-empty without whitespace or ``@`` (covers
+#: ranges like ``^1.2.0``, ``>=6.37.0``, ``1.2.3``, dist-tags, git refs).
+_NPM_VERSION = r"[^@\s]+"
+#: An npm requirement: ``name`` or ``name@version`` (incl. ``@scope/name``).
+_NPM_REQUIREMENT_RE = re.compile(rf"^(?:{_NPM_NAME})(?:@{_NPM_VERSION})?$")
+
+#: PEP 508 extras list, e.g. ``[socks,brotli]``.
+_PY_EXTRAS = r"(?:\[\s*[A-Za-z0-9._-]+(?:\s*,\s*[A-Za-z0-9._-]+)*\s*\])?"
+#: One PEP 440 version clause, e.g. ``>=1.2``, ``==1.*``, ``~=2.0``.
+_PY_VERSION_CLAUSE = r"(?:===|==|!=|~=|<=|>=|<|>)\s*[A-Za-z0-9*][A-Za-z0-9.*+!_-]*"
+#: A Python requirement: ``name[extras] <clause>[, <clause>...]`` (markers/URLs
+#: are intentionally out of scope for the dependency-list UI).
+_PYTHON_REQUIREMENT_RE = re.compile(
+    rf"^{_IDENT}\s*{_PY_EXTRAS}\s*"
+    rf"(?:{_PY_VERSION_CLAUSE}(?:\s*,\s*{_PY_VERSION_CLAUSE})*)?\s*$"
+)
+
+
+def validate_npm_package_spec(spec: str) -> str:
+    """Strip and validate a single npm install spec; raise ValueError if invalid."""
+    stripped = spec.strip()
+    if not stripped or not _NPM_REQUIREMENT_RE.match(stripped):
+        raise ValueError(
+            f"invalid npm package spec {spec!r} "
+            "(expected e.g. 'lodash', 'lodash@^4.17', '@scope/pkg@1.2.3')"
+        )
+    return stripped
+
+
+def validate_python_package_spec(spec: str) -> str:
+    """Strip and validate a single Python package spec; raise ValueError if invalid."""
+    stripped = spec.strip()
+    if not stripped or not _PYTHON_REQUIREMENT_RE.match(stripped):
+        raise ValueError(
+            f"invalid Python package spec {spec!r} "
+            "(expected e.g. 'requests', 'numpy==1.26.0', 'httpx[http2]>=0.27,<1')"
+        )
+    return stripped
+
+
+def _validated_package_list(packages: list[str], validate_one: Callable[[str], str]) -> list[str]:
+    """Apply a per-entry validator across a package list.
+
+    Re-raises the first failure with the offending index so the pydantic
+    ValidationError points at the bad line.
+    """
+    out: list[str] = []
+    for i, pkg in enumerate(packages):
+        try:
+            out.append(validate_one(pkg))
+        except ValueError as exc:
+            raise ValueError(f"packages[{i}]: {exc}") from exc
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -87,12 +158,22 @@ class PythonDependenciesConfig(BaseModel):
     packages: list[str] = Field(default_factory=list)
     lockfile: Optional[str] = None
 
+    @field_validator("packages", mode="after")
+    @classmethod
+    def _validate_python_specs(cls, packages: list[str]) -> list[str]:
+        return _validated_package_list(packages, validate_python_package_spec)
+
 
 class TypescriptDependenciesConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     packages: list[str] = Field(default_factory=list)
     lockfile: Optional[str] = None
+
+    @field_validator("packages", mode="after")
+    @classmethod
+    def _validate_npm_specs(cls, packages: list[str]) -> list[str]:
+        return _validated_package_list(packages, validate_npm_package_spec)
 
 
 @dataclass

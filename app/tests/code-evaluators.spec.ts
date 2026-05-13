@@ -192,7 +192,7 @@ async function ensureSandboxConfig(
     dialog.getByRole("heading", { name: "New Sandbox Config" })
   ).toBeVisible();
 
-  await selectFromCombobox(page, dialog, "Provider", providerName);
+  await selectFromSelect(page, dialog, "Sandbox Provider", providerName);
   await dialog.getByRole("textbox", { name: "Name" }).fill(configName);
 
   await Promise.all([
@@ -325,7 +325,7 @@ async function createE2BSandboxWithLiteralEnvVar(
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
 
-  await selectFromCombobox(page, dialog, "Provider", "E2B");
+  await selectFromSelect(page, dialog, "Sandbox Provider", "E2B");
 
   await expect(
     dialog.getByText("Environment Variables", { exact: true })
@@ -1086,7 +1086,7 @@ test.describe
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
 
-    await selectFromCombobox(page, dialog, "Provider", "E2B");
+    await selectFromSelect(page, dialog, "Sandbox Provider", "E2B");
 
     await expect(
       dialog.getByText("Environment Variables", { exact: true })

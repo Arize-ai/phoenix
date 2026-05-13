@@ -65,7 +65,10 @@ import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorI
 import { EvaluatorInputPreview } from "@phoenix/components/evaluators/EvaluatorInputPreview";
 import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/CodeEvaluatorInputVariablesProvider";
 import { EvaluatorNameInput } from "@phoenix/components/evaluators/EvaluatorNameInput";
-import { OptimizationDirectionField } from "@phoenix/components/evaluators/OptimizationDirectionField";
+import {
+  DEFAULT_OPTIMIZATION_DIRECTION,
+  OptimizationDirectionField,
+} from "@phoenix/components/evaluators/OptimizationDirectionField";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { useTheme } from "@phoenix/contexts";
 import {
@@ -75,6 +78,7 @@ import {
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
 import type {
   ClassificationChoice,
+  ClassificationEvaluatorAnnotationConfig,
   CodeEvaluatorLanguage,
   ContinuousEvaluatorAnnotationConfig,
 } from "@phoenix/types";
@@ -88,9 +92,20 @@ export const createDefaultContinuousOutputConfig = (
   name: string
 ): ContinuousEvaluatorAnnotationConfig => ({
   name,
-  optimizationDirection: "NONE",
+  optimizationDirection: DEFAULT_OPTIMIZATION_DIRECTION,
   lowerBound: 0,
   upperBound: 1,
+});
+
+export const createDefaultCategoricalOutputConfig = (
+  name: string
+): ClassificationEvaluatorAnnotationConfig => ({
+  name,
+  optimizationDirection: DEFAULT_OPTIMIZATION_DIRECTION,
+  values: [
+    { label: "pass", score: 1 },
+    { label: "fail", score: 0 },
+  ],
 });
 
 export const EditCodeEvaluatorDialogContent = ({
@@ -389,6 +404,7 @@ export const EditCodeEvaluatorDialogContent = ({
                   selectedSandboxConfigId={selectedSandboxConfigId}
                   onSandboxChange={setSandboxConfigId}
                   isLanguageEditable={mode === "create"}
+                  isSandboxRequired={mode === "create"}
                 />
                 <CodeEditor
                   language={language}
@@ -433,6 +449,7 @@ const EvaluatorMetadataForm = ({
   selectedSandboxConfigId,
   onSandboxChange,
   isLanguageEditable,
+  isSandboxRequired,
 }: {
   language: CodeEvaluatorLanguage;
   onLanguageChange: (language: CodeEvaluatorLanguage) => void;
@@ -440,17 +457,19 @@ const EvaluatorMetadataForm = ({
   selectedSandboxConfigId: string | null;
   onSandboxChange: (sandboxConfigId: string | null) => void;
   isLanguageEditable?: boolean;
+  isSandboxRequired?: boolean;
 }) => {
   return (
     <div css={metadataFormCSS}>
       <div style={{ flex: "0 0 260px" }}>
-        <EvaluatorNameInput />
+        <EvaluatorNameInput isRequired />
       </div>
       <div style={{ flex: "0 0 260px" }}>
         <CodeEvaluatorLanguageField
           language={language}
           onChange={onLanguageChange}
           isDisabled={!isLanguageEditable}
+          isRequired
         />
       </div>
       <div style={{ flex: "0 0 260px" }}>
@@ -459,6 +478,7 @@ const EvaluatorMetadataForm = ({
           language={language}
           selectedSandboxConfigId={selectedSandboxConfigId}
           onSelectionChange={onSandboxChange}
+          isRequired={isSandboxRequired}
         />
       </div>
       <div style={{ flex: "1 1 240px", minWidth: 180 }}>
@@ -907,11 +927,11 @@ const OutputConfigSection = () => {
 
   useEffect(() => {
     if (!outputConfig) {
-      store
-        .getState()
-        .setOutputConfigs([createDefaultContinuousOutputConfig(evaluatorName)]);
+      const state = store.getState();
+      const name = state.evaluator.name || state.evaluator.globalName;
+      state.setOutputConfigs([createDefaultCategoricalOutputConfig(name)]);
     }
-  }, [evaluatorName, outputConfig, store]);
+  }, [outputConfig, store]);
 
   if (!outputConfig) {
     return null;
@@ -932,21 +952,17 @@ const OutputConfigSection = () => {
         <div css={fillCSS}>
           <Select
             value={outputType}
+            disabledKeys={["continuous"]}
             onChange={(value) => {
               const nextType =
                 value as (typeof outputTypeOptions)[number]["id"];
-              store.getState().setOutputConfigs([
-                nextType === "categorical"
-                  ? {
-                      name: evaluatorName,
-                      optimizationDirection: "NONE",
-                      values: [
-                        { label: "pass", score: 1 },
-                        { label: "fail", score: 0 },
-                      ],
-                    }
-                  : createDefaultContinuousOutputConfig(evaluatorName),
-              ]);
+              store
+                .getState()
+                .setOutputConfigs([
+                  nextType === "categorical"
+                    ? createDefaultCategoricalOutputConfig(evaluatorName)
+                    : createDefaultContinuousOutputConfig(evaluatorName),
+                ]);
             }}
           >
             <Label>Output type</Label>
@@ -1005,7 +1021,7 @@ const CategoricalChoicesEditor = ({
         Choices
       </Text>
       {values.map((choice, index) => (
-        <div key={`${index}-${choice.label}`} css={choiceGridCSS}>
+        <div key={index} css={choiceGridCSS}>
           <TextField
             value={choice.label}
             onChange={(label) => {

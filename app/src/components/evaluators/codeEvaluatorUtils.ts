@@ -24,28 +24,28 @@ export function getStaticFallbackSource(
   if (language === "PYTHON") {
     if (shape === "categorical") {
       return `def evaluate(output, reference=None, input=None, metadata=None):
-${PYTHON_INDENT}# return {"label": "pass", "score": 1, "explanation": "..."}  # also set score and explanation
-${PYTHON_INDENT}return "pass"  # label only
+${PYTHON_INDENT}# You can also return only the label, e.g. return "pass"
+${PYTHON_INDENT}return {"label": "pass", "score": 1, "explanation": "..."}
 `;
     }
     // continuous
     return `def evaluate(output, reference=None, input=None, metadata=None):
-${PYTHON_INDENT}# return {"score": 0.5, "explanation": "..."}  # also set explanation
-${PYTHON_INDENT}return 0.5  # score only
+${PYTHON_INDENT}# You can also return only the score, e.g. return 0.5
+${PYTHON_INDENT}return {"score": 0.5, "explanation": "..."}
 `;
   }
   // TYPESCRIPT
   if (shape === "categorical") {
     return `function evaluate({ output, reference, input, metadata }: EvaluatorParams) {
-${TYPESCRIPT_INDENT}// return { label: "pass", score: 1, explanation: "..." };  // also set score and explanation
-${TYPESCRIPT_INDENT}return "pass";  // label only
+${TYPESCRIPT_INDENT}// You can also return only the label, e.g. return "pass";
+${TYPESCRIPT_INDENT}return { label: "pass", score: 1, explanation: "..." };
 }
 `;
   }
   // continuous
   return `function evaluate({ output, reference, input, metadata }: EvaluatorParams) {
-${TYPESCRIPT_INDENT}// return { score: 0.5, explanation: "..." };  // also set explanation
-${TYPESCRIPT_INDENT}return 0.5;  // score only
+${TYPESCRIPT_INDENT}// You can also return only the score, e.g. return 0.5;
+${TYPESCRIPT_INDENT}return { score: 0.5, explanation: "..." };
 }
 `;
 }
@@ -93,14 +93,14 @@ export function getDefaultCodeEvaluatorSource(
       const labelLiteral = JSON.stringify(label);
       if (language === "PYTHON") {
         return `def evaluate(output, reference=None, input=None, metadata=None):
-${PYTHON_INDENT}# return {"label": ${labelLiteral}, "score": 1, "explanation": "..."}  # also set score and explanation
-${PYTHON_INDENT}return ${labelLiteral}  # label only
+${PYTHON_INDENT}# You can also return only the label, e.g. return ${labelLiteral}
+${PYTHON_INDENT}return {"label": ${labelLiteral}, "score": 1, "explanation": "..."}
 `;
       }
       // TYPESCRIPT
       return `function evaluate({ output, reference, input, metadata }: EvaluatorParams) {
-${TYPESCRIPT_INDENT}// return { label: ${labelLiteral}, score: 1, explanation: "..." };  // also set score and explanation
-${TYPESCRIPT_INDENT}return ${labelLiteral};  // label only
+${TYPESCRIPT_INDENT}// You can also return only the label, e.g. return ${labelLiteral};
+${TYPESCRIPT_INDENT}return { label: ${labelLiteral}, score: 1, explanation: "..." };
 }
 `;
     }
@@ -123,14 +123,14 @@ ${TYPESCRIPT_INDENT}return ${labelLiteral};  // label only
       const rangeComment = `${lower.toFixed(1)} - ${upper.toFixed(1)}`;
       if (language === "PYTHON") {
         return `def evaluate(output, reference=None, input=None, metadata=None):
-${PYTHON_INDENT}# return {"score": ${midpoint.toFixed(1)}, "explanation": "..."}  # also set explanation
-${PYTHON_INDENT}return ${midpoint.toFixed(1)}  # score only (expected range: ${rangeComment})
+${PYTHON_INDENT}# You can also return only the score (expected range: ${rangeComment}), e.g. return ${midpoint.toFixed(1)}
+${PYTHON_INDENT}return {"score": ${midpoint.toFixed(1)}, "explanation": "..."}
 `;
       }
       // TYPESCRIPT
       return `function evaluate({ output, reference, input, metadata }: EvaluatorParams) {
-${TYPESCRIPT_INDENT}// return { score: ${midpoint.toFixed(1)}, explanation: "..." };  // also set explanation
-${TYPESCRIPT_INDENT}return ${midpoint.toFixed(1)};  // score only (expected range: ${rangeComment})
+${TYPESCRIPT_INDENT}// You can also return only the score (expected range: ${rangeComment}), e.g. return ${midpoint.toFixed(1)};
+${TYPESCRIPT_INDENT}return { score: ${midpoint.toFixed(1)}, explanation: "..." };
 }
 `;
     }

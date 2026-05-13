@@ -37,6 +37,7 @@ export type CodeEvaluatorLanguageFieldProps = {
   /** Callback when language changes */
   onChange: (language: CodeEvaluatorLanguage) => void;
   isDisabled?: boolean;
+  isRequired?: boolean;
 };
 
 /**
@@ -46,11 +47,13 @@ export const CodeEvaluatorLanguageField = ({
   language,
   onChange,
   isDisabled,
+  isRequired,
 }: CodeEvaluatorLanguageFieldProps) => {
   return (
     <Select
       value={language}
       isDisabled={isDisabled}
+      isRequired={isRequired}
       onChange={(value) => onChange(value as CodeEvaluatorLanguage)}
     >
       <Label>Language</Label>
@@ -89,6 +92,8 @@ export type CodeEvaluatorSandboxFieldProps = {
   onSelectionChange: (sandboxConfigId: string | null) => void;
   /** Optional size variant */
   size?: "M" | "L";
+  /** Whether the selection is required for form submission. */
+  isRequired?: boolean;
 };
 
 /**
@@ -101,6 +106,7 @@ export const CodeEvaluatorSandboxField = ({
   selectedSandboxConfigId,
   onSelectionChange,
   size = "M",
+  isRequired,
 }: CodeEvaluatorSandboxFieldProps) => {
   // Filter configs to only show those matching the current language
   const compatibleConfigs = useMemo(
@@ -122,6 +128,7 @@ export const CodeEvaluatorSandboxField = ({
   return (
     <Select
       size={size}
+      isRequired={isRequired}
       selectedKey={validSelectedId != null ? String(validSelectedId) : null}
       onSelectionChange={(key) => {
         onSelectionChange(typeof key === "string" ? key : null);
