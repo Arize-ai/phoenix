@@ -70,6 +70,16 @@ tests/unit/server/api/
   unauthenticated by default — this has been exploited as an SSRF vector. See
   `references/graphql-patterns.md` → "Query vs Mutation".
 
+## Naming
+
+- **Avoid acronyms and single/double-letter abbreviations for local variables.**
+  Prefer the full noun: `session` / `project_session` over `ps`, `trace` over `t`,
+  `example` / `dataset_example` over `de`. The cost of a longer identifier is trivial; the
+  cost of having to mentally expand an acronym while reading unfamiliar code is
+  not.
+- Established domain acronyms used in the codebase (`db`, `gql`, `otel`, `llm`)
+  are fine — they're vocabulary, not abbreviations of local nouns.
+
 ## Docstrings
 
 The project rule of "default to no comments" is about **inline comments**, not
