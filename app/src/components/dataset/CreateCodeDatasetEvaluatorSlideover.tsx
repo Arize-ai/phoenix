@@ -16,6 +16,7 @@ import {
   EditCodeEvaluatorDialogContent,
 } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
 import { buildOutputConfigsInput } from "@phoenix/components/evaluators/utils";
+import { useViewerCanManageSandboxes } from "@phoenix/contexts";
 import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
 import {
@@ -98,10 +99,11 @@ const CreateCodeEvaluatorDialog = ({
   onEvaluatorCreated?: (datasetEvaluatorId: string) => void;
 }) => {
   const notifySuccess = useNotifySuccess();
+  const canManageSandboxes = useViewerCanManageSandboxes();
   const [error, setError] = useState<string | undefined>();
   const data = useLazyLoadQuery<CreateCodeDatasetEvaluatorSlideoverQuery>(
     graphql`
-      query CreateCodeDatasetEvaluatorSlideoverQuery {
+      query CreateCodeDatasetEvaluatorSlideoverQuery($canManageSandboxes: Boolean!) {
         sandboxProviders {
           backendType
           language
@@ -111,7 +113,7 @@ const CreateCodeEvaluatorDialog = ({
             name
             description
             timeout
-            config
+            config @include(if: $canManageSandboxes)
           }
         }
         sandboxBackends {
@@ -123,7 +125,7 @@ const CreateCodeEvaluatorDialog = ({
         }
       }
     `,
-    {}
+    { canManageSandboxes }
   );
   const sandboxConfigs = mapSandboxConfigOptions(
     data.sandboxProviders,

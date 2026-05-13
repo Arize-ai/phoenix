@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5e7217b521d69f64a137190e14bd60a0>>
+ * @generated SignedSource<<767a1d048b27e9212f87c3484fbb1a8b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,7 +12,9 @@ import { ConcreteRequest } from 'relay-runtime';
 export type InternetAccessMode = "ALLOWLIST" | "BOOLEAN" | "NONE";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type SandboxBackendStatus = "AVAILABLE" | "MISSING_CREDENTIALS" | "NOT_INSTALLED" | "UNAVAILABLE";
-export type CreateCodeDatasetEvaluatorSlideoverQuery$variables = Record<PropertyKey, never>;
+export type CreateCodeDatasetEvaluatorSlideoverQuery$variables = {
+  canManageSandboxes: boolean;
+};
 export type CreateCodeDatasetEvaluatorSlideoverQuery$data = {
   readonly sandboxBackends: ReadonlyArray<{
     readonly backendType: string;
@@ -24,7 +26,7 @@ export type CreateCodeDatasetEvaluatorSlideoverQuery$data = {
   readonly sandboxProviders: ReadonlyArray<{
     readonly backendType: string;
     readonly configs: ReadonlyArray<{
-      readonly config: any;
+      readonly config?: any;
       readonly description: string | null;
       readonly id: string;
       readonly name: string;
@@ -40,35 +42,42 @@ export type CreateCodeDatasetEvaluatorSlideoverQuery = {
 };
 
 const node: ConcreteRequest = (function(){
-var v0 = {
+var v0 = [
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "canManageSandboxes"
+  }
+],
+v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "backendType",
   "storageKey": null
 },
-v1 = {
+v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "language",
   "storageKey": null
 },
-v2 = {
+v3 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "enabled",
   "storageKey": null
 },
-v3 = {
+v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v4 = {
+v5 = {
   "alias": null,
   "args": null,
   "concreteType": "SandboxConfig",
@@ -76,7 +85,7 @@ v4 = {
   "name": "configs",
   "plural": true,
   "selections": [
-    (v3/*: any*/),
+    (v4/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -99,16 +108,23 @@ v4 = {
       "storageKey": null
     },
     {
-      "alias": null,
-      "args": null,
-      "kind": "ScalarField",
-      "name": "config",
-      "storageKey": null
+      "condition": "canManageSandboxes",
+      "kind": "Condition",
+      "passingValue": true,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "config",
+          "storageKey": null
+        }
+      ]
     }
   ],
   "storageKey": null
 },
-v5 = {
+v6 = {
   "alias": null,
   "args": null,
   "concreteType": "SandboxBackendInfo",
@@ -116,7 +132,7 @@ v5 = {
   "name": "sandboxBackends",
   "plural": true,
   "selections": [
-    (v0/*: any*/),
+    (v1/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -150,7 +166,7 @@ v5 = {
 };
 return {
   "fragment": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "CreateCodeDatasetEvaluatorSlideoverQuery",
@@ -163,21 +179,21 @@ return {
         "name": "sandboxProviders",
         "plural": true,
         "selections": [
-          (v0/*: any*/),
           (v1/*: any*/),
           (v2/*: any*/),
-          (v4/*: any*/)
+          (v3/*: any*/),
+          (v5/*: any*/)
         ],
         "storageKey": null
       },
-      (v5/*: any*/)
+      (v6/*: any*/)
     ],
     "type": "Query",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "CreateCodeDatasetEvaluatorSlideoverQuery",
     "selections": [
@@ -189,28 +205,28 @@ return {
         "name": "sandboxProviders",
         "plural": true,
         "selections": [
-          (v0/*: any*/),
           (v1/*: any*/),
           (v2/*: any*/),
-          (v4/*: any*/),
-          (v3/*: any*/)
+          (v3/*: any*/),
+          (v5/*: any*/),
+          (v4/*: any*/)
         ],
         "storageKey": null
       },
-      (v5/*: any*/)
+      (v6/*: any*/)
     ]
   },
   "params": {
-    "cacheID": "829630d1a89eebd47463937078c1212c",
+    "cacheID": "4766f6a6442f10e8aa27a06f681c5804",
     "id": null,
     "metadata": {},
     "name": "CreateCodeDatasetEvaluatorSlideoverQuery",
     "operationKind": "query",
-    "text": "query CreateCodeDatasetEvaluatorSlideoverQuery {\n  sandboxProviders {\n    backendType\n    language\n    enabled\n    configs {\n      id\n      name\n      description\n      timeout\n      config\n    }\n    id\n  }\n  sandboxBackends {\n    backendType\n    status\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n  }\n}\n"
+    "text": "query CreateCodeDatasetEvaluatorSlideoverQuery(\n  $canManageSandboxes: Boolean!\n) {\n  sandboxProviders {\n    backendType\n    language\n    enabled\n    configs {\n      id\n      name\n      description\n      timeout\n      config @include(if: $canManageSandboxes)\n    }\n    id\n  }\n  sandboxBackends {\n    backendType\n    status\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "07b3d83efa8b385d187c54ab77bf6108";
+(node as any).hash = "7e5fe64e479dd1d96f97dee6cc9a3a2b";
 
 export default node;
