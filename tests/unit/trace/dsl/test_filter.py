@@ -280,9 +280,9 @@ def test_apply_eval_aliasing(filter_condition: str, expected: str) -> None:
         assert aliased == expected
 
 
-class TestProjectorSecurityClaim:
+class TestProjectorValidationGap:
     """
-    Validates the security claim about ``Projector`` in
+    Pins the two structural defects in ``Projector`` in
     ``src/phoenix/trace/dsl/filter.py``:
 
     1. Unlike ``SpanFilter``, ``Projector`` does NOT call
