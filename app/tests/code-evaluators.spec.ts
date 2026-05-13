@@ -455,8 +455,7 @@ test.describe.serial("Code Evaluators", () => {
 
     const dialog = page.getByRole("dialog");
     const nameInput = dialog.getByRole("textbox", {
-      name: "Name",
-      exact: true,
+      name: /^Name(\s*\*)?$/,
     });
     await expect(nameInput).toHaveValue(pythonEvaluatorName);
 
@@ -470,9 +469,7 @@ test.describe.serial("Code Evaluators", () => {
 
     await openEvaluatorEditor(page, updatedPythonEvaluatorName);
     await expect(
-      page
-        .getByRole("dialog")
-        .getByRole("textbox", { name: "Name", exact: true })
+      page.getByRole("dialog").getByRole("textbox", { name: /^Name(\s*\*)?$/ })
     ).toHaveValue(updatedPythonEvaluatorName);
     await page
       .getByRole("dialog")
@@ -629,7 +626,7 @@ test.describe.serial("Code Evaluators", () => {
     ).toBeVisible();
 
     await dialog
-      .getByRole("textbox", { name: "Name", exact: true })
+      .getByRole("textbox", { name: /^Name(\s*\*)?$/ })
       .fill("test-no-sandbox-eval");
 
     // Sandbox is intentionally left empty.
@@ -711,7 +708,7 @@ test.describe.serial("Code Evaluators", () => {
     ).toBeVisible();
 
     await dialog
-      .getByRole("textbox", { name: "Name", exact: true })
+      .getByRole("textbox", { name: /^Name(\s*\*)?$/ })
       .fill(categoricalEvaluatorName);
 
     await selectSandbox(page, dialog, pythonSandboxName);
@@ -788,7 +785,7 @@ test.describe.serial("Code Evaluators", () => {
     ).toBeVisible();
 
     await dialog
-      .getByRole("textbox", { name: "Name", exact: true })
+      .getByRole("textbox", { name: /^Name(\s*\*)?$/ })
       .fill(placeholderCategoricalName);
 
     await selectSandbox(page, dialog, pythonSandboxName);
@@ -833,7 +830,7 @@ test.describe.serial("Code Evaluators", () => {
     ).toBeVisible();
 
     await dialog
-      .getByRole("textbox", { name: "Name", exact: true })
+      .getByRole("textbox", { name: /^Name(\s*\*)?$/ })
       .fill(placeholderDefaultsName);
 
     await selectSandbox(page, dialog, pythonSandboxName);
