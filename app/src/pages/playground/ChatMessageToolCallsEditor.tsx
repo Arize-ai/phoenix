@@ -15,6 +15,8 @@ import {
   selectPlaygroundInstance,
   selectPlaygroundInstanceMessage,
 } from "@phoenix/store/playground/selectors";
+import { assertUnreachable } from "@phoenix/typeUtils";
+import { effectiveProviderForToolSchema } from "@phoenix/utils/generativeUtils";
 import { isJSONString, safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 /**
@@ -87,7 +89,13 @@ export function ChatMessageToolCallsEditor({
   );
 
   const toolCallsJSONSchema = useMemo((): JSONSchema7 | null => {
-    switch (instance.model.provider) {
+    // VERTEX_AI fronts both Gemini and Claude. Resolve the effective provider
+    // from the model name so we pick the right tool-call schema.
+    const effective = effectiveProviderForToolSchema(
+      instance.model.provider,
+      instance.model.modelName ?? ""
+    );
+    switch (effective) {
       case "OPENAI":
       case "AZURE_OPENAI":
       case "DEEPSEEK":
@@ -107,8 +115,14 @@ export function ChatMessageToolCallsEditor({
       // TODO(apowell): #5348 Add Google tool calls schema
       case "GOOGLE":
         return null;
+      case "VERTEX_AI":
+        // Unreachable: `effectiveProviderForToolSchema` collapses VERTEX_AI
+        // to GOOGLE or ANTHROPIC. Retained for exhaustiveness.
+        return null;
+      default:
+        return assertUnreachable(effective);
     }
-  }, [instance.model.provider]);
+  }, [instance.model.provider, instance.model.modelName]);
 
   return (
     <JSONEditor

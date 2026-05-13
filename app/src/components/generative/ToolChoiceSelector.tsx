@@ -45,6 +45,9 @@ export const TOOL_CHOICE_CONFIG_BY_PROVIDER = {
   ANTHROPIC: { oneOrMoreToken: "any" },
   AWS: { oneOrMoreToken: "any" },
   GOOGLE: { oneOrMoreToken: "any" },
+  // VERTEX_AI fronts both Gemini and Claude. Both use the "any" token, so
+  // the static config is unambiguous — no model-name routing needed here.
+  VERTEX_AI: { oneOrMoreToken: "any" },
 } satisfies Partial<Record<ModelProvider, ProviderToolChoiceConfig>>;
 
 export type SupportedToolChoiceProvider =

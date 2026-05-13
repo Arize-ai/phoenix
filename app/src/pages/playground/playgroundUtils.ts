@@ -202,6 +202,9 @@ export function processAttributeToolCalls({
         }
         // TODO(apowell): #5348 Add Google tool call
         case "GOOGLE":
+        // Vertex AI fronts both Gemini and Claude. Without model-name
+        // routing at this call site, default to the Google/Gemini shape.
+        case "VERTEX_AI":
           return {
             id: tool_call.id ?? "",
             function: {
@@ -1357,6 +1360,11 @@ export const createToolCallForProvider = (
       return createAnthropicToolCall();
     // TODO(apowell): #5348 Add Google tool call
     case "GOOGLE":
+      return createOpenAIToolCall();
+    // Vertex AI fronts both Gemini and Claude. Without model-name context at
+    // this call site, default to the OpenAI-shaped tool call (the same
+    // placeholder used for GOOGLE pending #5348).
+    case "VERTEX_AI":
       return createOpenAIToolCall();
     default:
       assertUnreachable(provider);

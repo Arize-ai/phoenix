@@ -54,6 +54,12 @@ export const convertMessageToolCallsToProvider = ({
       // TODO(apowell): #5348 Add Google tool call
       case "GOOGLE":
         return toolCall;
+      // VERTEX_AI fronts both Gemini and Claude; tool-call conversion needs
+      // the model name to route correctly. Callers that have the model name
+      // should pass `effectiveProviderForToolSchema(provider, modelName)`.
+      // Without that context, fall through and return the tool call as is.
+      case "VERTEX_AI":
+        return toolCall;
       default:
         assertUnreachable(provider);
     }

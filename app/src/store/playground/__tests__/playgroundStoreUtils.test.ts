@@ -195,6 +195,17 @@ describe("convertMessageToolCallsToProvider", () => {
         [{ test: "test" }],
       ],
     ],
+    // VERTEX_AI fronts both Gemini and Claude. The store-level conversion
+    // mirrors GOOGLE (default Gemini) — model-name routing happens at the
+    // React-component layer via `effectiveProviderForToolSchema`.
+    VERTEX_AI: [
+      [
+        "return tools as they are for vertex_ai",
+        "VERTEX_AI",
+        [{ test: "test" }],
+        [{ test: "test" }],
+      ],
+    ],
     CEREBRAS: [
       [
         "return tools as they are for cerebras",

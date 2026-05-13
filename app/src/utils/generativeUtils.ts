@@ -3,6 +3,29 @@ import { LLMProvider } from "@arizeai/openinference-semantic-conventions";
 import { assertUnreachable } from "@phoenix/typeUtils";
 
 /**
+ * Resolves the effective provider for tool-call / message / tool-definition
+ * schema routing.
+ *
+ * `VERTEX_AI` is a single Phoenix provider that fronts both Gemini and
+ * Anthropic Claude models. Schema choice (OpenAI vs Anthropic vs Google) is
+ * driven by the model family, not the provider key. This helper centralizes
+ * that decision so consumer switches don't have to duplicate the model-name
+ * prefix check.
+ *
+ * For non-`VERTEX_AI` providers, returns the provider unchanged.
+ */
+export function effectiveProviderForToolSchema(
+  provider: ModelProvider,
+  modelName: string
+): ModelProvider {
+  if (provider === "VERTEX_AI") {
+    if (modelName.toLowerCase().startsWith("claude")) return "ANTHROPIC";
+    return "GOOGLE";
+  }
+  return provider;
+}
+
+/**
  * A TypeGuard to ensure that a string is a valid ModelProvider
  */
 export function isModelProvider(provider: string): provider is ModelProvider {

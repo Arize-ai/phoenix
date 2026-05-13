@@ -79,6 +79,12 @@ export function getInvocationFamilyForProvider(
       return InvocationFamily.GOOGLE_GENAI;
     case "AWS":
       return InvocationFamily.AWS_BEDROCK;
+    case "VERTEX_AI":
+      // Vertex AI fronts both Gemini and Claude. Invocation-parameter shape
+      // routing happens via model name elsewhere in the playground store;
+      // default to the Google/Gemini family here since that's the dominant
+      // case (matches the GOOGLE entry's normalize/parse/form-field path).
+      return InvocationFamily.GOOGLE_GENAI;
   }
   return assertUnreachable(provider);
 }

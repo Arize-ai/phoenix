@@ -938,6 +938,10 @@ describe("processAttributeToolCalls", () => {
     ],
     // TODO(apowell): #5348 Add Google tool tests
     GOOGLE: ["GOOGLE", testSpanToolCall, expectedUnknownToolCall],
+    // VERTEX_AI fronts both Gemini and Claude. Default to the GOOGLE shape
+    // here; Claude-on-Vertex routing happens at the React-component layer via
+    // `effectiveProviderForToolSchema` and is exercised in its own tests.
+    VERTEX_AI: ["VERTEX_AI", testSpanToolCall, expectedUnknownToolCall],
     CEREBRAS: ["CEREBRAS", testSpanToolCall, expectedTestOpenAIToolCall],
     FIREWORKS: ["FIREWORKS", testSpanToolCall, expectedTestOpenAIToolCall],
     GROQ: ["GROQ", testSpanToolCall, expectedTestOpenAIToolCall],
@@ -1541,6 +1545,9 @@ describe("getToolsFromAttributes", () => {
     ],
     // TODO(apowell): #5348 Add Google tool tests
     GOOGLE: ["GOOGLE", testSpanOpenAITool, testSpanOpenAIToolCanonical],
+    // VERTEX_AI fronts both Gemini and Claude. Default to the GOOGLE shape
+    // for the static schema test; Claude-on-Vertex routing happens elsewhere.
+    VERTEX_AI: ["VERTEX_AI", testSpanOpenAITool, testSpanOpenAIToolCanonical],
     CEREBRAS: ["CEREBRAS", testSpanOpenAITool, testSpanOpenAIToolCanonical],
     FIREWORKS: ["FIREWORKS", testSpanOpenAITool, testSpanOpenAIToolCanonical],
     GROQ: ["GROQ", testSpanOpenAITool, testSpanOpenAIToolCanonical],

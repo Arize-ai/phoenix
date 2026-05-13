@@ -426,6 +426,12 @@ export const fromOpenAIMessage = <T extends ModelProvider>({
     case "GOOGLE":
       // TODO: Add Google message support
       return message as ProviderToMessageMap[T];
+    case "VERTEX_AI":
+      // Vertex AI fronts both Gemini and Claude. Schema-level conversion
+      // mirrors GOOGLE (default Gemini). Callers that have model-name
+      // context should route Claude-on-Vertex via
+      // `effectiveProviderForToolSchema` to ANTHROPIC before calling.
+      return message as ProviderToMessageMap[T];
     default:
       return assertUnreachable(targetProvider);
   }
@@ -459,6 +465,11 @@ type ProviderToMessageMap = {
   ANTHROPIC: AnthropicMessage;
   // Use generic JSON type for unknown message formats / new providers
   GOOGLE: JSONLiteral;
+  // VERTEX_AI fronts both Gemini and Claude. The schema-level entry mirrors
+  // GOOGLE (the default Gemini case). Runtime callers that need
+  // Claude-on-Vertex routing should use `effectiveProviderForToolSchema`
+  // to resolve the family from the model name before invoking the schema.
+  VERTEX_AI: JSONLiteral;
 };
 
 /**
