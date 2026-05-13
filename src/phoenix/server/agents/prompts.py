@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from phoenix.server.agents.agent_capabilities import (
+from phoenix.server.agents.capabilities import (
     AgentCapabilities,
     build_capability_system_prompt,
 )

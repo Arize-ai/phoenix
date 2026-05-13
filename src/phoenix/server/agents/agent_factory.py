@@ -3,7 +3,6 @@ from pydantic_ai import Agent, DeferredToolRequests, RunContext
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.models import Model
 
-from phoenix.server.agents.capabilities import build_capabilities
 from phoenix.server.agents.context import (
     build_phoenix_context_user_message_content,
     insert_context_user_message,
@@ -63,7 +62,6 @@ def build_agent(
         output_type=[str, DeferredToolRequests],
         instructions=[AGENT_STATIC_SYSTEM_PROMPT, _build_dynamic_instructions],
         toolsets=[_build_toolset],
-        capabilities=build_capabilities(),
         history_processors=[_inject_ui_context],
     )
     return OpenInferenceAgentWrapper(agent, tracer_provider=provider)

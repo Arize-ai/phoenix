@@ -1,4 +1,4 @@
-from phoenix.server.agents.agent_capabilities import (
+from phoenix.server.agents.capabilities import (
     _CAPABILITY_PROMPT_RULES,
     AgentCapabilities,
     build_capability_system_prompt,

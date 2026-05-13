@@ -26,8 +26,8 @@ from starlette.responses import Response
 from phoenix.config import get_env_phoenix_agents_assistant_project_name
 from phoenix.db import models
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
-from phoenix.server.agents.agent_capabilities import AgentCapabilities
 from phoenix.server.agents.agent_factory import ChatOutput, build_agent
+from phoenix.server.agents.capabilities import AgentCapabilities
 from phoenix.server.agents.chat_params import ChatSearchParams, parse_chat_search_params
 from phoenix.server.agents.context import (
     ChatContext,
