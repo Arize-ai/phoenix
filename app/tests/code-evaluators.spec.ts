@@ -205,7 +205,7 @@ async function ensureSandboxConfig(
     dialog.getByRole("button", { name: "Create Config" }).click(),
   ]);
 
-  await expect(dialog).not.toBeVisible();
+  await expect(page.getByTestId("dialog")).not.toBeVisible();
   // The same configName text appears in both the Name cell and the actions
   // cell (via the Edit/Delete button aria-labels), so anchor on the first.
   await expect(
@@ -280,7 +280,7 @@ async function createCustomCodeEvaluator({
   ).toBeVisible();
 
   await dialog
-    .getByRole("textbox", { name: "Name", exact: true })
+    .getByRole("textbox", { name: /^Name(\s*\*)?$/ })
     .fill(evaluatorName);
 
   if (description) {
@@ -346,7 +346,7 @@ async function createE2BSandboxWithLiteralEnvVar(
     dialog.getByRole("button", { name: "Create Config" }).click(),
   ]);
 
-  await expect(dialog).not.toBeVisible();
+  await expect(page.getByTestId("dialog")).not.toBeVisible();
   await expect(
     page.getByRole("cell", { name: configName }).first()
   ).toBeVisible();

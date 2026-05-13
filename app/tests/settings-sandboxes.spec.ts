@@ -80,7 +80,7 @@ test.describe("Settings Sandboxes", () => {
 
       // Close dialog
       await dialog.getByRole("button", { name: /cancel/i }).click();
-      await expect(dialog).not.toBeVisible();
+      await expect(page.getByTestId("dialog")).not.toBeVisible();
     });
 
     test("E2B provider shows env vars editor", async ({ page }) => {
@@ -122,7 +122,7 @@ test.describe("Settings Sandboxes", () => {
         dialog.getByRole("button", { name: "Create Config" }).click(),
       ]);
 
-      await expect(dialog).not.toBeVisible();
+      await expect(page.getByTestId("dialog")).not.toBeVisible();
 
       // Verify the config appears in the table. The configName text is
       // exposed in two cells of the same row — the Name cell ("<name>
@@ -168,7 +168,7 @@ test.describe("Settings Sandboxes", () => {
 
       // Close without changes
       await dialog.getByRole("button", { name: /cancel/i }).click();
-      await expect(dialog).not.toBeVisible();
+      await expect(page.getByTestId("dialog")).not.toBeVisible();
     });
   });
 });
