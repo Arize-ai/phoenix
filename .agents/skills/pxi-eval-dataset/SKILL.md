@@ -156,28 +156,95 @@ annotations, and fills in `tool_call_args` based on what earlier examples
 "look like" rather than what the tool spec actually says. This is context
 rot — annotation signal weakens as the dataset grows.
 
-The remedy: annotate each example in a **separate subprocess** (use the
-`Agent` tool) whose context contains only the tool spec and the single
-query. Each annotation is an independent reasoning trace from the spec.
+The remedy: annotate each example in a **separate subprocess** whose
+context contains the full PXI toolset, the author's design intent for
+the query, and the schema contract. Each annotation is an independent
+reasoning trace from the toolset spec.
 
-#### Subprocess context (include all three, nothing else)
+**Prepare once, reuse across examples.** Before launching annotation
+subprocesses, extract the full toolset spec once (see section 1 below)
+and cache it. Every annotation subprocess across the dataset reuses the
+same toolset block; only the query and design-intent block change
+per-example.
 
-1. **Tool spec** — the full `ToolDefinition`: description,
-   `parameters_json_schema`, any backing-implementation docstring,
-   and the availability conditions from step 1.
+#### Subprocess context (four sections, in this order)
+
+1. **Full toolset spec** — the complete toolset the PXI agent sees at
+   runtime, **NOT just the tool under test**. For each tool, include the
+   name, description, and `parameters_json_schema`. The annotator has
+   to decide whether the right answer is the focal tool, a different
+   tool, or no tool at all — and cannot do that without seeing every
+   tool's spec. This is the single biggest hedge against annotator
+   hallucination: with only one tool visible, the annotator will
+   force-fit it to ambiguous or negative queries.
+
+   Source the toolset from `build_toolset` and `build_external_toolset`
+   in `src/phoenix/server/agents/toolsets/` (and
+   `src/phoenix/server/agents/toolsets/external/`). The eval harness
+   configures `ChatContext` such that all external tools are available
+   — see `tests/pxi/evals/agent_task.py`. List every tool that survives
+   that filtering, not just the focal one.
+
+   **Mark the focal tool explicitly** at the top of this section
+   (`★ FOCAL TOOL: <name> — this dataset evaluates this tool's
+   behavior`). The annotator's job is still to reason from the spec for
+   whichever tool best fits the query, but the highlight tells them
+   which tool's evaluator family will judge the answer.
+
 2. **Evaluator contract** — copy the schema reference from this skill
-   (what each `expected` field means, subset-match semantics). Add the
-   explicit instruction: *if you are unsure about an arg value, omit the
-   key rather than guessing.*
-3. **Single query** — just the `input.query` string, plus the
-   `metadata.difficulty` label if already assigned.
+   (what each `expected` field means, subset-match semantics, variant
+   list semantics). Add the explicit instruction: *if you are unsure
+   about an arg value, omit the key rather than guessing.*
 
-Task instruction for the subprocess:
-> "Given this tool spec and query, output the complete `expected:` block.
-> Reason step-by-step from the spec. Do NOT invent a plausible-looking
-> value that the spec does not imply — omit the key instead."
+3. **Query and design intent** — the `input.query` string, plus the
+   dataset author's framing if assigned:
 
-Use `claude-sonnet-4-5` for annotation subprocesses.
+   - `difficulty: obvious | moderate | tricky`
+   - `polarity: positive | negative`
+   - `category: <coverage dimension>` (the taxonomy from step 4 —
+     parameter, value, combination, negative, ambiguity, plus any
+     finer-grained category like `span_kind`, `status`, `latency`,
+     `negative_chitchat`, `negative_wrong_tool`, etc.)
+   - Any `notes:` the author wrote
+
+   Frame this for the annotator as the dataset author's **intent**, NOT
+   ground truth. The annotator should reason from the toolset spec and
+   may disagree with the author — that disagreement is one of the most
+   valuable signals this protocol produces, because it surfaces
+   mis-classified queries.
+
+4. **Task instruction** (use this verbatim):
+
+   > "Given the toolset spec above, the dataset author's design intent,
+   > and the user query, output the complete `expected:` block for this
+   > example. Reason step-by-step:
+   >
+   > **Step 1 — Identify the right tool(s), if any.** Consider every
+   > tool in the toolset spec, not just the focal tool. Which tool's
+   > description and `parameters_json_schema` best fits the user's
+   > intent? It may be the focal tool, a different tool, or no tool.
+   >
+   > **Step 2 — Handle negative cases explicitly.** If the right answer
+   > is "no tool should fire," set `tools.forbidden` to the focal tool
+   > (and any other tool a model might wrongly invoke); omit
+   > `tools.required`. If the right answer is "a different tool should
+   > fire instead of the focal tool," set `tools.required: [<other>]`
+   > and `tools.forbidden: [<focal>]`.
+   >
+   > **Step 3 — For positive cases on the focal tool, derive args.**
+   > Map the query to the focal tool's `parameters_json_schema`. Use
+   > exact enum values from the schema. Do NOT invent a plausible
+   > arg value if the spec does not imply one — omit the key.
+   >
+   > **Step 4 — Disagree with the author's framing if the spec
+   > implies it.** If the query is labeled negative but the spec
+   > clearly implies the focal tool should fire (or vice versa),
+   > output what the spec implies and add
+   > `metadata.notes: 'annotator disagreed with author polarity'`.
+   >
+   > **Step 5 — Output strict YAML matching the schema reference.**
+   > Output only the `expected:` block (and optionally a `metadata:`
+   > block if you need to record a notes string). No surrounding prose."
 
 #### Annotation rules (apply these in every subprocess)
 
@@ -203,9 +270,31 @@ Use `claude-sonnet-4-5` for annotation subprocesses.
 | `moderate`, `tricky`, ambiguous | **3** | `claude-sonnet-4-5` + `claude-opus-4-5` + `o3-mini` |
 
 Cross-model diversity (different families, different training) catches
-single-model biases that seed-level diversity misses. Run all three
-annotation subprocesses **in parallel** — send a single `Agent` tool
-message with three calls. **Do not share context between them.**
+single-model biases that seed-level diversity misses.
+
+**How each opinion is invoked.** The Claude Code `Agent` tool is
+Anthropic-only, so only two of the three opinions can come from it:
+
+| Opinion | Invocation |
+|---|---|
+| Sonnet | `Agent` tool, `model: "sonnet"` |
+| Opus | `Agent` tool, `model: "opus"` |
+| o3-mini | `Bash` tool, piping the prompt into `tests/pxi/evals/annotate_via_openai.py` |
+
+The OpenAI wrapper at `tests/pxi/evals/annotate_via_openai.py` reads a
+prompt on stdin and writes the model's response to stdout. It loads
+`OPENAI_API_KEY` from `~/Projects/phoenix/.env` if not already exported.
+Example invocation:
+
+```bash
+cat /tmp/annotation_prompt.txt | uv run --active python \
+    tests/pxi/evals/annotate_via_openai.py --model o3-mini
+```
+
+**Run all three opinions in parallel.** Send a single message containing
+two `Agent` tool calls (Sonnet, Opus) **and** one `Bash` tool call (the
+o3-mini wrapper) — they will run concurrently. **Do not share context
+between them.**
 
 #### Orchestrator subprocess (required when N > 1)
 
@@ -216,11 +305,19 @@ proposals.
 
 **Orchestrator subprocess context:**
 
-- The tool spec (same as the annotation subprocess)
+- The **full toolset spec** (same as the annotation subprocess — focal
+  tool marked, all other available tools included). The orchestrator
+  needs this to judge "spec-valid" claims, especially for negative
+  cases where the right answer is a non-focal tool.
+- The query and design intent block (same as the annotation subprocess
+  — `difficulty`, `polarity`, `category`, `notes`). The orchestrator
+  should also be willing to override the author's polarity if the
+  toolset spec and the majority of annotation opinions disagree with
+  it; flag any such override with `metadata.notes: 'orchestrator
+  overrode author polarity'`.
 - All N candidate `expected:` blocks (anonymized — do not tell the
   orchestrator which model produced which proposal; this prevents
   reputation bias)
-- The query
 - The decision table below
 
 **Orchestrator decision rules** (applied per-tool to
