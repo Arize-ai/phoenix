@@ -7,7 +7,7 @@ on:
   # default token has write permissions even for fork PRs. We only react
   # to the `opened` event and do not check out the PR head, so the
   # elevated token is not exposed to untrusted code.
-  pull_request_target:
+  pull_request_target: # zizmor: ignore[dangerous-triggers] required to label fork PRs; no checkout of PR head
     types: [opened]
 
 jobs:
