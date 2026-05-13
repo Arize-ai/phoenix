@@ -6,6 +6,7 @@ from pydantic_ai.toolsets import AbstractToolset, CombinedToolset
 from phoenix.server.agents.dependencies import ChatDependencies
 from phoenix.server.agents.pydantic_ai import OpenInferenceToolsetWrapper
 from phoenix.server.agents.toolsets.external import build_external_toolset
+from phoenix.server.agents.toolsets.skills import build_skills_toolset
 
 
 def build_toolset(
@@ -16,6 +17,7 @@ def build_toolset(
     """Build the combined PXI toolset from request dependencies."""
     toolsets: list[AbstractToolset[ChatDependencies]] = [
         build_external_toolset(deps),
+        build_skills_toolset(),
     ]
     if deps.docs_mcp_toolset is not None:
         toolsets.append(deps.docs_mcp_toolset)
