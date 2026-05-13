@@ -30,6 +30,7 @@ export type AgentCapabilities = Record<AgentCapabilityKey, boolean>;
 const DEFAULT_AGENT_CAPABILITIES: AgentCapabilities = {
   "bash.retainInactiveSessions": false,
   "graphql.mutations": false,
+  "session.storeRecentSessions": false,
 };
 
 /** Ordered capability catalog used by the UI and runtime. */
@@ -48,6 +49,15 @@ export const AGENT_CAPABILITY_DEFINITIONS: AgentCapabilityDefinition[] = [
     label: "Dangerously enable mutations",
     description:
       "Allows the phoenix-gql bash command to execute GraphQL mutations in addition to queries.",
+    defaultValue: false,
+    scope: "global",
+    controlSurface: "experimental-settings",
+  },
+  {
+    key: "session.storeRecentSessions",
+    label: "Store recent sessions",
+    description:
+      "Keeps the three most recent chat sessions instead of replacing session history when starting a new chat.",
     defaultValue: false,
     scope: "global",
     controlSurface: "experimental-settings",

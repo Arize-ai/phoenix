@@ -11,11 +11,13 @@ class TestAgentCapabilities:
             {
                 "bash.retainInactiveSessions": True,
                 "graphql.mutations": True,
+                "session.storeRecentSessions": True,
             }
         )
 
         assert capabilities.bash_retain_inactive_sessions is True
         assert capabilities.graphql_mutations is True
+        assert capabilities.session_store_recent_sessions is True
 
     def test_builds_graphql_mutation_guidance(self) -> None:
         disabled = build_capability_system_prompt(AgentCapabilities(graphql_mutations=False))
@@ -35,6 +37,16 @@ class TestAgentCapabilities:
         )
         enabled = build_capability_system_prompt(
             AgentCapabilities(bash_retain_inactive_sessions=True)
+        )
+
+        assert enabled == disabled
+
+    def test_session_store_recent_sessions_is_prompt_noop(self) -> None:
+        disabled = build_capability_system_prompt(
+            AgentCapabilities(session_store_recent_sessions=False)
+        )
+        enabled = build_capability_system_prompt(
+            AgentCapabilities(session_store_recent_sessions=True)
         )
 
         assert enabled == disabled

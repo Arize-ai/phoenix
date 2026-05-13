@@ -116,6 +116,8 @@ const DEFAULT_AGENT_OBSERVABILITY_SETTINGS: AgentObservabilitySettings = {
   hasAcknowledgedConsent: false,
 };
 
+const MAX_STORED_AGENT_SESSIONS = 3;
+
 /**
  * Serializable properties that define the agent's state.
  * These are the values persisted to local storage.
@@ -257,6 +259,62 @@ export type AgentClientAction = (
 ) => Promise<AgentClientActionResult>;
 
 /**
+ * Removes entries keyed by sessions that are no longer retained.
+ */
+function pruneSessionScopedRecord<T>({
+  record,
+  retainedSessionIds,
+}: {
+  record: Record<string, T>;
+  retainedSessionIds: Set<string>;
+}): Record<string, T> {
+  return Object.fromEntries(
+    Object.entries(record).filter(([sessionId]) =>
+      retainedSessionIds.has(sessionId)
+    )
+  );
+}
+
+/**
+ * Builds the persisted session-state patch after creating, pruning, or clearing
+ * retained sessions, keeping sessionMap and related per-session UI state aligned.
+ */
+function buildSessionRetentionPatch({
+  state,
+  retainedSessionIds,
+  activeSessionId,
+}: {
+  state: AgentState;
+  retainedSessionIds: string[];
+  activeSessionId: string | null;
+}): Pick<
+  AgentState,
+  | "sessions"
+  | "activeSessionId"
+  | "sessionMap"
+  | "pendingElicitationBySessionId"
+  | "chatStatusBySessionId"
+> {
+  const retainedSessionIdSet = new Set(retainedSessionIds);
+  return {
+    sessions: retainedSessionIds,
+    activeSessionId,
+    sessionMap: pruneSessionScopedRecord({
+      record: state.sessionMap,
+      retainedSessionIds: retainedSessionIdSet,
+    }),
+    pendingElicitationBySessionId: pruneSessionScopedRecord({
+      record: state.pendingElicitationBySessionId,
+      retainedSessionIds: retainedSessionIdSet,
+    }),
+    chatStatusBySessionId: pruneSessionScopedRecord({
+      record: state.chatStatusBySessionId,
+      retainedSessionIds: retainedSessionIdSet,
+    }),
+  };
+}
+
+/**
  * Creates a Zustand store for managing agent UI state and conversation sessions.
  *
  * The store is wrapped with devtools (for Redux DevTools inspection) and
@@ -311,10 +369,21 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             modelConfig: { ...state.defaultModelConfig },
             createdAt: Date.now(),
           };
+          const nextSessionIds = state.capabilities[
+            "session.storeRecentSessions"
+          ]
+            ? [...state.sessions, sessionId].slice(-MAX_STORED_AGENT_SESSIONS)
+            : [sessionId];
+
           return {
-            sessions: [...state.sessions, sessionId],
-            sessionMap: { ...state.sessionMap, [sessionId]: session },
-            activeSessionId: sessionId,
+            ...buildSessionRetentionPatch({
+              state: {
+                ...state,
+                sessionMap: { ...state.sessionMap, [sessionId]: session },
+              },
+              retainedSessionIds: nextSessionIds,
+              activeSessionId: sessionId,
+            }),
           };
         },
         false,
@@ -485,9 +554,22 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     },
     setCapability: ({ key, enabled }) => {
       set(
-        (state) => ({
-          capabilities: { ...state.capabilities, [key]: enabled },
-        }),
+        (state) => {
+          const capabilities = { ...state.capabilities, [key]: enabled };
+          if (key !== "session.storeRecentSessions" || enabled) {
+            return { capabilities };
+          }
+          return {
+            capabilities,
+            ...buildSessionRetentionPatch({
+              state,
+              retainedSessionIds: state.activeSessionId
+                ? [state.activeSessionId]
+                : [],
+              activeSessionId: state.activeSessionId,
+            }),
+          };
+        },
         false,
         { type: "setCapability" }
       );
