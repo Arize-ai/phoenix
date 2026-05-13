@@ -19,10 +19,13 @@ from pydantic_ai.ui.vercel_ai.request_types import (
     UIMessage,
 )
 from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, MessageMetadataChunk
-from sqlalchemy import select
+from sqlalchemy import Insert, func, select
+from sqlalchemy.dialects.postgresql import insert as insert_postgresql
+from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from starlette.responses import Response
+from typing_extensions import assert_never
 
 from phoenix.config import get_env_phoenix_agents_assistant_project_name
 from phoenix.db import models
@@ -236,11 +239,6 @@ async def _persist_db_traces(
     session: AsyncSession,
     db_traces: list[models.Trace],
 ) -> None:
-    """
-    Upsert any ProjectSession rows attached to ``db_traces``, re-point each
-    trace at the persistent ORM object, then add the traces to the session and
-    flush.
-    """
     project_sessions = [
         db_trace.project_session for db_trace in db_traces if db_trace.project_session is not None
     ]
@@ -308,21 +306,39 @@ async def _upsert_project_sessions(
         }
         for project_session in project_sessions_by_session_id.values()
     ]
-    await session.execute(
-        insert_on_conflict(
-            *records,
-            table=models.ProjectSession,
-            dialect=dialect,
-            unique_by=("session_id",),
-            on_conflict=OnConflict.DO_UPDATE,
+    upsert: Insert
+    if dialect is SupportedSQLDialect.POSTGRESQL:
+        pg_insert = insert_postgresql(models.ProjectSession).values(records)
+        upsert = pg_insert.on_conflict_do_update(
+            index_elements=["session_id"],
+            set_={
+                "start_time": func.least(
+                    models.ProjectSession.start_time, pg_insert.excluded.start_time
+                ),
+                "end_time": func.greatest(
+                    models.ProjectSession.end_time, pg_insert.excluded.end_time
+                ),
+            },
         )
-    )
-    persistent_rows = await session.scalars(
-        select(models.ProjectSession).where(
-            models.ProjectSession.session_id.in_(project_sessions_by_session_id.keys())
+    elif dialect is SupportedSQLDialect.SQLITE:
+        # SQLite has no LEAST/GREATEST; min(a, b) / max(a, b) as scalar
+        # functions (i.e. with >1 argument) are the equivalent.
+        sqlite_insert = insert_sqlite(models.ProjectSession).values(records)
+        upsert = sqlite_insert.on_conflict_do_update(
+            index_elements=["session_id"],
+            set_={
+                "start_time": func.min(
+                    models.ProjectSession.start_time, sqlite_insert.excluded.start_time
+                ),
+                "end_time": func.max(
+                    models.ProjectSession.end_time, sqlite_insert.excluded.end_time
+                ),
+            },
         )
-    )
-    return {row.session_id: row for row in persistent_rows}
+    else:
+        assert_never(dialect)
+    returned_rows = await session.scalars(upsert.returning(models.ProjectSession))
+    return {row.session_id: row for row in returned_rows}
 
 
 def create_agents_router(authentication_enabled: bool) -> APIRouter:
