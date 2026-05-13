@@ -20,7 +20,7 @@ Tests go through the real GraphQL mutations to exercise the wiring end-to-end.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Mapping, Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import sqlalchemy as sa
@@ -95,11 +95,11 @@ class _CapturingAdapter(SandboxAdapter):
 
     def build_backend(
         self,
-        config: dict[str, Any],
-        user_env: dict[str, str] | None = None,
+        config: Mapping[str, Any],
+        user_env: Optional[Mapping[str, str]] = None,
     ) -> SandboxBackend:
         self.received_configs.append(dict(config))
-        self.received_user_envs.append(dict(user_env) if user_env is not None else None)
+        self.received_user_envs.append(dict(user_env) if user_env else None)
         backend = MagicMock(spec=SandboxBackend)
         backend.close = AsyncMock()
         return backend

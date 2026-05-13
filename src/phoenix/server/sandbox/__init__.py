@@ -31,6 +31,7 @@ from typing import (
     Callable,
     Iterator,
     Literal,
+    Mapping,
     MutableMapping,
     Optional,
 )
@@ -388,7 +389,7 @@ _SANDBOX_ADAPTERS: MutableMapping[str, SandboxAdapter] = _AllowlistGatedAdapterR
 _BACKEND_CACHE: dict[tuple[str, str], SandboxBackend] = {}
 
 
-def _config_hash(config: dict[str, Any] | None) -> str:
+def _config_hash(config: Mapping[str, Any] | None) -> str:
     """Return a stable hex digest for a config dict (or empty dict)."""
     canonical = json.dumps(config or {}, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode()).hexdigest()
@@ -627,18 +628,15 @@ async def get_missing_sandbox_auth_detail(
         return "Set `PHOENIX_SANDBOX_DAYTONA_API_KEY`."
 
     if backend_type in {"VERCEL_PYTHON", "VERCEL_TYPESCRIPT"}:
-        # OIDC is still honored as an environment fallback (e.g. on Vercel
-        # deployments or after `vercel env pull`) but is not exposed in the UI.
-        oidc_key = "VERCEL_OIDC_TOKEN"
         access_keys = [
             "VERCEL_TOKEN",
             "VERCEL_PROJECT_ID",
             "VERCEL_TEAM_ID",
         ]
-        resolved = await _resolve_named_credentials(session, decrypt, [oidc_key, *access_keys])
-        if oidc_key in resolved or all(key in resolved for key in access_keys):
-            return None
+        resolved = await _resolve_named_credentials(session, decrypt, access_keys)
         missing_access_keys = [key for key in access_keys if key not in resolved]
+        if not missing_access_keys:
+            return None
         return f"Set {_format_required_keys(missing_access_keys)}."
 
     if backend_type == "MODAL":
@@ -679,7 +677,7 @@ async def _resolve_sandbox_credentials(
 
 async def get_or_create_backend(
     backend_type: str,
-    config: dict[str, Any] | None = None,
+    config: Mapping[str, Any] | None = None,
     session: Optional[AsyncSession] = None,
     decrypt: Optional[Callable[[bytes], bytes]] = None,
 ) -> Optional[SandboxBackend]:
@@ -721,7 +719,7 @@ async def get_or_create_backend(
     if cache_key in _BACKEND_CACHE:
         return _BACKEND_CACHE[cache_key]
 
-    user_env: Optional[dict[str, str]] = None
+    user_env = {}
     raw_env_vars = effective_config.get("env_vars")
     if raw_env_vars:
         # Literal entries resolve unconditionally; secret_refs require DB
@@ -850,21 +848,6 @@ except ImportError:
 # cannot narrow the reserved set.
 # ---------------------------------------------------------------------------
 
-_PHOENIX_RESERVED_CREDENTIAL_ONLY_KEYS: frozenset[str] = frozenset(
-    {
-        # Reservation-only names: reserved against user env_var / config-key
-        # collisions even though they are not exposed via the credentials UI.
-        # Adapter-declared credential_specs are unioned in by
-        # _build_reserved_credential_names — this set is only for keys that
-        # are NOT advertised through credential_specs.
-        # VERCEL_OIDC_TOKEN is read by the Vercel SDK directly from os.environ.
-        # We no longer surface it in the UI (only the access-token triple is
-        # configurable), but it must stay reserved so a user-supplied env_var
-        # cannot shadow the SDK's auth resolution at execute time.
-        "VERCEL_OIDC_TOKEN",
-    }
-)
-
 
 def _build_reserved_credential_names() -> frozenset[str]:
     """Compute the current set of reserved credential names (case-insensitive).
@@ -881,7 +864,7 @@ def _build_reserved_credential_names() -> frozenset[str]:
     user-supplied env_var or secret_ref on that name could shadow the
     provider credential the moment the SDK is later installed.
     """
-    names: set[str] = {key.lower() for key in _PHOENIX_RESERVED_CREDENTIAL_ONLY_KEYS}
+    names: set[str] = set()
     for adapter_cls in _KNOWN_ADAPTER_CLASSES:
         for spec in adapter_cls.credential_specs:
             names.add(spec.key.lower())

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Mapping, Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -55,8 +55,8 @@ def _make_adapter(received: dict[str, Any], cred_key: str = "CRED_X") -> Sandbox
 
         def build_backend(
             self,
-            config: dict[str, Any],
-            user_env: dict[str, str] | None = None,
+            config: Mapping[str, Any],
+            user_env: Optional[Mapping[str, str]] = None,
         ) -> SandboxBackend:
             received["config"] = dict(config)
             received["user_env"] = user_env

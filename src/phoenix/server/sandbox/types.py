@@ -13,6 +13,7 @@ from typing import (
     Annotated,
     Any,
     Literal,
+    Mapping,
     Optional,
     Type,
     Union,
@@ -20,6 +21,7 @@ from typing import (
 )
 
 from pydantic import BaseModel, ConfigDict, Field
+from starlette.datastructures import Secret
 
 
 class UnsupportedOperation(Exception):
@@ -256,17 +258,22 @@ class ExecutionResult:
 
 
 def compose_secret_values(
-    user_env: Optional[dict[str, str]],
-    *credentials: Optional[str],
+    user_env: Optional[Mapping[str, str]],
+    *credentials: Optional[Secret],
 ) -> frozenset[str]:
     """Combine user-env plaintext values with provider credential plaintexts.
 
     Called by each ``SandboxBackend.__init__`` to populate ``self.secret_values``
-    in a single place. Empty/None credential entries are dropped so optional
-    auth args (e.g. Vercel's ``oidc_token`` vs ``token``) don't introduce
+    in a single place. Empty/None credential entries are dropped so adapters
+    with partial credential sets (e.g. one missing key) don't introduce
     empty-string entries that would mask everywhere.
+
+    Credentials are passed as ``starlette.datastructures.Secret`` and unwrapped
+    via ``str()`` for the masking layer, which performs string replacement on
+    emitted span attributes and exception messages and therefore needs the
+    plaintext form to match against.
     """
-    return frozenset((user_env or {}).values()) | frozenset(c for c in credentials if c)
+    return frozenset((user_env or {}).values()) | frozenset(str(c) for c in credentials if c)
 
 
 class SandboxBackend(ABC):
@@ -480,8 +487,8 @@ class SandboxAdapter(ABC):
     @abstractmethod
     def build_backend(
         self,
-        config: dict[str, Any],
-        user_env: Optional[dict[str, str]] = None,
+        config: Mapping[str, Any],
+        user_env: Optional[Mapping[str, str]] = None,
     ) -> SandboxBackend:
         """Construct and return a SandboxBackend from the provided config.
 
@@ -497,7 +504,7 @@ class SandboxAdapter(ABC):
         - dependencies_language: if None, MUST raise UnsupportedOperation when
           config.get("dependencies") contains non-empty packages.
 
-        user_env is a pre-resolved plaintext dict of user-supplied environment
+        user_env is a pre-resolved plaintext mapping of user-supplied environment
         variables (name → value). It is passed as a sibling argument — NOT
         merged into config — to prevent collision with PHOENIX_SANDBOX_*
         credential keys that adapters read from config.
@@ -506,8 +513,8 @@ class SandboxAdapter(ABC):
 
     def validate_config(
         self,
-        config: dict[str, Any],
-        stored_config: Optional[dict[str, Any]] = None,
+        config: Mapping[str, Any],
+        stored_config: Optional[Mapping[str, Any]] = None,
     ) -> dict[str, Any]:
         """
         Validate config via the adapter's pydantic config_model, then apply
@@ -546,7 +553,7 @@ class SandboxAdapter(ABC):
         self._enforce_capability_gates(validated_dict, stored_config=stored_config)
         return validated_dict
 
-    def _enforce_unique_env_var_names(self, config: dict[str, Any]) -> None:
+    def _enforce_unique_env_var_names(self, config: Mapping[str, Any]) -> None:
         """Reject duplicate ``name`` values in config.env_vars.
 
         Silent last-wins is unsafe: two entries with the same name but
@@ -590,8 +597,8 @@ class SandboxAdapter(ABC):
 
     def _enforce_capability_gates(
         self,
-        config: dict[str, Any],
-        stored_config: Optional[dict[str, Any]] = None,
+        config: Mapping[str, Any],
+        stored_config: Optional[Mapping[str, Any]] = None,
     ) -> None:
         """Raise pydantic ValidationError if config violates AdapterMetadata
         capability flags.
@@ -724,8 +731,8 @@ class SandboxAdapter(ABC):
 
     def _enforce_capabilities(
         self,
-        config: dict[str, Any],
-        user_env: Optional[dict[str, str]] = None,
+        config: Mapping[str, Any],
+        user_env: Optional[Mapping[str, str]] = None,
     ) -> None:
         """Raise UnsupportedOperation if config/user_env violates this adapter's
         advertised capabilities per SANDBOX_ADAPTER_METADATA.
