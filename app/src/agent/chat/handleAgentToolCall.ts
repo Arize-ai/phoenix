@@ -12,12 +12,14 @@ import {
 import type { AgentStore } from "@phoenix/store/agentStore";
 
 type AddToolOutput = Chat<UIMessage>["addToolOutput"];
+type AppendMessagePart = (part: UIMessage["parts"][number]) => void;
 
 /** Arguments needed to forward one tool call into the frontend registry. */
 type HandleAgentToolCallOptions = {
   toolCall: AgentToolCall;
   sessionId: string | null;
   addToolOutput: AddToolOutput;
+  appendMessagePart: AppendMessagePart;
   /**
    * The agent store instance, needed by tools that interact with shared UI
    * state (e.g. the elicit tool sets a pending elicitation).
@@ -32,12 +34,14 @@ export async function handleAgentToolCall({
   toolCall,
   sessionId,
   addToolOutput,
+  appendMessagePart,
   agentStore,
 }: HandleAgentToolCallOptions) {
   await handleRegisteredAgentToolCall({
     toolCall,
     sessionId,
     addToolOutput,
+    appendMessagePart,
     agentStore,
   });
 }

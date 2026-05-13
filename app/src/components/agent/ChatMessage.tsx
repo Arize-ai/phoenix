@@ -6,6 +6,7 @@ import { Message, MessageContent } from "@phoenix/components/ai/message";
 import { MarkdownBlock } from "@phoenix/components/markdown";
 
 import { AssistantMessageActions } from "./AssistantMessageActions";
+import { GenerativeUI } from "./GenerativeUI";
 import { groupMessageParts } from "./groupMessageParts";
 import { ToolPart } from "./ToolPart";
 import { ToolPartGroup } from "./ToolPartGroup";
@@ -79,6 +80,13 @@ export function AssistantMessage({
                   <ToolPartGroup
                     key={`pool-${group.startIndex}`}
                     parts={group.parts}
+                  />
+                );
+              case "generative-ui":
+                return (
+                  <GenerativeUI
+                    key={`generative-ui-${group.index}`}
+                    parts={[group.part]}
                   />
                 );
               default:

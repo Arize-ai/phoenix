@@ -31,7 +31,7 @@ NC := \033[0m # No Color
 .PHONY: help check-tools \
 	setup install-python install-node \
 	graphql schema-graphql relay-build \
-	openapi schema-openapi codegen-python-client codegen-ts-client codegen-ts-app \
+	openapi schema-openapi schema-generative-ui codegen-python-client codegen-ts-client codegen-ts-app \
 	dev dev-backend dev-frontend dev-docker dev-mock-llm \
 	test test-python test-frontend test-ts test-helm test-jcs typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
@@ -49,6 +49,7 @@ help: ## Show this help message
 	@echo -e "  schema-graphql         - Generate GraphQL schema only"
 	@echo -e "  relay-build            - Build Relay from existing schema"
 	@echo -e "  schema-openapi         - Generate OpenAPI schema only"
+	@echo -e "  schema-generative-ui   - Generate PXI generated UI catalog schema artifacts"
 	@echo -e "  codegen-python-client  - Generate Python client types from OpenAPI"
 	@echo -e "  codegen-ts-client      - Generate TypeScript client types from OpenAPI"
 	@echo -e "  codegen-ts-app         - Generate TypeScript OpenAPI types for frontend (app/)"
@@ -202,6 +203,11 @@ codegen-ts-app: ## Generate TypeScript OpenAPI types for app/
 	@echo -e "$(CYAN)Generating TypeScript OpenAPI types for app...$(NC)"
 	@cd $(APP_DIR) && $(PNPM) run --silent generate:openapi
 	@echo -e "$(GREEN)✓ Done$(NC)"
+
+schema-generative-ui: ## Generate PXI generated UI catalog schema artifacts
+	@echo -e "$(CYAN)Generating PXI generated UI catalog schema artifacts...$(NC)"
+	@cd $(APP_DIR) && $(PNPM) run --silent generate:generative-ui-catalog
+	@echo -e "$(GREEN)✓ schemas/generated_ui$(NC)"
 
 openapi: schema-openapi codegen-python-client codegen-ts-client codegen-ts-app ## Generate OpenAPI schema and all clients (full workflow)
 	@echo -e "$(GREEN)✓ OpenAPI schema workflow complete$(NC)"
