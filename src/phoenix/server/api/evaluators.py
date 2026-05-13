@@ -794,7 +794,7 @@ async def get_evaluators(
         from phoenix.db.helpers import (
             latest_code_evaluator_versions_by_evaluator_id,
         )
-        from phoenix.server.sandbox import get_or_create_backend
+        from phoenix.server.sandbox import build_sandbox_backend
 
         code_rows = [code_orm_by_id[evaluator_id] for evaluator_id in sorted(code_orm_by_id)]
         latest_versions = await latest_code_evaluator_versions_by_evaluator_id(
@@ -858,7 +858,7 @@ async def get_evaluators(
                 sandbox_key = (live_sandbox_provider.id, live_sandbox_config.id)
                 if sandbox_key not in backend_by_sandbox_key:
                     try:
-                        backend_by_sandbox_key[sandbox_key] = await get_or_create_backend(
+                        backend_by_sandbox_key[sandbox_key] = await build_sandbox_backend(
                             live_sandbox_provider.backend_type,
                             config=live_sandbox_config.config,
                             session=session,

@@ -6,7 +6,7 @@ Two tiers:
   to AdapterMetadata (display_name, language). Used for DB seeding
   and UI display regardless of installed optional extras.
 - _SANDBOX_ADAPTERS: populated only for installed backends. Maps backend_type
-  key to a SandboxAdapter instance. Used for get_or_create_backend().
+  key to a SandboxAdapter instance. Used for build_sandbox_backend().
 
 Adapter modules with optional SDK extras (wasmtime, e2b, daytona, vercel,
 modal) keep their SDK imports lazy so the modules remain importable in test
@@ -522,24 +522,38 @@ async def _resolve_sandbox_credentials(
     )
 
 
-async def get_or_create_backend(
+async def build_sandbox_backend(
     backend_type: str,
     config: Mapping[str, Any] | None = None,
     session: Optional[AsyncSession] = None,
     decrypt: Optional[Callable[[bytes], bytes]] = None,
 ) -> Optional[SandboxBackend]:
     """
-    Return a cached SandboxBackend for backend_type, creating it if needed.
+    Build a fresh SandboxBackend for backend_type from the supplied config.
+
+    No caching. Every call resolves credentials and constructs a new backend
+    via the adapter, so callers MUST NOT rely on instance identity across
+    calls — even with the same (backend_type, config), the returned object
+    is a new SandboxBackend. Don't add features that depend on per-config
+    reuse without first re-introducing an explicit cache.
+
+    Resolves provider credentials (DB Secret → env var fallback) per the
+    adapter's credential_specs and merges them over the user-supplied config.
+    Resolved credentials win over any matching keys in config — this is a
+    defense-in-depth backstop for reserved-name rejection at the mutation
+    boundary.
 
     If config contains an `env_vars` list and session+decrypt are provided,
     secret_ref entries are resolved and the plaintext dict is passed to
     build_backend as user_env (NOT merged into config).
 
     Raises MissingSecretError if a secret_ref references a missing Secret key.
+    Raises UnsupportedOperation / pydantic.ValidationError / ValueError when
+    the adapter rejects the effective config (callers surface as BadRequest).
 
     Returns None if:
     - No adapter is registered for backend_type (optional dep not installed)
-    - Backend construction fails (non-secret errors are caught and logged)
+    - Backend construction fails with ImportError (extra missing at build time)
     """
     adapter = _SANDBOX_ADAPTERS.get(backend_type)
     if adapter is None:

@@ -98,7 +98,7 @@ async def _resolve_inline_code_evaluator_backend(
     sandbox_config_id: Optional[strawberry.relay.GlobalID],
     language: str,
 ) -> tuple[Any, Optional[int]]:
-    from phoenix.server.sandbox import MissingSecretError, get_or_create_backend
+    from phoenix.server.sandbox import MissingSecretError, build_sandbox_backend
     from phoenix.server.sandbox.types import UnsupportedOperation
 
     if sandbox_config_id is None:
@@ -145,7 +145,7 @@ async def _resolve_inline_code_evaluator_backend(
 
         backend_type = provider.backend_type
         try:
-            sandbox_backend = await get_or_create_backend(
+            sandbox_backend = await build_sandbox_backend(
                 backend_type,
                 config=sandbox_cfg.config,
                 session=session,
@@ -271,7 +271,7 @@ class ChatCompletionMutationMixin:
                     raise BadRequest(f"Expected code evaluator, got {type_name}")
 
                 from phoenix.server.api.evaluators import CodeEvaluatorRunner
-                from phoenix.server.sandbox import MissingSecretError, get_or_create_backend
+                from phoenix.server.sandbox import MissingSecretError, build_sandbox_backend
                 from phoenix.server.sandbox.types import UnsupportedOperation
 
                 code_evaluator_version = (
@@ -339,7 +339,7 @@ class ChatCompletionMutationMixin:
 
                     if backend_type is not None:
                         try:
-                            sandbox_backend = await get_or_create_backend(
+                            sandbox_backend = await build_sandbox_backend(
                                 backend_type,
                                 config=sandbox_config,
                                 session=session,

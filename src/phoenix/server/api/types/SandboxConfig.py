@@ -24,8 +24,8 @@ from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.sandbox import (
     SANDBOX_ADAPTER_METADATA,
     MissingSecretError,
+    build_sandbox_backend,
     get_missing_sandbox_auth_detail,
-    get_or_create_backend,
 )
 from phoenix.server.sandbox.types import UnsupportedOperation
 
@@ -317,7 +317,7 @@ async def get_sandbox_backend_info(
 ) -> list[SandboxBackendInfo]:
     """
     Return one SandboxBackendInfo per entry in SANDBOX_ADAPTER_METADATA,
-    with runtime status derived from get_or_create_backend().
+    with runtime status derived from build_sandbox_backend().
 
     Pass the Strawberry `info` object so DB-stored credentials are resolved
     when checking backend availability. Falls back to env-only resolution if
@@ -418,7 +418,7 @@ async def _get_sandbox_backend_info_with_session(
                     status_detail = wasm_probe_detail
                 else:
                     try:
-                        backend = await get_or_create_backend(
+                        backend = await build_sandbox_backend(
                             backend_type, session=session, decrypt=decrypt
                         )
                         status = (

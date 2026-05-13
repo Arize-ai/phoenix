@@ -1,4 +1,10 @@
-"""Unit tests for get_or_create_backend() credential merge behavior."""
+"""Unit tests for build_sandbox_backend() credential merge behavior.
+
+build_sandbox_backend() does NOT cache — every call returns a fresh
+SandboxBackend. These tests assert the credential resolution + merge
+contract only; do not add tests here that depend on instance reuse for
+the same (backend_type, config).
+"""
 
 from __future__ import annotations
 
@@ -10,7 +16,7 @@ from pydantic import BaseModel, ConfigDict
 
 from phoenix.server.sandbox import (
     _SANDBOX_ADAPTERS,
-    get_or_create_backend,
+    build_sandbox_backend,
 )
 from phoenix.server.sandbox.daytona_backend import DaytonaPythonAdapter
 from phoenix.server.sandbox.types import (
@@ -73,7 +79,7 @@ def _clean_sandbox_state() -> Any:
     _SANDBOX_ADAPTERS.pop("STUB", None)
 
 
-class TestGetOrCreateBackendCredentialMerge:
+class TestBuildSandboxBackendCredentialMerge:
     @pytest.mark.asyncio
     async def test_db_credential_injected_into_config(self) -> None:
         received: dict[str, Any] = {}
@@ -81,7 +87,7 @@ class TestGetOrCreateBackendCredentialMerge:
         session = _make_session({"CRED_X": b"db-val"})
 
         with patch.dict(_SANDBOX_ADAPTERS, {"STUB": adapter}):
-            await get_or_create_backend(
+            await build_sandbox_backend(
                 "STUB", config={}, session=session, decrypt=_identity_decrypt
             )
 
@@ -95,7 +101,7 @@ class TestGetOrCreateBackendCredentialMerge:
         session = _make_session({})
 
         with patch.dict(_SANDBOX_ADAPTERS, {"STUB": adapter}):
-            await get_or_create_backend(
+            await build_sandbox_backend(
                 "STUB", config={}, session=session, decrypt=_identity_decrypt
             )
 
@@ -114,7 +120,7 @@ class TestGetOrCreateBackendCredentialMerge:
         session = _make_session({"CRED_X": b"db-val"})
 
         with patch.dict(_SANDBOX_ADAPTERS, {"STUB": adapter}):
-            await get_or_create_backend(
+            await build_sandbox_backend(
                 "STUB",
                 config={"CRED_X": "attacker-val"},
                 session=session,
@@ -134,7 +140,7 @@ class TestGetOrCreateBackendCredentialMerge:
         session = _make_session({})
 
         with patch.dict(_SANDBOX_ADAPTERS, {"STUB": adapter}):
-            await get_or_create_backend(
+            await build_sandbox_backend(
                 "STUB",
                 config={"CRED_X": "attacker-val"},
                 session=session,
@@ -156,7 +162,7 @@ class TestGetOrCreateBackendCredentialMerge:
         session = _make_session({})
 
         with patch.dict(_SANDBOX_ADAPTERS, {"STUB": adapter}):
-            await get_or_create_backend(
+            await build_sandbox_backend(
                 "STUB",
                 config={"custom_key": "some-value", "CRED_X": "user-fallback"},
                 session=session,
@@ -176,15 +182,15 @@ class TestGetOrCreateBackendCredentialMerge:
         monkeypatch.setenv("CRED_X", "env-only")
 
         with patch.dict(_SANDBOX_ADAPTERS, {"STUB": adapter}):
-            await get_or_create_backend("STUB", config={}, session=None, decrypt=None)
+            await build_sandbox_backend("STUB", config={}, session=None, decrypt=None)
 
         assert received["config"].get("CRED_X") == "env-only"
 
 
-class TestGetOrCreateBackendAdapterLookup:
+class TestBuildSandboxBackendAdapterLookup:
     @pytest.mark.asyncio
     async def test_unregistered_backend_returns_none(self) -> None:
-        result = await get_or_create_backend("NONEXISTENT", config={}, session=None, decrypt=None)
+        result = await build_sandbox_backend("NONEXISTENT", config={}, session=None, decrypt=None)
         assert result is None
 
     @pytest.mark.asyncio
@@ -196,7 +202,7 @@ class TestGetOrCreateBackendAdapterLookup:
         monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "NONE")
 
         with patch.dict(_SANDBOX_ADAPTERS, {"STUB": adapter}):
-            result = await get_or_create_backend("STUB", config={}, session=None, decrypt=None)
+            result = await build_sandbox_backend("STUB", config={}, session=None, decrypt=None)
 
         assert result is None
         assert received == {}
@@ -204,7 +210,7 @@ class TestGetOrCreateBackendAdapterLookup:
 
 class TestSSRFBlocked:
     """Non-capability keys must be rejected by validate_config inside
-    get_or_create_backend, blocking the SSRF vector.
+    build_sandbox_backend(), blocking the SSRF vector.
 
     A poisoned config with ``server_url`` would otherwise flow into
     Daytona(server_url=...) unchecked. validate_config raises ValueError
@@ -228,7 +234,7 @@ class TestSSRFBlocked:
             patch.dict(_SANDBOX_ADAPTERS, {"DAYTONA_PYTHON": adapter}),
             pytest.raises(ValueError, match="Extra inputs are not permitted"),
         ):
-            await get_or_create_backend(
+            await build_sandbox_backend(
                 "DAYTONA_PYTHON",
                 config=poisoned_config,
                 session=session,
