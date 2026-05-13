@@ -530,6 +530,74 @@ class TestSetSpansFilterArgsMatch:
         )
         assert result["label"] == "pass"
 
+    # ---------------- Variant-list pattern ----------------
+
+    def test_variant_list_passes_when_any_variant_matches(self) -> None:
+        # The set_spans_filter-specific evaluator uses the shared variant
+        # matcher, while still applying DSL normalization within each variant.
+        result = evaluate_set_spans_filter_args(
+            output=_output_with_args(
+                "set_spans_filter",
+                {
+                    "condition": "latency_ms >= 5000 and span_kind == 'LLM'",
+                    "rootSpansOnly": False,
+                },
+            ),
+            expected=self._expected(
+                set_spans_filter=[
+                    {"condition": "status_code == 'ERROR'", "rootSpansOnly": False},
+                    {
+                        "condition": "span_kind == 'LLM' and latency_ms >= 5000",
+                        "rootSpansOnly": False,
+                    },
+                ],
+            ),
+        )
+        assert result["label"] == "pass"
+
+    def test_variant_list_fails_when_no_variant_matches(self) -> None:
+        result = evaluate_set_spans_filter_args(
+            output=_output_with_args(
+                "set_spans_filter",
+                {"condition": "span_kind == 'TOOL'", "rootSpansOnly": False},
+            ),
+            expected=self._expected(
+                set_spans_filter=[
+                    {"condition": "span_kind == 'LLM'", "rootSpansOnly": False},
+                    {"condition": "status_code == 'ERROR'", "rootSpansOnly": False},
+                ],
+            ),
+        )
+        assert result["label"] == "fail"
+        assert isinstance(result["metadata"]["set_spans_filter"]["expected"], list)
+
+    def test_empty_variant_list_fails(self) -> None:
+        result = evaluate_set_spans_filter_args(
+            output=_output_with_args(
+                "set_spans_filter",
+                {"condition": "span_kind == 'LLM'", "rootSpansOnly": False},
+            ),
+            expected=self._expected(set_spans_filter=[]),
+        )
+        assert result["label"] == "fail"
+        assert "non-empty list" in result["metadata"]["set_spans_filter"]["reason"]
+
+    def test_malformed_variant_list_fails(self) -> None:
+        result = evaluate_set_spans_filter_args(
+            output=_output_with_args(
+                "set_spans_filter",
+                {"condition": "span_kind == 'LLM'", "rootSpansOnly": False},
+            ),
+            expected=self._expected(
+                set_spans_filter=[
+                    {"condition": "span_kind == 'LLM'", "rootSpansOnly": False},
+                    "not-a-dict",  # type: ignore[list-item]
+                ],
+            ),
+        )
+        assert result["label"] == "fail"
+        assert "invalid indices: 1" in result["metadata"]["set_spans_filter"]["reason"]
+
 
 class TestToolCallArgsMatch:
     """Tests for the generic ``tool_call_args_match`` evaluator.
@@ -674,12 +742,31 @@ class TestToolCallArgsMatch:
         )
         assert result["label"] == "pass"
 
-    def test_variant_list_with_empty_list_is_a_no_op(self) -> None:
-        # A defensive case: an empty variant list means "no expectation
-        # for this tool"; the evaluator returns success without checking
-        # observed calls for that tool.
+    def test_variant_list_with_empty_list_fails(self) -> None:
         result = evaluate_tool_call_args(
             output=_output_with_args("set_time_range", {"timeRangeKey": "1h"}),
             expected=self._expected(set_time_range=[]),
         )
-        assert result["label"] == "pass"
+        assert result["label"] == "fail"
+        assert "non-empty list" in result["metadata"]["set_time_range"]["reason"]
+
+    def test_variant_list_with_malformed_entry_fails(self) -> None:
+        result = evaluate_tool_call_args(
+            output=_output_with_args("set_time_range", {"timeRangeKey": "1h"}),
+            expected=self._expected(
+                set_time_range=[
+                    {"timeRangeKey": "1h"},
+                    "not-a-dict",  # type: ignore[list-item]
+                ],
+            ),
+        )
+        assert result["label"] == "fail"
+        assert "invalid indices: 1" in result["metadata"]["set_time_range"]["reason"]
+
+    def test_non_dict_arg_expectation_fails(self) -> None:
+        result = evaluate_tool_call_args(
+            output=_output_with_args("set_time_range", {"timeRangeKey": "1h"}),
+            expected={"tool_call_args": {"set_time_range": "not-a-dict"}},
+        )
+        assert result["label"] == "fail"
+        assert "must be an object" in result["metadata"]["set_time_range"]["reason"]

@@ -204,14 +204,29 @@ def _expected_arg_variants(expected_for_tool: Any) -> list[dict[str, Any]]:
 
     Variants exist for genuinely-ambiguous queries where more than one
     set of arguments is a reasonable agent choice (e.g. "show me recent
-    traces" could resolve to ``1h``, ``1d``, ``7d``, etc.). Invalid
-    entries (non-dict members of a list) are silently dropped.
+    traces" could resolve to ``1h``, ``1d``, ``7d``, etc.).
     """
     if isinstance(expected_for_tool, dict):
         return [expected_for_tool]
     if isinstance(expected_for_tool, list):
-        return [item for item in expected_for_tool if isinstance(item, dict)]
+        return expected_for_tool
     return []
+
+
+def _invalid_arg_expectation_reason(expected_for_tool: Any) -> str | None:
+    """Return a schema error for malformed per-tool arg expectations."""
+    if isinstance(expected_for_tool, dict):
+        return None
+    if isinstance(expected_for_tool, list):
+        if not expected_for_tool:
+            return "expected arg variants must be a non-empty list of objects"
+        invalid_indices = [
+            str(index) for index, item in enumerate(expected_for_tool) if not isinstance(item, dict)
+        ]
+        if invalid_indices:
+            return f"expected arg variants must all be objects; invalid indices: {', '.join(invalid_indices)}"
+        return None
+    return "expected tool arguments must be an object or a non-empty list of objects"
 
 
 def _evaluate_args_for_tools(
@@ -247,9 +262,14 @@ def _evaluate_args_for_tools(
             continue
         if not tool_predicate(tool_name):
             continue
-        variants = _expected_arg_variants(expected_for_tool)
-        if not variants:
+        invalid_reason = _invalid_arg_expectation_reason(expected_for_tool)
+        if invalid_reason:
+            failures[tool_name] = {
+                "reason": invalid_reason,
+                "expected": expected_for_tool,
+            }
             continue
+        variants = _expected_arg_variants(expected_for_tool)
         matching_calls = [call for call in observed_calls if _tool_name(call) == tool_name]
         if not matching_calls:
             failures[tool_name] = {"reason": "tool was not called"}
