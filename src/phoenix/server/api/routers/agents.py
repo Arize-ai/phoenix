@@ -3,7 +3,7 @@ from collections.abc import AsyncIterator, Iterable
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from openinference.instrumentation import using_session
+from openinference.instrumentation import using_metadata, using_session
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from opentelemetry.context import Context
 from opentelemetry.sdk.trace import Span as SDKSpan
@@ -489,7 +489,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
 
         history = VercelAIAdapter.load_messages(body.messages)
         try:
-            with using_session(session_id=session_id):
+            with using_metadata({"session_id": session_id}):
                 result = await summarize_messages(messages=history, model=model)
         except SummarizationError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc

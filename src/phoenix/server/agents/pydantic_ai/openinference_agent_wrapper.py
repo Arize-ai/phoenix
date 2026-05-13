@@ -3,12 +3,14 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Iterator, Sequence
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
-from typing import Any, Callable, TypeAlias
+from typing import Any, Callable, Literal, TypeAlias
 
+import pydantic
 from openinference.instrumentation import (
     OITracer,
     TraceConfig,
     get_input_attributes,
+    get_metadata_attributes,
     get_output_attributes,
     get_span_kind_attributes,
     safe_json_dumps,
@@ -19,23 +21,35 @@ from openinference.semconv.trace import (
     ToolCallAttributes,
 )
 from opentelemetry.trace import Status, StatusCode, Tracer, TracerProvider
+from opentelemetry.util.types import AttributeValue
 from pydantic_ai.agent.abstract import AbstractAgent
 from pydantic_ai.agent.wrapper import WrapperAgent
 from pydantic_ai.messages import (
+    CachePoint,
+    InstructionPart,
     ModelMessage,
     ModelRequest,
     ModelResponse,
+    SystemPromptPart,
+    TextContent,
+    TextPart,
     ToolCallPart,
     ToolReturnPart,
     UserContent,
+    UserPromptPart,
 )
 from pydantic_ai.output import OutputDataT
-from pydantic_ai.run import AgentRun, AgentRunResult
+from pydantic_ai.run import AgentRun
 from pydantic_ai.tools import AgentDepsT
 
 from phoenix.server.agents.toolsets.external.tools import get_external_tool_definition
 
 ToolCallId: TypeAlias = str
+
+_MODEL_MESSAGE_ADAPTER: pydantic.TypeAdapter[ModelMessage] = pydantic.TypeAdapter(
+    ModelMessage,
+    config=pydantic.ConfigDict(ser_json_bytes="base64"),
+)
 
 
 @dataclass(init=False)
@@ -85,7 +99,7 @@ class OpenInferenceAgentWrapper(WrapperAgent[AgentDepsT, OutputDataT]):
                 user_prompt, message_history=message_history, **kwargs
             ) as agent_run:
                 yield agent_run
-                set_result(agent_run.result)
+                set_result(agent_run)
 
     def _emit_resolved_external_tool_spans(
         self,
@@ -160,27 +174,27 @@ class OpenInferenceAgentWrapper(WrapperAgent[AgentDepsT, OutputDataT]):
         user_prompt: str | Sequence[UserContent] | None,
         message_history: Sequence[ModelMessage] | None,
         kwargs: dict[str, Any],
-    ) -> Iterator[Callable[[AgentRunResult[Any] | None], None]]:
-        input_value: dict[str, Any] = {
-            "user_prompt": user_prompt,
-            **{k: v for k, v in kwargs.items() if v is not None},
-        }
-        if message_history is not None:
-            input_value["message_history"] = list(message_history)
-        attributes = {
-            **get_span_kind_attributes("agent"),
-            **get_input_attributes(input_value, mime_type=OpenInferenceMimeTypeValues.JSON),
-        }
+    ) -> Iterator[Callable[[AgentRun[AgentDepsT, Any]], None]]:
+        attributes: dict[str, AttributeValue] = {**get_span_kind_attributes("agent")}
+        input_message = _most_recent_input_message(user_prompt, message_history)
+        if input_message is not None:
+            attributes.update(_message_io_attributes(input_message, role="input"))
+        full_input = _full_input(user_prompt, message_history, kwargs)
+        metadata: dict[str, Any] = {"input": full_input}
+        attributes.update(get_metadata_attributes(metadata=metadata))
         span_name = f"{self.name or type(self.wrapped).__name__}.iter"
         with self._tracer.start_as_current_span(
             name=span_name,
             attributes=attributes,
         ) as span:
 
-            def set_result(result: AgentRunResult[Any] | None) -> None:
-                if result is None:
-                    return
-                span.set_attributes(get_output_attributes(result.output))
+            def set_result(agent_run: AgentRun[AgentDepsT, Any]) -> None:
+                response = _last_model_response(agent_run.new_messages())
+                if response is not None:
+                    span.set_attributes(_message_io_attributes(response, role="output"))
+                if agent_run.result is not None:
+                    metadata["output"] = agent_run.result.output
+                    span.set_attributes(get_metadata_attributes(metadata=metadata))
 
             yield set_result
             span.set_status(Status(StatusCode.OK))
@@ -223,3 +237,94 @@ def _get_tool_call_parts_by_id(
             if isinstance(part, ToolCallPart):
                 tool_calls_by_call_id[part.tool_call_id] = part
     return tool_calls_by_call_id
+
+
+def _most_recent_input_message(
+    user_prompt: str | Sequence[UserContent] | None,
+    message_history: Sequence[ModelMessage] | None,
+) -> ModelMessage | None:
+    """The most recent message at agent entry.
+
+    When ``user_prompt`` is provided, pydantic-ai will construct a new
+    ``ModelRequest`` from it; we synthesize the same shape so the input
+    reflects what is about to be sent to the model. Otherwise, fall back to
+    the tail of ``message_history``.
+    """
+    if user_prompt is not None:
+        return ModelRequest(parts=[UserPromptPart(content=user_prompt)])
+    if message_history:
+        return message_history[-1]
+    return None
+
+
+def _last_model_response(messages: Sequence[ModelMessage]) -> ModelResponse | None:
+    for message in reversed(messages):
+        if isinstance(message, ModelResponse):
+            return message
+    return None
+
+
+def _full_input(
+    user_prompt: str | Sequence[UserContent] | None,
+    message_history: Sequence[ModelMessage] | None,
+    kwargs: dict[str, Any],
+) -> dict[str, Any]:
+    """Mirror the full input dict that was previously instrumented as ``INPUT_VALUE``."""
+    full: dict[str, Any] = {"user_prompt": user_prompt}
+    if message_history is not None:
+        full["message_history"] = list(message_history)
+    for k, v in kwargs.items():
+        if v is not None:
+            full[k] = v
+    return full
+
+
+def _message_io_attributes(
+    message: ModelMessage,
+    *,
+    role: Literal["input", "output"],
+) -> dict[str, AttributeValue]:
+    text = _text_only_content(message)
+    if text is not None:
+        value: str = text
+        mime_type = OpenInferenceMimeTypeValues.TEXT
+    else:
+        value = _MODEL_MESSAGE_ADAPTER.dump_json(message).decode("utf-8")
+        mime_type = OpenInferenceMimeTypeValues.JSON
+    if role == "input":
+        return get_input_attributes(value, mime_type=mime_type)
+    return get_output_attributes(value, mime_type=mime_type)
+
+
+def _text_only_content(message: ModelMessage) -> str | None:
+    """Concatenated text if the message has only text-bearing parts; else ``None``."""
+    texts: list[str] = []
+    if isinstance(message, ModelRequest):
+        for request_part in message.parts:
+            if isinstance(request_part, UserPromptPart):
+                content = request_part.content
+                if isinstance(content, str):
+                    texts.append(content)
+                    continue
+                for item in content:
+                    if isinstance(item, str):
+                        texts.append(item)
+                    elif isinstance(item, TextContent):
+                        texts.append(item.content)
+                    elif isinstance(item, CachePoint):
+                        continue
+                    else:
+                        return None
+            elif isinstance(request_part, (SystemPromptPart, InstructionPart)):
+                texts.append(request_part.content)
+            else:
+                return None
+        return "\n".join(texts)
+    if isinstance(message, ModelResponse):
+        for response_part in message.parts:
+            if isinstance(response_part, TextPart):
+                texts.append(response_part.content)
+            else:
+                return None
+        return "\n".join(texts) if texts else None
+    return None

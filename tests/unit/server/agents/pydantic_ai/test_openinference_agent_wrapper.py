@@ -183,16 +183,18 @@ async def test_iter_emits_agent_span_for_text_response(
     attributes = dict(agent_span.attributes or {})
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == AGENT
 
-    input_value = attributes.pop(INPUT_VALUE)
-    assert isinstance(input_value, str)
-    parsed_input = json.loads(input_value)
-    assert set(parsed_input) == {"user_prompt", "model_settings"}
-    assert parsed_input["user_prompt"] == user_prompt
-    assert parsed_input["model_settings"] == dict(model_settings)
-    assert attributes.pop(INPUT_MIME_TYPE) == JSON
+    assert attributes.pop(INPUT_VALUE) == user_prompt
+    assert attributes.pop(INPUT_MIME_TYPE) == TEXT
 
     assert attributes.pop(OUTPUT_VALUE) == user_prompt
     assert attributes.pop(OUTPUT_MIME_TYPE) == TEXT
+
+    metadata_value = attributes.pop(METADATA)
+    assert isinstance(metadata_value, str)
+    metadata = json.loads(metadata_value)
+    assert metadata["input"]["user_prompt"] == user_prompt
+    assert metadata["input"]["model_settings"] == dict(model_settings)
+    assert metadata["output"] == user_prompt
 
     assert not attributes
 
@@ -227,16 +229,18 @@ async def test_run_emits_agent_span_for_text_response(
     attributes = dict(agent_span.attributes or {})
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == AGENT
 
-    input_value = attributes.pop(INPUT_VALUE)
-    assert isinstance(input_value, str)
-    parsed_input = json.loads(input_value)
-    assert set(parsed_input) == {"user_prompt", "model_settings"}
-    assert parsed_input["user_prompt"] == user_prompt
-    assert parsed_input["model_settings"] == dict(model_settings)
-    assert attributes.pop(INPUT_MIME_TYPE) == JSON
+    assert attributes.pop(INPUT_VALUE) == user_prompt
+    assert attributes.pop(INPUT_MIME_TYPE) == TEXT
 
     assert attributes.pop(OUTPUT_VALUE) == user_prompt
     assert attributes.pop(OUTPUT_MIME_TYPE) == TEXT
+
+    metadata_value = attributes.pop(METADATA)
+    assert isinstance(metadata_value, str)
+    metadata = json.loads(metadata_value)
+    assert metadata["input"]["user_prompt"] == user_prompt
+    assert metadata["input"]["model_settings"] == dict(model_settings)
+    assert metadata["output"] == user_prompt
 
     assert not attributes
 
@@ -276,15 +280,18 @@ async def test_run_stream_emits_agent_span(
     attributes = dict(agent_span.attributes or {})
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == AGENT
 
-    input_value = attributes.pop(INPUT_VALUE)
-    assert isinstance(input_value, str)
-    parsed_input = json.loads(input_value)
-    assert parsed_input["user_prompt"] == user_prompt
-    assert parsed_input["model_settings"] == dict(model_settings)
-    assert attributes.pop(INPUT_MIME_TYPE) == JSON
+    assert attributes.pop(INPUT_VALUE) == user_prompt
+    assert attributes.pop(INPUT_MIME_TYPE) == TEXT
 
     assert attributes.pop(OUTPUT_VALUE) == user_prompt
     assert attributes.pop(OUTPUT_MIME_TYPE) == TEXT
+
+    metadata_value = attributes.pop(METADATA)
+    assert isinstance(metadata_value, str)
+    metadata = json.loads(metadata_value)
+    assert metadata["input"]["user_prompt"] == user_prompt
+    assert metadata["input"]["model_settings"] == dict(model_settings)
+    assert metadata["output"] == user_prompt
 
     assert not attributes
 
@@ -322,11 +329,13 @@ async def test_iter_records_exception_when_run_fails(
     attributes = dict(agent_span.attributes or {})
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == AGENT
 
-    input_value = attributes.pop(INPUT_VALUE)
-    assert isinstance(input_value, str)
-    parsed_input = json.loads(input_value)
-    assert parsed_input == {"user_prompt": "anything"}
-    assert attributes.pop(INPUT_MIME_TYPE) == JSON
+    assert attributes.pop(INPUT_VALUE) == "anything"
+    assert attributes.pop(INPUT_MIME_TYPE) == TEXT
+
+    metadata_value = attributes.pop(METADATA)
+    assert isinstance(metadata_value, str)
+    metadata = json.loads(metadata_value)
+    assert metadata == {"input": {"user_prompt": "anything"}}
 
     assert not attributes
 
@@ -669,6 +678,7 @@ INPUT_VALUE = SpanAttributes.INPUT_VALUE
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
+METADATA = SpanAttributes.METADATA
 
 AGENT = OpenInferenceSpanKindValues.AGENT.value
 LLM = OpenInferenceSpanKindValues.LLM.value
