@@ -235,6 +235,39 @@ class NoOpFormatter(TemplateFormatter):
         return template
 
 
+_FIELD_NAME_PART_RE = re.compile(r"\.([^.\[\]]+)|\[([^\[\]]+)\]")
+
+
+class _SafeFieldFormatter(Formatter):
+    """
+    A :class:`string.Formatter` that forbids access to "private" attributes.
+
+    Python's ``str.format`` resolves ``{x.attr}`` and ``{x[key]}`` expressions.
+    Without restrictions, a malicious template can walk from a user-supplied
+    value to ``__class__`` / ``__globals__`` / ``__builtins__`` and read process
+    state (environment variables, secrets, etc.). This subclass blocks any
+    attribute access whose name starts with an underscore, which is sufficient
+    to break the traversal chain while preserving normal usage like
+    ``{user.name}`` and ``{items[0].value}``.
+    """
+
+    def get_field(self, field_name: str, args: Any, kwargs: Any) -> Any:
+        first = re.match(r"^[^.\[\]]*", field_name).group(0)  # type: ignore[union-attr]
+        rest = field_name[len(first) :]
+        key: Any = int(first) if first.isdigit() else first
+        obj = self.get_value(key, args, kwargs)
+        for attr, index in _FIELD_NAME_PART_RE.findall(rest):
+            if attr:
+                if attr.startswith("_"):
+                    raise TemplateFormatterError(
+                        f"Access to attribute '{attr}' is not permitted in templates"
+                    )
+                obj = getattr(obj, attr)
+            else:
+                obj = obj[int(index) if index.lstrip("-").isdigit() else index]
+        return obj, first
+
+
 class FStringTemplateFormatter(TemplateFormatter):
     """
     Regular f-string template formatter.
@@ -266,10 +299,14 @@ class FStringTemplateFormatter(TemplateFormatter):
     def parse(self, template: str) -> set[str]:
         return set(field_name for _, field_name, _, _ in Formatter().parse(template) if field_name)
 
+    # Shared formatter that blocks traversal into "private"/dunder attributes,
+    # preventing format-string injection (e.g. {x.__class__.__init__.__globals__}).
+    _formatter = _SafeFieldFormatter()
+
     def _format(self, template: str, variable_names: Iterable[str], **variables: Any) -> str:
         # Wrap dict and list variables to support attribute access (e.g., {user.name})
         wrapped_variables = {key: _wrap_value(value) for key, value in variables.items()}
-        return template.format(**wrapped_variables)
+        return self._formatter.vformat(template, (), wrapped_variables)
 
 
 class MustacheTemplateFormatter(TemplateFormatter):

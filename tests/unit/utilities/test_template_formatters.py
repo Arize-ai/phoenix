@@ -187,6 +187,48 @@ def test_template_formatters_raise_expected_error_on_missing_variables(
         formatter.format(template)
 
 
+class TestFStringFormatStringInjection:
+    """Regression tests for the f-string format-string injection vulnerability."""
+
+    @pytest.mark.parametrize(
+        "template",
+        (
+            "{u.__class__}",
+            "{u.__class__.__bases__[0].__init__.__globals__}",
+            "{u.__init__.__globals__[os].environ}",
+            "{u[x].__class__}",
+        ),
+    )
+    def test_dunder_attribute_access_is_blocked(self, template: str) -> None:
+        formatter = FStringTemplateFormatter()
+        with pytest.raises(TemplateFormatterError, match=r"not permitted in templates"):
+            formatter.format(template, u={"x": 1})
+
+    def test_legitimate_attribute_and_index_access_still_works(self) -> None:
+        formatter = FStringTemplateFormatter()
+        assert formatter.format("{user.name}", user={"name": "Alice"}) == "Alice"
+        assert formatter.format("{items[0].value}", items=[{"value": "first"}]) == "first"
+
+    @pytest.mark.parametrize(
+        "template",
+        (
+            "{{u.__class__}}",
+            "{{u.__class__.__init__.__globals__}}",
+            "{{u.__init__.__globals__}}",
+            "{{u.upper}}",
+            "{{#u}}{{__class__}}{{/u}}",
+        ),
+    )
+    @pytest.mark.parametrize("value", ({"x": 1}, "hello", ["a", "b"]))
+    def test_mustache_does_not_traverse_dunder_or_python_attributes(
+        self, template: str, value: Any
+    ) -> None:
+        # pystache only does dict-style lookups and refuses getattr on builtin
+        # types, so these resolve to "" rather than leaking internals.
+        formatter = MustacheTemplateFormatter()
+        assert formatter.format(template, u=value) == ""
+
+
 class TestMustacheSections:
     """Tests for full Mustache syntax support including sections."""
 
