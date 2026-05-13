@@ -143,18 +143,11 @@ async def _resolve_inline_code_evaluator_backend(
         if provider.language != language:
             raise BadRequest("Sandbox provider language does not match code evaluator language")
 
-        # Admin-authored provider config wins over user-authored
-        # SandboxConfig.config on key collision — consistent with
-        # the factory's credentials-win merge order.
-        merged_config = {
-            **sandbox_cfg.config,
-            **provider.config,
-        }
         backend_type = provider.backend_type
         try:
             sandbox_backend = await get_or_create_backend(
                 backend_type,
-                config=merged_config,
+                config=sandbox_cfg.config,
                 session=session,
                 decrypt=info.context.decrypt,
             )
@@ -331,12 +324,7 @@ class ChatCompletionMutationMixin:
                                 )
                             )
                         backend_type = live_sandbox_provider.backend_type
-                        # Provider config wins on key collision so user-supplied config
-                        # cannot override server-injected provider keys.
-                        sandbox_config = {
-                            **live_sandbox_config.config,
-                            **live_sandbox_provider.config,
-                        }
+                        sandbox_config = live_sandbox_config.config
                         sandbox_timeout = live_sandbox_config.timeout
 
                     # Eagerly capture scalar fields before session closes

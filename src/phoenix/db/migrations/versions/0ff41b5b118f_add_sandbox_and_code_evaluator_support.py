@@ -73,7 +73,6 @@ def upgrade() -> None:
             sa.ForeignKey("languages.name", ondelete="RESTRICT"),
             nullable=False,
         ),
-        sa.Column("config", JSON_, nullable=False, server_default="{}"),
         sa.Column("enabled", sa.Boolean, nullable=False, server_default=sa.text("true")),
         sa.Column(
             "created_at",

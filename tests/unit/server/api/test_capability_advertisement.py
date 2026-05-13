@@ -23,10 +23,6 @@ _SANDBOX_BACKENDS_QUERY = """
       supportsEnvVars
       internetAccess
       dependenciesLanguage
-      configFieldSpecs {
-        key
-        fieldType
-      }
     }
   }
 """

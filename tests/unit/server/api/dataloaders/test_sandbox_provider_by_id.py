@@ -16,7 +16,6 @@ async def test_sandbox_provider_by_id_batches_lookups(db: DbSessionFactory) -> N
             models.SandboxProvider(
                 backend_type=f"backend-{token_hex(3)}",
                 language="PYTHON",
-                config={},
                 enabled=True,
             )
             for _ in range(4)

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c01ef8b700447190e929b784366e42ab>>
+ * @generated SignedSource<<26e6ac42a642e1dfd1a9487920b8eacc>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -35,7 +35,6 @@ export type SettingsSandboxesPageFragment$data = {
   }>;
   readonly sandboxProviders: ReadonlyArray<{
     readonly backendType: string;
-    readonly config: any;
     readonly configs: ReadonlyArray<{
       readonly config: any;
       readonly description: string | null;
@@ -96,13 +95,6 @@ v4 = {
   "storageKey": null
 },
 v5 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "config",
-  "storageKey": null
-},
-v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -236,7 +228,6 @@ return {
         },
         (v4/*: any*/),
         (v5/*: any*/),
-        (v6/*: any*/),
         {
           "alias": null,
           "args": null,
@@ -262,8 +253,14 @@ return {
               "storageKey": null
             },
             (v4/*: any*/),
-            (v5/*: any*/),
-            (v6/*: any*/)
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "config",
+              "storageKey": null
+            },
+            (v5/*: any*/)
           ],
           "storageKey": null
         }
@@ -276,6 +273,6 @@ return {
 };
 })();
 
-(node as any).hash = "1f6d50525ca2ee2e7197dc1a1347ea5e";
+(node as any).hash = "8ba0222f23fb0c2344e742877ee8bf3a";
 
 export default node;

@@ -2753,7 +2753,6 @@ class SandboxProvider(HasId):
     language: Mapped[LanguageName] = mapped_column(
         ForeignKey("languages.name", ondelete="RESTRICT"), nullable=False
     )
-    config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, server_default="{}")
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

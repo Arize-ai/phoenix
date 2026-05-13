@@ -20,8 +20,6 @@ absent from ``_SANDBOX_ADAPTERS`` → status resolver maps to ``NOT_INSTALLED``
 
 from __future__ import annotations
 
-import hashlib
-import json
 import logging
 import os
 from dataclasses import dataclass, field
@@ -39,7 +37,6 @@ from typing import (
 
 from phoenix.config import get_env_allowed_sandbox_providers
 from phoenix.server.sandbox.types import (
-    ConfigFieldSpec,
     EnvVarEntry,
     EnvVarLiteral,
     EnvVarSecretRef,
@@ -55,68 +52,6 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
-
-
-# JSON Schema "type" → ConfigFieldSpec.field_type mapping.
-_JSON_SCHEMA_TYPE_MAP: dict[str, str] = {
-    "string": "string",
-    "integer": "integer",
-    "number": "integer",
-    "boolean": "boolean",
-}
-
-
-def _config_field_specs_from_model(
-    model_cls: Any,
-) -> list[ConfigFieldSpec]:
-    """
-    Derive ConfigFieldSpec list from a pydantic model's JSON schema.
-
-    Skips fields not listed in the schema's `properties` (extra="allow" wildcard
-    fields are not enumerated). Fields with `enum` become field_type="select".
-    Nested-model fields ($ref, array, object types) are silently skipped — they
-    are structured config blocks (env_vars, internet_access, dependencies) rendered
-    by dedicated UI editors, not flat form fields.
-    """
-    schema = model_cls.model_json_schema()
-    properties: dict[str, Any] = schema.get("properties", {})
-    required_keys: set[str] = set(schema.get("required", []))
-    specs: list[ConfigFieldSpec] = []
-    for key, prop in properties.items():
-        # Unwrap anyOf (e.g. Optional[str] → [{type: string}, {type: null}])
-        effective_prop = prop
-        if "anyOf" in prop:
-            non_null = [p for p in prop["anyOf"] if p.get("type") != "null"]
-            if non_null:
-                effective_prop = non_null[0]
-
-        # Skip nested-model fields: $ref (nested object) or array/object types.
-        # These are structured config blocks handled by dedicated UI editors.
-        if "$ref" in effective_prop or effective_prop.get("type") in ("array", "object"):
-            continue
-
-        if "enum" in effective_prop:
-            ft: str = "select"
-            choices: Optional[list[str]] = [str(c) for c in effective_prop["enum"]]
-        else:
-            raw_type = effective_prop.get("type", "string")
-            ft = _JSON_SCHEMA_TYPE_MAP.get(raw_type, "string")
-            choices = None
-
-        display_name: str = prop.get("title") or key.replace("_", " ").title()
-        description: str = prop.get("description") or effective_prop.get("description") or ""
-
-        specs.append(
-            ConfigFieldSpec(
-                key=key,
-                display_name=display_name,
-                field_type=ft,  # type: ignore[arg-type]
-                required=key in required_keys,
-                description=description,
-                choices=choices,
-            )
-        )
-    return specs
 
 
 @dataclass
@@ -171,7 +106,6 @@ class AdapterMetadata:
     display_name: str
     language: str = ""
     dependency_hints: list[str] = field(default_factory=list)
-    config_field_specs: list[ConfigFieldSpec] = field(default_factory=list)
 
     # Where the sandbox's code execution physically happens.
     # 'local' → the runtime executes on the same machine as the Phoenix
@@ -401,87 +335,12 @@ class _AllowlistGatedAdapterRegistry(MutableMapping[str, SandboxAdapter]):
 
 _SANDBOX_ADAPTERS: MutableMapping[str, SandboxAdapter] = _AllowlistGatedAdapterRegistry()
 
-# ---------------------------------------------------------------------------
-# Session cache — (backend_type, config_hash) → SandboxBackend instance.
-# ---------------------------------------------------------------------------
-_BACKEND_CACHE: dict[tuple[str, str], SandboxBackend] = {}
-
-
-def _config_hash(config: Mapping[str, Any] | None) -> str:
-    """Return a stable hex digest for a config dict (or empty dict)."""
-    canonical = json.dumps(config or {}, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(canonical.encode()).hexdigest()
-
 
 def register_sandbox_adapter(adapter: SandboxAdapter) -> SandboxAdapter:
-    """Register a SandboxAdapter in the runtime registry.
-
-    Derives config_field_specs from the adapter's pydantic config_model and
-    writes them into SANDBOX_ADAPTER_METADATA so the GQL layer has a single
-    authoritative source (no dual-registration).
-    """
+    """Register a SandboxAdapter in the runtime registry."""
     _SANDBOX_ADAPTERS[adapter.key] = adapter
-    if adapter.key in SANDBOX_ADAPTER_METADATA:
-        SANDBOX_ADAPTER_METADATA[adapter.key].config_field_specs = _config_field_specs_from_model(
-            adapter.config_model
-        )
     logger.debug(f"Registered sandbox adapter: {adapter.key!r}")
     return adapter
-
-
-async def close_all_backends() -> None:
-    """Close all cached SandboxBackend instances and clear the cache."""
-    for key, backend in list(_BACKEND_CACHE.items()):
-        try:
-            await backend.close()
-        except Exception:
-            logger.warning(f"Error closing sandbox backend {key!r}", exc_info=True)
-    _BACKEND_CACHE.clear()
-
-
-async def invalidate_backend_cache(backend_type: str) -> None:
-    """Remove all _BACKEND_CACHE entries for backend_type, closing each backend."""
-    evicted = 0
-    for key in [k for k in _BACKEND_CACHE if k[0] == backend_type]:
-        backend = _BACKEND_CACHE.pop(key, None)
-        if backend is None:
-            continue
-        try:
-            await backend.close()
-        except Exception:
-            logger.warning(f"Error closing sandbox backend {key!r}", exc_info=True)
-        evicted += 1
-    logger.debug(f"Invalidated {evicted} cache entries for backend_type={backend_type!r}")
-
-
-async def invalidate_backend_cache_for_key(key: str) -> None:
-    """Evict cached backends for every adapter whose credential_specs include `key`.
-
-    Used when a secret value changes (Secret row upserted/deleted) to ensure
-    backends holding the pre-rotation plaintext are rebuilt on next access.
-    Walks `_SANDBOX_ADAPTERS` and calls `invalidate_backend_cache(backend_type)`
-    for each matching adapter. Key comparison is exact against the `key` field
-    of each `ProviderCredentialSpec`.
-
-    Broader than `invalidate_backend_cache` because one credential key may be
-    shared by multiple backend_types (e.g.
-    VERCEL_TOKEN across VERCEL_PYTHON and VERCEL_TYPESCRIPT).
-    A per-adapter eviction failure logs and continues —
-    a rotation must not stall because one backend failed to close.
-    """
-    matched = 0
-    for backend_type, adapter in list(_SANDBOX_ADAPTERS.items()):
-        if any(spec.key == key for spec in adapter.credential_specs):
-            matched += 1
-            try:
-                await invalidate_backend_cache(backend_type)
-            except Exception:
-                logger.warning(
-                    f"Error invalidating cache for backend_type={backend_type!r} "
-                    f"after rotation of {key!r}",
-                    exc_info=True,
-                )
-    logger.debug(f"Invalidated cache across {matched} adapter(s) for key={key!r}")
 
 
 class MissingSecretError(Exception):
@@ -635,10 +494,7 @@ async def get_missing_sandbox_auth_detail(
 ) -> Optional[str]:
     """Return a user-facing auth requirement message when backend credentials are missing."""
     adapter = _SANDBOX_ADAPTERS.get(backend_type)
-    if adapter is None:
-        return None
-
-    if not adapter.credential_specs:
+    if adapter is None or not adapter.credential_specs:
         return None
 
     resolved = await _resolve_sandbox_credentials(session, decrypt, adapter.credential_specs)
@@ -706,11 +562,7 @@ async def get_or_create_backend(
     validated_config = adapter.validate_config(user_config)
     effective_config: dict[str, Any] = {**validated_config, **provider_creds}
 
-    cache_key = (backend_type, _config_hash(effective_config))
-    if cache_key in _BACKEND_CACHE:
-        return _BACKEND_CACHE[cache_key]
-
-    user_env = {}
+    user_env: dict[str, str] = {}
     raw_env_vars = effective_config.get("env_vars")
     if raw_env_vars:
         # Literal entries resolve unconditionally; secret_refs require DB
@@ -722,13 +574,10 @@ async def get_or_create_backend(
 
     try:
         # Each backend populates self.secret_values in __init__ via
-        # compose_secret_values(user_env, *credentials). The factory does not
-        # post-construct it — the contract lives on SandboxBackend itself
-        # (class-level frozenset() default), so any backend reached here is
-        # already secret-mask-ready.
-        backend = adapter.build_backend(effective_config, user_env=user_env)
-        _BACKEND_CACHE[cache_key] = backend
-        return backend
+        # compose_secret_values(user_env, *credentials). The contract lives on
+        # SandboxBackend itself (class-level frozenset() default), so any
+        # backend reached here is already secret-mask-ready.
+        return adapter.build_backend(effective_config, user_env=user_env)
     except (MissingSecretError, UnsupportedOperation, ValidationError, ValueError):
         # Fail-closed typed failures that callers MUST surface to users:
         # - MissingSecretError: a referenced Secret key is missing or undecryptable
@@ -833,16 +682,12 @@ except ImportError:
 
 
 # ---------------------------------------------------------------------------
-# Reserved credential names (D2).
+# Reserved credential names.
 #
 # Names reserved by sandbox adapters for provider credentials. User-supplied
-# env_vars, SandboxConfig top-level keys, and SandboxProvider.config keys
-# matching any of these (case-insensitive) are rejected at mutation time so
-# they cannot shadow resolved credentials in the factory merge.
-#
-# Derived from every registered adapter's credential_specs, unioned with
-# reservation-only names for env-var-only backends so missing optional extras
-# cannot narrow the reserved set.
+# env_vars and SandboxConfig top-level keys matching any of these
+# (case-insensitive) are rejected at mutation time so they cannot shadow
+# resolved credentials in the factory merge.
 # ---------------------------------------------------------------------------
 
 

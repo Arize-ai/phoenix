@@ -21,7 +21,6 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server import sandbox as sandbox_module
-from phoenix.server.sandbox.daytona_backend import DaytonaPythonAdapter
 from phoenix.server.sandbox.deno_backend import DenoAdapter
 from phoenix.server.sandbox.e2b_backend import E2BAdapter
 from phoenix.server.sandbox.wasm_backend import WASMAdapter
@@ -31,7 +30,6 @@ from tests.unit.graphql import AsyncGraphQLClient
 _e2b_adapter = E2BAdapter()
 _deno_adapter = DenoAdapter()
 _wasm_adapter = WASMAdapter()
-_daytona_adapter = DaytonaPythonAdapter()
 
 _CREATE = """
 mutation CreateSandboxConfig($input: CreateSandboxConfigInput!) {
@@ -70,16 +68,6 @@ mutation UpdateSandboxConfig($input: UpdateSandboxConfigInput!) {
         sandboxConfig {
             id
             timeout
-        }
-    }
-}
-"""
-
-_UPDATE_PROVIDER = """
-mutation UpdateSandboxProvider($input: UpdateSandboxProviderInput!) {
-    updateSandboxProvider(input: $input) {
-        sandboxProvider {
-            id
         }
     }
 }
@@ -202,155 +190,6 @@ class TestUpdateSandboxConfigCapabilityGates:
                         "config": {
                             "dependencies": {"packages": ["requests"]},
                         },
-                    }
-                },
-            )
-        assert result.errors
-
-
-class TestStoredBaselinePassthrough:
-    """Update-path capability gates must pass when the submitted section is
-    semantically unchanged from the stored baseline (round-trip preservation).
-    Create-path gates remain strict (no stored baseline)."""
-
-    async def test_create_still_rejects_unsupported_internet_access(
-        self,
-        gql_client: AsyncGraphQLClient,
-        db: DbSessionFactory,
-        seed_sandbox_providers: None,
-    ) -> None:
-        """Create path has no stored baseline — gate must still reject."""
-        provider = await _get_provider(db, "DENO")
-
-        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"DENO": _deno_adapter}):
-            result = await gql_client.execute(
-                _CREATE,
-                variables={
-                    "input": {
-                        "sandboxProviderId": _provider_global_id(provider.id),
-                        "name": "deno-create-ia-reject",
-                        "config": {"internet_access": {"mode": "deny"}},
-                    }
-                },
-            )
-        assert result.errors
-
-    async def test_create_still_rejects_unsupported_dependencies(
-        self,
-        gql_client: AsyncGraphQLClient,
-        db: DbSessionFactory,
-        seed_sandbox_providers: None,
-    ) -> None:
-        """Create path has no stored baseline — gate must still reject."""
-        provider = await _get_provider(db, "WASM")
-
-        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"WASM": _wasm_adapter}):
-            result = await gql_client.execute(
-                _CREATE,
-                variables={
-                    "input": {
-                        "sandboxProviderId": _provider_global_id(provider.id),
-                        "name": "wasm-create-deps-reject",
-                        "config": {"dependencies": {"packages": ["requests"]}},
-                    }
-                },
-            )
-        assert result.errors
-
-    async def test_update_preserved_internet_access_passes(
-        self,
-        gql_client: AsyncGraphQLClient,
-        db: DbSessionFactory,
-        seed_sandbox_providers: None,
-    ) -> None:
-        """Stored config already has internet_access; round-tripping the same
-        value must succeed even on a 'none'-capability adapter."""
-        provider = await _get_provider(db, "DENO")
-        async with db() as session:
-            config = models.SandboxConfig(
-                sandbox_provider_id=provider.id,
-                language=provider.language,
-                name="deno-preserved-ia",
-                description="Pre-existing config with internet_access",
-                config={"internet_access": {"mode": "deny"}},
-                timeout=30,
-            )
-            session.add(config)
-            await session.flush()
-
-        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"DENO": _deno_adapter}):
-            result = await gql_client.execute(
-                _UPDATE,
-                variables={
-                    "input": {
-                        "id": _config_global_id(config.id),
-                        "config": {"internet_access": {"mode": "deny"}},
-                    }
-                },
-            )
-        assert result.data and not result.errors
-
-    async def test_update_changing_internet_access_rejected(
-        self,
-        gql_client: AsyncGraphQLClient,
-        db: DbSessionFactory,
-        seed_sandbox_providers: None,
-    ) -> None:
-        """Changing internet_access to a different value on a 'none'-capability
-        adapter must still be rejected even with a stored baseline."""
-        provider = await _get_provider(db, "DENO")
-        async with db() as session:
-            config = models.SandboxConfig(
-                sandbox_provider_id=provider.id,
-                language=provider.language,
-                name="deno-changed-ia",
-                description="Pre-existing config with internet_access",
-                config={"internet_access": {"mode": "deny"}},
-                timeout=30,
-            )
-            session.add(config)
-            await session.flush()
-
-        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"DENO": _deno_adapter}):
-            result = await gql_client.execute(
-                _UPDATE,
-                variables={
-                    "input": {
-                        "id": _config_global_id(config.id),
-                        "config": {"internet_access": {"mode": "allow"}},
-                    }
-                },
-            )
-        assert result.errors
-
-    async def test_update_adding_new_dependency_rejected(
-        self,
-        gql_client: AsyncGraphQLClient,
-        db: DbSessionFactory,
-        seed_sandbox_providers: None,
-    ) -> None:
-        """Adding a new package to dependencies on a null-language adapter must
-        be rejected even when a stored baseline exists."""
-        provider = await _get_provider(db, "WASM")
-        async with db() as session:
-            config = models.SandboxConfig(
-                sandbox_provider_id=provider.id,
-                language=provider.language,
-                name="wasm-new-dep",
-                description="Pre-existing config with dependencies",
-                config={"dependencies": {"packages": ["requests"]}},
-                timeout=30,
-            )
-            session.add(config)
-            await session.flush()
-
-        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"WASM": _wasm_adapter}):
-            result = await gql_client.execute(
-                _UPDATE,
-                variables={
-                    "input": {
-                        "id": _config_global_id(config.id),
-                        "config": {"dependencies": {"packages": ["requests", "numpy"]}},
                     }
                 },
             )
@@ -601,8 +440,8 @@ class TestSandboxConfigTimeoutDefault:
 class TestCreateSandboxConfigNonCapabilityKeyRejected:
     """createSandboxConfig must reject non-capability keys in config.
 
-    After Phase 5, adapter config models use extra="forbid". Unknown keys in a
-    create payload must surface as BadRequest, not silently persist.
+    Adapter config models use extra="forbid". Unknown keys in a create payload
+    must surface as BadRequest, not silently persist.
     """
 
     async def test_template_key_returns_bad_request(
@@ -627,41 +466,6 @@ class TestCreateSandboxConfigNonCapabilityKeyRejected:
                         "sandboxProviderId": _provider_global_id(provider.id),
                         "name": "e2b-template-rejected",
                         "config": {"template": "python-3.11"},
-                    }
-                },
-            )
-        assert result.errors
-
-
-class TestUpdateSandboxProviderNonCapabilityKeyRejected:
-    """update_sandbox_provider must reject non-capability keys in config.
-
-    After Phase 5, adapter config models use extra="forbid". validate_config
-    is called at the mutation boundary (task-30), so unknown keys must surface
-    as BadRequest rather than silently persisting.
-    """
-
-    async def test_server_url_returns_bad_request(
-        self,
-        gql_client: AsyncGraphQLClient,
-        db: DbSessionFactory,
-        seed_sandbox_providers: None,
-    ) -> None:
-        """Posting server_url to update_sandbox_provider must be rejected.
-
-        server_url is the Daytona SSRF footgun: it was previously consumed by
-        Daytona(server_url=...) but is now stripped. validate_config raises
-        ValueError (extra=forbid), which the mutation converts to BadRequest.
-        """
-        provider = await _get_provider(db, "DAYTONA_PYTHON")
-
-        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"DAYTONA_PYTHON": _daytona_adapter}):
-            result = await gql_client.execute(
-                _UPDATE_PROVIDER,
-                variables={
-                    "input": {
-                        "id": _provider_global_id(provider.id),
-                        "config": {"server_url": "https://attacker.example.com"},
                     }
                 },
             )
@@ -892,7 +696,7 @@ class TestPhase1WrapperInputShape:
     ) -> None:
         from unittest.mock import MagicMock
 
-        from phoenix.server.sandbox import _BACKEND_CACHE, _SANDBOX_ADAPTERS
+        from phoenix.server.sandbox import _SANDBOX_ADAPTERS
         from phoenix.server.sandbox.types import (
             ProviderCredentialSpec,
             SandboxAdapter,
@@ -934,5 +738,3 @@ class TestPhase1WrapperInputShape:
             assert result.data["setSandboxCredential"]["backendType"] == backend_type
         finally:
             _SANDBOX_ADAPTERS.pop(backend_type, None)
-            for k in [k for k in list(_BACKEND_CACHE) if k[0] == backend_type]:
-                _BACKEND_CACHE.pop(k, None)

@@ -857,14 +857,10 @@ async def get_evaluators(
                 sandbox_timeout = live_sandbox_config.timeout
                 sandbox_key = (live_sandbox_provider.id, live_sandbox_config.id)
                 if sandbox_key not in backend_by_sandbox_key:
-                    merged_config = {
-                        **live_sandbox_config.config,
-                        **live_sandbox_provider.config,
-                    }
                     try:
                         backend_by_sandbox_key[sandbox_key] = await get_or_create_backend(
                             live_sandbox_provider.backend_type,
-                            config=merged_config,
+                            config=live_sandbox_config.config,
                             session=session,
                             decrypt=decrypt,
                         )

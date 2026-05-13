@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c761e26049f7bf76e60c5c30d89d8974>>
+ * @generated SignedSource<<163142de10daf6724ec78d7459dbba3c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -56,13 +56,6 @@ v4 = {
   "storageKey": null
 },
 v5 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "config",
-  "storageKey": null
-},
-v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -206,7 +199,6 @@ return {
           },
           (v4/*: any*/),
           (v5/*: any*/),
-          (v6/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -232,8 +224,14 @@ return {
                 "storageKey": null
               },
               (v4/*: any*/),
-              (v5/*: any*/),
-              (v6/*: any*/)
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "config",
+                "storageKey": null
+              },
+              (v5/*: any*/)
             ],
             "storageKey": null
           }
@@ -243,12 +241,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5f6072e0eac5e1c867306c26ed490d33",
+    "cacheID": "6bc896d9647f0b342568e474cd908d17",
     "id": null,
     "metadata": {},
     "name": "settingsSandboxesPageLoaderQuery",
     "operationKind": "query",
-    "text": "query settingsSandboxesPageLoaderQuery {\n  ...SettingsSandboxesPageFragment\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
+    "text": "query settingsSandboxesPageLoaderQuery {\n  ...SettingsSandboxesPageFragment\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();
