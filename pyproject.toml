@@ -71,7 +71,6 @@ dependencies = [
   "orjson",
   "jmespath",
   "ldap3",
-  "pydantic-ai-skills>=0.10.0",
 ]
 dynamic = ["version"]
 

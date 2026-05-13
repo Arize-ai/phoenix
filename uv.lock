@@ -437,7 +437,6 @@ dependencies = [
     { name = "psutil" },
     { name = "pyarrow" },
     { name = "pydantic" },
-    { name = "pydantic-ai-skills" },
     { name = "pydantic-ai-slim", extra = ["anthropic", "bedrock", "google", "mcp", "openai", "ui"] },
     { name = "pystache" },
     { name = "python-dateutil" },
@@ -640,7 +639,6 @@ requires-dist = [
     { name = "py-grpc-prometheus", marker = "extra == 'container'" },
     { name = "pyarrow" },
     { name = "pydantic", specifier = ">=2.1.0" },
-    { name = "pydantic-ai-skills", specifier = ">=0.10.0" },
     { name = "pydantic-ai-slim", extras = ["anthropic", "bedrock", "google", "mcp", "openai", "ui"], specifier = ">=1.87.0" },
     { name = "pystache" },
     { name = "python-dateutil" },
@@ -4913,20 +4911,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/69/44/36f1a6e523abc58ae5f928898e4aca2e0ea509b5aa6f6f392a5d882be928/pydantic-2.12.5.tar.gz", hash = "sha256:4d351024c75c0f085a9febbb665ce8c0c6ec5d30e903bdb6394b7ede26aebb49", size = 821591, upload-time = "2025-11-26T15:11:46.471Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5a/87/b70ad306ebb6f9b585f114d0ac2137d792b48be34d732d60e597c2f8465a/pydantic-2.12.5-py3-none-any.whl", hash = "sha256:e561593fccf61e8a20fc46dfc2dfe075b8be7d0188df33f221ad1f0139180f9d", size = 463580, upload-time = "2025-11-26T15:11:44.605Z" },
-]
-
-[[package]]
-name = "pydantic-ai-skills"
-version = "0.10.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "anyio" },
-    { name = "pydantic-ai-slim" },
-    { name = "pyyaml" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/55/6a/52f74c1f954e383e0baa15f32b6320be03ac985231b75176863ac0f0cc3f/pydantic_ai_skills-0.10.0.tar.gz", hash = "sha256:28f2471957331ad8f4607b782e0e6d12fe294a50a19fd6d92d684082cc57dabc", size = 9015728, upload-time = "2026-05-09T00:21:05.762Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/5d/4d/20e559cdf8748bce1794189de5a3a35fe3e339cd2e9198c8132bd41043b2/pydantic_ai_skills-0.10.0-py3-none-any.whl", hash = "sha256:327fbec03e915e674ce1b2b27f30dc8be26132bf626159e810853d95d21df377", size = 55353, upload-time = "2026-05-09T00:21:03.472Z" },
 ]
 
 [[package]]
