@@ -255,6 +255,26 @@ class DaytonaPythonConfig(BaseModel):
     )
 
 
+class DaytonaTypescriptConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    env_vars: list[EnvVarEntry] = Field(
+        default_factory=list,
+        title="Environment Variables",
+        description="Environment variables set at build time; not overridable per call.",
+    )
+    internet_access: Optional[InternetAccessConfig] = Field(
+        default=None,
+        title="Internet Access",
+        description="Controls whether the sandbox can reach the internet.",
+    )
+    dependencies: Optional[TypescriptDependenciesConfig] = Field(
+        default=None,
+        title="TypeScript Dependencies",
+        description="npm packages to install before code execution.",
+    )
+
+
 class DenoConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

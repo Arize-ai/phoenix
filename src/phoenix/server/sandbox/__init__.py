@@ -262,11 +262,24 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         hosting_type="hosted",
         dependency_hints=[
             "Install Phoenix with the `daytona` extra.",
-            "Provide `DAYTONA_API_KEY`.",
+            "Provide `PHOENIX_SANDBOX_DAYTONA_API_KEY`.",
         ],
         supports_env_vars=True,
         internet_access_capability="boolean",
         dependencies_language="PYTHON",
+        installs_packages_at_runtime=True,
+    ),
+    "DAYTONA_TYPESCRIPT": AdapterMetadata(
+        display_name="Daytona",
+        language="TYPESCRIPT",
+        hosting_type="hosted",
+        dependency_hints=[
+            "Install Phoenix with the `daytona` extra.",
+            "Provide `PHOENIX_SANDBOX_DAYTONA_API_KEY`.",
+        ],
+        supports_env_vars=True,
+        internet_access_capability="boolean",
+        dependencies_language="TYPESCRIPT",
         installs_packages_at_runtime=True,
     ),
     # Vercel Python SDK checked: pyproject minimum vercel>=0.5.8; uv.lock resolves
@@ -780,9 +793,16 @@ except ImportError:
     pass
 
 try:
-    from phoenix.server.sandbox.daytona_backend import DaytonaPythonAdapter
+    from phoenix.server.sandbox.daytona_backend import (
+        DaytonaPythonAdapter,
+        DaytonaTypescriptAdapter,
+    )
 
+    # Both Daytona adapters share the same SDK (daytona_sdk); the shared probe
+    # runs once per call but Python's import cache makes the second call
+    # effectively free.
     _try_register_adapter(DaytonaPythonAdapter)
+    _try_register_adapter(DaytonaTypescriptAdapter)
 except ImportError:
     pass
 

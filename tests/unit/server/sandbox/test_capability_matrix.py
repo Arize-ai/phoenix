@@ -1,4 +1,4 @@
-"""Parameterized capability-matrix tests across all 7 sandbox adapters.
+"""Parameterized capability-matrix tests across all 8 sandbox adapters.
 
 Coverage:
   (a) validate_config rejects unsupported capability sections at create time.
@@ -39,6 +39,10 @@ _ADAPTER_MODULES = {
     "WASM": ("phoenix.server.sandbox.wasm_backend", "WASMAdapter"),
     "E2B": ("phoenix.server.sandbox.e2b_backend", "E2BAdapter"),
     "DAYTONA_PYTHON": ("phoenix.server.sandbox.daytona_backend", "DaytonaPythonAdapter"),
+    "DAYTONA_TYPESCRIPT": (
+        "phoenix.server.sandbox.daytona_backend",
+        "DaytonaTypescriptAdapter",
+    ),
     "VERCEL_PYTHON": ("phoenix.server.sandbox.vercel_backend", "VercelPythonAdapter"),
     "VERCEL_TYPESCRIPT": ("phoenix.server.sandbox.vercel_backend", "VercelTypescriptAdapter"),
     "DENO": ("phoenix.server.sandbox.deno_backend", "DenoAdapter"),
