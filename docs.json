@@ -1193,6 +1193,7 @@
                 "group": "05.2026",
                 "pages": [
                   "docs/phoenix/release-notes/05-2026/05-13-2026-session-and-annotations",
+                  "docs/phoenix/release-notes/05-2026/05-13-2026-vertexai-playground-support",
                   "docs/phoenix/release-notes/05-2026/05-10-2026-playground-preferences",
                   "docs/phoenix/release-notes/05-2026/05-08-2026-otlp-project-header",
                   "docs/phoenix/release-notes/05-2026/05-05-2026-provider-tools",
