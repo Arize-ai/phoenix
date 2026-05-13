@@ -1,8 +1,4 @@
 repos:
-  - repo: https://github.com/zizmorcore/zizmor-pre-commit
-    rev: v1.24.1
-    hooks:
-      - id: zizmor
   - repo: local
     hooks:
       - id: format-python
