@@ -688,7 +688,12 @@
 - [04.24.2026 arize-phoenix-otel 0.16](https://arize.com/docs/phoenix/release-notes/04-2026/04-24-2026-phoenix-otel-python-0-16): OpenInference context managers and semantic conventions ship from a single phoenix.otel import — no second
 - [04.24.2026 Trace Notes API](https://arize.com/docs/phoenix/release-notes/04-2026/04-24-2026-trace-notes-api): Add trace notes via REST endpoint, TypeScript client, or CLI; reserve the note annotation name for
 - [04.28.2026 Session Notes API](https://arize.com/docs/phoenix/release-notes/04-2026/04-28-2026-session-notes-api): Add session notes through a dedicated REST endpoint and reserve the note annotation name for session note APIs
+- [04.29.2026 Dataset Upsert](https://arize.com/docs/phoenix/release-notes/04-2026/04-29-2026-dataset-upsert): `create_dataset` now upserts by default — merges examples into existing datasets by stable ID instead of raising a conflict error
+- [04.30.2026 Annotation Enhancements](https://arize.com/docs/phoenix/release-notes/04-2026/04-30-2026-annotation-enhancements): Session annotations and notes in CLI and TypeScript; batch trace annotation writes; filter GET annotation endpoints by identifier
+- [04.30.2026 CLI Named Auth Profiles](https://arize.com/docs/phoenix/release-notes/04-2026/04-30-2026-cli-auth-profiles): Store named connection profiles with `px profile` commands and switch between Phoenix instances without re-exporting env vars
 - [05.01.2026 TanStack AI Tracing](https://arize.com/docs/phoenix/release-notes/05-2026/05-01-2026-tanstack-ai-tracing): Instrument TanStack AI chat, tool-calling, and agent loops with the new @arizeai/openinference-tanstack-ai
+- [05.05.2026 Provider Tools in Playground and Prompts](https://arize.com/docs/phoenix/release-notes/05-2026/05-05-2026-provider-tools): Paste vendor-native tools (web search, code execution, computer use) directly into Playground and Prompts alongside function tools
+- [05.05.2026 REST API Updates](https://arize.com/docs/phoenix/release-notes/05-2026/05-05-2026-rest-api-updates): Bulk-delete annotations by filter; token counts in trace and session REST payloads; experiment CSV includes dataset metadata; OpenAI evaluator detects model capabilities at runtime
 
 ### 2025
 
