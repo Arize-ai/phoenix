@@ -253,7 +253,12 @@ def test_daytona_build_backend_wires_packages_to_backend() -> None:
     """DAYTONA_PYTHON build_backend forwards packages list to DaytonaSandboxBackend._packages."""
     adapter = _get_adapter("DAYTONA_PYTHON")
     packages = ["requests", "numpy"]
-    backend = adapter.build_backend({"dependencies": {"packages": packages}})
+    backend = adapter.build_backend(
+        {
+            "PHOENIX_SANDBOX_DAYTONA_API_KEY": "k",
+            "dependencies": {"packages": packages},
+        }
+    )
     assert backend._packages == packages
 
 
@@ -280,7 +285,13 @@ def test_modal_build_backend_wires_packages_to_image() -> None:
     packages = ["pandas", "scikit-learn"]
     with patch.dict(sys.modules, {"modal": modal_mock}):
         adapter = _get_adapter("MODAL")
-        backend = adapter.build_backend({"dependencies": {"packages": packages}})
+        backend = adapter.build_backend(
+            {
+                "MODAL_TOKEN_ID": "id",
+                "MODAL_TOKEN_SECRET": "secret",
+                "dependencies": {"packages": packages},
+            }
+        )
     modal_mock.Image.debian_slim.return_value.pip_install.assert_called_once_with(packages)
     assert backend._image is pip_image
 

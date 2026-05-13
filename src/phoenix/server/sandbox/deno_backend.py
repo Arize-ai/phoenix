@@ -12,7 +12,7 @@ import asyncio
 import logging
 import re
 import shutil
-from typing import Any, Optional
+from typing import Any, Mapping, Optional
 
 from .types import (
     BaseNoSessionBackend,
@@ -38,10 +38,10 @@ class DenoSandboxBackend(BaseNoSessionBackend):
     def __init__(
         self,
         deno_executable: str,
-        user_env: Optional[dict[str, str]] = None,
+        user_env: Optional[Mapping[str, str]] = None,
     ) -> None:
         self._deno_executable = deno_executable
-        self._user_env: dict[str, str] = user_env or {}
+        self._user_env: dict[str, str] = dict(user_env or {})
         self.secret_values = compose_secret_values(user_env)
 
     def _build_command(self) -> list[str]:
@@ -131,7 +131,7 @@ class DenoAdapter(SandboxAdapter):
     config_model = DenoConfig
 
     def build_backend(
-        self, config: dict[str, Any], user_env: Optional[dict[str, str]] = None
+        self, config: Mapping[str, Any], user_env: Optional[Mapping[str, str]] = None
     ) -> SandboxBackend:
         self._enforce_capabilities(config, user_env)
         deno_executable = shutil.which("deno")

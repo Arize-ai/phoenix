@@ -125,7 +125,6 @@ class TestReservedCredentialNameHelper:
         assert is_reserved_credential_name("e2b_api_key")
         assert is_reserved_credential_name("VERCEL_TOKEN")
         assert is_reserved_credential_name("vercel_token")
-        assert is_reserved_credential_name("VERCEL_OIDC_TOKEN")
 
 
 class TestValidateConfigRejectsDuplicateEnvVarNames:

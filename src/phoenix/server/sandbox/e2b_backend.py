@@ -11,7 +11,9 @@ missing extra as ``status=NOT_INSTALLED`` instead of a runtime error.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
+
+from starlette.datastructures import Secret
 
 from .types import (
     E2BConfig,
@@ -39,12 +41,12 @@ class E2BSandboxBackend(SandboxBackend):
 
     def __init__(
         self,
-        api_key: str,
+        api_key: Secret,
         template: Optional[str] = None,
         metadata: Optional[str] = None,
-        user_env: Optional[dict[str, str]] = None,
+        user_env: Optional[Mapping[str, str]] = None,
         allow_internet_access: bool = True,
-        packages: Optional[list[str]] = None,
+        packages: Optional[Sequence[str]] = None,
     ) -> None:
         self._api_key = api_key
         # ``template=None`` lets ``AsyncSandbox.create()`` fall back to its
@@ -55,9 +57,9 @@ class E2BSandboxBackend(SandboxBackend):
         # surfaced as ``502 The sandbox is running but port is not open``.
         self._template = template
         self._metadata = metadata
-        self._user_env: dict[str, str] = user_env or {}
+        self._user_env: dict[str, str] = dict(user_env or {})
         self._allow_internet_access = allow_internet_access
-        self._packages: list[str] = packages or []
+        self._packages: list[str] = list(packages) if packages else []
         self._sessions: dict[str, AsyncSandbox] = {}
         self.secret_values = compose_secret_values(user_env, self._api_key)
 
@@ -75,7 +77,7 @@ class E2BSandboxBackend(SandboxBackend):
         SDK's ``ApiParams`` (``**opts``) on ``create()``.
         """
         kwargs: dict[str, Any] = {
-            "api_key": self._api_key,
+            "api_key": str(self._api_key),
             "allow_internet_access": self._allow_internet_access,
         }
         if self._template is not None:
@@ -197,11 +199,20 @@ class E2BAdapter(SandboxAdapter):
 
     def build_backend(
         self,
-        config: dict[str, Any],
-        user_env: Optional[dict[str, str]] = None,
+        config: Mapping[str, Any],
+        user_env: Optional[Mapping[str, str]] = None,
     ) -> SandboxBackend:
         self._enforce_capabilities(config, user_env)
+        # Fail-closed on missing credential. Passing an empty api_key would let
+        # the E2B SDK silently fall back to ``os.getenv("E2B_API_KEY")``
+        # (e2b.connection_config:94), running the sandbox with a process-env
+        # credential Phoenix never resolved or surfaced to the UI.
         api_key: str = config.get("E2B_API_KEY") or ""
+        if not api_key:
+            raise ValueError(
+                "E2B sandbox authentication is not configured. Set E2B_API_KEY "
+                "via setSandboxCredential or as a process environment variable."
+            )
         internet_access = config.get("internet_access")
         if internet_access is not None:
             mode = (
@@ -215,7 +226,7 @@ class E2BAdapter(SandboxAdapter):
         deps = config.get("dependencies") or {}
         packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
         return E2BSandboxBackend(
-            api_key=api_key,
+            api_key=Secret(api_key),
             template=None,
             metadata=None,
             user_env=user_env,

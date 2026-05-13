@@ -16,7 +16,7 @@ to exercise pydantic's framework behaviour here.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Mapping, Optional
 
 import pytest
 from pydantic import BaseModel
@@ -53,7 +53,7 @@ def _make_adapter(config_model_cls: type) -> SandboxAdapter:
         config_model = config_model_cls
 
         def build_backend(
-            self, config: dict[str, Any], user_env: dict[str, str] | None = None
+            self, config: Mapping[str, Any], user_env: Optional[Mapping[str, str]] = None
         ) -> Any:
             return None
 
@@ -195,7 +195,6 @@ class TestConfigFieldSpecsFromModel:
     def test_non_scalar_fields_are_skipped(self) -> None:
         """Nested models, arrays, and Optional[Model] (anyOf+$ref) are all skipped;
         only flat scalars get emitted."""
-        from typing import Optional
 
         from pydantic import BaseModel, ConfigDict, Field
 
