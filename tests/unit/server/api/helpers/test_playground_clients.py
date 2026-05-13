@@ -32,6 +32,7 @@ from phoenix.db.types.prompts import (
 )
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
 from phoenix.server.api.helpers.playground_clients import (
+    AnthropicReasoningStreamingClient,
     AnthropicStreamingClient,
     AzureOpenAIReasoningNonStreamingClient,
     AzureOpenAIResponsesAPIStreamingClient,
@@ -43,6 +44,8 @@ from phoenix.server.api.helpers.playground_clients import (
     OpenAIReasoningNonStreamingClient,
     OpenAIResponsesAPIStreamingClient,
     OpenAIStreamingClient,
+    VertexAIAnthropicReasoningStreamingClient,
+    VertexAIAnthropicStreamingClient,
     VertexAIGemini3StreamingClient,
     VertexAIGemini20StreamingClient,
     VertexAIGemini25StreamingClient,
@@ -743,3 +746,29 @@ class TestVertexAIGeminiStreamingClient:
         )
         assert client.provider == "vertex_ai"
         assert isinstance(client, Gemini3GoogleStreamingClient)
+
+
+class TestVertexAIAnthropicStreamingClient:
+    @staticmethod
+    def _factory() -> LLMClientFactory[Any]:
+        @asynccontextmanager
+        async def create_client() -> AsyncIterator[Any]:
+            yield None
+
+        return LLMClientFactory(create_client, ("vertex_ai", "test"))
+
+    def test_non_reasoning_subclass_sets_vertex_ai_provider(self) -> None:
+        client = VertexAIAnthropicStreamingClient(
+            client_factory=self._factory(),
+            model_name="claude-sonnet-4-6",
+        )
+        assert client.provider == "vertex_ai"
+        assert isinstance(client, AnthropicStreamingClient)
+
+    def test_reasoning_subclass_sets_vertex_ai_provider(self) -> None:
+        client = VertexAIAnthropicReasoningStreamingClient(
+            client_factory=self._factory(),
+            model_name="claude-opus-4-7",
+        )
+        assert client.provider == "vertex_ai"
+        assert isinstance(client, AnthropicReasoningStreamingClient)

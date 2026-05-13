@@ -2645,6 +2645,38 @@ class AnthropicReasoningStreamingClient(AnthropicStreamingClient):
     pass
 
 
+@register_llm_client(
+    provider_key=GenerativeProviderKey.VERTEX_AI,
+    model_names=[PROVIDER_DEFAULT, "claude-opus-4-7"],
+)
+class VertexAIAnthropicStreamingClient(AnthropicStreamingClient):
+    def __init__(
+        self,
+        *,
+        client_factory: ClientFactory["AsyncAnthropic"],
+        model_name: str,
+        provider: str = "vertex_ai",
+    ) -> None:
+        super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
+        self.provider = "vertex_ai"
+
+
+@register_llm_client(
+    provider_key=GenerativeProviderKey.VERTEX_AI,
+    model_names=ANTHROPIC_REASONING_MODELS,
+)
+class VertexAIAnthropicReasoningStreamingClient(AnthropicReasoningStreamingClient):
+    def __init__(
+        self,
+        *,
+        client_factory: ClientFactory["AsyncAnthropic"],
+        model_name: str,
+        provider: str = "vertex_ai",
+    ) -> None:
+        super().__init__(client_factory=client_factory, model_name=model_name, provider=provider)
+        self.provider = "vertex_ai"
+
+
 GEMINI_2_0_MODELS = [
     PROVIDER_DEFAULT,
     "gemini-2.0-flash-lite",  # Will be deprecated and will be shut down on June 1, 2026.
