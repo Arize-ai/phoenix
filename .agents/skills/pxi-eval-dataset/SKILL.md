@@ -213,38 +213,47 @@ per-example.
    valuable signals this protocol produces, because it surfaces
    mis-classified queries.
 
-4. **Task instruction** (use this verbatim):
+4. **Task instruction** (goal-oriented, use this verbatim):
 
-   > "Given the toolset spec above, the dataset author's design intent,
-   > and the user query, output the complete `expected:` block for this
-   > example. Reason step-by-step:
+   > "Your goal: determine the correct `expected:` block for this
+   > dataset example — what tool calls (if any) the PXI agent SHOULD
+   > make in response to the user's query, given the full toolset
+   > spec.
    >
-   > **Step 1 — Identify the right tool(s), if any.** Consider every
-   > tool in the toolset spec, not just the focal tool. Which tool's
-   > description and `parameters_json_schema` best fits the user's
-   > intent? It may be the focal tool, a different tool, or no tool.
+   > Constraints:
    >
-   > **Step 2 — Handle negative cases explicitly.** If the right answer
-   > is "no tool should fire," set `tools.forbidden` to the focal tool
-   > (and any other tool a model might wrongly invoke); omit
-   > `tools.required`. If the right answer is "a different tool should
-   > fire instead of the focal tool," set `tools.required: [<other>]`
-   > and `tools.forbidden: [<focal>]`.
+   > - Consider every tool in the toolset spec, not just the focal
+   >   one. The right answer may be the focal tool, a different tool,
+   >   or no tool at all.
+   > - Use only arg values directly implied by the tool's
+   >   `parameters_json_schema` and the query. Omit any key whose
+   >   value the spec doesn't determine — don't invent a plausible
+   >   default.
+   > - The author's design intent (`difficulty`, `polarity`,
+   >   `category`, `notes`) is a hint, not ground truth. If your
+   >   reading of the spec contradicts the author's labeled polarity,
+   >   output what the spec implies and record the disagreement in
+   >   `metadata.notes`.
+   > - Use the variant-list form (a list of dicts under one tool name
+   >   in `tool_call_args`) only when more than one arg shape is
+   >   equally valid per the spec.
    >
-   > **Step 3 — For positive cases on the focal tool, derive args.**
-   > Map the query to the focal tool's `parameters_json_schema`. Use
-   > exact enum values from the schema. Do NOT invent a plausible
-   > arg value if the spec does not imply one — omit the key.
+   > Output format (exactly two parts, in this order):
    >
-   > **Step 4 — Disagree with the author's framing if the spec
-   > implies it.** If the query is labeled negative but the spec
-   > clearly implies the focal tool should fire (or vice versa),
-   > output what the spec implies and add
-   > `metadata.notes: 'annotator disagreed with author polarity'`.
-   >
-   > **Step 5 — Output strict YAML matching the schema reference.**
-   > Output only the `expected:` block (and optionally a `metadata:`
-   > block if you need to record a notes string). No surrounding prose."
+   > 1. **Brief reasoning** — one or two sentences explaining which
+   >    tool you concluded should fire (if any) and why. Just enough
+   >    that an orchestrator comparing three independent annotations
+   >    can see where you agree or diverge with the others.
+   > 2. **The `expected:` block as YAML** matching the schema
+   >    reference. Include a `metadata:` block only if you need a
+   >    `notes:` field. No other prose."
+
+   This frames the task as a goal with constraints, not a procedural
+   recipe. Cross-model fan-out is only useful if each annotator
+   reasons independently — prescribing the exact reasoning steps
+   collapses that diversity. The brief-reasoning requirement gives
+   the orchestrator enough signal to adjudicate disagreements
+   without dictating how each annotator gets there.
 
 #### Annotation rules (apply these in every subprocess)
 
@@ -266,35 +275,47 @@ per-example.
 
 | Difficulty | Opinions | Models |
 |---|---|---|
-| `obvious`, pure-negative | **1** | `claude-sonnet-4-5` |
-| `moderate`, `tricky`, ambiguous | **3** | `claude-sonnet-4-5` + `claude-opus-4-5` + `o3-mini` |
+| `obvious`, pure-negative | **1** | Sonnet (via `Agent` tool) |
+| `moderate`, `tricky`, ambiguous | **3** | Sonnet + Opus (via `Agent` tool) + Codex default (via wrapper) |
 
-Cross-model diversity (different families, different training) catches
-single-model biases that seed-level diversity misses.
+Cross-model diversity — different families, different training, and
+(for Codex) different agent runtime — catches single-model biases that
+seed-level diversity misses.
 
 **How each opinion is invoked.** The Claude Code `Agent` tool is
-Anthropic-only, so only two of the three opinions can come from it:
+Anthropic-only, so the OpenAI-side opinion comes from Codex via a
+Bash wrapper. Using Codex (rather than a one-shot Chat Completions
+call) gives the OpenAI annotator the same kind of environment access
+a Claude subagent has — sandbox-constrained file reads, repo
+navigation, the ability to double-check its reading of the toolset
+against the actual source. This keeps the three opinions
+genuinely symmetric.
 
 | Opinion | Invocation |
 |---|---|
 | Sonnet | `Agent` tool, `model: "sonnet"` |
 | Opus | `Agent` tool, `model: "opus"` |
-| o3-mini | `Bash` tool, piping the prompt into `tests/pxi/evals/annotate_via_openai.py` |
+| Codex | `Bash` tool, piping the prompt into `tests/pxi/evals/annotate_via_codex.sh` |
 
-The OpenAI wrapper at `tests/pxi/evals/annotate_via_openai.py` reads a
-prompt on stdin and writes the model's response to stdout. It loads
-`OPENAI_API_KEY` from `~/Projects/phoenix/.env` if not already exported.
-Example invocation:
+The Codex wrapper at `tests/pxi/evals/annotate_via_codex.sh` reads a
+prompt on stdin and writes Codex's final message to stdout. It runs
+`codex exec` with `--sandbox read-only` (the annotator can read the
+repo but cannot modify anything), `--ephemeral` (no session
+persistence between invocations), and `--skip-git-repo-check`.
+Authentication is whatever Codex is already configured with
+(`codex login status`); no `OPENAI_API_KEY` plumbing required. Example
+invocation:
 
 ```bash
-cat /tmp/annotation_prompt.txt | uv run --active python \
-    tests/pxi/evals/annotate_via_openai.py --model o3-mini
+cat /tmp/annotation_prompt.txt | tests/pxi/evals/annotate_via_codex.sh
+# Or pin a specific model:
+cat /tmp/annotation_prompt.txt | tests/pxi/evals/annotate_via_codex.sh --model o3
 ```
 
-**Run all three opinions in parallel.** Send a single message containing
-two `Agent` tool calls (Sonnet, Opus) **and** one `Bash` tool call (the
-o3-mini wrapper) — they will run concurrently. **Do not share context
-between them.**
+**Run all three opinions in parallel.** Send a single message
+containing two `Agent` tool calls (Sonnet, Opus) **and** one `Bash`
+tool call (the Codex wrapper) — they will run concurrently. **Do not
+share context between them.**
 
 #### Orchestrator subprocess (required when N > 1)
 
@@ -410,13 +431,52 @@ uv run python -c "from tests.pxi.evals.datasets import load_dataset; load_datase
 uv run python tests/pxi/evals/run_experiment.py --dataset <name>
 ```
 
-Inspect evaluator scores per example. Iterate on:
+Run the experiment end-to-end and **triage every failure** before
+calling the dataset done. Don't assume a failed example means a
+broken agent — eval suites have three plausible failure sources, and
+mixing them up is the easiest way to ship bad ground truth or chase
+phantom agent regressions.
 
-- examples that fail in ways that suggest the _example_ is wrong, not
-  the agent (re-read the tool docstring),
-- examples that all pass trivially (probably duplicate coverage —
-  delete or harden),
-- gaps the agent surfaces (e.g. an enum value not represented).
+#### Failure triage — three categories
+
+For each failed example, classify the failure into one bucket:
+
+| Category | What it looks like | What to do |
+|---|---|---|
+| **Dataset / annotation issue** | Agent's actual output is valid and reasonable per the toolset spec, but doesn't match the dataset's `expected:` block. The dataset author (or annotation protocol) was wrong, too strict, or missed a valid variant. | Fix the dataset: relax the expectation, add a variant via the variant-list syntax, omit `tool_call_args` if the case is ambiguous, or correct an outright wrong annotation. Note in `metadata.notes` if a polarity flip is involved. |
+| **Genuine agent issue** | The harness caught a real problem — the agent called the wrong tool, missed a tool, hallucinated arg values, or violated the spec. | Leave the example as-is; the failure is doing its job. Surface the failure to whoever owns the agent's behavior (file an issue, add to the regression log). |
+| **Harness / evaluator issue** | The evaluator's matching logic, the runner's plumbing, or the Phoenix-side experiment integration is broken. Symptom: the agent's output and the expected block agree by any reasonable reading, but the evaluator labels it failing — or vice versa. | Fix the evaluator or harness, add a unit test in `test_evaluators.py` covering the case, then re-run. Do NOT paper over a harness bug by editing the dataset. |
+
+#### Triage workflow
+
+1. Pull the failed example's `id`, observed tool calls, and evaluator
+   label from the experiment output (the runner prints these per
+   evaluator).
+2. Re-read the focal tool's `parameters_json_schema` and the
+   relevant evaluator code to decide which category the failure
+   belongs in. The categorization is not always obvious — when
+   genuinely uncertain, prefer "harness/evaluator issue" and read the
+   evaluator first, since a broken evaluator silently corrupts both
+   of the other categories.
+3. Record the triage decision per failed example before fixing
+   anything. A short list — `{example_id: category}` — is enough.
+   Without this list, the fix loop tends to oscillate (fix dataset →
+   evaluator flips on a different example → "fix" evaluator → first
+   example breaks again).
+4. Fix in order: **harness/evaluator issues first**, **dataset issues
+   second**, **leave genuine agent issues for last** (or escalate
+   rather than fixing them yourself).
+5. Re-run the full experiment after each batch of fixes. Stop when
+   the only remaining failures are genuine agent issues.
+
+#### Other things to look for during validation
+
+- Examples that all pass trivially (probably duplicate coverage —
+  delete or harden).
+- Coverage gaps the agent surfaces (e.g. an enum value not
+  represented in any example).
+- Examples flagged `annotation.agreement: low` in metadata — these
+  are exactly the candidates for human review even if they passed.
 
 For local-only experimentation use the harness env vars (see
 `tests/pxi/evals/README.md`). There is no `--limit` flag — keep the
