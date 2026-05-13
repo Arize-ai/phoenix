@@ -1,5 +1,21 @@
 # Changelog
 
+## [15.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.7.0...arize-phoenix-v15.8.0) (2026-05-13)
+
+
+### Features
+
+* **agents:** populate project_sessions for /chat and /summary traces ([#13187](https://github.com/Arize-ai/phoenix/issues/13187)) ([11275b4](https://github.com/Arize-ai/phoenix/commit/11275b48d383cbdcdbf6406a4c9b80bfba58e55f))
+* **playground:** Add Anthropic and Google thinking controls ([#13164](https://github.com/Arize-ai/phoenix/issues/13164)) ([c132f0c](https://github.com/Arize-ai/phoenix/commit/c132f0c139dd3d42d91329f9d0236c057c3bd71a))
+* pxi tool layout rebalancing ([#13168](https://github.com/Arize-ai/phoenix/issues/13168)) ([d8d5322](https://github.com/Arize-ai/phoenix/commit/d8d5322eaea824387c3b4d5d345e0e5d123f8fa9))
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#13203](https://github.com/Arize-ai/phoenix/issues/13203)) ([dde26f6](https://github.com/Arize-ai/phoenix/commit/dde26f67b7717e181b0bec64c59d7e5f7a6a77db))
+* prevent prototype pollution in DatasetPreviewTable ([#13199](https://github.com/Arize-ai/phoenix/issues/13199)) ([f0a2f9e](https://github.com/Arize-ai/phoenix/commit/f0a2f9e9d9c8be02db120e407447ba4a79e7ea2f))
+* validate projection expressions and sandbox eval globals ([#13213](https://github.com/Arize-ai/phoenix/issues/13213)) ([9ca0a3f](https://github.com/Arize-ai/phoenix/commit/9ca0a3ffb0802017a80f3e2796657e1771212858))
+
 ## [15.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.6.0...arize-phoenix-v15.7.0) (2026-05-13)
 
 
