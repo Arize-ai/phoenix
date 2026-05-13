@@ -9,6 +9,11 @@ const containerCSS = css`
   width: 100%;
 `;
 
+const narrowContainerCSS = css`
+  max-width: 360px;
+  width: 100%;
+`;
+
 // ---------------------------------------------------------------------------
 // Mock data helpers
 // ---------------------------------------------------------------------------
@@ -82,6 +87,37 @@ const grepCompleted = (pattern: string) =>
     output: `Found 5 matches for "${pattern}"`,
   });
 
+const toolCompleted = (
+  toolName: string,
+  input: Record<string, unknown>,
+  output: unknown
+) =>
+  makePart({
+    toolName,
+    state: "output-available",
+    input,
+    output,
+  });
+
+const toolFailed = (
+  toolName: string,
+  input: Record<string, unknown>,
+  errorText: string
+) =>
+  makePart({
+    toolName,
+    state: "output-error",
+    input,
+    errorText,
+  });
+
+const toolRunning = (toolName: string, input: Record<string, unknown>) =>
+  makePart({
+    toolName,
+    state: "input-available",
+    input,
+  });
+
 // ---------------------------------------------------------------------------
 // Story data sets
 // ---------------------------------------------------------------------------
@@ -124,6 +160,73 @@ const manyToolsParts: ToolPartType[] = [
   bashCompleted("npm test", "42 tests passed"),
   bashCompleted("npm run lint", "No issues found"),
   bashCompleted("npm run build", "Build completed in 2.3s"),
+];
+
+const longToolNamesWithFailureParts: ToolPartType[] = [
+  toolCompleted(
+    "generate_customer_facing_release_readiness_report",
+    { release: "2026.05", include_open_risks: true },
+    { status: "ready" }
+  ),
+  toolCompleted(
+    "synchronize_enterprise_permission_boundary_templates",
+    { workspace: "acme-prod", template_count: 14 },
+    { synced: 14 }
+  ),
+  toolFailed(
+    "reconcile_customer_managed_encryption_key_rotation",
+    { account: "acme-prod", region: "us-east-1" },
+    "Timed out waiting for the remote key policy check to finish."
+  ),
+  toolCompleted(
+    "validate_multiregion_warehouse_lineage_backfill_configuration",
+    { dataset: "analytics.events", backfill_window_days: 90 },
+    { status: "valid" }
+  ),
+];
+
+const repeatedLongToolNamesWithFailureParts: ToolPartType[] = [
+  toolCompleted(
+    "fetch_cross_workspace_dependency_graph_snapshot",
+    { workspace: "design-system" },
+    { node_count: 184 }
+  ),
+  toolCompleted(
+    "fetch_cross_workspace_dependency_graph_snapshot",
+    { workspace: "product-app" },
+    { node_count: 267 }
+  ),
+  toolCompleted(
+    "compile_customer_visible_operational_readiness_summary",
+    { audience: "support" },
+    { sections: 9 }
+  ),
+  toolFailed(
+    "diff_regional_data_residency_exception_registry",
+    { region_group: "eu" },
+    "Could not load the residency exception manifest for eu-west-3."
+  ),
+];
+
+const longToolNamesInProgressParts: ToolPartType[] = [
+  toolCompleted(
+    "index_historical_conversation_context_for_regression_review",
+    { conversation_count: 128 },
+    { indexed: 128 }
+  ),
+  toolRunning("hydrate_customer_specific_prompt_compliance_checklist", {
+    customer: "acme-bank",
+    policy_version: "2026-05",
+  }),
+  toolRunning("calculate_multimodal_attachment_retention_exceptions", {
+    workspace: "security-audit",
+    include_archived: true,
+  }),
+  toolCompleted(
+    "summarize_workspace_level_authz_change_history",
+    { actor_count: 23 },
+    { pages: 4 }
+  ),
 ];
 
 // ---------------------------------------------------------------------------
@@ -172,4 +275,24 @@ export const SingleTool: Story = {
 /** A large group with many different tool types. */
 export const ManyTools: Story = {
   args: { parts: manyToolsParts },
+};
+
+/** Long tool names with a compound error state to exercise header wrapping. */
+export const LongToolNamesWithFailure: Story = {
+  args: { parts: longToolNamesWithFailureParts },
+};
+
+/** Repeated long tool names with a failure to stress the breakdown count labels. */
+export const RepeatedLongToolNamesWithFailure: Story = {
+  args: { parts: repeatedLongToolNamesWithFailureParts },
+};
+
+/** Long tool names in a narrow container to force wrapping while tools are still running. */
+export const NarrowLongToolNamesInProgress: Story = {
+  args: { parts: longToolNamesInProgressParts },
+  render: (args) => (
+    <div css={narrowContainerCSS}>
+      <ToolPartGroup {...args} />
+    </div>
+  ),
 };

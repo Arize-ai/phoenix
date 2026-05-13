@@ -1043,7 +1043,7 @@ const toolCallCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
     --tool-call-border-color: var(--global-card-border-color);
-    --tool-call-border-color-hover: var(--global-color-gray-200);
+    --tool-call-border-color-hover: var(--global-color-gray-300);
     --tool-call-background-color: var(--global-color-gray-100);
     --tool-call-header-background-color: var(
       --global-card-header-background-color

@@ -1,4 +1,29 @@
+import { keyframes } from "@emotion/react";
+
 import { CopyToClipboardButton } from "@phoenix/components";
+
+export const TOOL_PART_ENTRY_KEYFRAMES = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+export const TOOL_CALL_SUMMARY_LANE_RULES = {
+  titleFlex: "0 1 auto",
+  titleMinWidth: "0",
+  titleMaxWidth: "55%",
+  middleFlex: "1 1 50px",
+  middleMinWidth: "50px",
+  statusFlex: "0 1 auto",
+  statusMinWidth: "0",
+  statusMaxWidth: "none",
+} as const;
 
 /**
  * A label row for a tool part section (e.g., "Command", "Output", "Error").
