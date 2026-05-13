@@ -252,7 +252,6 @@ async def _persist_db_traces(
         # from the relationship and doesn't try to cascade-insert a duplicate.
         db_trace.project_session = persistent_by_session_id[project_session.session_id]
     session.add_all(db_traces)
-    await session.flush()
 
 
 async def _ensure_project_exists(db: DbSessionFactory, project_name: str) -> int:
@@ -439,6 +438,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         if db_traces:
                             async with request.app.state.db() as session:
                                 await _persist_db_traces(session=session, db_traces=db_traces)
+                                await session.flush()
                     tracer.tracer_provider.shutdown()
 
         return adapter.streaming_response(_stream_with_session())
@@ -494,6 +494,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     if db_traces:
                         async with request.app.state.db() as session:
                             await _persist_db_traces(session=session, db_traces=db_traces)
+                            await session.flush()
                 tracer.tracer_provider.shutdown()
         return _SummarizeResponse(summary=result.summary.strip())
 
