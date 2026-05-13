@@ -770,7 +770,7 @@ test.describe.serial("Code Evaluators", () => {
   // Phase 4: Config-aware placeholder assertions
 
   const placeholderCategoricalName = `placeholder-cat-${randomUUID().slice(0, 8)}`;
-  const placeholderContinuousName = `placeholder-cont-${randomUUID().slice(0, 8)}`;
+  const placeholderDefaultsName = `placeholder-defaults-${randomUUID().slice(0, 8)}`;
 
   test("categorical placeholder shows substituted label from config", async ({
     page,
@@ -817,7 +817,7 @@ test.describe.serial("Code Evaluators", () => {
     ).toBeVisible();
   });
 
-  test("continuous placeholder shows midpoint and bounds-range comment", async ({
+  test("categorical placeholder shows default pass/fail labels for a new evaluator", async ({
     page,
   }) => {
     await gotoDatasetEvaluators(page, datasetName);
@@ -834,21 +834,17 @@ test.describe.serial("Code Evaluators", () => {
 
     await dialog
       .getByRole("textbox", { name: "Name", exact: true })
-      .fill(placeholderContinuousName);
+      .fill(placeholderDefaultsName);
 
     await selectSandbox(page, dialog, pythonSandboxName);
 
-    // Set explicit bounds and Reset so the placeholder regenerates with the
-    // new midpoint/range.
-    await dialog.getByLabel("Lower bound").fill("0");
-    await dialog.getByLabel("Upper bound").fill("10");
-
+    // New evaluators default to a categorical output config with "pass" /
+    // "fail" choices, so Reset regenerates the placeholder with the first
+    // label substituted in.
     await dialog.getByRole("button", { name: "Reset" }).click();
 
-    await expect.poll(() => getEditorContent(dialog)).toContain("5.0");
+    await expect.poll(() => getEditorContent(dialog)).toContain('"pass"');
     const content = await getEditorContent(dialog);
-    // Bounds range comment.
-    expect(content).toContain("0.0 - 10.0");
     // Dict-form comment with explanation key.
     expect(content).toContain("explanation");
 
@@ -949,15 +945,13 @@ test.describe.serial("Code Evaluators", () => {
     await expect(page.getByTestId("dialog")).not.toBeVisible();
   });
 
-  test("shape change from continuous to categorical auto-swaps placeholder", async ({
+  test("categorical placeholder regenerates from Reset after user edits source", async ({
     page,
   }) => {
     await gotoDatasetEvaluators(page, datasetName);
 
-    // Open a fresh create dialog. Initial source is the substituted
-    // continuous template (with the bounds-range comment), which the
-    // shape-change guard cannot recognize as a default once the new config
-    // is categorical (no bounds → continuous falls back to static).
+    // Open a fresh create dialog. New evaluators default to a categorical
+    // output config with "pass" / "fail" choices.
     await page.getByRole("button", { name: "Add evaluator" }).click();
     await page
       .getByRole("menuitem", { name: "Create new code evaluator" })
@@ -968,26 +962,28 @@ test.describe.serial("Code Evaluators", () => {
       dialog.getByRole("heading", { name: "Create Code Evaluator" })
     ).toBeVisible();
 
-    // Pin the editor to the static continuous fallback by clearing the
-    // bounds and Resetting — `getDefaultCodeEvaluatorSource` falls back to
-    // the static template when bounds are null. The static template is the
-    // one form the shape-change guard *can* recognize across configs.
-    await dialog.getByLabel("Lower bound").fill("");
-    await dialog.getByLabel("Upper bound").fill("");
+    // Customize the categorical choices and Reset so the placeholder is
+    // pinned to the substituted "approved"/"rejected" form.
+    const choiceInputs = dialog.locator('input[placeholder^="Choice"]');
+    await choiceInputs.first().fill("approved");
+    await choiceInputs.nth(1).fill("rejected");
     await dialog.getByRole("button", { name: "Reset" }).click();
-    await expect.poll(() => getEditorContent(dialog)).toContain("return 0.5");
+    await expect.poll(() => getEditorContent(dialog)).toContain('"approved"');
+
+    // Overwrite the editor body with custom code.
+    const editor = dialog.locator(".cm-content").first();
+    await editor.click();
+    await page.keyboard.press("ControlOrMeta+a");
+    await page.keyboard.insertText("# custom user code");
     await expect
       .poll(() => getEditorContent(dialog))
-      .not.toMatch(/expected range/);
+      .toContain("custom user code");
 
-    // Now switch output type to categorical — the shape-change guard
-    // regenerates the placeholder against the new categorical config
-    // (default values "pass" / "fail"), so the editor body now reads
-    // `return "pass"`.
-    await selectFromSelect(page, dialog, "Output type", "Categorical label");
-
-    await expect.poll(() => getEditorContent(dialog)).toContain('"pass"');
+    // Reset restores the substituted categorical placeholder.
+    await dialog.getByRole("button", { name: "Reset" }).click();
+    await expect.poll(() => getEditorContent(dialog)).toContain('"approved"');
     const content = await getEditorContent(dialog);
+    expect(content).not.toContain("custom user code");
     expect(content).toContain("explanation");
 
     await dialog.getByRole("button", { name: "Cancel" }).click();
