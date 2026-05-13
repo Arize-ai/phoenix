@@ -332,7 +332,7 @@ class SandboxConfigMutationMixin:
         info: Info[Context, None],
         input: UpdateSandboxProviderInput,
     ) -> UpdateSandboxProviderPayload:
-        """Update provider-level sandbox settings such as the enabled state."""
+        """Toggle a sandbox provider's enabled state."""
         from sqlalchemy import select
 
         async with info.context.db() as session:
