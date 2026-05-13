@@ -43,6 +43,7 @@ export function DatasetEvaluatorActionMenu({
         <Button
           size="S"
           variant="quiet"
+          aria-label="Evaluator actions"
           leadingVisual={<Icon svg={<Icons.MoreHorizontalOutline />} />}
         />
         <Popover placement="bottom right">
