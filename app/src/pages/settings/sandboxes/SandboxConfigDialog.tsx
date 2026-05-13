@@ -37,7 +37,10 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
-import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
+import {
+  SandboxProviderSelect,
+  SandboxProviderSelectFallback,
+} from "@phoenix/components/sandbox/SandboxProviderSelect";
 import { useNotifySuccess } from "@phoenix/contexts";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 import {
@@ -45,6 +48,7 @@ import {
   transformIdentifierInput,
   validateIdentifier,
 } from "@phoenix/utils/identifierUtils";
+import { validateDependencyPackages } from "@phoenix/utils/packageSpecUtils";
 
 import type { SandboxConfigDialogCreateSandboxConfigMutation } from "./__generated__/SandboxConfigDialogCreateSandboxConfigMutation.graphql";
 import type { SandboxConfigDialogSecretsQuery } from "./__generated__/SandboxConfigDialogSecretsQuery.graphql";
@@ -61,7 +65,6 @@ import { DEFAULT_SANDBOX_TIMEOUT_SECONDS } from "./types";
 import {
   formValuesToConfigPatch,
   getDependencyPreview,
-  LanguageWithIcon,
   shouldShowLocalDenoTrustWarning,
 } from "./utils";
 
@@ -104,7 +107,7 @@ export function SandboxConfigDialogTrigger(
                 <DialogTitle>
                   {props.mode === "create"
                     ? "New Sandbox Config"
-                    : `Edit "${props.config.name}" config`}
+                    : `Edit Sandbox Config: ${props.config.name}`}
                 </DialogTitle>
                 <DialogTitleExtra>
                   <DialogCloseButton slot="close" />
@@ -159,6 +162,15 @@ const envVarFieldFillCSS = css`
 // different lengths). Sized to fit the longer label plus dropdown chevron.
 const envVarKindFieldCSS = css`
   min-width: 7rem;
+`;
+
+// The env-var row controls are top-aligned (see `alignItems="start"` below) so
+// a field-level error (e.g. "Name is required") only grows its own column
+// downward instead of knocking the rest of the row out of alignment. The
+// label-less remove button needs to be nudged down by the height of a field
+// label so it lines up with the inputs rather than the labels.
+const envVarRemoveButtonOffsetCSS = css`
+  padding-top: var(--global-dimension-static-size-300);
 `;
 
 function defaultConfigName(provider: ProviderRow): string {
@@ -374,19 +386,22 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                 execution.
               </Alert>
             ) : null}
-            {mode === "create" ? (
-              <Controller
-                name="sandboxProviderId"
-                control={form.control}
-                rules={{ required: "Provider is required" }}
-                render={({ field, fieldState }) => (
-                  <ComboBox
-                    label="Provider"
-                    placeholder="Search providers"
-                    size="L"
-                    selectedKey={field.value || null}
-                    onSelectionChange={(key) => {
-                      if (typeof key === "string") {
+            <Suspense fallback={<SandboxProviderSelectFallback />}>
+              {mode === "create" ? (
+                <Controller
+                  name="sandboxProviderId"
+                  control={form.control}
+                  rules={{ required: "Provider is required" }}
+                  render={({ field, fieldState }) => (
+                    <SandboxProviderSelect
+                      selectedKey={field.value || null}
+                      onBlur={field.onBlur}
+                      isInvalid={fieldState.invalid}
+                      errorMessage={fieldState.error?.message}
+                      filter={({ backend, provider }) =>
+                        backend.status === "AVAILABLE" && provider.enabled
+                      }
+                      onChange={(key) => {
                         field.onChange(key);
                         const currentName = form.getValues("name");
                         const isDefaultName =
@@ -402,50 +417,17 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                             form.setValue("name", defaultConfigName(selected));
                           }
                         }
-                      }
-                    }}
-                    onBlur={field.onBlur}
-                    isInvalid={fieldState.invalid}
-                    errorMessage={fieldState.error?.message}
-                    menuTrigger="focus"
-                    defaultItems={providers ?? []}
-                    renderEmptyState={() => <div>No providers found</div>}
-                  >
-                    {(item) => (
-                      <ComboBoxItem
-                        id={item.provider.id}
-                        key={item.provider.id}
-                        textValue={`${item.backend.displayName}`}
-                      >
-                        <Flex
-                          direction="row"
-                          gap="size-100"
-                          alignItems="center"
-                          width="100%"
-                        >
-                          <SandboxProviderIcon
-                            backendType={item.backend.backendType}
-                            height={18}
-                          />
-                          <Text>{item.backend.displayName}</Text>
-                          <Text
-                            color="text-700"
-                            size="S"
-                            css={css`
-                              margin-inline-start: auto;
-                            `}
-                          >
-                            <LanguageWithIcon
-                              language={item.provider.language}
-                            />
-                          </Text>
-                        </Flex>
-                      </ComboBoxItem>
-                    )}
-                  </ComboBox>
-                )}
-              />
-            ) : null}
+                      }}
+                    />
+                  )}
+                />
+              ) : (
+                <SandboxProviderSelect
+                  selectedKey={props.provider.id}
+                  isDisabled
+                />
+              )}
+            </Suspense>
             {mode === "create" && (
               <Controller
                 name="name"
@@ -516,20 +498,25 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
             {activeBackend?.supportsEnvVars ? (
               <Flex direction="column" gap="size-100">
                 <Text>Environment Variables</Text>
+                <Alert variant="warning">
+                  Anyone who can run code in this sandbox can read these values
+                  (e.g. via <code>os.environ</code>). Don&apos;t store secrets
+                  you wouldn&apos;t share with everyone who has access to this
+                  config.
+                </Alert>
                 {envVarFields.length === 0 ? (
                   <Text color="text-700" size="S">
                     No environment variables configured.
                   </Text>
-                ) : (
-                  envVarFields.map((fieldItem, index) => (
-                    <EnvVarRow
-                      key={fieldItem.id}
-                      index={index}
-                      form={form}
-                      onRemove={() => removeEnvVar(index)}
-                    />
-                  ))
-                )}
+                ) : null}
+                {envVarFields.map((fieldItem, index) => (
+                  <EnvVarRow
+                    key={fieldItem.id}
+                    index={index}
+                    form={form}
+                    onRemove={() => removeEnvVar(index)}
+                  />
+                ))}
                 <Button
                   size="S"
                   variant="default"
@@ -575,7 +562,18 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
               <Controller
                 name="dependenciesText"
                 control={form.control}
-                render={({ field }) => {
+                rules={{
+                  validate: (value) => {
+                    const language = activeBackend?.dependenciesLanguage;
+                    if (language == null) return true;
+                    const result = validateDependencyPackages({
+                      packagesText: value,
+                      language,
+                    });
+                    return result.valid ? true : result.message;
+                  },
+                }}
+                render={({ field, fieldState }) => {
                   const preview = getDependencyPreview({
                     packagesText: field.value,
                     dependenciesLanguage: activeBackend.dependenciesLanguage,
@@ -583,7 +581,7 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                   });
                   return (
                     <Flex direction="column" gap="size-50">
-                      <TextField {...field}>
+                      <TextField {...field} isInvalid={fieldState.invalid}>
                         <Label>
                           {activeBackend.dependenciesLanguage === "PYTHON"
                             ? "Python Packages"
@@ -596,9 +594,14 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                               : "@types/node\nlodash"
                           }
                         />
-                        <Text slot="description" size="S" color="text-700">
-                          One package per line. Installed before code execution.
-                        </Text>
+                        {fieldState.error ? (
+                          <FieldError>{fieldState.error.message}</FieldError>
+                        ) : (
+                          <Text slot="description" size="S" color="text-700">
+                            One package per line. Installed before code
+                            execution.
+                          </Text>
+                        )}
                       </TextField>
                       {preview ? (
                         <Text size="S" color="text-700">
@@ -712,13 +715,15 @@ function EnvVarRow({
     </div>
   );
   const removeButton = (
-    <Button
-      size="M"
-      variant="quiet"
-      aria-label="Remove variable"
-      leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
-      onPress={onRemove}
-    />
+    <div css={envVarRemoveButtonOffsetCSS}>
+      <Button
+        size="M"
+        variant="quiet"
+        aria-label="Remove variable"
+        leadingVisual={<Icon svg={<Icons.TrashOutline />} />}
+        onPress={onRemove}
+      />
+    </div>
   );
 
   if (kind === "secret_ref") {
@@ -735,7 +740,7 @@ function EnvVarRow({
       }
     };
     return (
-      <Flex gap="size-100" alignItems="end">
+      <Flex gap="size-100" alignItems="start">
         {kindField}
         {nameField}
         <div css={envVarFieldFillCSS}>
@@ -755,7 +760,7 @@ function EnvVarRow({
   }
 
   return (
-    <Flex gap="size-100" alignItems="end">
+    <Flex gap="size-100" alignItems="start">
       {kindField}
       {nameField}
       <div css={envVarFieldFillCSS}>

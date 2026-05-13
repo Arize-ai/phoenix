@@ -11,6 +11,7 @@ import {
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { assertUnreachable } from "@phoenix/typeUtils";
 import { isPlainObject } from "@phoenix/utils/jsonUtils";
+import { getDependencyPackages } from "@phoenix/utils/packageSpecUtils";
 
 import type {
   BackendInfo,
@@ -238,17 +239,6 @@ export function getDisplaySandboxConfig(config: unknown): unknown {
 }
 
 /**
- * Splits the user-edited "one package per line" textarea into a normalized
- * list of package specifiers.
- */
-export function getDependencyPackages(packagesText: string): string[] {
-  return packagesText
-    .split("\n")
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-/**
  * Produces a one-line install-command preview for the dependency textarea.
  * Returns null when there is nothing to display (no language advertised, no
  * packages typed) so the caller can hide the preview entirely.
@@ -269,11 +259,11 @@ export function getDependencyPreview({
   if (packages.length === 0) {
     return null;
   }
+  const joined = packages.join(" ");
   if (dependenciesLanguage === "TYPESCRIPT") {
-    return "preview unavailable for typescript";
+    return `npm install ${joined}`;
   }
   // Python branch: shape the preview after the install path the backend uses.
-  const joined = packages.join(" ");
   if (backendType === "MODAL") {
     const args = packages.map((p) => `"${p}"`).join(", ");
     return `image.pip_install(${args})`;

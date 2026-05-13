@@ -35,6 +35,8 @@ from phoenix.server.sandbox.types import (
     _env_vars_equal,
     _internet_access_equal,
     _packages_equal,
+    validate_npm_package_spec,
+    validate_python_package_spec,
 )
 
 # ---------------------------------------------------------------------------
@@ -271,3 +273,97 @@ class TestPackagesEqual:
             {"packages": same_pkgs, "lockfile": None},
             {"packages": same_pkgs, "lockfile": "req.txt"},
         )
+
+
+class TestTypescriptDependenciesValidation:
+    def test_strips_and_accepts_valid(self) -> None:
+        cfg = TypescriptDependenciesConfig(
+            packages=["  lodash  ", "lodash@^4.17", "@scope/pkg@1.2.3"],
+        )
+        assert cfg.packages == ["lodash", "lodash@^4.17", "@scope/pkg@1.2.3"]
+
+    def test_rejects_invalid_with_index(self) -> None:
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError, match=r"packages\[1\]"):
+            TypescriptDependenciesConfig(packages=["lodash", "has spaces"])
+
+    def test_rejects_python_style_spec(self) -> None:
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError, match="invalid npm package spec"):
+            TypescriptDependenciesConfig(packages=["openai>=6.37.0"])
+
+
+class TestValidateNpmPackageSpec:
+    @pytest.mark.parametrize(
+        "spec, expected",
+        [
+            ("lodash", "lodash"),
+            ("lodash@^4.17", "lodash@^4.17"),
+            ("@scope/pkg@1.2.3", "@scope/pkg@1.2.3"),
+            ("@scope/pkg", "@scope/pkg"),
+            ("  react  ", "react"),
+        ],
+    )
+    def test_valid(self, spec: str, expected: str) -> None:
+        assert validate_npm_package_spec(spec) == expected
+
+    @pytest.mark.parametrize(
+        "spec",
+        [
+            "",
+            "   ",
+            "has spaces",
+            "bad name!!",
+            "@scope/",
+            "/x",
+            "openai>=6.37.0",  # pip-style, not npm
+        ],
+    )
+    def test_invalid(self, spec: str) -> None:
+        with pytest.raises(ValueError, match="invalid npm package spec"):
+            validate_npm_package_spec(spec)
+
+
+class TestValidatePythonPackageSpec:
+    @pytest.mark.parametrize(
+        "req, expected",
+        [
+            ("requests", "requests"),
+            ("numpy==1.26.0", "numpy==1.26.0"),
+            ("httpx[http2]>=0.27,<1", "httpx[http2]>=0.27,<1"),
+            ("scikit-learn", "scikit-learn"),
+            ("  pandas>=1.0  ", "pandas>=1.0"),
+            ("pkg==1.*", "pkg==1.*"),
+        ],
+    )
+    def test_valid(self, req: str, expected: str) -> None:
+        assert validate_python_package_spec(req) == expected
+
+    @pytest.mark.parametrize(
+        "req",
+        [
+            "",
+            "   ",
+            "not a package!",
+            "openai@>=6.37.0",  # npm-style, not pip
+            "requests==",
+            "package; python_version<'3.8'",  # markers out of scope
+        ],
+    )
+    def test_invalid(self, req: str) -> None:
+        with pytest.raises(ValueError, match="invalid Python package spec"):
+            validate_python_package_spec(req)
+
+
+class TestPythonDependenciesValidation:
+    def test_strips_and_accepts_valid(self) -> None:
+        cfg = PythonDependenciesConfig(packages=["  requests  ", "numpy==1.26.0"])
+        assert cfg.packages == ["requests", "numpy==1.26.0"]
+
+    def test_rejects_invalid_with_index(self) -> None:
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError, match=r"packages\[1\]"):
+            PythonDependenciesConfig(packages=["requests", "bad name!"])

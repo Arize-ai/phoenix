@@ -16,6 +16,9 @@ import {
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import type { EvaluatorOptimizationDirection } from "@phoenix/types";
 
+export const DEFAULT_OPTIMIZATION_DIRECTION: EvaluatorOptimizationDirection =
+  "MAXIMIZE";
+
 export const optimizationDirectionOptions: {
   value: EvaluatorOptimizationDirection;
   label: string;
