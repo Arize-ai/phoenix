@@ -17,10 +17,10 @@ May 13, 2026
 
 **Available in arize-phoenix 15.7.0+**
 
-The `POST /v1/{traces,spans,sessions}_notes` endpoints now accept an optional `identifier` field on the request body. When provided, the note is upserted on `(entity_id, name='note', identifier)` — matching the semantics of structured annotations. Repeated calls with the same identifier overwrite the existing note. When omitted, the server stamps a unique `px-<kind>-note:<uuid>` identifier, preserving the existing append behavior.
+The `POST /v1/{trace,span,session}_notes` endpoints now accept an optional `identifier` field on the request body. When provided, the note is upserted on `(entity_id, name='note', identifier)` — matching the semantics of structured annotations. Repeated calls with the same identifier overwrite the existing note. When omitted, the server stamps a unique `px-<kind>-note:<uuid>` identifier, preserving the existing append behavior.
 
 ```http
-POST /v1/traces_notes
+POST /v1/trace_notes
 Content-Type: application/json
 
 {
@@ -33,7 +33,7 @@ Content-Type: application/json
 The same `identifier` field is available on span and session notes:
 
 ```http
-POST /v1/spans_notes
+POST /v1/span_notes
 {
   "span_id": "def456",
   "note": "Retrieval step returned stale document",

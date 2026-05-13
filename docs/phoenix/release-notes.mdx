@@ -12,7 +12,7 @@ GitHub
 **Available in arize-phoenix 15.7.0+**
 
 - **Expandable session turns** — long messages in Session Details are now collapsed by default with an expand/collapse toggle
-- **Note identifier field** — `POST /v1/{traces,spans,sessions}_notes` accepts an optional `identifier` for upsert semantics; repeated calls with the same identifier overwrite the existing note
+- **Note identifier field** — `POST /v1/{trace,span,session}_notes` accepts an optional `identifier` for upsert semantics; repeated calls with the same identifier overwrite the existing note
 - **New CLI annotation commands** — `px {trace,span,session}-annotations delete` for bulk-remove by identifier or time range, `px project get <name>` to fetch project metadata; `--identifier` flag on `annotate` and `add-note`
 - **Security** — f-string template formatter now blocks dunder/private attribute traversal, preventing format-string injection through user-supplied variables
 </Update>
