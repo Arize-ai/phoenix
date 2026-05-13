@@ -134,3 +134,361 @@ examples:
           rootSpansOnly: true
     metadata:
       category: reset
+  - id: chain-spans
+    splits: [regression]
+    input:
+      query: Filter to the chain spans.
+    expected:
+      tools:
+        required: [set_spans_filter]
+      tool_call_args:
+        set_spans_filter:
+          condition: span_kind == 'CHAIN'
+          rootSpansOnly: false
+    metadata:
+      category: span_kind
+
+  # "top-level agent traces" is genuinely ambiguous between "AGENT-kind
+  # spans at the root level" and "just root traces (the agent-shaped
+  # ones)" — assert the tool fires but don't pin args.
+  - id: agent-root-spans
+    splits: [regression]
+    input:
+      query: Show me top-level agent traces only.
+    expected:
+      tools:
+        required: [set_spans_filter]
+    metadata:
+      category: ambiguity
+
+  - id: embedding-spans-lowercase
+    splits: [regression]
+    input:
+      query: just embeddings pls
+    expected:
+      tools:
+        required: [set_spans_filter]
+      tool_call_args:
+        set_spans_filter:
+          condition: span_kind == 'EMBEDDING'
+          rootSpansOnly: false
+    metadata:
+      category: span_kind
+
+  # ---------------------------------------------------------------
+  # status_code enum coverage beyond ERROR.
+  # ---------------------------------------------------------------
+  - id: status-ok-spans
+    splits: [regression]
+    input:
+      query: Show only successful spans.
+    expected:
+      tools:
+        required: [set_spans_filter]
+      tool_call_args:
+        set_spans_filter:
+          condition: status_code == 'OK'
+          rootSpansOnly: false
+    metadata:
+      category: status
+
+  - id: status-unset-spans
+    splits: [regression]
+    input:
+      query: show me spans that have no status set
+    expected:
+      tools:
+        required: [set_spans_filter]
+      tool_call_args:
+        set_spans_filter:
+          condition: status_code == 'UNSET'
+          rootSpansOnly: false
+    metadata:
+      category: status
+
+  # ---------------------------------------------------------------
+  # Token-count numeric DSL fields.
+  # ---------------------------------------------------------------
+  - id: high-prompt-tokens
+    splits: [regression]
+    input:
+      query: find LLM calls that used more than 10k prompt tokens
+    expected:
+      tools:
+        required: [set_spans_filter]
+      tool_call_args:
+        set_spans_filter:
+          condition: span_kind == 'LLM' and llm.token_count.prompt > 10000
+          rootSpansOnly: false
+    metadata:
+      category: tokens
+
+  - id: cumulative-tokens-roots
+    splits: [regression]
+    input:
+      query: Show traces that burned over 50k tokens in total.
+    expected:
+      tools:
+        required: [set_spans_filter]
+      tool_call_args:
+        set_spans_filter:
+          condition: cumulative_token_count.total > 50000
+          rootSpansOnly: true
+    metadata:
+      category: tokens
+
+  # ---------------------------------------------------------------
+  # Datetime DSL field.
+  # ---------------------------------------------------------------
+  - id: start-after-timestamp
+    splits: [regression]
+    input:
+      query: Filter to spans that started at or after 2025-01-15T00:00:00Z.
+    expected:
+      tools:
+        required: [set_spans_filter]
+      tool_call_args:
+        set_spans_filter:
+          condition: "start_time >= '2025-01-15T00:00:00Z'"
+          rootSpansOnly: false
+    metadata:
+      category: datetime
+
+  # ---------------------------------------------------------------
+  # span_id and parent_id (existing only covers trace_id).
+  # ---------------------------------------------------------------
+  - id: span-by-id
+    splits: [regression]
+    input:
+      query: Show me span 7a3f9c2e1b8d4e5f6a7b8c9d0e1f2a3b.
+    expected:
+      tools:
+        required: [set_spans_filter]
+      tool_call_args:
+        set_spans_filter:
+          condition: span_id == '7a3f9c2e1b8d4e5f6a7b8c9d0e1f2a3b'
+          rootSpansOnly: false
+    metadata:
+      category: identifier
+
+  - id: children-of-parent
+    splits: [regression]
+    input:
+      query: Show me direct children of span 7a3f9c2e1b8d4e5f6a7b8c9d0e1f2a3b.
+    expected:
+      tools:
+        required: [set_spans_filter]
+      tool_call_args:
+        set_spans_filter:
+          condition: parent_id == '7a3f9c2e1b8d4e5f6a7b8c9d0e1f2a3b'
+          rootSpansOnly: false
+    metadata:
+      category: identifier
+
+  # ---------------------------------------------------------------
+  # Annotation .score (existing only covers .label).
+  # ---------------------------------------------------------------
+  - id: annotation-score
+    splits: [regression]
+    input:
+      query: Show spans where the Helpfulness annotation scored above 0.8.
+    expected:
+      tools:
+        required: [set_spans_filter]
+      tool_call_args:
+        set_spans_filter:
+          condition: annotations['Helpfulness'].score > 0.8
+          rootSpansOnly: false
+    metadata:
+      category: annotation
+
+  # ---------------------------------------------------------------
+  # output.value substring (existing only covers input.value).
+  # ---------------------------------------------------------------
+  - id: output-substring
+    splits: [regression]
+    input:
+      query: Show spans whose response mentions error code 502.
+    expected:
+      tools:
+        required: [set_spans_filter]
+      tool_call_args:
+        set_spans_filter:
+          condition: "'error code 502' in output.value"
+          rootSpansOnly: false
+    metadata:
+      category: output
+
+  # ---------------------------------------------------------------
+  # metadata[...] attribute access.
+  # ---------------------------------------------------------------
+  - id: metadata-access
+    splits: [regression]
+    input:
+      query: Filter to spans tagged with environment 'prod' in metadata.
+    expected:
+      tools:
+        required: [set_spans_filter]
+      tool_call_args:
+        set_spans_filter:
+          condition: "metadata['environment'] == 'prod'"
+          rootSpansOnly: false
+    metadata:
+      category: attribute
+
+  # ---------------------------------------------------------------
+  # Ambiguity coverage — assert tool fires, do NOT pin args.
+  # ---------------------------------------------------------------
+  - id: ambiguous-fast-spans
+    splits: [regression]
+    input:
+      query: show me fast spans
+    expected:
+      tools:
+        required: [set_spans_filter]
+    metadata:
+      category: ambiguity
+
+  - id: ambiguous-tools-or-retrievers
+    splits: [regression]
+    input:
+      query: tools or retrievers only
+    expected:
+      tools:
+        required: [set_spans_filter]
+    metadata:
+      category: ambiguity
+
+  - id: ambiguous-not-tool-spans
+    splits: [regression]
+    input:
+      query: everything except tool calls
+    expected:
+      tools:
+        required: [set_spans_filter]
+    metadata:
+      category: ambiguity
+
+  # ---------------------------------------------------------------
+  # Negative coverage — set_spans_filter must NOT be called.
+  # ---------------------------------------------------------------
+  - id: negative-greeting
+    splits: [regression]
+    input:
+      query: "hey, what's up?"
+    expected:
+      tools:
+        forbidden: [set_spans_filter]
+    metadata:
+      category: negative_chitchat
+
+  - id: negative-capabilities-question
+    splits: [regression]
+    input:
+      query: what can you do?
+    expected:
+      tools:
+        forbidden: [set_spans_filter]
+    metadata:
+      category: negative_chitchat
+
+  - id: negative-thanks
+    splits: [regression]
+    input:
+      query: "thanks!"
+    expected:
+      tools:
+        forbidden: [set_spans_filter]
+    metadata:
+      category: negative_chitchat
+
+  - id: negative-time-range-intent
+    splits: [regression]
+    input:
+      query: Show me only the last hour.
+    expected:
+      tools:
+        required: [set_time_range]
+        forbidden: [set_spans_filter]
+    metadata:
+      category: negative_wrong_tool
+
+  - id: negative-clone-prompt-intent
+    splits: [regression]
+    input:
+      query: Clone the current prompt please.
+    expected:
+      tools:
+        forbidden: [set_spans_filter]
+    metadata:
+      category: negative_wrong_tool
+
+  - id: negative-how-to-question
+    splits: [regression]
+    input:
+      query: How do I create a new dataset?
+    expected:
+      tools:
+        forbidden: [set_spans_filter]
+    metadata:
+      category: negative_docs_query
+
+  - id: negative-summarize-ask
+    splits: [regression]
+    input:
+      query: Summarize what we see in the spans table right now.
+    expected:
+      tools:
+        forbidden: [set_spans_filter]
+    metadata:
+      category: negative_analysis
+
+  - id: negative-diagnosis-question
+    splits: [regression]
+    input:
+      query: Is there a problem with my project?
+    expected:
+      tools:
+        forbidden: [set_spans_filter]
+    metadata:
+      category: negative_analysis
+
+  - id: negative-definitional-question
+    splits: [regression]
+    input:
+      query: Explain what span kinds mean.
+    expected:
+      tools:
+        forbidden: [set_spans_filter]
+    metadata:
+      category: negative_definitional
+
+  - id: negative-debug-advice
+    splits: [regression]
+    input:
+      query: I think my agent is too slow, what should I do?
+    expected:
+      tools:
+        forbidden: [set_spans_filter]
+    metadata:
+      category: negative_analysis
+
+  - id: negative-average-latency
+    splits: [regression]
+    input:
+      query: what's the average latency?
+    expected:
+      tools:
+        forbidden: [set_spans_filter]
+    metadata:
+      category: negative_analysis
+
+  - id: negative-delete-trace
+    splits: [regression]
+    input:
+      query: delete this trace
+    expected:
+      tools:
+        forbidden: [set_spans_filter]
+    metadata:
+      category: negative_destructive
