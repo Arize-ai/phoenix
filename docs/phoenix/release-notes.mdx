@@ -7,6 +7,34 @@ description: The latest from the Phoenix team.
 GitHub
 </Card>
 
+<Update label="05.13.2026">
+## [05.13.2026: Session Enhancements and Annotation Identifiers](/docs/phoenix/release-notes/05-2026/05-13-2026-session-and-annotations)
+**Available in arize-phoenix 15.7.0+**
+
+- **Expandable session turns** — long messages in Session Details are now collapsed by default with an expand/collapse toggle
+- **Note identifier field** — `POST /v1/{traces,spans,sessions}_notes` accepts an optional `identifier` for upsert semantics; repeated calls with the same identifier overwrite the existing note
+- **New CLI annotation commands** — `px {trace,span,session}-annotations delete` for bulk-remove by identifier or time range, `px project get <name>` to fetch project metadata; `--identifier` flag on `annotate` and `add-note`
+- **Security** — f-string template formatter now blocks dunder/private attribute traversal, preventing format-string injection through user-supplied variables
+</Update>
+
+<Update label="05.10.2026">
+## [05.10.2026: Playground Preferences](/docs/phoenix/release-notes/05-2026/05-10-2026-playground-preferences)
+**Available in arize-phoenix 15.6.0+**
+
+- **Default provider and model** — save a personal Playground default on the AI Providers settings page; Phoenix stores it in your browser and applies it to every new session
+- **Metrics aside always on** — the latency/token/error metrics panel on the right side of the spans table is now visible by default, no longer gated behind a feature flag
+</Update>
+
+<Update label="05.08.2026">
+## [05.08.2026: OTLP Project Routing via HTTP Header](/docs/phoenix/release-notes/05-2026/05-08-2026-otlp-project-header)
+**Available in arize-phoenix 15.5.0+**
+
+Set the `x-project-name` HTTP header on OTLP exports to route all spans in the request to a named Phoenix project. The header takes precedence over the `openinference.project.name` resource attribute, so tools like the OpenTelemetry Collector can route traces without modifying the instrumented application.
+
+- **Works with any OTLP sender** — SDK header option, Collector `headers` config, or `OTEL_EXPORTER_OTLP_HEADERS` env var
+- **Bug fix** — deleting a dataset evaluator link no longer removes the shared evaluator row (arize-phoenix 15.5.1+)
+</Update>
+
 <Update label="05.05.2026">
 ## [05.05.2026: Provider Tools in Playground and Prompts](/docs/phoenix/release-notes/05-2026/05-05-2026-provider-tools)
 **Available in arize-phoenix 15.4.0+**

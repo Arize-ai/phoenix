@@ -1,0 +1,54 @@
+---
+title: "05.08.2026: OTLP Project Routing via HTTP Header"
+description: "Route OTLP traces to a named Phoenix project by setting the x-project-name HTTP header — no resource attribute required."
+---
+
+**Available in arize-phoenix 15.5.0+**
+
+Phoenix now reads the `x-project-name` HTTP header on incoming OTLP trace exports and routes all spans in the request to that project. The header takes precedence over the `openinference.project.name` resource attribute, so configuration-based tools like the OpenTelemetry Collector can route traces without touching the instrumented application.
+
+## Setting the header
+
+**OpenTelemetry SDK (Python)**
+
+```python
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+exporter = OTLPSpanExporter(
+    endpoint="http://localhost:6006/v1/traces",
+    headers={"x-project-name": "my-project"},
+)
+```
+
+**OpenTelemetry Collector**
+
+```yaml
+exporters:
+  otlphttp:
+    endpoint: http://localhost:6006
+    headers:
+      x-project-name: my-project
+```
+
+**Environment variable**
+
+```bash
+OTEL_EXPORTER_OTLP_HEADERS="x-project-name=my-project"
+```
+
+## Precedence rules
+
+| Source | Priority |
+|--------|----------|
+| `x-project-name` HTTP header | Highest |
+| `openinference.project.name` resource attribute | Second |
+| Server default project | Fallback |
+
+Every span in the request goes to the same project when the header is set, regardless of what individual spans report in their resource attributes.
+
+## Bug fix: built-in evaluator preserved on dataset evaluator delete
+
+**Available in arize-phoenix 15.5.1+**
+
+Deleting a dataset evaluator link no longer removes the underlying evaluator. Previously, `deleteDatasetEvaluators` deleted the shared `Evaluator` row, which cascaded to remove every dataset's link to that evaluator — including the global built-in evaluator entry. The mutation now deletes only the link, leaving the evaluator available for other datasets.
