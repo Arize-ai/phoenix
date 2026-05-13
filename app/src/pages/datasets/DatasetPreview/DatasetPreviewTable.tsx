@@ -106,8 +106,12 @@ export type DatasetPreviewTableProps = {
   exampleIdColumn?: string | null;
 };
 
-/** Keys that must never be written to, to prevent prototype pollution. */
-const UNSAFE_KEYS = new Set(["__proto__", "prototype", "constructor"]);
+/**
+ * Creates a prototype-less object for accumulating user-supplied keys. Because
+ * it has no prototype, writing keys like `__proto__` or `constructor` just adds
+ * plain own properties instead of polluting `Object.prototype`.
+ */
+const emptyBucket = (): Record<string, unknown> => Object.create(null);
 
 /**
  * Preview table showing how data will look in the final dataset.
@@ -144,20 +148,11 @@ export function DatasetPreviewTable({
       value: unknown
     ) => {
       const parts = key.split(".");
-      // Guard against prototype pollution via crafted column names like
-      // "__proto__.polluted" or "constructor.prototype.polluted".
-      if (parts.some((part) => UNSAFE_KEYS.has(part))) {
-        return;
-      }
       let current = obj;
       for (let i = 0; i < parts.length - 1; i++) {
         const part = parts[i];
-        if (
-          !Object.prototype.hasOwnProperty.call(current, part) ||
-          typeof current[part] !== "object" ||
-          current[part] === null
-        ) {
-          current[part] = {};
+        if (typeof current[part] !== "object" || current[part] === null) {
+          current[part] = emptyBucket();
         }
         current = current[part] as Record<string, unknown>;
       }
@@ -214,9 +209,9 @@ export function DatasetPreviewTable({
     };
 
     return rows.map((row): DatasetPreviewRow => {
-      const input: Record<string, unknown> = {};
-      const output: Record<string, unknown> = {};
-      const metadata: Record<string, unknown> = {};
+      const input = emptyBucket();
+      const output = emptyBucket();
+      const metadata = emptyBucket();
       let splits: string[] = [];
       let exampleId: string | null = null;
 
