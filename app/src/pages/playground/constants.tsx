@@ -37,4 +37,9 @@ export const modelProviderToModelPrefixMap: Record<ModelProvider, string[]> = {
   MOONSHOT: ["moonshot", "kimi"],
   PERPLEXITY: ["sonar"],
   TOGETHER: [],
+  // VERTEX_AI must be ordered AFTER GOOGLE and ANTHROPIC so that
+  // getModelProviderFromModelName routes gemini-* to GOOGLE and claude-*
+  // to ANTHROPIC by default. Vertex selection must be explicit (via the
+  // provider dropdown) and the prefixes here exist only for completeness.
+  VERTEX_AI: ["gemini", "claude"],
 };

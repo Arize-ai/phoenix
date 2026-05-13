@@ -896,6 +896,21 @@ describe("getModelProviderFromModelName", () => {
       DEFAULT_MODEL_PROVIDER
     );
   });
+
+  // VERTEX_AI shares prefixes ("gemini", "claude") with GOOGLE and ANTHROPIC.
+  // The iteration order of modelProviderToModelPrefixMap places VERTEX_AI
+  // after GOOGLE and ANTHROPIC, so a raw model name must continue to route
+  // to the non-Vertex provider. Vertex routing must be an explicit user
+  // choice via the provider dropdown.
+  it("should return GOOGLE for gemini-* by default (Vertex must be explicit)", () => {
+    expect(getModelProviderFromModelName("gemini-2.5-pro")).toEqual("GOOGLE");
+  });
+
+  it("should return ANTHROPIC for claude-* by default (Vertex must be explicit)", () => {
+    expect(getModelProviderFromModelName("claude-sonnet-4-6")).toEqual(
+      "ANTHROPIC"
+    );
+  });
 });
 
 describe("processAttributeToolCalls", () => {
