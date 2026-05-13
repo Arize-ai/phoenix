@@ -19,6 +19,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
@@ -78,7 +80,9 @@ jobs:
 
       - name: Write to Job Summary
         if: always()
-        run: cat ${{ steps.run-check.outputs.summary_path }} >> $GITHUB_STEP_SUMMARY
+        run: cat ${STEPS_RUN_CHECK_OUTPUTS_SUMMARY_PATH} >> $GITHUB_STEP_SUMMARY
+        env:
+          STEPS_RUN_CHECK_OUTPUTS_SUMMARY_PATH: ${{ steps.run-check.outputs.summary_path }}
 
       - name: Fail if errors detected
         if: ${{ steps.run-check.outputs.exit_code != '' }}

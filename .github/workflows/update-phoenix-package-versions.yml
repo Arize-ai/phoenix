@@ -32,6 +32,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: main
+          persist-credentials: false
 
       - name: Validate version input
         run: |

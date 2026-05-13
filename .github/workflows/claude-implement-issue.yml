@@ -25,9 +25,9 @@ jobs:
       - name: Guard – check permissions and duplicates
         run: |
           # Verify sender has write access
-          PERMISSION=$(gh api "repos/${{ github.repository }}/collaborators/${{ github.event.sender.login }}/permission" -q '.permission')
+          PERMISSION=$(gh api "repos/${{ github.repository }}/collaborators/${GITHUB_EVENT_SENDER_LOGIN}/permission" -q '.permission')
           if [[ "$PERMISSION" != "admin" && "$PERMISSION" != "maintain" && "$PERMISSION" != "write" ]]; then
-            echo "Sender ${{ github.event.sender.login }} has '$PERMISSION' permission, skipping"
+            echo "Sender ${GITHUB_EVENT_SENDER_LOGIN} has '$PERMISSION' permission, skipping"
             exit 0
           fi
 
@@ -46,6 +46,8 @@ jobs:
           fi
 
           echo "READY=true" >> "$GITHUB_ENV"
+        env:
+          GITHUB_EVENT_SENDER_LOGIN: ${{ github.event.sender.login }}
 
       - name: Claim issue
         if: env.READY == 'true'
@@ -59,6 +61,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 1
+          persist-credentials: false
 
       - name: Create branch
         if: env.READY == 'true'
@@ -123,6 +126,8 @@ jobs:
         if: always() && env.READY == 'true'
         run: |
           gh issue edit "$ISSUE_NUMBER" --remove-assignee "mikeldking" --remove-label "agent-in-progress"
-          if [ "${{ job.status }}" = "failure" ]; then
+          if [ "${JOB_STATUS}" = "failure" ]; then
             gh issue comment "$ISSUE_NUMBER" --body "Agent implementation failed. See [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details."
           fi
+        env:
+          JOB_STATUS: ${{ job.status }}

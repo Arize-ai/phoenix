@@ -20,6 +20,7 @@ jobs:
         with:
           sparse-checkout: |
             .github/
+          persist-credentials: false
       - name: Retrieve and format issues
         id: retrieve-issues
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0

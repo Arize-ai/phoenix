@@ -158,12 +158,14 @@ jobs:
       - name: Check if package needs building
         id: check
         run: |
-          if echo '${{ needs.list-python-packages.outputs.package_paths }}' | jq -e --arg p "${{ matrix.path }}" 'index($p)' > /dev/null 2>&1; then
+          if echo '${NEEDS_LIST_PYTHON_PACKAGES_OUTPUTS_PACKAGE_PATHS}' | jq -e --arg p "${{ matrix.path }}" 'index($p)' > /dev/null 2>&1; then
             echo "needed=true" >> $GITHUB_OUTPUT
           else
             echo "Skipping ${{ matrix.path }} — already on PyPI"
             echo "needed=false" >> $GITHUB_OUTPUT
           fi
+        env:
+          NEEDS_LIST_PYTHON_PACKAGES_OUTPUTS_PACKAGE_PATHS: ${{ needs.list-python-packages.outputs.package_paths }}
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         if: steps.check.outputs.needed == 'true'
         with:
@@ -229,11 +231,13 @@ jobs:
       - name: Check if package needs publishing
         id: check
         run: |
-          if echo '${{ needs.list-python-packages.outputs.package_paths }}' | jq -e --arg p "${{ matrix.path }}" 'index($p)' > /dev/null 2>&1; then
+          if echo '${NEEDS_LIST_PYTHON_PACKAGES_OUTPUTS_PACKAGE_PATHS}' | jq -e --arg p "${{ matrix.path }}" 'index($p)' > /dev/null 2>&1; then
             echo "needed=true" >> $GITHUB_OUTPUT
           else
             echo "needed=false" >> $GITHUB_OUTPUT
           fi
+        env:
+          NEEDS_LIST_PYTHON_PACKAGES_OUTPUTS_PACKAGE_PATHS: ${{ needs.list-python-packages.outputs.package_paths }}
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         if: steps.check.outputs.needed == 'true'
         with:
@@ -264,11 +268,13 @@ jobs:
       - name: Check if package was published
         id: check
         run: |
-          if echo '${{ needs.list-python-packages.outputs.package_paths }}' | jq -e --arg p "${{ matrix.path }}" 'index($p)' > /dev/null 2>&1; then
+          if echo '${NEEDS_LIST_PYTHON_PACKAGES_OUTPUTS_PACKAGE_PATHS}' | jq -e --arg p "${{ matrix.path }}" 'index($p)' > /dev/null 2>&1; then
             echo "needed=true" >> $GITHUB_OUTPUT
           else
             echo "needed=false" >> $GITHUB_OUTPUT
           fi
+        env:
+          NEEDS_LIST_PYTHON_PACKAGES_OUTPUTS_PACKAGE_PATHS: ${{ needs.list-python-packages.outputs.package_paths }}
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         if: steps.check.outputs.needed == 'true'
         with:

@@ -25,6 +25,7 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          persist-credentials: false
 
       - name: Get uv version supported by Dependabot
         id: dependabot
@@ -56,23 +57,26 @@ jobs:
         id: existing_pr
         env:
           GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          STEPS_DEPENDABOT_OUTPUTS_VERSION: ${{ steps.dependabot.outputs.version }}
         run: |
           set -euo pipefail
           count=$(gh pr list \
-            --search "chore(deps): bump uv to ${{ steps.dependabot.outputs.version }} in:title" \
+            --search "chore(deps): bump uv to ${STEPS_DEPENDABOT_OUTPUTS_VERSION} in:title" \
             --state open --json number --jq 'length')
           echo "count=$count" >> "$GITHUB_OUTPUT"
           if [ "$count" -gt 0 ]; then
-            echo "An open PR for uv ${{ steps.dependabot.outputs.version }} already exists; skipping."
+            echo "An open PR for uv ${STEPS_DEPENDABOT_OUTPUTS_VERSION} already exists; skipping."
           fi
 
       - name: Create branch
         if: steps.dependabot.outputs.version != steps.repo.outputs.version && steps.existing_pr.outputs.count == '0'
         run: |
           DATE=$(date -u +%Y-%m-%d)
-          BRANCH="claude/bump-uv-${{ steps.dependabot.outputs.version }}-$DATE"
+          BRANCH="claude/bump-uv-${STEPS_DEPENDABOT_OUTPUTS_VERSION}-$DATE"
           git checkout -b "$BRANCH"
           echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
+        env:
+          STEPS_DEPENDABOT_OUTPUTS_VERSION: ${{ steps.dependabot.outputs.version }}
 
       - name: Install target uv version
         if: steps.dependabot.outputs.version != steps.repo.outputs.version && steps.existing_pr.outputs.count == '0'

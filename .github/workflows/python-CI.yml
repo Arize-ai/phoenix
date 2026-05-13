@@ -37,6 +37,8 @@ jobs:
       json_canonicalization_schema: ${{ steps.filter.outputs.json_canonicalization_schema }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
         id: filter
         with:
@@ -71,16 +73,27 @@ jobs:
               - "uv.lock"
       - name: Print Filters
         run: |
-          echo "ipynb: ${{ steps.filter.outputs.ipynb }}"
-          echo "ipynb_files: ${{ steps.filter.outputs.ipynb_files }}"
-          echo "prompts: ${{ steps.filter.outputs.prompts }}"
-          echo "phoenix: ${{ steps.filter.outputs.phoenix }}"
-          echo "phoenix_client: ${{ steps.filter.outputs.phoenix_client }}"
-          echo "phoenix_evals: ${{ steps.filter.outputs.phoenix_evals }}"
-          echo "phoenix_otel: ${{ steps.filter.outputs.phoenix_otel }}"
-          echo "migrations: ${{ steps.filter.outputs.migrations }}"
-          echo "uv_lock: ${{ steps.filter.outputs.uv_lock }}"
-          echo "json_canonicalization_schema: ${{ steps.filter.outputs.json_canonicalization_schema }}"
+          echo "ipynb: ${STEPS_FILTER_OUTPUTS_IPYNB}"
+          echo "ipynb_files: ${STEPS_FILTER_OUTPUTS_IPYNB_FILES}"
+          echo "prompts: ${STEPS_FILTER_OUTPUTS_PROMPTS}"
+          echo "phoenix: ${STEPS_FILTER_OUTPUTS_PHOENIX}"
+          echo "phoenix_client: ${STEPS_FILTER_OUTPUTS_PHOENIX_CLIENT}"
+          echo "phoenix_evals: ${STEPS_FILTER_OUTPUTS_PHOENIX_EVALS}"
+          echo "phoenix_otel: ${STEPS_FILTER_OUTPUTS_PHOENIX_OTEL}"
+          echo "migrations: ${STEPS_FILTER_OUTPUTS_MIGRATIONS}"
+          echo "uv_lock: ${STEPS_FILTER_OUTPUTS_UV_LOCK}"
+          echo "json_canonicalization_schema: ${STEPS_FILTER_OUTPUTS_JSON_CANONICALIZATION_SCHEMA}"
+        env:
+          STEPS_FILTER_OUTPUTS_IPYNB: ${{ steps.filter.outputs.ipynb }}
+          STEPS_FILTER_OUTPUTS_IPYNB_FILES: ${{ steps.filter.outputs.ipynb_files }}
+          STEPS_FILTER_OUTPUTS_PROMPTS: ${{ steps.filter.outputs.prompts }}
+          STEPS_FILTER_OUTPUTS_PHOENIX: ${{ steps.filter.outputs.phoenix }}
+          STEPS_FILTER_OUTPUTS_PHOENIX_CLIENT: ${{ steps.filter.outputs.phoenix_client }}
+          STEPS_FILTER_OUTPUTS_PHOENIX_EVALS: ${{ steps.filter.outputs.phoenix_evals }}
+          STEPS_FILTER_OUTPUTS_PHOENIX_OTEL: ${{ steps.filter.outputs.phoenix_otel }}
+          STEPS_FILTER_OUTPUTS_MIGRATIONS: ${{ steps.filter.outputs.migrations }}
+          STEPS_FILTER_OUTPUTS_UV_LOCK: ${{ steps.filter.outputs.uv_lock }}
+          STEPS_FILTER_OUTPUTS_JSON_CANONICALIZATION_SCHEMA: ${{ steps.filter.outputs.json_canonicalization_schema }}
 
   phoenix-client:
     name: Phoenix Client
@@ -97,6 +110,7 @@ jobs:
             requirements/
             packages/phoenix-client/
             packages/phoenix-evals/
+          persist-credentials: false
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.py }}
@@ -120,6 +134,7 @@ jobs:
           sparse-checkout: |
             requirements/
             packages/phoenix-evals/
+          persist-credentials: false
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.py }}
@@ -142,6 +157,7 @@ jobs:
           sparse-checkout: |
             requirements/
             packages/phoenix-otel/
+          persist-credentials: false
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.py }}
@@ -208,6 +224,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -232,6 +250,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -256,6 +276,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -280,6 +302,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -306,6 +330,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -328,6 +354,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -363,6 +391,7 @@ jobs:
             src/
             packages/
             tests/
+          persist-credentials: false
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -400,6 +429,7 @@ jobs:
             tests/conftest.py
             tests/__generated__/
             tests/__init__.py
+          persist-credentials: false
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -459,6 +489,7 @@ jobs:
             tests/integration/
             tests/__generated__/
             tests/__init__.py
+          persist-credentials: false
       - name: Increase PostgreSQL max_connections
         if: matrix.db == 'postgresql'
         run: |
@@ -537,6 +568,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout: src/phoenix/
+          persist-credentials: false
       - name: Install Phoenix from current branch
         run: |
           uv pip install --system --reinstall-package arize-phoenix --no-sources .
@@ -574,6 +606,7 @@ jobs:
           sparse-checkout: |
             requirements/
             packages/phoenix-client/
+          persist-credentials: false
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:

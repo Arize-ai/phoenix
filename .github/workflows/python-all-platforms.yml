@@ -23,8 +23,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.ref_name }}" != "main" ]; then
-            branches=$(jq -cn --arg b "${{ github.ref_name }}" '[$b]')
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${GITHUB_REF_NAME}" != "main" ]; then
+            branches=$(jq -cn --arg b "${GITHUB_REF_NAME}" '[$b]')
           else
             branches=$(gh api repos/${{ github.repository }}/branches --paginate | jq -c -s '[.[][] | select(.name == "main" or (.name | startswith("version-"))) | .name]')
           fi
@@ -72,6 +72,7 @@ jobs:
             tests/conftest.py
             tests/__generated__/
             tests/__init__.py
+          persist-credentials: false
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -145,6 +146,7 @@ jobs:
             tests/integration/
             tests/__generated__/
             tests/__init__.py
+          persist-credentials: false
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -175,6 +177,7 @@ jobs:
             requirements/
             packages/phoenix-client/
             packages/phoenix-evals/
+          persist-credentials: false
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.py }}
@@ -200,6 +203,7 @@ jobs:
           sparse-checkout: |
             requirements/
             packages/phoenix-evals/
+          persist-credentials: false
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.py }}
@@ -225,6 +229,7 @@ jobs:
           sparse-checkout: |
             requirements/
             packages/phoenix-otel/
+          persist-credentials: false
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: ${{ matrix.py }}

@@ -27,6 +27,7 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          persist-credentials: false
 
       - name: Create branch
         run: |
