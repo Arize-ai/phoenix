@@ -126,7 +126,7 @@ const meta = {
     ariaLabel: "Open agent chat",
     isFloating: false,
     variant: "glyph",
-    thinkingGlyphVariant: "orbit-reveal",
+    thinkingGlyphVariant: "wave-reveal",
   },
   argTypes: {
     onClick: {

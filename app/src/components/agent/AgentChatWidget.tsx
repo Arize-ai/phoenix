@@ -98,12 +98,16 @@ const darkThemeThinkingGlowCSS = css`
 const lightThemeThinkingGlowCSS = css`
   &[data-theme="light"] {
     --agent-chat-widget-glow-outer-rest:
-      0 0 2px 1px rgba(234, 243, 255, 0.72),
-      0 0 5px 2px rgba(118, 180, 255, 0.42), 0 0 8px 4px rgba(56, 132, 255, 0.24),
-      0 0 13px 4px rgba(23, 93, 215, 0.14);
+      0 0 3px 1px rgba(245, 249, 255, 0.88),
+      0 0 5px 2px rgba(199, 190, 242, 0.56), 0 0 9px 4px rgba(88, 152, 255, 0.54),
+      0 0 14px 5px rgba(200, 150, 236, 0.23),
+      0 0 20px 7px rgba(116, 212, 255, 0.17);
     --agent-chat-widget-glow-outer-strong:
-      0 0 3px 1px rgba(242, 248, 255, 0.8), 0 0 7px 3px rgba(131, 189, 255, 0.5),
-      0 0 13px 6px rgba(67, 143, 255, 0.32), 0 0 19px 6px rgba(29, 101, 223, 0.18);
+      0 0 4px 1px rgba(248, 251, 255, 0.94),
+      0 0 8px 3px rgba(203, 194, 244, 0.68),
+      0 0 13px 5px rgba(96, 159, 255, 0.64),
+      0 0 20px 7px rgba(205, 154, 238, 0.31),
+      0 0 26px 9px rgba(119, 214, 255, 0.22);
   }
 `;
 
@@ -288,7 +292,7 @@ export function AgentChatWidgetButton({
   onClick,
   ariaLabel = "Open agent chat",
   isFloating = false,
-  thinkingGlyphVariant = "orbit-reveal",
+  thinkingGlyphVariant = "wave-reveal",
   variant = "progress",
 }: AgentChatWidgetButtonProps) {
   const usesThinkingGlyph = variant === "glyph";

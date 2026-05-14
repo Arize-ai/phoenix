@@ -183,7 +183,7 @@ export function PxiGlyph({
   fill = "currentColor",
   variant = "static",
   size,
-  thinkingVariant = "orbit-reveal",
+  thinkingVariant = "wave-reveal",
 }: {
   className?: string;
   fill?: string;
