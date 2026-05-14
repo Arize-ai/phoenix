@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Iterator, Sequence
 from contextlib import asynccontextmanager, contextmanager
 from dataclasses import dataclass
+from inspect import Signature, signature
 from typing import Any, Callable, Literal, TypeAlias
 
 import pydantic
@@ -25,20 +26,34 @@ from opentelemetry.util.types import AttributeValue
 from pydantic_ai.agent.abstract import AbstractAgent
 from pydantic_ai.agent.wrapper import WrapperAgent
 from pydantic_ai.messages import (
+    AudioUrl,
+    BinaryContent,
+    BuiltinToolCallPart,
+    BuiltinToolReturnPart,
     CachePoint,
-    InstructionPart,
+    CompactionPart,
+    DocumentUrl,
+    FilePart,
+    ImageUrl,
     ModelMessage,
     ModelRequest,
+    ModelRequestPart,
     ModelResponse,
+    ModelResponsePart,
+    RetryPromptPart,
     SystemPromptPart,
     TextContent,
     TextPart,
+    ThinkingPart,
     ToolCallPart,
     ToolReturnPart,
+    UploadedFile,
     UserContent,
     UserPromptPart,
+    VideoUrl,
 )
 from pydantic_ai.run import AgentRun
+from typing_extensions import assert_never
 
 from phoenix.server.agents.dependencies import ChatDependencies, ChatOutput
 from phoenix.server.agents.toolsets.external.tools import get_external_tool_definition
@@ -175,12 +190,18 @@ class OpenInferenceAgentWrapper(WrapperAgent[ChatDependencies, ChatOutput]):
         kwargs: dict[str, Any],
     ) -> Iterator[Callable[[AgentRun[ChatDependencies, ChatOutput]], None]]:
         attributes: dict[str, AttributeValue] = {**get_span_kind_attributes("agent")}
-        full_kwargs: dict[str, Any] = {"message_history": message_history, **kwargs}
-        input_message = _get_last_input_message(user_prompt, full_kwargs)
+        input_message = _get_last_input_message(
+            user_prompt=user_prompt, message_history=message_history
+        )
         if input_message is not None:
-            attributes.update(_message_io_attributes(input_message, role="input"))
-        full_input = _full_input(user_prompt, message_history, kwargs)
-        metadata: dict[str, Any] = {"input": full_input}
+            attributes.update(_get_message_io_attributes(message=input_message, role="input"))
+        iter_method_arguments = _get_iter_method_arguments(
+            iter_signature=signature(self.wrapped.iter),
+            user_prompt=user_prompt,
+            message_history=message_history,
+            kwargs=kwargs,
+        )
+        metadata: dict[str, Any] = {"input": iter_method_arguments}
         attributes.update(get_metadata_attributes(metadata=metadata))
         span_name = f"{self.name or type(self.wrapped).__name__}.iter"
         with self._tracer.start_as_current_span(
@@ -189,9 +210,9 @@ class OpenInferenceAgentWrapper(WrapperAgent[ChatDependencies, ChatOutput]):
         ) as span:
 
             def set_result(agent_run: AgentRun[ChatDependencies, ChatOutput]) -> None:
-                response = _last_model_response(agent_run.new_messages())
+                response = _get_last_model_response(agent_run.new_messages())
                 if response is not None:
-                    span.set_attributes(_message_io_attributes(response, role="output"))
+                    span.set_attributes(_get_message_io_attributes(message=response, role="output"))
                 if agent_run.result is not None:
                     metadata["output"] = agent_run.result.output
                     span.set_attributes(get_metadata_attributes(metadata=metadata))
@@ -203,16 +224,7 @@ class OpenInferenceAgentWrapper(WrapperAgent[ChatDependencies, ChatOutput]):
 def _collect_trailing_tool_return_parts(
     messages: Sequence[ModelMessage],
 ) -> tuple[list[ToolReturnPart], int]:
-    """Collect ``ToolReturnPart``s from the trailing run of ``ModelRequest``s.
-
-    A trailing ``ModelRequest`` may mix ``ToolReturnPart``s with other parts
-    (e.g. a ``UserPromptPart`` when the user submits a new turn alongside
-    the external tool results); the returns are still collected. The walk
-    stops at the first non-``ModelRequest`` message or at the first
-    ``ModelRequest`` carrying no ``ToolReturnPart``s. Returns the collected
-    tool returns alongside the index of the earliest message in that
-    trailing block (or ``len(messages)`` when none are found).
-    """
+    """Collect ``ToolReturnPart``s from the trailing run of ``ModelRequest``s."""
     trailing_tool_return_parts: list[ToolReturnPart] = []
     first_trailing_request_index = len(messages)
     for index, message in reversed(list(enumerate(messages))):
@@ -240,52 +252,41 @@ def _get_tool_call_parts_by_id(
 
 
 def _get_last_input_message(
+    *,
     user_prompt: str | Sequence[UserContent] | None,
-    kwargs: dict[str, Any],
+    message_history: Sequence[ModelMessage] | None,
 ) -> ModelMessage | None:
-    """The most recent message at agent entry.
-
-    When ``user_prompt`` is provided, pydantic-ai will construct a new
-    ``ModelRequest`` from it; we synthesize the same shape so the input
-    reflects what is about to be sent to the model. Otherwise, fall back to
-    the tail of ``message_history``.
-    """
     if user_prompt is not None:
         return ModelRequest(parts=[UserPromptPart(content=user_prompt)])
-    message_history: Sequence[ModelMessage] | None = kwargs.get("message_history")
     if message_history:
         return message_history[-1]
     return None
 
 
-def _last_model_response(messages: Sequence[ModelMessage]) -> ModelResponse | None:
+def _get_last_model_response(messages: Sequence[ModelMessage]) -> ModelResponse | None:
     for message in reversed(messages):
         if isinstance(message, ModelResponse):
             return message
     return None
 
 
-def _full_input(
+def _get_iter_method_arguments(
+    *,
+    iter_signature: Signature,
     user_prompt: str | Sequence[UserContent] | None,
     message_history: Sequence[ModelMessage] | None,
     kwargs: dict[str, Any],
 ) -> dict[str, Any]:
-    """Mirror the full input dict that was previously instrumented as ``INPUT_VALUE``."""
-    full: dict[str, Any] = {"user_prompt": user_prompt}
-    if message_history is not None:
-        full["message_history"] = list(message_history)
-    for k, v in kwargs.items():
-        if v is not None:
-            full[k] = v
-    return full
+    bound = iter_signature.bind_partial(user_prompt, message_history=message_history, **kwargs)
+    return dict(bound.arguments)
 
 
-def _message_io_attributes(
-    message: ModelMessage,
+def _get_message_io_attributes(
     *,
+    message: ModelMessage,
     role: Literal["input", "output"],
 ) -> dict[str, AttributeValue]:
-    text = _text_only_content(message)
+    text = _get_text_content_from_model_message(message)
     if text is not None:
         value: str = text
         mime_type = OpenInferenceMimeTypeValues.TEXT
@@ -294,38 +295,88 @@ def _message_io_attributes(
         mime_type = OpenInferenceMimeTypeValues.JSON
     if role == "input":
         return get_input_attributes(value, mime_type=mime_type)
-    return get_output_attributes(value, mime_type=mime_type)
+    elif role == "output":
+        return get_output_attributes(value, mime_type=mime_type)
+    assert_never(role)
 
 
-def _text_only_content(message: ModelMessage) -> str | None:
+def _get_text_content_from_model_message(message: ModelMessage) -> str | None:
     """Concatenated text if the message has only text-bearing parts; else ``None``."""
-    texts: list[str] = []
     if isinstance(message, ModelRequest):
-        for request_part in message.parts:
-            if isinstance(request_part, UserPromptPart):
-                content = request_part.content
-                if isinstance(content, str):
-                    texts.append(content)
-                    continue
-                for item in content:
-                    if isinstance(item, str):
-                        texts.append(item)
-                    elif isinstance(item, TextContent):
-                        texts.append(item.content)
-                    elif isinstance(item, CachePoint):
-                        continue
-                    else:
-                        return None
-            elif isinstance(request_part, (SystemPromptPart, InstructionPart)):
-                texts.append(request_part.content)
-            else:
-                return None
-        return "\n".join(texts)
+        return _get_text_content_from_model_request(message)
     if isinstance(message, ModelResponse):
-        for response_part in message.parts:
-            if isinstance(response_part, TextPart):
-                texts.append(response_part.content)
-            else:
+        return _get_text_content_from_model_response(message)
+    assert_never(message)
+
+
+def _get_text_content_from_model_request(message: ModelRequest) -> str | None:
+    texts: list[str] = []
+    for part in message.parts:
+        text = _get_text_content_from_model_request_part(part)
+        if text is None:
+            return None
+        texts.append(text)
+    return "\n".join(texts)
+
+
+def _get_text_content_from_model_request_part(part: ModelRequestPart) -> str | None:
+    if isinstance(part, SystemPromptPart):
+        return part.content
+    if isinstance(part, UserPromptPart):
+        content = part.content
+        if isinstance(content, str):
+            return content
+        texts: list[str] = []
+        for item in content:
+            if isinstance(item, CachePoint):
+                continue
+            text = _get_text_content_from_user_content_item(item)
+            if text is None:
                 return None
-        return "\n".join(texts) if texts else None
-    return None
+            texts.append(text)
+        return "\n".join(texts)
+    if isinstance(part, (ToolReturnPart, RetryPromptPart)):
+        return None
+    assert_never(part)
+
+
+def _get_text_content_from_user_content_item(item: UserContent) -> str | None:
+    """The item's text if it is plain text; ``None`` for any non-text content kind."""
+    if isinstance(item, str):
+        return item
+    if isinstance(item, TextContent):
+        return item.content
+    if isinstance(
+        item,
+        (ImageUrl, AudioUrl, DocumentUrl, VideoUrl, BinaryContent, UploadedFile, CachePoint),
+    ):
+        return None
+    assert_never(item)
+
+
+def _get_text_content_from_model_response(message: ModelResponse) -> str | None:
+    texts: list[str] = []
+    for part in message.parts:
+        text = _get_text_content_from_model_response_part(part)
+        if text is None:
+            return None
+        texts.append(text)
+    return "\n".join(texts) if texts else None
+
+
+def _get_text_content_from_model_response_part(part: ModelResponsePart) -> str | None:
+    if isinstance(part, TextPart):
+        return part.content
+    if isinstance(
+        part,
+        (
+            ToolCallPart,
+            BuiltinToolCallPart,
+            BuiltinToolReturnPart,
+            ThinkingPart,
+            CompactionPart,
+            FilePart,
+        ),
+    ):
+        return None
+    assert_never(part)
