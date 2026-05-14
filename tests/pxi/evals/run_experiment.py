@@ -137,6 +137,20 @@ def _result_field(evaluation_run: ExperimentEvaluationRun, key: str) -> str:
     return "" if value is None else _truncate_cell(value)
 
 
+def _task_error_rows(experiment: RanExperiment) -> list[tuple[str, str]]:
+    rows: list[tuple[str, str]] = []
+    for task_run in experiment.get("task_runs", []):
+        output = task_run.get("output")
+        output_error = output.get("error") if isinstance(output, dict) else None
+        error = task_run.get("error") or output_error
+        if not error:
+            continue
+        stable_example_id = output.get("stable_example_id") if isinstance(output, dict) else None
+        example_id = stable_example_id or task_run["dataset_example_id"]
+        rows.append((_truncate_cell(example_id), _truncate_cell(error)))
+    return rows
+
+
 def _failed_evaluation_rows(
     experiment: RanExperiment,
     evaluation_runs: Sequence[ExperimentEvaluationRun],
@@ -205,6 +219,10 @@ def _print_score_summary(dataset: EvalDataset, experiment: RanExperiment) -> boo
             has_regressions = True
 
     print(f"Dataset: {dataset.dataset_name} ({len(dataset.examples)} examples)")
+    task_error_rows = _task_error_rows(experiment)
+    if task_error_rows:
+        print(f"Task errors: {len(task_error_rows)}/{len(experiment.get('task_runs', []))}")
+        print(_format_table(("Example", "Error"), task_error_rows))
     if by_evaluator:
         rows = []
         for name, summary in sorted(by_evaluator.items()):
