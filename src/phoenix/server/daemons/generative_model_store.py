@@ -84,13 +84,13 @@ class GenerativeModelStore(DaemonTask):
             # Incremental fetch: get models changed since last fetch.
             # Use >= for updated_at/deleted_at to catch models from the buffer window.
             # Include id check as redundant safety check.
-            stmt = stmt.where(
-                sa.or_(
-                    models.GenerativeModel.id > self._last_fetch_id,
-                    models.GenerativeModel.updated_at >= self._last_fetch_time,
-                    models.GenerativeModel.deleted_at >= self._last_fetch_time,
-                )
-            )
+            incremental_filters = [
+                models.GenerativeModel.updated_at >= self._last_fetch_time,
+                models.GenerativeModel.deleted_at >= self._last_fetch_time,
+            ]
+            if self._last_fetch_id is not None:
+                incremental_filters.append(models.GenerativeModel.id > self._last_fetch_id)
+            stmt = stmt.where(sa.or_(*incremental_filters))
         async with self._db.read() as session:
             generative_models = (await session.scalars(stmt)).unique().all()
 
@@ -100,4 +100,7 @@ class GenerativeModelStore(DaemonTask):
         self._lookup.merge(generative_models)
 
         # Track max id for redundant safety check.
-        self._last_fetch_id = max(model.id for model in generative_models)
+        self._last_fetch_id = max(
+            self._last_fetch_id or 0,
+            *(model.id for model in generative_models),
+        )
