@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
-from typing import Any
+from typing import Any, cast
 
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
@@ -23,7 +23,7 @@ def _load_text(name: str) -> str:
 
 
 def _load_json(name: str) -> dict[str, Any]:
-    return json.loads((_GENERATED_UI_DIR / name).read_text(encoding="utf-8"))
+    return cast(dict[str, Any], json.loads((_GENERATED_UI_DIR / name).read_text(encoding="utf-8")))
 
 
 # The generated schema comes from json-render's `catalog.jsonSchema()`. It
