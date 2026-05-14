@@ -43,12 +43,21 @@ The loop is human-in-the-loop on purpose. **Never** silently iterate on prompts 
 - **Label precedence.** When multiple failure modes could fire on the same example, document the precedence in the evaluator's docstring (most-actionable first) and short-circuit in that order. Mixed labels are unreadable in summaries.
 - **Metadata over prose.** Put URLs, tool names, and offending values into `metadata`. The `explanation` field is for humans skimming a failure; structured `metadata` is for filtering and trend analysis.
 
+## Dataset Curation: Evals Are Goals
+
+An eval suite is a **goal set**, not a regression corpus. Every example should either define behavior the agent must keep, or stretch the agent toward behavior it doesn't yet reliably produce. Examples that no longer do either job are noise — they inflate pass rates and hide real failures.
+
+- **Keep a thin baseline.** A small number of obviously-easy cases is fine to anchor the suite — they catch catastrophic regressions (model swap, prompt assembly bug). Beyond that baseline, easy examples should be flagged for removal.
+- **Flag rather than delete in-flight.** When you notice an example is trivially passing, surface it to the user in the proposal step (step 4) with a recommendation: remove, replace with a harder variant in the same category, or keep as baseline. Do not silently prune — the user may be using it to lock in behavior you don't know about.
+- **Promote, don't pad.** When the agent starts passing a hard case reliably, the right move is usually to replace it with a harder one in the same `metadata.category` — not to leave it in *and* add the harder one. Two examples that probe the same behavior at different difficulties dilute the signal from the suite-level pass rate.
+- **Heuristic for "too easy."** If an example passes across three consecutive runs *and* spans two prompt iterations *and* its category has no other failing cases, it's a candidate for removal. Categories that still have failing siblings should keep their easy cases as the floor.
+
 ## Anti-Patterns
 
 - **Don't** edit the prompt and re-run without first naming the failure modes you expect to move. You will end up chasing whichever case ran most recently.
 - **Don't** delete failing examples to make the experiment green. If an example no longer reflects desired behavior, change its `expected` — and call that out in the PR.
 - **Don't** reach for an LLM-as-judge evaluator when a regex or set membership check works. Code evaluators are reproducible across model versions; LLM judges aren't.
-- **Don't** add only easy cases. A dataset that the agent already passes 100% on the first try is not protecting against regressions — it's confirming the status quo.
+- **Don't** keep arbitrarily easy examples around to pad the pass rate. See **Dataset Curation** above — the suite is a goal set, not a regression corpus.
 
 ## Verification
 
