@@ -9,7 +9,7 @@ import {
 } from "../src/components/agent/generativeUICatalog";
 
 const repoRoot = path.resolve(process.cwd(), "..");
-const outputDirectory = path.join(repoRoot, "schemas/generated_ui");
+const outputDirectory = path.join(repoRoot, "src/phoenix/server/generated_ui");
 
 const manifest = {
   version: 1,

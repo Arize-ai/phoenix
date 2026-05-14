@@ -32,7 +32,7 @@ jobs:
             app:
               - "app/**"
               - "schemas/openapi.json"
-              - "schemas/generated_ui/**"
+              - "src/phoenix/server/generated_ui/**"
               - ".oxlintrc.json"
               - ".oxfmtrc.jsonc"
               - ".nvmrc"

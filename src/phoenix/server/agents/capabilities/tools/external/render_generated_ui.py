@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
-from pathlib import Path
 from typing import Any
 
 from pydantic_ai.tools import ToolDefinition
@@ -12,9 +11,11 @@ from pydantic_ai.toolsets.external import ExternalToolset
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
 from phoenix.server.agents.types import AgentDependencies
 
+from phoenix.config import SERVER_DIR
+
 RENDER_GENERATED_UI_TOOL_NAME = "render_generated_ui"
 
-_GENERATED_UI_DIR = Path(__file__).parents[7] / "schemas" / "generated_ui"
+_GENERATED_UI_DIR = SERVER_DIR / "generated_ui"
 
 
 def _load_text(name: str) -> str:
