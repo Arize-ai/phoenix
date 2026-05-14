@@ -2,9 +2,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic_ai.tools import ToolDefinition
+from pydantic_ai import RunContext
 
-EDIT_PROMPT_TOOL_NAME = "edit_prompt_instance"
+from phoenix.server.agents.toolsets.external.external_tool_definitions import (
+    DynamicExternalToolDefinition,
+)
+from phoenix.server.agents.types import AgentDependencies
+
+_EDIT_PROMPT_TOOL_NAME = "edit_prompt_instance"
 
 _MESSAGE_ROLE_ENUM = ["system", "user", "ai", "tool"]
 
@@ -102,9 +107,17 @@ _EDIT_PROMPT_TOOL_PARAMETERS: dict[str, Any] = {
     "additionalProperties": False,
 }
 
-EDIT_PROMPT_TOOL_DEFINITION = ToolDefinition(
-    name=EDIT_PROMPT_TOOL_NAME,
-    description=_EDIT_PROMPT_TOOL_DESCRIPTION,
-    parameters_json_schema=_EDIT_PROMPT_TOOL_PARAMETERS,
-    kind="external",
-)
+
+def build_edit_prompt_tool(instructions: str) -> DynamicExternalToolDefinition:
+    tool = DynamicExternalToolDefinition(
+        name=_EDIT_PROMPT_TOOL_NAME,
+        description=_EDIT_PROMPT_TOOL_DESCRIPTION,
+        parameters_json_schema=_EDIT_PROMPT_TOOL_PARAMETERS,
+        instructions=instructions,
+    )
+
+    @tool.include
+    def _include(ctx: RunContext[AgentDependencies]) -> bool:
+        return ctx.deps.contexts.playground is not None
+
+    return tool

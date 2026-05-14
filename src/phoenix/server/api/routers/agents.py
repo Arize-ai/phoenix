@@ -32,16 +32,15 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.agents.agent_factory import build_agent
-from phoenix.server.agents.capabilities import AgentCapabilities
 from phoenix.server.agents.context import (
     ChatContext,
     resolve_contexts,
 )
-from phoenix.server.agents.dependencies import ChatDependencies, ChatOutput
 from phoenix.server.agents.exceptions import AgentError, SummarizationError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.summarization import summarize_messages
+from phoenix.server.agents.types import AgentDependencies, AgentOutput
 from phoenix.server.bearer_auth import is_authenticated
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer
@@ -105,7 +104,6 @@ class _ChatMessageMixin(_ObservabilityMixin):
     )
 
     contexts: list[ChatContext] = Field(default_factory=list)
-    capabilities: AgentCapabilities = Field(default_factory=AgentCapabilities)
     messages: list[AssistantMetadataUIMessage]
     model: AgentModelSelection
 
@@ -411,16 +409,18 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             getattr(model, "settings", None),
         )
 
-        agent = build_agent(model, tracer_provider=tracer_provider)
-        adapter: VercelAIAdapter[ChatDependencies, ChatOutput] = VercelAIAdapter(
+        agent = build_agent(
+            model=model,
+            docs_mcp_server=request.app.state.docs_mcp_server,
+            tracer_provider=tracer_provider,
+        )
+        adapter: VercelAIAdapter[AgentDependencies, AgentOutput] = VercelAIAdapter(
             agent=agent,
             run_input=body,
             accept=request.headers.get("accept"),
         )
-        deps = ChatDependencies(
+        deps = AgentDependencies(
             contexts=resolve_contexts(body.contexts),
-            capabilities=body.capabilities,
-            docs_mcp_toolset=request.app.state.docs_mcp_toolset,
         )
 
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:

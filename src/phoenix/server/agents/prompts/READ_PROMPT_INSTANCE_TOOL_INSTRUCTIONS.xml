@@ -1,0 +1,13 @@
+<tool name="read_prompt_instance">
+  <description>Read the current state of one playground prompt instance, including its messages, message IDs, and the revision token required to safely propose edits.</description>
+  <when_to_use>
+    - Before calling `edit_prompt_instance` on any playground prompt — you need fresh message IDs and the latest revision.
+    - Before calling `clone_prompt_instance` when you want to summarize the source for the user.
+    - Whenever the user asks what a prompt instance currently contains.
+  </when_to_use>
+  <guidelines>
+    - The result includes both the numeric `instanceId` (used in tool calls) and the alphabetic `label` (A, B, C, D). Use the alphabetic label when discussing instances with the user; pass the numeric `instanceId` when calling tools.
+    - If there is exactly one playground instance, `instanceId` may be omitted. With multiple comparison instances, always pass the specific `instanceId` you want.
+    - Treat the returned `revision` as opaque. Pass it back unchanged as `expectedRevision` when calling `edit_prompt_instance`. If the prompt has changed since you read it, the edit will be rejected and you should re-read before retrying.
+  </guidelines>
+</tool>

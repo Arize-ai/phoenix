@@ -1,40 +1,32 @@
 from __future__ import annotations
 
-from pydantic_ai.tools import ToolDefinition
-from pydantic_ai.toolsets import ExternalToolset
-
-from phoenix.server.agents.dependencies import ChatDependencies
+from phoenix.server.agents.prompts import AgentInstructions
+from phoenix.server.agents.toolsets.external.external_tool_definitions import (
+    ExternalToolDefinition,
+)
 from phoenix.server.agents.toolsets.external.tools import (
-    ASK_USER_TOOL_DEFINITION,
-    BASH_TOOL_DEFINITION,
-    CLONE_PROMPT_INSTANCE_TOOL_DEFINITION,
-    EDIT_PROMPT_TOOL_DEFINITION,
-    READ_PROMPT_TOOL_DEFINITION,
-    SET_SPANS_FILTER_TOOL_DEFINITION,
-    SET_TIME_RANGE_TOOL_DEFINITION,
+    build_ask_user_tool,
+    build_bash_tool,
+    build_clone_prompt_instance_tool,
+    build_edit_prompt_tool,
+    build_read_prompt_tool,
+    build_set_spans_filter_tool,
+    build_set_time_range_tool,
 )
 
 
-def build_external_toolset(deps: ChatDependencies) -> ExternalToolset[ChatDependencies]:
-    """Build the browser-deferred external toolset gated on request context."""
-    tools: list[ToolDefinition] = [
-        BASH_TOOL_DEFINITION,
-        ASK_USER_TOOL_DEFINITION,
-        SET_TIME_RANGE_TOOL_DEFINITION,
+def build_external_tools(instructions: AgentInstructions) -> list[ExternalToolDefinition]:
+    """Build the full set of external tool definitions for one agent, binding
+    each tool's instructions text from ``instructions`` at construction time."""
+    return [
+        build_bash_tool(instructions.bash_tool),
+        build_ask_user_tool(instructions.ask_user_tool),
+        build_set_time_range_tool(instructions.set_time_range_tool),
+        build_set_spans_filter_tool(instructions.set_spans_filter_tool),
+        build_read_prompt_tool(instructions.read_prompt_instance_tool),
+        build_clone_prompt_instance_tool(instructions.clone_prompt_instance_tool),
+        build_edit_prompt_tool(instructions.edit_prompt_instance_tool),
     ]
-    project = deps.contexts.project
-    playground = deps.contexts.playground
-    if project is not None and project.span_filter is not None:
-        tools.append(SET_SPANS_FILTER_TOOL_DEFINITION)
-    if playground is not None:
-        tools.extend(
-            [
-                READ_PROMPT_TOOL_DEFINITION,
-                CLONE_PROMPT_INSTANCE_TOOL_DEFINITION,
-                EDIT_PROMPT_TOOL_DEFINITION,
-            ]
-        )
-    return ExternalToolset(tools)
 
 
-__all__ = ["build_external_toolset"]
+__all__ = ["build_external_tools"]

@@ -1,0 +1,41 @@
+<tool name="set_spans_filter">
+  <description>Apply a declarative filter to the Phoenix spans table so the user (and you) are looking at the subset of spans relevant to the current question.</description>
+  <when_to_use>
+    - The user asks to focus on a kind of span (LLM calls, tool calls, errored spans, slow spans, hallucinated spans, etc.).
+    - You need to narrow the table before drilling into a specific failure, latency outlier, or annotation.
+    - The user asks to clear or reset the current filter.
+  </when_to_use>
+  <call_contract>
+    - Every call sets the table to a complete state. You MUST always send BOTH `condition` (the freeform Phoenix span filter DSL) AND `rootSpansOnly`. There is no notion of leaving a field unchanged.
+    - Pass `condition` as an empty string to clear the freeform filter; combine with `rootSpansOnly: true` to return to the default top-level view.
+  </call_contract>
+  <pairing_condition_with_root_spans_only>
+    - The freeform filter only matches inside the currently selected root/all scope. When narrowing by a `span_kind` other than CHAIN or AGENT (LLM, TOOL, RETRIEVER, EMBEDDING, RERANKER, EVALUATOR, GUARDRAIL), pair the condition with `rootSpansOnly: false` — those kinds are almost always nested under a CHAIN/AGENT root, so `rootSpansOnly: true` would yield zero results.
+    - Same applies when filtering by anything that targets nested spans (specific tool names, `status_code == 'ERROR'` on inner calls, annotations attached to leaf spans).
+    - The `rootSpansOnly` toggle only takes visible effect when the spans table is mounted (Spans tab); on other tabs only `condition` applies, but you must still send `rootSpansOnly`.
+  </pairing_condition_with_root_spans_only>
+  <dsl_reference>
+    - String fields: `span_kind`, `name` (the span name, NOT span_name), `status_code`, `status_message`, `span_id`, `trace_id`, `parent_id`. Compare with `==`, `!=`, or membership via `in`.
+    - Numeric fields: `latency_ms`, `cumulative_token_count.{prompt,completion,total}`, `llm.token_count.{prompt,completion,total}`. Compare with `<`, `<=`, `>`, `>=`.
+    - Datetime fields: `start_time`, `end_time`.
+    - Attribute access: `attributes['key.path']`, `input.value`, `output.value`, `metadata['key']`.
+    - Annotations: `annotations['Name'].label`, `annotations['Name'].score`.
+    - Substring search: `'needle' in input.value` (works on any string field).
+    - Combine clauses with `and`, `or`, `not`.
+  </dsl_reference>
+  <value_conventions>
+    - `span_kind` values are UPPERCASE string literals: 'LLM', 'TOOL', 'CHAIN', 'AGENT', 'RETRIEVER', 'EMBEDDING', 'RERANKER', 'EVALUATOR', 'GUARDRAIL', 'UNKNOWN'. Lowercase will not match.
+    - `status_code` values are UPPERCASE: 'OK', 'ERROR', 'UNSET'.
+    - Always wrap string literals in single or double quotes.
+  </value_conventions>
+  <examples>
+    - "Show me LLM spans" → condition `span_kind == 'LLM'`, rootSpansOnly: false.
+    - "Tool calls" → condition `span_kind == 'TOOL'`, rootSpansOnly: false.
+    - "Errored spans" → condition `status_code == 'ERROR'`, rootSpansOnly: false.
+    - "Slow LLM calls" → condition `span_kind == 'LLM' and latency_ms >= 5000`, rootSpansOnly: false.
+    - "Top-level traces only" → condition `''`, rootSpansOnly: true.
+    - "Hallucinations" → condition `annotations['Hallucination'].label == 'hallucinated'`, rootSpansOnly: false.
+    - "Spans mentioning agent in input" → condition `'agent' in input.value`, rootSpansOnly: false.
+    - "Reset to default view" → condition `''`, rootSpansOnly: true.
+  </examples>
+</tool>

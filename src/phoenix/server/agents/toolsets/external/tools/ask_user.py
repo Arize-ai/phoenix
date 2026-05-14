@@ -2,9 +2,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic_ai.tools import ToolDefinition
+from phoenix.server.agents.toolsets.external.external_tool_definitions import (
+    StaticExternalToolDefinition,
+)
 
-ASK_USER_TOOL_NAME = "ask_user"
+_ASK_USER_TOOL_NAME = "ask_user"
+
+_ASK_USER_TOOL_DESCRIPTION = (
+    "Ask the user one or more questions to gather preferences, clarify requirements, "
+    "or get decisions. Use this when you need user input before proceeding with a task."
+)
 
 _ASK_USER_TOOL_PARAMETERS: dict[str, Any] = {
     "type": "object",
@@ -86,12 +93,11 @@ _ASK_USER_TOOL_PARAMETERS: dict[str, Any] = {
     "additionalProperties": False,
 }
 
-ASK_USER_TOOL_DEFINITION = ToolDefinition(
-    name=ASK_USER_TOOL_NAME,
-    description=(
-        "Ask the user one or more questions to gather preferences, clarify requirements, "
-        "or get decisions. Use this when you need user input before proceeding with a task."
-    ),
-    parameters_json_schema=_ASK_USER_TOOL_PARAMETERS,
-    kind="external",
-)
+
+def build_ask_user_tool(instructions: str) -> StaticExternalToolDefinition:
+    return StaticExternalToolDefinition(
+        name=_ASK_USER_TOOL_NAME,
+        description=_ASK_USER_TOOL_DESCRIPTION,
+        parameters_json_schema=_ASK_USER_TOOL_PARAMETERS,
+        instructions=instructions,
+    )

@@ -2,9 +2,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic_ai.tools import ToolDefinition
+from pydantic_ai import RunContext
 
-SET_SPANS_FILTER_TOOL_NAME = "set_spans_filter"
+from phoenix.server.agents.toolsets.external.external_tool_definitions import (
+    DynamicExternalToolDefinition,
+)
+from phoenix.server.agents.types import AgentDependencies
+
+_SET_SPANS_FILTER_TOOL_NAME = "set_spans_filter"
 
 _SET_SPANS_FILTER_TOOL_DESCRIPTION = (
     "Set the spans table filter. The filter is applied declaratively as a "
@@ -91,9 +96,18 @@ _SET_SPANS_FILTER_TOOL_PARAMETERS: dict[str, Any] = {
     "additionalProperties": False,
 }
 
-SET_SPANS_FILTER_TOOL_DEFINITION = ToolDefinition(
-    name=SET_SPANS_FILTER_TOOL_NAME,
-    description=_SET_SPANS_FILTER_TOOL_DESCRIPTION,
-    parameters_json_schema=_SET_SPANS_FILTER_TOOL_PARAMETERS,
-    kind="external",
-)
+
+def build_set_spans_filter_tool(instructions: str) -> DynamicExternalToolDefinition:
+    tool = DynamicExternalToolDefinition(
+        name=_SET_SPANS_FILTER_TOOL_NAME,
+        description=_SET_SPANS_FILTER_TOOL_DESCRIPTION,
+        parameters_json_schema=_SET_SPANS_FILTER_TOOL_PARAMETERS,
+        instructions=instructions,
+    )
+
+    @tool.include
+    def _include(ctx: RunContext[AgentDependencies]) -> bool:
+        project = ctx.deps.contexts.project
+        return project is not None and project.span_filter is not None
+
+    return tool

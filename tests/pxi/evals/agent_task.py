@@ -14,9 +14,7 @@ from phoenix.config import (
     get_env_dangerously_enable_agents,
 )
 from phoenix.server.agents.agent_factory import build_agent
-from phoenix.server.agents.capabilities import AgentCapabilities
 from phoenix.server.agents.context import ProjectContext, ResolvedContexts
-from phoenix.server.agents.dependencies import ChatDependencies, ChatOutput
 from phoenix.server.agents.model_factory import (
     _anthropic_cache_settings as anthropic_cache_settings,
 )
@@ -26,7 +24,8 @@ from phoenix.server.agents.model_factory import (
 from phoenix.server.agents.model_factory import (
     azure_endpoint_to_base_url,
 )
-from phoenix.server.agents.toolsets.docs_mcp import build_docs_mcp_toolset
+from phoenix.server.agents.toolsets.docs_mcp import MintlifyDocsMCPServer
+from phoenix.server.agents.types import AgentDependencies, AgentOutput
 
 DEFAULT_ASSISTANT_PROVIDER = "OPENAI"
 DEFAULT_ASSISTANT_MODEL = "gpt-5.4"
@@ -118,7 +117,7 @@ async def _build_model() -> PydanticAIModel:
     raise RuntimeError(f"Unsupported {ENV_ASSISTANT_PROVIDER} for evals: {provider}")
 
 
-def should_build_docs_mcp_toolset() -> bool:
+def should_build_docs_mcp_server() -> bool:
     """Mirror the production gate so callers know whether to build the toolset.
 
     See ``phoenix.server.app:1191-1195`` — the real server only constructs
@@ -127,7 +126,7 @@ def should_build_docs_mcp_toolset() -> bool:
     return get_env_dangerously_enable_agents() and get_env_allow_external_resources()
 
 
-def build_shared_docs_mcp_toolset() -> MCPServerStreamableHTTP | None:
+def build_shared_docs_mcp_server() -> MCPServerStreamableHTTP | None:
     """Build a single docs-MCP toolset to share across all eval task runs.
 
     The production server constructs this once at startup and enters its
@@ -138,14 +137,12 @@ def build_shared_docs_mcp_toolset() -> MCPServerStreamableHTTP | None:
     because the underlying streamable-HTTP client opens/closes scopes that
     cross task boundaries.
     """
-    if not should_build_docs_mcp_toolset():
+    if not should_build_docs_mcp_server():
         return None
-    return build_docs_mcp_toolset()
+    return MintlifyDocsMCPServer()
 
 
-def _build_dependencies(
-    docs_mcp_toolset: MCPServerStreamableHTTP | None = None,
-) -> ChatDependencies:
+def _build_dependencies() -> AgentDependencies:
     contexts = ResolvedContexts(
         project=ProjectContext(
             type="project",
@@ -154,14 +151,10 @@ def _build_dependencies(
             root_spans_only=False,
         )
     )
-    return ChatDependencies(
-        contexts=contexts,
-        capabilities=AgentCapabilities(),
-        docs_mcp_toolset=docs_mcp_toolset,
-    )
+    return AgentDependencies(contexts=contexts)
 
 
-def _serialize_new_messages(result: AgentRunResult[ChatOutput]) -> list[dict[str, Any]]:
+def _serialize_new_messages(result: AgentRunResult[AgentOutput]) -> list[dict[str, Any]]:
     return cast(list[dict[str, Any]], json.loads(result.new_messages_json()))
 
 
@@ -181,7 +174,7 @@ def _assistant_text_from_messages(messages: list[dict[str, Any]]) -> str | None:
     return "\n".join(text_parts) if text_parts else None
 
 
-def agent_task_output(result: AgentRunResult[ChatOutput]) -> dict[str, Any]:
+def agent_task_output(result: AgentRunResult[AgentOutput]) -> dict[str, Any]:
     output = result.output
     messages = _serialize_new_messages(result)
     assistant_text = _assistant_text_from_messages(messages)
@@ -194,14 +187,14 @@ def agent_task_output(result: AgentRunResult[ChatOutput]) -> dict[str, Any]:
 
 
 def make_task(
-    docs_mcp_toolset: MCPServerStreamableHTTP | None = None,
+    docs_mcp_server: MCPServerStreamableHTTP | None = None,
 ) -> Any:
     """Build a Phoenix experiment task callable bound to a shared toolset.
 
     The returned coroutine receives an experiment example dict
     (``{id, input, ...}``) and routes it to :func:`run_pxi_example`,
     attaching the example's stable id so the failure report can map back
-    to YAML example IDs. The single shared ``docs_mcp_toolset`` is reused
+    to YAML example IDs. The single shared ``docs_mcp_server`` is reused
     across every concurrent task to satisfy anyio's single-owner cancel
     scope rule.
     """
@@ -214,7 +207,7 @@ def make_task(
         return await run_pxi_example(
             {"query": query},
             stable_example_id=example.get("id"),
-            docs_mcp_toolset=docs_mcp_toolset,
+            docs_mcp_server=docs_mcp_server,
         )
 
     return task
@@ -239,7 +232,7 @@ async def run_pxi_example(
     input: dict[str, Any],
     *,
     stable_example_id: str | None = None,
-    docs_mcp_toolset: MCPServerStreamableHTTP | None = None,
+    docs_mcp_server: MCPServerStreamableHTTP | None = None,
 ) -> dict[str, Any]:
     """Run a single PXI agent turn imperatively.
 
@@ -248,9 +241,9 @@ async def run_pxi_example(
     returned with ``error`` set, so the failure report can still resolve a
     stable example ID for the row.
 
-    ``docs_mcp_toolset`` should be a single shared, already-entered
+    ``docs_mcp_server`` should be a single shared, already-entered
     :class:`MCPServerStreamableHTTP` (built via
-    :func:`build_shared_docs_mcp_toolset` at the top of an async run, then
+    :func:`build_shared_docs_mcp_server` at the top of an async run, then
     entered with ``async with``). Pass ``None`` to skip the docs toolset.
 
     The returned ``error`` field is bounded in length and contains only the
@@ -261,8 +254,8 @@ async def run_pxi_example(
     try:
         query = input["query"]
         model = await _build_model()
-        agent = build_agent(model)
-        result = await agent.run(query, deps=_build_dependencies(docs_mcp_toolset=docs_mcp_toolset))
+        agent = build_agent(model=model, docs_mcp_server=docs_mcp_server)
+        result = await agent.run(query, deps=_build_dependencies())
         output = agent_task_output(result)
     except Exception as exc:
         message = str(exc)

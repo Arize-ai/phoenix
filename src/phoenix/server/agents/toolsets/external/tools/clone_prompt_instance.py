@@ -2,9 +2,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic_ai.tools import ToolDefinition
+from pydantic_ai import RunContext
 
-CLONE_PROMPT_INSTANCE_TOOL_NAME = "clone_prompt_instance"
+from phoenix.server.agents.toolsets.external.external_tool_definitions import (
+    DynamicExternalToolDefinition,
+)
+from phoenix.server.agents.types import AgentDependencies
+
+_CLONE_PROMPT_INSTANCE_TOOL_NAME = "clone_prompt_instance"
 
 _CLONE_PROMPT_INSTANCE_TOOL_DESCRIPTION = (
     "Clone an existing playground prompt instance into a new comparison instance. "
@@ -32,9 +37,17 @@ _CLONE_PROMPT_INSTANCE_TOOL_PARAMETERS: dict[str, Any] = {
     "additionalProperties": False,
 }
 
-CLONE_PROMPT_INSTANCE_TOOL_DEFINITION = ToolDefinition(
-    name=CLONE_PROMPT_INSTANCE_TOOL_NAME,
-    description=_CLONE_PROMPT_INSTANCE_TOOL_DESCRIPTION,
-    parameters_json_schema=_CLONE_PROMPT_INSTANCE_TOOL_PARAMETERS,
-    kind="external",
-)
+
+def build_clone_prompt_instance_tool(instructions: str) -> DynamicExternalToolDefinition:
+    tool = DynamicExternalToolDefinition(
+        name=_CLONE_PROMPT_INSTANCE_TOOL_NAME,
+        description=_CLONE_PROMPT_INSTANCE_TOOL_DESCRIPTION,
+        parameters_json_schema=_CLONE_PROMPT_INSTANCE_TOOL_PARAMETERS,
+        instructions=instructions,
+    )
+
+    @tool.include
+    def _include(ctx: RunContext[AgentDependencies]) -> bool:
+        return ctx.deps.contexts.playground is not None
+
+    return tool

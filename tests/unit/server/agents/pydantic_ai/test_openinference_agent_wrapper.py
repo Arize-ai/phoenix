@@ -30,16 +30,24 @@ from pydantic_ai.models import ModelRequestParameters, StreamedResponse
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.models.wrapper import WrapperModel
 from pydantic_ai.settings import ModelSettings
+from pydantic_ai.tools import ToolDefinition
 
 from phoenix.server.agents.pydantic_ai import (
     OpenInferenceAgentWrapper,
     OpenInferenceModelWrapper,
 )
-from phoenix.server.agents.toolsets.external.tools import (
-    ASK_USER_TOOL_DEFINITION,
-    BASH_TOOL_DEFINITION,
-    SET_TIME_RANGE_TOOL_DEFINITION,
-)
+from phoenix.server.agents.toolsets.external.tools import get_external_tool_definition
+
+
+def _require_tool_definition(name: str) -> ToolDefinition:
+    tool_def = get_external_tool_definition(name)
+    assert tool_def is not None, f"missing external tool definition: {name!r}"
+    return tool_def
+
+
+ASK_USER_TOOL_DEFINITION = _require_tool_definition("ask_user")
+BASH_TOOL_DEFINITION = _require_tool_definition("bash")
+SET_TIME_RANGE_TOOL_DEFINITION = _require_tool_definition("set_time_range")
 
 
 @pytest.fixture
@@ -70,7 +78,7 @@ def wrapped_agent(
         name="TestAgent",
         deps_type=type(None),
     )
-    return OpenInferenceAgentWrapper(inner, tracer_provider=tracer_provider)  # type: ignore[arg-type]
+    return OpenInferenceAgentWrapper(inner, tracer_provider=tracer_provider)
 
 
 @pytest.fixture
@@ -108,7 +116,7 @@ def raising_agent(
 ) -> OpenInferenceAgentWrapper:
     """An OpenInferenceAgentWrapper whose underlying model always raises."""
     inner: Agent[None, str] = Agent(raising_model, deps_type=type(None))
-    return OpenInferenceAgentWrapper(inner, tracer_provider=tracer_provider)  # type: ignore[arg-type]
+    return OpenInferenceAgentWrapper(inner, tracer_provider=tracer_provider)
 
 
 @pytest.fixture
@@ -121,7 +129,7 @@ def test_model_agent(
     (e.g. external tool span backfill) and don't care about model output.
     """
     inner: Agent[None, str] = Agent(TestModel(), deps_type=type(None))
-    return OpenInferenceAgentWrapper(inner, tracer_provider=tracer_provider)  # type: ignore[arg-type]
+    return OpenInferenceAgentWrapper(inner, tracer_provider=tracer_provider)
 
 
 def _get_agent_span(spans: tuple[ReadableSpan, ...]) -> ReadableSpan:
