@@ -1,27 +1,75 @@
 import { css } from "@emotion/react";
+import { useMemo } from "react";
+import {
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart as RechartsLineChart,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+} from "recharts";
+
+import {
+  GRAYSCALE_CATEGORICAL_COLORS,
+  useGrayscaleCategoricalColors,
+} from "@phoenix/components/chart";
 
 import { ChartFrame } from "./ChartFrame";
-import { chartColors } from "./colors";
 import type { LineSeries } from "./types";
 
-const lineCSS = css`
-  width: 100%;
-  height: 80px;
-  overflow: visible;
-`;
+const CHART_HEIGHT = 98; // 90px data + 4px top + 4px bottom margin
+const CHART_HEIGHT_WITH_XAXIS = 114; // 90px data + 4px top + 20px bottom margin
+const CHART_MARGINS = { top: 4, right: 8, left: 0, bottom: 4 };
+const CHART_MARGINS_WITH_XAXIS = { top: 4, right: 0, left: 0, bottom: 20 };
 
 const legendCSS = css`
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--global-dimension-size-150);
+  gap: 12px;
   margin-left: 28px;
-  color: var(--global-text-color-500);
-  font-size: var(--global-dimension-font-size-75);
 `;
 
-const noDataCSS = css`
-  color: var(--global-text-color-500);
+const legendItemCSS = css`
+  display: flex;
+  align-items: center;
+  gap: 4px;
 `;
+
+const legendSwatchCSS = css`
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+`;
+
+const legendLabelCSS = css`
+  font-size: 10px;
+  color: var(--global-text-color-700);
+`;
+
+function CustomXAxisTick(props: {
+  x?: number;
+  y?: number;
+  payload?: { value: string };
+  index?: number;
+  visibleTicksCount?: number;
+}) {
+  const { x = 0, y = 0, payload, index = 0, visibleTicksCount = 1 } = props;
+  const isFirst = index === 0;
+  const isLast = index === visibleTicksCount - 1;
+  const textAnchor = isFirst ? "start" : isLast ? "end" : "middle";
+
+  return (
+    <text
+      x={x}
+      y={y + 10}
+      textAnchor={textAnchor}
+      fontSize={9}
+      fill="var(--global-text-color-700)"
+    >
+      {payload?.value}
+    </text>
+  );
+}
 
 export function LineChart({
   title,
@@ -32,121 +80,119 @@ export function LineChart({
   lines: LineSeries[];
   xLabels?: string[] | null;
 }) {
+  const colors = useGrayscaleCategoricalColors();
+
+  const { data, seriesKeys } = useMemo(() => {
+    if (lines.length === 0) {
+      return { data: [], seriesKeys: [] };
+    }
+
+    const maxLength = Math.max(...lines.map((line) => line.data.length));
+    const seriesKeys = lines.map(
+      (line, index) => line.label ?? `series${index}`
+    );
+
+    const data = Array.from({ length: maxLength }, (_, i) => {
+      const point: Record<string, string | number> = {
+        x: xLabels?.[i] ?? i.toString(),
+      };
+      lines.forEach((line, lineIndex) => {
+        const key = seriesKeys[lineIndex];
+        point[key] = line.data[i] ?? null;
+      });
+      return point;
+    });
+
+    return { data, seriesKeys };
+  }, [lines, xLabels]);
+
+  const hasLegend = lines.some((line) => line.label);
+  const hasXAxis = xLabels != null && xLabels.length > 0;
+
+  if (data.length === 0) {
+    return (
+      <ChartFrame title={title}>
+        <NoData />
+      </ChartFrame>
+    );
+  }
+
   return (
     <ChartFrame title={title}>
-      <LineSeriesChart lines={lines} xLabels={xLabels} />
+      <ResponsiveContainer
+        width="100%"
+        height={hasXAxis ? CHART_HEIGHT_WITH_XAXIS : CHART_HEIGHT}
+      >
+        <RechartsLineChart
+          data={data}
+          margin={hasXAxis ? CHART_MARGINS_WITH_XAXIS : CHART_MARGINS}
+        >
+          <CartesianGrid
+            horizontal
+            vertical={false}
+            stroke="var(--global-color-gray-200)"
+          />
+          <YAxis
+            width={24}
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 9, fill: "var(--global-text-color-700)" }}
+            tickCount={3}
+          />
+          {hasXAxis && (
+            <XAxis
+              dataKey="x"
+              axisLine={false}
+              tickLine={false}
+              tick={<CustomXAxisTick />}
+              interval="preserveStartEnd"
+              minTickGap={20}
+            />
+          )}
+          {seriesKeys.map((key, index) => {
+            const colorKey =
+              GRAYSCALE_CATEGORICAL_COLORS[index % GRAYSCALE_CATEGORICAL_COLORS.length];
+            return (
+              <Line
+                key={key}
+                type="monotone"
+                dataKey={key}
+                stroke={colors[colorKey]}
+                strokeWidth={2}
+                dot={false}
+                activeDot={false}
+              />
+            );
+          })}
+        </RechartsLineChart>
+      </ResponsiveContainer>
+      {hasLegend && (
+        <div css={legendCSS}>
+          {lines
+            .filter((line) => line.label)
+            .map((line, index) => {
+              const colorKey =
+                GRAYSCALE_CATEGORICAL_COLORS[
+                  index % GRAYSCALE_CATEGORICAL_COLORS.length
+                ];
+              return (
+                <div key={line.label} css={legendItemCSS}>
+                  <div
+                    css={legendSwatchCSS}
+                    style={{ background: colors[colorKey] }}
+                  />
+                  <span css={legendLabelCSS}>{line.label}</span>
+                </div>
+              );
+            })}
+        </div>
+      )}
     </ChartFrame>
   );
 }
 
-function LineSeriesChart({
-  lines,
-  xLabels,
-}: {
-  lines: LineSeries[];
-  xLabels?: string[] | null;
-}) {
-  const allValues = lines.flatMap((line) => line.data);
-  if (allValues.length === 0) {
-    return <span css={noDataCSS}>No data</span>;
-  }
-
-  const minValue = Math.min(...allValues);
-  const maxValue = Math.max(...allValues);
-  const range = maxValue - minValue || 1;
-  const gridLines = [minValue, Math.round((minValue + maxValue) / 2), maxValue];
-  const hasLegend = lines.some((line) => line.label);
-
+function NoData() {
   return (
-    <>
-      <svg
-        css={lineCSS}
-        viewBox="0 0 240 80"
-        role="img"
-        aria-label="Generated line chart"
-      >
-        {gridLines.map((value) => {
-          const y = 8 + 56 - ((value - minValue) / range) * 56;
-          return (
-            <g key={value}>
-              <line
-                x1="28"
-                y1={y}
-                x2="240"
-                y2={y}
-                stroke="var(--global-color-gray-200)"
-              />
-              <text
-                x="24"
-                y={y + 3}
-                fill="var(--global-text-color-400)"
-                fontSize="9"
-                textAnchor="end"
-              >
-                {value}
-              </text>
-            </g>
-          );
-        })}
-        {lines.map((line, lineIndex) => (
-          <polyline
-            key={line.label ?? lineIndex}
-            points={getLinePoints({ data: line.data, minValue, range })}
-            fill="none"
-            stroke={chartColors[lineIndex % chartColors.length]}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        ))}
-        {xLabels?.map((label, index) => (
-          <text
-            key={`${label}-${index}`}
-            x={28 + (index / Math.max(xLabels.length - 1, 1)) * 212}
-            y="78"
-            fill="var(--global-text-color-400)"
-            fontSize="9"
-            textAnchor="middle"
-          >
-            {label}
-          </text>
-        ))}
-      </svg>
-      {hasLegend ? (
-        <div css={legendCSS}>
-          {lines.map((line, index) =>
-            line.label ? (
-              <span key={line.label}>
-                <span
-                  style={{ color: chartColors[index % chartColors.length] }}
-                >
-                  ■
-                </span>{" "}
-                {line.label}
-              </span>
-            ) : null
-          )}
-        </div>
-      ) : null}
-    </>
+    <span style={{ color: "var(--global-text-color-500)" }}>No data</span>
   );
-}
-
-function getLinePoints({
-  data,
-  minValue,
-  range,
-}: {
-  data: number[];
-  minValue: number;
-  range: number;
-}) {
-  return data
-    .map((value, index) => {
-      const x =
-        data.length === 1 ? 134 : 28 + (index / (data.length - 1)) * 212;
-      const y = 8 + 56 - ((value - minValue) / range) * 56;
-      return `${x},${y}`;
-    })
-    .join(" ");
 }

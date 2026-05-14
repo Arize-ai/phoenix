@@ -1,49 +1,52 @@
 import { css } from "@emotion/react";
 
+import { useGrayscaleCategoricalColors } from "@phoenix/components/chart";
+import { formatIntShort } from "@phoenix/utils/numberFormatUtils";
+
 import { ChartFrame } from "./ChartFrame";
-import { chartColors } from "./colors";
 import type { ChartDatum } from "./types";
 
-const barsCSS = css`
+const rowsCSS = css`
   display: flex;
   flex-direction: column;
-  gap: var(--global-dimension-size-50);
+  gap: 4px;
 `;
 
-const barRowCSS = css`
+const rowCSS = css`
   display: flex;
-  gap: var(--global-dimension-size-150);
   align-items: center;
+  gap: 12px;
 `;
 
-const barLabelCSS = css`
+const labelCSS = css`
   width: 100px;
   flex-shrink: 0;
   text-align: right;
-  color: var(--global-text-color-500);
-  font-size: var(--global-dimension-font-size-75);
+  color: var(--global-text-color-700);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
-const barTrackCSS = css`
+const trackCSS = css`
   flex: 1;
   height: 6px;
-  border-radius: 999px;
-  background: var(--global-color-gray-100);
+  border-radius: 3px;
+  background: var(--global-color-gray-300);
   overflow: hidden;
 `;
 
-const barFillCSS = css`
+const barCSS = css`
   height: 100%;
-  border-radius: inherit;
-  background: ${chartColors[0]};
+  border-radius: 3px;
 `;
 
-const barValueCSS = css`
+const valueCSS = css`
   width: 40px;
   flex-shrink: 0;
-  color: var(--global-text-color-500);
-  font-family: var(--ac-global-font-mono-family);
-  font-size: var(--global-dimension-font-size-75);
+  color: var(--global-text-color-700);
+  font-size: 12px;
 `;
 
 export function BarChart({
@@ -53,36 +56,42 @@ export function BarChart({
   title: string | null;
   data: ChartDatum[];
 }) {
+  const colors = useGrayscaleCategoricalColors();
+  const barColor = colors.gray1;
+  const maxValue = Math.max(...data.map((d) => Math.abs(d.value)), 1);
+
+  if (data.length === 0) {
+    return (
+      <ChartFrame title={title}>
+        <NoData />
+      </ChartFrame>
+    );
+  }
+
   return (
     <ChartFrame title={title}>
-      <BarSeries data={data} />
+      <div css={rowsCSS}>
+        {data.map((datum) => {
+          const width = `${(Math.abs(datum.value) / maxValue) * 100}%`;
+          return (
+            <div key={datum.label} css={rowCSS}>
+              <span css={labelCSS} title={datum.label}>
+                {datum.label}
+              </span>
+              <div css={trackCSS}>
+                <div css={barCSS} style={{ width, background: barColor }} />
+              </div>
+              <span css={valueCSS}>{formatIntShort(datum.value)}</span>
+            </div>
+          );
+        })}
+      </div>
     </ChartFrame>
   );
 }
 
-export function BarSeries({
-  data,
-  color = chartColors[0],
-}: {
-  data: ChartDatum[];
-  color?: string;
-}) {
-  const maxValue = Math.max(...data.map((datum) => Math.abs(datum.value)), 1);
-
+function NoData() {
   return (
-    <div css={barsCSS}>
-      {data.map((datum) => {
-        const width = `${Math.max(2, (Math.abs(datum.value) / maxValue) * 100)}%`;
-        return (
-          <div css={barRowCSS} key={datum.label}>
-            <span css={barLabelCSS}>{datum.label}</span>
-            <div css={barTrackCSS}>
-              <div css={barFillCSS} style={{ background: color, width }} />
-            </div>
-            <span css={barValueCSS}>{datum.value}</span>
-          </div>
-        );
-      })}
-    </div>
+    <span style={{ color: "var(--global-text-color-500)" }}>No data</span>
   );
 }
