@@ -41,7 +41,11 @@ describe("toolRegistry", () => {
     );
   });
 
-  it.each(["search_phoenix", "get_page_phoenix"])(
+  it.each([
+    "search_phoenix",
+    "get_page_phoenix",
+    "query_docs_filesystem_phoenix",
+  ])(
     "does not emit browser tool output for server-executed %s calls",
     async (toolName) => {
       const store = createAgentStore();
@@ -51,10 +55,7 @@ describe("toolRegistry", () => {
         toolCall: {
           toolCallId: "tool-call-server",
           toolName,
-          input:
-            toolName === "search_phoenix"
-              ? { query: "datasets" }
-              : { page: "/phoenix" },
+          input: getServerExecutedToolInput(toolName),
         },
         sessionId: "session-1",
         addToolOutput,
@@ -215,3 +216,14 @@ describe("toolRegistry", () => {
     });
   });
 });
+
+function getServerExecutedToolInput(toolName: string) {
+  switch (toolName) {
+    case "search_phoenix":
+      return { query: "datasets" };
+    case "get_page_phoenix":
+      return { page: "/phoenix" };
+    default:
+      return { command: 'rg -il "datasets" /' };
+  }
+}
