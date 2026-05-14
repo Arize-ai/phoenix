@@ -32,6 +32,7 @@ const variantLabelCSS = css`
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--global-color-gray-500);
+  visibility: hidden;
 `;
 
 const stateCardCSS = css`
@@ -40,13 +41,6 @@ const stateCardCSS = css`
   align-items: center;
   justify-content: center;
   gap: 12px;
-`;
-
-const stateLabelCSS = css`
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 `;
 
 const interactivePanelCSS = css`
@@ -152,8 +146,6 @@ export const States: Story = {
   render: (args) => (
     <div css={frameCSS}>
       <div css={statesGridCSS}>
-        <div css={[stateCardCSS, stateLabelCSS]}>Resting</div>
-        <div css={[stateCardCSS, stateLabelCSS]}>Thinking</div>
         <div css={stateCardCSS}>
           <div css={variantLabelCSS}>dark-glyph</div>
           <AgentChatWidgetButton {...args} isStreaming={false} />
@@ -171,7 +163,6 @@ export const ThinkingGlyphCandidates: Story = {
   render: (args) => (
     <div css={frameCSS}>
       <div css={glyphComparisonSectionCSS}>
-        <div css={stateLabelCSS}>dark-glyph</div>
         <div css={glyphComparisonGridCSS}>
           {thinkingGlyphVariants.map((thinkingGlyphVariant) => (
             <div css={stateCardCSS} key={thinkingGlyphVariant}>

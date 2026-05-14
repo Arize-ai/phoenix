@@ -129,27 +129,29 @@ const restingHoverShimmerCSS = css`
 
 const thinkingBorderCSS = css`
   --agent-chat-widget-glow-outer-rest:
-    0 0 2px 1px rgba(238, 244, 255, 0.72),
-    0 0 5px 3px rgba(192, 217, 255, 0.58),
-    0 0 10px 6px rgba(106, 154, 255, 0.34),
-    0 0 16px 5px rgba(79, 116, 214, 0.2);
+    0 0 2px 1px rgba(248, 242, 255, 0.78),
+    0 0 4px 2px rgba(154, 102, 255, 0.68),
+    0 0 8px 4px rgba(52, 128, 255, 0.52),
+    0 0 13px 5px rgba(198, 72, 255, 0.4),
+    0 0 17px 6px rgba(44, 216, 255, 0.26);
   --agent-chat-widget-glow-outer-strong:
-    0 0 3px 2px rgba(238, 244, 255, 0.82),
-    0 0 9px 6px rgba(192, 217, 255, 0.68),
-    0 0 18px 10px rgba(106, 154, 255, 0.44),
-    0 0 28px 10px rgba(79, 116, 214, 0.3);
+    0 0 3px 2px rgba(250, 244, 255, 0.88),
+    0 0 7px 3px rgba(160, 108, 255, 0.82),
+    0 0 12px 6px rgba(58, 134, 255, 0.66),
+    0 0 19px 8px rgba(205, 78, 255, 0.52),
+    0 0 26px 10px rgba(50, 220, 255, 0.34);
 
   &[data-theme="light"] {
     --agent-chat-widget-glow-outer-rest:
       0 0 2px 1px rgba(234, 243, 255, 0.72),
-      0 0 4px 2px rgba(118, 180, 255, 0.42),
-      0 0 7px 4px rgba(56, 132, 255, 0.24),
-      0 0 11px 3px rgba(23, 93, 215, 0.14);
+      0 0 5px 2px rgba(118, 180, 255, 0.42),
+      0 0 8px 4px rgba(56, 132, 255, 0.24),
+      0 0 13px 4px rgba(23, 93, 215, 0.14);
     --agent-chat-widget-glow-outer-strong:
       0 0 3px 1px rgba(242, 248, 255, 0.8),
-      0 0 6px 3px rgba(131, 189, 255, 0.5),
-      0 0 11px 6px rgba(67, 143, 255, 0.32),
-      0 0 16px 5px rgba(29, 101, 223, 0.18);
+      0 0 7px 3px rgba(131, 189, 255, 0.5),
+      0 0 13px 6px rgba(67, 143, 255, 0.32),
+      0 0 19px 6px rgba(29, 101, 223, 0.18);
   }
 
   .agent-chat-widget__shimmer {
