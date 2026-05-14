@@ -202,7 +202,6 @@ CREATE TABLE public.sandbox_providers (
     id bigserial NOT NULL,
     backend_type VARCHAR NOT NULL,
     language VARCHAR NOT NULL,
-    config JSONB NOT NULL DEFAULT '{}'::jsonb,
     enabled BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),

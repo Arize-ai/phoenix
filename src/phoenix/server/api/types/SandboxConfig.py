@@ -24,26 +24,14 @@ from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.sandbox import (
     SANDBOX_ADAPTER_METADATA,
     MissingSecretError,
+    build_sandbox_backend,
     get_missing_sandbox_auth_detail,
-    get_or_create_backend,
 )
 from phoenix.server.sandbox.types import UnsupportedOperation
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_SANDBOX_TIMEOUT_SECONDS = 300
-
-
-@strawberry.type
-class ConfigFieldSpecType:
-    """GQL mirror of the ConfigFieldSpec dataclass."""
-
-    key: str
-    display_name: str
-    field_type: str
-    required: bool
-    description: str
-    choices: Optional[list[str]]
 
 
 @strawberry.type
@@ -113,7 +101,6 @@ class SandboxBackendInfo:
     status: SandboxBackendStatus
     status_detail: Optional[str]
     dependency_hints: list[str]
-    config_field_specs: list[ConfigFieldSpecType]
     supports_env_vars: bool
     internet_access: InternetAccessMode
     dependencies_language: Optional[Language]
@@ -145,11 +132,6 @@ class SandboxProvider(Node):
     async def language(self, info: Info[Context, None]) -> Language:
         record = await self._get_record(info)
         return Language(record.language)
-
-    @strawberry.field
-    async def config(self, info: Info[Context, None]) -> JSON:
-        record = await self._get_record(info)
-        return cast(JSON, record.config)
 
     @strawberry.field
     async def enabled(self, info: Info[Context, None]) -> bool:
@@ -296,7 +278,6 @@ class UpdateSandboxConfigInput:
 @strawberry.input
 class UpdateSandboxProviderInput:
     id: GlobalID
-    config: Optional[JSON] = strawberry.UNSET
     enabled: Optional[bool] = strawberry.UNSET
 
 
@@ -336,7 +317,7 @@ async def get_sandbox_backend_info(
 ) -> list[SandboxBackendInfo]:
     """
     Return one SandboxBackendInfo per entry in SANDBOX_ADAPTER_METADATA,
-    with runtime status derived from get_or_create_backend().
+    with runtime status derived from build_sandbox_backend().
 
     Pass the Strawberry `info` object so DB-stored credentials are resolved
     when checking backend availability. Falls back to env-only resolution if
@@ -437,7 +418,7 @@ async def _get_sandbox_backend_info_with_session(
                     status_detail = wasm_probe_detail
                 else:
                     try:
-                        backend = await get_or_create_backend(
+                        backend = await build_sandbox_backend(
                             backend_type, session=session, decrypt=decrypt
                         )
                         status = (
@@ -457,7 +438,6 @@ async def _get_sandbox_backend_info_with_session(
                         )
                         status = SandboxBackendStatus.UNAVAILABLE
                         status_detail = str(exc)
-        raw_specs = getattr(meta, "config_field_specs", [])
         credential_specs = _build_credential_specs(backend_type)
         infos.append(
             SandboxBackendInfo(
@@ -468,17 +448,6 @@ async def _get_sandbox_backend_info_with_session(
                 status=status,
                 status_detail=status_detail,
                 dependency_hints=meta.dependency_hints,
-                config_field_specs=[
-                    ConfigFieldSpecType(
-                        key=s.key,
-                        display_name=s.display_name,
-                        field_type=s.field_type,
-                        required=s.required,
-                        description=s.description,
-                        choices=s.choices,
-                    )
-                    for s in raw_specs
-                ],
                 supports_env_vars=meta.supports_env_vars,
                 internet_access=InternetAccessMode(meta.internet_access_capability),
                 dependencies_language=(

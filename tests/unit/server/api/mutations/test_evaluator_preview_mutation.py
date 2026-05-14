@@ -305,7 +305,7 @@ class TestInlineCodeEvaluatorPreviewMutation:
         )
 
         with patch(
-            "phoenix.server.sandbox.get_or_create_backend",
+            "phoenix.server.sandbox.build_sandbox_backend",
             return_value=backend,
         ):
             result = await self._preview_inline_code_evaluator(

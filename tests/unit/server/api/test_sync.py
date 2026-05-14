@@ -82,13 +82,13 @@ class TestSyncSandboxProviders:
         async with db() as session:
             await sync_sandbox_providers(session, SANDBOX_ADAPTER_METADATA)
 
-        # Update the WASM provider's config
+        # Disable the WASM provider
         async with db() as session:
             provider = await session.scalar(
                 select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
             )
             assert provider is not None
-            provider.config = {"custom_key": "custom_value"}
+            provider.enabled = False
 
         # Re-seed — should not overwrite the existing row
         async with db() as session:
@@ -99,7 +99,7 @@ class TestSyncSandboxProviders:
                 select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
             )
             assert provider is not None
-            assert provider.config == {"custom_key": "custom_value"}
+            assert provider.enabled is False
 
     async def test_unknown_language_skipped(
         self,

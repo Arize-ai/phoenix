@@ -49,7 +49,7 @@ class _SlowBackend(SandboxBackend):
     """Backend whose execute sleeps indefinitely; stop_session is tracked."""
 
     # CodeEvaluatorRunner reads secret_values to seed SandboxSecretMasker;
-    # real backends get this attached by get_or_create_backend(). Direct
+    # real backends get this attached by build_sandbox_backend(). Direct
     # test fixtures must declare it themselves.
     secret_values: frozenset[str] = frozenset()
 

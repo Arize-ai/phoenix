@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e9fbe1a105812ef8281214dcfa3826e7>>
+ * @generated SignedSource<<a6ad380f4ee07b55dc9556f7ebd34a6d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -56,13 +56,6 @@ v4 = {
   "storageKey": null
 },
 v5 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "config",
-  "storageKey": null
-},
-v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -206,7 +199,6 @@ return {
           },
           (v4/*: any*/),
           (v5/*: any*/),
-          (v6/*: any*/),
           {
             "alias": null,
             "args": null,
@@ -232,8 +224,14 @@ return {
                 "storageKey": null
               },
               (v4/*: any*/),
-              (v5/*: any*/),
-              (v6/*: any*/)
+              {
+                "alias": null,
+                "args": null,
+                "kind": "ScalarField",
+                "name": "config",
+                "storageKey": null
+              },
+              (v5/*: any*/)
             ],
             "storageKey": null
           }
@@ -243,16 +241,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f7b2b8496f4a7be87f46483d0b1e7c14",
+    "cacheID": "586316555c5ae802ae08d946b3a27f5e",
     "id": null,
     "metadata": {},
     "name": "SettingsSandboxesPageRefetchQuery",
     "operationKind": "query",
-    "text": "query SettingsSandboxesPageRefetchQuery {\n  ...SettingsSandboxesPageFragment\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
+    "text": "query SettingsSandboxesPageRefetchQuery {\n  ...SettingsSandboxesPageFragment\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "1f6d50525ca2ee2e7197dc1a1347ea5e";
+(node as any).hash = "8ba0222f23fb0c2344e742877ee8bf3a";
 
 export default node;
