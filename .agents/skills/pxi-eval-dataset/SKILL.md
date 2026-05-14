@@ -308,9 +308,9 @@ genuinely symmetric.
 |---|---|
 | Sonnet | `Agent` tool, `model: "sonnet"` |
 | Opus | `Agent` tool, `model: "opus"` |
-| Codex | `Bash` tool, piping the prompt into `tests/pxi/evals/annotate_via_codex.sh` |
+| Codex | `Bash` tool, piping the prompt into `.agents/skills/pxi-eval-dataset/scripts/annotate_via_codex.sh` |
 
-The Codex wrapper at `tests/pxi/evals/annotate_via_codex.sh` reads a
+The Codex wrapper at `.agents/skills/pxi-eval-dataset/scripts/annotate_via_codex.sh` reads a
 prompt on stdin and writes Codex's final message to stdout. It runs
 `codex exec` with `--sandbox read-only` (the annotator can read the
 repo but cannot modify anything), `--ephemeral` (no session
@@ -320,9 +320,9 @@ Authentication is whatever Codex is already configured with
 invocation:
 
 ```bash
-cat /tmp/annotation_prompt.txt | tests/pxi/evals/annotate_via_codex.sh
+cat /tmp/annotation_prompt.txt | .agents/skills/pxi-eval-dataset/scripts/annotate_via_codex.sh
 # Or pin a specific model:
-cat /tmp/annotation_prompt.txt | tests/pxi/evals/annotate_via_codex.sh --model o3
+cat /tmp/annotation_prompt.txt | .agents/skills/pxi-eval-dataset/scripts/annotate_via_codex.sh --model o3
 ```
 
 **Run all three opinions in parallel.** Send a single message

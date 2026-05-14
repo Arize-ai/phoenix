@@ -13,7 +13,7 @@
 # chat-completion shot. This keeps the three opinions symmetric.
 #
 # Usage:
-#   cat prompt.txt | ./tests/pxi/evals/annotate_via_codex.sh [--model MODEL]
+#   cat prompt.txt | .agents/skills/pxi-eval-dataset/scripts/annotate_via_codex.sh [--model MODEL]
 #
 # Options:
 #   --model MODEL   Override the Codex default model (e.g. o3, gpt-5.5).
