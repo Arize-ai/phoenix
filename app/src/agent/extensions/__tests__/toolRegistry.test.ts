@@ -191,16 +191,14 @@ describe("toolRegistry", () => {
     const addToolOutput = vi.fn().mockResolvedValue(undefined);
     const appendMessagePart = vi.fn();
     const spec = {
-      root: "card",
+      root: "chart",
       elements: {
-        card: {
-          type: "ChartCard",
-          props: { title: "Trace Summary", subtitle: null },
-          children: ["metric"],
-        },
-        metric: {
-          type: "Metric",
-          props: { label: "Total spans", value: 42, change: null },
+        chart: {
+          type: "BarChart",
+          props: {
+            title: "Trace Summary",
+            data: [{ label: "Total spans", value: 42 }],
+          },
           children: [],
         },
       },
@@ -277,28 +275,14 @@ describe("toolRegistry", () => {
     const addToolOutput = vi.fn().mockResolvedValue(undefined);
     const appendMessagePart = vi.fn();
     const spec = {
-      root: "card",
+      root: "line",
       elements: {
-        card: {
-          type: "ChartCard",
-          props: { title: "Trace errors over time", subtitle: "Last 7 days" },
-          children: ["stack"],
-        },
-        stack: {
-          type: "Stack",
-          props: { gap: "md" },
-          children: ["metric", "line"],
-        },
-        metric: {
-          type: "Metric",
-          props: { label: "Total error spans", value: 1 },
-          children: [],
-        },
         line: {
           type: "LineChart",
           props: {
             title: "Daily error count",
-            data: [{ label: "2026-05-12", value: 1 }],
+            lines: [{ label: "Errors", data: [0, 0, 1, 0] }],
+            xLabels: ["May 10", "May 11", "May 12", "May 13"],
           },
           children: [],
         },

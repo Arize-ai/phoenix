@@ -2,16 +2,10 @@
   "version": 1,
   "toolName": "render_generated_ui",
   "components": [
-    "ChartCard",
-    "Stack",
-    "Row",
-    "Title",
-    "Paragraph",
-    "Metric",
     "BarChart",
-    "LineChart",
-    "PieChart",
-    "MultiSeriesChart"
+    "VerticalBarChart",
+    "StackedBarChart",
+    "LineChart"
   ],
   "actions": []
 }

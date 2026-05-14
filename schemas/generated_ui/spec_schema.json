@@ -11,16 +11,10 @@
         "properties": {
           "type": {
             "enum": [
-              "ChartCard",
-              "Stack",
-              "Row",
-              "Title",
-              "Paragraph",
-              "Metric",
               "BarChart",
-              "LineChart",
-              "PieChart",
-              "MultiSeriesChart"
+              "VerticalBarChart",
+              "StackedBarChart",
+              "LineChart"
             ]
           },
           "props": {

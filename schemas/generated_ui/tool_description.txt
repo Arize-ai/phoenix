@@ -4,18 +4,12 @@ The `spec` argument must be one complete UI tree in this shape: `{ root: string,
 `root` is the id of the first element to render. Each key in `elements` is an element id. `children` contains element ids from the same `elements` object.
 Every element `type` must come from the component list below, and every element must include `type`, `props`, and `children`.
 Do not provide partial updates, JSONL patches, markdown, or prose inside `spec`; provide the full render tree in one object.
-Prefer ChartCard as the root for generated analytical UI.
+Use one chart component as the root for each generated UI call. If you need multiple charts, call this tool multiple times.
 
-AVAILABLE COMPONENTS (10):
+AVAILABLE COMPONENTS (4):
 
-- ChartCard: { title: string, subtitle?: string } - Card container for generated analysis, metrics, and charts. [accepts children]
-- Stack: { gap?: "xs" | "sm" | "md" | "lg" } - Vertical layout for grouping generated UI components. [accepts children]
-- Row: { gap?: "xs" | "sm" | "md" | "lg" } - Horizontal wrapping layout for metrics or chart summaries. [accepts children]
-- Title: { text: string } - Section heading text.
-- Paragraph: { text: string } - Short explanatory paragraph.
-- Metric: { label: string, value: string | number, change?: string } - Single KPI or aggregate value with optional change text.
-- BarChart: { title?: string, data: Array<{ label: string, value: number }> } - Simple categorical bar chart with label/value points.
-- LineChart: { title?: string, data: Array<{ label: string, value: number }> } - Simple trend chart with ordered label/value points.
-- PieChart: { title?: string, data: Array<{ label: string, value: number }> } - Simple proportional chart with label/value slices.
-- MultiSeriesChart: { title?: string, series: Array<{ label: string, values: Array<{ label: string, value: number }> }> } - Simple placeholder for comparing multiple labeled series.
+- BarChart: { title?: string, data: Array<{ label: string, value: number }> } - Horizontal categorical bar chart with label/value rows.
+- VerticalBarChart: { title?: string, data: Array<{ label: string, value: number, highlight?: number }>, baseLabel?: string, highlightLabel?: string } - Compact vertical bar chart for time buckets, optionally with highlighted counts stacked on top of a base value.
+- StackedBarChart: { title?: string, data: Array<{ label: string, segments: Array<{ label: string, value: number }> }> } - Horizontal stacked bar chart for comparing segment totals across categories.
+- LineChart: { title?: string, lines: Array<{ label?: string, data: Array<number> }>, xLabels?: Array<string> } - Compact multi-line trend chart with optional series labels and x-axis labels.
 

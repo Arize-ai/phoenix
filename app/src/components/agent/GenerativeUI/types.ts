@@ -3,7 +3,21 @@ export type ChartDatum = {
   value: number;
 };
 
-export type SeriesDatum = {
+export type VerticalBarDatum = ChartDatum & {
+  highlight?: number | null;
+};
+
+export type StackedBarSegment = {
   label: string;
-  values: ChartDatum[];
+  value: number;
+};
+
+export type StackedBarDatum = {
+  label: string;
+  segments: StackedBarSegment[];
+};
+
+export type LineSeries = {
+  label?: string | null;
+  data: number[];
 };

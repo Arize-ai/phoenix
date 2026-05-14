@@ -1,17 +1,20 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
 
-import { Text } from "@phoenix/components/core/content";
-
 const chartFrameCSS = css`
-  border: 1px solid var(--global-color-gray-300);
-  border-radius: var(--global-rounding-small);
+  border: 1px solid var(--global-color-gray-200);
+  border-radius: var(--global-rounding-medium);
   padding: var(--global-dimension-size-150);
-  background: var(--global-color-gray-50);
+  background: var(--global-color-gray-75);
 `;
 
 const chartTitleCSS = css`
-  margin-bottom: var(--global-dimension-size-100);
+  margin-bottom: var(--global-dimension-size-150);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--global-text-color-500);
+  font-size: var(--global-dimension-font-size-100);
 `;
 
 export function ChartFrame({
@@ -25,7 +28,7 @@ export function ChartFrame({
     <div css={chartFrameCSS}>
       {title ? (
         <div css={chartTitleCSS}>
-          <Text weight="heavy">{title}</Text>
+          <span>{title}</span>
         </div>
       ) : null}
       {children}
