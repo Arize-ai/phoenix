@@ -12,6 +12,7 @@ from typing import Any
 
 import pytest
 
+from tests.pxi.evals.evaluators.documentation_links import evaluate_documentation_links
 from tests.pxi.evals.evaluators.tools import (
     _normalize_arg_value,
     evaluate_tool_call_args,
@@ -299,5 +300,122 @@ class TestToolCallArgsMatch:
                 ]
             },
             expected=self._expected(set_spans_filter={"condition": "right"}),
+        )
+        assert result["label"] == "pass"
+
+
+class TestDocumentationLinks:
+    def _expected(self, **kwargs: Any) -> dict[str, Any]:
+        return {"assistant_text": kwargs}
+
+    def _output(self, text: str | None) -> dict[str, Any]:
+        return {"assistant_text": text}
+
+    def test_passes_with_markdown_link_to_canonical_domain(self) -> None:
+        result = evaluate_documentation_links(
+            output=self._output(
+                "See [Tracing](https://arize.com/docs/phoenix/tracing) for details."
+            ),
+            expected=self._expected(
+                required_url_prefix="https://arize.com/docs/phoenix/",
+                markdown_link_required=True,
+                expected_url_path_substrings=["tracing"],
+                forbidden_url_substrings=["arizeai-", ".mintlify.app", "localhost"],
+            ),
+        )
+        assert result["score"] == 1.0
+        assert result["label"] == "pass"
+
+    def test_fails_when_url_uses_preview_host(self) -> None:
+        result = evaluate_documentation_links(
+            output=self._output("See [docs](https://arizeai-433a7140.mintlify.app/tracing)."),
+            expected=self._expected(
+                required_url_prefix="https://arize.com/docs/phoenix/",
+                forbidden_url_substrings=["arizeai-", ".mintlify.app"],
+            ),
+        )
+        assert result["score"] == 0.0
+        assert result["label"] == "forbidden_url"
+
+    def test_fails_when_bare_url_emitted(self) -> None:
+        result = evaluate_documentation_links(
+            output=self._output("Visit https://arize.com/docs/phoenix/tracing for more info."),
+            expected=self._expected(
+                required_url_prefix="https://arize.com/docs/phoenix/",
+                markdown_link_required=True,
+            ),
+        )
+        assert result["label"] == "bare_url"
+
+    def test_passes_with_bare_url_when_not_required(self) -> None:
+        result = evaluate_documentation_links(
+            output=self._output("Visit https://arize.com/docs/phoenix/tracing for more info."),
+            expected=self._expected(
+                required_url_prefix="https://arize.com/docs/phoenix/",
+                markdown_link_required=False,
+            ),
+        )
+        assert result["label"] == "pass"
+
+    def test_fails_when_no_url_matches_required_prefix(self) -> None:
+        result = evaluate_documentation_links(
+            output=self._output("See [docs](https://example.com/whatever)."),
+            expected=self._expected(
+                required_url_prefix="https://arize.com/docs/phoenix/",
+            ),
+        )
+        assert result["label"] == "missing_required_prefix"
+
+    def test_fails_when_expected_path_substring_missing(self) -> None:
+        result = evaluate_documentation_links(
+            output=self._output(
+                "See the [Phoenix overview](https://arize.com/docs/phoenix/) page."
+            ),
+            expected=self._expected(
+                required_url_prefix="https://arize.com/docs/phoenix/",
+                expected_url_path_substrings=["tracing"],
+            ),
+        )
+        assert result["label"] == "missing_expected_path"
+
+    def test_not_applicable_when_expectation_missing(self) -> None:
+        result = evaluate_documentation_links(
+            output=self._output("anything"),
+            expected={"tools": {}},
+        )
+        assert result["score"] == 1.0
+        assert result["label"] == "not_applicable"
+
+    def test_fails_when_assistant_text_missing(self) -> None:
+        result = evaluate_documentation_links(
+            output=self._output(None),
+            expected=self._expected(
+                required_url_prefix="https://arize.com/docs/phoenix/",
+            ),
+        )
+        assert result["label"] == "missing_assistant_text"
+
+    def test_forbidden_precedence_over_bare_url(self) -> None:
+        # A bare URL containing a forbidden substring should be reported as
+        # ``forbidden_url`` because that is the more actionable failure.
+        result = evaluate_documentation_links(
+            output=self._output("Visit https://arizeai-433a7140.mintlify.app/tracing"),
+            expected=self._expected(
+                required_url_prefix="https://arize.com/docs/phoenix/",
+                markdown_link_required=True,
+                forbidden_url_substrings=["arizeai-"],
+            ),
+        )
+        assert result["label"] == "forbidden_url"
+
+    def test_trailing_punctuation_stripped_from_bare_url(self) -> None:
+        # The forbidden substring should still match even when the bare URL
+        # is followed by sentence punctuation.
+        result = evaluate_documentation_links(
+            output=self._output("See https://arize.com/docs/phoenix/tracing."),
+            expected=self._expected(
+                required_url_prefix="https://arize.com/docs/phoenix/",
+                expected_url_path_substrings=["tracing"],
+            ),
         )
         assert result["label"] == "pass"

@@ -30,7 +30,11 @@ from tests.pxi.evals.agent_task import (
     make_task,
 )
 from tests.pxi.evals.datasets import EvalDataset, load_dataset
-from tests.pxi.evals.evaluators import correct_tools_called, tool_call_args_match
+from tests.pxi.evals.evaluators import (
+    correct_tools_called,
+    documentation_links,
+    tool_call_args_match,
+)
 
 DEFAULT_BASE_URL = "http://localhost:6006"
 PASSING_SCORE = 1.0
@@ -197,7 +201,10 @@ async def _run_async(config: ExperimentConfig) -> int:
                     task_run["dataset_example_id"] = output["stable_example_id"]
             experiment = await client.experiments.evaluate_experiment(
                 experiment=experiment,
-                evaluators=cast(Any, [correct_tools_called, tool_call_args_match]),
+                evaluators=cast(
+                    Any,
+                    [correct_tools_called, tool_call_args_match, documentation_links],
+                ),
                 print_summary=False,
                 concurrency=3,
                 timeout=180,

@@ -1,0 +1,240 @@
+dataset_name: documentation_questions
+description: >
+  PXI server-side eval suite verifying that the agent renders documentation
+  references as markdown links against the canonical Arize Phoenix docs
+  domain (https://arize.com/docs/phoenix/...) and never leaks internal
+  preview hosts (arizeai-*.mintlify.app), localhost, or bare URLs.
+examples:
+  - id: tracing-quickstart
+    input:
+      query: How do I get started with tracing my LLM app in Phoenix? Please link to the relevant docs.
+    expected:
+      tools:
+        required: [search_phoenix]
+      assistant_text:
+        required_url_prefix: https://arize.com/docs/phoenix/
+        markdown_link_required: true
+        forbidden_url_substrings:
+          - arizeai-
+          - .mintlify.app
+          - localhost
+        expected_url_path_substrings:
+          - tracing
+    metadata:
+      category: tracing
+  - id: openai-integration
+    input:
+      query: Where can I find documentation for instrumenting OpenAI calls with Phoenix?
+    expected:
+      tools:
+        required: [search_phoenix]
+      assistant_text:
+        required_url_prefix: https://arize.com/docs/phoenix/
+        markdown_link_required: true
+        forbidden_url_substrings:
+          - arizeai-
+          - .mintlify.app
+          - localhost
+        expected_url_path_substrings:
+          - openai
+    metadata:
+      category: integrations
+  - id: langchain-integration
+    input:
+      query: Point me at the Phoenix docs for tracing LangChain applications.
+    expected:
+      tools:
+        required: [search_phoenix]
+      assistant_text:
+        required_url_prefix: https://arize.com/docs/phoenix/
+        markdown_link_required: true
+        forbidden_url_substrings:
+          - arizeai-
+          - .mintlify.app
+          - localhost
+        expected_url_path_substrings:
+          - langchain
+    metadata:
+      category: integrations
+  - id: experiments-overview
+    input:
+      query: What are Phoenix experiments and where can I read more about them?
+    expected:
+      tools:
+        required: [search_phoenix]
+      assistant_text:
+        required_url_prefix: https://arize.com/docs/phoenix/
+        markdown_link_required: true
+        forbidden_url_substrings:
+          - arizeai-
+          - .mintlify.app
+          - localhost
+        expected_url_path_substrings:
+          - experiments
+    metadata:
+      category: experiments
+  - id: datasets-overview
+    input:
+      query: Share the Phoenix documentation page that explains datasets.
+    expected:
+      tools:
+        required: [search_phoenix]
+      assistant_text:
+        required_url_prefix: https://arize.com/docs/phoenix/
+        markdown_link_required: true
+        forbidden_url_substrings:
+          - arizeai-
+          - .mintlify.app
+          - localhost
+        expected_url_path_substrings:
+          - datasets
+    metadata:
+      category: datasets
+  - id: evaluators-builtin
+    input:
+      query: Which built-in evaluators ship with Phoenix? Include a link to the docs.
+    expected:
+      tools:
+        required: [search_phoenix]
+      assistant_text:
+        required_url_prefix: https://arize.com/docs/phoenix/
+        markdown_link_required: true
+        forbidden_url_substrings:
+          - arizeai-
+          - .mintlify.app
+          - localhost
+        expected_url_path_substrings:
+          - eval
+    metadata:
+      category: evaluation
+  - id: self-hosting
+    input:
+      query: How do I self-host Phoenix? Link to the deployment docs.
+    expected:
+      tools:
+        required: [search_phoenix]
+      assistant_text:
+        required_url_prefix: https://arize.com/docs/phoenix/
+        markdown_link_required: true
+        forbidden_url_substrings:
+          - arizeai-
+          - .mintlify.app
+          - localhost
+        expected_url_path_substrings:
+          - self-host
+    metadata:
+      category: deployment
+  - id: prompts-overview
+    input:
+      query: Where are the Phoenix prompts docs?
+    expected:
+      tools:
+        required: [search_phoenix]
+      assistant_text:
+        required_url_prefix: https://arize.com/docs/phoenix/
+        markdown_link_required: true
+        forbidden_url_substrings:
+          - arizeai-
+          - .mintlify.app
+          - localhost
+        expected_url_path_substrings:
+          - prompt
+    metadata:
+      category: prompts
+  - id: annotations-overview
+    input:
+      query: Send me the docs for span annotations in Phoenix.
+    expected:
+      tools:
+        required: [search_phoenix]
+      assistant_text:
+        required_url_prefix: https://arize.com/docs/phoenix/
+        markdown_link_required: true
+        forbidden_url_substrings:
+          - arizeai-
+          - .mintlify.app
+          - localhost
+        expected_url_path_substrings:
+          - annotation
+    metadata:
+      category: annotations
+  - id: docs-domain-grounding
+    input:
+      query: When you share a documentation link, what URL should it start with?
+    expected:
+      tools: {}
+      assistant_text:
+        required_url_prefix: https://arize.com/docs/phoenix
+        markdown_link_required: false
+        forbidden_url_substrings:
+          - arizeai-
+          - .mintlify.app
+          - localhost
+    metadata:
+      category: meta
+  - id: what-is-a-span
+    input:
+      query: What is a span?
+    expected:
+      tools:
+        required: [search_phoenix]
+        forbidden: [bash]
+      assistant_text:
+        required_url_prefix: https://arize.com/docs/phoenix/
+        markdown_link_required: true
+        forbidden_url_substrings:
+          - arizeai-
+          - .mintlify.app
+          - localhost
+    metadata:
+      category: ambiguous-definitional
+  - id: what-is-an-annotation
+    input:
+      query: What's an annotation?
+    expected:
+      tools:
+        required: [search_phoenix]
+        forbidden: [bash]
+      assistant_text:
+        required_url_prefix: https://arize.com/docs/phoenix/
+        markdown_link_required: true
+        forbidden_url_substrings:
+          - arizeai-
+          - .mintlify.app
+          - localhost
+    metadata:
+      category: ambiguous-definitional
+  - id: how-do-i-run-evals
+    input:
+      query: How do I run evals?
+    expected:
+      tools:
+        required: [ask_user]
+        forbidden: [bash]
+    metadata:
+      category: ambiguous-broad
+  - id: what-is-a-trace
+    input:
+      query: What is a trace?
+    expected:
+      tools:
+        required: [search_phoenix]
+        forbidden: [bash]
+      assistant_text:
+        required_url_prefix: https://arize.com/docs/phoenix/
+        markdown_link_required: true
+        forbidden_url_substrings:
+          - arizeai-
+          - .mintlify.app
+          - localhost
+    metadata:
+      category: ambiguous-definitional
+  - id: how-do-i-get-started
+    input:
+      query: How do I get started?
+    expected:
+      tools:
+        required: [ask_user]
+        forbidden: [bash]
+    metadata:
+      category: ambiguous-broad

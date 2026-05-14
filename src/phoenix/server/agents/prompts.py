@@ -63,8 +63,11 @@ _BASH_TOOL_SYSTEM_PROMPT_LINES = (
         "refreshed on navigation, time-range changes, or a /refresh command."
     ),
     (
-        "    - To orient to the current page, first read /phoenix/agent-start.md. "
-        "Use other files in /phoenix as needed."
+        "    - Only read /phoenix/agent-start.md when the user's request depends on "
+        "the page they are currently viewing (for example filtering spans, acting on "
+        "the visible trace, or page-specific state). For general definitional "
+        '("what is X") or unanchored ("how do I…") questions, prefer search_phoenix '
+        "and answer from the docs without reading page context."
     ),
     "  </orientation>",
     "</tool>",
@@ -89,6 +92,11 @@ _ASK_USER_TOOL_SYSTEM_PROMPT_LINES = (
     "    - Set `allow_skip: true` for optional questions.",
     "    - Use `freeform` type only when the answer space is truly open-ended.",
     (
+        "    - Also use this when a user question is too broad to answer well "
+        '(for example "how do I get started?") and presenting 2-4 scoped options '
+        "would lead to a much better answer than guessing across multiple Phoenix areas."
+    ),
+    (
         "    - After receiving answers, summarize what you understood and proceed. "
         "Do not re-ask the same questions."
     ),
@@ -108,6 +116,36 @@ _STATIC_SYSTEM_PROMPT_LINES = (
     *_BASH_TOOL_SYSTEM_PROMPT_LINES,
     *_ASK_USER_TOOL_SYSTEM_PROMPT_LINES,
     "</tools>",
+    "",
+    "<tool_selection>",
+    "  <rule>",
+    (
+        '    For definitional questions about Phoenix concepts ("what is a span", '
+        '"what\'s an annotation"): call search_phoenix once and answer in prose '
+        "with a markdown link to the canonical docs page. Do not call bash — page "
+        "context does not help define a concept."
+    ),
+    "  </rule>",
+    "  <rule>",
+    (
+        '    For broad or ambiguous "how do I…" / "where do I start" questions that '
+        "could plausibly map to more than one Phoenix area (tracing vs. evals vs. "
+        "datasets vs. self-hosting), call ask_user first with 2-4 scoped options "
+        "before any other tool call. Exception: if the user explicitly names a "
+        'specific Phoenix area (for example "how do I get started with tracing", '
+        '"docs for self-hosting") or explicitly asks for a documentation link, skip '
+        "the elicitation and answer directly from search_phoenix."
+    ),
+    "  </rule>",
+    "  <rule>",
+    (
+        "    Use bash for operations tied to the current page or system data — "
+        "inspecting /phoenix context, running phoenix-gql, or executing built-in "
+        "utilities. Never call bash in parallel with search_phoenix on a "
+        "definitional question."
+    ),
+    "  </rule>",
+    "</tool_selection>",
     "",
     "<link_formatting>",
     "  <canonical_docs_domain>https://arize.com/docs/phoenix</canonical_docs_domain>",
