@@ -256,39 +256,6 @@ export type AgentClientAction = (
 ) => Promise<AgentClientActionResult>;
 
 /**
- * Builds the persisted portion of the agent store from app defaults and any
- * caller-provided overrides, normalizing the assistant model before first use.
- */
-function createInitialAgentProps(
-  initialProps?: Partial<AgentProps>
-): AgentProps {
-  const agentsConfig = {
-    ...DEFAULT_AGENT_SERVER_CONFIG,
-    ...initialProps?.agentsConfig,
-  };
-  const defaultModelConfig =
-    initialProps?.defaultModelConfig ?? DEFAULT_MODEL_CONFIG;
-  return {
-    isOpen: initialProps?.isOpen ?? false,
-    position: initialProps?.position ?? "detached",
-    activePanelLocation: initialProps?.activePanelLocation ?? "docked",
-    sessions: initialProps?.sessions ?? [],
-    activeSessionId: initialProps?.activeSessionId ?? null,
-    sessionMap: initialProps?.sessionMap ?? {},
-    defaultModelConfig,
-    agentsConfig,
-    observability: {
-      ...DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
-      ...initialProps?.observability,
-    },
-    capabilities: {
-      ...createDefaultAgentCapabilities(),
-      ...initialProps?.capabilities,
-    },
-  };
-}
-
-/**
  * Creates a Zustand store for managing agent UI state and conversation sessions.
  *
  * The store is wrapped with devtools (for Redux DevTools inspection) and
@@ -298,12 +265,20 @@ function createInitialAgentProps(
  * @param initialProps - Optional overrides for the default store properties.
  */
 export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
-  const initialAgentProps = createInitialAgentProps(initialProps);
   const agentStore: StateCreator<
     AgentState,
     [["zustand/devtools", unknown]]
   > = (set) => ({
-    ...initialAgentProps,
+    isOpen: false,
+    position: "detached",
+    activePanelLocation: "docked",
+    sessions: [],
+    activeSessionId: null,
+    sessionMap: {},
+    defaultModelConfig: { ...DEFAULT_MODEL_CONFIG },
+    agentsConfig: DEFAULT_AGENT_SERVER_CONFIG,
+    observability: DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
+    capabilities: createDefaultAgentCapabilities(),
     routeContexts: [],
     mountedContexts: {},
     pendingPromptEditsByToolCallId: {},
@@ -680,19 +655,14 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         { type: "setPendingPromptEdit" }
       );
     },
+
+    ...initialProps,
   });
 
   return create<AgentState>()(
     persist(devtools(agentStore, { name: "agentStore" }), {
       name: "arize-phoenix-agent",
-      version: 7,
-      merge: (persisted, current) => {
-        const mergedState = {
-          ...current,
-          ...(persisted as Partial<AgentState>),
-        };
-        return mergedState;
-      },
+      version: 6,
       migrate: (persisted, version) => {
         const state = persisted as Partial<AgentProps> & {
           capabilities?: Partial<AgentCapabilities>;
@@ -733,8 +703,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         return {
           ...state,
           sessionMap: migratedSessionMap,
-          defaultModelConfig:
-            state.defaultModelConfig ?? initialAgentProps.defaultModelConfig,
           observability: {
             ...DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
             ...(state.observability ?? {}),
