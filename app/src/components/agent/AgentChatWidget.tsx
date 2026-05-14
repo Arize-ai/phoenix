@@ -10,16 +10,6 @@ import { useHasOpenModal } from "@phoenix/hooks/useHasOpenModal";
 import { PxiGlyph, type PxiGlyphThinkingVariant } from "./PxiGlyph";
 import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 
-const hoverShimmer = keyframes`
-  0% {
-    background-position: 118% center;
-  }
-
-  100% {
-    background-position: -140% center;
-  }
-`;
-
 const thinkingBorderWipe = keyframes`
   0% {
     -webkit-mask-position: 200% center;
@@ -85,7 +75,7 @@ const darkThemeGlyphThemeCSS = css`
 const lightThemeGlyphThemeCSS = css`
   &[data-theme="light"] {
     --agent-chat-widget-glyph-rest-color: var(--global-color-gray-50);
-    --agent-chat-widget-glyph-pulse-color: #ffffff;
+    --agent-chat-widget-glyph-pulse-color: #a4a9ae;
     --agent-chat-widget-glyph-pulse-shadow: rgba(156, 205, 255, 0.4);
   }
 `;
@@ -124,7 +114,7 @@ const shapeCSS = css`
   justify-content: center;
   background-color: var(--global-color-gray-900);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-  color: var(--global-color-gray-50);
+  color: var(--agent-chat-widget-glyph-rest-color);
   font-size: var(--global-font-size-s);
   font-weight: 600;
   font-family: inherit;
@@ -136,11 +126,6 @@ const shapeCSS = css`
   .fab-glyph {
     overflow: visible;
     flex-shrink: 0;
-    color: var(--agent-chat-widget-glyph-rest-color);
-    transition:
-      color 160ms ease-out,
-      filter 160ms ease-out;
-    will-change: color, filter;
   }
 
   .fab-glyph circle {
@@ -170,35 +155,12 @@ const shapeContentCSS = css`
   height: 100%;
   border-radius: inherit;
   overflow: hidden;
-`;
-
-const restingHoverShimmerCSS = css`
-  .agent-chat-widget__hover-bg-shimmer {
-    --agent-chat-widget-hover-shimmer-duration: 3.6s;
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    border-radius: inherit;
-    pointer-events: none;
-    background: linear-gradient(
-      120deg,
-      var(--global-color-gray-900) 30%,
-      var(--global-color-gray-800) 50%,
-      var(--global-color-gray-900) 70%
-    );
-    background-size: 400% 100%;
-    background-position: 118% center;
-    opacity: 0;
-    transition: opacity 120ms ease-out;
-    will-change: opacity, background-position;
-    transform: translateZ(0);
-  }
-
-  &:hover .agent-chat-widget__hover-bg-shimmer {
-    opacity: 1;
-    animation: ${hoverShimmer}
-      var(--agent-chat-widget-hover-shimmer-duration) linear infinite both;
-  }
+  color: inherit;
+  transition:
+    color 160ms ease-out,
+    filter 160ms ease-out,
+    opacity 160ms ease-out;
+  will-change: color, filter, opacity;
 `;
 
 const thinkingBorderCSS = css`
@@ -246,6 +208,10 @@ const thinkingBorderCSS = css`
 `;
 
 const restingHoverWipeCSS = css`
+  .agent-chat-widget__content {
+    opacity: 0.9;
+  }
+
   .agent-chat-widget__hover-shimmer {
     position: absolute;
     inset: -28px;
@@ -294,13 +260,13 @@ const restingHoverWipeCSS = css`
     animation: ${ringBreathe} 2400ms ease-in-out infinite;
   }
 
-  &:hover .fab-glyph {
-    animation: ${glyphBreathe} 2400ms ease-in-out infinite;
+  &:hover .agent-chat-widget__content {
+    opacity: 1;
   }
 `;
 
 const thinkingGlyphPulseCSS = css`
-  .fab-glyph {
+  .agent-chat-widget__content {
     animation: ${glyphBreathe} 2400ms ease-in-out infinite;
   }
 `;
@@ -345,9 +311,7 @@ export function AgentChatWidgetButton({
           lightThemeGlyphThemeCSS,
           darkThemeThinkingGlowCSS,
           lightThemeThinkingGlowCSS,
-          !isStreaming
-            ? [thinkingBorderCSS, restingHoverWipeCSS, restingHoverShimmerCSS]
-            : undefined,
+          !isStreaming ? [thinkingBorderCSS, restingHoverWipeCSS] : undefined,
           isStreaming ? thinkingBorderCSS : undefined,
           isStreaming ? thinkingGlyphPulseCSS : undefined,
         ]}
@@ -368,13 +332,10 @@ export function AgentChatWidgetButton({
         }}
       >
         {!isStreaming ? (
-          <span className="agent-chat-widget__hover-bg-shimmer" />
-        ) : null}
-        {!isStreaming ? (
           <span className="agent-chat-widget__hover-shimmer" />
         ) : null}
         {isStreaming ? <span className="agent-chat-widget__shimmer" /> : null}
-        <div css={shapeContentCSS}>
+        <div className="agent-chat-widget__content" css={shapeContentCSS}>
           {isStreaming ? (
             <div className="agent-chat-widget__spinner">
               {usesThinkingGlyph ? (
