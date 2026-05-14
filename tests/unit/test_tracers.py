@@ -1,3 +1,4 @@
+import json
 import re
 from datetime import datetime, timezone
 from typing import Sequence
@@ -223,6 +224,32 @@ class TestTracer:
                 }
             },
             "custom_attr": "child_value",
+        }
+
+    @pytest.mark.asyncio
+    async def test_save_db_traces_parses_json_string_attributes(
+        self, db: DbSessionFactory, project: models.Project, tracer: Tracer
+    ) -> None:
+        tool_parameters_schema = {
+            "type": "object",
+            "properties": {"command": {"type": "string"}},
+            "required": ["command"],
+        }
+        with tracer.start_as_current_span(
+            "bash",
+            attributes={OPENINFERENCE_SPAN_KIND: "TOOL"},
+        ) as span:
+            span.set_attribute(TOOL_PARAMETERS, json.dumps(tool_parameters_schema))
+            span.set_status(Status(StatusCode.OK))
+
+        returned_traces = tracer.get_db_traces(project_id=project.id)
+        assert len(returned_traces) == 1
+        returned_spans = returned_traces[0].spans
+        assert len(returned_spans) == 1
+        tool_span = returned_spans[0]
+        assert tool_span.attributes == {
+            "openinference": {"span": {"kind": "TOOL"}},
+            "tool": {"parameters": tool_parameters_schema},
         }
 
     @pytest.mark.asyncio
@@ -950,3 +977,4 @@ LLM_PROVIDER = SpanAttributes.LLM_PROVIDER
 LLM_TOKEN_COUNT_COMPLETION = SpanAttributes.LLM_TOKEN_COUNT_COMPLETION
 LLM_TOKEN_COUNT_PROMPT = SpanAttributes.LLM_TOKEN_COUNT_PROMPT
 OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
+TOOL_PARAMETERS = SpanAttributes.TOOL_PARAMETERS

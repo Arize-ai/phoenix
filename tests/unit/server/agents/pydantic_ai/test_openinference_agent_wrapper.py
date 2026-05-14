@@ -10,13 +10,22 @@ from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
     OpenInferenceSpanKindValues,
     SpanAttributes,
+    ToolCallAttributes,
 )
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode
 from pydantic_ai import Agent
-from pydantic_ai.messages import ModelMessage, ModelResponse
+from pydantic_ai.messages import (
+    ModelMessage,
+    ModelRequest,
+    ModelResponse,
+    TextPart,
+    ToolCallPart,
+    ToolReturnPart,
+    UserPromptPart,
+)
 from pydantic_ai.models import ModelRequestParameters, StreamedResponse
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.test import TestModel
@@ -27,6 +36,11 @@ from pydantic_ai.settings import ModelSettings
 from phoenix.server.agents.pydantic_ai import (
     OpenInferenceAgentWrapper,
     OpenInferenceModelWrapper,
+)
+from phoenix.server.agents.toolsets.external.tools import (
+    ASK_USER_TOOL_DEFINITION,
+    BASH_TOOL_DEFINITION,
+    SET_TIME_RANGE_TOOL_DEFINITION,
 )
 from tests.unit.vcr import CustomVCR
 
@@ -114,6 +128,19 @@ def raising_agent(
     return OpenInferenceAgentWrapper(inner, tracer_provider=tracer_provider)
 
 
+@pytest.fixture
+def test_model_agent(
+    tracer_provider: TracerProvider,
+) -> OpenInferenceAgentWrapper[None, str]:
+    """An OpenInferenceAgentWrapper backed by TestModel — no network, no VCR.
+
+    Used by tests that exercise behavior triggered by the inbound history
+    (e.g. external tool span backfill) and don't care about model output.
+    """
+    inner: Agent[None, str] = Agent(TestModel(), deps_type=type(None))
+    return OpenInferenceAgentWrapper(inner, tracer_provider=tracer_provider)
+
+
 def _get_agent_span(spans: tuple[ReadableSpan, ...]) -> ReadableSpan:
     matches = [
         span for span in spans if (span.attributes or {}).get(OPENINFERENCE_SPAN_KIND) == AGENT
@@ -124,6 +151,10 @@ def _get_agent_span(spans: tuple[ReadableSpan, ...]) -> ReadableSpan:
 
 def _get_llm_spans(spans: tuple[ReadableSpan, ...]) -> list[ReadableSpan]:
     return [s for s in spans if (s.attributes or {}).get(OPENINFERENCE_SPAN_KIND) == LLM]
+
+
+def _get_tool_spans(spans: tuple[ReadableSpan, ...]) -> list[ReadableSpan]:
+    return [s for s in spans if (s.attributes or {}).get(OPENINFERENCE_SPAN_KIND) == TOOL]
 
 
 async def test_iter_emits_agent_span_for_text_response(
@@ -300,6 +331,338 @@ async def test_iter_records_exception_when_run_fails(
     assert not attributes
 
 
+async def test_backfills_tool_span_for_trailing_external_tool_return(
+    test_model_agent: OpenInferenceAgentWrapper[None, str],
+    in_memory_span_exporter: InMemorySpanExporter,
+) -> None:
+    tool_name = BASH_TOOL_DEFINITION.name
+    history: list[ModelMessage] = [
+        ModelRequest(parts=[UserPromptPart(content="run tool")]),
+        ModelResponse(
+            parts=[
+                ToolCallPart(
+                    tool_name=tool_name,
+                    args={"command": "ls"},
+                    tool_call_id="call-1",
+                )
+            ]
+        ),
+        ModelRequest(
+            parts=[
+                ToolReturnPart(
+                    tool_name=tool_name,
+                    content="file1\nfile2",
+                    tool_call_id="call-1",
+                )
+            ]
+        ),
+    ]
+    await test_model_agent.run("continue", message_history=history)
+
+    spans = in_memory_span_exporter.get_finished_spans()
+    agent_span = _get_agent_span(spans)
+    tool_spans = _get_tool_spans(spans)
+    assert len(tool_spans) == 1
+    tool_span = tool_spans[0]
+    assert tool_span.name == tool_name
+    assert tool_span.parent is not None
+    assert tool_span.parent.span_id == agent_span.context.span_id
+    assert tool_span.context.trace_id == agent_span.context.trace_id
+    assert tool_span.status.status_code == StatusCode.OK
+
+    attributes = dict(tool_span.attributes or {})
+    assert attributes.pop(OPENINFERENCE_SPAN_KIND) == TOOL
+    assert attributes.pop(TOOL_NAME) == tool_name
+    assert attributes.pop(TOOL_CALL_ID) == "call-1"
+    input_value = attributes.pop(INPUT_VALUE)
+    assert isinstance(input_value, str)
+    assert json.loads(input_value) == {"command": "ls"}
+    assert attributes.pop(INPUT_MIME_TYPE) == JSON
+    assert attributes.pop(OUTPUT_VALUE) == "file1\nfile2"
+    assert attributes.pop(OUTPUT_MIME_TYPE) == TEXT
+    assert attributes.pop(TOOL_DESCRIPTION) == BASH_TOOL_DEFINITION.description
+    tool_parameters = attributes.pop(TOOL_PARAMETERS)
+    assert isinstance(tool_parameters, str)
+    assert json.loads(tool_parameters) == dict(BASH_TOOL_DEFINITION.parameters_json_schema)
+    assert not attributes
+
+
+async def test_backfills_multiple_tool_spans_joined_by_tool_call_id(
+    test_model_agent: OpenInferenceAgentWrapper[None, str],
+    in_memory_span_exporter: InMemorySpanExporter,
+) -> None:
+    bash_tool = BASH_TOOL_DEFINITION.name
+    ask_user_tool = ASK_USER_TOOL_DEFINITION.name
+    history: list[ModelMessage] = [
+        ModelRequest(parts=[UserPromptPart(content="parallel tools")]),
+        ModelResponse(
+            parts=[
+                ToolCallPart(tool_name=bash_tool, args={"command": "ls"}, tool_call_id="a"),
+                ToolCallPart(tool_name=ask_user_tool, args={"prompt": "ok?"}, tool_call_id="b"),
+            ]
+        ),
+        ModelRequest(
+            parts=[
+                ToolReturnPart(tool_name=ask_user_tool, content="yes", tool_call_id="b"),
+                ToolReturnPart(tool_name=bash_tool, content="ok", tool_call_id="a"),
+            ]
+        ),
+    ]
+    await test_model_agent.run("continue", message_history=history)
+
+    spans = in_memory_span_exporter.get_finished_spans()
+    agent_span = _get_agent_span(spans)
+    tool_spans = _get_tool_spans(spans)
+    assert len(tool_spans) == 2
+    by_call_id = {(s.attributes or {})[TOOL_CALL_ID]: s for s in tool_spans}
+    assert set(by_call_id) == {"a", "b"}
+
+    bash_span = by_call_id["a"]
+    assert bash_span.name == bash_tool
+    assert bash_span.parent is not None
+    assert bash_span.parent.span_id == agent_span.context.span_id
+    assert bash_span.context.trace_id == agent_span.context.trace_id
+    assert bash_span.status.status_code == StatusCode.OK
+    bash_attrs = dict(bash_span.attributes or {})
+    assert bash_attrs.pop(OPENINFERENCE_SPAN_KIND) == TOOL
+    assert bash_attrs.pop(TOOL_NAME) == bash_tool
+    assert bash_attrs.pop(TOOL_CALL_ID) == "a"
+    bash_input = bash_attrs.pop(INPUT_VALUE)
+    assert isinstance(bash_input, str)
+    assert json.loads(bash_input) == {"command": "ls"}
+    assert bash_attrs.pop(INPUT_MIME_TYPE) == JSON
+    assert bash_attrs.pop(OUTPUT_VALUE) == "ok"
+    assert bash_attrs.pop(OUTPUT_MIME_TYPE) == TEXT
+    assert bash_attrs.pop(TOOL_DESCRIPTION) == BASH_TOOL_DEFINITION.description
+    bash_params = bash_attrs.pop(TOOL_PARAMETERS)
+    assert isinstance(bash_params, str)
+    assert json.loads(bash_params) == dict(BASH_TOOL_DEFINITION.parameters_json_schema)
+    assert not bash_attrs
+
+    ask_user_span = by_call_id["b"]
+    assert ask_user_span.name == ask_user_tool
+    assert ask_user_span.parent is not None
+    assert ask_user_span.parent.span_id == agent_span.context.span_id
+    assert ask_user_span.context.trace_id == agent_span.context.trace_id
+    assert ask_user_span.status.status_code == StatusCode.OK
+    ask_user_attrs = dict(ask_user_span.attributes or {})
+    assert ask_user_attrs.pop(OPENINFERENCE_SPAN_KIND) == TOOL
+    assert ask_user_attrs.pop(TOOL_NAME) == ask_user_tool
+    assert ask_user_attrs.pop(TOOL_CALL_ID) == "b"
+    ask_user_input = ask_user_attrs.pop(INPUT_VALUE)
+    assert isinstance(ask_user_input, str)
+    assert json.loads(ask_user_input) == {"prompt": "ok?"}
+    assert ask_user_attrs.pop(INPUT_MIME_TYPE) == JSON
+    assert ask_user_attrs.pop(OUTPUT_VALUE) == "yes"
+    assert ask_user_attrs.pop(OUTPUT_MIME_TYPE) == TEXT
+    assert ask_user_attrs.pop(TOOL_DESCRIPTION) == ASK_USER_TOOL_DEFINITION.description
+    ask_user_params = ask_user_attrs.pop(TOOL_PARAMETERS)
+    assert isinstance(ask_user_params, str)
+    assert json.loads(ask_user_params) == dict(ASK_USER_TOOL_DEFINITION.parameters_json_schema)
+    assert not ask_user_attrs
+
+
+async def test_does_not_emit_tool_spans_for_history_ending_in_user_prompt(
+    test_model_agent: OpenInferenceAgentWrapper[None, str],
+    in_memory_span_exporter: InMemorySpanExporter,
+) -> None:
+    history: list[ModelMessage] = [
+        ModelRequest(parts=[UserPromptPart(content="hi")]),
+        ModelResponse(parts=[TextPart(content="hello")]),
+        ModelRequest(parts=[UserPromptPart(content="another question")]),
+    ]
+    await test_model_agent.run("continue", message_history=history)
+
+    spans = in_memory_span_exporter.get_finished_spans()
+    assert _get_tool_spans(spans) == []
+
+
+async def test_emits_tool_span_for_tool_return_in_mixed_trailing_request(
+    test_model_agent: OpenInferenceAgentWrapper[None, str],
+    in_memory_span_exporter: InMemorySpanExporter,
+) -> None:
+    """A trailing ``ModelRequest`` may carry a ``ToolReturnPart`` alongside a
+    ``UserPromptPart`` when the user submits a new turn in the same request
+    that delivers the external tool's result. The tool return still gets a
+    backfilled TOOL span."""
+    tool_name = BASH_TOOL_DEFINITION.name
+    history: list[ModelMessage] = [
+        ModelRequest(parts=[UserPromptPart(content="run tool")]),
+        ModelResponse(
+            parts=[ToolCallPart(tool_name=tool_name, args={"command": "ls"}, tool_call_id="call-1")]
+        ),
+        ModelRequest(
+            parts=[
+                ToolReturnPart(tool_name=tool_name, content="ok", tool_call_id="call-1"),
+                UserPromptPart(content="also tell me about it"),
+            ]
+        ),
+    ]
+    await test_model_agent.run("continue", message_history=history)
+
+    spans = in_memory_span_exporter.get_finished_spans()
+    agent_span = _get_agent_span(spans)
+    tool_spans = _get_tool_spans(spans)
+    assert len(tool_spans) == 1
+    tool_span = tool_spans[0]
+    assert tool_span.name == tool_name
+    assert tool_span.parent is not None
+    assert tool_span.parent.span_id == agent_span.context.span_id
+    assert tool_span.context.trace_id == agent_span.context.trace_id
+    assert tool_span.status.status_code == StatusCode.OK
+
+    attributes = dict(tool_span.attributes or {})
+    assert attributes.pop(OPENINFERENCE_SPAN_KIND) == TOOL
+    assert attributes.pop(TOOL_NAME) == tool_name
+    assert attributes.pop(TOOL_CALL_ID) == "call-1"
+    input_value = attributes.pop(INPUT_VALUE)
+    assert isinstance(input_value, str)
+    assert json.loads(input_value) == {"command": "ls"}
+    assert attributes.pop(INPUT_MIME_TYPE) == JSON
+    assert attributes.pop(OUTPUT_VALUE) == "ok"
+    assert attributes.pop(OUTPUT_MIME_TYPE) == TEXT
+    assert attributes.pop(TOOL_DESCRIPTION) == BASH_TOOL_DEFINITION.description
+    tool_parameters = attributes.pop(TOOL_PARAMETERS)
+    assert isinstance(tool_parameters, str)
+    assert json.loads(tool_parameters) == dict(BASH_TOOL_DEFINITION.parameters_json_schema)
+    assert not attributes
+
+
+async def test_tool_span_args_come_from_prior_tool_call_part(
+    test_model_agent: OpenInferenceAgentWrapper[None, str],
+    in_memory_span_exporter: InMemorySpanExporter,
+) -> None:
+    """``ToolReturnPart`` has no ``args`` field; the span's ``input.value``
+    must be recovered by joining on ``tool_call_id`` with the preceding
+    ``ModelResponse``'s ``ToolCallPart``."""
+    tool_name = SET_TIME_RANGE_TOOL_DEFINITION.name
+    history: list[ModelMessage] = [
+        ModelRequest(parts=[UserPromptPart(content="search")]),
+        ModelResponse(
+            parts=[
+                ToolCallPart(
+                    tool_name=tool_name,
+                    args={"start": "2026-01-01", "end": "2026-02-01"},
+                    tool_call_id="t1",
+                )
+            ]
+        ),
+        ModelRequest(parts=[ToolReturnPart(tool_name=tool_name, content="set", tool_call_id="t1")]),
+    ]
+    await test_model_agent.run("continue", message_history=history)
+
+    spans = in_memory_span_exporter.get_finished_spans()
+    agent_span = _get_agent_span(spans)
+    tool_spans = _get_tool_spans(spans)
+    assert len(tool_spans) == 1
+    tool_span = tool_spans[0]
+    assert tool_span.name == tool_name
+    assert tool_span.parent is not None
+    assert tool_span.parent.span_id == agent_span.context.span_id
+    assert tool_span.context.trace_id == agent_span.context.trace_id
+    assert tool_span.status.status_code == StatusCode.OK
+
+    attributes = dict(tool_span.attributes or {})
+    assert attributes.pop(OPENINFERENCE_SPAN_KIND) == TOOL
+    assert attributes.pop(TOOL_NAME) == tool_name
+    assert attributes.pop(TOOL_CALL_ID) == "t1"
+    input_value = attributes.pop(INPUT_VALUE)
+    assert isinstance(input_value, str)
+    assert json.loads(input_value) == {"start": "2026-01-01", "end": "2026-02-01"}
+    assert attributes.pop(INPUT_MIME_TYPE) == JSON
+    assert attributes.pop(OUTPUT_VALUE) == "set"
+    assert attributes.pop(OUTPUT_MIME_TYPE) == TEXT
+    assert attributes.pop(TOOL_DESCRIPTION) == SET_TIME_RANGE_TOOL_DEFINITION.description
+    tool_parameters = attributes.pop(TOOL_PARAMETERS)
+    assert isinstance(tool_parameters, str)
+    assert json.loads(tool_parameters) == dict(
+        SET_TIME_RANGE_TOOL_DEFINITION.parameters_json_schema
+    )
+    assert not attributes
+
+
+async def test_backfilled_tool_span_omits_schema_and_description_for_unregistered_tool(
+    test_model_agent: OpenInferenceAgentWrapper[None, str],
+    in_memory_span_exporter: InMemorySpanExporter,
+) -> None:
+    """When the trailing tool return's name is not registered in the
+    external-tool registry, ``tool.parameters`` and ``tool.description``
+    are omitted rather than set to stale or empty values."""
+    history: list[ModelMessage] = [
+        ModelRequest(parts=[UserPromptPart(content="run a thing")]),
+        ModelResponse(
+            parts=[
+                ToolCallPart(
+                    tool_name="some_unregistered_tool",
+                    args={"x": 1},
+                    tool_call_id="call-1",
+                )
+            ]
+        ),
+        ModelRequest(
+            parts=[
+                ToolReturnPart(
+                    tool_name="some_unregistered_tool",
+                    content="ok",
+                    tool_call_id="call-1",
+                )
+            ]
+        ),
+    ]
+    await test_model_agent.run("continue", message_history=history)
+
+    spans = in_memory_span_exporter.get_finished_spans()
+    tool_spans = _get_tool_spans(spans)
+    assert len(tool_spans) == 1
+    tool_attrs = tool_spans[0].attributes or {}
+    assert TOOL_PARAMETERS not in tool_attrs
+    assert TOOL_DESCRIPTION not in tool_attrs
+
+
+async def test_failed_tool_return_records_exception_event(
+    test_model_agent: OpenInferenceAgentWrapper[None, str],
+    in_memory_span_exporter: InMemorySpanExporter,
+) -> None:
+    """A non-success outcome on a trailing ``ToolReturnPart`` sets ERROR
+    status on the synthetic TOOL span and records an ``exception`` event
+    whose message comes from the part's ``content``."""
+    error_content = "command not found: bsh"
+    history: list[ModelMessage] = [
+        ModelRequest(parts=[UserPromptPart(content="run bsh")]),
+        ModelResponse(
+            parts=[ToolCallPart(tool_name="bash", args={"command": "bsh"}, tool_call_id="call-1")]
+        ),
+        ModelRequest(
+            parts=[
+                ToolReturnPart(
+                    tool_name="bash",
+                    content=error_content,
+                    tool_call_id="call-1",
+                    outcome="failed",
+                )
+            ]
+        ),
+    ]
+    await test_model_agent.run("continue", message_history=history)
+
+    spans = in_memory_span_exporter.get_finished_spans()
+    tool_spans = _get_tool_spans(spans)
+    assert len(tool_spans) == 1
+    tool_span = tool_spans[0]
+    assert tool_span.status.status_code == StatusCode.ERROR
+    assert tool_span.status.description == f"tool failed: {error_content}"
+
+    assert len(tool_span.events) == 1
+    (exception_event,) = tool_span.events
+    assert exception_event.name == "exception"
+    event_attributes = dict(exception_event.attributes or {})
+    assert event_attributes.pop("exception.type") == "Exception"
+    assert event_attributes.pop("exception.message") == error_content
+    assert isinstance(event_attributes.pop("exception.stacktrace"), str)
+    assert event_attributes.pop("exception.escaped") == "False"
+    assert not event_attributes
+
+
 # OpenInference attribute keys
 OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
 INPUT_VALUE = SpanAttributes.INPUT_VALUE
@@ -309,7 +672,13 @@ OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
 
 AGENT = OpenInferenceSpanKindValues.AGENT.value
 LLM = OpenInferenceSpanKindValues.LLM.value
+TOOL = OpenInferenceSpanKindValues.TOOL.value
 JSON = OpenInferenceMimeTypeValues.JSON.value
 TEXT = OpenInferenceMimeTypeValues.TEXT.value
+
+TOOL_DESCRIPTION = SpanAttributes.TOOL_DESCRIPTION
+TOOL_NAME = SpanAttributes.TOOL_NAME
+TOOL_PARAMETERS = SpanAttributes.TOOL_PARAMETERS
+TOOL_CALL_ID = ToolCallAttributes.TOOL_CALL_ID
 
 MODEL_NAME = "claude-haiku-4-5"
