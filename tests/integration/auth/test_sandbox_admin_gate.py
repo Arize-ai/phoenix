@@ -260,31 +260,11 @@ class TestSandboxAndCodeEvaluatorAdminGate:
         with expectation:
             logged_in.gql(_app, "query{sandboxBackends{backendType}}")
 
-    @pytest.mark.parametrize(
-        "role_or_user,expectation",
-        [
-            (_VIEWER, _DENIED),
-            (_MEMBER, _DENIED),
-            (_ADMIN, _OK),
-            (_DEFAULT_ADMIN, _OK),
-        ],
-    )
-    def test_only_admin_can_read_sandbox_provider_config(
-        self,
-        role_or_user: _RoleOrUser,
-        expectation: _OK_OR_DENIED,
-        _get_user: _GetUser,
-        _app: _AppInfo,
-        _sandbox_provider_gid: _GqlId,
-    ) -> None:
-        """SandboxProvider.config (field-level admin gate) → Unauthorized for non-admin."""
-        u = _get_user(_app, role_or_user)
-        logged_in = u.log_in(_app)
-        query = (
-            'query{node(id:"' + str(_sandbox_provider_gid) + '"){... on SandboxProvider{config}}}'
-        )
-        with expectation:
-            logged_in.gql(_app, query)
+    # NOTE: SandboxProvider.config (and the role-gated read test that lived
+    # here) was removed in #13218 — the field had no readers and no UI
+    # writers, so the admin-gate concern is moot once the surface is gone.
+    # The remaining read-side gate that still matters is SandboxConfig.config
+    # (covered just below).
 
     @pytest.mark.parametrize(
         "role_or_user,expectation",

@@ -1294,19 +1294,12 @@ class TestAdminGate:
             f"found: {field.permission_classes}"
         )
 
-    def test_sandbox_provider_config_field_has_admin_gate(self) -> None:
-        """SandboxProvider.config field exposes admin-authored provider credentials;
-        must be gated so non-admin readers cannot read provider config plaintext.
-        """
-        from phoenix.server.api.auth import IsAdminIfAuthEnabled
-        from phoenix.server.api.types.SandboxConfig import SandboxProvider
-
-        defn = SandboxProvider.__strawberry_definition__  # type: ignore[attr-defined]
-        field = next(f for f in defn.fields if f.name == "config")
-        assert IsAdminIfAuthEnabled in field.permission_classes, (
-            f"SandboxProvider.config is missing IsAdminIfAuthEnabled in permission_classes; "
-            f"found: {field.permission_classes}"
-        )
+    # NOTE: SandboxProvider.config used to expose admin-authored provider
+    # credentials and was a target of the exfil gate audit. The field was
+    # removed entirely in #13218 ("drop dead provider config, cache, and
+    # stored_config plumbing") — no readers, no UI writers, no attack
+    # surface — so an admin-gate assertion for it would now reference a
+    # non-existent field. Removal supersedes the gate.
 
     def test_query_sandbox_backends_has_admin_gate(self) -> None:
         """Query.sandboxBackends returns admin-managed backend info; must be admin-gated."""
