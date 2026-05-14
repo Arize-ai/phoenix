@@ -71,7 +71,10 @@ export const JSONToolEditor = ({
     [updateTool]
   );
   return (
-    <LazyEditorWrapper preInitializationMinHeight={TOOL_EDITOR_PRE_INIT_HEIGHT}>
+    <LazyEditorWrapper
+      preInitializationMinHeight={TOOL_EDITOR_PRE_INIT_HEIGHT}
+      data-testid="playground-tool-editor"
+    >
       <JSONEditor
         value={initialEditorValue}
         onChange={onChange}

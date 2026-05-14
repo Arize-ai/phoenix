@@ -66,6 +66,7 @@ export function PlaygroundChatTemplateFooter({
         <Button
           size="S"
           aria-label="response format"
+          data-testid="add-response-format"
           leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
           isDisabled={hasResponseFormat}
           onPress={() => {
