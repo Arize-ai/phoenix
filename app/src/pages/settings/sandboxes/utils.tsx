@@ -199,6 +199,8 @@ export function getBackendDescription(backendType: BackendInfo["backendType"]) {
       return "Cloud Python sandbox";
     case "DAYTONA_PYTHON":
       return "Daytona workspace-backed Python runtime";
+    case "DAYTONA_TYPESCRIPT":
+      return "Daytona workspace-backed TypeScript runtime";
     case "VERCEL_PYTHON":
       return "Vercel cloud Python sandbox";
     case "VERCEL_TYPESCRIPT":
