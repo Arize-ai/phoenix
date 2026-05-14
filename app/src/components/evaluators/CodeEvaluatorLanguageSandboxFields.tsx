@@ -174,6 +174,7 @@ const BACKEND_TYPE_LABELS: Record<string, string> = {
   WASM: "WebAssembly",
   E2B: "E2B",
   DAYTONA_PYTHON: "Daytona",
+  DAYTONA_TYPESCRIPT: "Daytona",
   VERCEL_PYTHON: "Vercel",
   VERCEL_TYPESCRIPT: "Vercel",
   DENO: "Deno",

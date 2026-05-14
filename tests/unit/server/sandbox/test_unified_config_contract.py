@@ -43,6 +43,10 @@ _ADAPTER_MODULES = {
     "WASM": ("phoenix.server.sandbox.wasm_backend", "WASMAdapter"),
     "E2B": ("phoenix.server.sandbox.e2b_backend", "E2BAdapter"),
     "DAYTONA_PYTHON": ("phoenix.server.sandbox.daytona_backend", "DaytonaPythonAdapter"),
+    "DAYTONA_TYPESCRIPT": (
+        "phoenix.server.sandbox.daytona_backend",
+        "DaytonaTypescriptAdapter",
+    ),
     "VERCEL_PYTHON": ("phoenix.server.sandbox.vercel_backend", "VercelPythonAdapter"),
     "VERCEL_TYPESCRIPT": ("phoenix.server.sandbox.vercel_backend", "VercelTypescriptAdapter"),
     "DENO": ("phoenix.server.sandbox.deno_backend", "DenoAdapter"),

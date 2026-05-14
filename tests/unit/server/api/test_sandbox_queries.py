@@ -144,7 +144,7 @@ async def test_sandbox_backends_and_providers_can_be_loaded_together(
     ]
     assert backends["DAYTONA_PYTHON"]["dependencyHints"] == [
         "Install Phoenix with the `daytona` extra.",
-        "Provide `DAYTONA_API_KEY`.",
+        "Provide `PHOENIX_SANDBOX_DAYTONA_API_KEY`.",
     ]
     assert backends["VERCEL_PYTHON"]["dependencyHints"] == [
         "Install Phoenix with the `vercel` extra.",

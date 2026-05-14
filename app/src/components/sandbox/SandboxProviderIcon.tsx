@@ -185,6 +185,7 @@ const ICONS_BY_BACKEND_TYPE: Record<string, React.FC<IconProps>> = {
   WASM: WasmSVG,
   E2B: E2BSVG,
   DAYTONA_PYTHON: DaytonaSVG,
+  DAYTONA_TYPESCRIPT: DaytonaSVG,
   VERCEL_PYTHON: VercelSVG,
   VERCEL_TYPESCRIPT: VercelSVG,
   DENO: DenoSVG,
