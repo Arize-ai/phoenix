@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from tests.pxi.evals.evaluators.tools import (
+from evals.pxi.evaluators.tools import (
     correct_tools_called,
     set_spans_filter_args_match,
     tool_call_args_match,

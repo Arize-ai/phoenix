@@ -2,7 +2,7 @@
 
 Run directly:
 
-    uv run pytest tests/pxi/evals/test_datasets.py
+    uv run pytest evals/pxi/harness/test_datasets.py
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.pxi.evals.datasets import (
+from evals.pxi.harness.datasets import (
     DatasetValidationError,
     EvalDataset,
     dataset_path,

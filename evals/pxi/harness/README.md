@@ -4,11 +4,11 @@ This harness runs live-model PXI server-side evals as Phoenix experiments.
 
 ## Run Locally
 
-The canonical entrypoint is `tests/pxi/evals/run_experiment.py`. Start
+The canonical entrypoint is `evals/pxi/harness/run_experiment.py`. Start
 Phoenix, then run:
 
 ```bash
-uv run python tests/pxi/evals/run_experiment.py --dataset set_spans_filter
+uv run python evals/pxi/harness/run_experiment.py --dataset set_spans_filter
 ```
 
 The runner checks `/healthz` against whichever Phoenix URL is configured
@@ -19,7 +19,7 @@ shared Phoenix endpoint:
 ```bash
 export PHOENIX_COLLECTOR_ENDPOINT=https://your-phoenix.example.com
 export PHOENIX_API_KEY=...
-uv run python tests/pxi/evals/run_experiment.py --dataset set_spans_filter
+uv run python evals/pxi/harness/run_experiment.py --dataset set_spans_filter
 ```
 
 Task errors (exception type plus a truncated message, no stack traces) are
@@ -55,7 +55,7 @@ receive docs MCP tools.
 
 ## Datasets
 
-Datasets live in `tests/pxi/evals/datasets/*.yaml`. Each file has:
+Datasets live in `evals/pxi/datasets/*.yaml`. Each file has:
 
 - `dataset_name`
 - optional `description`
@@ -89,7 +89,7 @@ camelCase. For `set_spans_filter` that means `condition` and
 
 ## Evaluators
 
-Code evaluators live in `tests/pxi/evals/evaluators/` and use
+Code evaluators live in `evals/pxi/evaluators/` and use
 `@create_evaluator(name=..., kind="code")` from `phoenix.evals`. Experiment
 evaluators can bind `output`, `input`, `expected`, and `metadata`. Simple
 `bool`, `int`, or `float` returns are converted into Phoenix scores, while

@@ -6,7 +6,7 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
-DATASETS_DIR = Path(__file__).parent / "datasets"
+DATASETS_DIR = Path(__file__).resolve().parents[1] / "datasets"
 
 
 class EvalDataset(BaseModel):
@@ -30,7 +30,7 @@ class EvalDataset(BaseModel):
         if not value:
             raise ValueError(
                 "evaluators must be a non-empty list of evaluator names "
-                "(see tests/pxi/evals/evaluators/__init__.py for valid names)"
+                "(see evals/pxi/evaluators/__init__.py for valid names)"
             )
         for name in value:
             if not isinstance(name, str) or not name.strip():

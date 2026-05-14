@@ -219,7 +219,7 @@ async def task(example: dict[str, Any]) -> dict[str, Any]:
     Prefer :func:`make_task` so the toolset is shared across concurrent
     runs. This entrypoint is kept for callers that don't need the docs
     toolset and for backwards compatibility with the original
-    ``from tests.pxi.evals.agent_task import task`` import.
+    ``from evals.pxi.harness.agent_task import task`` import.
     """
     input_value = example["input"]
     query = input_value.get("query")
