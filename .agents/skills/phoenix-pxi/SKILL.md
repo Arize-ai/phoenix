@@ -31,6 +31,7 @@ Read the relevant file(s) based on the task:
 | `resources/extending-tool-registry.md`               | Adding, editing, or removing a PXI tool — server advertisement, browser execution, capability gating, request/dispatch flow  |
 | `resources/system-prompt-xml-conventions.md`         | Adding to, editing, or reviewing the PXI agent system prompt or any module that contributes lines to it                      |
 | `resources/per-turn-context-and-cache-management.md` | Injecting per-turn page or UI state into a chat request; sanitizing user-controlled values; preserving prompt-cache prefixes |
+| `resources/optimization-loop.md`                     | Tuning PXI behavior with the `tests/pxi/evals/` harness — collect tough examples, name failure modes, grade them, propose a change to the human, then re-run     |
 
 ## When To Add Which Tool Type
 
