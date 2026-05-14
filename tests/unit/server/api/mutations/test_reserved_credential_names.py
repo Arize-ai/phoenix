@@ -1,9 +1,8 @@
 """Reserved-credential-name collision tests for sandbox GQL mutations.
 
-Covers every enforcement surface exposed by Phase 2:
-- ``createSandboxConfig`` rejects reserved names in ``config.env_vars``
-- ``createSandboxConfig`` rejects reserved names as top-level ``config`` keys
-- ``updateSandboxProvider`` rejects reserved names as top-level ``config`` keys
+Covers the createSandboxConfig enforcement surface:
+- rejects reserved names in ``config.env_vars``
+- rejects reserved names as top-level ``config`` keys
 
 Parametrized across representative provider-credential names drawn from
 multiple adapters (MODAL, VERCEL) so a regression in one adapter's spec
@@ -49,20 +48,6 @@ mutation CreateSandboxConfig($input: CreateSandboxConfigInput!) {
     }
 }
 """
-
-_UPDATE_PROVIDER = """
-mutation UpdateSandboxProvider($input: UpdateSandboxProviderInput!) {
-    updateSandboxProvider(input: $input) {
-        sandboxProvider {
-            id
-        }
-    }
-}
-"""
-
-
-def _config_global_id(config_id: int) -> str:
-    return str(GlobalID("SandboxConfig", str(config_id)))
 
 
 def _provider_global_id(provider_id: int) -> str:
@@ -132,33 +117,6 @@ class TestReservedCredentialNamesRejected:
                     "input": {
                         "sandboxProviderId": _provider_global_id(provider.id),
                         "name": f"e2b-reserved-top-{reserved_name.lower()}",
-                        "config": {reserved_name: "shadow-attempt"},
-                    }
-                },
-            )
-        assert result.errors
-
-    async def test_update_provider_rejects_reserved_top_level_config_key(
-        self,
-        gql_client: AsyncGraphQLClient,
-        db: DbSessionFactory,
-        seed_sandbox_providers: None,
-        reserved_name: str,
-    ) -> None:
-        """updateSandboxProvider writes to SandboxProvider.config; the same
-        reserved-key check must apply on that surface too."""
-        async with db() as session:
-            provider = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
-            )
-        assert provider is not None
-
-        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
-            result = await gql_client.execute(
-                _UPDATE_PROVIDER,
-                variables={
-                    "input": {
-                        "id": _provider_global_id(provider.id),
                         "config": {reserved_name: "shadow-attempt"},
                     }
                 },

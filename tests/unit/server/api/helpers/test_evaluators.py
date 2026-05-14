@@ -3792,14 +3792,14 @@ class TestGetEvaluators:
     ) -> None:
         calls = 0
 
-        async def fake_get_or_create_backend(*args: Any, **kwargs: Any) -> object:
+        async def fake_build_sandbox_backend(*args: Any, **kwargs: Any) -> object:
             nonlocal calls
             calls += 1
             return object()
 
         monkeypatch.setattr(
-            "phoenix.server.sandbox.get_or_create_backend",
-            fake_get_or_create_backend,
+            "phoenix.server.sandbox.build_sandbox_backend",
+            fake_build_sandbox_backend,
         )
 
         async with db() as session:

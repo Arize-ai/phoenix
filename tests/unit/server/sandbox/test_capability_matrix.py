@@ -2,14 +2,12 @@
 
 Coverage:
   (a) validate_config rejects unsupported capability sections at create time.
-  (b) validate_config(..., stored_config=...) permits semantically unchanged
-      sections to round-trip (bypass-for-unchanged-sections path).
-  (c) build_backend raises UnsupportedOperation for unsupported sections
+  (b) build_backend raises UnsupportedOperation for unsupported sections
       (double-guard runtime gate).
-  (d) Per-wired-capability positive reach-through tests (mock-verified).
+  (c) Per-wired-capability positive reach-through tests (mock-verified).
 
 Tests assert against SANDBOX_ADAPTER_METADATA, not prose descriptions, so they
-remain correct as flag values evolve across Phases 2-4.
+remain correct as flag values evolve.
 
 SDK mocking strategy:
 - Modal: sys.modules["modal"] must be patched before ModalSandboxBackend.__init__
@@ -93,22 +91,11 @@ _ADAPTERS_WITHOUT_DEPENDENCIES = [
 ]
 
 
-def _adapter_declares(adapter_key: str, field: str) -> bool:
-    """Return True if the adapter's config_model declares `field` as a pydantic field.
-
-    Under D7 (extra="forbid"), undeclared fields are rejected by pydantic struct
-    validation (surfaced as ValueError by validate_config). Declared-but-unsupported
-    fields are rejected by _enforce_capability_gates (pydantic ValidationError).
-    Tests that want to isolate the gate path must filter to declared-field adapters.
-    """
-    return field in _get_adapter(adapter_key).config_model.model_fields
-
-
 @pytest.mark.parametrize("adapter_key", _ADAPTERS_WITHOUT_ENV_VARS)
 def test_validate_config_rejects_env_vars_when_unsupported(adapter_key: str) -> None:
     """validate_config rejects env_vars on adapters that don't support them.
 
-    Two rejection paths are acceptable per D7:
+    Two rejection paths are acceptable:
     - Adapter declares the field but capability=false → gate raises ValidationError
     - Adapter doesn't declare the field → pydantic extra="forbid" raises, wrapped as ValueError
     """
@@ -137,64 +124,7 @@ def test_validate_config_rejects_dependencies_when_unsupported(adapter_key: str)
 
 
 # ---------------------------------------------------------------------------
-# (b) validate_config — stored-config round-trip bypass for unchanged sections
-# ---------------------------------------------------------------------------
-
-# Stored-config bypass only applies when the adapter actually declares the field
-# on its pydantic config model. For adapters that don't declare a field (WASM for
-# all three; DENO for dependencies), pydantic extra="forbid" rejects the key
-# before _enforce_capability_gates can consult stored_config. Those cases are
-# covered by the undeclared-field rejection tests above, not by bypass tests.
-_ADAPTERS_INTERNET_ACCESS_GATE_PATH = [
-    key for key in _ADAPTERS_WITHOUT_INTERNET_ACCESS if _adapter_declares(key, "internet_access")
-]
-_ADAPTERS_DEPENDENCIES_GATE_PATH = [
-    key for key in _ADAPTERS_WITHOUT_DEPENDENCIES if _adapter_declares(key, "dependencies")
-]
-
-
-@pytest.mark.parametrize("adapter_key", _ADAPTERS_INTERNET_ACCESS_GATE_PATH)
-def test_validate_config_stored_config_roundtrip_internet_access(adapter_key: str) -> None:
-    """Unchanged internet_access from stored_config round-trips when capability=none and field is declared."""
-    adapter = _get_adapter(adapter_key)
-    ia_section = {"mode": "allow"}
-    config = {"internet_access": ia_section}
-    result = adapter.validate_config(config, stored_config={"internet_access": ia_section})
-    assert result.get("internet_access") is not None
-
-
-@pytest.mark.parametrize("adapter_key", _ADAPTERS_DEPENDENCIES_GATE_PATH)
-def test_validate_config_stored_config_roundtrip_dependencies(adapter_key: str) -> None:
-    """Unchanged dependencies from stored_config round-trip when dep support=None and field is declared."""
-    adapter = _get_adapter(adapter_key)
-    deps_section = {"packages": ["requests"], "lockfile": None}
-    config = {"dependencies": deps_section}
-    result = adapter.validate_config(config, stored_config={"dependencies": deps_section})
-    assert result.get("dependencies") is not None
-
-
-@pytest.mark.parametrize("adapter_key", _ADAPTERS_INTERNET_ACCESS_GATE_PATH)
-def test_validate_config_changed_internet_access_still_rejected(adapter_key: str) -> None:
-    """A changed internet_access section is NOT permitted even with stored_config present."""
-    adapter = _get_adapter(adapter_key)
-    stored_config = {"internet_access": {"mode": "deny"}}
-    new_config = {"internet_access": {"mode": "allow"}}
-    with pytest.raises(ValidationError, match="capability_violation"):
-        adapter.validate_config(new_config, stored_config=stored_config)
-
-
-@pytest.mark.parametrize("adapter_key", _ADAPTERS_DEPENDENCIES_GATE_PATH)
-def test_validate_config_changed_dependencies_still_rejected(adapter_key: str) -> None:
-    """Changed packages are NOT permitted even with stored_config present."""
-    adapter = _get_adapter(adapter_key)
-    stored_config = {"dependencies": {"packages": ["requests"], "lockfile": None}}
-    new_config = {"dependencies": {"packages": ["numpy"], "lockfile": None}}
-    with pytest.raises(ValidationError, match="capability_violation"):
-        adapter.validate_config(new_config, stored_config=stored_config)
-
-
-# ---------------------------------------------------------------------------
-# (c) build_backend — double-guard runtime gate (UnsupportedOperation)
+# (b) build_backend — double-guard runtime gate (UnsupportedOperation)
 # ---------------------------------------------------------------------------
 
 _INTERNET_ACCESS_CONFIG = {"internet_access": {"mode": "allow"}}

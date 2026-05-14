@@ -542,15 +542,6 @@ type CodeEvaluatorVersionEdge {
   node: CodeEvaluatorVersion!
 }
 
-type ConfigFieldSpecType {
-  key: String!
-  displayName: String!
-  fieldType: String!
-  required: Boolean!
-  description: String!
-  choices: [String!]
-}
-
 union ConnectionConfig = OpenAIConnectionConfig | AzureOpenAIConnectionConfig | AnthropicConnectionConfig | AWSBedrockConnectionConfig | GoogleGenAIConnectionConfig
 
 input ConnectionConfigInput {
@@ -3314,7 +3305,6 @@ type SandboxBackendInfo {
   status: SandboxBackendStatus!
   statusDetail: String
   dependencyHints: [String!]!
-  configFieldSpecs: [ConfigFieldSpecType!]!
   supportsEnvVars: Boolean!
   internetAccess: InternetAccessMode!
   dependenciesLanguage: Language
@@ -3355,7 +3345,6 @@ type SandboxProvider implements Node {
   id: ID!
   backendType: String!
   language: Language!
-  config: JSON!
   enabled: Boolean!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -4203,7 +4192,6 @@ type UpdateSandboxConfigPayload {
 
 input UpdateSandboxProviderInput {
   id: ID!
-  config: JSON
   enabled: Boolean
 }
 

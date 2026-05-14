@@ -1,7 +1,7 @@
 """Direct unit tests for `_resolve_sandbox_credentials` precedence and omission.
 
-Full DB → get_or_create_backend → build_backend integration is covered by the
-mutation-layer cache-invalidation suite via `gql_client`; this file keeps only
+Full DB → build_sandbox_backend → build_backend integration is covered by the
+mutation-layer suite via `gql_client`; this file keeps only
 the two direct-call invariants the helper itself owns:
 
 - DB-stored credential wins over an env-var of the same key.

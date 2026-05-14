@@ -100,7 +100,7 @@ async def sync_sandbox_providers(
     The caller (sandbox/__init__.py) passes SANDBOX_ADAPTER_METADATA so
     this module has no import dependency on the sandbox package itself.
     Existing rows (matched by backend_type + language) are left untouched
-    so user-configured values (enabled, config) are preserved — we use
+    so user-configured values (enabled) are preserved — we use
     `ON CONFLICT DO NOTHING`, never `DO UPDATE`.
 
     Safe to call multiple times (idempotent) and across concurrent replicas

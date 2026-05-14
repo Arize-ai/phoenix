@@ -3,14 +3,6 @@ GraphQL mutations for managing sandbox backend configuration.
 
 Provides CRUD for SandboxConfig rows (named per-provider configs that
 CodeEvaluators point to) and update operations for SandboxProvider rows.
-
-Contract: `config` is the sole mutation payload boundary for adapter-specific
-settings. New sections (env_vars, internet_access, dependencies) live inside
-`config` as nested keys — not as sibling GraphQL arguments — and are validated
-through each adapter's `validate_config` / pydantic config_model. The frontend
-builds the JSON payload using ConfigFieldSpec entries derived from the adapter
-models; it never needs to know about adapter-specific field names at the GQL
-layer. Do not add sibling typed-input fields for the new sections.
 """
 
 from typing import Any, cast
@@ -49,8 +41,6 @@ from phoenix.server.api.types.SandboxConfig import (
 )
 from phoenix.server.sandbox import (
     _SANDBOX_ADAPTERS,
-    invalidate_backend_cache,
-    invalidate_backend_cache_for_key,
     is_reserved_credential_name,
 )
 
@@ -59,22 +49,18 @@ def _check_env_var_collision(env_vars: Any, backend_type: str) -> None:
     """Raise BadRequest if any env_var name or secret_ref.secret_key collides
     with a reserved provider-credential key.
 
-    `env_vars` is the raw list from SandboxConfig.config (dicts or pydantic
-    models); callers pass `config_dict.get("env_vars")`. `backend_type` is
-    included in the error message for caller context. Comparison is
-    case-insensitive (see `is_reserved_credential_name`).
+    Callers pass the raw GraphQL JSON list (`config_dict.get("env_vars")`),
+    so entries are always dicts. Comparison is case-insensitive (see
+    `is_reserved_credential_name`).
     """
     if not env_vars:
         return
     for entry in env_vars:
-        if isinstance(entry, dict):
-            name = entry.get("name", "")
-            kind = entry.get("kind", "")
-            secret_key = entry.get("secret_key", "")
-        else:
-            name = getattr(entry, "name", "")
-            kind = getattr(entry, "kind", "")
-            secret_key = getattr(entry, "secret_key", "")
+        if not isinstance(entry, dict):
+            continue
+        name = entry.get("name", "")
+        kind = entry.get("kind", "")
+        secret_key = entry.get("secret_key", "")
         if name and is_reserved_credential_name(name):
             raise BadRequest(
                 f"Environment variable name {name!r} is reserved as a sandbox "
@@ -280,7 +266,6 @@ class SandboxConfigMutationMixin:
                 if input.description is not strawberry.UNSET:
                     row.description = input.description
                 if input.config is not strawberry.UNSET:
-                    stored_config = dict(row.config) if row.config else {}
                     config_dict: dict[str, Any] = (
                         dict(cast(dict[str, Any], input.config)) if input.config is not None else {}
                     )
@@ -295,9 +280,7 @@ class SandboxConfigMutationMixin:
                         adapter = _SANDBOX_ADAPTERS.get(provider.backend_type)
                         if adapter is not None:
                             try:
-                                config_dict = adapter.validate_config(
-                                    config_dict, stored_config=stored_config
-                                )
+                                config_dict = adapter.validate_config(config_dict)
                             except (ValueError, ValidationError) as exc:
                                 raise BadRequest(str(exc))
                     row.config = config_dict
@@ -349,7 +332,7 @@ class SandboxConfigMutationMixin:
         info: Info[Context, None],
         input: UpdateSandboxProviderInput,
     ) -> UpdateSandboxProviderPayload:
-        """Update provider-level sandbox settings such as config and enabled state."""
+        """Toggle a sandbox provider's enabled state."""
         from sqlalchemy import select
 
         async with info.context.db() as session:
@@ -363,18 +346,6 @@ class SandboxConfigMutationMixin:
             if row is None:
                 raise NotFound(f"SandboxProvider not found: {provider_id}")
 
-            if input.config is not strawberry.UNSET:
-                provider_config: dict[str, Any] = (
-                    dict(cast(dict[str, Any], input.config)) if input.config is not None else {}
-                )
-                _check_reserved_top_level_keys(provider_config, row.backend_type)
-                adapter = _SANDBOX_ADAPTERS.get(row.backend_type)
-                if adapter is not None:
-                    try:
-                        provider_config = adapter.validate_config(provider_config)
-                    except (ValueError, ValidationError) as exc:
-                        raise BadRequest(str(exc))
-                row.config = provider_config
             if input.enabled is not strawberry.UNSET and input.enabled is not None:
                 row.enabled = input.enabled
 
@@ -414,12 +385,6 @@ class SandboxConfigMutationMixin:
                     on_conflict=OnConflict.DO_UPDATE,
                 )
             )
-        # Key-level fan-out covers shared credential_specs (e.g.,
-        # VERCEL_TOKEN shared between VERCEL_PYTHON and
-        # VERCEL_TYPESCRIPT). Per-backend_type
-        # invalidation remains as a defense-in-depth backstop.
-        await invalidate_backend_cache_for_key(key)
-        await invalidate_backend_cache(backend_type)
         return SetSandboxCredentialPayload(backend_type=backend_type, key=key, query=Query())
 
     @strawberry.mutation(
@@ -438,8 +403,4 @@ class SandboxConfigMutationMixin:
 
         async with info.context.db() as session:
             await session.execute(sa.delete(models.Secret).where(models.Secret.key == key))
-        # Key-level fan-out covers shared credential_specs; per-backend_type call
-        # remains as a defense-in-depth backstop.
-        await invalidate_backend_cache_for_key(key)
-        await invalidate_backend_cache(backend_type)
         return DeleteSandboxCredentialPayload(backend_type=backend_type, key=key, query=Query())

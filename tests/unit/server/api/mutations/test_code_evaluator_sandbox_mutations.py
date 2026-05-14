@@ -71,7 +71,6 @@ mutation UpdateSandboxProvider($input: UpdateSandboxProviderInput!) {
         sandboxProvider {
             id
             enabled
-            config
         }
     }
 }
@@ -299,7 +298,7 @@ class TestDeleteSandboxConfig:
 
 
 class TestUpdateSandboxProvider:
-    async def test_updates_provider_config_and_enabled(
+    async def test_updates_provider_enabled(
         self,
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
@@ -310,38 +309,6 @@ class TestUpdateSandboxProvider:
                 select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
             )
         assert provider is not None
-
-        new_config = {
-            "env_vars": [{"kind": "literal", "name": "FOO", "value": "bar"}],
-        }
-        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
-            result = await gql_client.execute(
-                _UPDATE_PROVIDER,
-                variables={
-                    "input": {
-                        "id": _provider_global_id(provider.id),
-                        "enabled": False,
-                        "config": new_config,
-                    }
-                },
-            )
-        assert result.data and not result.errors
-        sandbox_provider = result.data["updateSandboxProvider"]["sandboxProvider"]
-        assert sandbox_provider["enabled"] is False
-        assert sandbox_provider["config"]["env_vars"] == new_config["env_vars"]
-
-    async def test_update_provider_only_enabled_leaves_config_unchanged(
-        self,
-        gql_client: AsyncGraphQLClient,
-        db: DbSessionFactory,
-        seed_sandbox_providers: None,
-    ) -> None:
-        async with db() as session:
-            provider = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
-            )
-        assert provider is not None
-        original_config = provider.config
 
         result = await gql_client.execute(
             _UPDATE_PROVIDER,
@@ -353,40 +320,8 @@ class TestUpdateSandboxProvider:
             },
         )
         assert result.data and not result.errors
-        sp = result.data["updateSandboxProvider"]["sandboxProvider"]
-        assert sp["enabled"] is False
-        assert sp["config"] == original_config
-
-    async def test_update_provider_only_config_leaves_enabled_unchanged(
-        self,
-        gql_client: AsyncGraphQLClient,
-        db: DbSessionFactory,
-        seed_sandbox_providers: None,
-    ) -> None:
-        async with db() as session:
-            provider = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
-            )
-        assert provider is not None
-        original_enabled = provider.enabled
-
-        new_config = {
-            "env_vars": [{"kind": "literal", "name": "BAZ", "value": "qux"}],
-        }
-        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
-            result = await gql_client.execute(
-                _UPDATE_PROVIDER,
-                variables={
-                    "input": {
-                        "id": _provider_global_id(provider.id),
-                        "config": new_config,
-                    }
-                },
-            )
-        assert result.data and not result.errors
-        sp = result.data["updateSandboxProvider"]["sandboxProvider"]
-        assert sp["config"]["env_vars"] == new_config["env_vars"]
-        assert sp["enabled"] is original_enabled
+        sandbox_provider = result.data["updateSandboxProvider"]["sandboxProvider"]
+        assert sandbox_provider["enabled"] is False
 
     async def test_update_provider_no_fields_is_noop(
         self,
@@ -399,7 +334,6 @@ class TestUpdateSandboxProvider:
                 select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
             )
         assert provider is not None
-        original_config = provider.config
         original_enabled = provider.enabled
 
         result = await gql_client.execute(
@@ -412,7 +346,6 @@ class TestUpdateSandboxProvider:
         )
         assert result.data and not result.errors
         sp = result.data["updateSandboxProvider"]["sandboxProvider"]
-        assert sp["config"] == original_config
         assert sp["enabled"] is original_enabled
 
     async def test_update_provider_not_found_returns_error(

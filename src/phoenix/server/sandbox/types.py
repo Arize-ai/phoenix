@@ -177,23 +177,6 @@ class TypescriptDependenciesConfig(BaseModel):
 
 
 @dataclass
-class ConfigFieldSpec:
-    """
-    Describes a single key in SandboxConfig.config for a given adapter.
-
-    Used to drive UI form rendering and server-side validation. Covers
-    config keys only — not provider-level credentials (D8).
-    """
-
-    key: str
-    display_name: str
-    field_type: Literal["string", "integer", "boolean", "select"]
-    required: bool = False
-    description: str = ""
-    choices: Optional[list[str]] = None
-
-
-@dataclass
 class ProviderCredentialSpec:
     """Describes a provider credential env var required by a sandbox adapter.
 
@@ -209,9 +192,8 @@ class ProviderCredentialSpec:
 
 # ---------------------------------------------------------------------------
 # Per-adapter pydantic config models.
-# extra="forbid" rejects unknown keys at validate_config (D7 contract).
+# extra="forbid" rejects unknown keys at validate_config.
 # All config fields are optional — adapters use defaults for missing keys.
-# Field(title=...) drives ConfigFieldSpec.display_name derivation.
 # ---------------------------------------------------------------------------
 
 
@@ -442,99 +424,6 @@ class BaseNoSessionBackend(SandboxBackend):
         pass
 
 
-# ---------------------------------------------------------------------------
-# Section-level semantic equality helpers for capability-gate bypass logic.
-# Used by _enforce_capability_gates to determine whether a submitted section
-# is an unchanged carry-forward of the stored baseline.
-# ---------------------------------------------------------------------------
-
-
-def _normalize_env_var(entry: Any) -> dict[str, Any]:
-    """Return a stable dict representation of a single env_var entry."""
-    if isinstance(entry, dict):
-        return dict(entry)
-    # pydantic model instance — use model_dump for canonical representation
-    if hasattr(entry, "model_dump"):
-        result: dict[str, Any] = entry.model_dump(mode="json")
-        return result
-    return {
-        "kind": getattr(entry, "kind", ""),
-        "name": getattr(entry, "name", ""),
-        "value": getattr(entry, "value", ""),
-        "secret_key": getattr(entry, "secret_key", ""),
-    }
-
-
-def _env_vars_equal(a: Any, b: Any) -> bool:
-    """Return True if two env_vars lists are semantically equal (order-independent).
-
-    Uses Counter over canonical tuple representations so duplicate entries in
-    one list are not collapsed — [X, X] != [X].
-    """
-    from collections import Counter
-
-    if not a and not b:
-        return True
-    if not a or not b:
-        return False
-
-    def _to_tuple(entry: Any) -> tuple[str, ...]:
-        d = _normalize_env_var(entry)
-        return (d.get("kind", ""), d.get("name", ""), d.get("value", ""), d.get("secret_key", ""))
-
-    return Counter(_to_tuple(e) for e in a) == Counter(_to_tuple(e) for e in b)
-
-
-def _normalize_section(value: Any, model_cls: Type[BaseModel]) -> dict[str, Any]:
-    """Normalize a config section through pydantic model_dump so comparisons track the schema."""
-    if value is None:
-        return {}
-    if isinstance(value, dict):
-        dumped: dict[str, Any] = model_cls.model_validate(value).model_dump(
-            mode="json", exclude_defaults=False
-        )
-        return dumped
-    if hasattr(value, "model_dump"):
-        dumped = value.model_dump(mode="json", exclude_defaults=False)
-        return dumped
-    return {}
-
-
-def _internet_access_equal(a: Any, b: Any) -> bool:
-    """Return True if two internet_access values are semantically equal.
-
-    Canonicalizes through InternetAccessConfig.model_dump so future fields
-    are automatically included rather than silently dropped.
-    """
-    if a is None and b is None:
-        return True
-    if a is None or b is None:
-        return False
-    return _normalize_section(a, InternetAccessConfig) == _normalize_section(
-        b, InternetAccessConfig
-    )
-
-
-def _packages_equal(a: Any, b: Any) -> bool:
-    """Return True if two dependencies sections are semantically equal.
-
-    Canonicalizes through PythonDependenciesConfig.model_dump so the lockfile
-    field is included — set(packages) alone is insufficient. Package list order
-    is not semantically meaningful, so packages are sorted before comparison.
-    """
-    if not a and not b:
-        return True
-    if not a or not b:
-        return False
-
-    def _canonical(value: Any) -> dict[str, Any]:
-        d = _normalize_section(value, PythonDependenciesConfig)
-        d["packages"] = sorted(d.get("packages") or [])
-        return d
-
-    return _canonical(a) == _canonical(b)
-
-
 class SandboxAdapter(ABC):
     """
     Abstract base class for sandbox adapters.
@@ -560,9 +449,6 @@ class SandboxAdapter(ABC):
 
     #: Pydantic model used for config validation. Subclasses override at class level.
     config_model: Type[BaseModel] = BaseModel
-
-    #: Specs for config keys accepted by this adapter. Subclasses override at class level.
-    config_field_specs: list["ConfigFieldSpec"] = []
 
     #: Specs for provider credential env vars required by this adapter.
     credential_specs: list["ProviderCredentialSpec"] = []
@@ -612,35 +498,22 @@ class SandboxAdapter(ABC):
         """
         ...
 
-    def validate_config(
-        self,
-        config: Mapping[str, Any],
-        stored_config: Optional[Mapping[str, Any]] = None,
-    ) -> dict[str, Any]:
+    def validate_config(self, config: Mapping[str, Any]) -> dict[str, Any]:
         """
         Validate config via the adapter's pydantic config_model, then apply
         capability gates from AdapterMetadata.
 
-        Returns the validated config dict (unknown keys preserved per D9).
-        Raises ValueError on struct-validation failures (D3). Raises pydantic
-        ValidationError when the validated config violates an advertised
-        capability (D4):
+        Returns the validated config dict. Raises ValueError on struct-validation
+        failures and pydantic ValidationError when the validated config violates
+        an advertised capability:
           - supports_env_vars is False and config has non-empty env_vars
           - internet_access_capability == "none" and config has an
             internet_access block
           - dependencies_language is None and config.dependencies.packages
             is non-empty
 
-        When ``stored_config`` is provided (update path), capability gates are
-        skipped for sections that are semantically unchanged vs the stored
-        baseline. This allows admins to round-trip configs whose
-        capability-gated sections predate the current advertisement without
-        relaxing runtime enforcement (build_backend still raises
-        UnsupportedOperation).
-
-        The existing per-adapter build_backend capability guards remain in
-        place as defense-in-depth (see _enforce_capabilities template method
-        in Phase 4).
+        The per-adapter build_backend capability guards remain in place as
+        defense-in-depth (see _enforce_capabilities template method).
         """
         from pydantic import ValidationError
 
@@ -651,7 +524,7 @@ class SandboxAdapter(ABC):
         # model_dump preserves extra fields because models use extra="allow"
         validated_dict = validated.model_dump()
         self._enforce_unique_env_var_names(validated_dict)
-        self._enforce_capability_gates(validated_dict, stored_config=stored_config)
+        self._enforce_capability_gates(validated_dict)
         return validated_dict
 
     def _enforce_unique_env_var_names(self, config: Mapping[str, Any]) -> None:
@@ -696,21 +569,12 @@ class SandboxAdapter(ABC):
         ]
         raise ValidationError.from_exception_data(type(self).__name__, errors)
 
-    def _enforce_capability_gates(
-        self,
-        config: Mapping[str, Any],
-        stored_config: Optional[Mapping[str, Any]] = None,
-    ) -> None:
+    def _enforce_capability_gates(self, config: Mapping[str, Any]) -> None:
         """Raise pydantic ValidationError if config violates AdapterMetadata
         capability flags.
 
         Metadata is resolved via a lazy import to avoid a circular dependency
         between `types.py` and `sandbox.__init__`.
-
-        When ``stored_config`` is provided, a capability-gated section is
-        skipped if the submitted value is semantically equal to the stored
-        baseline, allowing preserved sections to round-trip without error.
-        Runtime enforcement (``_enforce_capabilities``) remains fail-closed.
         """
         from pydantic import ValidationError
         from pydantic_core import InitErrorDetails, PydanticCustomError
@@ -727,72 +591,64 @@ class SandboxAdapter(ABC):
 
         env_vars = config.get("env_vars")
         if not metadata.supports_env_vars and env_vars:
-            stored_env_vars = stored_config.get("env_vars") if stored_config else None
-            if not _env_vars_equal(env_vars, stored_env_vars):
-                errors.append(
-                    InitErrorDetails(
-                        type=PydanticCustomError(
-                            "capability_violation",
-                            (
-                                "{adapter} adapter does not support user-defined "
-                                "environment variables; remove env_vars or switch "
-                                "to an adapter that supports them."
-                            ),
-                            {"adapter": self.key},
+            errors.append(
+                InitErrorDetails(
+                    type=PydanticCustomError(
+                        "capability_violation",
+                        (
+                            "{adapter} adapter does not support user-defined "
+                            "environment variables; remove env_vars or switch "
+                            "to an adapter that supports them."
                         ),
-                        loc=("env_vars",),
-                        input=env_vars,
-                    )
+                        {"adapter": self.key},
+                    ),
+                    loc=("env_vars",),
+                    input=env_vars,
                 )
+            )
 
         internet_access = config.get("internet_access")
         if metadata.internet_access_capability == "none" and internet_access is not None:
-            stored_ia = stored_config.get("internet_access") if stored_config else None
-            if not _internet_access_equal(internet_access, stored_ia):
-                errors.append(
-                    InitErrorDetails(
-                        type=PydanticCustomError(
-                            "capability_violation",
-                            (
-                                "{adapter} adapter does not support internet_access "
-                                "configuration; remove the internet_access field or "
-                                "switch to an adapter that supports it."
-                            ),
-                            {"adapter": self.key},
+            errors.append(
+                InitErrorDetails(
+                    type=PydanticCustomError(
+                        "capability_violation",
+                        (
+                            "{adapter} adapter does not support internet_access "
+                            "configuration; remove the internet_access field or "
+                            "switch to an adapter that supports it."
                         ),
-                        loc=("internet_access",),
-                        input=internet_access,
-                    )
+                        {"adapter": self.key},
+                    ),
+                    loc=("internet_access",),
+                    input=internet_access,
                 )
+            )
 
         dependencies = config.get("dependencies")
         if metadata.dependencies_language is None and dependencies:
             packages = dependencies.get("packages") if isinstance(dependencies, dict) else None
             if packages:
-                stored_deps = stored_config.get("dependencies") if stored_config else None
-                if not _packages_equal(dependencies, stored_deps):
-                    errors.append(
-                        InitErrorDetails(
-                            type=PydanticCustomError(
-                                "capability_violation",
-                                (
-                                    "{adapter} adapter does not support dependency "
-                                    "installation; remove dependencies.packages or "
-                                    "switch to an adapter that supports it."
-                                ),
-                                {"adapter": self.key},
+                errors.append(
+                    InitErrorDetails(
+                        type=PydanticCustomError(
+                            "capability_violation",
+                            (
+                                "{adapter} adapter does not support dependency "
+                                "installation; remove dependencies.packages or "
+                                "switch to an adapter that supports it."
                             ),
-                            loc=("dependencies", "packages"),
-                            input=packages,
-                        )
+                            {"adapter": self.key},
+                        ),
+                        loc=("dependencies", "packages"),
+                        input=packages,
                     )
+                )
 
         # Runtime-install adapters install packages INSIDE the sandbox via
         # run_code, so a sandbox created with the network already denied has no
         # PyPI access and the install silently fails. Reject the combination
-        # eagerly. No stored_config bypass: the combo never works, so
-        # round-tripping a stored config that's already in this state should
-        # also fail loudly rather than persisting a broken configuration.
+        # eagerly.
         if metadata.installs_packages_at_runtime and metadata.dependencies_language is not None:
             ia_mode: Optional[str] = None
             if isinstance(internet_access, dict):
