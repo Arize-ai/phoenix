@@ -8,6 +8,7 @@ import type { UIMessage } from "ai";
 import { getBashToolInput } from "@phoenix/agent/tools/bash";
 import type { BashToolInput } from "@phoenix/agent/tools/bash";
 import { handleBashToolCall } from "@phoenix/agent/tools/bash/handleBashToolCall";
+import { isDocsToolName } from "@phoenix/agent/tools/docs";
 import { parseElicitToolInput } from "@phoenix/agent/tools/elicit";
 import type { ElicitToolInput } from "@phoenix/agent/tools/elicit";
 import {
@@ -438,6 +439,10 @@ export function getAgentToolUIBehavior(
   return agentToolRegistryByName.get(toolName)?.uiBehavior;
 }
 
+export function isServerExecutedAgentTool(toolName: string): boolean {
+  return isDocsToolName(toolName);
+}
+
 function getMissingCapabilities({
   registeredTool,
   capabilities,
@@ -482,6 +487,9 @@ export async function handleRegisteredAgentToolCall({
   const registeredTool = agentToolRegistryByName.get(toolCall.toolName);
 
   if (!registeredTool) {
+    if (isServerExecutedAgentTool(toolCall.toolName)) {
+      return;
+    }
     await addToolOutput({
       state: "output-error",
       tool: toolCall.toolName,

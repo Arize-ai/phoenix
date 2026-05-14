@@ -1,6 +1,7 @@
 import {
   getAgentToolUIBehavior,
   handleRegisteredAgentToolCall,
+  isServerExecutedAgentTool,
   SET_TIME_RANGE_TOOL_NAME,
 } from "@phoenix/agent/extensions/toolRegistry";
 import {
@@ -39,6 +40,31 @@ describe("toolRegistry", () => {
       })
     );
   });
+
+  it.each(["search_phoenix", "get_page_phoenix"])(
+    "does not emit browser tool output for server-executed %s calls",
+    async (toolName) => {
+      const store = createAgentStore();
+      const addToolOutput = vi.fn().mockResolvedValue(undefined);
+
+      await handleRegisteredAgentToolCall({
+        toolCall: {
+          toolCallId: "tool-call-server",
+          toolName,
+          input:
+            toolName === "search_phoenix"
+              ? { query: "datasets" }
+              : { page: "/phoenix" },
+        },
+        sessionId: "session-1",
+        addToolOutput,
+        agentStore: store,
+      });
+
+      expect(addToolOutput).not.toHaveBeenCalled();
+      expect(isServerExecutedAgentTool(toolName)).toBe(true);
+    }
+  );
 
   it("returns an error output for invalid tool input", async () => {
     const store = createAgentStore();
