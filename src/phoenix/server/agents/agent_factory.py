@@ -3,15 +3,13 @@ from pydantic_ai import Agent, DeferredToolRequests, RunContext
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.models import Model
 
+from phoenix.server.agents.capabilities import build_capability_system_prompt
 from phoenix.server.agents.context import (
     build_phoenix_context_user_message_content,
     insert_context_user_message,
 )
 from phoenix.server.agents.dependencies import ChatDependencies
-from phoenix.server.agents.prompts import (
-    AGENT_STATIC_SYSTEM_PROMPT,
-    build_agent_dynamic_system_prompt,
-)
+from phoenix.server.agents.prompts import build_static_agent_system_prompt
 from phoenix.server.agents.pydantic_ai import (
     OpenInferenceAgentWrapper,
     OpenInferenceToolsetWrapper,
@@ -19,11 +17,6 @@ from phoenix.server.agents.pydantic_ai import (
 from phoenix.server.agents.toolsets import build_toolset
 
 ChatOutput = str | DeferredToolRequests
-
-
-def _build_dynamic_instructions(ctx: RunContext[ChatDependencies]) -> str | None:
-    """Render request-specific PXI instructions from the run's dependencies."""
-    return build_agent_dynamic_system_prompt(capabilities=ctx.deps.capabilities)
 
 
 def _inject_ui_context(
@@ -60,8 +53,21 @@ def build_agent(
         name="PXIAgent",
         deps_type=ChatDependencies,
         output_type=[str, DeferredToolRequests],
-        instructions=[AGENT_STATIC_SYSTEM_PROMPT, _build_dynamic_instructions],
+        instructions=[build_static_agent_system_prompt],
         toolsets=[_build_toolset],
         history_processors=[_inject_ui_context],
     )
+
+    @agent.instructions
+    def capability_instructions(ctx: RunContext[ChatDependencies]) -> str | None:
+        sections = []
+
+        capability_prompt = build_capability_system_prompt(ctx.deps.capabilities)
+        if capability_prompt:
+            sections.append(capability_prompt)
+
+        if not sections:
+            return None
+        return "\n\n".join(sections)
+
     return OpenInferenceAgentWrapper(agent, tracer_provider=provider)
