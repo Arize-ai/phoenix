@@ -1,3 +1,4 @@
+import React from "react";
 import { css, keyframes } from "@emotion/react";
 
 const BRAND_CELL_SIZE = 5.5;
