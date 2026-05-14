@@ -282,5 +282,116 @@ class TestBuildBackendCredentialValidation:
         from phoenix.server.sandbox.daytona_backend import DaytonaPythonAdapter
 
         adapter = DaytonaPythonAdapter()
-        with pytest.raises(ValueError, match="DAYTONA_API_KEY"):
-            adapter.build_backend({"DAYTONA_API_KEY": ""})
+        with pytest.raises(ValueError, match="PHOENIX_SANDBOX_DAYTONA_API_KEY"):
+            adapter.build_backend({"PHOENIX_SANDBOX_DAYTONA_API_KEY": ""})
+
+
+class TestTypescriptRouting:
+    """Verify that ``language='TYPESCRIPT'`` routes ``_create_params`` to
+    ``CodeLanguage.TYPESCRIPT`` and ``_install_packages`` to a Node-side
+    ``npm install`` invocation with argv-shape safety (no shell interpolation).
+    """
+
+    @pytest.mark.asyncio
+    async def test_create_params_uses_typescript_language(self) -> None:
+        """language='TYPESCRIPT' → CreateSandboxFromSnapshotParams(language='typescript')."""
+        daytona_mod, process_mod = _make_daytona_mocks()
+
+        # CodeLanguage.TYPESCRIPT is "typescript" upstream; mock the enum.
+        daytona_mod.CodeLanguage = MagicMock()
+        daytona_mod.CodeLanguage.PYTHON = "python"
+        daytona_mod.CodeLanguage.TYPESCRIPT = "typescript"
+
+        modules = {
+            "daytona_sdk": daytona_mod,
+            "daytona_sdk.common": MagicMock(),
+            "daytona_sdk.common.process": process_mod,
+        }
+        with patch.dict(sys.modules, modules):
+            from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
+
+            backend = DaytonaSandboxBackend(api_key=_API_KEY, language="TYPESCRIPT")
+            await backend.execute("console.log('hi')", session_key="s1")
+
+        create_call = daytona_mod.AsyncDaytona.return_value.create.call_args
+        assert create_call is not None, "client.create() was never called"
+        params = create_call.args[0] if create_call.args else create_call.kwargs.get("params")
+        assert isinstance(params, _CreateSandboxFromSnapshotParams), (
+            f"Expected CreateSandboxFromSnapshotParams; got {type(params)}"
+        )
+        assert params.language == "typescript", (
+            f"Expected language=CodeLanguage.TYPESCRIPT (='typescript'); got {params.language!r}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_install_packages_uses_npm_argv_shape(self) -> None:
+        """language='TYPESCRIPT' + packages → generated TS source runs
+        ``spawnSync('npm', ['install', ...pkgs])`` with packages embedded as a
+        JSON array literal — NOT shell-string interpolation, NOT pip."""
+        daytona_mod, process_mod = _make_daytona_mocks()
+        daytona_mod.CodeLanguage = MagicMock()
+        daytona_mod.CodeLanguage.PYTHON = "python"
+        daytona_mod.CodeLanguage.TYPESCRIPT = "typescript"
+
+        modules = {
+            "daytona_sdk": daytona_mod,
+            "daytona_sdk.common": MagicMock(),
+            "daytona_sdk.common.process": process_mod,
+        }
+        with patch.dict(sys.modules, modules):
+            from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
+
+            backend = DaytonaSandboxBackend(
+                api_key=_API_KEY,
+                packages=["is-odd"],
+                language="TYPESCRIPT",
+            )
+            await backend.start_session("sess-ts")
+
+        workspace = daytona_mod.AsyncDaytona.return_value.create.return_value
+        # First code_run call is the install; second (if any) is execution.
+        # start_session only runs the install.
+        assert workspace.process.code_run.call_count >= 1, (
+            "expected at least one code_run invocation (install)"
+        )
+        install_call = workspace.process.code_run.call_args_list[0]
+        install_source = install_call.args[0] if install_call.args else ""
+
+        assert "npm" in install_source, (
+            f"expected 'npm' in generated install source; got: {install_source!r}"
+        )
+        assert "install" in install_source, (
+            f"expected 'install' in generated install source; got: {install_source!r}"
+        )
+        assert "pip install" not in install_source, (
+            f"TS install must not invoke pip; got: {install_source!r}"
+        )
+        # Package list MUST be embedded as a JSON array literal.
+        assert '["is-odd"]' in install_source, (
+            f"expected packages embedded as JSON array literal '[\"is-odd\"]' "
+            f"in install source; got: {install_source!r}"
+        )
+        # Argv-shape via spawnSync — NOT shell-string interpolation. Reject
+        # the shell-interpolation footgun forms explicitly.
+        assert ("spawnSync" in install_source) or ("execFileSync" in install_source), (
+            f"expected argv-style spawnSync/execFileSync (not shell-string "
+            f"interpolation); got: {install_source!r}"
+        )
+        # Defensive: no template-string concatenation of the package list into
+        # an `npm install ...` shell command.
+        assert "`npm install ${" not in install_source, (
+            f"shell-string interpolation of pkgs into npm command is unsafe; "
+            f"got: {install_source!r}"
+        )
+        # cwd must be pinned to /tmp so the resulting /tmp/node_modules/<pkg>
+        # is resolvable from subsequent code_run invocations (which execute
+        # at /tmp/dtn_*.ts). Verified against a live Daytona TS workspace:
+        # default cwd is /home/daytona and require.resolve.paths from user
+        # code lists /tmp/node_modules first, but never /home/daytona/node_modules.
+        # `npm install -g` also fails because nvm installs to lib/node_modules
+        # which Node's legacy GLOBAL_FOLDERS lookup misses (it searches lib/node).
+        assert "cwd: '/tmp'" in install_source or 'cwd: "/tmp"' in install_source, (
+            f"expected spawnSync cwd pinned to /tmp so installed packages land "
+            f"in /tmp/node_modules (the first entry in Node's resolve path on "
+            f"Daytona's TS workspace); got: {install_source!r}"
+        )

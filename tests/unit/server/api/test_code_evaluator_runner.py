@@ -131,6 +131,30 @@ class TestHarnessGeneration:
         assert "await evaluate(_inputs)" in harness
         assert "await _run();" in harness
 
+    def test_typescript_harness_wraps_result_in_sentinels(self) -> None:
+        """The TS harness must emit its JSON result between unambiguous
+        sentinel markers. Runners that share stdout with banner-producing
+        tooling (Daytona's first ``code_run`` injects an ``npm notice``
+        block into the same stdout channel as ``console.log``) depend on
+        the sentinels to locate the user's payload — without them, a
+        polluted stdout parses as a label-shaped string and fails the
+        continuous-output validator with ``score=None``.
+        """
+        from phoenix.server.api.evaluators import (
+            _TYPESCRIPT_RESULT_BEGIN,
+            _TYPESCRIPT_RESULT_END,
+        )
+
+        runner, _ = _make_runner(language="TYPESCRIPT")
+        harness = runner._build_typescript_harness({"k": "v"})
+        assert _TYPESCRIPT_RESULT_BEGIN in harness
+        assert _TYPESCRIPT_RESULT_END in harness
+        # Sentinels must straddle JSON.stringify(_result) — not the input.
+        begin_idx = harness.index(_TYPESCRIPT_RESULT_BEGIN)
+        end_idx = harness.index(_TYPESCRIPT_RESULT_END)
+        between = harness[begin_idx:end_idx]
+        assert "JSON.stringify(_result)" in between
+
 
 class TestInputSchemaInference:
     def test_python_input_schema_infers_top_level_parameters(self) -> None:
@@ -476,6 +500,46 @@ class TestBackendConfiguration:
         assert "const _run = async () => {" in code_arg
         assert "await evaluate(_inputs)" in code_arg
         assert "await _run();" in code_arg
+
+    async def test_typescript_polluted_stdout_extracts_sentinel_wrapped_result(
+        self,
+    ) -> None:
+        """Daytona-style banner pollution must not break TS result parsing.
+
+        When the underlying TS runtime prints banner text (e.g. ``npm notice``
+        lines on Daytona's first ``code_run`` after sandbox creation) into the
+        same stdout channel as the user's harness output, the runner must
+        still extract the JSON payload between sentinel markers and coerce it
+        to a numeric score. The regression this guards: pre-sentinel, the
+        polluted multi-line stdout failed JSON parsing, the whole string fell
+        through as a "label", and the continuous validator raised
+        ``Continuous output requires a numeric score. Got score=None.``
+        """
+        from phoenix.server.api.evaluators import (
+            _TYPESCRIPT_RESULT_BEGIN,
+            _TYPESCRIPT_RESULT_END,
+        )
+
+        polluted = (
+            f"{_TYPESCRIPT_RESULT_BEGIN}0.5{_TYPESCRIPT_RESULT_END}\n"
+            "npm notice\n"
+            "npm notice New minor version of npm available! 11.8.0 -> 11.14.1\n"
+            "npm notice\n"
+        )
+        runner, _ = _make_runner(
+            source_code=("function evaluate({ output }: EvaluatorParams) { return 0.5; }"),
+            language="TYPESCRIPT",
+            backend_stdout=polluted,
+        )
+        results = await runner.evaluate(
+            context={"output": {"answer": "a"}},
+            input_mapping=_EMPTY_MAPPING,
+            name="test",
+            output_configs=[_continuous_config()],
+        )
+        assert len(results) == 1
+        assert results[0]["error"] is None, results[0]["error"]
+        assert results[0]["score"] == 0.5
 
     async def test_python_language_uses_python_harness(self) -> None:
         """Runner selects Python harness when language is PYTHON."""

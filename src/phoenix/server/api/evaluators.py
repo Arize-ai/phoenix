@@ -2448,6 +2448,21 @@ def _infer_python_evaluate_input_schema(source_code: str) -> tuple[dict[str, Any
 _TYPESCRIPT_FUNCTION_SIGNATURE_RE = re.compile(r"function\s+evaluate\s*\(([^)]*)\)")
 _TYPESCRIPT_ARROW_SIGNATURE_RE = re.compile(r"(?:const|let|var)\s+evaluate\s*=\s*\(([^)]*)\)\s*=>")
 
+# Sentinel markers wrapping the JSON result emitted by the TypeScript harness.
+# Required because some sandbox runtimes (notably Daytona, whose first
+# `code_run` on a fresh TS workspace prints a multi-line `npm notice` banner
+# into the same stdout channel as the user's `console.log`) co-mingle banner
+# text with user output. Wrapping the JSON in unambiguous sentinels lets the
+# runner extract exactly the user-emitted payload regardless of surrounding
+# noise. The sentinels are scoped to the TS harness only — the Python harness
+# has not exhibited equivalent pollution in any supported backend.
+_TYPESCRIPT_RESULT_BEGIN = "__PHOENIX_TS_RESULT_BEGIN__"
+_TYPESCRIPT_RESULT_END = "__PHOENIX_TS_RESULT_END__"
+_TYPESCRIPT_RESULT_RE = re.compile(
+    re.escape(_TYPESCRIPT_RESULT_BEGIN) + r"(.*?)" + re.escape(_TYPESCRIPT_RESULT_END),
+    re.DOTALL,
+)
+
 
 def _extract_typescript_object_parameter_keys(params: str) -> tuple[list[str], list[str]]:
     destructured = re.match(r"^\{([^}]*)\}", params.strip())
@@ -2584,14 +2599,29 @@ class CodeEvaluatorRunner(BaseEvaluator):
         )
 
     def _build_typescript_harness(self, mapped_inputs: dict[str, Any]) -> str:
-        """Wrap source_code in a TypeScript script that calls evaluate(inputs)."""
+        """Wrap source_code in a TypeScript script that calls evaluate(inputs).
+
+        The result is emitted between ``_TYPESCRIPT_RESULT_BEGIN`` /
+        ``_TYPESCRIPT_RESULT_END`` sentinels so the runner can extract it even
+        when the underlying TS runtime injects banner text into stdout. On
+        Daytona's TypeScript sandbox, the first ``code_run`` on a fresh
+        workspace emits npm's update-check notice ("npm notice New minor
+        version of npm available..." several lines) into the SAME stdout
+        channel as ``console.log`` — daytona's ``ExecuteResponse.result``
+        combines both. Without the sentinels, the polluted stdout fails JSON
+        parsing, falls back to a string-shaped "label", and surfaces as
+        ``score=None`` to the continuous-output validator.
+        """
         inputs_json = json.dumps(mapped_inputs)
         return (
             f"{self._source_code}\n\n"
             f"const _inputs = {inputs_json};\n"
             f"const _run = async () => {{\n"
             f"  const _result = await evaluate(_inputs);\n"
-            f"  console.log(JSON.stringify(_result));\n"
+            f"  console.log("
+            f"'{_TYPESCRIPT_RESULT_BEGIN}' + "
+            f"JSON.stringify(_result) + "
+            f"'{_TYPESCRIPT_RESULT_END}');\n"
             f"}};\n"
             f"await _run();\n"
         )
@@ -2803,9 +2833,21 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     for _ in (output_configs or [None])  # type: ignore[list-item]
                 ]
 
-            # Parse the JSON-printed return value from stdout
+            # Parse the JSON-printed return value from stdout.
+            # For TypeScript, the harness wraps the JSON between
+            # ``__PHOENIX_TS_RESULT_BEGIN__`` / ``__PHOENIX_TS_RESULT_END__``
+            # sentinels so we can extract it even when the runtime co-mingles
+            # banner text (e.g. Daytona's first-`code_run` npm update notice)
+            # with the user's ``console.log`` output. Falls back to the legacy
+            # whole-stdout parse if no sentinel pair is present (covers older
+            # harness output and the Python path).
             raw_value: Any = None
-            stdout = execution.stdout.strip()
+            stdout = execution.stdout
+            if self._language == "TYPESCRIPT":
+                match = _TYPESCRIPT_RESULT_RE.search(stdout)
+                if match is not None:
+                    stdout = match.group(1)
+            stdout = stdout.strip()
             if stdout:
                 try:
                     raw_value = json.loads(stdout)
