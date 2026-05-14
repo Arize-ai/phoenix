@@ -101,26 +101,6 @@ from phoenix.server.api.types.GenerativeProvider import (
 )
 from phoenix.utilities.json import jsonify
 
-
-def _anthropic_beta_headers_for_tools(
-    tools: Iterable[Mapping[str, Any]],
-) -> dict[str, str] | None:
-    betas: list[str] = []
-    for tool in tools:
-        tool_type = tool.get("type")
-        if not isinstance(tool_type, str) or not tool_type.startswith("computer_"):
-            continue
-        version = tool_type.removeprefix("computer_")
-        if len(version) != 8 or not version.isdigit():
-            continue
-        beta = f"computer-use-{version[:4]}-{version[4:6]}-{version[6:]}"
-        if beta not in betas:
-            betas.append(beta)
-    if not betas:
-        return None
-    return {"anthropic-beta": ",".join(betas)}
-
-
 if TYPE_CHECKING:
     from anthropic import AsyncAnthropic
     from anthropic.lib.streaming import AsyncMessageStreamManager
@@ -2185,6 +2165,33 @@ class AzureOpenAIReasoningNonStreamingClient(
                 tool_call_id=tool_call_id,
             )
         assert_never(role)
+
+
+def _anthropic_beta_headers_for_tools(
+    tools: Iterable[Mapping[str, Any]],
+) -> dict[str, str] | None:
+    """Return the ``anthropic-beta`` header required to use the given tools, if any.
+
+    Anthropic's computer-use tools (e.g. ``computer_20250124``) are gated behind a
+    dated beta flag that must be sent as the ``anthropic-beta`` request header
+    (e.g. ``computer-use-2025-01-24``). This inspects the tool definitions, derives
+    the beta flag for each computer-use tool version present, and returns them as
+    a comma-separated header value. Returns ``None`` when no such tools are used.
+    """
+    betas: list[str] = []
+    for tool in tools:
+        tool_type = tool.get("type")
+        if not isinstance(tool_type, str) or not tool_type.startswith("computer_"):
+            continue
+        version = tool_type.removeprefix("computer_")
+        if len(version) != 8 or not version.isdigit():
+            continue
+        beta = f"computer-use-{version[:4]}-{version[4:6]}-{version[6:]}"
+        if beta not in betas:
+            betas.append(beta)
+    if not betas:
+        return None
+    return {"anthropic-beta": ",".join(betas)}
 
 
 @register_llm_client(
