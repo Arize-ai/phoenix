@@ -11,7 +11,7 @@ from contextlib import AsyncExitStack
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Sequence, cast
 from urllib.parse import urljoin
 
 if __package__ in {None, ""}:
@@ -29,7 +29,7 @@ from tests.pxi.evals.agent_task import (
     build_shared_docs_mcp_toolset,
     make_task,
 )
-from tests.pxi.evals.datasets import (  # type: ignore[attr-defined, unused-ignore]
+from tests.pxi.evals.datasets import (
     EvalDataset,
     load_dataset,
 )
@@ -37,6 +37,7 @@ from tests.pxi.evals.evaluators import EVALUATORS_BY_NAME
 
 DEFAULT_BASE_URL = "http://localhost:6006"
 PASSING_SCORE = 1.0
+MAX_TABLE_CELL_WIDTH = 80
 
 
 @dataclass(frozen=True)
@@ -105,9 +106,67 @@ def _experiment_name(dataset: EvalDataset, config: ExperimentConfig) -> str:
     return "-".join(parts)
 
 
-def _experiment_url(base_url: str, experiment: RanExperiment) -> str:
-    experiment_id = experiment.get("experiment_id")
-    return f"{base_url.rstrip('/')}/experiments/{experiment_id}" if experiment_id else base_url
+def _format_table(headers: tuple[str, ...], rows: Sequence[tuple[str, ...]]) -> str:
+    widths = [
+        max(len(header), *(len(row[index]) for row in rows)) for index, header in enumerate(headers)
+    ]
+    rule = "+" + "+".join("-" * (width + 2) for width in widths) + "+"
+
+    def format_row(row: tuple[str, ...]) -> str:
+        cells = [value.ljust(widths[index]) for index, value in enumerate(row)]
+        return "| " + " | ".join(cells) + " |"
+
+    lines = [rule, format_row(headers), rule]
+    lines.extend(format_row(row) for row in rows)
+    lines.append(rule)
+    return "\n".join(lines)
+
+
+def _truncate_cell(value: Any) -> str:
+    text = str(value)
+    if len(text) <= MAX_TABLE_CELL_WIDTH:
+        return text
+    return text[: MAX_TABLE_CELL_WIDTH - 3] + "..."
+
+
+def _result_field(evaluation_run: ExperimentEvaluationRun, key: str) -> str:
+    result = evaluation_run.result
+    if not isinstance(result, dict):
+        return ""
+    value = result.get(key)
+    return "" if value is None else _truncate_cell(value)
+
+
+def _failed_evaluation_rows(
+    experiment: RanExperiment,
+    evaluation_runs: Sequence[ExperimentEvaluationRun],
+) -> list[tuple[str, str, str, str, str]]:
+    task_runs_by_id = {
+        str(task_run["id"]): task_run for task_run in experiment.get("task_runs", []) if "id" in task_run
+    }
+    rows: list[tuple[str, str, str, str, str]] = []
+    for evaluation_run in evaluation_runs:
+        score = _score(evaluation_run)
+        if evaluation_run.error is None and score is not None and score >= PASSING_SCORE:
+            continue
+        task_run = task_runs_by_id.get(str(evaluation_run.experiment_run_id))
+        example_id = task_run["dataset_example_id"] if task_run else str(evaluation_run.experiment_run_id)
+        rows.append(
+            (
+                _truncate_cell(example_id),
+                _truncate_cell(evaluation_run.name or "unknown"),
+                (
+                    "error"
+                    if evaluation_run.error is not None
+                    else "missing"
+                    if score is None
+                    else f"{score:g}"
+                ),
+                _result_field(evaluation_run, "label"),
+                _truncate_cell(evaluation_run.error or _result_field(evaluation_run, "explanation")),
+            )
+        )
+    return rows
 
 
 def _score(evaluation_run: ExperimentEvaluationRun) -> float | None:
@@ -118,7 +177,7 @@ def _score(evaluation_run: ExperimentEvaluationRun) -> float | None:
     return float(value) if isinstance(value, (int, float)) else None
 
 
-def _print_score_summary(dataset: EvalDataset, experiment: RanExperiment, base_url: str) -> bool:
+def _print_score_summary(dataset: EvalDataset, experiment: RanExperiment) -> bool:
     evaluation_runs = list(experiment.get("evaluation_runs") or [])
     by_evaluator: dict[str, dict[str, Any]] = {}
     has_regressions = False
@@ -146,16 +205,34 @@ def _print_score_summary(dataset: EvalDataset, experiment: RanExperiment, base_u
             has_regressions = True
 
     print(f"Dataset: {dataset.dataset_name} ({len(dataset.examples)} examples)")
-    print(f"Experiment URL: {_experiment_url(base_url, experiment)}")
     if by_evaluator:
-        print(f"Evaluator score summary (passing score >= {PASSING_SCORE:g}):")
+        rows = []
         for name, summary in sorted(by_evaluator.items()):
-            detail = f"{summary['passing']}/{summary['total']} passed, {summary['failing']} failed"
-            if summary["errors"]:
-                detail += f", {summary['errors']} errors"
-            if summary["missing_score"]:
-                detail += f", {summary['missing_score']} missing scores"
-            print(f"  {name}: {detail}")
+            total = int(summary["total"])
+            passing = int(summary["passing"])
+            pass_rate = f"{passing / total:.0%}" if total else "n/a"
+            rows.append(
+                (
+                    name,
+                    str(total),
+                    str(passing),
+                    str(summary["failing"]),
+                    str(summary["errors"]),
+                    str(summary["missing_score"]),
+                    pass_rate,
+                )
+            )
+        print(f"Evaluator results (passing score >= {PASSING_SCORE:g}):")
+        print(
+            _format_table(
+                ("Evaluator", "Total", "Passed", "Failed", "Errors", "Missing", "Pass Rate"),
+                rows,
+            )
+        )
+        failed_rows = _failed_evaluation_rows(experiment, evaluation_runs)
+        if failed_rows:
+            print("Failed evaluations:")
+            print(_format_table(("Example", "Evaluator", "Score", "Label", "Details"), failed_rows))
     return has_regressions
 
 
@@ -210,7 +287,7 @@ async def _run_async(config: ExperimentConfig) -> int:
                 experiment_name=name,
                 experiment_description=dataset.description,
                 experiment_metadata=metadata,
-                print_summary=False,
+                print_summary=True,
                 concurrency=3,
                 timeout=180,
                 retries=0,
@@ -222,7 +299,7 @@ async def _run_async(config: ExperimentConfig) -> int:
             experiment = await client.experiments.evaluate_experiment(
                 experiment=experiment,
                 evaluators=cast(Any, evaluators),
-                print_summary=False,
+                print_summary=True,
                 concurrency=3,
                 timeout=180,
                 retries=0,
@@ -241,7 +318,7 @@ async def _run_async(config: ExperimentConfig) -> int:
                         f"warning: AsyncClient cleanup failed: {cleanup_exc}",
                         file=sys.stderr,
                     )
-    has_regressions = _print_score_summary(dataset, experiment, config.base_url)
+    has_regressions = _print_score_summary(dataset, experiment)
     return 1 if has_regressions and config.fail_on_regression else 0
 
 
