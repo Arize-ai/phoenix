@@ -18,7 +18,7 @@ import {
   TriggerWrap,
   View,
 } from "@phoenix/components";
-import { SessionAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
+import { SessionAnnotationSummaryGroupStacks } from "@phoenix/components/annotation/SessionAnnotationSummaryGroup";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SessionTokenCount } from "@phoenix/components/trace/SessionTokenCount";
 import { SESSION_VIEW_PARAM } from "@phoenix/constants/searchParams";
@@ -127,7 +127,7 @@ function SessionDetailsHeader({
           ) : null}
         </Flex>
         <Flex direction="row" justifyContent="end">
-          <SessionAnnotationSummaryGroupTokens
+          <SessionAnnotationSummaryGroupStacks
             session={session}
             renderEmptyState={() => null}
           />
