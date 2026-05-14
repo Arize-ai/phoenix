@@ -1,147 +1,236 @@
 import { css, keyframes } from "@emotion/react";
+import React from "react";
 
-const DOT_R = 2.75;
-const DOT_D = DOT_R * 2;
+const BRAND_CELL_SIZE = 5.5;
+const BRAND_CELL_RADIUS = 1.1;
 const GAP = 1;
-const GRID = DOT_D + GAP;
-const svgSize = DOT_D + GRID * 2;
+const GRID = BRAND_CELL_SIZE + GAP;
+export const svgSize = BRAND_CELL_SIZE + GRID * 2;
+const thinkingGlyphSize = 16;
 
-const dots = [
-  { cx: DOT_R, cy: DOT_R }, // TL
-  { cx: DOT_R + GRID * 2, cy: DOT_R }, // TR
-  { cx: DOT_R + GRID, cy: DOT_R + GRID }, // center
-  { cx: DOT_R, cy: DOT_R + GRID * 2 }, // BL
-  { cx: DOT_R + GRID * 2, cy: DOT_R + GRID * 2 }, // BR
-];
+const gridCells = [
+  { x: 0, y: 0 },
+  { x: GRID * 2, y: 0 },
+  { x: GRID, y: GRID },
+  { x: 0, y: GRID * 2 },
+  { x: GRID * 2, y: GRID * 2 },
+].map(({ x, y }) => ({
+  x,
+  y,
+  width: BRAND_CELL_SIZE,
+  height: BRAND_CELL_SIZE,
+  rx: BRAND_CELL_RADIUS,
+  ry: BRAND_CELL_RADIUS,
+}));
 
-const breathe = keyframes`
-  0%, 100% { opacity: 0.5; }
-  50%      { opacity: 0.7; }
-`;
-
-const gapTL = keyframes`
-  0%, 70%, 100% { transform: translate(0.5px, 0.5px); }
-  20%           { transform: translate(-0.5px, -0.5px); }
-`;
-
-const gapTR = keyframes`
-  0%, 70%, 100% { transform: translate(-0.5px, 0.5px); }
-  20%           { transform: translate(0.5px, -0.5px); }
-`;
-
-const gapBL = keyframes`
-  0%, 70%, 100% { transform: translate(0.5px, -0.5px); }
-  20%           { transform: translate(-0.5px, 0.5px); }
-`;
-
-const gapBR = keyframes`
-  0%, 70%, 100% { transform: translate(-0.5px, -0.5px); }
-  20%           { transform: translate(0.5px, 0.5px); }
-`;
-
-const restingGlyphCSS = css`
-  transform: scale(0.7);
-
-  circle {
-    opacity: 1;
-    animation: none;
-  }
-`;
+export type PxiGlyphAnimation =
+  | "wave-reveal"
+  | "orbit-reveal"
+  | "twinkle-reveal"
+  | "wave-hold";
 
 const thinkingGlyphCSS = css`
-  .pxi-dot-center {
-    animation: ${breathe} 2.5s ease-in-out infinite;
-    animation-delay: 1s;
-  }
+  display: grid;
+  grid-template-columns: repeat(3, calc(var(--pxi-thinking-size) / 4));
+  grid-template-rows: repeat(3, calc(var(--pxi-thinking-size) / 4));
+  gap: calc(var(--pxi-thinking-size) / 8);
+  width: var(--pxi-thinking-size);
+  height: var(--pxi-thinking-size);
+  place-content: center;
+  flex-shrink: 0;
 
-  .pxi-dot-tl {
-    animation: ${gapTL} 2.5s ease-in-out infinite,
-      ${breathe} 2.5s ease-in-out infinite;
-    animation-delay: 0s, 0s;
-  }
-
-  .pxi-dot-tr {
-    animation: ${gapTR} 2.5s ease-in-out infinite,
-      ${breathe} 2.5s ease-in-out infinite;
-    animation-delay: 0.3s, 0.5s;
-  }
-
-  .pxi-dot-br {
-    animation: ${gapBR} 2.5s ease-in-out infinite,
-      ${breathe} 2.5s ease-in-out infinite;
-    animation-delay: 0.6s, 2s;
-  }
-
-  .pxi-dot-bl {
-    animation: ${gapBL} 2.5s ease-in-out infinite,
-      ${breathe} 2.5s ease-in-out infinite;
-    animation-delay: 0.9s, 1.5s;
+  > span {
+    width: calc(var(--pxi-thinking-size) / 4);
+    height: calc(var(--pxi-thinking-size) / 4);
+    border-radius: calc(var(--pxi-thinking-size) / 10.6666667);
+    background: currentColor;
+    opacity: 0.15;
   }
 `;
 
-const variantCSS = {
-  static: undefined,
-  resting: restingGlyphCSS,
-  thinking: thinkingGlyphCSS,
-} as const;
+const waveRevealMain = keyframes`
+  0%, 100% { opacity: 0.15; }
+  18% { opacity: 1; }
+  32% { opacity: 0.5; }
+  45%, 75% { opacity: 1; }
+  88% { opacity: 0.5; }
+`;
 
-export { svgSize };
+const waveRevealBackground = keyframes`
+  0%, 100% { opacity: 0.15; }
+  18% { opacity: 1; }
+  32% { opacity: 0.4; }
+  45%, 75% { opacity: 0.1; }
+  88% { opacity: 0.2; }
+`;
+
+const orbitRevealCorner = keyframes`
+  0%, 100% { opacity: 0.15; }
+  8% { opacity: 1; }
+  20% { opacity: 0.15; }
+  38% { opacity: 0.5; }
+  48%, 78% { opacity: 1; }
+  90% { opacity: 0.5; }
+`;
+
+const orbitRevealEdge = keyframes`
+  0%, 100% { opacity: 0.15; }
+  8% { opacity: 1; }
+  20% { opacity: 0.15; }
+  38% { opacity: 0.3; }
+  48%, 78% { opacity: 0.1; }
+  90% { opacity: 0.2; }
+`;
+
+const orbitRevealCenter = keyframes`
+  0%, 30% { opacity: 0.5; }
+  42% { opacity: 0.7; }
+  48%, 78% { opacity: 1; }
+  90%, 100% { opacity: 0.7; }
+`;
+
+const twinkleRevealMain = keyframes`
+  0%, 100% { opacity: 0.2; }
+  15% { opacity: 1; }
+  30% { opacity: 0.2; }
+  42% { opacity: 0.5; }
+  52%, 78% { opacity: 1; }
+  90% { opacity: 0.5; }
+`;
+
+const twinkleRevealBackground = keyframes`
+  0%, 100% { opacity: 0.2; }
+  15% { opacity: 1; }
+  30% { opacity: 0.2; }
+  42% { opacity: 0.3; }
+  52%, 78% { opacity: 0.1; }
+  90% { opacity: 0.2; }
+`;
+
+const waveHoldMain = keyframes`
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+`;
+
+const waveHoldBackground = keyframes`
+  0%, 40%, 100% { opacity: 0.1; }
+  20% { opacity: 0.6; }
+`;
+
+const waveRevealGlyphCSS = css`
+  > span:nth-of-type(1) { animation: ${waveRevealMain} 4s ease-in-out infinite 0s; }
+  > span:nth-of-type(2) { animation: ${waveRevealBackground} 4s ease-in-out infinite 0.08s; }
+  > span:nth-of-type(3) { animation: ${waveRevealMain} 4s ease-in-out infinite 0.16s; }
+  > span:nth-of-type(4) { animation: ${waveRevealBackground} 4s ease-in-out infinite 0.24s; }
+  > span:nth-of-type(5) { animation: ${waveRevealMain} 4s ease-in-out infinite 0.32s; }
+  > span:nth-of-type(6) { animation: ${waveRevealBackground} 4s ease-in-out infinite 0.4s; }
+  > span:nth-of-type(7) { animation: ${waveRevealMain} 4s ease-in-out infinite 0.48s; }
+  > span:nth-of-type(8) { animation: ${waveRevealBackground} 4s ease-in-out infinite 0.56s; }
+  > span:nth-of-type(9) { animation: ${waveRevealMain} 4s ease-in-out infinite 0.64s; }
+`;
+
+const orbitRevealGlyphCSS = css`
+  > span:nth-of-type(1) { animation: ${orbitRevealCorner} 4s ease-in-out infinite 0s; }
+  > span:nth-of-type(2) { animation: ${orbitRevealEdge} 4s ease-in-out infinite 0.15s; }
+  > span:nth-of-type(3) { animation: ${orbitRevealCorner} 4s ease-in-out infinite 0.3s; }
+  > span:nth-of-type(4) { animation: ${orbitRevealEdge} 4s ease-in-out infinite 1.05s; }
+  > span:nth-of-type(5) { animation: ${orbitRevealCenter} 4s ease-in-out infinite; }
+  > span:nth-of-type(6) { animation: ${orbitRevealEdge} 4s ease-in-out infinite 0.45s; }
+  > span:nth-of-type(7) { animation: ${orbitRevealCorner} 4s ease-in-out infinite 0.9s; }
+  > span:nth-of-type(8) { animation: ${orbitRevealEdge} 4s ease-in-out infinite 0.75s; }
+  > span:nth-of-type(9) { animation: ${orbitRevealCorner} 4s ease-in-out infinite 0.6s; }
+`;
+
+const twinkleRevealGlyphCSS = css`
+  > span:nth-of-type(1) { animation: ${twinkleRevealMain} 4s ease-in-out infinite 0s; }
+  > span:nth-of-type(2) { animation: ${twinkleRevealBackground} 4s ease-in-out infinite 0.2s; }
+  > span:nth-of-type(3) { animation: ${twinkleRevealMain} 4s ease-in-out infinite 0.5s; }
+  > span:nth-of-type(4) { animation: ${twinkleRevealBackground} 4s ease-in-out infinite 0.1s; }
+  > span:nth-of-type(5) { animation: ${twinkleRevealMain} 4s ease-in-out infinite 0.3s; }
+  > span:nth-of-type(6) { animation: ${twinkleRevealBackground} 4s ease-in-out infinite 0.6s; }
+  > span:nth-of-type(7) { animation: ${twinkleRevealMain} 4s ease-in-out infinite 0.4s; }
+  > span:nth-of-type(8) { animation: ${twinkleRevealBackground} 4s ease-in-out infinite 0.35s; }
+  > span:nth-of-type(9) { animation: ${twinkleRevealMain} 4s ease-in-out infinite 0.25s; }
+`;
+
+const waveHoldGlyphCSS = css`
+  > span:nth-of-type(1),
+  > span:nth-of-type(3),
+  > span:nth-of-type(5),
+  > span:nth-of-type(7),
+  > span:nth-of-type(9) {
+    animation: ${waveHoldMain} 3s ease-in-out infinite;
+  }
+
+  > span:nth-of-type(2) { animation: ${waveHoldBackground} 3s ease-in-out infinite 0s; }
+  > span:nth-of-type(4) { animation: ${waveHoldBackground} 3s ease-in-out infinite 0.15s; }
+  > span:nth-of-type(6) { animation: ${waveHoldBackground} 3s ease-in-out infinite 0.3s; }
+  > span:nth-of-type(8) { animation: ${waveHoldBackground} 3s ease-in-out infinite 0.45s; }
+`;
+
+const thinkingGlyphAnimationCSS: Record<
+  PxiGlyphAnimation,
+  ReturnType<typeof css>
+> = {
+  "wave-reveal": waveRevealGlyphCSS,
+  "orbit-reveal": orbitRevealGlyphCSS,
+  "twinkle-reveal": twinkleRevealGlyphCSS,
+  "wave-hold": waveHoldGlyphCSS,
+};
 
 /**
- * PXI dot-grid glyph (X pattern).
+ * PXI brand glyph. When `animation` is set, renders an animated 3x3 grid;
+ * otherwise renders the static rounded-square 5-cell brand mark.
  */
 export function PxiGlyph({
   className,
   fill = "currentColor",
-  variant = "static",
+  animation = false,
+  size,
 }: {
   className?: string;
   fill?: string;
-  variant?: "static" | "resting" | "thinking";
+  animation?: PxiGlyphAnimation | false;
+  size?: number | string;
 }) {
+  const dim = size ?? (animation ? thinkingGlyphSize : svgSize);
+
+  if (animation) {
+    const thinkingSize = typeof dim === "number" ? `${dim}px` : dim;
+    const thinkingStyle =
+      fill === "currentColor"
+        ? ({
+            "--pxi-thinking-size": thinkingSize,
+          } as React.CSSProperties)
+        : ({
+            color: fill,
+            "--pxi-thinking-size": thinkingSize,
+          } as React.CSSProperties);
+
+    return (
+      <span
+        className={className}
+        css={[thinkingGlyphCSS, thinkingGlyphAnimationCSS[animation]]}
+        style={thinkingStyle}
+        aria-hidden="true"
+      >
+        {Array.from({ length: 9 }, (_, index) => (
+          <span key={index} />
+        ))}
+      </span>
+    );
+  }
+
   return (
     <svg
       className={className}
-      css={variantCSS[variant]}
-      width={svgSize}
-      height={svgSize}
+      width={dim}
+      height={dim}
       viewBox={`0 0 ${svgSize} ${svgSize}`}
     >
-      <circle
-        className="pxi-dot-tl"
-        cx={dots[0].cx}
-        cy={dots[0].cy}
-        r={DOT_R}
-        fill={fill}
-      />
-      <circle
-        className="pxi-dot-tr"
-        cx={dots[1].cx}
-        cy={dots[1].cy}
-        r={DOT_R}
-        fill={fill}
-      />
-      <circle
-        className="pxi-dot-center"
-        cx={dots[2].cx}
-        cy={dots[2].cy}
-        r={DOT_R}
-        fill={fill}
-      />
-      <circle
-        className="pxi-dot-bl"
-        cx={dots[3].cx}
-        cy={dots[3].cy}
-        r={DOT_R}
-        fill={fill}
-      />
-      <circle
-        className="pxi-dot-br"
-        cx={dots[4].cx}
-        cy={dots[4].cy}
-        r={DOT_R}
-        fill={fill}
-      />
+      {gridCells.map((cell, i) => (
+        <rect key={i} {...cell} fill={fill} />
+      ))}
     </svg>
   );
 }
