@@ -31,6 +31,10 @@ describe("agentStore", () => {
 
     it("falls back activeSessionId to last remaining session when active is deleted", () => {
       const store = createAgentStore();
+      store.getState().setCapability({
+        key: "session.storeSessions",
+        enabled: true,
+      });
       const sessionId1 = store.getState().createSession();
       const sessionId2 = store.getState().createSession();
       // active is sessionId2
@@ -60,6 +64,83 @@ describe("agentStore", () => {
       const before = store.getState();
       store.getState().setSessionMessages("nonexistent", []);
       expect(store.getState().sessionMap).toBe(before.sessionMap);
+    });
+  });
+
+  describe("session retention", () => {
+    it("replaces prior sessions by default when creating a session", () => {
+      const store = createAgentStore();
+      const firstSessionId = store.getState().createSession();
+      store.getState().setPendingElicitation(firstSessionId, {
+        toolCallId: "tool-call-1",
+        questions: [],
+      });
+      store.getState().setSessionChatStatus(firstSessionId, "streaming");
+
+      const secondSessionId = store.getState().createSession();
+
+      expect(store.getState().sessions).toEqual([secondSessionId]);
+      expect(store.getState().activeSessionId).toBe(secondSessionId);
+      expect(store.getState().sessionMap[firstSessionId]).toBeUndefined();
+      expect(
+        store.getState().pendingElicitationBySessionId[firstSessionId]
+      ).toBeUndefined();
+      expect(
+        store.getState().chatStatusBySessionId[firstSessionId]
+      ).toBeUndefined();
+    });
+
+    it("keeps the three newest sessions when recent session storage is enabled", () => {
+      const store = createAgentStore();
+      store.getState().setCapability({
+        key: "session.storeSessions",
+        enabled: true,
+      });
+      const firstSessionId = store.getState().createSession();
+      const secondSessionId = store.getState().createSession();
+      const thirdSessionId = store.getState().createSession();
+      const fourthSessionId = store.getState().createSession();
+
+      expect(store.getState().sessions).toEqual([
+        secondSessionId,
+        thirdSessionId,
+        fourthSessionId,
+      ]);
+      expect(store.getState().activeSessionId).toBe(fourthSessionId);
+      expect(store.getState().sessionMap[firstSessionId]).toBeUndefined();
+      expect(store.getState().sessionMap[secondSessionId]).toBeDefined();
+      expect(store.getState().sessionMap[thirdSessionId]).toBeDefined();
+      expect(store.getState().sessionMap[fourthSessionId]).toBeDefined();
+    });
+
+    it("prunes to the active session when recent session storage is disabled", () => {
+      const store = createAgentStore();
+      store.getState().setCapability({
+        key: "session.storeSessions",
+        enabled: true,
+      });
+      const firstSessionId = store.getState().createSession();
+      const secondSessionId = store.getState().createSession();
+      store.getState().setPendingElicitation(firstSessionId, {
+        toolCallId: "tool-call-1",
+        questions: [],
+      });
+      store.getState().setSessionChatStatus(firstSessionId, "streaming");
+
+      store.getState().setCapability({
+        key: "session.storeSessions",
+        enabled: false,
+      });
+
+      expect(store.getState().sessions).toEqual([secondSessionId]);
+      expect(store.getState().activeSessionId).toBe(secondSessionId);
+      expect(store.getState().sessionMap[firstSessionId]).toBeUndefined();
+      expect(
+        store.getState().pendingElicitationBySessionId[firstSessionId]
+      ).toBeUndefined();
+      expect(
+        store.getState().chatStatusBySessionId[firstSessionId]
+      ).toBeUndefined();
     });
   });
 
@@ -166,6 +247,7 @@ describe("agentStore", () => {
         ...createDefaultAgentCapabilities(),
         "bash.retainInactiveSessions": true,
         "graphql.mutations": true,
+        "session.storeSessions": false,
       });
       expect(store.getState().observability).toEqual({
         storeLocalTraces: true,

@@ -1398,6 +1398,11 @@ export interface components {
              * @default false
              */
             "graphql.mutations"?: boolean;
+            /**
+             * Session.Storesessions
+             * @default false
+             */
+            "session.storeSessions"?: boolean;
         };
         /**
          * AgentSpanContext

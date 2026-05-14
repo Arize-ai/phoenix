@@ -6674,6 +6674,11 @@
             "type": "boolean",
             "title": "Graphql.Mutations",
             "default": false
+          },
+          "session.storeSessions": {
+            "type": "boolean",
+            "title": "Session.Storesessions",
+            "default": false
           }
         },
         "type": "object",

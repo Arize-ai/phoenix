@@ -16,6 +16,10 @@ class AgentCapabilities(BaseModel):
         alias="bash.retainInactiveSessions",
     )
     graphql_mutations: bool = Field(default=False, alias="graphql.mutations")
+    session_store_sessions: bool = Field(
+        default=False,
+        alias="session.storeSessions",
+    )
 
 
 @dataclass(frozen=True)
@@ -47,6 +51,11 @@ _CAPABILITY_PROMPT_RULES = (
     _CapabilityPromptRule(
         field_name="graphql_mutations",
         build_line=_graphql_mutations_prompt_line,
+    ),
+    _CapabilityPromptRule(
+        field_name="session_store_sessions",
+        # Browser-only session retention policy; no model guidance needed.
+        build_line=lambda _: None,
     ),
 )
 
