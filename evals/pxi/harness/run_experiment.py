@@ -21,7 +21,7 @@ from phoenix.client import AsyncClient
 from phoenix.client.resources.experiments.types import ExperimentEvaluationRun, RanExperiment
 from phoenix.client.utils.config import get_base_url, get_env_phoenix_api_key
 
-from tests.pxi.evals.agent_task import (
+from evals.pxi.harness.agent_task import (
     DEFAULT_ASSISTANT_MODEL,
     DEFAULT_ASSISTANT_PROVIDER,
     ENV_ASSISTANT_MODEL,
@@ -29,11 +29,11 @@ from tests.pxi.evals.agent_task import (
     build_shared_docs_mcp_server,
     make_task,
 )
-from tests.pxi.evals.datasets import (
+from evals.pxi.harness.datasets import (
     EvalDataset,
     load_dataset,
 )
-from tests.pxi.evals.evaluators import EVALUATORS_BY_NAME
+from evals.pxi.evaluators import EVALUATORS_BY_NAME
 
 DEFAULT_BASE_URL = "http://localhost:6006"
 PASSING_SCORE = 1.0
@@ -359,7 +359,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--dataset",
         required=True,
-        help="YAML file stem under tests/pxi/evals/datasets (e.g. set_spans_filter)",
+        help="YAML file stem under evals/pxi/datasets (e.g. set_spans_filter)",
     )
     parser.add_argument(
         "--experiment-name",

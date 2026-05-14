@@ -2,7 +2,7 @@
 
 Run directly:
 
-    uv run pytest tests/pxi/evals/test_run_experiment.py
+    uv run pytest evals/pxi/harness/test_run_experiment.py
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 
 from phoenix.client.resources.experiments.types import ExperimentEvaluationRun, RanExperiment
 
-from tests.pxi.evals.run_experiment import _failed_evaluation_rows, _format_table, _task_error_rows
+from evals.pxi.harness.run_experiment import _failed_evaluation_rows, _format_table, _task_error_rows
 
 
 def _ran_experiment(
