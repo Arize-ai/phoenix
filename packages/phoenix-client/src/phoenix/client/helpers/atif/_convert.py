@@ -41,9 +41,7 @@ def _sha256_trace_id(seed: str) -> str:
 def _stable_trajectory_hash(trajectory: Mapping[str, Any]) -> str:
     """Derive a stable fallback identity for trajectories without IDs."""
     trajectory_for_hash = {
-        key: value
-        for key, value in trajectory.items()
-        if not key.startswith("_phoenix_")
+        key: value for key, value in trajectory.items() if not key.startswith("_phoenix_")
     }
     serialized = json.dumps(trajectory_for_hash, sort_keys=True, default=str)
     return hashlib.sha256(serialized.encode()).hexdigest()[:16]
