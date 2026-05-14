@@ -215,7 +215,6 @@ export const VerticalBarChartWithHighlight: StoryObj<typeof VerticalBarChart> =
     ),
   };
 
-
 // ChartFrame Stories
 
 export const ChartFrameWithTitle: StoryObj<typeof ChartFrame> = {

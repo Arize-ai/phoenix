@@ -132,7 +132,9 @@ export function StackedBarChart({
         <div css={legendCSS}>
           {legendLabels.map((label, index) => {
             const colorKey =
-              GRAYSCALE_CATEGORICAL_COLORS[index % GRAYSCALE_CATEGORICAL_COLORS.length];
+              GRAYSCALE_CATEGORICAL_COLORS[
+                index % GRAYSCALE_CATEGORICAL_COLORS.length
+              ];
             return (
               <div key={label} css={legendItemCSS}>
                 <div
@@ -150,7 +152,5 @@ export function StackedBarChart({
 }
 
 function NoData() {
-  return (
-    <span style={{ color: "var(--global-text-color-500)" }}>No data</span>
-  );
+  return <span style={{ color: "var(--global-text-color-500)" }}>No data</span>;
 }

@@ -2,7 +2,6 @@ import { css } from "@emotion/react";
 import { useMemo } from "react";
 import {
   CartesianGrid,
-  Legend,
   Line,
   LineChart as RechartsLineChart,
   ResponsiveContainer,
@@ -151,7 +150,9 @@ export function LineChart({
           )}
           {seriesKeys.map((key, index) => {
             const colorKey =
-              GRAYSCALE_CATEGORICAL_COLORS[index % GRAYSCALE_CATEGORICAL_COLORS.length];
+              GRAYSCALE_CATEGORICAL_COLORS[
+                index % GRAYSCALE_CATEGORICAL_COLORS.length
+              ];
             return (
               <Line
                 key={key}
@@ -192,7 +193,5 @@ export function LineChart({
 }
 
 function NoData() {
-  return (
-    <span style={{ color: "var(--global-text-color-500)" }}>No data</span>
-  );
+  return <span style={{ color: "var(--global-text-color-500)" }}>No data</span>;
 }

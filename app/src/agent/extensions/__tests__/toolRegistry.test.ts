@@ -313,8 +313,7 @@ describe("toolRegistry", () => {
         state: "output-error",
         tool: GENERATIVE_UI_TOOL_NAME,
         toolCallId: "tool-call-8b",
-        errorText:
-          "Request should adhere to chart requirements.",
+        errorText: "Request should adhere to chart requirements.",
       })
     );
   });

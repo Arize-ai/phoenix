@@ -180,7 +180,10 @@ export function VerticalBarChart({
               <span css={legendLabelCSS}>{baseLabel}</span>
             </div>
             <div css={legendItemCSS}>
-              <div css={legendSwatchCSS} style={{ background: highlightColor }} />
+              <div
+                css={legendSwatchCSS}
+                style={{ background: highlightColor }}
+              />
               <span css={legendLabelCSS}>{highlightLabel}</span>
             </div>
           </div>
@@ -191,7 +194,5 @@ export function VerticalBarChart({
 }
 
 function NoData() {
-  return (
-    <span style={{ color: "var(--global-text-color-500)" }}>No data</span>
-  );
+  return <span style={{ color: "var(--global-text-color-500)" }}>No data</span>;
 }

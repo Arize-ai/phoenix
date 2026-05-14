@@ -230,11 +230,7 @@ export const CATEGORICAL_CHART_COLORS = Object.keys(
   CategoryChartLightColors
 ) as CategoricalChartColor[];
 
-type GrayscaleCategoricalColor =
-  | "gray1"
-  | "gray2"
-  | "gray3"
-  | "gray4" ;
+type GrayscaleCategoricalColor = "gray1" | "gray2" | "gray3" | "gray4";
 
 const GrayscaleCategoricalLightColors: Record<
   GrayscaleCategoricalColor,

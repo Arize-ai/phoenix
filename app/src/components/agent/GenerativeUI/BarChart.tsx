@@ -91,7 +91,5 @@ export function BarChart({
 }
 
 function NoData() {
-  return (
-    <span style={{ color: "var(--global-text-color-500)" }}>No data</span>
-  );
+  return <span style={{ color: "var(--global-text-color-500)" }}>No data</span>;
 }
