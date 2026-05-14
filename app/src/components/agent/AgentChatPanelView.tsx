@@ -10,10 +10,9 @@ import {
   LinkButton,
   Text,
 } from "@phoenix/components";
+import { fadedDividerBottomCSS } from "@phoenix/components/core/layout";
 import { compactResizeHandleCSS } from "@phoenix/components/resize/styles";
 import type { AgentSession } from "@phoenix/store/agentStore";
-
-import { fadedDividerBottomCSS } from "@phoenix/components/core/layout";
 
 import { PxiGlyph } from "./PxiGlyph";
 import { SessionListMenu } from "./SessionListMenu";

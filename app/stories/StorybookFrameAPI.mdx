@@ -5,6 +5,7 @@ import * as ToolPartStories from "./ToolPart.stories.tsx";
 <Meta title="Reference/Storybook frames" />
 
 # Storybook frames
+
 We use a global decorator to wrap stories with additional controls for layout, spacing, and theme.
 
 ### Default behavior
@@ -52,10 +53,13 @@ widths. The story can shrink below the value. If a story needs a true fixed
 width, wrap it in its own container.
 
 #### Keywords
+
 - `"intrinsic"` sizes to content and centers the story.
 - `"fill"` stretches to the available width.
 - `number | string` custom max width rule
+
 #### Overrides
+
 - `780` applies bounded mode with `max-width: 780px`.
 - `"min(100%, 48rem)"` applies bounded mode with that `max-width` value.
 
@@ -71,7 +75,6 @@ parameters: {
 
 - `"row"` shows themes side by side.
 - `"column"` stacks themes vertically.
-
 
 # Example usage
 

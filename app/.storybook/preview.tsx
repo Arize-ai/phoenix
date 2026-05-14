@@ -45,10 +45,7 @@ const defaultBoundedContentWidth = "780px";
 
 type StorySurfaceLayout = "centered" | "padded" | "fullscreen";
 type StoryWidthKeyword = "intrinsic" | "fill";
-type ResolvedStoryWidth =
-  | StoryWidthKeyword
-  | "bounded"
-  | "overflow";
+type ResolvedStoryWidth = StoryWidthKeyword | "bounded" | "overflow";
 
 type ResolvedStoryFrame = {
   hasInset: boolean;
@@ -164,7 +161,8 @@ function getLegacyStoryWidth({
   if (contentMode === "bounded") {
     return {
       width: "bounded",
-      maxWidth: getContentMaxWidth(contentMaxWidth) ?? defaultBoundedContentWidth,
+      maxWidth:
+        getContentMaxWidth(contentMaxWidth) ?? defaultBoundedContentWidth,
     };
   }
 
@@ -486,7 +484,8 @@ const preview: Preview = {
       const { resolvedThemes, systemTheme } = useResolvedThemes(themeMode);
       const isBoth = resolvedThemes.length > 1;
       const frame = getStoryFrame(parameters);
-      const themeLayout = parameters.themeLayout === "column" ? "column" : "row";
+      const themeLayout =
+        parameters.themeLayout === "column" ? "column" : "row";
 
       if (!isBoth) {
         return (
@@ -494,10 +493,7 @@ const preview: Preview = {
             data-phoenix-story-root="true"
             style={{ display: "flex", minHeight: "100%", width: "100%" }}
           >
-            <ThemedStory
-              theme={resolvedThemes[0]}
-              frame={frame}
-            >
+            <ThemedStory theme={resolvedThemes[0]} frame={frame}>
               <Story />
             </ThemedStory>
           </div>
@@ -521,10 +517,7 @@ const preview: Preview = {
               key={theme}
               style={{ display: "flex", flex: 1, minHeight: 0, minWidth: 0 }}
             >
-              <ThemedStory
-                theme={theme}
-                frame={frame}
-              >
+              <ThemedStory theme={theme} frame={frame}>
                 <Story />
               </ThemedStory>
             </div>
