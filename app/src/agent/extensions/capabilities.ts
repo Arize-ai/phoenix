@@ -30,7 +30,7 @@ export type AgentCapabilities = Record<AgentCapabilityKey, boolean>;
 const DEFAULT_AGENT_CAPABILITIES: AgentCapabilities = {
   "bash.retainInactiveSessions": false,
   "graphql.mutations": false,
-  "session.storeRecentSessions": false,
+  "session.storeSessions": false,
 };
 
 /** Ordered capability catalog used by the UI and runtime. */
@@ -54,7 +54,7 @@ export const AGENT_CAPABILITY_DEFINITIONS: AgentCapabilityDefinition[] = [
     controlSurface: "experimental-settings",
   },
   {
-    key: "session.storeRecentSessions",
+    key: "session.storeSessions",
     label: "Store recent sessions",
     description:
       "Keeps the three most recent chat sessions instead of replacing session history when starting a new chat.",

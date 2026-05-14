@@ -369,11 +369,14 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             modelConfig: { ...state.defaultModelConfig },
             createdAt: Date.now(),
           };
-          const nextSessionIds = state.capabilities[
-            "session.storeRecentSessions"
-          ]
-            ? [...state.sessions, sessionId].slice(-MAX_STORED_AGENT_SESSIONS)
-            : [sessionId];
+          let nextSessionIds: string[];
+          if (state.capabilities["session.storeSessions"]) {
+            nextSessionIds = [...state.sessions, sessionId].slice(
+              -MAX_STORED_AGENT_SESSIONS
+            );
+          } else {
+            nextSessionIds = [sessionId];
+          }
 
           return {
             ...buildSessionRetentionPatch({
@@ -556,7 +559,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       set(
         (state) => {
           const capabilities = { ...state.capabilities, [key]: enabled };
-          if (key !== "session.storeRecentSessions" || enabled) {
+          if (key !== "session.storeSessions" || enabled) {
             return { capabilities };
           }
           return {

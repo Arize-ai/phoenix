@@ -11,7 +11,7 @@ from typing_extensions import NotRequired
 class AgentCapabilities(TypedDict):
     bash_retainInactiveSessions: NotRequired[bool]
     graphql_mutations: NotRequired[bool]
-    session_storeRecentSessions: NotRequired[bool]
+    session_storeSessions: NotRequired[bool]
 
 
 class AgentSpanContext(TypedDict):

@@ -96,7 +96,7 @@ export function useAgentChatPanelState() {
   const sessionIds = useAgentContext((state) => state.sessions);
   const sessionMap = useAgentContext((state) => state.sessionMap);
   const showSessionHistory = useAgentContext(
-    (state) => state.capabilities["session.storeRecentSessions"]
+    (state) => state.capabilities["session.storeSessions"]
   );
   const defaultModelConfig = useAgentContext(
     (state) => state.defaultModelConfig

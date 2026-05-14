@@ -32,7 +32,7 @@ describe("agentStore", () => {
     it("falls back activeSessionId to last remaining session when active is deleted", () => {
       const store = createAgentStore();
       store.getState().setCapability({
-        key: "session.storeRecentSessions",
+        key: "session.storeSessions",
         enabled: true,
       });
       const sessionId1 = store.getState().createSession();
@@ -93,7 +93,7 @@ describe("agentStore", () => {
     it("keeps the three newest sessions when recent session storage is enabled", () => {
       const store = createAgentStore();
       store.getState().setCapability({
-        key: "session.storeRecentSessions",
+        key: "session.storeSessions",
         enabled: true,
       });
       const firstSessionId = store.getState().createSession();
@@ -116,7 +116,7 @@ describe("agentStore", () => {
     it("prunes to the active session when recent session storage is disabled", () => {
       const store = createAgentStore();
       store.getState().setCapability({
-        key: "session.storeRecentSessions",
+        key: "session.storeSessions",
         enabled: true,
       });
       const firstSessionId = store.getState().createSession();
@@ -128,7 +128,7 @@ describe("agentStore", () => {
       store.getState().setSessionChatStatus(firstSessionId, "streaming");
 
       store.getState().setCapability({
-        key: "session.storeRecentSessions",
+        key: "session.storeSessions",
         enabled: false,
       });
 
@@ -247,7 +247,7 @@ describe("agentStore", () => {
         ...createDefaultAgentCapabilities(),
         "bash.retainInactiveSessions": true,
         "graphql.mutations": true,
-        "session.storeRecentSessions": false,
+        "session.storeSessions": false,
       });
       expect(store.getState().observability).toEqual({
         storeLocalTraces: true,

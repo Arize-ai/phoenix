@@ -1399,10 +1399,10 @@ export interface components {
              */
             "graphql.mutations"?: boolean;
             /**
-             * Session.Storerecentsessions
+             * Session.Storesessions
              * @default false
              */
-            "session.storeRecentSessions"?: boolean;
+            "session.storeSessions"?: boolean;
         };
         /**
          * AgentSpanContext
