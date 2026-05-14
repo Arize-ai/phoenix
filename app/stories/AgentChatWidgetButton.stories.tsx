@@ -26,15 +26,6 @@ const statesGridCSS = css`
   }
 `;
 
-const variantLabelCSS = css`
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--global-color-gray-500);
-  visibility: hidden;
-`;
-
 const stateCardCSS = css`
   display: flex;
   flex-direction: column;
@@ -103,13 +94,6 @@ const thinkingGlyphVariants: PxiGlyphThinkingVariant[] = [
   "wave-hold",
 ];
 
-const thinkingGlyphLabels: Record<PxiGlyphThinkingVariant, string> = {
-  "wave-reveal": "Wave Reveal",
-  "orbit-reveal": "Orbit Reveal",
-  "twinkle-reveal": "Twinkle Reveal",
-  "wave-hold": "Wave Hold",
-};
-
 const meta = {
   title: "Agent/AgentChatWidgetButton",
   component: AgentChatWidgetButton,
@@ -118,14 +102,13 @@ const meta = {
     docs: {
       description: {
         component:
-          "PXI chat trigger button. Shows the resting pill state, the single wipe border treatment used while streaming, and the four kept animated glyph options for glyph mode.",
+          "PXI chat trigger button. Shows the resting pill state, the single wipe border treatment used while streaming, and the retained animated glyph options for the thinking state.",
       },
     },
   },
   args: {
     ariaLabel: "Open agent chat",
     isFloating: false,
-    variant: "glyph",
     thinkingGlyphVariant: "wave-reveal",
   },
   argTypes: {
@@ -147,11 +130,9 @@ export const GlyphStates: Story = {
     <div css={frameCSS}>
       <div css={statesGridCSS}>
         <div css={stateCardCSS}>
-          <div css={variantLabelCSS}>glyph</div>
           <AgentChatWidgetButton {...args} isStreaming={false} />
         </div>
         <div css={stateCardCSS}>
-          <div css={variantLabelCSS}>glyph</div>
           <AgentChatWidgetButton {...args} isStreaming />
         </div>
       </div>
@@ -159,39 +140,15 @@ export const GlyphStates: Story = {
   ),
 };
 
-export const ProgressStates: Story = {
-  args: {
-    variant: "progress",
-  },
-  render: (args) => (
-    <div css={frameCSS}>
-      <div css={statesGridCSS}>
-        <div css={stateCardCSS}>
-          <div css={variantLabelCSS}>progress</div>
-          <AgentChatWidgetButton {...args} isStreaming={false} />
-        </div>
-        <div css={stateCardCSS}>
-          <div css={variantLabelCSS}>progress</div>
-          <AgentChatWidgetButton {...args} isStreaming />
-        </div>
-      </div>
-    </div>
-  ),
-};
-
-export const ThinkingGlyphCandidates: Story = {
+export const ThinkingAnimationAlternates: Story = {
   render: (args) => (
     <div css={frameCSS}>
       <div css={glyphComparisonSectionCSS}>
         <div css={glyphComparisonGridCSS}>
           {thinkingGlyphVariants.map((thinkingGlyphVariant) => (
             <div css={stateCardCSS} key={thinkingGlyphVariant}>
-              <div css={variantLabelCSS}>
-                {thinkingGlyphLabels[thinkingGlyphVariant]}
-              </div>
               <AgentChatWidgetButton
                 {...args}
-                variant="glyph"
                 isStreaming
                 thinkingGlyphVariant={thinkingGlyphVariant}
               />
@@ -229,8 +186,5 @@ function ClickToCycleRender(args: AgentChatWidgetButtonProps) {
 }
 
 export const ClickToCycleStates: Story = {
-  args: {
-    variant: "glyph",
-  },
   render: (args) => <ClickToCycleRender {...args} />,
 };

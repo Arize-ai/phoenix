@@ -2,7 +2,6 @@ import { css, keyframes } from "@emotion/react";
 import { AnimatePresence, motion } from "motion/react";
 import { createPortal } from "react-dom";
 
-import { ProgressCircle } from "@phoenix/components/core/progress";
 import { useTheme } from "@phoenix/contexts";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useHasOpenModal } from "@phoenix/hooks/useHasOpenModal";
@@ -137,7 +136,7 @@ const shapeCSS = css`
     transition: fill 160ms ease-out;
   }
 
-  .agent-chat-widget__spinner {
+  .agent-chat-widget__indicator {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -275,7 +274,6 @@ const thinkingGlyphPulseCSS = css`
   }
 `;
 
-export type AgentChatWidgetButtonVariant = "progress" | "glyph";
 export type { PxiGlyphThinkingVariant } from "./PxiGlyph";
 
 export interface AgentChatWidgetButtonProps {
@@ -284,7 +282,6 @@ export interface AgentChatWidgetButtonProps {
   ariaLabel?: string;
   isFloating?: boolean;
   thinkingGlyphVariant?: PxiGlyphThinkingVariant;
-  variant?: AgentChatWidgetButtonVariant;
 }
 
 export function AgentChatWidgetButton({
@@ -293,9 +290,7 @@ export function AgentChatWidgetButton({
   ariaLabel = "Open agent chat",
   isFloating = false,
   thinkingGlyphVariant = "wave-reveal",
-  variant = "progress",
 }: AgentChatWidgetButtonProps) {
-  const usesThinkingGlyph = variant === "glyph";
   const { theme } = useTheme();
   return (
     <button
@@ -341,21 +336,13 @@ export function AgentChatWidgetButton({
         {isStreaming ? <span className="agent-chat-widget__shimmer" /> : null}
         <div className="agent-chat-widget__content" css={shapeContentCSS}>
           {isStreaming ? (
-            <div className="agent-chat-widget__spinner">
-              {usesThinkingGlyph ? (
-                <PxiGlyph
-                  className="fab-glyph"
-                  fill="currentColor"
-                  variant="thinking"
-                  thinkingVariant={thinkingGlyphVariant}
-                />
-              ) : (
-                <ProgressCircle
-                  isIndeterminate
-                  size="S"
-                  aria-label="PXI is thinking"
-                />
-              )}
+            <div className="agent-chat-widget__indicator">
+              <PxiGlyph
+                className="fab-glyph"
+                fill="currentColor"
+                variant="thinking"
+                thinkingVariant={thinkingGlyphVariant}
+              />
             </div>
           ) : (
             <PxiGlyph
