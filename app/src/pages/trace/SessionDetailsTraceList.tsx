@@ -298,22 +298,18 @@ function RootSpanOutputMetadata({ rootSpan }: RootSpanProps) {
           />
         </Modal>
       </ModalOverlay>
-      <div
-        css={css`
-          align-self: start;
-        `}
-      >
-        <Flex direction="row" gap="size-50" wrap="wrap">
-          <TraceAnnotationSummaryGroupTokens
-            trace={rootSpan.trace}
-            renderEmptyState={() => null}
-          />
-          <AnnotationSummaryGroupTokens
-            span={rootSpan}
-            renderEmptyState={() => null}
-          />
-        </Flex>
-      </div>
+      <Flex direction="row" gap="size-50" wrap="wrap" alignSelf="start">
+        <TraceAnnotationSummaryGroupTokens
+          trace={rootSpan.trace}
+          renderEmptyState={() => null}
+          wrapTokens={false}
+        />
+        <AnnotationSummaryGroupTokens
+          span={rootSpan}
+          renderEmptyState={() => null}
+          wrapTokens={false}
+        />
+      </Flex>
     </>
   );
 }

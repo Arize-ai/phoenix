@@ -126,6 +126,7 @@ type AnnotationSummaryGroupProps = {
   span: AnnotationSummaryGroup$key;
   showFilterActions?: boolean;
   renderEmptyState?: () => React.ReactNode;
+  wrapTokens?: boolean;
 };
 
 const annotationLabelCSS = css`
@@ -139,6 +140,7 @@ export const AnnotationSummaryGroupTokens = ({
   span,
   showFilterActions = false,
   renderEmptyState,
+  wrapTokens = true,
 }: AnnotationSummaryGroupProps) => {
   const {
     sortedSummariesByName,
@@ -150,47 +152,51 @@ export const AnnotationSummaryGroupTokens = ({
     return renderEmptyState();
   }
 
+  const tokens = sortedSummariesByName.map((summary) => {
+    const latestAnnotation = annotationsByName[summary.name]?.[0];
+    const meanScore = summary?.meanScore;
+    if (!latestAnnotation) {
+      return null;
+    }
+    return (
+      <AnnotationSummaryPopover
+        key={latestAnnotation.id}
+        annotations={annotationsByName[summary.name]}
+        width="500px"
+        meanScore={meanScore}
+        showFilterActions={showFilterActions}
+      >
+        <AnnotationLabel
+          annotation={latestAnnotation}
+          annotationDisplayPreference="none"
+          css={annotationLabelCSS}
+          clickable
+        >
+          {meanScore != null ? (
+            <SummaryValuePreview
+              name={latestAnnotation.name}
+              meanScore={meanScore}
+              size="S"
+              disableAnimation
+              annotationConfig={
+                categoricalAnnotationConfigsByName[latestAnnotation.name]
+              }
+            />
+          ) : (
+            <SummaryValueLabelPreview labelFractions={summary.labelFractions} />
+          )}
+        </AnnotationLabel>
+      </AnnotationSummaryPopover>
+    );
+  });
+
+  if (!wrapTokens) {
+    return <>{tokens}</>;
+  }
+
   return (
     <Flex direction="row" gap="size-50" wrap="wrap">
-      {sortedSummariesByName.map((summary) => {
-        const latestAnnotation = annotationsByName[summary.name]?.[0];
-        const meanScore = summary?.meanScore;
-        if (!latestAnnotation) {
-          return null;
-        }
-        return (
-          <AnnotationSummaryPopover
-            key={latestAnnotation.id}
-            annotations={annotationsByName[summary.name]}
-            width="500px"
-            meanScore={meanScore}
-            showFilterActions={showFilterActions}
-          >
-            <AnnotationLabel
-              annotation={latestAnnotation}
-              annotationDisplayPreference="none"
-              css={annotationLabelCSS}
-              clickable
-            >
-              {meanScore != null ? (
-                <SummaryValuePreview
-                  name={latestAnnotation.name}
-                  meanScore={meanScore}
-                  size="S"
-                  disableAnimation
-                  annotationConfig={
-                    categoricalAnnotationConfigsByName[latestAnnotation.name]
-                  }
-                />
-              ) : (
-                <SummaryValueLabelPreview
-                  labelFractions={summary.labelFractions}
-                />
-              )}
-            </AnnotationLabel>
-          </AnnotationSummaryPopover>
-        );
-      })}
+      {tokens}
     </Flex>
   );
 };
