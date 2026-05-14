@@ -108,6 +108,20 @@ const messageWrapCSS = css`
   max-width: 70%;
 `;
 
+const outputMetadataMutedCSS = css`
+  .latency-text,
+  .token-count-item,
+  .token-costs-item,
+  .text,
+  .icon-wrap,
+  svg,
+  .token__text {
+    color: var(--global-text-color-700);
+    font-size: var(--global-font-size-xs);
+    line-height: var(--global-line-height-xs);
+  }
+`;
+
 const SESSION_TURN_MESSAGE_MAX_HEIGHT = 280;
 
 type RootSpanMessageRole = "INPUT" | "OUTPUT";
@@ -226,50 +240,59 @@ function RootSpanTraceLink({
 
 function RootSpanOutputMetadata({ rootSpan }: RootSpanProps) {
   return (
-    <Flex
-      direction="row"
-      justifyContent="space-between"
-      alignItems="start"
-      gap="size-200"
-      width="100%"
-    >
-      <RootSpanEndTime rootSpan={rootSpan} />
-      <Flex direction="column" alignItems="end" gap="size-100" minWidth={0}>
-        <Flex
-          direction="row"
-          justifyContent="end"
-          alignItems="center"
-          gap="size-100"
-          wrap
-        >
-          <SpanCumulativeTokenCount
-            tokenCountTotal={rootSpan.cumulativeTokenCountTotal || 0}
-            nodeId={rootSpan.id}
-          />
-          {rootSpan.trace.costSummary?.total?.cost != null && (
-            <TraceTokenCosts
-              totalCost={rootSpan.trace.costSummary.total.cost}
-              nodeId={rootSpan.trace.id}
+    <>
+      <Flex
+        direction="row"
+        justifyContent="space-between"
+        alignItems="start"
+        gap="size-200"
+        width="100%"
+      >
+        <RootSpanEndTime rootSpan={rootSpan} />
+        <Flex direction="column" alignItems="end" gap="size-100" minWidth={0}>
+          <Flex
+            direction="row"
+            justifyContent="end"
+            alignItems="center"
+            gap="size-100"
+            wrap
+            css={outputMetadataMutedCSS}
+          >
+            <SpanCumulativeTokenCount
+              tokenCountTotal={rootSpan.cumulativeTokenCountTotal || 0}
+              nodeId={rootSpan.id}
             />
-          )}
-          {rootSpan.latencyMs != null ? (
-            <LatencyText latencyMs={rootSpan.latencyMs} />
-          ) : null}
+            {rootSpan.trace.costSummary?.total?.cost != null && (
+              <TraceTokenCosts
+                totalCost={rootSpan.trace.costSummary.total.cost}
+                nodeId={rootSpan.trace.id}
+              />
+            )}
+            {rootSpan.latencyMs != null ? (
+              <LatencyText latencyMs={rootSpan.latencyMs} />
+            ) : null}
+          </Flex>
+          <span>
+            <EditSpanAnnotationsButton
+              size="S"
+              spanNodeId={rootSpan.id}
+              projectId={rootSpan.project.id}
+              buttonText="Annotate"
+            />
+          </span>
         </Flex>
-        <span>
-          <EditSpanAnnotationsButton
-            size="S"
-            spanNodeId={rootSpan.id}
-            projectId={rootSpan.project.id}
-            buttonText="Annotate"
-          />
-        </span>
+      </Flex>
+      <div
+        css={css`
+          align-self: start;
+        `}
+      >
         <AnnotationSummaryGroupTokens
           span={rootSpan}
           renderEmptyState={() => null}
         />
-      </Flex>
-    </Flex>
+      </div>
+    </>
   );
 }
 
