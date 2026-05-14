@@ -23,7 +23,7 @@ const gridCells = [
   ry: BRAND_CELL_RADIUS,
 }));
 
-export type PxiGlyphThinkingVariant =
+export type PxiGlyphAnimation =
   | "wave-reveal"
   | "orbit-reveal"
   | "twinkle-reveal"
@@ -168,8 +168,8 @@ const waveHoldGlyphCSS = css`
   > span:nth-of-type(8) { animation: ${waveHoldBackground} 3s ease-in-out infinite 0.45s; }
 `;
 
-const thinkingGlyphVariantCSS: Record<
-  PxiGlyphThinkingVariant,
+const thinkingGlyphAnimationCSS: Record<
+  PxiGlyphAnimation,
   ReturnType<typeof css>
 > = {
   "wave-reveal": waveRevealGlyphCSS,
@@ -179,25 +179,23 @@ const thinkingGlyphVariantCSS: Record<
 };
 
 /**
- * PXI brand glyph.
- * static: rounded-square 5-cell mark. thinking: animated 3x3 grid variants.
+ * PXI brand glyph. When `animation` is set, renders an animated 3x3 grid;
+ * otherwise renders the static rounded-square 5-cell brand mark.
  */
 export function PxiGlyph({
   className,
   fill = "currentColor",
-  variant = "static",
+  animation = false,
   size,
-  thinkingVariant = "wave-reveal",
 }: {
   className?: string;
   fill?: string;
-  variant?: "static" | "thinking";
+  animation?: PxiGlyphAnimation | false;
   size?: number | string;
-  thinkingVariant?: PxiGlyphThinkingVariant;
 }) {
-  const dim = size ?? (variant === "thinking" ? thinkingGlyphSize : svgSize);
+  const dim = size ?? (animation ? thinkingGlyphSize : svgSize);
 
-  if (variant === "thinking") {
+  if (animation) {
     const thinkingSize = typeof dim === "number" ? `${dim}px` : dim;
     const thinkingStyle =
       fill === "currentColor"
@@ -212,7 +210,7 @@ export function PxiGlyph({
     return (
       <span
         className={className}
-        css={[thinkingGlyphCSS, thinkingGlyphVariantCSS[thinkingVariant]]}
+        css={[thinkingGlyphCSS, thinkingGlyphAnimationCSS[animation]]}
         style={thinkingStyle}
         aria-hidden="true"
       >

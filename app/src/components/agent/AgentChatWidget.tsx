@@ -6,7 +6,7 @@ import { useTheme } from "@phoenix/contexts";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useHasOpenModal } from "@phoenix/hooks/useHasOpenModal";
 
-import { PxiGlyph, type PxiGlyphThinkingVariant } from "./PxiGlyph";
+import { PxiGlyph, type PxiGlyphAnimation } from "./PxiGlyph";
 import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 
 const thinkingBorderWipe = keyframes`
@@ -286,14 +286,14 @@ const thinkingGlyphPulseCSS = css`
   }
 `;
 
-export type { PxiGlyphThinkingVariant } from "./PxiGlyph";
+export type { PxiGlyphAnimation } from "./PxiGlyph";
 
 export interface AgentChatWidgetButtonProps {
   isStreaming?: boolean;
   onClick?: () => void;
   ariaLabel?: string;
   isFloating?: boolean;
-  thinkingGlyphVariant?: PxiGlyphThinkingVariant;
+  glyphAnimation?: PxiGlyphAnimation;
 }
 
 export function AgentChatWidgetButton({
@@ -301,7 +301,7 @@ export function AgentChatWidgetButton({
   onClick,
   ariaLabel = "Open agent chat",
   isFloating = false,
-  thinkingGlyphVariant = "wave-reveal",
+  glyphAnimation = "wave-reveal",
 }: AgentChatWidgetButtonProps) {
   const { theme } = useTheme();
   return (
@@ -352,15 +352,13 @@ export function AgentChatWidgetButton({
               <PxiGlyph
                 className="fab-glyph"
                 fill="currentColor"
-                variant="thinking"
-                thinkingVariant={thinkingGlyphVariant}
+                animation={glyphAnimation}
               />
             </div>
           ) : (
             <PxiGlyph
               className="fab-glyph"
               fill="currentColor"
-              variant="static"
               css={css`
                 transform: scale(0.7);
               `}

@@ -5,7 +5,7 @@ import { useState } from "react";
 import {
   AgentChatWidgetButton,
   type AgentChatWidgetButtonProps,
-  type PxiGlyphThinkingVariant,
+  type PxiGlyphAnimation,
 } from "@phoenix/components/agent/AgentChatWidget";
 
 const frameCSS = css`
@@ -87,7 +87,7 @@ const glyphComparisonGridCSS = css`
   }
 `;
 
-const thinkingGlyphVariants: PxiGlyphThinkingVariant[] = [
+const glyphAnimations: PxiGlyphAnimation[] = [
   "orbit-reveal",
   "wave-reveal",
   "twinkle-reveal",
@@ -109,15 +109,15 @@ const meta = {
   args: {
     ariaLabel: "Open agent chat",
     isFloating: false,
-    thinkingGlyphVariant: "wave-reveal",
+    glyphAnimation: "wave-reveal",
   },
   argTypes: {
     onClick: {
       action: "clicked",
     },
-    thinkingGlyphVariant: {
+    glyphAnimation: {
       control: "inline-radio",
-      options: thinkingGlyphVariants,
+      options: glyphAnimations,
     },
   },
 } satisfies Meta<typeof AgentChatWidgetButton>;
@@ -145,12 +145,12 @@ export const ThinkingAnimationAlternates: Story = {
     <div css={frameCSS}>
       <div css={glyphComparisonSectionCSS}>
         <div css={glyphComparisonGridCSS}>
-          {thinkingGlyphVariants.map((thinkingGlyphVariant) => (
-            <div css={stateCardCSS} key={thinkingGlyphVariant}>
+          {glyphAnimations.map((glyphAnimation) => (
+            <div css={stateCardCSS} key={glyphAnimation}>
               <AgentChatWidgetButton
                 {...args}
                 isStreaming
-                thinkingGlyphVariant={thinkingGlyphVariant}
+                glyphAnimation={glyphAnimation}
               />
             </div>
           ))}
@@ -171,9 +171,7 @@ function ClickToCycleRender(args: AgentChatWidgetButtonProps) {
             <AgentChatWidgetButton
               {...args}
               isStreaming={isStreaming}
-              thinkingGlyphVariant={
-                args.thinkingGlyphVariant ?? thinkingGlyphVariants[0]
-              }
+              glyphAnimation={args.glyphAnimation ?? glyphAnimations[0]}
               ariaLabel={isStreaming ? "PXI is thinking" : "Open agent chat"}
               onClick={() => setIsStreaming((value) => !value)}
               isFloating={false}
