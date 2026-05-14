@@ -42,6 +42,7 @@ from pydantic_ai.output import OutputDataT
 from pydantic_ai.run import AgentRun
 from pydantic_ai.tools import AgentDepsT
 
+from phoenix.server.agents.dependencies import ChatDependencies
 from phoenix.server.agents.toolsets.external.tools import get_external_tool_definition
 
 ToolCallId: TypeAlias = str
@@ -174,9 +175,10 @@ class OpenInferenceAgentWrapper(WrapperAgent[AgentDepsT, OutputDataT]):
         user_prompt: str | Sequence[UserContent] | None,
         message_history: Sequence[ModelMessage] | None,
         kwargs: dict[str, Any],
-    ) -> Iterator[Callable[[AgentRun[AgentDepsT, Any]], None]]:
+    ) -> Iterator[Callable[[AgentRun[ChatDependencies, Any]], None]]:
         attributes: dict[str, AttributeValue] = {**get_span_kind_attributes("agent")}
-        input_message = _most_recent_input_message(user_prompt, message_history)
+        full_kwargs: dict[str, Any] = {"message_history": message_history, **kwargs}
+        input_message = _get_last_input_message(user_prompt, full_kwargs)
         if input_message is not None:
             attributes.update(_message_io_attributes(input_message, role="input"))
         full_input = _full_input(user_prompt, message_history, kwargs)
@@ -188,7 +190,7 @@ class OpenInferenceAgentWrapper(WrapperAgent[AgentDepsT, OutputDataT]):
             attributes=attributes,
         ) as span:
 
-            def set_result(agent_run: AgentRun[AgentDepsT, Any]) -> None:
+            def set_result(agent_run: AgentRun[ChatDependencies, Any]) -> None:
                 response = _last_model_response(agent_run.new_messages())
                 if response is not None:
                     span.set_attributes(_message_io_attributes(response, role="output"))
@@ -239,9 +241,9 @@ def _get_tool_call_parts_by_id(
     return tool_calls_by_call_id
 
 
-def _most_recent_input_message(
+def _get_last_input_message(
     user_prompt: str | Sequence[UserContent] | None,
-    message_history: Sequence[ModelMessage] | None,
+    kwargs: dict[str, Any],
 ) -> ModelMessage | None:
     """The most recent message at agent entry.
 
@@ -252,6 +254,7 @@ def _most_recent_input_message(
     """
     if user_prompt is not None:
         return ModelRequest(parts=[UserPromptPart(content=user_prompt)])
+    message_history: Sequence[ModelMessage] | None = kwargs.get("message_history")
     if message_history:
         return message_history[-1]
     return None
