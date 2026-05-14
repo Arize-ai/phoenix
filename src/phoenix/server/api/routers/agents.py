@@ -41,6 +41,7 @@ from phoenix.server.agents.dependencies import ChatDependencies
 from phoenix.server.agents.exceptions import AgentError, SummarizationError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
+from phoenix.server.agents.prompts import AgentInstructions
 from phoenix.server.agents.summarization import summarize_messages
 from phoenix.server.bearer_auth import is_authenticated
 from phoenix.server.types import DbSessionFactory
@@ -411,7 +412,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             getattr(model, "settings", None),
         )
 
-        agent = build_agent(model, tracer_provider=tracer_provider)
+        instructions = AgentInstructions()
+        agent = build_agent(model=model, instructions=instructions, tracer_provider=tracer_provider)
         adapter: VercelAIAdapter[ChatDependencies, ChatOutput] = VercelAIAdapter(
             agent=agent,
             run_input=body,
@@ -421,6 +423,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             contexts=resolve_contexts(body.contexts),
             capabilities=body.capabilities,
             docs_mcp_toolset=request.app.state.docs_mcp_toolset,
+            instructions=instructions,
         )
 
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:

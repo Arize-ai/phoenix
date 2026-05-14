@@ -5,7 +5,6 @@ from typing import Any
 from pydantic_ai import RunContext
 
 from phoenix.server.agents.dependencies import ChatDependencies
-from phoenix.server.agents.prompts import READ_PROMPT_INSTANCE_TOOL_SYSTEM_PROMPT
 from phoenix.server.agents.toolsets.external.external_tool_definitions import (
     DynamicExternalToolDefinition,
 )
@@ -41,9 +40,12 @@ READ_PROMPT_TOOL_DEFINITION = DynamicExternalToolDefinition(
     name=READ_PROMPT_TOOL_NAME,
     description=_READ_PROMPT_TOOL_DESCRIPTION,
     parameters_json_schema=_READ_PROMPT_TOOL_PARAMETERS,
-    kind="external",
-    instructions=READ_PROMPT_INSTANCE_TOOL_SYSTEM_PROMPT,
 )
+
+
+@READ_PROMPT_TOOL_DEFINITION.instruction
+def _instruction(ctx: RunContext[ChatDependencies]) -> str:
+    return ctx.deps.instructions.read_prompt_instance_tool
 
 
 @READ_PROMPT_TOOL_DEFINITION.include

@@ -5,7 +5,6 @@ from typing import Any
 from pydantic_ai import RunContext
 
 from phoenix.server.agents.dependencies import ChatDependencies
-from phoenix.server.agents.prompts import SET_SPANS_FILTER_TOOL_SYSTEM_PROMPT
 from phoenix.server.agents.toolsets.external.external_tool_definitions import (
     DynamicExternalToolDefinition,
 )
@@ -102,9 +101,12 @@ SET_SPANS_FILTER_TOOL_DEFINITION = DynamicExternalToolDefinition(
     name=SET_SPANS_FILTER_TOOL_NAME,
     description=_SET_SPANS_FILTER_TOOL_DESCRIPTION,
     parameters_json_schema=_SET_SPANS_FILTER_TOOL_PARAMETERS,
-    kind="external",
-    instructions=SET_SPANS_FILTER_TOOL_SYSTEM_PROMPT,
 )
+
+
+@SET_SPANS_FILTER_TOOL_DEFINITION.instruction
+def _instruction(ctx: RunContext[ChatDependencies]) -> str:
+    return ctx.deps.instructions.set_spans_filter_tool
 
 
 @SET_SPANS_FILTER_TOOL_DEFINITION.include

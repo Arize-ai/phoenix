@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from phoenix.server.agents.prompts import BASH_TOOL_SYSTEM_PROMPT
+from pydantic_ai import RunContext
+
+from phoenix.server.agents.dependencies import ChatDependencies
 from phoenix.server.agents.toolsets.external.external_tool_definitions import (
     StaticExternalToolDefinition,
 )
@@ -43,6 +45,9 @@ BASH_TOOL_DEFINITION = StaticExternalToolDefinition(
         + " ".join(_BASH_TOOL_CAPABILITY_LINES)
     ),
     parameters_json_schema=_BASH_TOOL_PARAMETERS,
-    kind="external",
-    instructions=BASH_TOOL_SYSTEM_PROMPT,
 )
+
+
+@BASH_TOOL_DEFINITION.instruction
+def _instruction(ctx: RunContext[ChatDependencies]) -> str:
+    return ctx.deps.instructions.bash_tool

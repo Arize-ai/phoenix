@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from phoenix.server.agents.prompts.instructions import AgentInstructions
+
 _PROMPTS_DIR = Path(__file__).parent
 
 
@@ -9,13 +11,6 @@ def _read(name: str) -> str:
     return (_PROMPTS_DIR / name).read_text(encoding="utf-8").rstrip("\n")
 
 
-AGENT_STATIC_SYSTEM_PROMPT = _read("SYSTEM_PROMPT.xml")
-DOCS_TOOL_SYSTEM_PROMPT = _read("DOCS_TOOL.xml")
-BASH_TOOL_SYSTEM_PROMPT = _read("BASH_TOOL.xml")
-ASK_USER_TOOL_SYSTEM_PROMPT = _read("ASK_USER_TOOL.xml")
-SET_TIME_RANGE_TOOL_SYSTEM_PROMPT = _read("SET_TIME_RANGE_TOOL.xml")
-SET_SPANS_FILTER_TOOL_SYSTEM_PROMPT = _read("SET_SPANS_FILTER_TOOL.xml")
-READ_PROMPT_INSTANCE_TOOL_SYSTEM_PROMPT = _read("READ_PROMPT_INSTANCE_TOOL.xml")
-CLONE_PROMPT_INSTANCE_TOOL_SYSTEM_PROMPT = _read("CLONE_PROMPT_INSTANCE_TOOL.xml")
-EDIT_PROMPT_INSTANCE_TOOL_SYSTEM_PROMPT = _read("EDIT_PROMPT_INSTANCE_TOOL.xml")
-SUMMARIZATION_SYSTEM_PROMPT = _read("SUMMARIZATION_PROMPT.xml")
+SUMMARIZATION_SYSTEM_PROMPT = _read("SUMMARIZATION_PROMPT_INSTRUCTIONS.xml")
+
+__all__ = ["AgentInstructions", "SUMMARIZATION_SYSTEM_PROMPT"]

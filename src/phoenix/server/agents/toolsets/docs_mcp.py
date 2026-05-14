@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from typing import Any
-
 from pydantic_ai import RunContext
 from pydantic_ai.mcp import MCPServerStreamableHTTP
 from pydantic_ai.messages import InstructionPart
 
-from phoenix.server.agents.prompts import DOCS_TOOL_SYSTEM_PROMPT
+from phoenix.server.agents.dependencies import ChatDependencies
 
 
 class MintlifyDocsMCPToolset(MCPServerStreamableHTTP):
@@ -18,5 +16,5 @@ class MintlifyDocsMCPToolset(MCPServerStreamableHTTP):
     def __init__(self) -> None:
         super().__init__(url=self.URL)
 
-    async def get_instructions(self, ctx: RunContext[Any]) -> InstructionPart:
-        return InstructionPart(content=DOCS_TOOL_SYSTEM_PROMPT, dynamic=False)
+    async def get_instructions(self, ctx: RunContext[ChatDependencies]) -> InstructionPart:
+        return InstructionPart(content=ctx.deps.instructions.docs_tool, dynamic=False)

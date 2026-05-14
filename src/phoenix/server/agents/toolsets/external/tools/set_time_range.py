@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from phoenix.server.agents.prompts import SET_TIME_RANGE_TOOL_SYSTEM_PROMPT
+from pydantic_ai import RunContext
+
+from phoenix.server.agents.dependencies import ChatDependencies
 from phoenix.server.agents.toolsets.external.external_tool_definitions import (
     StaticExternalToolDefinition,
 )
@@ -54,6 +56,9 @@ SET_TIME_RANGE_TOOL_DEFINITION = StaticExternalToolDefinition(
         "relative calendar phrases on that value, not on the currently selected time range."
     ),
     parameters_json_schema=_SET_TIME_RANGE_PARAMETERS,
-    kind="external",
-    instructions=SET_TIME_RANGE_TOOL_SYSTEM_PROMPT,
 )
+
+
+@SET_TIME_RANGE_TOOL_DEFINITION.instruction
+def _instruction(ctx: RunContext[ChatDependencies]) -> str:
+    return ctx.deps.instructions.set_time_range_tool

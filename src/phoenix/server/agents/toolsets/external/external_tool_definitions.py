@@ -6,25 +6,43 @@ from dataclasses import dataclass, field
 
 from pydantic_ai import RunContext
 from pydantic_ai.messages import InstructionPart
-from pydantic_ai.tools import ToolDefinition
+from pydantic_ai.tools import ToolDefinition, ToolKind
 
 from phoenix.server.agents.dependencies import ChatDependencies
 
 IncludePredicate = Callable[[RunContext[ChatDependencies]], bool]
+InstructionFn = Callable[[RunContext[ChatDependencies]], str]
 
 
 @dataclass(repr=False, kw_only=True)
 class ExternalToolDefinition(ToolDefinition, ABC):
-    """ToolDefinition that carries tool-specific agent instructions and a
-    per-request gate that decides whether the tool is exposed this turn."""
+    """ToolDefinition whose instruction text and inclusion gate are supplied
+    per-request by callables registered via the ``@TOOL.instruction`` and
+    ``@TOOL.include`` decorators. Routing through ``ctx`` lets callers override
+    instructions via ``ChatDependencies.instructions`` at runtime."""
 
-    instructions: str
+    kind: ToolKind = "external"
+
+    _instruction_fn: InstructionFn | None = field(default=None, init=False, repr=False)
+
+    def instruction(self, fn: InstructionFn) -> InstructionFn:
+        """Decorator: register the function returning this tool's instruction text."""
+        self._instruction_fn = fn
+        return fn
+
+    def _resolve_instruction(self, ctx: RunContext[ChatDependencies]) -> str:
+        if self._instruction_fn is None:
+            raise RuntimeError(
+                f"ExternalToolDefinition {self.name!r} has no instruction "
+                f"function registered. Use @<TOOL>.instruction to register one."
+            )
+        return self._instruction_fn(ctx)
 
     @abstractmethod
     def should_include(self, ctx: RunContext[ChatDependencies]) -> bool: ...
 
     @abstractmethod
-    def get_instruction_part(self) -> InstructionPart: ...
+    def get_instruction_part(self, ctx: RunContext[ChatDependencies]) -> InstructionPart: ...
 
 
 @dataclass(repr=False, kw_only=True)
@@ -35,8 +53,8 @@ class StaticExternalToolDefinition(ExternalToolDefinition):
     def should_include(self, ctx: RunContext[ChatDependencies]) -> bool:
         return True
 
-    def get_instruction_part(self) -> InstructionPart:
-        return InstructionPart(content=self.instructions, dynamic=False)
+    def get_instruction_part(self, ctx: RunContext[ChatDependencies]) -> InstructionPart:
+        return InstructionPart(content=self._resolve_instruction(ctx), dynamic=False)
 
 
 @dataclass(repr=False, kw_only=True)
@@ -62,5 +80,5 @@ class DynamicExternalToolDefinition(ExternalToolDefinition):
             )
         return self._include_fn(ctx)
 
-    def get_instruction_part(self) -> InstructionPart:
-        return InstructionPart(content=self.instructions, dynamic=True)
+    def get_instruction_part(self, ctx: RunContext[ChatDependencies]) -> InstructionPart:
+        return InstructionPart(content=self._resolve_instruction(ctx), dynamic=True)

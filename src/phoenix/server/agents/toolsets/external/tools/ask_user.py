@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from phoenix.server.agents.prompts import ASK_USER_TOOL_SYSTEM_PROMPT
+from pydantic_ai import RunContext
+
+from phoenix.server.agents.dependencies import ChatDependencies
 from phoenix.server.agents.toolsets.external.external_tool_definitions import (
     StaticExternalToolDefinition,
 )
@@ -96,6 +98,9 @@ ASK_USER_TOOL_DEFINITION = StaticExternalToolDefinition(
         "or get decisions. Use this when you need user input before proceeding with a task."
     ),
     parameters_json_schema=_ASK_USER_TOOL_PARAMETERS,
-    kind="external",
-    instructions=ASK_USER_TOOL_SYSTEM_PROMPT,
 )
+
+
+@ASK_USER_TOOL_DEFINITION.instruction
+def _instruction(ctx: RunContext[ChatDependencies]) -> str:
+    return ctx.deps.instructions.ask_user_tool

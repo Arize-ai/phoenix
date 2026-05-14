@@ -18,7 +18,9 @@ from anthropic.types.beta import (
 from anthropic.types.beta.message_create_params import MessageCreateParams
 from pydantic_ai import RunContext
 from pydantic_ai.models.anthropic import AnthropicModel, AnthropicModelSettings
+from pydantic_ai.models.test import TestModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
+from pydantic_ai.usage import RunUsage
 from typing_extensions import TypeIs, assert_never
 
 from phoenix.server.agents.agent_factory import build_agent
@@ -29,10 +31,7 @@ from phoenix.server.agents.context import (
     ResolvedContexts,
 )
 from phoenix.server.agents.dependencies import ChatDependencies
-from phoenix.server.agents.prompts import (
-    AGENT_STATIC_SYSTEM_PROMPT,
-    DOCS_TOOL_SYSTEM_PROMPT,
-)
+from phoenix.server.agents.prompts import AgentInstructions
 from phoenix.server.agents.toolsets.docs_mcp import MintlifyDocsMCPToolset
 from phoenix.server.agents.toolsets.external import tools as external_tools
 from phoenix.server.agents.toolsets.external.external_tool_definitions import (
@@ -41,21 +40,41 @@ from phoenix.server.agents.toolsets.external.external_tool_definitions import (
     StaticExternalToolDefinition,
 )
 
-_ALL_EXTERNAL_TOOLS: list[ExternalToolDefinition] = [
-    getattr(external_tools, name) for name in external_tools.__all__
-]
-STATIC_TOOL_PROMPTS = frozenset(
-    tool.instructions
-    for tool in _ALL_EXTERNAL_TOOLS
-    if isinstance(tool, StaticExternalToolDefinition)
-)
-DYNAMIC_TOOL_PROMPTS = frozenset(
-    tool.instructions
-    for tool in _ALL_EXTERNAL_TOOLS
-    if isinstance(tool, DynamicExternalToolDefinition)
-)
-assert STATIC_TOOL_PROMPTS
-assert DYNAMIC_TOOL_PROMPTS
+_DEFAULT_INSTRUCTIONS = AgentInstructions()
+
+
+def _partition_tool_instructions() -> tuple[frozenset[str], frozenset[str]]:
+    """Invoke every tool's ``get_instruction_part`` with a default context and
+    partition the resulting instruction texts by tool-definition subclass:
+    ``StaticExternalToolDefinition`` lands in the cacheable set,
+    ``DynamicExternalToolDefinition`` in the per-turn set. Sourcing this from
+    the tool definitions themselves keeps the test in sync as tools are added
+    or moved between Static and Dynamic."""
+    default_ctx: RunContext[ChatDependencies] = RunContext(
+        deps=ChatDependencies(
+            contexts=ResolvedContexts(),
+            capabilities=AgentCapabilities(),
+            docs_mcp_toolset=None,
+        ),
+        model=TestModel(),
+        usage=RunUsage(),
+    )
+    static_tool_instructions: set[str] = set()
+    dynamic_tool_instructions: set[str] = set()
+    for name in external_tools.__all__:
+        tool = getattr(external_tools, name)
+        assert isinstance(tool, ExternalToolDefinition)
+        content = tool.get_instruction_part(default_ctx).content
+        if isinstance(tool, StaticExternalToolDefinition):
+            static_tool_instructions.add(content)
+        elif isinstance(tool, DynamicExternalToolDefinition):
+            dynamic_tool_instructions.add(content)
+        else:
+            raise AssertionError(f"unexpected tool definition type: {type(tool).__name__}")
+    return frozenset(static_tool_instructions), frozenset(dynamic_tool_instructions)
+
+
+STATIC_TOOL_INSTRUCTIONS, DYNAMIC_TOOL_INSTRUCTIONS = _partition_tool_instructions()
 
 
 @dataclass
@@ -125,7 +144,7 @@ class _OfflineDocsMCPToolset(MintlifyDocsMCPToolset):
     Overrides ``get_tools`` to return an empty tool dict and the async
     context-manager protocol to no-op, so the agent run never opens an
     HTTP/SSE session to the real Mintlify endpoint. ``get_instructions`` is
-    inherited and still emits ``DOCS_TOOL_SYSTEM_PROMPT`` as a static
+    inherited and still emits the default docs-tool instruction as a static
     instruction part — which is what the docs-tool tests assert on.
     """
 
@@ -208,7 +227,7 @@ class TestSystemBlockCacheBoundary:
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
     ) -> None:
-        agent = build_agent(anthropic_model)
+        agent = build_agent(model=anthropic_model)
         deps = ChatDependencies(
             contexts=ResolvedContexts(),
             capabilities=AgentCapabilities(),
@@ -219,14 +238,14 @@ class TestSystemBlockCacheBoundary:
 
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
         cached_texts = [block["text"] for block in cached_blocks if block.get("type") == "text"]
-        assert AGENT_STATIC_SYSTEM_PROMPT in cached_texts
+        assert _DEFAULT_INSTRUCTIONS.base in cached_texts
 
     async def test_static_tool_instructions_are_inside_cache_boundary(
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
     ) -> None:
-        agent = build_agent(anthropic_model)
+        agent = build_agent(model=anthropic_model)
         deps = ChatDependencies(
             contexts=ResolvedContexts(),
             capabilities=AgentCapabilities(),
@@ -237,7 +256,7 @@ class TestSystemBlockCacheBoundary:
 
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
         cached_texts = {block["text"] for block in cached_blocks if block.get("type") == "text"}
-        for static_prompt in STATIC_TOOL_PROMPTS:
+        for static_prompt in STATIC_TOOL_INSTRUCTIONS:
             assert static_prompt in cached_texts
 
     async def test_dynamic_tool_instructions_are_outside_cache_boundary(
@@ -245,7 +264,7 @@ class TestSystemBlockCacheBoundary:
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
     ) -> None:
-        agent = build_agent(anthropic_model)
+        agent = build_agent(model=anthropic_model)
         deps = ChatDependencies(
             contexts=ResolvedContexts(
                 playground=PlaygroundContext(type="playground", instance_ids=[1]),
@@ -263,7 +282,7 @@ class TestSystemBlockCacheBoundary:
 
         _, uncached_blocks = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
         uncached_texts = {block["text"] for block in uncached_blocks if block.get("type") == "text"}
-        for dynamic_prompt in DYNAMIC_TOOL_PROMPTS:
+        for dynamic_prompt in DYNAMIC_TOOL_INSTRUCTIONS:
             assert dynamic_prompt in uncached_texts
 
     async def test_cache_breakpoint_is_marked_on_the_last_static_system_block(
@@ -275,7 +294,7 @@ class TestSystemBlockCacheBoundary:
         or before it should be a known static prompt (agent prompt or
         static-tool prompt), and every block after it should be something
         else."""
-        agent = build_agent(anthropic_model)
+        agent = build_agent(model=anthropic_model)
         deps = ChatDependencies(
             contexts=ResolvedContexts(
                 playground=PlaygroundContext(type="playground", instance_ids=[1]),
@@ -295,7 +314,7 @@ class TestSystemBlockCacheBoundary:
             captured_request.body
         )
 
-        static_texts = {AGENT_STATIC_SYSTEM_PROMPT, *STATIC_TOOL_PROMPTS}
+        static_texts = {_DEFAULT_INSTRUCTIONS.base, *STATIC_TOOL_INSTRUCTIONS}
         for block in cached_blocks:
             assert block.get("type") == "text"
             assert block["text"] in static_texts
@@ -309,7 +328,7 @@ class TestSystemBlockCacheBoundary:
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
     ) -> None:
-        agent = build_agent(anthropic_model)
+        agent = build_agent(model=anthropic_model)
         deps = ChatDependencies(
             contexts=ResolvedContexts(
                 playground=PlaygroundContext(type="playground", instance_ids=[1]),
@@ -327,7 +346,7 @@ class TestSystemBlockCacheBoundary:
 
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
         cached_texts = {block["text"] for block in cached_blocks if block.get("type") == "text"}
-        for dynamic_prompt in DYNAMIC_TOOL_PROMPTS:
+        for dynamic_prompt in DYNAMIC_TOOL_INSTRUCTIONS:
             assert dynamic_prompt not in cached_texts
 
 
@@ -341,7 +360,7 @@ class TestDocsMCPToolset:
         captured_request: CapturedRequest,
         docs_mcp_toolset: _OfflineDocsMCPToolset,
     ) -> None:
-        agent = build_agent(anthropic_model)
+        agent = build_agent(model=anthropic_model)
         deps = ChatDependencies(
             contexts=ResolvedContexts(),
             capabilities=AgentCapabilities(),
@@ -352,14 +371,14 @@ class TestDocsMCPToolset:
 
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
         cached_texts = {block["text"] for block in cached_blocks if block.get("type") == "text"}
-        assert DOCS_TOOL_SYSTEM_PROMPT in cached_texts
+        assert _DEFAULT_INSTRUCTIONS.docs_tool in cached_texts
 
     async def test_docs_tool_instructions_are_absent_when_docs_mcp_toolset_is_omitted(
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
     ) -> None:
-        agent = build_agent(anthropic_model)
+        agent = build_agent(model=anthropic_model)
         deps = ChatDependencies(
             contexts=ResolvedContexts(),
             capabilities=AgentCapabilities(),
@@ -368,4 +387,50 @@ class TestDocsMCPToolset:
 
         await agent.run("hello", deps=deps)
 
-        assert DOCS_TOOL_SYSTEM_PROMPT not in _get_system_texts(captured_request.body)
+        assert _DEFAULT_INSTRUCTIONS.docs_tool not in _get_system_texts(captured_request.body)
+
+
+class TestAgentInstructionsOverride:
+    """Overriding ``AgentInstructions`` via ``build_agent`` and
+    ``ChatDependencies`` propagates to the outgoing system blocks."""
+
+    async def test_overridden_base_instruction_appears_inside_cache_boundary(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        custom = AgentInstructions(base="CUSTOM_STATIC_SENTINEL")
+        agent = build_agent(model=anthropic_model, instructions=custom)
+        deps = ChatDependencies(
+            contexts=ResolvedContexts(),
+            capabilities=AgentCapabilities(),
+            docs_mcp_toolset=None,
+            instructions=custom,
+        )
+
+        await agent.run("hello", deps=deps)
+
+        cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
+        cached_texts = [block["text"] for block in cached_blocks if block.get("type") == "text"]
+        assert "CUSTOM_STATIC_SENTINEL" in cached_texts
+        assert _DEFAULT_INSTRUCTIONS.base not in cached_texts
+
+    async def test_overridden_tool_instruction_replaces_default_in_system_blocks(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        custom = AgentInstructions(bash_tool="CUSTOM_BASH_SENTINEL")
+        agent = build_agent(model=anthropic_model, instructions=custom)
+        deps = ChatDependencies(
+            contexts=ResolvedContexts(),
+            capabilities=AgentCapabilities(),
+            docs_mcp_toolset=None,
+            instructions=custom,
+        )
+
+        await agent.run("hello", deps=deps)
+
+        texts = _get_system_texts(captured_request.body)
+        assert "CUSTOM_BASH_SENTINEL" in texts
+        assert _DEFAULT_INSTRUCTIONS.bash_tool not in texts
