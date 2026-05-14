@@ -1,6 +1,12 @@
 import { css } from "@emotion/react";
 import { useMemo } from "react";
-import { MenuSection, SubmenuTrigger } from "react-aria-components";
+import {
+  Autocomplete,
+  Input,
+  MenuSection,
+  SubmenuTrigger,
+  useFilter,
+} from "react-aria-components";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import {
@@ -8,9 +14,12 @@ import {
   Flex,
   Menu,
   MenuContainer,
+  MenuHeader,
   MenuItem,
   MenuSectionTitle,
   MenuTrigger,
+  SearchField,
+  SearchIcon,
   SelectChevronUpDownIcon,
   Text,
 } from "@phoenix/components";
@@ -135,26 +144,48 @@ function CustomProviderModelsSubmenu({
     providerKey === "AWS" && awsBedrockModelPrefix
       ? applyBedrockPrefix(name, awsBedrockModelPrefix)
       : name;
+  const items = modelNames.map((modelName) => ({
+    id: `${customProvider.id}:${modelName}`,
+    textValue: displayModelName(modelName),
+  }));
+  const { contains } = useFilter();
 
   return (
     <MenuContainer placement="end top" shouldFlip>
-      <Menu>
-        {modelNames.map((modelName) => (
-          <MenuItem
-            key={modelName}
-            id={`${customProvider.id}:${modelName}`}
-            textValue={displayModelName(modelName)}
-            onAction={() => {
-              onChange?.({ provider: providerKey, modelName, customProvider });
-            }}
+      <Autocomplete filter={contains}>
+        <MenuHeader>
+          <SearchField
+            aria-label="Search models"
+            variant="quiet"
+            size="L"
+            autoFocus
           >
-            <Flex direction="row" gap="size-100" alignItems="center">
-              <GenerativeProviderIcon provider={providerKey} height={16} />
-              <Text>{displayModelName(modelName)}</Text>
-            </Flex>
-          </MenuItem>
-        ))}
-      </Menu>
+            <SearchIcon />
+            <Input placeholder="Search models..." />
+          </SearchField>
+        </MenuHeader>
+        <Menu items={items}>
+          {(item) => (
+            <MenuItem
+              key={item.id}
+              id={item.id}
+              textValue={item.textValue}
+              onAction={() => {
+                onChange?.({
+                  provider: providerKey,
+                  modelName: item.textValue,
+                  customProvider,
+                });
+              }}
+            >
+              <Flex direction="row" gap="size-100" alignItems="center">
+                <GenerativeProviderIcon provider={providerKey} height={16} />
+                <Text>{item.textValue}</Text>
+              </Flex>
+            </MenuItem>
+          )}
+        </Menu>
+      </Autocomplete>
     </MenuContainer>
   );
 }
