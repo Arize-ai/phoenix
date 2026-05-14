@@ -36,11 +36,16 @@ const hoverWipe = keyframes`
     -webkit-mask-position: 200% center;
     mask-position: 200% center;
   }
-  18% {
+  8% {
     opacity: 1;
   }
-  60% {
+  40% {
     opacity: 1;
+  }
+  55% {
+    opacity: 0;
+    -webkit-mask-position: -60% center;
+    mask-position: -60% center;
   }
   100% {
     opacity: 0;
@@ -276,7 +281,7 @@ const restingHoverWipeCSS = css`
   }
 
   &:hover .agent-chat-widget__hover-shimmer {
-    animation: ${hoverWipe} 1000ms linear infinite;
+    animation: ${hoverWipe} 2400ms linear infinite;
   }
 
   &:hover .agent-chat-widget__hover-shimmer::before {
