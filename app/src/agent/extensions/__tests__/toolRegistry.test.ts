@@ -197,7 +197,10 @@ describe("toolRegistry", () => {
           type: "BarChart",
           props: {
             title: "Trace Summary",
-            data: [{ label: "Total spans", value: 42 }],
+            data: [
+              { label: "Total spans", value: 42 },
+              { label: "Error spans", value: 3 },
+            ],
           },
           children: [],
         },

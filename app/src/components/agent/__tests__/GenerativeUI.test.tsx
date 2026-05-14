@@ -1,17 +1,31 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   GenerativeUI,
   LEGACY_JSON_RENDER_DATA_PART_TYPE,
 } from "@phoenix/components/agent/GenerativeUI";
+import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
 let container: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn().mockImplementation(() => ({
+      matches: false,
+      media: "",
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -27,9 +41,11 @@ afterEach(() => {
 function renderGeneratedUI(parts: unknown[]) {
   act(() => {
     root.render(
-      <GenerativeUI
-        parts={parts as Parameters<typeof GenerativeUI>[0]["parts"]}
-      />
+      <ThemeProvider themeMode="light" disableBodyTheme>
+        <GenerativeUI
+          parts={parts as Parameters<typeof GenerativeUI>[0]["parts"]}
+        />
+      </ThemeProvider>
     );
   });
 }
@@ -46,7 +62,10 @@ describe("GenerativeUI", () => {
               type: "BarChart",
               props: {
                 title: "Trace Summary",
-                data: [{ label: "Total spans", value: 42 }],
+                data: [
+                  { label: "Total spans", value: 42 },
+                  { label: "Error spans", value: 3 },
+                ],
               },
               children: [],
             },
