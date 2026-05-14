@@ -439,6 +439,45 @@ list to at most three variants. If there are many valid choices, omit
 the argument assertion instead. Do not use variants to paper over
 agent inconsistency on queries that have one clear correct answer.
 
+#### Applying orchestrator results back to an existing dataset
+
+When the orchestrator returns adjudicated `expected:` blocks (or new
+`metadata.annotation` blocks during a backfill), prefer **targeted
+`Edit` operations** on the specific examples that change. Do NOT
+re-serialize the whole YAML file with `pyyaml` or `ruamel.yaml`:
+
+- `pyyaml.safe_dump` strips comments and rewrites indentation (e.g.
+  `sequence-indent=2` and unquoted list-item style) — a 38-example
+  file comes back with a 1000+ line diff that obscures the real
+  semantic change.
+- `ruamel.yaml` *can* round-trip, but only when you pin both
+  `preserve_quotes=True` AND the exact `indent(mapping=M, sequence=S,
+  offset=O)` settings of the source file. Mismatched indent settings
+  silently corrupt list-item structure (e.g. child fields land at the
+  list-item column instead of inside the item). Recover requires a
+  full revert.
+
+The safe pattern for bulk merges:
+
+1. Load the orchestrator's results into Python (any YAML library is
+   fine for *reading*).
+2. Build a `{example_id: (new_expected, new_metadata)}` map.
+3. Iterate over each changed example and apply a focused `Edit` call
+   targeting the example's existing block as `old_string` and the
+   merged block as `new_string`. Each Edit's diff stays scoped to the
+   one example.
+4. Validate with `load_dataset` after the batch.
+
+This preserves section-header comments by construction and produces a
+diff that reviews cleanly.
+
+**Section-header comments are convenience navigation only.** The
+load-bearing per-example commentary lives in
+`metadata.annotation.notes` and `metadata.triage.notes`, which
+round-trip safely through any merge approach. If a bulk rewrite loses
+section comments, the dataset is still fully self-documenting — no
+need to reconstruct them.
+
 ### 7. Save and validate
 
 Save to `tests/pxi/evals/datasets/<name>.yaml`. Then:
