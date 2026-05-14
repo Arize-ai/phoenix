@@ -156,7 +156,9 @@ def _failed_evaluation_rows(
     evaluation_runs: Sequence[ExperimentEvaluationRun],
 ) -> list[tuple[str, str, str, str, str]]:
     task_runs_by_id = {
-        str(task_run["id"]): task_run for task_run in experiment.get("task_runs", []) if "id" in task_run
+        str(task_run["id"]): task_run
+        for task_run in experiment.get("task_runs", [])
+        if "id" in task_run
     }
     rows: list[tuple[str, str, str, str, str]] = []
     for evaluation_run in evaluation_runs:
@@ -164,7 +166,9 @@ def _failed_evaluation_rows(
         if evaluation_run.error is None and score is not None and score >= PASSING_SCORE:
             continue
         task_run = task_runs_by_id.get(str(evaluation_run.experiment_run_id))
-        example_id = task_run["dataset_example_id"] if task_run else str(evaluation_run.experiment_run_id)
+        example_id = (
+            task_run["dataset_example_id"] if task_run else str(evaluation_run.experiment_run_id)
+        )
         rows.append(
             (
                 _truncate_cell(example_id),
@@ -177,7 +181,9 @@ def _failed_evaluation_rows(
                     else f"{score:g}"
                 ),
                 _result_field(evaluation_run, "label"),
-                _truncate_cell(evaluation_run.error or _result_field(evaluation_run, "explanation")),
+                _truncate_cell(
+                    evaluation_run.error or _result_field(evaluation_run, "explanation")
+                ),
             )
         )
     return rows

@@ -14,7 +14,9 @@ from phoenix.client.resources.experiments.types import ExperimentEvaluationRun, 
 from tests.pxi.evals.run_experiment import _failed_evaluation_rows, _format_table, _task_error_rows
 
 
-def _ran_experiment(*, dataset_id: str = "dataset-1", experiment_id: str = "experiment-1") -> RanExperiment:
+def _ran_experiment(
+    *, dataset_id: str = "dataset-1", experiment_id: str = "experiment-1"
+) -> RanExperiment:
     return {
         "experiment_id": experiment_id,
         "dataset_id": dataset_id,
