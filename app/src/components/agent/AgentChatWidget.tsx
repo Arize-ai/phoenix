@@ -131,7 +131,8 @@ const shapeCSS = css`
     flex-shrink: 0;
   }
 
-  .fab-glyph circle {
+  .fab-glyph circle,
+  .fab-glyph rect {
     fill: currentColor;
     transition: fill 160ms ease-out;
   }
@@ -359,7 +360,10 @@ export function AgentChatWidgetButton({
             <PxiGlyph
               className="fab-glyph"
               fill="currentColor"
-              variant="resting"
+              variant="static"
+              css={css`
+                transform: scale(0.7);
+              `}
             />
           )}
           <AnimatePresence>

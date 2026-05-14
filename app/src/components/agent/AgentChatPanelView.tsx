@@ -72,6 +72,7 @@ export function AgentChatHeader({
     <div css={panelHeaderCSS}>
       <Flex direction="row" alignItems="center" gap="size-50" minWidth={0}>
         <PxiGlyph
+          variant="static"
           fill="var(--global-text-color-900)"
           css={css`
             transform: scale(0.7);

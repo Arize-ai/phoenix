@@ -1,29 +1,32 @@
 import { css, keyframes } from "@emotion/react";
 
-const DOT_R = 2.75;
-const DOT_D = DOT_R * 2;
+const BRAND_CELL_SIZE = 5.5;
+const BRAND_CELL_RADIUS = 1.1;
 const GAP = 1;
-const GRID = DOT_D + GAP;
-export const svgSize = DOT_D + GRID * 2;
+const GRID = BRAND_CELL_SIZE + GAP;
+export const svgSize = BRAND_CELL_SIZE + GRID * 2;
 const thinkingGlyphSize = 16;
 
-const dots = [
-  { cx: DOT_R, cy: DOT_R }, // TL
-  { cx: DOT_R + GRID * 2, cy: DOT_R }, // TR
-  { cx: DOT_R + GRID, cy: DOT_R + GRID }, // center
-  { cx: DOT_R, cy: DOT_R + GRID * 2 }, // BL
-  { cx: DOT_R + GRID * 2, cy: DOT_R + GRID * 2 }, // BR
-];
+const gridCells = [
+  { x: 0, y: 0 },
+  { x: GRID * 2, y: 0 },
+  { x: GRID, y: GRID },
+  { x: 0, y: GRID * 2 },
+  { x: GRID * 2, y: GRID * 2 },
+].map(({ x, y }) => ({
+  x,
+  y,
+  width: BRAND_CELL_SIZE,
+  height: BRAND_CELL_SIZE,
+  rx: BRAND_CELL_RADIUS,
+  ry: BRAND_CELL_RADIUS,
+}));
 
 export type PxiGlyphThinkingVariant =
   | "wave-reveal"
   | "orbit-reveal"
   | "twinkle-reveal"
   | "wave-hold";
-
-const restingGlyphCSS = css`
-  transform: scale(0.7);
-`;
 
 const thinkingGlyphCSS = css`
   display: grid;
@@ -175,8 +178,8 @@ const thinkingGlyphVariantCSS: Record<
 };
 
 /**
- * PXI dot-grid glyph.
- * static/resting: original SVG 5-dot X. thinking: animated 3x3 grid variants.
+ * PXI brand glyph.
+ * static: rounded-square 5-cell mark. thinking: animated 3x3 grid variants.
  */
 export function PxiGlyph({
   className,
@@ -187,7 +190,7 @@ export function PxiGlyph({
 }: {
   className?: string;
   fill?: string;
-  variant?: "static" | "resting" | "thinking";
+  variant?: "static" | "thinking";
   size?: number | string;
   thinkingVariant?: PxiGlyphThinkingVariant;
 }) {
@@ -222,13 +225,12 @@ export function PxiGlyph({
   return (
     <svg
       className={className}
-      css={variant === "resting" ? restingGlyphCSS : undefined}
       width={dim}
       height={dim}
       viewBox={`0 0 ${svgSize} ${svgSize}`}
     >
-      {dots.map((d, i) => (
-        <circle key={i} cx={d.cx} cy={d.cy} r={DOT_R} fill={fill} />
+      {gridCells.map((cell, i) => (
+        <rect key={i} {...cell} fill={fill} />
       ))}
     </svg>
   );
