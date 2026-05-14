@@ -126,6 +126,7 @@ export function PlaygroundResponseFormat({
     >
       <LazyEditorWrapper
         preInitializationMinHeight={RESPONSE_FORMAT_EDITOR_PRE_INIT_HEIGHT}
+        testId="playground-response-format-editor"
       >
         <JSONEditor
           value={initialResponseFormatDefinition}

@@ -74,7 +74,7 @@ export function OpenAIApiTypeConfigFormField({
       }}
     >
       <Label>API Type</Label>
-      <Button>
+      <Button data-testid="invocation-param-apiType">
         <SelectValue />
         <SelectChevronUpDownIcon />
       </Button>

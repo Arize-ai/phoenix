@@ -202,7 +202,7 @@ const InvocationParameterFormField = ({
           aria-label={spec.label}
         >
           <Label>{spec.label}</Label>
-          <Button>
+          <Button data-testid={`invocation-param-${spec.name}`}>
             <SelectValue />
             <SelectChevronUpDownIcon />
           </Button>

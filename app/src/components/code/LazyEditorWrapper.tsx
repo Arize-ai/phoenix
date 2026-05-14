@@ -10,6 +10,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
  */
 export function LazyEditorWrapper({
   preInitializationMinHeight,
+  testId,
   children,
 }: {
   /**
@@ -18,6 +19,10 @@ export function LazyEditorWrapper({
    * This allows for the editor to properly get its dimensions when it is rendered outside of the viewport.
    */
   preInitializationMinHeight: number;
+  /**
+   * Forwarded to the wrapper element as `data-testid`.
+   */
+  testId?: string;
   children: ReactNode;
 }) {
   const [isVisible, setIsVisible] = useState(false);
@@ -58,6 +63,7 @@ export function LazyEditorWrapper({
   return (
     <div
       ref={wrapperRef}
+      data-testid={testId}
       css={css`
         min-height: ${
           !isInitialized ? `${preInitializationMinHeight}px` : "auto"

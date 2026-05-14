@@ -222,7 +222,7 @@ async function selectOpenAIApiType(
   page: Page,
   apiTypeLabel: "Chat Completions" | "Responses"
 ): Promise<void> {
-  await popover.getByLabel("API Type").click();
+  await popover.getByTestId("invocation-param-apiType").click();
   await page.getByRole("option", { name: apiTypeLabel, exact: true }).click();
 }
 
@@ -256,6 +256,12 @@ async function setCodeMirrorValue(
   await page.keyboard.insertText(editorValue);
 }
 
+const TOOL_CARD_TESTID_PREFIX = /^playground-tool-card-/;
+
+function toolCard(page: Page, toolName: string): Locator {
+  return page.getByTestId(`playground-tool-card-${toolName}`);
+}
+
 async function addTool({
   page,
   value,
@@ -265,17 +271,16 @@ async function addTool({
   value: unknown;
   expectedTitle: string;
 }): Promise<void> {
-  const toolCards = page.getByRole("button", { name: /^tool / });
+  const toolCards = page.getByTestId(TOOL_CARD_TESTID_PREFIX);
   const previousCount = await toolCards.count();
   await page.getByRole("button", { name: "add tool" }).click();
   await expect(toolCards).toHaveCount(previousCount + 1);
-  const toolEditors = page
-    .locator(".cm-content")
-    .filter({ hasText: /new_function_\d+/ });
-  await setCodeMirrorValue(page, toolEditors.last(), value);
-  await expect(
-    page.getByRole("button", { name: new RegExp(`^tool ${expectedTitle}$`) })
-  ).toBeVisible();
+  const newToolEditor = toolCards
+    .last()
+    .getByTestId("playground-tool-editor")
+    .locator(".cm-content");
+  await setCodeMirrorValue(page, newToolEditor, value);
+  await expect(toolCard(page, expectedTitle)).toBeVisible();
 }
 
 async function addFunctionAndRawTools({
@@ -336,16 +341,13 @@ async function addResponseFormat({
   label: "Response Format" | "Response Schema";
   value: unknown;
 }): Promise<void> {
-  await page
-    .getByRole("button", { name: "response format", exact: true })
-    .click();
+  await page.getByTestId("add-response-format").click();
   await expect(
     page.getByRole("button", { name: label, exact: true })
   ).toBeVisible();
   const responseFormatEditor = page
-    .locator(".cm-content")
-    .filter({ hasText: "additionalProperties" })
-    .last();
+    .getByTestId("playground-response-format-editor")
+    .locator(".cm-content");
   await setCodeMirrorValue(page, responseFormatEditor, value);
 }
 
@@ -372,12 +374,8 @@ async function expectFunctionAndRawTools({
   rawToolTitle: string;
   rawToolText: string;
 }): Promise<void> {
-  await expect(
-    page.getByRole("button", { name: /^tool get_weather$/ })
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: new RegExp(`^tool ${rawToolTitle}$`) })
-  ).toBeVisible();
+  await expect(toolCard(page, "get_weather")).toBeVisible();
+  await expect(toolCard(page, rawToolTitle)).toBeVisible();
   await expect(page.getByText(rawToolText).first()).toBeVisible();
 }
 
@@ -437,7 +435,7 @@ test.describe("Playground prompt configuration round-trip", () => {
         .getByRole("textbox", { name: "Max Completion Tokens" })
         .fill(expectedMaxCompletionTokens);
 
-      await popover.getByRole("button", { name: /Reasoning Effort/ }).click();
+      await popover.getByTestId("invocation-param-reasoningEffort").click();
       await page
         .getByRole("option", { name: expectedReasoningEffort, exact: true })
         .click();
@@ -472,10 +470,10 @@ test.describe("Playground prompt configuration round-trip", () => {
         reopened.getByRole("textbox", { name: "Max Completion Tokens" })
       ).toHaveValue(expectedMaxCompletionTokens);
       await expect(
-        reopened.getByRole("button", { name: /API Type/ })
+        reopened.getByTestId("invocation-param-apiType")
       ).toContainText(apiTypeLabel);
       await expect(
-        reopened.getByRole("button", { name: /Reasoning Effort/ })
+        reopened.getByTestId("invocation-param-reasoningEffort")
       ).toContainText(expectedReasoningEffort);
       await expectResponseFormat({ page, label: "Response Format" });
       if (apiTypeLabel === "Responses") {
@@ -525,20 +523,19 @@ test.describe("Playground prompt configuration round-trip", () => {
       .fill(expectedMaxTokens);
 
     // Switch Thinking to "Enabled" so the budget path is exercised. The Budget
-    // Tokens NumberField only renders in Enabled mode. The negative lookahead
-    // disambiguates the Thinking-mode Select from the Thinking-Display Select.
-    await popover.getByRole("button", { name: /Thinking(?! Display)/ }).click();
+    // Tokens NumberField only renders in Enabled mode.
+    await popover.getByTestId("invocation-param-thinkingType").click();
     await page.getByRole("option", { name: "enabled", exact: true }).click();
     await popover
       .getByRole("textbox", { name: "Budget Tokens" })
       .fill(expectedBudgetTokens);
 
-    await popover.getByRole("button", { name: /Thinking Display/ }).click();
+    await popover.getByTestId("invocation-param-thinkingDisplay").click();
     await page
       .getByRole("option", { name: expectedThinkingDisplay, exact: true })
       .click();
 
-    await popover.getByRole("button", { name: /Effort/ }).click();
+    await popover.getByTestId("invocation-param-effort").click();
     await page
       .getByRole("option", { name: expectedEffort, exact: true })
       .click();
@@ -565,17 +562,17 @@ test.describe("Playground prompt configuration round-trip", () => {
       reopened.getByRole("textbox", { name: "Max Tokens" })
     ).toHaveValue(expectedMaxTokens);
     await expect(
-      reopened.getByRole("button", { name: /Thinking(?! Display)/ })
+      reopened.getByTestId("invocation-param-thinkingType")
     ).toContainText("enabled");
     await expect(
       reopened.getByRole("textbox", { name: "Budget Tokens" })
     ).toHaveValue(expectedBudgetTokens);
     await expect(
-      reopened.getByRole("button", { name: /Thinking Display/ })
+      reopened.getByTestId("invocation-param-thinkingDisplay")
     ).toContainText(expectedThinkingDisplay);
-    await expect(
-      reopened.getByRole("button", { name: /Effort/ })
-    ).toContainText(expectedEffort);
+    await expect(reopened.getByTestId("invocation-param-effort")).toContainText(
+      expectedEffort
+    );
     await expectResponseFormat({ page, label: "Response Format" });
     await expectFunctionAndRawTools({
       page,
@@ -602,12 +599,12 @@ test.describe("Playground prompt configuration round-trip", () => {
       .getByRole("textbox", { name: "Max Output Tokens" })
       .fill(expectedMaxOutputTokens);
     await expect(
-      popover.getByRole("button", { name: /Thinking Level/ })
+      popover.getByTestId("invocation-param-thinkingLevel")
     ).toContainText("medium");
     await expect(
       popover.getByRole("switch", { name: "Include Thoughts" })
     ).toBeChecked();
-    await popover.getByRole("button", { name: /Thinking Level/ }).click();
+    await popover.getByTestId("invocation-param-thinkingLevel").click();
     await page
       .getByRole("option", { name: expectedThinkingLevel, exact: true })
       .click();
@@ -639,7 +636,7 @@ test.describe("Playground prompt configuration round-trip", () => {
       reopened.getByRole("textbox", { name: "Max Output Tokens" })
     ).toHaveValue(expectedMaxOutputTokens);
     await expect(
-      reopened.getByRole("button", { name: /Thinking Level/ })
+      reopened.getByTestId("invocation-param-thinkingLevel")
     ).toContainText(expectedThinkingLevel);
     await expect(
       reopened.getByRole("switch", { name: "Include Thoughts" })

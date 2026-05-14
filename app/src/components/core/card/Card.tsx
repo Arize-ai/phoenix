@@ -19,6 +19,7 @@ function Card({
   scrollBody = false,
   extra,
   onCollapseChange,
+  testId,
   ...otherProps
 }: CardProps & { ref?: Ref<HTMLElement> }) {
   const { styleProps } = useStyleProps(otherProps, viewStyleProps);
@@ -60,6 +61,7 @@ function Card({
       data-collapsible={collapsible}
       data-collapsed={isCollapsed}
       data-title-separator={titleSeparator}
+      data-testid={testId}
       style={styleProps.style}
     >
       <header id={headerId}>

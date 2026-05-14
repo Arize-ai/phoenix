@@ -141,6 +141,7 @@ export function PlaygroundTool({
   return (
     <Card
       collapsible
+      testId={`playground-tool-card-${toolName ?? "Tool"}`}
       backgroundColor={"yellow-100"}
       borderColor={"yellow-700"}
       title={

@@ -43,4 +43,8 @@ export interface CardProps extends PropsWithChildren<ViewStyleProps> {
    * Callback fired when the card is collapsed or expanded. Only applicable if `collapsible` is `true`.
    */
   onCollapseChange?: (isCollapsed: boolean) => void;
+  /**
+   * Forwarded to the root `<section>` element as `data-testid`.
+   */
+  testId?: string;
 }
