@@ -1,5 +1,5 @@
-import React from "react";
 import { css, keyframes } from "@emotion/react";
+import React from "react";
 
 const BRAND_CELL_SIZE = 5.5;
 const BRAND_CELL_RADIUS = 1.1;
