@@ -276,7 +276,7 @@ const restingHoverWipeCSS = css`
   }
 
   &:hover .agent-chat-widget__hover-shimmer {
-    animation: ${hoverWipe} 1000ms linear 1 both;
+    animation: ${hoverWipe} 1000ms linear infinite;
   }
 
   &:hover .agent-chat-widget__hover-shimmer::before {
