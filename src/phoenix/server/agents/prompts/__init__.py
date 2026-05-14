@@ -17,6 +17,7 @@ AGENT_STATIC_SYSTEM_PROMPT = _read("SYSTEM_PROMPT.xml")
 DOCS_TOOL_SYSTEM_PROMPT = _read("DOCS_TOOL.xml")
 BASH_TOOL_SYSTEM_PROMPT = _read("BASH_TOOL.xml")
 ASK_USER_TOOL_SYSTEM_PROMPT = _read("ASK_USER_TOOL.xml")
+SUMMARIZATION_SYSTEM_PROMPT = _read("SUMMARIZATION_PROMPT.xml")
 
 
 def build_static_agent_system_prompt(ctx: RunContext[ChatDependencies]) -> str:
