@@ -2075,7 +2075,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 3e-6,
+          "base_rate": 1.25e-6,
           "is_prompt": true,
           "token_type": "audio"
         }
@@ -2097,7 +2097,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 3e-6,
+          "base_rate": 1.25e-6,
           "is_prompt": true,
           "token_type": "audio"
         }
@@ -2119,7 +2119,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 3e-6,
+          "base_rate": 1.25e-6,
           "is_prompt": true,
           "token_type": "audio"
         }
@@ -2347,7 +2347,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 6e-6,
+          "base_rate": 2.5e-6,
           "is_prompt": true,
           "token_type": "audio"
         }
@@ -2369,7 +2369,7 @@
           "token_type": "output"
         },
         {
-          "base_rate": 6e-6,
+          "base_rate": 2.5e-6,
           "is_prompt": true,
           "token_type": "audio"
         }
