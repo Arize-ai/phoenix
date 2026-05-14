@@ -52,6 +52,8 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_TIMEOUT = 600
 _DEFAULT_IDLE_TIMEOUT = 300
+ENV_MODAL_TOKEN_ID = "MODAL_TOKEN_ID"
+ENV_MODAL_TOKEN_SECRET = "MODAL_TOKEN_SECRET"
 
 
 class ModalSandboxBackend(SandboxBackend):
@@ -81,8 +83,9 @@ class ModalSandboxBackend(SandboxBackend):
     ) -> None:
         if not token_id or not token_secret:
             raise ValueError(
-                "Modal sandbox requires both MODAL_TOKEN_ID and MODAL_TOKEN_SECRET. "
-                "Set them via setSandboxCredential or as process environment variables."
+                "Modal sandbox requires both MODAL_TOKEN_ID and "
+                "MODAL_TOKEN_SECRET. Set them via setSandboxCredential "
+                "or as process environment variables."
             )
 
         import modal
@@ -220,12 +223,12 @@ class ModalAdapter(SandboxAdapter):
     config_model = ModalConfig
     credential_specs = [
         ProviderCredentialSpec(
-            key="MODAL_TOKEN_ID",
+            key=ENV_MODAL_TOKEN_ID,
             display_name="Modal Token ID",
             description="Token ID issued by `modal token new`.",
         ),
         ProviderCredentialSpec(
-            key="MODAL_TOKEN_SECRET",
+            key=ENV_MODAL_TOKEN_SECRET,
             display_name="Modal Token Secret",
             description="Token secret issued by `modal token new`.",
         ),
@@ -242,13 +245,13 @@ class ModalAdapter(SandboxAdapter):
         user_env: Optional[Mapping[str, str]] = None,
     ) -> SandboxBackend:
         self._enforce_capabilities(config, user_env)
-        token_id = config.get("MODAL_TOKEN_ID") or ""
-        token_secret = config.get("MODAL_TOKEN_SECRET") or ""
+        token_id = config.get(ENV_MODAL_TOKEN_ID) or ""
+        token_secret = config.get(ENV_MODAL_TOKEN_SECRET) or ""
         if not token_id or not token_secret:
             raise ValueError(
                 "Modal sandbox authentication is not configured. Set both "
-                "MODAL_TOKEN_ID and MODAL_TOKEN_SECRET via setSandboxCredential "
-                "or as process environment variables."
+                "MODAL_TOKEN_ID and MODAL_TOKEN_SECRET "
+                "via setSandboxCredential or as process environment variables."
             )
         deps = config.get("dependencies") or {}
         packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []

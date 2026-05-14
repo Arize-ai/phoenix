@@ -40,6 +40,8 @@ _TOKEN_ID_RAW = "ak-test-id"
 _TOKEN_SECRET_RAW = "as-test-secret"
 _TOKEN_ID = Secret(_TOKEN_ID_RAW)
 _TOKEN_SECRET = Secret(_TOKEN_SECRET_RAW)
+_CANONICAL_TOKEN_ID = "MODAL_TOKEN_ID"
+_CANONICAL_TOKEN_SECRET = "MODAL_TOKEN_SECRET"
 
 
 @pytest.mark.asyncio
@@ -85,8 +87,8 @@ def test_pip_install_invoked_only_when_packages_present() -> None:
         with_pkgs: Any = adapter.build_backend(
             {
                 "dependencies": {"packages": ["cowsay"]},
-                "MODAL_TOKEN_ID": _TOKEN_ID_RAW,
-                "MODAL_TOKEN_SECRET": _TOKEN_SECRET_RAW,
+                _CANONICAL_TOKEN_ID: _TOKEN_ID_RAW,
+                _CANONICAL_TOKEN_SECRET: _TOKEN_SECRET_RAW,
             }
         )
         slim_image.pip_install.assert_called_once_with(["cowsay"])
@@ -96,8 +98,8 @@ def test_pip_install_invoked_only_when_packages_present() -> None:
         without_pkgs: Any = adapter.build_backend(
             {
                 "dependencies": {"packages": []},
-                "MODAL_TOKEN_ID": _TOKEN_ID_RAW,
-                "MODAL_TOKEN_SECRET": _TOKEN_SECRET_RAW,
+                _CANONICAL_TOKEN_ID: _TOKEN_ID_RAW,
+                _CANONICAL_TOKEN_SECRET: _TOKEN_SECRET_RAW,
             }
         )
         slim_image.pip_install.assert_not_called()
@@ -135,23 +137,23 @@ async def test_block_network_kwarg_forwarding(
         (
             {
                 "internet_access": {"mode": "deny"},
-                "MODAL_TOKEN_ID": _TOKEN_ID_RAW,
-                "MODAL_TOKEN_SECRET": _TOKEN_SECRET_RAW,
+                _CANONICAL_TOKEN_ID: _TOKEN_ID_RAW,
+                _CANONICAL_TOKEN_SECRET: _TOKEN_SECRET_RAW,
             },
             True,
         ),
         (
             {
                 "internet_access": {"mode": "allow"},
-                "MODAL_TOKEN_ID": _TOKEN_ID_RAW,
-                "MODAL_TOKEN_SECRET": _TOKEN_SECRET_RAW,
+                _CANONICAL_TOKEN_ID: _TOKEN_ID_RAW,
+                _CANONICAL_TOKEN_SECRET: _TOKEN_SECRET_RAW,
             },
             False,
         ),
         (
             {
-                "MODAL_TOKEN_ID": _TOKEN_ID_RAW,
-                "MODAL_TOKEN_SECRET": _TOKEN_SECRET_RAW,
+                _CANONICAL_TOKEN_ID: _TOKEN_ID_RAW,
+                _CANONICAL_TOKEN_SECRET: _TOKEN_SECRET_RAW,
             },
             False,
         ),
@@ -177,10 +179,10 @@ def test_build_backend_requires_both_tokens() -> None:
         from phoenix.server.sandbox.modal_backend import ModalAdapter
 
         adapter = ModalAdapter()
-        with pytest.raises(ValueError, match="MODAL_TOKEN_ID"):
-            adapter.build_backend({"MODAL_TOKEN_SECRET": _TOKEN_SECRET_RAW})
-        with pytest.raises(ValueError, match="MODAL_TOKEN_ID"):
-            adapter.build_backend({"MODAL_TOKEN_ID": _TOKEN_ID_RAW})
+        with pytest.raises(ValueError, match=_CANONICAL_TOKEN_ID):
+            adapter.build_backend({_CANONICAL_TOKEN_SECRET: _TOKEN_SECRET_RAW})
+        with pytest.raises(ValueError, match=_CANONICAL_TOKEN_ID):
+            adapter.build_backend({_CANONICAL_TOKEN_ID: _TOKEN_ID_RAW})
 
 
 @pytest.mark.asyncio

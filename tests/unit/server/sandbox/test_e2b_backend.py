@@ -15,6 +15,7 @@ from starlette.datastructures import Secret
 from phoenix.server.sandbox.e2b_backend import E2BAdapter, E2BSandboxBackend
 
 _API_KEY = Secret("k")
+_CANONICAL_API_KEY = "E2B_API_KEY"
 
 
 def _make_mock_sandbox_cls(create_result: Any = None) -> MagicMock:
@@ -54,7 +55,7 @@ def test_build_backend_translates_internet_access_to_allow_flag(
     """E2BAdapter.build_backend translates internet_access.mode → allow_internet_access kwarg."""
     adapter = E2BAdapter()
     backend: E2BSandboxBackend = adapter.build_backend(  # type: ignore[assignment]
-        {"E2B_API_KEY": "k", **config}
+        {_CANONICAL_API_KEY: "k", **config}
     )
     assert backend._create_kwargs()["allow_internet_access"] is expected
 
@@ -170,7 +171,7 @@ async def test_ephemeral_execute_installs_packages_before_run_code() -> None:
 def test_build_backend_wires_packages(config: dict[str, Any], expected_packages: list[str]) -> None:
     adapter = E2BAdapter()
     backend: E2BSandboxBackend = adapter.build_backend(  # type: ignore[assignment]
-        {"E2B_API_KEY": "k", **config}
+        {_CANONICAL_API_KEY: "k", **config}
     )
     assert backend._packages == expected_packages
 
@@ -181,7 +182,7 @@ def test_build_backend_requires_api_key() -> None:
     path. See e2b/connection_config.py:94.
     """
     adapter = E2BAdapter()
-    with pytest.raises(ValueError, match="E2B_API_KEY"):
+    with pytest.raises(ValueError, match=_CANONICAL_API_KEY):
         adapter.build_backend({})
-    with pytest.raises(ValueError, match="E2B_API_KEY"):
-        adapter.build_backend({"E2B_API_KEY": ""})
+    with pytest.raises(ValueError, match=_CANONICAL_API_KEY):
+        adapter.build_backend({_CANONICAL_API_KEY: ""})

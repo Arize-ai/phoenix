@@ -28,9 +28,10 @@ from tests.unit.graphql import AsyncGraphQLClient
 
 _e2b_adapter = E2BAdapter()
 
-# Reserved names exposed by the MODAL and VERCEL adapters (case-preserved for
-# readability; the mutation check is case-insensitive).
+# Reserved names exposed by the E2B, MODAL, and VERCEL adapters. The mutation
+# check is case-insensitive.
 _RESERVED_NAMES = [
+    "E2B_API_KEY",
     "MODAL_TOKEN_SECRET",
     "MODAL_TOKEN_ID",
     "VERCEL_TOKEN",
