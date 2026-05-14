@@ -30,6 +30,25 @@ const ringBreathe = keyframes`
   }
 `;
 
+const hoverWipe = keyframes`
+  0% {
+    opacity: 0;
+    -webkit-mask-position: 200% center;
+    mask-position: 200% center;
+  }
+  18% {
+    opacity: 1;
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    -webkit-mask-position: -60% center;
+    mask-position: -60% center;
+  }
+`;
+
 const glyphBreathe = keyframes`
   0%, 100% {
     color: var(--agent-chat-widget-glyph-rest-color);
@@ -242,10 +261,6 @@ const restingHoverWipeCSS = css`
     mask-size: 200% 200%;
     -webkit-mask-position: 200% center;
     mask-position: 200% center;
-    transition:
-      opacity 240ms ease-out,
-      -webkit-mask-position 0ms linear 240ms,
-      mask-position 0ms linear 240ms;
   }
 
   .agent-chat-widget__hover-shimmer::before {
@@ -261,13 +276,7 @@ const restingHoverWipeCSS = css`
   }
 
   &:hover .agent-chat-widget__hover-shimmer {
-    opacity: 1;
-    -webkit-mask-position: 0% center;
-    mask-position: 0% center;
-    transition:
-      opacity 160ms ease-out,
-      -webkit-mask-position 900ms cubic-bezier(0.22, 0.8, 0.24, 1),
-      mask-position 900ms cubic-bezier(0.22, 0.8, 0.24, 1);
+    animation: ${hoverWipe} 1000ms linear 1 both;
   }
 
   &:hover .agent-chat-widget__hover-shimmer::before {
