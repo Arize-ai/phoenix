@@ -13,10 +13,6 @@ import {
   type AgentCapabilities,
   type AgentCapabilityKey,
 } from "@phoenix/agent/extensions/capabilities";
-import {
-  AGENT_CURATED_MODELS_CONFIG,
-  normalizeAgentModelMenuValue,
-} from "@phoenix/agent/models/curatedModels";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
 import type { PendingPromptEdit } from "@phoenix/agent/tools/playgroundPrompt";
 import { generateUUID } from "@phoenix/utils/uuidUtils";
@@ -260,31 +256,6 @@ export type AgentClientAction = (
 ) => Promise<AgentClientActionResult>;
 
 /**
- * Keeps the persisted assistant default model aligned with the curated picker
- * policy so stale built-in selections do not survive app boot or rehydrate.
- */
-function normalizeDefaultModelConfig(
-  defaultModelConfig: ModelConfig
-): ModelConfig {
-  const normalized = normalizeAgentModelMenuValue(
-    {
-      provider: defaultModelConfig.provider,
-      modelName: defaultModelConfig.modelName ?? "",
-      ...(defaultModelConfig.customProvider && {
-        customProvider: defaultModelConfig.customProvider,
-      }),
-    },
-    AGENT_CURATED_MODELS_CONFIG
-  );
-  return {
-    ...defaultModelConfig,
-    provider: normalized.provider,
-    modelName: normalized.modelName,
-    customProvider: normalized.customProvider ?? null,
-  };
-}
-
-/**
  * Builds the persisted portion of the agent store from app defaults and any
  * caller-provided overrides, normalizing the assistant model before first use.
  */
@@ -295,9 +266,8 @@ function createInitialAgentProps(
     ...DEFAULT_AGENT_SERVER_CONFIG,
     ...initialProps?.agentsConfig,
   };
-  const defaultModelConfig = normalizeDefaultModelConfig(
-    initialProps?.defaultModelConfig ?? DEFAULT_MODEL_CONFIG
-  );
+  const defaultModelConfig =
+    initialProps?.defaultModelConfig ?? DEFAULT_MODEL_CONFIG;
   return {
     isOpen: initialProps?.isOpen ?? false,
     position: initialProps?.position ?? "detached",
@@ -721,12 +691,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           ...current,
           ...(persisted as Partial<AgentState>),
         };
-        return {
-          ...mergedState,
-          defaultModelConfig: normalizeDefaultModelConfig(
-            mergedState.defaultModelConfig
-          ),
-        };
+        return mergedState;
       },
       migrate: (persisted, version) => {
         const state = persisted as Partial<AgentProps> & {
@@ -768,9 +733,8 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         return {
           ...state,
           sessionMap: migratedSessionMap,
-          defaultModelConfig: normalizeDefaultModelConfig(
-            state.defaultModelConfig ?? initialAgentProps.defaultModelConfig
-          ),
+          defaultModelConfig:
+            state.defaultModelConfig ?? initialAgentProps.defaultModelConfig,
           observability: {
             ...DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
             ...(state.observability ?? {}),
