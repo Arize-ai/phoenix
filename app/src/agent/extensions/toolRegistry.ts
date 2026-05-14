@@ -29,6 +29,7 @@ import {
 } from "@phoenix/components/agent/generativeUICatalog";
 import type { TimeRangeKey } from "@phoenix/components/datetime/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
+import { isPlainObject } from "@phoenix/utils/jsonUtils";
 
 import {
   getAgentCapabilityDefinition,
@@ -309,7 +310,7 @@ function parseRenderGeneratedUIInput(
   if (!specResult.success) {
     return null;
   }
-  if (candidate.state !== undefined && !isRecord(candidate.state)) {
+  if (candidate.state !== undefined && !isPlainObject(candidate.state)) {
     return null;
   }
   return {
@@ -618,8 +619,4 @@ export async function handleRegisteredAgentToolCall({
     agentStore,
     capabilities,
   });
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

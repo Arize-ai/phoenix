@@ -1,6 +1,8 @@
 import type { Spec } from "@json-render/core";
 import { buildSpecFromParts, type DataPart } from "@json-render/react";
 
+import { isPlainObject } from "@phoenix/utils/jsonUtils";
+
 import {
   GENERATIVE_UI_TOOL_NAME,
   JSON_RENDER_DATA_PART_TYPE,
@@ -32,7 +34,7 @@ function getToolSpec(parts: DataPart[]): Spec | null {
       continue;
     }
     const input = getToolInput(part);
-    if (isRecord(input)) {
+    if (isPlainObject(input)) {
       const spec = parseSpec(input.spec);
       if (spec) {
         return spec;
@@ -60,7 +62,7 @@ function getLegacySpec(parts: DataPart[]): Spec | null {
     if (spec) {
       return spec;
     }
-    if (isRecord(payload)) {
+    if (isPlainObject(payload)) {
       const nestedSpec = parseSpec(payload.spec);
       if (nestedSpec) {
         return nestedSpec;
@@ -76,19 +78,19 @@ function getState(parts: DataPart[]): Record<string, unknown> {
       continue;
     }
     const payload = part.data;
-    if (isRecord(payload) && isRecord(payload.state)) {
+    if (isPlainObject(payload) && isPlainObject(payload.state)) {
       return payload.state;
     }
     if (
-      isRecord(payload) &&
-      isRecord(payload.spec) &&
-      isRecord(payload.spec.state)
+      isPlainObject(payload) &&
+      isPlainObject(payload.spec) &&
+      isPlainObject(payload.spec.state)
     ) {
       return payload.spec.state;
     }
     if (isRenderGeneratedUIToolPart(part)) {
       const input = getToolInput(part);
-      if (isRecord(input) && isRecord(input.state)) {
+      if (isPlainObject(input) && isPlainObject(input.state)) {
         return input.state;
       }
     }
@@ -116,7 +118,7 @@ function isRenderGeneratedUIToolPart(part: DataPart): boolean {
 
 function hasRenderableToolInput(part: DataPart): boolean {
   const input = getToolInput(part);
-  return isRecord(input) && parseSpec(input.spec) !== null;
+  return isPlainObject(input) && parseSpec(input.spec) !== null;
 }
 
 function getToolInput(part: DataPart): unknown {
@@ -126,8 +128,4 @@ function getToolInput(part: DataPart): unknown {
 function parseSpec(value: unknown): Spec | null {
   const result = renderGeneratedUISpecSchema.safeParse(value);
   return result.success ? (result.data as Spec) : null;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
