@@ -1910,6 +1910,7 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
 
 
 OPENAI_REASONING_MODELS = [
+    "gpt-5.5",
     "gpt-5.4",
     "gpt-5.4-2026-03-05",
     "gpt-5.4-mini",
