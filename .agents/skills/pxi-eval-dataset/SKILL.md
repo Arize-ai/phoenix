@@ -191,10 +191,12 @@ per-example.
    whichever tool best fits the query, but the highlight tells them
    which tool's evaluator family will judge the answer.
 
-2. **Evaluator contract** — copy the schema reference from this skill
-   (what each `expected` field means, subset-match semantics, variant
-   list semantics). Add the explicit instruction: *if you are unsure
-   about an arg value, omit the key rather than guessing.*
+2. **Evaluator contract** — provide the dataset-specific
+   expected-block schema derived from the selected evaluators (what
+   each `expected` field means, matching semantics, and which fields
+   may be omitted or expressed as variants). Add the explicit
+   instruction: *if you are unsure about a value, omit the key rather
+   than guessing.*
 
 3. **Query and design intent** — the `input.query` string, plus the
    dataset author's framing if assigned:
@@ -213,40 +215,45 @@ per-example.
    valuable signals this protocol produces, because it surfaces
    mis-classified queries.
 
-4. **Task instruction** (goal-oriented, use this verbatim):
+4. **Task instruction** (goal-oriented, adapt only the schema
+   reference):
 
    > "Your goal: determine the correct `expected:` block for this
-   > dataset example — what tool calls (if any) the PXI agent SHOULD
-   > make in response to the user's query, given the full toolset
-   > spec.
+   > dataset example — the expected output needed to validate whether
+   > the PXI agent took the right actions in response to the user's
+   > query, given the full toolset spec, evaluation goal, evaluator
+   > set, and expected-block schema.
    >
    > Constraints:
    >
-   > - Consider every tool in the toolset spec, not just the focal
-   >   one. The right answer may be the focal tool, a different tool,
-   >   or no tool at all.
-   > - Use only arg values directly implied by the tool's
-   >   `parameters_json_schema` and the query. Omit any key whose
-   >   value the spec doesn't determine — don't invent a plausible
-   >   default.
+   > - Follow the expected-block schema provided for this dataset. The
+   >   schema is determined by the evaluation goal and selected
+   >   evaluators; do not assume every dataset validates only tool
+   >   selection or tool arguments.
+   > - When the schema includes tool expectations, consider every tool
+   >   in the toolset spec, not just the focal one. The right answer may
+   >   be the focal tool, a different tool, or no tool at all.
+   > - Use only values directly implied by the relevant spec and the
+   >   query. Omit any key whose value the spec doesn't determine —
+   >   don't invent a plausible default.
    > - The author's design intent (`difficulty`, `polarity`,
    >   `category`, `notes`) is a hint, not ground truth. If your
    >   reading of the spec contradicts the author's labeled polarity,
    >   output what the spec implies and record the disagreement in
    >   `metadata.notes`.
-   > - Use the variant-list form (a list of dicts under one tool name
-   >   in `tool_call_args`) only when more than one arg shape is
-   >   equally valid per the spec.
+   > - Return exactly one best `expected:` block. If multiple outputs
+   >   seem valid, choose the single strongest answer and mention the
+   >   alternatives in your brief reasoning; the orchestrator decides
+   >   later whether variants belong in the final example.
    >
    > Output format (exactly two parts, in this order):
    >
    > 1. **Brief reasoning** — one or two sentences explaining which
-   >    tool you concluded should fire (if any) and why. Just enough
-   >    that an orchestrator comparing three independent annotations
-   >    can see where you agree or diverge with the others.
+   >    expected output you concluded should be used and why. Just
+   >    enough that an orchestrator comparing three independent
+   >    annotations can see where you agree or diverge with the others.
    > 2. **The `expected:` block as YAML** matching the schema
-   >    reference. Include a `metadata:` block only if you need a
-   >    `notes:` field. No other prose."
+   >    reference provided in this prompt. No other prose."
 
    This frames the task as a goal with constraints, not a procedural
    recipe. Cross-model fan-out is only useful if each annotator
@@ -255,28 +262,34 @@ per-example.
    the orchestrator enough signal to adjudicate disagreements
    without dictating how each annotator gets there.
 
-#### Annotation rules (apply these in every subprocess)
+#### Expected-block schema and annotation rules
+
+Before launching annotation subprocesses, define the expected-block
+schema for this dataset from the evaluation goal and selected
+evaluators. Include that schema verbatim in every annotation prompt.
+For example, a dataset that validates tool selection and tool
+arguments may use `expected.tools` and `expected.tool_call_args`, while
+another dataset may validate response text, refusal behavior, or some
+other evaluator-specific field.
+
+When the schema includes tool expectations, use these conventions:
 
 - Use `tools.required` for the must-be-called tool(s).
-- Use `tools.forbidden` (or `tools.exact_match: true`) for negative
-  cases or strict-no-extras cases.
-- For a **pure-negative** case (no tool should be called at all),
-  set `tools.forbidden` to the list of tools that must not fire and
-  omit `tools.required` entirely. Do not supply `tool_call_args`.
+- Use `tools.exact_match: true` for strict-no-extras cases.
+- For a **pure-negative** case where no tool should be called, set
+  `tools.required: []` and `tools.exact_match: true`. Do not enumerate
+  every tool in `tools.forbidden`; the tool list can grow and make
+  that brittle. Do not supply `tool_call_args`.
 - Use `tool_call_args[<tool>]` only when argument correctness matters;
   leave it off for "any args are fine" cases — especially **ambiguous**
   cases where you want to assert the tool fires but not pin its args.
-- Add `metadata.category` for every example so coverage gaps are easy
-  to spot later. Pick a flat string taxonomy and reuse the same
-  category strings across related examples — don't invent a new tag
-  per example. Existing datasets are a useful pattern reference.
 
 #### How many opinions, and which models
 
-| Difficulty | Opinions | Models |
-|---|---|---|
-| `obvious`, pure-negative | **1** | Sonnet (via `Agent` tool) |
-| `moderate`, `tricky`, ambiguous | **3** | Sonnet + Opus (via `Agent` tool) + Codex default (via wrapper) |
+Collect **three independent opinions for every dataset example**:
+Sonnet, Opus, and Codex. Even obvious and pure-negative examples get
+the full fan-out so the dataset has a consistent annotation provenance
+and easy-to-audit agreement metadata.
 
 Cross-model diversity — different families, different training, and
 (for Codex) different agent runtime — catches single-model biases that
@@ -317,12 +330,14 @@ containing two `Agent` tool calls (Sonnet, Opus) **and** one `Bash`
 tool call (the Codex wrapper) — they will run concurrently. **Do not
 share context between them.**
 
-#### Orchestrator subprocess (required when N > 1)
+#### Orchestrator subprocess (required)
 
-After the N annotation subprocesses return, run a **fourth fresh
-subprocess** as the orchestrator. Its job is to merge the N candidates
+After the three annotation subprocesses return, run a **fourth fresh
+subprocess** as the orchestrator. Its job is to merge the candidates
 into a single `expected:` block, with authority to drop spec-invalid
-proposals.
+proposals. Use a separate subprocess so the orchestrator sees
+anonymized candidate blocks and cannot be biased by knowing which
+model produced which annotation.
 
 **Orchestrator subprocess context:**
 
@@ -336,21 +351,29 @@ proposals.
   toolset spec and the majority of annotation opinions disagree with
   it; flag any such override with `metadata.notes: 'orchestrator
   overrode author polarity'`.
-- All N candidate `expected:` blocks (anonymized — do not tell the
+- All three candidate `expected:` blocks (anonymized — do not tell the
   orchestrator which model produced which proposal; this prevents
   reputation bias)
-- The decision table below
+- The dataset-specific expected-block schema
 
-**Orchestrator decision rules** (applied per-tool to
-`tool_call_args[<tool>]`):
+**Orchestrator decision rules:**
 
-| Situation | Resolution |
-|---|---|
-| All N proposals agree (after value normalization) | Single dict |
-| Distinct proposals, **all** spec-valid per `parameters_json_schema` | Variant list of all spec-valid dicts (see below) |
-| Distinct proposals, **some** spec-invalid | Drop invalid; emit remaining (single dict or variant list) |
-| Distinct proposals, **none** clearly spec-valid | Omit `tool_call_args[<tool>]` entirely (ambiguity convention) |
-| Proposals disagree on whether the tool should fire at all | Use majority for `tools.required` / `forbidden`; omit `tool_call_args`; set `metadata.flags: [multi_correct]` |
+- Merge portions of the `expected:` block where the models agree.
+- Drop any value that is invalid under the tool spec, evaluator
+  contract, or dataset-specific expected-block schema. Justify each
+  rejection against a specific clause.
+- Where models disagree but multiple outputs are valid and the schema
+  supports variants, include variants only for the specific fields
+  where variants are meaningful.
+- Where variants do not make sense for the field, use the majority
+  answer.
+- Where there is no valid majority and the schema allows omission,
+  omit the disputed optional field rather than over-constraining the
+  expected output.
+- For tool-call argument variants, keep at most three variants. If
+  there are many valid argument shapes, prefer omitting
+  `tool_call_args[<tool>]` so the evaluator checks tool selection
+  without pinning arbitrary arguments.
 
 The orchestrator must justify any "spec-invalid" rejection against a
 specific clause of the tool spec. It does NOT vote: it adjudicates
@@ -368,22 +391,18 @@ metadata:
   annotation:
     agreement: high     # high | medium | low — see rule below
     n_opinions: 3       # number of annotation subprocesses run
-    n_variants: 2       # number of variant dicts in the final tool_call_args list
 ```
 
 **Agreement categorization rule:**
 
-- **`high`** — all N opinions produced equivalent `expected:` blocks
+- **`high`** — all three opinions produced equivalent `expected:` blocks
   (equal `tools.{required,forbidden}` lists after sorting, and per-tool
   `tool_call_args` dicts equal after applying `_normalize_arg_value`
   from `tests/pxi/evals/evaluators/tools.py` to each value).
-- **`medium`** — majority (≥⌈N/2⌉) agreed; minority differed but the
+- **`medium`** — majority agreed; minority differed but the
   orchestrator was able to merge (as variants) or drop (as spec-invalid).
 - **`low`** — no majority; the orchestrator either fell back to
   omit-args or made a judgment call with weak signal.
-
-For single-opinion examples (`obvious` / pure-negative), use
-`agreement: high` and `n_opinions: 1`.
 
 **Why this matters:** an `agreement: low` example may still have a
 correct ground truth, but it's a candidate for human review — the
@@ -415,9 +434,10 @@ tool_call_args:
 ```
 
 Use variants for genuinely-ambiguous queries (e.g. "show me recent
-traces" — `15m`, `1h`, `12h`, `1d`, `7d`, `30d` are all defensible).
-Do not use variants to paper over agent inconsistency on queries
-that have one clear correct answer.
+traces" when only a small number of choices are defensible). Keep the
+list to at most three variants. If there are many valid choices, omit
+the argument assertion instead. Do not use variants to paper over
+agent inconsistency on queries that have one clear correct answer.
 
 ### 7. Save and validate
 
@@ -499,72 +519,11 @@ dataset small while iterating, or commit a temporary copy.
 
 ## Dataset schema reference
 
-The canonical shape, modeled on
-`tests/pxi/evals/datasets/set_spans_filter.yaml`:
-
-```yaml
-dataset_name: set_spans_filter # required, non-empty
-description: PXI eval suite for ... # optional
-evaluators: # required, non-empty list of evaluator names
-  - correct_tools_called # see tests/pxi/evals/evaluators/__init__.py
-  - set_spans_filter_args_match # for valid names
-examples: # required, non-empty list
-  # Positive case with argument assertion.
-  - id: llm-spans-only # required, unique, stable
-    input:
-      query: Show me only LLM spans. # required, the user-facing prompt
-    expected: # required object
-      tools: # required object
-        required: [set_spans_filter] # tool(s) that MUST be called
-        forbidden: [set_time_range] # tool(s) that must NOT be called
-        # exact_match: true             # optional: forbid any extra tools
-      tool_call_args: # optional
-        set_spans_filter: # any tool name from `required`
-          condition: span_kind == 'LLM' # subset match: extra keys in
-          rootSpansOnly: false # the observed call are fine
-    metadata: # optional but recommended
-      category: span_kind
-
-  # Ambiguous case — assert the tool fires, do NOT pin args.
-  - id: ambiguous-fast-spans
-    input:
-      query: show me fast spans
-    expected:
-      tools:
-        required: [set_spans_filter]
-      # tool_call_args omitted on purpose — any args are acceptable.
-    metadata:
-      category: ambiguity
-
-  # Pure-negative case — tool must NOT fire at all.
-  - id: negative-greeting
-    input:
-      query: "hey, what can you do?"
-    expected:
-      tools:
-        forbidden: [set_spans_filter]
-      # `required` omitted on purpose — nothing must be called.
-    metadata:
-      category: negative_chitchat
-
-  # Variant-list case — multiple arg shapes are acceptable.
-  - id: variant-recent-traces
-    input:
-      query: show me the most recent traces
-    expected:
-      tools:
-        required: [set_time_range]
-      tool_call_args:
-        set_time_range: # list of dicts; any-of match across variants
-          - { timeRangeKey: 15m }
-          - { timeRangeKey: 1h }
-          - { timeRangeKey: 12h }
-          - { timeRangeKey: 1d }
-          - { timeRangeKey: 7d }
-          - { timeRangeKey: 30d }
-    metadata:
-      category: ambiguity
-```
+Reference the live datasets in `tests/pxi/evals/datasets/` for current
+dataset shapes, examples, and naming conventions. Do not copy a schema
+from this skill into prompts. Instead, derive the expected-block schema
+from the selected evaluators and include that schema in each
+annotation and orchestration prompt.
 
 Validator is in `tests/pxi/evals/datasets.py`. Matching semantics in
 `tests/pxi/evals/evaluators/tools.py`:
