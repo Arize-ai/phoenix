@@ -1,5 +1,17 @@
 # Migrations
 
+## v16.x to v17.0.0
+
+### Agent assistant (PXI)
+
+Phoenix v17 ships **PXI**, an in-app assistant that helps you investigate traces, iterate on prompts, and navigate Phoenix without leaving the page you're on.
+
+To turn PXI off for an entire deployment, set:
+
+```shell
+PHOENIX_DISABLE_AGENT_ASSISTANT=true
+```
+
 ## v15.x to v16.0.0
 
 ### Sandbox provider allowlist (`PHOENIX_ALLOWED_SANDBOX_PROVIDERS`)

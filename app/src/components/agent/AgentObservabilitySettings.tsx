@@ -45,17 +45,28 @@ const codeCSS = css`
   font-size: 0.95em;
 `;
 
+const DISABLED_BY_ADMIN_NOTE = "Disabled by your workspace admin.";
+
 export function AgentObservabilitySettings() {
   const agentsConfig = useAgentContext((state) => state.agentsConfig);
   const observability = useAgentContext((state) => state.observability);
   const setObservability = useAgentContext((state) => state.setObservability);
   const isRemoteCollectorConfigured = Boolean(agentsConfig.collectorEndpoint);
 
+  // User-side preference is effectively off whenever the admin ceiling is off,
+  // regardless of stored value. We don't reset the stored preference so the
+  // user's prior opt-in returns if the admin re-enables.
+  const localTracesDisabledByAdmin = !agentsConfig.allowLocalTraces;
+  const remoteExportDisabledByAdmin = !agentsConfig.allowRemoteExport;
+
   return (
     <div css={settingsCSS}>
       <div css={settingRowCSS}>
         <Switch
-          isSelected={observability.storeLocalTraces}
+          isSelected={
+            !localTracesDisabledByAdmin && observability.storeLocalTraces
+          }
+          isDisabled={localTracesDisabledByAdmin}
           onChange={(storeLocalTraces) => {
             setObservability({ storeLocalTraces });
           }}
@@ -72,6 +83,7 @@ export function AgentObservabilitySettings() {
               <code css={codeCSS}>{agentsConfig.assistantProjectName}</code>{" "}
               project, visible to anyone with project access. Browser-only
               setting.
+              {localTracesDisabledByAdmin ? ` ${DISABLED_BY_ADMIN_NOTE}` : ""}
             </Text>
           </span>
         </Switch>
@@ -80,8 +92,11 @@ export function AgentObservabilitySettings() {
         <div css={settingRowCSS}>
           <Switch
             isSelected={
-              isRemoteCollectorConfigured && observability.exportRemoteTraces
+              isRemoteCollectorConfigured &&
+              !remoteExportDisabledByAdmin &&
+              observability.exportRemoteTraces
             }
+            isDisabled={remoteExportDisabledByAdmin}
             onChange={(exportRemoteTraces) => {
               setObservability({ exportRemoteTraces });
             }}
@@ -96,6 +111,9 @@ export function AgentObservabilitySettings() {
                 Transmits the same unredacted traces to{" "}
                 <code css={codeCSS}>{agentsConfig.collectorEndpoint}</code>.
                 Browser-only setting.
+                {remoteExportDisabledByAdmin
+                  ? ` ${DISABLED_BY_ADMIN_NOTE}`
+                  : ""}
               </Text>
             </span>
           </Switch>

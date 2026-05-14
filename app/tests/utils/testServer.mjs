@@ -49,7 +49,6 @@ if (!fs.existsSync(wasmCachedBinary)) {
 }
 
 if (process.env["PXI_E2E"] === "true") {
-  process.env["PHOENIX_DANGEROUSLY_ENABLE_AGENTS"] = "True";
   process.env["PHOENIX_ALLOW_EXTERNAL_RESOURCES"] = "True";
 }
 

@@ -21,7 +21,7 @@ from pydantic_ai.models import Model as PydanticAIModel
 
 from phoenix.config import (
     get_env_allow_external_resources,
-    get_env_dangerously_enable_agents,
+    get_env_disable_agent_assistant,
 )
 from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
@@ -131,10 +131,10 @@ async def _build_model() -> PydanticAIModel:
 def should_build_docs_mcp_server() -> bool:
     """Mirror the production gate so callers know whether to build the toolset.
 
-    See ``phoenix.server.app:1191-1195`` — the real server only constructs
-    the docs MCP toolset when both env toggles are true.
+    The real server only constructs the docs MCP toolset when the agent
+    assistant is not disabled and external resources are allowed.
     """
-    return get_env_dangerously_enable_agents() and get_env_allow_external_resources()
+    return not get_env_disable_agent_assistant() and get_env_allow_external_resources()
 
 
 def build_shared_docs_mcp_server() -> MCPServerStreamableHTTP | None:

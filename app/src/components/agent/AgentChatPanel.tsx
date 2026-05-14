@@ -3,7 +3,6 @@ import { Suspense, useState, type ReactNode, type RefObject } from "react";
 import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
 import { Loading } from "@phoenix/components/core";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
-import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import type { AgentPosition } from "@phoenix/store/agentStore";
 
 import {
@@ -114,7 +113,7 @@ function AgentChatSurface({
   positionOverride,
   isPositionChangeDisabled = false,
 }: AgentChatSurfaceProps) {
-  const isAgentsEnabled = useFeatureFlag("agents");
+  const isAgentAssistantEnabled = !window.Config.agentAssistantDisabled;
   const {
     isOpen,
     position,
@@ -139,7 +138,7 @@ function AgentChatSurface({
     ? getSessionDisplayName(activeSession)
     : EMPTY_SESSION_DISPLAY_NAME;
 
-  if (!isAgentsEnabled) {
+  if (!isAgentAssistantEnabled) {
     return null;
   }
 

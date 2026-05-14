@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2ff1269407f67843a752cbadbf64b270>>
+ * @generated SignedSource<<b2dc46bcc3064ee53938f5dfab5873fe>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,6 +13,9 @@ import { FragmentRefs } from "relay-runtime";
 export type authenticatedRootLoaderQuery$variables = Record<PropertyKey, never>;
 export type authenticatedRootLoaderQuery$data = {
   readonly agentsConfig: {
+    readonly allowLocalTraces: boolean;
+    readonly allowRemoteExport: boolean;
+    readonly assistantEnabled: boolean;
     readonly assistantProjectName: string;
     readonly collectorEndpoint: string | null;
     readonly webAccessEnabled: boolean;
@@ -58,6 +61,27 @@ var v0 = {
       "args": null,
       "kind": "ScalarField",
       "name": "webAccessEnabled",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "assistantEnabled",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "allowLocalTraces",
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "allowRemoteExport",
       "storageKey": null
     }
   ],
@@ -223,16 +247,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "65fe4e55ba0417d1568b44ea99419aac",
+    "cacheID": "c4d76dc1d6016faf2d55d3694b970ece",
     "id": null,
     "metadata": {},
     "name": "authenticatedRootLoaderQuery",
     "operationKind": "query",
-    "text": "query authenticatedRootLoaderQuery {\n  ...ViewerContext_viewer\n  agentsConfig {\n    collectorEndpoint\n    assistantProjectName\n    webAccessEnabled\n  }\n  viewer {\n    id\n    username\n    email\n    passwordNeedsReset\n  }\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment ViewerContext_viewer on Query {\n  viewer {\n    id\n    username\n    email\n    profilePictureUrl\n    isManagementUser\n    role {\n      name\n      id\n    }\n    authMethod\n    ...APIKeysTableFragment\n  }\n}\n"
+    "text": "query authenticatedRootLoaderQuery {\n  ...ViewerContext_viewer\n  agentsConfig {\n    collectorEndpoint\n    assistantProjectName\n    webAccessEnabled\n    assistantEnabled\n    allowLocalTraces\n    allowRemoteExport\n  }\n  viewer {\n    id\n    username\n    email\n    passwordNeedsReset\n  }\n}\n\nfragment APIKeysTableFragment on User {\n  apiKeys {\n    id\n    name\n    description\n    createdAt\n    expiresAt\n  }\n  id\n}\n\nfragment ViewerContext_viewer on Query {\n  viewer {\n    id\n    username\n    email\n    profilePictureUrl\n    isManagementUser\n    role {\n      name\n      id\n    }\n    authMethod\n    ...APIKeysTableFragment\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5b0fabbed4b99fa6de423a58b4e81f52";
+(node as any).hash = "e66d05013f311a15863e40c44d7bb33f";
 
 export default node;

@@ -25,6 +25,10 @@ declare global {
       supportEmail?: string | null;
       hasDbThreshold: boolean;
       /**
+       * Whether the agent assistant feature is disabled at the deployment level.
+       */
+      agentAssistantDisabled: boolean;
+      /**
        * Mapping of auth error codes to user-friendly messages.
        * Passed from the backend to ensure single source of truth.
        */

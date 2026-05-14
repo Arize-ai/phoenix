@@ -85,6 +85,12 @@ ENV_PHOENIX_AGENTS_DISABLE_WEB_ACCESS = "PHOENIX_AGENTS_DISABLE_WEB_ACCESS"
 Disables PXI native web search and web fetch capabilities even when external
 resources are otherwise allowed.
 """
+ENV_PHOENIX_DISABLE_AGENT_ASSISTANT = "PHOENIX_DISABLE_AGENT_ASSISTANT"
+"""
+Whether to disable the agent assistant feature (the /chat endpoint). Defaults to False,
+meaning the assistant is enabled by default. Set to True on the Phoenix server to turn
+it off for the whole deployment.
+"""
 ENV_PHOENIX_WORKING_DIR = "PHOENIX_WORKING_DIR"
 """
 The directory in which to save, load, and export datasets. This directory must
@@ -313,13 +319,6 @@ Whether or not to log migrations. Defaults to true.
 """
 
 ENV_PHOENIX_DANGEROUSLY_DISABLE_MIGRATIONS = "PHOENIX_DANGEROUSLY_DISABLE_MIGRATIONS"
-
-ENV_PHOENIX_DANGEROUSLY_ENABLE_AGENTS = "PHOENIX_DANGEROUSLY_ENABLE_AGENTS"
-"""
-Whether or not to enable the agents feature (the /chat endpoint). Defaults to False.
-
-This is an unreleased feature and should only be enabled for development or testing.
-"""
 """
 Whether or not to disable migrations. Defaults to None / False.
 
@@ -3308,8 +3307,8 @@ def get_env_disable_migrations() -> bool:
     return _bool_val(ENV_PHOENIX_DANGEROUSLY_DISABLE_MIGRATIONS, False)
 
 
-def get_env_dangerously_enable_agents() -> bool:
-    return _bool_val(ENV_PHOENIX_DANGEROUSLY_ENABLE_AGENTS, False)
+def get_env_disable_agent_assistant() -> bool:
+    return _bool_val(ENV_PHOENIX_DISABLE_AGENT_ASSISTANT, False)
 
 
 def get_env_mask_internal_server_errors() -> bool:

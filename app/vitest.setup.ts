@@ -8,6 +8,7 @@ export const baseWindowConfig = {
   authenticationEnabled: true,
   basename: "/",
   platformVersion: "1.0.0",
+  agentAssistantDisabled: false,
   authErrorMessages: {},
 };
 Object.defineProperty(window, "Config", {

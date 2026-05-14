@@ -52,20 +52,19 @@ capabilities in the prompt playground.
 PXI accelerates the loop you already run. Evals, experiments, and human
 review still belong at the end of it — PXI just gets you there faster.
 
-## Enabling PXI
+## Disabling PXI
 
-PXI is **off by default**. To turn it on, set the following environment
+PXI is **on by default**. To turn it off, set the following environment
 variable on the Phoenix server and restart:
 
 ```bash
-PHOENIX_DANGEROUSLY_ENABLE_AGENTS=true
+PHOENIX_DISABLE_AGENT_ASSISTANT=true
 ```
 
 <Note>
-The `DANGEROUSLY_` prefix is intentional. Enabling PXI gives an LLM the ability
-to read Phoenix data the signed-in user can already see, and to call tools that
-modify UI state. Only enable it in environments where that trade-off is
-acceptable.
+PXI gives an LLM the ability to read Phoenix data the signed-in user can
+already see, and to call tools that modify UI state. If that trade-off is
+not acceptable for your deployment, disable PXI with the variable above.
 </Note>
 
 PXI needs a model to talk to. Configure credentials for at least one provider

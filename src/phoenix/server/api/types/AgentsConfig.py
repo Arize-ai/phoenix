@@ -24,3 +24,24 @@ class AgentsConfig:
             "is true."
         ),
     )
+    assistant_enabled: bool = strawberry.field(
+        description=(
+            "Admin ceiling for the agent assistant feature. Sourced from the "
+            "`agent.assistant.enabled` system setting. When False, agent chat is "
+            "disabled for the entire workspace regardless of individual user preferences."
+        ),
+    )
+    allow_local_traces: bool = strawberry.field(
+        description=(
+            "Admin ceiling for persisting PXI traces in this Phoenix instance. "
+            "Sourced from the `agent.assistant.trace_recording` system setting. When False, "
+            "users cannot turn on local trace recording for themselves."
+        ),
+    )
+    allow_remote_export: bool = strawberry.field(
+        description=(
+            "Admin ceiling for exporting PXI traces to the remote collector. "
+            "Sourced from the `agent.assistant.trace_recording` system setting. When False, "
+            "users cannot turn on remote trace export for themselves."
+        ),
+    )

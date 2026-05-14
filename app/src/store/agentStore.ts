@@ -45,6 +45,12 @@ export type AgentServerConfig = {
   assistantProjectName: string;
   /** Whether this Phoenix instance allows PXI web search/fetch. */
   webAccessEnabled: boolean;
+  /** Admin ceiling: whether the agent assistant feature is enabled for this workspace. */
+  assistantEnabled: boolean;
+  /** Admin ceiling: whether users may persist PXI traces locally. */
+  allowLocalTraces: boolean;
+  /** Admin ceiling: whether users may export PXI traces to the remote collector. */
+  allowRemoteExport: boolean;
 };
 
 /**
@@ -117,6 +123,9 @@ const DEFAULT_AGENT_SERVER_CONFIG: AgentServerConfig = {
   collectorEndpoint: null,
   assistantProjectName: "assistant_agent",
   webAccessEnabled: false,
+  assistantEnabled: false,
+  allowLocalTraces: false,
+  allowRemoteExport: false,
 };
 
 const DEFAULT_AGENT_OBSERVABILITY_SETTINGS: AgentObservabilitySettings = {
@@ -224,6 +233,20 @@ export interface AgentState extends AgentProps {
   setDefaultModelConfig: (config: ModelConfig) => void;
   setObservability: (patch: Partial<AgentObservabilitySettings>) => void;
   setPermissions: (patch: Partial<AgentPermissions>) => void;
+  /**
+   * Updates the admin-controlled fields of {@link AgentServerConfig} after a
+   * successful workspace-settings mutation. Only the admin ceiling slots are
+   * patchable; env-derived fields (collectorEndpoint, assistantProjectName,
+   * webAccessEnabled) stay sourced from the initial loader query.
+   */
+  setAgentsConfig: (
+    patch: Partial<
+      Pick<
+        AgentServerConfig,
+        "assistantEnabled" | "allowLocalTraces" | "allowRemoteExport"
+      >
+    >
+  ) => void;
   acknowledgeConsent: () => void;
   clearAllSessions: () => void;
   setCapability: (params: {
@@ -676,6 +699,15 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         }),
         false,
         { type: "setPermissions" }
+      );
+    },
+    setAgentsConfig: (patch) => {
+      set(
+        (state) => ({
+          agentsConfig: { ...state.agentsConfig, ...patch },
+        }),
+        false,
+        { type: "setAgentsConfig" }
       );
     },
     acknowledgeConsent: () => {

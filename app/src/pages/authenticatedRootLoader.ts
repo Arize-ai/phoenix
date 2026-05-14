@@ -13,6 +13,9 @@ export const authenticatedRootLoaderQueryNode = graphql`
       collectorEndpoint
       assistantProjectName
       webAccessEnabled
+      assistantEnabled
+      allowLocalTraces
+      allowRemoteExport
     }
     viewer {
       id

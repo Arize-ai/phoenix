@@ -15,9 +15,13 @@ import {
   AgentExperimentalSettings,
   AgentObservabilitySettings,
   AgentSettingsForm,
+  AgentWebAccessSettings,
 } from "@phoenix/components/agent";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+
+import { SettingsAgentsWorkspaceCard } from "./SettingsAgentsWorkspaceCard";
 
 const traceDetailsCSS = css`
   summary {
@@ -112,27 +116,36 @@ export function SettingsAgentsPage() {
   const isAssistantAgentEnabled = usePreferencesContext(
     (state) => state.isAssistantAgentEnabled
   );
+  const isExperimentalSettingsEnabled = useFeatureFlag(
+    "agent-experimental-settings"
+  );
   return (
-    <Card
-      title="Assistant"
-      collapsible
-      defaultOpen={isAssistantAgentEnabled}
-      extra={<AssistantAgentEnabledSwitch />}
-    >
-      <View padding="size-200">
-        <Flex
-          direction="column"
-          gap="size-300"
-          css={css`
-            width: 100%;
-          `}
-        >
-          <AssistantTraceCollectionInfo />
-          <AgentSettingsForm>
-            <AgentExperimentalSettings />
-          </AgentSettingsForm>
-        </Flex>
-      </View>
-    </Card>
+    <Flex direction="column" gap="size-200">
+      <SettingsAgentsWorkspaceCard />
+      <Card
+        title="Assistant"
+        collapsible
+        defaultOpen={isAssistantAgentEnabled}
+        extra={<AssistantAgentEnabledSwitch />}
+      >
+        <View padding="size-200">
+          <Flex
+            direction="column"
+            gap="size-300"
+            css={css`
+              width: 100%;
+            `}
+          >
+            <AssistantTraceCollectionInfo />
+            <AgentSettingsForm>
+              <AgentWebAccessSettings />
+              {isExperimentalSettingsEnabled ? (
+                <AgentExperimentalSettings />
+              ) : null}
+            </AgentSettingsForm>
+          </Flex>
+        </View>
+      </Card>
+    </Flex>
   );
 }

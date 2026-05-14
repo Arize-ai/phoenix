@@ -108,6 +108,7 @@
               supportEmail: {{support_email | tojson}},
               hasDbThreshold: Boolean("{{has_db_threshold}}" == "True"),
               allowExternalResources: Boolean("{{allow_external_resources}}" == "True"),
+              agentAssistantDisabled: Boolean("{{agent_assistant_disabled}}" == "True"),
               authErrorMessages: {{auth_error_messages | tojson}},
           }),
           writable: false

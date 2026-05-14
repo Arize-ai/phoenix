@@ -8,7 +8,6 @@ import {
   MODAL_PORTAL_CONTAINER_ATTR,
 } from "@phoenix/components/core/overlay/constants";
 import { AgentProvider, useAgentContext } from "@phoenix/contexts/AgentContext";
-import { FeatureFlagsContext } from "@phoenix/contexts/FeatureFlagsContext";
 import { PreferencesProvider } from "@phoenix/contexts/PreferencesContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
@@ -126,21 +125,23 @@ describe("AgentChatWidget", () => {
     act(() => {
       root.render(
         <ThemeProvider themeMode="light" disableBodyTheme>
-          <FeatureFlagsContext.Provider
-            value={{
-              featureFlags: { agents: true },
-              setFeatureFlags: vi.fn(),
-            }}
+          <PreferencesProvider
+            isAssistantAgentEnabled={isAssistantAgentEnabled}
           >
-            <PreferencesProvider
-              isAssistantAgentEnabled={isAssistantAgentEnabled}
+            <AgentProvider
+              agentsConfig={{
+                collectorEndpoint: null,
+                assistantProjectName: "assistant_agent",
+                webAccessEnabled: false,
+                assistantEnabled: true,
+                allowLocalTraces: true,
+                allowRemoteExport: false,
+              }}
             >
-              <AgentProvider>
-                <AgentChatWidget />
-                <AgentOpenState />
-              </AgentProvider>
-            </PreferencesProvider>
-          </FeatureFlagsContext.Provider>
+              <AgentChatWidget />
+              <AgentOpenState />
+            </AgentProvider>
+          </PreferencesProvider>
         </ThemeProvider>
       );
     });
@@ -386,18 +387,20 @@ describe("AgentChatWidget", () => {
     act(() => {
       root.render(
         <ThemeProvider themeMode="light" disableBodyTheme>
-          <FeatureFlagsContext.Provider
-            value={{
-              featureFlags: { agents: true },
-              setFeatureFlags: vi.fn(),
-            }}
-          >
-            <PreferencesProvider isAssistantAgentEnabled>
-              <AgentProvider>
-                <AgentWidgetWithBoundary />
-              </AgentProvider>
-            </PreferencesProvider>
-          </FeatureFlagsContext.Provider>
+          <PreferencesProvider isAssistantAgentEnabled>
+            <AgentProvider
+              agentsConfig={{
+                collectorEndpoint: null,
+                assistantProjectName: "assistant_agent",
+                webAccessEnabled: false,
+                assistantEnabled: true,
+                allowLocalTraces: true,
+                allowRemoteExport: false,
+              }}
+            >
+              <AgentWidgetWithBoundary />
+            </AgentProvider>
+          </PreferencesProvider>
         </ThemeProvider>
       );
     });
