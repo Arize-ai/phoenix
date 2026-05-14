@@ -43,7 +43,7 @@ const legendSwatchCSS = css`
 
 const legendLabelCSS = css`
   font-size: 10px;
-  color: var(--global-text-color-700);
+  color: var(--global-color-gray-600);
 `;
 
 function CustomXAxisTick(props: {

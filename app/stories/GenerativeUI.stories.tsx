@@ -194,40 +194,27 @@ export const VerticalBarChartBasic: StoryObj<typeof VerticalBarChart> = {
 
 export const VerticalBarChartWithHighlight: StoryObj<typeof VerticalBarChart> =
   {
-    render: () => {
-      const data = Array.from({ length: 30 }, () => ({
-        base: Math.floor(Math.random() * 15) + 5,
-        hasError: Math.random() < 0.3,
-        errorValue: Math.floor(Math.random() * 4) + 1,
-      }));
-      return (
-        <VerticalBarChart
-          title="Daily Volume (30 days)"
-          data={data.map((d, i) => ({
-            label: String(i + 1),
-            value: d.base,
-            highlight: d.hasError ? d.errorValue : 0,
-          }))}
-          baseLabel="Traces"
-          highlightLabel="Errors"
-        />
-      );
-    },
+    render: () => (
+      <VerticalBarChart
+        title="Daily Volume (Last 30 Days, 3-Day Buckets)"
+        data={[
+          { label: "Apr 15-17", value: 18, highlight: 2 },
+          { label: "Apr 18-20", value: 22, highlight: 0 },
+          { label: "Apr 21-23", value: 17, highlight: 1 },
+          { label: "Apr 24-26", value: 25, highlight: 3 },
+          { label: "Apr 27-29", value: 21, highlight: 0 },
+          { label: "Apr 30-May 2", value: 28, highlight: 4 },
+          { label: "May 3-5", value: 24, highlight: 2 },
+          { label: "May 6-8", value: 19, highlight: 1 },
+          { label: "May 9-11", value: 27, highlight: 3 },
+          { label: "May 12-14", value: 23, highlight: 2 },
+        ]}
+        baseLabel="Traces"
+        highlightLabel="Errors"
+      />
+    ),
   };
 
-export const VerticalBarChartWithLabels: StoryObj<typeof VerticalBarChart> = {
-  render: () => (
-    <VerticalBarChart
-      title="Token Distribution"
-      data={[
-        { label: "Input", value: 5000 },
-        { label: "Output", value: 3200 },
-        { label: "System", value: 800 },
-      ]}
-      baseLabel="Tokens"
-    />
-  ),
-};
 
 // ChartFrame Stories
 

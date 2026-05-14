@@ -69,7 +69,7 @@ const legendSwatchCSS = css`
 
 const legendLabelCSS = css`
   font-size: 11px;
-  color: var(--global-text-color-700);
+  color: var(--global-color-gray-600);
 `;
 
 export function StackedBarChart({

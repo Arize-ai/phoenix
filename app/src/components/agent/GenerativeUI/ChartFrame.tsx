@@ -6,6 +6,9 @@ const chartFrameCSS = css`
   border-radius: var(--global-rounding-medium);
   padding: var(--global-dimension-size-150);
   background: var(--global-color-gray-75);
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 `;
 
 const chartTitleCSS = css`
@@ -13,8 +16,8 @@ const chartTitleCSS = css`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: var(--global-text-color-500);
-  font-size: var(--global-dimension-font-size-100);
+  color: var(--global-color-gray-600);
+  font-size: var(--global-dimension-font-size-75);
 `;
 
 export function ChartFrame({
