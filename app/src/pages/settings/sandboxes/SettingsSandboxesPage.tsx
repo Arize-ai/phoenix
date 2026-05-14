@@ -73,7 +73,6 @@ function SettingsSandboxesPageContent({
           backendType
           language
           enabled
-          config
           updatedAt
           configs {
             id

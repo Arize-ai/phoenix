@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5a1da2205b2e899214aea172f093dd42>>
+ * @generated SignedSource<<8428e10a09e45956248f293da977287f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -87,13 +87,6 @@ v7 = {
   "storageKey": null
 },
 v8 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "config",
-  "storageKey": null
-},
-v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -277,7 +270,6 @@ return {
                   },
                   (v7/*: any*/),
                   (v8/*: any*/),
-                  (v9/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -303,8 +295,14 @@ return {
                         "storageKey": null
                       },
                       (v7/*: any*/),
-                      (v8/*: any*/),
-                      (v9/*: any*/)
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "config",
+                        "storageKey": null
+                      },
+                      (v8/*: any*/)
                     ],
                     "storageKey": null
                   }
@@ -320,12 +318,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "69b6d374b41085e163d935bd86fa9be0",
+    "cacheID": "4c81473dbf48c21a955a1e52ac322d1f",
     "id": null,
     "metadata": {},
     "name": "DeleteSandboxConfigButtonDeleteSandboxConfigMutation",
     "operationKind": "mutation",
-    "text": "mutation DeleteSandboxConfigButtonDeleteSandboxConfigMutation(\n  $input: DeleteSandboxConfigInput!\n) {\n  deleteSandboxConfig(input: $input) {\n    deletedId\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
+    "text": "mutation DeleteSandboxConfigButtonDeleteSandboxConfigMutation(\n  $input: DeleteSandboxConfigInput!\n) {\n  deleteSandboxConfig(input: $input) {\n    deletedId\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();

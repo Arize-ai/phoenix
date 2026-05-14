@@ -7,7 +7,6 @@ from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.server.sandbox import (
-    _BACKEND_CACHE,
     _SANDBOX_ADAPTERS,
     SANDBOX_ADAPTER_METADATA,
     AdapterMetadata,
@@ -44,8 +43,6 @@ def _clean_test_auth_backend() -> Any:
     yield
     SANDBOX_ADAPTER_METADATA.pop(_TEST_AUTH_BACKEND, None)
     _SANDBOX_ADAPTERS.pop(_TEST_AUTH_BACKEND, None)
-    for key in [key for key in _BACKEND_CACHE if key[0] == _TEST_AUTH_BACKEND]:
-        _BACKEND_CACHE.pop(key, None)
 
 
 async def test_sandbox_providers_returns_nested_configs(
@@ -64,7 +61,6 @@ async def test_sandbox_providers_returns_nested_configs(
           backendType
           language
           enabled
-          config
           configs {
             id
             name
@@ -89,7 +85,6 @@ async def test_sandbox_providers_returns_nested_configs(
     assert provider_result["backendType"] == provider.backend_type
     assert provider_result["language"] == "PYTHON"
     assert provider_result["enabled"] is True
-    assert provider_result["config"] == {}
     assert provider_result["configs"] == [
         {
             "id": str(GlobalID("SandboxConfig", str(sandbox_config.id))),
@@ -184,45 +179,3 @@ async def test_sandbox_backends_reports_missing_credentials_status(
     backends = {backend["backendType"]: backend for backend in response.data["sandboxBackends"]}
     assert backends[_TEST_AUTH_BACKEND]["status"] == "MISSING_CREDENTIALS"
     assert backends[_TEST_AUTH_BACKEND]["statusDetail"] == f"Set `{_TEST_AUTH_KEY}`."
-
-
-async def test_sandbox_backends_config_field_specs(
-    gql_client: AsyncGraphQLClient,
-    seed_sandbox_providers: None,
-) -> None:
-    """configFieldSpecs for all adapters: after removing non-capability scalar fields,
-    E2B/Daytona/Modal emit zero specs alongside other capability-only adapters."""
-    query = """
-      query {
-        sandboxBackends {
-          backendType
-          configFieldSpecs {
-            key
-            displayName
-            fieldType
-            required
-            description
-            choices
-          }
-        }
-      }
-    """
-
-    response = await gql_client.execute(query=query)
-    assert not response.errors
-    assert response.data is not None
-    backends = {b["backendType"]: b for b in response.data["sandboxBackends"]}
-
-    # All adapters now expose only capability fields (internet_access, dependencies,
-    # env_vars) which are not surfaced as configFieldSpecs — so all emit zero scalar specs.
-    for backend_type in (
-        "E2B",
-        "DAYTONA_PYTHON",
-        "MODAL",
-        "WASM",
-        "VERCEL_PYTHON",
-        "VERCEL_TYPESCRIPT",
-        "DENO",
-    ):
-        if backend_type in backends:
-            assert backends[backend_type]["configFieldSpecs"] == [], backend_type

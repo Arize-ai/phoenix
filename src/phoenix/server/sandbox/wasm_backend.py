@@ -220,7 +220,7 @@ class WASMAdapter(SandboxAdapter):
           the cache to avoid a cold-start cost.
 
         The two distinct detail strings let docs/UI link to the relevant
-        remediation per D4.
+        remediation.
         """
         from phoenix.server.sandbox._download import resolve_wasm_binary_if_present
 

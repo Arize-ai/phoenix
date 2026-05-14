@@ -9,7 +9,7 @@ import pytest
 import sqlalchemy as sa
 
 from phoenix.db import models
-from phoenix.server.sandbox import _BACKEND_CACHE, _SANDBOX_ADAPTERS
+from phoenix.server.sandbox import _SANDBOX_ADAPTERS
 from phoenix.server.sandbox.modal_backend import ModalAdapter
 from phoenix.server.sandbox.types import (
     ProviderCredentialSpec,
@@ -63,8 +63,6 @@ def _register_test_adapter() -> Any:
     _SANDBOX_ADAPTERS[_TEST_BACKEND] = _TestCredAdapter()
     yield
     _SANDBOX_ADAPTERS.pop(_TEST_BACKEND, None)
-    for k in [k for k in _BACKEND_CACHE if k[0] == _TEST_BACKEND]:
-        _BACKEND_CACHE.pop(k, None)
 
 
 class TestSetSandboxCredential:
@@ -189,28 +187,6 @@ class TestSetSandboxCredential:
         )
         assert result.errors
 
-    async def test_cache_invalidated_on_set(
-        self,
-        gql_client: AsyncGraphQLClient,
-    ) -> None:
-        fake_backend = MagicMock(spec=SandboxBackend)
-        fake_backend.close = MagicMock(return_value=None)
-        _BACKEND_CACHE[(_TEST_BACKEND, "some-hash")] = fake_backend
-
-        await gql_client.execute(
-            query=_SET_MUTATION,
-            variables={
-                "input": {
-                    "backendType": _TEST_BACKEND,
-                    "key": _TEST_KEY,
-                    "value": "new-val",
-                }
-            },
-            operation_name="SetSandboxCredential",
-        )
-
-        assert not any(k[0] == _TEST_BACKEND for k in _BACKEND_CACHE)
-
 
 class TestDeleteSandboxCredential:
     async def test_deletes_existing_row(
@@ -255,22 +231,6 @@ class TestDeleteSandboxCredential:
             operation_name="DeleteSandboxCredential",
         )
         assert not result.errors
-
-    async def test_cache_invalidated_on_delete(
-        self,
-        gql_client: AsyncGraphQLClient,
-    ) -> None:
-        fake_backend = MagicMock(spec=SandboxBackend)
-        fake_backend.close = MagicMock(return_value=None)
-        _BACKEND_CACHE[(_TEST_BACKEND, "some-hash")] = fake_backend
-
-        await gql_client.execute(
-            query=_DELETE_MUTATION,
-            variables={"input": {"backendType": _TEST_BACKEND, "key": _TEST_KEY}},
-            operation_name="DeleteSandboxCredential",
-        )
-
-        assert not any(k[0] == _TEST_BACKEND for k in _BACKEND_CACHE)
 
     async def test_unknown_backend_type_raises(
         self,

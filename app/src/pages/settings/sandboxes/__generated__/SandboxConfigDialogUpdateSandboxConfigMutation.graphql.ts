@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<da3266ace249e86d6f6b86c39591a756>>
+ * @generated SignedSource<<eeb59855d249d6741cd1720acca9ca4d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -84,13 +84,6 @@ v6 = {
   "storageKey": null
 },
 v7 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "config",
-  "storageKey": null
-},
-v8 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -272,7 +265,6 @@ return {
                   },
                   (v6/*: any*/),
                   (v7/*: any*/),
-                  (v8/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -298,8 +290,14 @@ return {
                         "storageKey": null
                       },
                       (v6/*: any*/),
-                      (v7/*: any*/),
-                      (v8/*: any*/)
+                      {
+                        "alias": null,
+                        "args": null,
+                        "kind": "ScalarField",
+                        "name": "config",
+                        "storageKey": null
+                      },
+                      (v7/*: any*/)
                     ],
                     "storageKey": null
                   }
@@ -315,12 +313,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5c6e07e7982004534fa247e62c2779f3",
+    "cacheID": "884e1a9adbbe39ce4121ca3778137777",
     "id": null,
     "metadata": {},
     "name": "SandboxConfigDialogUpdateSandboxConfigMutation",
     "operationKind": "mutation",
-    "text": "mutation SandboxConfigDialogUpdateSandboxConfigMutation(\n  $input: UpdateSandboxConfigInput!\n) {\n  updateSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    config\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
+    "text": "mutation SandboxConfigDialogUpdateSandboxConfigMutation(\n  $input: UpdateSandboxConfigInput!\n) {\n  updateSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();
