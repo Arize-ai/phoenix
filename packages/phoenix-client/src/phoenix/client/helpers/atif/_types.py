@@ -1,4 +1,4 @@
-"""TypedDict definitions for the ATIF (Agent Trajectory Interchange Format) schema v1.0–v1.6.
+"""TypedDict definitions for the ATIF (Agent Trajectory Interchange Format) schema v1.0–v1.7.
 
 Based on the Harbor reference implementation at laude-institute/harbor.
 """
@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Union
 
-from typing_extensions import TypedDict
+from typing_extensions import NotRequired, TypedDict
 
 
 class ATIFToolCall(TypedDict):
@@ -16,6 +16,7 @@ class ATIFToolCall(TypedDict):
     tool_call_id: str
     function_name: str
     arguments: Dict[str, Any]
+    extra: NotRequired[Dict[str, Any]]
 
 
 class ATIFContentPartSource(TypedDict, total=False):
@@ -44,6 +45,7 @@ class ATIFObservationResult(TypedDict, total=False):
     source_call_id: str
     content: Union[str, List[ATIFContentPart]]
     subagent_trajectory_ref: List[Dict[str, Any]]
+    extra: Dict[str, Any]
 
 
 class ATIFObservation(TypedDict):
@@ -86,6 +88,7 @@ class ATIFStep(TypedDict, total=False):
     tool_calls: List[ATIFToolCall]
     observation: ATIFObservation
     metrics: ATIFStepMetrics
+    llm_call_count: int
     is_copied_context: bool
     extra: Dict[str, Any]
 
@@ -118,14 +121,17 @@ class ATIFFinalMetrics(TypedDict, total=False):
 class ATIFTrajectory(TypedDict, total=False):
     """Root ATIF trajectory object.
 
-    Required: schema_version, session_id, agent, steps.
+    Required: schema_version, agent, steps.
+    session_id is required before ATIF v1.7 and optional in v1.7+.
     """
 
-    schema_version: str  # required, e.g. "ATIF-v1.4"
-    session_id: str  # required
+    schema_version: str  # required, e.g. "ATIF-v1.7"
+    session_id: str
+    trajectory_id: str
     agent: ATIFAgent  # required
     steps: List[ATIFStep]  # required, at least one step
     final_metrics: ATIFFinalMetrics
     notes: str
     continued_trajectory_ref: str
+    subagent_trajectories: List["ATIFTrajectory"]
     extra: Dict[str, Any]

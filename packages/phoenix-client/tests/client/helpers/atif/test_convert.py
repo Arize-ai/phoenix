@@ -13,9 +13,12 @@ from phoenix.client.helpers.atif._convert import (
     _base_session_id,
     _build_subagent_ref_map,
     _convert_atif_trajectory_to_spans,
+    _flatten_atif_trajectories,
+    _get_parent_span_context,
     _has_multimodal_content,
     _sha256_span_id,
     _sha256_trace_id,
+    _stable_trajectory_hash,
     _stringify_message,
 )
 
@@ -59,6 +62,11 @@ def parallel_mixed_trajectory() -> Dict[str, Any]:
 @pytest.fixture()
 def subagent_fixture() -> Dict[str, Any]:
     return _load_fixture("subagent_trajectories.json")
+
+
+@pytest.fixture()
+def v17_embedded_subagents() -> Dict[str, Any]:
+    return _load_fixture("v17_embedded_subagents.json")
 
 
 class TestDeterministicIds:
@@ -593,6 +601,295 @@ class TestSubagentLinking:
         assert "parent_id" not in root
 
 
+class TestATIFV17Conversion:
+    def test_flatten_embedded_subagents_inherits_session(
+        self, v17_embedded_subagents: Dict[str, Any]
+    ) -> None:
+        flat = _flatten_atif_trajectories([v17_embedded_subagents])
+        assert len(flat) == 2
+        child = flat[1]
+        assert child["trajectory_id"] == "child-doc"
+        assert child["session_id"] == "run-v17-001"
+
+    def test_build_subagent_ref_map_uses_trajectory_id(
+        self, v17_embedded_subagents: Dict[str, Any]
+    ) -> None:
+        flat = _flatten_atif_trajectories([v17_embedded_subagents])
+        ref_map = _build_subagent_ref_map(flat)
+        assert "child-doc" in ref_map
+        parent_tool_span_id, parent_trace_id = ref_map["child-doc"]
+        expected_trace_id = _sha256_trace_id("run-v17-001:trace")
+        assert parent_tool_span_id == _sha256_span_id(
+            f"{expected_trace_id}:parent-doc:step:2:tool:call_delegate"
+        )
+        assert parent_trace_id == expected_trace_id
+
+    def test_deterministic_dispatch_skips_llm_span(
+        self, v17_embedded_subagents: Dict[str, Any]
+    ) -> None:
+        spans = _convert_atif_trajectory_to_spans(v17_embedded_subagents)
+        kinds = _span_kind_counts(spans)
+        assert kinds["AGENT"] == 1
+        assert kinds["LLM"] == 1
+        assert kinds["TOOL"] == 1
+
+        tool_span = [s for s in spans if s["span_kind"] == "TOOL"][0]
+        metadata = tool_span.get("attributes", {}).get("metadata", {})
+        assert metadata["llm_call_count"] == 0
+        assert metadata["tool_call_extra"] == {"runtime": "graph-dispatch"}
+        assert metadata["observation_extra"] == {"confidence": 0.91}
+
+    def test_context_management_replace_reconstructs_llm_input(
+        self, v17_embedded_subagents: Dict[str, Any]
+    ) -> None:
+        spans = _convert_atif_trajectory_to_spans(v17_embedded_subagents)
+        llm_span = [s for s in spans if s["span_kind"] == "LLM"][0]
+        attrs = llm_span.get("attributes", {})
+        assert attrs["llm.input_messages.0.message.role"] == "system"
+        assert "Compacted context" in attrs["llm.input_messages.0.message.content"]
+        assert "Research current ATIF" not in attrs["input.value"]
+
+    def test_embedded_child_links_to_parent_tool(
+        self, v17_embedded_subagents: Dict[str, Any]
+    ) -> None:
+        flat = _flatten_atif_trajectories([v17_embedded_subagents])
+        parent, child = flat
+        ref_map = _build_subagent_ref_map(flat)
+        parent_ctx = _get_parent_span_context(child, ref_map)
+        assert parent_ctx is not None
+
+        child_spans = _convert_atif_trajectory_to_spans(child, parent_span_context=parent_ctx)
+        child_root = child_spans[0]
+        child_attrs = child_root.get("attributes", {})
+        expected_trace_id = _sha256_trace_id(f"{parent['session_id']}:trace")
+        assert child_root.get("parent_id") == _sha256_span_id(
+            f"{expected_trace_id}:parent-doc:step:2:tool:call_delegate"
+        )
+        assert child_root["context"]["trace_id"] == _sha256_trace_id(
+            f"{parent['session_id']}:trace"
+        )
+        assert child_attrs["session.id"] == parent["session_id"]
+        assert child_attrs.get("metadata", {})["trajectory_id"] == "child-doc"
+
+    def test_v17_same_session_without_trajectory_id_has_distinct_ids(self) -> None:
+        shared_session_id = "shared-v17-run"
+        trajectory_a: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": shared_session_id,
+            "agent": {"name": "agent-a", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "hello"},
+                {"step_id": 2, "source": "agent", "message": "hi"},
+            ],
+        }
+        trajectory_b: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": shared_session_id,
+            "agent": {"name": "agent-b", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "goodbye"},
+                {"step_id": 2, "source": "agent", "message": "bye"},
+            ],
+        }
+
+        spans_a = _convert_atif_trajectory_to_spans(trajectory_a)
+        spans_b = _convert_atif_trajectory_to_spans(trajectory_b)
+
+        assert spans_a[0]["context"]["trace_id"] != spans_b[0]["context"]["trace_id"]
+        span_ids = {span["context"]["span_id"] for span in spans_a + spans_b}
+        assert len(span_ids) == len(spans_a) + len(spans_b)
+
+    def test_v17_same_session_with_trajectory_ids_shares_trace_without_span_collisions(
+        self,
+    ) -> None:
+        shared_session_id = "shared-v17-run-with-doc-ids"
+        trajectory_a: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": shared_session_id,
+            "trajectory_id": "doc-a",
+            "agent": {"name": "agent-a", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "hello"},
+                {"step_id": 2, "source": "agent", "message": "hi"},
+            ],
+        }
+        trajectory_b: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": shared_session_id,
+            "trajectory_id": "doc-b",
+            "agent": {"name": "agent-b", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "goodbye"},
+                {"step_id": 2, "source": "agent", "message": "bye"},
+            ],
+        }
+
+        spans_a = _convert_atif_trajectory_to_spans(trajectory_a)
+        spans_b = _convert_atif_trajectory_to_spans(trajectory_b)
+
+        assert spans_a[0]["context"]["trace_id"] == spans_b[0]["context"]["trace_id"]
+        assert spans_a[0]["context"]["trace_id"] == _sha256_trace_id(f"{shared_session_id}:trace")
+        span_ids = {span["context"]["span_id"] for span in spans_a + spans_b}
+        assert len(span_ids) == len(spans_a) + len(spans_b)
+
+    def test_v17_document_hash_fallback_is_idempotent(self) -> None:
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": "shared-v17-hash-fallback",
+            "agent": {"name": "agent", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "hello"},
+                {"step_id": 2, "source": "agent", "message": "hi"},
+            ],
+        }
+
+        first_spans = _convert_atif_trajectory_to_spans(trajectory)
+        second_spans = _convert_atif_trajectory_to_spans(dict(trajectory))
+
+        assert [span["context"] for span in first_spans] == [
+            span["context"] for span in second_spans
+        ]
+        assert _stable_trajectory_hash(trajectory) == _stable_trajectory_hash(
+            {**trajectory, "_phoenix_parent_span_context": ("parent-span", "trace")}
+        )
+
+    def test_grandchild_embedded_subagent_links_to_nearest_parent_tool(self) -> None:
+        grandchild: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "trajectory_id": "grandchild-doc",
+            "agent": {"name": "grandchild", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "finish"},
+                {"step_id": 2, "source": "agent", "message": "done"},
+            ],
+        }
+        child: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "trajectory_id": "child-doc",
+            "agent": {"name": "child", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "delegate deeper"},
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "",
+                    "llm_call_count": 0,
+                    "tool_calls": [
+                        {
+                            "tool_call_id": "call_grandchild",
+                            "function_name": "delegate",
+                            "arguments": {},
+                        }
+                    ],
+                    "observation": {
+                        "results": [
+                            {
+                                "source_call_id": "call_grandchild",
+                                "subagent_trajectory_ref": [{"trajectory_id": "grandchild-doc"}],
+                            }
+                        ]
+                    },
+                },
+            ],
+            "subagent_trajectories": [grandchild],
+        }
+        parent: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": "run-grandchild",
+            "trajectory_id": "parent-doc",
+            "agent": {"name": "parent", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "delegate"},
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "",
+                    "llm_call_count": 0,
+                    "tool_calls": [
+                        {
+                            "tool_call_id": "call_child",
+                            "function_name": "delegate",
+                            "arguments": {},
+                        }
+                    ],
+                    "observation": {
+                        "results": [
+                            {
+                                "source_call_id": "call_child",
+                                "subagent_trajectory_ref": [{"trajectory_id": "child-doc"}],
+                            }
+                        ]
+                    },
+                },
+            ],
+            "subagent_trajectories": [child],
+        }
+
+        flat = _flatten_atif_trajectories([parent])
+        parent_flat, child_flat, grandchild_flat = flat
+        ref_map = _build_subagent_ref_map(flat)
+        trace_id = _sha256_trace_id("run-grandchild:trace")
+
+        child_parent_ctx = _get_parent_span_context(child_flat, ref_map)
+        grandchild_parent_ctx = _get_parent_span_context(grandchild_flat, ref_map)
+
+        assert parent_flat["session_id"] == "run-grandchild"
+        assert child_flat["session_id"] == "run-grandchild"
+        assert grandchild_flat["session_id"] == "run-grandchild"
+        assert child_parent_ctx == (
+            _sha256_span_id(f"{trace_id}:parent-doc:step:2:tool:call_child"),
+            trace_id,
+        )
+        assert grandchild_parent_ctx == (
+            _sha256_span_id(f"{trace_id}:child-doc:step:2:tool:call_grandchild"),
+            trace_id,
+        )
+        assert grandchild_parent_ctx is not None
+
+        grandchild_spans = _convert_atif_trajectory_to_spans(
+            grandchild_flat,
+            parent_span_context=grandchild_parent_ctx,
+        )
+        assert grandchild_spans[0].get("parent_id") == grandchild_parent_ctx[0]
+        assert grandchild_spans[0]["context"]["trace_id"] == trace_id
+
+    def test_context_management_replace_preserves_empty_context(self) -> None:
+        trajectory: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": "run-empty-replacement",
+            "trajectory_id": "empty-replacement-doc",
+            "agent": {"name": "agent", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "old context"},
+                {
+                    "step_id": 2,
+                    "source": "agent",
+                    "message": "",
+                    "llm_call_count": 0,
+                    "tool_calls": [
+                        {
+                            "tool_call_id": "call_compact",
+                            "function_name": "compact",
+                            "arguments": {},
+                        }
+                    ],
+                    "observation": {"results": [{"source_call_id": "call_compact", "content": ""}]},
+                    "extra": {"context_management": {"boundary": "replace"}},
+                },
+                {"step_id": 3, "source": "user", "message": "new context"},
+                {"step_id": 4, "source": "agent", "message": "answer"},
+            ],
+        }
+
+        spans = _convert_atif_trajectory_to_spans(trajectory)
+        llm_span = [span for span in spans if span["span_kind"] == "LLM"][-1]
+        attrs = llm_span.get("attributes", {})
+
+        assert attrs["llm.input_messages.0.message.role"] == "system"
+        assert attrs["llm.input_messages.0.message.content"] == ""
+        assert "old context" not in attrs["input.value"]
+
+
 class TestMultiTurnBehavior:
     """Test multi-turn structure: root AGENT -> turn AGENT spans -> LLM/TOOL."""
 
@@ -716,6 +1013,7 @@ class TestContinuationMerging:
         assert _base_session_id("abc123-cont-1") == "abc123"
         assert _base_session_id("abc123-cont-2") == "abc123"
         assert _base_session_id("abc123-cont-10") == "abc123"
+        assert _base_session_id("abc123-cont-work-cont-2") == "abc123-cont-work"
 
     def test_base_session_id_preserves_non_continuation(self) -> None:
         assert _base_session_id("my-session-content-1") == "my-session-content-1"
@@ -744,6 +1042,40 @@ class TestContinuationMerging:
         original_spans = _convert_atif_trajectory_to_spans(original)
         cont1_spans = _convert_atif_trajectory_to_spans(cont1)
         assert original_spans[0]["context"]["span_id"] != cont1_spans[0]["context"]["span_id"]
+
+    def test_v17_continuation_shares_base_trace_with_distinct_span_ids(self) -> None:
+        original: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": "run-v17-cont",
+            "trajectory_id": "v17-cont-original",
+            "agent": {"name": "agent", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "start"},
+                {"step_id": 2, "source": "agent", "message": "started"},
+            ],
+        }
+        continuation: Dict[str, Any] = {
+            "schema_version": "ATIF-v1.7",
+            "session_id": "run-v17-cont-cont-1",
+            "trajectory_id": "v17-cont-follow-up",
+            "continued_trajectory_ref": "run-v17-cont",
+            "agent": {"name": "agent", "version": "1.0"},
+            "steps": [
+                {"step_id": 1, "source": "user", "message": "continue"},
+                {"step_id": 2, "source": "agent", "message": "continued"},
+            ],
+        }
+
+        original_spans = _convert_atif_trajectory_to_spans(original)
+        continuation_spans = _convert_atif_trajectory_to_spans(continuation)
+
+        assert (
+            original_spans[0]["context"]["trace_id"] == continuation_spans[0]["context"]["trace_id"]
+        )
+        assert original_spans[0]["context"]["trace_id"] == _sha256_trace_id("run-v17-cont:trace")
+        original_ids = {span["context"]["span_id"] for span in original_spans}
+        continuation_ids = {span["context"]["span_id"] for span in continuation_spans}
+        assert original_ids.isdisjoint(continuation_ids)
 
     def test_non_continuation_gets_own_trace_id(self) -> None:
         """A session_id without -cont-N should not be affected."""

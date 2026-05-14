@@ -1,0 +1,137 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "run-v17-001",
+  "trajectory_id": "parent-doc",
+  "agent": {
+    "name": "orchestrator",
+    "version": "1.0.0",
+    "model_name": "gpt-4.1",
+    "tool_definitions": [
+      {
+        "type": "function",
+        "function": {
+          "name": "delegate_research",
+          "description": "Delegate a focused research task.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "topic": { "type": "string" }
+            },
+            "required": ["topic"]
+          }
+        }
+      }
+    ]
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-04-20T10:00:00Z",
+      "source": "user",
+      "message": "Research current ATIF v1.7 support."
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-04-20T10:00:01Z",
+      "source": "agent",
+      "message": "",
+      "llm_call_count": 0,
+      "tool_calls": [
+        {
+          "tool_call_id": "call_delegate",
+          "function_name": "delegate_research",
+          "arguments": { "topic": "ATIF v1.7 embedded subagents" },
+          "extra": { "runtime": "graph-dispatch" }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "source_call_id": "call_delegate",
+            "content": "Delegated to embedded researcher.",
+            "subagent_trajectory_ref": [
+              {
+                "trajectory_id": "child-doc",
+                "trajectory_path": null,
+                "session_id": "run-v17-001",
+                "extra": { "summary": "Research subagent" }
+              }
+            ],
+            "extra": { "confidence": 0.91 }
+          }
+        ]
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-04-20T10:00:02Z",
+      "source": "system",
+      "message": "Context compaction performed.",
+      "observation": {
+        "results": [
+          {
+            "content": "Compacted context: the user asked for ATIF v1.7 support and research was delegated."
+          }
+        ]
+      },
+      "extra": {
+        "context_management": {
+          "type": "compaction",
+          "boundary": "replace"
+        }
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-04-20T10:00:03Z",
+      "source": "agent",
+      "message": "ATIF v1.7 support is ready, including embedded subagent resolution.",
+      "llm_call_count": 1,
+      "metrics": {
+        "prompt_tokens": 42,
+        "completion_tokens": 12
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 42,
+    "total_completion_tokens": 12,
+    "total_steps": 4
+  },
+  "subagent_trajectories": [
+    {
+      "schema_version": "ATIF-v1.7",
+      "trajectory_id": "child-doc",
+      "agent": {
+        "name": "researcher",
+        "version": "1.0.0",
+        "model_name": "gpt-4.1-mini"
+      },
+      "steps": [
+        {
+          "step_id": 1,
+          "timestamp": "2026-04-20T10:00:01.500Z",
+          "source": "user",
+          "message": "Research ATIF v1.7 embedded subagents.",
+          "is_copied_context": true
+        },
+        {
+          "step_id": 2,
+          "timestamp": "2026-04-20T10:00:02Z",
+          "source": "agent",
+          "message": "ATIF v1.7 uses trajectory_id for embedded subagent resolution.",
+          "llm_call_count": 1,
+          "metrics": {
+            "prompt_tokens": 25,
+            "completion_tokens": 9
+          }
+        }
+      ],
+      "final_metrics": {
+        "total_prompt_tokens": 25,
+        "total_completion_tokens": 9,
+        "total_steps": 2
+      }
+    }
+  ]
+}

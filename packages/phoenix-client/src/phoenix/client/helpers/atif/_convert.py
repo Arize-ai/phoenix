@@ -5,7 +5,8 @@
 # - continued_trajectory_ref: no OpenInference equivalent for trajectory continuation
 # - notes: free-form annotation with no OpenInference equivalent
 # - reasoning_effort (on agent steps): configuration hint, not observable output
-# - step-level extra: arbitrary vendor extensions, no standard mapping
+# - step-level extra: arbitrary vendor extensions, no standard mapping,
+#   except the v1.7 context_management convention used for prompt reconstruction
 #   (agent-level extra IS merged into root span metadata)
 # - prompt_token_ids, completion_token_ids (in step metrics): RL training data,
 #   no OpenInference attribute; arrays can be very large
@@ -24,6 +25,8 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 
 from phoenix.client.__generated__ import v1
 
+_PARENT_SPAN_CONTEXT_KEY = "_phoenix_parent_span_context"
+
 
 def _sha256_span_id(seed: str) -> str:
     """Derive a deterministic 16-hex-char span ID from a seed string."""
@@ -33,6 +36,207 @@ def _sha256_span_id(seed: str) -> str:
 def _sha256_trace_id(seed: str) -> str:
     """Derive a deterministic 32-hex-char trace ID from a seed string."""
     return hashlib.sha256(seed.encode()).hexdigest()[:32]
+
+
+def _stable_trajectory_hash(trajectory: Mapping[str, Any]) -> str:
+    """Derive a stable fallback identity for trajectories without IDs."""
+    trajectory_for_hash = {
+        key: value for key, value in trajectory.items() if not key.startswith("_phoenix_")
+    }
+    serialized = json.dumps(trajectory_for_hash, sort_keys=True, default=str)
+    return hashlib.sha256(serialized.encode()).hexdigest()[:16]
+
+
+def _trajectory_session_id(
+    trajectory: Mapping[str, Any],
+    fallback_session_id: Optional[str] = None,
+) -> str:
+    """Return the run-scoped session identity used for ``session.id``."""
+    session_id = trajectory.get("session_id")
+    if isinstance(session_id, str) and session_id.strip():
+        return session_id
+    if fallback_session_id:
+        return fallback_session_id
+    trajectory_id = trajectory.get("trajectory_id")
+    if isinstance(trajectory_id, str) and trajectory_id.strip():
+        return trajectory_id
+    return f"atif-{_stable_trajectory_hash(trajectory)}"
+
+
+def _trajectory_span_seed(
+    trajectory: Mapping[str, Any],
+    trace_id: Optional[str] = None,
+) -> str:
+    """Return the document-scoped identity used for deterministic span IDs."""
+    minor = _schema_minor_version(trajectory) or 0
+    trajectory_id = trajectory.get("trajectory_id")
+    if isinstance(trajectory_id, str) and trajectory_id.strip():
+        seed = trajectory_id
+    elif minor >= 7:
+        seed = f"atif-{_stable_trajectory_hash(trajectory)}"
+    else:
+        return _trajectory_session_id(trajectory)
+    return f"{trace_id}:{seed}" if minor >= 7 and trace_id else seed
+
+
+def _trajectory_trace_seed(trajectory: Mapping[str, Any]) -> str:
+    """Return the run-scoped identity used for deterministic trace IDs."""
+    session_id = trajectory.get("session_id")
+    if isinstance(session_id, str) and session_id.strip():
+        if (
+            (_schema_minor_version(trajectory) or 0) >= 7
+            and "trajectory_id" not in trajectory
+            and session_id == _base_session_id(session_id)
+            and not trajectory.get("continued_trajectory_ref")
+        ):
+            return f"atif-{_stable_trajectory_hash(trajectory)}"
+        return _base_session_id(session_id)
+    return _trajectory_span_seed(trajectory)
+
+
+def _trajectory_lookup_keys(trajectory: Mapping[str, Any]) -> List[str]:
+    """Return supported ref-map keys for a trajectory, preferred first."""
+    keys: List[str] = []
+    trajectory_id = trajectory.get("trajectory_id")
+    if isinstance(trajectory_id, str) and trajectory_id.strip():
+        keys.append(trajectory_id)
+    session_id = trajectory.get("session_id")
+    if isinstance(session_id, str) and session_id.strip():
+        keys.append(session_id)
+    return keys
+
+
+def _schema_minor_version(trajectory: Mapping[str, Any]) -> Optional[int]:
+    schema_version = trajectory.get("schema_version")
+    if not isinstance(schema_version, str) or "-v" not in schema_version:
+        return None
+    try:
+        return int(schema_version.split("-v", 1)[1].split(".", 1)[1])
+    except (IndexError, ValueError):
+        return None
+
+
+def _subagent_ref_lookup_keys(
+    ref: Mapping[str, Any],
+    parent_trajectory: Mapping[str, Any],
+) -> List[str]:
+    """Return ref-map keys for a subagent ref.
+
+    ATIF v1.7 resolves embedded refs by trajectory_id. Pre-v1.7 files used
+    session_id as the child lookup key, so keep that path for existing data.
+    """
+    keys: List[str] = []
+    trajectory_id = ref.get("trajectory_id")
+    if isinstance(trajectory_id, str) and trajectory_id.strip():
+        keys.append(trajectory_id)
+
+    minor = _schema_minor_version(parent_trajectory)
+    if minor is None or minor < 7:
+        session_id = ref.get("session_id")
+        if isinstance(session_id, str) and session_id.strip():
+            keys.append(session_id)
+    return keys
+
+
+def _get_parent_span_context(
+    trajectory: Mapping[str, Any],
+    ref_map: Mapping[str, tuple[str, str]],
+) -> Optional[tuple[str, str]]:
+    """Return the parent span context for a trajectory if a subagent ref links it."""
+    parent_ctx = trajectory.get(_PARENT_SPAN_CONTEXT_KEY)
+    if (
+        isinstance(parent_ctx, tuple)
+        and len(parent_ctx) == 2
+        and all(isinstance(value, str) for value in parent_ctx)
+    ):
+        return parent_ctx
+    for key in _trajectory_lookup_keys(trajectory):
+        parent_ctx = ref_map.get(key)
+        if parent_ctx is not None:
+            return parent_ctx
+    return None
+
+
+def _flatten_atif_trajectories(
+    trajectories: Sequence[Mapping[str, Any]],
+) -> List[Mapping[str, Any]]:
+    """Return top-level and embedded ATIF v1.7 subagent trajectories.
+
+    Embedded subagents may omit ``session_id`` in v1.7. When they do, they
+    inherit the nearest parent run identity for Phoenix's ``session.id`` while
+    still using their own ``trajectory_id`` for deterministic span IDs.
+    Embedded refs resolved against their containing parent carry Phoenix-only
+    parent span context under ``_PARENT_SPAN_CONTEXT_KEY`` so duplicate child
+    IDs in different parents are resolved locally.
+    """
+    flattened: List[Mapping[str, Any]] = []
+
+    def visit(
+        trajectory: Mapping[str, Any],
+        inherited_session_id: Optional[str] = None,
+        parent_span_context: Optional[tuple[str, str]] = None,
+    ) -> None:
+        effective_session_id = _trajectory_session_id(trajectory, inherited_session_id)
+        if "session_id" not in trajectory and inherited_session_id:
+            trajectory_for_conversion: Mapping[str, Any] = {
+                **trajectory,
+                "session_id": inherited_session_id,
+            }
+        else:
+            trajectory_for_conversion = trajectory
+        if parent_span_context is not None:
+            # This flattened view is converter-internal; stable hash inputs drop
+            # Phoenix-private keys before deriving fallback document identity.
+            trajectory_for_conversion = {
+                **trajectory_for_conversion,
+                _PARENT_SPAN_CONTEXT_KEY: parent_span_context,
+            }
+        flattened.append(trajectory_for_conversion)
+
+        subagent_trajectories = trajectory.get("subagent_trajectories")
+        if not isinstance(subagent_trajectories, list):
+            return
+        if parent_span_context is not None:
+            trace_id = parent_span_context[1]
+        else:
+            trace_id = _sha256_trace_id(
+                f"{_trajectory_trace_seed(trajectory_for_conversion)}:trace"
+            )
+        span_seed = _trajectory_span_seed(trajectory_for_conversion, trace_id)
+        local_ref_map: Dict[str, tuple[str, str]] = {}
+        for step in trajectory_for_conversion.get("steps", []):
+            step_id = step.get("step_id")
+            observation = step.get("observation")
+            if not isinstance(observation, Mapping):
+                continue
+            results = observation.get("results")
+            if not isinstance(results, list):
+                continue
+            for result in results:
+                if not isinstance(result, Mapping):
+                    continue
+                refs = result.get("subagent_trajectory_ref", [])
+                if not isinstance(refs, list):
+                    continue
+                tc_id = result.get("source_call_id", "")
+                parent_tool_span_id = _sha256_span_id(f"{span_seed}:step:{step_id}:tool:{tc_id}")
+                for ref in refs:
+                    if not isinstance(ref, Mapping):
+                        continue
+                    for key in _subagent_ref_lookup_keys(ref, trajectory_for_conversion):
+                        local_ref_map[key] = (parent_tool_span_id, trace_id)
+        for subagent in subagent_trajectories:
+            if isinstance(subagent, Mapping):
+                subagent_parent_ctx = None
+                for key in _trajectory_lookup_keys(subagent):
+                    subagent_parent_ctx = local_ref_map.get(key)
+                    if subagent_parent_ctx is not None:
+                        break
+                visit(subagent, effective_session_id, subagent_parent_ctx)
+
+    for trajectory in trajectories:
+        visit(trajectory)
+    return flattened
 
 
 def _parse_timestamp(ts: Optional[str]) -> Optional[datetime]:
@@ -91,6 +295,18 @@ def _stringify_content(
     if isinstance(content, str):
         return content
     return _stringify_message(content)
+
+
+def _stringify_observation_results(results: Sequence[Any]) -> str:
+    """Convert observation result contents to a compact context string."""
+    parts: list[str] = []
+    for result in results:
+        if not isinstance(result, dict):
+            continue
+        content = _stringify_content(result.get("content"))
+        if content:
+            parts.append(content)
+    return "\n".join(parts)
 
 
 def _has_multimodal_content(message: Union[str, list[Any], None]) -> bool:
@@ -186,6 +402,9 @@ def _build_llm_attributes(
     if metrics.get("cost_usd") is not None:
         attrs["llm.cost.total"] = metrics["cost_usd"]
 
+    if step.get("llm_call_count") is not None:
+        attrs.setdefault("metadata", {})["llm_call_count"] = step["llm_call_count"]
+
     # Multimodal flag
     if _has_multimodal_content(step.get("message")):
         attrs.setdefault("metadata", {})["has_multimodal_content"] = True
@@ -196,6 +415,7 @@ def _build_llm_attributes(
 def _build_tool_attributes(
     tool_call: Mapping[str, Any],
     observation_content: Optional[str],
+    observation_result: Optional[Mapping[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Build OpenInference TOOL span attributes."""
     attrs: Dict[str, Any] = {}
@@ -209,6 +429,14 @@ def _build_tool_attributes(
     if observation_content is not None:
         attrs["output.value"] = observation_content
         attrs["output.mime_type"] = "text/plain"
+
+    metadata: Dict[str, Any] = {}
+    if tool_call.get("extra") is not None:
+        metadata["tool_call_extra"] = tool_call["extra"]
+    if observation_result is not None and observation_result.get("extra") is not None:
+        metadata["observation_extra"] = observation_result["extra"]
+    if metadata:
+        attrs["metadata"] = metadata
 
     return attrs
 
@@ -271,7 +499,23 @@ def _build_message_attributes(
     # including tool calls and their results. This reconstructs
     # the message array the LLM would receive as its prompt.
     input_messages: List[Dict[str, Any]] = []
+
+    context_start_index = 0
+    replacement_context: Optional[str] = None
     for i in range(step_index):
+        prev = steps[i]
+        extra = prev.get("extra")
+        context_management = extra.get("context_management") if isinstance(extra, dict) else None
+        if isinstance(context_management, dict) and context_management.get("boundary") == "replace":
+            observation = prev.get("observation")
+            results = observation.get("results", []) if isinstance(observation, dict) else []
+            replacement_context = _stringify_observation_results(results)
+            context_start_index = i + 1
+
+    if replacement_context is not None:
+        input_messages.append({"role": "system", "content": replacement_context})
+
+    for i in range(context_start_index, step_index):
         prev = steps[i]
         src = prev.get("source")
         raw_msg = prev.get("message")
@@ -392,17 +636,25 @@ def _build_subagent_ref_map(
 ) -> Dict[str, tuple[str, str]]:
     """Scan trajectories for subagent_trajectory_ref entries.
 
-    Trace IDs are derived as ``sha256(session_id:trace)[:32]`` and tool
-    span IDs as ``sha256(session_id:step:{step_id}:tool:{tc_id})[:16]``,
+    Embedded refs flattened by _flatten_atif_trajectories may already carry
+    parent context under _PARENT_SPAN_CONTEXT_KEY. This map remains necessary
+    for non-embedded batch links and older separate-trajectory refs.
+
+    Trace IDs are derived from the run-scoped session identity and tool
+    span IDs from the document-scoped trajectory identity,
     matching the deterministic IDs produced by the converter.
 
     Returns:
-        Dict mapping child_session_id -> (parent_tool_span_id, parent_trace_id)
+        Dict mapping child resolution key -> (parent_tool_span_id, parent_trace_id)
     """
     ref_map: Dict[str, tuple[str, str]] = {}
     for trajectory in trajectories:
-        session_id = trajectory["session_id"]
-        trace_id = _sha256_trace_id(f"{_base_session_id(session_id)}:trace")
+        parent_ctx = _get_parent_span_context(trajectory, ref_map)
+        if parent_ctx is not None:
+            trace_id = parent_ctx[1]
+        else:
+            trace_id = _sha256_trace_id(f"{_trajectory_trace_seed(trajectory)}:trace")
+        span_seed = _trajectory_span_seed(trajectory, trace_id)
         for step in trajectory.get("steps", []):
             step_id = step.get("step_id")
             observation = step.get("observation")
@@ -412,15 +664,17 @@ def _build_subagent_ref_map(
                 if not isinstance(result, dict):
                     continue
                 refs = result.get("subagent_trajectory_ref", [])
+                if not isinstance(refs, list):
+                    continue
                 for ref in refs:
-                    child_session_id = ref.get("session_id")
-                    if not child_session_id:
+                    if not isinstance(ref, dict):
                         continue
                     tc_id = result.get("source_call_id", "")
                     parent_tool_span_id = _sha256_span_id(
-                        f"{session_id}:step:{step_id}:tool:{tc_id}"
+                        f"{span_seed}:step:{step_id}:tool:{tc_id}"
                     )
-                    ref_map[child_session_id] = (parent_tool_span_id, trace_id)
+                    for key in _subagent_ref_lookup_keys(ref, trajectory):
+                        ref_map[key] = (parent_tool_span_id, trace_id)
     return ref_map
 
 
@@ -466,7 +720,7 @@ def _base_session_id(session_id: str) -> str:
         "abc123-cont-1"  -> "abc123"
         "abc123-cont-2"  -> "abc123"
     """
-    parts = session_id.split("-cont-")
+    parts = session_id.rsplit("-cont-", 1)
     if len(parts) == 2 and parts[1].isdigit():
         return parts[0]
     return session_id
@@ -527,15 +781,20 @@ def _convert_atif_trajectory_to_spans(
     User/system messages are not separate spans — they appear as
     ``llm.input_messages`` on the LLM spans that follow them.
 
-    IDs are deterministic, derived from session_id via SHA-256 so that
-    re-uploading the same trajectory produces the same trace.
+    IDs are deterministic: trace IDs usually use the run-scoped session
+    identity, while span IDs use the document-scoped trajectory identity
+    when present. ATIF v1.7 standalone trajectories without
+    ``trajectory_id`` use a stable document hash for trace/span IDs so
+    independent trajectory documents that share a run-scoped ``session_id``
+    do not collide. Re-uploading the same trajectory produces the same
+    trace.
 
     Args:
         trajectory: A validated ATIF trajectory dict.
         parent_span_context: Optional (parent_span_id, parent_trace_id) tuple
             for linking child trajectories to a parent's tool span.
     """
-    session_id: str = trajectory["session_id"]
+    session_id = _trajectory_session_id(trajectory)
     agent: Mapping[str, Any] = trajectory["agent"]
     steps: List[Mapping[str, Any]] = trajectory["steps"]
 
@@ -544,8 +803,9 @@ def _convert_atif_trajectory_to_spans(
     else:
         # Derive trace_id from the base session_id so that continuation
         # trajectories (session_id ending in -cont-N) share one trace.
-        trace_id = _sha256_trace_id(f"{_base_session_id(session_id)}:trace")
-    root_span_id = _sha256_span_id(f"{session_id}:root")
+        trace_id = _sha256_trace_id(f"{_trajectory_trace_seed(trajectory)}:trace")
+    span_seed = _trajectory_span_seed(trajectory, trace_id)
+    root_span_id = _sha256_span_id(f"{span_seed}:root")
 
     # --- Compute step timings upfront ---
     fallback_now = datetime.now(tz=timezone.utc)
@@ -576,6 +836,9 @@ def _convert_atif_trajectory_to_spans(
         "agent_name": agent.get("name"),
         "agent_version": agent.get("version"),
     }
+    trajectory_id = trajectory.get("trajectory_id")
+    if isinstance(trajectory_id, str) and trajectory_id.strip():
+        agent_meta["trajectory_id"] = trajectory_id
     if agent.get("model_name"):
         agent_meta["model_name"] = agent["model_name"]
     if agent.get("extra"):
@@ -584,7 +847,10 @@ def _convert_atif_trajectory_to_spans(
     all_spans: List[v1.Span] = []
 
     # --- Root AGENT span (trajectory-level) ---
-    is_continuation = session_id != _base_session_id(session_id)
+    raw_session_id = trajectory.get("session_id")
+    is_continuation = isinstance(raw_session_id, str) and raw_session_id != _base_session_id(
+        raw_session_id
+    )
     root_meta = dict(agent_meta)
     if is_continuation:
         root_meta["is_continuation"] = True
@@ -636,7 +902,7 @@ def _convert_atif_trajectory_to_spans(
         # For multi-turn: create a nested AGENT span per turn.
         # For single-turn: LLM spans parent directly to the root.
         if multi_turn:
-            turn_span_id = _sha256_span_id(f"{session_id}:turn:{turn_idx}")
+            turn_span_id = _sha256_span_id(f"{span_seed}:turn:{turn_idx}")
             turn_start = step_timings[step_indices[0]][0]
             turn_end = step_timings[step_indices[-1]][1]
             turn_attrs: Dict[str, Any] = {
@@ -672,57 +938,64 @@ def _convert_atif_trajectory_to_spans(
                 continue
 
             step_id = step.get("step_id", i + 1)
-            step_span_id = _sha256_span_id(f"{session_id}:step:{step_id}")
+            step_span_id = _sha256_span_id(f"{span_seed}:step:{step_id}")
             step_start, step_end = step_timings[i]
+            is_deterministic_dispatch = step.get("llm_call_count") == 0
 
-            llm_attrs = _build_llm_attributes(step, agent)
-            llm_attrs["openinference.span.kind"] = "LLM"
-            llm_attrs["session.id"] = session_id
-            llm_attrs.update(_build_message_attributes(steps, i))
-            llm_attrs.update(llm_tool_attrs)
+            if not is_deterministic_dispatch:
+                llm_attrs = _build_llm_attributes(step, agent)
+                llm_attrs["openinference.span.kind"] = "LLM"
+                llm_attrs["session.id"] = session_id
+                llm_attrs.update(_build_message_attributes(steps, i))
+                llm_attrs.update(llm_tool_attrs)
 
-            # Flag LLM spans whose input includes copied context
-            has_copied = any(steps[j].get("is_copied_context") for j in range(i))
-            if has_copied:
-                llm_attrs.setdefault("metadata", {})["has_copied_context"] = True
+                # Flag LLM spans whose input includes copied context
+                has_copied = any(steps[j].get("is_copied_context") for j in range(i))
+                if has_copied:
+                    llm_attrs.setdefault("metadata", {})["has_copied_context"] = True
 
-            step_span: v1.Span = {
-                "name": "LLM",
-                "context": {
-                    "trace_id": trace_id,
-                    "span_id": step_span_id,
-                },
-                "parent_id": llm_parent_id,
-                "span_kind": "LLM",
-                "start_time": _format_timestamp(step_start),
-                "end_time": _format_timestamp(step_end),
-                "status_code": "OK",
-                "attributes": llm_attrs,
-            }
-            all_spans.append(step_span)
+                step_span: v1.Span = {
+                    "name": "LLM",
+                    "context": {
+                        "trace_id": trace_id,
+                        "span_id": step_span_id,
+                    },
+                    "parent_id": llm_parent_id,
+                    "span_kind": "LLM",
+                    "start_time": _format_timestamp(step_start),
+                    "end_time": _format_timestamp(step_end),
+                    "status_code": "OK",
+                    "attributes": llm_attrs,
+                }
+                all_spans.append(step_span)
 
             # TOOL sibling spans (peers of LLM, both children of the AGENT)
             tool_calls = step.get("tool_calls", [])
             observation = step.get("observation", {})
             results: List[Any] = observation.get("results", []) if observation else []
-            obs_map: Dict[str, str] = {}
+            obs_map: Dict[str, Mapping[str, Any]] = {}
             for r in results:
                 if not isinstance(r, dict):
                     continue
                 scid: object = r.get("source_call_id")
                 if not isinstance(scid, str):
                     continue
-                content_str = _stringify_content(r.get("content"))
-                if content_str is not None:
-                    obs_map[scid] = content_str
+                obs_map[scid] = r
 
             for j, tc in enumerate(tool_calls):
                 tc_id = tc.get("tool_call_id", f"tc_{j}")
-                tool_span_id = _sha256_span_id(f"{session_id}:step:{step_id}:tool:{tc_id}")
-                obs_content = obs_map.get(tc_id)
-                tool_attrs = _build_tool_attributes(tc, obs_content)
+                tool_span_id = _sha256_span_id(f"{span_seed}:step:{step_id}:tool:{tc_id}")
+                obs_result = obs_map.get(tc_id)
+                obs_content = (
+                    _stringify_content(obs_result.get("content"))
+                    if obs_result is not None
+                    else None
+                )
+                tool_attrs = _build_tool_attributes(tc, obs_content, obs_result)
                 tool_attrs["openinference.span.kind"] = "TOOL"
                 tool_attrs["session.id"] = session_id
+                if is_deterministic_dispatch:
+                    tool_attrs.setdefault("metadata", {})["llm_call_count"] = 0
 
                 # Offset tool start times by 1ms per tool so the waterfall
                 # sorts them after the LLM span that requested them.
