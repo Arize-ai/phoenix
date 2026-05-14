@@ -2560,7 +2560,28 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
         from anthropic.types import MessageParam, ToolResultBlockParam
 
         anthropic_messages: list[MessageParam] = []
+        pending_tool_use_ids: list[str] = []
         system_prompt = ""
+
+        def flush_missing_tool_results() -> None:
+            nonlocal pending_tool_use_ids
+            if not pending_tool_use_ids:
+                return
+            anthropic_messages.append(
+                MessageParam(
+                    role="user",
+                    content=[
+                        ToolResultBlockParam(
+                            type="tool_result",
+                            tool_use_id=tool_use_id,
+                            content="Tool result unavailable in replayed trace.",
+                        )
+                        for tool_use_id in pending_tool_use_ids
+                    ],
+                )
+            )
+            pending_tool_use_ids = []
+
         for msg in messages:
             role = msg["role"]
             content = msg["content"]
@@ -2568,14 +2589,22 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
             tool_calls = msg.get("tool_calls")
             tool_aware_content = self._anthropic_message_content(content, tool_calls)
             if role == ChatCompletionMessageRole.USER:
+                flush_missing_tool_results()
                 anthropic_messages.append(MessageParam(role="user", content=tool_aware_content))
             elif role == ChatCompletionMessageRole.AI:
+                flush_missing_tool_results()
                 anthropic_messages.append(
                     MessageParam(role="assistant", content=tool_aware_content)
                 )
+                pending_tool_use_ids.extend(
+                    tool_call["id"] for tool_call in tool_calls or () if tool_call.get("id")
+                )
             elif role == ChatCompletionMessageRole.SYSTEM:
+                flush_missing_tool_results()
                 system_prompt += content + "\n"
             elif role == ChatCompletionMessageRole.TOOL:
+                if tool_call_id in pending_tool_use_ids:
+                    pending_tool_use_ids.remove(tool_call_id)
                 anthropic_messages.append(
                     MessageParam(
                         role="user",
@@ -2591,6 +2620,7 @@ class AnthropicStreamingClient(PlaygroundStreamingClient["AsyncAnthropic"]):
             else:
                 assert_never(role)
 
+        flush_missing_tool_results()
         return anthropic_messages, system_prompt
 
     def _anthropic_message_content(

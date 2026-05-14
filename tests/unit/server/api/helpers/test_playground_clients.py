@@ -458,6 +458,87 @@ class TestOpenAIBaseStreamingClient:
 
 
 class TestAnthropicStreamingClient:
+    def _client(self) -> AnthropicStreamingClient:
+        @asynccontextmanager
+        async def create_client() -> AsyncIterator[Any]:
+            yield None
+
+        return AnthropicStreamingClient(
+            client_factory=LLMClientFactory(create_client, ("anthropic", "test")),
+            model_name="claude-3-5-sonnet-latest",
+            provider="anthropic",
+        )
+
+    def test_dangling_tool_use_gets_placeholder_tool_result(self) -> None:
+        client = self._client()
+
+        messages = [
+            create_playground_message(
+                ChatCompletionMessageRole.AI,
+                "",
+                tool_calls=[
+                    {
+                        "id": "toolu_01memory",
+                        "function": {
+                            "name": "memory",
+                            "arguments": {"command": "view", "path": "/memories"},
+                        },
+                    }
+                ],
+            ),
+            create_playground_message(ChatCompletionMessageRole.USER, "continue"),
+        ]
+
+        anthropic_messages, _ = client._build_anthropic_messages(messages)
+
+        assert [message["role"] for message in anthropic_messages] == [
+            "assistant",
+            "user",
+            "user",
+        ]
+        assert anthropic_messages[1]["content"] == [
+            {
+                "type": "tool_result",
+                "tool_use_id": "toolu_01memory",
+                "content": "Tool result unavailable in replayed trace.",
+            }
+        ]
+
+    def test_existing_tool_result_prevents_placeholder_tool_result(self) -> None:
+        client = self._client()
+
+        messages = [
+            create_playground_message(
+                ChatCompletionMessageRole.AI,
+                "",
+                tool_calls=[
+                    {
+                        "id": "toolu_01memory",
+                        "function": {
+                            "name": "memory",
+                            "arguments": {"command": "view", "path": "/memories"},
+                        },
+                    }
+                ],
+            ),
+            create_playground_message(
+                ChatCompletionMessageRole.TOOL,
+                "memory contents",
+                tool_call_id="toolu_01memory",
+            ),
+        ]
+
+        anthropic_messages, _ = client._build_anthropic_messages(messages)
+
+        assert len(anthropic_messages) == 2
+        assert anthropic_messages[1]["content"] == [
+            {
+                "type": "tool_result",
+                "tool_use_id": "toolu_01memory",
+                "content": "memory contents",
+            }
+        ]
+
     def test_specific_tool_choice_includes_tool_definitions(self) -> None:
         @asynccontextmanager
         async def create_client() -> AsyncIterator[Any]:
