@@ -16,13 +16,13 @@ export function EditSpanAnnotationsDialog(
 ) {
   return (
     <Dialog>
-      <DialogHeader>
-        <DialogTitle>Annotate</DialogTitle>
-        <DialogTitleExtra>
-          <DialogCloseButton slot="close" />
-        </DialogTitleExtra>
-      </DialogHeader>
       <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Annotate</DialogTitle>
+          <DialogTitleExtra>
+            <DialogCloseButton slot="close" />
+          </DialogTitleExtra>
+        </DialogHeader>
         <SpanAnnotationsEditor {...props} />
       </DialogContent>
     </Dialog>
