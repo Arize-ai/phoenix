@@ -5,21 +5,9 @@ description: "Route OTLP traces to a named Phoenix project by setting the x-proj
 
 **Available in arize-phoenix 15.5.0+**
 
-Phoenix now reads the `x-project-name` HTTP header on incoming OTLP trace exports and routes all spans in the request to that project. The header takes precedence over the `openinference.project.name` resource attribute, so configuration-based tools like the OpenTelemetry Collector can route traces without touching the instrumented application.
+Phoenix now reads the `x-project-name` HTTP header on incoming OTLP trace exports and routes all spans in the request to that project. The header takes precedence over the `openinference.project.name` resource attribute, so tools like the OpenTelemetry Collector, Openclaw, and Daytona can route traces to the right project without modifying the instrumented application.
 
 ## Setting the header
-
-**OpenTelemetry SDK (Python)**
-
-```python
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-
-exporter = OTLPSpanExporter(
-    endpoint="http://localhost:6006/v1/traces",
-    headers={"x-project-name": "my-project"},
-)
-```
 
 **OpenTelemetry Collector**
 
@@ -51,4 +39,4 @@ Every span in the request goes to the same project when the header is set, regar
 
 **Available in arize-phoenix 15.5.1+**
 
-Deleting a dataset evaluator link no longer removes the underlying evaluator. Previously, `deleteDatasetEvaluators` deleted the shared `Evaluator` row, which cascaded to remove every dataset's link to that evaluator — including the global built-in evaluator entry. The mutation now deletes only the link, leaving the evaluator available for other datasets.
+Deleting a dataset evaluator link no longer removes the underlying evaluator — it stays available for other datasets.
