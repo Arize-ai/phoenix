@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import {
+  GENERATIVE_UI_CATALOG_RULES,
   GENERATIVE_UI_TOOL_NAME,
   generativeUICatalog,
   generativeUICatalogPrompt,
@@ -27,6 +28,9 @@ const specJsonSchema = getToolFriendlyJsonSchema(
 );
 
 const componentReference = getComponentReference(generativeUICatalogPrompt);
+const toolRules = GENERATIVE_UI_CATALOG_RULES.map((rule) => `- ${rule}`).join(
+  "\n"
+);
 const toolDescription = [
   "Render a generated UI in the Phoenix chat using the available components below.",
   "Use this tool when a compact visual UI such as metrics, charts, or an analytical card would answer the user better than prose alone.",
@@ -34,7 +38,8 @@ const toolDescription = [
   "`root` is the id of the first element to render. Each key in `elements` is an element id. `children` contains element ids from the same `elements` object.",
   "Every element `type` must come from the component list below, and every element must include `type`, `props`, and `children`.",
   "Do not provide partial updates, JSONL patches, markdown, or prose inside `spec`; provide the full render tree in one object.",
-  "Use one chart component as the root for each generated UI call. If you need multiple charts, call this tool multiple times.",
+  "Follow these rules when choosing and configuring chart components:",
+  toolRules,
   "",
   componentReference,
   "",

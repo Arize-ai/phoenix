@@ -1,43 +1,75 @@
 import { css } from "@emotion/react";
+import { useMemo } from "react";
+import {
+  Bar,
+  BarChart as RechartsBarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+} from "recharts";
+
+import { useGrayscaleCategoricalColors } from "@phoenix/components/chart";
 
 import { ChartFrame } from "./ChartFrame";
-import { chartColors } from "./colors";
 import type { VerticalBarDatum } from "./types";
 
-const chartCSS = css`
-  display: flex;
-  flex-direction: column;
-  gap: var(--global-dimension-size-50);
-`;
+const CHART_HEIGHT = 114;
+const CHART_MARGINS = { top: 4, right: 0, left: 0, bottom: 20 };
+const MAX_BAR_SIZE = 18;
 
-const plotCSS = css`
+const legendRowCSS = css`
   display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  height: 72px;
-`;
-
-const barCSS = css`
-  flex: 1;
-  min-height: 2px;
-  border-radius: 2px;
-  overflow: hidden;
-  background: ${chartColors[1]};
-`;
-
-const xAxisCSS = css`
-  display: flex;
-  justify-content: space-between;
-  color: var(--global-text-color-500);
-  font-size: var(--global-dimension-font-size-75);
+  margin-top: 4px;
 `;
 
 const legendCSS = css`
   display: flex;
-  gap: var(--global-dimension-size-150);
-  color: var(--global-text-color-500);
-  font-size: var(--global-dimension-font-size-75);
+  gap: 12px;
+  margin-left: 32px;
 `;
+
+const legendItemCSS = css`
+  display: flex;
+  align-items: center;
+  gap: 4px;
+`;
+
+const legendSwatchCSS = css`
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+`;
+
+const legendLabelCSS = css`
+  font-size: 11px;
+  color: var(--global-color-gray-600);
+`;
+
+function CustomXAxisTick(props: {
+  x?: number;
+  y?: number;
+  payload?: { value: string };
+  index?: number;
+  visibleTicksCount?: number;
+}) {
+  const { x = 0, y = 0, payload, index = 0, visibleTicksCount = 1 } = props;
+  const isFirst = index === 0;
+  const isLast = index === visibleTicksCount - 1;
+  const textAnchor = isFirst ? "start" : isLast ? "end" : "middle";
+
+  return (
+    <text
+      x={x}
+      y={y + 10}
+      textAnchor={textAnchor}
+      fontSize={9}
+      fill="var(--global-text-color-700)"
+    >
+      {payload?.value}
+    </text>
+  );
+}
 
 export function VerticalBarChart({
   title,
@@ -50,55 +82,117 @@ export function VerticalBarChart({
   baseLabel?: string | null;
   highlightLabel?: string | null;
 }) {
-  const maxValue = Math.max(
-    ...data.map((datum) => datum.value + (datum.highlight ?? 0)),
-    1
+  const colors = useGrayscaleCategoricalColors();
+  const baseColor = colors.gray1;
+  const highlightColor = colors.gray2;
+
+  const hasHighlight = useMemo(
+    () => data.some((datum) => datum.highlight != null && datum.highlight > 0),
+    [data]
   );
+  const chartData = useMemo(
+    () =>
+      data.map((datum) => {
+        const highlightValue = Math.max(datum.highlight ?? 0, 0);
+        return {
+          label: datum.label,
+          baseValue: datum.value,
+          highlightValue,
+          totalValue: datum.value + highlightValue,
+        };
+      }),
+    [data]
+  );
+
+  const maxValue = Math.max(...chartData.map((datum) => datum.totalValue), 1);
+  const yAxisWidth = Math.max(
+    ...[0, Math.round(maxValue / 2), maxValue].map(
+      (value) => String(value).length * 7 + 4
+    ),
+    20
+  );
+
+  if (data.length === 0) {
+    return (
+      <ChartFrame title={title}>
+        <NoData />
+      </ChartFrame>
+    );
+  }
 
   return (
     <ChartFrame title={title}>
-      <div css={chartCSS}>
-        <div css={plotCSS} role="img" aria-label="Generated vertical bar chart">
-          {data.map((datum) => {
-            const total = datum.value + (datum.highlight ?? 0);
-            const height = `${Math.max(2, (total / maxValue) * 100)}%`;
-            const highlightHeight =
-              total > 0 ? `${((datum.highlight ?? 0) / total) * 100}%` : "0%";
-            return (
-              <div key={datum.label} css={barCSS} style={{ height }}>
-                {datum.highlight ? (
-                  <div
-                    style={{
-                      height: highlightHeight,
-                      background: chartColors[0],
-                    }}
-                  />
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
-        <div css={xAxisCSS}>
-          {data.map((datum) => (
-            <span key={datum.label}>{datum.label}</span>
-          ))}
-        </div>
-        {baseLabel || highlightLabel ? (
+      <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+        <RechartsBarChart data={chartData} margin={CHART_MARGINS}>
+          <CartesianGrid
+            horizontal
+            vertical={false}
+            stroke="var(--global-color-gray-200)"
+          />
+          <YAxis
+            width={yAxisWidth}
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 9, fill: "var(--global-text-color-700)" }}
+            tickCount={3}
+            domain={[0, "dataMax"]}
+          />
+          <XAxis
+            dataKey="label"
+            axisLine={false}
+            tickLine={false}
+            tick={<CustomXAxisTick />}
+            interval="preserveStartEnd"
+            minTickGap={20}
+          />
+          {hasHighlight ? (
+            <>
+              <Bar
+                dataKey="baseValue"
+                stackId="verticalBarChart"
+                fill={baseColor}
+                maxBarSize={MAX_BAR_SIZE}
+                radius={[2, 2, 0, 0]}
+              />
+              <Bar
+                dataKey="highlightValue"
+                stackId="verticalBarChart"
+                fill={highlightColor}
+                maxBarSize={MAX_BAR_SIZE}
+                radius={[2, 2, 0, 0]}
+              />
+            </>
+          ) : (
+            <Bar
+              dataKey="baseValue"
+              fill={baseColor}
+              maxBarSize={MAX_BAR_SIZE}
+              radius={[2, 2, 0, 0]}
+            />
+          )}
+        </RechartsBarChart>
+      </ResponsiveContainer>
+      {hasHighlight && baseLabel && highlightLabel && (
+        <div css={legendRowCSS}>
           <div css={legendCSS}>
-            {baseLabel ? (
-              <span>
-                <span style={{ color: chartColors[1] }}>■</span> {baseLabel}
-              </span>
-            ) : null}
-            {highlightLabel ? (
-              <span>
-                <span style={{ color: chartColors[0] }}>■</span>{" "}
-                {highlightLabel}
-              </span>
-            ) : null}
+            <div css={legendItemCSS}>
+              <div css={legendSwatchCSS} style={{ background: baseColor }} />
+              <span css={legendLabelCSS}>{baseLabel}</span>
+            </div>
+            <div css={legendItemCSS}>
+              <div
+                css={legendSwatchCSS}
+                style={{ background: highlightColor }}
+              />
+              <span css={legendLabelCSS}>{highlightLabel}</span>
+            </div>
           </div>
-        ) : null}
-      </div>
+        </div>
+      )}
     </ChartFrame>
   );
+}
+
+function NoData() {
+  return <span style={{ color: "var(--global-text-color-500)" }}>No data</span>;
 }

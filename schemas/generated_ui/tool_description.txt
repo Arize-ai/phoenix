@@ -4,12 +4,21 @@ The `spec` argument must be one complete UI tree in this shape: `{ root: string,
 `root` is the id of the first element to render. Each key in `elements` is an element id. `children` contains element ids from the same `elements` object.
 Every element `type` must come from the component list below, and every element must include `type`, `props`, and `children`.
 Do not provide partial updates, JSONL patches, markdown, or prose inside `spec`; provide the full render tree in one object.
-Use one chart component as the root for each generated UI call. If you need multiple charts, call this tool multiple times.
+Follow these rules when choosing and configuring chart components:
+- Use one chart component as the root of each generated UI call.
+- Keep BarChart data arrays between 2 and 12 items.
+- Keep VerticalBarChart data arrays between 2 and 12 items. Each bar supports one base value and one optional highlight value, not arbitrary stacked subdivisions.
+- Keep StackedBarChart data arrays between 2 and 12 items, with 2 to 4 segments in each bar.
+- When data density exceeds bar chart limits, switch to a line chart or consolidate periods (such as hourly metrics into multi-hour chunks, or monthly data into weekly summaries).
+- Keep LineChart series arrays between 1 and 4 items.
+- Prefer BarChart, VerticalBarChart, StackedBarChart, and LineChart for quantitative answers.
+- If you erroneously encounter a limit, don't announce the specific limit numbers, just correct the counts and re-render.
+- Use the render_generated_ui tool when a generated UI would answer the user better than prose alone.
 
 AVAILABLE COMPONENTS (4):
 
 - BarChart: { title?: string, data: Array<{ label: string, value: number }> } - Horizontal categorical bar chart with label/value rows.
-- VerticalBarChart: { title?: string, data: Array<{ label: string, value: number, highlight?: number }>, baseLabel?: string, highlightLabel?: string } - Compact vertical bar chart for time buckets, optionally with highlighted counts stacked on top of a base value.
+- VerticalBarChart: { title?: string, data: Array<{ label: string, value: number, highlight?: number }>, baseLabel?: string, highlightLabel?: string } - Compact vertical bar chart for time buckets, optionally with one highlighted segment stacked on top of the base value.
 - StackedBarChart: { title?: string, data: Array<{ label: string, segments: Array<{ label: string, value: number }> }> } - Horizontal stacked bar chart for comparing segment totals across categories.
 - LineChart: { title?: string, lines: Array<{ label?: string, data: Array<number> }>, xLabels?: Array<string> } - Compact multi-line trend chart with optional series labels and x-axis labels.
 

@@ -197,7 +197,10 @@ describe("toolRegistry", () => {
           type: "BarChart",
           props: {
             title: "Trace Summary",
-            data: [{ label: "Total spans", value: 42 }],
+            data: [
+              { label: "Total spans", value: 42 },
+              { label: "Error spans", value: 3 },
+            ],
           },
           children: [],
         },
@@ -266,6 +269,51 @@ describe("toolRegistry", () => {
         tool: GENERATIVE_UI_TOOL_NAME,
         toolCallId: "tool-call-8",
         errorText: "I couldn't render that generated UI.",
+      })
+    );
+  });
+
+  it("adds chart guidance for generated UI count violations", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const appendMessagePart = vi.fn();
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-8b",
+        toolName: GENERATIVE_UI_TOOL_NAME,
+        input: {
+          spec: {
+            root: "chart",
+            elements: {
+              chart: {
+                type: "VerticalBarChart",
+                props: {
+                  title: "Traces Per Day",
+                  data: Array.from({ length: 31 }, (_, index) => ({
+                    label: `Day ${index + 1}`,
+                    value: index,
+                  })),
+                },
+                children: [],
+              },
+            },
+          },
+        },
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      appendMessagePart,
+      agentStore: store,
+    });
+
+    expect(appendMessagePart).not.toHaveBeenCalled();
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-error",
+        tool: GENERATIVE_UI_TOOL_NAME,
+        toolCallId: "tool-call-8b",
+        errorText: "Request should adhere to chart requirements.",
       })
     );
   });

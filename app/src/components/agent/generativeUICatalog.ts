@@ -6,6 +6,14 @@ export const JSON_RENDER_DATA_PART_TYPE = SPEC_DATA_PART_TYPE;
 export const LEGACY_JSON_RENDER_DATA_PART_TYPE = "data-json-render";
 export const GENERATIVE_UI_TOOL_NAME = "render_generated_ui";
 
+// Bar charts disallow single visualizations
+// At most 12 rows, at most 4 segments
+const HORIZONTAL_BAR_CHART_ITEM_COUNT = { min: 2, max: 12 };
+const HORIZONTAL_BAR_CHART_SEGMENT_COUNT = { min: 2, max: 4 };
+// At most 12 columns, "segments" handled by single optional "highlight" arg
+const VERTICAL_BAR_CHART_ITEM_COUNT = { min: 2, max: 12 };
+const LINE_CHART_SERIES_COUNT = { min: 1, max: 4 };
+
 const chartDatumSchema = z.object({
   label: z.string(),
   value: z.number(),
@@ -24,7 +32,10 @@ const stackedBarSegmentSchema = z.object({
 
 const stackedBarDatumSchema = z.object({
   label: z.string(),
-  segments: z.array(stackedBarSegmentSchema),
+  segments: z
+    .array(stackedBarSegmentSchema)
+    .min(HORIZONTAL_BAR_CHART_SEGMENT_COUNT.min)
+    .max(HORIZONTAL_BAR_CHART_SEGMENT_COUNT.max),
 });
 
 const lineSeriesSchema = z.object({
@@ -34,24 +45,36 @@ const lineSeriesSchema = z.object({
 
 const barChartPropsSchema = z.object({
   title: z.string().nullish(),
-  data: z.array(chartDatumSchema),
+  data: z
+    .array(chartDatumSchema)
+    .min(HORIZONTAL_BAR_CHART_ITEM_COUNT.min)
+    .max(HORIZONTAL_BAR_CHART_ITEM_COUNT.max),
 });
 
 const verticalBarChartPropsSchema = z.object({
   title: z.string().nullish(),
-  data: z.array(verticalBarDatumSchema),
+  data: z
+    .array(verticalBarDatumSchema)
+    .min(VERTICAL_BAR_CHART_ITEM_COUNT.min)
+    .max(VERTICAL_BAR_CHART_ITEM_COUNT.max),
   baseLabel: z.string().nullish(),
   highlightLabel: z.string().nullish(),
 });
 
 const stackedBarChartPropsSchema = z.object({
   title: z.string().nullish(),
-  data: z.array(stackedBarDatumSchema),
+  data: z
+    .array(stackedBarDatumSchema)
+    .min(HORIZONTAL_BAR_CHART_ITEM_COUNT.min)
+    .max(HORIZONTAL_BAR_CHART_ITEM_COUNT.max),
 });
 
 const lineChartPropsSchema = z.object({
   title: z.string().nullish(),
-  lines: z.array(lineSeriesSchema),
+  lines: z
+    .array(lineSeriesSchema)
+    .min(LINE_CHART_SERIES_COUNT.min)
+    .max(LINE_CHART_SERIES_COUNT.max),
   xLabels: z.array(z.string()).nullish(),
 });
 
@@ -107,7 +130,7 @@ export const generativeUICatalog = defineCatalog(schema, {
     VerticalBarChart: {
       props: verticalBarChartPropsSchema,
       description:
-        "Compact vertical bar chart for time buckets, optionally with highlighted counts stacked on top of a base value.",
+        "Compact vertical bar chart for time buckets, optionally with one highlighted segment stacked on top of the base value.",
     },
     StackedBarChart: {
       props: stackedBarChartPropsSchema,
@@ -123,10 +146,18 @@ export const generativeUICatalog = defineCatalog(schema, {
   actions: {},
 });
 
+export const GENERATIVE_UI_CATALOG_RULES = [
+  "Use one chart component as the root of each generated UI call.",
+  "Keep BarChart data arrays between 2 and 12 items.",
+  "Keep VerticalBarChart data arrays between 2 and 12 items. Each bar supports one base value and one optional highlight value, not arbitrary stacked subdivisions.",
+  "Keep StackedBarChart data arrays between 2 and 12 items, with 2 to 4 segments in each bar.",
+  "When data density exceeds bar chart limits, switch to a line chart or consolidate periods (such as hourly metrics into multi-hour chunks, or monthly data into weekly summaries).",
+  "Keep LineChart series arrays between 1 and 4 items.",
+  "Prefer BarChart, VerticalBarChart, StackedBarChart, and LineChart for quantitative answers.",
+  "If you erroneously encounter a limit, don't announce the specific limit numbers, just correct the counts and re-render.",
+  `Use the ${GENERATIVE_UI_TOOL_NAME} tool when a generated UI would answer the user better than prose alone.`,
+];
+
 export const generativeUICatalogPrompt = generativeUICatalog.prompt({
-  customRules: [
-    "Use one chart component as the root of each generated UI call.",
-    "Prefer BarChart, VerticalBarChart, StackedBarChart, and LineChart for quantitative answers.",
-    `Use the ${GENERATIVE_UI_TOOL_NAME} tool when a generated UI would answer the user better than prose alone.`,
-  ],
+  customRules: GENERATIVE_UI_CATALOG_RULES,
 });
