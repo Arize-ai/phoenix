@@ -10,9 +10,14 @@ import { useHasOpenModal } from "@phoenix/hooks/useHasOpenModal";
 import { PxiGlyph, type PxiGlyphThinkingVariant } from "./PxiGlyph";
 import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 
-const shimmer = keyframes`
-  0%, 100% { background-position: 200% center; }
-  50%      { background-position: -200% center; }
+const hoverShimmer = keyframes`
+  0% {
+    background-position: 118% center;
+  }
+
+  100% {
+    background-position: -140% center;
+  }
 `;
 
 const thinkingBorderWipe = keyframes`
@@ -33,6 +38,18 @@ const ringBreathe = keyframes`
   }
   50% {
     box-shadow: var(--agent-chat-widget-glow-outer-strong);
+  }
+`;
+
+const glyphBreathe = keyframes`
+  0%, 100% {
+    color: var(--agent-chat-widget-glyph-rest-color);
+    filter: drop-shadow(0 0 0 var(--agent-chat-widget-glyph-pulse-shadow));
+  }
+
+  50% {
+    color: var(--agent-chat-widget-glyph-pulse-color);
+    filter: drop-shadow(0 0 3px var(--agent-chat-widget-glyph-pulse-shadow));
   }
 `;
 
@@ -57,6 +74,49 @@ const inlineButtonCSS = css`
   position: relative;
 `;
 
+const darkThemeGlyphThemeCSS = css`
+  &[data-theme="dark"] {
+    --agent-chat-widget-glyph-rest-color: #1f2730;
+    --agent-chat-widget-glyph-pulse-color: #6b7c8f;
+    --agent-chat-widget-glyph-pulse-shadow: rgba(107, 124, 143, 0.4);
+  }
+`;
+
+const lightThemeGlyphThemeCSS = css`
+  &[data-theme="light"] {
+    --agent-chat-widget-glyph-rest-color: var(--global-color-gray-50);
+    --agent-chat-widget-glyph-pulse-color: #ffffff;
+    --agent-chat-widget-glyph-pulse-shadow: rgba(156, 205, 255, 0.4);
+  }
+`;
+
+const darkThemeThinkingGlowCSS = css`
+  &[data-theme="dark"] {
+    --agent-chat-widget-glow-outer-rest:
+      0 0 2px 1px rgba(248, 242, 255, 0.78),
+      0 0 4px 2px rgba(154, 102, 255, 0.68), 0 0 8px 4px rgba(52, 128, 255, 0.52),
+      0 0 13px 5px rgba(198, 72, 255, 0.4), 0 0 17px 6px rgba(44, 216, 255, 0.26);
+    --agent-chat-widget-glow-outer-strong:
+      0 0 3px 2px rgba(250, 244, 255, 0.88),
+      0 0 7px 3px rgba(160, 108, 255, 0.82),
+      0 0 12px 6px rgba(58, 134, 255, 0.66),
+      0 0 19px 8px rgba(205, 78, 255, 0.52),
+      0 0 26px 10px rgba(50, 220, 255, 0.34);
+  }
+`;
+
+const lightThemeThinkingGlowCSS = css`
+  &[data-theme="light"] {
+    --agent-chat-widget-glow-outer-rest:
+      0 0 2px 1px rgba(234, 243, 255, 0.72),
+      0 0 5px 2px rgba(118, 180, 255, 0.42), 0 0 8px 4px rgba(56, 132, 255, 0.24),
+      0 0 13px 4px rgba(23, 93, 215, 0.14);
+    --agent-chat-widget-glow-outer-strong:
+      0 0 3px 1px rgba(242, 248, 255, 0.8), 0 0 7px 3px rgba(131, 189, 255, 0.5),
+      0 0 13px 6px rgba(67, 143, 255, 0.32), 0 0 19px 6px rgba(29, 101, 223, 0.18);
+  }
+`;
+
 const shapeCSS = css`
   position: relative;
   display: flex;
@@ -76,6 +136,16 @@ const shapeCSS = css`
   .fab-glyph {
     overflow: visible;
     flex-shrink: 0;
+    color: var(--agent-chat-widget-glyph-rest-color);
+    transition:
+      color 160ms ease-out,
+      filter 160ms ease-out;
+    will-change: color, filter;
+  }
+
+  .fab-glyph circle {
+    fill: currentColor;
+    transition: fill 160ms ease-out;
   }
 
   .agent-chat-widget__spinner {
@@ -86,111 +156,6 @@ const shapeCSS = css`
     z-index: 2;
     isolation: isolate;
     flex-shrink: 0;
-  }
-`;
-
-const lightRestingShapeCSS = css`
-  color: var(--global-color-gray-900);
-  background:
-    radial-gradient(
-      140% 150% at 18% 12%,
-      rgba(255, 255, 255, 0.96) 0%,
-      rgba(255, 255, 255, 0) 36%
-    ),
-    linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 1) 0%,
-      rgba(233, 239, 245, 1) 42%,
-      rgba(214, 223, 232, 1) 58%,
-      rgba(244, 248, 252, 1) 100%
-    );
-  box-shadow:
-    0 0 0 1px rgba(163, 175, 188, 0.92) inset,
-    0 1px 0 rgba(255, 255, 255, 0.98) inset,
-    0 10px 18px rgba(255, 255, 255, 0.62) inset,
-    0 -11px 15px rgba(104, 119, 135, 0.24) inset,
-    0 0 0 1px rgba(242, 247, 252, 0.8),
-    0 14px 28px rgba(98, 115, 132, 0.24),
-    0 3px 9px rgba(255, 255, 255, 0.82);
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.76);
-  transition: box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: box-shadow;
-
-  .agent-chat-widget__hover-bg-shimmer {
-    background:
-      linear-gradient(
-        115deg,
-        rgba(255, 255, 255, 0) 16%,
-        rgba(255, 255, 255, 0.96) 39%,
-        rgba(190, 204, 219, 0.52) 50%,
-        rgba(255, 255, 255, 0) 69%
-      ),
-      linear-gradient(
-        180deg,
-        rgba(255, 255, 255, 0.46) 0%,
-        rgba(255, 255, 255, 0) 100%
-      );
-    background-size:
-      220% 100%,
-      100% 100%;
-    background-position:
-      200% center,
-      center;
-    mix-blend-mode: screen;
-    opacity: 0.58;
-    animation-duration: 4.8s;
-  }
-
-  .agent-chat-widget__hover-shimmer {
-    inset: -18px;
-    mix-blend-mode: normal;
-  }
-
-  .agent-chat-widget__hover-shimmer::before {
-    inset: 18px;
-    box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.88),
-      0 0 0 2px rgba(193, 208, 224, 0.82),
-      0 0 16px rgba(163, 181, 201, 0.28),
-      0 10px 22px rgba(112, 129, 146, 0.18);
-    opacity: 0.76;
-  }
-
-  &:hover {
-    background:
-      radial-gradient(
-        145% 155% at 18% 12%,
-        rgba(255, 255, 255, 0.98) 0%,
-        rgba(255, 255, 255, 0) 39%
-      ),
-      linear-gradient(
-        180deg,
-        rgba(255, 255, 255, 1) 0%,
-        rgba(239, 245, 250, 1) 40%,
-        rgba(219, 228, 236, 1) 57%,
-        rgba(248, 251, 254, 1) 100%
-      );
-    box-shadow:
-      0 0 0 1px rgba(188, 199, 211, 0.98) inset,
-      0 1px 0 rgba(255, 255, 255, 0.98) inset,
-      0 12px 22px rgba(255, 255, 255, 0.7) inset,
-      0 -14px 18px rgba(106, 121, 137, 0.28) inset,
-      0 0 0 1px rgba(246, 250, 255, 0.88),
-      0 18px 34px rgba(90, 107, 123, 0.28),
-      0 4px 10px rgba(255, 255, 255, 0.88);
-  }
-
-  &:hover .agent-chat-widget__hover-bg-shimmer {
-    opacity: 1;
-  }
-
-  &:hover .agent-chat-widget__hover-shimmer::before {
-    box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.96),
-      0 0 0 2px rgba(214, 226, 238, 0.9),
-      0 0 22px rgba(171, 190, 210, 0.36),
-      0 16px 30px rgba(101, 118, 135, 0.24);
-    opacity: 0.96;
   }
 `;
 
@@ -209,6 +174,7 @@ const shapeContentCSS = css`
 
 const restingHoverShimmerCSS = css`
   .agent-chat-widget__hover-bg-shimmer {
+    --agent-chat-widget-hover-shimmer-duration: 3.6s;
     position: absolute;
     inset: 0;
     z-index: 1;
@@ -221,44 +187,21 @@ const restingHoverShimmerCSS = css`
       var(--global-color-gray-900) 70%
     );
     background-size: 400% 100%;
-    background-position: 200% center;
-    animation: ${shimmer} 10s ease-in-out infinite;
+    background-position: 118% center;
     opacity: 0;
-    transition: opacity 160ms ease-out;
+    transition: opacity 120ms ease-out;
+    will-change: opacity, background-position;
+    transform: translateZ(0);
   }
 
   &:hover .agent-chat-widget__hover-bg-shimmer {
     opacity: 1;
+    animation: ${hoverShimmer}
+      var(--agent-chat-widget-hover-shimmer-duration) linear infinite both;
   }
 `;
 
 const thinkingBorderCSS = css`
-  --agent-chat-widget-glow-outer-rest:
-    0 0 2px 1px rgba(248, 242, 255, 0.78),
-    0 0 4px 2px rgba(154, 102, 255, 0.68),
-    0 0 8px 4px rgba(52, 128, 255, 0.52),
-    0 0 13px 5px rgba(198, 72, 255, 0.4),
-    0 0 17px 6px rgba(44, 216, 255, 0.26);
-  --agent-chat-widget-glow-outer-strong:
-    0 0 3px 2px rgba(250, 244, 255, 0.88),
-    0 0 7px 3px rgba(160, 108, 255, 0.82),
-    0 0 12px 6px rgba(58, 134, 255, 0.66),
-    0 0 19px 8px rgba(205, 78, 255, 0.52),
-    0 0 26px 10px rgba(50, 220, 255, 0.34);
-
-  &[data-theme="light"] {
-    --agent-chat-widget-glow-outer-rest:
-      0 0 2px 1px rgba(234, 243, 255, 0.72),
-      0 0 5px 2px rgba(118, 180, 255, 0.42),
-      0 0 8px 4px rgba(56, 132, 255, 0.24),
-      0 0 13px 4px rgba(23, 93, 215, 0.14);
-    --agent-chat-widget-glow-outer-strong:
-      0 0 3px 1px rgba(242, 248, 255, 0.8),
-      0 0 7px 3px rgba(131, 189, 255, 0.5),
-      0 0 13px 6px rgba(67, 143, 255, 0.32),
-      0 0 19px 6px rgba(29, 101, 223, 0.18);
-  }
-
   .agent-chat-widget__shimmer {
     position: absolute;
     inset: -28px;
@@ -346,35 +289,23 @@ const restingHoverWipeCSS = css`
     animation: ${thinkingBorderWipe} 900ms cubic-bezier(0.22, 0.8, 0.24, 1)
       1 both;
   }
+
+  &:hover .agent-chat-widget__hover-shimmer::before {
+    animation: ${ringBreathe} 2400ms ease-in-out infinite;
+  }
+
+  &:hover .fab-glyph {
+    animation: ${glyphBreathe} 2400ms ease-in-out infinite;
+  }
 `;
 
-const lightThinkingShapeCSS = css`
-  color: var(--global-color-gray-900);
-  background:
-    radial-gradient(
-      140% 150% at 18% 12%,
-      rgba(255, 255, 255, 0.96) 0%,
-      rgba(255, 255, 255, 0) 36%
-    ),
-    linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 1) 0%,
-      rgba(237, 243, 248, 1) 42%,
-      rgba(219, 228, 236, 1) 58%,
-      rgba(246, 249, 252, 1) 100%
-    );
-  box-shadow:
-    0 0 0 1px rgba(170, 182, 194, 0.9) inset,
-    0 1px 0 rgba(255, 255, 255, 0.98) inset,
-    0 10px 18px rgba(255, 255, 255, 0.58) inset,
-    0 -11px 15px rgba(107, 122, 137, 0.2) inset,
-    0 0 0 1px rgba(244, 248, 252, 0.82),
-    0 14px 28px rgba(98, 115, 132, 0.22),
-    0 3px 9px rgba(255, 255, 255, 0.82);
-  color: var(--global-color-gray-900);
+const thinkingGlyphPulseCSS = css`
+  .fab-glyph {
+    animation: ${glyphBreathe} 2400ms ease-in-out infinite;
+  }
 `;
 
-export type AgentChatWidgetButtonVariant = "dark" | "dark-glyph" | "light";
+export type AgentChatWidgetButtonVariant = "progress" | "glyph";
 export type { PxiGlyphThinkingVariant } from "./PxiGlyph";
 
 export interface AgentChatWidgetButtonProps {
@@ -392,14 +323,10 @@ export function AgentChatWidgetButton({
   ariaLabel = "Open agent chat",
   isFloating = false,
   thinkingGlyphVariant = "orbit-reveal",
-  variant = "dark",
+  variant = "progress",
 }: AgentChatWidgetButtonProps) {
-  const usesThinkingGlyph = variant === "dark-glyph" || variant === "light";
+  const usesThinkingGlyph = variant === "glyph";
   const { theme } = useTheme();
-  const isLightAppearance = variant === "light" && theme === "light";
-  const glyphFill = isLightAppearance
-    ? "var(--global-color-gray-800)"
-    : "var(--global-color-gray-100)";
   return (
     <button
       type="button"
@@ -414,20 +341,16 @@ export function AgentChatWidgetButton({
       <motion.div
         css={[
           shapeCSS,
-          !isStreaming && !isLightAppearance
+          darkThemeGlyphThemeCSS,
+          lightThemeGlyphThemeCSS,
+          darkThemeThinkingGlowCSS,
+          lightThemeThinkingGlowCSS,
+          !isStreaming
             ? [thinkingBorderCSS, restingHoverWipeCSS, restingHoverShimmerCSS]
             : undefined,
-          !isStreaming && isLightAppearance
-            ? [
-                lightRestingShapeCSS,
-                restingHoverWipeCSS,
-                restingHoverShimmerCSS,
-              ]
-            : undefined,
           isStreaming ? thinkingBorderCSS : undefined,
-          isStreaming && isLightAppearance ? lightThinkingShapeCSS : undefined,
+          isStreaming ? thinkingGlyphPulseCSS : undefined,
         ]}
-        data-variant={variant}
         data-theme={theme}
         initial={false}
         animate={{
@@ -457,7 +380,7 @@ export function AgentChatWidgetButton({
               {usesThinkingGlyph ? (
                 <PxiGlyph
                   className="fab-glyph"
-                  fill={glyphFill}
+                  fill="currentColor"
                   variant="thinking"
                   thinkingVariant={thinkingGlyphVariant}
                 />
@@ -472,7 +395,7 @@ export function AgentChatWidgetButton({
           ) : (
             <PxiGlyph
               className="fab-glyph"
-              fill={glyphFill}
+              fill="currentColor"
               variant="resting"
             />
           )}

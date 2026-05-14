@@ -118,14 +118,14 @@ const meta = {
     docs: {
       description: {
         component:
-          "PXI chat trigger button. Shows the resting pill state, the single wipe border treatment used while streaming, and the four kept animated glyph options for glyph-based variants.",
+          "PXI chat trigger button. Shows the resting pill state, the single wipe border treatment used while streaming, and the four kept animated glyph options for glyph mode.",
       },
     },
   },
   args: {
     ariaLabel: "Open agent chat",
     isFloating: false,
-    variant: "dark-glyph",
+    variant: "glyph",
     thinkingGlyphVariant: "orbit-reveal",
   },
   argTypes: {
@@ -142,16 +142,16 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const States: Story = {
+export const GlyphStates: Story = {
   render: (args) => (
     <div css={frameCSS}>
       <div css={statesGridCSS}>
         <div css={stateCardCSS}>
-          <div css={variantLabelCSS}>dark-glyph</div>
+          <div css={variantLabelCSS}>glyph</div>
           <AgentChatWidgetButton {...args} isStreaming={false} />
         </div>
         <div css={stateCardCSS}>
-          <div css={variantLabelCSS}>dark-glyph</div>
+          <div css={variantLabelCSS}>glyph</div>
           <AgentChatWidgetButton {...args} isStreaming />
         </div>
       </div>
@@ -159,22 +159,19 @@ export const States: Story = {
   ),
 };
 
-export const LightStates: Story = {
+export const ProgressStates: Story = {
   args: {
-    variant: "light",
-  },
-  globals: {
-    theme: "light",
+    variant: "progress",
   },
   render: (args) => (
     <div css={frameCSS}>
       <div css={statesGridCSS}>
         <div css={stateCardCSS}>
-          <div css={variantLabelCSS}>light</div>
+          <div css={variantLabelCSS}>progress</div>
           <AgentChatWidgetButton {...args} isStreaming={false} />
         </div>
         <div css={stateCardCSS}>
-          <div css={variantLabelCSS}>light</div>
+          <div css={variantLabelCSS}>progress</div>
           <AgentChatWidgetButton {...args} isStreaming />
         </div>
       </div>
@@ -194,7 +191,7 @@ export const ThinkingGlyphCandidates: Story = {
               </div>
               <AgentChatWidgetButton
                 {...args}
-                variant="dark-glyph"
+                variant="glyph"
                 isStreaming
                 thinkingGlyphVariant={thinkingGlyphVariant}
               />
@@ -233,17 +230,7 @@ function ClickToCycleRender(args: AgentChatWidgetButtonProps) {
 
 export const ClickToCycleStates: Story = {
   args: {
-    variant: "dark-glyph",
-  },
-  render: (args) => <ClickToCycleRender {...args} />,
-};
-
-export const LightClickToCycleStates: Story = {
-  args: {
-    variant: "light",
-  },
-  globals: {
-    theme: "light",
+    variant: "glyph",
   },
   render: (args) => <ClickToCycleRender {...args} />,
 };

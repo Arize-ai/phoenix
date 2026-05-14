@@ -195,17 +195,21 @@ export function PxiGlyph({
 
   if (variant === "thinking") {
     const thinkingSize = typeof dim === "number" ? `${dim}px` : dim;
+    const thinkingStyle =
+      fill === "currentColor"
+        ? ({
+            "--pxi-thinking-size": thinkingSize,
+          } as React.CSSProperties)
+        : ({
+            color: fill,
+            "--pxi-thinking-size": thinkingSize,
+          } as React.CSSProperties);
 
     return (
       <span
         className={className}
         css={[thinkingGlyphCSS, thinkingGlyphVariantCSS[thinkingVariant]]}
-        style={
-          {
-            color: fill,
-            "--pxi-thinking-size": thinkingSize,
-          } as React.CSSProperties
-        }
+        style={thinkingStyle}
         aria-hidden="true"
       >
         {Array.from({ length: 9 }, (_, index) => (
