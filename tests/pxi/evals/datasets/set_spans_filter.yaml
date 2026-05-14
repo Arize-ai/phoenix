@@ -1,5 +1,8 @@
 dataset_name: set_spans_filter
 description: PXI server-side eval suite for deferred set_spans_filter tool calls.
+evaluators:
+  - correct_tools_called
+  - set_spans_filter_args_match
 examples:
   - id: llm-spans
     input:

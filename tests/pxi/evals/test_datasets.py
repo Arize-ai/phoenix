@@ -21,6 +21,9 @@ from tests.pxi.evals.datasets import (
 _VALID_YAML = """\
 dataset_name: example_suite
 description: Tiny suite for tests
+evaluators:
+  - correct_tools_called
+  - tool_call_args_match
 examples:
   - id: ex-1
     input:
@@ -77,6 +80,7 @@ class TestLoadDataset:
             tmp_path / "dupes.yaml",
             """\
 dataset_name: dupes
+evaluators: [correct_tools_called]
 examples:
   - id: b
     input: {query: x}
@@ -100,11 +104,60 @@ examples:
     def test_empty_examples_raises_validation_error(self, tmp_path: Path) -> None:
         path = _write(
             tmp_path / "no_examples.yaml",
-            "dataset_name: empty\nexamples: []\n",
+            "dataset_name: empty\nevaluators: [correct_tools_called]\nexamples: []\n",
         )
         with pytest.raises(DatasetValidationError) as exc_info:
             load_dataset(path)
         assert "at least one example" in str(exc_info.value)
+
+    def test_missing_evaluators_field_raises_validation_error(self, tmp_path: Path) -> None:
+        # Datasets must declare which evaluators to run; there is no
+        # implicit default.
+        path = _write(
+            tmp_path / "no_evaluators.yaml",
+            """\
+dataset_name: missing_evaluators
+examples:
+  - id: ex-1
+    input: {query: x}
+    expected: {tools: {required: []}}
+""",
+        )
+        with pytest.raises(DatasetValidationError) as exc_info:
+            load_dataset(path)
+        assert "evaluators" in str(exc_info.value).lower()
+
+    def test_empty_evaluators_field_raises_validation_error(self, tmp_path: Path) -> None:
+        path = _write(
+            tmp_path / "empty_evaluators.yaml",
+            """\
+dataset_name: empty_evaluators
+evaluators: []
+examples:
+  - id: ex-1
+    input: {query: x}
+    expected: {tools: {required: []}}
+""",
+        )
+        with pytest.raises(DatasetValidationError) as exc_info:
+            load_dataset(path)
+        assert "evaluators must be a non-empty list" in str(exc_info.value)
+
+    def test_duplicate_evaluator_names_raises_validation_error(self, tmp_path: Path) -> None:
+        path = _write(
+            tmp_path / "dupe_evaluators.yaml",
+            """\
+dataset_name: dupe_evaluators
+evaluators: [correct_tools_called, correct_tools_called]
+examples:
+  - id: ex-1
+    input: {query: x}
+    expected: {tools: {required: []}}
+""",
+        )
+        with pytest.raises(DatasetValidationError) as exc_info:
+            load_dataset(path)
+        assert "duplicate evaluator names" in str(exc_info.value)
 
     def test_load_by_stem_uses_repo_datasets_dir(self) -> None:
         # The shipped ``set_spans_filter`` dataset must round-trip cleanly so
@@ -112,3 +165,4 @@ examples:
         dataset = load_dataset("set_spans_filter")
         assert dataset.dataset_name == "set_spans_filter"
         assert len(dataset.examples) >= 1
+        assert "correct_tools_called" in dataset.evaluators

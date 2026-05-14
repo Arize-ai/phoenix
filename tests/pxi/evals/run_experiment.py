@@ -11,7 +11,7 @@ from contextlib import AsyncExitStack
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Sequence, cast
 from urllib.parse import urljoin
 
 if __package__ in {None, ""}:
@@ -29,11 +29,15 @@ from tests.pxi.evals.agent_task import (
     build_shared_docs_mcp_toolset,
     make_task,
 )
-from tests.pxi.evals.datasets import EvalDataset, load_dataset
-from tests.pxi.evals.evaluators import correct_tools_called, tool_call_args_match
+from tests.pxi.evals.datasets import (
+    EvalDataset,
+    load_dataset,
+)
+from tests.pxi.evals.evaluators import EVALUATORS_BY_NAME
 
 DEFAULT_BASE_URL = "http://localhost:6006"
 PASSING_SCORE = 1.0
+MAX_TABLE_CELL_WIDTH = 80
 
 
 @dataclass(frozen=True)
@@ -46,6 +50,23 @@ class ExperimentConfig:
     experiment_name: str | None
     experiment_name_suffix: str | None
     fail_on_regression: bool
+    evaluator_override: tuple[str, ...] | None
+
+
+def _resolve_evaluators(dataset: EvalDataset, override: tuple[str, ...] | None) -> list[Any]:
+    """Resolve evaluator names (from CLI override or dataset YAML) to
+    concrete ``@create_evaluator`` objects, failing fast on unknown names.
+    """
+    requested = list(override) if override else list(dataset.evaluators)
+    if not requested:
+        raise ValueError(
+            "no evaluators selected: pass --evaluator or set `evaluators:` in the dataset YAML"
+        )
+    unknown = [name for name in requested if name not in EVALUATORS_BY_NAME]
+    if unknown:
+        available = ", ".join(sorted(EVALUATORS_BY_NAME))
+        raise ValueError(f"unknown evaluator name(s): {', '.join(unknown)}. Available: {available}")
+    return [EVALUATORS_BY_NAME[name] for name in requested]
 
 
 def _configured_base_url() -> tuple[str, bool]:
@@ -85,9 +106,87 @@ def _experiment_name(dataset: EvalDataset, config: ExperimentConfig) -> str:
     return "-".join(parts)
 
 
-def _experiment_url(base_url: str, experiment: RanExperiment) -> str:
-    experiment_id = experiment.get("experiment_id")
-    return f"{base_url.rstrip('/')}/experiments/{experiment_id}" if experiment_id else base_url
+def _format_table(headers: tuple[str, ...], rows: Sequence[tuple[str, ...]]) -> str:
+    widths = [
+        max(len(header), *(len(row[index]) for row in rows)) for index, header in enumerate(headers)
+    ]
+    rule = "+" + "+".join("-" * (width + 2) for width in widths) + "+"
+
+    def format_row(row: tuple[str, ...]) -> str:
+        cells = [value.ljust(widths[index]) for index, value in enumerate(row)]
+        return "| " + " | ".join(cells) + " |"
+
+    lines = [rule, format_row(headers), rule]
+    lines.extend(format_row(row) for row in rows)
+    lines.append(rule)
+    return "\n".join(lines)
+
+
+def _truncate_cell(value: Any) -> str:
+    text = str(value)
+    if len(text) <= MAX_TABLE_CELL_WIDTH:
+        return text
+    return text[: MAX_TABLE_CELL_WIDTH - 3] + "..."
+
+
+def _result_field(evaluation_run: ExperimentEvaluationRun, key: str) -> str:
+    result = evaluation_run.result
+    if not isinstance(result, dict):
+        return ""
+    value = result.get(key)
+    return "" if value is None else _truncate_cell(value)
+
+
+def _task_error_rows(experiment: RanExperiment) -> list[tuple[str, str]]:
+    rows: list[tuple[str, str]] = []
+    for task_run in experiment.get("task_runs", []):
+        output = task_run.get("output")
+        output_error = output.get("error") if isinstance(output, dict) else None
+        error = task_run.get("error") or output_error
+        if not error:
+            continue
+        stable_example_id = output.get("stable_example_id") if isinstance(output, dict) else None
+        example_id = stable_example_id or task_run["dataset_example_id"]
+        rows.append((_truncate_cell(example_id), _truncate_cell(error)))
+    return rows
+
+
+def _failed_evaluation_rows(
+    experiment: RanExperiment,
+    evaluation_runs: Sequence[ExperimentEvaluationRun],
+) -> list[tuple[str, str, str, str, str]]:
+    task_runs_by_id = {
+        str(task_run["id"]): task_run
+        for task_run in experiment.get("task_runs", [])
+        if "id" in task_run
+    }
+    rows: list[tuple[str, str, str, str, str]] = []
+    for evaluation_run in evaluation_runs:
+        score = _score(evaluation_run)
+        if evaluation_run.error is None and score is not None and score >= PASSING_SCORE:
+            continue
+        task_run = task_runs_by_id.get(str(evaluation_run.experiment_run_id))
+        example_id = (
+            task_run["dataset_example_id"] if task_run else str(evaluation_run.experiment_run_id)
+        )
+        rows.append(
+            (
+                _truncate_cell(example_id),
+                _truncate_cell(evaluation_run.name or "unknown"),
+                (
+                    "error"
+                    if evaluation_run.error is not None
+                    else "missing"
+                    if score is None
+                    else f"{score:g}"
+                ),
+                _result_field(evaluation_run, "label"),
+                _truncate_cell(
+                    evaluation_run.error or _result_field(evaluation_run, "explanation")
+                ),
+            )
+        )
+    return rows
 
 
 def _score(evaluation_run: ExperimentEvaluationRun) -> float | None:
@@ -98,7 +197,7 @@ def _score(evaluation_run: ExperimentEvaluationRun) -> float | None:
     return float(value) if isinstance(value, (int, float)) else None
 
 
-def _print_score_summary(dataset: EvalDataset, experiment: RanExperiment, base_url: str) -> bool:
+def _print_score_summary(dataset: EvalDataset, experiment: RanExperiment) -> bool:
     evaluation_runs = list(experiment.get("evaluation_runs") or [])
     by_evaluator: dict[str, dict[str, Any]] = {}
     has_regressions = False
@@ -126,16 +225,38 @@ def _print_score_summary(dataset: EvalDataset, experiment: RanExperiment, base_u
             has_regressions = True
 
     print(f"Dataset: {dataset.dataset_name} ({len(dataset.examples)} examples)")
-    print(f"Experiment URL: {_experiment_url(base_url, experiment)}")
+    task_error_rows = _task_error_rows(experiment)
+    if task_error_rows:
+        print(f"Task errors: {len(task_error_rows)}/{len(experiment.get('task_runs', []))}")
+        print(_format_table(("Example", "Error"), task_error_rows))
     if by_evaluator:
-        print(f"Evaluator score summary (passing score >= {PASSING_SCORE:g}):")
+        rows = []
         for name, summary in sorted(by_evaluator.items()):
-            detail = f"{summary['passing']}/{summary['total']} passed, {summary['failing']} failed"
-            if summary["errors"]:
-                detail += f", {summary['errors']} errors"
-            if summary["missing_score"]:
-                detail += f", {summary['missing_score']} missing scores"
-            print(f"  {name}: {detail}")
+            total = int(summary["total"])
+            passing = int(summary["passing"])
+            pass_rate = f"{passing / total:.0%}" if total else "n/a"
+            rows.append(
+                (
+                    name,
+                    str(total),
+                    str(passing),
+                    str(summary["failing"]),
+                    str(summary["errors"]),
+                    str(summary["missing_score"]),
+                    pass_rate,
+                )
+            )
+        print(f"Evaluator results (passing score >= {PASSING_SCORE:g}):")
+        print(
+            _format_table(
+                ("Evaluator", "Total", "Passed", "Failed", "Errors", "Missing", "Pass Rate"),
+                rows,
+            )
+        )
+        failed_rows = _failed_evaluation_rows(experiment, evaluation_runs)
+        if failed_rows:
+            print("Failed evaluations:")
+            print(_format_table(("Example", "Evaluator", "Score", "Label", "Details"), failed_rows))
     return has_regressions
 
 
@@ -154,6 +275,10 @@ def _phoenix_examples(dataset: EvalDataset) -> list[dict[str, Any]]:
 async def _run_async(config: ExperimentConfig) -> int:
     _check_phoenix_healthz(config.base_url)
     dataset = load_dataset(config.dataset)
+    evaluators = _resolve_evaluators(dataset, config.evaluator_override)
+    print(
+        f"Evaluators: {', '.join(name for name in (config.evaluator_override or dataset.evaluators))}"
+    )
     client = AsyncClient(base_url=config.base_url, api_key=config.bearer_token)
     # Build the docs MCP toolset once and enter its async context manager for
     # the duration of the run, mirroring the production server's FastAPI
@@ -186,7 +311,7 @@ async def _run_async(config: ExperimentConfig) -> int:
                 experiment_name=name,
                 experiment_description=dataset.description,
                 experiment_metadata=metadata,
-                print_summary=False,
+                print_summary=True,
                 concurrency=3,
                 timeout=180,
                 retries=0,
@@ -197,8 +322,8 @@ async def _run_async(config: ExperimentConfig) -> int:
                     task_run["dataset_example_id"] = output["stable_example_id"]
             experiment = await client.experiments.evaluate_experiment(
                 experiment=experiment,
-                evaluators=cast(Any, [correct_tools_called, tool_call_args_match]),
-                print_summary=False,
+                evaluators=cast(Any, evaluators),
+                print_summary=True,
                 concurrency=3,
                 timeout=180,
                 retries=0,
@@ -217,7 +342,7 @@ async def _run_async(config: ExperimentConfig) -> int:
                         f"warning: AsyncClient cleanup failed: {cleanup_exc}",
                         file=sys.stderr,
                     )
-    has_regressions = _print_score_summary(dataset, experiment, config.base_url)
+    has_regressions = _print_score_summary(dataset, experiment)
     return 1 if has_regressions and config.fail_on_regression else 0
 
 
@@ -249,6 +374,24 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Exit non-zero if any evaluator fails (use in CI gating)",
     )
+    # The dataset YAML's ``evaluators:`` field is the source of truth for
+    # what gets scored in normal use. This flag is a transient per-run
+    # override -- useful for iterating on a single evaluator (halves eval
+    # cost while debugging), trying a new evaluator across existing
+    # datasets without committing a YAML change, or skipping a slow or
+    # noisy evaluator during a quick check. If you want a different
+    # combination permanently, edit the dataset YAML instead.
+    parser.add_argument(
+        "--evaluator",
+        action="append",
+        dest="evaluators",
+        metavar="NAME",
+        help=(
+            "Override the evaluators declared in the dataset YAML for this "
+            "run only. Repeatable. Use for ad-hoc iteration; edit the YAML "
+            f"for permanent changes. Valid names: {', '.join(sorted(EVALUATORS_BY_NAME))}."
+        ),
+    )
     return parser
 
 
@@ -263,6 +406,7 @@ def main(argv: list[str] | None = None) -> int:
         experiment_name=args.experiment_name,
         experiment_name_suffix=args.experiment_name_suffix,
         fail_on_regression=args.fail_on_regression,
+        evaluator_override=tuple(args.evaluators) if args.evaluators else None,
     )
     try:
         return run(config)

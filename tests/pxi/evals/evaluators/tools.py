@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from phoenix.evals import create_evaluator
@@ -35,7 +36,17 @@ def _tool_name(call: dict[str, Any]) -> str | None:
 
 def _tool_args(call: dict[str, Any]) -> dict[str, Any]:
     args = call.get("args", {})
-    return args if isinstance(args, dict) else {}
+    if isinstance(args, dict):
+        return args
+    if isinstance(args, str):
+        # Pydantic AI serializes tool-call args as a JSON string in some
+        # transports. Decode so subset/any-of matching can see the keys.
+        try:
+            decoded = json.loads(args)
+        except (json.JSONDecodeError, ValueError):
+            return {}
+        return decoded if isinstance(decoded, dict) else {}
+    return {}
 
 
 def _expected_tools(expected: Any) -> dict[str, Any]:
@@ -129,49 +140,151 @@ def correct_tools_called(output: Any, expected: Any) -> dict[str, Any]:
 
 
 def _normalize_arg_value(value: Any) -> Any:
-    """Make string values that look like ``and``-joined SQL conjunctions
-    invariant to clause ordering.
+    """Make string values that look like SQL boolean conjunctions or
+    disjunctions invariant to clause ordering.
 
     Phoenix tool arg values like ``"span_kind == 'LLM' and latency_ms >= 5000"``
-    are semantically equivalent regardless of clause order. The evaluator
-    compares strings exactly otherwise, so without normalization a model that
-    emits the clauses in the opposite order from the dataset would silently
-    fail. The normalization is intentionally narrow: only string values that
-    contain `` and `` are split, trimmed, and returned as a frozenset.
+    are semantically equivalent regardless of clause order; the same holds for
+    ``"span_kind == 'TOOL' or span_kind == 'CHAIN'"``. The evaluator compares
+    strings exactly otherwise, so without normalization a model that emits
+    clauses in a different order from the dataset (or, in OR's case, picks an
+    equivalent membership rewrite) would silently fail.
+
+    Normalization rules:
+
+    - Pure ``and``-joined: split on `` and ``, return ``("AND", frozenset(...))``.
+    - Pure ``or``-joined: split on `` or ``, return ``("OR", frozenset(...))``.
+    - Mixed (both ``and`` and ``or`` appear): return the raw string. Splitting
+      naively would lose precedence; dataset authors who care about a specific
+      mixed-operator form should pin it exactly.
+    - Everything else: return the value unchanged.
+
+    The tagged tuples guarantee an AND-set never compares equal to an OR-set
+    over the same clauses — those expressions are not semantically equivalent.
     """
-    if not isinstance(value, str) or " and " not in value:
+    if not isinstance(value, str):
         return value
-    return frozenset(clause.strip() for clause in value.split(" and ") if clause.strip())
+    has_and = " and " in value
+    has_or = " or " in value
+    if has_and and has_or:
+        return value
+    if has_and:
+        clauses = frozenset(clause.strip() for clause in value.split(" and ") if clause.strip())
+        return ("AND", clauses)
+    if has_or:
+        clauses = frozenset(clause.strip() for clause in value.split(" or ") if clause.strip())
+        return ("OR", clauses)
+    return value
 
 
-def evaluate_tool_call_args(output: Any, expected: Any) -> dict[str, Any]:
-    """Pure-Python implementation of :func:`tool_call_args_match`.
+# Tools that have their own specialized arg-match evaluator with
+# tool-specific value semantics. The generic ``tool_call_args_match``
+# evaluator skips these so we don't double-score (and so a tool whose
+# args have semantic equivalences -- like the Phoenix span-filter DSL
+# -- isn't held to a stricter exact-string standard by the generic eval).
+_TOOLS_WITH_SPECIALIZED_ARG_EVALUATORS: frozenset[str] = frozenset({"set_spans_filter"})
 
-    Exists separately so unit tests can call it without going through the
-    :class:`phoenix.evals.Evaluator` wrapper produced by
-    ``@create_evaluator``.
+
+def _values_match_exact(observed: Any, expected_value: Any) -> bool:
+    return bool(observed == expected_value)
+
+
+def _values_match_with_dsl_normalization(observed: Any, expected_value: Any) -> bool:
+    return bool(_normalize_arg_value(observed) == _normalize_arg_value(expected_value))
+
+
+def _expected_arg_variants(expected_for_tool: Any) -> list[dict[str, Any]]:
+    """Return the list of acceptable arg dicts for one tool.
+
+    The dataset schema for ``expected.tool_call_args[<tool>]`` accepts either:
+
+    - a single dict ``{key: value, ...}`` (the default form), OR
+    - a list of dicts -- each entry is an independently-acceptable
+      arg shape; the observed call passes if it satisfies ANY variant.
+
+    Variants exist for genuinely-ambiguous queries where more than one
+    set of arguments is a reasonable agent choice (e.g. "show me recent
+    traces" could resolve to ``1h``, ``1d``, ``7d``, etc.).
+    """
+    if isinstance(expected_for_tool, dict):
+        return [expected_for_tool]
+    if isinstance(expected_for_tool, list):
+        return expected_for_tool
+    return []
+
+
+def _invalid_arg_expectation_reason(expected_for_tool: Any) -> str | None:
+    """Return a schema error for malformed per-tool arg expectations."""
+    if isinstance(expected_for_tool, dict):
+        return None
+    if isinstance(expected_for_tool, list):
+        if not expected_for_tool:
+            return "expected arg variants must be a non-empty list of objects"
+        invalid_indices = [
+            str(index) for index, item in enumerate(expected_for_tool) if not isinstance(item, dict)
+        ]
+        if invalid_indices:
+            return f"expected arg variants must all be objects; invalid indices: {', '.join(invalid_indices)}"
+        return None
+    return "expected tool arguments must be an object or a non-empty list of objects"
+
+
+def _evaluate_args_for_tools(
+    output: Any,
+    expected: Any,
+    *,
+    tool_predicate: Any,
+    value_comparator: Any,
+) -> dict[str, Any]:
+    """Shared subset/any-of arg matcher used by both arg evaluators.
+
+    ``tool_predicate`` filters which tool names from ``expected.tool_call_args``
+    this evaluator is responsible for. ``value_comparator`` decides whether
+    an observed value matches an expected value for a single ``(key, value)``
+    pair -- exact equality for the generic evaluator, DSL-normalized
+    equality for the ``set_spans_filter``-specific evaluator.
+
+    Matching is permissive in three ways:
+
+    1. **Subset match per call.** Extra observed arg keys are ignored.
+    2. **Any-of match across multiple calls.** If a tool fires multiple
+       times in one turn, ANY call may satisfy the expectation.
+    3. **Variant match across expected shapes.** If the dataset declares a
+       list of acceptable arg dicts for a tool, ANY variant passing is
+       enough. See :func:`_expected_arg_variants`.
     """
     expected_args_by_tool = _expected_tool_call_args(expected)
     observed_calls = tool_calls_from_output(output)
     failures: dict[str, Any] = {}
 
-    for tool_name, expected_args in expected_args_by_tool.items():
-        if not isinstance(tool_name, str) or not isinstance(expected_args, dict):
+    for tool_name, expected_for_tool in expected_args_by_tool.items():
+        if not isinstance(tool_name, str):
             continue
+        if not tool_predicate(tool_name):
+            continue
+        invalid_reason = _invalid_arg_expectation_reason(expected_for_tool)
+        if invalid_reason:
+            failures[tool_name] = {
+                "reason": invalid_reason,
+                "expected": expected_for_tool,
+            }
+            continue
+        variants = _expected_arg_variants(expected_for_tool)
         matching_calls = [call for call in observed_calls if _tool_name(call) == tool_name]
         if not matching_calls:
             failures[tool_name] = {"reason": "tool was not called"}
             continue
+        # Pass if ANY (variant, call) pair satisfies the subset check.
         if any(
             all(
-                _normalize_arg_value(_tool_args(call).get(key)) == _normalize_arg_value(value)
-                for key, value in expected_args.items()
+                value_comparator(_tool_args(call).get(key), value) for key, value in variant.items()
             )
+            for variant in variants
             for call in matching_calls
         ):
             continue
         failures[tool_name] = {
-            "expected": dict(expected_args),
+            "expected": ([dict(v) for v in variants] if len(variants) > 1 else dict(variants[0])),
             "observed": [dict(_tool_args(call)) for call in matching_calls],
         }
 
@@ -180,26 +293,78 @@ def evaluate_tool_call_args(output: Any, expected: Any) -> dict[str, Any]:
     return _success()
 
 
+def evaluate_tool_call_args(output: Any, expected: Any) -> dict[str, Any]:
+    """Pure-Python implementation of :func:`tool_call_args_match`.
+
+    Scoped to tools that do NOT have a specialized arg-match evaluator
+    (see ``_TOOLS_WITH_SPECIALIZED_ARG_EVALUATORS``). Uses exact value
+    comparison.
+    """
+    return _evaluate_args_for_tools(
+        output,
+        expected,
+        tool_predicate=lambda name: name not in _TOOLS_WITH_SPECIALIZED_ARG_EVALUATORS,
+        value_comparator=_values_match_exact,
+    )
+
+
+def evaluate_set_spans_filter_args(output: Any, expected: Any) -> dict[str, Any]:
+    """Pure-Python implementation of :func:`set_spans_filter_args_match`.
+
+    Scoped to the ``set_spans_filter`` tool only. Applies Phoenix span-filter
+    DSL normalization to string values so semantically-equivalent
+    ``condition`` rewrites (clause reordering under ``and`` or ``or``) match.
+    """
+    return _evaluate_args_for_tools(
+        output,
+        expected,
+        tool_predicate=lambda name: name == "set_spans_filter",
+        value_comparator=_values_match_with_dsl_normalization,
+    )
+
+
 @create_evaluator(name="tool_call_args_match", kind="code")
 def tool_call_args_match(output: Any, expected: Any) -> dict[str, Any]:
-    """Check that observed tool-call arguments match the dataset's expectations.
+    """Generic tool-call arg matcher with exact value comparison.
 
-    The expected shape is ``expected.tool_call_args[tool_name] -> {key: value}``
-    — at most one expected arg map per tool name. The match has two
-    intentional permissive properties documented here so future readers and
-    dataset authors aren't surprised:
+    The expected shape is
+    ``expected.tool_call_args[tool_name] -> {key: value}`` (a single
+    acceptable arg dict) OR ``... -> [{key: value}, ...]`` (a list of
+    independently-acceptable variants). Three intentional permissive
+    properties:
 
     - **Subset match.** A call passes the per-tool check when *all* expected
       ``(key, value)`` pairs are present; the observed call may carry extra
       arg keys that the dataset doesn't mention.
     - **Any-of match across multiple calls.** When a tool is called more
       than once in a single turn, the check passes if *any* of those calls
-      satisfies the expected arg pairs. The schema cannot express
-      "expectation N for the Nth call to this tool"; if you need that,
-      widen the schema before relying on multi-call ordering.
+      satisfies the expected arg pairs.
+    - **Variant match across expected shapes.** When the dataset declares a
+      list of variants, ANY variant matching ANY observed call passes.
 
-    String values are compared with :func:`_normalize_arg_value`, which
-    treats `` and ``-joined conjunctions as order-independent. Other types
-    are compared with ``==``.
+    Values are compared with ``==``. This evaluator skips tools that have
+    their own specialized arg-match evaluator (e.g. ``set_spans_filter``)
+    so that tool-specific semantic equivalence isn't undercut by a stricter
+    exact-string check.
     """
     return evaluate_tool_call_args(output, expected)
+
+
+@create_evaluator(name="set_spans_filter_args_match", kind="code")
+def set_spans_filter_args_match(output: Any, expected: Any) -> dict[str, Any]:
+    """Arg matcher specialized for the ``set_spans_filter`` tool.
+
+    The Phoenix span-filter DSL has commutative boolean operators: clauses
+    joined by ``and`` (or ``or``) are semantically equivalent regardless of
+    order, and a model run can plausibly emit either order. This evaluator
+    applies :func:`_normalize_arg_value` to both expected and observed
+    values so clause reordering under a pure-``and`` or pure-``or``
+    expression does not produce a spurious failure. Mixed ``and``/``or``
+    expressions fall back to exact-string comparison because precedence
+    matters and we don't parse the DSL here.
+
+    Subset / any-of / variant semantics are identical to
+    ``tool_call_args_match`` -- see that docstring for details. Scoped to
+    the ``set_spans_filter`` tool only.
+    """
+    return evaluate_set_spans_filter_args(output, expected)
