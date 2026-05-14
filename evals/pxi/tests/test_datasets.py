@@ -26,6 +26,7 @@ evaluators:
   - tool_call_args_match
 examples:
   - id: ex-1
+    splits: [regression]
     input:
       query: hello
     expected:
@@ -83,15 +84,19 @@ dataset_name: dupes
 evaluators: [correct_tools_called]
 examples:
   - id: b
+    splits: [regression]
     input: {query: x}
     expected: {tools: {required: []}}
   - id: a
+    splits: [regression]
     input: {query: x}
     expected: {tools: {required: []}}
   - id: a
+    splits: [regression]
     input: {query: x}
     expected: {tools: {required: []}}
   - id: b
+    splits: [regression]
     input: {query: x}
     expected: {tools: {required: []}}
 """,
@@ -119,6 +124,7 @@ examples:
 dataset_name: missing_evaluators
 examples:
   - id: ex-1
+    splits: [regression]
     input: {query: x}
     expected: {tools: {required: []}}
 """,
@@ -135,6 +141,7 @@ dataset_name: empty_evaluators
 evaluators: []
 examples:
   - id: ex-1
+    splits: [regression]
     input: {query: x}
     expected: {tools: {required: []}}
 """,
@@ -151,6 +158,7 @@ dataset_name: dupe_evaluators
 evaluators: [correct_tools_called, correct_tools_called]
 examples:
   - id: ex-1
+    splits: [regression]
     input: {query: x}
     expected: {tools: {required: []}}
 """,
@@ -159,12 +167,96 @@ examples:
             load_dataset(path)
         assert "duplicate evaluator names" in str(exc_info.value)
 
+    def test_missing_splits_raises_validation_error(self, tmp_path: Path) -> None:
+        path = _write(
+            tmp_path / "missing_splits.yaml",
+            """\
+dataset_name: missing_splits
+evaluators: [correct_tools_called]
+examples:
+  - id: ex-1
+    input: {query: x}
+    expected: {tools: {required: []}}
+""",
+        )
+        with pytest.raises(DatasetValidationError) as exc_info:
+            load_dataset(path)
+        assert "must define non-empty splits" in str(exc_info.value)
+
+    def test_empty_splits_raises_validation_error(self, tmp_path: Path) -> None:
+        path = _write(
+            tmp_path / "empty_splits.yaml",
+            """\
+dataset_name: empty_splits
+evaluators: [correct_tools_called]
+examples:
+  - id: ex-1
+    splits: []
+    input: {query: x}
+    expected: {tools: {required: []}}
+""",
+        )
+        with pytest.raises(DatasetValidationError) as exc_info:
+            load_dataset(path)
+        assert "must define non-empty splits" in str(exc_info.value)
+
+    @pytest.mark.parametrize("splits", (["regression", "val"], ["dev", "val"]))
+    def test_forbidden_split_combinations_raise(self, tmp_path: Path, splits: list[str]) -> None:
+        path = _write(
+            tmp_path / "forbidden_splits.yaml",
+            f"""\
+dataset_name: forbidden_splits
+evaluators: [correct_tools_called]
+examples:
+  - id: ex-1
+    splits: [{", ".join(splits)}]
+    input: {{query: x}}
+    expected: {{tools: {{required: []}}}}
+""",
+        )
+        with pytest.raises(DatasetValidationError) as exc_info:
+            load_dataset(path)
+        assert "forbidden split combination" in str(exc_info.value)
+
+    def test_regression_holdout_warns(self, tmp_path: Path) -> None:
+        path = _write(
+            tmp_path / "warning_splits.yaml",
+            """\
+dataset_name: warning_splits
+evaluators: [correct_tools_called]
+examples:
+  - id: ex-1
+    splits: [regression, holdout]
+    input: {query: x}
+    expected: {tools: {required: []}}
+""",
+        )
+        with pytest.warns(UserWarning, match="unusual split combination"):
+            load_dataset(path)
+
+    def test_multi_split_tags_parse_as_list(self, tmp_path: Path) -> None:
+        path = _write(
+            tmp_path / "multi_splits.yaml",
+            """\
+dataset_name: multi_splits
+evaluators: [correct_tools_called]
+examples:
+  - id: ex-1
+    splits: [regression, dev]
+    input: {query: x}
+    expected: {tools: {required: []}}
+""",
+        )
+        dataset = load_dataset(path)
+        assert set(dataset.examples[0]["splits"]) == {"regression", "dev"}
+
     def test_load_by_stem_uses_repo_datasets_dir(self) -> None:
         # The shipped ``set_spans_filter`` dataset must round-trip cleanly so
         # changes to YAML schema or types break tests, not the runner.
         dataset = load_dataset("set_spans_filter")
         assert dataset.dataset_name == "set_spans_filter"
         assert len(dataset.examples) >= 1
+        assert all(example["splits"] == ["regression"] for example in dataset.examples)
         assert "correct_tools_called" in dataset.evaluators
 
     def test_loads_in_app_links_dataset(self) -> None:

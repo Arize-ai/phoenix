@@ -4,6 +4,7 @@ evaluators:
   - in_app_links_valid
 examples:
   - id: agent-settings-link
+    splits: [regression]
     input:
       query: Link me to the Phoenix agent settings page.
     expected:
@@ -15,6 +16,7 @@ examples:
     metadata:
       category: settings
   - id: ai-provider-settings-link
+    splits: [regression]
     input:
       query: Where can I configure AI providers in Phoenix? Include a link.
     expected:
@@ -26,6 +28,7 @@ examples:
     metadata:
       category: settings
   - id: general-settings-link
+    splits: [regression]
     input:
       query: Link me to the Phoenix general settings page.
     expected:
@@ -37,6 +40,7 @@ examples:
     metadata:
       category: settings
   - id: dataset-resource-link
+    splits: [regression]
     input:
       query: Link me to where I can see experiments for my PXI link evals dataset.
       resource:

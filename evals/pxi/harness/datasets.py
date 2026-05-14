@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -7,6 +8,11 @@ import yaml
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 DATASETS_DIR = Path(__file__).resolve().parents[1] / "datasets"
+FORBIDDEN_SPLIT_COMBINATIONS: tuple[frozenset[str], ...] = (
+    frozenset({"regression", "val"}),
+    frozenset({"dev", "val"}),
+)
+WARN_SPLIT_COMBINATIONS: tuple[frozenset[str], ...] = (frozenset({"regression", "holdout"}),)
 
 
 class EvalDataset(BaseModel):
@@ -55,6 +61,26 @@ class EvalDataset(BaseModel):
             input_value = example.get("input")
             if not isinstance(input_value, dict) or not isinstance(input_value.get("query"), str):
                 raise ValueError(f"example {example_id} must define input.query")
+            splits = example.get("splits")
+            if not isinstance(splits, list) or not splits:
+                raise ValueError(f"example {example_id} must define non-empty splits")
+            if not all(isinstance(split, str) and split.strip() for split in splits):
+                raise ValueError(f"example {example_id} splits must be non-empty strings")
+            split_set = set(splits)
+            for forbidden in FORBIDDEN_SPLIT_COMBINATIONS:
+                if forbidden.issubset(split_set):
+                    joined = ", ".join(sorted(forbidden))
+                    raise ValueError(
+                        f"example {example_id} has forbidden split combination: {joined}"
+                    )
+            for warning_combination in WARN_SPLIT_COMBINATIONS:
+                if warning_combination.issubset(split_set):
+                    joined = ", ".join(sorted(warning_combination))
+                    warnings.warn(
+                        f"example {example_id} has unusual split combination: {joined}",
+                        UserWarning,
+                        stacklevel=2,
+                    )
             expected = example.get("expected")
             if not isinstance(expected, dict):
                 raise ValueError(f"example {example_id} must define expected")
