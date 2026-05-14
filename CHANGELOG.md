@@ -1,5 +1,23 @@
 # Changelog
 
+## [15.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.8.0...arize-phoenix-v15.9.0) (2026-05-14)
+
+
+### Features
+
+* **agents:** backfill TOOL spans for external tool returns in agent wrapper ([#13185](https://github.com/Arize-ai/phoenix/issues/13185)) ([4b221b9](https://github.com/Arize-ai/phoenix/commit/4b221b93c683603fbb37bf50a29b7c2f003faec3))
+
+
+### Bug Fixes
+
+* **agent:** clarify PXI remote trace sharing consent ([#13219](https://github.com/Arize-ai/phoenix/issues/13219)) ([f5da114](https://github.com/Arize-ai/phoenix/commit/f5da1140dcee7cbe431eae5ba092e0673d50be50))
+* handle invalid GraphQL node ids ([#13210](https://github.com/Arize-ai/phoenix/issues/13210)) ([35c8f3d](https://github.com/Arize-ai/phoenix/commit/35c8f3d3fe167474960f463d4a990b29f043deb7))
+
+
+### Documentation
+
+* **skills:** weekly audit — 2026-05-13 ([#13214](https://github.com/Arize-ai/phoenix/issues/13214)) ([8349361](https://github.com/Arize-ai/phoenix/commit/8349361aa0379c32e8269b5d43c90c5e7adc464d))
+
 ## [15.8.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.7.0...arize-phoenix-v15.8.0) (2026-05-13)
 
 
