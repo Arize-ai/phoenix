@@ -31,13 +31,13 @@ from phoenix.config import get_env_phoenix_agents_assistant_project_name
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
-from phoenix.server.agents.agent_factory import ChatOutput, build_agent
+from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.capabilities import AgentCapabilities
 from phoenix.server.agents.context import (
     ChatContext,
     resolve_contexts,
 )
-from phoenix.server.agents.dependencies import ChatDependencies
+from phoenix.server.agents.dependencies import ChatDependencies, ChatOutput
 from phoenix.server.agents.exceptions import AgentError, SummarizationError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection

@@ -18,8 +18,6 @@ from phoenix.server.agents.pydantic_ai import (
 )
 from phoenix.server.agents.toolsets import build_toolset
 
-ChatOutput = str | DeferredToolRequests
-
 
 def _build_dynamic_instructions(ctx: RunContext[ChatDependencies]) -> str | None:
     """Render request-specific PXI instructions from the run's dependencies."""
@@ -47,7 +45,7 @@ def build_agent(
     model: Model,
     *,
     tracer_provider: TracerProvider | None = None,
-) -> OpenInferenceAgentWrapper[ChatDependencies, ChatOutput]:
+) -> OpenInferenceAgentWrapper:
     provider = tracer_provider or NoOpTracerProvider()
 
     def _build_toolset(

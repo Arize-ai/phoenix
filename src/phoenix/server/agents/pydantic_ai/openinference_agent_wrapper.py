@@ -38,11 +38,9 @@ from pydantic_ai.messages import (
     UserContent,
     UserPromptPart,
 )
-from pydantic_ai.output import OutputDataT
 from pydantic_ai.run import AgentRun
-from pydantic_ai.tools import AgentDepsT
 
-from phoenix.server.agents.dependencies import ChatDependencies
+from phoenix.server.agents.dependencies import ChatDependencies, ChatOutput
 from phoenix.server.agents.toolsets.external.tools import get_external_tool_definition
 
 ToolCallId: TypeAlias = str
@@ -54,7 +52,7 @@ _MODEL_MESSAGE_ADAPTER: pydantic.TypeAdapter[ModelMessage] = pydantic.TypeAdapte
 
 
 @dataclass(init=False)
-class OpenInferenceAgentWrapper(WrapperAgent[AgentDepsT, OutputDataT]):
+class OpenInferenceAgentWrapper(WrapperAgent[ChatDependencies, ChatOutput]):
     """Pydantic-ai ``Agent`` wrapper that emits a single OpenInference ``AGENT`` span per turn.
 
     Overrides ``iter`` only — every other agent run entry point (``run``,
@@ -67,7 +65,7 @@ class OpenInferenceAgentWrapper(WrapperAgent[AgentDepsT, OutputDataT]):
 
     def __init__(
         self,
-        wrapped: AbstractAgent[AgentDepsT, OutputDataT],
+        wrapped: AbstractAgent[ChatDependencies, ChatOutput],
         *,
         tracer_provider: TracerProvider,
     ) -> None:
@@ -84,7 +82,7 @@ class OpenInferenceAgentWrapper(WrapperAgent[AgentDepsT, OutputDataT]):
         *,
         message_history: Sequence[ModelMessage] | None = None,
         **kwargs: Any,
-    ) -> AsyncIterator[AgentRun[AgentDepsT, Any]]:
+    ) -> AsyncIterator[AgentRun[ChatDependencies, Any]]:
         with self._span(
             user_prompt=user_prompt,
             message_history=message_history,
@@ -175,7 +173,7 @@ class OpenInferenceAgentWrapper(WrapperAgent[AgentDepsT, OutputDataT]):
         user_prompt: str | Sequence[UserContent] | None,
         message_history: Sequence[ModelMessage] | None,
         kwargs: dict[str, Any],
-    ) -> Iterator[Callable[[AgentRun[ChatDependencies, Any]], None]]:
+    ) -> Iterator[Callable[[AgentRun[ChatDependencies, ChatOutput]], None]]:
         attributes: dict[str, AttributeValue] = {**get_span_kind_attributes("agent")}
         full_kwargs: dict[str, Any] = {"message_history": message_history, **kwargs}
         input_message = _get_last_input_message(user_prompt, full_kwargs)
@@ -190,7 +188,7 @@ class OpenInferenceAgentWrapper(WrapperAgent[AgentDepsT, OutputDataT]):
             attributes=attributes,
         ) as span:
 
-            def set_result(agent_run: AgentRun[ChatDependencies, Any]) -> None:
+            def set_result(agent_run: AgentRun[ChatDependencies, ChatOutput]) -> None:
                 response = _last_model_response(agent_run.new_messages())
                 if response is not None:
                     span.set_attributes(_message_io_attributes(response, role="output"))
