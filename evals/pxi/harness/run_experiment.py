@@ -462,6 +462,10 @@ async def _run_async(config: ExperimentConfig) -> int:
                 ),
                 uploaded_splits,
             )
+            experiment_dataset = await client.datasets.get_dataset(
+                dataset=phoenix_dataset,
+                splits=list(config.splits),
+            )
             name = _experiment_name(dataset, config)
             metadata = {
                 "git_sha": _git_value("rev-parse", "HEAD"),
@@ -475,12 +479,11 @@ async def _run_async(config: ExperimentConfig) -> int:
             # relay dataset example ID with the stable YAML example ID expected
             # by the client-side evaluator lookup.
             experiment = await client.experiments.run_experiment(
-                dataset=phoenix_dataset,
+                dataset=experiment_dataset,
                 task=make_task(docs_mcp_server=docs_mcp_server),
                 experiment_name=name,
                 experiment_description=dataset.description,
                 experiment_metadata=metadata,
-                splits=list(config.splits),
                 print_summary=True,
                 concurrency=3,
                 timeout=180,
