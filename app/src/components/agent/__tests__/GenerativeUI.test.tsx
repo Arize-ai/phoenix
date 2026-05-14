@@ -123,4 +123,38 @@ describe("GenerativeUI", () => {
       "Generated UI was requested, but no renderable spec was found in the message parts."
     );
   });
+
+  it("keeps legend swatch colors aligned with labeled line series indices", () => {
+    renderGeneratedUI([
+      {
+        type: LEGACY_JSON_RENDER_DATA_PART_TYPE,
+        data: {
+          root: "chart",
+          elements: {
+            chart: {
+              type: "LineChart",
+              props: {
+                title: "Trend",
+                lines: [
+                  { data: [1, 2, 3] },
+                  { label: "Revenue", data: [4, 5, 6] },
+                ],
+                xLabels: ["Mon", "Tue", "Wed"],
+              },
+              children: [],
+            },
+          },
+        },
+      },
+    ]);
+
+    const revenueLabel = Array.from(container.querySelectorAll("span")).find(
+      (span) => span.textContent === "Revenue"
+    );
+    expect(revenueLabel).toBeTruthy();
+    expect(
+      (revenueLabel?.previousElementSibling as HTMLDivElement | null)?.style
+        .background
+    ).toBe("var(--global-color-gray-600)");
+  });
 });

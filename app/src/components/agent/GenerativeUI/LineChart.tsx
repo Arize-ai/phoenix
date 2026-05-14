@@ -170,8 +170,9 @@ export function LineChart({
       {hasLegend && (
         <div css={legendCSS}>
           {lines
-            .filter((line) => line.label)
-            .map((line, index) => {
+            .map((line, index) => ({ line, index }))
+            .filter(({ line }) => line.label)
+            .map(({ line, index }) => {
               const colorKey =
                 GRAYSCALE_CATEGORICAL_COLORS[
                   index % GRAYSCALE_CATEGORICAL_COLORS.length
