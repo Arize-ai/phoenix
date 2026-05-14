@@ -265,7 +265,10 @@ async function addTool({
   value: unknown;
   expectedTitle: string;
 }): Promise<void> {
+  const toolCards = page.getByRole("button", { name: /^tool / });
+  const previousCount = await toolCards.count();
   await page.getByRole("button", { name: "add tool" }).click();
+  await expect(toolCards).toHaveCount(previousCount + 1);
   const toolEditors = page
     .locator(".cm-content")
     .filter({ hasText: /new_function_\d+/ });

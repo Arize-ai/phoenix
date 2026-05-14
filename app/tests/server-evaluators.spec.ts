@@ -229,16 +229,15 @@ test.describe.serial("Server Evaluators", () => {
     await page.getByRole("tab", { name: /Evaluators/i }).click();
     await page.waitForURL("**/evaluators");
 
-    // Find the row containing our code evaluator and click its action menu
     const evaluatorRow = page.getByRole("row").filter({
       has: page.getByRole("cell", {
         name: prebuiltCodeEvaluatorName,
         exact: true,
       }),
     });
-
-    // Click the action menu button (three dots) in the row
-    await evaluatorRow.getByRole("button").last().click();
+    await evaluatorRow
+      .getByRole("button", { name: "Evaluator actions" })
+      .click();
 
     // Click "Edit" from the menu
     await page.getByRole("menuitem", { name: "Edit" }).click();
