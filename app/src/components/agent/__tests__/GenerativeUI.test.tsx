@@ -40,11 +40,14 @@ describe("GenerativeUI", () => {
       {
         type: LEGACY_JSON_RENDER_DATA_PART_TYPE,
         data: {
-          root: "title",
+          root: "chart",
           elements: {
-            title: {
-              type: "Title",
-              props: { text: "Trace Summary" },
+            chart: {
+              type: "BarChart",
+              props: {
+                title: "Trace Summary",
+                data: [{ label: "Total spans", value: 42 }],
+              },
               children: [],
             },
           },

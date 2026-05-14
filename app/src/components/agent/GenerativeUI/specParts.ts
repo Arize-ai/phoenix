@@ -97,7 +97,7 @@ function getState(parts: DataPart[]): Record<string, unknown> {
 }
 
 function isRenderGeneratedUIToolPart(part: DataPart): boolean {
-  if ((part as { state?: unknown }).state === "output-error") {
+  if ((part as { state?: unknown }).state !== "output-available") {
     return false;
   }
   if (part.type === `tool-${GENERATIVE_UI_TOOL_NAME}`) {

@@ -34,7 +34,7 @@ const toolDescription = [
   "`root` is the id of the first element to render. Each key in `elements` is an element id. `children` contains element ids from the same `elements` object.",
   "Every element `type` must come from the component list below, and every element must include `type`, `props`, and `children`.",
   "Do not provide partial updates, JSONL patches, markdown, or prose inside `spec`; provide the full render tree in one object.",
-  "Prefer ChartCard as the root for generated analytical UI.",
+  "Use one chart component as the root for each generated UI call. If you need multiple charts, call this tool multiple times.",
   "",
   componentReference,
   "",

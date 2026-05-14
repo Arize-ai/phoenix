@@ -1,33 +1,49 @@
 import { css } from "@emotion/react";
 
-import { Text } from "@phoenix/components/core/content";
-
 import { ChartFrame } from "./ChartFrame";
+import { chartColors } from "./colors";
 import type { ChartDatum } from "./types";
 
 const barsCSS = css`
-  display: grid;
-  gap: var(--global-dimension-size-100);
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-50);
 `;
 
 const barRowCSS = css`
-  display: grid;
-  grid-template-columns: minmax(72px, 1fr) 3fr auto;
-  gap: var(--global-dimension-size-100);
+  display: flex;
+  gap: var(--global-dimension-size-150);
   align-items: center;
 `;
 
+const barLabelCSS = css`
+  width: 100px;
+  flex-shrink: 0;
+  text-align: right;
+  color: var(--global-text-color-500);
+  font-size: var(--global-dimension-font-size-75);
+`;
+
 const barTrackCSS = css`
-  height: 10px;
+  flex: 1;
+  height: 6px;
   border-radius: 999px;
-  background: var(--global-color-gray-300);
+  background: var(--global-color-gray-100);
   overflow: hidden;
 `;
 
 const barFillCSS = css`
   height: 100%;
   border-radius: inherit;
-  background: var(--global-color-primary);
+  background: ${chartColors[0]};
+`;
+
+const barValueCSS = css`
+  width: 40px;
+  flex-shrink: 0;
+  color: var(--global-text-color-500);
+  font-family: var(--ac-global-font-mono-family);
+  font-size: var(--global-dimension-font-size-75);
 `;
 
 export function BarChart({
@@ -46,7 +62,7 @@ export function BarChart({
 
 export function BarSeries({
   data,
-  color = "var(--global-color-primary)",
+  color = chartColors[0],
 }: {
   data: ChartDatum[];
   color?: string;
@@ -59,15 +75,11 @@ export function BarSeries({
         const width = `${Math.max(2, (Math.abs(datum.value) / maxValue) * 100)}%`;
         return (
           <div css={barRowCSS} key={datum.label}>
-            <Text size="XS" color="text-700">
-              {datum.label}
-            </Text>
+            <span css={barLabelCSS}>{datum.label}</span>
             <div css={barTrackCSS}>
               <div css={barFillCSS} style={{ background: color, width }} />
             </div>
-            <Text size="XS" fontFamily="mono">
-              {datum.value}
-            </Text>
+            <span css={barValueCSS}>{datum.value}</span>
           </div>
         );
       })}

@@ -22,6 +22,7 @@ export { isGenerativeUIPart };
 
 const generatedUICSS = css`
   margin-top: var(--global-dimension-size-200);
+  margin-bottom: var(--global-dimension-size-200);
 `;
 
 export function GenerativeUI({ parts }: { parts: DataPart[] }) {
