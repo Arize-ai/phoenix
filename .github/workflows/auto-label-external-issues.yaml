@@ -34,21 +34,28 @@ jobs:
               return;
             }
 
-            // Treat MEMBER / OWNER / COLLABORATOR as internal. Everything
-            // else (CONTRIBUTOR, FIRST_TIME_CONTRIBUTOR, FIRST_TIMER, NONE)
-            // is external and gets routed to triage.
-            const internal = ["MEMBER", "OWNER", "COLLABORATOR"];
-            const association = payload.author_association;
-            if (internal.includes(association)) {
-              core.info(
-                `Skipping internal contributor (author_association=${association})`
-              );
+            // The webhook's `author_association` is unreliable: it returns
+            // CONTRIBUTOR for org members whose membership is private and who
+            // aren't direct repo collaborators. Check collaborator status
+            // directly via the API — 204 means internal, 404 means external.
+            const username = payload.user.login;
+            let isCollaborator = false;
+            try {
+              await github.rest.repos.checkCollaborator({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                username,
+              });
+              isCollaborator = true;
+            } catch (err) {
+              if (err.status !== 404) throw err;
+            }
+            if (isCollaborator) {
+              core.info(`Skipping internal collaborator: ${username}`);
               return;
             }
 
-            core.info(
-              `External contributor (author_association=${association}); applying triage label`
-            );
+            core.info(`External contributor (${username}); applying triage label`);
 
             const label = "triage";
             await github.rest.issues.addLabels({
