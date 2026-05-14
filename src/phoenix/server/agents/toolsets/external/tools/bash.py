@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic_ai.tools import ToolDefinition
+from phoenix.server.agents.prompts import BASH_TOOL_SYSTEM_PROMPT
+from phoenix.server.agents.toolsets.external.external_tool_definitions import (
+    StaticExternalToolDefinition,
+)
 
 BASH_TOOL_NAME = "bash"
 
@@ -33,7 +36,7 @@ _BASH_TOOL_PARAMETERS: dict[str, Any] = {
     "additionalProperties": False,
 }
 
-BASH_TOOL_DEFINITION = ToolDefinition(
+BASH_TOOL_DEFINITION = StaticExternalToolDefinition(
     name=BASH_TOOL_NAME,
     description=(
         "Run a shell command in the browser virtual filesystem. "
@@ -41,4 +44,5 @@ BASH_TOOL_DEFINITION = ToolDefinition(
     ),
     parameters_json_schema=_BASH_TOOL_PARAMETERS,
     kind="external",
+    instructions=BASH_TOOL_SYSTEM_PROMPT,
 )

@@ -9,7 +9,7 @@ from phoenix.server.agents.context import (
     insert_context_user_message,
 )
 from phoenix.server.agents.dependencies import ChatDependencies
-from phoenix.server.agents.prompts import build_static_agent_system_prompt
+from phoenix.server.agents.prompts import AGENT_STATIC_SYSTEM_PROMPT
 from phoenix.server.agents.pydantic_ai import (
     OpenInferenceAgentWrapper,
     OpenInferenceToolsetWrapper,
@@ -46,14 +46,14 @@ def build_agent(
     def _build_toolset(
         ctx: RunContext[ChatDependencies],
     ) -> OpenInferenceToolsetWrapper[ChatDependencies]:
-        return build_toolset(ctx.deps, tracer_provider=provider)
+        return build_toolset(ctx, tracer_provider=provider)
 
     agent = Agent(
         model,
         name="PXIAgent",
         deps_type=ChatDependencies,
         output_type=[str, DeferredToolRequests],
-        instructions=[build_static_agent_system_prompt],
+        instructions=[AGENT_STATIC_SYSTEM_PROMPT],
         toolsets=[_build_toolset],
         history_processors=[_inject_ui_context],
     )

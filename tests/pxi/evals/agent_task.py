@@ -26,7 +26,7 @@ from phoenix.server.agents.model_factory import (
 from phoenix.server.agents.model_factory import (
     azure_endpoint_to_base_url,
 )
-from phoenix.server.agents.toolsets.docs_mcp import build_docs_mcp_toolset
+from phoenix.server.agents.toolsets.docs_mcp import MintlifyDocsMCPToolset
 
 DEFAULT_ASSISTANT_PROVIDER = "OPENAI"
 DEFAULT_ASSISTANT_MODEL = "gpt-5.4"
@@ -140,7 +140,7 @@ def build_shared_docs_mcp_toolset() -> MCPServerStreamableHTTP | None:
     """
     if not should_build_docs_mcp_toolset():
         return None
-    return build_docs_mcp_toolset()
+    return MintlifyDocsMCPToolset()
 
 
 def _build_dependencies(

@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic_ai.tools import ToolDefinition
+from pydantic_ai import RunContext
+
+from phoenix.server.agents.dependencies import ChatDependencies
+from phoenix.server.agents.prompts import SET_SPANS_FILTER_TOOL_SYSTEM_PROMPT
+from phoenix.server.agents.toolsets.external.external_tool_definitions import (
+    DynamicExternalToolDefinition,
+)
 
 SET_SPANS_FILTER_TOOL_NAME = "set_spans_filter"
 
@@ -91,9 +97,17 @@ _SET_SPANS_FILTER_TOOL_PARAMETERS: dict[str, Any] = {
     "additionalProperties": False,
 }
 
-SET_SPANS_FILTER_TOOL_DEFINITION = ToolDefinition(
+
+SET_SPANS_FILTER_TOOL_DEFINITION = DynamicExternalToolDefinition(
     name=SET_SPANS_FILTER_TOOL_NAME,
     description=_SET_SPANS_FILTER_TOOL_DESCRIPTION,
     parameters_json_schema=_SET_SPANS_FILTER_TOOL_PARAMETERS,
     kind="external",
+    instructions=SET_SPANS_FILTER_TOOL_SYSTEM_PROMPT,
 )
+
+
+@SET_SPANS_FILTER_TOOL_DEFINITION.include
+def _include(ctx: RunContext[ChatDependencies]) -> bool:
+    project = ctx.deps.contexts.project
+    return project is not None and project.span_filter is not None

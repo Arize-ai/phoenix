@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic_ai.tools import ToolDefinition
+from phoenix.server.agents.prompts import SET_TIME_RANGE_TOOL_SYSTEM_PROMPT
+from phoenix.server.agents.toolsets.external.external_tool_definitions import (
+    StaticExternalToolDefinition,
+)
 
 SET_TIME_RANGE_TOOL_NAME = "set_time_range"
 
@@ -41,7 +44,7 @@ _SET_TIME_RANGE_PARAMETERS: dict[str, Any] = {
     "additionalProperties": False,
 }
 
-SET_TIME_RANGE_TOOL_DEFINITION = ToolDefinition(
+SET_TIME_RANGE_TOOL_DEFINITION = StaticExternalToolDefinition(
     name=SET_TIME_RANGE_TOOL_NAME,
     description=(
         "Set the Phoenix app time range selector. Use preset `timeRangeKey` values for "
@@ -52,4 +55,5 @@ SET_TIME_RANGE_TOOL_DEFINITION = ToolDefinition(
     ),
     parameters_json_schema=_SET_TIME_RANGE_PARAMETERS,
     kind="external",
+    instructions=SET_TIME_RANGE_TOOL_SYSTEM_PROMPT,
 )

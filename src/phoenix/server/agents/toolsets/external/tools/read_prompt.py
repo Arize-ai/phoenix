@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic_ai.tools import ToolDefinition
+from pydantic_ai import RunContext
+
+from phoenix.server.agents.dependencies import ChatDependencies
+from phoenix.server.agents.prompts import READ_PROMPT_INSTANCE_TOOL_SYSTEM_PROMPT
+from phoenix.server.agents.toolsets.external.external_tool_definitions import (
+    DynamicExternalToolDefinition,
+)
 
 READ_PROMPT_TOOL_NAME = "read_prompt_instance"
 
@@ -30,9 +36,16 @@ _READ_PROMPT_TOOL_PARAMETERS: dict[str, Any] = {
     "additionalProperties": False,
 }
 
-READ_PROMPT_TOOL_DEFINITION = ToolDefinition(
+
+READ_PROMPT_TOOL_DEFINITION = DynamicExternalToolDefinition(
     name=READ_PROMPT_TOOL_NAME,
     description=_READ_PROMPT_TOOL_DESCRIPTION,
     parameters_json_schema=_READ_PROMPT_TOOL_PARAMETERS,
     kind="external",
+    instructions=READ_PROMPT_INSTANCE_TOOL_SYSTEM_PROMPT,
 )
+
+
+@READ_PROMPT_TOOL_DEFINITION.include
+def _include(ctx: RunContext[ChatDependencies]) -> bool:
+    return ctx.deps.contexts.playground is not None

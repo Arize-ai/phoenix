@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic_ai.tools import ToolDefinition
+from pydantic_ai import RunContext
+
+from phoenix.server.agents.dependencies import ChatDependencies
+from phoenix.server.agents.prompts import CLONE_PROMPT_INSTANCE_TOOL_SYSTEM_PROMPT
+from phoenix.server.agents.toolsets.external.external_tool_definitions import (
+    DynamicExternalToolDefinition,
+)
 
 CLONE_PROMPT_INSTANCE_TOOL_NAME = "clone_prompt_instance"
 
@@ -32,9 +38,16 @@ _CLONE_PROMPT_INSTANCE_TOOL_PARAMETERS: dict[str, Any] = {
     "additionalProperties": False,
 }
 
-CLONE_PROMPT_INSTANCE_TOOL_DEFINITION = ToolDefinition(
+
+CLONE_PROMPT_INSTANCE_TOOL_DEFINITION = DynamicExternalToolDefinition(
     name=CLONE_PROMPT_INSTANCE_TOOL_NAME,
     description=_CLONE_PROMPT_INSTANCE_TOOL_DESCRIPTION,
     parameters_json_schema=_CLONE_PROMPT_INSTANCE_TOOL_PARAMETERS,
     kind="external",
+    instructions=CLONE_PROMPT_INSTANCE_TOOL_SYSTEM_PROMPT,
 )
+
+
+@CLONE_PROMPT_INSTANCE_TOOL_DEFINITION.include
+def _include(ctx: RunContext[ChatDependencies]) -> bool:
+    return ctx.deps.contexts.playground is not None

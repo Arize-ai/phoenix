@@ -81,7 +81,7 @@ from phoenix.db.bulk_inserter import BulkInserter
 from phoenix.db.facilitator import Facilitator
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.types import AnnotationPrecursor
-from phoenix.server.agents.toolsets.docs_mcp import build_docs_mcp_toolset
+from phoenix.server.agents.toolsets.docs_mcp import MintlifyDocsMCPToolset
 from phoenix.server.api.auth_messages import AUTH_ERROR_MESSAGES, AuthErrorCode
 from phoenix.server.api.context import Context, DataLoaders
 from phoenix.server.api.dataloaders import (
@@ -1189,7 +1189,7 @@ def create_app(
     grpc_interceptors: list[ServerInterceptor] = []
     grpc_interceptors.append(DbDiskUsageInterceptor(db))
     docs_mcp_toolset = (
-        build_docs_mcp_toolset()
+        MintlifyDocsMCPToolset()
         if get_env_dangerously_enable_agents() and get_env_allow_external_resources()
         else None
     )

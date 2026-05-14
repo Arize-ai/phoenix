@@ -2,10 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pydantic_ai import RunContext
-
-from phoenix.server.agents.dependencies import ChatDependencies
-
 _PROMPTS_DIR = Path(__file__).parent
 
 
@@ -17,14 +13,9 @@ AGENT_STATIC_SYSTEM_PROMPT = _read("SYSTEM_PROMPT.xml")
 DOCS_TOOL_SYSTEM_PROMPT = _read("DOCS_TOOL.xml")
 BASH_TOOL_SYSTEM_PROMPT = _read("BASH_TOOL.xml")
 ASK_USER_TOOL_SYSTEM_PROMPT = _read("ASK_USER_TOOL.xml")
+SET_TIME_RANGE_TOOL_SYSTEM_PROMPT = _read("SET_TIME_RANGE_TOOL.xml")
+SET_SPANS_FILTER_TOOL_SYSTEM_PROMPT = _read("SET_SPANS_FILTER_TOOL.xml")
+READ_PROMPT_INSTANCE_TOOL_SYSTEM_PROMPT = _read("READ_PROMPT_INSTANCE_TOOL.xml")
+CLONE_PROMPT_INSTANCE_TOOL_SYSTEM_PROMPT = _read("CLONE_PROMPT_INSTANCE_TOOL.xml")
+EDIT_PROMPT_INSTANCE_TOOL_SYSTEM_PROMPT = _read("EDIT_PROMPT_INSTANCE_TOOL.xml")
 SUMMARIZATION_SYSTEM_PROMPT = _read("SUMMARIZATION_PROMPT.xml")
-
-
-def build_static_agent_system_prompt(ctx: RunContext[ChatDependencies]) -> str:
-    sections: list[str] = [
-        AGENT_STATIC_SYSTEM_PROMPT,
-        DOCS_TOOL_SYSTEM_PROMPT,
-        BASH_TOOL_SYSTEM_PROMPT,
-        ASK_USER_TOOL_SYSTEM_PROMPT,
-    ]
-    return "\n\n".join(sections)
