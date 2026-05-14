@@ -241,7 +241,10 @@ const restingHoverWipeCSS = css`
     mask-size: 200% 200%;
     -webkit-mask-position: 200% center;
     mask-position: 200% center;
-    transition: opacity 160ms ease-out;
+    transition:
+      opacity 240ms ease-out,
+      -webkit-mask-position 0ms linear 240ms,
+      mask-position 0ms linear 240ms;
   }
 
   .agent-chat-widget__hover-shimmer::before {
@@ -250,17 +253,25 @@ const restingHoverWipeCSS = css`
     inset: 28px;
     border-radius: inherit;
     box-shadow: var(--agent-chat-widget-glow-outer-rest);
-    opacity: 0.95;
+    opacity: 0;
+    transition:
+      opacity 240ms ease-out,
+      box-shadow 240ms ease-out;
   }
 
   &:hover .agent-chat-widget__hover-shimmer {
     opacity: 1;
-    animation: ${thinkingBorderWipe} 900ms cubic-bezier(0.22, 0.8, 0.24, 1)
-      1 both;
+    -webkit-mask-position: 0% center;
+    mask-position: 0% center;
+    transition:
+      opacity 160ms ease-out,
+      -webkit-mask-position 900ms cubic-bezier(0.22, 0.8, 0.24, 1),
+      mask-position 900ms cubic-bezier(0.22, 0.8, 0.24, 1);
   }
 
   &:hover .agent-chat-widget__hover-shimmer::before {
-    animation: ${ringBreathe} 2400ms ease-in-out infinite;
+    opacity: 0.95;
+    animation: ${ringBreathe} 2400ms ease-in-out 1 both;
   }
 
   &:hover .agent-chat-widget__content {
