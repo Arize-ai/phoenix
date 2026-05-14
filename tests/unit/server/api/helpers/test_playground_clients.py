@@ -31,6 +31,7 @@ from phoenix.db.types.prompts import (
     PromptToolChoiceZeroOrMore,
     PromptToolFunction,
     PromptToolFunctionDefinition,
+    PromptToolRaw,
     PromptTools,
 )
 from phoenix.server.api.exceptions import BadRequest
@@ -501,7 +502,7 @@ class TestAnthropicStreamingClient:
             ],
         )
 
-        params, _ = client._anthropic_message_params(
+        params, _, extra_headers = client._anthropic_message_params(
             messages=[
                 create_playground_message(
                     ChatCompletionMessageRole.USER,
@@ -533,6 +534,63 @@ class TestAnthropicStreamingClient:
                 },
             }
         ]
+        assert extra_headers is None
+
+    def test_raw_computer_tools_add_anthropic_beta_header(self) -> None:
+        @asynccontextmanager
+        async def create_client() -> AsyncIterator[Any]:
+            yield None
+
+        client: Any = AnthropicStreamingClient(
+            client_factory=LLMClientFactory(create_client, ("anthropic", "test")),
+            model_name="claude-3-5-sonnet-latest",
+            provider="anthropic",
+        )
+        tools = PromptTools(
+            type="tools",
+            tools=[
+                PromptToolRaw(
+                    type="raw",
+                    raw={
+                        "type": "computer_20250124",
+                        "name": "computer",
+                        "display_width_px": 1280,
+                        "display_height_px": 800,
+                    },
+                ),
+                PromptToolRaw(
+                    type="raw",
+                    raw={
+                        "type": "computer_20251124",
+                        "name": "computer",
+                        "display_width_px": 1280,
+                        "display_height_px": 800,
+                    },
+                ),
+            ],
+        )
+
+        params, _, extra_headers = client._anthropic_message_params(
+            messages=[
+                create_playground_message(
+                    ChatCompletionMessageRole.USER,
+                    "Open the browser.",
+                )
+            ],
+            tools=tools,
+            response_format=None,
+            invocation_parameters=PromptAnthropicInvocationParameters(
+                type="anthropic",
+                anthropic=PromptAnthropicInvocationParametersContent(
+                    max_tokens=1024,
+                ),
+            ),
+        )
+
+        assert params["tools"] == [tool.raw for tool in tools.tools if tool.type == "raw"]
+        assert extra_headers == {
+            "anthropic-beta": "computer-use-2025-01-24,computer-use-2025-11-24"
+        }
 
 
 # mime types
