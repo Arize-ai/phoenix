@@ -58,6 +58,10 @@ fi
 # Reject empty stdin early — codex exec with no prompt is a no-op and the
 # failure mode is opaque.
 PROMPT_FILE=$(mktemp -t codex_annotate.XXXXXX)
+# Initialize OUTPUT_FILE before installing the trap so the EXIT handler is
+# safe to fire under `set -u` even if we abort before the mktemp below
+# (e.g., disk-full cat failure or the empty-stdin check below).
+OUTPUT_FILE=""
 trap 'rm -f "$PROMPT_FILE" "$OUTPUT_FILE"' EXIT
 cat > "$PROMPT_FILE"
 if [[ ! -s "$PROMPT_FILE" ]]; then
