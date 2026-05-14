@@ -259,7 +259,7 @@ def test_daytona_build_backend_wires_packages_to_backend() -> None:
     packages = ["requests", "numpy"]
     backend = adapter.build_backend(
         {
-            "DAYTONA_API_KEY": "k",
+            "PHOENIX_SANDBOX_DAYTONA_API_KEY": "k",
             "dependencies": {"packages": packages},
         }
     )
