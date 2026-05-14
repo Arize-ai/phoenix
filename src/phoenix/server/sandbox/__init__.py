@@ -34,6 +34,7 @@ from typing import (
     Mapping,
     MutableMapping,
     Optional,
+    Sequence,
 )
 
 from phoenix.config import get_env_allowed_sandbox_providers
@@ -261,7 +262,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         hosting_type="hosted",
         dependency_hints=[
             "Install Phoenix with the `daytona` extra.",
-            "Provide `PHOENIX_SANDBOX_DAYTONA_API_KEY`.",
+            "Provide `DAYTONA_API_KEY`.",
         ],
         supports_env_vars=True,
         internet_access_capability="boolean",
@@ -283,8 +284,10 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         dependency_hints=[
             "Install Phoenix with the `vercel` extra.",
             (
-                "Set all of `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, and `VERCEL_TEAM_ID`. "
-                "See https://vercel.com/docs/vercel-sandbox/concepts/authentication"
+                "Set all of `VERCEL_TOKEN`, "
+                "`VERCEL_PROJECT_ID`, and "
+                "`VERCEL_TEAM_ID`. See "
+                "https://vercel.com/docs/vercel-sandbox/concepts/authentication"
             ),
         ],
         supports_env_vars=True,
@@ -299,8 +302,10 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         dependency_hints=[
             "Install Phoenix with the `vercel` extra.",
             (
-                "Set all of `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, and `VERCEL_TEAM_ID`. "
-                "See https://vercel.com/docs/vercel-sandbox/concepts/authentication"
+                "Set all of `VERCEL_TOKEN`, "
+                "`VERCEL_PROJECT_ID`, and "
+                "`VERCEL_TEAM_ID`. See "
+                "https://vercel.com/docs/vercel-sandbox/concepts/authentication"
             ),
         ],
         supports_env_vars=True,
@@ -325,7 +330,7 @@ SANDBOX_ADAPTER_METADATA: dict[str, AdapterMetadata] = {
         hosting_type="hosted",
         dependency_hints=[
             "Install Phoenix with the `modal` extra.",
-            "Provide `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` environment variables.",
+            ("Provide `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` environment variables."),
         ],
         supports_env_vars=True,
         internet_access_capability="boolean",
@@ -558,13 +563,20 @@ async def _resolve_user_env(
 async def _resolve_named_credentials(
     session: Optional[AsyncSession],
     decrypt: Optional[Callable[[bytes], bytes]],
-    keys: list[str],
+    keys: Sequence[str | ProviderCredentialSpec],
 ) -> dict[str, str]:
-    """Resolve arbitrary credential keys via DB secret lookup + env fallback."""
+    """Resolve credential specs via DB then process env."""
     if not keys:
         return {}
 
-    deduped_keys = list(dict.fromkeys(keys))
+    credential_specs = [
+        key
+        if isinstance(key, ProviderCredentialSpec)
+        else ProviderCredentialSpec(key=key, display_name=key)
+        for key in keys
+    ]
+    deduped_specs = list({spec.key: spec for spec in credential_specs}.values())
+    lookup_keys = [spec.key for spec in deduped_specs]
     db_secrets: dict[str, str] = {}
 
     if session is not None and decrypt is not None:
@@ -574,7 +586,7 @@ async def _resolve_named_credentials(
 
         rows = (
             await session.scalars(
-                sa.select(models.Secret).where(models.Secret.key.in_(deduped_keys))
+                sa.select(models.Secret).where(models.Secret.key.in_(lookup_keys))
             )
         ).all()
         for row in rows:
@@ -584,13 +596,13 @@ async def _resolve_named_credentials(
                 logger.warning(f"Failed to decrypt sandbox credential {row.key!r}", exc_info=True)
 
     result: dict[str, str] = {}
-    for key in deduped_keys:
-        if key in db_secrets:
-            result[key] = db_secrets[key]
-        else:
-            env_val = os.getenv(key)
-            if env_val:
-                result[key] = env_val
+    for spec in deduped_specs:
+        if spec.key in db_secrets:
+            result[spec.key] = db_secrets[spec.key]
+            continue
+        env_val = os.getenv(spec.key)
+        if env_val:
+            result[spec.key] = env_val
     return result
 
 
@@ -612,40 +624,6 @@ async def get_missing_sandbox_auth_detail(
     adapter = _SANDBOX_ADAPTERS.get(backend_type)
     if adapter is None:
         return None
-
-    if backend_type == "E2B":
-        resolved = await _resolve_named_credentials(session, decrypt, ["E2B_API_KEY"])
-        if "E2B_API_KEY" in resolved:
-            return None
-        return "Set `E2B_API_KEY`."
-
-    if backend_type == "DAYTONA_PYTHON":
-        resolved = await _resolve_named_credentials(
-            session, decrypt, ["PHOENIX_SANDBOX_DAYTONA_API_KEY"]
-        )
-        if "PHOENIX_SANDBOX_DAYTONA_API_KEY" in resolved:
-            return None
-        return "Set `PHOENIX_SANDBOX_DAYTONA_API_KEY`."
-
-    if backend_type in {"VERCEL_PYTHON", "VERCEL_TYPESCRIPT"}:
-        access_keys = [
-            "VERCEL_TOKEN",
-            "VERCEL_PROJECT_ID",
-            "VERCEL_TEAM_ID",
-        ]
-        resolved = await _resolve_named_credentials(session, decrypt, access_keys)
-        missing_access_keys = [key for key in access_keys if key not in resolved]
-        if not missing_access_keys:
-            return None
-        return f"Set {_format_required_keys(missing_access_keys)}."
-
-    if backend_type == "MODAL":
-        modal_keys = ["MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET"]
-        resolved = await _resolve_named_credentials(session, decrypt, modal_keys)
-        missing_modal_keys = [key for key in modal_keys if key not in resolved]
-        if not missing_modal_keys:
-            return None
-        return f"Set {_format_required_keys(missing_modal_keys)}."
 
     if not adapter.credential_specs:
         return None
@@ -671,7 +649,7 @@ async def _resolve_sandbox_credentials(
     return await _resolve_named_credentials(
         session=session,
         decrypt=decrypt,
-        keys=[spec.key for spec in credential_specs],
+        keys=credential_specs,
     )
 
 
@@ -762,11 +740,10 @@ async def get_or_create_backend(
 # _KNOWN_ADAPTER_CLASSES tracks every adapter class whose module imports
 # successfully — *regardless* of whether its SDK probe passes. The
 # reserved-credential-name set is derived from this list (not from
-# _SANDBOX_ADAPTERS), so adapter-declared credential keys (e.g.
-# VERCEL_TOKEN) remain reserved on installs that don't have
-# the optional SDK. Without this, a missing optional extra would silently
-# narrow the reserved set and let a user-supplied env_var or secret_ref
-# shadow a provider credential name.
+# _SANDBOX_ADAPTERS), so adapter-declared credential keys remain reserved on
+# installs that don't have the optional SDK. Without this, a missing optional
+# extra would silently narrow the reserved set and let a user-supplied
+# env_var or secret_ref shadow a provider credential name.
 # ---------------------------------------------------------------------------
 
 _KNOWN_ADAPTER_CLASSES: list[type[SandboxAdapter]] = []
@@ -857,12 +834,11 @@ def _build_reserved_credential_names() -> frozenset[str]:
 
     Walks ``_KNOWN_ADAPTER_CLASSES`` (every adapter whose module imports),
     NOT ``_SANDBOX_ADAPTERS`` (only adapters whose SDK probe passed). The
-    distinction matters: an installation without the ``vercel`` extra has
-    ``VercelPythonAdapter`` in _KNOWN_ADAPTER_CLASSES but not in
-    _SANDBOX_ADAPTERS, and ``VERCEL_TOKEN`` MUST remain
-    reserved regardless of whether the SDK is installed — otherwise a
-    user-supplied env_var or secret_ref on that name could shadow the
-    provider credential the moment the SDK is later installed.
+    distinction matters: an installation without an optional sandbox extra
+    still has its adapter class in _KNOWN_ADAPTER_CLASSES, so the adapter's
+    declared credential keys remain reserved regardless of whether the SDK is
+    installed — otherwise a user-supplied env_var or secret_ref on that name
+    could shadow the provider credential the moment the SDK is later installed.
     """
     names: set[str] = set()
     for adapter_cls in _KNOWN_ADAPTER_CLASSES:
@@ -874,7 +850,7 @@ def _build_reserved_credential_names() -> frozenset[str]:
 def is_reserved_credential_name(name: str) -> bool:
     """Return True if `name` collides with a reserved provider-credential key.
 
-    Comparison is case-insensitive: `VERCEL_TOKEN`, `Vercel_Token`, and
-    `vercel_token` are all reserved.
+    Comparison is case-insensitive: `VERCEL_TOKEN`,
+    `Vercel_Token`, and `vercel_token` are all reserved.
     """
     return name.lower() in _build_reserved_credential_names()

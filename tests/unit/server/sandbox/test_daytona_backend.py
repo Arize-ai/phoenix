@@ -268,19 +268,19 @@ class TestBuildBackendCredentialValidation:
     """``DaytonaPythonAdapter.build_backend`` must fail closed when api_key
     is missing, instead of letting the SDK fall back to ``DAYTONA_API_KEY``
     autodiscovery from process env (which differs from Phoenix's declared
-    ``PHOENIX_SANDBOX_DAYTONA_API_KEY`` and would bypass Phoenix's resolution).
+    ``DAYTONA_API_KEY`` and would bypass Phoenix's resolution).
     """
 
     def test_missing_api_key_raises_value_error(self) -> None:
         from phoenix.server.sandbox.daytona_backend import DaytonaPythonAdapter
 
         adapter = DaytonaPythonAdapter()
-        with pytest.raises(ValueError, match="PHOENIX_SANDBOX_DAYTONA_API_KEY"):
+        with pytest.raises(ValueError, match="DAYTONA_API_KEY"):
             adapter.build_backend({})
 
     def test_empty_api_key_raises_value_error(self) -> None:
         from phoenix.server.sandbox.daytona_backend import DaytonaPythonAdapter
 
         adapter = DaytonaPythonAdapter()
-        with pytest.raises(ValueError, match="PHOENIX_SANDBOX_DAYTONA_API_KEY"):
-            adapter.build_backend({"PHOENIX_SANDBOX_DAYTONA_API_KEY": ""})
+        with pytest.raises(ValueError, match="DAYTONA_API_KEY"):
+            adapter.build_backend({"DAYTONA_API_KEY": ""})

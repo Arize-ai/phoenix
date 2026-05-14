@@ -178,7 +178,7 @@ class DaytonaPythonAdapter(SandboxAdapter):
     config_model = DaytonaPythonConfig
     credential_specs = [
         ProviderCredentialSpec(
-            key="PHOENIX_SANDBOX_DAYTONA_API_KEY",
+            key="DAYTONA_API_KEY",
             display_name="Daytona API Key",
             description="API key for the Daytona sandbox service.",
         ),
@@ -195,15 +195,15 @@ class DaytonaPythonAdapter(SandboxAdapter):
         self._enforce_capabilities(config, user_env)
         # Fail-closed on missing credential. Passing an empty api_key would let
         # the Daytona SDK silently fall back to ``DAYTONA_API_KEY`` from the
-        # process env (daytona_sdk/_async/daytona.py:168). The SDK's autodiscovery
-        # name differs from Phoenix's declared name
-        # (``PHOENIX_SANDBOX_DAYTONA_API_KEY``) so that fallback would bypass
-        # Phoenix's credential resolution entirely.
-        api_key: str = config.get("PHOENIX_SANDBOX_DAYTONA_API_KEY") or ""
+        # process env (daytona_sdk/_async/daytona.py:168). Phoenix's resolver
+        # already consults that env var, so reaching this branch with an empty
+        # key means Phoenix decided "no credential available"; raise rather
+        # than let the SDK auto-discover and bypass that decision.
+        api_key: str = config.get("DAYTONA_API_KEY") or ""
         if not api_key:
             raise ValueError(
                 "Daytona sandbox authentication is not configured. Set "
-                "PHOENIX_SANDBOX_DAYTONA_API_KEY via setSandboxCredential or as "
+                "DAYTONA_API_KEY via setSandboxCredential or as "
                 "a process environment variable."
             )
         deps = config.get("dependencies") or {}

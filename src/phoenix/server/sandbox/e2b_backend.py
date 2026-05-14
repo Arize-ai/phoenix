@@ -30,6 +30,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+ENV_E2B_API_KEY = "E2B_API_KEY"
+
 
 class E2BSandboxBackend(SandboxBackend):
     """Sandbox backend executing code in E2B cloud sandboxes.
@@ -186,7 +188,7 @@ class E2BAdapter(SandboxAdapter):
     config_model = E2BConfig
     credential_specs = [
         ProviderCredentialSpec(
-            key="E2B_API_KEY",
+            key=ENV_E2B_API_KEY,
             display_name="E2B API Key",
             description="API key for the E2B sandbox service.",
         ),
@@ -205,13 +207,16 @@ class E2BAdapter(SandboxAdapter):
         self._enforce_capabilities(config, user_env)
         # Fail-closed on missing credential. Passing an empty api_key would let
         # the E2B SDK silently fall back to ``os.getenv("E2B_API_KEY")``
-        # (e2b.connection_config:94), running the sandbox with a process-env
-        # credential Phoenix never resolved or surfaced to the UI.
-        api_key: str = config.get("E2B_API_KEY") or ""
+        # (e2b.connection_config:94). Phoenix's resolver already consults that
+        # env var, so reaching this branch with an empty key means Phoenix
+        # decided "no credential available"; raise rather than let the SDK
+        # auto-discover and bypass that decision.
+        api_key: str = config.get(ENV_E2B_API_KEY) or ""
         if not api_key:
             raise ValueError(
-                "E2B sandbox authentication is not configured. Set E2B_API_KEY "
-                "via setSandboxCredential or as a process environment variable."
+                "E2B sandbox authentication is not configured. Set "
+                "E2B_API_KEY via setSandboxCredential or as a "
+                "process environment variable."
             )
         internet_access = config.get("internet_access")
         if internet_access is not None:
