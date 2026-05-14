@@ -27,10 +27,8 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 from pydantic_ai.models import ModelRequestParameters, StreamedResponse
-from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.models.wrapper import WrapperModel
-from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.settings import ModelSettings
 
 from phoenix.server.agents.pydantic_ai import (
@@ -42,14 +40,6 @@ from phoenix.server.agents.toolsets.external.tools import (
     BASH_TOOL_DEFINITION,
     SET_TIME_RANGE_TOOL_DEFINITION,
 )
-from tests.unit.vcr import CustomVCR
-
-
-@pytest.fixture
-def anthropic_api_key(monkeypatch: pytest.MonkeyPatch) -> str:
-    api_key = "sk-0123456789"
-    monkeypatch.setenv("ANTHROPIC_API_KEY", api_key)
-    return api_key
 
 
 @pytest.fixture
@@ -65,11 +55,8 @@ def tracer_provider(in_memory_span_exporter: InMemorySpanExporter) -> TracerProv
 
 
 @pytest.fixture
-def wrapped_model(
-    tracer_provider: TracerProvider,
-    anthropic_api_key: str,
-) -> OpenInferenceModelWrapper:
-    inner = AnthropicModel(MODEL_NAME, provider=AnthropicProvider())
+def wrapped_model(tracer_provider: TracerProvider) -> OpenInferenceModelWrapper:
+    inner = TestModel(custom_output_text=MODEL_OUTPUT_TEXT)
     return OpenInferenceModelWrapper(inner, tracer_provider=tracer_provider)
 
 
@@ -77,17 +64,13 @@ def wrapped_model(
 def wrapped_agent(
     wrapped_model: OpenInferenceModelWrapper,
     tracer_provider: TracerProvider,
-) -> OpenInferenceAgentWrapper[None, str]:
+) -> OpenInferenceAgentWrapper:
     inner: Agent[None, str] = Agent(
         wrapped_model,
         name="TestAgent",
         deps_type=type(None),
-        instructions=(
-            "Reply with exactly the user's prompt verbatim and nothing else, "
-            "no quotes, no extra punctuation."
-        ),
     )
-    return OpenInferenceAgentWrapper(inner, tracer_provider=tracer_provider)
+    return OpenInferenceAgentWrapper(inner, tracer_provider=tracer_provider)  # type: ignore[arg-type]
 
 
 @pytest.fixture
@@ -122,23 +105,23 @@ def raising_model() -> WrapperModel:
 def raising_agent(
     raising_model: WrapperModel,
     tracer_provider: TracerProvider,
-) -> OpenInferenceAgentWrapper[None, str]:
+) -> OpenInferenceAgentWrapper:
     """An OpenInferenceAgentWrapper whose underlying model always raises."""
     inner: Agent[None, str] = Agent(raising_model, deps_type=type(None))
-    return OpenInferenceAgentWrapper(inner, tracer_provider=tracer_provider)
+    return OpenInferenceAgentWrapper(inner, tracer_provider=tracer_provider)  # type: ignore[arg-type]
 
 
 @pytest.fixture
 def test_model_agent(
     tracer_provider: TracerProvider,
-) -> OpenInferenceAgentWrapper[None, str]:
+) -> OpenInferenceAgentWrapper:
     """An OpenInferenceAgentWrapper backed by TestModel — no network, no VCR.
 
     Used by tests that exercise behavior triggered by the inbound history
     (e.g. external tool span backfill) and don't care about model output.
     """
     inner: Agent[None, str] = Agent(TestModel(), deps_type=type(None))
-    return OpenInferenceAgentWrapper(inner, tracer_provider=tracer_provider)
+    return OpenInferenceAgentWrapper(inner, tracer_provider=tracer_provider)  # type: ignore[arg-type]
 
 
 def _get_agent_span(spans: tuple[ReadableSpan, ...]) -> ReadableSpan:
@@ -158,22 +141,20 @@ def _get_tool_spans(spans: tuple[ReadableSpan, ...]) -> list[ReadableSpan]:
 
 
 async def test_iter_emits_agent_span_for_text_response(
-    wrapped_agent: OpenInferenceAgentWrapper[None, str],
+    wrapped_agent: OpenInferenceAgentWrapper,
     in_memory_span_exporter: InMemorySpanExporter,
-    custom_vcr: CustomVCR,
 ) -> None:
     user_prompt = "The capital of France is Paris."
     model_settings = ModelSettings(temperature=0.0, max_tokens=32)
 
-    with custom_vcr.use_cassette():
-        async with wrapped_agent.iter(
-            user_prompt,
-            model_settings=model_settings,
-        ) as agent_run:
-            async for _ in agent_run:
-                pass
-        assert agent_run.result is not None
-        assert agent_run.result.output == user_prompt
+    async with wrapped_agent.iter(
+        user_prompt,
+        model_settings=model_settings,
+    ) as agent_run:
+        async for _ in agent_run:
+            pass
+    assert agent_run.result is not None
+    assert agent_run.result.output == MODEL_OUTPUT_TEXT
 
     spans = in_memory_span_exporter.get_finished_spans()
     agent_span = _get_agent_span(spans)
@@ -183,16 +164,18 @@ async def test_iter_emits_agent_span_for_text_response(
     attributes = dict(agent_span.attributes or {})
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == AGENT
 
-    input_value = attributes.pop(INPUT_VALUE)
-    assert isinstance(input_value, str)
-    parsed_input = json.loads(input_value)
-    assert set(parsed_input) == {"user_prompt", "model_settings"}
-    assert parsed_input["user_prompt"] == user_prompt
-    assert parsed_input["model_settings"] == dict(model_settings)
-    assert attributes.pop(INPUT_MIME_TYPE) == JSON
+    assert attributes.pop(INPUT_VALUE) == user_prompt
+    assert attributes.pop(INPUT_MIME_TYPE) == TEXT
 
-    assert attributes.pop(OUTPUT_VALUE) == user_prompt
+    assert attributes.pop(OUTPUT_VALUE) == MODEL_OUTPUT_TEXT
     assert attributes.pop(OUTPUT_MIME_TYPE) == TEXT
+
+    metadata_value = attributes.pop(METADATA)
+    assert isinstance(metadata_value, str)
+    metadata = json.loads(metadata_value)
+    assert metadata["input"]["user_prompt"] == user_prompt
+    assert metadata["input"]["model_settings"] == dict(model_settings)
+    assert metadata["output"] == MODEL_OUTPUT_TEXT
 
     assert not attributes
 
@@ -204,20 +187,18 @@ async def test_iter_emits_agent_span_for_text_response(
 
 
 async def test_run_emits_agent_span_for_text_response(
-    wrapped_agent: OpenInferenceAgentWrapper[None, str],
+    wrapped_agent: OpenInferenceAgentWrapper,
     in_memory_span_exporter: InMemorySpanExporter,
-    custom_vcr: CustomVCR,
 ) -> None:
     user_prompt = "The quick brown fox jumps over the lazy dog."
     model_settings = ModelSettings(temperature=0.0, max_tokens=32)
 
-    with custom_vcr.use_cassette():
-        result = await wrapped_agent.run(
-            user_prompt,
-            model_settings=model_settings,
-        )
+    result = await wrapped_agent.run(
+        user_prompt,
+        model_settings=model_settings,
+    )
 
-    assert result.output == user_prompt
+    assert result.output == MODEL_OUTPUT_TEXT
 
     spans = in_memory_span_exporter.get_finished_spans()
     agent_span = _get_agent_span(spans)
@@ -227,16 +208,18 @@ async def test_run_emits_agent_span_for_text_response(
     attributes = dict(agent_span.attributes or {})
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == AGENT
 
-    input_value = attributes.pop(INPUT_VALUE)
-    assert isinstance(input_value, str)
-    parsed_input = json.loads(input_value)
-    assert set(parsed_input) == {"user_prompt", "model_settings"}
-    assert parsed_input["user_prompt"] == user_prompt
-    assert parsed_input["model_settings"] == dict(model_settings)
-    assert attributes.pop(INPUT_MIME_TYPE) == JSON
+    assert attributes.pop(INPUT_VALUE) == user_prompt
+    assert attributes.pop(INPUT_MIME_TYPE) == TEXT
 
-    assert attributes.pop(OUTPUT_VALUE) == user_prompt
+    assert attributes.pop(OUTPUT_VALUE) == MODEL_OUTPUT_TEXT
     assert attributes.pop(OUTPUT_MIME_TYPE) == TEXT
+
+    metadata_value = attributes.pop(METADATA)
+    assert isinstance(metadata_value, str)
+    metadata = json.loads(metadata_value)
+    assert metadata["input"]["user_prompt"] == user_prompt
+    assert metadata["input"]["model_settings"] == dict(model_settings)
+    assert metadata["output"] == MODEL_OUTPUT_TEXT
 
     assert not attributes
 
@@ -248,25 +231,23 @@ async def test_run_emits_agent_span_for_text_response(
 
 
 async def test_run_stream_emits_agent_span(
-    wrapped_agent: OpenInferenceAgentWrapper[None, str],
+    wrapped_agent: OpenInferenceAgentWrapper,
     in_memory_span_exporter: InMemorySpanExporter,
-    custom_vcr: CustomVCR,
 ) -> None:
     user_prompt = "Streaming spans across multiple deltas."
     model_settings = ModelSettings(temperature=0.0, max_tokens=32)
 
-    with custom_vcr.use_cassette():
-        async with wrapped_agent.run_stream(
-            user_prompt,
-            model_settings=model_settings,
-        ) as stream:
-            chunks: list[str] = []
-            async for chunk in stream.stream_text(delta=True):
-                chunks.append(chunk)
-            final_output = await stream.get_output()
+    async with wrapped_agent.run_stream(
+        user_prompt,
+        model_settings=model_settings,
+    ) as stream:
+        chunks: list[str] = []
+        async for chunk in stream.stream_text(delta=True):
+            chunks.append(chunk)
+        final_output = await stream.get_output()
 
-    assert final_output == user_prompt
-    assert "".join(chunks) == user_prompt
+    assert final_output == MODEL_OUTPUT_TEXT
+    assert "".join(chunks) == MODEL_OUTPUT_TEXT
 
     spans = in_memory_span_exporter.get_finished_spans()
     agent_span = _get_agent_span(spans)
@@ -276,15 +257,18 @@ async def test_run_stream_emits_agent_span(
     attributes = dict(agent_span.attributes or {})
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == AGENT
 
-    input_value = attributes.pop(INPUT_VALUE)
-    assert isinstance(input_value, str)
-    parsed_input = json.loads(input_value)
-    assert parsed_input["user_prompt"] == user_prompt
-    assert parsed_input["model_settings"] == dict(model_settings)
-    assert attributes.pop(INPUT_MIME_TYPE) == JSON
+    assert attributes.pop(INPUT_VALUE) == user_prompt
+    assert attributes.pop(INPUT_MIME_TYPE) == TEXT
 
-    assert attributes.pop(OUTPUT_VALUE) == user_prompt
+    assert attributes.pop(OUTPUT_VALUE) == MODEL_OUTPUT_TEXT
     assert attributes.pop(OUTPUT_MIME_TYPE) == TEXT
+
+    metadata_value = attributes.pop(METADATA)
+    assert isinstance(metadata_value, str)
+    metadata = json.loads(metadata_value)
+    assert metadata["input"]["user_prompt"] == user_prompt
+    assert metadata["input"]["model_settings"] == dict(model_settings)
+    assert metadata["output"] == MODEL_OUTPUT_TEXT
 
     assert not attributes
 
@@ -296,7 +280,7 @@ async def test_run_stream_emits_agent_span(
 
 
 async def test_iter_records_exception_when_run_fails(
-    raising_agent: OpenInferenceAgentWrapper[None, str],
+    raising_agent: OpenInferenceAgentWrapper,
     in_memory_span_exporter: InMemorySpanExporter,
 ) -> None:
     with pytest.raises(RuntimeError, match="boom from raising model"):
@@ -322,17 +306,19 @@ async def test_iter_records_exception_when_run_fails(
     attributes = dict(agent_span.attributes or {})
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == AGENT
 
-    input_value = attributes.pop(INPUT_VALUE)
-    assert isinstance(input_value, str)
-    parsed_input = json.loads(input_value)
-    assert parsed_input == {"user_prompt": "anything"}
-    assert attributes.pop(INPUT_MIME_TYPE) == JSON
+    assert attributes.pop(INPUT_VALUE) == "anything"
+    assert attributes.pop(INPUT_MIME_TYPE) == TEXT
+
+    metadata_value = attributes.pop(METADATA)
+    assert isinstance(metadata_value, str)
+    metadata = json.loads(metadata_value)
+    assert metadata == {"input": {"user_prompt": "anything", "message_history": None}}
 
     assert not attributes
 
 
 async def test_backfills_tool_span_for_trailing_external_tool_return(
-    test_model_agent: OpenInferenceAgentWrapper[None, str],
+    test_model_agent: OpenInferenceAgentWrapper,
     in_memory_span_exporter: InMemorySpanExporter,
 ) -> None:
     tool_name = BASH_TOOL_DEFINITION.name
@@ -388,7 +374,7 @@ async def test_backfills_tool_span_for_trailing_external_tool_return(
 
 
 async def test_backfills_multiple_tool_spans_joined_by_tool_call_id(
-    test_model_agent: OpenInferenceAgentWrapper[None, str],
+    test_model_agent: OpenInferenceAgentWrapper,
     in_memory_span_exporter: InMemorySpanExporter,
 ) -> None:
     bash_tool = BASH_TOOL_DEFINITION.name
@@ -463,7 +449,7 @@ async def test_backfills_multiple_tool_spans_joined_by_tool_call_id(
 
 
 async def test_does_not_emit_tool_spans_for_history_ending_in_user_prompt(
-    test_model_agent: OpenInferenceAgentWrapper[None, str],
+    test_model_agent: OpenInferenceAgentWrapper,
     in_memory_span_exporter: InMemorySpanExporter,
 ) -> None:
     history: list[ModelMessage] = [
@@ -478,7 +464,7 @@ async def test_does_not_emit_tool_spans_for_history_ending_in_user_prompt(
 
 
 async def test_emits_tool_span_for_tool_return_in_mixed_trailing_request(
-    test_model_agent: OpenInferenceAgentWrapper[None, str],
+    test_model_agent: OpenInferenceAgentWrapper,
     in_memory_span_exporter: InMemorySpanExporter,
 ) -> None:
     """A trailing ``ModelRequest`` may carry a ``ToolReturnPart`` alongside a
@@ -529,7 +515,7 @@ async def test_emits_tool_span_for_tool_return_in_mixed_trailing_request(
 
 
 async def test_tool_span_args_come_from_prior_tool_call_part(
-    test_model_agent: OpenInferenceAgentWrapper[None, str],
+    test_model_agent: OpenInferenceAgentWrapper,
     in_memory_span_exporter: InMemorySpanExporter,
 ) -> None:
     """``ToolReturnPart`` has no ``args`` field; the span's ``input.value``
@@ -582,7 +568,7 @@ async def test_tool_span_args_come_from_prior_tool_call_part(
 
 
 async def test_backfilled_tool_span_omits_schema_and_description_for_unregistered_tool(
-    test_model_agent: OpenInferenceAgentWrapper[None, str],
+    test_model_agent: OpenInferenceAgentWrapper,
     in_memory_span_exporter: InMemorySpanExporter,
 ) -> None:
     """When the trailing tool return's name is not registered in the
@@ -620,7 +606,7 @@ async def test_backfilled_tool_span_omits_schema_and_description_for_unregistere
 
 
 async def test_failed_tool_return_records_exception_event(
-    test_model_agent: OpenInferenceAgentWrapper[None, str],
+    test_model_agent: OpenInferenceAgentWrapper,
     in_memory_span_exporter: InMemorySpanExporter,
 ) -> None:
     """A non-success outcome on a trailing ``ToolReturnPart`` sets ERROR
@@ -669,6 +655,7 @@ INPUT_VALUE = SpanAttributes.INPUT_VALUE
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
+METADATA = SpanAttributes.METADATA
 
 AGENT = OpenInferenceSpanKindValues.AGENT.value
 LLM = OpenInferenceSpanKindValues.LLM.value
@@ -681,4 +668,4 @@ TOOL_NAME = SpanAttributes.TOOL_NAME
 TOOL_PARAMETERS = SpanAttributes.TOOL_PARAMETERS
 TOOL_CALL_ID = ToolCallAttributes.TOOL_CALL_ID
 
-MODEL_NAME = "claude-haiku-4-5"
+MODEL_OUTPUT_TEXT = "Bonjour, le monde."

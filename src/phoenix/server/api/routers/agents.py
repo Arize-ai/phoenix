@@ -3,7 +3,7 @@ from collections.abc import AsyncIterator, Iterable
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from openinference.instrumentation import using_session
+from openinference.instrumentation import using_metadata, using_session
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
 from opentelemetry.context import Context
 from opentelemetry.sdk.trace import Span as SDKSpan
@@ -31,13 +31,13 @@ from phoenix.config import get_env_phoenix_agents_assistant_project_name
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
-from phoenix.server.agents.agent_factory import ChatOutput, build_agent
+from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.capabilities import AgentCapabilities
 from phoenix.server.agents.context import (
     ChatContext,
     resolve_contexts,
 )
-from phoenix.server.agents.dependencies import ChatDependencies
+from phoenix.server.agents.dependencies import ChatDependencies, ChatOutput
 from phoenix.server.agents.exceptions import AgentError, SummarizationError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
@@ -489,7 +489,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
 
         history = VercelAIAdapter.load_messages(body.messages)
         try:
-            with using_session(session_id=session_id):
+            with using_metadata({"session_id": session_id}):
                 result = await summarize_messages(messages=history, model=model)
         except SummarizationError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc

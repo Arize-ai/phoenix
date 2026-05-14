@@ -13,10 +13,10 @@ from phoenix.config import (
     get_env_allow_external_resources,
     get_env_dangerously_enable_agents,
 )
-from phoenix.server.agents.agent_factory import ChatOutput, build_agent
+from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.capabilities import AgentCapabilities
 from phoenix.server.agents.context import ProjectContext, ResolvedContexts
-from phoenix.server.agents.dependencies import ChatDependencies
+from phoenix.server.agents.dependencies import ChatDependencies, ChatOutput
 from phoenix.server.agents.model_factory import (
     _anthropic_cache_settings as anthropic_cache_settings,
 )
