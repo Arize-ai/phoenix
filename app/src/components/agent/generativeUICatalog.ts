@@ -146,15 +146,18 @@ export const generativeUICatalog = defineCatalog(schema, {
   actions: {},
 });
 
+export const GENERATIVE_UI_CATALOG_RULES = [
+  "Use one chart component as the root of each generated UI call.",
+  "Keep BarChart data arrays between 2 and 12 items.",
+  "Keep VerticalBarChart data arrays between 2 and 12 items. Each bar supports one base value and one optional highlight value, not arbitrary stacked subdivisions.",
+  "Keep StackedBarChart data arrays between 2 and 12 items, with 2 to 4 segments in each bar.",
+  "When data density exceeds bar chart limits, switch to a line chart or consolidate periods (such as hourly metrics into multi-hour chunks, or monthly data into weekly summaries).",
+  "Keep LineChart series arrays between 1 and 4 items.",
+  "Prefer BarChart, VerticalBarChart, StackedBarChart, and LineChart for quantitative answers.",
+  "If you erroneously encounter a limit, don't announce the specific limit numbers, just correct the counts and re-render.",
+  `Use the ${GENERATIVE_UI_TOOL_NAME} tool when a generated UI would answer the user better than prose alone.`,
+];
+
 export const generativeUICatalogPrompt = generativeUICatalog.prompt({
-  customRules: [
-    "Use one chart component as the root of each generated UI call.",
-    "Keep BarChart data arrays between 2 and 12 items.",
-    "Keep VerticalBarChart data arrays between 2 and 12 items. Each bar supports one base value and one optional highlight value, not arbitrary stacked subdivisions.",
-    "Keep StackedBarChart data arrays between 2 and 12 items, with 2 to 4 segments in each bar.",
-    "When data density exceeds bar chart limits, switch to a line chart or consolidate periods (such as hourly metrics into multi-hour chunks, or monthly data into weekly summaries.",
-    "Keep LineChart series arrays between 1 and 4 items.",
-    "Prefer BarChart, VerticalBarChart, StackedBarChart, and LineChart for quantitative answers.",
-    `Use the ${GENERATIVE_UI_TOOL_NAME} tool when a generated UI would answer the user better than prose alone.`,
-  ],
+  customRules: GENERATIVE_UI_CATALOG_RULES,
 });

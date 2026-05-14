@@ -64,7 +64,7 @@ type AgentToolHandlerContext<TInput> = {
 type RegisteredAgentTool<TInput> = {
   name: string;
   parseInput: (input: unknown) => TInput | null;
-  invalidInputErrorText: string;
+  invalidInputErrorText: string | ((input: unknown) => string);
   requiredCapabilities?: AgentCapabilityKey[];
   uiBehavior?: AgentToolUIBehavior;
   execute: (context: AgentToolHandlerContext<TInput>) => Promise<void>;
@@ -318,11 +318,39 @@ function parseRenderGeneratedUIInput(
   };
 }
 
+function getRenderGeneratedUIInvalidInputErrorText(input: unknown): string {
+  const defaultErrorText = "I couldn't render that generated UI.";
+
+  if (typeof input !== "object" || input === null) {
+    return defaultErrorText;
+  }
+
+  const candidate = input as { spec?: unknown };
+  const specResult = renderGeneratedUISpecSchema.safeParse(candidate.spec);
+  if (specResult.success) {
+    return defaultErrorText;
+  }
+
+  const hasChartRequirementIssue = specResult.error.issues.some((issue) => {
+    if (issue.code !== "too_small" && issue.code !== "too_big") {
+      return false;
+    }
+    return issue.path.some(
+      (segment) =>
+        segment === "data" || segment === "segments" || segment === "lines"
+    );
+  });
+
+  return hasChartRequirementIssue
+    ? `Request should adhere to chart requirements.`
+    : defaultErrorText;
+}
+
 const renderGeneratedUIAgentTool =
   createRegisteredAgentTool<RenderGeneratedUIInput>({
     name: GENERATIVE_UI_TOOL_NAME,
     parseInput: parseRenderGeneratedUIInput,
-    invalidInputErrorText: "I couldn't render that generated UI.",
+    invalidInputErrorText: getRenderGeneratedUIInvalidInputErrorText,
     execute: async ({ toolCall, input, addToolOutput, appendMessagePart }) => {
       appendMessagePart({
         type: JSON_RENDER_DATA_PART_TYPE,
@@ -552,11 +580,15 @@ export async function handleRegisteredAgentToolCall({
   const input = registeredTool.parseInput(toolCall.input);
 
   if (input == null) {
+    const invalidInputErrorText =
+      typeof registeredTool.invalidInputErrorText === "function"
+        ? registeredTool.invalidInputErrorText(toolCall.input)
+        : registeredTool.invalidInputErrorText;
     await addToolOutput({
       state: "output-error",
       tool: toolCall.toolName,
       toolCallId: toolCall.toolCallId,
-      errorText: registeredTool.invalidInputErrorText,
+      errorText: invalidInputErrorText,
     });
     return;
   }
