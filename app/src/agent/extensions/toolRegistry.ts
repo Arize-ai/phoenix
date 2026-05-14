@@ -183,6 +183,7 @@ function isValidTimeRangeKey(value: unknown): value is TimeRangeKey {
 
 const setTimeRangeInvalidInputErrorText = `Invalid ${SET_TIME_RANGE_TOOL_NAME} input. Expected { timeRangeKey: ${TIME_RANGE_KEYS.map((key) => `"${key}"`).join(" | ")}, startTime?: string, endTime?: string }.`;
 
+/** Parse the server-provided span filter tool payload into the client action shape. */
 function parseSetSpansFilterInput(input: unknown): SetSpansFilterInput | null {
   if (typeof input !== "object" || input === null) return null;
   const candidate = input as {
@@ -319,6 +320,11 @@ function parseRenderGeneratedUIInput(
   };
 }
 
+/**
+ * Maps generated UI schema failures to a user-facing tool error message.
+ * Keeps chart cardinality failures specific while collapsing other schema
+ * errors into a generic render failure.
+ */
 function getRenderGeneratedUIInvalidInputErrorText(input: unknown): string {
   const defaultErrorText = "I couldn't render that generated UI.";
 
@@ -523,6 +529,7 @@ export function getAgentToolUIBehavior(
   return agentToolRegistryByName.get(toolName)?.uiBehavior;
 }
 
+/** Returns the capability keys required by a tool that are currently disabled. */
 function getMissingCapabilities({
   registeredTool,
   capabilities,
@@ -537,6 +544,7 @@ function getMissingCapabilities({
   );
 }
 
+/** Formats a stable user-facing error for capability-gated tool calls. */
 function buildMissingCapabilitiesErrorText(
   missingCapabilities: AgentCapabilityKey[]
 ): string {
