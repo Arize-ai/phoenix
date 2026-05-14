@@ -69,7 +69,13 @@ class TestResolveUserEnvReservedSecretKey:
         """secret_ref whose `secret_key` matches a reserved provider-credential
         name raises MissingSecretError before any DB query — fail-closed
         defense-in-depth for rows persisted before the mutation-layer guard."""
-        raw = [{"kind": "secret_ref", "name": "MY_TOKEN", "secret_key": "VERCEL_TOKEN"}]
+        raw = [
+            {
+                "kind": "secret_ref",
+                "name": "MY_TOKEN",
+                "secret_key": "VERCEL_TOKEN",
+            }
+        ]
         session = _make_session({"VERCEL_TOKEN": b"should-not-reach-here"})
         with pytest.raises(MissingSecretError, match="VERCEL_TOKEN"):
             await _resolve_user_env(raw, session, _identity_decrypt)
@@ -89,7 +95,13 @@ class TestResolveUserEnvReservedSecretKey:
     @pytest.mark.asyncio
     async def test_reserved_check_is_case_insensitive(self) -> None:
         """Reserved-name comparison is case-insensitive in both positions."""
-        raw = [{"kind": "secret_ref", "name": "MY_TOKEN", "secret_key": "vercel_token"}]
+        raw = [
+            {
+                "kind": "secret_ref",
+                "name": "MY_TOKEN",
+                "secret_key": "vercel_token",
+            }
+        ]
         session = _make_session({"vercel_token": b"should-not-reach-here"})
         with pytest.raises(MissingSecretError):
             await _resolve_user_env(raw, session, _identity_decrypt)
