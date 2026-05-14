@@ -22,11 +22,14 @@ jobs:
         id: branches
         env:
           GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.ref_name }}" != "main" ]; then
-            branches=$(jq -cn --arg b "${{ github.ref_name }}" '[$b]')
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$REF_NAME" != "main" ]; then
+            branches=$(jq -cn --arg b "$REF_NAME" '[$b]')
           else
-            branches=$(gh api repos/${{ github.repository }}/branches --paginate | jq -c -s '[.[][] | select(.name == "main" or (.name | startswith("version-"))) | .name]')
+            branches=$(gh api "repos/$REPO/branches" --paginate | jq -c -s '[.[][] | select(.name == "main" or (.name | startswith("version-"))) | .name]')
           fi
           echo "branches=$branches" >> $GITHUB_OUTPUT
 
@@ -64,6 +67,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ matrix.branch }}
+          persist-credentials: false
           sparse-checkout: |
             requirements/
             src/phoenix/
@@ -137,6 +141,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ matrix.branch }}
+          persist-credentials: false
           sparse-checkout: |
             requirements/
             src/phoenix/
@@ -171,6 +176,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ matrix.branch }}
+          persist-credentials: false
           sparse-checkout: |
             requirements/
             packages/phoenix-client/
@@ -197,6 +203,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ matrix.branch }}
+          persist-credentials: false
           sparse-checkout: |
             requirements/
             packages/phoenix-evals/
@@ -222,6 +229,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ matrix.branch }}
+          persist-credentials: false
           sparse-checkout: |
             requirements/
             packages/phoenix-otel/

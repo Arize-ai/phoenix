@@ -104,10 +104,13 @@ jobs:
 
       - name: Commit and push
         if: steps.changes.outputs.has_changes == 'true'
+        env:
+          AUDIT_DATE: ${{ steps.branch.outputs.date }}
+          AUDIT_BRANCH: ${{ steps.branch.outputs.branch }}
         run: |
           git add .agents/skills/phoenix-tracing .agents/skills/phoenix-cli .agents/skills/phoenix-evals
-          git commit -m "docs(skills): weekly audit — ${{ steps.branch.outputs.date }}"
-          git push origin "${{ steps.branch.outputs.branch }}"
+          git commit -m "docs(skills): weekly audit — $AUDIT_DATE"
+          git push origin "$AUDIT_BRANCH"
 
       - name: Open pull request
         if: steps.changes.outputs.has_changes == 'true'

@@ -23,11 +23,14 @@ jobs:
 
     steps:
       - name: Guard – check permissions and duplicates
+        env:
+          REPO: ${{ github.repository }}
+          SENDER: ${{ github.event.sender.login }}
         run: |
           # Verify sender has write access
-          PERMISSION=$(gh api "repos/${{ github.repository }}/collaborators/${{ github.event.sender.login }}/permission" -q '.permission')
+          PERMISSION=$(gh api "repos/$REPO/collaborators/$SENDER/permission" -q '.permission')
           if [[ "$PERMISSION" != "admin" && "$PERMISSION" != "maintain" && "$PERMISSION" != "write" ]]; then
-            echo "Sender ${{ github.event.sender.login }} has '$PERMISSION' permission, skipping"
+            echo "Sender $SENDER has '$PERMISSION' permission, skipping"
             exit 0
           fi
 
@@ -121,8 +124,11 @@ jobs:
 
       - name: Cleanup
         if: always() && env.READY == 'true'
+        env:
+          JOB_STATUS: ${{ job.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           gh issue edit "$ISSUE_NUMBER" --remove-assignee "mikeldking" --remove-label "agent-in-progress"
-          if [ "${{ job.status }}" = "failure" ]; then
-            gh issue comment "$ISSUE_NUMBER" --body "Agent implementation failed. See [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details."
+          if [ "$JOB_STATUS" = "failure" ]; then
+            gh issue comment "$ISSUE_NUMBER" --body "Agent implementation failed. See [workflow run]($RUN_URL) for details."
           fi
