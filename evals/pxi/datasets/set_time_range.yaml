@@ -1,26 +1,22 @@
 dataset_name: set_time_range
 description: PXI eval suite for the deferred set_time_range tool. Covers preset
-  enum values (15m, 1h, 12h, 1d, 7d, 30d), custom ranges with explicit start/end
-  times, open-ended ranges, ambiguous calendar phrasing, and negative cases
-  where the tool should not be called.
+  enum values, custom bounded and open-ended ranges, ambiguous relative time
+  requests, and negative cases where another tool or no tool should be used.
 evaluators:
   - correct_tools_called
   - tool_call_args_match
 
 examples:
-  # ---------------------------------------------------------------
-  # Preset enum coverage — one obvious phrasing per enum literal.
-  # ---------------------------------------------------------------
   - id: preset-15m
     splits: [regression]
     input:
-      query: Show me the last 15 minutes.
+      query: Show me just the last 15 minutes.
     expected:
       tools:
         required: [set_time_range]
       tool_call_args:
         set_time_range:
-          timeRangeKey: 15m
+          timeRangeKey: "15m"
     metadata:
       category: preset
       difficulty: obvious
@@ -29,13 +25,13 @@ examples:
   - id: preset-1h
     splits: [regression]
     input:
-      query: Filter to the last hour.
+      query: Filter this view to the last hour.
     expected:
       tools:
         required: [set_time_range]
       tool_call_args:
         set_time_range:
-          timeRangeKey: 1h
+          timeRangeKey: "1h"
     metadata:
       category: preset
       difficulty: obvious
@@ -44,13 +40,13 @@ examples:
   - id: preset-12h
     splits: [regression]
     input:
-      query: Switch the time range to the past 12 hours please.
+      query: past 12 hrs only
     expected:
       tools:
         required: [set_time_range]
       tool_call_args:
         set_time_range:
-          timeRangeKey: 12h
+          timeRangeKey: "12h"
     metadata:
       category: preset
       difficulty: obvious
@@ -59,109 +55,52 @@ examples:
   - id: preset-1d
     splits: [regression]
     input:
-      query: last 24 hours
+      query: I want the last 24 hours of traces.
     expected:
       tools:
         required: [set_time_range]
       tool_call_args:
         set_time_range:
-          timeRangeKey: 1d
+          timeRangeKey: "1d"
     metadata:
       category: preset
       difficulty: obvious
       polarity: positive
-      voice: fragment
 
   - id: preset-7d
     splits: [regression]
     input:
-      query: Can you set this to the past week?
+      query: Can you set the range to the past week?
     expected:
       tools:
         required: [set_time_range]
       tool_call_args:
         set_time_range:
-          timeRangeKey: 7d
+          timeRangeKey: "7d"
     metadata:
       category: preset
       difficulty: obvious
       polarity: positive
-      voice: question
 
   - id: preset-30d
     splits: [regression]
     input:
-      query: I want to see the last 30 days of traces.
+      query: zoom out to the last month
     expected:
       tools:
         required: [set_time_range]
       tool_call_args:
         set_time_range:
-          timeRangeKey: 30d
+          timeRangeKey: "30d"
     metadata:
       category: preset
       difficulty: obvious
       polarity: positive
 
-  # ---------------------------------------------------------------
-  # Preset coverage — moderate phrasings (relative calendar words
-  # that resolve to a preset).
-  # ---------------------------------------------------------------
-  - id: preset-7d-past-week
+  - id: custom-explicit-utc-range
     splits: [regression]
     input:
-      query: show traces from the past week
-    expected:
-      tools:
-        required: [set_time_range]
-      tool_call_args:
-        set_time_range:
-          timeRangeKey: 7d
-    metadata:
-      category: preset
-      difficulty: moderate
-      polarity: positive
-
-  - id: preset-1h-just-now
-    splits: [regression]
-    input:
-      query: only stuff from the last hour, nothing older
-    expected:
-      tools:
-        required: [set_time_range]
-      tool_call_args:
-        set_time_range:
-          timeRangeKey: 1h
-    metadata:
-      category: preset
-      difficulty: moderate
-      polarity: positive
-      voice: casual
-
-  - id: preset-30d-monthly
-    splits: [regression]
-    input:
-      query: bump it out to the last month so I can see longer-term trends
-    expected:
-      tools:
-        required: [set_time_range]
-      tool_call_args:
-        set_time_range:
-          timeRangeKey: 30d
-    metadata:
-      category: preset
-      difficulty: moderate
-      polarity: positive
-
-  # ---------------------------------------------------------------
-  # Custom range coverage — explicit ISO timestamps. Only assert the
-  # preset key here; exact ISO strings depend on the browser context
-  # date the agent sees, which the harness does not pin.
-  # ---------------------------------------------------------------
-  - id: custom-explicit-range
-    splits: [regression]
-    input:
-      query: Set the time range from 2025-01-01T00:00:00Z to 2025-01-31T23:59:59Z.
+      query: Set the range from 2025-01-01T00:00:00Z to 2025-01-31T23:59:59Z.
     expected:
       tools:
         required: [set_time_range]
@@ -175,53 +114,65 @@ examples:
       difficulty: obvious
       polarity: positive
 
-  - id: custom-open-ended
+  - id: custom-explicit-offset-range
     splits: [regression]
     input:
-      query: Show me everything since 9am today.
+      query: Show traces between 2025-03-10T08:30:00-07:00 and 2025-03-10T11:00:00-07:00.
     expected:
       tools:
         required: [set_time_range]
       tool_call_args:
         set_time_range:
           timeRangeKey: custom
+          startTime: "2025-03-10T08:30:00-07:00"
+          endTime: "2025-03-10T11:00:00-07:00"
     metadata:
       category: custom_range
       difficulty: moderate
       polarity: positive
-      notes: open-ended; endTime should be omitted
 
-  - id: custom-yesterday
+  - id: custom-open-start
     splits: [regression]
     input:
-      query: Filter to yesterday only.
+      query: Everything until 2025-04-01T00:00:00Z.
     expected:
       tools:
         required: [set_time_range]
       tool_call_args:
         set_time_range:
           timeRangeKey: custom
+          endTime: "2025-04-01T00:00:00Z"
     metadata:
       category: custom_range
       difficulty: moderate
       polarity: positive
-      notes: yesterday is a fixed-day window, not a preset rolling window
+      notes: custom range may omit startTime for an open-start interval
+
+  - id: custom-open-end
+    splits: [regression]
+    input:
+      query: Show traces since 2025-04-01T09:00:00Z.
+    expected:
+      tools:
+        required: [set_time_range]
+      tool_call_args:
+        set_time_range:
+          timeRangeKey: custom
+          startTime: "2025-04-01T09:00:00Z"
+    metadata:
+      category: custom_range
+      difficulty: moderate
+      polarity: positive
+      notes: custom range may omit endTime for an open-ended interval
 
   - id: custom-specific-day
     splits: [regression]
     input:
-      query: I need to see traces from January 15th, 2025.
+      query: I need traces from January 15, 2025.
     expected:
       tools:
         required: [set_time_range]
       tool_call_args:
-        # The calendar day is fully specified, but two conventions are
-        # both correct: inclusive end-of-day (T23:59:59) vs. exclusive
-        # next-midnight (T00:00:00 of Jan 16). Each may also be emitted
-        # with or without an explicit Z/timezone offset per the tool
-        # docstring ("Include a timezone offset or `Z` when possible;
-        # otherwise the browser interprets it in the user's local
-        # timezone."). Variants cover the realistic combinations.
         set_time_range:
           - timeRangeKey: custom
             startTime: "2025-01-15T00:00:00Z"
@@ -231,20 +182,13 @@ examples:
             endTime: "2025-01-16T00:00:00Z"
           - timeRangeKey: custom
             startTime: "2025-01-15T00:00:00"
-            endTime: "2025-01-15T23:59:59"
-          - timeRangeKey: custom
-            startTime: "2025-01-15T00:00:00"
             endTime: "2025-01-16T00:00:00"
     metadata:
       category: custom_range
       difficulty: moderate
       polarity: positive
-      notes: explicit calendar date; multiple inclusive/exclusive + tz conventions
+      notes: calendar-day bounds have valid inclusive, exclusive, and local-time forms
 
-  # ---------------------------------------------------------------
-  # Ambiguous calendar phrasing — should still call set_time_range,
-  # but we don't pin the exact key choice. Just assert the tool fires.
-  # ---------------------------------------------------------------
   - id: ambiguous-today
     splits: [regression]
     input:
@@ -254,14 +198,13 @@ examples:
         required: [set_time_range]
       tool_call_args:
         set_time_range:
-          - { timeRangeKey: 1d }      # rolling 24h
-          - { timeRangeKey: custom }  # calendar-day range
+          - { timeRangeKey: "1d" }
+          - { timeRangeKey: custom }
     metadata:
-      category: ambiguous
+      category: ambiguity
       difficulty: tricky
       polarity: positive
-      flags: [ambiguous]
-      notes: '"today" could be 1d rolling preset or a custom calendar-day range'
+      notes: today can mean rolling last day or the current calendar day
 
   - id: ambiguous-recent
     splits: [regression]
@@ -272,141 +215,69 @@ examples:
         required: [set_time_range]
       tool_call_args:
         set_time_range:
-          - { timeRangeKey: 15m }
-          - { timeRangeKey: 1h }
-          - { timeRangeKey: 12h }
-          - { timeRangeKey: 1d }
-          - { timeRangeKey: 7d }
+          - { timeRangeKey: "15m" }
+          - { timeRangeKey: "1h" }
+          - { timeRangeKey: "12h" }
     metadata:
-      category: ambiguous
+      category: ambiguity
       difficulty: tricky
       polarity: positive
-      flags: [ambiguous]
-      notes: "'recent' has no canonical window; any short/medium preset is reasonable"
+      notes: recent has no canonical window, so accept short preset choices only
 
-  - id: ambiguous-this-week
-    splits: [regression]
-    input:
-      query: this week's data please
-    expected:
-      tools:
-        required: [set_time_range]
-      tool_call_args:
-        set_time_range:
-          - { timeRangeKey: 7d }      # rolling last-7-days
-          - { timeRangeKey: custom }  # explicit Mon-now calendar week
-    metadata:
-      category: ambiguous
-      difficulty: tricky
-      polarity: positive
-      flags: [ambiguous]
-      notes: this week vs last 7 days is genuinely ambiguous
-
-  - id: ambiguous-most-recent-traces
-    splits: [regression]
-    input:
-      query: show me the most recent traces
-    expected:
-      tools:
-        # Forbid the wrong filter route. We do NOT require set_time_range
-        # here because the ideal multi-step path is: bash → frontend
-        # GraphQL → discover when traces actually exist → set a custom
-        # range. bash executes in the browser, so the harness only sees
-        # the deferred bash call; the agent may legitimately stop after
-        # that and never reach set_time_range in this single turn.
-        forbidden: [set_spans_filter]
-      tool_call_args:
-        # Only enforced if set_time_range happens to fire (i.e. the
-        # agent guessed a preset rather than going the bash route).
-        # Any reasonable preset is acceptable; custom with a startTime
-        # is also valid since the agent might infer a wide window.
-        set_time_range:
-          - { timeRangeKey: 15m }
-          - { timeRangeKey: 1h }
-          - { timeRangeKey: 12h }
-          - { timeRangeKey: 1d }
-          - { timeRangeKey: 7d }
-          - { timeRangeKey: 30d }
-          - { timeRangeKey: custom }
-    metadata:
-      category: ambiguous
-      difficulty: tricky
-      polarity: positive
-      flags: [ambiguous, multi-step]
-      notes: |
-        "Most recent" depends on the actual data. The realistic multi-step
-        path is bash+GraphQL → custom range, but bash runs in the browser
-        and the harness cannot complete that loop. Accept any reasonable
-        preset, custom, or a bash-then-stop path.
-
-  # ---------------------------------------------------------------
-  # Negative coverage — set_time_range must NOT be called.
-  # ~30%+ of the dataset.
-  # ---------------------------------------------------------------
-  - id: negative-span-filter
+  - id: negative-span-kind-filter
     splits: [regression]
     input:
       query: Show me only LLM spans.
     expected:
       tools:
+        required: [set_spans_filter]
         forbidden: [set_time_range]
     metadata:
-      category: negative
-      difficulty: obvious
-      polarity: negative
-      notes: this is a span filter request, not a time change
-
-  - id: negative-error-filter
-    splits: [regression]
-    input:
-      query: Filter to spans that errored.
-    expected:
-      tools:
-        forbidden: [set_time_range]
-    metadata:
-      category: negative
+      category: negative_wrong_tool
       difficulty: obvious
       polarity: negative
 
-  - id: negative-greeting
+  - id: negative-latency-filter
     splits: [regression]
     input:
-      query: hey, what can you do?
+      query: only spans that took more than five seconds
     expected:
       tools:
+        required: [set_spans_filter]
         forbidden: [set_time_range]
     metadata:
-      category: negative
-      difficulty: obvious
-      polarity: negative
-      voice: casual
-
-  - id: negative-explain-traces
-    splits: [regression]
-    input:
-      query: Can you explain what a span is?
-    expected:
-      tools:
-        forbidden: [set_time_range]
-    metadata:
-      category: negative
-      difficulty: obvious
-      polarity: negative
-      voice: question
-
-  - id: negative-name-filter
-    splits: [regression]
-    input:
-      query: Find spans named retrieve_documents.
-    expected:
-      tools:
-        forbidden: [set_time_range]
-    metadata:
-      category: negative
+      category: negative_wrong_tool
       difficulty: moderate
       polarity: negative
+      notes: latency is a span filter, not the global time range
 
-  - id: negative-mentions-time-but-not-range
+  - id: negative-prompt-clone
+    splits: [regression]
+    input:
+      query: Clone the current prompt so I can compare a shorter version.
+    expected:
+      tools:
+        forbidden: [set_time_range]
+    metadata:
+      category: negative_wrong_tool
+      difficulty: obvious
+      polarity: negative
+      notes: playground prompt tools are not exposed in the project-only eval context
+
+  - id: negative-read-current-prompt
+    splits: [regression]
+    input:
+      query: What's in prompt A right now?
+    expected:
+      tools:
+        forbidden: [set_time_range]
+    metadata:
+      category: negative_wrong_tool
+      difficulty: moderate
+      polarity: negative
+      notes: playground prompt tools are not exposed in the project-only eval context
+
+  - id: negative-longest-span
     splits: [regression]
     input:
       query: Which span took the longest time to complete?
@@ -414,26 +285,37 @@ examples:
       tools:
         forbidden: [set_time_range]
     metadata:
-      category: negative
+      category: negative_analysis
       difficulty: tricky
       polarity: negative
-      flags: [tricky]
-      notes: mentions time but is asking about latency, not the time-range
-        selector
+      notes: asks for analysis of span latency, not the time range selector
 
-  - id: negative-latency-filter
+  - id: negative-explain-time-range
     splits: [regression]
     input:
-      query: only show spans that took more than 5 seconds
+      query: What does the time range selector do?
     expected:
       tools:
         forbidden: [set_time_range]
     metadata:
-      category: negative
-      difficulty: tricky
+      category: negative_definitional
+      difficulty: obvious
       polarity: negative
-      flags: [tricky]
-      notes: latency filter, not a time range change
+      notes: definitional docs lookups are valid, but the selector should not be changed
+
+  - id: negative-greeting
+    splits: [regression]
+    input:
+      query: hey, what can you help me with?
+    expected:
+      tools:
+        required: []
+        forbidden: [set_time_range]
+        exact_match: true
+    metadata:
+      category: negative_chitchat
+      difficulty: obvious
+      polarity: negative
 
   - id: negative-thanks
     splits: [regression]
@@ -441,9 +323,10 @@ examples:
       query: thanks!
     expected:
       tools:
+        required: []
         forbidden: [set_time_range]
+        exact_match: true
     metadata:
-      category: negative
+      category: negative_chitchat
       difficulty: obvious
       polarity: negative
-      voice: fragment
