@@ -159,6 +159,29 @@ export const States: Story = {
   ),
 };
 
+export const LightStates: Story = {
+  args: {
+    variant: "light",
+  },
+  globals: {
+    theme: "light",
+  },
+  render: (args) => (
+    <div css={frameCSS}>
+      <div css={statesGridCSS}>
+        <div css={stateCardCSS}>
+          <div css={variantLabelCSS}>light</div>
+          <AgentChatWidgetButton {...args} isStreaming={false} />
+        </div>
+        <div css={stateCardCSS}>
+          <div css={variantLabelCSS}>light</div>
+          <AgentChatWidgetButton {...args} isStreaming />
+        </div>
+      </div>
+    </div>
+  ),
+};
+
 export const ThinkingGlyphCandidates: Story = {
   render: (args) => (
     <div css={frameCSS}>
@@ -211,6 +234,16 @@ function ClickToCycleRender(args: AgentChatWidgetButtonProps) {
 export const ClickToCycleStates: Story = {
   args: {
     variant: "dark-glyph",
+  },
+  render: (args) => <ClickToCycleRender {...args} />,
+};
+
+export const LightClickToCycleStates: Story = {
+  args: {
+    variant: "light",
+  },
+  globals: {
+    theme: "light",
   },
   render: (args) => <ClickToCycleRender {...args} />,
 };

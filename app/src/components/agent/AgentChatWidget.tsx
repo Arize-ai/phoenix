@@ -89,6 +89,111 @@ const shapeCSS = css`
   }
 `;
 
+const lightRestingShapeCSS = css`
+  color: var(--global-color-gray-900);
+  background:
+    radial-gradient(
+      140% 150% at 18% 12%,
+      rgba(255, 255, 255, 0.96) 0%,
+      rgba(255, 255, 255, 0) 36%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 1) 0%,
+      rgba(233, 239, 245, 1) 42%,
+      rgba(214, 223, 232, 1) 58%,
+      rgba(244, 248, 252, 1) 100%
+    );
+  box-shadow:
+    0 0 0 1px rgba(163, 175, 188, 0.92) inset,
+    0 1px 0 rgba(255, 255, 255, 0.98) inset,
+    0 10px 18px rgba(255, 255, 255, 0.62) inset,
+    0 -11px 15px rgba(104, 119, 135, 0.24) inset,
+    0 0 0 1px rgba(242, 247, 252, 0.8),
+    0 14px 28px rgba(98, 115, 132, 0.24),
+    0 3px 9px rgba(255, 255, 255, 0.82);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.76);
+  transition: box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: box-shadow;
+
+  .agent-chat-widget__hover-bg-shimmer {
+    background:
+      linear-gradient(
+        115deg,
+        rgba(255, 255, 255, 0) 16%,
+        rgba(255, 255, 255, 0.96) 39%,
+        rgba(190, 204, 219, 0.52) 50%,
+        rgba(255, 255, 255, 0) 69%
+      ),
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.46) 0%,
+        rgba(255, 255, 255, 0) 100%
+      );
+    background-size:
+      220% 100%,
+      100% 100%;
+    background-position:
+      200% center,
+      center;
+    mix-blend-mode: screen;
+    opacity: 0.58;
+    animation-duration: 4.8s;
+  }
+
+  .agent-chat-widget__hover-shimmer {
+    inset: -18px;
+    mix-blend-mode: normal;
+  }
+
+  .agent-chat-widget__hover-shimmer::before {
+    inset: 18px;
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.88),
+      0 0 0 2px rgba(193, 208, 224, 0.82),
+      0 0 16px rgba(163, 181, 201, 0.28),
+      0 10px 22px rgba(112, 129, 146, 0.18);
+    opacity: 0.76;
+  }
+
+  &:hover {
+    background:
+      radial-gradient(
+        145% 155% at 18% 12%,
+        rgba(255, 255, 255, 0.98) 0%,
+        rgba(255, 255, 255, 0) 39%
+      ),
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 1) 0%,
+        rgba(239, 245, 250, 1) 40%,
+        rgba(219, 228, 236, 1) 57%,
+        rgba(248, 251, 254, 1) 100%
+      );
+    box-shadow:
+      0 0 0 1px rgba(188, 199, 211, 0.98) inset,
+      0 1px 0 rgba(255, 255, 255, 0.98) inset,
+      0 12px 22px rgba(255, 255, 255, 0.7) inset,
+      0 -14px 18px rgba(106, 121, 137, 0.28) inset,
+      0 0 0 1px rgba(246, 250, 255, 0.88),
+      0 18px 34px rgba(90, 107, 123, 0.28),
+      0 4px 10px rgba(255, 255, 255, 0.88);
+  }
+
+  &:hover .agent-chat-widget__hover-bg-shimmer {
+    opacity: 1;
+  }
+
+  &:hover .agent-chat-widget__hover-shimmer::before {
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.96),
+      0 0 0 2px rgba(214, 226, 238, 0.9),
+      0 0 22px rgba(171, 190, 210, 0.36),
+      0 16px 30px rgba(101, 118, 135, 0.24);
+    opacity: 0.96;
+  }
+`;
+
 const shapeContentCSS = css`
   position: relative;
   z-index: 2;
@@ -244,9 +349,28 @@ const restingHoverWipeCSS = css`
 `;
 
 const lightThinkingShapeCSS = css`
-  opacity: 0.3;
-  background-color: var(--global-color-gray-50);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  color: var(--global-color-gray-900);
+  background:
+    radial-gradient(
+      140% 150% at 18% 12%,
+      rgba(255, 255, 255, 0.96) 0%,
+      rgba(255, 255, 255, 0) 36%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 1) 0%,
+      rgba(237, 243, 248, 1) 42%,
+      rgba(219, 228, 236, 1) 58%,
+      rgba(246, 249, 252, 1) 100%
+    );
+  box-shadow:
+    0 0 0 1px rgba(170, 182, 194, 0.9) inset,
+    0 1px 0 rgba(255, 255, 255, 0.98) inset,
+    0 10px 18px rgba(255, 255, 255, 0.58) inset,
+    0 -11px 15px rgba(107, 122, 137, 0.2) inset,
+    0 0 0 1px rgba(244, 248, 252, 0.82),
+    0 14px 28px rgba(98, 115, 132, 0.22),
+    0 3px 9px rgba(255, 255, 255, 0.82);
   color: var(--global-color-gray-900);
 `;
 
@@ -270,8 +394,12 @@ export function AgentChatWidgetButton({
   thinkingGlyphVariant = "orbit-reveal",
   variant = "dark",
 }: AgentChatWidgetButtonProps) {
-  const isGlyph = variant === "dark-glyph";
+  const usesThinkingGlyph = variant === "dark-glyph" || variant === "light";
   const { theme } = useTheme();
+  const isLightAppearance = variant === "light" && theme === "light";
+  const glyphFill = isLightAppearance
+    ? "var(--global-color-gray-800)"
+    : "var(--global-color-gray-100)";
   return (
     <button
       type="button"
@@ -286,14 +414,20 @@ export function AgentChatWidgetButton({
       <motion.div
         css={[
           shapeCSS,
-          !isStreaming
+          !isStreaming && !isLightAppearance
             ? [thinkingBorderCSS, restingHoverWipeCSS, restingHoverShimmerCSS]
             : undefined,
-          isStreaming ? thinkingBorderCSS : undefined,
-          isStreaming && variant === "light"
-            ? lightThinkingShapeCSS
+          !isStreaming && isLightAppearance
+            ? [
+                lightRestingShapeCSS,
+                restingHoverWipeCSS,
+                restingHoverShimmerCSS,
+              ]
             : undefined,
+          isStreaming ? thinkingBorderCSS : undefined,
+          isStreaming && isLightAppearance ? lightThinkingShapeCSS : undefined,
         ]}
+        data-variant={variant}
         data-theme={theme}
         initial={false}
         animate={{
@@ -320,10 +454,10 @@ export function AgentChatWidgetButton({
         <div css={shapeContentCSS}>
           {isStreaming ? (
             <div className="agent-chat-widget__spinner">
-              {isGlyph ? (
+              {usesThinkingGlyph ? (
                 <PxiGlyph
                   className="fab-glyph"
-                  fill="var(--global-color-gray-100)"
+                  fill={glyphFill}
                   variant="thinking"
                   thinkingVariant={thinkingGlyphVariant}
                 />
@@ -338,7 +472,7 @@ export function AgentChatWidgetButton({
           ) : (
             <PxiGlyph
               className="fab-glyph"
-              fill="var(--global-color-gray-100)"
+              fill={glyphFill}
               variant="resting"
             />
           )}
