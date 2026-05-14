@@ -11,6 +11,17 @@ Phoenix, then run:
 uv run python evals/pxi/harness/run_experiment.py --dataset set_spans_filter
 ```
 
+The default invocation runs the `regression` split. Use `--splits` for manual
+experimentation:
+
+```bash
+uv run python -m evals.pxi.harness.run_experiment --dataset set_spans_filter --splits dev val
+```
+
+The runner writes `summary.json` and `summary.md` to `evals/pxi/.last-run/` by
+default. Override that location with `--summary-dir PATH`. `--fail-on-regression`
+exits nonzero only when an evaluator fails on a `regression` example.
+
 The runner checks `/healthz` against whichever Phoenix URL is configured
 (default `http://localhost:6006`, or `PHOENIX_COLLECTOR_ENDPOINT` /
 `OTEL_EXPORTER_OTLP_ENDPOINT` if set) before uploading anything. To use a
@@ -42,6 +53,8 @@ export PHOENIX_AGENTS_ASSISTANT_MODEL=gpt-5.4
 
 Provider credentials are read from the normal provider env vars, such as
 `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`.
+Local project credentials are stored in `~/Projects/phoenix/.env`; source that
+file before running the harness if your shell does not already load it.
 
 The docs MCP toolset follows the same production gates as the Phoenix server:
 
@@ -59,10 +72,25 @@ Datasets live in `evals/pxi/datasets/*.yaml`. Each file has:
 
 - `dataset_name`
 - optional `description`
+- `evaluators`
 - `examples`
 
-Each example needs a stable `id`, `input.query`, `expected.tools`, and
-expected tool arguments under `expected.tool_call_args`. Example IDs must be unique because the runner uses them for stable upserts.
+Each example needs a stable `id`, a non-empty `splits` list, `input.query`,
+`expected.tools`, and expected tool arguments under `expected.tool_call_args`.
+Example IDs must be unique because the runner uses them for stable upserts.
+
+Split meanings:
+
+| Split | Purpose |
+| --- | --- |
+| `regression` | Fast held-out regression gate; default for the harness. |
+| `dev` | Manual experimentation, ablations, and failure analysis. |
+| `val` | Future optimizer scoring signal; disjoint from `regression` and `dev`. |
+| `holdout` | Manual-only generalization sanity checks. |
+
+The loader rejects examples tagged with both `regression` and `val`, and
+examples tagged with both `dev` and `val`. It allows `regression` plus
+`holdout`, but warns during load so the overlap is visible.
 
 `expected.tools` may also include `exact_match: true`, which switches
 `correct_tools_called` from "all required tools must be called" to "the

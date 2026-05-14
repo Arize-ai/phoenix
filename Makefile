@@ -225,6 +225,8 @@ dev-frontend: ## Frontend only (React dev server)
 #=============================================================================
 
 test-python: ## Run Python tests (unit + integration)
+	@echo -e "$(CYAN)Running Python eval tests...$(NC)"
+	@$(UV) run pytest evals/
 	@echo -e "$(CYAN)Running Python unit tests...$(NC)"
 	@$(TOX) run -q -e unit_tests -- -n auto
 	@echo -e "$(CYAN)Running Python integration tests...$(NC)"
