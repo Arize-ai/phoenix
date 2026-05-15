@@ -36,7 +36,7 @@ NC := \033[0m # No Color
 	test test-python test-frontend test-ts test-helm test-jcs typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
-	codegen-prompts sync-models schema-ddl check-graphql-permissions \
+	codegen-prompts sync-models schema-ddl check-graphql-permissions gen-otel-models \
 	clean clean-all
 
 help: ## Show this help message
@@ -94,6 +94,7 @@ help: ## Show this help message
 	@echo -e "  codegen-prompts        - Compile YAML prompts to Python and TypeScript"
 	@echo -e "  sync-models            - Sync model cost manifest from remote sources"
 	@echo -e "  schema-ddl             - Compile DDL schema from PostgreSQL (use ARGS= for arguments)"
+	@echo -e "  gen-otel-models        - Generate OTel GenAI semconv Pydantic models"
 	@echo -e ""
 	@echo -e "$(GREEN)Build:$(NC)"
 	@echo -e "  $(YELLOW)build$(NC)                 - Build everything (Python + frontend + TypeScript packages)"
@@ -365,6 +366,13 @@ check-graphql-permissions: ## Ensure GraphQL mutations and subscriptions have pe
 	@echo -e "$(CYAN)Checking GraphQL permissions...$(NC)"
 	@$(UV) run python $(CURDIR)/scripts/ci/ensure_graphql_mutations_have_permission_classes.py src/phoenix/server/api
 	@echo -e "$(GREEN)✓ Done$(NC)"
+
+gen-otel-models: ## Generate OTel GenAI semconv Pydantic models into src/phoenix/trace/gen_ai/__generated__/models.py
+	@echo -e "$(CYAN)Generating OTel GenAI semconv Pydantic models...$(NC)"
+	@$(UV) run --script scripts/generate_otel_gen_ai_models.py
+	@$(UV) run ruff format src/phoenix/trace/gen_ai/__generated__/models.py
+	@$(UV) run ruff check --fix src/phoenix/trace/gen_ai/__generated__/models.py
+	@echo -e "$(GREEN)✓ src/phoenix/trace/gen_ai/__generated__/models.py$(NC)"
 
 test-jcs: ## Test JSON canonicalization schema implementation
 	@if [ ! -f .jcs-test-data/es6testfile100m.txt ]; then \

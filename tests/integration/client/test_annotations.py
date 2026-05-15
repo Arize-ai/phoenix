@@ -2999,7 +2999,7 @@ class TestSendingAnnotationsBeforeSpan:
         - Existing annotations can be updated (UPSERT)
         """
         # Get IDs from the span
-        assert (span_context := _span.get_span_context())  # type: ignore[no-untyped-call]
+        assert (span_context := _span.get_span_context())
         span_id = format_span_id(span_context.span_id)
         trace_id = format_trace_id(span_context.trace_id)
         assert (

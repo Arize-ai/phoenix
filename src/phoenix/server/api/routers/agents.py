@@ -194,7 +194,7 @@ class _AgentSpanContextRecorder(SpanProcessor):
             attrs.get(SpanAttributes.OPENINFERENCE_SPAN_KIND)
             == OpenInferenceSpanKindValues.AGENT.value
         ):
-            self.span_context = span.get_span_context()  # type: ignore[no-untyped-call]
+            self.span_context = span.get_span_context()
 
     def on_end(self, span: SDKSpan) -> None:  # type: ignore[override]
         pass
