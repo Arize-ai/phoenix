@@ -1,7 +1,8 @@
 import logging
 from collections.abc import AsyncGenerator, AsyncIterator, Iterable
 from contextlib import aclosing
-from typing import Annotated, Any, TypeVar
+from copy import deepcopy
+from typing import Annotated, Any, Literal, TypeVar
 
 from fastapi import APIRouter, Depends, HTTPException
 from openinference.instrumentation import using_metadata, using_session
@@ -13,12 +14,18 @@ from opentelemetry.trace import SpanContext, format_span_id, format_trace_id
 from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator
 from pydantic.alias_generators import to_camel
 from pydantic_ai import AgentRunResult, RunUsage
+from pydantic_ai.ui.vercel_ai import VercelAIAdapter
 from pydantic_ai.ui.vercel_ai.request_types import (
     RegenerateMessage,
     SubmitMessage,
     UIMessage,
 )
-from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, MessageMetadataChunk
+from pydantic_ai.ui.vercel_ai.response_types import (
+    BaseChunk,
+    MessageMetadataChunk,
+    ProviderMetadata,
+    ToolInputAvailableChunk,
+)
 from sqlalchemy import Insert, func, select
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
@@ -39,15 +46,50 @@ from phoenix.server.agents.context import (
 from phoenix.server.agents.exceptions import AgentError, SummarizationError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
-from phoenix.server.agents.pydantic_ai import (
-    PhoenixToolCallProviderMetadata,
-    PhoenixVercelAIAdapter,
-)
 from phoenix.server.agents.summarization import summarize_messages
+from phoenix.server.agents.toolsets.external.tools import get_external_tool_definition
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
+from phoenix.server.api.openapi.registry import register_openapi_schema
 from phoenix.server.bearer_auth import is_authenticated
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer, detached_otel_context
+
+_PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
+
+ToolExecutionEnvironment = Literal["client", "server"]
+
+
+@register_openapi_schema
+class ToolCallProviderMetadata(BaseModel):
+    """Payload Phoenix stamps under the ``phoenix`` namespace of Vercel AI
+    ``providerMetadata`` on tool-call chunks (``tool-input-start`` and
+    ``tool-input-available``)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    tool_execution_environment: ToolExecutionEnvironment
+    """Whether the tool is executed on the client (external toolset) or on the
+    Phoenix server (everything else, e.g. MCP tools and function tools)."""
+
+
+def _get_updated_provider_metadata(
+    *,
+    provider_metadata: ProviderMetadata,
+    tool_name: str,
+) -> ProviderMetadata:
+    result: ProviderMetadata = deepcopy(provider_metadata)
+    tool_execution_environment: ToolExecutionEnvironment = (
+        "client" if get_external_tool_definition(tool_name) is not None else "server"
+    )
+    new_tool_call_metadata = ToolCallProviderMetadata(
+        tool_execution_environment=tool_execution_environment
+    )
+    existing_tool_call_metadata: dict[str, Any] = result.get(_PHOENIX_PROVIDER_METADATA_KEY, {})
+    result[_PHOENIX_PROVIDER_METADATA_KEY] = {
+        **existing_tool_call_metadata,
+        **new_tool_call_metadata.model_dump(),
+    }
+    return result
 
 
 class _CamelModel(BaseModel):
@@ -75,6 +117,7 @@ class AssistantMessageMetadataTraceIds(_CamelModel):
     root_span_id: str
 
 
+@register_openapi_schema
 class AssistantMessageMetadata(_CamelModel):
     """Wire schema for the chat stream's `message_metadata` payload."""
 
@@ -367,29 +410,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
     dependencies = [Depends(is_authenticated)] if authentication_enabled else []
     router = APIRouter(tags=["chat"], dependencies=dependencies)
 
-    @router.post(
-        "/agents/{agent_id}/sessions/{session_id}/chat",
-        responses={
-            200: {
-                "model": AssistantMessageMetadata,
-                "description": (
-                    "Vercel-AI-style SSE stream. The turn ends with a "
-                    "`message-metadata` chunk whose `messageMetadata` payload "
-                    "matches `AssistantMessageMetadata`. Declared here so the "
-                    "model is included in the generated OpenAPI components."
-                ),
-            },
-            "default": {
-                "model": PhoenixToolCallProviderMetadata,
-                "description": (
-                    "Per-tool-call payload stamped under the `phoenix` namespace "
-                    "of `providerMetadata` on `tool-input-start` and "
-                    "`tool-input-available` chunks. Declared here so the model "
-                    "is included in the generated OpenAPI components."
-                ),
-            },
-        },
-    )
+    @router.post("/agents/{agent_id}/sessions/{session_id}/chat")
     async def chat(
         agent_id: str,
         session_id: str,
@@ -438,7 +459,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             docs_mcp_server=request.app.state.docs_mcp_server,
             tracer_provider=tracer_provider,
         )
-        adapter: PhoenixVercelAIAdapter[AgentDependencies, AgentOutput] = PhoenixVercelAIAdapter(
+        adapter: VercelAIAdapter[AgentDependencies, AgentOutput] = VercelAIAdapter(
             agent=agent,
             run_input=body,
             accept=request.headers.get("accept"),
@@ -462,6 +483,11 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     assert _is_async_generator(raw_stream)
                     async with aclosing(raw_stream) as stream:
                         async for chunk in stream:
+                            if isinstance(chunk, ToolInputAvailableChunk):
+                                chunk.provider_metadata = _get_updated_provider_metadata(
+                                    provider_metadata=chunk.provider_metadata or {},
+                                    tool_name=chunk.tool_name,
+                                )
                             yield chunk
             finally:
                 if tracer is not None:
@@ -514,7 +540,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
-        history = PhoenixVercelAIAdapter.load_messages(body.messages)
+        history = VercelAIAdapter.load_messages(body.messages)
         try:
             with detached_otel_context(), using_metadata({"session_id": session_id}):
                 result = await summarize_messages(messages=history, model=model)

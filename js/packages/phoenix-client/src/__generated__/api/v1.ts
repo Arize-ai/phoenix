@@ -3031,6 +3031,19 @@ export interface components {
             message?: string | null;
         };
         /**
+         * PhoenixToolCallProviderMetadata
+         * @description Payload Phoenix stamps under the ``phoenix`` namespace of Vercel AI
+         *     ``providerMetadata`` on tool-call chunks (``tool-input-start`` and
+         *     ``tool-input-available``).
+         */
+        PhoenixToolCallProviderMetadata: {
+            /**
+             * Tool Execution Environment
+             * @enum {string}
+             */
+            tool_execution_environment: "client" | "server";
+        };
+        /**
          * PlaygroundContext
          * @description Playground prompt editor state mounted in the current browser route.
          */
@@ -8880,13 +8893,13 @@ export interface operations {
                     "application/json": components["schemas"]["AssistantMessageMetadata"];
                 };
             };
-            /** @description Validation Error */
-            422: {
+            /** @description Per-tool-call payload stamped under the `phoenix` namespace of `providerMetadata` on `tool-input-start` and `tool-input-available` chunks. Declared here so the model is included in the generated OpenAPI components. */
+            default: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["PhoenixToolCallProviderMetadata"];
                 };
             };
         };

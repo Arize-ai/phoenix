@@ -3,6 +3,10 @@ from typing import Any
 from fastapi import APIRouter
 from fastapi.openapi.utils import get_openapi
 
+from phoenix.server.api.openapi.registry import (
+    add_registered_models_to_openapi_schema,
+    get_registered_openapi_schemas,
+)
 from phoenix.server.api.routers.agents import create_agents_router
 from phoenix.server.api.routers.auth import create_auth_router
 from phoenix.server.api.routers.oauth2 import router as oauth2_router
@@ -17,7 +21,7 @@ def get_openapi_schema() -> dict[str, Any]:
     router.include_router(oauth2_router)
     router.include_router(create_agents_router(authentication_enabled=False))
     router.include_router(app_root_router)
-    return get_openapi(
+    schema = get_openapi(
         title="Arize-Phoenix REST API",
         version=REST_API_VERSION,
         openapi_version="3.1.0",
@@ -25,3 +29,8 @@ def get_openapi_schema() -> dict[str, Any]:
         routes=router.routes,
         separate_input_output_schemas=False,
     )
+    schema = add_registered_models_to_openapi_schema(
+        schema,
+        get_registered_openapi_schemas(),
+    )
+    return schema
