@@ -22,6 +22,7 @@ import {
   type EditPromptInput,
   type ReadPromptInput,
 } from "@phoenix/agent/tools/playgroundPrompt";
+import type { components } from "@phoenix/api/__generated__/v1";
 import {
   GENERATIVE_UI_TOOL_NAME,
   renderGenerativeUISpecSchema,
@@ -39,11 +40,21 @@ import {
 type AddToolOutput = Chat<UIMessage>["addToolOutput"];
 type AppendMessagePart = (part: UIMessage["parts"][number]) => void;
 
-/** Minimal tool-call shape produced by the AI SDK runtime. */
+type PhoenixToolCallProviderMetadata =
+  components["schemas"]["PhoenixToolCallProviderMetadata"];
+
+/**
+ * Minimal tool-call shape produced by the AI SDK runtime. `providerMetadata`
+ * follows the Vercel AI SDK convention of namespacing payloads by provider —
+ * Phoenix stamps tool execution environment under the `phoenix` key.
+ */
 export type AgentToolCall = {
   toolCallId: string;
   toolName: string;
   input: unknown;
+  providerMetadata?: {
+    phoenix?: PhoenixToolCallProviderMetadata;
+  };
 };
 
 /** Shared execution context passed to each registered tool handler. */
@@ -572,6 +583,15 @@ export async function handleRegisteredAgentToolCall({
   appendMessagePart?: AppendMessagePart;
   agentStore: AgentStore;
 }) {
+  // Server-executed tools (MCP, function tools) run on the Phoenix server;
+  // the result streams back as `tool-output-available` and must not be
+  // intercepted by the frontend registry.
+  if (
+    toolCall.providerMetadata?.phoenix?.tool_execution_environment === "server"
+  ) {
+    return;
+  }
+
   const registeredTool = agentToolRegistryByName.get(toolCall.toolName);
 
   if (!registeredTool) {

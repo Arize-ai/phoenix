@@ -6538,12 +6538,12 @@
               }
             }
           },
-          "422": {
-            "description": "Validation Error",
+          "default": {
+            "description": "Per-tool-call payload stamped under the `phoenix` namespace of `providerMetadata` on `tool-input-start` and `tool-input-available` chunks. Declared here so the model is included in the generated OpenAPI components.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/PhoenixToolCallProviderMetadata"
                 }
               }
             }
@@ -10747,6 +10747,25 @@
         "additionalProperties": false,
         "type": "object",
         "title": "OtlpStatus"
+      },
+      "PhoenixToolCallProviderMetadata": {
+        "properties": {
+          "tool_execution_environment": {
+            "type": "string",
+            "enum": [
+              "client",
+              "server"
+            ],
+            "title": "Tool Execution Environment"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tool_execution_environment"
+        ],
+        "title": "PhoenixToolCallProviderMetadata",
+        "description": "Payload Phoenix stamps under the ``phoenix`` namespace of Vercel AI\n``providerMetadata`` on tool-call chunks (``tool-input-start`` and\n``tool-input-available``)."
       },
       "PlaygroundContext": {
         "properties": {

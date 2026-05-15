@@ -18,10 +18,18 @@ from phoenix.server.agents.pydantic_ai.openinference_model_wrapper import (
 from phoenix.server.agents.pydantic_ai.openinference_agent_wrapper import (
     OpenInferenceAgentWrapper,
 )
+from phoenix.server.agents.pydantic_ai.vercel_ai_adapter import (
+    PhoenixToolCallProviderMetadata,
+    PhoenixVercelAIAdapter,
+    PhoenixVercelAIEventStream,
+)
 
 __all__ = [
     "OpenInferenceAgentWrapper",
     "OpenInferenceCapabilityWrapper",
     "OpenInferenceModelWrapper",
     "OpenInferenceToolsetWrapper",
+    "PhoenixToolCallProviderMetadata",
+    "PhoenixVercelAIAdapter",
+    "PhoenixVercelAIEventStream",
 ]

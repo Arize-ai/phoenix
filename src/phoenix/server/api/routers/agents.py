@@ -13,7 +13,6 @@ from opentelemetry.trace import SpanContext, format_span_id, format_trace_id
 from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator
 from pydantic.alias_generators import to_camel
 from pydantic_ai import AgentRunResult, RunUsage
-from pydantic_ai.ui.vercel_ai import VercelAIAdapter
 from pydantic_ai.ui.vercel_ai.request_types import (
     RegenerateMessage,
     SubmitMessage,
@@ -40,6 +39,10 @@ from phoenix.server.agents.context import (
 from phoenix.server.agents.exceptions import AgentError, SummarizationError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
+from phoenix.server.agents.pydantic_ai import (
+    PhoenixToolCallProviderMetadata,
+    PhoenixVercelAIAdapter,
+)
 from phoenix.server.agents.summarization import summarize_messages
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
 from phoenix.server.bearer_auth import is_authenticated
@@ -375,7 +378,16 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     "matches `AssistantMessageMetadata`. Declared here so the "
                     "model is included in the generated OpenAPI components."
                 ),
-            }
+            },
+            "default": {
+                "model": PhoenixToolCallProviderMetadata,
+                "description": (
+                    "Per-tool-call payload stamped under the `phoenix` namespace "
+                    "of `providerMetadata` on `tool-input-start` and "
+                    "`tool-input-available` chunks. Declared here so the model "
+                    "is included in the generated OpenAPI components."
+                ),
+            },
         },
     )
     async def chat(
@@ -426,7 +438,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             docs_mcp_server=request.app.state.docs_mcp_server,
             tracer_provider=tracer_provider,
         )
-        adapter: VercelAIAdapter[AgentDependencies, AgentOutput] = VercelAIAdapter(
+        adapter: PhoenixVercelAIAdapter[AgentDependencies, AgentOutput] = PhoenixVercelAIAdapter(
             agent=agent,
             run_input=body,
             accept=request.headers.get("accept"),
@@ -502,7 +514,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
-        history = VercelAIAdapter.load_messages(body.messages)
+        history = PhoenixVercelAIAdapter.load_messages(body.messages)
         try:
             with detached_otel_context(), using_metadata({"session_id": session_id}):
                 result = await summarize_messages(messages=history, model=model)
