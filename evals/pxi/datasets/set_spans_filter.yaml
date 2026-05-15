@@ -5,7 +5,7 @@ evaluators:
   - set_spans_filter_args_match
 examples:
   - id: llm-spans
-    split: regression
+    splits: [regression]
     input:
       query: Show me only LLM spans.
     expected:
@@ -22,7 +22,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: tool-spans
-    split: regression
+    splits: [regression]
     input:
       query: Filter the table to tool spans.
     expected:
@@ -39,7 +39,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: error-spans
-    split: regression
+    splits: [regression]
     input:
       query: Show spans that errored.
     expected:
@@ -56,7 +56,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: slow-spans
-    split: regression
+    splits: [regression]
     input:
       query: Show slow spans taking at least five seconds.
     expected:
@@ -74,7 +74,7 @@ examples:
         notes: "Backfill applied orchestrator's expected: Latency filter doesn't target nested spans per spec; rootSpansOnly is not mandated. Both A and B omit it (B fully, A explicitly). Omitting follows
           the schema 'unsure → omit' rule. Existing block pinned rootSpansOnly: false."
   - id: slow-llm-spans
-    split: regression
+    splits: [regression]
     input:
       query: Show slow LLM calls taking at least five seconds.
     expected:
@@ -91,7 +91,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: trace-id
-    split: regression
+    splits: [regression]
     input:
       query: Filter to trace id 8f3c2d1e0a9b4c5d6e7f8091a2b3c4d5.
     expected:
@@ -109,7 +109,7 @@ examples:
         notes: "Backfill applied orchestrator's expected: trace_id filter does not target nested spans specifically; rootSpansOnly not mandated by spec. Both A and B omit it. Existing pinned rootSpansOnly:
           false."
   - id: span-name
-    split: regression
+    splits: [regression]
     input:
       query: Show spans named retrieve_documents.
     expected:
@@ -126,7 +126,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: input-substring
-    split: regression
+    splits: [regression]
     input:
       query: Show spans where the input mentions refund policy.
     expected:
@@ -143,7 +143,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: annotation-label
-    split: regression
+    splits: [regression]
     input:
       query: Show spans marked hallucinated by the Hallucination annotation.
     expected:
@@ -160,7 +160,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: reset-filter
-    split: regression
+    splits: [regression]
     input:
       query: Clear the span filter and return to the default root spans view.
     expected:
@@ -177,7 +177,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: chain-spans
-    split: regression
+    splits: [regression]
     input:
       query: Filter to the chain spans.
     expected:
@@ -193,7 +193,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: agent-root-spans
-    split: regression
+    splits: [regression]
     input:
       query: Show me top-level agent traces only.
     expected:
@@ -214,7 +214,7 @@ examples:
         notes: "Backfill applied orchestrator's expected: Query is intentionally ambiguous (author intent polarity=ambiguous). Candidate A's variant list captures both reasonable shapes; B's single shape
           is one of those variants. Existing block omitted tool_call_args entirely; we pin variants sinc"
   - id: embedding-spans-lowercase
-    split: regression
+    splits: [regression]
     input:
       query: just embeddings pls
     expected:
@@ -231,7 +231,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: status-ok-spans
-    split: regression
+    splits: [regression]
     input:
       query: Show only successful spans.
     expected:
@@ -248,7 +248,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: status-unset-spans
-    split: regression
+    splits: [regression]
     input:
       query: show me spans that have no status set
     expected:
@@ -265,7 +265,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: high-prompt-tokens
-    split: regression
+    splits: [regression]
     input:
       query: find LLM calls that used more than 10k prompt tokens
     expected:
@@ -282,7 +282,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: cumulative-tokens-roots
-    split: regression
+    splits: [regression]
     input:
       query: Show traces that burned over 50k tokens in total.
     expected:
@@ -299,7 +299,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: start-after-timestamp
-    split: regression
+    splits: [regression]
     input:
       query: Filter to spans that started at or after 2025-01-15T00:00:00Z.
     expected:
@@ -321,7 +321,7 @@ examples:
   # rather than filtering the table. Re-phrased to make filter intent
   # explicit ("filter the spans table to span <id>"). See triage notes.
   - id: span-by-id
-    split: regression
+    splits: [regression]
     input:
       query: Filter the spans table to span 7a3f9c2e1b8d4e5f6a7b8c9d0e1f2a3b.
     expected:
@@ -350,7 +350,7 @@ examples:
           spans table to <id>" to lock filter intent. Original kept
           here for audit.
   - id: children-of-parent
-    split: regression
+    splits: [regression]
     input:
       query: Show me direct children of span 7a3f9c2e1b8d4e5f6a7b8c9d0e1f2a3b.
     expected:
@@ -367,7 +367,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: annotation-score
-    split: regression
+    splits: [regression]
     input:
       query: Show spans where the Helpfulness annotation scored above 0.8.
     expected:
@@ -384,7 +384,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: output-substring
-    split: regression
+    splits: [regression]
     input:
       query: Show spans whose response mentions error code 502.
     expected:
@@ -405,7 +405,7 @@ examples:
         notes: "Backfill applied orchestrator's expected: Existing pinned the full phrase only; candidates A/B pinned just '502'. Both are reasonable substring choices for \"mentions error code 502\" so
           kept as variants."
   - id: metadata-access
-    split: regression
+    splits: [regression]
     input:
       query: Filter to spans tagged with environment 'prod' in metadata.
     expected:
@@ -423,7 +423,7 @@ examples:
         notes: "Backfill applied orchestrator's expected: Metadata filter doesn't target a non-CHAIN/AGENT span_kind; rootSpansOnly is not mandated by spec. Majority (A and C-template) omit it, so omitting
           matches the schema rule \"omit rootSpansOnly when query doesn't determine it\"."
   - id: agent-spans
-    split: regression
+    splits: [regression]
     input:
       query: Show me agent spans.
     expected:
@@ -439,7 +439,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: retriever-spans
-    split: regression
+    splits: [regression]
     input:
       query: Filter to retriever spans only.
     expected:
@@ -456,7 +456,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: not-llm-spans
-    split: regression
+    splits: [regression]
     input:
       query: Show me everything that's not an LLM call.
     expected:
@@ -473,7 +473,7 @@ examples:
         n_opinions: 3
         notes: rootSpansOnly genuinely ambiguous; 2/3 opinions omit it. Orchestrator followed majority.
   - id: fast-spans-under-100ms
-    split: regression
+    splits: [regression]
     input:
       query: Filter to spans under 100ms latency.
     expected:
@@ -489,7 +489,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: llm-or-tool-spans
-    split: regression
+    splits: [regression]
     input:
       query: Show me LLM or tool calls.
     expected:
@@ -506,7 +506,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: high-completion-tokens
-    split: regression
+    splits: [regression]
     input:
       query: Find LLM calls that produced more than 2000 completion tokens.
     expected:
@@ -523,7 +523,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: ended-before-timestamp
-    split: regression
+    splits: [regression]
     input:
       query: Show spans that ended before 2025-01-15T12:00:00Z.
     expected:
@@ -539,7 +539,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: status-message-substring
-    split: regression
+    splits: [regression]
     input:
       query: Filter to spans whose status message mentions 'timeout'.
     expected:
@@ -556,7 +556,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: attribute-path-access
-    split: regression
+    splits: [regression]
     input:
       query: Show spans where attribute 'user.id' equals 'alice'.
     expected:
@@ -572,7 +572,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: three-clause-conjunction
-    split: regression
+    splits: [regression]
     input:
       query: Show errored LLM calls slower than 3 seconds.
     expected:
@@ -589,7 +589,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: ambiguous-fast-spans
-    split: regression
+    splits: [regression]
     input:
       query: show me fast spans
     expected:
@@ -603,7 +603,7 @@ examples:
         n_opinions: 3
         notes: Backfill annotation diverged (no clear majority); existing expected kept.
   - id: ambiguous-tools-or-retrievers
-    split: regression
+    splits: [regression]
     input:
       query: tools or retrievers only
     expected:
@@ -624,7 +624,7 @@ examples:
         notes: "Backfill applied orchestrator's expected: Pinning to TOOL or RETRIEVER (non-CHAIN/AGENT kinds) mandates rootSpansOnly false. Kept two natural arg variants; dropped Candidate A's narrower-only
           single-kind variants since query asks for both."
   - id: ambiguous-not-tool-spans
-    split: regression
+    splits: [regression]
     input:
       query: show me everything except tool calls
     expected:
@@ -646,7 +646,7 @@ examples:
         n_opinions: 3
         notes: "Backfill applied orchestrator's expected: Filtering away TOOL spans still operates on non-CHAIN/AGENT scope of interest; spec's pairing rule applies, so rootSpansOnly false."
   - id: negative-greeting
-    split: regression
+    splits: [regression]
     input:
       query: hey, what's up?
     expected:
@@ -661,7 +661,7 @@ examples:
         notes: Existing expected kept. Orchestrator recommended a different shape (Pure-negative case; schema convention is required [] with exact_match true.) but the existing form passes the harness
           and is more permissive/targeted for this tool-specific dataset.
   - id: negative-capabilities-question
-    split: regression
+    splits: [regression]
     input:
       query: what can you do?
     expected:
@@ -676,7 +676,7 @@ examples:
         notes: Existing expected kept. Orchestrator recommended a different shape (Pure-negative chitchat; required [] with exact_match true per convention.) but the existing form passes the harness 
           and is more permissive/targeted for this tool-specific dataset.
   - id: negative-thanks
-    split: regression
+    splits: [regression]
     input:
       query: thanks!
     expected:
@@ -691,7 +691,7 @@ examples:
         notes: Existing expected kept. Orchestrator recommended a different shape (Pure-negative chitchat.) but the existing form passes the harness and is more permissive/targeted for this 
           tool-specific dataset.
   - id: negative-time-range-intent
-    split: regression
+    splits: [regression]
     input:
       query: Show me only the last hour.
     expected:
@@ -706,7 +706,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: negative-clone-prompt-intent
-    split: regression
+    splits: [regression]
     input:
       query: Clone the current prompt please.
     expected:
@@ -721,7 +721,7 @@ examples:
         notes: Existing expected kept. Orchestrator recommended a different shape (Clone-prompt is a playground action with no tool available in this PXI context (no playground context); pure-negative
           for set_spans_filter dataset. Required [] + exact_match true.) but the existing form passes the harness and is more permissive/targeted for this tool-specific dataset.
   - id: negative-how-to-question
-    split: regression
+    splits: [regression]
     input:
       query: How do I create a new dataset?
     expected:
@@ -736,7 +736,7 @@ examples:
         notes: Existing expected kept. Orchestrator recommended a different shape (Docs query — in eval runs without the docs MCP toolset, the agent should answer from training knowledge with no tool 
           call. Pure-negative.) but the existing form passes the harness and is more permissive/targeted for this tool-specific dataset.
   - id: negative-summarize-ask
-    split: regression
+    splits: [regression]
     input:
       query: Summarize what we see in the spans table right now.
     expected:
@@ -751,7 +751,7 @@ examples:
         notes: Existing expected kept. Orchestrator recommended a different shape (Summarization of current state should not re-issue filter or time-range tools. Pure-negative; required [] + 
           exact_match true matches schema convention.) but the existing form passes the harness and is more permissive/targeted for this tool-specific dataset.
   - id: negative-diagnosis-question
-    split: regression
+    splits: [regression]
     input:
       query: Is there a problem with my project?
     expected:
@@ -766,7 +766,7 @@ examples:
         notes: Existing expected kept. Orchestrator recommended a different shape (Open-ended diagnosis question; agent should answer narratively rather than call set_spans_filter. Pure-negative 
           convention.) but the existing form passes the harness and is more permissive/targeted for this tool-specific dataset.
   - id: negative-definitional-question
-    split: regression
+    splits: [regression]
     input:
       query: Explain what span kinds mean.
     expected:
@@ -781,7 +781,7 @@ examples:
         notes: Existing expected kept. Orchestrator recommended a different shape (Definitional question; no tool call expected.) but the existing form passes the harness and is more 
           permissive/targeted for this tool-specific dataset.
   - id: negative-debug-advice
-    split: regression
+    splits: [regression]
     input:
       query: I think my agent is too slow, what should I do?
     expected:
@@ -796,7 +796,7 @@ examples:
         notes: Existing expected kept. Orchestrator recommended a different shape (Advice-style question; pure-negative.) but the existing form passes the harness and is more permissive/targeted for 
           this tool-specific dataset.
   - id: negative-average-latency
-    split: regression
+    splits: [regression]
     input:
       query: what's the average latency?
     expected:
@@ -811,7 +811,7 @@ examples:
         notes: Existing expected kept. Orchestrator recommended a different shape (Analytical question — set_spans_filter doesn't aggregate, agent should answer narratively or use bash/phoenix-gql. 
           Pure-negative for this dataset's focal tool.) but the existing form passes the harness and is more permissive/targeted for this tool-specific dataset.
   - id: negative-delete-trace
-    split: regression
+    splits: [regression]
     input:
       query: delete this trace
     expected:

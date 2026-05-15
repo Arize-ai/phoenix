@@ -30,8 +30,8 @@ distinct dimension. Add more only when a new example tests something no
 existing example does.
 
 Every example must be scorable by deterministic / heuristic / code logic.
-Every example must include a scalar `split:` value. Use
-`split: regression` for small committed regression suites unless the
+Every example must include a non-empty `splits:` list. Use
+`splits: [regression]` for small committed regression suites unless the
 user explicitly asks for a `dev` or `val` dataset; keep `regression`,
 `dev`, and `val` disjoint.
 
@@ -547,8 +547,8 @@ dataset small while iterating, or commit a temporary copy.
 
 **YAML gotchas that cost an iteration if you miss them:**
 
-- Each example must have `split: <name>`. For the normal small
-  regression datasets this skill creates, set `split: regression`.
+- Each example must have `splits: [...]`. For the normal small
+  regression datasets this skill creates, set `splits: [regression]`.
   The harness rejects missing or empty split lists.
 - The dataset validator uses `ConfigDict(extra="forbid")` on
   `EvalDataset`, so a typo in a top-level key (`example` instead of
