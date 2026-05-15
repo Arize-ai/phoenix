@@ -235,3 +235,43 @@ async def test_client_construction_is_memoized_across_sandbox_creates() -> None:
     assert modal_mock.Client.from_credentials.aio.await_count == 1
     assert modal_mock.App.lookup.aio.await_count == 1
     assert modal_mock.Sandbox.create.aio.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_exec_code_strips_ansi_from_all_three_fields() -> None:
+    """stdout, stderr, and error returned by the Modal backend are ANSI-stripped."""
+    modal_mock = _make_modal_mock()
+    with patch.dict(sys.modules, {"modal": modal_mock}):
+        from phoenix.server.sandbox.modal_backend import ModalSandboxBackend
+
+        backend = ModalSandboxBackend(token_id=_TOKEN_ID, token_secret=_TOKEN_SECRET)
+
+        sandbox = MagicMock()
+        proc = MagicMock()
+        proc.stdout.read.aio = AsyncMock(return_value="\x1b[32mok\x1b[0m\n")
+        proc.stderr.read.aio = AsyncMock(return_value="\x1b[31merror\x1b[0m: bad\n")
+        proc.wait.aio = AsyncMock(return_value=2)
+        sandbox.exec.aio = AsyncMock(return_value=proc)
+
+        result = await backend._exec_code(sandbox, "noop")
+
+    assert result.stdout == "ok\n"
+    assert result.stderr == "error: bad\n"
+    assert result.error == "error: bad\n"
+
+
+@pytest.mark.asyncio
+async def test_execute_strips_ansi_in_raised_exception_path() -> None:
+    """ANSI bytes in str(exc) are stripped on stderr/error when execute catches an exception."""
+    modal_mock = _make_modal_mock()
+    modal_mock.Sandbox.create.aio = AsyncMock(
+        side_effect=RuntimeError("\x1b[31mprovider error\x1b[0m")
+    )
+    with patch.dict(sys.modules, {"modal": modal_mock}):
+        from phoenix.server.sandbox.modal_backend import ModalSandboxBackend
+
+        backend = ModalSandboxBackend(token_id=_TOKEN_ID, token_secret=_TOKEN_SECRET)
+        result = await backend.execute("noop", session_key="ephemeral")
+
+    assert result.error == "provider error"
+    assert result.stderr == "provider error"

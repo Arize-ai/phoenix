@@ -395,3 +395,46 @@ class TestTypescriptRouting:
             f"in /tmp/node_modules (the first entry in Node's resolve path on "
             f"Daytona's TS workspace); got: {install_source!r}"
         )
+
+
+def test_to_execution_result_strips_ansi_on_success() -> None:
+    """Daytona's combined-stream output is ANSI-stripped before landing on stdout."""
+    from phoenix.server.sandbox.daytona_backend import _to_execution_result
+
+    response = MagicMock(result="\x1b[32mok\x1b[0m\n", exit_code=0)
+    result = _to_execution_result(response)
+    assert result.stdout == "ok\n"
+    assert result.stderr == ""
+    assert result.error is None
+
+
+def test_to_execution_result_strips_ansi_on_failure() -> None:
+    """Failed runs land on stderr + error — both must be ANSI-stripped."""
+    from phoenix.server.sandbox.daytona_backend import _to_execution_result
+
+    response = MagicMock(result="\x1b[31mTraceback ...\x1b[0m\nValueError: bad\n", exit_code=1)
+    result = _to_execution_result(response)
+    assert result.stdout == ""
+    assert result.stderr == "Traceback ...\nValueError: bad\n"
+    assert result.error == "Traceback ...\nValueError: bad\n"
+
+
+@pytest.mark.asyncio
+async def test_execute_strips_ansi_in_raised_exception_path() -> None:
+    """ANSI bytes in str(exc) must be stripped on stderr/error when execute
+    catches a raised exception from the SDK."""
+    daytona_mod, process_mod = _make_daytona_mocks()
+    modules = {
+        "daytona_sdk": daytona_mod,
+        "daytona_sdk.common": MagicMock(),
+        "daytona_sdk.common.process": process_mod,
+    }
+    with patch.dict(sys.modules, modules):
+        from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
+
+        backend = DaytonaSandboxBackend(api_key=_API_KEY)
+        with patch.object(backend, "_get_client", side_effect=RuntimeError("\x1b[31mboom\x1b[0m")):
+            result = await backend.execute("noop", session_key="ephemeral")
+
+    assert result.error == "boom"
+    assert result.stderr == "boom"

@@ -243,11 +243,7 @@ class VercelSandboxBackend(SandboxBackend):
         stdout, stderr = await asyncio.gather(result.stdout(), result.stderr())
         exit_code = result.exit_code
         error: Optional[str] = stderr if exit_code != 0 else None
-        return ExecutionResult(
-            stdout=stdout or "",
-            stderr=stderr or "",
-            error=error,
-        )
+        return ExecutionResult(stdout=stdout or "", stderr=stderr or "", error=error)
 
     async def execute(
         self,
