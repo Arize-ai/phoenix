@@ -327,13 +327,27 @@ class ModalConfig(BaseModel):
     )
 
 
+# Matches ANSI CSI escape sequences (e.g. color codes from tput / chalk).
+_ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
+
+
 @dataclass
 class ExecutionResult:
-    """Result returned by a sandbox execution."""
+    """Result returned by a sandbox execution.
+
+    ``stdout``, ``stderr``, and ``error`` are ANSI-stripped on construction so
+    callers never have to handle escape codes from backends.
+    """
 
     stdout: str
     stderr: str
     error: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        self.stdout = _ANSI_ESCAPE_RE.sub("", self.stdout)
+        self.stderr = _ANSI_ESCAPE_RE.sub("", self.stderr)
+        if self.error is not None:
+            self.error = _ANSI_ESCAPE_RE.sub("", self.error)
 
     @property
     def success(self) -> bool:

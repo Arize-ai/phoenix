@@ -6,6 +6,7 @@ from sqlalchemy import select
 from strawberry.relay.types import GlobalID
 
 from phoenix.db import models
+from phoenix.server.api.evaluators import _PHOENIX_RESULT_BEGIN, _PHOENIX_RESULT_END
 from phoenix.server.sandbox.types import ExecutionResult
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -300,8 +301,9 @@ class TestInlineCodeEvaluatorPreviewMutation:
         sandbox_config: models.SandboxConfig,
     ) -> None:
         backend = AsyncMock()
+        fenced_stdout = f"{_PHOENIX_RESULT_BEGIN}\n1.0\n{_PHOENIX_RESULT_END}\n"
         backend.execute = AsyncMock(
-            return_value=ExecutionResult(stdout="1.0", stderr="", error=None)
+            return_value=ExecutionResult(stdout=fenced_stdout, stderr="", error=None)
         )
 
         with patch(
