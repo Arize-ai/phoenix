@@ -3,6 +3,10 @@ import type { ChatStatus } from "ai";
 import { DefaultChatTransport, isToolUIPart } from "ai";
 import { useEffect, useRef } from "react";
 
+import {
+  getServerExecutedToolNames,
+  parseAgentAdvertisedToolsDataPart,
+} from "@phoenix/agent/chat/advertisedTools";
 import { buildAgentChatRequestBody } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
 import { getUnresolvedToolCalls } from "@phoenix/agent/chat/interruptToolCalls";
@@ -66,6 +70,7 @@ export function useAgentChat({
   // next send/summary without rebuilding the Chat.
   const modelSelectionRef = useRef(modelSelection);
   modelSelectionRef.current = modelSelection;
+  const serverExecutedToolNamesRef = useRef<ReadonlySet<string>>(new Set());
 
   // Resolve the imperative runtime instance for this session/model pair. The
   // runtime owns replacement semantics when the transport changes, while the
@@ -93,22 +98,25 @@ export function useAgentChat({
                   messages,
                   trigger,
                   messageId,
-                }) => ({
-                  body: buildAgentChatRequestBody({
-                    body,
-                    id,
-                    messages,
-                    trigger,
-                    messageId,
-                    capabilities: store.getState().capabilities,
-                    observability: store.getState().observability,
-                    hasRemoteCollector: Boolean(
-                      store.getState().agentsConfig.collectorEndpoint
-                    ),
-                    contexts: selectActiveContexts(store.getState()),
-                    modelSelection: modelSelectionRef.current,
-                  }),
-                }),
+                }) => {
+                  serverExecutedToolNamesRef.current = new Set();
+                  return {
+                    body: buildAgentChatRequestBody({
+                      body,
+                      id,
+                      messages,
+                      trigger,
+                      messageId,
+                      capabilities: store.getState().capabilities,
+                      observability: store.getState().observability,
+                      hasRemoteCollector: Boolean(
+                        store.getState().agentsConfig.collectorEndpoint
+                      ),
+                      contexts: selectActiveContexts(store.getState()),
+                      modelSelection: modelSelectionRef.current,
+                    }),
+                  };
+                },
               }),
               // Tool execution must target the runtime-owned chat instance so
               // tool outputs continue to attach to the correct conversation
@@ -118,8 +126,17 @@ export function useAgentChat({
                   toolCall,
                   sessionId,
                   addToolOutput: chat.addToolOutput,
+                  serverExecutedToolNames: serverExecutedToolNamesRef.current,
                   agentStore: store,
                 });
+              },
+              onData: (part) => {
+                const advertisedTools = parseAgentAdvertisedToolsDataPart(part);
+                if (advertisedTools == null) {
+                  return;
+                }
+                serverExecutedToolNamesRef.current =
+                  getServerExecutedToolNames(advertisedTools);
               },
               sendAutomaticallyWhen: shouldSendAutomaticallyAfterToolOutput,
               onFinish: ({ messages: finalMessages, message }) => {

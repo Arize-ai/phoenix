@@ -18,6 +18,7 @@ type HandleAgentToolCallOptions = {
   toolCall: AgentToolCall;
   sessionId: string | null;
   addToolOutput: AddToolOutput;
+  serverExecutedToolNames?: ReadonlySet<string>;
   /**
    * The agent store instance, needed by tools that interact with shared UI
    * state (e.g. the elicit tool sets a pending elicitation).
@@ -32,12 +33,14 @@ export async function handleAgentToolCall({
   toolCall,
   sessionId,
   addToolOutput,
+  serverExecutedToolNames,
   agentStore,
 }: HandleAgentToolCallOptions) {
   await handleRegisteredAgentToolCall({
     toolCall,
     sessionId,
     addToolOutput,
+    serverExecutedToolNames,
     agentStore,
   });
 }

@@ -13,6 +13,13 @@ export type DocsGetPageInput = {
 };
 
 /**
+ * Input shape for the query_docs_filesystem_phoenix tool.
+ */
+export type DocsFilesystemQueryInput = {
+  command: string;
+};
+
+/**
  * Output from docs tools is a string (the search results or page content).
  * The MCP server returns text content.
  */
@@ -21,7 +28,11 @@ export type DocsToolOutput = string;
 /**
  * Names of backend docs tools. Used for rendering dispatch.
  */
-export const DOCS_TOOL_NAMES = ["search_phoenix", "get_page_phoenix"] as const;
+export const DOCS_TOOL_NAMES = [
+  "search_phoenix",
+  "get_page_phoenix",
+  "query_docs_filesystem_phoenix",
+] as const;
 export type DocsToolName = (typeof DOCS_TOOL_NAMES)[number];
 
 export function isDocsToolName(name: string): name is DocsToolName {
@@ -54,6 +65,23 @@ export function parseDocsGetPageInput(input: unknown): DocsGetPageInput | null {
     typeof (input as Record<string, unknown>).page === "string"
   ) {
     return input as DocsGetPageInput;
+  }
+  return null;
+}
+
+/**
+ * Parse the query_docs_filesystem_phoenix tool input from the raw AI SDK part input.
+ */
+export function parseDocsFilesystemQueryInput(
+  input: unknown
+): DocsFilesystemQueryInput | null {
+  if (
+    typeof input === "object" &&
+    input !== null &&
+    "command" in input &&
+    typeof (input as Record<string, unknown>).command === "string"
+  ) {
+    return input as DocsFilesystemQueryInput;
   }
   return null;
 }

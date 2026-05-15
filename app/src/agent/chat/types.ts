@@ -1,5 +1,6 @@
 import type { UIMessage } from "ai";
 
+import type { AgentChatDataParts } from "@phoenix/agent/chat/advertisedTools";
 import type { components } from "@phoenix/api/__generated__/v1";
 
 /**
@@ -7,5 +8,6 @@ import type { components } from "@phoenix/api/__generated__/v1";
  * metadata shape, sourced from the generated OpenAPI types.
  */
 export type AgentUIMessage = UIMessage<
-  components["schemas"]["AssistantMessageMetadata"]
+  components["schemas"]["AssistantMessageMetadata"],
+  AgentChatDataParts
 >;

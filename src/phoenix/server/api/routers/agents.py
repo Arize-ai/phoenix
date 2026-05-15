@@ -18,7 +18,7 @@ from pydantic_ai.ui.vercel_ai.request_types import (
     SubmitMessage,
     UIMessage,
 )
-from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, MessageMetadataChunk
+from pydantic_ai.ui.vercel_ai.response_types import BaseChunk, DataChunk, MessageMetadataChunk
 from sqlalchemy import Insert, func, select
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
@@ -31,6 +31,10 @@ from phoenix.config import get_env_phoenix_agents_assistant_project_name
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
+from phoenix.server.agents.advertised_tools import (
+    AgentAdvertisedToolsData,
+    resolve_advertised_tools,
+)
 from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.capabilities import AgentCapabilities
 from phoenix.server.agents.context import (
@@ -171,6 +175,7 @@ class _SummarizeResponse(BaseModel):
 logger = logging.getLogger(__name__)
 
 _ASSISTANT_AGENT_ID = "assistant"
+_ADVERTISED_TOOLS_DATA_CHUNK_TYPE = "data-agent-advertised-tools"
 
 
 def _log_run_complete(result: AgentRunResult[Any]) -> None:
@@ -179,6 +184,17 @@ def _log_run_complete(result: AgentRunResult[Any]) -> None:
     logger.info("agent run complete: %d messages", len(messages))
     for message in messages:
         logger.info("%s", message)
+
+
+async def _build_advertised_tools_chunk(deps: ChatDependencies) -> DataChunk:
+    """Build the first stream chunk that tells the browser which tools are server-owned."""
+    return DataChunk(
+        type=_ADVERTISED_TOOLS_DATA_CHUNK_TYPE,
+        data=AgentAdvertisedToolsData(tools=await resolve_advertised_tools(deps)).model_dump(
+            mode="json", by_alias=True
+        ),
+        transient=True,
+    )
 
 
 class _AgentSpanContextRecorder(SpanProcessor):
@@ -434,6 +450,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
             try:
                 with using_session(session_id=session_id):
+                    yield await _build_advertised_tools_chunk(deps)
                     async for chunk in adapter.run_stream(deps=deps, on_complete=_on_complete):
                         yield chunk
             finally:

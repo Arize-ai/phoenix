@@ -40,6 +40,25 @@ describe("toolRegistry", () => {
     );
   });
 
+  it("ignores server-executed tools advertised by the chat stream", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-server",
+        toolName: "query_docs_filesystem_phoenix",
+        input: { command: 'rg -il "datasets" /' },
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+      serverExecutedToolNames: new Set(["query_docs_filesystem_phoenix"]),
+    });
+
+    expect(addToolOutput).not.toHaveBeenCalled();
+  });
+
   it("returns an error output for invalid tool input", async () => {
     const store = createAgentStore();
     const addToolOutput = vi.fn().mockResolvedValue(undefined);

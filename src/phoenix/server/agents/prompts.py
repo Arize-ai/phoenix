@@ -20,11 +20,21 @@ _DOCS_TOOL_SYSTEM_PROMPT_LINES = (
     ),
     "  <when_to_use>You need detailed information from a known docs page.</when_to_use>",
     "</tool>",
+    '<tool name="query_docs_filesystem_phoenix">',
+    (
+        "  <description>Run a read-only shell-like query against the Phoenix "
+        "documentation filesystem.</description>"
+    ),
+    (
+        "  <when_to_use>You need to inspect docs files or OpenAPI specs with "
+        "commands such as `rg`, `tree`, or `head`.</when_to_use>"
+    ),
+    "</tool>",
     "<documentation_usage>",
     (
         "  Use the documentation tools proactively when answering questions about Phoenix. "
-        "Search first, then fetch specific pages if needed for deeper detail. Always cite "
-        "the documentation when providing answers based on search results."
+        "Search first, then fetch specific pages or query docs files if needed for deeper "
+        "detail. Always cite the documentation when providing answers based on search results."
     ),
     "</documentation_usage>",
 )

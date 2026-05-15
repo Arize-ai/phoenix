@@ -473,15 +473,20 @@ export async function handleRegisteredAgentToolCall({
   sessionId,
   addToolOutput,
   agentStore,
+  serverExecutedToolNames,
 }: {
   toolCall: AgentToolCall;
   sessionId: string | null;
   addToolOutput: AddToolOutput;
   agentStore: AgentStore;
+  serverExecutedToolNames?: ReadonlySet<string>;
 }) {
   const registeredTool = agentToolRegistryByName.get(toolCall.toolName);
 
   if (!registeredTool) {
+    if (serverExecutedToolNames?.has(toolCall.toolName)) {
+      return;
+    }
     await addToolOutput({
       state: "output-error",
       tool: toolCall.toolName,
