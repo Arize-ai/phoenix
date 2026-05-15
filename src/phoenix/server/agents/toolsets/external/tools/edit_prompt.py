@@ -9,7 +9,7 @@ from phoenix.server.agents.toolsets.external.external_tool_definitions import (
     DynamicExternalToolDefinition,
 )
 
-EDIT_PROMPT_TOOL_NAME = "edit_prompt_instance"
+_EDIT_PROMPT_TOOL_NAME = "edit_prompt_instance"
 
 _MESSAGE_ROLE_ENUM = ["system", "user", "ai", "tool"]
 
@@ -108,18 +108,16 @@ _EDIT_PROMPT_TOOL_PARAMETERS: dict[str, Any] = {
 }
 
 
-EDIT_PROMPT_TOOL_DEFINITION = DynamicExternalToolDefinition(
-    name=EDIT_PROMPT_TOOL_NAME,
-    description=_EDIT_PROMPT_TOOL_DESCRIPTION,
-    parameters_json_schema=_EDIT_PROMPT_TOOL_PARAMETERS,
-)
+def build_edit_prompt_tool(instructions: str) -> DynamicExternalToolDefinition:
+    tool = DynamicExternalToolDefinition(
+        name=_EDIT_PROMPT_TOOL_NAME,
+        description=_EDIT_PROMPT_TOOL_DESCRIPTION,
+        parameters_json_schema=_EDIT_PROMPT_TOOL_PARAMETERS,
+        instructions=instructions,
+    )
 
+    @tool.include
+    def _include(ctx: RunContext[ChatDependencies]) -> bool:
+        return ctx.deps.contexts.playground is not None
 
-@EDIT_PROMPT_TOOL_DEFINITION.instruction
-def _instruction(ctx: RunContext[ChatDependencies]) -> str:
-    return ctx.deps.instructions.edit_prompt_instance_tool
-
-
-@EDIT_PROMPT_TOOL_DEFINITION.include
-def _include(ctx: RunContext[ChatDependencies]) -> bool:
-    return ctx.deps.contexts.playground is not None
+    return tool

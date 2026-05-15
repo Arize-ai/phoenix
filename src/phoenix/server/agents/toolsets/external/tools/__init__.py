@@ -1,27 +1,21 @@
-from phoenix.server.agents.toolsets.external.tools.ask_user import ASK_USER_TOOL_DEFINITION
-from phoenix.server.agents.toolsets.external.tools.bash import BASH_TOOL_DEFINITION
+from phoenix.server.agents.toolsets.external.tools.ask_user import build_ask_user_tool
+from phoenix.server.agents.toolsets.external.tools.bash import build_bash_tool
 from phoenix.server.agents.toolsets.external.tools.clone_prompt_instance import (
-    CLONE_PROMPT_INSTANCE_TOOL_DEFINITION,
+    build_clone_prompt_instance_tool,
 )
-from phoenix.server.agents.toolsets.external.tools.edit_prompt import (
-    EDIT_PROMPT_TOOL_DEFINITION,
-)
-from phoenix.server.agents.toolsets.external.tools.read_prompt import (
-    READ_PROMPT_TOOL_DEFINITION,
-)
+from phoenix.server.agents.toolsets.external.tools.edit_prompt import build_edit_prompt_tool
+from phoenix.server.agents.toolsets.external.tools.read_prompt import build_read_prompt_tool
 from phoenix.server.agents.toolsets.external.tools.set_spans_filter import (
-    SET_SPANS_FILTER_TOOL_DEFINITION,
+    build_set_spans_filter_tool,
 )
-from phoenix.server.agents.toolsets.external.tools.set_time_range import (
-    SET_TIME_RANGE_TOOL_DEFINITION,
-)
+from phoenix.server.agents.toolsets.external.tools.set_time_range import build_set_time_range_tool
 
 __all__ = [
-    "ASK_USER_TOOL_DEFINITION",
-    "BASH_TOOL_DEFINITION",
-    "CLONE_PROMPT_INSTANCE_TOOL_DEFINITION",
-    "EDIT_PROMPT_TOOL_DEFINITION",
-    "READ_PROMPT_TOOL_DEFINITION",
-    "SET_SPANS_FILTER_TOOL_DEFINITION",
-    "SET_TIME_RANGE_TOOL_DEFINITION",
+    "build_ask_user_tool",
+    "build_bash_tool",
+    "build_clone_prompt_instance_tool",
+    "build_edit_prompt_tool",
+    "build_read_prompt_tool",
+    "build_set_spans_filter_tool",
+    "build_set_time_range_tool",
 ]

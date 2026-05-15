@@ -9,7 +9,7 @@ from phoenix.server.agents.toolsets.external.external_tool_definitions import (
     DynamicExternalToolDefinition,
 )
 
-READ_PROMPT_TOOL_NAME = "read_prompt_instance"
+_READ_PROMPT_TOOL_NAME = "read_prompt_instance"
 
 _READ_PROMPT_TOOL_DESCRIPTION = (
     "Read the current playground prompt for one instance. Use this before editing a "
@@ -36,18 +36,16 @@ _READ_PROMPT_TOOL_PARAMETERS: dict[str, Any] = {
 }
 
 
-READ_PROMPT_TOOL_DEFINITION = DynamicExternalToolDefinition(
-    name=READ_PROMPT_TOOL_NAME,
-    description=_READ_PROMPT_TOOL_DESCRIPTION,
-    parameters_json_schema=_READ_PROMPT_TOOL_PARAMETERS,
-)
+def build_read_prompt_tool(instructions: str) -> DynamicExternalToolDefinition:
+    tool = DynamicExternalToolDefinition(
+        name=_READ_PROMPT_TOOL_NAME,
+        description=_READ_PROMPT_TOOL_DESCRIPTION,
+        parameters_json_schema=_READ_PROMPT_TOOL_PARAMETERS,
+        instructions=instructions,
+    )
 
+    @tool.include
+    def _include(ctx: RunContext[ChatDependencies]) -> bool:
+        return ctx.deps.contexts.playground is not None
 
-@READ_PROMPT_TOOL_DEFINITION.instruction
-def _instruction(ctx: RunContext[ChatDependencies]) -> str:
-    return ctx.deps.instructions.read_prompt_instance_tool
-
-
-@READ_PROMPT_TOOL_DEFINITION.include
-def _include(ctx: RunContext[ChatDependencies]) -> bool:
-    return ctx.deps.contexts.playground is not None
+    return tool

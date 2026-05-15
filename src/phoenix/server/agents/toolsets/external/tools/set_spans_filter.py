@@ -9,7 +9,7 @@ from phoenix.server.agents.toolsets.external.external_tool_definitions import (
     DynamicExternalToolDefinition,
 )
 
-SET_SPANS_FILTER_TOOL_NAME = "set_spans_filter"
+_SET_SPANS_FILTER_TOOL_NAME = "set_spans_filter"
 
 _SET_SPANS_FILTER_TOOL_DESCRIPTION = (
     "Set the spans table filter. The filter is applied declaratively as a "
@@ -97,19 +97,17 @@ _SET_SPANS_FILTER_TOOL_PARAMETERS: dict[str, Any] = {
 }
 
 
-SET_SPANS_FILTER_TOOL_DEFINITION = DynamicExternalToolDefinition(
-    name=SET_SPANS_FILTER_TOOL_NAME,
-    description=_SET_SPANS_FILTER_TOOL_DESCRIPTION,
-    parameters_json_schema=_SET_SPANS_FILTER_TOOL_PARAMETERS,
-)
+def build_set_spans_filter_tool(instructions: str) -> DynamicExternalToolDefinition:
+    tool = DynamicExternalToolDefinition(
+        name=_SET_SPANS_FILTER_TOOL_NAME,
+        description=_SET_SPANS_FILTER_TOOL_DESCRIPTION,
+        parameters_json_schema=_SET_SPANS_FILTER_TOOL_PARAMETERS,
+        instructions=instructions,
+    )
 
+    @tool.include
+    def _include(ctx: RunContext[ChatDependencies]) -> bool:
+        project = ctx.deps.contexts.project
+        return project is not None and project.span_filter is not None
 
-@SET_SPANS_FILTER_TOOL_DEFINITION.instruction
-def _instruction(ctx: RunContext[ChatDependencies]) -> str:
-    return ctx.deps.instructions.set_spans_filter_tool
-
-
-@SET_SPANS_FILTER_TOOL_DEFINITION.include
-def _include(ctx: RunContext[ChatDependencies]) -> bool:
-    project = ctx.deps.contexts.project
-    return project is not None and project.span_filter is not None
+    return tool

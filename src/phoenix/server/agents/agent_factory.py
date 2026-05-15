@@ -10,11 +10,8 @@ from phoenix.server.agents.context import (
 )
 from phoenix.server.agents.dependencies import ChatDependencies
 from phoenix.server.agents.prompts import AgentInstructions
-from phoenix.server.agents.pydantic_ai import (
-    OpenInferenceAgentWrapper,
-    OpenInferenceToolsetWrapper,
-)
-from phoenix.server.agents.toolsets import build_toolset
+from phoenix.server.agents.pydantic_ai import OpenInferenceAgentWrapper
+from phoenix.server.agents.toolsets import build_toolset_factory
 
 ChatOutput = str | DeferredToolRequests
 
@@ -44,11 +41,9 @@ def build_agent(
 ) -> OpenInferenceAgentWrapper[ChatDependencies, ChatOutput]:
     resolved_instructions = instructions or AgentInstructions()
     provider = tracer_provider or NoOpTracerProvider()
-
-    def _build_toolset(
-        ctx: RunContext[ChatDependencies],
-    ) -> OpenInferenceToolsetWrapper[ChatDependencies]:
-        return build_toolset(ctx, tracer_provider=provider)
+    build_toolset = build_toolset_factory(
+        instructions=resolved_instructions, tracer_provider=provider
+    )
 
     agent = Agent(
         model,
@@ -56,7 +51,7 @@ def build_agent(
         deps_type=ChatDependencies,
         output_type=[str, DeferredToolRequests],
         instructions=[resolved_instructions.base],
-        toolsets=[_build_toolset],
+        toolsets=[build_toolset],
         history_processors=[_inject_ui_context],
     )
 

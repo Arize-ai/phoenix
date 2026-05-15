@@ -9,7 +9,7 @@ from phoenix.server.agents.toolsets.external.external_tool_definitions import (
     DynamicExternalToolDefinition,
 )
 
-CLONE_PROMPT_INSTANCE_TOOL_NAME = "clone_prompt_instance"
+_CLONE_PROMPT_INSTANCE_TOOL_NAME = "clone_prompt_instance"
 
 _CLONE_PROMPT_INSTANCE_TOOL_DESCRIPTION = (
     "Clone an existing playground prompt instance into a new comparison instance. "
@@ -38,18 +38,16 @@ _CLONE_PROMPT_INSTANCE_TOOL_PARAMETERS: dict[str, Any] = {
 }
 
 
-CLONE_PROMPT_INSTANCE_TOOL_DEFINITION = DynamicExternalToolDefinition(
-    name=CLONE_PROMPT_INSTANCE_TOOL_NAME,
-    description=_CLONE_PROMPT_INSTANCE_TOOL_DESCRIPTION,
-    parameters_json_schema=_CLONE_PROMPT_INSTANCE_TOOL_PARAMETERS,
-)
+def build_clone_prompt_instance_tool(instructions: str) -> DynamicExternalToolDefinition:
+    tool = DynamicExternalToolDefinition(
+        name=_CLONE_PROMPT_INSTANCE_TOOL_NAME,
+        description=_CLONE_PROMPT_INSTANCE_TOOL_DESCRIPTION,
+        parameters_json_schema=_CLONE_PROMPT_INSTANCE_TOOL_PARAMETERS,
+        instructions=instructions,
+    )
 
+    @tool.include
+    def _include(ctx: RunContext[ChatDependencies]) -> bool:
+        return ctx.deps.contexts.playground is not None
 
-@CLONE_PROMPT_INSTANCE_TOOL_DEFINITION.instruction
-def _instruction(ctx: RunContext[ChatDependencies]) -> str:
-    return ctx.deps.instructions.clone_prompt_instance_tool
-
-
-@CLONE_PROMPT_INSTANCE_TOOL_DEFINITION.include
-def _include(ctx: RunContext[ChatDependencies]) -> bool:
-    return ctx.deps.contexts.playground is not None
+    return tool

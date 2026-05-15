@@ -32,11 +32,10 @@ from phoenix.server.agents.context import (
 )
 from phoenix.server.agents.dependencies import ChatDependencies
 from phoenix.server.agents.prompts import AgentInstructions
-from phoenix.server.agents.toolsets.docs_mcp import MintlifyDocsMCPToolset
-from phoenix.server.agents.toolsets.external import tools as external_tools
+from phoenix.server.agents.toolsets.docs_mcp import MintlifyDocsMCPServer
+from phoenix.server.agents.toolsets.external import build_external_tools
 from phoenix.server.agents.toolsets.external.external_tool_definitions import (
     DynamicExternalToolDefinition,
-    ExternalToolDefinition,
     StaticExternalToolDefinition,
 )
 
@@ -44,8 +43,8 @@ _DEFAULT_INSTRUCTIONS = AgentInstructions()
 
 
 def _partition_tool_instructions() -> tuple[frozenset[str], frozenset[str]]:
-    """Invoke every tool's ``get_instruction_part`` with a default context and
-    partition the resulting instruction texts by tool-definition subclass:
+    """Build every external tool with default instructions and partition the
+    resulting instruction texts by tool-definition subclass:
     ``StaticExternalToolDefinition`` lands in the cacheable set,
     ``DynamicExternalToolDefinition`` in the per-turn set. Sourcing this from
     the tool definitions themselves keeps the test in sync as tools are added
@@ -54,16 +53,14 @@ def _partition_tool_instructions() -> tuple[frozenset[str], frozenset[str]]:
         deps=ChatDependencies(
             contexts=ResolvedContexts(),
             capabilities=AgentCapabilities(),
-            docs_mcp_toolset=None,
+            docs_mcp_server=None,
         ),
         model=TestModel(),
         usage=RunUsage(),
     )
     static_tool_instructions: set[str] = set()
     dynamic_tool_instructions: set[str] = set()
-    for name in external_tools.__all__:
-        tool = getattr(external_tools, name)
-        assert isinstance(tool, ExternalToolDefinition)
+    for tool in build_external_tools(_DEFAULT_INSTRUCTIONS):
         content = tool.get_instruction_part(default_ctx).content
         if isinstance(tool, StaticExternalToolDefinition):
             static_tool_instructions.add(content)
@@ -138,8 +135,8 @@ def anthropic_model(
     return AnthropicModel("claude-haiku-4-5", provider=provider, settings=settings)
 
 
-class _OfflineDocsMCPToolset(MintlifyDocsMCPToolset):
-    """``MintlifyDocsMCPToolset`` with the MCP transport short-circuited.
+class _OfflineDocsMCPToolset(MintlifyDocsMCPServer):
+    """``MintlifyDocsMCPServer`` with the MCP transport short-circuited.
 
     Overrides ``get_tools`` to return an empty tool dict and the async
     context-manager protocol to no-op, so the agent run never opens an
@@ -159,7 +156,7 @@ class _OfflineDocsMCPToolset(MintlifyDocsMCPToolset):
 
 
 @pytest.fixture
-def docs_mcp_toolset() -> _OfflineDocsMCPToolset:
+def docs_mcp_server() -> _OfflineDocsMCPToolset:
     return _OfflineDocsMCPToolset()
 
 
@@ -231,7 +228,7 @@ class TestSystemBlockCacheBoundary:
         deps = ChatDependencies(
             contexts=ResolvedContexts(),
             capabilities=AgentCapabilities(),
-            docs_mcp_toolset=None,
+            docs_mcp_server=None,
         )
 
         await agent.run("hello", deps=deps)
@@ -249,7 +246,7 @@ class TestSystemBlockCacheBoundary:
         deps = ChatDependencies(
             contexts=ResolvedContexts(),
             capabilities=AgentCapabilities(),
-            docs_mcp_toolset=None,
+            docs_mcp_server=None,
         )
 
         await agent.run("hello", deps=deps)
@@ -275,7 +272,7 @@ class TestSystemBlockCacheBoundary:
                 ),
             ),
             capabilities=AgentCapabilities(),
-            docs_mcp_toolset=None,
+            docs_mcp_server=None,
         )
 
         await agent.run("hello", deps=deps)
@@ -305,7 +302,7 @@ class TestSystemBlockCacheBoundary:
                 ),
             ),
             capabilities=AgentCapabilities(),
-            docs_mcp_toolset=None,
+            docs_mcp_server=None,
         )
 
         await agent.run("hello", deps=deps)
@@ -339,7 +336,7 @@ class TestSystemBlockCacheBoundary:
                 ),
             ),
             capabilities=AgentCapabilities(),
-            docs_mcp_toolset=None,
+            docs_mcp_server=None,
         )
 
         await agent.run("hello", deps=deps)
@@ -354,17 +351,17 @@ class TestDocsMCPToolset:
     """The optional docs MCP toolset is wired into the system blocks only
     when supplied by the caller."""
 
-    async def test_docs_tool_instructions_are_present_when_docs_mcp_toolset_is_provided(
+    async def test_docs_tool_instructions_are_present_when_docs_mcp_server_is_provided(
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
-        docs_mcp_toolset: _OfflineDocsMCPToolset,
+        docs_mcp_server: _OfflineDocsMCPToolset,
     ) -> None:
         agent = build_agent(model=anthropic_model)
         deps = ChatDependencies(
             contexts=ResolvedContexts(),
             capabilities=AgentCapabilities(),
-            docs_mcp_toolset=docs_mcp_toolset,
+            docs_mcp_server=docs_mcp_server,
         )
 
         await agent.run("hello", deps=deps)
@@ -373,7 +370,7 @@ class TestDocsMCPToolset:
         cached_texts = {block["text"] for block in cached_blocks if block.get("type") == "text"}
         assert _DEFAULT_INSTRUCTIONS.docs_tool in cached_texts
 
-    async def test_docs_tool_instructions_are_absent_when_docs_mcp_toolset_is_omitted(
+    async def test_docs_tool_instructions_are_absent_when_docs_mcp_server_is_omitted(
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
@@ -382,7 +379,7 @@ class TestDocsMCPToolset:
         deps = ChatDependencies(
             contexts=ResolvedContexts(),
             capabilities=AgentCapabilities(),
-            docs_mcp_toolset=None,
+            docs_mcp_server=None,
         )
 
         await agent.run("hello", deps=deps)
@@ -391,9 +388,6 @@ class TestDocsMCPToolset:
 
 
 class TestAgentInstructionsOverride:
-    """Overriding ``AgentInstructions`` via ``build_agent`` and
-    ``ChatDependencies`` propagates to the outgoing system blocks."""
-
     async def test_overridden_base_instruction_appears_inside_cache_boundary(
         self,
         anthropic_model: AnthropicModel,
@@ -404,8 +398,7 @@ class TestAgentInstructionsOverride:
         deps = ChatDependencies(
             contexts=ResolvedContexts(),
             capabilities=AgentCapabilities(),
-            docs_mcp_toolset=None,
-            instructions=custom,
+            docs_mcp_server=None,
         )
 
         await agent.run("hello", deps=deps)
@@ -425,8 +418,7 @@ class TestAgentInstructionsOverride:
         deps = ChatDependencies(
             contexts=ResolvedContexts(),
             capabilities=AgentCapabilities(),
-            docs_mcp_toolset=None,
-            instructions=custom,
+            docs_mcp_server=None,
         )
 
         await agent.run("hello", deps=deps)

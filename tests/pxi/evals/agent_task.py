@@ -26,7 +26,7 @@ from phoenix.server.agents.model_factory import (
 from phoenix.server.agents.model_factory import (
     azure_endpoint_to_base_url,
 )
-from phoenix.server.agents.toolsets.docs_mcp import MintlifyDocsMCPToolset
+from phoenix.server.agents.toolsets.docs_mcp import MintlifyDocsMCPServer
 
 DEFAULT_ASSISTANT_PROVIDER = "OPENAI"
 DEFAULT_ASSISTANT_MODEL = "gpt-5.4"
@@ -118,7 +118,7 @@ async def _build_model() -> PydanticAIModel:
     raise RuntimeError(f"Unsupported {ENV_ASSISTANT_PROVIDER} for evals: {provider}")
 
 
-def should_build_docs_mcp_toolset() -> bool:
+def should_build_docs_mcp_server() -> bool:
     """Mirror the production gate so callers know whether to build the toolset.
 
     See ``phoenix.server.app:1191-1195`` — the real server only constructs
@@ -127,7 +127,7 @@ def should_build_docs_mcp_toolset() -> bool:
     return get_env_dangerously_enable_agents() and get_env_allow_external_resources()
 
 
-def build_shared_docs_mcp_toolset() -> MCPServerStreamableHTTP | None:
+def build_shared_docs_mcp_server() -> MCPServerStreamableHTTP | None:
     """Build a single docs-MCP toolset to share across all eval task runs.
 
     The production server constructs this once at startup and enters its
@@ -138,13 +138,13 @@ def build_shared_docs_mcp_toolset() -> MCPServerStreamableHTTP | None:
     because the underlying streamable-HTTP client opens/closes scopes that
     cross task boundaries.
     """
-    if not should_build_docs_mcp_toolset():
+    if not should_build_docs_mcp_server():
         return None
-    return MintlifyDocsMCPToolset()
+    return MintlifyDocsMCPServer()
 
 
 def _build_dependencies(
-    docs_mcp_toolset: MCPServerStreamableHTTP | None = None,
+    docs_mcp_server: MCPServerStreamableHTTP | None = None,
 ) -> ChatDependencies:
     contexts = ResolvedContexts(
         project=ProjectContext(
@@ -157,7 +157,7 @@ def _build_dependencies(
     return ChatDependencies(
         contexts=contexts,
         capabilities=AgentCapabilities(),
-        docs_mcp_toolset=docs_mcp_toolset,
+        docs_mcp_server=docs_mcp_server,
     )
 
 
@@ -194,14 +194,14 @@ def agent_task_output(result: AgentRunResult[ChatOutput]) -> dict[str, Any]:
 
 
 def make_task(
-    docs_mcp_toolset: MCPServerStreamableHTTP | None = None,
+    docs_mcp_server: MCPServerStreamableHTTP | None = None,
 ) -> Any:
     """Build a Phoenix experiment task callable bound to a shared toolset.
 
     The returned coroutine receives an experiment example dict
     (``{id, input, ...}``) and routes it to :func:`run_pxi_example`,
     attaching the example's stable id so the failure report can map back
-    to YAML example IDs. The single shared ``docs_mcp_toolset`` is reused
+    to YAML example IDs. The single shared ``docs_mcp_server`` is reused
     across every concurrent task to satisfy anyio's single-owner cancel
     scope rule.
     """
@@ -214,7 +214,7 @@ def make_task(
         return await run_pxi_example(
             {"query": query},
             stable_example_id=example.get("id"),
-            docs_mcp_toolset=docs_mcp_toolset,
+            docs_mcp_server=docs_mcp_server,
         )
 
     return task
@@ -239,7 +239,7 @@ async def run_pxi_example(
     input: dict[str, Any],
     *,
     stable_example_id: str | None = None,
-    docs_mcp_toolset: MCPServerStreamableHTTP | None = None,
+    docs_mcp_server: MCPServerStreamableHTTP | None = None,
 ) -> dict[str, Any]:
     """Run a single PXI agent turn imperatively.
 
@@ -248,9 +248,9 @@ async def run_pxi_example(
     returned with ``error`` set, so the failure report can still resolve a
     stable example ID for the row.
 
-    ``docs_mcp_toolset`` should be a single shared, already-entered
+    ``docs_mcp_server`` should be a single shared, already-entered
     :class:`MCPServerStreamableHTTP` (built via
-    :func:`build_shared_docs_mcp_toolset` at the top of an async run, then
+    :func:`build_shared_docs_mcp_server` at the top of an async run, then
     entered with ``async with``). Pass ``None`` to skip the docs toolset.
 
     The returned ``error`` field is bounded in length and contains only the
@@ -261,8 +261,8 @@ async def run_pxi_example(
     try:
         query = input["query"]
         model = await _build_model()
-        agent = build_agent(model)
-        result = await agent.run(query, deps=_build_dependencies(docs_mcp_toolset=docs_mcp_toolset))
+        agent = build_agent(model=model)
+        result = await agent.run(query, deps=_build_dependencies(docs_mcp_server=docs_mcp_server))
         output = agent_task_output(result)
     except Exception as exc:
         message = str(exc)
