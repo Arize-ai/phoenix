@@ -59,8 +59,6 @@ export PHOENIX_AGENTS_ASSISTANT_MODEL=gpt-5.4
 
 Provider credentials are read from the normal provider env vars, such as
 `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`.
-Local project credentials are stored in `~/Projects/phoenix/.env`; source that
-file before running the harness if your shell does not already load it.
 
 The docs MCP toolset follows the same production gates as the Phoenix server:
 
@@ -91,7 +89,7 @@ Split meanings:
 | --- | --- |
 | `regression` | Fast held-out regression gate; default for the harness. |
 | `dev` | Manual experimentation, ablations, and failure analysis. |
-| `val` | Future optimizer scoring signal. |
+| `val` | Optimizer scoring signal. |
 
 These splits are mutually exclusive. Each example must belong to exactly one of
 `dev`, `val`, or `regression`; the loader rejects unknown split names and the
