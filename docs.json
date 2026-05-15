@@ -351,7 +351,8 @@
               "docs/phoenix/settings/api-keys",
               "docs/phoenix/settings/secrets",
               "docs/phoenix/settings/data-retention",
-              "docs/phoenix/settings/custom-ai-providers"
+              "docs/phoenix/settings/custom-ai-providers",
+              "docs/phoenix/settings/sandboxes"
             ]
           },
           {

@@ -1,0 +1,88 @@
+---
+title: "Sandboxes"
+description: "Configure the sandbox runtimes that execute code evaluators and other server-side code workloads."
+---
+
+The **Settings → Sandboxes** page is where an administrator wires up the runtimes that Phoenix uses to execute [code evaluators](/docs/phoenix/evaluation/server-evals/code-evaluators) and other server-side code workloads. It has two cards:
+
+- **Sandbox Providers** — One row per backend. Set credentials, enable a provider, see runtime status.
+- **Sandbox Configurations** — Reusable named configs (timeout, environment variables, internet access, dependencies) that evaluators select from.
+
+<Note>
+Only users with the **Admin** role can view or edit this page. Non-admin users are routed away from the tab.
+</Note>
+
+## Sandbox Providers
+
+A **provider** is a (backend, language) pair — for example, *Vercel Sandbox — Python* or *Daytona — TypeScript*. Each row shows the backend's display name, the language, when the provider was last updated, its current runtime status, and a gear icon to configure credentials.
+
+### Runtime status
+
+The **Status** column reflects what Phoenix observed when it last probed the backend:
+
+| Status | Meaning | Action |
+|--------|---------|--------|
+| `AVAILABLE` | The runtime is reachable and the provider is ready to enable. | Toggle the **Enabled** switch to make the provider selectable in evaluator creation. |
+| `MISSING_CREDENTIALS` | The backend requires API keys or tokens that haven't been set yet. | Click the gear icon and fill in the credential fields. |
+| `NOT_INSTALLED` | The optional Python extra for this backend isn't installed in the Phoenix environment. | Install the matching extra (e.g. `pip install 'arize-phoenix[e2b]'`). See [Sandbox Runtimes](/docs/phoenix/self-hosting/features/sandbox-runtimes) for the full matrix. |
+| `UNAVAILABLE` | A runtime asset is missing (e.g. the `deno` binary isn't on `PATH`, or the configured WASM binary path doesn't exist). The row shows a `statusDetail` message describing what to fix. | Follow the remediation in [Sandbox Runtimes → Troubleshooting](/docs/phoenix/self-hosting/features/sandbox-runtimes#troubleshooting). |
+
+The **Enabled** switch only appears when status is `AVAILABLE`. Disabling a provider hides its configs from evaluator authors without deleting them — flipping the switch back makes the existing configs available again.
+
+### Configuring credentials
+
+Click the gear icon next to a provider to open the credentials dialog. The dialog lists the credential fields the backend declares — for example:
+
+- **E2B** — `E2B_API_KEY`
+- **Daytona** — `DAYTONA_API_KEY`
+- **Modal** — `MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET`
+- **Vercel Sandbox** — `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID`
+
+Values are stored encrypted at rest using the server's `PHOENIX_SECRET`. The dialog shows each field's environment-variable name and a short description; required fields are marked. Local backends (Deno, WebAssembly) have no credentials, and the gear button is disabled for them.
+
+<Tip>
+Credentials configured here override the corresponding environment variables on the Phoenix process. You can mix the two — set production credentials via env vars at deploy time, and override them per-instance in the UI when needed.
+</Tip>
+
+## Sandbox Configurations
+
+A **sandbox configuration** is a named, reusable bundle of runtime settings — timeout, environment variables, internet access, and any pre-installed dependencies — bound to a specific provider. Code evaluators don't pick a provider directly; they pick a configuration. This lets you maintain a small set of curated runtimes (for example, a "default Python with `requests` and `numpy`" config and a "internet-enabled Node.js" config) that evaluator authors choose from.
+
+### Creating a configuration
+
+Click **New Sandbox** in the Sandbox Configurations card. Only providers whose backend is `AVAILABLE` *and* whose admin toggle is enabled appear in the picker.
+
+The dialog exposes the following fields. Fields that aren't supported by the selected backend are shown as **Not supported by the selected backend**.
+
+| Field | Notes |
+|-------|-------|
+| **Provider** | Required. The backend + language pair this config targets. Configs are language-scoped — a Python config can only be selected by Python evaluators. |
+| **Name** | Required. Lowercase letters, digits, dashes, and underscores. Must start and end with a letter or digit. Used to identify the config in the evaluator UI. |
+| **Description** | Optional free-form text shown next to the config name. |
+| **Timeout (seconds)** | Required. Total time allowed for sandbox setup and execution. Defaults to **300s**. |
+| **Environment Variables** | One row per variable. Each row is either a **literal value** typed inline, or a **secret reference** to a key from [Settings → Secrets](/docs/phoenix/settings/secrets). Available only for backends that support env vars. |
+| **Allow Internet Access** | Toggle for backends that gate outbound networking. When off, the sandbox runs with no network egress. |
+| **Dependencies** | One package per line. The dialog shows whether the backend takes Python packages (e.g. `requests`, `numpy==1.26.0`) or npm packages (e.g. `@types/node`, `lodash`). Phoenix installs these before each execution. |
+
+<Warning>
+Environment-variable values — including the values resolved from secret references — are visible to any code that runs in the sandbox (for example, `os.environ` in Python). Treat them as readable by anyone authorized to author or run an evaluator against the config.
+</Warning>
+
+### Managing configurations
+
+The configurations table shows one row per config with its provider, language, settings summary (timeout, dependency count, internet access), and an enable switch. From each row you can:
+
+- **Toggle Enabled** — A disabled config is hidden from evaluator authors but retained. Useful for retiring a config without deleting evaluators that reference it.
+- **Edit** — Change description, timeout, env vars, internet access, and dependencies. The provider and name are immutable after creation.
+- **Delete** — Permanently remove the config. Evaluators that reference it will need to be rebound to a different config before they run again.
+
+If a provider's admin toggle is off, all of its configurations are automatically considered disabled — flipping the provider back on restores them.
+
+## Local vs. remote backends
+
+The **hosting type** badge next to each provider distinguishes:
+
+- **Local backends** — Deno and WebAssembly run inside the Phoenix process. They have no per-execution startup cost but offer narrower isolation. WebAssembly is sandboxed at the Wasm boundary; Deno relies on its permission system, which Phoenix surfaces with a one-time trust warning on self-hosted deployments.
+- **Remote backends** — E2B, Daytona, Vercel Sandbox, and Modal run code in their own infrastructure. Each execution spins up a fresh VM-level sandbox, with stronger isolation, longer maximum timeouts, configurable package install, and outbound network access — at the cost of credentials and per-call latency.
+
+Pick a local backend when the evaluator is fast, deterministic, and self-contained; pick a remote backend when you need package installation, external API calls, or stronger isolation guarantees. See [Sandbox Runtimes](/docs/phoenix/self-hosting/features/sandbox-runtimes) for the full capability matrix and self-hosting setup.
