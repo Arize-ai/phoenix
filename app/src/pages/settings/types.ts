@@ -29,6 +29,8 @@ export type AnnotationConfigFreeform = Pick<
 > & {
   annotationType: "FREEFORM";
   threshold?: number | null;
+  lowerBound?: number | null;
+  upperBound?: number | null;
 };
 
 export type AnnotationConfigType = NonNullable<

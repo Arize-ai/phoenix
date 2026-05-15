@@ -58,10 +58,7 @@ import { EvaluatorInputMapping } from "@phoenix/components/evaluators/EvaluatorI
 import { EvaluatorInputPreview } from "@phoenix/components/evaluators/EvaluatorInputPreview";
 import { CodeEvaluatorInputVariablesProvider } from "@phoenix/components/evaluators/EvaluatorInputVariablesContext/CodeEvaluatorInputVariablesProvider";
 import { EvaluatorNameInput } from "@phoenix/components/evaluators/EvaluatorNameInput";
-import {
-  DEFAULT_OPTIMIZATION_DIRECTION,
-  OptimizationDirectionField,
-} from "@phoenix/components/evaluators/OptimizationDirectionField";
+import { OptimizationDirectionField } from "@phoenix/components/evaluators/OptimizationDirectionField";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { useTheme } from "@phoenix/contexts";
 import {
@@ -78,8 +75,10 @@ export const createDefaultFreeformOutputConfig = (
   name: string
 ): FreeformEvaluatorAnnotationConfig => ({
   name,
-  optimizationDirection: DEFAULT_OPTIMIZATION_DIRECTION,
+  optimizationDirection: "NONE",
   threshold: null,
+  lowerBound: null,
+  upperBound: null,
 });
 
 export const EditCodeEvaluatorDialogContent = ({
@@ -762,7 +761,9 @@ const EvaluatorAnnotationSection = () => {
           Evaluator Annotation
         </Heading>
         <Text color="text-500">
-          Define the annotation that your evaluator will create.
+          Define the annotation that your evaluator will create. Optimization
+          direction, score range, and threshold apply only when your evaluator
+          returns a numeric score.
         </Text>
         <View
           borderRadius="medium"
@@ -812,6 +813,12 @@ const OutputConfigSection = () => {
   const setOutputConfigThresholdAtIndex = useEvaluatorStore(
     (state) => state.setOutputConfigThresholdAtIndex
   );
+  const setOutputConfigLowerBoundAtIndex = useEvaluatorStore(
+    (state) => state.setOutputConfigLowerBoundAtIndex
+  );
+  const setOutputConfigUpperBoundAtIndex = useEvaluatorStore(
+    (state) => state.setOutputConfigUpperBoundAtIndex
+  );
 
   useEffect(() => {
     if (!outputConfig) {
@@ -827,23 +834,71 @@ const OutputConfigSection = () => {
 
   const threshold =
     "threshold" in outputConfig ? (outputConfig.threshold ?? null) : null;
+  const lowerBound =
+    "lowerBound" in outputConfig ? (outputConfig.lowerBound ?? null) : null;
+  const upperBound =
+    "upperBound" in outputConfig ? (outputConfig.upperBound ?? null) : null;
+  const optimizationDirection = outputConfig.optimizationDirection;
+  const isThresholdDisabled = optimizationDirection === "NONE";
+
+  const thresholdDescription =
+    optimizationDirection === "MAXIMIZE"
+      ? "Scores at or above this value display as good; lower scores display as bad."
+      : optimizationDirection === "MINIMIZE"
+        ? "Scores at or below this value display as good; higher scores display as bad."
+        : "Combined with the optimization direction, this is the cutoff used to visually distinguish “good” from “bad” scores.";
 
   return (
     <Flex direction="column" gap="size-200">
-      <OptimizationDirectionField description="Whether higher or lower scores are better." />
-      <NumberField
-        value={threshold ?? undefined}
-        onChange={(value) =>
-          setOutputConfigThresholdAtIndex(0, Number.isNaN(value) ? null : value)
-        }
-      >
-        <Label>Score threshold (optional)</Label>
-        <Input />
-        <Text slot="description">
-          Combined with the optimization direction, this is the cutoff used to
-          visually distinguish &ldquo;good&rdquo; from &ldquo;bad&rdquo; scores.
-        </Text>
-      </NumberField>
+      <Flex direction="row" gap="size-200" alignItems="start">
+        <OptimizationDirectionField description="Whether higher or lower scores are better." />
+        <NumberField
+          value={threshold ?? undefined}
+          onChange={(value) =>
+            setOutputConfigThresholdAtIndex(
+              0,
+              Number.isNaN(value) ? null : value
+            )
+          }
+          isDisabled={isThresholdDisabled}
+        >
+          <Label>Score threshold (optional)</Label>
+          <Input />
+          <Text slot="description">{thresholdDescription}</Text>
+        </NumberField>
+      </Flex>
+      <Flex direction="row" gap="size-200" alignItems="start">
+        <NumberField
+          value={lowerBound ?? undefined}
+          onChange={(value) =>
+            setOutputConfigLowerBoundAtIndex(
+              0,
+              Number.isNaN(value) ? null : value
+            )
+          }
+        >
+          <Label>Minimum score (optional)</Label>
+          <Input />
+          <Text slot="description">
+            The lowest score your evaluator is expected to produce.
+          </Text>
+        </NumberField>
+        <NumberField
+          value={upperBound ?? undefined}
+          onChange={(value) =>
+            setOutputConfigUpperBoundAtIndex(
+              0,
+              Number.isNaN(value) ? null : value
+            )
+          }
+        >
+          <Label>Maximum score (optional)</Label>
+          <Input />
+          <Text slot="description">
+            The highest score your evaluator is expected to produce.
+          </Text>
+        </NumberField>
+      </Flex>
     </Flex>
   );
 };

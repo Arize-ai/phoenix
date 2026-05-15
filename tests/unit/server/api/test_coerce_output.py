@@ -393,7 +393,7 @@ def _freeform(
         type="FREEFORM",
         name="result",
         optimization_direction=optimization_direction,
-        threshold=threshold,
+        thresholds=[threshold] if threshold is not None else None,
     )
 
 

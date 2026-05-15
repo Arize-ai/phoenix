@@ -218,6 +218,8 @@ export function ExperimentCompareListPage({
                         name
                         optimizationDirection
                         threshold
+                        lowerBound
+                        upperBound
                       }
                     }
                   }

@@ -270,6 +270,8 @@ export function ExperimentCompareTable(props: ExampleCompareTableProps) {
                         name
                         optimizationDirection
                         threshold
+                        lowerBound
+                        upperBound
                       }
                     }
                   }

@@ -1927,6 +1927,8 @@ type FreeformAnnotationConfig implements Node & AnnotationConfigBase {
   annotationType: AnnotationType!
   optimizationDirection: OptimizationDirection!
   threshold: Float
+  lowerBound: Float
+  upperBound: Float
 }
 
 input FreeformAnnotationConfigInput {
@@ -1934,6 +1936,8 @@ input FreeformAnnotationConfigInput {
   description: String = null
   optimizationDirection: OptimizationDirection = null
   threshold: Float = null
+  lowerBound: Float = null
+  upperBound: Float = null
 }
 
 type FunctionCallChunk implements ChatCompletionSubscriptionPayload {

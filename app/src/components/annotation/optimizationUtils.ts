@@ -37,8 +37,8 @@ export function getOptimizationBounds(config: AnnotationConfig | undefined): {
 
   if (config.annotationType === "FREEFORM") {
     return {
-      lowerBound: undefined,
-      upperBound: undefined,
+      lowerBound: config.lowerBound ?? undefined,
+      upperBound: config.upperBound ?? undefined,
       threshold: config.threshold ?? undefined,
       optimizationDirection: normalizeOptimizationDirection(
         config.optimizationDirection

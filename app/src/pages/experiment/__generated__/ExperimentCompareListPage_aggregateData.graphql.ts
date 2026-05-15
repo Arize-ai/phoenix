@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4d9e6a26d63e1872274cd51ae33720c9>>
+ * @generated SignedSource<<fcb45e0bacb28b9550f35085cce08cea>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -95,6 +95,20 @@ v3 = {
   "args": null,
   "kind": "ScalarField",
   "name": "optimizationDirection",
+  "storageKey": null
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "lowerBound",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "upperBound",
   "storageKey": null
 };
 return {
@@ -369,20 +383,8 @@ return {
                               "selections": [
                                 (v2/*: any*/),
                                 (v3/*: any*/),
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "lowerBound",
-                                  "storageKey": null
-                                },
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "upperBound",
-                                  "storageKey": null
-                                }
+                                (v4/*: any*/),
+                                (v5/*: any*/)
                               ],
                               "type": "ContinuousAnnotationConfig",
                               "abstractKey": null
@@ -398,7 +400,9 @@ return {
                                   "kind": "ScalarField",
                                   "name": "threshold",
                                   "storageKey": null
-                                }
+                                },
+                                (v4/*: any*/),
+                                (v5/*: any*/)
                               ],
                               "type": "FreeformAnnotationConfig",
                               "abstractKey": null
@@ -428,6 +432,6 @@ return {
 };
 })();
 
-(node as any).hash = "948551a0794066967a603851059a7bcf";
+(node as any).hash = "bb7f9906c98917c0e658ceb32631c8e3";
 
 export default node;

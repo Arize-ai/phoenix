@@ -5,6 +5,7 @@ import type { AnnotationConfig } from "@phoenix/components/annotation";
  * This is the union of CategoricalAnnotationConfig, ContinuousAnnotationConfig, and FreeformAnnotationConfig.
  */
 export type DatasetEvaluatorOutputConfig = {
+  readonly __typename?: string;
   readonly name?: string;
   readonly optimizationDirection?: string;
   readonly values?: readonly {
@@ -33,46 +34,47 @@ function outputConfigToAnnotationConfig(
   outputConfig: DatasetEvaluatorOutputConfig,
   fallbackName: string
 ): AnnotationConfig {
-  // Handle CategoricalAnnotationConfig from the union
-  if ("values" in outputConfig && outputConfig.values) {
-    return {
-      name: outputConfig.name ?? fallbackName,
-      optimizationDirection: outputConfig.optimizationDirection as
-        | "MAXIMIZE"
-        | "MINIMIZE"
-        | "NONE"
-        | undefined,
-      values: outputConfig.values,
-      annotationType: "CATEGORICAL",
-    };
-  }
+  const optimizationDirection = outputConfig.optimizationDirection as
+    | "MAXIMIZE"
+    | "MINIMIZE"
+    | "NONE"
+    | undefined;
 
-  // Handle ContinuousAnnotationConfig from the union
-  if ("lowerBound" in outputConfig || "upperBound" in outputConfig) {
-    return {
-      name: outputConfig.name ?? fallbackName,
-      optimizationDirection: outputConfig.optimizationDirection as
-        | "MAXIMIZE"
-        | "MINIMIZE"
-        | "NONE"
-        | undefined,
-      lowerBound: outputConfig.lowerBound,
-      upperBound: outputConfig.upperBound,
-      annotationType: "CONTINUOUS",
-    };
+  switch (outputConfig.__typename) {
+    case "CategoricalAnnotationConfig":
+      return {
+        name: outputConfig.name ?? fallbackName,
+        optimizationDirection,
+        values: outputConfig.values ?? [],
+        annotationType: "CATEGORICAL",
+      };
+    case "ContinuousAnnotationConfig":
+      return {
+        name: outputConfig.name ?? fallbackName,
+        optimizationDirection,
+        lowerBound: outputConfig.lowerBound,
+        upperBound: outputConfig.upperBound,
+        annotationType: "CONTINUOUS",
+      };
+    case "FreeformAnnotationConfig":
+      return {
+        name: outputConfig.name ?? fallbackName,
+        annotationType: "FREEFORM",
+        optimizationDirection,
+        threshold: outputConfig.threshold ?? null,
+        lowerBound: outputConfig.lowerBound ?? null,
+        upperBound: outputConfig.upperBound ?? null,
+      };
+    default:
+      return {
+        name: outputConfig.name ?? fallbackName,
+        annotationType: "FREEFORM",
+        optimizationDirection,
+        threshold: outputConfig.threshold ?? null,
+        lowerBound: outputConfig.lowerBound ?? null,
+        upperBound: outputConfig.upperBound ?? null,
+      };
   }
-
-  // Freeform branch — thread optimizationDirection and threshold
-  return {
-    name: outputConfig.name ?? fallbackName,
-    annotationType: "FREEFORM",
-    optimizationDirection: outputConfig.optimizationDirection as
-      | "MAXIMIZE"
-      | "MINIMIZE"
-      | "NONE"
-      | undefined,
-    threshold: outputConfig.threshold ?? null,
-  };
 }
 
 /**

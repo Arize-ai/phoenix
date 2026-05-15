@@ -94,7 +94,9 @@ def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> OutputConf
             name=free.name,
             description=free.description,
             optimization_direction=free.optimization_direction,
-            threshold=free.threshold,
+            thresholds=[free.threshold] if free.threshold is not None else None,
+            lower_bound=free.lower_bound,
+            upper_bound=free.upper_bound,
         )
     raise BadRequest("Invalid output config input")
 

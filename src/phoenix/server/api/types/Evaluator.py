@@ -873,7 +873,9 @@ def _to_gql_freeform_annotation_config(
         annotation_type=config.type,
         description=config.description,
         optimization_direction=config.optimization_direction or OptimizationDirection.NONE,
-        threshold=config.threshold,
+        threshold=(config.thresholds[0] if config.thresholds else None),
+        lower_bound=config.lower_bound,
+        upper_bound=config.upper_bound,
     )
 
 

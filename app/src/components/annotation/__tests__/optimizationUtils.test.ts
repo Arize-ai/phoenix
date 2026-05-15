@@ -345,6 +345,146 @@ describe("getPositiveOptimizationFromConfig", () => {
     ).toBeNull();
   });
 
+  describe("FREEFORM with threshold pivot", () => {
+    it("returns true when MAXIMIZE score is above threshold", () => {
+      const config: AnnotationConfigFreeform = {
+        annotationType: "FREEFORM",
+        name: "score",
+        optimizationDirection: "MAXIMIZE",
+        threshold: 0.7,
+      };
+      expect(getPositiveOptimizationFromConfig({ config, score: 0.8 })).toBe(
+        true
+      );
+    });
+
+    it("returns false when MAXIMIZE score is below threshold", () => {
+      const config: AnnotationConfigFreeform = {
+        annotationType: "FREEFORM",
+        name: "score",
+        optimizationDirection: "MAXIMIZE",
+        threshold: 0.7,
+      };
+      expect(getPositiveOptimizationFromConfig({ config, score: 0.5 })).toBe(
+        false
+      );
+    });
+
+    it("returns true when MINIMIZE score is below threshold", () => {
+      const config: AnnotationConfigFreeform = {
+        annotationType: "FREEFORM",
+        name: "latency",
+        optimizationDirection: "MINIMIZE",
+        threshold: 100,
+      };
+      expect(getPositiveOptimizationFromConfig({ config, score: 50 })).toBe(
+        true
+      );
+    });
+
+    it("prefers threshold over bounded midpoint when both are present", () => {
+      const config: AnnotationConfigFreeform = {
+        annotationType: "FREEFORM",
+        name: "score",
+        optimizationDirection: "MAXIMIZE",
+        threshold: 0.9,
+        lowerBound: 0,
+        upperBound: 1,
+      };
+      // Midpoint would be 0.5; threshold is 0.9. Score 0.75 < 0.9 → false.
+      expect(getPositiveOptimizationFromConfig({ config, score: 0.75 })).toBe(
+        false
+      );
+    });
+  });
+
+  describe("FREEFORM with bounded-midpoint fallback", () => {
+    it("uses midpoint when both bounds are present and no threshold is set", () => {
+      const config: AnnotationConfigFreeform = {
+        annotationType: "FREEFORM",
+        name: "score",
+        optimizationDirection: "MAXIMIZE",
+        lowerBound: 0,
+        upperBound: 1,
+      };
+      // Midpoint 0.5: MAXIMIZE + score 0.75 → true.
+      expect(getPositiveOptimizationFromConfig({ config, score: 0.75 })).toBe(
+        true
+      );
+      expect(getPositiveOptimizationFromConfig({ config, score: 0.25 })).toBe(
+        false
+      );
+    });
+
+    it("uses midpoint with MINIMIZE direction", () => {
+      const config: AnnotationConfigFreeform = {
+        annotationType: "FREEFORM",
+        name: "score",
+        optimizationDirection: "MINIMIZE",
+        lowerBound: 0,
+        upperBound: 10,
+      };
+      expect(getPositiveOptimizationFromConfig({ config, score: 2 })).toBe(
+        true
+      );
+      expect(getPositiveOptimizationFromConfig({ config, score: 8 })).toBe(
+        false
+      );
+    });
+  });
+
+  describe("FREEFORM with no valid pivot", () => {
+    // Unbounded freeform without threshold MUST return null.
+    it("returns null when only lowerBound is set", () => {
+      const config: AnnotationConfigFreeform = {
+        annotationType: "FREEFORM",
+        name: "score",
+        optimizationDirection: "MAXIMIZE",
+        lowerBound: 0,
+      };
+      expect(
+        getPositiveOptimizationFromConfig({ config, score: 5 })
+      ).toBeNull();
+    });
+
+    it("returns null when only upperBound is set", () => {
+      const config: AnnotationConfigFreeform = {
+        annotationType: "FREEFORM",
+        name: "score",
+        optimizationDirection: "MAXIMIZE",
+        upperBound: 1,
+      };
+      expect(
+        getPositiveOptimizationFromConfig({ config, score: 0.5 })
+      ).toBeNull();
+    });
+
+    it("returns null when optimizationDirection is NONE even with a threshold", () => {
+      const config: AnnotationConfigFreeform = {
+        annotationType: "FREEFORM",
+        name: "score",
+        optimizationDirection: "NONE",
+        threshold: 0.5,
+      };
+      expect(
+        getPositiveOptimizationFromConfig({ config, score: 0.8 })
+      ).toBeNull();
+    });
+
+    it("returns null when optimizationDirection is NONE with bounds set", () => {
+      const config: AnnotationConfigFreeform = {
+        annotationType: "FREEFORM",
+        name: "score",
+        optimizationDirection: "NONE",
+        lowerBound: 0,
+        upperBound: 1,
+      };
+      expect(
+        getPositiveOptimizationFromConfig({ config, score: 0.8 })
+      ).toBeNull();
+    });
+  });
+
   // Bounds are 0-1, so midpoint is 0.5
   it("returns true for score above midpoint with CONTINUOUS MAXIMIZE config", () => {
     expect(

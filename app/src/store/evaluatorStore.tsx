@@ -119,6 +119,16 @@ export type EvaluatorStoreActions = {
     index: number,
     threshold: number | null
   ) => void;
+  /** Sets the lower bound of the output config at a specific index. */
+  setOutputConfigLowerBoundAtIndex: (
+    index: number,
+    lowerBound: number | null
+  ) => void;
+  /** Sets the upper bound of the output config at a specific index. */
+  setOutputConfigUpperBoundAtIndex: (
+    index: number,
+    upperBound: number | null
+  ) => void;
   /** Sets the classification choices for the output config at a specific index. */
   setOutputConfigValuesAtIndex: (
     index: number,
@@ -531,6 +541,28 @@ export const createEvaluatorStore = (
               { outputConfigs: newConfigs },
               undefined,
               "setOutputConfigThresholdAtIndex"
+            );
+          },
+          setOutputConfigLowerBoundAtIndex(index, lowerBound) {
+            const currentConfigs = get().outputConfigs;
+            if (index < 0 || index >= currentConfigs.length) return;
+            const newConfigs = [...currentConfigs];
+            newConfigs[index] = { ...newConfigs[index], lowerBound };
+            set(
+              { outputConfigs: newConfigs },
+              undefined,
+              "setOutputConfigLowerBoundAtIndex"
+            );
+          },
+          setOutputConfigUpperBoundAtIndex(index, upperBound) {
+            const currentConfigs = get().outputConfigs;
+            if (index < 0 || index >= currentConfigs.length) return;
+            const newConfigs = [...currentConfigs];
+            newConfigs[index] = { ...newConfigs[index], upperBound };
+            set(
+              { outputConfigs: newConfigs },
+              undefined,
+              "setOutputConfigUpperBoundAtIndex"
             );
           },
           setOutputConfigValuesAtIndex(index, values) {

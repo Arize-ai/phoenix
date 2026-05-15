@@ -314,6 +314,8 @@ const toAnnotationConfigInput = (
     name: string;
     optimizationDirection: EvaluatorOptimizationDirection;
     threshold?: number | null;
+    lowerBound?: number | null;
+    upperBound?: number | null;
   };
 } => {
   if ("values" in config) {
@@ -329,8 +331,7 @@ const toAnnotationConfigInput = (
     };
   }
 
-  if (!("lowerBound" in config)) {
-    // Freeform config — omit threshold when not set
+  if ("threshold" in config) {
     const freeformConfig = config as FreeformEvaluatorAnnotationConfig;
     return {
       freeform: {
@@ -339,11 +340,16 @@ const toAnnotationConfigInput = (
         ...(freeformConfig.threshold != null
           ? { threshold: freeformConfig.threshold }
           : {}),
+        ...(freeformConfig.lowerBound != null
+          ? { lowerBound: freeformConfig.lowerBound }
+          : {}),
+        ...(freeformConfig.upperBound != null
+          ? { upperBound: freeformConfig.upperBound }
+          : {}),
       },
     };
   }
 
-  // Continuous config
   const continuousConfig = config as ContinuousEvaluatorAnnotationConfig;
   return {
     continuous: {

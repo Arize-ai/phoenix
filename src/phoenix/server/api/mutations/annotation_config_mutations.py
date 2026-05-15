@@ -145,6 +145,10 @@ def _to_pydantic_freeform_annotation_config(
         return FreeformAnnotationConfigModel(
             type=AnnotationType.FREEFORM.value,
             description=input.description,
+            optimization_direction=input.optimization_direction,
+            thresholds=[input.threshold] if input.threshold is not None else None,
+            lower_bound=input.lower_bound,
+            upper_bound=input.upper_bound,
         )
     except ValueError as error:
         raise BadRequest(str(error))

@@ -2447,6 +2447,13 @@ export interface components {
             type: "FREEFORM";
             /** Description */
             description?: string | null;
+            optimization_direction?: components["schemas"]["OptimizationDirection"] | null;
+            /** Threshold */
+            threshold?: number | null;
+            /** Lower Bound */
+            lower_bound?: number | null;
+            /** Upper Bound */
+            upper_bound?: number | null;
             /** Id */
             id: string;
         };
@@ -2461,6 +2468,13 @@ export interface components {
             type: "FREEFORM";
             /** Description */
             description?: string | null;
+            optimization_direction?: components["schemas"]["OptimizationDirection"] | null;
+            /** Threshold */
+            threshold?: number | null;
+            /** Lower Bound */
+            lower_bound?: number | null;
+            /** Upper Bound */
+            upper_bound?: number | null;
         };
         /** GetAnnotationConfigResponseBody */
         GetAnnotationConfigResponseBody: {

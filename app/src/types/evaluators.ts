@@ -124,6 +124,8 @@ export type FreeformEvaluatorAnnotationConfig = {
   name: string;
   optimizationDirection: EvaluatorOptimizationDirection;
   threshold?: number | null;
+  lowerBound?: number | null;
+  upperBound?: number | null;
 };
 
 /**

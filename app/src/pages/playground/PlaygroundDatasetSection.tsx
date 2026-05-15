@@ -71,6 +71,7 @@ export function PlaygroundDatasetSection({
                   isBuiltin
                 }
                 outputConfigs {
+                  __typename
                   ... on CategoricalAnnotationConfig {
                     name
                     optimizationDirection
@@ -82,6 +83,13 @@ export function PlaygroundDatasetSection({
                   ... on ContinuousAnnotationConfig {
                     name
                     optimizationDirection
+                    lowerBound
+                    upperBound
+                  }
+                  ... on FreeformAnnotationConfig {
+                    name
+                    optimizationDirection
+                    threshold
                     lowerBound
                     upperBound
                   }
