@@ -433,6 +433,15 @@ def _warn_if_split_smoke_check_fails(phoenix_dataset: Any, expected_splits: set[
         )
 
 
+async def _get_split_filtered_dataset(
+    client: AsyncClient, phoenix_dataset: Any, splits: Sequence[str]
+) -> Any:
+    return await client.datasets.get_dataset(
+        dataset=phoenix_dataset,
+        splits=list(splits),
+    )
+
+
 async def _run_async(config: ExperimentConfig) -> int:
     _check_phoenix_healthz(config.base_url)
     dataset = load_dataset(config.dataset)
@@ -462,9 +471,10 @@ async def _run_async(config: ExperimentConfig) -> int:
                 ),
                 uploaded_splits,
             )
-            experiment_dataset = await client.datasets.get_dataset(
-                dataset=phoenix_dataset,
-                splits=list(config.splits),
+            experiment_dataset = await _get_split_filtered_dataset(
+                client,
+                phoenix_dataset,
+                config.splits,
             )
             name = _experiment_name(dataset, config)
             metadata = {

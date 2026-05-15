@@ -18,7 +18,9 @@ from evals.pxi.harness.run_experiment import (
     ExperimentConfig,
     _failed_evaluation_rows,
     _format_table,
+    _get_split_filtered_dataset,
     _has_regression_evaluator_failure,
+    _phoenix_examples,
     _summary_payload,
     _task_error_rows,
     _write_summary_files,
@@ -174,6 +176,35 @@ def test_main_forwards_explicit_splits(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert main(["--dataset", "set_spans_filter", "--splits", "dev", "val"]) == 0
     assert captured[0].splits == ("dev", "val")
+
+
+def test_phoenix_examples_include_splits() -> None:
+    examples = _phoenix_examples(_dataset())
+
+    assert examples[0]["id"] == "regression-example"
+    assert examples[0]["splits"] == ["regression"]
+
+
+@pytest.mark.asyncio
+async def test_split_filtered_dataset_forwards_requested_splits() -> None:
+    class FakeDatasets:
+        def __init__(self) -> None:
+            self.calls: list[dict[str, object]] = []
+
+        async def get_dataset(self, *, dataset: object, splits: list[str]) -> str:
+            self.calls.append({"dataset": dataset, "splits": splits})
+            return "filtered-dataset"
+
+    class FakeClient:
+        def __init__(self) -> None:
+            self.datasets = FakeDatasets()
+
+    client = FakeClient()
+
+    result = await _get_split_filtered_dataset(client, "uploaded-dataset", ("dev", "val"))  # type: ignore[arg-type]
+
+    assert result == "filtered-dataset"
+    assert client.datasets.calls == [{"dataset": "uploaded-dataset", "splits": ["dev", "val"]}]
 
 
 def test_fail_on_regression_detects_only_regression_failures() -> None:
