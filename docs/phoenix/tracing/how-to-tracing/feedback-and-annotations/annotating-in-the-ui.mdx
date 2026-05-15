@@ -3,6 +3,21 @@ title: "Annotating in the UI"
 description: How to annotate traces in the UI for analysis and dataset curation
 ---
 
+## Built-in Annotation Config: `user_feedback`
+
+Phoenix automatically seeds a categorical annotation config named **`user_feedback`** on every startup (idempotent — created once and never overwritten). It ships with two labels:
+
+| Label | Score |
+|-------|-------|
+| `positive` | `1.0` |
+| `negative` | `0.0` |
+
+This config powers thumbs-up / thumbs-down feedback in Phoenix's UI and agent interfaces. Any annotation config query on a fresh deployment will return this entry. You can use it as-is to collect user feedback or reference it when building evaluation pipelines.
+
+<Info>
+`user_feedback` is Phoenix-managed. If you delete it, it will be recreated on the next server restart.
+</Info>
+
 ## Configuring Annotations
 
 To annotate data in the UI, you first will want to setup a rubric for how to annotate. Navigate to `Settings` and create annotation configs (e.g. a rubric) for your data. You can create various different types of annotations: **Categorical**, **Continuous**, and **Freeform**.
