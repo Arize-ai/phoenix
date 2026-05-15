@@ -24,6 +24,7 @@ from evals.pxi.harness.run_experiment import (
     _phoenix_examples,
     _summary_payload,
     _task_error_rows,
+    _warn_no_matching_examples,
     _write_summary_files,
     main,
 )
@@ -341,3 +342,12 @@ def test_summary_payload_handles_empty_split_run() -> None:
     assert payload["example_count"] == 0
     assert payload["experiment_id"] == ""
     assert payload["experiment_url"] is None
+
+
+def test_empty_split_run_warning_goes_to_stderr(capsys: pytest.CaptureFixture[str]) -> None:
+    _warn_no_matching_examples(["dev"])
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "warning: no examples matched requested splits" in captured.err
+    assert "skipping experiment run (dev)" in captured.err
