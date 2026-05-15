@@ -90,6 +90,5 @@ packages/phoenix-evals/docs/build/
 helm/charts/*.tgz
 # mypy
 .mypy_cache
-evals/pxi/.last-run/
 .hypothesis
 .claude/worktrees/

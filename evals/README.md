@@ -5,20 +5,23 @@ Phoenix repo but are not part of the production package.
 
 ## Layout
 
+- `pxi/` contains PXI eval datasets, evaluators, harnesses, and future
+  ingestion tooling.
 - `pxi/harness/` runs PXI server-side experiments against Phoenix datasets.
 - `pxi/datasets/` stores YAML datasets shared by PXI eval workflows.
 - `pxi/evaluators/` stores code evaluators shared by PXI eval workflows.
 
 ## Dataset Splits
 
-PXI YAML datasets require each example to declare exactly one `split`:
+PXI YAML datasets require each example to declare at least one `splits` tag:
 
 | Split | Reader | Purpose |
 | --- | --- | --- |
 | `regression` | Harness default and CI | Fast held-out regression gate. |
 | `dev` | Manual experimentation | Broader iteration, ablations, and failure analysis. |
 | `val` | Optimizers | Optimization signal, disjoint from `regression` and `dev`. |
+| `holdout` | Manual only | Generalization sanity checks. |
 
-The three splits are mutually exclusive. The loader rejects examples with
-unknown split names or the old list-shaped `splits` field. The runner translates
-the YAML `split` value into the Phoenix client upload payload's `splits` list.
+Examples may carry multiple tags, but the loader rejects combinations that leak
+optimization signal: `regression` + `val`, and `dev` + `val`. The loader warns
+on `regression` + `holdout` so reviewers notice the deliberate overlap.

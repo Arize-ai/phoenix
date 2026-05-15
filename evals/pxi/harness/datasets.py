@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -7,7 +8,11 @@ import yaml
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 DATASETS_DIR = Path(__file__).resolve().parents[1] / "datasets"
-ALLOWED_SPLITS: frozenset[str] = frozenset({"dev", "val", "regression"})
+ALLOWED_SPLITS: frozenset[str] = frozenset({"dev", "holdout", "regression", "val"})
+FORBIDDEN_SPLIT_COMBINATIONS: tuple[frozenset[str], ...] = (
+    frozenset({"regression", "val"}),
+    frozenset({"dev", "val"}),
+)
 
 
 class EvalDataset(BaseModel):
@@ -56,16 +61,9 @@ class EvalDataset(BaseModel):
             input_value = example.get("input")
             if not isinstance(input_value, dict) or not isinstance(input_value.get("query"), str):
                 raise ValueError(f"example {example_id} must define input.query")
-            split = example.get("split")
-            if not isinstance(split, str) or not split.strip():
-                raise ValueError(f"example {example_id} must define split")
-            if split not in ALLOWED_SPLITS:
-                raise ValueError(
-                    f"example {example_id} has unknown split name: {split}. "
-                    f"Allowed: {', '.join(sorted(ALLOWED_SPLITS))}"
-                )
-            if "splits" in example:
-                raise ValueError(f"example {example_id} must use split, not splits")
+            if "split" in example:
+                raise ValueError(f"example {example_id} must use splits, not split")
+            example["splits"] = _validate_splits(example_id, example.get("splits"))
             expected = example.get("expected")
             if not isinstance(expected, dict):
                 raise ValueError(f"example {example_id} must define expected")
@@ -79,6 +77,32 @@ class EvalDataset(BaseModel):
         if duplicates:
             raise ValueError(f"duplicate example ids: {', '.join(duplicates)}")
         return self
+
+
+def _validate_splits(example_id: str, value: Any) -> list[str]:
+    if not isinstance(value, list) or not value:
+        raise ValueError(f"example {example_id} must define non-empty splits")
+    if not all(isinstance(split, str) and split.strip() for split in value):
+        raise ValueError(f"example {example_id} splits entries must be non-empty strings")
+    splits = list(dict.fromkeys(split.strip() for split in value))
+    unknown = sorted(set(splits) - ALLOWED_SPLITS)
+    if unknown:
+        raise ValueError(
+            f"example {example_id} has unknown split name(s): {', '.join(unknown)}. "
+            f"Allowed: {', '.join(sorted(ALLOWED_SPLITS))}"
+        )
+    split_set = set(splits)
+    for forbidden in FORBIDDEN_SPLIT_COMBINATIONS:
+        if forbidden.issubset(split_set):
+            raise ValueError(
+                f"example {example_id} cannot combine split tags: {', '.join(sorted(forbidden))}"
+            )
+    if {"regression", "holdout"}.issubset(split_set):
+        warnings.warn(
+            f"example {example_id} is tagged with both regression and holdout",
+            stacklevel=2,
+        )
+    return splits
 
 
 class DatasetValidationError(ValueError):

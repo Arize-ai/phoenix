@@ -5,7 +5,7 @@ evaluators:
   - set_spans_filter_args_match
 examples:
   - id: llm-spans
-    split: regression
+    splits: [regression]
     input:
       query: Show me only LLM spans.
     expected:
@@ -18,7 +18,7 @@ examples:
     metadata:
       category: span_kind
   - id: tool-spans
-    split: regression
+    splits: [regression]
     input:
       query: Filter the table to tool spans.
     expected:
@@ -31,7 +31,7 @@ examples:
     metadata:
       category: span_kind
   - id: error-spans
-    split: regression
+    splits: [regression]
     input:
       query: Show spans that errored.
     expected:
@@ -44,7 +44,7 @@ examples:
     metadata:
       category: status
   - id: slow-spans
-    split: regression
+    splits: [regression]
     input:
       query: Show slow spans taking at least five seconds.
     expected:
@@ -57,7 +57,7 @@ examples:
     metadata:
       category: latency
   - id: slow-llm-spans
-    split: regression
+    splits: [regression]
     input:
       query: Show slow LLM calls taking at least five seconds.
     expected:
@@ -70,7 +70,7 @@ examples:
     metadata:
       category: latency
   - id: trace-id
-    split: regression
+    splits: [regression]
     input:
       query: Filter to trace id 8f3c2d1e0a9b4c5d6e7f8091a2b3c4d5.
     expected:
@@ -83,7 +83,7 @@ examples:
     metadata:
       category: trace
   - id: span-name
-    split: regression
+    splits: [regression]
     input:
       query: Show spans named retrieve_documents.
     expected:
@@ -96,7 +96,7 @@ examples:
     metadata:
       category: name
   - id: input-substring
-    split: regression
+    splits: [regression]
     input:
       query: Show spans where the input mentions refund policy.
     expected:
@@ -109,7 +109,7 @@ examples:
     metadata:
       category: input
   - id: annotation-label
-    split: regression
+    splits: [regression]
     input:
       query: Show spans marked hallucinated by the Hallucination annotation.
     expected:
@@ -122,7 +122,7 @@ examples:
     metadata:
       category: annotation
   - id: reset-filter
-    split: regression
+    splits: [regression]
     input:
       query: Clear the span filter and return to the default root spans view.
     expected:

@@ -26,7 +26,7 @@ evaluators:
   - tool_call_args_match
 examples:
   - id: ex-1
-    split: regression
+    splits: [regression]
     input:
       query: hello
     expected:
@@ -84,19 +84,19 @@ dataset_name: dupes
 evaluators: [correct_tools_called]
 examples:
   - id: b
-    split: regression
+    splits: [regression]
     input: {query: x}
     expected: {tools: {required: []}}
   - id: a
-    split: regression
+    splits: [regression]
     input: {query: x}
     expected: {tools: {required: []}}
   - id: a
-    split: regression
+    splits: [regression]
     input: {query: x}
     expected: {tools: {required: []}}
   - id: b
-    split: regression
+    splits: [regression]
     input: {query: x}
     expected: {tools: {required: []}}
 """,
@@ -124,7 +124,7 @@ examples:
 dataset_name: missing_evaluators
 examples:
   - id: ex-1
-    split: regression
+    splits: [regression]
     input: {query: x}
     expected: {tools: {required: []}}
 """,
@@ -141,7 +141,7 @@ dataset_name: empty_evaluators
 evaluators: []
 examples:
   - id: ex-1
-    split: regression
+    splits: [regression]
     input: {query: x}
     expected: {tools: {required: []}}
 """,
@@ -158,7 +158,7 @@ dataset_name: dupe_evaluators
 evaluators: [correct_tools_called, correct_tools_called]
 examples:
   - id: ex-1
-    split: regression
+    splits: [regression]
     input: {query: x}
     expected: {tools: {required: []}}
 """,
@@ -167,7 +167,7 @@ examples:
             load_dataset(path)
         assert "duplicate evaluator names" in str(exc_info.value)
 
-    def test_missing_split_raises_validation_error(self, tmp_path: Path) -> None:
+    def test_missing_splits_raises_validation_error(self, tmp_path: Path) -> None:
         path = _write(
             tmp_path / "missing_split.yaml",
             """\
@@ -181,34 +181,82 @@ examples:
         )
         with pytest.raises(DatasetValidationError) as exc_info:
             load_dataset(path)
-        assert "must define split" in str(exc_info.value)
+        assert "must define non-empty splits" in str(exc_info.value)
 
-    def test_empty_split_raises_validation_error(self, tmp_path: Path) -> None:
+    def test_empty_splits_raises_validation_error(self, tmp_path: Path) -> None:
         path = _write(
-            tmp_path / "empty_split.yaml",
+            tmp_path / "empty_splits.yaml",
             """\
-dataset_name: empty_split
+dataset_name: empty_splits
 evaluators: [correct_tools_called]
 examples:
   - id: ex-1
-    split: ""
+    splits: []
     input: {query: x}
     expected: {tools: {required: []}}
 """,
         )
         with pytest.raises(DatasetValidationError) as exc_info:
             load_dataset(path)
-        assert "must define split" in str(exc_info.value)
+        assert "must define non-empty splits" in str(exc_info.value)
 
-    @pytest.mark.parametrize(
-        "splits",
-        (["regression", "val"], ["dev", "val"], ["regression", "dev"]),
-    )
-    def test_old_splits_field_raises(self, tmp_path: Path, splits: list[str]) -> None:
+    def test_old_split_field_raises(self, tmp_path: Path) -> None:
         path = _write(
-            tmp_path / "multi_splits.yaml",
+            tmp_path / "old_split.yaml",
+            """\
+dataset_name: old_split
+evaluators: [correct_tools_called]
+examples:
+  - id: ex-1
+    split: regression
+    input: {query: x}
+    expected: {tools: {required: []}}
+""",
+        )
+        with pytest.raises(DatasetValidationError) as exc_info:
+            load_dataset(path)
+        assert "must use splits, not split" in str(exc_info.value)
+
+    def test_unknown_split_names_raise(self, tmp_path: Path) -> None:
+        path = _write(
+            tmp_path / "unknown_splits.yaml",
+            """\
+dataset_name: unknown_splits
+evaluators: [correct_tools_called]
+examples:
+  - id: ex-1
+    splits: [unknown]
+    input: {query: x}
+    expected: {tools: {required: []}}
+""",
+        )
+        with pytest.raises(DatasetValidationError) as exc_info:
+            load_dataset(path)
+        assert "unknown split name(s): unknown" in str(exc_info.value)
+
+    @pytest.mark.parametrize("split", ("dev", "holdout", "regression", "val"))
+    def test_single_allowed_split_parses(self, tmp_path: Path, split: str) -> None:
+        path = _write(
+            tmp_path / "single_split.yaml",
             f"""\
-dataset_name: multi_splits
+dataset_name: single_split
+evaluators: [correct_tools_called]
+examples:
+  - id: ex-1
+    splits: [{split}]
+    input: {{query: x}}
+    expected: {{tools: {{required: []}}}}
+""",
+        )
+        dataset = load_dataset(path)
+        assert dataset.examples[0]["splits"] == [split]
+
+    @pytest.mark.parametrize("splits", (["regression", "val"], ["dev", "val"]))
+    def test_forbidden_split_combinations_raise(self, tmp_path: Path, splits: list[str]) -> None:
+        path = _write(
+            tmp_path / "forbidden_splits.yaml",
+            f"""\
+dataset_name: forbidden_splits
 evaluators: [correct_tools_called]
 examples:
   - id: ex-1
@@ -219,41 +267,40 @@ examples:
         )
         with pytest.raises(DatasetValidationError) as exc_info:
             load_dataset(path)
-        assert "must define split" in str(exc_info.value)
+        assert "cannot combine split tags" in str(exc_info.value)
 
-    def test_unknown_split_names_raise(self, tmp_path: Path) -> None:
+    def test_regression_holdout_warns(self, tmp_path: Path) -> None:
         path = _write(
-            tmp_path / "unknown_splits.yaml",
+            tmp_path / "regression_holdout.yaml",
             """\
-dataset_name: unknown_splits
+dataset_name: regression_holdout
 evaluators: [correct_tools_called]
 examples:
   - id: ex-1
-    split: holdout
+    splits: [regression, holdout]
     input: {query: x}
     expected: {tools: {required: []}}
 """,
         )
-        with pytest.raises(DatasetValidationError) as exc_info:
-            load_dataset(path)
-        assert "unknown split name: holdout" in str(exc_info.value)
+        with pytest.warns(UserWarning, match="both regression and holdout"):
+            dataset = load_dataset(path)
+        assert set(dataset.examples[0]["splits"]) == {"regression", "holdout"}
 
-    @pytest.mark.parametrize("split", ("dev", "val", "regression"))
-    def test_single_allowed_split_parses(self, tmp_path: Path, split: str) -> None:
+    def test_multi_split_tags_parse(self, tmp_path: Path) -> None:
         path = _write(
-            tmp_path / "single_split.yaml",
-            f"""\
-dataset_name: single_split
+            tmp_path / "multi_splits.yaml",
+            """\
+dataset_name: multi_splits
 evaluators: [correct_tools_called]
 examples:
   - id: ex-1
-    split: {split}
-    input: {{query: x}}
-    expected: {{tools: {{required: []}}}}
+    splits: [regression, dev]
+    input: {query: x}
+    expected: {tools: {required: []}}
 """,
         )
         dataset = load_dataset(path)
-        assert dataset.examples[0]["split"] == split
+        assert set(dataset.examples[0]["splits"]) == {"regression", "dev"}
 
     def test_load_by_stem_uses_repo_datasets_dir(self) -> None:
         # The shipped ``set_spans_filter`` dataset must round-trip cleanly so
@@ -261,7 +308,7 @@ examples:
         dataset = load_dataset("set_spans_filter")
         assert dataset.dataset_name == "set_spans_filter"
         assert len(dataset.examples) >= 1
-        assert all(example["split"] == "regression" for example in dataset.examples)
+        assert all(example["splits"] == ["regression"] for example in dataset.examples)
         assert "correct_tools_called" in dataset.evaluators
 
     def test_loads_in_app_links_dataset(self) -> None:

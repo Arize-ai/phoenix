@@ -8,7 +8,6 @@ Run directly:
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from pathlib import Path
 
 import pytest
 from phoenix.client.resources.experiments.types import ExperimentEvaluationRun, RanExperiment
@@ -16,15 +15,12 @@ from phoenix.client.resources.experiments.types import ExperimentEvaluationRun, 
 from evals.pxi.harness.datasets import EvalDataset
 from evals.pxi.harness.run_experiment import (
     ExperimentConfig,
-    _empty_experiment,
     _failed_evaluation_rows,
     _format_table,
     _get_split_filtered_dataset,
     _has_regression_evaluator_failure,
     _phoenix_examples,
-    _summary_payload,
     _task_error_rows,
-    _write_summary_files,
     main,
 )
 
@@ -37,13 +33,13 @@ def _dataset() -> EvalDataset:
             "examples": [
                 {
                     "id": "regression-example",
-                    "split": "regression",
+                    "splits": ["regression"],
                     "input": {"query": "x"},
                     "expected": {"tools": {"required": []}},
                 },
                 {
                     "id": "dev-example",
-                    "split": "dev",
+                    "splits": ["dev"],
                     "input": {"query": "y"},
                     "expected": {"tools": {"required": []}},
                 },
@@ -186,6 +182,27 @@ def test_phoenix_examples_include_splits() -> None:
     assert examples[0]["splits"] == ["regression"]
 
 
+def test_phoenix_examples_include_multi_split_tags() -> None:
+    dataset = EvalDataset.model_validate(
+        {
+            "dataset_name": "example_suite",
+            "evaluators": ["correct_tools_called"],
+            "examples": [
+                {
+                    "id": "multi-split-example",
+                    "splits": ["regression", "dev"],
+                    "input": {"query": "x"},
+                    "expected": {"tools": {"required": []}},
+                },
+            ],
+        }
+    )
+
+    examples = _phoenix_examples(dataset)
+
+    assert examples[0]["splits"] == ["regression", "dev"]
+
+
 @pytest.mark.asyncio
 async def test_split_filtered_dataset_forwards_requested_splits() -> None:
     class FakeDatasets:
@@ -250,94 +267,3 @@ def test_fail_on_regression_detects_only_regression_failures() -> None:
 
     assert not _has_regression_evaluator_failure(_dataset(), experiment, [dev_failure])
     assert _has_regression_evaluator_failure(_dataset(), experiment, [regression_failure])
-
-
-def test_summary_dir_writes_json_and_markdown(tmp_path: Path) -> None:
-    now = datetime.now(timezone.utc)
-    experiment = _ran_experiment()
-    experiment["task_runs"] = [
-        {
-            "id": "run-1",
-            "dataset_example_id": "regression-example",
-            "output": {},
-            "repetition_number": 1,
-            "start_time": now.isoformat(),
-            "end_time": now.isoformat(),
-            "experiment_id": "experiment-1",
-        }
-    ]
-    evaluation_run = ExperimentEvaluationRun(
-        experiment_run_id="run-1",
-        start_time=now,
-        end_time=now,
-        name="correct_tools_called",
-        annotator_kind="CODE",
-        result={"score": 1.0, "label": "pass"},
-    )
-
-    _write_summary_files(
-        _dataset(),
-        experiment,
-        [evaluation_run],
-        base_url="http://localhost:6006",
-        splits=["regression"],
-        summary_dir=tmp_path,
-    )
-
-    assert (tmp_path / "summary.json").exists()
-    summary_md = tmp_path / "summary.md"
-    assert summary_md.exists()
-    assert "PXI Eval Summary" in summary_md.read_text()
-
-
-def test_summary_payload_counts_failures() -> None:
-    now = datetime.now(timezone.utc)
-    experiment = _ran_experiment()
-    experiment["task_runs"] = [
-        {
-            "id": "run-1",
-            "dataset_example_id": "regression-example",
-            "output": {},
-            "repetition_number": 1,
-            "start_time": now.isoformat(),
-            "end_time": now.isoformat(),
-            "experiment_id": "experiment-1",
-        }
-    ]
-    evaluation_run = ExperimentEvaluationRun(
-        experiment_run_id="run-1",
-        start_time=now,
-        end_time=now,
-        name="correct_tools_called",
-        annotator_kind="CODE",
-        result={"score": 0.0, "label": "fail", "explanation": "missing tool"},
-    )
-
-    payload = _summary_payload(
-        _dataset(),
-        experiment,
-        [evaluation_run],
-        base_url="http://localhost:6006",
-        splits=["regression"],
-    )
-
-    assert payload["evaluators"]["correct_tools_called"]["failing"] == 1
-    assert payload["failed_evaluations"][0]["example_id"] == "regression-example"
-
-
-def test_summary_payload_handles_empty_split_run() -> None:
-    class EmptyDataset:
-        id = "dataset-1"
-        version_id = "version-1"
-
-    payload = _summary_payload(
-        _dataset(),
-        _empty_experiment(EmptyDataset()),
-        [],
-        base_url="http://localhost:6006",
-        splits=["dev"],
-    )
-
-    assert payload["example_count"] == 0
-    assert payload["experiment_id"] == ""
-    assert payload["experiment_url"] is None

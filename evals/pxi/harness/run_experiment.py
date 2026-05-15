@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import json
 import os
 import subprocess
 import sys
@@ -52,7 +51,6 @@ class ExperimentConfig:
     experiment_name_suffix: str | None
     fail_on_regression: bool
     splits: tuple[str, ...]
-    summary_dir: Path
     evaluator_override: tuple[str, ...] | None
 
 
@@ -201,7 +199,10 @@ def _score(evaluation_run: ExperimentEvaluationRun) -> float | None:
 
 
 def _example_splits_by_id(dataset: EvalDataset) -> dict[str, set[str]]:
-    return {str(example["id"]): {str(example["split"])} for example in dataset.examples}
+    return {
+        str(example["id"]): {str(split) for split in example["splits"]}
+        for example in dataset.examples
+    }
 
 
 def _is_failed_evaluation(evaluation_run: ExperimentEvaluationRun) -> bool:
@@ -257,10 +258,6 @@ def _has_regression_evaluator_failure(
     return False
 
 
-def _experiment_url(base_url: str, experiment: RanExperiment) -> str:
-    return urljoin(base_url.rstrip("/") + "/", f"experiments/{experiment['experiment_id']}")
-
-
 def _empty_experiment(phoenix_dataset: Any) -> RanExperiment:
     return {
         "experiment_id": "",
@@ -273,117 +270,12 @@ def _empty_experiment(phoenix_dataset: Any) -> RanExperiment:
     }
 
 
-def _summary_payload(
-    dataset: EvalDataset,
-    experiment: RanExperiment,
-    evaluation_runs: Sequence[ExperimentEvaluationRun],
-    *,
-    base_url: str,
-    splits: Sequence[str],
-) -> dict[str, Any]:
-    experiment_id = experiment["experiment_id"]
-    return {
-        "dataset_name": dataset.dataset_name,
-        "requested_splits": list(splits),
-        "example_count": len(experiment.get("task_runs", [])),
-        "experiment_id": experiment_id,
-        "experiment_url": _experiment_url(base_url, experiment) if experiment_id else None,
-        "task_errors": [
-            {"example_id": example_id, "error": error}
-            for example_id, error in _task_error_rows(experiment)
-        ],
-        "failed_evaluations": [
-            {
-                "example_id": example_id,
-                "evaluator": evaluator,
-                "score": score,
-                "label": label,
-                "details": details,
-            }
-            for example_id, evaluator, score, label, details in _failed_evaluation_rows(
-                experiment, evaluation_runs
-            )
-        ],
-        "evaluators": {name: summary for name, summary in _evaluator_summary_rows(evaluation_runs)},
-    }
-
-
-def _write_summary_files(
-    dataset: EvalDataset,
-    experiment: RanExperiment,
-    evaluation_runs: Sequence[ExperimentEvaluationRun],
-    *,
-    base_url: str,
-    splits: Sequence[str],
-    summary_dir: Path,
-) -> None:
-    payload = _summary_payload(
-        dataset,
-        experiment,
-        evaluation_runs,
-        base_url=base_url,
-        splits=splits,
-    )
-    summary_dir.mkdir(parents=True, exist_ok=True)
-    (summary_dir / "summary.json").write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
-
-    lines = [
-        f"# PXI Eval Summary: {dataset.dataset_name}",
-        "",
-        f"- Experiment: {payload['experiment_url'] or 'not run'}",
-        f"- Requested splits: {', '.join(payload['requested_splits'])}",
-        f"- Examples run: {payload['example_count']}",
-        "",
-        "## Evaluators",
-        "",
-    ]
-    evaluator_rows = [
-        (
-            name,
-            str(summary["total"]),
-            str(summary["passing"]),
-            str(summary["failing"]),
-            str(summary["errors"]),
-            str(summary["missing_score"]),
+def _print_score_summary(dataset: EvalDataset, experiment: RanExperiment, *, base_url: str) -> bool:
+    if experiment["experiment_id"]:
+        experiment_url = urljoin(
+            base_url.rstrip("/") + "/", f"experiments/{experiment['experiment_id']}"
         )
-        for name, summary in payload["evaluators"].items()
-    ]
-    if evaluator_rows:
-        lines.append(
-            _format_table(
-                ("Evaluator", "Total", "Passed", "Failed", "Errors", "Missing"),
-                evaluator_rows,
-            )
-        )
-    else:
-        lines.append("No evaluator runs.")
-    lines.extend(["", "## Failed Evaluations", ""])
-    failed_rows = [
-        (
-            failure["example_id"],
-            failure["evaluator"],
-            failure["score"],
-            failure["label"],
-            failure["details"],
-        )
-        for failure in payload["failed_evaluations"]
-    ]
-    if failed_rows:
-        lines.append(
-            _format_table(("Example", "Evaluator", "Score", "Label", "Details"), failed_rows)
-        )
-    else:
-        lines.append("No failed evaluations.")
-    lines.extend(["", "## Task Errors", ""])
-    task_error_rows = [(row["example_id"], row["error"]) for row in payload["task_errors"]]
-    if task_error_rows:
-        lines.append(_format_table(("Example", "Error"), task_error_rows))
-    else:
-        lines.append("No task errors.")
-    (summary_dir / "summary.md").write_text("\n".join(lines) + "\n")
-
-
-def _print_score_summary(dataset: EvalDataset, experiment: RanExperiment) -> bool:
+        print(f"Experiment: {experiment_url}")
     evaluation_runs = list(experiment.get("evaluation_runs") or [])
     evaluator_summaries = _evaluator_summary_rows(evaluation_runs)
 
@@ -430,7 +322,7 @@ def _phoenix_examples(dataset: EvalDataset) -> list[dict[str, Any]]:
             "input": example["input"],
             "output": example["expected"],
             "metadata": example.get("metadata") or {},
-            "splits": [example["split"]],
+            "splits": list(example["splits"]),
         }
         for example in dataset.examples
     ]
@@ -476,7 +368,9 @@ async def _run_async(config: ExperimentConfig) -> int:
                 examples=_phoenix_examples(dataset),
                 dataset_description=dataset.description,
             )
-            uploaded_splits = {str(example["split"]) for example in dataset.examples}
+            uploaded_splits = {
+                str(split) for example in dataset.examples for split in example["splits"]
+            }
             _warn_if_split_smoke_check_fails(
                 await client.datasets.get_dataset(
                     dataset=phoenix_dataset,
@@ -492,14 +386,6 @@ async def _run_async(config: ExperimentConfig) -> int:
             if not experiment_dataset.examples:
                 print(f"No examples matched requested splits: {', '.join(config.splits)}")
                 experiment = _empty_experiment(experiment_dataset)
-                _write_summary_files(
-                    dataset,
-                    experiment,
-                    [],
-                    base_url=config.base_url,
-                    splits=config.splits,
-                    summary_dir=config.summary_dir,
-                )
                 return 0
             name = _experiment_name(dataset, config)
             metadata = {
@@ -550,16 +436,7 @@ async def _run_async(config: ExperimentConfig) -> int:
                         f"warning: AsyncClient cleanup failed: {cleanup_exc}",
                         file=sys.stderr,
                     )
-    evaluation_runs = list(experiment.get("evaluation_runs") or [])
-    _write_summary_files(
-        dataset,
-        experiment,
-        evaluation_runs,
-        base_url=config.base_url,
-        splits=config.splits,
-        summary_dir=config.summary_dir,
-    )
-    has_regressions = _print_score_summary(dataset, experiment)
+    has_regressions = _print_score_summary(dataset, experiment, base_url=config.base_url)
     return 1 if has_regressions and config.fail_on_regression else 0
 
 
@@ -597,12 +474,6 @@ def build_parser() -> argparse.ArgumentParser:
         default=["regression"],
         help="Dataset split names to run (default: regression)",
     )
-    parser.add_argument(
-        "--summary-dir",
-        type=Path,
-        default=Path(__file__).resolve().parents[1] / ".last-run",
-        help="Directory for summary.json and summary.md (default: evals/pxi/.last-run)",
-    )
     # The dataset YAML's ``evaluators:`` field is the source of truth for
     # what gets scored in normal use. This flag is a transient per-run
     # override -- useful for iterating on a single evaluator (halves eval
@@ -636,7 +507,6 @@ def main(argv: list[str] | None = None) -> int:
         experiment_name_suffix=args.experiment_name_suffix,
         fail_on_regression=args.fail_on_regression,
         splits=tuple(args.splits),
-        summary_dir=args.summary_dir,
         evaluator_override=tuple(args.evaluators) if args.evaluators else None,
     )
     try:
