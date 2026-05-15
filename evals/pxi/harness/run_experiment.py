@@ -455,6 +455,14 @@ async def _get_split_filtered_dataset(
     )
 
 
+def _warn_no_matching_examples(splits: Sequence[str]) -> None:
+    print(
+        "warning: no examples matched requested splits; "
+        f"skipping experiment run ({', '.join(splits)})",
+        file=sys.stderr,
+    )
+
+
 async def _run_async(config: ExperimentConfig) -> int:
     _check_phoenix_healthz(config.base_url)
     dataset = load_dataset(config.dataset)
@@ -490,7 +498,7 @@ async def _run_async(config: ExperimentConfig) -> int:
                 config.splits,
             )
             if not experiment_dataset.examples:
-                print(f"No examples matched requested splits: {', '.join(config.splits)}")
+                _warn_no_matching_examples(config.splits)
                 experiment = _empty_experiment(experiment_dataset)
                 _write_summary_files(
                     dataset,
