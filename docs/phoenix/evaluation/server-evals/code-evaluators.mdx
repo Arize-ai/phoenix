@@ -88,7 +88,7 @@ function evaluate({ output, reference, input, metadata }: EvaluatorParams) {
 </Tab>
 </Tabs>
 
-`output`, `reference`, `input`, and `metadata` mirror the four [evaluation parameters](/docs/phoenix/evaluation/server-evals/input-mapping#evaluation-parameters), but the names aren't required. Rename them, drop the ones you don't use, or add new ones — the signature is the source of truth for what shows up in the input-mapping panel.
+`output`, `reference`, `input`, and `metadata` mirror the four [evaluation parameters](/docs/phoenix/evaluation/server-evals/input-mapping#evaluation-parameters), but the names aren't required. Rename them, drop the ones you don't use, or add new ones — the signature is the source of truth for what shows up in the input-mapping panel. When a parameter shares a name with one of the four evaluation parameters, Phoenix auto-binds it; otherwise you bind it explicitly in the panel to a path on the evaluation parameters or to a literal value.
 
 ### Return shape
 
