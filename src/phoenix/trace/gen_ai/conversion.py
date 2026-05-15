@@ -216,7 +216,7 @@ def get_openinference_tool_attributes(
     oi_attributes: dict[str, AttributeValue] = {}
 
     for index, definition in enumerate(
-        _validate_root_list(attributes.get(gen_ai.GEN_AI_TOOL_DEFINITIONS), ToolDefinitions)
+        _validate_tool_definitions(attributes.get(gen_ai.GEN_AI_TOOL_DEFINITIONS))
     ):
         key = f"{SpanAttributes.LLM_TOOLS}.{index}.{ToolAttributes.TOOL_JSON_SCHEMA}"
         oi_attributes[key] = json.dumps(_definition_to_oi_schema(definition), ensure_ascii=False)
@@ -471,7 +471,11 @@ def _flatten_message(
         flat[f"{base}.{MessageAttributes.MESSAGE_NAME}"] = message.name
 
     if isinstance(message, OutputMessage):
-        flat[f"{base}.message.finish_reason"] = _enum_value(message.finish_reason)
+        # Streaming chunks can carry an empty finish_reason mid-stream; skip rather
+        # than render ``llm.{...}.message.finish_reason = ""`` in the OI surface.
+        finish_reason = _enum_value(message.finish_reason)
+        if finish_reason:
+            flat[f"{base}.message.finish_reason"] = finish_reason
 
     text_parts: list[str] = []
     content_parts: list[TextPart | UriPart | BlobPart] = []
@@ -609,6 +613,34 @@ def _validate_root_list(
         return []
     try:
         return model_cls.model_validate_json(value).root
+    except ValidationError:
+        return []
+
+
+def _validate_tool_definitions(
+    value: Any,
+) -> list[FunctionToolDefinition | GenericToolDefinition]:
+    """Tool-definition list with a small forgiveness step before validation.
+
+    Some producers omit the ``type`` field on tool definitions — e.g. Anthropic's
+    instrumentor emits ``[{"name": ..., "description": ..., "input_schema": ...}]``
+    with no ``type``. The OTel semconv requires it, so without this the whole list
+    fails validation and silently drops. We default missing ``type`` to ``"function"``
+    (matching how Anthropic models the tools internally) so these definitions still
+    surface as ``llm.tools`` instead of vanishing."""
+    if not isinstance(value, (str, bytes, bytearray)):
+        return []
+    try:
+        items = json.loads(value)
+    except (TypeError, ValueError):
+        return []
+    if not isinstance(items, list):
+        return []
+    for item in items:
+        if isinstance(item, dict) and "type" not in item:
+            item["type"] = "function"
+    try:
+        return ToolDefinitions.model_validate(items).root
     except ValidationError:
         return []
 

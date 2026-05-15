@@ -572,6 +572,25 @@ def test_input_message_does_not_emit_finish_reason() -> None:
     assert not any(".message.finish_reason" in k for k in out)
 
 
+def test_empty_finish_reason_is_skipped() -> None:
+    """Streaming chunks can carry an empty finish_reason mid-stream — render
+    nothing rather than ``llm.{...}.message.finish_reason = ""``."""
+    out = get_openinference_message_attributes(
+        _output_messages(
+            [
+                {
+                    "role": "assistant",
+                    "finish_reason": "",
+                    "parts": [{"type": "text", "content": "Silver orb in sky,"}],
+                }
+            ]
+        )
+    )
+    assert not any(".message.finish_reason" in k for k in out)
+    base = f"{SpanAttributes.LLM_OUTPUT_MESSAGES}.0"
+    assert out[f"{base}.{MessageAttributes.MESSAGE_CONTENT}"] == "Silver orb in sky,"
+
+
 def test_one_malformed_message_drops_the_whole_payload() -> None:
     """MVP behavior: model_validate_json validates the entire list in one shot, so
     a single bad item drops every message in the payload."""
@@ -794,12 +813,50 @@ def test_function_definition_without_description_or_parameters() -> None:
     assert schema == {"type": "function", "function": {"name": "ping"}}
 
 
+def test_tool_definition_missing_type_defaults_to_function() -> None:
+    """Anthropic's instrumentor emits tool defs as ``[{"name": ..., "description": ...,
+    "input_schema": ...}]`` with no ``type`` field. The OTel semconv requires it; we
+    forgive the omission by defaulting to ``"function"`` so these defs surface as
+    ``llm.tools`` instead of silently dropping."""
+    out = get_openinference_tool_attributes(
+        _tool_definitions(
+            [
+                {
+                    "name": "get_weather",
+                    "description": "Look up the weather.",
+                    "parameters": {"type": "object", "properties": {"city": {"type": "string"}}},
+                }
+            ]
+        )
+    )
+    schema = _as_json(out[f"{SpanAttributes.LLM_TOOLS}.0.{ToolAttributes.TOOL_JSON_SCHEMA}"])
+    assert schema == {
+        "type": "function",
+        "function": {
+            "name": "get_weather",
+            "description": "Look up the weather.",
+            "parameters": {"type": "object", "properties": {"city": {"type": "string"}}},
+        },
+    }
+
+
+def test_tool_definition_with_only_name_defaults_to_function() -> None:
+    """Anthropic's web_search server-side tool comes through as ``[{"name": "web_search"}]``
+    — a sparse definition with no description or parameters. Default-to-function still
+    surfaces it (better than dropping)."""
+    out = get_openinference_tool_attributes(_tool_definitions([{"name": "web_search"}]))
+    schema = _as_json(out[f"{SpanAttributes.LLM_TOOLS}.0.{ToolAttributes.TOOL_JSON_SCHEMA}"])
+    assert schema == {"type": "function", "function": {"name": "web_search"}}
+
+
 def test_one_malformed_tool_definition_drops_the_whole_payload() -> None:
     out = get_openinference_tool_attributes(
         _tool_definitions(
             [
                 {"type": "function", "name": "first"},
-                {"name": "no_type"},  # missing required type -> drops every definition
+                # ``name`` is required on both Function and Generic — even after the
+                # missing-``type`` forgiveness, this is still invalid and drops the list.
+                {"description": "no name"},
                 {"type": "function", "name": "third"},
             ]
         )
