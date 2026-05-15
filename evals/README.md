@@ -13,7 +13,18 @@ Phoenix repo but are not part of the production package.
 
 ## Dataset Splits
 
-PXI YAML datasets require each example to declare at least one `splits` tag:
+PXI YAML datasets require each example to declare at least one `splits` tag.
+Use the list-shaped field even for a single split:
+
+```yaml
+examples:
+  - id: llm-spans
+    splits: [regression]
+    input:
+      query: Show me only LLM spans.
+```
+
+Do not use singular `split: regression`; the PXI loader rejects it.
 
 | Split | Reader | Purpose |
 | --- | --- | --- |

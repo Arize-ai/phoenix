@@ -12,9 +12,20 @@ This tree is the canonical home for PXI-specific eval work.
 
 ## Splits
 
-Every dataset example must declare `splits: [...]`. The harness defaults to the
-`regression` split; `dev` is for manual experimentation, `val` is reserved for
-optimizer scoring, and `holdout` is manual-only.
+Every dataset example must declare list-shaped `splits: [...]`, even when the
+example belongs to only one split:
+
+```yaml
+examples:
+  - id: llm-spans
+    splits: [regression]
+    input:
+      query: Show me only LLM spans.
+```
+
+The harness defaults to the `regression` split; `dev` is for manual
+experimentation, `val` is reserved for optimizer scoring, and `holdout` is
+manual-only. Do not use singular `split: regression`; the loader rejects it.
 
 Examples may carry more than one split tag, but `val` must stay disjoint from
 both `regression` and `dev`. The loader enforces that contract and warns when an
