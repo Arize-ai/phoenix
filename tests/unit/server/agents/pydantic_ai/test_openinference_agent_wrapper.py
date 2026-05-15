@@ -6,16 +6,24 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import pytest
+from openinference.instrumentation import using_session
 from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
     OpenInferenceSpanKindValues,
     SpanAttributes,
     ToolCallAttributes,
 )
+from opentelemetry import context as otel_context
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.trace import StatusCode
+from opentelemetry.trace import (
+    NonRecordingSpan,
+    SpanContext,
+    StatusCode,
+    TraceFlags,
+    set_span_in_context,
+)
 from pydantic_ai import Agent
 from pydantic_ai.messages import (
     ModelMessage,
@@ -228,6 +236,44 @@ async def test_run_emits_agent_span_for_text_response(
     llm_span = llm_spans[0]
     assert llm_span.parent is not None
     assert llm_span.parent.span_id == agent_span.context.span_id
+
+
+async def test_agent_span_does_not_inherit_ambient_otel_parent(
+    wrapped_agent: OpenInferenceAgentWrapper,
+    in_memory_span_exporter: InMemorySpanExporter,
+) -> None:
+    ambient_parent_span_id = 0x00000000000000F2
+    ambient_context = set_span_in_context(
+        NonRecordingSpan(
+            SpanContext(
+                trace_id=0x000000000000000000000000000000F1,
+                span_id=ambient_parent_span_id,
+                is_remote=False,
+                trace_flags=TraceFlags(TraceFlags.SAMPLED),
+            )
+        )
+    )
+
+    token = otel_context.attach(ambient_context)
+    try:
+        with using_session(session_id="session-123"):
+            await wrapped_agent.run("ignore the ambient request span")
+    finally:
+        otel_context.detach(token)
+
+    spans = in_memory_span_exporter.get_finished_spans()
+    agent_span = _get_agent_span(spans)
+    assert agent_span.parent is None
+    assert agent_span.context.trace_id != 0x000000000000000000000000000000F1
+    assert (agent_span.attributes or {})[SpanAttributes.SESSION_ID] == "session-123"
+
+    llm_spans = _get_llm_spans(spans)
+    assert len(llm_spans) == 1
+    llm_span = llm_spans[0]
+    assert llm_span.parent is not None
+    assert llm_span.parent.span_id == agent_span.context.span_id
+    assert llm_span.parent.span_id != ambient_parent_span_id
+    assert (llm_span.attributes or {})[SpanAttributes.SESSION_ID] == "session-123"
 
 
 async def test_run_stream_emits_agent_span(

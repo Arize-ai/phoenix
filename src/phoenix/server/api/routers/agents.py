@@ -1,5 +1,6 @@
 import logging
 from collections.abc import AsyncIterator, Iterable
+from contextlib import nullcontext
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -8,10 +9,12 @@ from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttribu
 from opentelemetry.context import Context
 from opentelemetry.sdk.trace import Span as SDKSpan
 from opentelemetry.sdk.trace import SpanProcessor
-from opentelemetry.trace import SpanContext, format_span_id, format_trace_id
+from opentelemetry.trace import SpanContext, Status, StatusCode, format_span_id, format_trace_id
 from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator
 from pydantic.alias_generators import to_camel
 from pydantic_ai import AgentRunResult, RunUsage
+from pydantic_ai.messages import ModelMessage
+from pydantic_ai.models import Model
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
 from pydantic_ai.ui.vercel_ai.request_types import (
     RegenerateMessage,
@@ -41,7 +44,7 @@ from phoenix.server.agents.dependencies import ChatDependencies, ChatOutput
 from phoenix.server.agents.exceptions import AgentError, SummarizationError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
-from phoenix.server.agents.summarization import summarize_messages
+from phoenix.server.agents.summarization import Summary, summarize_messages
 from phoenix.server.bearer_auth import is_authenticated
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer
@@ -350,6 +353,36 @@ async def _upsert_project_sessions(
     return {row.session_id: row for row in returned_rows}
 
 
+async def _summarize_messages_with_tracing(
+    *,
+    session_id: str,
+    history: list[ModelMessage],
+    model: Model,
+    tracer: Tracer | None,
+) -> Summary:
+    summary_span_context = (
+        tracer.start_as_current_span(
+            "PXIAgent.summary",
+            attributes={
+                SpanAttributes.OPENINFERENCE_SPAN_KIND: OpenInferenceSpanKindValues.CHAIN.value,
+                SpanAttributes.SESSION_ID: session_id,
+            },
+            context=Context(),
+        )
+        if tracer is not None
+        else nullcontext(None)
+    )
+    with (
+        using_session(session_id=session_id),
+        using_metadata({"session_id": session_id}),
+        summary_span_context as summary_span,
+    ):
+        result = await summarize_messages(messages=history, model=model)
+        if summary_span is not None:
+            summary_span.set_status(Status(StatusCode.OK))
+        return result
+
+
 def create_agents_router(authentication_enabled: bool) -> APIRouter:
     dependencies = [Depends(is_authenticated)] if authentication_enabled else []
     router = APIRouter(tags=["chat"], dependencies=dependencies)
@@ -489,8 +522,12 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
 
         history = VercelAIAdapter.load_messages(body.messages)
         try:
-            with using_metadata({"session_id": session_id}):
-                result = await summarize_messages(messages=history, model=model)
+            result = await _summarize_messages_with_tracing(
+                session_id=session_id,
+                history=history,
+                model=model,
+                tracer=tracer,
+            )
         except SummarizationError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
         finally:

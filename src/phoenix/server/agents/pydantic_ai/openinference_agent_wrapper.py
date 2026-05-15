@@ -21,6 +21,7 @@ from openinference.semconv.trace import (
     SpanAttributes,
     ToolCallAttributes,
 )
+from opentelemetry.context import Context
 from opentelemetry.trace import Status, StatusCode, Tracer, TracerProvider
 from opentelemetry.util.types import AttributeValue
 from pydantic_ai.agent.abstract import AbstractAgent
@@ -204,9 +205,12 @@ class OpenInferenceAgentWrapper(WrapperAgent[ChatDependencies, ChatOutput]):
         metadata: dict[str, Any] = {"input": iter_method_arguments}
         attributes.update(get_metadata_attributes(metadata=metadata))
         span_name = f"{self.name or type(self.wrapped).__name__}.iter"
+        # Keep PXI exports rooted at the agent turn rather than an ambient
+        # server/request span that is not exported with the PXI trace.
         with self._tracer.start_as_current_span(
             name=span_name,
             attributes=attributes,
+            context=Context(),
         ) as span:
 
             def set_result(agent_run: AgentRun[ChatDependencies, ChatOutput]) -> None:
