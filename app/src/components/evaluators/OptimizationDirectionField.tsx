@@ -40,6 +40,11 @@ const getOptimizationDirectionLabel = (
 export type OptimizationDirectionFieldProps = {
   isReadOnly?: boolean;
   isDisabled?: boolean;
+  /**
+   * Optional helper text rendered via React Aria's `description` slot,
+   * shown beneath the field when editable.
+   */
+  description?: string;
 };
 
 /**
@@ -51,6 +56,7 @@ export type OptimizationDirectionFieldProps = {
 export const OptimizationDirectionField = ({
   isReadOnly,
   isDisabled,
+  description,
 }: OptimizationDirectionFieldProps) => {
   const { optimizationDirection, setOutputConfigOptimizationDirectionAtIndex } =
     useEvaluatorStore(
@@ -101,6 +107,7 @@ export const OptimizationDirectionField = ({
           ))}
         </ListBox>
       </Popover>
+      {description ? <Text slot="description">{description}</Text> : null}
     </Select>
   );
 };

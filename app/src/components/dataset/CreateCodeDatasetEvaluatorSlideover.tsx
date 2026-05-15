@@ -281,10 +281,7 @@ const CreateCodeEvaluatorDialog = ({
           mode="create"
           error={error}
           initialLanguage="PYTHON"
-          initialSourceCode={getDefaultCodeEvaluatorSource(
-            "PYTHON",
-            "continuous"
-          )}
+          initialSourceCode={getDefaultCodeEvaluatorSource("PYTHON")}
           sandboxConfigs={sandboxConfigs}
           initialSandboxConfigId={null}
         />

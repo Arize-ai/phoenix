@@ -129,7 +129,6 @@ export const EditCodeEvaluatorDialogContent = ({
   initialSandboxConfigId?: string | null;
 }) => {
   const store = useEvaluatorStoreInstance();
-  const outputConfig = useEvaluatorStore((state) => state.outputConfigs[0]);
   const [showValidationError, setShowValidationError] = useState(false);
   const [sourceCode, setSourceCode] = useState(initialSourceCode);
   const [language, setLanguage] =
@@ -345,19 +344,16 @@ export const EditCodeEvaluatorDialogContent = ({
                   language={language}
                   onLanguageChange={(nextLanguage) => {
                     setLanguage((currentLanguage) => {
-                      // Auto-swap if sourceCode matches any generated default for the
-                      // current language (substituted or fallback, across all shapes).
-                      const currentDefaults = getAllGeneratedSources(
-                        currentLanguage,
-                        outputConfig
-                      );
+                      // Auto-swap if sourceCode is still the placeholder for
+                      // the current language. With a single freeform template
+                      // per language this is a direct equality check, but we
+                      // keep going through getAllGeneratedSources so the guard
+                      // stays uniform if more defaults are added later.
+                      const currentDefaults =
+                        getAllGeneratedSources(currentLanguage);
                       if (currentDefaults.includes(sourceCode)) {
                         setSourceCode(
-                          getDefaultCodeEvaluatorSource(
-                            nextLanguage,
-                            "continuous",
-                            outputConfig
-                          )
+                          getDefaultCodeEvaluatorSource(nextLanguage)
                         );
                       }
                       return nextLanguage;
@@ -373,7 +369,6 @@ export const EditCodeEvaluatorDialogContent = ({
                   language={language}
                   sourceCode={sourceCode}
                   onChange={setSourceCode}
-                  outputConfig={outputConfig}
                 />
                 <EvaluatorAnnotationSection />
                 <InputMappingSection />
@@ -590,12 +585,10 @@ function getSandboxDependenciesConfigLabel(config: SandboxConfigForLabels) {
  */
 const CodeEditor = ({
   language,
-  outputConfig,
   sourceCode,
   onChange,
 }: {
   language: CodeEvaluatorLanguage;
-  outputConfig: AnnotationConfig | undefined;
   sourceCode: string;
   onChange: (value: string) => void;
 }) => {
@@ -683,15 +676,7 @@ const CodeEditor = ({
             size="S"
             variant="quiet"
             leadingVisual={<Icon svg={<Icons.Refresh />} />}
-            onPress={() =>
-              onChange(
-                getDefaultCodeEvaluatorSource(
-                  language,
-                  "continuous",
-                  outputConfig
-                )
-              )
-            }
+            onPress={() => onChange(getDefaultCodeEvaluatorSource(language))}
           >
             Reset
           </Button>
@@ -859,8 +844,8 @@ const OutputConfigSection = () => {
     "threshold" in outputConfig ? (outputConfig.threshold ?? null) : null;
 
   return (
-    <Flex direction="column" gap="size-100">
-      <OptimizationDirectionField />
+    <Flex direction="column" gap="size-200">
+      <OptimizationDirectionField description="Whether higher or lower scores are better." />
       <NumberField
         value={threshold ?? undefined}
         onChange={(value) =>
@@ -869,6 +854,10 @@ const OutputConfigSection = () => {
       >
         <Label>Score threshold (optional)</Label>
         <Input />
+        <Text slot="description">
+          Combined with the optimization direction, this is the cutoff used to
+          visually distinguish &ldquo;good&rdquo; from &ldquo;bad&rdquo; scores.
+        </Text>
       </NumberField>
     </Flex>
   );

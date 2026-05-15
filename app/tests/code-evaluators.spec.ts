@@ -373,15 +373,6 @@ async function createSecretKey(page: Page, key: string, value: string) {
   await expect(dialog).not.toBeVisible();
 }
 
-/**
- * Read the current text content of the editable CodeMirror editor inside the
- * dialog. The editor is the first `.cm-content` in the dialog (the second is
- * the read-only type footer).
- */
-async function getEditorContent(scope: Locator): Promise<string> {
-  return (await scope.locator(".cm-content").first().textContent()) ?? "";
-}
-
 test.describe.serial("Code Evaluators", () => {
   const datasetName = `code-evals-${randomUUID().slice(0, 8)}`;
   const pythonSandboxName = `python-sandbox-${randomUUID().slice(0, 8)}`;
@@ -692,96 +683,13 @@ test.describe.serial("Code Evaluators", () => {
     await expect(page.getByTestId("dialog")).not.toBeVisible();
   });
 
-  // Phase 4: Config-aware placeholder assertions
-  //
-  // Tests that authored a Categorical code evaluator via the legacy "Output
-  // type" select were removed when the code-evaluator authoring form
-  // collapsed to optimization direction + optional threshold (descriptive,
-  // not prescriptive). The dependent reopen-and-edit tests went with them.
-  // Surviving tests below exercise placeholder behavior on the create
-  // dialog without going through the deleted select.
-
-  const placeholderDefaultsName = `placeholder-defaults-${randomUUID().slice(0, 8)}`;
-
-  test("categorical placeholder shows default pass/fail labels for a new evaluator", async ({
-    page,
-  }) => {
-    await gotoDatasetEvaluators(page, datasetName);
-
-    await page.getByRole("button", { name: "Add evaluator" }).click();
-    await page
-      .getByRole("menuitem", { name: "Create new code evaluator" })
-      .click();
-
-    const dialog = page.getByTestId("dialog");
-    await expect(
-      dialog.getByRole("heading", { name: "Create Code Evaluator" })
-    ).toBeVisible();
-
-    await dialog
-      .getByRole("textbox", { name: /^Name(\s*\*)?$/ })
-      .fill(placeholderDefaultsName);
-
-    await selectSandbox(page, dialog, pythonSandboxName);
-
-    // New evaluators default to a categorical output config with "pass" /
-    // "fail" choices, so Reset regenerates the placeholder with the first
-    // label substituted in.
-    await dialog.getByRole("button", { name: "Reset" }).click();
-
-    await expect.poll(() => getEditorContent(dialog)).toContain('"pass"');
-    const content = await getEditorContent(dialog);
-    // Dict-form comment with explanation key.
-    expect(content).toContain("explanation");
-
-    await dialog.getByRole("button", { name: "Cancel" }).click();
-    await expect(page.getByTestId("dialog")).not.toBeVisible();
-  });
-
-  test("categorical placeholder regenerates from Reset after user edits source", async ({
-    page,
-  }) => {
-    await gotoDatasetEvaluators(page, datasetName);
-
-    // Open a fresh create dialog. New evaluators default to a categorical
-    // output config with "pass" / "fail" choices.
-    await page.getByRole("button", { name: "Add evaluator" }).click();
-    await page
-      .getByRole("menuitem", { name: "Create new code evaluator" })
-      .click();
-
-    const dialog = page.getByTestId("dialog");
-    await expect(
-      dialog.getByRole("heading", { name: "Create Code Evaluator" })
-    ).toBeVisible();
-
-    // Customize the categorical choices and Reset so the placeholder is
-    // pinned to the substituted "approved"/"rejected" form.
-    const choiceInputs = dialog.locator('input[placeholder^="Choice"]');
-    await choiceInputs.first().fill("approved");
-    await choiceInputs.nth(1).fill("rejected");
-    await dialog.getByRole("button", { name: "Reset" }).click();
-    await expect.poll(() => getEditorContent(dialog)).toContain('"approved"');
-
-    // Overwrite the editor body with custom code.
-    const editor = dialog.locator(".cm-content").first();
-    await editor.click();
-    await page.keyboard.press("ControlOrMeta+a");
-    await page.keyboard.insertText("# custom user code");
-    await expect
-      .poll(() => getEditorContent(dialog))
-      .toContain("custom user code");
-
-    // Reset restores the substituted categorical placeholder.
-    await dialog.getByRole("button", { name: "Reset" }).click();
-    await expect.poll(() => getEditorContent(dialog)).toContain('"approved"');
-    const content = await getEditorContent(dialog);
-    expect(content).not.toContain("custom user code");
-    expect(content).toContain("explanation");
-
-    await dialog.getByRole("button", { name: "Cancel" }).click();
-    await expect(page.getByTestId("dialog")).not.toBeVisible();
-  });
+  // Config-aware placeholder assertions for the categorical default were
+  // removed when the code-evaluator authoring form collapsed to optimization
+  // direction + optional threshold (descriptive, not prescriptive). New
+  // evaluators now default to the freeform/continuous source template, and
+  // the legacy "Output type" select that let users author a Categorical
+  // config from the form is gone. Restore placeholder coverage if the
+  // categorical authoring path is reintroduced.
 
   // Tab in the Python editor inserts four spaces, not a tab character.
   test("Tab in Python code editor inserts four spaces", async ({ page }) => {
