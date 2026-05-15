@@ -2587,9 +2587,9 @@ class CodeEvaluatorRunner(BaseEvaluator):
     """
     Evaluator that executes user-provided source code in a sandbox.
 
-    The user's source_code must define a callable named ``evaluate``. We wrap
-    it in a small script that calls ``evaluate(**mapped_inputs)`` and coerce
-    the return value via _coerce_output against each output_config.
+    The user's source_code must define a callable named ``evaluate``.
+    The harness calls ``evaluate(**mapped_inputs)`` and coerces the return
+    value via _coerce_output against each output_config.
 
     Supports both PYTHON and TYPESCRIPT languages. The sandbox session key
     is derived from the runner's name (``self._name``).
