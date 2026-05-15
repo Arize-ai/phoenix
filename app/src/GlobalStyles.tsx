@@ -930,6 +930,7 @@ const baseTokensCSS = (theme: Theme) => css`
     --highlight-background: var(--global-color-primary-100);
     --hover-background: var(--global-color-gray-100);
     --focus-ring-color: var(--global-color-primary-500);
+    --focus-ring-offset: var(--global-dimension-static-size-25);
 
     --text-color-placeholder: var(--global-color-gray-400);
 
@@ -1180,12 +1181,6 @@ const borderAndGridCSS = (theme: Theme) => css`
   .theme--${theme} {
     --global-border-size-thin: var(--global-dimension-static-size-10);
     --global-border-size-thick: var(--global-dimension-static-size-25);
-    --global-border-size-thicker: var(--global-dimension-static-size-50);
-    --global-border-size-thickest: var(--global-dimension-static-size-100);
-    --global-border-offset-thin: var(--global-dimension-static-size-25);
-    --global-border-offset-thick: var(--global-dimension-static-size-50);
-    --global-border-offset-thicker: var(--global-dimension-static-size-100);
-    --global-border-offset-thickest: var(--global-dimension-static-size-200);
     --global-grid-baseline: var(--global-dimension-static-size-100);
     --global-grid-gutter-xsmall: var(--global-dimension-static-size-200);
     --global-grid-gutter-small: var(--global-dimension-static-size-300);
@@ -1329,12 +1324,7 @@ const appGlobalStylesCSS = css`
 
   :root,
   .theme {
-    --section-background-color: #2f353d;
-
     /* An item is a typically something in a list */
-    --item-background-color: #1d2126;
-    --item-border-color: #282e35;
-
     --font-weight-heavy: 600;
 
     --gradient-bar-height: 8px;

@@ -10,6 +10,7 @@ import {
   LinkButton,
   Text,
 } from "@phoenix/components";
+import { fadedDividerBottomCSS } from "@phoenix/components/core/layout";
 import { compactResizeHandleCSS } from "@phoenix/components/resize/styles";
 import type { AgentSession } from "@phoenix/store/agentStore";
 
@@ -17,13 +18,12 @@ import { PxiGlyph } from "./PxiGlyph";
 import { SessionListMenu } from "./SessionListMenu";
 
 const panelHeaderCSS = css`
-  position: relative;
+  ${fadedDividerBottomCSS}
   z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
-  border-bottom: 1px solid var(--global-border-color-default);
 `;
 
 const panelHeaderActionsCSS = css`

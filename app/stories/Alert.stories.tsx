@@ -6,7 +6,8 @@ const meta: Meta<typeof Alert> = {
   title: "Core/Feedback/Alert",
   component: Alert,
   parameters: {
-    layout: "centered",
+    inset: true,
+    width: "intrinsic",
   },
   tags: ["autodocs"],
 };
@@ -82,7 +83,9 @@ export const Banner: Story = {
     banner: true,
   },
   parameters: {
-    layout: "fullscreen",
+    inset: false,
+    width: "fill",
+    themeLayout: "column",
   },
 };
 
