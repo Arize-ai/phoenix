@@ -35,6 +35,9 @@ Phoenix offers several types of integrations to support your AI development work
   <Card title="Span Processors" icon="arrows-rotate" href="#span-processors">
     Convert traces from other instrumentation libraries to the OpenInference format.
   </Card>
+  <Card title="Sandboxes" icon="cube" href="#sandboxes">
+    Run code evaluators in hosted sandbox providers with kernel-level isolation.
+  </Card>
 </CardGroup>
 
 ---
@@ -172,5 +175,18 @@ Normalize and convert data from other instrumentation libraries by adding span p
 <CardGroup cols={3}>
   <Card title="OpenLIT" href="https://pypi.org/project/openinference-instrumentation-openlit/" icon="arrows-rotate" description="OpenLIT span processor"/>
   <Card title="OpenLLMetry (Traceloop)" href="https://pypi.org/project/openinference-instrumentation-openllmetry/" icon="arrows-rotate" description="OpenLLMetry span processor"/>
+</CardGroup>
+
+---
+
+## Sandboxes
+
+Run Phoenix [code evaluators](/docs/phoenix/evaluation/server-evals/code-evaluators) in hosted sandbox providers for kernel-level isolation, runtime dependency installation, and opt-in outbound network access. Configure providers from [Settings → Sandboxes](/docs/phoenix/settings/sandboxes).
+
+<CardGroup cols={4}>
+  <Card title="E2B" href="/docs/phoenix/integrations/sandboxes/e2b" icon="cube" description="Hosted micro-VMs for AI-generated code"/>
+  <Card title="Daytona" href="/docs/phoenix/integrations/sandboxes/daytona" icon="cube" description="Managed dev sandboxes with snapshot startup"/>
+  <Card title="Vercel Sandbox" href="/docs/phoenix/integrations/sandboxes/vercel" icon="cube" description="Ephemeral compute on Vercel infrastructure"/>
+  <Card title="Modal" href="/docs/phoenix/integrations/sandboxes/modal" icon="cube" description="Serverless containers, Python-first"/>
 </CardGroup>
 

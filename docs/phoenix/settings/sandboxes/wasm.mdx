@@ -1,0 +1,10 @@
+---
+title: "WebAssembly"
+description: "Run Python code evaluators inside the Phoenix server using a CPython-on-Wasm interpreter."
+---
+
+<img src="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/wasm.svg" alt="WebAssembly" style={{ height: '64px' }} />
+
+The **WebAssembly** sandbox runs Python code in a CPython interpreter compiled to WebAssembly and executed via [`wasmtime`](https://wasmtime.dev/), in-process inside the Phoenix server. Isolation is enforced at the Wasm boundary: the guest has no filesystem, no network, and no syscalls except those Phoenix explicitly grants. It starts in milliseconds and requires no credentials, which makes it the default choice for fast, pure-logic Python evaluators.
+
+Configure it from [Settings → Sandboxes](/docs/phoenix/settings/sandboxes). Learn more about WebAssembly at [webassembly.org](https://webassembly.org/).

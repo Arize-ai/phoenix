@@ -1,0 +1,106 @@
+---
+title: "Sandboxes"
+description: "Configure the sandbox runtimes that execute code evaluators and other server-side code workloads."
+---
+
+![Sandboxes](https://storage.googleapis.com/arize-phoenix-assets/assets/images/sandboxes_banner.png)
+
+A **sandbox** is an isolated runtime that executes a snippet of code on demand. It's fast enough to run on every evaluation, but locked down enough that the code can't read the host filesystem, exfiltrate secrets, or make arbitrary network calls. Phoenix uses sandboxes to run [code evaluators](/docs/phoenix/evaluation/server-evals/code-evaluators) — an author writes a Python or TypeScript function and Phoenix runs it server-side without exposing the rest of your deployment.
+
+The **Settings → Sandboxes** page is where an administrator picks which sandbox runtimes are available and bundles them into reusable configurations that evaluator authors choose from. It has two cards:
+
+- **Sandbox Providers** — One row per backend. Set credentials, enable a provider, see runtime status.
+- **Sandbox Configurations** — Reusable named configs (timeout, environment variables, internet access, dependencies) that evaluators select from.
+
+<Note>
+Only users with the **Admin** role can view or edit this page. Non-admin users are routed away from the tab.
+</Note>
+
+## Local vs. hosted sandboxes
+
+Phoenix supports two flavors of sandbox, distinguished by where the code actually runs. The **hosting type** badge on each provider row tells you which kind you're looking at.
+
+<AccordionGroup>
+  <Accordion title="Local sandboxes" icon="server">
+    **Local sandboxes** run inside the Phoenix server process itself. They start in milliseconds and require no external credentials, which makes them the fastest and cheapest option. The trade-off is narrower isolation than a full VM and a smaller capability surface — they can't install arbitrary packages, and they can't reach the public internet.
+
+    <CardGroup cols={2}>
+      <Card title="WebAssembly" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/wasm.svg" href="/docs/phoenix/settings/sandboxes/wasm">
+        Python in CPython-on-Wasm via `wasmtime`. Isolation at the Wasm boundary.
+      </Card>
+      <Card title="Deno" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/deno.svg" href="/docs/phoenix/settings/sandboxes/deno">
+        TypeScript in a `deno run` subprocess with no `--allow-*` permissions.
+      </Card>
+    </CardGroup>
+  </Accordion>
+
+  <Accordion title="Hosted sandboxes" icon="cloud">
+    **Hosted sandboxes** run on a third-party provider's infrastructure. Each invocation spins up a fresh sandbox there — a VM, micro-VM, or container, depending on the provider. The upside: kernel-level isolation, longer maximum timeouts, the ability to install Python or npm packages at execution time, and opt-in outbound network access. The cost: per-call round-trip latency and the need to configure credentials for the upstream service.
+
+    <CardGroup cols={2}>
+      <Card title="E2B" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/e2b.svg" href="/docs/phoenix/settings/sandboxes/e2b">
+        Cloud micro-VMs purpose-built for AI-generated code execution.
+      </Card>
+      <Card title="Daytona" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/daytona.svg" href="/docs/phoenix/settings/sandboxes/daytona">
+        Managed development sandboxes with fast snapshot-based startup.
+      </Card>
+      <Card title="Vercel Sandbox" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/vercel.svg" href="/docs/phoenix/settings/sandboxes/vercel">
+        Ephemeral compute on Vercel's infrastructure with team-scoped credentials.
+      </Card>
+      <Card title="Modal" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/modal.svg" href="/docs/phoenix/settings/sandboxes/modal">
+        Serverless containers with sub-second cold starts and Python-first ergonomics.
+      </Card>
+    </CardGroup>
+  </Accordion>
+</AccordionGroup>
+
+A common pattern is to enable a local sandbox for the everyday case (pure-logic checks, regex, JSON diffs) and one hosted sandbox for the cases that need extra horsepower (dependencies, network calls, longer runtimes). See [Sandbox Runtimes](/docs/phoenix/self-hosting/features/sandbox-runtimes) for the full capability matrix and self-hosting setup.
+
+## Sandbox Providers
+
+A **provider** is a backend + language pair — for example, *Vercel Sandbox — Python* or *Daytona — TypeScript*. Each row shows the backend's display name, the language, when the provider was last updated, its current runtime status, and a gear icon to configure credentials. The **Enabled** switch appears once the runtime is reachable; flipping it off hides the provider's configurations from evaluator authors without deleting them.
+
+### Configuring credentials
+
+Click the gear icon next to a provider to open the credentials dialog. The dialog lists the credential fields the backend declares — for example:
+
+- **E2B** — `E2B_API_KEY`
+- **Daytona** — `PHOENIX_SANDBOX_DAYTONA_API_KEY`
+- **Modal** — `MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET`
+- **Vercel Sandbox** — `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID`
+
+Values are stored encrypted at rest using the server's `PHOENIX_SECRET`. The dialog shows each field's environment-variable name and a short description; required fields are marked. Local backends (Deno, WebAssembly) have no credentials, and the gear button is disabled for them.
+
+## Sandbox Configurations
+
+A **sandbox configuration** is a named, reusable bundle of runtime settings — timeout, environment variables, internet access, and any pre-installed dependencies — bound to a specific provider. Code evaluators don't pick a provider directly; they pick a configuration. This lets you maintain a small set of curated runtimes (for example, a "default Python with `requests` and `numpy`" config and an "internet-enabled Node.js" config) that evaluator authors choose from.
+
+<Warning>
+Environment-variable values — including the values resolved from secret references — are visible to any code that runs in the sandbox (for example, `os.environ` in Python). Treat them as readable by anyone authorized to author or run an evaluator against the config.
+</Warning>
+
+### Creating a configuration
+
+Click **New Sandbox** in the Sandbox Configurations card. Only providers whose backend is `AVAILABLE` *and* whose admin toggle is enabled appear in the picker.
+
+The dialog exposes the following fields. Fields that aren't supported by the selected backend are shown as **Not supported by the selected backend**.
+
+| Field | Notes |
+|-------|-------|
+| **Provider** | Required. The backend + language pair this config targets. Configs are language-scoped — a Python config can only be selected by Python evaluators. |
+| **Name** | Required. Lowercase letters, digits, dashes, and underscores. Must start and end with a letter or digit. Used to identify the config in the evaluator UI. |
+| **Description** | Optional free-form text shown next to the config name. |
+| **Timeout (seconds)** | Required. Total time allowed for sandbox setup and execution. Defaults to **300s**. |
+| **Environment Variables** | One row per variable. Each row is either a **literal value** typed inline, or a **secret reference** to a key from [Settings → Secrets](/docs/phoenix/settings/secrets). Available only for backends that support env vars. |
+| **Allow Internet Access** | Toggle for backends that gate outbound networking. When off, the sandbox runs with no network egress. |
+| **Dependencies** | One package per line. The dialog shows whether the backend takes Python packages (e.g. `requests`, `numpy==1.26.0`) or npm packages (e.g. `@types/node`, `lodash`). Phoenix installs these before each execution. |
+
+## Next steps
+
+Once a configuration is in place, point an evaluator at it.
+
+<CardGroup cols={1}>
+  <Card title="Code Evaluators" icon="code" href="/docs/phoenix/evaluation/server-evals/code-evaluators">
+    Configure a server-side code evaluator that runs against a sandbox configuration.
+  </Card>
+</CardGroup>
