@@ -103,12 +103,13 @@ def run_tasks(
         List of TaskResult for each task.
     """
     if enable_phoenix:
-        from .phoenix_setup import setup_instrumentation
+        from .phoenix_setup import PHOENIX_PROJECT_NAME, phoenix_ui_url, setup_instrumentation
 
         tracer_provider = setup_instrumentation()
+        ui_url = phoenix_ui_url()
         print(
-            "Phoenix instrumentation enabled. Traces will be sent to "
-            "http://localhost:6006 (project: traject-bench-langgraph)"
+            f"Phoenix instrumentation enabled. Traces will be sent to "
+            f"{ui_url} (project: {PHOENIX_PROJECT_NAME})"
         )
     else:
         tracer_provider = None
@@ -160,9 +161,11 @@ def run_tasks(
         print(f"    Actual:   {actual_names}")
 
     if tracer_provider is not None:
+        from .phoenix_setup import phoenix_ui_url
+
         print("\nFlushing traces...")
         tracer_provider.force_flush()
-        print("Traces exported to Phoenix. View at http://localhost:6006")
+        print(f"Traces exported to Phoenix. View at {phoenix_ui_url()}")
 
     return results
 
