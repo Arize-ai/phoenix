@@ -90,6 +90,8 @@ class GenerateSQLQuery(Skill):
                 ],
             )
 
+        if not response.choices:
+            return "No response from the model."
         sql_query = response.choices[0].message.content
 
         tracer = trace.get_tracer(__name__)
