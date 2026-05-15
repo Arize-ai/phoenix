@@ -51,6 +51,12 @@ Notes on the vectorizer configuration:
 - **`alternate_sign=False`** — disables sklearn's signed-hashing trick. The default (`True`) helps classifier features but adds noise to cosine similarity; turning it off keeps each cell a non-negative count of hashed tokens.
 - **`norm="l2"`** — L2-normalizes each vector so cosine similarity falls naturally in `[0.0, 1.0]`.
 - **`n_features=2**18`** — 262,144 hash buckets. Big enough that collisions on short texts are negligible, small enough to stay cheap.
+
+**Sandbox dependencies** — paste into the sandbox configuration's Dependencies field, one package per line:
+
+```
+scikit-learn
+```
 </Tab>
 <Tab title="TypeScript" icon="js">
 There's no scikit-learn for JavaScript, but the underlying recipe — tokenize, count, cosine — is a few lines of stdlib code and runs in the **local Deno sandbox** with no dependencies and no network.
@@ -100,6 +106,8 @@ function evaluate({ output, reference }: EvaluatorParams) {
 ```
 
 Mathematically equivalent to the Python version with `analyzer="word"`. Word boundaries are detected with `\p{L}\p{N}` (Unicode letters and digits), so non-ASCII text tokenizes correctly. The hashing step is dropped — the vocabulary is implicit in the `Map` keys — which is fine since the cost only scales with the two inputs' token counts.
+
+**Sandbox dependencies** — none. The TypeScript variant uses stdlib only, so leave the sandbox configuration's Dependencies field empty.
 </Tab>
 </Tabs>
 

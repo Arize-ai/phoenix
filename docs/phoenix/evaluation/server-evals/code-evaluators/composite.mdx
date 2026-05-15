@@ -1,6 +1,6 @@
 ---
 title: "Composite Evaluator"
-sidebarTitle: "Composite"
+sidebarTitle: "Composite Evaluator"
 description: "Blend multiple sub-scores into a single weighted-average score with a per-axis breakdown."
 ---
 
@@ -12,6 +12,28 @@ The example below mixes:
 - A **deterministic code check** for format — a regex for a citation tag at the end of the answer.
 
 The score is the weighted average; every sub-score and the LLM's reasoning land in the `explanation` so you can audit how the final number was built.
+
+```mermaid
+flowchart LR
+    Inputs["output<br/>reference"]
+
+    subgraph axes [Sub-evaluators]
+        direction TB
+        E1["Correctness<br/>LLM judge"]
+        E2["Format<br/>regex check"]
+    end
+
+    Combine["Weighted average<br/>0.7 × correctness<br/>+ 0.3 × format"]
+    Final["Composite score<br/>+ per-axis breakdown"]
+
+    Inputs --> E1
+    Inputs --> E2
+    E1 -- "0.0 – 1.0" --> Combine
+    E2 -- "0 or 1" --> Combine
+    Combine --> Final
+```
+
+Each axis runs independently — some can be LLM-judged, others pure code — and their scores blend into one number you can rank runs by.
 
 ## Code
 
@@ -73,6 +95,13 @@ def evaluate(output, reference):
             f"Correctness reason: {correctness.explanation or 'n/a'}"
         ),
     }
+```
+
+**Sandbox dependencies** — paste into the sandbox configuration's Dependencies field, one package per line:
+
+```
+arize-phoenix-evals
+openai
 ```
 </Tab>
 <Tab title="TypeScript" icon="js">
@@ -137,6 +166,14 @@ async function evaluate({ output, reference }: EvaluatorParams) {
 ```
 
 The Python prompt template uses f-string-style `{variable}` placeholders; the TypeScript variant uses Mustache-style `{{ variable }}` — that difference is in `arize-phoenix-evals` / `@arizeai/phoenix-evals` themselves, not in your evaluator.
+
+**Sandbox dependencies** — paste into the sandbox configuration's Dependencies field, one package per line:
+
+```
+@arizeai/phoenix-evals
+ai
+@ai-sdk/openai
+```
 </Tab>
 </Tabs>
 

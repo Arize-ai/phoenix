@@ -14,6 +14,29 @@ Reach for this when:
 
 The implementation uses `arize-phoenix-evals` / `@arizeai/phoenix-evals` to put every provider behind a uniform `ClassificationEvaluator` interface, so adding a juror is a one-liner.
 
+```mermaid
+flowchart LR
+    Inputs["output<br/>reference"]
+    subgraph jury [Jury]
+        direction TB
+        J1["Juror A<br/>weight 1.0"]
+        J2["Juror B<br/>weight 1.0"]
+        J3["Juror C<br/>weight 0.8"]
+    end
+    Combine["Weighted<br/>average"]
+    Final["Final score<br/>+ per-juror trace"]
+
+    Inputs --> J1
+    Inputs --> J2
+    Inputs --> J3
+    J1 -- "label × weight" --> Combine
+    J2 -- "label × weight" --> Combine
+    J3 -- "label × weight" --> Combine
+    Combine --> Final
+```
+
+Every juror sees the same prompt; their verdicts and weights combine into one score, and the per-juror labels (plus any errors) land in the explanation.
+
 ## Code
 
 <Tabs>
@@ -88,6 +111,15 @@ def evaluate(output, reference):
         "score": final_score,
         "explanation": f"Jury={final_score:.4f}; " + ", ".join(parts),
     }
+```
+
+**Sandbox dependencies** — paste into the sandbox configuration's Dependencies field, one package per line:
+
+```
+arize-phoenix-evals
+openai
+anthropic
+google-genai
 ```
 </Tab>
 <Tab title="TypeScript" icon="js">
@@ -194,6 +226,16 @@ async function evaluate({ output, reference }: EvaluatorParams) {
 ```
 
 The TypeScript version fans out to all jurors in parallel with `Promise.allSettled`, so wall-clock latency is roughly the slowest single juror's call — not the sum. The Python version dispatches sequentially; if latency matters, submit each `evaluator.evaluate(...)` call to a `concurrent.futures.ThreadPoolExecutor` and gather the results.
+
+**Sandbox dependencies** — paste into the sandbox configuration's Dependencies field, one package per line:
+
+```
+@arizeai/phoenix-evals
+ai
+@ai-sdk/openai
+@ai-sdk/anthropic
+@ai-sdk/google
+```
 </Tab>
 </Tabs>
 
@@ -247,5 +289,5 @@ For training-data filtering, return a non-zero score only when **all** jurors ag
 
 ## Related
 
-- [Pairwise Comparison](/docs/phoenix/evaluation/server-evals/code-evaluators/pairwise) — single LLM judging two candidate outputs against each other (blinded to avoid position bias).
+- [Pairwise Evaluator](/docs/phoenix/evaluation/server-evals/code-evaluators/pairwise) — single LLM judging `output` head-to-head against a `reference` baseline (blinded to avoid position bias).
 - [Composite Evaluator](/docs/phoenix/evaluation/server-evals/code-evaluators/composite) — combine different *axes* of judgment (from possibly different judges) into one score.

@@ -1,12 +1,41 @@
 ---
-title: "Pairwise Comparison"
-sidebarTitle: "Pairwise"
-description: "Blind LLM-judge pairwise comparison between two candidate outputs against a reference."
+title: "Pairwise Evaluator"
+sidebarTitle: "Pairwise Evaluator"
+description: "Blind LLM-judge head-to-head comparison of the model output against a reference answer."
 ---
 
-A **pairwise evaluator** scores two candidate outputs side-by-side and returns the winner (or a tie). This is the classic "A vs. B" test for benchmarking two prompts, two models, or two prompt versions against the same dataset.
+A **pairwise evaluator** puts the model `output` head-to-head against a `reference` answer and returns a winner (or a tie). Use it to benchmark a new prompt or model against a known-good baseline that's already in the dataset row.
 
-The example below asks an LLM judge to pick the better candidate — but **blinds** the judge so it never sees which side is A and which is B. The presentation order is randomized per example using a seed derived from the inputs (so runs stay reproducible), and the judge's positional choice is decoded back to the original A/B labels after the call. This mitigates LLM position bias — the tendency of judges to systematically prefer whichever response they see first.
+The example below asks an LLM judge to pick the better candidate — but **blinds** the judge so it never sees which side is the model output and which is the reference. The presentation order is randomized per example using a seed derived from the inputs (so runs stay reproducible), and the judge's positional choice is decoded back to the original labels after the call. This mitigates LLM position bias — the tendency of judges to systematically prefer whichever response they see first.
+
+```mermaid
+flowchart LR
+    Out[Output]
+    Ref[Reference]
+
+    Shuffle{"Seeded<br/>shuffle"}
+
+    subgraph blinded [What the judge sees]
+        direction TB
+        C1[Candidate 1]
+        C2[Candidate 2]
+    end
+
+    Judge[LLM Judge]
+    Decode["Decode position<br/>using same seed"]
+    Final["Winner:<br/>output · reference · tie"]
+
+    Out --> Shuffle
+    Ref --> Shuffle
+    Shuffle --> C1
+    Shuffle --> C2
+    C1 --> Judge
+    C2 --> Judge
+    Judge -- "picks 1, 2,<br/>or tie" --> Decode
+    Decode --> Final
+```
+
+The judge never sees which side is the model output and which is the reference — only "Candidate 1" and "Candidate 2". The seeded shuffle is deterministic per example, so the same inputs always produce the same presentation order.
 
 ## Code
 
@@ -23,16 +52,13 @@ _MODEL = "gpt-4o-mini"
 _client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
 _SYSTEM_PROMPT = (
-    "You are an impartial judge comparing two candidate responses to a "
-    "reference answer. Decide which candidate is closer to the reference. "
+    "You are an impartial judge comparing two candidate responses. "
+    "Decide which candidate is the better answer. "
     "Reply with strict JSON: "
     '{"winner": "1" | "2" | "tie", "reason": "<one-sentence justification>"}.'
 )
 
-_USER_TEMPLATE = """Reference answer:
-{reference}
-
-Candidate 1:
+_USER_TEMPLATE = """Candidate 1:
 {first}
 
 Candidate 2:
@@ -40,7 +66,7 @@ Candidate 2:
 
 
 def _seeded_flip(*parts):
-    """Return True if A and B should be swapped before showing to the judge.
+    """Return True if output and reference should be swapped before showing to the judge.
 
     Seed is derived deterministically from the inputs so two runs on the same
     example produce the same presentation order — important for reproducibility
@@ -50,18 +76,16 @@ def _seeded_flip(*parts):
     return int(digest[:8], 16) % 2 == 1
 
 
-def evaluate(output_a, output_b, reference):
-    if not output_a or not output_b or not reference:
+def evaluate(output, reference):
+    if not output or not reference:
         return {
             "label": "missing",
             "score": 0.0,
-            "explanation": (
-                "Missing one or more of output_a, output_b, reference."
-            ),
+            "explanation": "Missing output or reference.",
         }
 
-    flip = _seeded_flip(str(output_a), str(output_b), str(reference))
-    first, second = (output_b, output_a) if flip else (output_a, output_b)
+    flip = _seeded_flip(str(output), str(reference))
+    first, second = (reference, output) if flip else (output, reference)
 
     response = _client.chat.completions.create(
         model=_MODEL,
@@ -71,9 +95,7 @@ def evaluate(output_a, output_b, reference):
             {"role": "system", "content": _SYSTEM_PROMPT},
             {
                 "role": "user",
-                "content": _USER_TEMPLATE.format(
-                    reference=reference, first=first, second=second
-                ),
+                "content": _USER_TEMPLATE.format(first=first, second=second),
             },
         ],
     )
@@ -90,13 +112,13 @@ def evaluate(output_a, output_b, reference):
     winner_position = str(parsed.get("winner", "")).strip()
     reason = str(parsed.get("reason", ""))[:300]
 
-    # Decode position back to A / B using the flip we applied.
+    # Decode position back to output / reference using the flip we applied.
     if winner_position == "tie":
         label = "tie"
     elif winner_position == "1":
-        label = "b" if flip else "a"
+        label = "reference" if flip else "output"
     elif winner_position == "2":
-        label = "a" if flip else "b"
+        label = "output" if flip else "reference"
     else:
         return {
             "label": "invalid",
@@ -107,16 +129,22 @@ def evaluate(output_a, output_b, reference):
             ),
         }
 
-    score = {"a": 1.0, "b": -1.0, "tie": 0.0}[label]
-    a_position = "2" if flip else "1"
+    score = {"output": 1.0, "reference": -1.0, "tie": 0.0}[label]
+    output_position = "2" if flip else "1"
     return {
         "label": label,
         "score": score,
         "explanation": (
             f"Judge chose position {winner_position} "
-            f"(A was shown as position {a_position}). {reason}"
+            f"(output was shown as position {output_position}). {reason}"
         ),
     }
+```
+
+**Sandbox dependencies** — paste into the sandbox configuration's Dependencies field, one package per line:
+
+```
+openai
 ```
 </Tab>
 <Tab title="TypeScript" icon="js">
@@ -127,17 +155,13 @@ const MODEL = "gpt-4o-mini";
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const SYSTEM_PROMPT =
-  "You are an impartial judge comparing two candidate responses to a " +
-  "reference answer. Decide which candidate is closer to the reference. " +
+  "You are an impartial judge comparing two candidate responses. " +
+  "Decide which candidate is the better answer. " +
   "Reply with strict JSON: " +
   '{"winner": "1" | "2" | "tie", "reason": "<one-sentence justification>"}.';
 
-function userPrompt(reference: string, first: string, second: string): string {
-  return (
-    `Reference answer:\n${reference}\n\n` +
-    `Candidate 1:\n${first}\n\n` +
-    `Candidate 2:\n${second}`
-  );
+function userPrompt(first: string, second: string): string {
+  return `Candidate 1:\n${first}\n\nCandidate 2:\n${second}`;
 }
 
 // Deterministic per-example flip without external deps. Not cryptographically
@@ -151,23 +175,19 @@ function seededFlip(...parts: string[]): boolean {
   return (hash & 1) === 1;
 }
 
-async function evaluate({
-  output_a,
-  output_b,
-  reference,
-}: EvaluatorParams) {
-  if (!output_a || !output_b || !reference) {
+async function evaluate({ output, reference }: EvaluatorParams) {
+  if (!output || !reference) {
     return {
       label: "missing",
       score: 0,
-      explanation: "Missing one or more of output_a, output_b, reference.",
+      explanation: "Missing output or reference.",
     };
   }
 
-  const flip = seededFlip(String(output_a), String(output_b), String(reference));
+  const flip = seededFlip(String(output), String(reference));
   const [first, second] = flip
-    ? [String(output_b), String(output_a)]
-    : [String(output_a), String(output_b)];
+    ? [String(reference), String(output)]
+    : [String(output), String(reference)];
 
   const response = await client.chat.completions.create({
     model: MODEL,
@@ -175,7 +195,7 @@ async function evaluate({
     response_format: { type: "json_object" },
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: userPrompt(String(reference), first, second) },
+      { role: "user", content: userPrompt(first, second) },
     ],
   });
 
@@ -193,13 +213,13 @@ async function evaluate({
   const winnerPosition = String(parsed.winner ?? "").trim();
   const reason = String(parsed.reason ?? "").slice(0, 300);
 
-  let label: "a" | "b" | "tie";
+  let label: "output" | "reference" | "tie";
   if (winnerPosition === "tie") {
     label = "tie";
   } else if (winnerPosition === "1") {
-    label = flip ? "b" : "a";
+    label = flip ? "reference" : "output";
   } else if (winnerPosition === "2") {
-    label = flip ? "a" : "b";
+    label = flip ? "output" : "reference";
   } else {
     return {
       label: "invalid",
@@ -210,35 +230,40 @@ async function evaluate({
     };
   }
 
-  const scoreMap: Record<typeof label, number> = { a: 1, b: -1, tie: 0 };
-  const aPosition = flip ? "2" : "1";
+  const scoreMap: Record<typeof label, number> = {
+    output: 1,
+    reference: -1,
+    tie: 0,
+  };
+  const outputPosition = flip ? "2" : "1";
   return {
     label,
     score: scoreMap[label],
     explanation:
       `Judge chose position ${winnerPosition} ` +
-      `(A was shown as position ${aPosition}). ${reason}`,
+      `(output was shown as position ${outputPosition}). ${reason}`,
   };
 }
 ```
 
 The TypeScript version uses a small djb2-style string hash instead of SHA-256 to avoid a `node:crypto` import that may not resolve in every TS sandbox. It's not cryptographically strong — it doesn't need to be — but it's deterministic and well-distributed enough to balance presentation orders across the dataset.
+
+**Sandbox dependencies** — paste into the sandbox configuration's Dependencies field, one package per line:
+
+```
+openai
+```
 </Tab>
 </Tabs>
 
-The judge never sees the strings "A" or "B" — only "Candidate 1" and "Candidate 2". The `flip` decision is recorded in the explanation so you can audit the decoding from the trace.
+The `flip` decision is recorded in the explanation so you can audit the decoding from the trace.
 
 ## Input mapping
 
 | Parameter | Bind to |
 |-----------|---------|
-| `output_a` | The first candidate output. Typical paths: `output.candidate_a`, `metadata.run_a.output`, or a column you populated by joining two experiment runs. |
-| `output_b` | The second candidate output. Mirror of `output_a`. |
-| `reference` | The ground-truth answer the judge compares against, usually `reference`. |
-
-<Info>
-Phoenix's code evaluators read all parameters off a single evaluation context, so both candidates must live on the same example row. If your candidates come from separate experiment runs, join them into a single column before pointing the evaluator at the dataset.
-</Info>
+| `output` | The model output you want to evaluate, usually `output`. |
+| `reference` | The competing answer to compare against — typically the baseline or known-good response stored on the example, usually `reference`. |
 
 ## Output configuration
 
@@ -246,13 +271,13 @@ Categorical. The function returns its own numeric score along with the label, so
 
 | Label | Score | Meaning |
 |-------|-------|---------|
-| `a` | `1.0` | Candidate A wins. |
-| `b` | `-1.0` | Candidate B wins. |
+| `output` | `1.0` | The model output beats the reference. |
+| `reference` | `-1.0` | The reference beats the model output. |
 | `tie` | `0.0` | Judge could not separate them. |
 | `missing` | `0.0` | One of the inputs was empty. |
 | `invalid` | `0.0` | Judge returned malformed output. |
 
-Optimization direction: **maximize** if `output_a` is the candidate you want to win (e.g. the new prompt, the challenger model). If `output_a` is your baseline and `output_b` is the challenger, set the direction to **minimize** instead.
+Optimization direction: **maximize** — you want `output` to win against the reference baseline.
 
 ## Runtime requirements
 
@@ -267,7 +292,7 @@ Optimization direction: **maximize** if `output_a` is the candidate you want to 
 Each `evaluate(...)` call makes **one** chat-completion request against `gpt-4o-mini`. At scale:
 
 - Raise the sandbox configuration's **Timeout** to comfortably cover the LLM round-trip plus a cold-start package install.
-- Watch the judge's per-token cost — every pairwise prompt includes the reference plus both candidates, so token counts grow with output length.
+- Watch the judge's per-token cost — every pairwise prompt includes both the output and the reference, so token counts grow with output length.
 - For high-stakes evaluations, see the **Swap-and-confirm** variant below. It doubles the cost but removes position bias on every example, instead of relying on randomized order to cancel it out in aggregate.
 </Warning>
 
@@ -278,8 +303,8 @@ Each `evaluate(...)` call makes **one** chat-completion request against `gpt-4o-
 The blinding above randomizes order per example, so position bias cancels out in expectation — but any single example can still be biased. To remove it per-example, call the judge twice (once in each order) and only return a winner when both calls agree:
 
 ```python
-def evaluate(output_a, output_b, reference):
-    if not output_a or not output_b or not reference:
+def evaluate(output, reference):
+    if not output or not reference:
         return {"label": "missing", "score": 0.0, "explanation": "Missing input."}
 
     def _ask(first, second):
@@ -291,32 +316,31 @@ def evaluate(output_a, output_b, reference):
                 {"role": "system", "content": _SYSTEM_PROMPT},
                 {
                     "role": "user",
-                    "content": _USER_TEMPLATE.format(
-                        reference=reference, first=first, second=second
-                    ),
+                    "content": _USER_TEMPLATE.format(first=first, second=second),
                 },
             ],
         )
         return json.loads(response.choices[0].message.content).get("winner")
 
-    pick_ab = _ask(output_a, output_b)  # "1" = A, "2" = B, "tie"
-    pick_ba = _ask(output_b, output_a)  # "1" = B, "2" = A, "tie"
+    pick_or = _ask(output, reference)  # "1" = output, "2" = reference, "tie"
+    pick_ro = _ask(reference, output)  # "1" = reference, "2" = output, "tie"
 
-    # Translate both picks into A / B / tie.
-    vote_ab = {"1": "a", "2": "b", "tie": "tie"}.get(pick_ab, "invalid")
-    vote_ba = {"1": "b", "2": "a", "tie": "tie"}.get(pick_ba, "invalid")
+    # Translate both picks into output / reference / tie.
+    vote_or = {"1": "output", "2": "reference", "tie": "tie"}.get(pick_or, "invalid")
+    vote_ro = {"1": "reference", "2": "output", "tie": "tie"}.get(pick_ro, "invalid")
 
-    if vote_ab == vote_ba and vote_ab in {"a", "b", "tie"}:
-        label = vote_ab
+    if vote_or == vote_ro and vote_or in {"output", "reference", "tie"}:
+        label = vote_or
     else:
         label = "tie"  # disagreement → call it a tie
 
-    score = {"a": 1.0, "b": -1.0, "tie": 0.0, "invalid": 0.0}[label]
+    score = {"output": 1.0, "reference": -1.0, "tie": 0.0, "invalid": 0.0}[label]
     return {
         "label": label,
         "score": score,
         "explanation": (
-            f"Order A,B → {pick_ab}; order B,A → {pick_ba}; final = {label}."
+            f"Order output,reference → {pick_or}; "
+            f"order reference,output → {pick_ro}; final = {label}."
         ),
     }
 ```
@@ -326,4 +350,4 @@ Costs 2× the API calls, but each example's verdict is independent of the underl
 ### Other directions
 
 - **Multi-criterion judging** — ask the judge to score on several axes (correctness, conciseness, format) and combine the per-axis verdicts. Return a structured `explanation` so the trace shows the breakdown.
-- **Embedding-based pairwise** — replace the LLM call with cosine similarity to the reference using OpenAI embeddings or [scikit-learn](/docs/phoenix/evaluation/server-evals/code-evaluators/scikit-learn). Cheaper and deterministic, but it won't catch semantic equivalence the way an LLM judge can on free-text answers.
+- **Embedding-based pairwise** — replace the LLM call with cosine similarity between `output` and `reference` using OpenAI embeddings or [scikit-learn](/docs/phoenix/evaluation/server-evals/code-evaluators/scikit-learn). Cheaper and deterministic, but it won't catch semantic equivalence the way an LLM judge can on free-text answers.

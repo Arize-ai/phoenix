@@ -161,8 +161,8 @@ Needs a third-party library — pip or npm — and sometimes outbound network ac
 Patterns that combine multiple judgments — across axes, across LLM jurors, or across candidates.
 
 <CardGroup cols={2}>
-  <Card title="Pairwise Comparison" icon="scale-balanced" href="/docs/phoenix/evaluation/server-evals/code-evaluators/pairwise">
-    Blind LLM-judge "A vs. B" with randomized presentation order to mitigate position bias.
+  <Card title="Pairwise Evaluator" icon="scale-balanced" href="/docs/phoenix/evaluation/server-evals/code-evaluators/pairwise">
+    Blind LLM-judge `output` vs `reference` head-to-head, with randomized presentation order to mitigate position bias.
   </Card>
   <Card title="Composite Evaluator" icon="layer-group" href="/docs/phoenix/evaluation/server-evals/code-evaluators/composite">
     Blend several sub-scores (LLM judgments + code rules) into one weighted average, with a per-axis breakdown in the explanation.

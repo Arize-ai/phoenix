@@ -52,6 +52,12 @@ def evaluate(output, reference):
         ),
     }
 ```
+
+**Sandbox dependencies** — paste into the sandbox configuration's Dependencies field, one package per line:
+
+```
+openai
+```
 </Tab>
 <Tab title="TypeScript" icon="js">
 ```typescript
@@ -103,6 +109,12 @@ async function evaluate({ output, reference }: EvaluatorParams) {
 ```
 
 The TypeScript runtime supports `async` — Phoenix `await`s the returned promise. The two embedding requests run in parallel via `Promise.all`, so wall-clock latency is roughly one request, not two.
+
+**Sandbox dependencies** — paste into the sandbox configuration's Dependencies field, one package per line:
+
+```
+openai
+```
 </Tab>
 </Tabs>
 
@@ -138,5 +150,5 @@ Each `evaluate(...)` call makes **two** embedding requests (one for `output`, on
 
 ## Related
 
-- [Pairwise Comparison](/docs/phoenix/evaluation/server-evals/code-evaluators/pairwise) — apply embedding distance to two candidate outputs and pick a winner.
+- [Pairwise Evaluator](/docs/phoenix/evaluation/server-evals/code-evaluators/pairwise) — apply embedding distance to two candidate outputs and pick a winner.
 - [scikit-learn TF-IDF](/docs/phoenix/evaluation/server-evals/code-evaluators/scikit-learn) — a cheaper, offline alternative when embeddings are overkill.
