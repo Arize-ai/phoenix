@@ -429,11 +429,18 @@ def test_to_execution_result_strips_ansi_on_failure() -> None:
 async def test_execute_strips_ansi_in_raised_exception_path() -> None:
     """ANSI bytes in str(exc) must be stripped on stderr/error when execute
     catches a raised exception from the SDK."""
-    from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
+    daytona_mod, process_mod = _make_daytona_mocks()
+    modules = {
+        "daytona_sdk": daytona_mod,
+        "daytona_sdk.common": MagicMock(),
+        "daytona_sdk.common.process": process_mod,
+    }
+    with patch.dict(sys.modules, modules):
+        from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
 
-    backend = DaytonaSandboxBackend(api_key=_API_KEY)
-    with patch.object(backend, "_get_client", side_effect=RuntimeError("\x1b[31mboom\x1b[0m")):
-        result = await backend.execute("noop", session_key="ephemeral")
+        backend = DaytonaSandboxBackend(api_key=_API_KEY)
+        with patch.object(backend, "_get_client", side_effect=RuntimeError("\x1b[31mboom\x1b[0m")):
+            result = await backend.execute("noop", session_key="ephemeral")
 
     assert result.error == "boom"
     assert result.stderr == "boom"
