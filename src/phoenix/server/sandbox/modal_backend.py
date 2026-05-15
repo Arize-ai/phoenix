@@ -34,6 +34,7 @@ from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
 
 from starlette.datastructures import Secret
 
+from ._text import strip_ansi, strip_ansi_optional
 from .types import (
     ExecutionResult,
     ModalConfig,
@@ -186,9 +187,9 @@ class ModalSandboxBackend(SandboxBackend):
         exit_code = await proc.wait.aio()
         error: Optional[str] = stderr if exit_code != 0 else None
         return ExecutionResult(
-            stdout=stdout or "",
-            stderr=stderr or "",
-            error=error,
+            stdout=strip_ansi(stdout or ""),
+            stderr=strip_ansi(stderr or ""),
+            error=strip_ansi_optional(error),
         )
 
     async def execute(
@@ -208,7 +209,9 @@ class ModalSandboxBackend(SandboxBackend):
                 finally:
                     await sandbox.terminate.aio()
         except Exception as exc:
-            return ExecutionResult(stdout="", stderr=str(exc), error=str(exc))
+            return ExecutionResult(
+                stdout="", stderr=strip_ansi(str(exc)), error=strip_ansi(str(exc))
+            )
 
     async def close(self) -> None:
         for key in list(self._sessions):

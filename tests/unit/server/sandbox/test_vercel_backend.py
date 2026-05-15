@@ -413,3 +413,58 @@ def test_adapter_build_backend_fails_closed_on_missing_triple(adapter_cls_name: 
     adapter = getattr(mod, adapter_cls_name)()
     with pytest.raises(ValueError, match="Vercel sandbox authentication is not configured"):
         adapter.build_backend({"VERCEL_TOKEN": "t"})
+
+
+# ---------------------------------------------------------------------------
+# ANSI hygiene — D4: ExecutionResult.stdout/.stderr/.error are ANSI-stripped
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_execute_strips_ansi_from_all_three_fields(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Vercel backend must ANSI-strip stdout/stderr/error so non-trace consumers
+    (logs, error returns, replay tooling) see clean text."""
+    sandbox = MagicMock()
+    sandbox.stop = AsyncMock()
+    sandbox.client = MagicMock()
+    sandbox.client.aclose = AsyncMock()
+
+    async def _run_command(cmd: str, args: list[str], **kwargs: Any) -> Any:
+        result = MagicMock()
+        result.exit_code = 2
+        result.stdout = AsyncMock(return_value="\x1b[32mok\x1b[0m\n")
+        result.stderr = AsyncMock(return_value="\x1b[31mboom\x1b[0m: failed\n")
+        return result
+
+    sandbox.run_command = _run_command
+    backend = VercelSandboxBackend(token=_TOKEN, project_id=_PROJECT, team_id=_TEAM)
+
+    async def _fake_create_sandbox() -> Any:
+        return sandbox
+
+    monkeypatch.setattr(backend, "_create_sandbox", _fake_create_sandbox)
+    result = await backend.execute("noop", session_key="ephemeral")
+
+    assert result.stdout == "ok\n"
+    assert result.stderr == "boom: failed\n"
+    assert result.error == "boom: failed\n"
+
+
+@pytest.mark.asyncio
+async def test_execute_strips_ansi_in_raised_exception_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When an exception is raised inside execute(), its str() lands on
+    stderr/error — ANSI bytes in the exception message must be stripped."""
+    backend = VercelSandboxBackend(token=_TOKEN, project_id=_PROJECT, team_id=_TEAM)
+
+    async def _explode() -> Any:
+        raise RuntimeError("\x1b[31mprovider error\x1b[0m")
+
+    monkeypatch.setattr(backend, "_create_sandbox", _explode)
+    result = await backend.execute("noop", session_key="ephemeral")
+
+    assert result.error == "provider error"
+    assert result.stderr == "provider error"

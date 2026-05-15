@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any, Mapping, Optional
 if TYPE_CHECKING:
     import wasmtime
 
+from ._text import strip_ansi
 from .types import (
     BaseNoSessionBackend,
     ExecutionResult,
@@ -100,14 +101,14 @@ def _run_wasm(binary_path: Path, code: str, timeout: int) -> ExecutionResult:
             start(store)
 
         return ExecutionResult(
-            stdout=b"".join(stdout_chunks).decode("utf-8", errors="replace"),
-            stderr=b"".join(stderr_chunks).decode("utf-8", errors="replace"),
+            stdout=strip_ansi(b"".join(stdout_chunks).decode("utf-8", errors="replace")),
+            stderr=strip_ansi(b"".join(stderr_chunks).decode("utf-8", errors="replace")),
         )
     except Exception as exc:
         return ExecutionResult(
-            stdout=b"".join(stdout_chunks).decode("utf-8", errors="replace"),
-            stderr=b"".join(stderr_chunks).decode("utf-8", errors="replace"),
-            error=str(exc),
+            stdout=strip_ansi(b"".join(stdout_chunks).decode("utf-8", errors="replace")),
+            stderr=strip_ansi(b"".join(stderr_chunks).decode("utf-8", errors="replace")),
+            error=strip_ansi(str(exc)),
         )
     finally:
         if stdin_path is not None:

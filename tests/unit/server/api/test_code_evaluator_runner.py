@@ -27,9 +27,19 @@ from phoenix.db.types.annotation_configs import (
     OptimizationDirection,
 )
 from phoenix.db.types.evaluators import InputMapping
-from phoenix.server.api.evaluators import CodeEvaluatorRunner
+from phoenix.server.api.evaluators import (
+    _PHOENIX_RESULT_BEGIN,
+    _PHOENIX_RESULT_END,
+    CodeEvaluatorRunner,
+)
 from phoenix.server.api.helpers.sandbox_redaction import SandboxSecretMasker
 from phoenix.server.sandbox.types import ExecutionResult
+
+
+def _fenced(payload: str) -> str:
+    """Wrap a stdout payload in the harness's sentinel markers."""
+    return f"{_PHOENIX_RESULT_BEGIN}\n{payload}\n{_PHOENIX_RESULT_END}\n"
+
 
 OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
 INPUT_VALUE = SpanAttributes.INPUT_VALUE
@@ -68,15 +78,17 @@ def _make_runner(
     backend_error: str | None = None,
     backend_raises: Exception | None = None,
     timeout: int | None = None,
+    fence_stdout: bool = True,
 ) -> tuple[CodeEvaluatorRunner, AsyncMock]:
     backend = AsyncMock()
     backend.secret_values = frozenset()
     if backend_raises is not None:
         backend.execute = AsyncMock(side_effect=backend_raises)
     else:
+        stdout = _fenced(backend_stdout) if fence_stdout else backend_stdout
         backend.execute = AsyncMock(
             return_value=ExecutionResult(
-                stdout=backend_stdout,
+                stdout=stdout,
                 stderr="",
                 error=backend_error,
             )
@@ -102,10 +114,18 @@ class TestHarnessGeneration:
         harness = runner._build_python_harness({"x": 1})
         assert "def evaluate(**kw): return 1" in harness
 
-    def test_python_harness_contains_json_loads_call(self) -> None:
+    def test_python_harness_embeds_inputs_as_native_literal(self) -> None:
+        """Python harness must embed inputs via ``repr()`` — not via
+        ``json.loads`` of a JSON-string layer. The historical pattern
+        (``json.dumps`` → ``repr()`` → ``json.loads``) left visibly
+        doubly-escaped strings in harness source whenever a traceback landed
+        on a span; embedding native literals removes that escape layer.
+        """
         runner, _ = _make_runner()
         harness = runner._build_python_harness({"key": "value"})
-        assert "json.loads" in harness or "_json.loads" in harness
+        assert "_inputs = {'key': 'value'}" in harness
+        assert "_json.loads(" not in harness
+        assert "json.loads(" not in harness
 
     def test_python_harness_contains_input_values(self) -> None:
         runner, _ = _make_runner()
@@ -318,8 +338,10 @@ class TestEvaluateSuccessPath:
 
         call_args = backend.execute.call_args
         code_arg = call_args.args[0] if call_args.args else call_args.kwargs.get("code", "")
-        assert '"output": {"answer": "a"}' in code_arg
-        assert '"reference": {"answer": "a"}' in code_arg
+        # Python harness now embeds inputs via repr() (native literal),
+        # so keys/values are single-quoted, not JSON-double-quoted.
+        assert "'output': {'answer': 'a'}" in code_arg
+        assert "'reference': {'answer': 'a'}" in code_arg
 
     async def test_typescript_evaluate_auto_passes_context_keys_matching_signature(self) -> None:
         runner, backend = _make_runner(
@@ -521,7 +543,7 @@ class TestBackendConfiguration:
         )
 
         polluted = (
-            f"{_TYPESCRIPT_RESULT_BEGIN}0.5{_TYPESCRIPT_RESULT_END}\n"
+            f"{_TYPESCRIPT_RESULT_BEGIN}\n0.5\n{_TYPESCRIPT_RESULT_END}\n"
             "npm notice\n"
             "npm notice New minor version of npm available! 11.8.0 -> 11.14.1\n"
             "npm notice\n"
@@ -530,6 +552,7 @@ class TestBackendConfiguration:
             source_code=("function evaluate({ output }: EvaluatorParams) { return 0.5; }"),
             language="TYPESCRIPT",
             backend_stdout=polluted,
+            fence_stdout=False,
         )
         results = await runner.evaluate(
             context={"output": {"answer": "a"}},
@@ -556,9 +579,11 @@ class TestBackendConfiguration:
         )
         call_args = backend.execute.call_args
         code_arg = call_args.args[0] if call_args.args else call_args.kwargs.get("code", "")
-        # Python harness uses json.loads and print
-        assert "json.loads" in code_arg or "_json.loads" in code_arg
-        assert "print(" in code_arg
+        # Python harness embeds inputs as native repr and prints between sentinels.
+        assert "_inputs = " in code_arg
+        assert "print(_json.dumps(_result))" in code_arg
+        assert _PHOENIX_RESULT_BEGIN in code_arg
+        assert _PHOENIX_RESULT_END in code_arg
 
 
 class TestMultiOutputEvaluate:
@@ -889,7 +914,7 @@ def _make_runner_with_secret(
     else:
         backend.execute = AsyncMock(
             return_value=ExecutionResult(
-                stdout=backend_stdout,
+                stdout=_fenced(backend_stdout),
                 stderr="",
                 error=backend_error,
             )
@@ -1096,3 +1121,202 @@ class TestRedactionContracts:
             assert "code.mime_type" not in attrs, f"{span.name} leaked code.mime_type"
             for v in attrs.values():
                 assert source not in str(v), f"{span.name} leaked source via another attr"
+
+
+# ---------------------------------------------------------------------------
+# Span attribute contract — D3: Sandbox output is parsed (not raw stdout),
+# debug-print stdout lands on metadata.stdout, parse-failure surfaces parse_error.
+# ---------------------------------------------------------------------------
+
+
+OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
+INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
+
+
+class TestSandboxSpanContract:
+    async def test_happy_path_dict_result_lands_as_json_with_debug_in_metadata(self) -> None:
+        """Sandbox span output is the parsed dict (application/json), and a
+        user ``print('debug line')`` before the fenced result lands on
+        metadata.stdout — not on the output attribute."""
+        result_dict = {"label": "good", "explanation": 'She said "hi"'}
+        stdout = f"debug line\n{_PHOENIX_RESULT_BEGIN}\n{json.dumps(result_dict)}\n{_PHOENIX_RESULT_END}\n"
+        runner, _ = _make_runner(backend_stdout=stdout, fence_stdout=False)
+        tracer, exporter = _make_tracer()
+
+        await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="t",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        sandbox_attrs = dict(spans_by_name[f"Sandbox: {runner._name}"].attributes or {})
+        parse_attrs = dict(spans_by_name["Parse Eval Result"].attributes or {})
+
+        # Sandbox output: parsed dict, application/json. The doubly-escaped
+        # raw stdout must NOT be the output.
+        assert sandbox_attrs.get(OUTPUT_MIME_TYPE) == "application/json"
+        assert json.loads(str(sandbox_attrs[OUTPUT_VALUE])) == result_dict
+
+        # metadata.stdout carries the debug prelude.
+        meta = json.loads(str(sandbox_attrs[METADATA]))
+        assert meta.get("stdout") == "debug line"
+        assert "parse_error" not in meta
+
+        # Parse Eval Result input is the parsed dict, single-encoded.
+        assert parse_attrs.get(INPUT_MIME_TYPE) == "application/json"
+        assert json.loads(str(parse_attrs[INPUT_VALUE])) == result_dict
+
+    async def test_missing_fence_marks_parse_error_and_omits_output(self) -> None:
+        """When the harness output contains no sentinels at all, the Sandbox
+        span carries parse_error in metadata, no output attribute, and the
+        Parse Eval Result span sees the raw text (not a coerced label)."""
+        runner, _ = _make_runner(
+            backend_stdout="totally invalid no-sentinels output\n",
+            fence_stdout=False,
+        )
+        tracer, exporter = _make_tracer()
+
+        results = await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="t",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        sandbox_attrs = dict(spans_by_name[f"Sandbox: {runner._name}"].attributes or {})
+        parse_attrs = dict(spans_by_name["Parse Eval Result"].attributes or {})
+
+        meta = json.loads(str(sandbox_attrs[METADATA]))
+        assert meta.get("parse_error") == "no result markers found"
+        assert "totally invalid" in meta.get("stdout", "")
+        # No output attribute when there is no fenced text at all.
+        assert OUTPUT_VALUE not in sandbox_attrs
+        assert spans_by_name[f"Sandbox: {runner._name}"].status.status_code == StatusCode.ERROR
+
+        # Parse Eval Result still exists, input is the empty text (no fence
+        # recovered), and per-config result carries the parse_error verbatim
+        # — never laundered into a categorical label.
+        assert parse_attrs.get(INPUT_VALUE) == ""
+        assert results[0]["error"] == "no result markers found"
+        assert results[0]["label"] is None
+
+    async def test_backend_error_skips_parse_span_and_metadata_records_error(self) -> None:
+        """Backend-execution-failure path: ``execution.error`` set → no
+        Parse Eval Result span; metadata.error carries the failure verbatim."""
+        runner, _ = _make_runner(backend_error="provider down")
+        tracer, exporter = _make_tracer()
+
+        results = await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="t",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        span_names = {span.name for span in exporter.get_finished_spans()}
+        assert f"Sandbox: {runner._name}" in span_names
+        assert "Parse Eval Result" not in span_names
+
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        sandbox_attrs = dict(spans_by_name[f"Sandbox: {runner._name}"].attributes or {})
+        meta = json.loads(str(sandbox_attrs[METADATA]))
+        assert meta.get("error") == "provider down"
+
+        # _make_error_result returns the verbatim execution.error.
+        assert results[0]["error"] == "provider down"
+
+    async def test_scalar_string_label_round_trips(self) -> None:
+        """Bare ``"pass"`` return value continues to land on EvaluationResult.label
+        (regression guard for the scalar happy path after the contract change)."""
+        runner, _ = _make_runner(backend_stdout='"pass"')
+        tracer, exporter = _make_tracer()
+
+        results = await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="t",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+
+        assert results[0]["label"] == "pass"
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        parse_attrs = dict(spans_by_name["Parse Eval Result"].attributes or {})
+        # Decoded scalar, not raw fenced text.
+        assert parse_attrs.get(INPUT_VALUE) == "pass"
+
+    async def test_python_harness_has_no_doubly_escaped_strings(self) -> None:
+        """D2: native ``repr()`` of inputs avoids the historical
+        ``json.dumps`` → ``repr()`` → ``json.loads`` round-trip that put
+        ``\\\\"`` into harness source."""
+        runner, _ = _make_runner()
+        harness = runner._build_python_harness({"q": 'She said "hi"'})
+        # repr() produces a single-quoted Python string with an embedded
+        # literal ``\"``-escape only when the string itself contains a
+        # double quote — and that's fine. The pathology was the *outer*
+        # ``\\"`` after json-then-repr. Assert the wire format has the
+        # human-readable repr form and is missing the JSON-string wrap.
+        assert """'q': 'She said "hi"'""" in harness
+        assert "_json.loads(" not in harness
+
+    async def test_evaluator_version_id_lands_on_sandbox_metadata_when_provided(
+        self,
+    ) -> None:
+        """Stored evaluators thread the version GlobalID through to the
+        Sandbox span as ``metadata.code_evaluator_version_id`` so a trace
+        backlinks to the immutable source-of-record version."""
+        backend = AsyncMock()
+        backend.secret_values = frozenset()
+        backend.execute = AsyncMock(
+            return_value=ExecutionResult(stdout=_fenced('"pass"'), stderr="", error=None)
+        )
+        version_gid = "Q29kZUV2YWx1YXRvclZlcnNpb246NDI="
+        runner = CodeEvaluatorRunner(
+            name="t",
+            description=None,
+            source_code='def evaluate(**kw): return "pass"',
+            stored_output_configs=[_categorical_config()],
+            sandbox_backend=backend,
+            language="PYTHON",
+            timeout=None,
+            evaluator_version_id=version_gid,
+        )
+        tracer, exporter = _make_tracer()
+        await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="t",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        sandbox_attrs = dict(spans_by_name[f"Sandbox: {runner._name}"].attributes or {})
+        meta = json.loads(str(sandbox_attrs[METADATA]))
+        assert meta.get("code_evaluator_version_id") == version_gid
+
+    async def test_evaluator_version_id_absent_when_runner_constructed_without_it(
+        self,
+    ) -> None:
+        """Inline previews (no persisted version) construct the runner
+        without ``evaluator_version_id`` — the metadata field is then absent
+        rather than emitted as ``null``. Absence is the design signal: this
+        trace did not come from a stored version."""
+        runner, _ = _make_runner()
+        tracer, exporter = _make_tracer()
+        await runner.evaluate(
+            context={},
+            input_mapping=_EMPTY_MAPPING,
+            name="t",
+            output_configs=[_categorical_config()],
+            tracer=tracer,
+        )
+        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
+        sandbox_attrs = dict(spans_by_name[f"Sandbox: {runner._name}"].attributes or {})
+        meta = json.loads(str(sandbox_attrs[METADATA]))
+        assert "code_evaluator_version_id" not in meta

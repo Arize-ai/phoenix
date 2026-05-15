@@ -186,3 +186,49 @@ def test_build_backend_requires_api_key() -> None:
         adapter.build_backend({})
     with pytest.raises(ValueError, match=_CANONICAL_API_KEY):
         adapter.build_backend({_CANONICAL_API_KEY: ""})
+
+
+# ---------------------------------------------------------------------------
+# ANSI hygiene — D4: ExecutionResult.stdout/.stderr/.error are ANSI-stripped
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_execute_strips_ansi_from_all_three_fields() -> None:
+    """E2B backend must ANSI-strip stdout/stderr/error so non-trace consumers
+    see clean text on every field of ``ExecutionResult``."""
+    execution = MagicMock()
+    execution.logs.stdout = ["\x1b[32mok\x1b[0m"]
+    execution.logs.stderr = ["\x1b[31merror\x1b[0m: bad"]
+    execution.error = "\x1b[31mboom\x1b[0m"
+
+    sandbox = MagicMock()
+    sandbox.run_code = AsyncMock(return_value=execution)
+    sandbox.__aenter__ = AsyncMock(return_value=sandbox)
+    sandbox.__aexit__ = AsyncMock(return_value=None)
+
+    sandbox_cls = MagicMock()
+    sandbox_cls.create = AsyncMock(return_value=sandbox)
+
+    backend = E2BSandboxBackend(api_key=_API_KEY, template="base")
+    with patch.object(backend, "_get_sandbox_cls", return_value=sandbox_cls):
+        result = await backend.execute("noop", session_key="ephemeral")
+
+    assert result.stdout == "ok"
+    assert result.stderr == "error: bad"
+    assert result.error == "boom"
+
+
+@pytest.mark.asyncio
+async def test_execute_strips_ansi_in_raised_exception_path() -> None:
+    """ANSI bytes in str(exc) must be stripped on stderr/error when execute
+    catches a raised exception."""
+    sandbox_cls = MagicMock()
+    sandbox_cls.create = AsyncMock(side_effect=RuntimeError("\x1b[31mprovider error\x1b[0m"))
+
+    backend = E2BSandboxBackend(api_key=_API_KEY, template="base")
+    with patch.object(backend, "_get_sandbox_cls", return_value=sandbox_cls):
+        result = await backend.execute("noop", session_key="ephemeral")
+
+    assert result.error == "provider error"
+    assert result.stderr == "provider error"
