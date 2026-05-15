@@ -15,7 +15,6 @@ from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
 
 from starlette.datastructures import Secret
 
-from ._text import strip_ansi, strip_ansi_optional
 from .types import (
     E2BConfig,
     ExecutionResult,
@@ -164,17 +163,9 @@ class E2BSandboxBackend(SandboxBackend):
             stderr = "\n".join(execution.logs.stderr) if execution.logs.stderr else ""
             error_str: Optional[str] = str(execution.error) if execution.error else None
 
-            return ExecutionResult(
-                stdout=strip_ansi(stdout),
-                stderr=strip_ansi(stderr),
-                error=strip_ansi_optional(error_str),
-            )
+            return ExecutionResult(stdout=stdout, stderr=stderr, error=error_str)
         except Exception as exc:
-            return ExecutionResult(
-                stdout="",
-                stderr=strip_ansi(str(exc)),
-                error=strip_ansi(str(exc)),
-            )
+            return ExecutionResult(stdout="", stderr=str(exc), error=str(exc))
 
     async def close(self) -> None:
         for key in list(self._sessions):

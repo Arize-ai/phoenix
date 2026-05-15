@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
 
 from starlette.datastructures import Secret
 
-from ._text import strip_ansi
 from .types import (
     DaytonaPythonConfig,
     DaytonaTypescriptConfig,
@@ -49,7 +48,7 @@ logger = logging.getLogger(__name__)
 
 def _to_execution_result(response: ExecuteResponse) -> ExecutionResult:
     """Map daytona ExecuteResponse (combined stdout/stderr in `result`) to ExecutionResult."""
-    output = strip_ansi(response.result or "")
+    output = response.result or ""
     failed = response.exit_code != 0
     return ExecutionResult(
         stdout="" if failed else output,
@@ -218,9 +217,7 @@ class DaytonaSandboxBackend(SandboxBackend):
                             "Failed to delete ephemeral Daytona workspace", exc_info=True
                         )
         except Exception as exc:
-            return ExecutionResult(
-                stdout="", stderr=strip_ansi(str(exc)), error=strip_ansi(str(exc))
-            )
+            return ExecutionResult(stdout="", stderr=str(exc), error=str(exc))
 
     async def close(self) -> None:
         for key in list(self._sessions):

@@ -36,7 +36,6 @@ from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence, TypedDict
 
 from starlette.datastructures import Secret
 
-from ._text import strip_ansi, strip_ansi_optional
 from .types import (
     ExecutionResult,
     ProviderCredentialSpec,
@@ -244,11 +243,7 @@ class VercelSandboxBackend(SandboxBackend):
         stdout, stderr = await asyncio.gather(result.stdout(), result.stderr())
         exit_code = result.exit_code
         error: Optional[str] = stderr if exit_code != 0 else None
-        return ExecutionResult(
-            stdout=strip_ansi(stdout or ""),
-            stderr=strip_ansi(stderr or ""),
-            error=strip_ansi_optional(error),
-        )
+        return ExecutionResult(stdout=stdout or "", stderr=stderr or "", error=error)
 
     async def execute(
         self,
@@ -274,9 +269,7 @@ class VercelSandboxBackend(SandboxBackend):
                     except Exception:
                         pass
         except Exception as exc:
-            return ExecutionResult(
-                stdout="", stderr=strip_ansi(str(exc)), error=strip_ansi(str(exc))
-            )
+            return ExecutionResult(stdout="", stderr=str(exc), error=str(exc))
 
     async def close(self) -> None:
         for key in list(self._sessions):
