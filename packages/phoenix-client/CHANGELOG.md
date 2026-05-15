@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.7.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.6.0...arize-phoenix-client-v2.7.0) (2026-05-15)
+
+
+### Features
+
+* **agents:** add /agents/{agent_id}/sessions/{session_id}/summary endpoint ([#13095](https://github.com/Arize-ai/phoenix/issues/13095)) ([419c3a0](https://github.com/Arize-ai/phoenix/commit/419c3a06978abce8f611569228438929f8e7b995))
+* **agents:** Playground manipulation tools w/ confirmation ([#13093](https://github.com/Arize-ai/phoenix/issues/13093)) ([37dc417](https://github.com/Arize-ai/phoenix/commit/37dc417f8880a101b34a41f8d2ea3f58099df6c2))
+* **agents:** rip v1 /chat route and associated code ([#13140](https://github.com/Arize-ai/phoenix/issues/13140)) ([71ceeb3](https://github.com/Arize-ai/phoenix/commit/71ceeb3fa68ceac509e0cd38bb3497c0737774c0))
+* **app:** type frontend REST calls against the OpenAPI schema ([#13060](https://github.com/Arize-ai/phoenix/issues/13060)) ([590669d](https://github.com/Arize-ai/phoenix/commit/590669d1a68f48b3af7b7d1b5666f854d0465b63))
+* cap agent session retention ([#13220](https://github.com/Arize-ai/phoenix/issues/13220)) ([1c28249](https://github.com/Arize-ai/phoenix/commit/1c282498eced055454b254359d148a82087ecbbd))
+* **client:** support ATIF v1.7 trajectory upload ([#13107](https://github.com/Arize-ai/phoenix/issues/13107)) ([17f2ec2](https://github.com/Arize-ai/phoenix/commit/17f2ec275ba239d6e2e8ab4ccc92753c74020159))
+* **phoenix-client:** add TS trace annotations + clarify note semantics + skills audit ([#12923](https://github.com/Arize-ai/phoenix/issues/12923)) ([2993b04](https://github.com/Arize-ai/phoenix/commit/2993b04a30554a752322b44a677721ae9ded91cc))
+* **rest-api:** include token counts in span/trace/session payloads ([#12926](https://github.com/Arize-ai/phoenix/issues/12926)) ([c0c0edb](https://github.com/Arize-ai/phoenix/commit/c0c0edba49f039c1ab893a3cbd51d48b2782de4c))
+* session-tagged identifiers for open/axial coding workflows ([#13083](https://github.com/Arize-ai/phoenix/issues/13083)) ([6dceb10](https://github.com/Arize-ai/phoenix/commit/6dceb101b6409cb50e90baeb83e1e7c1784745e1))
+* vendor passthrough tools support ([#12533](https://github.com/Arize-ai/phoenix/issues/12533)) ([41e8fe0](https://github.com/Arize-ai/phoenix/commit/41e8fe0272752882d888d782b5023bcdf0e08ac8))
+
+
+### Documentation
+
+* add LinkedIn social links alongside X/Bluesky ([#12993](https://github.com/Arize-ai/phoenix/issues/12993)) ([5d14f23](https://github.com/Arize-ai/phoenix/commit/5d14f23598202c062530466a9dbdc9a1a033d6c8))
+
 ## [2.6.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-client-v2.5.0...arize-phoenix-client-v2.6.0) (2026-04-29)
 
 
