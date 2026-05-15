@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from pathlib import Path
 from typing import Any
 
@@ -8,11 +7,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 DATASETS_DIR = Path(__file__).resolve().parents[1] / "datasets"
-FORBIDDEN_SPLIT_COMBINATIONS: tuple[frozenset[str], ...] = (
-    frozenset({"regression", "val"}),
-    frozenset({"dev", "val"}),
-)
-WARN_SPLIT_COMBINATIONS: tuple[frozenset[str], ...] = (frozenset({"regression", "holdout"}),)
+ALLOWED_SPLITS: frozenset[str] = frozenset({"dev", "val", "regression"})
 
 
 class EvalDataset(BaseModel):
@@ -66,21 +61,16 @@ class EvalDataset(BaseModel):
                 raise ValueError(f"example {example_id} must define non-empty splits")
             if not all(isinstance(split, str) and split.strip() for split in splits):
                 raise ValueError(f"example {example_id} splits must be non-empty strings")
-            split_set = set(splits)
-            for forbidden in FORBIDDEN_SPLIT_COMBINATIONS:
-                if forbidden.issubset(split_set):
-                    joined = ", ".join(sorted(forbidden))
-                    raise ValueError(
-                        f"example {example_id} has forbidden split combination: {joined}"
-                    )
-            for warning_combination in WARN_SPLIT_COMBINATIONS:
-                if warning_combination.issubset(split_set):
-                    joined = ", ".join(sorted(warning_combination))
-                    warnings.warn(
-                        f"example {example_id} has unusual split combination: {joined}",
-                        UserWarning,
-                        stacklevel=2,
-                    )
+            unknown_splits = sorted(set(splits) - ALLOWED_SPLITS)
+            if unknown_splits:
+                raise ValueError(
+                    f"example {example_id} has unknown split names: {', '.join(unknown_splits)}"
+                )
+            if len(splits) != 1:
+                raise ValueError(
+                    f"example {example_id} must belong to exactly one split "
+                    f"({', '.join(sorted(ALLOWED_SPLITS))})"
+                )
             expected = example.get("expected")
             if not isinstance(expected, dict):
                 raise ValueError(f"example {example_id} must define expected")
