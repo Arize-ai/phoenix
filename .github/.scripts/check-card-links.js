@@ -183,7 +183,7 @@ async function checkExternal(href, timeoutMs, maxRetries = 5, backoffBaseMs = 50
     return [true, "Arize NPM package"];
   }
 
-  if (href === "https://arconia.io/docs/arconia/latest/observability/generative-ai/") {
+  if (href === "https://docs.arconia.io/arconia/latest/observability/semantic-conventions/openinference/") {
     return [true, "Arconia returns 404 from actions, but is valid"];
   }
 

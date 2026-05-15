@@ -120,7 +120,7 @@ This is the **canonical list** of supported integrations. Use these tables to ma
 |---|---|---|
 | `langchain4j` (in `pom.xml` or `build.gradle`) | LangChain4j | https://arize.com/docs/phoenix/integrations/java/langchain4j |
 | `spring-ai` (in `pom.xml` or `build.gradle`) | Spring AI | https://arize.com/docs/phoenix/integrations/java/springai |
-| `arconia` (in `pom.xml` or `build.gradle`) | Arconia | https://arize.com/docs/phoenix/integrations/java/arconia |
+| `arconia` or `spring-ai` (in `pom.xml` or `build.gradle`) | Arconia for Spring AI | https://arize.com/docs/phoenix/integrations/java/arconia |
 
 ### Platforms
 
@@ -253,8 +253,8 @@ For framework-specific setups (Mastra, Vercel AI SDK, LangChain), the doc pages 
 
 Java integrations use the OpenTelemetry Java SDK. The level of automation varies by framework:
 
-**Arconia** (zero-code — recommended for Spring Boot projects):
-Add dependencies and Arconia auto-configures tracing via its Spring Boot starter. No explicit OTel setup code needed — just set environment variables.
+**Arconia** (zero-code — recommended for Spring Boot and Spring AI projects):
+Add dependencies and Arconia auto-configures OpenTelemetry tracing via its Spring Boot starter and semantic conventions via its OpenInference library. No explicit OTel setup code needed — just set environment variables.
 
 **LangChain4j** (one-liner):
 

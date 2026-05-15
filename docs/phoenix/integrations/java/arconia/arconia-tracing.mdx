@@ -1,38 +1,89 @@
 ---
 title: "Arconia Tracing"
-description: "How to use OpenInference instrumentation with Arconia and export traces to Arize Phoenix."
+description: "How to use OpenInference instrumentation for Spring AI with Arconia and export traces to Arize Phoenix."
 ---
 
 ## Prerequisites
 
-* Java 11 or higher
-* (Optional) Phoenix API key if using auth
+* Java 21 or higher
+* (Optional) Phoenix API key if using Phoenix Cloud
+* (Optional) Docker or Podman if using the Arconia Phoenix Dev Service
 
 ### Add Dependencies
 
-#### **1. Gradle**
+
+<Tabs>
+<Tab title="Gradle">
 
 Add the dependencies to your `build.gradle`:
 
 ```groovy expandable
 dependencies {
-    implementation 'io.arconia:arconia-openinference-semantic-conventions'
+    implementation 'io.arconia:arconia-openinference-ai-semantic-conventions'
     implementation 'io.arconia:arconia-opentelemetry-spring-boot-starter'
 
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.ai:spring-ai-starter-model-mistral-ai'
 
-    developmentOnly 'org.springframework.boot:spring-boot-devtools'
     testAndDevelopmentOnly 'io.arconia:arconia-dev-services-phoenix'
-
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 ```
+</Tab>
 
-## **Setup Phoenix Tracing**
+<Tab title="Maven">
+
+Add the dependencies to your `pom.xml`:
+
+```xml expandable
+<dependencies>
+  <dependency>
+      <groupId>io.arconia</groupId>
+      <artifactId>arconia-openinference-ai-semantic-conventions</artifactId>
+  </dependency>
+  <dependency>
+      <groupId>io.arconia</groupId>
+      <artifactId>arconia-opentelemetry-spring-boot-starter</artifactId>
+  </dependency>
+  <dependency>
+      <groupId>org.springframework.ai</groupId>
+      <artifactId>spring-ai-starter-model-mistral-ai</artifactId>
+  </dependency>
+  <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webmvc</artifactId>
+  </dependency>
+  <dependency>
+    <groupId>io.arconia</groupId>
+    <artifactId>arconia-dev-services-phoenix</artifactId>
+    <scope>runtime</scope>
+    <optional>true</optional>
+  </dependency>
+</dependencies>
+```
+</Tab>
+</Tabs>
+
+## **Setup Phoenix**
 
 <Tabs>
+<Tab title="Phoenix Dev Service">
+
+If you included the Arconia Phoenix Dev Service dependency as instructed in the previous step,
+your Spring Boot application will automatically provision a Phoenix service at startup time
+and connect to it. No extra code or configuration needed.
+
+The application logs will show you the URL where you can access the Phoenix AI observability platform
+in your development environment.
+
+```logs
+...Phoenix UI: http://localhost:<port>
+```
+
+By default, traces are exported via OTLP using the HTTP/Protobuf format.
+
+For more info on using Phoenix with Arconia, see [Phoenix Dev Service](https://docs.arconia.io/arconia/latest/dev-services/phoenix/).
+</Tab>
+
 <Tab title="Docker">
 
 **Pull latest Phoenix image from** [**Docker Hub**](https://hub.docker.com/r/arizephoenix/phoenix)**:**
@@ -94,12 +145,12 @@ Having trouble finding your endpoint? Check out [Finding your Phoenix Endpoint](
 </Tabs>
 
 <Warning>
-If you are using Phoenix Cloud, adjust the endpoint in the code as needed.
+If you are using Phoenix Cloud or a self-hosted Phoenix, adjust the endpoint in the code as needed via the `arconia.otel.exporter.otlp.endpoint=${PHOENIX_COLLECTOR_ENDPOINT}` and `arconia.otel.exporter.otlp.headers=Authorization=Bearer ${PHOENIX_API_KEY}` properties. Alternatively, you can use the canonical OpenTelemetry Environment Variables: `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_HEADERS`.
 </Warning>
 
-## Run Arconia
+## Run Spring AI with Arconia
 
-By instrumenting your  application with Arconia, spans are automatically created whenever your AI models (e.g., via Spring AI) are invoked and sent to the Phoenix server for collection. Arconia plugs into Spring Boot and Spring AI with minimal code changes.
+By instrumenting your application with Arconia, spans are automatically created whenever your AI models via Spring AI are invoked and sent to the Phoenix server for collection. Arconia plugs into Spring Boot and Spring AI without any code or configuration changes.
 
 ```java expandable
 package io.arconia.demo;
@@ -157,5 +208,5 @@ Once configured, your OpenInference traces will be automatically sent to Phoenix
 
 <CardGroup>
   <Card title="Full Example" href="https://github.com/arconia-io/arconia-examples/tree/main/arconia-openinference" icon="github" horizontal description="Complete tracing example"/>
-  <Card title="OpenInference package" href="https://central.sonatype.com/artifact/com.arize/openinference-instrumentation-langchain4j" icon="box" horizontal description="OpenInference Java package"/>
+  <Card title="Arconia OpenInference Semantic Conventions (docs)" href="https://docs.arconia.io/arconia/latest/observability/semantic-conventions/openinference/" icon="box" horizontal description="Arconia OpenInference Semantic Conventions (docs)"/>
 </CardGroup>

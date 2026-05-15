@@ -267,7 +267,7 @@
 
 ### Java Frameworks
 
-- [Arconia Tracing](https://arize.com/docs/phoenix/integrations/java/arconia/arconia-tracing): Auto-instrument Arconia Java applications
+- [Arconia Tracing](https://arize.com/docs/phoenix/integrations/java/arconia/arconia-tracing): Auto-instrument Spring Boot and Spring AI applications
 - [LangChain4j Tracing](https://arize.com/docs/phoenix/integrations/java/langchain4j/langchain4j-tracing): Auto-instrument LangChain4j chains and agents
 - [Spring AI Tracing](https://arize.com/docs/phoenix/integrations/java/springai/springai-tracing): Auto-instrument Spring AI applications
 
