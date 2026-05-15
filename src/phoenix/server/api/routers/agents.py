@@ -434,14 +434,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
 
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
             try:
-                # `aclosing` guarantees the inner stream is fully closed (and the
-                # root agent span's context manager has exited) before the
-                # `finally` below flushes/drains the tracer — otherwise a client
-                # disconnect mid-stream can race the cleanup and drop the root
-                # span from the persisted trace.
-                # `detached_otel_context` hides the ambient ASGI/FastAPI server
-                # span so the agent turn becomes a root span in the Phoenix
-                # agents trace rather than a child of an unexported parent.
                 with detached_otel_context(), using_session(session_id=session_id):
                     async with aclosing(
                         adapter.run_stream(deps=deps, on_complete=_on_complete)
