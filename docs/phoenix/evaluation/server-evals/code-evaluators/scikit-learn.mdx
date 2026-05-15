@@ -1,0 +1,134 @@
+---
+title: "scikit-learn Text Similarity"
+sidebarTitle: "scikit-learn"
+description: "Score text similarity offline with scikit-learn's HashingVectorizer and cosine similarity — no API calls."
+---
+
+An offline alternative to embedding-based similarity. `HashingVectorizer` hashes tokens directly into a fixed-size feature space — no fitted vocabulary, no model download, no network — so each `evaluate(...)` call is self-contained. After L2 normalization, cosine similarity measures how much the two texts share the same tokens.
+
+Use this when:
+
+- You want a cheap, deterministic fuzzy match between two short texts.
+- An external embeddings API is too slow, too expensive, or unavailable (air-gapped sandbox).
+- Exact or regex match is too brittle, but full semantic embeddings are overkill.
+
+This is a token-overlap score, not a true semantic embedding — synonyms and paraphrases will look dissimilar. For semantic matching, see [Embedding Distance](/docs/phoenix/evaluation/server-evals/code-evaluators/embedding-distance).
+
+## Code
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+from sklearn.feature_extraction.text import HashingVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+_vectorizer = HashingVectorizer(
+    n_features=2**18,
+    analyzer="word",
+    norm="l2",
+    alternate_sign=False,
+)
+
+
+def evaluate(output, reference):
+    if not output or not reference:
+        return {
+            "label": "missing",
+            "score": 0.0,
+            "explanation": "Missing output or reference.",
+        }
+
+    vectors = _vectorizer.transform([str(output), str(reference)])
+    similarity = float(cosine_similarity(vectors[0], vectors[1])[0, 0])
+    return {
+        "score": similarity,
+        "explanation": f"Token-overlap cosine similarity {similarity:.4f}.",
+    }
+```
+
+Notes on the vectorizer configuration:
+
+- **`alternate_sign=False`** — disables sklearn's signed-hashing trick. The default (`True`) helps classifier features but adds noise to cosine similarity; turning it off keeps each cell a non-negative count of hashed tokens.
+- **`norm="l2"`** — L2-normalizes each vector so cosine similarity falls naturally in `[0.0, 1.0]`.
+- **`n_features=2**18`** — 262,144 hash buckets. Big enough that collisions on short texts are negligible, small enough to stay cheap.
+</Tab>
+<Tab title="TypeScript" icon="js">
+There's no scikit-learn for JavaScript, but the underlying recipe — tokenize, count, cosine — is a few lines of stdlib code and runs in the **local Deno sandbox** with no dependencies and no network.
+
+```typescript
+function tokenCounts(text: string): Map<string, number> {
+  const counts = new Map<string, number>();
+  const tokens = text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+  for (const token of tokens) {
+    counts.set(token, (counts.get(token) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function cosine(a: Map<string, number>, b: Map<string, number>): number {
+  let dot = 0;
+  let normA = 0;
+  let normB = 0;
+  for (const value of a.values()) normA += value * value;
+  for (const value of b.values()) normB += value * value;
+  for (const [token, va] of a) {
+    const vb = b.get(token);
+    if (vb !== undefined) dot += va * vb;
+  }
+  if (normA === 0 || normB === 0) return 0;
+  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
+function evaluate({ output, reference }: EvaluatorParams) {
+  if (!output || !reference) {
+    return {
+      label: "missing",
+      score: 0,
+      explanation: "Missing output or reference.",
+    };
+  }
+
+  const similarity = cosine(
+    tokenCounts(String(output)),
+    tokenCounts(String(reference))
+  );
+  return {
+    score: similarity,
+    explanation: `Token-overlap cosine similarity ${similarity.toFixed(4)}.`,
+  };
+}
+```
+
+Mathematically equivalent to the Python version with `analyzer="word"`. Word boundaries are detected with `\p{L}\p{N}` (Unicode letters and digits), so non-ASCII text tokenizes correctly. The hashing step is dropped — the vocabulary is implicit in the `Map` keys — which is fine since the cost only scales with the two inputs' token counts.
+</Tab>
+</Tabs>
+
+## Input mapping
+
+| Parameter | Bind to |
+|-----------|---------|
+| `output` | The model output to score, usually `output`. |
+| `reference` | The ground-truth string, usually `reference`. |
+
+## Output configuration
+
+Continuous score in the range `0.0` to `1.0`. Optimization direction: **maximize**.
+
+## Runtime requirements
+
+| Setting | Value |
+|---------|-------|
+| Sandbox | **Python (scikit-learn version)**: a hosted backend — **E2B**, **Daytona — Python**, **Vercel Sandbox — Python**, or **Modal**. The in-process WebAssembly sandbox cannot install `scikit-learn` (it pulls in `scipy` and `numpy`, which are not available there). **TypeScript (stdlib version)**: any TS backend, including the in-process **Deno** sandbox. |
+| Dependencies | Python: `scikit-learn` (pulls `scipy` and `numpy` transitively). TypeScript: none — stdlib only. |
+| Internet access | Python: not required at execution time, but the sandbox fetches wheels from PyPI on cold install. TypeScript: not required. |
+| Environment variables | None. |
+
+<Warning>
+The Python `scikit-learn` install is a large dependency — 30–60s and ~150 MB on a cold start. To avoid paying that cost on every cold run, reuse the same sandbox configuration across experiments so the provider can warm-cache it, or pick a backend that supports snapshotting (Daytona) or persistent base images. The TypeScript variant has no cold-start cost — there's nothing to install.
+</Warning>
+
+## Variants
+
+- **Character n-grams** — for code, identifiers, or short fragments, `HashingVectorizer(analyzer="char_wb", ngram_range=(2, 4))` is usually more robust than word tokens.
+- **TF-IDF** — with a representative corpus to fit on (e.g. every example in the dataset), `TfidfVectorizer` weights rare tokens more heavily. `fit` on a corpus is awkward inside a per-call evaluator, so load a pickled pre-fit vectorizer from disk if you go this route.
+- **Classification metrics** — when `output` and `reference` are class labels rather than free text, swap the body for `sklearn.metrics.f1_score` or `accuracy_score`.

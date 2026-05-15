@@ -236,7 +236,24 @@
                 "pages": [
                   "docs/phoenix/evaluation/server-evals/overview",
                   "docs/phoenix/evaluation/server-evals/llm-evaluators",
-                  "docs/phoenix/evaluation/server-evals/code-evaluators",
+                  {
+                    "group": "Code Evaluators",
+                    "pages": [
+                      "docs/phoenix/evaluation/server-evals/code-evaluators",
+                      {
+                        "group": "Examples",
+                        "pages": [
+                          "docs/phoenix/evaluation/server-evals/code-evaluators/json-match",
+                          "docs/phoenix/evaluation/server-evals/code-evaluators/regex-match",
+                          "docs/phoenix/evaluation/server-evals/code-evaluators/embedding-distance",
+                          "docs/phoenix/evaluation/server-evals/code-evaluators/scikit-learn",
+                          "docs/phoenix/evaluation/server-evals/code-evaluators/pairwise",
+                          "docs/phoenix/evaluation/server-evals/code-evaluators/composite",
+                          "docs/phoenix/evaluation/server-evals/code-evaluators/llm-jury"
+                        ]
+                      }
+                    ]
+                  },
                   "docs/phoenix/evaluation/server-evals/input-mapping",
                   {
                     "group": "Pre-Built Metrics",
@@ -352,7 +369,18 @@
               "docs/phoenix/settings/secrets",
               "docs/phoenix/settings/data-retention",
               "docs/phoenix/settings/custom-ai-providers",
-              "docs/phoenix/settings/sandboxes"
+              {
+                "group": "Sandboxes",
+                "pages": [
+                  "docs/phoenix/settings/sandboxes",
+                  "docs/phoenix/settings/sandboxes/wasm",
+                  "docs/phoenix/settings/sandboxes/deno",
+                  "docs/phoenix/settings/sandboxes/e2b",
+                  "docs/phoenix/settings/sandboxes/daytona",
+                  "docs/phoenix/settings/sandboxes/vercel",
+                  "docs/phoenix/settings/sandboxes/modal"
+                ]
+              }
             ]
           },
           {
@@ -774,6 +802,16 @@
                   "docs/phoenix/integrations/platforms/prompt-flow/prompt-flow-tracing"
                 ]
               }
+            ]
+          },
+          {
+            "group": "Sandboxes",
+            "icon": "cube",
+            "pages": [
+              "docs/phoenix/integrations/sandboxes/e2b",
+              "docs/phoenix/integrations/sandboxes/daytona",
+              "docs/phoenix/integrations/sandboxes/vercel",
+              "docs/phoenix/integrations/sandboxes/modal"
             ]
           },
           {
