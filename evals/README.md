@@ -12,7 +12,7 @@ Phoenix repo but are not part of the production package.
 
 ## Dataset Splits
 
-PXI YAML datasets require each example to declare exactly one split:
+PXI YAML datasets require each example to declare exactly one `split`:
 
 | Split | Reader | Purpose |
 | --- | --- | --- |
@@ -21,4 +21,5 @@ PXI YAML datasets require each example to declare exactly one split:
 | `val` | Future optimizer | Optimization signal, disjoint from `regression` and `dev`. |
 
 The three splits are mutually exclusive. The loader rejects examples with
-unknown split names or multiple split tags.
+unknown split names or the old list-shaped `splits` field. The runner translates
+the YAML `split` value into the Phoenix client upload payload's `splits` list.

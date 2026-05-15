@@ -201,7 +201,7 @@ def _score(evaluation_run: ExperimentEvaluationRun) -> float | None:
 
 
 def _example_splits_by_id(dataset: EvalDataset) -> dict[str, set[str]]:
-    return {str(example["id"]): set(example["splits"]) for example in dataset.examples}
+    return {str(example["id"]): {str(example["split"])} for example in dataset.examples}
 
 
 def _is_failed_evaluation(evaluation_run: ExperimentEvaluationRun) -> bool:
@@ -430,7 +430,7 @@ def _phoenix_examples(dataset: EvalDataset) -> list[dict[str, Any]]:
             "input": example["input"],
             "output": example["expected"],
             "metadata": example.get("metadata") or {},
-            "splits": list(example["splits"]),
+            "splits": [example["split"]],
         }
         for example in dataset.examples
     ]
@@ -476,7 +476,7 @@ async def _run_async(config: ExperimentConfig) -> int:
                 examples=_phoenix_examples(dataset),
                 dataset_description=dataset.description,
             )
-            uploaded_splits = {split for example in dataset.examples for split in example["splits"]}
+            uploaded_splits = {str(example["split"]) for example in dataset.examples}
             _warn_if_split_smoke_check_fails(
                 await client.datasets.get_dataset(
                     dataset=phoenix_dataset,

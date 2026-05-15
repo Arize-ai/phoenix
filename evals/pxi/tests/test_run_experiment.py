@@ -37,13 +37,13 @@ def _dataset() -> EvalDataset:
             "examples": [
                 {
                     "id": "regression-example",
-                    "splits": ["regression"],
+                    "split": "regression",
                     "input": {"query": "x"},
                     "expected": {"tools": {"required": []}},
                 },
                 {
                     "id": "dev-example",
-                    "splits": ["dev"],
+                    "split": "dev",
                     "input": {"query": "y"},
                     "expected": {"tools": {"required": []}},
                 },

@@ -56,21 +56,16 @@ class EvalDataset(BaseModel):
             input_value = example.get("input")
             if not isinstance(input_value, dict) or not isinstance(input_value.get("query"), str):
                 raise ValueError(f"example {example_id} must define input.query")
-            splits = example.get("splits")
-            if not isinstance(splits, list) or not splits:
-                raise ValueError(f"example {example_id} must define non-empty splits")
-            if not all(isinstance(split, str) and split.strip() for split in splits):
-                raise ValueError(f"example {example_id} splits must be non-empty strings")
-            unknown_splits = sorted(set(splits) - ALLOWED_SPLITS)
-            if unknown_splits:
+            split = example.get("split")
+            if not isinstance(split, str) or not split.strip():
+                raise ValueError(f"example {example_id} must define split")
+            if split not in ALLOWED_SPLITS:
                 raise ValueError(
-                    f"example {example_id} has unknown split names: {', '.join(unknown_splits)}"
+                    f"example {example_id} has unknown split name: {split}. "
+                    f"Allowed: {', '.join(sorted(ALLOWED_SPLITS))}"
                 )
-            if len(splits) != 1:
-                raise ValueError(
-                    f"example {example_id} must belong to exactly one split "
-                    f"({', '.join(sorted(ALLOWED_SPLITS))})"
-                )
+            if "splits" in example:
+                raise ValueError(f"example {example_id} must use split, not splits")
             expected = example.get("expected")
             if not isinstance(expected, dict):
                 raise ValueError(f"example {example_id} must define expected")
