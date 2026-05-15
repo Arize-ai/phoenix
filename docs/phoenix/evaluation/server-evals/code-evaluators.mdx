@@ -1,0 +1,126 @@
+---
+title: "Code Evaluators"
+description: "Write Python or TypeScript evaluators directly in Phoenix and run them in a managed sandbox — no SDK, local runtime, or deploy step required."
+---
+
+Code evaluators let you author a custom evaluation function in **Python** or **TypeScript** and attach it directly to a dataset. Phoenix stores the source, executes it server-side in a sandbox, and records labels and scores as annotations on each experiment run — the same way LLM evaluators do, but with deterministic code instead of a judge model.
+
+Code evaluators are useful when:
+
+- Your check is a rule, a parser, or a calculation — not a judgment that needs an LLM.
+- You want a fast, repeatable evaluator with no per-call model cost.
+- You need logic that an LLM judge would be overkill for — exact-match comparisons, regex checks, structural diffs, custom scoring formulas.
+
+<Info>
+This page covers code evaluators authored **in the Phoenix UI** and run by Phoenix's sandbox runtimes. If you'd rather write evaluators locally and report scores with the `arize-phoenix-evals` SDK, see the [client-side code evaluators](/docs/phoenix/evaluation/how-to-evals/code-evaluators) guide.
+</Info>
+
+## How It Works
+
+1. **Create the evaluator** — From a dataset's **Evaluators** tab, choose **Add evaluator → Create new code evaluator**. Pick a language (Python or TypeScript) and a sandbox.
+2. **Write `evaluate(...)`** — Phoenix gives you an editor pre-populated with an `evaluate(...)` function. The function's parameters become the evaluator's inputs.
+3. **Configure output** — Declare whether the evaluator returns a continuous score (e.g. `0.0`–`1.0`) or a categorical label (e.g. `pass` / `fail`).
+4. **Map inputs** — Connect each parameter to a path on the [evaluation parameters](/docs/phoenix/evaluation/server-evals/input-mapping#evaluation-parameters) (`input`, `output`, `reference`, `metadata`) or a literal value.
+5. **Test, save, run** — Try the evaluator against a dataset example in the test panel, save it, and run an experiment from the Playground. Scores appear automatically on each run.
+
+## Authoring an Evaluator
+
+### Function signature
+
+The function name must be `evaluate`. Its parameters are the evaluator's inputs — any name you reference shows up in the input-mapping panel for you to bind.
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+def evaluate(output, reference=None, input=None, metadata=None):
+    matched = str(output).strip() == str(reference).strip()
+    return {
+        "label": "match" if matched else "mismatch",
+        "score": 1.0 if matched else 0.0,
+        "explanation": (
+            "Output matches the reference."
+            if matched
+            else "Output does not match the reference."
+        ),
+    }
+```
+</Tab>
+<Tab title="TypeScript" icon="js">
+```typescript
+function evaluate({ output, reference, input, metadata }: EvaluatorParams) {
+  const matched = String(output).trim() === String(reference).trim();
+  return {
+    label: matched ? "match" : "mismatch",
+    score: matched ? 1 : 0,
+    explanation: matched
+      ? "Output matches the reference."
+      : "Output does not match the reference.",
+  };
+}
+```
+</Tab>
+</Tabs>
+
+`output`, `reference`, `input`, and `metadata` are conventional names that match the four [evaluation parameters](/docs/phoenix/evaluation/server-evals/input-mapping#evaluation-parameters), but they aren't required — you can rename them, add new ones, or drop the ones you don't need. Whatever parameter names appear in your `evaluate` signature become the rows in the input-mapping panel.
+
+### Return shape
+
+The function returns an object with three optional fields:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `label` | string | A label for categorical evaluators (e.g. `"correct"`, `"fail"`). Required for categorical output. |
+| `score` | number | A numeric score. Required for continuous output. For categorical output, derived from the label's score mapping if omitted. |
+| `explanation` | string | Free-form text shown alongside the score. Useful for debugging surprising results. |
+
+### Output configuration
+
+Each evaluator declares one of two **output shapes**:
+
+- **Continuous score** — A numeric value within a configurable range (default `0.0`–`1.0`). Use for similarity scores, distances, or any graded metric.
+- **Categorical label** — A fixed set of labels, each mapped to a numeric score. The label your function returns must be one of the configured values.
+
+You also pick an **optimization direction** (maximize vs. minimize) so Phoenix can render trends correctly in experiment comparisons.
+
+## Sandbox Runtimes
+
+Code evaluators always run inside a sandbox. When you create an evaluator, you select one of the sandbox configurations that an administrator has provisioned under **Settings → Sandboxes**. Phoenix filters the list to sandboxes that match the language you chose.
+
+The available backends are:
+
+| Language | Backends |
+|----------|----------|
+| Python | WebAssembly (in-process), E2B, Daytona, Vercel Sandbox, Modal |
+| TypeScript | Deno (in-process), Daytona, Vercel Sandbox |
+
+WebAssembly and Deno run inside the Phoenix process and require no external credentials, so they work immediately in self-hosted deployments. The remote backends (E2B, Daytona, Vercel, Modal) provide stronger isolation and support features like longer timeouts, package installation, and outbound network access — see the individual backend rows in [Sandbox Runtimes](/docs/phoenix/self-hosting/features/sandbox-runtimes) for capability differences.
+
+<Tip>
+If you need to install a Python package or call an external API from your evaluator, pick a remote backend (E2B, Daytona, Vercel, or Modal). The in-process runtimes are intentionally restricted.
+</Tip>
+
+## Templates
+
+When you open the **Add evaluator** menu, **Use built-in code evaluator** shows a submenu of starter templates that you can apply as a starting point and then customize:
+
+- **Exact match** — Match/mismatch when output equals reference.
+- **Contains** — Whether the output contains the reference text.
+- **Regex** — Whether the output matches a regular expression.
+- **Levenshtein distance** — Normalized edit-distance similarity.
+- **JSON distance** — Equality after parsing both sides as JSON.
+
+Each template ships with source code (in both Python and TypeScript) and a matching output configuration, so you can apply one and immediately edit the logic to fit your use case.
+
+## Versioning
+
+Every time you save a code evaluator's source, Phoenix creates a new **evaluator version**. The version stores the source code and is what executes for subsequent experiment runs. Older versions are retained so you can audit which code produced any historical score.
+
+The evaluator's **name**, **description**, **output configuration**, **input mapping**, and **sandbox binding** are stored on the evaluator itself rather than on a version — editing those updates the evaluator in place without creating a new version.
+
+## Testing Before You Save
+
+The editor includes a **Test** panel that runs the current draft against a chosen dataset example. The panel shows the inputs as they would be passed to `evaluate(...)` after input mapping, the raw return value, and the parsed label/score/explanation. Use it to catch errors before saving — for example, to verify that a path mapping resolves to a string rather than `None`, or that your function handles missing fields gracefully.
+
+## Traceability
+
+Like LLM evaluators, every code evaluator execution emits an OpenTelemetry trace into a dedicated project. The trace captures the resolved inputs, the function's return value, any exceptions, and the latency of the sandbox call — so when an annotation looks wrong you can navigate from the score directly to the execution that produced it.

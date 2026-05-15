@@ -236,13 +236,14 @@
                 "pages": [
                   "docs/phoenix/evaluation/server-evals/overview",
                   "docs/phoenix/evaluation/server-evals/llm-evaluators",
+                  "docs/phoenix/evaluation/server-evals/code-evaluators",
                   "docs/phoenix/evaluation/server-evals/input-mapping",
                   {
                     "group": "Pre-Built Metrics",
                     "pages": [
                       "docs/phoenix/evaluation/server-evals/pre-built-metrics",
                       {
-                        "group": "Code Evaluators",
+                        "group": "Pre-built Code Evaluators",
                         "pages": [
                           "docs/phoenix/evaluation/server-evals/pre-built-metrics/contains",
                           "docs/phoenix/evaluation/server-evals/pre-built-metrics/exact-match",

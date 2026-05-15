@@ -15,11 +15,14 @@ Dataset evaluators let you attach an evaluation suite directly to a dataset. Eva
 ## Evaluator Types
 
 <CardGroup cols={2}>
-  <Card title="Built-in Code Evaluators" icon="cube" href="/docs/phoenix/evaluation/server-evals/pre-built-metrics">
-    Deterministic evaluators that run without an LLM — Contains, Exact Match, Regex, Levenshtein Distance, and JSON Distance.
-  </Card>
   <Card title="LLM Evaluators" icon="gavel" href="/docs/phoenix/evaluation/server-evals/llm-evaluators">
     LLM-as-a-judge evaluators backed by Phoenix-managed prompts. Use pre-built templates for common tasks like correctness and tool response handling, or write your own.
+  </Card>
+  <Card title="Code Evaluators" icon="code" href="/docs/phoenix/evaluation/server-evals/code-evaluators">
+    Custom Python or TypeScript evaluators that run in a managed sandbox. Use them when you need deterministic logic that the pre-built evaluators don't cover.
+  </Card>
+  <Card title="Pre-built Code Evaluators" icon="cube" href="/docs/phoenix/evaluation/server-evals/pre-built-metrics">
+    Deterministic evaluators that run without an LLM — Contains, Exact Match, Regex, Levenshtein Distance, and JSON Distance.
   </Card>
 </CardGroup>
 
