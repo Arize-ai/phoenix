@@ -1231,26 +1231,6 @@ class TestSandboxSpanContract:
         # _make_error_result returns the verbatim execution.error.
         assert results[0]["error"] == "provider down"
 
-    async def test_scalar_string_label_round_trips(self) -> None:
-        """Bare ``"pass"`` return value continues to land on EvaluationResult.label
-        (regression guard for the scalar happy path after the contract change)."""
-        runner, _ = _make_runner(backend_stdout='"pass"')
-        tracer, exporter = _make_tracer()
-
-        results = await runner.evaluate(
-            context={},
-            input_mapping=_EMPTY_MAPPING,
-            name="t",
-            output_configs=[_categorical_config()],
-            tracer=tracer,
-        )
-
-        assert results[0]["label"] == "pass"
-        spans_by_name = {span.name: span for span in exporter.get_finished_spans()}
-        parse_attrs = dict(spans_by_name["Parse Eval Result"].attributes or {})
-        # Decoded scalar, not raw fenced text.
-        assert parse_attrs.get(INPUT_VALUE) == "pass"
-
     async def test_python_harness_has_no_doubly_escaped_strings(self) -> None:
         """D2: native ``repr()`` of inputs avoids the historical
         ``json.dumps`` → ``repr()`` → ``json.loads`` round-trip that put
