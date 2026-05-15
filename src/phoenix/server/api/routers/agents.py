@@ -1,5 +1,6 @@
 import logging
 from collections.abc import AsyncIterator, Iterable
+from contextlib import aclosing
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -433,9 +434,17 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
 
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
             try:
+                # `aclosing` guarantees the inner stream is fully closed (and the
+                # root agent span's context manager has exited) before the
+                # `finally` below flushes/drains the tracer — otherwise a client
+                # disconnect mid-stream can race the cleanup and drop the root
+                # span from the persisted trace.
                 with using_session(session_id=session_id):
-                    async for chunk in adapter.run_stream(deps=deps, on_complete=_on_complete):
-                        yield chunk
+                    async with aclosing(
+                        adapter.run_stream(deps=deps, on_complete=_on_complete)
+                    ) as stream:
+                        async for chunk in stream:
+                            yield chunk
             finally:
                 if tracer is not None:
                     tracer.tracer_provider.force_flush()
