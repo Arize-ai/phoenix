@@ -365,7 +365,7 @@ export function CodeDatasetEvaluatorDetails({
           }
           ... on FreeformAnnotationConfig {
             name
-            freeformOptimizationDirection: optimizationDirection
+            optimizationDirection
             threshold
           }
         }
@@ -393,7 +393,7 @@ export function CodeDatasetEvaluatorDetails({
               }
               ... on FreeformAnnotationConfig {
                 name
-                freeformOptimizationDirection: optimizationDirection
+                optimizationDirection
                 threshold
               }
             }

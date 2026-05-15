@@ -84,6 +84,7 @@ function computePositiveOptimization({
 
   let lowerBound: number | undefined;
   let upperBound: number | undefined;
+  let threshold: number | undefined;
 
   if ("values" in matchedConfig) {
     // Categorical: compute bounds from values scores
@@ -98,12 +99,16 @@ function computePositiveOptimization({
     // Continuous: use bounds directly
     lowerBound = matchedConfig.lowerBound ?? undefined;
     upperBound = matchedConfig.upperBound ?? undefined;
+  } else if ("threshold" in matchedConfig) {
+    // Freeform: pivot on threshold (no bounds)
+    threshold = matchedConfig.threshold ?? undefined;
   }
 
   return getPositiveOptimization({
     score,
     lowerBound,
     upperBound,
+    threshold,
     optimizationDirection,
   });
 }

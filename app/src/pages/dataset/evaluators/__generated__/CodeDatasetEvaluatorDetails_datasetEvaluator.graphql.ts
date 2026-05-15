@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<678e0ed8d7843b2a8aacf9270d0559a0>>
+ * @generated SignedSource<<b49f129e65638a7cc54d8cb91e9456f8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -24,7 +24,6 @@ export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
     readonly language?: Language;
     readonly name?: string;
     readonly outputConfigs?: ReadonlyArray<{
-      readonly freeformOptimizationDirection?: OptimizationDirection;
       readonly lowerBound?: number | null;
       readonly name?: string;
       readonly optimizationDirection?: OptimizationDirection;
@@ -53,7 +52,6 @@ export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
     readonly pathMapping: any;
   };
   readonly outputConfigs: ReadonlyArray<{
-    readonly freeformOptimizationDirection?: OptimizationDirection;
     readonly lowerBound?: number | null;
     readonly name?: string;
     readonly optimizationDirection?: OptimizationDirection;
@@ -162,13 +160,7 @@ v3 = {
       "kind": "InlineFragment",
       "selections": [
         (v1/*: any*/),
-        {
-          "alias": "freeformOptimizationDirection",
-          "args": null,
-          "kind": "ScalarField",
-          "name": "optimizationDirection",
-          "storageKey": null
-        },
+        (v2/*: any*/),
         {
           "alias": null,
           "args": null,
@@ -331,6 +323,6 @@ return {
 };
 })();
 
-(node as any).hash = "35500ec920e291d66a84de29ba4958a6";
+(node as any).hash = "b388ab43dd658ad3436866157cd58cf2";
 
 export default node;
