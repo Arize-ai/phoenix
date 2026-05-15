@@ -34,6 +34,7 @@ from phoenix.utilities.logging import log_a_list
 from phoenix.utilities.re import parse_env_headers
 
 if TYPE_CHECKING:
+    from phoenix.db.insertion.helpers import OnConflict
     from phoenix.server.oauth2 import OAuth2Clients
 
 # Assignable roles (SYSTEM is internal-only and not included)
@@ -285,6 +286,20 @@ of memory. Adjust this value based on your system's available memory and expecte
 throughput.
 
 Defaults to 20000.
+"""
+ENV_PHOENIX_SPAN_ON_CONFLICT = "PHOENIX_SPAN_ON_CONFLICT"
+"""
+Conflict policy when inserting a span with a duplicate span_id.
+
+Allowed values (case-insensitive):
+- "do_nothing" (default): keep the first-written row; subsequent inserts are silently ignored.
+- "do_update": overwrite mutable columns (name, end_time, attributes, events, status, etc.)
+  on re-insert. Cumulative fields (cumulative_error_count,
+  cumulative_llm_token_count_prompt/completion) are preserved.
+
+The "do_update" mode enables clients to re-emit the same span_id periodically to provide
+realtime mid-run visibility for long-running spans (e.g. streaming agents). Phoenix UI will
+reflect the latest emission. The default preserves the historical first-write-wins behavior.
 """
 ENV_LOGGING_MODE = "PHOENIX_LOGGING_MODE"
 """
@@ -3032,6 +3047,22 @@ def get_env_max_spans_queue_size() -> int:
     return max_size
 
 
+def get_env_span_on_conflict() -> OnConflict:
+    """Resolve PHOENIX_SPAN_ON_CONFLICT env var to an OnConflict enum value."""
+    # Imported lazily to avoid a circular import (phoenix.db.helpers imports phoenix.config).
+    from phoenix.db.insertion.helpers import OnConflict
+
+    raw = os.environ.get(ENV_PHOENIX_SPAN_ON_CONFLICT, "do_nothing").strip().lower()
+    if raw == "do_nothing":
+        return OnConflict.DO_NOTHING
+    if raw == "do_update":
+        return OnConflict.DO_UPDATE
+    raise ValueError(
+        f"Invalid value for {ENV_PHOENIX_SPAN_ON_CONFLICT}: {raw!r}. "
+        "Expected 'do_nothing' or 'do_update'."
+    )
+
+
 def get_env_client_headers() -> dict[str, str]:
     headers = parse_env_headers(getenv(ENV_PHOENIX_CLIENT_HEADERS))
     if (api_key := get_env_phoenix_api_key()) and "authorization" not in [
@@ -3332,6 +3363,7 @@ def verify_server_environment_variables() -> None:
     get_env_database_usage_email_warning_threshold_percentage()
     get_env_database_usage_insertion_blocking_threshold_percentage()
     get_env_max_spans_queue_size()
+    get_env_span_on_conflict()
     validate_env_support_email()
     validate_env_allowed_providers()
 

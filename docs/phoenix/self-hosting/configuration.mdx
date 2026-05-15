@@ -85,6 +85,8 @@ The following environment variables will control how your phoenix server runs.
 
 * **PHOENIX\_ALLOWED\_PROVIDERS:** A comma-separated, case-insensitive list of model provider names to display in the playground UI. When unset, all providers are shown. Set to `NONE` to hide all providers. Unrecognized provider names will cause a startup error. Supported values: `OPENAI`, `ANTHROPIC`, `AZURE_OPENAI`, `GOOGLE`, `DEEPSEEK`, `XAI`, `OLLAMA`, `AWS`, `CEREBRAS`, `FIREWORKS`, `GROQ`, `MOONSHOT`, `PERPLEXITY`, `TOGETHER`. Example: `PHOENIX_ALLOWED_PROVIDERS=OPENAI,ANTHROPIC`. Available since version 13.13.0.
 
+* **PHOENIX\_SPAN\_ON\_CONFLICT:** Conflict policy when inserting a span with a duplicate `span_id`. Accepts `do_nothing` (default; first-write-wins, subsequent inserts are silently ignored) or `do_update` (overwrite mutable columns such as name, end\_time, attributes, events, and status while preserving cumulative token and error counts). Use `do_update` to allow long-running clients to re-emit the same `span_id` for realtime mid-run visibility in the Phoenix UI.
+
 ### Logging
 
 * **PHOENIX\_LOG\_SQL:** Whether to log all SQL statements to stdout. Useful for debugging database queries. Defaults to `false`. Available since version 13.4.0.

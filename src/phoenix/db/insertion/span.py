@@ -5,6 +5,7 @@ from openinference.semconv.trace import SpanAttributes
 from sqlalchemy import func, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from phoenix.config import get_env_span_on_conflict
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
@@ -140,6 +141,15 @@ async def insert_span(
         cumulative_error_count += cast(int, accumulation[0] or 0)
         cumulative_llm_token_count_prompt += cast(int, accumulation[1] or 0)
         cumulative_llm_token_count_completion += cast(int, accumulation[2] or 0)
+    on_conflict_policy = get_env_span_on_conflict()
+    # Under DO_UPDATE, a returned rowid does not distinguish between a fresh insert and an
+    # overwrite of an existing row. We therefore probe for the row up front so we can skip the
+    # ancestor cumulative propagation below on re-emits and avoid double-counting.
+    preexisting_span_rowid: Optional[int] = None
+    if on_conflict_policy is OnConflict.DO_UPDATE:
+        preexisting_span_rowid = await session.scalar(
+            select(models.Span.id).where(models.Span.span_id == span.context.span_id)
+        )
     span_rowid = await session.scalar(
         insert_on_conflict(
             dict(
@@ -163,11 +173,20 @@ async def insert_span(
             dialect=dialect,
             table=models.Span,
             unique_by=("span_id",),
-            on_conflict=OnConflict.DO_NOTHING,
+            on_conflict=on_conflict_policy,
+            exclude_from_update=(
+                "cumulative_error_count",
+                "cumulative_llm_token_count_prompt",
+                "cumulative_llm_token_count_completion",
+            ),
         ).returning(models.Span.id)
     )
     if span_rowid is None:
         return None
+    if preexisting_span_rowid is not None:
+        # Span already existed (DO_UPDATE re-emit). Cumulative ancestor propagation has already
+        # been applied on the original insert; running it again would double-count.
+        return SpanInsertionEvent(project_rowid, span_rowid, trace.id)
     # Propagate cumulative values to ancestors. This is usually a no-op, since
     # the parent usually arrives after the child. But in the event that a
     # child arrives after its parent, we need to make sure that all the
