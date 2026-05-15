@@ -423,6 +423,7 @@ examples:
         notes: "Backfill applied orchestrator's expected: Metadata filter doesn't target a non-CHAIN/AGENT span_kind; rootSpansOnly is not mandated by spec. Majority (A and C-template) omit it, so omitting
           matches the schema rule \"omit rootSpansOnly when query doesn't determine it\"."
   - id: agent-spans
+    splits: [regression]
     input:
       query: Show me agent spans.
     expected:
@@ -438,6 +439,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: retriever-spans
+    splits: [regression]
     input:
       query: Filter to retriever spans only.
     expected:
@@ -454,6 +456,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: not-llm-spans
+    splits: [regression]
     input:
       query: Show me everything that's not an LLM call.
     expected:
@@ -470,6 +473,7 @@ examples:
         n_opinions: 3
         notes: rootSpansOnly genuinely ambiguous; 2/3 opinions omit it. Orchestrator followed majority.
   - id: fast-spans-under-100ms
+    splits: [regression]
     input:
       query: Filter to spans under 100ms latency.
     expected:
@@ -485,6 +489,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: llm-or-tool-spans
+    splits: [regression]
     input:
       query: Show me LLM or tool calls.
     expected:
@@ -501,6 +506,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: high-completion-tokens
+    splits: [regression]
     input:
       query: Find LLM calls that produced more than 2000 completion tokens.
     expected:
@@ -517,6 +523,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: ended-before-timestamp
+    splits: [regression]
     input:
       query: Show spans that ended before 2025-01-15T12:00:00Z.
     expected:
@@ -532,6 +539,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: status-message-substring
+    splits: [regression]
     input:
       query: Filter to spans whose status message mentions 'timeout'.
     expected:
@@ -548,6 +556,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: attribute-path-access
+    splits: [regression]
     input:
       query: Show spans where attribute 'user.id' equals 'alice'.
     expected:
@@ -563,6 +572,7 @@ examples:
         agreement: high
         n_opinions: 3
   - id: three-clause-conjunction
+    splits: [regression]
     input:
       query: Show errored LLM calls slower than 3 seconds.
     expected:
