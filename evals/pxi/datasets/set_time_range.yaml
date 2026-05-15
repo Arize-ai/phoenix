@@ -8,7 +8,7 @@ evaluators:
 
 examples:
   - id: preset-15m
-    splits: [regression]
+    split: regression
     input:
       query: Show me just the last 15 minutes.
     expected:
@@ -23,7 +23,7 @@ examples:
       polarity: positive
 
   - id: preset-1h
-    splits: [regression]
+    split: regression
     input:
       query: Filter this view to the last hour.
     expected:
@@ -38,7 +38,7 @@ examples:
       polarity: positive
 
   - id: preset-12h
-    splits: [regression]
+    split: regression
     input:
       query: past 12 hrs only
     expected:
@@ -53,7 +53,7 @@ examples:
       polarity: positive
 
   - id: preset-1d
-    splits: [regression]
+    split: regression
     input:
       query: I want the last 24 hours of traces.
     expected:
@@ -68,7 +68,7 @@ examples:
       polarity: positive
 
   - id: preset-7d
-    splits: [regression]
+    split: regression
     input:
       query: Can you set the range to the past week?
     expected:
@@ -83,7 +83,7 @@ examples:
       polarity: positive
 
   - id: preset-30d
-    splits: [regression]
+    split: regression
     input:
       query: zoom out to the last month
     expected:
@@ -98,7 +98,7 @@ examples:
       polarity: positive
 
   - id: custom-explicit-utc-range
-    splits: [regression]
+    split: regression
     input:
       query: Set the range from 2025-01-01T00:00:00Z to 2025-01-31T23:59:59Z.
     expected:
@@ -115,7 +115,7 @@ examples:
       polarity: positive
 
   - id: custom-explicit-offset-range
-    splits: [regression]
+    split: regression
     input:
       query: Show traces between 2025-03-10T08:30:00-07:00 and 2025-03-10T11:00:00-07:00.
     expected:
@@ -132,7 +132,7 @@ examples:
       polarity: positive
 
   - id: custom-open-start
-    splits: [regression]
+    split: regression
     input:
       query: Everything until 2025-04-01T00:00:00Z.
     expected:
@@ -149,7 +149,7 @@ examples:
       notes: custom range may omit startTime for an open-start interval
 
   - id: custom-open-end
-    splits: [regression]
+    split: regression
     input:
       query: Show traces since 2025-04-01T09:00:00Z.
     expected:
@@ -166,7 +166,7 @@ examples:
       notes: custom range may omit endTime for an open-ended interval
 
   - id: custom-specific-day
-    splits: [regression]
+    split: regression
     input:
       query: I need traces from January 15, 2025.
     expected:
@@ -190,7 +190,7 @@ examples:
       notes: calendar-day bounds have valid inclusive, exclusive, and local-time forms
 
   - id: ambiguous-today
-    splits: [regression]
+    split: regression
     input:
       query: just show today
     expected:
@@ -207,7 +207,7 @@ examples:
       notes: today can mean rolling last day or the current calendar day
 
   - id: ambiguous-recent
-    splits: [regression]
+    split: regression
     input:
       query: focus on recent traces
     expected:
@@ -225,7 +225,7 @@ examples:
       notes: recent has no canonical window, so accept short preset choices only
 
   - id: negative-span-kind-filter
-    splits: [regression]
+    split: regression
     input:
       query: Show me only LLM spans.
     expected:
@@ -238,7 +238,7 @@ examples:
       polarity: negative
 
   - id: negative-latency-filter
-    splits: [regression]
+    split: regression
     input:
       query: only spans that took more than five seconds
     expected:
@@ -252,7 +252,7 @@ examples:
       notes: latency is a span filter, not the global time range
 
   - id: negative-prompt-clone
-    splits: [regression]
+    split: regression
     input:
       query: Clone the current prompt so I can compare a shorter version.
     expected:
@@ -265,7 +265,7 @@ examples:
       notes: playground prompt tools are not exposed in the project-only eval context
 
   - id: negative-read-current-prompt
-    splits: [regression]
+    split: regression
     input:
       query: What's in prompt A right now?
     expected:
@@ -278,7 +278,7 @@ examples:
       notes: playground prompt tools are not exposed in the project-only eval context
 
   - id: negative-longest-span
-    splits: [regression]
+    split: regression
     input:
       query: Which span took the longest time to complete?
     expected:
@@ -291,7 +291,7 @@ examples:
       notes: asks for analysis of span latency, not the time range selector
 
   - id: negative-explain-time-range
-    splits: [regression]
+    split: regression
     input:
       query: What does the time range selector do?
     expected:
@@ -304,7 +304,7 @@ examples:
       notes: definitional docs lookups are valid, but the selector should not be changed
 
   - id: negative-greeting
-    splits: [regression]
+    split: regression
     input:
       query: hey, what can you help me with?
     expected:
@@ -318,7 +318,7 @@ examples:
       polarity: negative
 
   - id: negative-thanks
-    splits: [regression]
+    split: regression
     input:
       query: thanks!
     expected:
