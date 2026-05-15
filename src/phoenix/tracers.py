@@ -1,5 +1,7 @@
 import logging
 from collections import defaultdict
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from threading import Lock
@@ -8,6 +10,7 @@ from typing import Callable, Optional, Sequence
 import wrapt
 from openinference.semconv.resource import ResourceAttributes
 from openinference.semconv.trace import OpenInferenceSpanKindValues, SpanAttributes
+from opentelemetry import context as otel_context
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan, SpanLimits, TracerProvider
 from opentelemetry.sdk.trace.export import (
@@ -29,6 +32,19 @@ from phoenix.server.telemetry import normalize_http_collector_endpoint
 from phoenix.trace.attributes import get_attribute_value, load_json_strings, unflatten
 
 logger = logging.getLogger(__name__)
+
+
+@contextmanager
+def detached_otel_context() -> Iterator[None]:
+    """Hide the ambient OpenTelemetry context so that spans started inside the
+    block become roots (i.e. they have no parent), rather than children of
+    whatever span happens to be current — typically an ASGI/FastAPI
+    server-request span that is not exported with the Phoenix-agents trace."""
+    token = otel_context.attach(otel_context.Context())
+    try:
+        yield
+    finally:
+        otel_context.detach(token)
 
 
 class _BufferedSpanExporter(SpanExporter):

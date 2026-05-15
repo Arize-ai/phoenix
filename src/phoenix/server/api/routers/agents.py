@@ -44,7 +44,7 @@ from phoenix.server.agents.summarization import summarize_messages
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
 from phoenix.server.bearer_auth import is_authenticated
 from phoenix.server.types import DbSessionFactory
-from phoenix.tracers import Tracer
+from phoenix.tracers import Tracer, detached_otel_context
 
 
 class _CamelModel(BaseModel):
@@ -439,7 +439,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                 # `finally` below flushes/drains the tracer — otherwise a client
                 # disconnect mid-stream can race the cleanup and drop the root
                 # span from the persisted trace.
-                with using_session(session_id=session_id):
+                # `detached_otel_context` hides the ambient ASGI/FastAPI server
+                # span so the agent turn becomes a root span in the Phoenix
+                # agents trace rather than a child of an unexported parent.
+                with detached_otel_context(), using_session(session_id=session_id):
                     async with aclosing(
                         adapter.run_stream(deps=deps, on_complete=_on_complete)
                     ) as stream:
@@ -498,7 +501,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
 
         history = VercelAIAdapter.load_messages(body.messages)
         try:
-            with using_metadata({"session_id": session_id}):
+            with detached_otel_context(), using_metadata({"session_id": session_id}):
                 result = await summarize_messages(messages=history, model=model)
         except SummarizationError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
