@@ -3,6 +3,7 @@ from typing import Any, Optional, cast
 
 import strawberry
 from pydantic import ValidationError
+from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
@@ -367,6 +368,10 @@ class ChatCompletionMutationMixin:
                     sandbox_backend=sandbox_backend,
                     language=language,
                     timeout=sandbox_timeout,
+                    # Backlink the trace to the persisted evaluator version.
+                    evaluator_version_id=str(
+                        GlobalID("CodeEvaluatorVersion", str(code_evaluator_version.id))
+                    ),
                 )
                 eval_results = await runner.evaluate(
                     context=context,

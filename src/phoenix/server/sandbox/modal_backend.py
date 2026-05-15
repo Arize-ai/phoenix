@@ -185,11 +185,7 @@ class ModalSandboxBackend(SandboxBackend):
         )
         exit_code = await proc.wait.aio()
         error: Optional[str] = stderr if exit_code != 0 else None
-        return ExecutionResult(
-            stdout=stdout or "",
-            stderr=stderr or "",
-            error=error,
-        )
+        return ExecutionResult(stdout=stdout or "", stderr=stderr or "", error=error)
 
     async def execute(
         self,

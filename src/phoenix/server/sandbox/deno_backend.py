@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 import shutil
 from typing import Any, Mapping, Optional
 
@@ -24,12 +23,6 @@ from .types import (
 )
 
 logger = logging.getLogger(__name__)
-
-_ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
-
-
-def _strip_ansi(text: str) -> str:
-    return _ANSI_ESCAPE_RE.sub("", text)
 
 
 class DenoSandboxBackend(BaseNoSessionBackend):
@@ -92,16 +85,12 @@ class DenoSandboxBackend(BaseNoSessionBackend):
                 proc.communicate(code.encode("utf-8")),
                 timeout=exec_timeout,
             )
-            stdout = _strip_ansi(stdout_bytes.decode("utf-8", errors="replace"))
-            stderr = _strip_ansi(stderr_bytes.decode("utf-8", errors="replace"))
+            stdout = stdout_bytes.decode("utf-8", errors="replace")
+            stderr = stderr_bytes.decode("utf-8", errors="replace")
             if proc.returncode == 0:
                 return ExecutionResult(stdout=stdout, stderr=stderr)
             error = stderr or f"Deno process exited with code {proc.returncode}"
-            return ExecutionResult(
-                stdout=stdout,
-                stderr=stderr,
-                error=error,
-            )
+            return ExecutionResult(stdout=stdout, stderr=stderr, error=error)
         except asyncio.TimeoutError:
             if proc is not None:
                 proc.kill()

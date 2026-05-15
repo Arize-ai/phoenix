@@ -13,8 +13,16 @@ from phoenix.db.types.annotation_configs import (
     OptimizationDirection,
 )
 from phoenix.db.types.evaluators import InputMapping
-from phoenix.server.api.evaluators import CodeEvaluatorRunner
+from phoenix.server.api.evaluators import (
+    _PHOENIX_RESULT_BEGIN,
+    _PHOENIX_RESULT_END,
+    CodeEvaluatorRunner,
+)
 from phoenix.server.sandbox.types import ExecutionResult, SandboxBackend
+
+
+def _fenced(payload: str) -> str:
+    return f"{_PHOENIX_RESULT_BEGIN}\n{payload}\n{_PHOENIX_RESULT_END}\n"
 
 
 def _categorical_config() -> CategoricalOutputConfig:
@@ -159,7 +167,7 @@ class TestTimeoutWrapper:
 
     @pytest.mark.asyncio
     async def test_fast_backend_result_passes_through_unchanged(self) -> None:
-        backend = _FastBackend(ExecutionResult(stdout='"pass"', stderr="", error=None))
+        backend = _FastBackend(ExecutionResult(stdout=_fenced('"pass"'), stderr="", error=None))
         runner = _make_runner(backend, timeout=30)
         results = await runner.evaluate(
             context={},
