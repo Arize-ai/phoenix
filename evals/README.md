@@ -24,8 +24,6 @@ examples:
       query: Show me only LLM spans.
 ```
 
-Do not use singular `split: regression`; the PXI loader rejects it.
-
 | Split | Reader | Purpose |
 | --- | --- | --- |
 | `regression` | Harness default and CI | Fast held-out regression gate. |

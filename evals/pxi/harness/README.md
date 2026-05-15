@@ -82,8 +82,7 @@ Datasets live in `evals/pxi/datasets/*.yaml`. Each file has:
 Each example needs a stable `id`, non-empty `splits`, `input.query`,
 `expected.tools`, and expected tool arguments under `expected.tool_call_args`.
 Example IDs must be unique because the runner uses them for stable upserts.
-Use `splits: [regression]` for a single split. Do not use singular
-`split: regression`; the loader rejects it.
+Use `splits: [regression]` for a single split.
 
 Split meanings:
 

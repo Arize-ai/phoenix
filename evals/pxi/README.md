@@ -25,7 +25,7 @@ examples:
 
 The harness defaults to the `regression` split; `dev` is for manual
 experimentation, `val` is reserved for optimizer scoring, and `holdout` is
-manual-only. Do not use singular `split: regression`; the loader rejects it.
+manual-only.
 
 Examples may carry more than one split tag, but `val` must stay disjoint from
 both `regression` and `dev`. The loader enforces that contract and warns when an
