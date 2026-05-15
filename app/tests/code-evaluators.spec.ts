@@ -692,129 +692,16 @@ test.describe.serial("Code Evaluators", () => {
     await expect(page.getByTestId("dialog")).not.toBeVisible();
   });
 
-  const categoricalEvaluatorName = `categorical-eval-${randomUUID().slice(0, 8)}`;
-
-  test("can configure categorical choices in code evaluator", async ({
-    page,
-  }) => {
-    await gotoDatasetEvaluators(page, datasetName);
-
-    await page.getByRole("button", { name: "Add evaluator" }).click();
-    await page
-      .getByRole("menuitem", { name: "Create new code evaluator" })
-      .click();
-
-    const dialog = page.getByTestId("dialog");
-    await expect(
-      dialog.getByRole("heading", { name: "Create Code Evaluator" })
-    ).toBeVisible();
-
-    await dialog
-      .getByRole("textbox", { name: /^Name(\s*\*)?$/ })
-      .fill(categoricalEvaluatorName);
-
-    await selectSandbox(page, dialog, pythonSandboxName);
-
-    // The output type select switches the editor between numeric (continuous)
-    // and label-based (categorical) shapes. The Evaluator Annotation section
-    // is rendered inline (no disclosure), so its controls are always present.
-    await selectFromSelect(page, dialog, "Output type", "Categorical label");
-
-    // Choices section appears with default two choices.
-    await expect(dialog.getByText("Choices", { exact: true })).toBeVisible();
-
-    const choiceInputs = dialog.locator('input[placeholder^="Choice"]');
-    await expect(choiceInputs).toHaveCount(2);
-    await choiceInputs.first().fill("Good");
-    await choiceInputs.nth(1).fill("Bad");
-
-    // Add a third choice.
-    await dialog.getByRole("button", { name: "Add choice" }).click();
-    await expect(choiceInputs).toHaveCount(3);
-    await choiceInputs.nth(2).fill("Neutral");
-
-    // Remove buttons exist for every choice; the last one removes "Neutral".
-    const removeButtons = dialog.getByRole("button", { name: "Remove choice" });
-    await expect(removeButtons).toHaveCount(3);
-    await removeButtons.last().click();
-    await expect(choiceInputs).toHaveCount(2);
-
-    // Remove is disabled when only the minimum two choices remain.
-    await expect(removeButtons.first()).toBeDisabled();
-    await expect(removeButtons.last()).toBeDisabled();
-
-    await dialog.getByRole("button", { name: "Create" }).click();
-    await expect(page.getByTestId("dialog")).not.toBeVisible();
-
-    await expect(
-      page.getByRole("cell", { name: categoricalEvaluatorName, exact: true })
-    ).toBeVisible();
-
-    // Reopen and verify categorical config persisted.
-    await openEvaluatorEditor(page, categoricalEvaluatorName);
-    const reopenedDialog = page.getByTestId("dialog");
-    await expect(
-      reopenedDialog.getByText("Choices", { exact: true })
-    ).toBeVisible();
-    const reopenedChoices = reopenedDialog.locator(
-      'input[placeholder^="Choice"]'
-    );
-    await expect(reopenedChoices.first()).toHaveValue("Good");
-    await expect(reopenedChoices.last()).toHaveValue("Bad");
-
-    await reopenedDialog.getByRole("button", { name: "Cancel" }).click();
-    await expect(page.getByTestId("dialog")).not.toBeVisible();
-  });
-
   // Phase 4: Config-aware placeholder assertions
+  //
+  // Tests that authored a Categorical code evaluator via the legacy "Output
+  // type" select were removed when the code-evaluator authoring form
+  // collapsed to optimization direction + optional threshold (descriptive,
+  // not prescriptive). The dependent reopen-and-edit tests went with them.
+  // Surviving tests below exercise placeholder behavior on the create
+  // dialog without going through the deleted select.
 
-  const placeholderCategoricalName = `placeholder-cat-${randomUUID().slice(0, 8)}`;
   const placeholderDefaultsName = `placeholder-defaults-${randomUUID().slice(0, 8)}`;
-
-  test("categorical placeholder shows substituted label from config", async ({
-    page,
-  }) => {
-    await gotoDatasetEvaluators(page, datasetName);
-
-    await page.getByRole("button", { name: "Add evaluator" }).click();
-    await page
-      .getByRole("menuitem", { name: "Create new code evaluator" })
-      .click();
-
-    const dialog = page.getByTestId("dialog");
-    await expect(
-      dialog.getByRole("heading", { name: "Create Code Evaluator" })
-    ).toBeVisible();
-
-    await dialog
-      .getByRole("textbox", { name: /^Name(\s*\*)?$/ })
-      .fill(placeholderCategoricalName);
-
-    await selectSandbox(page, dialog, pythonSandboxName);
-
-    // Switch to categorical, then customize choice labels and Reset to
-    // regenerate the placeholder against the new config (Reset is the
-    // user-facing knob for re-applying config to the editor body).
-    await selectFromSelect(page, dialog, "Output type", "Categorical label");
-
-    const choiceInputs = dialog.locator('input[placeholder^="Choice"]');
-    await choiceInputs.first().fill("excellent");
-    await choiceInputs.nth(1).fill("poor");
-
-    await dialog.getByRole("button", { name: "Reset" }).click();
-
-    await expect.poll(() => getEditorContent(dialog)).toContain('"excellent"');
-    const content = await getEditorContent(dialog);
-    expect(content).not.toMatch(/return "pass"/);
-    // Dict-form comment with explanation key must be present.
-    expect(content).toContain("explanation");
-
-    await dialog.getByRole("button", { name: "Create" }).click();
-    await expect(page.getByTestId("dialog")).not.toBeVisible();
-    await expect(
-      page.getByRole("cell", { name: placeholderCategoricalName, exact: true })
-    ).toBeVisible();
-  });
 
   test("categorical placeholder shows default pass/fail labels for a new evaluator", async ({
     page,
@@ -846,98 +733,6 @@ test.describe.serial("Code Evaluators", () => {
     const content = await getEditorContent(dialog);
     // Dict-form comment with explanation key.
     expect(content).toContain("explanation");
-
-    await dialog.getByRole("button", { name: "Cancel" }).click();
-    await expect(page.getByTestId("dialog")).not.toBeVisible();
-  });
-
-  test("categorical with empty values regenerates the placeholder around the (blank) first label", async ({
-    page,
-  }) => {
-    // Open the existing categorical evaluator which has "Good"/"Bad" labels.
-    await gotoDatasetEvaluators(page, datasetName);
-    await openEvaluatorEditor(page, categoricalEvaluatorName);
-
-    const dialog = page.getByTestId("dialog");
-
-    // Clear all choice labels.
-    const choiceInputs = dialog.locator('input[placeholder^="Choice"]');
-    await choiceInputs.first().fill("");
-    await choiceInputs.last().fill("");
-
-    // Reset substitutes the first label into the placeholder. With both
-    // labels cleared, the substituted return value is an empty string and
-    // the previous label ("Good") should no longer appear.
-    await dialog.getByRole("button", { name: "Reset" }).click();
-
-    await expect.poll(() => getEditorContent(dialog)).toContain('return ""');
-    const content = await getEditorContent(dialog);
-    expect(content).not.toContain('"Good"');
-    expect(content).toContain("explanation");
-
-    await dialog.getByRole("button", { name: "Cancel" }).click();
-    await expect(page.getByTestId("dialog")).not.toBeVisible();
-  });
-
-  test("Reset on complete categorical config produces substituted placeholder", async ({
-    page,
-  }) => {
-    await gotoDatasetEvaluators(page, datasetName);
-    await openEvaluatorEditor(page, categoricalEvaluatorName);
-
-    const dialog = page.getByTestId("dialog");
-
-    // Overwrite the editor with custom code.
-    const editor = dialog.locator(".cm-content").first();
-    await editor.click();
-    await page.keyboard.press("ControlOrMeta+a");
-    await page.keyboard.insertText("# custom user code");
-
-    // Reset should restore the substituted placeholder for "Good"/"Bad".
-    await dialog.getByRole("button", { name: "Reset" }).click();
-
-    await expect.poll(() => getEditorContent(dialog)).toContain('"Good"');
-    const content = await getEditorContent(dialog);
-    expect(content).not.toMatch(/return "pass"/);
-    expect(content).toContain("explanation");
-
-    await dialog.getByRole("button", { name: "Cancel" }).click();
-    await expect(page.getByTestId("dialog")).not.toBeVisible();
-  });
-
-  // Language is no longer editable in the Edit slideover (gated to create mode
-  // since the revision-history feature). The original scenario depends on
-  // toggling Language inside the editor, which the current UI does not expose.
-  test.skip("language switch on categorical evaluator swaps the editor between Python and TypeScript defaults", async ({
-    page,
-  }) => {
-    await gotoDatasetEvaluators(page, datasetName);
-    await openEvaluatorEditor(page, categoricalEvaluatorName);
-
-    const dialog = page.getByTestId("dialog");
-
-    // Pin the editor source to a known generated default by Resetting against
-    // the current categorical config (saved labels are "Good"/"Bad"), so the
-    // language guard will recognize it as a default and auto-swap it.
-    await dialog.getByRole("button", { name: "Reset" }).click();
-    await expect.poll(() => getEditorContent(dialog)).toContain('"Good"');
-    await expect.poll(() => getEditorContent(dialog)).toMatch(/def evaluate/);
-
-    // Switch to TypeScript — guard regenerates the TS variant of the same
-    // categorical default.
-    await selectLanguage(page, dialog, "TypeScript");
-    await expect
-      .poll(() => getEditorContent(dialog))
-      .toMatch(/function evaluate/);
-    let content = await getEditorContent(dialog);
-    expect(content).toContain('"Good"');
-    expect(content).toContain("explanation");
-
-    // Switch back to Python — guard regenerates the Python variant.
-    await selectLanguage(page, dialog, "Python");
-    await expect.poll(() => getEditorContent(dialog)).toMatch(/def evaluate/);
-    content = await getEditorContent(dialog);
-    expect(content).toContain('"Good"');
 
     await dialog.getByRole("button", { name: "Cancel" }).click();
     await expect(page.getByTestId("dialog")).not.toBeVisible();
