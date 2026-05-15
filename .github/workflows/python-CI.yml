@@ -48,6 +48,7 @@ jobs:
               - "prompts/**"
               - "scripts/prompts/compile_python_prompts.py"
             phoenix:
+              - "evals/**"
               - "src/**"
               - "tests/**"
               - "tutorials/**"
@@ -363,6 +364,7 @@ jobs:
             src/
             packages/
             tests/
+            evals/
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
