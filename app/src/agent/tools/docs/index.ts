@@ -1,11 +1,11 @@
 export {
   DOCS_TOOL_NAMES,
   isDocsToolName,
-  parseDocsGetPageInput,
+  parseDocsFilesystemQueryInput,
   parseDocsSearchInput,
 } from "./docsToolTypes";
 export type {
-  DocsGetPageInput,
+  DocsFilesystemQueryInput,
   DocsSearchInput,
   DocsToolName,
   DocsToolOutput,

@@ -430,18 +430,18 @@ const docsSearchRunningPart = makePart({
   input: { query: "embeddings visualization" },
 });
 
-const docsGetPagePart = makePart({
-  toolName: "get_page_phoenix",
+const docsFilesystemQueryPart = makePart({
+  toolName: "query_docs_filesystem_phoenix",
   state: "output-available",
-  input: { page: "/docs/tracing/quickstart" },
+  input: { command: "head -80 /docs/tracing/quickstart.mdx" },
   output:
     "# Getting Started with Tracing\n\nPhoenix tracing helps you understand your LLM application's behavior...\n\n## Installation\n\n```bash\npip install arize-phoenix\n```\n\n## Quick Start\n\nImport and initialize the tracer:\n\n```python\nimport phoenix as px\npx.launch_app()\n```",
 });
 
-const docsGetPageRunningPart = makePart({
-  toolName: "get_page_phoenix",
+const docsFilesystemQueryRunningPart = makePart({
+  toolName: "query_docs_filesystem_phoenix",
   state: "input-available",
-  input: { page: "/docs/evaluation/overview" },
+  input: { command: "head -80 /docs/evaluation/overview.mdx" },
 });
 
 // ---------------------------------------------------------------------------
@@ -601,12 +601,12 @@ export const DocsSearchRunning: Story = {
   args: { part: docsSearchRunningPart },
 };
 
-/** A docs get_page tool that fetched page content. */
-export const DocsGetPage: Story = {
-  args: { part: docsGetPagePart },
+/** A docs filesystem query tool that returned command output. */
+export const DocsFilesystemQuery: Story = {
+  args: { part: docsFilesystemQueryPart },
 };
 
-/** A docs get_page tool currently fetching. */
-export const DocsGetPageRunning: Story = {
-  args: { part: docsGetPageRunningPart },
+/** A docs filesystem query tool currently running. */
+export const DocsFilesystemQueryRunning: Story = {
+  args: { part: docsFilesystemQueryRunningPart },
 };
