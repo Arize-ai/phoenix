@@ -143,9 +143,7 @@ def build_shared_docs_mcp_server() -> MCPServerStreamableHTTP | None:
     return MintlifyDocsMCPServer()
 
 
-def _build_dependencies(
-    docs_mcp_server: MCPServerStreamableHTTP | None = None,
-) -> ChatDependencies:
+def _build_dependencies() -> ChatDependencies:
     contexts = ResolvedContexts(
         project=ProjectContext(
             type="project",
@@ -157,7 +155,6 @@ def _build_dependencies(
     return ChatDependencies(
         contexts=contexts,
         capabilities=AgentCapabilities(),
-        docs_mcp_server=docs_mcp_server,
     )
 
 
@@ -261,8 +258,8 @@ async def run_pxi_example(
     try:
         query = input["query"]
         model = await _build_model()
-        agent = build_agent(model=model)
-        result = await agent.run(query, deps=_build_dependencies(docs_mcp_server=docs_mcp_server))
+        agent = build_agent(model=model, docs_mcp_server=docs_mcp_server)
+        result = await agent.run(query, deps=_build_dependencies())
         output = agent_task_output(result)
     except Exception as exc:
         message = str(exc)

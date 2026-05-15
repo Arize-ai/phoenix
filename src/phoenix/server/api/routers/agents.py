@@ -411,7 +411,11 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             getattr(model, "settings", None),
         )
 
-        agent = build_agent(model=model, tracer_provider=tracer_provider)
+        agent = build_agent(
+            model=model,
+            docs_mcp_server=request.app.state.docs_mcp_server,
+            tracer_provider=tracer_provider,
+        )
         adapter: VercelAIAdapter[ChatDependencies, ChatOutput] = VercelAIAdapter(
             agent=agent,
             run_input=body,
@@ -420,7 +424,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         deps = ChatDependencies(
             contexts=resolve_contexts(body.contexts),
             capabilities=body.capabilities,
-            docs_mcp_server=request.app.state.docs_mcp_server,
         )
 
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:

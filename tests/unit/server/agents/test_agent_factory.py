@@ -53,7 +53,6 @@ def _partition_tool_instructions() -> tuple[frozenset[str], frozenset[str]]:
         deps=ChatDependencies(
             contexts=ResolvedContexts(),
             capabilities=AgentCapabilities(),
-            docs_mcp_server=None,
         ),
         model=TestModel(),
         usage=RunUsage(),
@@ -228,7 +227,6 @@ class TestSystemBlockCacheBoundary:
         deps = ChatDependencies(
             contexts=ResolvedContexts(),
             capabilities=AgentCapabilities(),
-            docs_mcp_server=None,
         )
 
         await agent.run("hello", deps=deps)
@@ -246,7 +244,6 @@ class TestSystemBlockCacheBoundary:
         deps = ChatDependencies(
             contexts=ResolvedContexts(),
             capabilities=AgentCapabilities(),
-            docs_mcp_server=None,
         )
 
         await agent.run("hello", deps=deps)
@@ -272,7 +269,6 @@ class TestSystemBlockCacheBoundary:
                 ),
             ),
             capabilities=AgentCapabilities(),
-            docs_mcp_server=None,
         )
 
         await agent.run("hello", deps=deps)
@@ -302,7 +298,6 @@ class TestSystemBlockCacheBoundary:
                 ),
             ),
             capabilities=AgentCapabilities(),
-            docs_mcp_server=None,
         )
 
         await agent.run("hello", deps=deps)
@@ -336,7 +331,6 @@ class TestSystemBlockCacheBoundary:
                 ),
             ),
             capabilities=AgentCapabilities(),
-            docs_mcp_server=None,
         )
 
         await agent.run("hello", deps=deps)
@@ -357,11 +351,10 @@ class TestDocsMCPToolset:
         captured_request: CapturedRequest,
         docs_mcp_server: _OfflineDocsMCPToolset,
     ) -> None:
-        agent = build_agent(model=anthropic_model)
+        agent = build_agent(model=anthropic_model, docs_mcp_server=docs_mcp_server)
         deps = ChatDependencies(
             contexts=ResolvedContexts(),
             capabilities=AgentCapabilities(),
-            docs_mcp_server=docs_mcp_server,
         )
 
         await agent.run("hello", deps=deps)
@@ -379,7 +372,6 @@ class TestDocsMCPToolset:
         deps = ChatDependencies(
             contexts=ResolvedContexts(),
             capabilities=AgentCapabilities(),
-            docs_mcp_server=None,
         )
 
         await agent.run("hello", deps=deps)
@@ -398,7 +390,6 @@ class TestAgentInstructionsOverride:
         deps = ChatDependencies(
             contexts=ResolvedContexts(),
             capabilities=AgentCapabilities(),
-            docs_mcp_server=None,
         )
 
         await agent.run("hello", deps=deps)
@@ -418,7 +409,6 @@ class TestAgentInstructionsOverride:
         deps = ChatDependencies(
             contexts=ResolvedContexts(),
             capabilities=AgentCapabilities(),
-            docs_mcp_server=None,
         )
 
         await agent.run("hello", deps=deps)

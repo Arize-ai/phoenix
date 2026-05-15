@@ -1,5 +1,6 @@
 from opentelemetry.trace import NoOpTracerProvider, TracerProvider
 from pydantic_ai import Agent, DeferredToolRequests, RunContext
+from pydantic_ai.mcp import MCPServerStreamableHTTP
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.models import Model
 
@@ -37,12 +38,15 @@ def build_agent(
     *,
     model: Model,
     instructions: AgentInstructions | None = None,
+    docs_mcp_server: MCPServerStreamableHTTP | None = None,
     tracer_provider: TracerProvider | None = None,
 ) -> OpenInferenceAgentWrapper[ChatDependencies, ChatOutput]:
     resolved_instructions = instructions or AgentInstructions()
     provider = tracer_provider or NoOpTracerProvider()
     build_toolset = build_toolset_factory(
-        instructions=resolved_instructions, tracer_provider=provider
+        instructions=resolved_instructions,
+        docs_mcp_server=docs_mcp_server,
+        tracer_provider=provider,
     )
 
     agent = Agent(

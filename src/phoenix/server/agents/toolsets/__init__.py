@@ -4,6 +4,7 @@ from collections.abc import Callable
 
 from opentelemetry.trace import NoOpTracerProvider, TracerProvider
 from pydantic_ai import RunContext
+from pydantic_ai.mcp import MCPServerStreamableHTTP
 from pydantic_ai.toolsets import AbstractToolset, CombinedToolset
 
 from phoenix.server.agents.dependencies import ChatDependencies
@@ -17,13 +18,21 @@ from phoenix.server.agents.toolsets.external.toolset import ExternalToolsetWithI
 def build_toolset_factory(
     *,
     instructions: AgentInstructions,
+    docs_mcp_server: MCPServerStreamableHTTP | None = None,
     tracer_provider: TracerProvider | None = None,
 ) -> Callable[[RunContext[ChatDependencies]], OpenInferenceToolsetWrapper[ChatDependencies]]:
-    """Build the per-turn PXI toolset factory with ``instructions`` bound at
-    agent build time."""
+    """Build the per-turn PXI toolset factory with ``instructions`` and
+    ``docs_mcp_server`` bound at agent build time."""
     external_tools = build_external_tools(instructions)
-    docs_tool_instruction = instructions.docs_tool
     provider = tracer_provider or NoOpTracerProvider()
+    docs_toolset = (
+        DocsToolInstructionsToolset(
+            wrapped=docs_mcp_server,
+            instructions=instructions.docs_tool,
+        )
+        if docs_mcp_server is not None
+        else None
+    )
 
     def _build_toolset(
         ctx: RunContext[ChatDependencies],
@@ -33,13 +42,8 @@ def build_toolset_factory(
                 [tool for tool in external_tools if tool.should_include(ctx)]
             ),
         ]
-        if ctx.deps.docs_mcp_server is not None:
-            toolsets.append(
-                DocsToolInstructionsToolset(
-                    wrapped=ctx.deps.docs_mcp_server,
-                    instructions=docs_tool_instruction,
-                )
-            )
+        if docs_toolset is not None:
+            toolsets.append(docs_toolset)
         return OpenInferenceToolsetWrapper(
             CombinedToolset(toolsets),
             tracer_provider=provider,
