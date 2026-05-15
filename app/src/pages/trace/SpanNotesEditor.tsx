@@ -92,8 +92,10 @@ export function SpanNotesEditor(props: SpanNotesEditorProps) {
             spanId: props.spanNodeId,
           },
         },
+        onCompleted: () => {
+          setFetchKey((key) => key + 1);
+        },
       });
-      setFetchKey(fetchKey + 1);
     });
   };
 
