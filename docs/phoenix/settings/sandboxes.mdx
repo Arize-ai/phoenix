@@ -78,12 +78,3 @@ The dialog exposes the following fields. Fields that aren't supported by the sel
 Environment-variable values — including the values resolved from secret references — are visible to any code that runs in the sandbox (for example, `os.environ` in Python). Treat them as readable by anyone authorized to author or run an evaluator against the config.
 </Warning>
 
-### Managing configurations
-
-The configurations table shows one row per config with its provider, language, settings summary (timeout, dependency count, internet access), and an enable switch. From each row you can:
-
-- **Toggle Enabled** — A disabled config is hidden from evaluator authors but retained. Useful for retiring a config without deleting evaluators that reference it.
-- **Edit** — Change description, timeout, env vars, internet access, and dependencies. The provider and name are immutable after creation.
-- **Delete** — Permanently remove the config. Evaluators that reference it will need to be rebound to a different config before they run again.
-
-If a provider's admin toggle is off, all of its configurations are automatically considered disabled — flipping the provider back on restores them.
