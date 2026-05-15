@@ -42,10 +42,15 @@ export const makeLLMEvaluatorInstance = ({
     modelName: DEFAULT_MODEL_NAME,
   };
   const savedInvocationParameters = savedModelConfig?.invocationParameters;
+  const effectiveModelName = savedModelConfig?.modelName ?? DEFAULT_MODEL_NAME;
   const invocationParameters =
     savedInvocationParameters != null
-      ? parseInvocationConfig(DEFAULT_MODEL_PROVIDER, savedInvocationParameters)
-      : getDefaultInvocationConfig(DEFAULT_MODEL_PROVIDER);
+      ? parseInvocationConfig(
+          DEFAULT_MODEL_PROVIDER,
+          effectiveModelName,
+          savedInvocationParameters
+        )
+      : getDefaultInvocationConfig(DEFAULT_MODEL_PROVIDER, effectiveModelName);
   return [
     {
       id: generateInstanceId(),

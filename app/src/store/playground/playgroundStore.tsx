@@ -240,6 +240,7 @@ export function getInitialInstances(initialProps: InitialPlaygroundState): {
       ...savedConfigToUse,
       invocationParameters: parseInvocationConfig(
         savedConfigToUse.provider,
+        savedConfigToUse.modelName ?? undefined,
         savedConfigToUse.invocationParameters
       ),
     };
@@ -483,9 +484,13 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
           const invocationParameters = savedProviderConfig?.invocationParameters
             ? parseInvocationConfig(
                 provider,
+                savedProviderConfig.modelName ?? undefined,
                 savedProviderConfig.invocationParameters
               )
-            : getDefaultInvocationConfig(provider);
+            : getDefaultInvocationConfig(
+                provider,
+                savedProviderConfig?.modelName ?? undefined
+              );
 
           // Routing fields are provider-specific and must be rebuilt for the
           // selected provider.
@@ -598,6 +603,7 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
                   ...patch,
                   invocationParameters: parseInvocationConfig(
                     instance.model.provider,
+                    patch.modelName ?? instance.model.modelName ?? undefined,
                     instance.model.invocationParameters
                   ),
                 },

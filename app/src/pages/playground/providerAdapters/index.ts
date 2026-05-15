@@ -71,16 +71,18 @@ function getAdapterForFamily(
 }
 
 function getAdapterForProvider(
-  provider: ModelProvider
+  provider: ModelProvider,
+  modelName?: string
 ): ProviderInvocationAdapter<ProviderInvocationConfig> {
-  const family = getInvocationFamilyForProvider(provider);
+  const family = getInvocationFamilyForProvider(provider, modelName);
   return getAdapterForFamily(family);
 }
 
 export function getDefaultInvocationConfig(
-  provider: ModelProvider
+  provider: ModelProvider,
+  modelName?: string
 ): ProviderInvocationConfig {
-  const adapter = getAdapterForProvider(provider);
+  const adapter = getAdapterForProvider(provider, modelName);
   return adapter.normalize(adapter.getDefaultConfig());
 }
 
@@ -89,35 +91,47 @@ export function getDefaultInvocationConfig(
  * Used by the store's hydration path for saved user preferences. This preserves
  * the saved canonical shape; fresh defaults come only from
  * `getDefaultInvocationConfig`.
+ *
+ * The `modelName` argument selects the right adapter for providers (currently
+ * Vertex AI) that front multiple invocation-parameter families.
  */
 export function parseInvocationConfig(
   provider: ModelProvider,
+  modelName: string | undefined,
   raw: unknown
 ): ProviderInvocationConfig {
-  const adapter = getAdapterForProvider(provider);
+  const adapter = getAdapterForProvider(provider, modelName);
   return adapter.normalize(adapter.parseConfig(raw));
 }
 
 /**
  * Canonical provider config → GraphQL prompt invocation input.
+ *
+ * The `modelName` argument selects the right adapter for providers (currently
+ * Vertex AI) that front multiple invocation-parameter families.
  */
 export function invocationConfigToPromptInput(
   provider: ModelProvider,
+  modelName: string | undefined,
   config: ProviderInvocationConfig
 ): PromptInvocationParametersInput {
-  return getAdapterForProvider(provider).toPromptInput(config);
+  return getAdapterForProvider(provider, modelName).toPromptInput(config);
 }
 
 /**
  * GraphQL prompt invocation fragment data → canonical provider config. Prompt
  * load commits this config directly to playground state.
+ *
+ * The `modelName` argument selects the right adapter for providers (currently
+ * Vertex AI) that front multiple invocation-parameter families.
  */
 export function promptInvocationDataToInvocationConfig(
   provider: ModelProvider,
+  modelName: string | undefined,
   data: PromptInvocationParametersReadableFragment$data | null
 ): ProviderInvocationConfig {
-  if (data == null) return getDefaultInvocationConfig(provider);
-  const family = getInvocationFamilyForProvider(provider);
+  if (data == null) return getDefaultInvocationConfig(provider, modelName);
+  const family = getInvocationFamilyForProvider(provider, modelName);
   const isMatchingTypename =
     (family === InvocationFamily.OPENAI &&
       data.__typename === "PromptOpenAIInvocationParameters") ||
@@ -128,9 +142,12 @@ export function promptInvocationDataToInvocationConfig(
     (family === InvocationFamily.AWS_BEDROCK &&
       data.__typename === "PromptAwsInvocationParameters");
   if (!isMatchingTypename) {
-    return getDefaultInvocationConfig(provider);
+    return getDefaultInvocationConfig(provider, modelName);
   }
-  return getAdapterForProvider(provider).fromPromptInvocationParameters(data);
+  return getAdapterForProvider(
+    provider,
+    modelName
+  ).fromPromptInvocationParameters(data);
 }
 
 /**

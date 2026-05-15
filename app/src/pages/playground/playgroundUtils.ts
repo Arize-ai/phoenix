@@ -2055,6 +2055,7 @@ export function buildPromptVersionInput({
     customProviderId: instance.model.customProvider?.id ?? null,
     invocationParameters: invocationConfigToPromptInput(
       instance.model.provider,
+      instance.model.modelName ?? modelName ?? undefined,
       invocationParameters
     ),
     tools: instance.tools.length

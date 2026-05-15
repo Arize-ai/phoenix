@@ -48,7 +48,11 @@ describe("makeLLMEvaluatorInstance", () => {
     };
     const instance = makeLLMEvaluatorInstance({ modelConfigByProvider })![0];
     expect(instance.model.invocationParameters).toEqual(
-      parseInvocationConfig(DEFAULT_MODEL_PROVIDER, savedInvocationParameters)
+      parseInvocationConfig(
+        DEFAULT_MODEL_PROVIDER,
+        "gpt-4o-mini",
+        savedInvocationParameters
+      )
     );
     // Sanity: the saved value actually round-tripped rather than being dropped.
     expect(instance.model.invocationParameters).toMatchObject({

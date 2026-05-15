@@ -164,6 +164,7 @@ export function buildPlaygroundInstanceFieldsFromPromptConfig({
   const data = readPromptInvocationParametersData(invocationParametersRef);
   const invocationParameters = promptInvocationDataToInvocationConfig(
     provider,
+    modelName,
     data
   );
 

@@ -91,7 +91,8 @@ export function ModelInvocationParametersFormFields(
       instance.model
     );
   const invocationFamily = getInvocationFamilyForProvider(
-    instance.model.provider
+    instance.model.provider,
+    instance.model.modelName ?? undefined
   );
   const canConfigureExtraBody =
     invocationFamily === InvocationFamily.OPENAI ||
