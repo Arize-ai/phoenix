@@ -18,15 +18,15 @@ export function getDefaultCodeEvaluatorSource(
 ): string {
   if (language === "PYTHON") {
     return `def evaluate(output, reference=None, input=None, metadata=None):
-${PYTHON_INDENT}# Return a dict with any of "score", "label", or "explanation".
-${PYTHON_INDENT}# A bare number is recorded as a score; a bare string as a label.
+${PYTHON_INDENT}# return 1.0     # numbers are recorded as scores
+${PYTHON_INDENT}# return "pass"  # strings are recorded as labels
 ${PYTHON_INDENT}return {"score": 1.0, "label": "pass", "explanation": "..."}
 `;
   }
   // TYPESCRIPT
   return `function evaluate({ output, reference, input, metadata }: EvaluatorParams) {
-${TYPESCRIPT_INDENT}// Return an object with any of score, label, or explanation.
-${TYPESCRIPT_INDENT}// A bare number is recorded as a score; a bare string as a label.
+${TYPESCRIPT_INDENT}// return 1;        // numbers are recorded as scores
+${TYPESCRIPT_INDENT}// return "pass";   // strings are recorded as labels
 ${TYPESCRIPT_INDENT}return { score: 1, label: "pass", explanation: "..." };
 }
 `;
