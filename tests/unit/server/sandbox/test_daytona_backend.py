@@ -397,14 +397,8 @@ class TestTypescriptRouting:
         )
 
 
-# ---------------------------------------------------------------------------
-# ANSI hygiene — D4: ExecutionResult.stdout/.stderr/.error are ANSI-stripped
-# ---------------------------------------------------------------------------
-
-
 def test_to_execution_result_strips_ansi_on_success() -> None:
-    """Daytona's combined-stream output must be ANSI-stripped before landing
-    on ``ExecutionResult.stdout``."""
+    """Daytona's combined-stream output is ANSI-stripped before landing on stdout."""
     from phoenix.server.sandbox.daytona_backend import _to_execution_result
 
     response = MagicMock(result="\x1b[32mok\x1b[0m\n", exit_code=0)

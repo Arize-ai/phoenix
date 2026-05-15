@@ -37,7 +37,7 @@ from phoenix.server.sandbox.types import ExecutionResult
 
 
 def _fenced(payload: str) -> str:
-    """Wrap a stdout payload in the harness's sentinel markers."""
+    """Wrap a stdout payload in the result sentinel markers."""
     return f"{_PHOENIX_RESULT_BEGIN}\n{payload}\n{_PHOENIX_RESULT_END}\n"
 
 
@@ -115,12 +115,8 @@ class TestHarnessGeneration:
         assert "def evaluate(**kw): return 1" in harness
 
     def test_python_harness_embeds_inputs_as_native_literal(self) -> None:
-        """Python harness must embed inputs via ``repr()`` — not via
-        ``json.loads`` of a JSON-string layer. The historical pattern
-        (``json.dumps`` → ``repr()`` → ``json.loads``) left visibly
-        doubly-escaped strings in harness source whenever a traceback landed
-        on a span; embedding native literals removes that escape layer.
-        """
+        """Inputs are embedded as a Python literal via ``repr()`` so tracebacks
+        show readable values instead of escape-heavy JSON strings."""
         runner, _ = _make_runner()
         harness = runner._build_python_harness({"key": "value"})
         assert "_inputs = {'key': 'value'}" in harness
@@ -152,14 +148,9 @@ class TestHarnessGeneration:
         assert "await _run();" in harness
 
     def test_typescript_harness_wraps_result_in_sentinels(self) -> None:
-        """The TS harness must emit its JSON result between unambiguous
-        sentinel markers. Runners that share stdout with banner-producing
-        tooling (Daytona's first ``code_run`` injects an ``npm notice``
-        block into the same stdout channel as ``console.log``) depend on
-        the sentinels to locate the user's payload — without them, a
-        polluted stdout parses as a label-shaped string and fails the
-        continuous-output validator with ``score=None``.
-        """
+        """The TS result is printed between sentinel markers so banner text
+        from runtimes like Daytona (which injects ``npm notice`` on the same
+        stdout channel) doesn't end up parsed as the result."""
         from phoenix.server.api.evaluators import (
             _TYPESCRIPT_RESULT_BEGIN,
             _TYPESCRIPT_RESULT_END,
@@ -338,8 +329,7 @@ class TestEvaluateSuccessPath:
 
         call_args = backend.execute.call_args
         code_arg = call_args.args[0] if call_args.args else call_args.kwargs.get("code", "")
-        # Python harness now embeds inputs via repr() (native literal),
-        # so keys/values are single-quoted, not JSON-double-quoted.
+        # Inputs are embedded as a Python repr() literal — single-quoted.
         assert "'output': {'answer': 'a'}" in code_arg
         assert "'reference': {'answer': 'a'}" in code_arg
 
@@ -528,14 +518,10 @@ class TestBackendConfiguration:
     ) -> None:
         """Daytona-style banner pollution must not break TS result parsing.
 
-        When the underlying TS runtime prints banner text (e.g. ``npm notice``
-        lines on Daytona's first ``code_run`` after sandbox creation) into the
-        same stdout channel as the user's harness output, the runner must
-        still extract the JSON payload between sentinel markers and coerce it
-        to a numeric score. The regression this guards: pre-sentinel, the
-        polluted multi-line stdout failed JSON parsing, the whole string fell
-        through as a "label", and the continuous validator raised
-        ``Continuous output requires a numeric score. Got score=None.``
+        When the TS runtime prints banner text (e.g. ``npm notice`` lines on
+        Daytona's first ``code_run``) on the same stdout channel as the user's
+        output, the runner must still extract the JSON payload between the
+        sentinel markers and coerce it to a numeric score.
         """
         from phoenix.server.api.evaluators import (
             _TYPESCRIPT_RESULT_BEGIN,
@@ -1170,7 +1156,7 @@ class TestSandboxSpanContract:
         assert json.loads(str(parse_attrs[INPUT_VALUE])) == result_dict
 
     async def test_missing_fence_marks_parse_error_and_omits_output(self) -> None:
-        """When the harness output contains no sentinels at all, the Sandbox
+        """When the sandbox output contains no sentinels at all, the Sandbox
         span carries parse_error in metadata, no output attribute, and the
         Parse Eval Result span sees the raw text (not a coerced label)."""
         runner, _ = _make_runner(
@@ -1232,9 +1218,9 @@ class TestSandboxSpanContract:
         assert results[0]["error"] == "provider down"
 
     async def test_python_harness_has_no_doubly_escaped_strings(self) -> None:
-        """D2: native ``repr()`` of inputs avoids the historical
-        ``json.dumps`` → ``repr()`` → ``json.loads`` round-trip that put
-        ``\\\\"`` into harness source."""
+        """The repr() of inputs avoids the historical ``json.dumps`` →
+        ``repr()`` → ``json.loads`` round-trip that put ``\\\\"`` into the
+        generated script."""
         runner, _ = _make_runner()
         harness = runner._build_python_harness({"q": 'She said "hi"'})
         # repr() produces a single-quoted Python string with an embedded

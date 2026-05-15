@@ -368,9 +368,7 @@ class ChatCompletionMutationMixin:
                     sandbox_backend=sandbox_backend,
                     language=language,
                     timeout=sandbox_timeout,
-                    # Persisted version exists for stored evaluators — surface
-                    # the GlobalID on the Sandbox span as metadata so a trace
-                    # backlinks to the immutable source-of-record version.
+                    # Backlink the trace to the persisted evaluator version.
                     evaluator_version_id=str(
                         GlobalID("CodeEvaluatorVersion", str(code_evaluator_version.id))
                     ),

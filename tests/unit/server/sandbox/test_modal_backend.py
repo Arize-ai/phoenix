@@ -237,15 +237,9 @@ async def test_client_construction_is_memoized_across_sandbox_creates() -> None:
     assert modal_mock.Sandbox.create.aio.await_count == 2
 
 
-# ---------------------------------------------------------------------------
-# ANSI hygiene — D4: ExecutionResult.stdout/.stderr/.error are ANSI-stripped
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.asyncio
 async def test_exec_code_strips_ansi_from_all_three_fields() -> None:
-    """Modal backend must ANSI-strip stdout/stderr/error so non-trace
-    consumers see clean text on every field of ``ExecutionResult``."""
+    """stdout, stderr, and error returned by the Modal backend are ANSI-stripped."""
     modal_mock = _make_modal_mock()
     with patch.dict(sys.modules, {"modal": modal_mock}):
         from phoenix.server.sandbox.modal_backend import ModalSandboxBackend
@@ -268,8 +262,7 @@ async def test_exec_code_strips_ansi_from_all_three_fields() -> None:
 
 @pytest.mark.asyncio
 async def test_execute_strips_ansi_in_raised_exception_path() -> None:
-    """ANSI bytes in str(exc) must be stripped on stderr/error when execute
-    catches a raised exception."""
+    """ANSI bytes in str(exc) are stripped on stderr/error when execute catches an exception."""
     modal_mock = _make_modal_mock()
     modal_mock.Sandbox.create.aio = AsyncMock(
         side_effect=RuntimeError("\x1b[31mprovider error\x1b[0m")

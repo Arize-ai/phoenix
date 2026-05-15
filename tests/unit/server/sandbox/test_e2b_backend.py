@@ -188,15 +188,9 @@ def test_build_backend_requires_api_key() -> None:
         adapter.build_backend({_CANONICAL_API_KEY: ""})
 
 
-# ---------------------------------------------------------------------------
-# ANSI hygiene — D4: ExecutionResult.stdout/.stderr/.error are ANSI-stripped
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.asyncio
 async def test_execute_strips_ansi_from_all_three_fields() -> None:
-    """E2B backend must ANSI-strip stdout/stderr/error so non-trace consumers
-    see clean text on every field of ``ExecutionResult``."""
+    """stdout, stderr, and error returned by the E2B backend are ANSI-stripped."""
     execution = MagicMock()
     execution.logs.stdout = ["\x1b[32mok\x1b[0m"]
     execution.logs.stderr = ["\x1b[31merror\x1b[0m: bad"]

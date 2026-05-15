@@ -2451,32 +2451,21 @@ def _infer_python_evaluate_input_schema(source_code: str) -> tuple[dict[str, Any
 _TYPESCRIPT_FUNCTION_SIGNATURE_RE = re.compile(r"function\s+evaluate\s*\(([^)]*)\)")
 _TYPESCRIPT_ARROW_SIGNATURE_RE = re.compile(r"(?:const|let|var)\s+evaluate\s*=\s*\(([^)]*)\)\s*=>")
 
-# Sentinel markers wrapping the JSON result emitted by the TypeScript harness.
-# Required because some sandbox runtimes (notably Daytona, whose first
-# `code_run` on a fresh TS workspace prints a multi-line `npm notice` banner
-# into the same stdout channel as the user's `console.log`) co-mingle banner
-# text with user output. Wrapping the JSON in unambiguous sentinels lets the
-# runner extract exactly the user-emitted payload regardless of surrounding
-# noise.
-#
-# Both Python and TypeScript harnesses now emit their printed result between
-# line-anchored markers. ``_extract_fenced_result`` scans for complete
-# BEGIN/END pairs and returns the content of the *last* pair, so any debug
-# ``print`` (Python) or ``console.log`` (TS) the user emits before returning
-# lands outside the fence and stays on ``metadata.stdout`` rather than
-# polluting the parsed result.
+# Sentinel markers wrapping the JSON result printed by the generated script.
+# Some sandbox runtimes (e.g. Daytona, which prints a multi-line `npm notice`
+# banner on the first TS run) co-mingle banner text with user output on the
+# same stdout channel. ``_extract_fenced_result`` keeps the *last* complete
+# BEGIN/END pair so user ``print`` / ``console.log`` calls before the result
+# stay outside the fence and don't pollute the parsed value.
 _PHOENIX_RESULT_BEGIN = "===PHOENIX_RESULT_BEGIN==="
 _PHOENIX_RESULT_END = "===PHOENIX_RESULT_END==="
-# Line-anchored: marker must start at line start and consume the rest of the
-# line. Accepts ``\n`` and ``\r\n`` terminators. ``re.MULTILINE`` makes ``^``
-# match line starts; we explicitly anchor end-of-line with ``$``.
+# Markers must occupy their own line; ``\r\n`` line endings are accepted.
 _PHOENIX_RESULT_BEGIN_RE = re.compile(
     r"^" + re.escape(_PHOENIX_RESULT_BEGIN) + r"\s*$", re.MULTILINE
 )
 _PHOENIX_RESULT_END_RE = re.compile(r"^" + re.escape(_PHOENIX_RESULT_END) + r"\s*$", re.MULTILINE)
 
-# Legacy TS sentinel names retained as aliases for tests / external imports;
-# the wire markers are now the shared ``===PHOENIX_RESULT_*===`` tokens above.
+# Legacy TS-prefixed aliases — kept for external imports.
 _TYPESCRIPT_RESULT_BEGIN = _PHOENIX_RESULT_BEGIN
 _TYPESCRIPT_RESULT_END = _PHOENIX_RESULT_END
 
@@ -2597,9 +2586,9 @@ class CodeEvaluatorRunner(BaseEvaluator):
     """
     Evaluator that executes user-provided source code in a sandbox.
 
-    The user's source_code must define a callable named ``evaluate`` (D6).
-    The harness calls ``evaluate(**mapped_inputs)`` and coerces the return
-    value via _coerce_output against each output_config.
+    The user's source_code must define a callable named ``evaluate``. We wrap
+    it in a small script that calls ``evaluate(**mapped_inputs)`` and coerce
+    the return value via _coerce_output against each output_config.
 
     Supports both PYTHON and TYPESCRIPT languages. The sandbox session key
     is derived from the runner's name (``self._name``).
@@ -2623,13 +2612,10 @@ class CodeEvaluatorRunner(BaseEvaluator):
         self._sandbox_backend: SandboxBackend = sandbox_backend
         self._language = language.upper()
         self._timeout = timeout
-        # Optional GlobalID of the persisted code-evaluator version that
-        # backs this runner. Stored evaluators (dataset experiments,
-        # stored-evaluator previews) pass this so the Sandbox span carries a
-        # stable backlink to the immutable source-of-record version. Inline
-        # previews have no persisted version and omit this — the field is
-        # then absent from sandbox metadata, and that absence is itself
-        # informative ("this trace did not come from a stored version").
+        # GlobalID of the persisted code-evaluator version, when one exists.
+        # Stored evaluators pass it so the Sandbox span can link to the
+        # version detail page. Inline previews leave it None; the metadata
+        # key is then omitted (its absence signals "no stored version").
         self._evaluator_version_id = evaluator_version_id
 
     @property
@@ -2659,17 +2645,10 @@ class CodeEvaluatorRunner(BaseEvaluator):
     def _build_python_harness(self, mapped_inputs: dict[str, Any]) -> str:
         """Wrap source_code in a Python script that calls evaluate(**inputs).
 
-        Inputs are embedded as a native Python literal via ``repr()`` — for
-        the JSON-safe primitives Phoenix passes through ``mapped_inputs``,
-        ``repr()`` produces valid Python source. This avoids the historical
-        ``json.dumps`` → ``repr()`` → ``json.loads`` round-trip which left
-        visibly doubly-escaped strings (``\\\"``) in harness source whenever
-        a traceback landed on a span.
-
-        The result is emitted between ``===PHOENIX_RESULT_BEGIN===`` /
-        ``===PHOENIX_RESULT_END===`` line-anchored sentinels so user
-        ``print()`` calls and framework noise on stdout cannot pollute the
-        parsed result. The runner extracts the last complete pair.
+        Inputs are embedded via ``repr()`` so tracebacks show readable Python
+        literals rather than escape-heavy JSON strings. The result is printed
+        between sentinel markers so user ``print()`` calls and framework noise
+        on stdout don't pollute the parsed value.
         """
         return (
             f"{self._source_code}\n\n"
@@ -2684,13 +2663,10 @@ class CodeEvaluatorRunner(BaseEvaluator):
     def _build_typescript_harness(self, mapped_inputs: dict[str, Any]) -> str:
         """Wrap source_code in a TypeScript script that calls evaluate(inputs).
 
-        Inputs are emitted as a JSON literal — valid JS expression syntax for
-        the JSON-safe primitives Phoenix accepts — and the result is printed
-        between ``===PHOENIX_RESULT_BEGIN===`` / ``===PHOENIX_RESULT_END===``
-        line-anchored sentinels on their own lines. The runner extracts the
-        last complete pair, so banner text from TS runtimes (e.g. Daytona's
-        first-``code_run`` npm notice) and user ``console.log`` calls before
-        the return cannot pollute the parsed result.
+        Inputs are emitted as a JSON literal. The result is printed between
+        sentinel markers so runtime banner text (e.g. Daytona's first-run
+        ``npm notice``) and user ``console.log`` output stay out of the
+        parsed value.
         """
         inputs_json = json.dumps(mapped_inputs)
         return (
@@ -2920,9 +2896,8 @@ class CodeEvaluatorRunner(BaseEvaluator):
                         for _ in (output_configs or [None])  # type: ignore[list-item]
                     ]
 
-                # Extract fenced result (post-ANSI-strip; backends already
-                # ANSI-strip per D4). Fenced text is the parse candidate;
-                # non-fenced text lands on metadata.stdout below.
+                # Split stdout into the fenced result (the parse candidate)
+                # and the surrounding text (recorded as metadata.stdout below).
                 fenced_text, non_fenced_stdout = _extract_fenced_result(execution.stdout)
 
                 raw_value: Any = None
@@ -2936,8 +2911,8 @@ class CodeEvaluatorRunner(BaseEvaluator):
                         except json.JSONDecodeError as exc:
                             parse_error = f"result JSON parse failed: {exc.msg}"
 
-                # Merged metadata write at span close — see D3. Splitting
-                # metadata across multiple OI calls would overwrite, not merge.
+                # Merge all metadata fields into a single attribute write —
+                # multiple OI metadata writes overwrite rather than merge.
                 merged_metadata = dict(sandbox_metadata)
                 if non_fenced_stdout:
                     merged_metadata["stdout"] = non_fenced_stdout
@@ -3006,11 +2981,10 @@ class CodeEvaluatorRunner(BaseEvaluator):
             results: list[EvaluationResult] = []
             any_coerce_error = False
             last_coerce_error: Optional[str] = None
-            # Parse Eval Result input: parsed dict on happy path, raw fenced
-            # text (or empty string when no fence was found) on parse-error
-            # path — per D3, we do NOT pass parse-failure text through
-            # _coerce_output, since bare strings would be laundered into
-            # categorical labels.
+            # On the happy path, pass the parsed dict to Parse Eval Result.
+            # On parse-error, pass the raw fenced text (or empty string if no
+            # fence) — never the bare string through _coerce_output, which
+            # would silently turn it into a categorical label.
             parse_input: Any
             if parse_error is None:
                 parse_input = raw_value

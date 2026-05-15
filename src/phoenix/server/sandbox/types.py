@@ -327,11 +327,7 @@ class ModalConfig(BaseModel):
     )
 
 
-# ANSI CSI escape sequence regex. Centralized here because ANSI-cleanliness is
-# a class invariant of ``ExecutionResult`` (see ``__post_init__``) — every
-# consumer downstream (runner span attributes, error returns, log forwarders,
-# replay tooling) sees pre-stripped text without needing to know the strip
-# exists, and every backend author is structurally prevented from forgetting it.
+# Matches ANSI CSI escape sequences (e.g. color codes from tput / chalk).
 _ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
 
 
@@ -339,10 +335,8 @@ _ANSI_ESCAPE_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
 class ExecutionResult:
     """Result returned by a sandbox execution.
 
-    Invariant: ``stdout``, ``stderr``, and ``error`` are ANSI-stripped on
-    construction. Backends pass raw text; the strip happens here once so the
-    class invariant — "fields contain no ANSI escapes" — is structural rather
-    than maintained by convention at every call site.
+    ``stdout``, ``stderr``, and ``error`` are ANSI-stripped on construction so
+    callers never have to handle escape codes from backends.
     """
 
     stdout: str

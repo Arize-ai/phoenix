@@ -415,17 +415,11 @@ def test_adapter_build_backend_fails_closed_on_missing_triple(adapter_cls_name: 
         adapter.build_backend({"VERCEL_TOKEN": "t"})
 
 
-# ---------------------------------------------------------------------------
-# ANSI hygiene — D4: ExecutionResult.stdout/.stderr/.error are ANSI-stripped
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.asyncio
 async def test_execute_strips_ansi_from_all_three_fields(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Vercel backend must ANSI-strip stdout/stderr/error so non-trace consumers
-    (logs, error returns, replay tooling) see clean text."""
+    """stdout, stderr, and error returned by the Vercel backend are ANSI-stripped."""
     sandbox = MagicMock()
     sandbox.stop = AsyncMock()
     sandbox.client = MagicMock()
