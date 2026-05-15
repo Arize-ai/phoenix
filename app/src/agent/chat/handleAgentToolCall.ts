@@ -9,6 +9,7 @@ import {
   handleRegisteredAgentToolCall,
   type AgentToolCall,
 } from "@phoenix/agent/extensions/toolRegistry";
+import { isServerExecutedAgentToolName } from "@phoenix/agent/tools/serverToolTypes";
 import type { AgentStore } from "@phoenix/store/agentStore";
 
 type AddToolOutput = Chat<UIMessage>["addToolOutput"];
@@ -34,6 +35,9 @@ export async function handleAgentToolCall({
   addToolOutput,
   agentStore,
 }: HandleAgentToolCallOptions) {
+  if (isServerExecutedAgentToolName(toolCall.toolName)) {
+    return;
+  }
   await handleRegisteredAgentToolCall({
     toolCall,
     sessionId,

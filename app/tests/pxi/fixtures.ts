@@ -210,11 +210,7 @@ export class PxiDriver {
   expectDocsToolCalled(turn: PxiTurn) {
     // These names intentionally match Phoenix's docs tool prompt contract.
     // If the docs tool names change, update this assertion with the prompt.
-    const docsToolNames = [
-      "search_phoenix",
-      "get_page_phoenix",
-      "query_docs_filesystem_phoenix",
-    ];
+    const docsToolNames = ["search_phoenix", "query_docs_filesystem_phoenix"];
     const hasCalledDocsTool = turn.calledTools.some((toolName) =>
       docsToolNames.includes(toolName)
     );
