@@ -1,0 +1,4 @@
+<phoenix_gql_mutations_policy>
+  <status>disabled</status>
+  <guidance>GraphQL mutations are disabled for phoenix-gql. Only read-only GraphQL queries are permitted.</guidance>
+</phoenix_gql_mutations_policy>

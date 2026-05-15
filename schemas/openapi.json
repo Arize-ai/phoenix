@@ -6663,23 +6663,6 @@
   },
   "components": {
     "schemas": {
-      "AgentCapabilities": {
-        "properties": {
-          "bash.retainInactiveSessions": {
-            "type": "boolean",
-            "title": "Bash.Retaininactivesessions",
-            "default": false
-          },
-          "graphql.mutations": {
-            "type": "boolean",
-            "title": "Graphql.Mutations",
-            "default": false
-          }
-        },
-        "type": "object",
-        "title": "AgentCapabilities",
-        "description": "Runtime capability state sent by the browser for a chat turn."
-      },
       "AgentSpanContext": {
         "properties": {
           "type": {
@@ -7322,6 +7305,9 @@
           },
           {
             "$ref": "#/components/schemas/PlaygroundContext"
+          },
+          {
+            "$ref": "#/components/schemas/GraphQLContext"
           }
         ],
         "title": "ChatContext",
@@ -7330,6 +7316,7 @@
           "propertyName": "type",
           "mapping": {
             "app": "#/components/schemas/AppContext",
+            "graphql": "#/components/schemas/GraphQLContext",
             "playground": "#/components/schemas/PlaygroundContext",
             "project": "#/components/schemas/ProjectContext",
             "span": "#/components/schemas/AgentSpanContext",
@@ -7382,9 +7369,6 @@
             },
             "type": "array",
             "title": "Contexts"
-          },
-          "capabilities": {
-            "$ref": "#/components/schemas/AgentCapabilities"
           },
           "model": {
             "oneOf": [
@@ -7470,9 +7454,6 @@
             },
             "type": "array",
             "title": "Contexts"
-          },
-          "capabilities": {
-            "$ref": "#/components/schemas/AgentCapabilities"
           },
           "model": {
             "oneOf": [
@@ -9628,6 +9609,26 @@
           "data"
         ],
         "title": "GetViewerResponseBody"
+      },
+      "GraphQLContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "graphql",
+            "title": "Type"
+          },
+          "mutationsEnabled": {
+            "type": "boolean",
+            "title": "Mutationsenabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "mutationsEnabled"
+        ],
+        "title": "GraphQLContext",
+        "description": "GraphQL runtime state."
       },
       "HTTPValidationError": {
         "properties": {

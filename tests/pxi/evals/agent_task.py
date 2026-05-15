@@ -13,10 +13,8 @@ from phoenix.config import (
     get_env_allow_external_resources,
     get_env_dangerously_enable_agents,
 )
-from phoenix.server.agents.agent_factory import ChatOutput, build_agent
-from phoenix.server.agents.capabilities import AgentCapabilities
+from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.context import ProjectContext, ResolvedContexts
-from phoenix.server.agents.dependencies import ChatDependencies
 from phoenix.server.agents.model_factory import (
     _anthropic_cache_settings as anthropic_cache_settings,
 )
@@ -27,6 +25,7 @@ from phoenix.server.agents.model_factory import (
     azure_endpoint_to_base_url,
 )
 from phoenix.server.agents.toolsets.docs_mcp import MintlifyDocsMCPServer
+from phoenix.server.agents.types import AgentDependencies, AgentOutput
 
 DEFAULT_ASSISTANT_PROVIDER = "OPENAI"
 DEFAULT_ASSISTANT_MODEL = "gpt-5.4"
@@ -143,7 +142,7 @@ def build_shared_docs_mcp_server() -> MCPServerStreamableHTTP | None:
     return MintlifyDocsMCPServer()
 
 
-def _build_dependencies() -> ChatDependencies:
+def _build_dependencies() -> AgentDependencies:
     contexts = ResolvedContexts(
         project=ProjectContext(
             type="project",
@@ -152,13 +151,10 @@ def _build_dependencies() -> ChatDependencies:
             root_spans_only=False,
         )
     )
-    return ChatDependencies(
-        contexts=contexts,
-        capabilities=AgentCapabilities(),
-    )
+    return AgentDependencies(contexts=contexts)
 
 
-def _serialize_new_messages(result: AgentRunResult[ChatOutput]) -> list[dict[str, Any]]:
+def _serialize_new_messages(result: AgentRunResult[AgentOutput]) -> list[dict[str, Any]]:
     return cast(list[dict[str, Any]], json.loads(result.new_messages_json()))
 
 
@@ -178,7 +174,7 @@ def _assistant_text_from_messages(messages: list[dict[str, Any]]) -> str | None:
     return "\n".join(text_parts) if text_parts else None
 
 
-def agent_task_output(result: AgentRunResult[ChatOutput]) -> dict[str, Any]:
+def agent_task_output(result: AgentRunResult[AgentOutput]) -> dict[str, Any]:
     output = result.output
     messages = _serialize_new_messages(result)
     assistant_text = _assistant_text_from_messages(messages)

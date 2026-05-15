@@ -50,12 +50,21 @@ function buildCurrentAppContext(): AgentContext {
 }
 
 /**
+ * Build GraphQL context from the current capability snapshot.
+ *
+ * Forwards the user's mutations toggle to the backend as a typed context so
+ * the agent's server-side instructions can render the matching guidance.
+ */
+function buildGraphQLContext(capabilities: AgentCapabilities): AgentContext {
+  return {
+    type: "graphql",
+    mutationsEnabled: capabilities["graphql.mutations"],
+  };
+}
+
+/**
  * Merges the AI SDK transport payload with PXI chat metadata. Tool definitions
  * are intentionally omitted because the server is the model-facing authority.
- *
- * The exported request body includes two agent-specific additions beyond the
- * raw AI SDK payload: runtime capabilities and typed UI contexts. Tool
- * definitions and prompt assembly are owned by the server.
  */
 export function buildAgentChatRequestBody({
   body,
@@ -69,9 +78,11 @@ export function buildAgentChatRequestBody({
   contexts,
   modelSelection,
 }: BuildAgentChatRequestBodyOptions): BuildAgentChatRequestBodyResult {
-  // Prepend volatile app context so server-rendered per-turn context includes
-  // the current browser-local clock alongside stable route/mounted contexts.
-  const requestContexts = [buildCurrentAppContext(), ...contexts];
+  const requestContexts = [
+    buildCurrentAppContext(),
+    buildGraphQLContext(capabilities),
+    ...contexts,
+  ];
   return {
     ...body,
     id,
@@ -81,7 +92,6 @@ export function buildAgentChatRequestBody({
     ingestTraces: observability.storeLocalTraces,
     exportRemoteTraces: observability.exportRemoteTraces && hasRemoteCollector,
     contexts: requestContexts,
-    capabilities,
     model: modelSelection,
   };
 }

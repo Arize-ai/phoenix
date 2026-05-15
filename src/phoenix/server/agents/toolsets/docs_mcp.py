@@ -8,7 +8,7 @@ from pydantic_ai.mcp import MCPServerStreamableHTTP
 from pydantic_ai.messages import InstructionPart
 from pydantic_ai.toolsets import WrapperToolset
 
-from phoenix.server.agents.dependencies import ChatDependencies
+from phoenix.server.agents.types import AgentDependencies
 
 
 class MintlifyDocsMCPServer(MCPServerStreamableHTTP):
@@ -21,7 +21,7 @@ class MintlifyDocsMCPServer(MCPServerStreamableHTTP):
 
 
 @dataclass
-class DocsToolInstructionsToolset(WrapperToolset[ChatDependencies]):
+class DocsToolInstructionsToolset(WrapperToolset[AgentDependencies]):
     """Wraps the docs MCP toolset to surface Phoenix's local docs-tool guidance
     as a cacheable (``dynamic=False``) instructions part.
 
@@ -33,6 +33,6 @@ class DocsToolInstructionsToolset(WrapperToolset[ChatDependencies]):
 
     async def get_instructions(
         self,
-        ctx: RunContext[ChatDependencies],
+        ctx: RunContext[AgentDependencies],
     ) -> str | InstructionPart | Sequence[str | InstructionPart] | None:
         return InstructionPart(content=self.instructions, dynamic=False)

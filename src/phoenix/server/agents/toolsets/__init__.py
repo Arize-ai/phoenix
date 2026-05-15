@@ -7,12 +7,12 @@ from pydantic_ai import RunContext
 from pydantic_ai.mcp import MCPServerStreamableHTTP
 from pydantic_ai.toolsets import AbstractToolset, CombinedToolset
 
-from phoenix.server.agents.dependencies import ChatDependencies
 from phoenix.server.agents.prompts import AgentInstructions
 from phoenix.server.agents.pydantic_ai import OpenInferenceToolsetWrapper
 from phoenix.server.agents.toolsets.docs_mcp import DocsToolInstructionsToolset
 from phoenix.server.agents.toolsets.external import build_external_tools
 from phoenix.server.agents.toolsets.external.toolset import ExternalToolsetWithInstructions
+from phoenix.server.agents.types import AgentDependencies
 
 
 def build_toolset_factory(
@@ -20,7 +20,7 @@ def build_toolset_factory(
     instructions: AgentInstructions,
     docs_mcp_server: MCPServerStreamableHTTP | None = None,
     tracer_provider: TracerProvider | None = None,
-) -> Callable[[RunContext[ChatDependencies]], OpenInferenceToolsetWrapper[ChatDependencies]]:
+) -> Callable[[RunContext[AgentDependencies]], OpenInferenceToolsetWrapper[AgentDependencies]]:
     """Build the per-turn PXI toolset factory with ``instructions`` and
     ``docs_mcp_server`` bound at agent build time."""
     external_tools = build_external_tools(instructions)
@@ -35,9 +35,9 @@ def build_toolset_factory(
     )
 
     def _build_toolset(
-        ctx: RunContext[ChatDependencies],
-    ) -> OpenInferenceToolsetWrapper[ChatDependencies]:
-        toolsets: list[AbstractToolset[ChatDependencies]] = [
+        ctx: RunContext[AgentDependencies],
+    ) -> OpenInferenceToolsetWrapper[AgentDependencies]:
+        toolsets: list[AbstractToolset[AgentDependencies]] = [
             ExternalToolsetWithInstructions(
                 [tool for tool in external_tools if tool.should_include(ctx)]
             ),

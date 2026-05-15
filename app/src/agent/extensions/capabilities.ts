@@ -1,18 +1,13 @@
-import type { components } from "@phoenix/api/__generated__/v1";
-
 /**
  * Runtime capabilities are feature flags that shape what the agent can do and
- * how the UI should expose those controls. The server owns model-facing
- * capability guidance; the frontend sends the current capability state.
- *
- * The key union is derived from the backend `AgentCapabilities` model so the
- * frontend and server stay in lockstep.
+ * how the UI should expose those controls.
  *
  * For tool-extension workflow guidance, see
  * `.agents/skills/phoenix-pxi/resources/extending-tool-registry.md`.
  */
 export type AgentCapabilityKey =
-  keyof components["schemas"]["AgentCapabilities"];
+  | "bash.retainInactiveSessions"
+  | "graphql.mutations";
 
 /** Describes one capability and how it should appear across the app. */
 export type AgentCapabilityDefinition = {

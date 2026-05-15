@@ -4,21 +4,18 @@ from pydantic_ai.mcp import MCPServerStreamableHTTP
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.models import Model
 
-from phoenix.server.agents.capabilities import build_capability_system_prompt
 from phoenix.server.agents.context import (
     build_phoenix_context_user_message_content,
     insert_context_user_message,
 )
-from phoenix.server.agents.dependencies import ChatDependencies
 from phoenix.server.agents.prompts import AgentInstructions
 from phoenix.server.agents.pydantic_ai import OpenInferenceAgentWrapper
 from phoenix.server.agents.toolsets import build_toolset_factory
-
-ChatOutput = str | DeferredToolRequests
+from phoenix.server.agents.types import AgentDependencies, AgentOutput
 
 
 def _inject_ui_context(
-    ctx: RunContext[ChatDependencies],
+    ctx: RunContext[AgentDependencies],
     messages: list[ModelMessage],
 ) -> list[ModelMessage]:
     """Append the per-turn Phoenix UI context as a trailing user message.
@@ -40,7 +37,7 @@ def build_agent(
     instructions: AgentInstructions | None = None,
     docs_mcp_server: MCPServerStreamableHTTP | None = None,
     tracer_provider: TracerProvider | None = None,
-) -> OpenInferenceAgentWrapper[ChatDependencies, ChatOutput]:
+) -> OpenInferenceAgentWrapper[AgentDependencies, AgentOutput]:
     resolved_instructions = instructions or AgentInstructions()
     provider = tracer_provider or NoOpTracerProvider()
     build_toolset = build_toolset_factory(
@@ -52,7 +49,7 @@ def build_agent(
     agent = Agent(
         model,
         name="PXIAgent",
-        deps_type=ChatDependencies,
+        deps_type=AgentDependencies,
         output_type=[str, DeferredToolRequests],
         instructions=[resolved_instructions.base],
         toolsets=[build_toolset],
@@ -60,15 +57,10 @@ def build_agent(
     )
 
     @agent.instructions
-    def capability_instructions(ctx: RunContext[ChatDependencies]) -> str | None:
-        sections = []
-
-        capability_prompt = build_capability_system_prompt(ctx.deps.capabilities)
-        if capability_prompt:
-            sections.append(capability_prompt)
-
-        if not sections:
-            return None
-        return "\n\n".join(sections)
+    def graphql_instructions(ctx: RunContext[AgentDependencies]) -> str:
+        graphql = ctx.deps.contexts.graphql
+        if graphql is not None and graphql.mutations_enabled:
+            return resolved_instructions.graphql_mutations_enabled
+        return resolved_instructions.graphql_mutations_disabled
 
     return OpenInferenceAgentWrapper(agent, tracer_provider=provider)

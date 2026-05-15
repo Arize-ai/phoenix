@@ -8,11 +8,6 @@ from typing import Any, Literal, Mapping, Optional, Sequence, TypedDict, Union
 from typing_extensions import NotRequired
 
 
-class AgentCapabilities(TypedDict):
-    bash_retainInactiveSessions: NotRequired[bool]
-    graphql_mutations: NotRequired[bool]
-
-
 class AgentSpanContext(TypedDict):
     type: Literal["span"]
     projectNodeId: NotRequired[str]
@@ -202,6 +197,11 @@ class GetDatasetResponseBody(TypedDict):
 
 class GetExperimentResponseBody(TypedDict):
     data: Experiment
+
+
+class GraphQLContext(TypedDict):
+    type: Literal["graphql"]
+    mutationsEnabled: bool
 
 
 class IncompleteExperimentEvaluation(TypedDict):
@@ -1441,10 +1441,16 @@ class ChatRegenerateMessage(TypedDict):
     exportRemoteTraces: NotRequired[bool]
     contexts: NotRequired[
         Sequence[
-            Union[AppContext, ProjectContext, TraceContext, AgentSpanContext, PlaygroundContext]
+            Union[
+                AppContext,
+                ProjectContext,
+                TraceContext,
+                AgentSpanContext,
+                PlaygroundContext,
+                GraphQLContext,
+            ]
         ]
     ]
-    capabilities: NotRequired[AgentCapabilities]
 
 
 class ChatSubmitMessage(TypedDict):
@@ -1456,10 +1462,16 @@ class ChatSubmitMessage(TypedDict):
     exportRemoteTraces: NotRequired[bool]
     contexts: NotRequired[
         Sequence[
-            Union[AppContext, ProjectContext, TraceContext, AgentSpanContext, PlaygroundContext]
+            Union[
+                AppContext,
+                ProjectContext,
+                TraceContext,
+                AgentSpanContext,
+                PlaygroundContext,
+                GraphQLContext,
+            ]
         ]
     ]
-    capabilities: NotRequired[AgentCapabilities]
 
 
 class CreateSpansRequestBody(TypedDict):

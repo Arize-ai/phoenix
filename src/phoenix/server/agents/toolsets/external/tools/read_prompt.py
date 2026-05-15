@@ -4,10 +4,10 @@ from typing import Any
 
 from pydantic_ai import RunContext
 
-from phoenix.server.agents.dependencies import ChatDependencies
 from phoenix.server.agents.toolsets.external.external_tool_definitions import (
     DynamicExternalToolDefinition,
 )
+from phoenix.server.agents.types import AgentDependencies
 
 _READ_PROMPT_TOOL_NAME = "read_prompt_instance"
 
@@ -45,7 +45,7 @@ def build_read_prompt_tool(instructions: str) -> DynamicExternalToolDefinition:
     )
 
     @tool.include
-    def _include(ctx: RunContext[ChatDependencies]) -> bool:
+    def _include(ctx: RunContext[AgentDependencies]) -> bool:
         return ctx.deps.contexts.playground is not None
 
     return tool

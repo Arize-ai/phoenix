@@ -24,13 +24,11 @@ from pydantic_ai.usage import RunUsage
 from typing_extensions import TypeIs, assert_never
 
 from phoenix.server.agents.agent_factory import build_agent
-from phoenix.server.agents.capabilities import AgentCapabilities
 from phoenix.server.agents.context import (
     PlaygroundContext,
     ProjectContext,
     ResolvedContexts,
 )
-from phoenix.server.agents.dependencies import ChatDependencies
 from phoenix.server.agents.prompts import AgentInstructions
 from phoenix.server.agents.toolsets.docs_mcp import MintlifyDocsMCPServer
 from phoenix.server.agents.toolsets.external import build_external_tools
@@ -38,6 +36,7 @@ from phoenix.server.agents.toolsets.external.external_tool_definitions import (
     DynamicExternalToolDefinition,
     StaticExternalToolDefinition,
 )
+from phoenix.server.agents.types import AgentDependencies
 
 _DEFAULT_INSTRUCTIONS = AgentInstructions()
 
@@ -49,10 +48,9 @@ def _partition_tool_instructions() -> tuple[frozenset[str], frozenset[str]]:
     ``DynamicExternalToolDefinition`` in the per-turn set. Sourcing this from
     the tool definitions themselves keeps the test in sync as tools are added
     or moved between Static and Dynamic."""
-    default_ctx: RunContext[ChatDependencies] = RunContext(
-        deps=ChatDependencies(
+    default_ctx: RunContext[AgentDependencies] = RunContext(
+        deps=AgentDependencies(
             contexts=ResolvedContexts(),
-            capabilities=AgentCapabilities(),
         ),
         model=TestModel(),
         usage=RunUsage(),
@@ -224,10 +222,7 @@ class TestSystemBlockCacheBoundary:
         captured_request: CapturedRequest,
     ) -> None:
         agent = build_agent(model=anthropic_model)
-        deps = ChatDependencies(
-            contexts=ResolvedContexts(),
-            capabilities=AgentCapabilities(),
-        )
+        deps = AgentDependencies(contexts=ResolvedContexts())
 
         await agent.run("hello", deps=deps)
 
@@ -241,10 +236,7 @@ class TestSystemBlockCacheBoundary:
         captured_request: CapturedRequest,
     ) -> None:
         agent = build_agent(model=anthropic_model)
-        deps = ChatDependencies(
-            contexts=ResolvedContexts(),
-            capabilities=AgentCapabilities(),
-        )
+        deps = AgentDependencies(contexts=ResolvedContexts())
 
         await agent.run("hello", deps=deps)
 
@@ -259,7 +251,7 @@ class TestSystemBlockCacheBoundary:
         captured_request: CapturedRequest,
     ) -> None:
         agent = build_agent(model=anthropic_model)
-        deps = ChatDependencies(
+        deps = AgentDependencies(
             contexts=ResolvedContexts(
                 playground=PlaygroundContext(type="playground", instance_ids=[1]),
                 project=ProjectContext(
@@ -268,7 +260,6 @@ class TestSystemBlockCacheBoundary:
                     span_filter="",
                 ),
             ),
-            capabilities=AgentCapabilities(),
         )
 
         await agent.run("hello", deps=deps)
@@ -288,7 +279,7 @@ class TestSystemBlockCacheBoundary:
         static-tool prompt), and every block after it should be something
         else."""
         agent = build_agent(model=anthropic_model)
-        deps = ChatDependencies(
+        deps = AgentDependencies(
             contexts=ResolvedContexts(
                 playground=PlaygroundContext(type="playground", instance_ids=[1]),
                 project=ProjectContext(
@@ -297,7 +288,6 @@ class TestSystemBlockCacheBoundary:
                     span_filter="",
                 ),
             ),
-            capabilities=AgentCapabilities(),
         )
 
         await agent.run("hello", deps=deps)
@@ -321,7 +311,7 @@ class TestSystemBlockCacheBoundary:
         captured_request: CapturedRequest,
     ) -> None:
         agent = build_agent(model=anthropic_model)
-        deps = ChatDependencies(
+        deps = AgentDependencies(
             contexts=ResolvedContexts(
                 playground=PlaygroundContext(type="playground", instance_ids=[1]),
                 project=ProjectContext(
@@ -330,7 +320,6 @@ class TestSystemBlockCacheBoundary:
                     span_filter="",
                 ),
             ),
-            capabilities=AgentCapabilities(),
         )
 
         await agent.run("hello", deps=deps)
@@ -352,10 +341,7 @@ class TestDocsMCPToolset:
         docs_mcp_server: _OfflineDocsMCPToolset,
     ) -> None:
         agent = build_agent(model=anthropic_model, docs_mcp_server=docs_mcp_server)
-        deps = ChatDependencies(
-            contexts=ResolvedContexts(),
-            capabilities=AgentCapabilities(),
-        )
+        deps = AgentDependencies(contexts=ResolvedContexts())
 
         await agent.run("hello", deps=deps)
 
@@ -369,10 +355,7 @@ class TestDocsMCPToolset:
         captured_request: CapturedRequest,
     ) -> None:
         agent = build_agent(model=anthropic_model)
-        deps = ChatDependencies(
-            contexts=ResolvedContexts(),
-            capabilities=AgentCapabilities(),
-        )
+        deps = AgentDependencies(contexts=ResolvedContexts())
 
         await agent.run("hello", deps=deps)
 
@@ -387,10 +370,7 @@ class TestAgentInstructionsOverride:
     ) -> None:
         custom = AgentInstructions(base="CUSTOM_STATIC_SENTINEL")
         agent = build_agent(model=anthropic_model, instructions=custom)
-        deps = ChatDependencies(
-            contexts=ResolvedContexts(),
-            capabilities=AgentCapabilities(),
-        )
+        deps = AgentDependencies(contexts=ResolvedContexts())
 
         await agent.run("hello", deps=deps)
 
@@ -406,10 +386,7 @@ class TestAgentInstructionsOverride:
     ) -> None:
         custom = AgentInstructions(bash_tool="CUSTOM_BASH_SENTINEL")
         agent = build_agent(model=anthropic_model, instructions=custom)
-        deps = ChatDependencies(
-            contexts=ResolvedContexts(),
-            capabilities=AgentCapabilities(),
-        )
+        deps = AgentDependencies(contexts=ResolvedContexts())
 
         await agent.run("hello", deps=deps)
 

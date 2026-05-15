@@ -10,11 +10,14 @@ from pydantic_ai.messages import (
 from phoenix.server.agents.context import (
     AgentSpanContext,
     AppContext,
+    ChatContext,
+    GraphQLContext,
     ProjectContext,
     ResolvedContexts,
     TraceContext,
     build_phoenix_context_user_message_content,
     insert_context_user_message,
+    resolve_contexts,
 )
 
 
@@ -203,3 +206,19 @@ class TestInsertContextUserMessage:
         result = insert_context_user_message(original, content)
         assert len(result) == len(original) + 1
         assert isinstance(result[-1].parts[0], UserPromptPart)
+
+
+class TestGraphQLContext:
+    def test_parses_mutations_enabled_alias(self) -> None:
+        context = ChatContext.model_validate({"type": "graphql", "mutationsEnabled": True})
+        graphql = context.root
+        assert isinstance(graphql, GraphQLContext)
+        assert graphql.mutations_enabled is True
+
+    def test_resolve_contexts_populates_graphql(self) -> None:
+        contexts = [
+            ChatContext.model_validate({"type": "graphql", "mutationsEnabled": True}),
+        ]
+        resolved = resolve_contexts(contexts)
+        assert resolved.graphql is not None
+        assert resolved.graphql.mutations_enabled is True

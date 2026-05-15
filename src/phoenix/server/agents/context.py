@@ -6,6 +6,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
 from pydantic_ai.messages import ModelMessage
+from typing_extensions import assert_never
 
 # ID format conventions
 # ---------------------
@@ -88,10 +89,22 @@ class PlaygroundContext(_ChatContextBase):
     instance_ids: list[int] = Field(alias="instanceIds")
 
 
+class GraphQLContext(_ChatContextBase):
+    """GraphQL runtime state."""
+
+    type: Literal["graphql"]
+    mutations_enabled: bool = Field(alias="mutationsEnabled")
+
+
 class ChatContext(
     RootModel[
         Annotated[
-            AppContext | ProjectContext | TraceContext | AgentSpanContext | PlaygroundContext,
+            AppContext
+            | ProjectContext
+            | TraceContext
+            | AgentSpanContext
+            | PlaygroundContext
+            | GraphQLContext,
             Field(discriminator="type"),
         ]
     ]
@@ -111,6 +124,7 @@ class ResolvedContexts:
     trace: TraceContext | None = None
     span: AgentSpanContext | None = None
     playground: PlaygroundContext | None = None
+    graphql: GraphQLContext | None = None
 
 
 def resolve_contexts(contexts: list[ChatContext]) -> ResolvedContexts:
@@ -127,6 +141,10 @@ def resolve_contexts(contexts: list[ChatContext]) -> ResolvedContexts:
             resolved.trace = context_value
         elif isinstance(context_value, AgentSpanContext):
             resolved.span = context_value
+        elif isinstance(context_value, GraphQLContext):
+            resolved.graphql = context_value
+        else:
+            assert_never(context_value)
     return resolved
 
 

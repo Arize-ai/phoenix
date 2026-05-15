@@ -4,10 +4,10 @@ from typing import Any
 
 from pydantic_ai import RunContext
 
-from phoenix.server.agents.dependencies import ChatDependencies
 from phoenix.server.agents.toolsets.external.external_tool_definitions import (
     DynamicExternalToolDefinition,
 )
+from phoenix.server.agents.types import AgentDependencies
 
 _SET_SPANS_FILTER_TOOL_NAME = "set_spans_filter"
 
@@ -106,7 +106,7 @@ def build_set_spans_filter_tool(instructions: str) -> DynamicExternalToolDefinit
     )
 
     @tool.include
-    def _include(ctx: RunContext[ChatDependencies]) -> bool:
+    def _include(ctx: RunContext[AgentDependencies]) -> bool:
         project = ctx.deps.contexts.project
         return project is not None and project.span_filter is not None
 

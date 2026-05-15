@@ -63,5 +63,7 @@ export function agentContextKey(context: AgentContext): string {
         : `otel:${context.otelSpanId}`;
       return `span:${project}:${span}`;
     }
+    case "graphql":
+      return "graphql";
   }
 }
