@@ -26,8 +26,9 @@ function truncate(value: string, max: number): string {
 function contextLabel(context: AgentContext): string {
   switch (context.type) {
     case "app":
-      // App context is request-only clock metadata injected at send time, not
-      // user-visible page context, so it should never render as a pill.
+    case "graphql":
+      // Request-only runtime metadata, not user-visible page context, so it
+      // should never render as a pill.
       return "";
     case "playground":
       return "Playground";
@@ -91,7 +92,7 @@ export function AgentContextPills() {
   }
 
   const items = contexts.flatMap((context) => {
-    if (context.type === "app") {
+    if (context.type === "app" || context.type === "graphql") {
       return [];
     }
     const filterPill = spanFilterAttachmentData(context);

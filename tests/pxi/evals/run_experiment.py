@@ -26,7 +26,7 @@ from tests.pxi.evals.agent_task import (
     DEFAULT_ASSISTANT_PROVIDER,
     ENV_ASSISTANT_MODEL,
     ENV_ASSISTANT_PROVIDER,
-    build_shared_docs_mcp_toolset,
+    build_shared_docs_mcp_server,
     make_task,
 )
 from tests.pxi.evals.datasets import (
@@ -283,10 +283,10 @@ async def _run_async(config: ExperimentConfig) -> int:
     # Build the docs MCP toolset once and enter its async context manager for
     # the duration of the run, mirroring the production server's FastAPI
     # lifespan wiring.
-    docs_mcp_toolset = build_shared_docs_mcp_toolset()
+    docs_mcp_server = build_shared_docs_mcp_server()
     async with AsyncExitStack() as stack:
-        if docs_mcp_toolset is not None:
-            await stack.enter_async_context(docs_mcp_toolset)
+        if docs_mcp_server is not None:
+            await stack.enter_async_context(docs_mcp_server)
         try:
             phoenix_dataset = await client.datasets.create_dataset(
                 name=dataset.dataset_name,
@@ -307,7 +307,7 @@ async def _run_async(config: ExperimentConfig) -> int:
             # by the client-side evaluator lookup.
             experiment = await client.experiments.run_experiment(
                 dataset=phoenix_dataset,
-                task=make_task(docs_mcp_toolset=docs_mcp_toolset),
+                task=make_task(docs_mcp_server=docs_mcp_server),
                 experiment_name=name,
                 experiment_description=dataset.description,
                 experiment_metadata=metadata,

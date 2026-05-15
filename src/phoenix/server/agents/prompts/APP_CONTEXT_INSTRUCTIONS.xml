@@ -1,0 +1,5 @@
+<phoenix_app_context>
+  <description>The user's current browser clock. Use these values to resolve any relative time references in the user's requests.</description>
+  <current_browser_datetime>{current_browser_datetime}</current_browser_datetime>
+  <time_zone>{time_zone}</time_zone>
+</phoenix_app_context>

@@ -1,65 +1,79 @@
 from opentelemetry.trace import NoOpTracerProvider, TracerProvider
 from pydantic_ai import Agent, DeferredToolRequests, RunContext
-from pydantic_ai.messages import ModelMessage
+from pydantic_ai.mcp import MCPServerStreamableHTTP
 from pydantic_ai.models import Model
 
-from phoenix.server.agents.context import (
-    build_phoenix_context_user_message_content,
-    insert_context_user_message,
-)
-from phoenix.server.agents.dependencies import ChatDependencies
-from phoenix.server.agents.prompts import (
-    AGENT_STATIC_SYSTEM_PROMPT,
-    build_agent_dynamic_system_prompt,
-)
-from phoenix.server.agents.pydantic_ai import (
-    OpenInferenceAgentWrapper,
-    OpenInferenceToolsetWrapper,
-)
-from phoenix.server.agents.toolsets import build_toolset
-
-
-def _build_dynamic_instructions(ctx: RunContext[ChatDependencies]) -> str | None:
-    """Render request-specific PXI instructions from the run's dependencies."""
-    return build_agent_dynamic_system_prompt(capabilities=ctx.deps.capabilities)
-
-
-def _inject_ui_context(
-    ctx: RunContext[ChatDependencies],
-    messages: list[ModelMessage],
-) -> list[ModelMessage]:
-    """Append the per-turn Phoenix UI context as a trailing user message.
-
-    Running as a history processor (rather than mutating the request body)
-    keeps the static prefix — system prompt + prior conversation history —
-    byte-identical across turns, which is the prerequisite for any
-    provider-side prompt cache to take effect.
-    """
-    return insert_context_user_message(
-        messages,
-        build_phoenix_context_user_message_content(ctx.deps.contexts),
-    )
+from phoenix.server.agents.context import GraphQLContext
+from phoenix.server.agents.prompts import AgentInstructions
+from phoenix.server.agents.pydantic_ai import OpenInferenceAgentWrapper
+from phoenix.server.agents.toolsets import build_toolset_factory
+from phoenix.server.agents.types import AgentDependencies, AgentOutput
 
 
 def build_agent(
-    model: Model,
     *,
+    model: Model,
+    instructions: AgentInstructions | None = None,
+    docs_mcp_server: MCPServerStreamableHTTP | None = None,
     tracer_provider: TracerProvider | None = None,
-) -> OpenInferenceAgentWrapper:
+) -> OpenInferenceAgentWrapper[AgentDependencies, AgentOutput]:
+    resolved_instructions = instructions or AgentInstructions()
     provider = tracer_provider or NoOpTracerProvider()
-
-    def _build_toolset(
-        ctx: RunContext[ChatDependencies],
-    ) -> OpenInferenceToolsetWrapper[ChatDependencies]:
-        return build_toolset(ctx.deps, tracer_provider=provider)
+    build_toolset = build_toolset_factory(
+        instructions=resolved_instructions,
+        docs_mcp_server=docs_mcp_server,
+        tracer_provider=provider,
+    )
 
     agent = Agent(
         model,
         name="PXIAgent",
-        deps_type=ChatDependencies,
+        deps_type=AgentDependencies,
         output_type=[str, DeferredToolRequests],
-        instructions=[AGENT_STATIC_SYSTEM_PROMPT, _build_dynamic_instructions],
-        toolsets=[_build_toolset],
-        history_processors=[_inject_ui_context],
+        instructions=[resolved_instructions.base],
+        toolsets=[build_toolset],
     )
+
+    @agent.instructions
+    def app_instructions(ctx: RunContext[AgentDependencies]) -> str | None:
+        app_context = ctx.deps.contexts.app
+        if not app_context:
+            return None
+        return app_context.render_instruction(resolved_instructions)
+
+    @agent.instructions
+    def project_instructions(ctx: RunContext[AgentDependencies]) -> str | None:
+        project_context = ctx.deps.contexts.project
+        if not project_context:
+            return None
+        return project_context.render_instruction(resolved_instructions)
+
+    @agent.instructions
+    def trace_instructions(ctx: RunContext[AgentDependencies]) -> str | None:
+        trace_context = ctx.deps.contexts.trace
+        if not trace_context:
+            return None
+        return trace_context.render_instruction(resolved_instructions)
+
+    @agent.instructions
+    def span_instructions(ctx: RunContext[AgentDependencies]) -> str | None:
+        span_context = ctx.deps.contexts.span
+        if not span_context:
+            return None
+        return span_context.render_instruction(resolved_instructions)
+
+    @agent.instructions
+    def playground_instructions(ctx: RunContext[AgentDependencies]) -> str | None:
+        playground_context = ctx.deps.contexts.playground
+        if not playground_context:
+            return None
+        return playground_context.render_instruction(resolved_instructions)
+
+    @agent.instructions
+    def graphql_instructions(ctx: RunContext[AgentDependencies]) -> str:
+        graphql_context = ctx.deps.contexts.graphql
+        if not graphql_context:
+            return GraphQLContext.render_disabled_default(resolved_instructions)
+        return graphql_context.render_instruction(resolved_instructions)
+
     return OpenInferenceAgentWrapper(agent, tracer_provider=provider)

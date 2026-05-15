@@ -1384,27 +1384,6 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
-         * AgentCapabilities
-         * @description Runtime capability state sent by the browser for a chat turn.
-         */
-        AgentCapabilities: {
-            /**
-             * Bash.Retaininactivesessions
-             * @default false
-             */
-            "bash.retainInactiveSessions"?: boolean;
-            /**
-             * Graphql.Mutations
-             * @default false
-             */
-            "graphql.mutations"?: boolean;
-            /**
-             * Session.Storesessions
-             * @default false
-             */
-            "session.storeSessions"?: boolean;
-        };
-        /**
          * AgentSpanContext
          * @description Span the user has selected.
          *
@@ -1630,12 +1609,8 @@ export interface components {
         /**
          * ChatContext
          * @description Discriminated union of every UI-state context the agent understands.
-         *
-         *     Wrapped in ``RootModel`` so the generated OpenAPI schema exposes a single
-         *     named ``ChatContext`` component instead of inlining the ``oneOf`` at every
-         *     reference site. The actual member is accessible via ``.root``.
          */
-        ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"];
+        ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"] | components["schemas"]["GraphQLContext"];
         /**
          * ChatRegenerateMessage
          * @description Regenerate message extended with Phoenix-specific fields.
@@ -1664,7 +1639,6 @@ export interface components {
             exportRemoteTraces?: boolean;
             /** Contexts */
             contexts?: components["schemas"]["ChatContext"][];
-            capabilities?: components["schemas"]["AgentCapabilities"];
             /** Model */
             model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
         } & {
@@ -1701,7 +1675,6 @@ export interface components {
             exportRemoteTraces?: boolean;
             /** Contexts */
             contexts?: components["schemas"]["ChatContext"][];
-            capabilities?: components["schemas"]["AgentCapabilities"];
             /** Model */
             model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
         } & {
@@ -2566,6 +2539,23 @@ export interface components {
         GetViewerResponseBody: {
             /** Data */
             data: components["schemas"]["LocalUser"] | components["schemas"]["OAuth2User"] | components["schemas"]["LDAPUser"] | components["schemas"]["AnonymousUser"];
+        };
+        /**
+         * GraphQLContext
+         * @description GraphQL runtime state.
+         *
+         *     Unlike the other contexts this one always emits a block — when no instance
+         *     is present the policy defaults to ``disabled`` (the safe default). Callers
+         *     in the absent case should use :meth:`render_disabled_default`.
+         */
+        GraphQLContext: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "graphql";
+            /** Mutationsenabled */
+            mutationsEnabled: boolean;
         };
         /** HTTPValidationError */
         HTTPValidationError: {

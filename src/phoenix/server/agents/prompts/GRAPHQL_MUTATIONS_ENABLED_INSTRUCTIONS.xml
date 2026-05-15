@@ -1,0 +1,4 @@
+<phoenix_gql_mutations_policy>
+  <status>enabled</status>
+  <guidance>GraphQL mutations are enabled for phoenix-gql. Mutation operations may be executed when they are necessary and appropriate.</guidance>
+</phoenix_gql_mutations_policy>

@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic_ai.tools import ToolDefinition
+from phoenix.server.agents.toolsets.external.external_tool_definitions import (
+    StaticExternalToolDefinition,
+)
 
-SET_TIME_RANGE_TOOL_NAME = "set_time_range"
+_SET_TIME_RANGE_TOOL_NAME = "set_time_range"
 
 # Drift warning: the ``timeRangeKey`` enum below must stay in sync with:
 #   - ``parseSetTimeRangeInput`` in app/src/agent/extensions/toolRegistry.ts
@@ -41,15 +43,19 @@ _SET_TIME_RANGE_PARAMETERS: dict[str, Any] = {
     "additionalProperties": False,
 }
 
-SET_TIME_RANGE_TOOL_DEFINITION = ToolDefinition(
-    name=SET_TIME_RANGE_TOOL_NAME,
-    description=(
-        "Set the Phoenix app time range selector. Use preset `timeRangeKey` values for "
-        "standard relative windows (15m, 1h, 12h, 1d, 7d, 30d). Use `custom` with "
-        "`startTime` and optional `endTime` for specific calendar windows. The Phoenix UI "
-        "context includes the current date/time in the user's browser timezone; base "
-        "relative calendar phrases on that value, not on the currently selected time range."
-    ),
-    parameters_json_schema=_SET_TIME_RANGE_PARAMETERS,
-    kind="external",
+_SET_TIME_RANGE_TOOL_DESCRIPTION = (
+    "Set the Phoenix app time range selector. Use preset `timeRangeKey` values for "
+    "standard relative windows (15m, 1h, 12h, 1d, 7d, 30d). Use `custom` with "
+    "`startTime` and optional `endTime` for specific calendar windows. The Phoenix UI "
+    "context includes the current date/time in the user's browser timezone; base "
+    "relative calendar phrases on that value, not on the currently selected time range."
 )
+
+
+def build_set_time_range_tool(instructions: str) -> StaticExternalToolDefinition:
+    return StaticExternalToolDefinition(
+        name=_SET_TIME_RANGE_TOOL_NAME,
+        description=_SET_TIME_RANGE_TOOL_DESCRIPTION,
+        parameters_json_schema=_SET_TIME_RANGE_PARAMETERS,
+        instructions=instructions,
+    )

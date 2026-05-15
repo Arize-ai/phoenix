@@ -6663,28 +6663,6 @@
   },
   "components": {
     "schemas": {
-      "AgentCapabilities": {
-        "properties": {
-          "bash.retainInactiveSessions": {
-            "type": "boolean",
-            "title": "Bash.Retaininactivesessions",
-            "default": false
-          },
-          "graphql.mutations": {
-            "type": "boolean",
-            "title": "Graphql.Mutations",
-            "default": false
-          },
-          "session.storeSessions": {
-            "type": "boolean",
-            "title": "Session.Storesessions",
-            "default": false
-          }
-        },
-        "type": "object",
-        "title": "AgentCapabilities",
-        "description": "Runtime capability state sent by the browser for a chat turn."
-      },
       "AgentSpanContext": {
         "properties": {
           "type": {
@@ -7327,14 +7305,18 @@
           },
           {
             "$ref": "#/components/schemas/PlaygroundContext"
+          },
+          {
+            "$ref": "#/components/schemas/GraphQLContext"
           }
         ],
         "title": "ChatContext",
-        "description": "Discriminated union of every UI-state context the agent understands.\n\nWrapped in ``RootModel`` so the generated OpenAPI schema exposes a single\nnamed ``ChatContext`` component instead of inlining the ``oneOf`` at every\nreference site. The actual member is accessible via ``.root``.",
+        "description": "Discriminated union of every UI-state context the agent understands.",
         "discriminator": {
           "propertyName": "type",
           "mapping": {
             "app": "#/components/schemas/AppContext",
+            "graphql": "#/components/schemas/GraphQLContext",
             "playground": "#/components/schemas/PlaygroundContext",
             "project": "#/components/schemas/ProjectContext",
             "span": "#/components/schemas/AgentSpanContext",
@@ -7387,9 +7369,6 @@
             },
             "type": "array",
             "title": "Contexts"
-          },
-          "capabilities": {
-            "$ref": "#/components/schemas/AgentCapabilities"
           },
           "model": {
             "oneOf": [
@@ -7475,9 +7454,6 @@
             },
             "type": "array",
             "title": "Contexts"
-          },
-          "capabilities": {
-            "$ref": "#/components/schemas/AgentCapabilities"
           },
           "model": {
             "oneOf": [
@@ -9633,6 +9609,26 @@
           "data"
         ],
         "title": "GetViewerResponseBody"
+      },
+      "GraphQLContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "graphql",
+            "title": "Type"
+          },
+          "mutationsEnabled": {
+            "type": "boolean",
+            "title": "Mutationsenabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "mutationsEnabled"
+        ],
+        "title": "GraphQLContext",
+        "description": "GraphQL runtime state.\n\nUnlike the other contexts this one always emits a block \u2014 when no instance\nis present the policy defaults to ``disabled`` (the safe default). Callers\nin the absent case should use :meth:`render_disabled_default`."
       },
       "HTTPValidationError": {
         "properties": {
