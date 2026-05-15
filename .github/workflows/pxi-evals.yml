@@ -12,7 +12,7 @@ concurrency:
 env:
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
   PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_CLOUD_URL }}
-  PHOENIX_API_KEY: ${{ secrets.PHOENIX_CLOUD_TOKEN }}
+  PHOENIX_API_KEY: ${{ secrets.PHOENIX_API_KEY }}
 
 jobs:
   regression:
