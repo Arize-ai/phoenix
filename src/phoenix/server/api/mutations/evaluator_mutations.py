@@ -1140,7 +1140,10 @@ class EvaluatorMutationMixin:
             dataset_evaluator.output_configs = [
                 config
                 for config in code_evaluator.output_configs
-                if isinstance(config, (CategoricalOutputConfig, ContinuousOutputConfig))
+                if isinstance(
+                    config,
+                    (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig),
+                )
             ]
 
         return DatasetEvaluatorMutationPayload(
@@ -1226,7 +1229,10 @@ class EvaluatorMutationMixin:
             dataset_evaluator.output_configs = [
                 config
                 for config in evaluator.output_configs
-                if isinstance(config, (CategoricalOutputConfig, ContinuousOutputConfig))
+                if isinstance(
+                    config,
+                    (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig),
+                )
             ]
 
         return DatasetEvaluatorMutationPayload(
