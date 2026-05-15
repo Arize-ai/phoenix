@@ -1,4 +1,3 @@
-import { css } from "@emotion/react";
 import React, {
   startTransition,
   Suspense,
@@ -17,19 +16,17 @@ import {
 
 import {
   Alert,
-  Autocomplete,
   Button,
-  Dialog,
-  DialogTrigger,
   Flex,
   Icon,
   Icons,
+  LinkButton,
   Loading,
+  MenuContainer,
+  MenuFooter,
+  MenuTrigger,
   Modal,
   ModalOverlay,
-  Popover,
-  PopoverArrow,
-  useFilter,
   useNullableTimeRangeContext,
   View,
 } from "@phoenix/components";
@@ -69,9 +66,6 @@ export type SpanAnnotationsEditorProps = {
 
 export function SpanAnnotationsEditor(props: SpanAnnotationsEditorProps) {
   const { projectId, spanNodeId } = props;
-  const [newAnnotationName, setNewAnnotationName] = useState<string | null>(
-    null
-  );
   const [refetchKey, setRefetchKey] = useState(0);
 
   return (
@@ -94,8 +88,6 @@ export function SpanAnnotationsEditor(props: SpanAnnotationsEditorProps) {
             <NewAnnotationButton
               projectId={projectId}
               spanNodeId={spanNodeId}
-              disabled={newAnnotationName !== null}
-              onAnnotationNameSelect={setNewAnnotationName}
               refetchKey={refetchKey}
               onRefetchKeyChange={setRefetchKey}
             />
@@ -116,21 +108,12 @@ export function SpanAnnotationsEditor(props: SpanAnnotationsEditorProps) {
 type NewAnnotationButtonProps = {
   projectId: string;
   spanNodeId: string;
-  disabled?: boolean;
-  onAnnotationNameSelect: (name: string) => void;
   refetchKey: number;
   onRefetchKeyChange: (updater: (prev: number) => number) => void;
 };
 
 function NewAnnotationButton(props: NewAnnotationButtonProps) {
-  const {
-    projectId,
-    disabled = false,
-    spanNodeId,
-    onAnnotationNameSelect,
-    refetchKey,
-    onRefetchKeyChange,
-  } = props;
+  const { projectId, spanNodeId, refetchKey, onRefetchKeyChange } = props;
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [showEditConfigDialog, setShowEditConfigDialog] = useState(false);
 
@@ -227,36 +210,29 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
 
   return (
     <>
-      <DialogTrigger isOpen={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+      <MenuTrigger isOpen={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
         <Button
-          variant={disabled ? "default" : "primary"}
-          isDisabled={disabled}
+          variant="primary"
           size="S"
           leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
           aria-label="Add Annotation"
         >
           Annotation
         </Button>
-        <Popover placement="bottom end">
-          <PopoverArrow />
-          <Dialog>
-            <Suspense fallback={<Loading />}>
-              <AnnotationList
-                projectId={projectId}
-                spanNodeId={spanNodeId}
-                onAnnotationNameSelect={(name) => {
-                  onAnnotationNameSelect(name);
-                }}
-                onOpenEditConfigDialog={() => {
-                  setIsPopoverOpen(false);
-                  setShowEditConfigDialog(true);
-                }}
-                refetchKey={refetchKey}
-              />
-            </Suspense>
-          </Dialog>
-        </Popover>
-      </DialogTrigger>
+        <MenuContainer>
+          <Suspense fallback={<Loading />}>
+            <AnnotationList
+              projectId={projectId}
+              spanNodeId={spanNodeId}
+              onOpenEditConfigDialog={() => {
+                setIsPopoverOpen(false);
+                setShowEditConfigDialog(true);
+              }}
+              refetchKey={refetchKey}
+            />
+          </Suspense>
+        </MenuContainer>
+      </MenuTrigger>
       {showEditConfigDialog ? (
         <ModalOverlay
           isOpen
@@ -280,36 +256,29 @@ function NewAnnotationButton(props: NewAnnotationButtonProps) {
 type AnnotationListProps = {
   projectId: string;
   spanNodeId: string;
-  onAnnotationNameSelect: (name: string) => void;
   onOpenEditConfigDialog: () => void;
   refetchKey: number;
 };
 
 function AnnotationList(props: AnnotationListProps) {
   const { projectId, spanNodeId, onOpenEditConfigDialog, refetchKey } = props;
-  const { contains } = useFilter({ sensitivity: "base" });
 
   return (
-    <Autocomplete filter={contains}>
+    <>
       <AnnotationConfigList
         projectId={projectId}
         spanId={spanNodeId}
         refetchKey={refetchKey}
       />
-
-      <View padding="size-100" borderTopWidth="thin" borderTopColor="default">
-        <Button
-          variant="quiet"
-          size="S"
-          onPress={onOpenEditConfigDialog}
-          css={css`
-            width: 100%;
-          `}
-        >
-          Edit Annotation Configs
+      <MenuFooter>
+        <Button variant="quiet" size="S" onPress={onOpenEditConfigDialog}>
+          New Annotation Config
         </Button>
-      </View>
-    </Autocomplete>
+        <LinkButton variant="quiet" size="S" to="/settings/annotations">
+          Manage Annotation Configs
+        </LinkButton>
+      </MenuFooter>
+    </>
   );
 }
 
