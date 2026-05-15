@@ -168,7 +168,9 @@ class Tracer(wrapt.ObjectProxy):  # type: ignore[misc]
         session_id_by_trace_id: dict[int, str] = {}
 
         for otel_span in otel_spans:
-            trace_id = otel_span.get_span_context().trace_id  # type: ignore[no-untyped-call]
+            span_context = otel_span.get_span_context()
+            assert span_context is not None
+            trace_id = span_context.trace_id
             db_span = _get_db_span(otel_span=otel_span)
             db_span_cost = _get_db_span_cost(
                 db_span=db_span,
@@ -257,7 +259,9 @@ def _get_db_span(
     *,
     otel_span: ReadableSpan,
 ) -> models.Span:
-    span_id = format_span_id(otel_span.get_span_context().span_id)  # type: ignore[no-untyped-call]
+    span_context = otel_span.get_span_context()
+    assert span_context is not None
+    span_id = format_span_id(span_context.span_id)
     parent_id: str | None = None
     if otel_span.parent is not None:
         parent_id = format_span_id(otel_span.parent.span_id)

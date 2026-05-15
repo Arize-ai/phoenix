@@ -2353,7 +2353,7 @@ class TestClientGetSpansAttributeFilters:
         sdk_spans = memory.get_finished_spans()
         assert len(sdk_spans) == 1
         sdk_span = sdk_spans[0]
-        assert (sdk_ctx := sdk_span.get_span_context())  # type: ignore[no-untyped-call]
+        assert (sdk_ctx := sdk_span.get_span_context())
         from opentelemetry.trace import format_span_id
 
         span_id = format_span_id(sdk_ctx.span_id)
@@ -2421,7 +2421,7 @@ class TestClientGetSpansAttributeFilters:
         assert len(sdk_spans) == 1
         from opentelemetry.trace import format_span_id
 
-        sdk_ctx = sdk_spans[0].get_span_context()  # type: ignore[no-untyped-call]
+        sdk_ctx = sdk_spans[0].get_span_context()
         assert sdk_ctx
         span_id = format_span_id(sdk_ctx.span_id)
 

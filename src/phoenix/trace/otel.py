@@ -24,6 +24,7 @@ from phoenix.trace.attributes import (
     load_json_strings,
     unflatten,
 )
+from phoenix.trace.gen_ai.conversion import get_openinference_attributes
 from phoenix.trace.schemas import (
     EXCEPTION_ESCAPED,
     EXCEPTION_MESSAGE,
@@ -74,9 +75,13 @@ def decode_otlp_span(otlp_span: otlp.Span) -> Span:
     start_time = _decode_unix_nano(otlp_span.start_time_unix_nano)
     end_time = _decode_unix_nano(otlp_span.end_time_unix_nano)
 
-    attributes = unflatten(
-        load_json_strings(coerce_otlp_span_attributes(_decode_key_values(otlp_span.attributes)))
-    )
+    raw_attributes = dict(_decode_key_values(otlp_span.attributes))
+    # Synthesize OpenInference attrs from any OTel gen_ai.* semconv attributes.
+    # ``setdefault`` means existing OI attributes win — relevant for spans that
+    # were dual-emitted by an instrumentation that already set OI keys directly.
+    for key, value in get_openinference_attributes(raw_attributes).items():
+        raw_attributes.setdefault(key, value)
+    attributes = unflatten(load_json_strings(coerce_otlp_span_attributes(raw_attributes.items())))
     span_kind = SpanKind(get_attribute_value(attributes, OPENINFERENCE_SPAN_KIND))
 
     status_code, status_message = _decode_status(otlp_span.status)

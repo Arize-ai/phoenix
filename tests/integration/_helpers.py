@@ -2083,7 +2083,7 @@ def _insert_spans(app: _AppInfo, n: int) -> tuple[_ExistingSpan, ...]:
 
     span_ids = set()
     for span in spans:
-        assert (context := span.get_span_context())  # type: ignore[no-untyped-call]
+        assert (context := span.get_span_context())
         span_ids.add(format_span_id(context.span_id))
     assert len(span_ids) == n
 

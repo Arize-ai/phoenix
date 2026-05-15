@@ -2,6 +2,7 @@ import json
 from dataclasses import replace
 from datetime import datetime, timezone
 from random import random
+from secrets import token_bytes
 from typing import Any
 
 import numpy as np
@@ -497,6 +498,73 @@ def test_coerce_otlp_span_attributes() -> None:
     result = list(coerce_otlp_span_attributes(invalid_attrs))
 
     assert result == invalid_attrs
+
+
+def test_decode_otlp_span_synthesizes_oi_attrs_from_gen_ai() -> None:
+    """A span emitted with only OTel ``gen_ai.*`` semconv attrs should decode to a
+    Phoenix Span whose attributes carry the equivalent OpenInference keys."""
+    input_messages = json.dumps([{"role": "user", "parts": [{"type": "text", "content": "Hello"}]}])
+    output_messages = json.dumps(
+        [
+            {
+                "role": "assistant",
+                "finish_reason": "stop",
+                "parts": [{"type": "text", "content": "Hi!"}],
+            }
+        ]
+    )
+    otlp_span = otlp.Span(
+        name="chat",
+        trace_id=token_bytes(16),
+        span_id=token_bytes(8),
+        attributes=[
+            KeyValue(key="gen_ai.operation.name", value=AnyValue(string_value="chat")),
+            KeyValue(key="gen_ai.provider.name", value=AnyValue(string_value="openai")),
+            KeyValue(key="gen_ai.request.model", value=AnyValue(string_value="gpt-4")),
+            KeyValue(key="gen_ai.usage.input_tokens", value=AnyValue(int_value=100)),
+            KeyValue(key="gen_ai.usage.output_tokens", value=AnyValue(int_value=25)),
+            KeyValue(key="gen_ai.input.messages", value=AnyValue(string_value=input_messages)),
+            KeyValue(key="gen_ai.output.messages", value=AnyValue(string_value=output_messages)),
+        ],
+    )
+
+    decoded = decode_otlp_span(otlp_span)
+
+    assert decoded.span_kind == SpanKind.LLM
+    assert decoded.attributes["llm"]["provider"] == "openai"
+    assert decoded.attributes["llm"]["system"] == "openai"
+    assert decoded.attributes["llm"]["model_name"] == "gpt-4"
+    assert decoded.attributes["llm"]["token_count"]["prompt"] == 100
+    assert decoded.attributes["llm"]["token_count"]["completion"] == 25
+    assert decoded.attributes["llm"]["token_count"]["total"] == 125
+    assert decoded.attributes["llm"]["input_messages"][0]["message"]["role"] == "user"
+    assert decoded.attributes["llm"]["input_messages"][0]["message"]["content"] == "Hello"
+    assert decoded.attributes["llm"]["output_messages"][0]["message"]["role"] == "assistant"
+    assert decoded.attributes["llm"]["output_messages"][0]["message"]["content"] == "Hi!"
+    assert decoded.attributes["llm"]["output_messages"][0]["message"]["finish_reason"] == "stop"
+
+
+def test_decode_otlp_span_existing_oi_attrs_win_over_gen_ai() -> None:
+    """Existing OpenInference attributes take precedence over gen_ai-derived ones
+    (relevant for spans dual-emitted by instrumentation that sets both formats)."""
+    otlp_span = otlp.Span(
+        name="chat",
+        trace_id=token_bytes(16),
+        span_id=token_bytes(8),
+        attributes=[
+            KeyValue(key="gen_ai.operation.name", value=AnyValue(string_value="chat")),
+            KeyValue(key="gen_ai.request.model", value=AnyValue(string_value="gpt-4-from-genai")),
+            # Native OI attribute that should win over the gen_ai-derived value.
+            KeyValue(
+                key=SpanAttributes.LLM_MODEL_NAME,
+                value=AnyValue(string_value="gpt-4-from-oi"),
+            ),
+        ],
+    )
+
+    decoded = decode_otlp_span(otlp_span)
+
+    assert decoded.attributes["llm"]["model_name"] == "gpt-4-from-oi"
 
 
 @pytest.fixture
