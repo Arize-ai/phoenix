@@ -81,7 +81,7 @@ Datasets live in `evals/pxi/datasets/*.yaml`. Each file has:
 - `evaluators`
 - `examples`
 
-Each example needs a stable `id`, a one-item `splits` list, `input.query`,
+Each example needs a stable `id`, a scalar `split`, `input.query`,
 `expected.tools`, and expected tool arguments under `expected.tool_call_args`.
 Example IDs must be unique because the runner uses them for stable upserts.
 
@@ -94,9 +94,12 @@ Split meanings:
 | `val` | Future optimizer scoring signal. |
 
 These splits are mutually exclusive. Each example must belong to exactly one of
-`dev`, `val`, or `regression`; the loader rejects unknown split names and
-multiple split tags. Keep `val` separate from `regression` so optimization
-signal does not leak into the regression gate.
+`dev`, `val`, or `regression`; the loader rejects unknown split names and the
+old list-shaped `splits` field. Keep `val` separate from `regression` so
+optimization signal does not leak into the regression gate.
+
+The Phoenix client upload API still expects `splits: list[str]`, so the runner
+translates YAML `split: regression` to upload payload `splits: ["regression"]`.
 
 `expected.tools` may also include `exact_match: true`, which switches
 `correct_tools_called` from "all required tools must be called" to "the
