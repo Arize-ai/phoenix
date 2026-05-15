@@ -330,6 +330,73 @@ class TestSystemBlockCacheBoundary:
             assert dynamic_prompt not in cached_texts
 
 
+class TestUIContextInstructions:
+    async def test_ui_context_instructions_are_outside_cache_boundary(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        """Changes to UI state (project, span filter, playground instances,
+        etc.) must not invalidate the cached prefix."""
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                project=ProjectContext(
+                    type="project",
+                    project_node_id="UHJvamVjdDox",
+                    span_filter='status_code == "ERROR"',
+                ),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        cached_blocks, uncached_blocks = _partition_system_blocks_by_cache_breakpoint(
+            captured_request.body
+        )
+        cached_texts = "\n".join(
+            block["text"] for block in cached_blocks if block.get("type") == "text"
+        )
+        uncached_texts = "\n".join(
+            block["text"] for block in uncached_blocks if block.get("type") == "text"
+        )
+        assert "<phoenix_project_context>" in uncached_texts
+        assert "<phoenix_gql_mutations_policy>" in uncached_texts
+        assert "<phoenix_project_context>" not in cached_texts
+        assert "<phoenix_gql_mutations_policy>" not in cached_texts
+
+    async def test_ui_context_instructions_are_absent_when_context_is_empty(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        all_text = "\n".join(_get_system_texts(captured_request.body))
+        for tag in (
+            "<phoenix_app_context>",
+            "<phoenix_project_context>",
+            "<phoenix_trace_context>",
+            "<phoenix_span_context>",
+            "<phoenix_playground_context>",
+        ):
+            assert tag not in all_text
+        cached_blocks, uncached_blocks = _partition_system_blocks_by_cache_breakpoint(
+            captured_request.body
+        )
+        uncached_texts = "\n".join(
+            block["text"] for block in uncached_blocks if block.get("type") == "text"
+        )
+        cached_texts = "\n".join(
+            block["text"] for block in cached_blocks if block.get("type") == "text"
+        )
+        assert "<phoenix_gql_mutations_policy>" in uncached_texts
+        assert "<phoenix_gql_mutations_policy>" not in cached_texts
+
+
 class TestDocsMCPToolset:
     """The optional docs MCP toolset is wired into the system blocks only
     when supplied by the caller."""

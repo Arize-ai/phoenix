@@ -1,0 +1,4 @@
+<phoenix_project_context>
+  <description>The project the user is currently viewing.</description>
+  <project_node_id format="phoenix_node_id">{project_node_id}</project_node_id>{optional_fields}
+</phoenix_project_context>
