@@ -74,7 +74,7 @@ class TestGenerativeModelStore:
         - Verify observable behavior (model lookups work correctly) after each cycle
         - Verify internal state (_last_fetch_time advances) to ensure incremental logic executes
 
-        Note: The implementation applies a 2-second clock buffer (fetch_start_time = now - 2s)
+        Note: The implementation applies a 10-second clock buffer (fetch_start_time = now - 10s)
         for clock skew tolerance, but this test does not verify the buffer's effectiveness
         as that would require time mocking to simulate the race condition.
         """
