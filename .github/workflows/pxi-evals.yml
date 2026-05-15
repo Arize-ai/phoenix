@@ -1,0 +1,70 @@
+name: PXI Evals
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: pxi-evals-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  PHOENIX_COLLECTOR_ENDPOINT: ${{ secrets.PHOENIX_CLOUD_URL }}
+  PHOENIX_API_KEY: ${{ secrets.PHOENIX_CLOUD_TOKEN }}
+
+jobs:
+  regression:
+    name: PXI Regression Evals
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.10"
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.11.8"
+      - name: Sync dependencies
+        run: uv sync --frozen
+      - name: Run regression split for all PXI datasets
+        shell: bash
+        run: |
+          set -uo pipefail
+
+          shopt -s nullglob
+          dataset_files=(evals/pxi/datasets/*.yaml)
+
+          if [[ "${#dataset_files[@]}" -eq 0 ]]; then
+            echo "::notice::No PXI dataset YAML files found"
+            exit 0
+          fi
+
+          failed=0
+          short_sha="${GITHUB_SHA::7}"
+          branch_slug="${GITHUB_REF_NAME//\//-}"
+
+          for dataset_file in "${dataset_files[@]}"; do
+            dataset="$(basename "${dataset_file}" .yaml)"
+            experiment_name="ci-pxi-eval-${dataset}-${branch_slug}-${short_sha}-${GITHUB_RUN_ID}"
+            echo "::group::PXI eval dataset: ${dataset}"
+            echo "Dataset file: ${dataset_file}"
+            echo "Running PXI regression eval: ${experiment_name}"
+            if ! uv run python -m evals.pxi.harness.run_experiment \
+              --dataset "${dataset}" \
+              --splits regression \
+              --fail-on-regression \
+              --experiment-name "${experiment_name}"; then
+              failed=1
+            fi
+            echo "::endgroup::"
+          done
+
+          exit "${failed}"

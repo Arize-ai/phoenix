@@ -423,6 +423,36 @@ jobs:
         timeout-minutes: 60
         run: uvx tox run -e unit_tests -- -ra --reruns 5 --db postgresql -n 16 --dist loadscope
 
+  pxi-eval-unit-tests:
+    name: PXI Eval Unit Tests
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix == 'true' || needs.changes.outputs.uv_lock == 'true' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            pyproject.toml
+            uv.lock
+            evals/
+            src/phoenix/
+            packages/
+            tests/conftest.py
+            tests/__init__.py
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.10"
+      - name: Set up `uv`
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: "0.11.8"
+      - name: Sync dependencies
+        run: uv sync --frozen
+      - name: Run PXI eval unit tests
+        run: uv run pytest -ra evals/pxi/tests/
+
   integration-tests:
     name: Integration Tests
     runs-on: ${{ matrix.os }}
@@ -603,6 +633,7 @@ jobs:
       - check-lockfile
       - type-check
       - unit-tests
+      - pxi-eval-unit-tests
       - integration-tests
       - test-migrations
       - test-json-canonicalization-schema
