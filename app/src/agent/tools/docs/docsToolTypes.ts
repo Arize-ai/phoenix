@@ -8,7 +8,7 @@ export type DocsSearchInput = {
 /**
  * Input shape for the query_docs_filesystem_phoenix tool.
  */
-export type DocsFilesystemQueryInput = {
+export type DocsFileSystemQueryInput = {
   command: string;
 };
 
@@ -49,16 +49,16 @@ export function parseDocsSearchInput(input: unknown): DocsSearchInput | null {
 /**
  * Parse the query_docs_filesystem_phoenix tool input from the raw AI SDK part input.
  */
-export function parseDocsFilesystemQueryInput(
+export function parseDocsFileSystemQueryInput(
   input: unknown
-): DocsFilesystemQueryInput | null {
+): DocsFileSystemQueryInput | null {
   if (
     typeof input === "object" &&
     input !== null &&
     "command" in input &&
     typeof (input as Record<string, unknown>).command === "string"
   ) {
-    return input as DocsFilesystemQueryInput;
+    return input as DocsFileSystemQueryInput;
   }
   return null;
 }

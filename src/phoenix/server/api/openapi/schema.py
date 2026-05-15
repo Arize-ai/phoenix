@@ -5,7 +5,7 @@ from fastapi.openapi.utils import get_openapi
 
 from phoenix.server.api.openapi.registry import (
     add_registered_models_to_openapi_schema,
-    get_registered_openapi_schemas,
+    get_registered_models,
 )
 from phoenix.server.api.routers.agents import create_agents_router
 from phoenix.server.api.routers.auth import create_auth_router
@@ -30,7 +30,7 @@ def get_openapi_schema() -> dict[str, Any]:
         separate_input_output_schemas=False,
     )
     schema = add_registered_models_to_openapi_schema(
-        schema,
-        get_registered_openapi_schemas(),
+        openapi_schema=schema,
+        registered_models=get_registered_models(),
     )
     return schema

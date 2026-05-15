@@ -2,7 +2,7 @@ import { getToolName } from "ai";
 
 import {
   isDocsToolName,
-  parseDocsFilesystemQueryInput,
+  parseDocsFileSystemQueryInput,
   parseDocsSearchInput,
 } from "@phoenix/agent/tools/docs";
 
@@ -25,7 +25,7 @@ export function getDocsToolPreview(part: ToolInvocationPart): string {
     return input ? `Searching: ${input.query}` : "";
   }
   if (toolName === "query_docs_filesystem_phoenix") {
-    const input = parseDocsFilesystemQueryInput(part.input);
+    const input = parseDocsFileSystemQueryInput(part.input);
     return input ? `Running: ${input.command}` : "";
   }
   return "";
@@ -102,7 +102,7 @@ function getInputText(part: ToolInvocationPart, isSearch: boolean): string {
     const input = parseDocsSearchInput(part.input);
     return input?.query ?? stringifyToolValue(part.input);
   }
-  const input = parseDocsFilesystemQueryInput(part.input);
+  const input = parseDocsFileSystemQueryInput(part.input);
   return input?.command ?? stringifyToolValue(part.input);
 }
 

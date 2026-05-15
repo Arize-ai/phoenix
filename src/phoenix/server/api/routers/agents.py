@@ -77,6 +77,14 @@ def _get_updated_provider_metadata(
     provider_metadata: ProviderMetadata,
     tool_name: str,
 ) -> ProviderMetadata:
+    """Adds Phoenix-specific fields under the ``"phoenix"`` namespace of Vercel AI
+    ``providerMetadata``, the escape hatch the AI SDK reserves for provider-specific
+    data that doesn't fit the standard chunk shape.
+
+    See the upstream definition this builds on:
+        - Vercel AI SDK ``SharedV3ProviderMetadata``:
+          https://github.com/vercel/ai/blob/main/packages/provider/src/shared/v3/shared-v3-provider-metadata.ts
+    """
     result: ProviderMetadata = deepcopy(provider_metadata)
     tool_execution_environment: ToolExecutionEnvironment = (
         "client" if get_external_tool_definition(tool_name) is not None else "server"
@@ -117,7 +125,6 @@ class AssistantMessageMetadataTraceIds(_CamelModel):
     root_span_id: str
 
 
-@register_openapi_schema
 class AssistantMessageMetadata(_CamelModel):
     """Wire schema for the chat stream's `message_metadata` payload."""
 

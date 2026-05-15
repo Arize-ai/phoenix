@@ -44,9 +44,7 @@ type ToolCallProviderMetadata =
   components["schemas"]["ToolCallProviderMetadata"];
 
 /**
- * Minimal tool-call shape produced by the AI SDK runtime. `providerMetadata`
- * follows the Vercel AI SDK convention of namespacing payloads by provider —
- * Phoenix stamps tool execution environment under the `phoenix` key.
+ * Minimal tool-call shape produced by the AI SDK runtime.
  */
 export type AgentToolCall = {
   toolCallId: string;

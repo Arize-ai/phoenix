@@ -9,7 +9,7 @@ from pydantic.json_schema import models_json_schema
 
 ModelType = TypeVar("ModelType", bound=type[BaseModel])
 
-_REGISTERED_OPENAPI_SCHEMAS: list[type[BaseModel]] = []
+_REGISTERED_MODELS: list[type[BaseModel]] = []
 
 
 def register_openapi_schema(cls: ModelType) -> ModelType:
@@ -19,16 +19,17 @@ def register_openapi_schema(cls: ModelType) -> ModelType:
     Use this when a model is part of a wire payload that doesn't ride on a
     typed FastAPI response — for example, a chunk embedded in an SSE stream.
     """
-    _REGISTERED_OPENAPI_SCHEMAS.append(cls)
+    _REGISTERED_MODELS.append(cls)
     return cls
 
 
-def get_registered_openapi_schemas() -> tuple[type[BaseModel], ...]:
+def get_registered_models() -> tuple[type[BaseModel], ...]:
     """Return all classes recorded via `register_openapi_schema`, in registration order."""
-    return tuple(_REGISTERED_OPENAPI_SCHEMAS)
+    return tuple(_REGISTERED_MODELS)
 
 
 def add_registered_models_to_openapi_schema(
+    *,
     openapi_schema: dict[str, Any],
     registered_models: Sequence[type[BaseModel]],
 ) -> dict[str, Any]:
