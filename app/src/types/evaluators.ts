@@ -120,6 +120,12 @@ export type ContinuousEvaluatorAnnotationConfig = {
   upperBound?: number | null;
 };
 
+export type FreeformEvaluatorAnnotationConfig = {
+  name: string;
+  optimizationDirection: EvaluatorOptimizationDirection;
+  threshold?: number | null;
+};
+
 /**
  * The kind of evaluator
  */

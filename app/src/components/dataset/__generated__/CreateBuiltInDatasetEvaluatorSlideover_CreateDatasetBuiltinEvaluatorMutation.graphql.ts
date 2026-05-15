@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d18f61ad16d925be42198a351f89583d>>
+ * @generated SignedSource<<7572160958ac68ad1e9c32a31f5b4c2b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -48,6 +48,8 @@ export type ContinuousAnnotationConfigInput = {
 export type FreeformAnnotationConfigInput = {
   description?: string | null;
   name: string;
+  optimizationDirection?: OptimizationDirection | null;
+  threshold?: number | null;
 };
 export type CreateBuiltInDatasetEvaluatorSlideover_CreateDatasetBuiltinEvaluatorMutation$variables = {
   connectionIds: ReadonlyArray<string>;

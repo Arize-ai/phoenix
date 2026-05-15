@@ -100,6 +100,8 @@ class ContinuousAnnotationConfig(_BaseAnnotationConfig):
 
 class FreeformAnnotationConfig(_BaseAnnotationConfig):
     type: Literal[AnnotationType.FREEFORM.value]  # type: ignore[name-defined]
+    optimization_direction: Optional[OptimizationDirection] = None
+    threshold: Optional[float] = None
 
 
 AnnotationConfigType: TypeAlias = Annotated[
@@ -170,8 +172,12 @@ class ContinuousOutputConfig(ContinuousAnnotationConfig):
         return [bare, dict_form]
 
 
+class FreeformOutputConfig(FreeformAnnotationConfig):
+    name: str
+
+
 OutputConfigType: TypeAlias = Annotated[
-    Union[CategoricalOutputConfig, ContinuousOutputConfig],
+    Union[CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig],
     Field(..., discriminator="type"),
 ]
 

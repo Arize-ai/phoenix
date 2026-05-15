@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3e14c63b7053922ce569a41116581430>>
+ * @generated SignedSource<<1e4a23fc3dae3fe081b35807e51e21be>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -226,6 +226,8 @@ export type ContinuousAnnotationConfigInput = {
 export type FreeformAnnotationConfigInput = {
   description?: string | null;
   name: string;
+  optimizationDirection?: OptimizationDirection | null;
+  threshold?: number | null;
 };
 export type PlaygroundDatasetExamplesTableSubscription$variables = {
   input: ChatCompletionOverDatasetInput;

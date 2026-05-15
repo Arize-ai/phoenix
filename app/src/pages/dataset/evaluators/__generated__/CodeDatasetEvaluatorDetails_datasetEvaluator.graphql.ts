@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<850a3cfbda20c9271ef288dab5a8d86a>>
+ * @generated SignedSource<<678e0ed8d7843b2a8aacf9270d0559a0>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,10 +10,8 @@
 
 import { ReaderFragment } from 'relay-runtime';
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
-export type InternetAccessChoice = "ALLOW" | "DENY";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
-export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "VERCEL" | "WASM";
 import { FragmentRefs } from "relay-runtime";
 export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
   readonly evaluator: {
@@ -26,9 +24,11 @@ export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
     readonly language?: Language;
     readonly name?: string;
     readonly outputConfigs?: ReadonlyArray<{
+      readonly freeformOptimizationDirection?: OptimizationDirection;
       readonly lowerBound?: number | null;
       readonly name?: string;
       readonly optimizationDirection?: OptimizationDirection;
+      readonly threshold?: number | null;
       readonly upperBound?: number | null;
       readonly values?: ReadonlyArray<{
         readonly label: string;
@@ -36,23 +36,13 @@ export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
       }>;
     }>;
     readonly sandboxConfig?: {
-      readonly config: {
-        readonly dependencies: {
-          readonly packages: ReadonlyArray<string>;
-        } | null;
-        readonly envVars: ReadonlyArray<{
-          readonly name: string;
-          readonly secretKey: string;
-        }>;
-        readonly internetAccess: {
-          readonly mode: InternetAccessChoice;
-        } | null;
-      };
+      readonly config: any;
       readonly description: string | null;
       readonly id: string;
       readonly name: string;
       readonly provider: {
-        readonly backendType: SandboxBackendType;
+        readonly backendType: string;
+        readonly language: Language;
       };
       readonly timeout: number;
     } | null;
@@ -63,9 +53,11 @@ export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
     readonly pathMapping: any;
   };
   readonly outputConfigs: ReadonlyArray<{
+    readonly freeformOptimizationDirection?: OptimizationDirection;
     readonly lowerBound?: number | null;
     readonly name?: string;
     readonly optimizationDirection?: OptimizationDirection;
+    readonly threshold?: number | null;
     readonly upperBound?: number | null;
     readonly values?: ReadonlyArray<{
       readonly label: string;
@@ -165,6 +157,28 @@ v3 = {
       ],
       "type": "ContinuousAnnotationConfig",
       "abstractKey": null
+    },
+    {
+      "kind": "InlineFragment",
+      "selections": [
+        (v1/*: any*/),
+        {
+          "alias": "freeformOptimizationDirection",
+          "args": null,
+          "kind": "ScalarField",
+          "name": "optimizationDirection",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "threshold",
+          "storageKey": null
+        }
+      ],
+      "type": "FreeformAnnotationConfig",
+      "abstractKey": null
     }
   ],
   "storageKey": null
@@ -174,6 +188,13 @@ v4 = {
   "args": null,
   "kind": "ScalarField",
   "name": "description",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "language",
   "storageKey": null
 };
 return {
@@ -230,13 +251,7 @@ return {
             (v0/*: any*/),
             (v1/*: any*/),
             (v4/*: any*/),
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "language",
-              "storageKey": null
-            },
+            (v5/*: any*/),
             (v3/*: any*/),
             {
               "alias": null,
@@ -259,67 +274,8 @@ return {
                 {
                   "alias": null,
                   "args": null,
-                  "concreteType": "SandboxConfigData",
-                  "kind": "LinkedField",
+                  "kind": "ScalarField",
                   "name": "config",
-                  "plural": false,
-                  "selections": [
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": "SandboxConfigEnvVar",
-                      "kind": "LinkedField",
-                      "name": "envVars",
-                      "plural": true,
-                      "selections": [
-                        (v1/*: any*/),
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "secretKey",
-                          "storageKey": null
-                        }
-                      ],
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": "SandboxConfigInternetAccess",
-                      "kind": "LinkedField",
-                      "name": "internetAccess",
-                      "plural": false,
-                      "selections": [
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "mode",
-                          "storageKey": null
-                        }
-                      ],
-                      "storageKey": null
-                    },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "concreteType": "SandboxConfigDependencies",
-                      "kind": "LinkedField",
-                      "name": "dependencies",
-                      "plural": false,
-                      "selections": [
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "packages",
-                          "storageKey": null
-                        }
-                      ],
-                      "storageKey": null
-                    }
-                  ],
                   "storageKey": null
                 },
                 {
@@ -336,7 +292,8 @@ return {
                       "kind": "ScalarField",
                       "name": "backendType",
                       "storageKey": null
-                    }
+                    },
+                    (v5/*: any*/)
                   ],
                   "storageKey": null
                 }
@@ -374,6 +331,6 @@ return {
 };
 })();
 
-(node as any).hash = "53f65643e7219f400edd2fd8872b4fd8";
+(node as any).hash = "35500ec920e291d66a84de29ba4958a6";
 
 export default node;

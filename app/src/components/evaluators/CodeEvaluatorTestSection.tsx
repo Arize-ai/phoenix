@@ -84,7 +84,7 @@ function computePositiveOptimization({
       lowerBound = Math.min(...scores);
       upperBound = Math.max(...scores);
     }
-  } else {
+  } else if ("lowerBound" in matchedConfig) {
     // Continuous: use bounds directly
     lowerBound = matchedConfig.lowerBound ?? undefined;
     upperBound = matchedConfig.upperBound ?? undefined;

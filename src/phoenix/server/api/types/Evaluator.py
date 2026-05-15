@@ -15,6 +15,8 @@ from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
     ContinuousOutputConfig,
+    FreeformOutputConfig,
+    OptimizationDirection,
     OutputConfigType,
 )
 from phoenix.db.types.identifier import Identifier
@@ -25,6 +27,7 @@ from phoenix.server.api.types.AnnotationConfig import (
     CategoricalAnnotationConfig,
     CategoricalAnnotationValue,
     ContinuousAnnotationConfig,
+    FreeformAnnotationConfig,
 )
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
@@ -60,7 +63,7 @@ class EvaluatorInputMapping:
 
 
 BuiltInEvaluatorOutputConfig: TypeAlias = Annotated[
-    Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig],
+    Union[CategoricalAnnotationConfig, ContinuousAnnotationConfig, FreeformAnnotationConfig],
     strawberry.union("BuiltInEvaluatorOutputConfig"),
 ]
 
@@ -283,7 +286,9 @@ class CodeEvaluator(Evaluator, Node):
                 evaluator_id=self.id,
             )
             for config in (configs or [])
-            if isinstance(config, (CategoricalOutputConfig, ContinuousOutputConfig))
+            if isinstance(
+                config, (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig)
+            )
         ]
 
     @strawberry.field
@@ -563,7 +568,9 @@ class LLMEvaluator(Evaluator, Node):
                 evaluator_id=self.id,
             )
             for config in configs
-            if isinstance(config, (CategoricalOutputConfig, ContinuousOutputConfig))
+            if isinstance(
+                config, (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig)
+            )
         ]
 
     @strawberry.field
@@ -797,7 +804,9 @@ class BuiltInEvaluator(Evaluator, Node):
                 evaluator_id=self.id,
             )
             for config in base_configs
-            if isinstance(config, (CategoricalOutputConfig, ContinuousOutputConfig))
+            if isinstance(
+                config, (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig)
+            )
         ]
 
 
@@ -852,6 +861,22 @@ def _to_gql_continuous_annotation_config(
     )
 
 
+def _to_gql_freeform_annotation_config(
+    config: FreeformOutputConfig,
+    annotation_name: str,
+    id_prefix: str,
+    evaluator_id: int,
+) -> FreeformAnnotationConfig:
+    return FreeformAnnotationConfig(
+        id_attr=_generate_output_config_id(id_prefix, evaluator_id, annotation_name),
+        name=annotation_name,
+        annotation_type=config.type,
+        description=config.description,
+        optimization_direction=config.optimization_direction or OptimizationDirection.NONE,
+        threshold=config.threshold,
+    )
+
+
 def _to_gql_output_config(
     config: OutputConfigType,
     annotation_name: str,
@@ -862,6 +887,8 @@ def _to_gql_output_config(
         return _to_gql_categorical_annotation_config(
             config, annotation_name, id_prefix, evaluator_id
         )
+    elif isinstance(config, FreeformOutputConfig):
+        return _to_gql_freeform_annotation_config(config, annotation_name, id_prefix, evaluator_id)
     else:
         return _to_gql_continuous_annotation_config(
             config, annotation_name, id_prefix, evaluator_id
@@ -977,7 +1004,10 @@ class DatasetEvaluator(Node):
                 configs = [
                     config
                     for config in evaluator.output_configs
-                    if isinstance(config, (CategoricalOutputConfig, ContinuousOutputConfig))
+                    if isinstance(
+                        config,
+                        (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig),
+                    )
                 ]
             elif isinstance(evaluator, models.BuiltinEvaluator):
                 builtin = get_builtin_evaluator_by_key(evaluator.key)
@@ -995,7 +1025,9 @@ class DatasetEvaluator(Node):
                 evaluator_id=self.id,
             )
             for config in configs_list
-            if isinstance(config, (CategoricalOutputConfig, ContinuousOutputConfig))
+            if isinstance(
+                config, (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig)
+            )
         ]
 
     @strawberry.field

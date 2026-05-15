@@ -156,7 +156,7 @@ describe("getPositiveOptimization", () => {
     ).toBeNull();
   });
 
-  it("returns null when bounds are undefined", () => {
+  it("returns null when bounds are undefined and no threshold", () => {
     expect(
       getPositiveOptimization({
         score: 0.5,
@@ -174,6 +174,50 @@ describe("getPositiveOptimization", () => {
         optimizationDirection: "MAXIMIZE",
       })
     ).toBeNull();
+  });
+
+  it("uses threshold as pivot when provided, ignoring bounds", () => {
+    // MAXIMIZE + threshold=0.7: score=0.8 is positive, score=0.5 is negative
+    expect(
+      getPositiveOptimization({
+        score: 0.8,
+        lowerBound: undefined,
+        upperBound: undefined,
+        threshold: 0.7,
+        optimizationDirection: "MAXIMIZE",
+      })
+    ).toBe(true);
+
+    expect(
+      getPositiveOptimization({
+        score: 0.5,
+        lowerBound: undefined,
+        upperBound: undefined,
+        threshold: 0.7,
+        optimizationDirection: "MAXIMIZE",
+      })
+    ).toBe(false);
+
+    // MINIMIZE + threshold=0.7: score=0.5 is positive, score=0.8 is negative
+    expect(
+      getPositiveOptimization({
+        score: 0.5,
+        lowerBound: undefined,
+        upperBound: undefined,
+        threshold: 0.7,
+        optimizationDirection: "MINIMIZE",
+      })
+    ).toBe(true);
+
+    expect(
+      getPositiveOptimization({
+        score: 0.8,
+        lowerBound: undefined,
+        upperBound: undefined,
+        threshold: 0.7,
+        optimizationDirection: "MINIMIZE",
+      })
+    ).toBe(false);
   });
 
   it("returns null when optimization direction is undefined", () => {

@@ -12,16 +12,18 @@ import type {
   EvaluatorKind,
   EvaluatorMappingSource,
   EvaluatorOptimizationDirection,
+  FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
 import type { DeepPartial } from "@phoenix/typeUtils";
 import { compressObject } from "@phoenix/utils/objectUtils";
 
 /**
- * Union type for annotation configs (categorical or continuous).
+ * Union type for annotation configs (categorical, continuous, or freeform).
  */
 export type AnnotationConfig =
   | ClassificationEvaluatorAnnotationConfig
-  | ContinuousEvaluatorAnnotationConfig;
+  | ContinuousEvaluatorAnnotationConfig
+  | FreeformEvaluatorAnnotationConfig;
 
 export type EvaluatorStoreProps = {
   datasetEvaluator?: {
@@ -111,6 +113,11 @@ export type EvaluatorStoreActions = {
   setOutputConfigOptimizationDirectionAtIndex: (
     index: number,
     optimizationDirection: EvaluatorOptimizationDirection
+  ) => void;
+  /** Sets the threshold of the output config at a specific index. */
+  setOutputConfigThresholdAtIndex: (
+    index: number,
+    threshold: number | null
   ) => void;
   /** Sets the classification choices for the output config at a specific index. */
   setOutputConfigValuesAtIndex: (
@@ -513,6 +520,17 @@ export const createEvaluatorStore = (
               { outputConfigs: newConfigs },
               undefined,
               "setOutputConfigOptimizationDirectionAtIndex"
+            );
+          },
+          setOutputConfigThresholdAtIndex(index, threshold) {
+            const currentConfigs = get().outputConfigs;
+            if (index < 0 || index >= currentConfigs.length) return;
+            const newConfigs = [...currentConfigs];
+            newConfigs[index] = { ...newConfigs[index], threshold };
+            set(
+              { outputConfigs: newConfigs },
+              undefined,
+              "setOutputConfigThresholdAtIndex"
             );
           },
           setOutputConfigValuesAtIndex(index, values) {

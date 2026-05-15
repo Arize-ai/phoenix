@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f88c57b8b8e1f70d774c1b377d6fd85c>>
+ * @generated SignedSource<<82738c59b62e4193fb0021a1d00f2269>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -22,6 +22,7 @@ export type AnnotationConfigTableFragment$data = {
         readonly lowerBound?: number | null;
         readonly name?: string;
         readonly optimizationDirection?: OptimizationDirection;
+        readonly threshold?: number | null;
         readonly upperBound?: number | null;
         readonly values?: ReadonlyArray<{
           readonly label: string;
@@ -172,7 +173,15 @@ return {
                     (v0/*: any*/),
                     (v1/*: any*/),
                     (v2/*: any*/),
-                    (v3/*: any*/)
+                    (v3/*: any*/),
+                    (v4/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "threshold",
+                      "storageKey": null
+                    }
                   ],
                   "type": "FreeformAnnotationConfig",
                   "abstractKey": null
@@ -192,6 +201,6 @@ return {
 };
 })();
 
-(node as any).hash = "21da6fc76dc125423a2f4ecd8ef70866";
+(node as any).hash = "f682f42537dd470dbd78566b2d7fa5b9";
 
 export default node;

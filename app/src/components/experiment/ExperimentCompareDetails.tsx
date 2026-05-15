@@ -186,6 +186,11 @@ export function ExperimentCompareDetails({
                       lowerBound
                       upperBound
                     }
+                    ... on FreeformAnnotationConfig {
+                      name
+                      optimizationDirection
+                      threshold
+                    }
                   }
                 }
               }

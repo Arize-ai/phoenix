@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e3b16994a3df86e2063a6bcdf54e47c3>>
+ * @generated SignedSource<<de5ac17b58f170d6d5fe36f3e269f548>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -200,6 +200,8 @@ export type ContinuousAnnotationConfigInput = {
 export type FreeformAnnotationConfigInput = {
   description?: string | null;
   name: string;
+  optimizationDirection?: OptimizationDirection | null;
+  threshold?: number | null;
 };
 export type InlineCodeEvaluatorInput = {
   description?: string | null;

@@ -18,16 +18,19 @@ function normalizeOptimizationDirection(
  * Gets the optimization bounds from an annotation config.
  * For continuous configs, uses the lower/upper bounds directly.
  * For categorical configs, calculates bounds from the min/max scores of the values.
+ * For freeform configs, returns an optional threshold that overrides the midpoint computation.
  */
 export function getOptimizationBounds(config: AnnotationConfig | undefined): {
   lowerBound: number | undefined;
   upperBound: number | undefined;
+  threshold: number | undefined;
   optimizationDirection: OptimizationDirectionResult;
 } {
   if (config == null) {
     return {
       lowerBound: undefined,
       upperBound: undefined,
+      threshold: undefined,
       optimizationDirection: undefined,
     };
   }
@@ -36,7 +39,10 @@ export function getOptimizationBounds(config: AnnotationConfig | undefined): {
     return {
       lowerBound: undefined,
       upperBound: undefined,
-      optimizationDirection: undefined,
+      threshold: config.threshold ?? undefined,
+      optimizationDirection: normalizeOptimizationDirection(
+        config.optimizationDirection
+      ),
     };
   }
 
@@ -48,6 +54,7 @@ export function getOptimizationBounds(config: AnnotationConfig | undefined): {
     return {
       lowerBound: config.lowerBound ?? undefined,
       upperBound: config.upperBound ?? undefined,
+      threshold: undefined,
       optimizationDirection,
     };
   }
@@ -70,6 +77,7 @@ export function getOptimizationBounds(config: AnnotationConfig | undefined): {
   return {
     lowerBound: lowerBound === Infinity ? undefined : lowerBound,
     upperBound: upperBound === -Infinity ? undefined : upperBound,
+    threshold: undefined,
     optimizationDirection,
   };
 }
@@ -77,37 +85,42 @@ export function getOptimizationBounds(config: AnnotationConfig | undefined): {
 /**
  * Determines if a score represents a "positive" optimization result.
  *
- * The score is compared against the midpoint between the lower and upper bounds.
- * For MAXIMIZE direction: returns true if score is above the midpoint
- * For MINIMIZE direction: returns true if score is below the midpoint
+ * Uses `threshold` as the pivot when provided; falls back to `(lowerBound + upperBound) / 2`
+ * when both bounds are defined. Returns null when no pivot can be determined.
+ * For MAXIMIZE direction: returns true if score is above the pivot.
+ * For MINIMIZE direction: returns true if score is below the pivot.
  *
- * Returns null if the optimization status cannot be determined (missing bounds, score, or direction).
+ * Returns null if the optimization status cannot be determined (missing pivot, score, or direction).
  */
 export function getPositiveOptimization({
   score,
   lowerBound,
   upperBound,
+  threshold,
   optimizationDirection,
 }: {
   score: number | null | undefined;
   lowerBound: number | undefined;
   upperBound: number | undefined;
+  threshold?: number | undefined;
   optimizationDirection: OptimizationDirectionResult;
 }): boolean | null {
-  if (
-    score == null ||
-    upperBound == null ||
-    lowerBound == null ||
-    optimizationDirection == null
-  ) {
+  if (score == null || optimizationDirection == null) {
     return null;
   }
 
-  const midpoint = (lowerBound + upperBound) / 2;
+  const pivot =
+    threshold != null
+      ? threshold
+      : lowerBound != null && upperBound != null
+        ? (lowerBound + upperBound) / 2
+        : undefined;
 
-  return optimizationDirection === "MAXIMIZE"
-    ? score > midpoint
-    : score < midpoint;
+  if (pivot == null) {
+    return null;
+  }
+
+  return optimizationDirection === "MAXIMIZE" ? score > pivot : score < pivot;
 }
 
 /**
@@ -130,13 +143,14 @@ export function getPositiveOptimizationFromConfig({
   config: AnnotationConfig | undefined;
   score: number | null | undefined;
 }): boolean | null {
-  const { lowerBound, upperBound, optimizationDirection } =
+  const { lowerBound, upperBound, threshold, optimizationDirection } =
     getOptimizationBounds(config);
 
   return getPositiveOptimization({
     score,
     lowerBound,
     upperBound,
+    threshold,
     optimizationDirection,
   });
 }

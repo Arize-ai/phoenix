@@ -20,16 +20,10 @@ import {
   Link,
   List,
   ListItem,
-  ListBox,
-  Popover,
+  NumberField,
   SectionHeading,
-  Select,
-  SelectChevronUpDownIcon,
-  SelectItem,
-  SelectValue,
   Switch,
   Text,
-  TextField,
   View,
 } from "@phoenix/components";
 import {
@@ -57,7 +51,6 @@ import {
   extractCodeEvaluatorVariables,
   getAllGeneratedSources,
   getDefaultCodeEvaluatorSource,
-  type EvaluatorOutputShape,
 } from "@phoenix/components/evaluators/codeEvaluatorUtils";
 import { EvaluatorDescriptionInput } from "@phoenix/components/evaluators/EvaluatorDescriptionInput";
 import { EvaluatorExampleDataset } from "@phoenix/components/evaluators/EvaluatorExampleDataset";
@@ -77,24 +70,17 @@ import {
 } from "@phoenix/contexts/EvaluatorContext";
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
 import type {
-  ClassificationChoice,
   ClassificationEvaluatorAnnotationConfig,
   CodeEvaluatorLanguage,
-  ContinuousEvaluatorAnnotationConfig,
+  FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
 
-const outputTypeOptions = [
-  { id: "continuous", label: "Continuous score" },
-  { id: "categorical", label: "Categorical label" },
-] as const;
-
-export const createDefaultContinuousOutputConfig = (
+export const createDefaultFreeformOutputConfig = (
   name: string
-): ContinuousEvaluatorAnnotationConfig => ({
+): FreeformEvaluatorAnnotationConfig => ({
   name,
   optimizationDirection: DEFAULT_OPTIMIZATION_DIRECTION,
-  lowerBound: 0,
-  upperBound: 1,
+  threshold: null,
 });
 
 export const createDefaultCategoricalOutputConfig = (
@@ -144,14 +130,10 @@ export const EditCodeEvaluatorDialogContent = ({
 }) => {
   const store = useEvaluatorStoreInstance();
   const outputConfig = useEvaluatorStore((state) => state.outputConfigs[0]);
-  const outputShape: EvaluatorOutputShape =
-    outputConfig && "values" in outputConfig ? "categorical" : "continuous";
   const [showValidationError, setShowValidationError] = useState(false);
   const [sourceCode, setSourceCode] = useState(initialSourceCode);
   const [language, setLanguage] =
     useState<CodeEvaluatorLanguage>(initialLanguage);
-  // Track the shape from the previous render so the shape-change guard can compare.
-  const prevShapeRef = useRef<EvaluatorOutputShape>(outputShape);
   const [sandboxConfigId, setSandboxConfigId] = useState<string | null>(
     initialSandboxConfigId ?? null
   );
@@ -224,25 +206,6 @@ export const EditCodeEvaluatorDialogContent = ({
       checkForDirtyChanges();
     });
   }, [store]);
-
-  // Output-shape-change guard: when outputShape changes and sourceCode is still
-  // a generated default for the previous {language, shape}, replace it with the
-  // generated default for the new shape. Preserves user-edited source.
-  useEffect(() => {
-    const prevShape = prevShapeRef.current;
-    if (prevShape !== outputShape) {
-      const prevDefaults = getAllGeneratedSources(language, outputConfig);
-      if (prevDefaults.includes(sourceCode)) {
-        setSourceCode(
-          getDefaultCodeEvaluatorSource(language, outputShape, outputConfig)
-        );
-      }
-      prevShapeRef.current = outputShape;
-    }
-    // outputConfig intentionally excluded: shape change is what drives the swap,
-    // not every config field edit.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [outputShape]);
 
   const handleCancel = () => {
     onCancel?.();
@@ -392,7 +355,7 @@ export const EditCodeEvaluatorDialogContent = ({
                         setSourceCode(
                           getDefaultCodeEvaluatorSource(
                             nextLanguage,
-                            outputShape,
+                            "continuous",
                             outputConfig
                           )
                         );
@@ -410,7 +373,6 @@ export const EditCodeEvaluatorDialogContent = ({
                   language={language}
                   sourceCode={sourceCode}
                   onChange={setSourceCode}
-                  outputShape={outputShape}
                   outputConfig={outputConfig}
                 />
                 <EvaluatorAnnotationSection />
@@ -628,21 +590,17 @@ function getSandboxDependenciesConfigLabel(config: SandboxConfigForLabels) {
  */
 const CodeEditor = ({
   language,
-  outputShape,
   outputConfig,
   sourceCode,
   onChange,
 }: {
   language: CodeEvaluatorLanguage;
-  outputShape: EvaluatorOutputShape;
   outputConfig: AnnotationConfig | undefined;
   sourceCode: string;
   onChange: (value: string) => void;
 }) => {
   const { theme } = useTheme();
   const codeMirrorTheme = theme === "light" ? githubLight : githubDark;
-  const store = useEvaluatorStoreInstance();
-
   // The auto-generated type footer is hidden by default.
   const [showTypes, setShowTypes] = useState(false);
 
@@ -668,9 +626,7 @@ const CodeEditor = ({
   );
 
   const descriptionText =
-    outputShape === "categorical"
-      ? "Define an evaluate function that returns a string label."
-      : "Define an evaluate function that returns a numerical score.";
+    "Define an evaluate function that returns a score or label.";
 
   return (
     <Flex direction="column" gap="size-100">
@@ -704,12 +660,6 @@ const CodeEditor = ({
                     return;
                   }
                   onChange(template.getSource(language));
-                  const { evaluator, setOutputConfigs } = store.getState();
-                  const evaluatorName =
-                    evaluator.name || evaluator.globalName || "";
-                  setOutputConfigs([
-                    { ...template.outputConfig, name: evaluatorName },
-                  ]);
                 }}
               >
                 {CODE_EVALUATOR_TEMPLATES.map((template) => (
@@ -737,7 +687,7 @@ const CodeEditor = ({
               onChange(
                 getDefaultCodeEvaluatorSource(
                   language,
-                  outputShape,
+                  "continuous",
                   outputConfig
                 )
               )
@@ -889,17 +839,15 @@ const InputMappingSection = () => {
 const OutputConfigSection = () => {
   const store = useEvaluatorStoreInstance();
   const outputConfig = useEvaluatorStore((state) => state.outputConfigs[0]);
-  const evaluatorName = useEvaluatorStore(
-    (state) => state.evaluator.name || state.evaluator.globalName
+  const setOutputConfigThresholdAtIndex = useEvaluatorStore(
+    (state) => state.setOutputConfigThresholdAtIndex
   );
-  const outputType =
-    outputConfig && "values" in outputConfig ? "categorical" : "continuous";
 
   useEffect(() => {
     if (!outputConfig) {
       const state = store.getState();
       const name = state.evaluator.name || state.evaluator.globalName;
-      state.setOutputConfigs([createDefaultCategoricalOutputConfig(name)]);
+      state.setOutputConfigs([createDefaultFreeformOutputConfig(name)]);
     }
   }, [outputConfig, store]);
 
@@ -907,183 +855,21 @@ const OutputConfigSection = () => {
     return null;
   }
 
+  const threshold =
+    "threshold" in outputConfig ? (outputConfig.threshold ?? null) : null;
+
   return (
     <Flex direction="column" gap="size-100">
-      <TextField isDisabled value={outputConfig.name}>
-        <Label>Annotation name</Label>
+      <OptimizationDirectionField />
+      <NumberField
+        value={threshold ?? undefined}
+        onChange={(value) =>
+          setOutputConfigThresholdAtIndex(0, Number.isNaN(value) ? null : value)
+        }
+      >
+        <Label>Score threshold (optional)</Label>
         <Input />
-        <Text slot="description">
-          The name of the annotation that will be created by this evaluator.
-          Fixed to the evaluator name.
-        </Text>
-      </TextField>
-
-      <Flex direction="row" gap="size-200" alignItems="start">
-        <div css={fillCSS}>
-          <Select
-            value={outputType}
-            disabledKeys={["continuous"]}
-            onChange={(value) => {
-              const nextType =
-                value as (typeof outputTypeOptions)[number]["id"];
-              store
-                .getState()
-                .setOutputConfigs([
-                  nextType === "categorical"
-                    ? createDefaultCategoricalOutputConfig(evaluatorName)
-                    : createDefaultContinuousOutputConfig(evaluatorName),
-                ]);
-            }}
-          >
-            <Label>Output type</Label>
-            <Button>
-              <SelectValue />
-              <SelectChevronUpDownIcon />
-            </Button>
-            <Text slot="description">
-              The type of output that will be created by this evaluator. Your
-              code should return a numerical score or a categorical label.
-            </Text>
-            <Popover>
-              <ListBox>
-                {outputTypeOptions.map((option) => (
-                  <SelectItem key={option.id} id={option.id}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </ListBox>
-            </Popover>
-          </Select>
-        </div>
-        <div css={fillCSS}>
-          <OptimizationDirectionField />
-        </div>
-      </Flex>
-
-      {"values" in outputConfig ? (
-        <CategoricalChoicesEditor values={outputConfig.values} />
-      ) : (
-        <ContinuousBoundsEditor config={outputConfig} />
-      )}
-    </Flex>
-  );
-};
-
-const CategoricalChoicesEditor = ({
-  values,
-}: {
-  values: ClassificationChoice[];
-}) => {
-  const setOutputConfigs = useEvaluatorStore((state) => state.setOutputConfigs);
-  const outputConfig = useEvaluatorStore((state) => state.outputConfigs[0]);
-
-  if (!outputConfig || !("values" in outputConfig)) {
-    return null;
-  }
-
-  const updateValues = (nextValues: ClassificationChoice[]) => {
-    setOutputConfigs([{ ...outputConfig, values: nextValues }]);
-  };
-
-  return (
-    <Flex direction="column" gap="size-100">
-      <Text weight="heavy" size="XS">
-        Choices
-      </Text>
-      {values.map((choice, index) => (
-        <div key={index} css={choiceGridCSS}>
-          <TextField
-            value={choice.label}
-            onChange={(label) => {
-              const nextValues = [...values];
-              nextValues[index] = { ...choice, label };
-              updateValues(nextValues);
-            }}
-          >
-            <Input placeholder={`Choice ${index + 1}`} />
-          </TextField>
-          <TextField
-            value={choice.score != null ? String(choice.score) : ""}
-            onChange={(value) => {
-              const nextValues = [...values];
-              nextValues[index] = {
-                ...choice,
-                score: value.trim() === "" ? undefined : Number(value),
-              };
-              updateValues(nextValues);
-            }}
-          >
-            <Input type="number" placeholder="Score" />
-          </TextField>
-          <Button
-            type="button"
-            variant="quiet"
-            aria-label="Remove choice"
-            size="S"
-            isDisabled={values.length <= 2}
-            onPress={() => {
-              if (values.length <= 2) return;
-              updateValues(values.filter((_, i) => i !== index));
-            }}
-          >
-            <Icon svg={<Icons.TrashOutline />} />
-          </Button>
-        </div>
-      ))}
-      <Flex justifyContent="end">
-        <Button
-          type="button"
-          variant="quiet"
-          size="S"
-          leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
-          onPress={() =>
-            updateValues([...values, { label: "", score: undefined }])
-          }
-        >
-          Add choice
-        </Button>
-      </Flex>
-    </Flex>
-  );
-};
-
-const ContinuousBoundsEditor = ({
-  config,
-}: {
-  config: ContinuousEvaluatorAnnotationConfig;
-}) => {
-  const setOutputConfigs = useEvaluatorStore((state) => state.setOutputConfigs);
-
-  const updateConfig = (
-    updates: Partial<ContinuousEvaluatorAnnotationConfig>
-  ) => {
-    setOutputConfigs([{ ...config, ...updates }]);
-  };
-
-  return (
-    <Flex direction="row" gap="size-100">
-      <TextField
-        value={config.lowerBound != null ? String(config.lowerBound) : ""}
-        onChange={(value) =>
-          updateConfig({
-            lowerBound: value.trim() === "" ? null : Number(value),
-          })
-        }
-      >
-        <Label>Lower bound</Label>
-        <Input type="number" placeholder="0" />
-      </TextField>
-      <TextField
-        value={config.upperBound != null ? String(config.upperBound) : ""}
-        onChange={(value) =>
-          updateConfig({
-            upperBound: value.trim() === "" ? null : Number(value),
-          })
-        }
-      >
-        <Label>Upper bound</Label>
-        <Input type="number" placeholder="1" />
-      </TextField>
+      </NumberField>
     </Flex>
   );
 };
@@ -1262,16 +1048,4 @@ const typeFooterCSS = css`
   & .cm-scroller {
     overflow: auto !important;
   }
-`;
-
-const choiceGridCSS = css`
-  display: grid;
-  grid-template-columns: 1fr 100px 32px;
-  gap: var(--global-dimension-size-50);
-  align-items: center;
-`;
-
-const fillCSS = css`
-  flex: 1 1 0;
-  min-width: 0;
 `;

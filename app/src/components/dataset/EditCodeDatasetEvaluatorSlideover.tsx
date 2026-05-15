@@ -17,7 +17,7 @@ import type { EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation } fro
 import type { EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation.graphql";
 import { mapSandboxConfigOptions } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
 import {
-  createDefaultContinuousOutputConfig,
+  createDefaultFreeformOutputConfig,
   EditCodeEvaluatorDialogContent,
 } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
 import { buildOutputConfigsInput } from "@phoenix/components/evaluators/utils";
@@ -310,7 +310,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
       ? datasetEvaluator.outputConfigs
       : evaluator.outputConfigs?.length
         ? evaluator.outputConfigs
-        : [createDefaultContinuousOutputConfig(datasetEvaluator.name ?? "")]
+        : [createDefaultFreeformOutputConfig(datasetEvaluator.name ?? "")]
   ) as Mutable<
     | ContinuousEvaluatorAnnotationConfig
     | ClassificationEvaluatorAnnotationConfig

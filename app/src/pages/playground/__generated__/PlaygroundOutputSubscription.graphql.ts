@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<9524846ba320785e683ea63548d00d3a>>
+ * @generated SignedSource<<b480b9fa0d44cf3ef6e58f235f9948f3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -218,6 +218,8 @@ export type ContinuousAnnotationConfigInput = {
 export type FreeformAnnotationConfigInput = {
   description?: string | null;
   name: string;
+  optimizationDirection?: OptimizationDirection | null;
+  threshold?: number | null;
 };
 export type PlaygroundOutputSubscription$variables = {
   input: ChatCompletionInput;

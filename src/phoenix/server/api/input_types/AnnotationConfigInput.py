@@ -43,6 +43,8 @@ class ContinuousAnnotationConfigInput:
 class FreeformAnnotationConfigInput:
     name: str
     description: Optional[str] = None
+    optimization_direction: Optional[OptimizationDirection] = None
+    threshold: Optional[float] = None
 
     def __post_init__(self) -> None:
         if not self.name.strip():

@@ -1,23 +1,9 @@
-import { DEFAULT_OPTIMIZATION_DIRECTION } from "@phoenix/components/evaluators/OptimizationDirectionField";
-import type {
-  ClassificationEvaluatorAnnotationConfig,
-  CodeEvaluatorLanguage,
-} from "@phoenix/types";
-
-/** A template's annotation config, minus the name (set from the evaluator). */
-type TemplateOutputConfig = Omit<
-  ClassificationEvaluatorAnnotationConfig,
-  "name"
->;
+import type { CodeEvaluatorLanguage } from "@phoenix/types";
 
 /**
  * A pre-defined code evaluator snippet. The same idea as the built-in
  * evaluators (exact match, contains, regex, levenshtein distance, json
  * distance) but expressed as editable source code for code evaluators.
- *
- * Each template returns a `{ label, score, explanation }` result and ships a
- * matching annotation (output) config so the labels it emits are valid as
- * soon as the template is applied.
  *
  * Templates are language-aware: {@link CodeEvaluatorTemplate.getSource}
  * returns the appropriate Python or TypeScript implementation.
@@ -27,20 +13,7 @@ export type CodeEvaluatorTemplate = {
   name: string;
   description: string;
   getSource: (language: CodeEvaluatorLanguage) => string;
-  /** Annotation (output) config matching the labels this template emits. */
-  outputConfig: TemplateOutputConfig;
 };
-
-/**
- * Builds a categorical config from a `{ label: score }` map — the shape every
- * template below emits.
- */
-const getCategoricalConfigFromChoices = (
-  choices: Record<string, number>
-): TemplateOutputConfig => ({
-  optimizationDirection: DEFAULT_OPTIMIZATION_DIRECTION,
-  values: Object.entries(choices).map(([label, score]) => ({ label, score })),
-});
 
 const PYTHON_SOURCES: Record<string, string> = {
   exact_match: `def evaluate(output, reference=None, input=None, metadata=None):
@@ -212,46 +185,39 @@ const TYPESCRIPT_SOURCES: Record<string, string> = {
 const makeTemplate = (
   id: string,
   name: string,
-  description: string,
-  outputConfig: TemplateOutputConfig
+  description: string
 ): CodeEvaluatorTemplate => ({
   id,
   name,
   description,
   getSource: (language) =>
     language === "PYTHON" ? PYTHON_SOURCES[id] : TYPESCRIPT_SOURCES[id],
-  outputConfig,
 });
 
 export const CODE_EVALUATOR_TEMPLATES: readonly CodeEvaluatorTemplate[] = [
   makeTemplate(
     "exact_match",
     "Exact match",
-    "Match/mismatch when the output equals the reference.",
-    getCategoricalConfigFromChoices({ match: 1, mismatch: 0 })
+    "Match/mismatch when the output equals the reference."
   ),
   makeTemplate(
     "contains",
     "Contains",
-    "Whether the output contains the reference text.",
-    getCategoricalConfigFromChoices({ contains: 1, missing: 0 })
+    "Whether the output contains the reference text."
   ),
   makeTemplate(
     "regex",
     "Regex",
-    "Whether the output matches a regular expression.",
-    getCategoricalConfigFromChoices({ match: 1, no_match: 0 })
+    "Whether the output matches a regular expression."
   ),
   makeTemplate(
     "levenshtein_distance",
     "Levenshtein distance",
-    "Normalized edit-distance similarity between output and reference.",
-    getCategoricalConfigFromChoices({ similar: 1, different: 0 })
+    "Normalized edit-distance similarity between output and reference."
   ),
   makeTemplate(
     "json_distance",
     "JSON distance",
-    "Whether the output and reference are equal parsed as JSON.",
-    getCategoricalConfigFromChoices({ equal: 1, not_equal: 0 })
+    "Whether the output and reference are equal parsed as JSON."
   ),
 ];

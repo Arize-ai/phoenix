@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c1252c11e77dd51a905a58d7b2034a9f>>
+ * @generated SignedSource<<693dc3bfc2b682d244f8d915b7f6abc5>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -45,6 +45,8 @@ export type ContinuousAnnotationConfigInput = {
 export type FreeformAnnotationConfigInput = {
   description?: string | null;
   name: string;
+  optimizationDirection?: OptimizationDirection | null;
+  threshold?: number | null;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping: any;

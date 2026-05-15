@@ -12,7 +12,7 @@ import type { CreateCodeDatasetEvaluatorSlideoverQuery } from "@phoenix/componen
 import { mapSandboxConfigOptions } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
 import { getDefaultCodeEvaluatorSource } from "@phoenix/components/evaluators/codeEvaluatorUtils";
 import {
-  createDefaultCategoricalOutputConfig,
+  createDefaultFreeformOutputConfig,
   EditCodeEvaluatorDialogContent,
 } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
 import { buildOutputConfigsInput } from "@phoenix/components/evaluators/utils";
@@ -185,7 +185,7 @@ const CreateCodeEvaluatorDialog = ({
       isBuiltin: false,
       includeExplanation: false,
     },
-    outputConfigs: [createDefaultCategoricalOutputConfig("")],
+    outputConfigs: [createDefaultFreeformOutputConfig("")],
     dataset: {
       readonly: true,
       id: datasetId,
@@ -283,8 +283,7 @@ const CreateCodeEvaluatorDialog = ({
           initialLanguage="PYTHON"
           initialSourceCode={getDefaultCodeEvaluatorSource(
             "PYTHON",
-            "categorical",
-            createDefaultCategoricalOutputConfig("")
+            "continuous"
           )}
           sandboxConfigs={sandboxConfigs}
           initialSandboxConfigId={null}

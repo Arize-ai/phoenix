@@ -8,9 +8,11 @@ import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/play
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
 import type {
   ClassificationEvaluatorAnnotationConfig,
+  ContinuousEvaluatorAnnotationConfig,
   EvaluatorInputMapping,
   EvaluatorMappingSource,
   EvaluatorOptimizationDirection,
+  FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
 import { isObject } from "@phoenix/typeUtils";
 
@@ -308,9 +310,13 @@ const toAnnotationConfigInput = (
     lowerBound?: number | null;
     upperBound?: number | null;
   };
+  freeform?: {
+    name: string;
+    optimizationDirection: EvaluatorOptimizationDirection;
+    threshold?: number | null;
+  };
 } => {
   if ("values" in config) {
-    // Categorical config
     return {
       categorical: {
         name: config.name,
@@ -323,13 +329,28 @@ const toAnnotationConfigInput = (
     };
   }
 
+  if (!("lowerBound" in config)) {
+    // Freeform config — omit threshold when not set
+    const freeformConfig = config as FreeformEvaluatorAnnotationConfig;
+    return {
+      freeform: {
+        name: freeformConfig.name,
+        optimizationDirection: freeformConfig.optimizationDirection,
+        ...(freeformConfig.threshold != null
+          ? { threshold: freeformConfig.threshold }
+          : {}),
+      },
+    };
+  }
+
   // Continuous config
+  const continuousConfig = config as ContinuousEvaluatorAnnotationConfig;
   return {
     continuous: {
-      name: config.name,
-      optimizationDirection: config.optimizationDirection,
-      lowerBound: config.lowerBound ?? null,
-      upperBound: config.upperBound ?? null,
+      name: continuousConfig.name,
+      optimizationDirection: continuousConfig.optimizationDirection,
+      lowerBound: continuousConfig.lowerBound ?? null,
+      upperBound: continuousConfig.upperBound ?? null,
     },
   };
 };

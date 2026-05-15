@@ -2,7 +2,7 @@ import type { AnnotationConfig } from "@phoenix/components/annotation";
 
 /**
  * The shape of a dataset evaluator's output config from GraphQL.
- * This is the union of CategoricalAnnotationConfig and ContinuousAnnotationConfig.
+ * This is the union of CategoricalAnnotationConfig, ContinuousAnnotationConfig, and FreeformAnnotationConfig.
  */
 export type DatasetEvaluatorOutputConfig = {
   readonly name?: string;
@@ -13,6 +13,7 @@ export type DatasetEvaluatorOutputConfig = {
   }[];
   readonly lowerBound?: number | null;
   readonly upperBound?: number | null;
+  readonly threshold?: number | null;
 };
 
 /**
@@ -61,10 +62,16 @@ function outputConfigToAnnotationConfig(
     };
   }
 
-  // Fallback for freeform or unknown types
+  // Freeform branch — thread optimizationDirection and threshold
   return {
     name: outputConfig.name ?? fallbackName,
     annotationType: "FREEFORM",
+    optimizationDirection: outputConfig.optimizationDirection as
+      | "MAXIMIZE"
+      | "MINIMIZE"
+      | "NONE"
+      | undefined,
+    threshold: outputConfig.threshold ?? null,
   };
 }
 

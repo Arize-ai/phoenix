@@ -52,6 +52,9 @@ const useTraceAnnotationSummaryGroup = (
           }
         }
         traceAnnotationSummaries {
+          count
+          scoreCount
+          labelCount
           labelFractions {
             fraction
             label

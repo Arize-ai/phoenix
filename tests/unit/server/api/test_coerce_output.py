@@ -20,6 +20,7 @@ from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
     ContinuousOutputConfig,
+    FreeformOutputConfig,
     OptimizationDirection,
 )
 from phoenix.server.api.coerce_output import _coerce_output
@@ -382,3 +383,37 @@ class TestShapeExamples:
         msg = str(exc_info.value)
         assert "Valid shapes" in msg
         assert "pass" in msg
+
+
+def _freeform(
+    optimization_direction: OptimizationDirection = OptimizationDirection.MAXIMIZE,
+    threshold: float | None = None,
+) -> FreeformOutputConfig:
+    return FreeformOutputConfig(
+        type="FREEFORM",
+        name="result",
+        optimization_direction=optimization_direction,
+        threshold=threshold,
+    )
+
+
+class TestFreeformOutputConfigPassthrough:
+    def test_numeric_score_passes_through(self) -> None:
+        label, score, explanation = _coerce_output(0.8, _freeform())
+        assert label is None
+        assert score == pytest.approx(0.8)
+        assert explanation is None
+
+    def test_string_label_passes_through(self) -> None:
+        label, score, explanation = _coerce_output("pass", _freeform())
+        assert label == "pass"
+        assert score is None
+        assert explanation is None
+
+    def test_dict_with_score_passes_through(self) -> None:
+        label, score, explanation = _coerce_output(
+            {"score": 0.9, "explanation": "good"}, _freeform(threshold=0.7)
+        )
+        assert label is None
+        assert score == pytest.approx(0.9)
+        assert explanation == "good"

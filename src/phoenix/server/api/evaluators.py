@@ -30,6 +30,7 @@ from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
     ContinuousOutputConfig,
+    FreeformOutputConfig,
     OptimizationDirection,
     OutputConfigType,
 )
@@ -880,7 +881,9 @@ async def get_evaluators(
                 output_cfgs: list[OutputConfigType] = [
                     c
                     for c in code_row.output_configs
-                    if isinstance(c, (CategoricalOutputConfig, ContinuousOutputConfig))
+                    if isinstance(
+                        c, (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig)
+                    )
                 ]
                 runner = CodeEvaluatorRunner(
                     name=eval_name,

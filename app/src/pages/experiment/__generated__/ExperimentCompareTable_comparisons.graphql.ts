@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<523bde92b62f2b8ef7833e55fea56d6f>>
+ * @generated SignedSource<<77fb44f68b3dae852bd28bd3efb86d1f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -77,6 +77,7 @@ export type ExperimentCompareTable_comparisons$data = {
             readonly lowerBound?: number | null;
             readonly name?: string;
             readonly optimizationDirection?: OptimizationDirection;
+            readonly threshold?: number | null;
             readonly upperBound?: number | null;
             readonly values?: ReadonlyArray<{
               readonly label: string;
@@ -810,6 +811,22 @@ return {
                               ],
                               "type": "ContinuousAnnotationConfig",
                               "abstractKey": null
+                            },
+                            {
+                              "kind": "InlineFragment",
+                              "selections": [
+                                (v6/*: any*/),
+                                (v11/*: any*/),
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "threshold",
+                                  "storageKey": null
+                                }
+                              ],
+                              "type": "FreeformAnnotationConfig",
+                              "abstractKey": null
                             }
                           ],
                           "storageKey": null
@@ -836,6 +853,6 @@ return {
 };
 })();
 
-(node as any).hash = "bf8a6a23c11a199c8bd4da62f57014be";
+(node as any).hash = "51c0c52db1ec72a66fa5ce700bd6ce4a";
 
 export default node;

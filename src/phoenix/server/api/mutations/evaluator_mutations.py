@@ -21,6 +21,7 @@ from phoenix.db.types.annotation_configs import (
     AnnotationConfigType,
     CategoricalOutputConfig,
     ContinuousOutputConfig,
+    FreeformOutputConfig,
     OutputConfigType,
 )
 from phoenix.db.types.identifier import Identifier
@@ -85,6 +86,15 @@ def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> OutputConf
             optimization_direction=cont.optimization_direction,
             lower_bound=cont.lower_bound,
             upper_bound=cont.upper_bound,
+        )
+    elif input.freeform is not None and input.freeform is not UNSET:
+        free = input.freeform
+        return FreeformOutputConfig(
+            type=AnnotationType.FREEFORM.value,
+            name=free.name,
+            description=free.description,
+            optimization_direction=free.optimization_direction,
+            threshold=free.threshold,
         )
     raise BadRequest("Invalid output config input")
 
