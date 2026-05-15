@@ -14,6 +14,8 @@ from phoenix.server.types import DaemonTask, DbSessionFactory
 
 logger = logging.getLogger(__name__)
 
+_FETCH_CLOCK_SKEW_BUFFER = timedelta(seconds=10)
+
 
 class GenerativeModelStore(DaemonTask):
     """A daemon that periodically fetches generative models and maintains an in-memory cache.
@@ -47,7 +49,6 @@ class GenerativeModelStore(DaemonTask):
         self._db = db
         self._lookup = CostModelLookup()
         self._last_fetch_time: Optional[datetime] = None
-        self._last_fetch_id: Optional[int] = None
         self._refresh_interval_seconds = refresh_interval_seconds
 
     def find_model(
@@ -59,8 +60,8 @@ class GenerativeModelStore(DaemonTask):
 
     async def _run(self) -> None:
         while self._running:
-            # Capture time before query with 2-second buffer for clock skew tolerance
-            fetch_start_time = datetime.now(timezone.utc) - timedelta(seconds=2)
+            # Capture time before query with a 10-second buffer for clock skew tolerance
+            fetch_start_time = datetime.now(timezone.utc) - _FETCH_CLOCK_SKEW_BUFFER
             try:
                 await self._fetch_models()
             except Exception:
@@ -74,7 +75,7 @@ class GenerativeModelStore(DaemonTask):
         Fetch generative models from the database using an incremental strategy.
 
         On the first run, fetches all models. On subsequent runs, only fetches models
-        where updated_at or deleted_at is at or after the last fetch time (with a 2-second
+        where updated_at or deleted_at is at or after the last fetch time (with a 10-second
         buffer). Some models may be refetched, but .merge() handles duplicates idempotently.
         """
         stmt = sa.select(models.GenerativeModel).options(
@@ -83,24 +84,18 @@ class GenerativeModelStore(DaemonTask):
         if self._last_fetch_time:
             # Incremental fetch: get models changed since last fetch.
             # Use >= for updated_at/deleted_at to catch models from the buffer window.
-            # Include id check as redundant safety check.
-            incremental_filters = [
-                models.GenerativeModel.updated_at >= self._last_fetch_time,
-                models.GenerativeModel.deleted_at >= self._last_fetch_time,
-            ]
-            if self._last_fetch_id is not None:
-                incremental_filters.append(models.GenerativeModel.id > self._last_fetch_id)
-            stmt = stmt.where(sa.or_(*incremental_filters))
-        async with self._db.read() as session:
+            stmt = stmt.where(
+                sa.or_(
+                    models.GenerativeModel.updated_at >= self._last_fetch_time,
+                    models.GenerativeModel.deleted_at >= self._last_fetch_time,
+                )
+            )
+        # Use the primary DB for checkpointed polling. A lagged read replica could return
+        # stale results and still allow the daemon to advance its timestamp cursor.
+        async with self._db() as session:
             generative_models = (await session.scalars(stmt)).unique().all()
 
         if not generative_models:
             return
 
         self._lookup.merge(generative_models)
-
-        # Track max id for redundant safety check.
-        self._last_fetch_id = max(
-            self._last_fetch_id or 0,
-            *(model.id for model in generative_models),
-        )

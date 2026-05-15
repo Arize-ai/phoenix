@@ -428,6 +428,7 @@ class TestEnsureModelCosts:
         # Verify model 2 details (minimal pricing)
         model2 = built_in_models["test-model-2"]
         assert model2.name_pattern.pattern == r"(?i)^(test-model-2|alt-name-2)$"
+        model2_initial_updated_at = model2.updated_at
 
         actual_prices_2 = self._extract_token_prices(model2)
         expected_prices_2 = {
@@ -545,6 +546,7 @@ class TestEnsureModelCosts:
 
         # Verify model 2 updates
         model2_updated = built_in_models["test-model-2"]
+        assert model2_updated.updated_at > model2_initial_updated_at
         actual_prices_2_updated = self._extract_token_prices(model2_updated)
         expected_prices_2_updated = {
             ("input", True): 0.000005,  # Same

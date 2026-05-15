@@ -514,6 +514,7 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
             # Remove model from built_in_models dict (for cleanup tracking)
             # or create new model if not found
             model = built_in_models.pop(model_data["name"], None)
+            is_existing_model = model is not None
             if model is None:
                 # Create new built-in model from manifest data
                 model = models.GenerativeModel(
@@ -534,6 +535,7 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
                 _TokenTypeKey(token_price.token_type, token_price.is_prompt): token_price
                 for token_price in model.token_prices
             }
+            token_prices_changed = False
 
             # Synchronize token prices for all supported token types
             for manifest_token_price in model_data["token_prices"]:
@@ -554,14 +556,20 @@ async def _ensure_model_costs(db: DbSessionFactory) -> None:
                         base_rate=base_rate,
                     )
                     model.token_prices.append(token_price)
+                    token_prices_changed = True
                 elif token_price.base_rate != base_rate:
                     # Update existing price if rate has changed
                     token_price.base_rate = base_rate
+                    token_prices_changed = True
 
             # Remove any token prices that are no longer in the manifest
             # These are prices that weren't popped from the token_prices dict above
             for token_price in existing_token_prices.values():
                 model.token_prices.remove(token_price)
+                token_prices_changed = True
+
+            if is_existing_model and token_prices_changed:
+                model.updated_at = datetime.now(timezone.utc)
 
     # Clean up built-in models that are no longer in the manifest
     # These are models that weren't popped from built_in_models dict above

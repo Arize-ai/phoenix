@@ -74,7 +74,7 @@ class TestGenerativeModelStore:
         - Verify observable behavior (model lookups work correctly) after each cycle
         - Verify internal state (_last_fetch_time advances) to ensure incremental logic executes
 
-        Note: The implementation applies a 2-second clock buffer (fetch_start_time = now - 2s)
+        Note: The implementation applies a 10-second clock buffer (fetch_start_time = now - 10s)
         for clock skew tolerance, but this test does not verify the buffer's effectiveness
         as that would require time mocking to simulate the race condition.
         """
@@ -177,8 +177,6 @@ class TestGenerativeModelStore:
         # Verify _last_fetch_time was set (timestamp tracking works)
         assert store._last_fetch_time is not None
         first_fetch_time = store._last_fetch_time
-        assert store._last_fetch_id is not None
-        first_fetch_id = store._last_fetch_id
 
         # PHASE 2: Update model and verify incremental fetch
         await asyncio.sleep(0.01)
@@ -227,7 +225,6 @@ class TestGenerativeModelStore:
         # Verify timestamp advanced
         assert store._last_fetch_time is not None
         assert store._last_fetch_time > first_fetch_time
-        assert store._last_fetch_id == first_fetch_id
         second_fetch_time = store._last_fetch_time
 
         # PHASE 3: Delete model and verify removal
