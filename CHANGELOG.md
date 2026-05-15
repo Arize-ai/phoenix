@@ -1,5 +1,31 @@
 # Changelog
 
+## [15.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.9.0...arize-phoenix-v15.10.0) (2026-05-15)
+
+
+### Features
+
+* add trace feedback toolbar to session turns ([#13189](https://github.com/Arize-ai/phoenix/issues/13189)) ([1bd96b9](https://github.com/Arize-ai/phoenix/commit/1bd96b9a824dd2457c6f60e54897a6e1d5d92132))
+* **agents:** curate agent model menu ([#13190](https://github.com/Arize-ai/phoenix/issues/13190)) ([de8c915](https://github.com/Arize-ai/phoenix/commit/de8c9157964101eb58c288a27b6e983acf534c89))
+* border and divider cleanup with improved w storybook support ([#13098](https://github.com/Arize-ai/phoenix/issues/13098)) ([acd1626](https://github.com/Arize-ai/phoenix/commit/acd1626b7839dc42f7a8c40054e0fdf67f7f6f5e))
+* cap agent session retention ([#13220](https://github.com/Arize-ai/phoenix/issues/13220)) ([1c28249](https://github.com/Arize-ai/phoenix/commit/1c282498eced055454b254359d148a82087ecbbd))
+* pxi button styles and thinking glyph animation ([#13250](https://github.com/Arize-ai/phoenix/issues/13250)) ([4766244](https://github.com/Arize-ai/phoenix/commit/47662443c835b0ffa12800e7668c2f8f01f81575))
+* **trace:** convert OTel GenAI semconv attrs to OpenInference ([#13267](https://github.com/Arize-ai/phoenix/issues/13267)) ([6248d20](https://github.com/Arize-ai/phoenix/commit/6248d20452a70a5049029df52ab7fa9bead7e78f))
+
+
+### Bug Fixes
+
+* adjust session turn output metadata layout ([#13221](https://github.com/Arize-ai/phoenix/issues/13221)) ([1ab474d](https://github.com/Arize-ai/phoenix/commit/1ab474d3bb42bb4d788e9e3abe91044fbfb76f39))
+* **cost:** update built-in model token prices ([#13244](https://github.com/Arize-ai/phoenix/issues/13244)) ([56faa02](https://github.com/Arize-ai/phoenix/commit/56faa023b8dd9ba0a82825c2f0ad674393053685))
+* refresh span notes after create ([#13261](https://github.com/Arize-ai/phoenix/issues/13261)) ([be80e90](https://github.com/Arize-ai/phoenix/commit/be80e90c4bc546433389f90d282273b392295519))
+* simplify generative model store polling ([#13245](https://github.com/Arize-ai/phoenix/issues/13245)) ([5006911](https://github.com/Arize-ai/phoenix/commit/5006911aada568293d91259dab8085b9104e28cb))
+
+
+### Documentation
+
+* Add Phoenix release notes for 05-08-2026 through 05-13-2026 ([#13206](https://github.com/Arize-ai/phoenix/issues/13206)) ([a428b9c](https://github.com/Arize-ai/phoenix/commit/a428b9cf00245cc5b1c29be9f8c2309a09275504))
+* Update info for Arconia Java integration ([#13262](https://github.com/Arize-ai/phoenix/issues/13262)) ([e84331e](https://github.com/Arize-ai/phoenix/commit/e84331e5910b8fad0b974ddedc65129d66617e7d))
+
 ## [15.9.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.8.0...arize-phoenix-v15.9.0) (2026-05-14)
 
 
