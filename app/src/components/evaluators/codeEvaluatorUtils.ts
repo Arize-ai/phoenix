@@ -4,14 +4,9 @@ const PYTHON_INDENT = "    ";
 const TYPESCRIPT_INDENT = "  ";
 
 /**
- * Returns the default freeform placeholder source code for a new code
- * evaluator. The placeholder shows the full output shape (a mapping with
- * `score`, `label`, and `explanation`) and a comment explaining the bare
- * shorthands: returning a number is interpreted as a score; returning a
- * string is interpreted as a label.
- *
- * Code evaluators are now freeform — there is no separate "Output type"
- * select — so a single template per language is sufficient.
+ * Returns the default placeholder source code for a new code evaluator.
+ * The placeholder shows the full `{score, label, explanation}` return
+ * shape alongside the bare shorthands (number → score, string → label).
  */
 export function getDefaultCodeEvaluatorSource(
   language: CodeEvaluatorLanguage
@@ -33,25 +28,15 @@ ${TYPESCRIPT_INDENT}return { score: 1, label: "pass", explanation: "..." };
 }
 
 /**
- * Returns all source strings that count as "a generated default" for a
- * given language — used by the language-swap guard to detect whether the
- * editor still holds the placeholder (safe to swap) vs. user-authored
- * code (must not be overwritten). With a single freeform template per
- * language this collapses to a single-element array.
+ * Returns every source string the language-swap guard treats as a
+ * generated default — i.e., placeholders that are safe to overwrite on
+ * language change. User-authored code must not appear in this set.
  */
 export function getAllGeneratedSources(
   language: CodeEvaluatorLanguage
 ): string[] {
   return [getDefaultCodeEvaluatorSource(language)];
 }
-
-export const DEFAULT_CODE_EVALUATOR_SOURCE: Record<
-  CodeEvaluatorLanguage,
-  string
-> = {
-  PYTHON: getDefaultCodeEvaluatorSource("PYTHON"),
-  TYPESCRIPT: getDefaultCodeEvaluatorSource("TYPESCRIPT"),
-};
 
 export const extractCodeEvaluatorVariables = ({
   language,

@@ -485,10 +485,8 @@ export function CodeDatasetEvaluatorDetails({
     [sandboxConfig]
   );
 
-  // currentVersion is nullable on the schema (a CodeEvaluator can exist
-  // without any version: fixtures, backfills, partial-commit recovery.
-  // Render a bounded missing-version state instead of throwing so the rest
-  // of the page can still surface the evaluator's identity and config.
+  // currentVersion can be null (e.g. fixtures, backfills) — render an
+  // empty state rather than throwing.
   if (!currentVersion || !currentVersion.sourceCode) {
     return (
       <Flex flex={1} alignItems="center" justifyContent="center">

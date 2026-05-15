@@ -70,7 +70,6 @@ import {
 } from "@phoenix/contexts/EvaluatorContext";
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
 import type {
-  ClassificationEvaluatorAnnotationConfig,
   CodeEvaluatorLanguage,
   FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
@@ -81,17 +80,6 @@ export const createDefaultFreeformOutputConfig = (
   name,
   optimizationDirection: DEFAULT_OPTIMIZATION_DIRECTION,
   threshold: null,
-});
-
-export const createDefaultCategoricalOutputConfig = (
-  name: string
-): ClassificationEvaluatorAnnotationConfig => ({
-  name,
-  optimizationDirection: DEFAULT_OPTIMIZATION_DIRECTION,
-  values: [
-    { label: "pass", score: 1 },
-    { label: "fail", score: 0 },
-  ],
 });
 
 export const EditCodeEvaluatorDialogContent = ({
@@ -344,11 +332,8 @@ export const EditCodeEvaluatorDialogContent = ({
                   language={language}
                   onLanguageChange={(nextLanguage) => {
                     setLanguage((currentLanguage) => {
-                      // Auto-swap if sourceCode is still the placeholder for
-                      // the current language. With a single freeform template
-                      // per language this is a direct equality check, but we
-                      // keep going through getAllGeneratedSources so the guard
-                      // stays uniform if more defaults are added later.
+                      // Auto-swap only if sourceCode is still a generated
+                      // placeholder — never overwrite user-authored code.
                       const currentDefaults =
                         getAllGeneratedSources(currentLanguage);
                       if (currentDefaults.includes(sourceCode)) {
@@ -884,18 +869,6 @@ const getCodeEvaluatorValidationError = ({
   // Require sandbox selection when creating a new evaluator
   if (mode === "create" && sandboxConfigId == null) {
     return "Please select a sandbox configuration.";
-  }
-  const outputConfig = outputConfigs[0];
-  if ("values" in outputConfig) {
-    if (outputConfig.values.length < 2) {
-      return "Categorical evaluators require at least two choices.";
-    }
-    const hasEmptyChoice = outputConfig.values.some(
-      (choice) => choice.label.trim().length === 0
-    );
-    if (hasEmptyChoice) {
-      return "Choice labels cannot be empty.";
-    }
   }
   return undefined;
 };

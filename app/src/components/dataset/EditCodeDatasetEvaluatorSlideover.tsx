@@ -31,6 +31,7 @@ import {
 import type {
   ClassificationEvaluatorAnnotationConfig,
   ContinuousEvaluatorAnnotationConfig,
+  FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
 import type { Mutable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -314,6 +315,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
   ) as Mutable<
     | ContinuousEvaluatorAnnotationConfig
     | ClassificationEvaluatorAnnotationConfig
+    | FreeformEvaluatorAnnotationConfig
   >[];
   const initialState: EvaluatorStoreProps = {
     evaluator: {
