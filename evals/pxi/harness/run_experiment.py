@@ -261,6 +261,18 @@ def _experiment_url(base_url: str, experiment: RanExperiment) -> str:
     return urljoin(base_url.rstrip("/") + "/", f"experiments/{experiment['experiment_id']}")
 
 
+def _empty_experiment(phoenix_dataset: Any) -> RanExperiment:
+    return {
+        "experiment_id": "",
+        "dataset_id": str(getattr(phoenix_dataset, "id", "")),
+        "dataset_version_id": str(getattr(phoenix_dataset, "version_id", "")),
+        "task_runs": [],
+        "evaluation_runs": [],
+        "experiment_metadata": {},
+        "project_name": None,
+    }
+
+
 def _summary_payload(
     dataset: EvalDataset,
     experiment: RanExperiment,
@@ -269,12 +281,13 @@ def _summary_payload(
     base_url: str,
     splits: Sequence[str],
 ) -> dict[str, Any]:
+    experiment_id = experiment["experiment_id"]
     return {
         "dataset_name": dataset.dataset_name,
         "requested_splits": list(splits),
         "example_count": len(experiment.get("task_runs", [])),
-        "experiment_id": experiment["experiment_id"],
-        "experiment_url": _experiment_url(base_url, experiment),
+        "experiment_id": experiment_id,
+        "experiment_url": _experiment_url(base_url, experiment) if experiment_id else None,
         "task_errors": [
             {"example_id": example_id, "error": error}
             for example_id, error in _task_error_rows(experiment)
@@ -317,7 +330,7 @@ def _write_summary_files(
     lines = [
         f"# PXI Eval Summary: {dataset.dataset_name}",
         "",
-        f"- Experiment: {payload['experiment_url']}",
+        f"- Experiment: {payload['experiment_url'] or 'not run'}",
         f"- Requested splits: {', '.join(payload['requested_splits'])}",
         f"- Examples run: {payload['example_count']}",
         "",
@@ -374,7 +387,7 @@ def _print_score_summary(dataset: EvalDataset, experiment: RanExperiment) -> boo
     evaluation_runs = list(experiment.get("evaluation_runs") or [])
     evaluator_summaries = _evaluator_summary_rows(evaluation_runs)
 
-    print(f"Dataset: {dataset.dataset_name} ({len(dataset.examples)} examples)")
+    print(f"Dataset: {dataset.dataset_name} ({len(experiment.get('task_runs', []))} examples run)")
     task_error_rows = _task_error_rows(experiment)
     if task_error_rows:
         print(f"Task errors: {len(task_error_rows)}/{len(experiment.get('task_runs', []))}")
@@ -476,6 +489,18 @@ async def _run_async(config: ExperimentConfig) -> int:
                 phoenix_dataset,
                 config.splits,
             )
+            if not experiment_dataset.examples:
+                print(f"No examples matched requested splits: {', '.join(config.splits)}")
+                experiment = _empty_experiment(experiment_dataset)
+                _write_summary_files(
+                    dataset,
+                    experiment,
+                    [],
+                    base_url=config.base_url,
+                    splits=config.splits,
+                    summary_dir=config.summary_dir,
+                )
+                return 0
             name = _experiment_name(dataset, config)
             metadata = {
                 "git_sha": _git_value("rev-parse", "HEAD"),

@@ -16,6 +16,7 @@ from phoenix.client.resources.experiments.types import ExperimentEvaluationRun, 
 from evals.pxi.harness.datasets import EvalDataset
 from evals.pxi.harness.run_experiment import (
     ExperimentConfig,
+    _empty_experiment,
     _failed_evaluation_rows,
     _format_table,
     _get_split_filtered_dataset,
@@ -322,3 +323,21 @@ def test_summary_payload_counts_failures() -> None:
 
     assert payload["evaluators"]["correct_tools_called"]["failing"] == 1
     assert payload["failed_evaluations"][0]["example_id"] == "regression-example"
+
+
+def test_summary_payload_handles_empty_split_run() -> None:
+    class EmptyDataset:
+        id = "dataset-1"
+        version_id = "version-1"
+
+    payload = _summary_payload(
+        _dataset(),
+        _empty_experiment(EmptyDataset()),
+        [],
+        base_url="http://localhost:6006",
+        splits=["dev"],
+    )
+
+    assert payload["example_count"] == 0
+    assert payload["experiment_id"] == ""
+    assert payload["experiment_url"] is None
