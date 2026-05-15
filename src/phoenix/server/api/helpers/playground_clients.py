@@ -3624,13 +3624,19 @@ async def _get_builtin_provider_client(
             )
             or getenv("GOOGLE_CLOUD_PROJECT")
         )
+        # TODO: pick the location per model family. "global" serves preview
+        # Gemini models (e.g. gemini-3.1-flash-lite) that are only deployed on
+        # the global endpoint, but Claude on Vertex requires a multi-region
+        # ("us"/"eu") or single-region (e.g. "us-east5") endpoint and 404s on
+        # "global". Today the user has to override per-request in the playground
+        # for Claude. Long-term: branch by model family here.
         location = (
             _get_credential_from_input(credentials, "GOOGLE_CLOUD_LOCATION")
             or (await _resolve_secrets(session, decrypt, "GOOGLE_CLOUD_LOCATION")).get(
                 "GOOGLE_CLOUD_LOCATION"
             )
             or getenv("GOOGLE_CLOUD_LOCATION")
-            or "us-central1"
+            or "global"
         )
 
         try:
