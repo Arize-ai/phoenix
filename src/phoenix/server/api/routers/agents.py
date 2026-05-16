@@ -1,7 +1,7 @@
 import logging
-from collections.abc import AsyncIterator, Iterable
+from collections.abc import AsyncGenerator, AsyncIterator, Iterable
 from contextlib import aclosing
-from typing import Annotated, Any
+from typing import Annotated, Any, TypeVar
 
 from fastapi import APIRouter, Depends, HTTPException
 from openinference.instrumentation import using_metadata, using_session
@@ -26,7 +26,7 @@ from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from starlette.responses import Response
-from typing_extensions import assert_never
+from typing_extensions import TypeIs, assert_never
 
 from phoenix.config import get_env_phoenix_agents_assistant_project_name
 from phoenix.db import models
@@ -178,6 +178,17 @@ def _log_run_complete(result: AgentRunResult[Any]) -> None:
     logger.info("agent run complete: %d messages", len(messages))
     for message in messages:
         logger.info("%s", message)
+
+
+_AsyncGeneratorType = TypeVar("_AsyncGeneratorType")
+
+
+def _is_async_generator(
+    obj: AsyncIterator[_AsyncGeneratorType],
+) -> TypeIs[AsyncGenerator[_AsyncGeneratorType, None]]:
+    return all(
+        hasattr(obj, name) for name in ("__aiter__", "__anext__", "asend", "athrow", "aclose")
+    )
 
 
 class _AgentSpanContextRecorder(SpanProcessor):
@@ -435,9 +446,9 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         async def _stream_with_session() -> AsyncIterator[BaseChunk]:
             try:
                 with detached_otel_context(), using_session(session_id=session_id):
-                    async with aclosing(
-                        adapter.run_stream(deps=deps, on_complete=_on_complete)
-                    ) as stream:
+                    raw_stream = adapter.run_stream(deps=deps, on_complete=_on_complete)
+                    assert _is_async_generator(raw_stream)
+                    async with aclosing(raw_stream) as stream:
                         async for chunk in stream:
                             yield chunk
             finally:
