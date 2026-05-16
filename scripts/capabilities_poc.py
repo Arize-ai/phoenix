@@ -19,12 +19,14 @@ To actually place the cache breakpoint, configure the Anthropic provider:
 or contribute that setting from a capability via get_model_settings().
 """
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
 
 from pydantic_ai import Agent, RunContext
-from pydantic_ai.capabilities import AbstractCapability, CombinedCapability
-from pydantic_ai.tools import ToolDefinition
+from pydantic_ai._instructions import AgentInstructions
+from pydantic_ai.capabilities import AbstractCapability, AgentDepsT, CombinedCapability
+from pydantic_ai.tools import SystemPromptFunc, ToolDefinition
 from pydantic_ai.toolsets import AgentToolset, FunctionToolset
 
 OPENAI_MODEL = "openai:gpt-4o-mini"
@@ -40,6 +42,44 @@ def print_system_prompt(result: Any) -> None:
 
 
 # =====================================================================
+# Abstract base classes — split AbstractCapability by instruction style
+# =====================================================================
+#
+# AbstractStaticCapability: instruction is a fixed `str` captured at build
+# time → InstructionPart(dynamic=False) → INSIDE the cache prefix.
+#
+# AbstractDynamicCapability: instruction is a callable returning a `str` per
+# run → InstructionPart(dynamic=True) → OUTSIDE the cache prefix. Subclasses
+# must implement `include_for_run` so the build_capabilities helper can
+# decide whether to include them in the per-run bundle.
+
+
+@dataclass
+class AbstractStaticCapability(AbstractCapability[AgentDepsT], ABC):
+    """A capability whose instruction is a fixed string."""
+
+    @abstractmethod
+    def get_static_instructions(self) -> str: ...
+
+    def get_instructions(self) -> AgentInstructions[AgentDepsT] | None:
+        return self.get_static_instructions()
+
+
+@dataclass
+class AbstractDynamicCapability(AbstractCapability[AgentDepsT], ABC):
+    """A capability whose instruction is produced per-run via a callable."""
+
+    @abstractmethod
+    def get_dynamic_instructions(self) -> SystemPromptFunc[AgentDepsT]: ...
+
+    @abstractmethod
+    def include_for_run(self, ctx: RunContext[AgentDepsT]) -> bool: ...
+
+    def get_instructions(self) -> AgentInstructions[AgentDepsT] | None:
+        return self.get_dynamic_instructions()
+
+
+# =====================================================================
 # UI tool capabilities — each bundles ONE tool with its instruction
 # =====================================================================
 
@@ -52,7 +92,7 @@ SET_SPANS_FILTER_INSTRUCTIONS = """\
 
 
 @dataclass
-class SetSpansFilterCapability(AbstractCapability[Any]):
+class SetSpansFilterCapability(AbstractStaticCapability[Any]):
     """Bundles ONE tool definition with its instruction."""
 
     def get_toolset(self) -> AgentToolset[Any] | None:
@@ -65,12 +105,12 @@ class SetSpansFilterCapability(AbstractCapability[Any]):
 
         return toolset
 
-    def get_instructions(self) -> str:
+    def get_static_instructions(self) -> str:
         return SET_SPANS_FILTER_INSTRUCTIONS
 
 
 @dataclass
-class SetTimeRangeCapability(AbstractCapability[Any]):
+class SetTimeRangeCapability(AbstractStaticCapability[Any]):
     """A second tool capability — combines with the first automatically."""
 
     def get_toolset(self) -> AgentToolset[Any] | None:
@@ -83,7 +123,7 @@ class SetTimeRangeCapability(AbstractCapability[Any]):
 
         return toolset
 
-    def get_instructions(self) -> str:
+    def get_static_instructions(self) -> str:
         return "<set_time_range>Use to constrain the visible time window.</set_time_range>"
 
 
@@ -117,7 +157,7 @@ def _build_docs_toolset() -> FunctionToolset[Any]:
 
 
 @dataclass
-class ToolsetWithInstructions(AbstractCapability[Any]):
+class ToolsetWithInstructions(AbstractStaticCapability[Any]):
     """Pair an opaque toolset with one aggregate instruction.
 
     Drop in a real MCPToolset and the pattern is identical.
@@ -129,7 +169,7 @@ class ToolsetWithInstructions(AbstractCapability[Any]):
     def get_toolset(self) -> AgentToolset[Any] | None:
         return self.toolset
 
-    def get_instructions(self) -> str:
+    def get_static_instructions(self) -> str:
         return self.instructions
 
 
@@ -148,47 +188,77 @@ class PhoenixContext:
 
 
 @dataclass
-class GraphQLMutationsCapability(AbstractCapability[PhoenixContext]):
-    """STATIC — `enabled` captured on the dataclass when the factory builds it.
+class GraphQLMutationsCapability(AbstractDynamicCapability[PhoenixContext]):
+    """DYNAMIC — instruction content varies by `deps.graphql_mutations_enabled`.
 
-    get_instructions() returns a str → dynamic=False → INSIDE the cache.
-    The factory constructs this per-run from deps, so cache keys vary by
-    `enabled` (at most two variants: True / False).
+    Always included (the model needs to know whether mutations are available);
+    the dynamic callable picks the ENABLED / DISABLED message per-run.
     """
 
-    enabled: bool
+    def get_dynamic_instructions(self):
+        def _instructions(ctx: RunContext[PhoenixContext]) -> str:
+            if ctx.deps.graphql_mutations_enabled:
+                return "<graphql>You may invoke GraphQL mutations.</graphql>"
+            return "<graphql>GraphQL mutations are DISABLED this session.</graphql>"
 
-    def get_instructions(self) -> str:
-        if self.enabled:
-            return "<graphql>You may invoke GraphQL mutations.</graphql>"
-        return "<graphql>GraphQL mutations are DISABLED this session.</graphql>"
+        return _instructions
+
+    def include_for_run(self, ctx: RunContext[PhoenixContext]) -> bool:
+        return True
 
 
 @dataclass
-class ProjectContextCapability(AbstractCapability[PhoenixContext]):
-    """DYNAMIC — get_instructions returns a callable → OUTSIDE the cache."""
+class AskUserCapability(AbstractStaticCapability[PhoenixContext]):
+    """STATIC — generic interaction primitive; instruction is fixed."""
 
-    def get_instructions(self):
+    def get_toolset(self) -> AgentToolset[PhoenixContext] | None:
+        toolset = FunctionToolset[PhoenixContext]()
+
+        @toolset.tool_plain
+        def ask_user(question: str) -> str:
+            """Ask the user a clarifying question; return their response."""
+            return f"(user response to {question!r})"
+
+        return toolset
+
+    def get_static_instructions(self) -> str:
+        return (
+            "<ask_user>If you need clarification before acting, call ask_user "
+            "with a focused question.</ask_user>"
+        )
+
+
+@dataclass
+class ProjectContextCapability(AbstractDynamicCapability[PhoenixContext]):
+    """DYNAMIC — instruction reads ctx.deps per run → OUTSIDE the cache."""
+
+    def get_dynamic_instructions(self):
         def _instructions(ctx: RunContext[PhoenixContext]) -> str:
             return f"<active_project>Viewing project {ctx.deps.project_id}.</active_project>"
 
         return _instructions
 
+    def include_for_run(self, ctx: RunContext[PhoenixContext]) -> bool:
+        return ctx.deps.project_id is not None
+
 
 @dataclass
-class SpanContextCapability(AbstractCapability[PhoenixContext]):
+class SpanContextCapability(AbstractDynamicCapability[PhoenixContext]):
     """DYNAMIC — same pattern as ProjectContextCapability."""
 
-    def get_instructions(self):
+    def get_dynamic_instructions(self):
         def _instructions(ctx: RunContext[PhoenixContext]) -> str:
             return f"<active_span>Inspecting span {ctx.deps.span_id}.</active_span>"
 
         return _instructions
 
+    def include_for_run(self, ctx: RunContext[PhoenixContext]) -> bool:
+        return ctx.deps.span_id is not None
+
 
 @dataclass
-class WhereAmICapability(AbstractCapability[PhoenixContext]):
-    """A tool capability that also reads the bespoke context via RunContext."""
+class WhereAmICapability(AbstractDynamicCapability[PhoenixContext]):
+    """A tool capability gated per-run by `include_for_run`."""
 
     def get_toolset(self) -> AgentToolset[PhoenixContext] | None:
         toolset = FunctionToolset[PhoenixContext]()
@@ -203,8 +273,16 @@ class WhereAmICapability(AbstractCapability[PhoenixContext]):
 
         return toolset
 
-    def get_instructions(self) -> str:
-        return "<where_am_i>Call where_am_i to read the user's current UI position.</where_am_i>"
+    def get_dynamic_instructions(self):
+        def _instructions(ctx: RunContext[PhoenixContext]) -> str:
+            return (
+                "<where_am_i>Call where_am_i to read the user's current UI position.</where_am_i>"
+            )
+
+        return _instructions
+
+    def include_for_run(self, ctx: RunContext[PhoenixContext]) -> bool:
+        return ctx.deps.project_id is not None or ctx.deps.span_id is not None
 
 
 # --- Tool-level dynamic mounting via `prepare` ---------------------------
@@ -224,11 +302,12 @@ def _only_with_project(
 
 
 @dataclass
-class ProjectActionsCapability(AbstractCapability[PhoenixContext]):
-    """Always mounted. Its tool is gated per-run by `prepare`.
+class ProjectActionsCapability(AbstractDynamicCapability[PhoenixContext]):
+    """Dynamic — gated by `include_for_run` (project_id present).
 
-    Instruction is a dynamic callable returning None when no project is
-    active, so it doesn't show up in the prompt that turn either.
+    The tool also carries a `prepare` gate; once the capability self-gates
+    via `include_for_run` the prepare check is redundant but kept here to
+    illustrate the tool-level mechanism.
     """
 
     def get_toolset(self) -> AgentToolset[PhoenixContext] | None:
@@ -241,10 +320,8 @@ class ProjectActionsCapability(AbstractCapability[PhoenixContext]):
 
         return toolset
 
-    def get_instructions(self):
-        def _instructions(ctx: RunContext[PhoenixContext]) -> str | None:
-            if not ctx.deps.project_id:
-                return None
+    def get_dynamic_instructions(self):
+        def _instructions(ctx: RunContext[PhoenixContext]) -> str:
             return (
                 "<set_active_project_label>"
                 "Use set_active_project_label to label the active project."
@@ -253,27 +330,33 @@ class ProjectActionsCapability(AbstractCapability[PhoenixContext]):
 
         return _instructions
 
+    def include_for_run(self, ctx: RunContext[PhoenixContext]) -> bool:
+        return ctx.deps.project_id is not None
 
-def get_context_capability(
+
+def build_capabilities(
     ctx: RunContext[PhoenixContext],
 ) -> AbstractCapability[PhoenixContext]:
     """Build the per-run context bundle from deps.
 
-    Always includes `GraphQLMutationsCapability` (its instruction varies by
-    `deps.graphql_mutations_enabled` but stays static, so the prefix has at
-    most two cache variants). Project / span / where-am-i are added only
-    when the corresponding deps fields are set.
+    Static capabilities are always included; their content may still depend
+    on deps (e.g. `GraphQLMutationsCapability` reads `graphql_mutations_enabled`).
+    Dynamic capabilities self-gate via `include_for_run`.
     """
-    capabilities: list[AbstractCapability[PhoenixContext]] = [
-        GraphQLMutationsCapability(enabled=ctx.deps.graphql_mutations_enabled),
+    static_capabilities: list[AbstractStaticCapability[PhoenixContext]] = [
+        AskUserCapability(),
     ]
-    if ctx.deps.project_id:
-        capabilities.append(ProjectContextCapability())
-    if ctx.deps.span_id:
-        capabilities.append(SpanContextCapability())
-    if ctx.deps.project_id or ctx.deps.span_id:
-        capabilities.append(WhereAmICapability())
-    return CombinedCapability(capabilities=capabilities)
+    dynamic_capabilities: list[AbstractDynamicCapability[PhoenixContext]] = [
+        GraphQLMutationsCapability(),
+        ProjectContextCapability(),
+        SpanContextCapability(),
+        WhereAmICapability(),
+        ProjectActionsCapability(),
+    ]
+    included_dynamic = [cap for cap in dynamic_capabilities if cap.include_for_run(ctx)]
+    return CombinedCapability(
+        capabilities=[*static_capabilities, *included_dynamic],
+    )
 
 
 # =====================================================================
@@ -293,8 +376,7 @@ def main() -> None:
                 toolset=_build_docs_toolset(),
                 instructions=DOCS_INSTRUCTIONS,
             ),
-            ProjectActionsCapability(),  # always mounted; its tool is `prepare`-gated
-            get_context_capability,  # CapabilityFunc → CombinedCapability of context caps
+            build_capabilities,  # CapabilityFunc → CombinedCapability of context caps
         ],
     )
 
