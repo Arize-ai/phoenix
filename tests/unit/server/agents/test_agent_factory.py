@@ -104,10 +104,7 @@ def anthropic_model(
     captured_request: CapturedRequest,
 ) -> AnthropicModel:
     """An ``AnthropicModel`` whose underlying HTTP client is an
-    ``httpx.MockTransport``-backed stub. The cache breakpoints in the request
-    body come from ``AnthropicPromptCacheCapability``, which ``build_agent``
-    mounts when the underlying model is Anthropic — so the fixture itself
-    does not configure any model settings."""
+    ``httpx.MockTransport``-backed stub."""
 
     def handler(request: httpx.Request) -> httpx.Response:
         captured_request.bodies.append(json.loads(request.read()))

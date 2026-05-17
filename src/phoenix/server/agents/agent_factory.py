@@ -14,16 +14,6 @@ from phoenix.server.agents.toolsets import build_toolset_factory
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
 
 
-def _underlying_model(model: Model) -> Model:
-    # ``build_model`` returns the production model wrapped in
-    # ``OpenInferenceModelWrapper``; unwrap so provider-type checks
-    # (e.g. ``isinstance(..., AnthropicModel)``) still match.
-    current = model
-    while isinstance(current, WrapperModel):
-        current = current.wrapped
-    return current
-
-
 def build_agent(
     *,
     model: Model,
@@ -40,7 +30,7 @@ def build_agent(
     )
 
     capabilities: list[AbstractCapability[AgentDependencies]] = []
-    if isinstance(_underlying_model(model), AnthropicModel):
+    if isinstance(_get_underlying_model(model), AnthropicModel):
         capabilities.append(AnthropicPromptCacheCapability())
 
     agent = Agent(
@@ -96,3 +86,10 @@ def build_agent(
         return graphql_context.render_instruction(resolved_instructions)
 
     return OpenInferenceAgentWrapper(agent, tracer_provider=provider)
+
+
+def _get_underlying_model(model: Model) -> Model:
+    current = model
+    while isinstance(current, WrapperModel):
+        current = current.wrapped
+    return current
