@@ -1,13 +1,27 @@
 from opentelemetry.trace import NoOpTracerProvider, TracerProvider
 from pydantic_ai import Agent, DeferredToolRequests, RunContext
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.mcp import MCPServerStreamableHTTP
 from pydantic_ai.models import Model
+from pydantic_ai.models.anthropic import AnthropicModel
+from pydantic_ai.models.wrapper import WrapperModel
 
+from phoenix.server.agents.capabilities import AnthropicPromptCacheCapability
 from phoenix.server.agents.context import GraphQLContext
 from phoenix.server.agents.prompts import AgentInstructions
 from phoenix.server.agents.pydantic_ai import OpenInferenceAgentWrapper
 from phoenix.server.agents.toolsets import build_toolset_factory
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
+
+
+def _underlying_model(model: Model) -> Model:
+    # ``build_model`` returns the production model wrapped in
+    # ``OpenInferenceModelWrapper``; unwrap so provider-type checks
+    # (e.g. ``isinstance(..., AnthropicModel)``) still match.
+    current = model
+    while isinstance(current, WrapperModel):
+        current = current.wrapped
+    return current
 
 
 def build_agent(
@@ -25,6 +39,10 @@ def build_agent(
         tracer_provider=provider,
     )
 
+    capabilities: list[AbstractCapability[AgentDependencies]] = []
+    if isinstance(_underlying_model(model), AnthropicModel):
+        capabilities.append(AnthropicPromptCacheCapability())
+
     agent = Agent(
         model,
         name="PXIAgent",
@@ -32,6 +50,7 @@ def build_agent(
         output_type=[str, DeferredToolRequests],
         instructions=[resolved_instructions.base],
         toolsets=[build_toolset],
+        capabilities=capabilities,
     )
 
     @agent.instructions

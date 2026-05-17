@@ -17,7 +17,7 @@ from anthropic.types.beta import (
 )
 from anthropic.types.beta.message_create_params import MessageCreateParams
 from pydantic_ai import RunContext
-from pydantic_ai.models.anthropic import AnthropicModel, AnthropicModelSettings
+from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from pydantic_ai.usage import RunUsage
@@ -104,9 +104,10 @@ def anthropic_model(
     captured_request: CapturedRequest,
 ) -> AnthropicModel:
     """An ``AnthropicModel`` whose underlying HTTP client is an
-    ``httpx.MockTransport``-backed stub. The settings mirror
-    ``model_factory._anthropic_cache_settings`` so the request body carries
-    the ``cache_control`` breakpoint the cache-boundary tests rely on."""
+    ``httpx.MockTransport``-backed stub. The cache breakpoints in the request
+    body come from ``AnthropicPromptCacheCapability``, which ``build_agent``
+    mounts when the underlying model is Anthropic — so the fixture itself
+    does not configure any model settings."""
 
     def handler(request: httpx.Request) -> httpx.Response:
         captured_request.bodies.append(json.loads(request.read()))
@@ -124,12 +125,7 @@ def anthropic_model(
 
     http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     provider = AnthropicProvider(api_key=anthropic_api_key, http_client=http_client)
-    settings = AnthropicModelSettings(
-        anthropic_cache=True,
-        anthropic_cache_instructions=True,
-        anthropic_cache_tool_definitions=True,
-    )
-    return AnthropicModel("claude-haiku-4-5", provider=provider, settings=settings)
+    return AnthropicModel("claude-haiku-4-5", provider=provider)
 
 
 class _OfflineDocsMCPToolset(MintlifyDocsMCPServer):

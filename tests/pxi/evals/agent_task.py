@@ -16,9 +16,6 @@ from phoenix.config import (
 from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.context import ProjectContext, ResolvedContexts
 from phoenix.server.agents.model_factory import (
-    _anthropic_cache_settings as anthropic_cache_settings,
-)
-from phoenix.server.agents.model_factory import (
     _build_openai_model as build_openai_model,
 )
 from phoenix.server.agents.model_factory import (
@@ -111,7 +108,6 @@ async def _build_model() -> PydanticAIModel:
             provider=AnthropicProvider(
                 anthropic_client=AsyncAnthropic(api_key=api_key, max_retries=0)
             ),
-            settings=anthropic_cache_settings(),
         )
 
     raise RuntimeError(f"Unsupported {ENV_ASSISTANT_PROVIDER} for evals: {provider}")
