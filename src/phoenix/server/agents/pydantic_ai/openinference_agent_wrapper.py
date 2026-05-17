@@ -57,7 +57,7 @@ from pydantic_ai.run import AgentRun
 from pydantic_ai.tools import AgentDepsT
 from typing_extensions import assert_never
 
-from phoenix.server.agents.toolsets.external.tools import get_external_tool_definition
+from phoenix.server.agents.capabilities.tools.external import get_external_tool_definition
 
 ToolCallId: TypeAlias = str
 
@@ -162,6 +162,7 @@ class OpenInferenceAgentWrapper(WrapperAgent[AgentDepsT, OutputDataT]):
             **get_output_attributes(tool_return_part.content),
             ToolCallAttributes.TOOL_CALL_ID: tool_return_part.tool_call_id,
         }
+
         tool_def = get_external_tool_definition(tool_name)
         if tool_def is not None:
             attributes[SpanAttributes.TOOL_PARAMETERS] = safe_json_dumps(

@@ -22,7 +22,6 @@ from typing import Any, Callable, Literal, Protocol, cast
 from opentelemetry.trace import NoOpTracerProvider, TracerProvider
 from pydantic import ValidationError
 from pydantic_ai.models import Model as PydanticAIModel
-from pydantic_ai.models.anthropic import AnthropicModelSettings
 from sqlalchemy.ext.asyncio import AsyncSession
 from strawberry.relay import GlobalID
 from typing_extensions import assert_never
@@ -53,20 +52,6 @@ from phoenix.utilities.env_vars import without_env_vars
 
 class _EncryptedProviderRecord(Protocol):
     config: bytes
-
-
-def _anthropic_cache_settings() -> "AnthropicModelSettings":
-    """Cache flags applied to every Anthropic model built for the chat endpoint.
-
-    Together they cover the conversation prefix, system instructions, and tool
-    definitions — the most expensive parts of each turn.
-    """
-
-    return AnthropicModelSettings(
-        anthropic_cache=True,
-        anthropic_cache_instructions=True,
-        anthropic_cache_tool_definitions=True,
-    )
 
 
 def _build_openai_model(
@@ -328,11 +313,7 @@ async def _get_pydantic_ai_model_from_generative_model_custom_provider(
                     max_retries=0,
                 )
             )
-        return AnthropicModel(
-            model_name,
-            provider=anthropic_provider,
-            settings=_anthropic_cache_settings(),
-        )
+        return AnthropicModel(model_name, provider=anthropic_provider)
     if config.type == "google_genai":
         google_kwargs = config.google_genai_client_kwargs
         http_options = google_kwargs.http_options if google_kwargs else None
@@ -448,11 +429,7 @@ async def _get_pydantic_ai_model_from_builtin_provider(
                 "Set the ANTHROPIC_API_KEY environment variable or store it in Phoenix secrets."
             )
         anthropic_provider = AnthropicProvider(anthropic_client=AsyncAnthropic(api_key=api_key))
-        return AnthropicModel(
-            params.model_name,
-            provider=anthropic_provider,
-            settings=_anthropic_cache_settings(),
-        )
+        return AnthropicModel(params.model_name, provider=anthropic_provider)
     if params.provider == ModelProvider.GOOGLE:
         api_key = await _resolve_secret_or_env(session, decrypt, "GEMINI_API_KEY", "GOOGLE_API_KEY")
         if not api_key:

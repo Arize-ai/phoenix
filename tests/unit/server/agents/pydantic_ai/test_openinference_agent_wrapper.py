@@ -32,11 +32,11 @@ from pydantic_ai.models.wrapper import WrapperModel
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.tools import ToolDefinition
 
+from phoenix.server.agents.capabilities import get_external_tool_definition
 from phoenix.server.agents.pydantic_ai import (
     OpenInferenceAgentWrapper,
     OpenInferenceModelWrapper,
 )
-from phoenix.server.agents.toolsets.external.tools import get_external_tool_definition
 
 
 def _require_tool_definition(name: str) -> ToolDefinition:

@@ -1,19 +1,23 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import Any
 
+from opentelemetry.trace import NoOpTracerProvider, TracerProvider
 from pydantic_ai import RunContext
+from pydantic_ai.tools import SystemPromptFunc, ToolDefinition
+from pydantic_ai.toolsets import AgentToolset
+from pydantic_ai.toolsets.external import ExternalToolset
 
-from phoenix.server.agents.toolsets.external.external_tool_definitions import (
-    DynamicExternalToolDefinition,
-)
+from phoenix.server.agents.capabilities.base import AbstractDynamicCapability
+from phoenix.server.agents.pydantic_ai import OpenInferenceToolsetWrapper
 from phoenix.server.agents.types import AgentDependencies
 
-_EDIT_PROMPT_TOOL_NAME = "edit_prompt_instance"
+NAME = "edit_prompt_instance"
 
-_MESSAGE_ROLE_ENUM = ["system", "user", "ai", "tool"]
+MESSAGE_ROLE_ENUM = ["system", "user", "ai", "tool"]
 
-_EDIT_PROMPT_TOOL_DESCRIPTION = (
+DESCRIPTION = (
     "Propose edits to one playground prompt instance. This tool does not change the "
     "prompt immediately: the browser renders an inline diff and the user must accept "
     "or reject it. Always call `read_prompt_instance` first, then pass its `revision` as "
@@ -31,7 +35,7 @@ _EDIT_PROMPT_TOOL_DESCRIPTION = (
     '{"type":"reorder_messages","messageIds":[1,2,3]}.'
 )
 
-_EDIT_PROMPT_OPERATION_SCHEMA: dict[str, Any] = {
+OPERATION_SCHEMA: dict[str, Any] = {
     "type": "object",
     "description": (
         "One prompt edit operation. Required fields by type: update_message requires "
@@ -61,7 +65,7 @@ _EDIT_PROMPT_OPERATION_SCHEMA: dict[str, Any] = {
         },
         "role": {
             "type": "string",
-            "enum": _MESSAGE_ROLE_ENUM,
+            "enum": MESSAGE_ROLE_ENUM,
             "description": (
                 "Message role. Required for insert_message; optional for update_message."
             ),
@@ -85,7 +89,7 @@ _EDIT_PROMPT_OPERATION_SCHEMA: dict[str, Any] = {
     "additionalProperties": False,
 }
 
-_EDIT_PROMPT_TOOL_PARAMETERS: dict[str, Any] = {
+PARAMETERS: dict[str, Any] = {
     "type": "object",
     "properties": {
         "instanceId": {
@@ -99,7 +103,7 @@ _EDIT_PROMPT_TOOL_PARAMETERS: dict[str, Any] = {
         "operations": {
             "type": "array",
             "description": "Ordered edit operations to propose for this prompt.",
-            "items": _EDIT_PROMPT_OPERATION_SCHEMA,
+            "items": OPERATION_SCHEMA,
             "minItems": 1,
         },
     },
@@ -107,17 +111,32 @@ _EDIT_PROMPT_TOOL_PARAMETERS: dict[str, Any] = {
     "additionalProperties": False,
 }
 
+TOOL_DEFINITION = ToolDefinition(
+    name=NAME,
+    description=DESCRIPTION,
+    parameters_json_schema=PARAMETERS,
+    kind="external",
+)
 
-def build_edit_prompt_tool(instructions: str) -> DynamicExternalToolDefinition:
-    tool = DynamicExternalToolDefinition(
-        name=_EDIT_PROMPT_TOOL_NAME,
-        description=_EDIT_PROMPT_TOOL_DESCRIPTION,
-        parameters_json_schema=_EDIT_PROMPT_TOOL_PARAMETERS,
-        instructions=instructions,
-    )
 
-    @tool.include
-    def _include(ctx: RunContext[AgentDependencies]) -> bool:
+@dataclass
+class EditPromptInstanceCapability(AbstractDynamicCapability[AgentDependencies]):
+    instructions: str
+    tracer_provider: TracerProvider = field(default_factory=NoOpTracerProvider)
+
+    def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
+        return OpenInferenceToolsetWrapper(
+            ExternalToolset[AgentDependencies]([TOOL_DEFINITION]),
+            tracer_provider=self.tracer_provider,
+        )
+
+    def get_dynamic_instructions(self) -> SystemPromptFunc[AgentDependencies]:
+        instructions = self.instructions
+
+        def _instructions(ctx: RunContext[AgentDependencies]) -> str:
+            return instructions
+
+        return _instructions
+
+    def include_for_run(self, ctx: RunContext[AgentDependencies]) -> bool:
         return ctx.deps.contexts.playground is not None
-
-    return tool
