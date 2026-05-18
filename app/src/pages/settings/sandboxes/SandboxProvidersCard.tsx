@@ -76,7 +76,7 @@ export function SandboxProvidersCard({
                   </Flex>
                 </td>
                 <td>
-                  <Flex direction="row" gap="size-100">
+                  <Flex direction="row" gap="size-300">
                     {[...provider.supportedLanguages].map((lang) => (
                       <LanguageWithIcon key={lang} language={lang} />
                     ))}

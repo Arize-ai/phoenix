@@ -37,6 +37,7 @@ import {
   TextField,
   View,
 } from "@phoenix/components";
+import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import {
   SandboxProviderSelect,
   SandboxProviderSelectFallback,
@@ -464,6 +465,7 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                         }}
                         onBlur={field.onBlur}
                         isInvalid={fieldState.invalid}
+                        placeholder="Select a language"
                       >
                         <Label>Language</Label>
                         <Button>
@@ -473,8 +475,29 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                         <Popover>
                           <ListBox>
                             {langs.map((lang) => (
-                              <ListBoxItem key={lang} id={lang}>
-                                {lang === "PYTHON" ? "Python" : "TypeScript"}
+                              <ListBoxItem
+                                key={lang}
+                                id={lang}
+                                textValue={
+                                  lang === "PYTHON" ? "Python" : "TypeScript"
+                                }
+                              >
+                                <Flex
+                                  direction="row"
+                                  gap="size-100"
+                                  alignItems="center"
+                                >
+                                  {lang === "PYTHON" ? (
+                                    <PythonSVG />
+                                  ) : (
+                                    <TypeScriptSVG />
+                                  )}
+                                  <Text>
+                                    {lang === "PYTHON"
+                                      ? "Python"
+                                      : "TypeScript"}
+                                  </Text>
+                                </Flex>
                               </ListBoxItem>
                             ))}
                           </ListBox>
@@ -487,6 +510,40 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                   />
                 );
               })()}
+            {mode === "edit" && (
+              <Select
+                selectedKey={props.config.language}
+                isDisabled
+              >
+                <Label>Language</Label>
+                <Button>
+                  <SelectValue />
+                  <SelectChevronUpDownIcon />
+                </Button>
+                <Popover>
+                  <ListBox>
+                    <ListBoxItem
+                      id="PYTHON"
+                      textValue="Python"
+                    >
+                      <Flex direction="row" gap="size-100" alignItems="center">
+                        <PythonSVG />
+                        <Text>Python</Text>
+                      </Flex>
+                    </ListBoxItem>
+                    <ListBoxItem
+                      id="TYPESCRIPT"
+                      textValue="TypeScript"
+                    >
+                      <Flex direction="row" gap="size-100" alignItems="center">
+                        <TypeScriptSVG />
+                        <Text>TypeScript</Text>
+                      </Flex>
+                    </ListBoxItem>
+                  </ListBox>
+                </Popover>
+              </Select>
+            )}
             {mode === "create" && (
               <Controller
                 name="name"
@@ -722,7 +779,7 @@ function EnvVarRow({
         rules={{ required: "Name is required" }}
         render={({ field, fieldState }) => (
           <TextField {...field} isInvalid={fieldState.invalid}>
-            <Label>Name</Label>
+            <Label>Variable Name</Label>
             <Input placeholder="MY_VAR" />
             {fieldState.error ? (
               <FieldError>{fieldState.error.message}</FieldError>
@@ -756,7 +813,6 @@ function EnvVarRow({
 
   return (
     <Flex gap="size-100" alignItems="start">
-      {nameField}
       <div css={envVarFieldFillCSS}>
         <Suspense
           fallback={<SecretKeyInputFallback index={index} form={form} />}
@@ -768,6 +824,7 @@ function EnvVarRow({
           />
         </Suspense>
       </div>
+      {nameField}
       {removeButton}
     </Flex>
   );
@@ -847,7 +904,6 @@ function SecretKeyComboBox({
           isInvalid={fieldState.invalid}
           errorMessage={fieldState.error?.message}
           menuTrigger="focus"
-          items={secretKeys}
           renderEmptyState={() => (
             <View padding="size-150">
               <Flex justifyContent="center" alignItems="center">
@@ -856,11 +912,11 @@ function SecretKeyComboBox({
             </View>
           )}
         >
-          {(item) => (
+          {secretKeys.map((item) => (
             <ComboBoxItem id={item.id} key={item.id} textValue={item.key}>
               {item.key}
             </ComboBoxItem>
-          )}
+          ))}
         </ComboBox>
       )}
     />
