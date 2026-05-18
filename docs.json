@@ -782,19 +782,6 @@
               "docs/phoenix/integrations/evaluation-integrations/ragas",
               "docs/phoenix/integrations/evaluation-integrations/uqlm"
             ]
-          },
-          {
-            "group": "Vector Databases",
-            "icon": "database",
-            "pages": [
-              "docs/phoenix/integrations/vector-databases/mongodb",
-              "docs/phoenix/integrations/vector-databases/opensearch",
-              "docs/phoenix/integrations/vector-databases/pinecone",
-              "docs/phoenix/integrations/vector-databases/qdrant",
-              "docs/phoenix/integrations/vector-databases/weaviate",
-              "docs/phoenix/integrations/vector-databases/zilliz-milvus",
-              "docs/phoenix/integrations/vector-databases/couchbase"
-            ]
           }
         ]
       },
@@ -1171,7 +1158,6 @@
             "pages": [
               "docs/phoenix/cookbook/datasets-and-experiments/analyzing-customer-review-evals-with-repetition-experiments",
               "docs/phoenix/cookbook/datasets-and-experiments/experiment-with-a-customer-support-agent",
-              "docs/phoenix/cookbook/datasets-and-experiments/model-comparison-for-an-email-text-extraction-service",
               "docs/phoenix/cookbook/datasets-and-experiments/comparing-llamaindex-query-engines-with-a-pairwise-evaluator",
               "docs/phoenix/cookbook/datasets-and-experiments/summarization",
               "docs/phoenix/cookbook/datasets-and-experiments/text2sql",
