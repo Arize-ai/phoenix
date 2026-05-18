@@ -240,7 +240,7 @@ const readRow = (row: DatasetEvaluatorsTable_row$key) => {
               id
               name
               provider {
-                kind
+                backendType
               }
             }
           }
@@ -391,7 +391,7 @@ export const DatasetEvaluatorsTable = ({
             <SandboxConfigLabel
               sandboxConfigId={sandboxConfig.id}
               name={sandboxConfig.name}
-              kind={sandboxConfig.provider.kind}
+              backendType={sandboxConfig.provider.backendType}
             />
           );
         },

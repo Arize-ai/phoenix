@@ -7,7 +7,7 @@ from strawberry.relay import GlobalID
 _COMPOSITE_GLOBAL_ID_PATTERN = re.compile(r"[^:]+:[^:]+(:[^:]+)+")
 
 if TYPE_CHECKING:
-    from phoenix.db.models import SandboxProviderKind
+    from phoenix.db.models import SandboxBackendType
 
 
 def is_composite_global_id(node_id: str) -> bool:
@@ -56,9 +56,9 @@ def from_global_id_str_with_expected_type(global_id: GlobalID, expected_type_nam
     return str(global_id.node_id)
 
 
-def get_sandbox_provider_kind_from_global_id(global_id: GlobalID) -> "SandboxProviderKind":
+def get_sandbox_backend_type_from_global_id(global_id: GlobalID) -> "SandboxBackendType":
     return cast(
-        "SandboxProviderKind",
+        "SandboxBackendType",
         from_global_id_str_with_expected_type(
             global_id,
             expected_type_name="SandboxProvider",

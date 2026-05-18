@@ -63,8 +63,8 @@ class Language(Enum):
 
 
 @strawberry.enum
-class SandboxProviderKind(Enum):
-    """Canonical kind of a sandbox provider. Mirrors `models.SandboxProviderKind`."""
+class SandboxBackendType(Enum):
+    """Canonical kind of a sandbox provider. Mirrors `models.SandboxBackendType`."""
 
     WASM = "WASM"
     E2B = "E2B"
@@ -147,7 +147,7 @@ class SandboxConfigData:
     """Typed view of a stored sandbox config's per-capability fields.
 
     Capability presence is **not** encoded here — readers correlate with
-    ``SandboxBackendInfo`` (via ``provider.kind``) to know which capabilities
+    ``SandboxBackendInfo`` (via ``provider.backend_type``) to know which capabilities
     the adapter actually supports. An empty ``env_vars`` list / ``None`` for
     ``internet_access`` or ``dependencies`` can mean either "supported but
     unset" or "unsupported"; the backend info disambiguates.
@@ -232,7 +232,7 @@ class SandboxBackendInfo:
     any SandboxProvider rows exist in the DB.
     """
 
-    kind: SandboxProviderKind
+    backend_type: SandboxBackendType
     display_name: str
     hosting_type: SandboxHostingType
     supported_languages: list[Language]
@@ -288,16 +288,16 @@ SandboxDeployment = Annotated[
 class SandboxProvider(Node):
     """A sandbox provider row — one per canonical provider ``kind``."""
 
-    id: NodeID[models.SandboxProviderKind]
+    id: NodeID[models.SandboxBackendType]
     db_record: strawberry.Private[Optional[models.SandboxProvider]] = None
 
     def __post_init__(self) -> None:
-        if self.db_record and self.id != self.db_record.kind:
+        if self.db_record and self.id != self.db_record.backend_type:
             raise ValueError("SandboxProvider ID mismatch")
 
     @strawberry.field
-    async def kind(self) -> SandboxProviderKind:
-        return SandboxProviderKind(self.id)
+    async def backend_type(self) -> SandboxBackendType:
+        return SandboxBackendType(self.id)
 
     @strawberry.field
     async def supported_languages(self) -> list[Language]:
@@ -417,8 +417,8 @@ class SandboxConfig(Node):
     @strawberry.field
     async def provider(self, info: Info[Context, None]) -> SandboxProvider:
         record = await self._get_record(info)
-        provider = await info.context.data_loaders.sandbox_provider.load(record.provider_kind)
-        return SandboxProvider(id=record.provider_kind, db_record=provider)
+        provider = await info.context.data_loaders.sandbox_provider.load(record.backend_type)
+        return SandboxProvider(id=record.backend_type, db_record=provider)
 
     @strawberry.field
     async def created_at(self, info: Info[Context, None]) -> datetime:
@@ -448,10 +448,10 @@ class SandboxConfig(Node):
 # ---------------------------------------------------------------------------
 
 
-def _probe_wasm_binary(provider_kind: models.SandboxProviderKind) -> Optional[str]:
+def _probe_wasm_binary(backend_type: models.SandboxBackendType) -> Optional[str]:
     """Run the WASM-binary capability probe and return a status_detail string.
 
-    Returns None when ``provider_kind`` is not WASM, or when the binary is
+    Returns None when ``backend_type`` is not WASM, or when the binary is
     locally resolvable (probe says ``available=True``). Returns the probe's
     ``detail`` string when the WASM binary is not present locally — the
     caller treats a non-None return as falsifying evidence and forces the
@@ -459,11 +459,11 @@ def _probe_wasm_binary(provider_kind: models.SandboxProviderKind) -> Optional[st
 
     Importing ``WASMAdapter`` is gated on the ``wasmtime`` optional extra,
     so an ImportError here means the SDK is missing — that case is already
-    handled by the ``provider_kind not in SANDBOX_ADAPTERS`` branch in the
+    handled by the ``backend_type not in SANDBOX_ADAPTERS`` branch in the
     caller, but we re-handle it defensively (returning None) so this helper
     cannot regress that branch.
     """
-    if provider_kind != "WASM":
+    if backend_type != "WASM":
         return None
     try:
         from phoenix.server.sandbox.wasm_backend import WASMAdapter
@@ -476,12 +476,12 @@ def _probe_wasm_binary(provider_kind: models.SandboxProviderKind) -> Optional[st
 
 
 def _build_credential_specs(
-    provider_kind: models.SandboxProviderKind,
+    backend_type: models.SandboxBackendType,
 ) -> list[SandboxProviderCredentialSpec]:
     """Mirror an adapter's credential specs (derived from credentials_model) into GQL types."""
     from phoenix.server.sandbox import SANDBOX_ADAPTERS
 
-    adapter = SANDBOX_ADAPTERS.get(provider_kind)
+    adapter = SANDBOX_ADAPTERS.get(backend_type)
     if adapter is None:
         return []
     specs = adapter.credential_specs()
@@ -512,25 +512,25 @@ async def get_sandbox_backend_info(
     from phoenix.server.sandbox import SANDBOX_ADAPTERS
 
     infos: list[SandboxBackendInfo] = []
-    for provider_kind, meta in SANDBOX_ADAPTER_METADATA.items():
+    for backend_type, meta in SANDBOX_ADAPTER_METADATA.items():
         probe_language: models.LanguageName = sorted(meta.supported_languages)[0]
         status_detail: Optional[str] = None
-        if provider_kind not in SANDBOX_ADAPTERS:
+        if backend_type not in SANDBOX_ADAPTERS:
             status = SandboxBackendStatus.NOT_INSTALLED
         else:
-            missing_auth_detail = await secrets.missing_auth_detail(provider_kind)
+            missing_auth_detail = await secrets.missing_auth_detail(backend_type)
             if missing_auth_detail is not None:
                 status = SandboxBackendStatus.MISSING_CREDENTIALS
                 status_detail = missing_auth_detail
             else:
-                wasm_probe_detail = _probe_wasm_binary(provider_kind)
+                wasm_probe_detail = _probe_wasm_binary(backend_type)
                 if wasm_probe_detail is not None:
                     status = SandboxBackendStatus.UNAVAILABLE
                     status_detail = wasm_probe_detail
                 else:
                     try:
                         backend = await probe_sandbox_backend_buildable(
-                            provider_kind,
+                            backend_type,
                             language=probe_language,
                             secrets=secrets,
                         )
@@ -541,14 +541,14 @@ async def get_sandbox_backend_info(
                         )
                     except (ValueError, MissingSecretError, UnsupportedOperation) as exc:
                         logger.debug(
-                            f"sandboxBackends: {provider_kind!r} unavailable: {exc}",
+                            f"sandboxBackends: {backend_type!r} unavailable: {exc}",
                         )
                         status = SandboxBackendStatus.UNAVAILABLE
                         status_detail = str(exc)
-        credential_specs = _build_credential_specs(provider_kind)
+        credential_specs = _build_credential_specs(backend_type)
         infos.append(
             SandboxBackendInfo(
-                kind=SandboxProviderKind(provider_kind),
+                backend_type=SandboxBackendType(backend_type),
                 display_name=meta.display_name,
                 hosting_type=SandboxHostingType(meta.hosting_type),
                 supported_languages=[Language(lang) for lang in sorted(meta.supported_languages)],

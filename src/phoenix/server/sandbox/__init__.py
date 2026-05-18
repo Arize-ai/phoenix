@@ -46,7 +46,7 @@ from pydantic import ValidationError
 
 from phoenix.config import get_env_allowed_sandbox_providers
 from phoenix.db import models
-from phoenix.db.models import LanguageName, SandboxProviderKind
+from phoenix.db.models import LanguageName, SandboxBackendType
 from phoenix.server.sandbox.daytona_backend import DaytonaAdapter
 from phoenix.server.sandbox.deno_backend import DenoAdapter
 from phoenix.server.sandbox.e2b_backend import E2BAdapter
@@ -200,7 +200,7 @@ class AdapterMetadata:
         )
 
 
-def _build_sandbox_adapter_metadata() -> Mapping[SandboxProviderKind, AdapterMetadata]:
+def _build_sandbox_adapter_metadata() -> Mapping[SandboxBackendType, AdapterMetadata]:
     """One ``AdapterMetadata`` per adapter class, derived via ``from_cls``.
 
     Adapter classes have lazy SDK imports, so this module load doesn't require
@@ -208,7 +208,7 @@ def _build_sandbox_adapter_metadata() -> Mapping[SandboxProviderKind, AdapterMet
     of each adapter class — no separate declaration to drift out of sync.
     """
     return {
-        cls.kind: AdapterMetadata.from_cls(cls)
+        cls.backend_type: AdapterMetadata.from_cls(cls)
         for cls in (
             WASMAdapter,
             E2BAdapter,
@@ -221,11 +221,11 @@ def _build_sandbox_adapter_metadata() -> Mapping[SandboxProviderKind, AdapterMet
 
 
 # Static metadata — always present regardless of installed extras.
-# One entry per sandbox provider ``kind`` (matches ``sandbox_providers.kind``).
+# One entry per sandbox provider ``kind`` (matches ``sandbox_providers.backend_type``).
 # Annotated as ``Mapping`` to document the read-only production contract; the
 # runtime is still a plain dict so tests can use ``monkeypatch.setitem`` /
 # ``patch.dict`` to inject fakes.
-SANDBOX_ADAPTER_METADATA: Mapping[SandboxProviderKind, AdapterMetadata] = (
+SANDBOX_ADAPTER_METADATA: Mapping[SandboxBackendType, AdapterMetadata] = (
     _build_sandbox_adapter_metadata()
 )
 
@@ -236,7 +236,7 @@ SANDBOX_ADAPTER_METADATA: Mapping[SandboxProviderKind, AdapterMetadata] = (
 
 
 class _AllowlistGatedAdapterRegistry(
-    MutableMapping[SandboxProviderKind, SandboxAdapter[Any, Any, Any]]
+    MutableMapping[SandboxBackendType, SandboxAdapter[Any, Any, Any]]
 ):
     """Registry of sandbox adapters with read-time allowlist filtering.
 
@@ -252,46 +252,46 @@ class _AllowlistGatedAdapterRegistry(
     """
 
     def __init__(self) -> None:
-        self._adapters: dict[SandboxProviderKind, SandboxAdapter[Any, Any, Any]] = {}
+        self._adapters: dict[SandboxBackendType, SandboxAdapter[Any, Any, Any]] = {}
 
     @staticmethod
     def _allowed(adapter: SandboxAdapter[Any, Any, Any]) -> bool:
-        return adapter.kind in get_env_allowed_sandbox_providers()
+        return adapter.backend_type in get_env_allowed_sandbox_providers()
 
-    def __getitem__(self, key: SandboxProviderKind) -> SandboxAdapter[Any, Any, Any]:
+    def __getitem__(self, key: SandboxBackendType) -> SandboxAdapter[Any, Any, Any]:
         adapter = self._adapters[key]
         if not self._allowed(adapter):
             raise KeyError(key)
         return adapter
 
-    def __setitem__(self, key: SandboxProviderKind, value: SandboxAdapter[Any, Any, Any]) -> None:
+    def __setitem__(self, key: SandboxBackendType, value: SandboxAdapter[Any, Any, Any]) -> None:
         self._adapters[key] = value
 
-    def __delitem__(self, key: SandboxProviderKind) -> None:
+    def __delitem__(self, key: SandboxBackendType) -> None:
         del self._adapters[key]
 
-    def __iter__(self) -> Iterator[SandboxProviderKind]:
+    def __iter__(self) -> Iterator[SandboxBackendType]:
         allowed = get_env_allowed_sandbox_providers()
-        return (k for k, v in self._adapters.items() if v.kind in allowed)
+        return (k for k, v in self._adapters.items() if v.backend_type in allowed)
 
     def __len__(self) -> int:
         allowed = get_env_allowed_sandbox_providers()
-        return sum(1 for v in self._adapters.values() if v.kind in allowed)
+        return sum(1 for v in self._adapters.values() if v.backend_type in allowed)
 
     def __contains__(self, key: object) -> bool:
         return key in self._adapters and self._allowed(
-            self._adapters[cast(SandboxProviderKind, key)]
+            self._adapters[cast(SandboxBackendType, key)]
         )
 
 
-_SANDBOX_ADAPTERS: MutableMapping[SandboxProviderKind, SandboxAdapter[Any, Any, Any]] = (
+_SANDBOX_ADAPTERS: MutableMapping[SandboxBackendType, SandboxAdapter[Any, Any, Any]] = (
     _AllowlistGatedAdapterRegistry()
 )
 
 
 class AdapterRegistry:
-    def get(self, kind: SandboxProviderKind) -> Optional[SandboxAdapter[Any, Any, Any]]:
-        return _SANDBOX_ADAPTERS.get(kind)
+    def get(self, backend_type: SandboxBackendType) -> Optional[SandboxAdapter[Any, Any, Any]]:
+        return _SANDBOX_ADAPTERS.get(backend_type)
 
     def __contains__(self, key: object) -> bool:
         return key in _SANDBOX_ADAPTERS
@@ -304,8 +304,8 @@ def register_sandbox_adapter(
     adapter: SandboxAdapter[Any, Any, Any],
 ) -> SandboxAdapter[Any, Any, Any]:
     """Register a SandboxAdapter in the runtime registry."""
-    _SANDBOX_ADAPTERS[adapter.kind] = adapter
-    logger.debug(f"Registered sandbox adapter: {adapter.kind!r}")
+    _SANDBOX_ADAPTERS[adapter.backend_type] = adapter
+    logger.debug(f"Registered sandbox adapter: {adapter.backend_type!r}")
     return adapter
 
 
@@ -446,7 +446,7 @@ class SecretsContext:
 
     async def missing_auth_detail(
         self,
-        provider_kind: SandboxProviderKind,
+        backend_type: SandboxBackendType,
     ) -> Optional[str]:
         """Return a user-facing auth-requirement message when the provider's
         credentials are not all resolvable through this context, or ``None``
@@ -456,7 +456,7 @@ class SecretsContext:
         ``MISSING_CREDENTIALS`` from ``AVAILABLE``. Returns ``None`` for
         adapters that aren't registered or declare no credentials.
         """
-        adapter = SANDBOX_ADAPTERS.get(provider_kind)
+        adapter = SANDBOX_ADAPTERS.get(backend_type)
         if adapter is None:
             return None
         specs = adapter.credential_specs()
@@ -491,14 +491,14 @@ async def build_sandbox_backend(
     No caching. Every call resolves credentials and constructs a new backend.
     """
     return await _build_backend_for(
-        sandbox_config.provider_kind,
+        sandbox_config.backend_type,
         config=sandbox_config.config or {},
         secrets=secrets,
     )
 
 
 async def probe_sandbox_backend_buildable(
-    kind: SandboxProviderKind,
+    backend_type: SandboxBackendType,
     *,
     language: LanguageName,
     secrets: SecretsContext,
@@ -526,14 +526,14 @@ async def probe_sandbox_backend_buildable(
     minimal config dict here so they validate.
     """
     return await _build_backend_for(
-        kind,
+        backend_type,
         config={"language": language},
         secrets=secrets,
     )
 
 
 async def _build_backend_for(
-    kind: SandboxProviderKind,
+    backend_type: SandboxBackendType,
     *,
     config: Mapping[str, Any],
     secrets: SecretsContext,
@@ -551,10 +551,11 @@ async def _build_backend_for(
     ``model_dump``; for the probe path, the wrapper synthesizes a
     ``{"language": ...}`` dict.
     """
-    adapter = SANDBOX_ADAPTERS.get(kind)
+    adapter = SANDBOX_ADAPTERS.get(backend_type)
     if adapter is None:
         logger.debug(
-            f"No adapter registered for kind={kind!r}; optional dependency may not be installed"
+            "No adapter registered for backend_type=%r; optional dependency may not be installed",
+            backend_type,
         )
         return None
 
@@ -582,7 +583,7 @@ async def _build_backend_for(
     # depth against direct-DB tampering and forward-compat against future
     # stricter validators, not an SSRF gate (writes are admin-gated and
     # already validate identically).
-    provider_row = await secrets.session.get(models.SandboxProvider, adapter.kind)
+    provider_row = await secrets.session.get(models.SandboxProvider, adapter.backend_type)
     deployment_blob = provider_row.config or {} if provider_row is not None else {}
     typed_deployment = adapter.deployment_config_model.model_validate(deployment_blob)
 
@@ -621,7 +622,7 @@ async def _build_backend_for(
         # Optional adapter dependency missing at backend-construction time.
         # Fall back to None so the caller can render a "not installed" state.
         logger.warning(
-            f"Optional dependency unavailable for sandbox backend {kind!r}: {exc}",
+            f"Optional dependency unavailable for sandbox backend {backend_type!r}: {exc}",
             exc_info=True,
         )
         return None

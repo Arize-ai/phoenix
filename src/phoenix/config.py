@@ -35,7 +35,7 @@ from phoenix.utilities.logging import log_a_list
 from phoenix.utilities.re import parse_env_headers
 
 if TYPE_CHECKING:
-    from phoenix.db.models import SandboxProviderKind
+    from phoenix.db.models import SandboxBackendType
     from phoenix.server.oauth2 import OAuth2Clients
 
 # Assignable roles (SYSTEM is internal-only and not included)
@@ -1208,30 +1208,30 @@ def validate_env_allowed_providers() -> None:
         )
 
 
-def get_env_allowed_sandbox_providers() -> frozenset[SandboxProviderKind]:
+def get_env_allowed_sandbox_providers() -> frozenset[SandboxBackendType]:
     """Effective set of allowed sandbox provider kind names.
 
-    - Unset → ``SANDBOX_PROVIDER_KINDS`` (all kinds allowed).
+    - Unset → ``SANDBOX_BACKEND_TYPES`` (all kinds allowed).
     - Parsed tokens include ``NONE`` → empty frozenset (kill switch; other
       tokens in the same value are not applied).
     - Otherwise → frozenset of stripped, uppercased comma-separated tokens.
 
     The concrete return value is always a ``frozenset``. It is annotated
-    as ``frozenset[SandboxProviderKind]`` because callers only need
+    as ``frozenset[SandboxBackendType]`` because callers only need
     membership tests against the closed kind set; the parsed branch uses
     ``typing.cast`` since parsing alone would infer ``frozenset[str]``.
     ``validate_env_allowed_sandbox_providers`` runs at startup and rejects
     unknown names before the server reads this setting for allowlisting.
     """
-    from phoenix.server.sandbox.types import SANDBOX_PROVIDER_KINDS
+    from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
 
     raw = getenv(ENV_PHOENIX_ALLOWED_SANDBOX_PROVIDERS)
     if not raw:
-        return SANDBOX_PROVIDER_KINDS
+        return SANDBOX_BACKEND_TYPES
     names = frozenset(name.strip().upper() for name in raw.split(",") if name.strip())
     if "NONE" in names:
         return frozenset()
-    return cast("frozenset[SandboxProviderKind]", names)
+    return cast("frozenset[SandboxBackendType]", names)
 
 
 def validate_env_allowed_sandbox_providers() -> None:
@@ -1239,13 +1239,13 @@ def validate_env_allowed_sandbox_providers() -> None:
     provider kinds. Called at startup so typos fail fast rather than silently
     locking out every provider.
     """
-    from phoenix.server.sandbox.types import SANDBOX_PROVIDER_KINDS
+    from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
 
-    if names := get_env_allowed_sandbox_providers() - SANDBOX_PROVIDER_KINDS:
+    if names := get_env_allowed_sandbox_providers() - SANDBOX_BACKEND_TYPES:
         raise ValueError(
             f"PHOENIX_ALLOWED_SANDBOX_PROVIDERS contains unrecognized kind names: "
             f"{', '.join(sorted(names))}. "
-            f"Valid names are: {', '.join(sorted(SANDBOX_PROVIDER_KINDS))}"
+            f"Valid names are: {', '.join(sorted(SANDBOX_BACKEND_TYPES))}"
         )
 
 

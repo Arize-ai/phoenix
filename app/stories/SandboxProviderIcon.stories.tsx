@@ -43,7 +43,7 @@ export const Gallery: Story = {
             minWidth: 96,
           }}
         >
-          <SandboxProviderIcon kind={kind} height={48} />
+          <SandboxProviderIcon backendType={kind} height={48} />
           <span style={{ fontSize: 12 }}>{kind}</span>
         </li>
       ))}

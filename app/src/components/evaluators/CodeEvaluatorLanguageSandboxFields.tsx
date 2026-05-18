@@ -14,10 +14,7 @@ import {
 } from "@phoenix/components";
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
-import type {
-  CodeEvaluatorLanguage,
-  SandboxProviderKind,
-} from "@phoenix/types";
+import type { CodeEvaluatorLanguage, SandboxBackendType } from "@phoenix/types";
 
 /** Structural shape of ``SandboxConfig.config`` as returned by GraphQL. */
 export type SandboxConfigOptionConfig = {
@@ -44,7 +41,7 @@ export type SandboxConfigOption = {
   id: string;
   name: string;
   description?: string | null;
-  providerKind: SandboxProviderKind;
+  backendType: SandboxBackendType;
   providerLabel: string;
   language: CodeEvaluatorLanguage;
   timeout?: number | null;
@@ -178,7 +175,10 @@ export const CodeEvaluatorSandboxField = ({
               textValue={item.name}
             >
               <Flex direction="row" gap="size-100" alignItems="center">
-                <SandboxProviderIcon kind={item.providerKind} height={18} />
+                <SandboxProviderIcon
+                  backendType={item.backendType}
+                  height={18}
+                />
                 <Text>{item.name}</Text>
               </Flex>
             </SelectItem>
@@ -189,7 +189,7 @@ export const CodeEvaluatorSandboxField = ({
   );
 };
 
-const PROVIDER_KIND_LABELS: Record<SandboxProviderKind, string> = {
+const BACKEND_TYPE_LABELS: Record<SandboxBackendType, string> = {
   WASM: "WebAssembly",
   E2B: "E2B",
   DAYTONA: "Daytona",
@@ -198,8 +198,8 @@ const PROVIDER_KIND_LABELS: Record<SandboxProviderKind, string> = {
   MODAL: "Modal",
 };
 
-const providerKindLabel = (kind: SandboxProviderKind): string =>
-  PROVIDER_KIND_LABELS[kind] ?? kind;
+const backendTypeLabel = (backendType: SandboxBackendType): string =>
+  BACKEND_TYPE_LABELS[backendType] ?? backendType;
 
 /**
  * Maps sandbox provider data from GraphQL to SandboxConfigOption[].
@@ -209,7 +209,7 @@ const providerKindLabel = (kind: SandboxProviderKind): string =>
  */
 export const mapSandboxConfigOptions = (
   sandboxProviders: ReadonlyArray<{
-    kind: SandboxProviderKind;
+    backendType: SandboxBackendType;
     enabled: boolean;
     configs: ReadonlyArray<{
       id: string;
@@ -221,32 +221,32 @@ export const mapSandboxConfigOptions = (
     }>;
   }>,
   sandboxBackends: ReadonlyArray<{
-    kind: SandboxProviderKind;
+    backendType: SandboxBackendType;
     status: string;
     supportsEnvVars?: boolean;
     internetAccess?: string;
     supportsDependencies?: boolean;
   }>
 ): SandboxConfigOption[] => {
-  const availableBackendsByKind = new Map(
+  const availableBackendsByType = new Map(
     sandboxBackends
       .filter((backend) => backend.status === "AVAILABLE")
-      .map((backend) => [backend.kind, backend])
+      .map((backend) => [backend.backendType, backend])
   );
 
   return sandboxProviders
     .filter(
       (provider) =>
-        provider.enabled && availableBackendsByKind.has(provider.kind)
+        provider.enabled && availableBackendsByType.has(provider.backendType)
     )
     .flatMap((provider) => {
-      const backend = availableBackendsByKind.get(provider.kind);
+      const backend = availableBackendsByType.get(provider.backendType);
       return provider.configs.map((config) => ({
         id: config.id,
         name: config.name,
         description: config.description,
-        providerKind: provider.kind,
-        providerLabel: providerKindLabel(provider.kind),
+        backendType: provider.backendType,
+        providerLabel: backendTypeLabel(provider.backendType),
         language: config.language,
         timeout: config.timeout,
         config: config.config,
@@ -262,11 +262,11 @@ export const mapSandboxConfigOptions = (
       if (providerComparison !== 0) {
         return providerComparison;
       }
-      const providerKindComparison = leftOption.providerKind.localeCompare(
-        rightOption.providerKind
+      const backendTypeComparison = leftOption.backendType.localeCompare(
+        rightOption.backendType
       );
-      if (providerKindComparison !== 0) {
-        return providerKindComparison;
+      if (backendTypeComparison !== 0) {
+        return backendTypeComparison;
       }
       const nameComparison = leftOption.name.localeCompare(rightOption.name);
       if (nameComparison !== 0) {

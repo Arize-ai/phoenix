@@ -51,7 +51,7 @@ function SettingsSandboxesPageContent({
       fragment SettingsSandboxesPageFragment on Query
       @refetchable(queryName: "SettingsSandboxesPageRefetchQuery") {
         sandboxBackends {
-          kind
+          backendType
           displayName
           hostingType
           dependencyHints
@@ -70,7 +70,7 @@ function SettingsSandboxesPageContent({
         }
         sandboxProviders {
           id
-          kind
+          backendType
           supportedLanguages
           enabled
           configs {
@@ -109,16 +109,16 @@ function SettingsSandboxesPageContent({
   );
 
   const providerRows = useMemo(() => {
-    const backendByKind = new Map(
+    const backendByType = new Map(
       data.sandboxBackends.map((backend: BackendInfo) => [
-        backend.kind,
+        backend.backendType,
         backend,
       ])
     );
     return data.sandboxProviders
       .map((provider: SandboxProvider) => ({
         provider,
-        backend: backendByKind.get(provider.kind),
+        backend: backendByType.get(provider.backendType),
       }))
       .filter(
         (row): row is { provider: SandboxProvider; backend: BackendInfo } =>

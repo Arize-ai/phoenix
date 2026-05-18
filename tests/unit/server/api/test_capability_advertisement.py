@@ -6,7 +6,7 @@ import pytest
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.models import SandboxProviderKind
+from phoenix.db.models import SandboxBackendType
 from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
@@ -14,7 +14,7 @@ from tests.unit.graphql import AsyncGraphQLClient
 _SANDBOX_BACKENDS_QUERY = """
   query {
     sandboxBackends {
-      kind
+      backendType
       displayName
       hostingType
       supportedLanguages
@@ -62,7 +62,7 @@ async def test_sandbox_backends_full_ui_query_shape(
     response = await gql_client.execute(query=_SANDBOX_BACKENDS_QUERY)
     assert not response.errors
     assert response.data is not None
-    backends = {b["kind"]: b for b in response.data["sandboxBackends"]}
+    backends = {b["backendType"]: b for b in response.data["sandboxBackends"]}
 
     assert set(backends.keys()) == set(SANDBOX_ADAPTER_METADATA.keys())
 
@@ -74,25 +74,25 @@ async def test_sandbox_backends_full_ui_query_shape(
         assert backend["hostingType"] == expected_hosting, kind
 
 
-@pytest.mark.parametrize("provider_kind", list(SANDBOX_ADAPTER_METADATA.keys()))
+@pytest.mark.parametrize("backend_type", list(SANDBOX_ADAPTER_METADATA.keys()))
 async def test_sandbox_backends_capability_flags_per_adapter(
-    provider_kind: SandboxProviderKind,
+    backend_type: SandboxBackendType,
     gql_client: AsyncGraphQLClient,
     seed_sandbox_providers: None,
 ) -> None:
     """Each adapter advertises capability flags consistent with SANDBOX_ADAPTER_METADATA."""
-    meta = SANDBOX_ADAPTER_METADATA[provider_kind]
+    meta = SANDBOX_ADAPTER_METADATA[backend_type]
     response = await gql_client.execute(query=_SANDBOX_BACKENDS_QUERY)
     assert not response.errors
     assert response.data is not None
-    backends = {b["kind"]: b for b in response.data["sandboxBackends"]}
-    assert provider_kind in backends, f"{provider_kind} not found in sandboxBackends response"
-    backend = backends[provider_kind]
+    backends = {b["backendType"]: b for b in response.data["sandboxBackends"]}
+    assert backend_type in backends, f"{backend_type} not found in sandboxBackends response"
+    backend = backends[backend_type]
 
     assert backend["supportedLanguages"] == sorted(meta.supported_languages)
-    assert backend["supportsEnvVars"] is meta.supports_env_vars, provider_kind
-    assert backend["internetAccess"] == meta.internet_access_capability.upper(), provider_kind
-    assert backend["supportsDependencies"] is meta.supports_dependencies, provider_kind
+    assert backend["supportsEnvVars"] is meta.supports_env_vars, backend_type
+    assert backend["internetAccess"] == meta.internet_access_capability.upper(), backend_type
+    assert backend["supportsDependencies"] is meta.supports_dependencies, backend_type
 
 
 async def test_sandbox_config_secret_ref_env_var_round_trips(

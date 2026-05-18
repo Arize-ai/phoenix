@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<88556b176b38537dc77f7e56b0b6bd72>>
+ * @generated SignedSource<<7bcb4dbc0626d9d9ed28665811ee694d>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -107,7 +107,7 @@ v2 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "kind",
+  "name": "backendType",
   "storageKey": null
 },
 v3 = {
@@ -467,12 +467,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e7a4aa2adb5922639902b13e5209e53e",
+    "cacheID": "ffa07811c26fdfdbe33a5d000f4009ee",
     "id": null,
     "metadata": {},
     "name": "SandboxConfigsCardConfigEnabledSwitchMutation",
     "operationKind": "mutation",
-    "text": "mutation SandboxConfigsCardConfigEnabledSwitchMutation(\n  $input: UpdateSandboxConfigInput!\n) {\n  updateSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    kind\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    kind\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      enabled\n      config {\n        envVars {\n          name\n          value {\n            __typename\n            ... on SandboxConfigEnvVarLiteral {\n              literal\n            }\n            ... on SandboxConfigEnvVarSecretRef {\n              secretKey\n            }\n          }\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n      updatedAt\n    }\n  }\n}\n"
+    "text": "mutation SandboxConfigsCardConfigEnabledSwitchMutation(\n  $input: UpdateSandboxConfigInput!\n) {\n  updateSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      enabled\n      config {\n        envVars {\n          name\n          value {\n            __typename\n            ... on SandboxConfigEnvVarLiteral {\n              literal\n            }\n            ... on SandboxConfigEnvVarSecretRef {\n              secretKey\n            }\n          }\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a80fd728e9d776b2b5569a61ae7d00c8>>
+ * @generated SignedSource<<6b7e8293a079da2db2bf9a7dada3424b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -119,13 +119,6 @@ v10 = {
   "args": null,
   "kind": "ScalarField",
   "name": "updatedAt",
-  "storageKey": null
-},
-v11 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "kind",
   "storageKey": null
 };
 return {
@@ -257,7 +250,13 @@ return {
                               (v7/*: any*/),
                               (v8/*: any*/),
                               (v9/*: any*/),
-                              (v11/*: any*/),
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "kind",
+                                "storageKey": null
+                              },
                               {
                                 "alias": null,
                                 "args": null,
@@ -353,7 +352,13 @@ return {
                                         "name": "provider",
                                         "plural": false,
                                         "selections": [
-                                          (v11/*: any*/),
+                                          {
+                                            "alias": null,
+                                            "args": null,
+                                            "kind": "ScalarField",
+                                            "name": "backendType",
+                                            "storageKey": null
+                                          },
                                           (v8/*: any*/)
                                         ],
                                         "storageKey": null
@@ -444,12 +449,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "f9116adb23e2b916768afa7dc282ff4d",
+    "cacheID": "3d0486d0c54711d5237d1b5bd2619b25",
     "id": null,
     "metadata": {},
     "name": "DatasetEvaluatorsTableEvaluatorsQuery",
     "operationKind": "query",
-    "text": "query DatasetEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $filter: DatasetEvaluatorFilter = null\n  $first: Int = 100\n  $sort: DatasetEvaluatorSort = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetEvaluatorsTable_evaluators_3JsJJ3\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_3JsJJ3 on Dataset {\n  datasetEvaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          kind\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "query DatasetEvaluatorsTableEvaluatorsQuery(\n  $after: String = null\n  $filter: DatasetEvaluatorFilter = null\n  $first: Int = 100\n  $sort: DatasetEvaluatorSort = null\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...DatasetEvaluatorsTable_evaluators_3JsJJ3\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_evaluators_3JsJJ3 on Dataset {\n  datasetEvaluators(first: $first, after: $after, sort: $sort, filter: $filter) {\n    edges {\n      node {\n        ...DatasetEvaluatorsTable_row\n        id\n        __typename\n      }\n      cursor\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();

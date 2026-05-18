@@ -34,7 +34,7 @@ from typing import Any, cast
 
 import pytest
 
-from phoenix.db.models import LanguageName, SandboxProviderKind
+from phoenix.db.models import LanguageName, SandboxBackendType
 from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
 from phoenix.server.sandbox.types import _RuntimePackageInstallation
 
@@ -42,7 +42,7 @@ from phoenix.server.sandbox.types import _RuntimePackageInstallation
 # Adapter instantiation helpers
 # ---------------------------------------------------------------------------
 
-_ADAPTER_MODULES: dict[SandboxProviderKind, tuple[str, str]] = {
+_ADAPTER_MODULES: dict[SandboxBackendType, tuple[str, str]] = {
     "WASM": ("phoenix.server.sandbox.wasm_backend", "WASMAdapter"),
     "E2B": ("phoenix.server.sandbox.e2b_backend", "E2BAdapter"),
     "DAYTONA": ("phoenix.server.sandbox.daytona_backend", "DaytonaAdapter"),
@@ -52,13 +52,13 @@ _ADAPTER_MODULES: dict[SandboxProviderKind, tuple[str, str]] = {
 }
 
 
-def _default_language(kind: str) -> LanguageName:
-    meta = SANDBOX_ADAPTER_METADATA[cast(SandboxProviderKind, kind)]
+def _default_language(backend_type: str) -> LanguageName:
+    meta = SANDBOX_ADAPTER_METADATA[cast(SandboxBackendType, backend_type)]
     return sorted(meta.supported_languages)[0]
 
 
 def _get_adapter(key: str) -> Any:
-    module_path, cls_name = _ADAPTER_MODULES[cast(SandboxProviderKind, key)]
+    module_path, cls_name = _ADAPTER_MODULES[cast(SandboxBackendType, key)]
     mod = importlib.import_module(module_path)
     return getattr(mod, cls_name)()
 

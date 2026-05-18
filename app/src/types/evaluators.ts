@@ -127,7 +127,7 @@ export type EvaluatorKind = "LLM" | "CODE" | "BUILTIN";
 
 export type CodeEvaluatorLanguage = "PYTHON" | "TYPESCRIPT";
 
-export type SandboxProviderKind =
+export type SandboxBackendType =
   | "WASM"
   | "E2B"
   | "DAYTONA"

@@ -39,7 +39,7 @@ from pydantic import (
 )
 from typing_extensions import TypeAlias
 
-from phoenix.db.models import SandboxProviderKind
+from phoenix.db.models import SandboxBackendType
 
 
 class UnsupportedOperation(Exception):
@@ -115,7 +115,7 @@ def _validated_package_list(packages: list[str], validate_one: Callable[[str], s
     return out
 
 
-SANDBOX_PROVIDER_KINDS: frozenset[SandboxProviderKind] = frozenset(get_args(SandboxProviderKind))
+SANDBOX_BACKEND_TYPES: frozenset[SandboxBackendType] = frozenset(get_args(SandboxBackendType))
 
 
 # ---------------------------------------------------------------------------
@@ -348,7 +348,7 @@ class E2BConfig(
     SupportsDependencies,
     _RuntimePackageInstallation,
 ):
-    kind: Literal["E2B"] = "E2B"
+    backend_type: Literal["E2B"] = "E2B"
     language: Literal["PYTHON"] = "PYTHON"
 
 
@@ -359,12 +359,12 @@ class DaytonaConfig(
     SupportsDependencies,
     _RuntimePackageInstallation,
 ):
-    kind: Literal["DAYTONA"] = "DAYTONA"
+    backend_type: Literal["DAYTONA"] = "DAYTONA"
     language: Literal["PYTHON", "TYPESCRIPT"]
 
 
 class DenoConfig(_Config, SupportsEnvVars):
-    kind: Literal["DENO"] = "DENO"
+    backend_type: Literal["DENO"] = "DENO"
     language: Literal["TYPESCRIPT"] = "TYPESCRIPT"
 
 
@@ -375,12 +375,12 @@ class VercelConfig(
     SupportsDependencies,
     _RuntimePackageInstallation,
 ):
-    kind: Literal["VERCEL"] = "VERCEL"
+    backend_type: Literal["VERCEL"] = "VERCEL"
     language: Literal["PYTHON", "TYPESCRIPT"]
 
 
 class WASMConfig(_Config):
-    kind: Literal["WASM"] = "WASM"
+    backend_type: Literal["WASM"] = "WASM"
     language: Literal["PYTHON"] = "PYTHON"
 
 
@@ -392,7 +392,7 @@ class ModalConfig(
 ):
     # Modal bakes deps into the Image at build time, not at runtime; do not
     # compose ``_RuntimePackageInstallation``.
-    kind: Literal["MODAL"] = "MODAL"
+    backend_type: Literal["MODAL"] = "MODAL"
     language: Literal["PYTHON"] = "PYTHON"
 
 
@@ -413,7 +413,7 @@ SandboxConfigModel: TypeAlias = Annotated[
         WASMConfig,
         ModalConfig,
     ],
-    Field(discriminator="kind"),
+    Field(discriminator="backend_type"),
 ]
 
 #: Pydantic adapter for parsing a stored ``SandboxConfig.config`` JSON blob
@@ -469,7 +469,7 @@ class NoDeployment(_BaseModel):
 class DaytonaDeployment(_BaseModel):
     """Daytona on-prem routing. Empty → Daytona's hosted SaaS default."""
 
-    kind: Literal["DAYTONA"] = "DAYTONA"
+    backend_type: Literal["DAYTONA"] = "DAYTONA"
     api_url: Optional[str] = Field(
         default=None,
         title="Daytona API URL",
@@ -495,7 +495,7 @@ class DaytonaDeployment(_BaseModel):
 class E2BDeployment(_BaseModel):
     """E2B enterprise routing. Empty → E2B's hosted SaaS default."""
 
-    kind: Literal["E2B"] = "E2B"
+    backend_type: Literal["E2B"] = "E2B"
     domain: Optional[str] = Field(
         default=None,
         title="E2B Domain",
@@ -534,7 +534,7 @@ class E2BDeployment(_BaseModel):
 class VercelDeployment(NoDeployment):
     """Vercel has no public routing kwargs on AsyncSandbox.create today."""
 
-    kind: Literal["VERCEL"] = "VERCEL"
+    backend_type: Literal["VERCEL"] = "VERCEL"
 
 
 class ModalDeployment(NoDeployment):
@@ -545,19 +545,19 @@ class ModalDeployment(NoDeployment):
     author that env var.
     """
 
-    kind: Literal["MODAL"] = "MODAL"
+    backend_type: Literal["MODAL"] = "MODAL"
 
 
 class WASMDeployment(NoDeployment):
     """WASM runs in-process; no deployment routing applies."""
 
-    kind: Literal["WASM"] = "WASM"
+    backend_type: Literal["WASM"] = "WASM"
 
 
 class DenoDeployment(NoDeployment):
     """Deno runs as a local subprocess; no deployment routing applies."""
 
-    kind: Literal["DENO"] = "DENO"
+    backend_type: Literal["DENO"] = "DENO"
 
 
 # ---------------------------------------------------------------------------
@@ -586,7 +586,7 @@ SandboxDeploymentModel: TypeAlias = Annotated[
         WASMDeployment,
         DenoDeployment,
     ],
-    Field(discriminator="kind"),
+    Field(discriminator="backend_type"),
 ]
 
 #: Pydantic adapter for parsing a stored ``SandboxProvider.config`` JSON
@@ -834,8 +834,8 @@ class SandboxAdapter(Generic[ConfigT, CredT, DeployT], ABC):
     use the concrete config model's ``language`` field to route execution.
     """
 
-    #: Canonical provider kind (matches ``sandbox_providers.kind`` and dict keys).
-    kind: ClassVar[SandboxProviderKind]
+    #: Canonical provider kind (matches ``sandbox_providers.backend_type`` and dict keys).
+    backend_type: ClassVar[SandboxBackendType]
 
     #: Human-readable name for display in the UI.
     display_name: ClassVar[str]

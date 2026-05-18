@@ -398,7 +398,7 @@ export function CodeDatasetEvaluatorDetails({
                 }
               }
               provider {
-                kind
+                backendType
               }
             }
             currentVersion {
@@ -422,11 +422,11 @@ export function CodeDatasetEvaluatorDetails({
       ? datasetEvaluator.outputConfigs
       : (evaluator.outputConfigs ?? []);
   const sandboxConfig = evaluator.sandboxConfig ?? null;
-  const sandboxBackendByKind = useMemo(
+  const sandboxBackendByType = useMemo(
     () =>
       new Map(
         sandboxBackends.map((sandboxBackend) => [
-          sandboxBackend.kind,
+          sandboxBackend.backendType,
           sandboxBackend,
         ])
       ),
@@ -434,7 +434,7 @@ export function CodeDatasetEvaluatorDetails({
   );
   const sandboxBackend =
     sandboxConfig != null
-      ? sandboxBackendByKind.get(sandboxConfig.provider.kind)
+      ? sandboxBackendByType.get(sandboxConfig.provider.backendType)
       : undefined;
 
   const pathMappingEntries = useMemo(
@@ -587,12 +587,12 @@ export function CodeDatasetEvaluatorDetails({
                     value={
                       <Flex direction="row" gap="size-100" alignItems="center">
                         <SandboxProviderIcon
-                          kind={sandboxConfig.provider.kind}
+                          backendType={sandboxConfig.provider.backendType}
                           height={16}
                         />
                         <Text size="S">
                           {sandboxBackend?.displayName ??
-                            sandboxConfig.provider.kind}
+                            sandboxConfig.provider.backendType}
                         </Text>
                       </Flex>
                     }

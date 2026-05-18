@@ -135,7 +135,7 @@ async def _resolve_inline_code_evaluator_backend(
         sandbox_timeout = sandbox_cfg.timeout
         provider = await session.scalar(
             select(models.SandboxProvider).where(
-                models.SandboxProvider.kind == sandbox_cfg.provider_kind
+                models.SandboxProvider.backend_type == sandbox_cfg.backend_type
             )
         )
         if provider is None:
@@ -145,7 +145,7 @@ async def _resolve_inline_code_evaluator_backend(
         if not provider.enabled:
             raise BadRequest(
                 (
-                    f"Sandbox provider '{provider.kind}' is disabled. Enable it before "
+                    f"Sandbox provider '{provider.backend_type}' is disabled. Enable it before "
                     "testing this evaluator."
                 )
             )
@@ -168,7 +168,7 @@ async def _resolve_inline_code_evaluator_backend(
 
     if sandbox_backend is None:
         raise BadRequest(
-            f"Sandbox backend '{provider.kind}' is unavailable for language '{language}'. "
+            f"Sandbox backend '{provider.backend_type}' is unavailable for language '{language}'. "
             "Ensure the backend is installed and configured."
         )
 
@@ -314,16 +314,17 @@ class ChatCompletionMutationMixin:
                             )
                         live_sandbox_provider = await session.scalar(
                             select(models.SandboxProvider).where(
-                                models.SandboxProvider.kind == live_sandbox_config.provider_kind
+                                models.SandboxProvider.backend_type
+                                == live_sandbox_config.backend_type
                             )
                         )
                         if live_sandbox_provider is None:
-                            pk = live_sandbox_config.provider_kind
+                            pk = live_sandbox_config.backend_type
                             raise BadRequest(f"SandboxProvider not found: {pk}")
                         if not live_sandbox_provider.enabled:
                             raise BadRequest(
                                 (
-                                    f"Sandbox provider '{live_sandbox_provider.kind}' is "
+                                    f"Sandbox provider '{live_sandbox_provider.backend_type}' is "
                                     "disabled. Enable it before testing this evaluator."
                                 )
                             )

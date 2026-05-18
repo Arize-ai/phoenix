@@ -115,7 +115,7 @@ class DenoSandboxBackend(BaseNoSessionBackend):
 
 
 class DenoAdapter(SandboxAdapter[DenoConfig, NoCredentials, DenoDeployment]):
-    kind = "DENO"
+    backend_type = "DENO"
     display_name = "Deno"
     hosting_type = "local"
     dependency_hints = (

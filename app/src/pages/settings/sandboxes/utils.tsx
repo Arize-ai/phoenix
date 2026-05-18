@@ -175,9 +175,9 @@ export function LanguageWithIcon({ language }: { language: Language }) {
  * gap called out in #13030).
  */
 export function shouldShowLocalDenoTrustWarning(
-  backend: Pick<BackendInfo, "kind" | "status"> | undefined
+  backend: Pick<BackendInfo, "backendType" | "status"> | undefined
 ): boolean {
-  if (backend == null || backend.kind !== "DENO") {
+  if (backend == null || backend.backendType !== "DENO") {
     return false;
   }
   if (backend.status !== "AVAILABLE") {
@@ -186,8 +186,8 @@ export function shouldShowLocalDenoTrustWarning(
   return !window.Config.managementUrl;
 }
 
-export function getBackendDescription(kind: BackendInfo["kind"]) {
-  switch (kind) {
+export function getBackendDescription(backendType: BackendInfo["backendType"]) {
+  switch (backendType) {
     case "WASM":
       return "Local WebAssembly runtime";
     case "E2B":
@@ -214,12 +214,12 @@ export function getDependencyPreview({
   packagesText,
   supportsDependencies,
   language,
-  kind,
+  backendType,
 }: {
   packagesText: string;
   supportsDependencies: boolean | undefined | null;
   language: "PYTHON" | "TYPESCRIPT" | null | undefined;
-  kind: BackendInfo["kind"] | undefined;
+  backendType: BackendInfo["backendType"] | undefined;
 }): string | null {
   if (!supportsDependencies || language == null) {
     return null;
@@ -233,7 +233,7 @@ export function getDependencyPreview({
     return `npm install ${joined}`;
   }
   // Python branch: shape the preview after the install path the backend uses.
-  if (kind === "MODAL") {
+  if (backendType === "MODAL") {
     const args = packages.map((p) => `"${p}"`).join(", ");
     return `image.pip_install(${args})`;
   }
@@ -318,14 +318,15 @@ export function getSandboxConfigSettings(
  * ``SandboxConfigVariantInput``. Mirrors ``_VARIANT_FIELDS`` in
  * ``server/api/mutations/sandbox_config_mutations.py``.
  */
-const VARIANT_KEY_BY_KIND: Record<BackendInfo["kind"], string> = {
-  E2B: "e2b",
-  DAYTONA: "daytona",
-  DENO: "deno",
-  VERCEL: "vercel",
-  WASM: "wasm",
-  MODAL: "modal",
-};
+const VARIANT_KEY_BY_BACKEND_TYPE: Record<BackendInfo["backendType"], string> =
+  {
+    E2B: "e2b",
+    DAYTONA: "daytona",
+    DENO: "deno",
+    VERCEL: "vercel",
+    WASM: "wasm",
+    MODAL: "modal",
+  };
 
 export function formValuesToConfigPatch(
   values: SandboxConfigFormValues,
@@ -366,7 +367,9 @@ export function formValuesToConfigPatch(
   }
 
   // WASM accepts no per-config options; senders pass {}.
-  const variantKey = backend ? VARIANT_KEY_BY_KIND[backend.kind] : null;
+  const variantKey = backend
+    ? VARIANT_KEY_BY_BACKEND_TYPE[backend.backendType]
+    : null;
   if (variantKey == null) {
     // No backend selected yet; caller must guard before sending. Return
     // an empty object so the dialog can detect "no variant set".

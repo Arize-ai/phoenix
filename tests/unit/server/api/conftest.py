@@ -1696,13 +1696,13 @@ async def sandbox_config(
     """Return a SandboxConfig linked to the first available WASM/PYTHON provider."""
     async with db() as session:
         provider = await session.scalar(
-            select(models.SandboxProvider).where(models.SandboxProvider.kind == "WASM")
+            select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
         )
         assert provider is not None, (
             "WASM sandbox provider not found; ensure seed_sandbox_providers ran"
         )
         config = models.SandboxConfig(
-            provider_kind=provider.kind,
+            backend_type=provider.backend_type,
             language="PYTHON",
             name=Identifier("test-sandbox-config"),
             description="Fixture sandbox config for tests",

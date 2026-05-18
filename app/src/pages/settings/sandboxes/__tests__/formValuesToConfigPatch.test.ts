@@ -5,7 +5,7 @@ import { formValuesToConfigPatch, getDependencyPreview } from "../utils";
 
 type PartialBackend = Pick<
   BackendInfo,
-  "kind" | "supportsEnvVars" | "internetAccess" | "supportsDependencies"
+  "backendType" | "supportsEnvVars" | "internetAccess" | "supportsDependencies"
 >;
 
 const emptyValues: SandboxConfigFormValues = {
@@ -20,14 +20,14 @@ const emptyValues: SandboxConfigFormValues = {
 };
 
 const wasmNoCapabilityBackend: PartialBackend = {
-  kind: "WASM",
+  backendType: "WASM",
   supportsEnvVars: false,
   internetAccess: "NONE",
   supportsDependencies: false,
 };
 
 const e2bFullCapabilityBackend: PartialBackend = {
-  kind: "E2B",
+  backendType: "E2B",
   supportsEnvVars: true,
   internetAccess: "BOOLEAN",
   supportsDependencies: true,
@@ -157,7 +157,7 @@ describe("getDependencyPreview", () => {
         packagesText: "numpy",
         supportsDependencies: false,
         language: "PYTHON",
-        kind: "WASM",
+        backendType: "WASM",
       })
     ).toBeNull();
     expect(
@@ -165,7 +165,7 @@ describe("getDependencyPreview", () => {
         packagesText: "numpy",
         supportsDependencies: undefined,
         language: "PYTHON",
-        kind: "E2B",
+        backendType: "E2B",
       })
     ).toBeNull();
   });
@@ -176,7 +176,7 @@ describe("getDependencyPreview", () => {
         packagesText: "numpy",
         supportsDependencies: true,
         language: null,
-        kind: "E2B",
+        backendType: "E2B",
       })
     ).toBeNull();
   });
@@ -187,7 +187,7 @@ describe("getDependencyPreview", () => {
         packagesText: "",
         supportsDependencies: true,
         language: "PYTHON",
-        kind: "E2B",
+        backendType: "E2B",
       })
     ).toBeNull();
     expect(
@@ -195,7 +195,7 @@ describe("getDependencyPreview", () => {
         packagesText: "   \n  ",
         supportsDependencies: true,
         language: "PYTHON",
-        kind: "E2B",
+        backendType: "E2B",
       })
     ).toBeNull();
   });
@@ -206,7 +206,7 @@ describe("getDependencyPreview", () => {
         packagesText: "numpy\npandas==2.0",
         supportsDependencies: true,
         language: "PYTHON",
-        kind: "E2B",
+        backendType: "E2B",
       })
     ).toBe("pip install numpy pandas==2.0");
   });
@@ -217,7 +217,7 @@ describe("getDependencyPreview", () => {
         packagesText: "numpy",
         supportsDependencies: true,
         language: "PYTHON",
-        kind: "DAYTONA",
+        backendType: "DAYTONA",
       })
     ).toBe("pip install numpy");
   });
@@ -228,7 +228,7 @@ describe("getDependencyPreview", () => {
         packagesText: "numpy\npandas==2.0",
         supportsDependencies: true,
         language: "PYTHON",
-        kind: "MODAL",
+        backendType: "MODAL",
       })
     ).toBe('image.pip_install("numpy", "pandas==2.0")');
   });
@@ -239,7 +239,7 @@ describe("getDependencyPreview", () => {
         packagesText: "lodash\n@scope/pkg@1.2.3",
         supportsDependencies: true,
         language: "TYPESCRIPT",
-        kind: "DENO",
+        backendType: "DENO",
       })
     ).toBe("npm install lodash @scope/pkg@1.2.3");
   });

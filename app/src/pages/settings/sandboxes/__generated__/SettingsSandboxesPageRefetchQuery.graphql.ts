@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<eaaf143c12dc34860fcf40a5780aed22>>
+ * @generated SignedSource<<0d21229253c8787030214e1a2aa02a74>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -24,7 +24,7 @@ var v0 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "kind",
+  "name": "backendType",
   "storageKey": null
 },
 v1 = {
@@ -340,16 +340,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5debd9458ab593c4ea13fdc73d3b0fcf",
+    "cacheID": "3ee6d5f67b2455a9ce6c8249630b717e",
     "id": null,
     "metadata": {},
     "name": "SettingsSandboxesPageRefetchQuery",
     "operationKind": "query",
-    "text": "query SettingsSandboxesPageRefetchQuery {\n  ...SettingsSandboxesPageFragment\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    kind\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    kind\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      enabled\n      config {\n        envVars {\n          name\n          value {\n            __typename\n            ... on SandboxConfigEnvVarLiteral {\n              literal\n            }\n            ... on SandboxConfigEnvVarSecretRef {\n              secretKey\n            }\n          }\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n      updatedAt\n    }\n  }\n}\n"
+    "text": "query SettingsSandboxesPageRefetchQuery {\n  ...SettingsSandboxesPageFragment\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      enabled\n      config {\n        envVars {\n          name\n          value {\n            __typename\n            ... on SandboxConfigEnvVarLiteral {\n              literal\n            }\n            ... on SandboxConfigEnvVarSecretRef {\n              secretKey\n            }\n          }\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "02b83db166418906db0308ae4a489d97";
+(node as any).hash = "d6b4a173dc6b120e82f0a1df629b1384";
 
 export default node;

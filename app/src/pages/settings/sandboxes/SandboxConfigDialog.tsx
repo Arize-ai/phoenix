@@ -658,7 +658,7 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                     packagesText: field.value,
                     supportsDependencies: activeBackend.supportsDependencies,
                     language: dependencyLanguage,
-                    kind: activeBackend.kind,
+                    backendType: activeBackend.backendType,
                   });
                   return (
                     <Flex direction="column" gap="size-50">

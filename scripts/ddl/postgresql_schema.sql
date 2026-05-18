@@ -199,10 +199,10 @@ CREATE INDEX ix_prompts_prompt_labels_prompt_label_id ON public.prompts_prompt_l
 -- Table: sandbox_providers
 -- ------------------------
 CREATE TABLE public.sandbox_providers (
-    kind VARCHAR NOT NULL,
+    backend_type VARCHAR NOT NULL,
     enabled BOOLEAN NOT NULL,
     config JSONB NOT NULL DEFAULT '{}'::jsonb,
-    CONSTRAINT pk_sandbox_providers PRIMARY KEY (kind)
+    CONSTRAINT pk_sandbox_providers PRIMARY KEY (backend_type)
 );
 
 
@@ -210,7 +210,7 @@ CREATE TABLE public.sandbox_providers (
 -- ----------------------
 CREATE TABLE public.sandbox_configs (
     id bigserial NOT NULL,
-    provider_kind VARCHAR NOT NULL,
+    backend_type VARCHAR NOT NULL,
     language VARCHAR NOT NULL,
     name VARCHAR NOT NULL,
     description VARCHAR,
@@ -220,14 +220,14 @@ CREATE TABLE public.sandbox_configs (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
     CONSTRAINT pk_sandbox_configs PRIMARY KEY (id),
+    CONSTRAINT uq_sandbox_configs_backend_type_name
+        UNIQUE (backend_type, name),
     CONSTRAINT uq_sandbox_configs_language_id
         UNIQUE (language, id),
-    CONSTRAINT uq_sandbox_configs_provider_kind_name
-        UNIQUE (provider_kind, name),
-    CONSTRAINT fk_sandbox_configs_provider_kind_sandbox_providers
+    CONSTRAINT fk_sandbox_configs_backend_type_sandbox_providers
         FOREIGN KEY
-        (provider_kind)
-        REFERENCES public.sandbox_providers (kind)
+        (backend_type)
+        REFERENCES public.sandbox_providers (backend_type)
         ON DELETE CASCADE
 );
 

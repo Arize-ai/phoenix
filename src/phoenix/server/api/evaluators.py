@@ -812,7 +812,7 @@ async def get_evaluators(
                 select(models.SandboxConfig, models.SandboxProvider)
                 .join(
                     models.SandboxProvider,
-                    models.SandboxProvider.kind == models.SandboxConfig.provider_kind,
+                    models.SandboxProvider.backend_type == models.SandboxConfig.backend_type,
                 )
                 .where(models.SandboxConfig.id.in_(tip_sandbox_config_ids))
             )
@@ -851,12 +851,12 @@ async def get_evaluators(
                 if not live_sandbox_provider.enabled:
                     raise BadRequest(
                         (
-                            f"Sandbox provider '{live_sandbox_provider.kind}' is disabled. "
+                            f"Sandbox provider '{live_sandbox_provider.backend_type}' is disabled. "
                             "Enable it before testing this evaluator."
                         )
                     )
                 sandbox_timeout = live_sandbox_config.timeout
-                sandbox_key = (live_sandbox_provider.kind, live_sandbox_config.id)
+                sandbox_key = (live_sandbox_provider.backend_type, live_sandbox_config.id)
                 if sandbox_key not in backend_by_sandbox_key:
                     try:
                         backend_by_sandbox_key[sandbox_key] = await build_sandbox_backend(

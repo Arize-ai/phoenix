@@ -143,7 +143,7 @@ from phoenix.server.api.types.User import User
 from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
-from phoenix.server.sandbox.types import SANDBOX_PROVIDER_KINDS
+from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
 from phoenix.utilities.template_formatters import TemplateFormatterError
 
 initialize_playground_clients()
@@ -1012,10 +1012,10 @@ class Query:
         if type_name == Secret.__name__:
             return Secret(id=global_id.node_id)
         if type_name == SandboxProvider.__name__:
-            provider_kind = global_id.node_id
-            if provider_kind not in SANDBOX_PROVIDER_KINDS:
-                raise NotFound(f"Unknown sandbox provider kind: {provider_kind}")
-            return SandboxProvider(id=type_cast(models.SandboxProviderKind, provider_kind))
+            backend_type = global_id.node_id
+            if backend_type not in SANDBOX_BACKEND_TYPES:
+                raise NotFound(f"Unknown sandbox backend type: {backend_type}")
+            return SandboxProvider(id=type_cast(models.SandboxBackendType, backend_type))
         node_id = int(global_id.node_id)
         if type_name == "Dimension" or type_name == "EmbeddingDimension":
             raise NotFound(f"Unknown node type: {type_name}")
@@ -1712,10 +1712,10 @@ class Query:
     @strawberry.field
     async def sandbox_providers(self, info: Info[Context, None]) -> list[SandboxProvider]:
         """Return all persisted sandbox providers with their nested configs."""
-        stmt = select(models.SandboxProvider).order_by(models.SandboxProvider.kind.asc())
+        stmt = select(models.SandboxProvider).order_by(models.SandboxProvider.backend_type.asc())
         async with info.context.db.read() as session:
             rows = (await session.scalars(stmt)).all()
-        return [SandboxProvider(id=row.kind, db_record=row) for row in rows]
+        return [SandboxProvider(id=row.backend_type, db_record=row) for row in rows]
 
 
 def _consolidate_sqlite_db_table_stats(

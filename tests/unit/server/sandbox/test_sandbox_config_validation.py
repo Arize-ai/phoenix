@@ -45,7 +45,7 @@ def _make_adapter(
     """Create a minimal SandboxAdapter with the given config_model."""
 
     class _ConcreteAdapter(SandboxAdapter):  # type: ignore[type-arg]
-        kind = "TEST"  # type: ignore[assignment]
+        backend_type = "TEST"  # type: ignore[assignment]
         display_name = "Test"
         config_model = config_model_cls
         credentials_model = NoCredentials

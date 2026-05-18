@@ -12,7 +12,7 @@ import pytest
 from sqlalchemy import select
 
 from phoenix.db import models
-from phoenix.db.models import SandboxProviderKind
+from phoenix.db.models import SandboxBackendType
 from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
 from phoenix.server.sandbox.sync import sync_languages, sync_sandbox_providers
 from phoenix.server.types import DbSessionFactory
@@ -52,7 +52,7 @@ class TestSyncSandboxProviders:
         async with db() as session:
             providers = list(await session.scalars(select(models.SandboxProvider)))
 
-        kinds = {p.kind for p in providers}
+        kinds = {p.backend_type for p in providers}
         assert "WASM" in kinds
         assert kinds == set(SANDBOX_ADAPTER_METADATA.keys())
 
@@ -69,7 +69,7 @@ class TestSyncSandboxProviders:
         async with db() as session:
             providers = list(await session.scalars(select(models.SandboxProvider)))
 
-        kinds = [p.kind for p in providers]
+        kinds = [p.backend_type for p in providers]
         assert len(kinds) == len(set(kinds)), "Duplicate provider kinds found"
 
     async def test_preserves_existing_user_config(
@@ -82,7 +82,7 @@ class TestSyncSandboxProviders:
 
         async with db() as session:
             provider = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.kind == "WASM")
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
             )
             assert provider is not None
             provider.enabled = False
@@ -92,7 +92,7 @@ class TestSyncSandboxProviders:
 
         async with db() as session:
             provider = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.kind == "WASM")
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
             )
             assert provider is not None
             assert provider.enabled is False
@@ -106,11 +106,11 @@ class TestSyncSandboxProviders:
             "FAKE": SANDBOX_ADAPTER_METADATA["WASM"],
         }
         async with db() as session:
-            await sync_sandbox_providers(session, cast(Mapping[SandboxProviderKind, Any], extra))
+            await sync_sandbox_providers(session, cast(Mapping[SandboxBackendType, Any], extra))
 
         async with db() as session:
             row = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.kind == "FAKE")
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "FAKE")
             )
         assert row is not None
         assert row.enabled is True

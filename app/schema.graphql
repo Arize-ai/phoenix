@@ -3353,7 +3353,7 @@ enum RevisionKind {
 }
 
 type SandboxBackendInfo {
-  kind: SandboxProviderKind!
+  backendType: SandboxBackendType!
   displayName: String!
   hostingType: SandboxHostingType!
   supportedLanguages: [Language!]!
@@ -3371,6 +3371,15 @@ enum SandboxBackendStatus {
   MISSING_CREDENTIALS
   UNAVAILABLE
   NOT_INSTALLED
+}
+
+enum SandboxBackendType {
+  WASM
+  E2B
+  DAYTONA
+  VERCEL
+  DENO
+  MODAL
 }
 
 type SandboxConfig implements Node {
@@ -3450,7 +3459,7 @@ enum SandboxHostingType {
 type SandboxProvider implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
-  kind: SandboxProviderKind!
+  backendType: SandboxBackendType!
   supportedLanguages: [Language!]!
   enabled: Boolean!
 
@@ -3466,15 +3475,6 @@ type SandboxProviderCredentialSpec {
   displayName: String!
   description: String!
   isRequired: Boolean!
-}
-
-enum SandboxProviderKind {
-  WASM
-  E2B
-  DAYTONA
-  VERCEL
-  DENO
-  MODAL
 }
 
 type Secret implements Node {

@@ -184,7 +184,7 @@ class E2BSandboxBackend(SandboxBackend):
 
 
 class E2BAdapter(SandboxAdapter[E2BConfig, E2BCredentials, E2BDeployment]):
-    kind = "E2B"
+    backend_type = "E2B"
     display_name = "E2B"
     hosting_type = "hosted"
     dependency_hints = (

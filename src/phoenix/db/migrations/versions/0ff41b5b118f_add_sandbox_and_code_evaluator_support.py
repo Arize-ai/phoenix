@@ -61,7 +61,7 @@ def upgrade() -> None:
 
     op.create_table(
         "sandbox_providers",
-        sa.Column("kind", sa.String, primary_key=True),
+        sa.Column("backend_type", sa.String, primary_key=True),
         sa.Column("enabled", sa.Boolean, nullable=False),
         sa.Column("config", JSON_, nullable=False, server_default="{}"),
     )
@@ -70,9 +70,9 @@ def upgrade() -> None:
         "sandbox_configs",
         sa.Column("id", _Integer, primary_key=True),
         sa.Column(
-            "provider_kind",
+            "backend_type",
             sa.String,
-            sa.ForeignKey("sandbox_providers.kind", ondelete="CASCADE"),
+            sa.ForeignKey("sandbox_providers.backend_type", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column("language", sa.String, nullable=False),
@@ -93,7 +93,7 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.UniqueConstraint("provider_kind", "name"),
+        sa.UniqueConstraint("backend_type", "name"),
         sa.UniqueConstraint("language", "id"),
     )
 

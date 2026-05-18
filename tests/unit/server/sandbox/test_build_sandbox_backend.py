@@ -16,7 +16,7 @@ import pytest
 from pydantic import BaseModel, ConfigDict, SecretStr
 
 from phoenix.db import models
-from phoenix.db.models import LanguageName, SandboxProviderKind
+from phoenix.db.models import LanguageName, SandboxBackendType
 from phoenix.server.sandbox import (
     _SANDBOX_ADAPTERS,
     SecretsContext,
@@ -35,15 +35,15 @@ if TYPE_CHECKING:
 
 def _row(
     *,
-    kind: SandboxProviderKind = "WASM",
+    backend_type: SandboxBackendType = "WASM",
     language: LanguageName = "PYTHON",
     config: Optional[Mapping[str, Any]] = None,
 ) -> models.SandboxConfig:
     """Minimal SandboxConfig-shaped duck — ``build_sandbox_backend`` only reads
-    ``provider_kind`` / ``language`` / ``config`` off it, so a SimpleNamespace
+    ``backend_type`` / ``language`` / ``config`` off it, so a SimpleNamespace
     suffices and avoids the DB / pydantic Identifier round-trip."""
     return SimpleNamespace(  # type: ignore[return-value]
-        provider_kind=kind,
+        backend_type=backend_type,
         language=language,
         config=dict(config) if config is not None else {},
     )
@@ -107,7 +107,7 @@ def _make_adapter(
     class _StubAdapter(SandboxAdapter):  # type: ignore[type-arg]
         """Temporarily overlays the real WASM registration for these tests."""
 
-        kind = "WASM"
+        backend_type = "WASM"
         display_name = "Stub"
         config_model = _StubConfig
         credentials_model = _StubCreds
@@ -186,7 +186,7 @@ class TestBuildSandboxBackendAdapterLookup:
     async def test_unregistered_backend_returns_none(self) -> None:
         # Negative test: invalid kind exercises the unregistered path.
         result = await build_sandbox_backend(
-            _row(kind="NONEXISTENT"),  # type: ignore[arg-type]
+            _row(backend_type="NONEXISTENT"),  # type: ignore[arg-type]
             secrets=_empty_secrets(),
         )
         assert result is None
@@ -221,7 +221,7 @@ class TestSSRFBlocked:
         ):
             await build_sandbox_backend(
                 _row(
-                    kind="DAYTONA",
+                    backend_type="DAYTONA",
                     config={"server_url": "https://attacker.example.com"},
                 ),
                 secrets=SecretsContext(session=session, decrypt=_identity_decrypt),

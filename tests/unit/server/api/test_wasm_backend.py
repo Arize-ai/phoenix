@@ -116,7 +116,7 @@ class TestRunWasm:
 
 class TestWASMAdapter:
     def test_kind(self) -> None:
-        assert WASMAdapter.kind == "WASM"
+        assert WASMAdapter.backend_type == "WASM"
 
     def test_supported_languages_from_config_literal(self) -> None:
         # The Config's ``language: Literal[...]`` is the structural source of
@@ -555,7 +555,7 @@ class TestSandboxBackendsResolverWASMStatus:
                 infos = await get_sandbox_backend_info(
                     secrets=_empty_secrets_context(),
                 )
-        wasm = next(info for info in infos if info.kind.value == "WASM")
+        wasm = next(info for info in infos if info.backend_type.value == "WASM")
         assert wasm.status == SandboxBackendStatus.AVAILABLE
         assert wasm.status_detail is None
 
@@ -577,7 +577,7 @@ class TestSandboxBackendsResolverWASMStatus:
                 infos = await get_sandbox_backend_info(
                     secrets=_empty_secrets_context(),
                 )
-        wasm = next(info for info in infos if info.kind.value == "WASM")
+        wasm = next(info for info in infos if info.backend_type.value == "WASM")
         assert wasm.status == SandboxBackendStatus.UNAVAILABLE
         assert wasm.status_detail == detail
 
@@ -598,7 +598,7 @@ class TestSandboxBackendsResolverWASMStatus:
                 infos = await get_sandbox_backend_info(
                     secrets=_empty_secrets_context(),
                 )
-        wasm = next(info for info in infos if info.kind.value == "WASM")
+        wasm = next(info for info in infos if info.backend_type.value == "WASM")
         assert wasm.status == SandboxBackendStatus.UNAVAILABLE
         assert wasm.status_detail == detail
 

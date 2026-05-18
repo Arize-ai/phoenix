@@ -16,7 +16,7 @@ describe("mapSandboxConfigOptions", () => {
     const options = mapSandboxConfigOptions(
       [
         {
-          kind: "WASM",
+          backendType: "WASM",
           enabled: true,
           configs: [
             {
@@ -40,7 +40,7 @@ describe("mapSandboxConfigOptions", () => {
           ],
         },
         {
-          kind: "E2B",
+          backendType: "E2B",
           enabled: true,
           configs: [
             {
@@ -53,8 +53,8 @@ describe("mapSandboxConfigOptions", () => {
         },
       ],
       [
-        { kind: "WASM", status: "AVAILABLE" },
-        { kind: "E2B", status: "AVAILABLE" },
+        { backendType: "WASM", status: "AVAILABLE" },
+        { backendType: "E2B", status: "AVAILABLE" },
       ]
     );
 
@@ -70,7 +70,7 @@ describe("mapSandboxConfigOptions", () => {
     const options = mapSandboxConfigOptions(
       [
         {
-          kind: "E2B",
+          backendType: "E2B",
           enabled: false,
           configs: [
             {
@@ -82,7 +82,7 @@ describe("mapSandboxConfigOptions", () => {
           ],
         },
         {
-          kind: "VERCEL",
+          backendType: "VERCEL",
           enabled: true,
           configs: [
             {
@@ -95,8 +95,8 @@ describe("mapSandboxConfigOptions", () => {
         },
       ],
       [
-        { kind: "E2B", status: "AVAILABLE" },
-        { kind: "VERCEL", status: "NOT_INSTALLED" },
+        { backendType: "E2B", status: "AVAILABLE" },
+        { backendType: "VERCEL", status: "NOT_INSTALLED" },
       ]
     );
 

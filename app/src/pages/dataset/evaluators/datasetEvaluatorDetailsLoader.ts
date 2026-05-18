@@ -40,7 +40,7 @@ export const datasetEvaluatorDetailsLoaderGQL = graphql`
       }
     }
     sandboxBackends {
-      kind
+      backendType
       displayName
       supportsEnvVars
       internetAccess

@@ -95,7 +95,7 @@ _SANDBOX_PROVIDERS = """
 query SandboxProviders {
     sandboxProviders {
         id
-        kind
+        backendType
         configs {
             id
             name
@@ -157,7 +157,7 @@ class TestCreateSandboxConfig:
     ) -> None:
         async with db() as session:
             provider = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.kind == "WASM")
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
             )
         assert provider is not None
 
@@ -165,7 +165,7 @@ class TestCreateSandboxConfig:
             _CREATE,
             variables={
                 "input": {
-                    "config": _variant(provider.kind),
+                    "config": _variant(provider.backend_type),
                     "name": "my-wasm-config",
                     "timeout": 15,
                 }
@@ -331,7 +331,7 @@ class TestUpdateSandboxProvider:
     ) -> None:
         async with db() as session:
             provider = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.kind == "E2B")
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
             )
         assert provider is not None
 
@@ -339,7 +339,7 @@ class TestUpdateSandboxProvider:
             _UPDATE_PROVIDER,
             variables={
                 "input": {
-                    "id": _provider_global_id(provider.kind),
+                    "id": _provider_global_id(provider.backend_type),
                     "enabled": False,
                 }
             },
@@ -356,7 +356,7 @@ class TestUpdateSandboxProvider:
     ) -> None:
         async with db() as session:
             provider = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.kind == "WASM")
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
             )
         assert provider is not None
         original_enabled = provider.enabled
@@ -365,7 +365,7 @@ class TestUpdateSandboxProvider:
             _UPDATE_PROVIDER,
             variables={
                 "input": {
-                    "id": _provider_global_id(provider.kind),
+                    "id": _provider_global_id(provider.backend_type),
                 }
             },
         )
@@ -452,7 +452,7 @@ async def _create_code_evaluator_with_config(
 ) -> int:
     """Insert a CodeEvaluator with one version linked to the given sandbox config."""
     async with db() as session:
-        provider = await session.get(models.SandboxProvider, sandbox_config.provider_kind)
+        provider = await session.get(models.SandboxProvider, sandbox_config.backend_type)
         assert provider is not None
         code_eval = models.CodeEvaluator(
             name=Identifier(root="test-disabled-guard-eval"),
@@ -477,7 +477,7 @@ async def _create_code_evaluator_with_two_versions(
     sandbox_config: models.SandboxConfig,
 ) -> tuple[int, int, int]:
     async with db() as session:
-        provider = await session.get(models.SandboxProvider, sandbox_config.provider_kind)
+        provider = await session.get(models.SandboxProvider, sandbox_config.backend_type)
         assert provider is not None
         code_eval = models.CodeEvaluator(
             name=Identifier(root=f"test-history-eval-{token_hex(4)}"),
@@ -516,13 +516,13 @@ class TestDisabledProviderAndConfigGuards:
 
         # Disable the provider via the updateSandboxProvider mutation
         async with db() as session:
-            provider = await session.get(models.SandboxProvider, sandbox_config.provider_kind)
+            provider = await session.get(models.SandboxProvider, sandbox_config.backend_type)
         assert provider is not None
         result = await gql_client.execute(
             _UPDATE_PROVIDER,
             variables={
                 "input": {
-                    "id": _provider_global_id(provider.kind),
+                    "id": _provider_global_id(provider.backend_type),
                     "enabled": False,
                 }
             },
@@ -736,11 +736,11 @@ class TestCodeEvaluatorSandboxMutationIds:
         # Build a second WASM/Python config (B) to switch the binding to.
         async with db() as session:
             python_provider = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.kind == "WASM")
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
             )
             assert python_provider is not None
             sandbox_config_b = models.SandboxConfig(
-                provider_kind=python_provider.kind,
+                backend_type=python_provider.backend_type,
                 language="PYTHON",
                 name=Identifier(f"sandbox-b-{token_hex(4)}"),
                 description=None,
@@ -834,7 +834,7 @@ class TestCrossProviderIsolation:
                 _CREATE,
                 variables={
                     "input": {
-                        "config": _variant(wasm.kind),
+                        "config": _variant(wasm.backend_type),
                         "name": name,
                     }
                 },
@@ -845,7 +845,7 @@ class TestCrossProviderIsolation:
                 _CREATE,
                 variables={
                     "input": {
-                        "config": _variant(e2b.kind),
+                        "config": _variant(e2b.backend_type),
                         "name": name,
                     }
                 },
@@ -857,9 +857,11 @@ class TestCrossProviderIsolation:
         providers = {p["id"]: p for p in result.data["sandboxProviders"]}
 
         wasm_config_names = [
-            c["name"] for c in providers[_provider_global_id(wasm.kind)]["configs"]
+            c["name"] for c in providers[_provider_global_id(wasm.backend_type)]["configs"]
         ]
-        e2b_config_names = [c["name"] for c in providers[_provider_global_id(e2b.kind)]["configs"]]
+        e2b_config_names = [
+            c["name"] for c in providers[_provider_global_id(e2b.backend_type)]["configs"]
+        ]
 
         assert set(wasm_config_names) == set(wasm_names)
         assert set(e2b_config_names) == set(e2b_names)
@@ -884,7 +886,7 @@ class TestConfigValidationPath:
     ) -> None:
         async with db() as session:
             provider = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.kind == "E2B")
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
             )
         assert provider is not None
 
@@ -894,7 +896,7 @@ class TestConfigValidationPath:
                 variables={
                     "input": {
                         "config": _variant(
-                            provider.kind,
+                            provider.backend_type,
                             {"envVars": [{"name": "FOO", "value": {"literal": "bar"}}]},
                         ),
                         "name": "e2b-valid",
@@ -918,7 +920,7 @@ class TestConfigValidationPath:
         """
         async with db() as session:
             provider = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.kind == "E2B")
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
             )
         assert provider is not None
 
@@ -927,7 +929,7 @@ class TestConfigValidationPath:
                 _CREATE,
                 variables={
                     "input": {
-                        "config": _variant(provider.kind, {"custom_key": "preserved"}),
+                        "config": _variant(provider.backend_type, {"custom_key": "preserved"}),
                         "name": "e2b-extra-keys",
                     }
                 },
@@ -942,13 +944,13 @@ class TestConfigValidationPath:
     ) -> None:
         async with db() as session:
             provider = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.kind == "E2B")
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
             )
         assert provider is not None
         # Create a config first
         async with db() as session:
             config = models.SandboxConfig(
-                provider_kind=provider.kind,
+                backend_type=provider.backend_type,
                 language="PYTHON",
                 name=Identifier("e2b-update-test"),
                 config={},
@@ -982,12 +984,12 @@ class TestConfigValidationPath:
         """After update, DB row stores the validated (pydantic model_dump) dict."""
         async with db() as session:
             provider = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.kind == "E2B")
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
             )
         assert provider is not None
         async with db() as session:
             config = models.SandboxConfig(
-                provider_kind=provider.kind,
+                backend_type=provider.backend_type,
                 language="PYTHON",
                 name=Identifier("e2b-persist-test"),
                 config={},
@@ -1027,7 +1029,7 @@ class TestConfigValidationPath:
         """env_vars inside config persist through create mutation."""
         async with db() as session:
             provider = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.kind == "E2B")
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
             )
         assert provider is not None
 
@@ -1037,7 +1039,7 @@ class TestConfigValidationPath:
                 variables={
                     "input": {
                         "config": _variant(
-                            provider.kind,
+                            provider.backend_type,
                             {"envVars": [{"name": "FOO", "value": {"literal": "bar"}}]},
                         ),
                         "name": "e2b-env-vars",

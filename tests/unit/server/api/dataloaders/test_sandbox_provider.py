@@ -15,7 +15,7 @@ async def test_sandbox_provider_batches_lookups(db: DbSessionFactory) -> None:
         kinds = [f"z-{token_hex(3)}" for _ in range(4)]
         providers = [
             models.SandboxProvider(
-                kind=k,
+                backend_type=k,
                 enabled=True,
             )
             for k in kinds
@@ -40,6 +40,6 @@ async def test_sandbox_provider_batches_lookups(db: DbSessionFactory) -> None:
         sqlalchemy.event.remove(sqlalchemy.engine.Engine, "before_cursor_execute", count_queries)
 
     assert query_count == 1
-    assert [(r.kind if r is not None else None) for r in results] == keys
+    assert [(r.backend_type if r is not None else None) for r in results] == keys
     missing = await loader._load_fn(["__nonexistent-kind__"])
     assert missing == [None]

@@ -239,7 +239,7 @@ def _probe_daytona_sdk() -> None:
 
 
 class DaytonaAdapter(SandboxAdapter[DaytonaConfig, DaytonaCredentials, DaytonaDeployment]):
-    kind = "DAYTONA"
+    backend_type = "DAYTONA"
     display_name = "Daytona"
     hosting_type = "hosted"
     dependency_hints = (

@@ -172,7 +172,7 @@ def render_values_w_union(
 UserRoleName: TypeAlias = Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
 AuthMethod: TypeAlias = Literal["LOCAL", "OAUTH2", "LDAP"]
 EvaluatorKind: TypeAlias = Literal["LLM", "CODE", "BUILTIN"]
-SandboxProviderKind: TypeAlias = Literal["WASM", "E2B", "DAYTONA", "VERCEL", "DENO", "MODAL"]
+SandboxBackendType: TypeAlias = Literal["WASM", "E2B", "DAYTONA", "VERCEL", "DENO", "MODAL"]
 LanguageName: TypeAlias = Literal["PYTHON", "TYPESCRIPT"]
 GenerativeModelSDK: TypeAlias = Literal[
     "openai",
@@ -2760,15 +2760,15 @@ class SandboxProvider(Base):
 
     __tablename__ = "sandbox_providers"
 
-    kind: Mapped[SandboxProviderKind] = mapped_column(String, primary_key=True)
+    backend_type: Mapped[SandboxBackendType] = mapped_column(String, primary_key=True)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False)
     config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, server_default="{}")
 
 
 class SandboxConfig(HasId):
     __tablename__ = "sandbox_configs"
-    provider_kind: Mapped[SandboxProviderKind] = mapped_column(
-        ForeignKey("sandbox_providers.kind", ondelete="CASCADE"), nullable=False
+    backend_type: Mapped[SandboxBackendType] = mapped_column(
+        ForeignKey("sandbox_providers.backend_type", ondelete="CASCADE"), nullable=False
     )
     language: Mapped[LanguageName] = mapped_column(nullable=False)
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
@@ -2781,7 +2781,7 @@ class SandboxConfig(HasId):
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
     __table_args__ = (
-        UniqueConstraint("provider_kind", "name"),
+        UniqueConstraint("backend_type", "name"),
         UniqueConstraint("language", "id"),
     )
 

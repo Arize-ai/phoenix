@@ -290,7 +290,7 @@ def _probe_vercel_sdk() -> None:
 
 
 class VercelAdapter(SandboxAdapter[VercelConfig, VercelCredentials, VercelDeployment]):
-    kind = "VERCEL"
+    backend_type = "VERCEL"
     display_name = "Vercel"
     hosting_type = "hosted"
     dependency_hints = (

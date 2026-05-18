@@ -2236,9 +2236,9 @@ class TestGetEnvAllowedSandboxProviders:
     def test_unset_returns_all_known_kinds(self, monkeypatch: MonkeyPatch) -> None:
         monkeypatch.delenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", raising=False)
         from phoenix.config import get_env_allowed_sandbox_providers
-        from phoenix.server.sandbox.types import SANDBOX_PROVIDER_KINDS
+        from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
 
-        assert get_env_allowed_sandbox_providers() == SANDBOX_PROVIDER_KINDS
+        assert get_env_allowed_sandbox_providers() == SANDBOX_BACKEND_TYPES
 
     def test_none_returns_empty_set(self, monkeypatch: MonkeyPatch) -> None:
         monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "NONE")

@@ -23,8 +23,8 @@ class SandboxConfigsByProviderDataLoader(DataLoader[Key, Result]):
         configs_by_provider: dict[Key, list[models.SandboxConfig]] = defaultdict(list)
 
         async with self._db() as session:
-            stmt = select(models.SandboxConfig).where(models.SandboxConfig.provider_kind.in_(keys))
+            stmt = select(models.SandboxConfig).where(models.SandboxConfig.backend_type.in_(keys))
             for row in await session.scalars(stmt):
-                configs_by_provider[row.provider_kind].append(row)
+                configs_by_provider[row.backend_type].append(row)
 
         return [configs_by_provider.get(key, []) for key in keys]

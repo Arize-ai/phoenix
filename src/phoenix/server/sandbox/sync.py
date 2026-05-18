@@ -22,7 +22,7 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
-from phoenix.db.models import Base, SandboxProviderKind
+from phoenix.db.models import Base, SandboxBackendType
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +87,7 @@ async def sync_languages(session: AsyncSession) -> None:
 
 async def sync_sandbox_providers(
     session: AsyncSession,
-    adapter_metadata: Mapping[SandboxProviderKind, Any],
+    adapter_metadata: Mapping[SandboxBackendType, Any],
 ) -> None:
     """Seed one sandbox_providers row per metadata key (provider kind).
 
@@ -100,24 +100,24 @@ async def sync_sandbox_providers(
     Safe to call multiple times (idempotent) and across concurrent replicas
     (race-safe via ON CONFLICT DO NOTHING).
     """
-    kinds = list(adapter_metadata.keys())
+    backend_types = list(adapter_metadata.keys())
 
-    existing_result = await session.execute(select(models.SandboxProvider.kind))
-    existing_kinds: set[str] = {row[0] for row in existing_result.fetchall()}
+    existing_result = await session.execute(select(models.SandboxProvider.backend_type))
+    existing_backend_types: set[str] = {row[0] for row in existing_result.fetchall()}
 
     rows_to_insert: list[dict[str, object]] = []
-    for kind in kinds:
-        if kind in existing_kinds:
+    for backend_type in backend_types:
+        if backend_type in existing_backend_types:
             continue
-        rows_to_insert.append({"kind": kind, "enabled": True})
-        logger.info(f"Inserted sandbox_providers row: kind={kind!r}")
+        rows_to_insert.append({"backend_type": backend_type, "enabled": True})
+        logger.info(f"Inserted sandbox_providers row: backend_type={backend_type!r}")
 
     if rows_to_insert:
         stmt = _on_conflict_do_nothing(
             session,
             models.SandboxProvider,
             rows_to_insert,
-            unique_columns=["kind"],
+            unique_columns=["backend_type"],
         )
         await session.execute(stmt)
 

@@ -217,7 +217,7 @@ class TestInlineCodeEvaluatorPreviewMutation:
         gql_client: AsyncGraphQLClient,
         sandbox_config: models.SandboxConfig,
     ) -> None:
-        wrong_type_id = str(GlobalID("SandboxProvider", sandbox_config.provider_kind))
+        wrong_type_id = str(GlobalID("SandboxProvider", sandbox_config.backend_type))
 
         result = await self._preview_inline_code_evaluator(
             gql_client,
@@ -266,7 +266,7 @@ class TestInlineCodeEvaluatorPreviewMutation:
         sandbox_config: models.SandboxConfig,
     ) -> None:
         async with db() as session:
-            provider = await session.get(models.SandboxProvider, sandbox_config.provider_kind)
+            provider = await session.get(models.SandboxProvider, sandbox_config.backend_type)
             assert provider is not None
             provider.enabled = False
             await session.commit()

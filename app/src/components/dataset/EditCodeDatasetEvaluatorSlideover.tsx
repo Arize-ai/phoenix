@@ -193,7 +193,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
             }
           }
           sandboxProviders {
-            kind
+            backendType
             supportedLanguages
             enabled
             configs {
@@ -225,7 +225,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
             }
           }
           sandboxBackends {
-            kind
+            backendType
             status
             supportsEnvVars
             internetAccess

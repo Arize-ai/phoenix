@@ -9,7 +9,7 @@ from sqlalchemy import insert
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.models import SandboxProviderKind
+from phoenix.db.models import SandboxBackendType
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
@@ -2706,16 +2706,16 @@ class TestEvaluatorsQuery:
         assert response.data == {"evaluators": {"edges": []}}
 
 
-@pytest.mark.parametrize("provider_kind", list(SANDBOX_ADAPTER_METADATA.keys()))
+@pytest.mark.parametrize("backend_type", list(SANDBOX_ADAPTER_METADATA.keys()))
 async def test_sandbox_backends_capability_flags(
-    provider_kind: SandboxProviderKind,
+    backend_type: SandboxBackendType,
     gql_client: AsyncGraphQLClient,
     seed_sandbox_providers: None,
 ) -> None:
     query = """
       query {
         sandboxBackends {
-          kind
+          backendType
           supportedLanguages
           supportsEnvVars
           internetAccess
@@ -2723,15 +2723,15 @@ async def test_sandbox_backends_capability_flags(
         }
       }
     """
-    meta = SANDBOX_ADAPTER_METADATA[provider_kind]
+    meta = SANDBOX_ADAPTER_METADATA[backend_type]
     response = await gql_client.execute(query=query)
     assert not response.errors
     assert response.data is not None
-    backends = {b["kind"]: b for b in response.data["sandboxBackends"]}
-    assert provider_kind in backends, f"{provider_kind} not found in sandboxBackends response"
-    backend = backends[provider_kind]
+    backends = {b["backendType"]: b for b in response.data["sandboxBackends"]}
+    assert backend_type in backends, f"{backend_type} not found in sandboxBackends response"
+    backend = backends[backend_type]
 
     assert backend["supportedLanguages"] == sorted(meta.supported_languages)
-    assert backend["supportsEnvVars"] is meta.supports_env_vars, provider_kind
-    assert backend["internetAccess"] == meta.internet_access_capability.upper(), provider_kind
-    assert backend["supportsDependencies"] is meta.supports_dependencies, provider_kind
+    assert backend["supportsEnvVars"] is meta.supports_env_vars, backend_type
+    assert backend["internetAccess"] == meta.internet_access_capability.upper(), backend_type
+    assert backend["supportsDependencies"] is meta.supports_dependencies, backend_type

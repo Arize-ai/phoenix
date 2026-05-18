@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bb92e3a524e480bae2719e2a861efb5f>>
+ * @generated SignedSource<<2b6a69c0760635ab2d4d1c9ee03eb973>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -176,6 +176,13 @@ v14 = {
 v15 = {
   "alias": null,
   "args": null,
+  "kind": "ScalarField",
+  "name": "backendType",
+  "storageKey": null
+},
+v16 = {
+  "alias": null,
+  "args": null,
   "concreteType": "EvaluatorInputMapping",
   "kind": "LinkedField",
   "name": "inputMapping",
@@ -198,25 +205,25 @@ v15 = {
   ],
   "storageKey": null
 },
-v16 = {
+v17 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "isBuiltin",
   "storageKey": null
 },
-v17 = {
+v18 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "optimizationDirection",
   "storageKey": null
 },
-v18 = {
+v19 = {
   "kind": "InlineFragment",
   "selections": [
     (v4/*: any*/),
-    (v17/*: any*/),
+    (v18/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -246,11 +253,11 @@ v18 = {
   "type": "CategoricalAnnotationConfig",
   "abstractKey": null
 },
-v19 = {
+v20 = {
   "kind": "InlineFragment",
   "selections": [
     (v4/*: any*/),
-    (v17/*: any*/),
+    (v18/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -269,14 +276,14 @@ v19 = {
   "type": "ContinuousAnnotationConfig",
   "abstractKey": null
 },
-v20 = {
+v21 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v21 = {
+v22 = {
   "alias": null,
   "args": null,
   "concreteType": null,
@@ -284,9 +291,9 @@ v21 = {
   "name": "outputConfigs",
   "plural": true,
   "selections": [
-    (v20/*: any*/),
-    (v18/*: any*/),
+    (v21/*: any*/),
     (v19/*: any*/),
+    (v20/*: any*/),
     {
       "kind": "InlineFragment",
       "selections": [
@@ -413,7 +420,7 @@ return {
                                 "name": "provider",
                                 "plural": false,
                                 "selections": [
-                                  (v9/*: any*/)
+                                  (v15/*: any*/)
                                 ],
                                 "storageKey": null
                               }
@@ -437,7 +444,7 @@ return {
                 "selections": [
                   (v3/*: any*/),
                   (v4/*: any*/),
-                  (v15/*: any*/),
+                  (v16/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -448,7 +455,7 @@ return {
                     "selections": [
                       (v3/*: any*/),
                       (v9/*: any*/),
-                      (v16/*: any*/)
+                      (v17/*: any*/)
                     ],
                     "storageKey": null
                   },
@@ -460,8 +467,8 @@ return {
                     "name": "outputConfigs",
                     "plural": true,
                     "selections": [
-                      (v18/*: any*/),
-                      (v19/*: any*/)
+                      (v19/*: any*/),
+                      (v20/*: any*/)
                     ],
                     "storageKey": null
                   }
@@ -536,13 +543,13 @@ return {
                 "name": "evaluator",
                 "plural": false,
                 "selections": [
-                  (v20/*: any*/),
+                  (v21/*: any*/),
                   (v3/*: any*/),
                   (v4/*: any*/),
                   (v9/*: any*/),
                   (v10/*: any*/),
                   (v6/*: any*/),
-                  (v16/*: any*/),
+                  (v17/*: any*/),
                   {
                     "kind": "InlineFragment",
                     "selections": [
@@ -600,7 +607,7 @@ return {
                             "name": "provider",
                             "plural": false,
                             "selections": [
-                              (v9/*: any*/),
+                              (v15/*: any*/),
                               (v3/*: any*/)
                             ],
                             "storageKey": null
@@ -638,7 +645,7 @@ return {
                                     "name": "value",
                                     "plural": false,
                                     "selections": [
-                                      (v20/*: any*/),
+                                      (v21/*: any*/),
                                       {
                                         "kind": "InlineFragment",
                                         "selections": [
@@ -716,7 +723,7 @@ return {
                         "storageKey": null
                       },
                       (v5/*: any*/),
-                      (v21/*: any*/),
+                      (v22/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -743,8 +750,8 @@ return {
                 ],
                 "storageKey": null
               },
-              (v15/*: any*/),
-              (v21/*: any*/)
+              (v16/*: any*/),
+              (v22/*: any*/)
             ],
             "storageKey": null
           },
@@ -775,12 +782,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "d1a6c822aa0ac85a8def03ca3ab86ad9",
+    "cacheID": "cda0b5b988750e52f09a62379668591a",
     "id": null,
     "metadata": {},
     "name": "EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation(\n  $input: UpdateDatasetCodeEvaluatorInput!\n) {\n  updateDatasetCodeEvaluator(input: $input) {\n    evaluator {\n      ...DatasetEvaluatorsTable_row\n      ...PlaygroundDatasetSection_evaluator\n      ...CodeDatasetEvaluatorDetails_datasetEvaluator\n      id\n    }\n  }\n}\n\nfragment CodeDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {\n  id\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n  evaluator {\n    __typename\n    kind\n    ... on CodeEvaluator {\n      id\n      name\n      description\n      language\n      outputConfigs {\n        __typename\n        ... on CategoricalAnnotationConfig {\n          name\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          name\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n      sandboxConfig {\n        id\n        name\n        description\n        timeout\n        config {\n          envVars {\n            name\n            value {\n              __typename\n              ... on SandboxConfigEnvVarLiteral {\n                literal\n              }\n              ... on SandboxConfigEnvVarSecretRef {\n                secretKey\n              }\n            }\n          }\n          internetAccess {\n            mode\n          }\n          dependencies {\n            packages\n          }\n        }\n        provider {\n          kind\n          id\n        }\n      }\n      currentVersion {\n        sourceCode\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          kind\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n"
+    "text": "mutation EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation(\n  $input: UpdateDatasetCodeEvaluatorInput!\n) {\n  updateDatasetCodeEvaluator(input: $input) {\n    evaluator {\n      ...DatasetEvaluatorsTable_row\n      ...PlaygroundDatasetSection_evaluator\n      ...CodeDatasetEvaluatorDetails_datasetEvaluator\n      id\n    }\n  }\n}\n\nfragment CodeDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {\n  id\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n  evaluator {\n    __typename\n    kind\n    ... on CodeEvaluator {\n      id\n      name\n      description\n      language\n      outputConfigs {\n        __typename\n        ... on CategoricalAnnotationConfig {\n          name\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          name\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n      sandboxConfig {\n        id\n        name\n        description\n        timeout\n        config {\n          envVars {\n            name\n            value {\n              __typename\n              ... on SandboxConfigEnvVarLiteral {\n                literal\n              }\n              ... on SandboxConfigEnvVarSecretRef {\n                secretKey\n              }\n            }\n          }\n          internetAccess {\n            mode\n          }\n          dependencies {\n            packages\n          }\n        }\n        provider {\n          backendType\n          id\n        }\n      }\n      currentVersion {\n        sourceCode\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment DatasetEvaluatorsTable_row on DatasetEvaluator {\n  id\n  name\n  description\n  updatedAt\n  user {\n    username\n    profilePictureUrl\n    id\n  }\n  evaluator {\n    __typename\n    id\n    name\n    kind\n    createdAt\n    updatedAt\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersionTag {\n        name\n        id\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        id\n      }\n    }\n    ... on CodeEvaluator {\n      language\n      sandboxConfig {\n        id\n        name\n        provider {\n          backendType\n          id\n        }\n      }\n    }\n  }\n}\n\nfragment PlaygroundDatasetSection_evaluator on DatasetEvaluator {\n  id\n  name\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    id\n    kind\n    isBuiltin\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n"
   }
 };
 })();

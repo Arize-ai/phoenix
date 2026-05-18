@@ -90,15 +90,15 @@ def _config_global_id(config_id: int) -> str:
 
 
 async def _get_provider(
-    db: DbSessionFactory, provider_kind: models.SandboxProviderKind
+    db: DbSessionFactory, backend_type: models.SandboxBackendType
 ) -> models.SandboxProvider:
     async with db() as session:
-        provider = await session.get(models.SandboxProvider, provider_kind)
-    assert provider is not None, f"{provider_kind} sandbox provider not found"
+        provider = await session.get(models.SandboxProvider, backend_type)
+    assert provider is not None, f"{backend_type} sandbox provider not found"
     return provider
 
 
-def _primary_language(kind: models.SandboxProviderKind) -> LanguageName:
+def _primary_language(kind: models.SandboxBackendType) -> LanguageName:
     langs = SANDBOX_ADAPTER_METADATA[kind].supported_languages
     return sorted(langs)[0]
 
@@ -108,9 +108,9 @@ async def _create_config_for_provider(
 ) -> models.SandboxConfig:
     async with db() as session:
         config = models.SandboxConfig(
-            provider_kind=provider.kind,
-            language=_primary_language(provider.kind),
-            name=Identifier.model_validate(f"cap-gate-test-config-{provider.kind.lower()}"),
+            backend_type=provider.backend_type,
+            language=_primary_language(provider.backend_type),
+            name=Identifier.model_validate(f"cap-gate-test-config-{provider.backend_type.lower()}"),
             description="Capability gate regression test fixture",
             config={},
             timeout=30,
@@ -294,7 +294,7 @@ class TestUpdateSandboxConfigInvariants:
     """Row-immutability invariants on ``update_sandbox_config``.
 
     The mutation must reject (a) variants that don't match the row's
-    ``provider_kind`` and (b) language changes — both pin the
+    ``backend_type`` and (b) language changes — both pin the
     discriminator/language pair to what was set at create time. Also
     covers the Language-Literal rejection on single-language provider
     inputs (WASM rejects TYPESCRIPT, Deno rejects PYTHON) which fires at
@@ -346,7 +346,7 @@ class TestUpdateSandboxConfigInvariants:
         seed_sandbox_providers: None,
     ) -> None:
         """Updating an E2B config with a WASM variant is rejected because
-        ``provider_kind`` is row-immutable."""
+        ``backend_type`` is row-immutable."""
         provider = await _get_provider(db, "E2B")
         config = await _create_config_for_provider(db, provider)
 
@@ -375,10 +375,10 @@ class TestUpdateSandboxConfigInvariants:
         provider = await _get_provider(db, "DAYTONA")
         async with db() as session:
             config = models.SandboxConfig(
-                provider_kind=provider.kind,
+                backend_type=provider.backend_type,
                 language="PYTHON",
                 name=Identifier("daytona-python-original"),
-                config={"kind": "DAYTONA", "language": "PYTHON"},
+                config={"backend_type": "DAYTONA", "language": "PYTHON"},
                 timeout=30,
             )
             session.add(config)
@@ -452,8 +452,8 @@ class TestTimeout:
         provider = await _get_provider(db, "E2B")
         async with db() as session:
             config = models.SandboxConfig(
-                provider_kind=provider.kind,
-                language=_primary_language(provider.kind),
+                backend_type=provider.backend_type,
+                language=_primary_language(provider.backend_type),
                 name=Identifier("e2b-preserve-timeout"),
                 config={},
                 timeout=30,
@@ -524,7 +524,7 @@ class TestNameSemantics:
         gql_client: AsyncGraphQLClient,
         seed_sandbox_providers: None,
     ) -> None:
-        """Creating two configs with the same ``(provider_kind, name)`` pair
+        """Creating two configs with the same ``(backend_type, name)`` pair
         violates the DB UNIQUE constraint; the create mutation converts the
         IntegrityError into Conflict."""
         first = await gql_client.execute(
@@ -561,15 +561,15 @@ class TestNameSemantics:
         provider = await _get_provider(db, "WASM")
         async with db() as session:
             existing = models.SandboxConfig(
-                provider_kind=provider.kind,
-                language=_primary_language(provider.kind),
+                backend_type=provider.backend_type,
+                language=_primary_language(provider.backend_type),
                 name=Identifier("existing-cfg"),
                 config={},
                 timeout=30,
             )
             target = models.SandboxConfig(
-                provider_kind=provider.kind,
-                language=_primary_language(provider.kind),
+                backend_type=provider.backend_type,
+                language=_primary_language(provider.backend_type),
                 name=Identifier("target-cfg"),
                 config={},
                 timeout=30,
@@ -657,8 +657,8 @@ class TestNameSemantics:
         assert cfg["name"] == original_name.root
 
 
-def _provider_global_id(provider_kind: models.SandboxProviderKind) -> str:
-    return str(GlobalID("SandboxProvider", provider_kind))
+def _provider_global_id(backend_type: models.SandboxBackendType) -> str:
+    return str(GlobalID("SandboxProvider", backend_type))
 
 
 _UPDATE_PROVIDER = """
@@ -822,7 +822,7 @@ class TestUpdateSandboxProviderDeployment:
             # through ``model_dump``); the read path validates via the
             # ``SandboxDeploymentModel`` discriminated union.
             provider.config = {
-                "kind": "DAYTONA",
+                "backend_type": "DAYTONA",
                 "api_url": "https://prior.daytona.example",
                 "target": "eu",
             }
@@ -853,7 +853,7 @@ class TestUpdateSandboxProviderDeployment:
             provider = await session.get(models.SandboxProvider, "E2B")
             assert provider is not None
             provider.config = {
-                "kind": "E2B",
+                "backend_type": "E2B",
                 "domain": "tenant.e2b.dev",
             }
 

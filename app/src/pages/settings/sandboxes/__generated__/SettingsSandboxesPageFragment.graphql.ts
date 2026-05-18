@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1add26b747b9cb3dfc6dab76e09ed747>>
+ * @generated SignedSource<<0febeb78d2723141e8c470a33dc9d33b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,11 +13,12 @@ export type InternetAccessChoice = "ALLOW" | "DENY";
 export type InternetAccessMode = "ALLOWLIST" | "BOOLEAN" | "NONE";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type SandboxBackendStatus = "AVAILABLE" | "MISSING_CREDENTIALS" | "NOT_INSTALLED" | "UNAVAILABLE";
+export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "VERCEL" | "WASM";
 export type SandboxHostingType = "HOSTED" | "LOCAL";
-export type SandboxProviderKind = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "VERCEL" | "WASM";
 import { FragmentRefs } from "relay-runtime";
 export type SettingsSandboxesPageFragment$data = {
   readonly sandboxBackends: ReadonlyArray<{
+    readonly backendType: SandboxBackendType;
     readonly credentialSpecs: ReadonlyArray<{
       readonly description: string;
       readonly displayName: string;
@@ -28,7 +29,6 @@ export type SettingsSandboxesPageFragment$data = {
     readonly displayName: string;
     readonly hostingType: SandboxHostingType;
     readonly internetAccess: InternetAccessMode;
-    readonly kind: SandboxProviderKind;
     readonly status: SandboxBackendStatus;
     readonly statusDetail: string | null;
     readonly supportedLanguages: ReadonlyArray<Language>;
@@ -36,6 +36,7 @@ export type SettingsSandboxesPageFragment$data = {
     readonly supportsEnvVars: boolean;
   }>;
   readonly sandboxProviders: ReadonlyArray<{
+    readonly backendType: SandboxBackendType;
     readonly configs: ReadonlyArray<{
       readonly config: {
         readonly dependencies: {
@@ -69,7 +70,6 @@ export type SettingsSandboxesPageFragment$data = {
     }>;
     readonly enabled: boolean;
     readonly id: string;
-    readonly kind: SandboxProviderKind;
     readonly supportedLanguages: ReadonlyArray<Language>;
   }>;
   readonly " $fragmentType": "SettingsSandboxesPageFragment";
@@ -86,7 +86,7 @@ var v0 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "kind",
+  "name": "backendType",
   "storageKey": null
 },
 v1 = {
@@ -395,6 +395,6 @@ return {
 };
 })();
 
-(node as any).hash = "02b83db166418906db0308ae4a489d97";
+(node as any).hash = "d6b4a173dc6b120e82f0a1df629b1384";
 
 export default node;

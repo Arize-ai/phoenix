@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<8ca46d67103489dbc6a6142feb0ffbca>>
+ * @generated SignedSource<<7ab478fcb8fd72a4124ee5328d6415e6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,7 +13,7 @@ export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type InternetAccessChoice = "ALLOW" | "DENY";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
-export type SandboxProviderKind = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "VERCEL" | "WASM";
+export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "VERCEL" | "WASM";
 import { FragmentRefs } from "relay-runtime";
 export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
   readonly evaluator: {
@@ -62,7 +62,7 @@ export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
       readonly id: string;
       readonly name: string;
       readonly provider: {
-        readonly kind: SandboxProviderKind;
+        readonly backendType: SandboxBackendType;
       };
       readonly timeout: number;
     } | null;
@@ -183,13 +183,6 @@ v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "kind",
-  "storageKey": null
-},
-v5 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
   "name": "description",
   "storageKey": null
 };
@@ -234,13 +227,19 @@ return {
       "name": "evaluator",
       "plural": false,
       "selections": [
-        (v4/*: any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "kind",
+          "storageKey": null
+        },
         {
           "kind": "InlineFragment",
           "selections": [
             (v0/*: any*/),
             (v1/*: any*/),
-            (v5/*: any*/),
+            (v4/*: any*/),
             {
               "alias": null,
               "args": null,
@@ -259,7 +258,7 @@ return {
               "selections": [
                 (v0/*: any*/),
                 (v1/*: any*/),
-                (v5/*: any*/),
+                (v4/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -380,7 +379,13 @@ return {
                   "name": "provider",
                   "plural": false,
                   "selections": [
-                    (v4/*: any*/)
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "backendType",
+                      "storageKey": null
+                    }
                   ],
                   "storageKey": null
                 }
@@ -418,6 +423,6 @@ return {
 };
 })();
 
-(node as any).hash = "5297a3200ed9c9076cde4e12256d4cf8";
+(node as any).hash = "144c0973e84d158247ce2edcd0a81b1f";
 
 export default node;

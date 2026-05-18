@@ -176,7 +176,7 @@ class WASMBinaryProbe:
 
 
 class WASMAdapter(SandboxAdapter[WASMConfig, NoCredentials, WASMDeployment]):
-    kind = "WASM"
+    backend_type = "WASM"
     display_name = "WebAssembly"
     hosting_type = "local"
     dependency_hints = (

@@ -6,7 +6,7 @@ const iconWrapCSS = css`
   flex-shrink: 0;
 `;
 
-import type { SandboxProviderKind } from "@phoenix/types";
+import type { SandboxBackendType } from "@phoenix/types";
 
 type IconProps = { height: number };
 
@@ -183,7 +183,7 @@ const WasmSVG = ({ height }: IconProps) => (
   </svg>
 );
 
-const ICONS_BY_KIND: Record<SandboxProviderKind, React.FC<IconProps>> = {
+const ICONS_BY_BACKEND_TYPE: Record<SandboxBackendType, React.FC<IconProps>> = {
   WASM: WasmSVG,
   E2B: E2BSVG,
   DAYTONA: DaytonaSVG,
@@ -193,7 +193,7 @@ const ICONS_BY_KIND: Record<SandboxProviderKind, React.FC<IconProps>> = {
 };
 
 export type SandboxProviderIconProps = {
-  kind: SandboxProviderKind;
+  backendType: SandboxBackendType;
   height?: number;
 };
 
@@ -202,10 +202,10 @@ export type SandboxProviderIconProps = {
  * registered for the given provider kind, so callers can use it unconditionally.
  */
 export function SandboxProviderIcon({
-  kind,
+  backendType,
   height = 18,
 }: SandboxProviderIconProps) {
-  const Icon = ICONS_BY_KIND[kind];
+  const Icon = ICONS_BY_BACKEND_TYPE[backendType];
   if (!Icon) {
     return null;
   }

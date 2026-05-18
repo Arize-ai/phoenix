@@ -30,7 +30,7 @@ from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import (
     from_global_id_with_expected_type,
-    get_sandbox_provider_kind_from_global_id,
+    get_sandbox_backend_type_from_global_id,
 )
 from phoenix.server.api.types.SandboxConfig import (
     InternetAccessChoice,
@@ -343,7 +343,7 @@ class SandboxDeploymentVariantInput:
         caller; the mutation handler maps it to ``BadRequest``. The returned
         model's ``.kind``
         discriminator lets the caller match against the URL-encoded
-        ``provider_kind``.
+        ``backend_type``.
         """
         if self.daytona is not None and self.daytona is not strawberry.UNSET:
             return self.daytona.to_orm()
@@ -374,7 +374,7 @@ class CreateSandboxConfigInput:
         # from the variant input). Single source of truth.
         validated = self.config.to_orm()
         return models.SandboxConfig(
-            provider_kind=validated.kind,
+            backend_type=validated.backend_type,
             language=validated.language,
             name=self.name,
             description=self.description,
@@ -409,8 +409,8 @@ class UpdateSandboxProviderInput:
     deployment: Optional[SandboxDeploymentVariantInput] = strawberry.UNSET
 
     @property
-    def provider_kind(self) -> models.SandboxProviderKind:
-        return get_sandbox_provider_kind_from_global_id(self.id)
+    def backend_type(self) -> models.SandboxBackendType:
+        return get_sandbox_backend_type_from_global_id(self.id)
 
 
 @strawberry.input
@@ -510,10 +510,10 @@ class SandboxConfigMutationMixin:
                         validated = input.config.to_orm()
                     except (ValueError, ValidationError, UnsupportedOperation) as exc:
                         raise BadRequest(str(exc))
-                    if validated.kind != row.provider_kind:
+                    if validated.backend_type != row.backend_type:
                         raise BadRequest(
-                            f"Config variant {validated.kind!r} does not match existing "
-                            f"row provider kind {row.provider_kind!r}; recreate the config "
+                            f"Config variant {validated.backend_type!r} does not match existing "
+                            f"row provider kind {row.backend_type!r}; recreate the config "
                             "to change provider."
                         )
                     if validated.language != row.language:
@@ -569,11 +569,11 @@ class SandboxConfigMutationMixin:
         re-validation when the backend is built.
         """
 
-        provider_kind = input.provider_kind
+        backend_type = input.backend_type
         async with info.context.db() as session:
-            row = await session.get(models.SandboxProvider, provider_kind)
+            row = await session.get(models.SandboxProvider, backend_type)
             if row is None:
-                raise NotFound(f"SandboxProvider not found: {provider_kind}")
+                raise NotFound(f"SandboxProvider not found: {backend_type}")
 
             if isinstance(input.enabled, bool):
                 row.enabled = input.enabled
@@ -586,15 +586,15 @@ class SandboxConfigMutationMixin:
                         validated = input.deployment.to_orm()
                     except (ValueError, ValidationError, UnsupportedOperation) as exc:
                         raise BadRequest(str(exc))
-                    if validated.kind != provider_kind:
+                    if validated.backend_type != backend_type:
                         raise BadRequest(
-                            f"Deployment variant {validated.kind!r} does not match "
-                            f"provider kind {provider_kind!r}; the variant must "
+                            f"Deployment variant {validated.backend_type!r} does not match "
+                            f"provider kind {backend_type!r}; the variant must "
                             "match the provider being updated."
                         )
                     row.config = validated.model_dump(mode="json", exclude_none=True)
 
         return UpdateSandboxProviderPayload(
-            sandbox_provider=SandboxProvider(id=row.kind, db_record=row),
+            sandbox_provider=SandboxProvider(id=row.backend_type, db_record=row),
             query=Query(),
         )

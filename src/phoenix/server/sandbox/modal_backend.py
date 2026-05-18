@@ -213,7 +213,7 @@ class ModalSandboxBackend(SandboxBackend):
 
 
 class ModalAdapter(SandboxAdapter[ModalConfig, ModalCredentials, ModalDeployment]):
-    kind = "MODAL"
+    backend_type = "MODAL"
     display_name = "Modal"
     hosting_type = "hosted"
     dependency_hints = (

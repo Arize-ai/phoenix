@@ -3734,11 +3734,11 @@ class TestGetEvaluators:
     ) -> None:
         async with db() as session:
             provider = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.kind == "WASM")
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
             )
             assert provider is not None
             sandbox_config = models.SandboxConfig(
-                provider_kind=provider.kind,
+                backend_type=provider.backend_type,
                 language="PYTHON",
                 name=Identifier("disabled-runtime-config"),
                 config={},
@@ -3804,11 +3804,11 @@ class TestGetEvaluators:
 
         async with db() as session:
             provider = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.kind == "WASM")
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
             )
             assert provider is not None
             sandbox_config = models.SandboxConfig(
-                provider_kind=provider.kind,
+                backend_type=provider.backend_type,
                 language="PYTHON",
                 name=Identifier("shared-runtime-config"),
                 config={},

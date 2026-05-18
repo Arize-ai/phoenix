@@ -7,8 +7,8 @@ from typing_extensions import TypeAlias
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 
-SandboxProviderKindKey: TypeAlias = str
-Key: TypeAlias = SandboxProviderKindKey
+SandboxBackendTypeKey: TypeAlias = str
+Key: TypeAlias = SandboxBackendTypeKey
 Result: TypeAlias = Optional[models.SandboxProvider]
 
 
@@ -25,9 +25,11 @@ class SandboxProviderDataLoader(DataLoader[Key, Result]):
 
         async with self._db() as session:
             data = await session.stream_scalars(
-                select(models.SandboxProvider).where(models.SandboxProvider.kind.in_(kind_set))
+                select(models.SandboxProvider).where(
+                    models.SandboxProvider.backend_type.in_(kind_set)
+                )
             )
             async for provider in data:
-                providers_by_kind[provider.kind] = provider
+                providers_by_kind[provider.backend_type] = provider
 
         return [providers_by_kind.get(key) for key in keys]

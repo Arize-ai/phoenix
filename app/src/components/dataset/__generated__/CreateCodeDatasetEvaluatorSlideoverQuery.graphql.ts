@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<06b1c3b73e476377da625fba238d8e91>>
+ * @generated SignedSource<<7e68553136a15f0e78f33cc30cc6cda3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,17 +13,18 @@ export type InternetAccessChoice = "ALLOW" | "DENY";
 export type InternetAccessMode = "ALLOWLIST" | "BOOLEAN" | "NONE";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type SandboxBackendStatus = "AVAILABLE" | "MISSING_CREDENTIALS" | "NOT_INSTALLED" | "UNAVAILABLE";
-export type SandboxProviderKind = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "VERCEL" | "WASM";
+export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "VERCEL" | "WASM";
 export type CreateCodeDatasetEvaluatorSlideoverQuery$variables = Record<PropertyKey, never>;
 export type CreateCodeDatasetEvaluatorSlideoverQuery$data = {
   readonly sandboxBackends: ReadonlyArray<{
+    readonly backendType: SandboxBackendType;
     readonly internetAccess: InternetAccessMode;
-    readonly kind: SandboxProviderKind;
     readonly status: SandboxBackendStatus;
     readonly supportsDependencies: boolean;
     readonly supportsEnvVars: boolean;
   }>;
   readonly sandboxProviders: ReadonlyArray<{
+    readonly backendType: SandboxBackendType;
     readonly configs: ReadonlyArray<{
       readonly config: {
         readonly dependencies: {
@@ -54,7 +55,6 @@ export type CreateCodeDatasetEvaluatorSlideoverQuery$data = {
       readonly timeout: number;
     }>;
     readonly enabled: boolean;
-    readonly kind: SandboxProviderKind;
     readonly supportedLanguages: ReadonlyArray<Language>;
   }>;
 };
@@ -68,7 +68,7 @@ var v0 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "kind",
+  "name": "backendType",
   "storageKey": null
 },
 v1 = {
@@ -331,16 +331,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9a406df1d0362a062fe92674faa750fa",
+    "cacheID": "9cab789c313dc7f0ed8f203286b4e3d7",
     "id": null,
     "metadata": {},
     "name": "CreateCodeDatasetEvaluatorSlideoverQuery",
     "operationKind": "query",
-    "text": "query CreateCodeDatasetEvaluatorSlideoverQuery {\n  sandboxProviders {\n    kind\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      config {\n        envVars {\n          name\n          value {\n            __typename\n            ... on SandboxConfigEnvVarLiteral {\n              literal\n            }\n            ... on SandboxConfigEnvVarSecretRef {\n              secretKey\n            }\n          }\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n    }\n    id\n  }\n  sandboxBackends {\n    kind\n    status\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n  }\n}\n"
+    "text": "query CreateCodeDatasetEvaluatorSlideoverQuery {\n  sandboxProviders {\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      config {\n        envVars {\n          name\n          value {\n            __typename\n            ... on SandboxConfigEnvVarLiteral {\n              literal\n            }\n            ... on SandboxConfigEnvVarSecretRef {\n              secretKey\n            }\n          }\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n    }\n    id\n  }\n  sandboxBackends {\n    backendType\n    status\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "09d72a45f55106311c4ad0c169227eb7";
+(node as any).hash = "13988eb93c9f7b339b6b7f9a22181787";
 
 export default node;

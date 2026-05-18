@@ -15,7 +15,7 @@ import {
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
 import { getSandboxConfigSettings } from "@phoenix/pages/settings/sandboxes/utils";
-import type { SandboxProviderKind } from "@phoenix/types";
+import type { SandboxBackendType } from "@phoenix/types";
 
 import type { SandboxConfigLabelDetailsQuery } from "./__generated__/SandboxConfigLabelDetailsQuery.graphql";
 
@@ -32,7 +32,7 @@ type SandboxConfigLabelProps = {
   /**
    * The canonical kind of the sandbox provider, used to render the provider icon.
    */
-  kind: SandboxProviderKind;
+  backendType: SandboxBackendType;
 };
 
 /**
@@ -43,13 +43,13 @@ type SandboxConfigLabelProps = {
 export function SandboxConfigLabel({
   sandboxConfigId,
   name,
-  kind,
+  backendType,
 }: SandboxConfigLabelProps) {
   return (
     <TooltipTrigger delay={500}>
       <TriggerWrap>
         <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
-          <SandboxProviderIcon kind={kind} height={18} />
+          <SandboxProviderIcon backendType={backendType} height={18} />
           <Text minWidth={0}>
             <Truncate>{name}</Truncate>
           </Text>

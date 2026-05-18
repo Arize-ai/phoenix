@@ -59,7 +59,7 @@ function SandboxProviderOptionContent({
 }) {
   return (
     <Flex direction="row" gap="size-100" alignItems="center">
-      <SandboxProviderIcon kind={option.backend.kind} height={18} />
+      <SandboxProviderIcon backendType={option.backend.backendType} height={18} />
       <Text>{option.backend.displayName}</Text>
       <Text color="text-500">
         {option.provider.supportedLanguages.map(languageLabel).join(" · ")}
@@ -86,14 +86,14 @@ export function SandboxProviderSelect({
     graphql`
       query SandboxProviderSelectQuery {
         sandboxBackends {
-          kind
+          backendType
           displayName
           hostingType
           status
         }
         sandboxProviders {
           id
-          kind
+          backendType
           supportedLanguages
           enabled
         }
@@ -103,13 +103,13 @@ export function SandboxProviderSelect({
   );
 
   const options = useMemo(() => {
-    const backendByKind = new Map(
-      data.sandboxBackends.map((backend) => [backend.kind, backend])
+    const backendByType = new Map(
+      data.sandboxBackends.map((backend) => [backend.backendType, backend])
     );
     return data.sandboxProviders
       .map((provider) => ({
         provider,
-        backend: backendByKind.get(provider.kind),
+        backend: backendByType.get(provider.backendType),
       }))
       .filter(
         (option): option is SandboxProviderOption => option.backend != null
