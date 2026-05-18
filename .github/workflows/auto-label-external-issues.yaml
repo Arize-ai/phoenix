@@ -17,6 +17,11 @@ jobs:
     timeout-minutes: 5
     permissions:
       issues: write
+      # Required to label PRs from forks. Although the labels endpoint
+      # is under /issues, GitHub's permission check for fork-PR tokens
+      # (via pull_request_target) rejects the call without
+      # pull-requests: write even when issues: write is granted.
+      pull-requests: write
     steps:
       - name: Add triage label for non-team contributors
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
