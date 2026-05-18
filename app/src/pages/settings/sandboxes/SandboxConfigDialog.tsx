@@ -511,10 +511,7 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                 );
               })()}
             {mode === "edit" && (
-              <Select
-                selectedKey={props.config.language}
-                isDisabled
-              >
+              <Select selectedKey={props.config.language} isDisabled>
                 <Label>Language</Label>
                 <Button>
                   <SelectValue />
@@ -522,19 +519,13 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                 </Button>
                 <Popover>
                   <ListBox>
-                    <ListBoxItem
-                      id="PYTHON"
-                      textValue="Python"
-                    >
+                    <ListBoxItem id="PYTHON" textValue="Python">
                       <Flex direction="row" gap="size-100" alignItems="center">
                         <PythonSVG />
                         <Text>Python</Text>
                       </Flex>
                     </ListBoxItem>
-                    <ListBoxItem
-                      id="TYPESCRIPT"
-                      textValue="TypeScript"
-                    >
+                    <ListBoxItem id="TYPESCRIPT" textValue="TypeScript">
                       <Flex direction="row" gap="size-100" alignItems="center">
                         <TypeScriptSVG />
                         <Text>TypeScript</Text>
