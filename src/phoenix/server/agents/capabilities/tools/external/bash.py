@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
-from phoenix.server.agents.toolsets.external.external_tool_definitions import (
-    StaticExternalToolDefinition,
-)
+from pydantic_ai.tools import ToolDefinition
+from pydantic_ai.toolsets import AgentToolset
+from pydantic_ai.toolsets.external import ExternalToolset
 
-_BASH_TOOL_NAME = "bash"
+from phoenix.server.agents.capabilities.base import AbstractStaticCapability
+from phoenix.server.agents.types import AgentDependencies
 
-_BASH_TOOL_DESCRIPTION = """\
+NAME = "bash"
+
+DESCRIPTION = """\
 Run a shell command in the browser virtual filesystem.
 Runs inside a browser-only just-bash virtual shell, not a host machine or container.
 Read Phoenix context from /phoenix; writes there are blocked.
@@ -24,7 +28,7 @@ phoenix-gql is available for GraphQL operations against the Phoenix GraphQL API.
 Run phoenix-gql --help for usage and current permissions.\
 """
 
-_BASH_TOOL_PARAMETERS: dict[str, Any] = {
+PARAMETERS: dict[str, Any] = {
     "type": "object",
     "properties": {
         "command": {
@@ -36,11 +40,20 @@ _BASH_TOOL_PARAMETERS: dict[str, Any] = {
     "additionalProperties": False,
 }
 
+TOOL_DEFINITION = ToolDefinition(
+    name=NAME,
+    description=DESCRIPTION,
+    parameters_json_schema=PARAMETERS,
+    kind="external",
+)
 
-def build_bash_tool(instructions: str) -> StaticExternalToolDefinition:
-    return StaticExternalToolDefinition(
-        name=_BASH_TOOL_NAME,
-        description=_BASH_TOOL_DESCRIPTION,
-        parameters_json_schema=_BASH_TOOL_PARAMETERS,
-        instructions=instructions,
-    )
+
+@dataclass
+class BashCapability(AbstractStaticCapability[AgentDependencies]):
+    instructions: str
+
+    def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
+        return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
+
+    def get_static_instructions(self) -> str:
+        return self.instructions

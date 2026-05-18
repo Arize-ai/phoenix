@@ -61,7 +61,7 @@ dependencies = [
   "arize-phoenix-otel>=0.16.1",
   "fastapi>=0.135.2",  # older versions raise AssertionError on 204 routes, see https://github.com/Arize-ai/phoenix/issues/12384
   "pydantic>=2.1.0", # exclude 2.0.* since it does not support the `json_encoders` configuration setting
-  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=1.87.0",
+  "pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=1.95.0",
   "authlib>=1.7.0",
   "joserfc",
   "arize-phoenix-client>=2.4.0",

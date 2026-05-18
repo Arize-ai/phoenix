@@ -2543,10 +2543,6 @@ export interface components {
         /**
          * GraphQLContext
          * @description GraphQL runtime state.
-         *
-         *     Unlike the other contexts this one always emits a block — when no instance
-         *     is present the policy defaults to ``disabled`` (the safe default). Callers
-         *     in the absent case should use :meth:`render_disabled_default`.
          */
         GraphQLContext: {
             /**

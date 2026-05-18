@@ -1,19 +1,23 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
-from phoenix.server.agents.toolsets.external.external_tool_definitions import (
-    StaticExternalToolDefinition,
-)
+from pydantic_ai.tools import ToolDefinition
+from pydantic_ai.toolsets import AgentToolset
+from pydantic_ai.toolsets.external import ExternalToolset
 
-_ASK_USER_TOOL_NAME = "ask_user"
+from phoenix.server.agents.capabilities.base import AbstractStaticCapability
+from phoenix.server.agents.types import AgentDependencies
 
-_ASK_USER_TOOL_DESCRIPTION = (
+NAME = "ask_user"
+
+DESCRIPTION = (
     "Ask the user one or more questions to gather preferences, clarify requirements, "
     "or get decisions. Use this when you need user input before proceeding with a task."
 )
 
-_ASK_USER_TOOL_PARAMETERS: dict[str, Any] = {
+PARAMETERS: dict[str, Any] = {
     "type": "object",
     "properties": {
         "questions": {
@@ -93,11 +97,20 @@ _ASK_USER_TOOL_PARAMETERS: dict[str, Any] = {
     "additionalProperties": False,
 }
 
+TOOL_DEFINITION = ToolDefinition(
+    name=NAME,
+    description=DESCRIPTION,
+    parameters_json_schema=PARAMETERS,
+    kind="external",
+)
 
-def build_ask_user_tool(instructions: str) -> StaticExternalToolDefinition:
-    return StaticExternalToolDefinition(
-        name=_ASK_USER_TOOL_NAME,
-        description=_ASK_USER_TOOL_DESCRIPTION,
-        parameters_json_schema=_ASK_USER_TOOL_PARAMETERS,
-        instructions=instructions,
-    )
+
+@dataclass
+class AskUserCapability(AbstractStaticCapability[AgentDependencies]):
+    instructions: str
+
+    def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
+        return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
+
+    def get_static_instructions(self) -> str:
+        return self.instructions

@@ -6,10 +6,8 @@ from dataclasses import dataclass
 from typing import Any, Callable, Union
 
 from openinference.instrumentation import (
-    OITracer,
     PromptDetails,
     TokenCount,
-    TraceConfig,
     get_input_attributes,
     get_llm_attributes,
     get_output_attributes,
@@ -22,7 +20,7 @@ from openinference.semconv.trace import (
     OpenInferenceLLMSystemValues,
     OpenInferenceMimeTypeValues,
 )
-from opentelemetry.trace import Status, StatusCode, Tracer, TracerProvider
+from opentelemetry.trace import Status, StatusCode, Tracer
 from pydantic_ai import RunContext
 from pydantic_ai.messages import (
     ModelMessage,
@@ -57,14 +55,11 @@ class OpenInferenceModelWrapper(WrapperModel):
     using the ``openinference.instrumentation.get_llm_attributes`` helper.
     """
 
-    _tracer: Tracer
+    tracer: Tracer
 
-    def __init__(self, wrapped: Model, *, tracer_provider: TracerProvider) -> None:
+    def __init__(self, wrapped: Model, *, tracer: Tracer) -> None:
         super().__init__(wrapped)
-        self._tracer = OITracer(
-            tracer_provider.get_tracer(__name__),
-            config=TraceConfig(),
-        )
+        self.tracer = tracer
 
     async def request(
         self,
@@ -143,7 +138,7 @@ class OpenInferenceModelWrapper(WrapperModel):
                 mime_type=OpenInferenceMimeTypeValues.JSON,
             ),
         }
-        with self._tracer.start_as_current_span(
+        with self.tracer.start_as_current_span(
             name=self.model_name,
             attributes=attributes,
         ) as span:

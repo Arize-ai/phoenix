@@ -1,17 +1,21 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
-from phoenix.server.agents.toolsets.external.external_tool_definitions import (
-    StaticExternalToolDefinition,
-)
+from pydantic_ai.tools import ToolDefinition
+from pydantic_ai.toolsets import AgentToolset
+from pydantic_ai.toolsets.external import ExternalToolset
 
-_SET_TIME_RANGE_TOOL_NAME = "set_time_range"
+from phoenix.server.agents.capabilities.base import AbstractStaticCapability
+from phoenix.server.agents.types import AgentDependencies
+
+NAME = "set_time_range"
 
 # Drift warning: the ``timeRangeKey`` enum below must stay in sync with:
 #   - ``parseSetTimeRangeInput`` in app/src/agent/extensions/toolRegistry.ts
 #   - ``TimeRangeKey`` in app/src/components/datetime/types.ts
-_SET_TIME_RANGE_PARAMETERS: dict[str, Any] = {
+PARAMETERS: dict[str, Any] = {
     "type": "object",
     "properties": {
         "timeRangeKey": {
@@ -43,7 +47,7 @@ _SET_TIME_RANGE_PARAMETERS: dict[str, Any] = {
     "additionalProperties": False,
 }
 
-_SET_TIME_RANGE_TOOL_DESCRIPTION = (
+DESCRIPTION = (
     "Set the Phoenix app time range selector. Use preset `timeRangeKey` values for "
     "standard relative windows (15m, 1h, 12h, 1d, 7d, 30d). Use `custom` with "
     "`startTime` and optional `endTime` for specific calendar windows. The Phoenix UI "
@@ -51,11 +55,20 @@ _SET_TIME_RANGE_TOOL_DESCRIPTION = (
     "relative calendar phrases on that value, not on the currently selected time range."
 )
 
+TOOL_DEFINITION = ToolDefinition(
+    name=NAME,
+    description=DESCRIPTION,
+    parameters_json_schema=PARAMETERS,
+    kind="external",
+)
 
-def build_set_time_range_tool(instructions: str) -> StaticExternalToolDefinition:
-    return StaticExternalToolDefinition(
-        name=_SET_TIME_RANGE_TOOL_NAME,
-        description=_SET_TIME_RANGE_TOOL_DESCRIPTION,
-        parameters_json_schema=_SET_TIME_RANGE_PARAMETERS,
-        instructions=instructions,
-    )
+
+@dataclass
+class SetTimeRangeCapability(AbstractStaticCapability[AgentDependencies]):
+    instructions: str
+
+    def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
+        return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
+
+    def get_static_instructions(self) -> str:
+        return self.instructions

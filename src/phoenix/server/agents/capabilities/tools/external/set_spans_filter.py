@@ -1,17 +1,19 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 from pydantic_ai import RunContext
+from pydantic_ai.tools import SystemPromptFunc, ToolDefinition
+from pydantic_ai.toolsets import AgentToolset
+from pydantic_ai.toolsets.external import ExternalToolset
 
-from phoenix.server.agents.toolsets.external.external_tool_definitions import (
-    DynamicExternalToolDefinition,
-)
+from phoenix.server.agents.capabilities.base import AbstractDynamicCapability
 from phoenix.server.agents.types import AgentDependencies
 
-_SET_SPANS_FILTER_TOOL_NAME = "set_spans_filter"
+NAME = "set_spans_filter"
 
-_SET_SPANS_FILTER_TOOL_DESCRIPTION = (
+DESCRIPTION = (
     "Set the spans table filter. The filter is applied declaratively as a "
     "complete state: every call must specify BOTH the freeform filter "
     "`condition` (Phoenix span filter DSL) AND the `rootSpansOnly` toggle, "
@@ -75,7 +77,7 @@ _SET_SPANS_FILTER_TOOL_DESCRIPTION = (
     "  - 'Reset to default view' → condition `''`, rootSpansOnly: true."
 )
 
-_SET_SPANS_FILTER_TOOL_PARAMETERS: dict[str, Any] = {
+PARAMETERS: dict[str, Any] = {
     "type": "object",
     "properties": {
         "condition": {
@@ -96,18 +98,29 @@ _SET_SPANS_FILTER_TOOL_PARAMETERS: dict[str, Any] = {
     "additionalProperties": False,
 }
 
+TOOL_DEFINITION = ToolDefinition(
+    name=NAME,
+    description=DESCRIPTION,
+    parameters_json_schema=PARAMETERS,
+    kind="external",
+)
 
-def build_set_spans_filter_tool(instructions: str) -> DynamicExternalToolDefinition:
-    tool = DynamicExternalToolDefinition(
-        name=_SET_SPANS_FILTER_TOOL_NAME,
-        description=_SET_SPANS_FILTER_TOOL_DESCRIPTION,
-        parameters_json_schema=_SET_SPANS_FILTER_TOOL_PARAMETERS,
-        instructions=instructions,
-    )
 
-    @tool.include
-    def _include(ctx: RunContext[AgentDependencies]) -> bool:
+@dataclass
+class SetSpansFilterCapability(AbstractDynamicCapability[AgentDependencies]):
+    instructions: str
+
+    def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
+        return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
+
+    def get_dynamic_instructions(self) -> SystemPromptFunc[AgentDependencies]:
+        instructions = self.instructions
+
+        def _instructions(ctx: RunContext[AgentDependencies]) -> str:
+            return instructions
+
+        return _instructions
+
+    def include_for_run(self, ctx: RunContext[AgentDependencies]) -> bool:
         project = ctx.deps.contexts.project
         return project is not None and project.span_filter is not None
-
-    return tool
