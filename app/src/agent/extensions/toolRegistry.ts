@@ -24,7 +24,6 @@ import {
 } from "@phoenix/agent/tools/playgroundPrompt";
 import {
   GENERATIVE_UI_TOOL_NAME,
-  JSON_RENDER_DATA_PART_TYPE,
   renderGeneratedUISpecSchema,
 } from "@phoenix/components/agent/generativeUICatalog";
 import type { TimeRangeKey } from "@phoenix/components/datetime/types";
@@ -339,9 +338,6 @@ function getRenderGeneratedUIInvalidInputErrorText(input: unknown): string {
   }
 
   const hasChartRequirementIssue = specResult.error.issues.some((issue) => {
-    if (issue.code !== "too_small" && issue.code !== "too_big") {
-      return false;
-    }
     return issue.path.some(
       (segment) =>
         segment === "data" || segment === "segments" || segment === "lines"
@@ -358,17 +354,7 @@ const renderGeneratedUIAgentTool =
     name: GENERATIVE_UI_TOOL_NAME,
     parseInput: parseRenderGeneratedUIInput,
     invalidInputErrorText: getRenderGeneratedUIInvalidInputErrorText,
-    execute: async ({ toolCall, input, addToolOutput, appendMessagePart }) => {
-      appendMessagePart({
-        type: JSON_RENDER_DATA_PART_TYPE,
-        id: toolCall.toolCallId,
-        data: {
-          type: "flat",
-          spec: input.spec,
-          state: input.state,
-        },
-      } as UIMessage["parts"][number]);
-
+    execute: async ({ toolCall, addToolOutput }) => {
       await addToolOutput({
         state: "output-available",
         tool: GENERATIVE_UI_TOOL_NAME,

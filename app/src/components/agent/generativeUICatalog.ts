@@ -43,6 +43,8 @@ const lineSeriesSchema = z.object({
   data: z.array(z.number()),
 });
 
+const leafChildrenSchema = z.array(z.never()).max(0).optional();
+
 const barChartPropsSchema = z.object({
   title: z.string().nullish(),
   data: z
@@ -82,22 +84,22 @@ const generatedUIElementSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("BarChart"),
     props: barChartPropsSchema,
-    children: z.array(z.string()).optional(),
+    children: leafChildrenSchema,
   }),
   z.object({
     type: z.literal("VerticalBarChart"),
     props: verticalBarChartPropsSchema,
-    children: z.array(z.string()).optional(),
+    children: leafChildrenSchema,
   }),
   z.object({
     type: z.literal("StackedBarChart"),
     props: stackedBarChartPropsSchema,
-    children: z.array(z.string()).optional(),
+    children: leafChildrenSchema,
   }),
   z.object({
     type: z.literal("LineChart"),
     props: lineChartPropsSchema,
-    children: z.array(z.string()).optional(),
+    children: leafChildrenSchema,
   }),
 ]);
 

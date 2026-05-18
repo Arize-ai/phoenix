@@ -44,8 +44,8 @@ const toolRules = GENERATIVE_UI_CATALOG_RULES.map((rule) => `- ${rule}`).join(
 const toolDescription = [
   "Render a generated UI in the Phoenix chat using the available components below.",
   "Use this tool when a compact visual UI such as metrics, charts, or an analytical card would answer the user better than prose alone.",
-  "The `spec` argument must be one complete UI tree in this shape: `{ root: string, elements: Record<string, { type: string, props: object, children: string[] }> }`.",
-  "`root` is the id of the first element to render. Each key in `elements` is an element id. `children` contains element ids from the same `elements` object.",
+  "The `spec` argument must be one complete UI tree in this shape: `{ root: string, elements: Record<string, { type: string, props: object, children: [] }> }`.",
+  "`root` is the id of the chart element to render. Each chart component is a leaf node, so `children` must be an empty array.",
   "Every element `type` must come from the component list below, and every element must include `type`, `props`, and `children`.",
   "Do not provide partial updates, JSONL patches, markdown, or prose inside `spec`; provide the full render tree in one object.",
   "Follow these rules when choosing and configuring chart components:",

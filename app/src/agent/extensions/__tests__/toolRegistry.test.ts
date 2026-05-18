@@ -7,10 +7,7 @@ import {
   CLONE_PROMPT_INSTANCE_TOOL_NAME,
   EDIT_PROMPT_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPrompt";
-import {
-  GENERATIVE_UI_TOOL_NAME,
-  JSON_RENDER_DATA_PART_TYPE,
-} from "@phoenix/components/agent/generativeUICatalog";
+import { GENERATIVE_UI_TOOL_NAME } from "@phoenix/components/agent/generativeUICatalog";
 import { createAgentStore } from "@phoenix/store/agentStore";
 
 describe("toolRegistry", () => {
@@ -186,7 +183,7 @@ describe("toolRegistry", () => {
     );
   });
 
-  it("renders generated UI tool calls as data parts", async () => {
+  it("resolves generated UI tool calls without mutating message parts", async () => {
     const store = createAgentStore();
     const addToolOutput = vi.fn().mockResolvedValue(undefined);
     const appendMessagePart = vi.fn();
@@ -219,13 +216,7 @@ describe("toolRegistry", () => {
       agentStore: store,
     });
 
-    expect(appendMessagePart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: JSON_RENDER_DATA_PART_TYPE,
-        id: "tool-call-7",
-        data: expect.objectContaining({ type: "flat", spec, state: {} }),
-      })
-    );
+    expect(appendMessagePart).not.toHaveBeenCalled();
     expect(addToolOutput).toHaveBeenCalledWith(
       expect.objectContaining({
         state: "output-available",
@@ -268,7 +259,7 @@ describe("toolRegistry", () => {
         state: "output-error",
         tool: GENERATIVE_UI_TOOL_NAME,
         toolCallId: "tool-call-8",
-        errorText: "I couldn't render that generated UI.",
+        errorText: "Request should adhere to chart requirements.",
       })
     );
   });
@@ -318,6 +309,56 @@ describe("toolRegistry", () => {
     );
   });
 
+  it("fails malformed stacked bar chart specs before rendering", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const appendMessagePart = vi.fn();
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-malformed-stacked",
+        toolName: GENERATIVE_UI_TOOL_NAME,
+        input: {
+          spec: {
+            root: "stacked",
+            elements: {
+              stacked: {
+                type: "StackedBarChart",
+                props: {
+                  title: "Stacked Bar Chart — Token Usage by Model",
+                  data: [
+                    {
+                      label: "gpt-4o",
+                      segments: [
+                        { label: "Prompt", value: 12500 },
+                        { label: "Completion", value: 8200 },
+                        {},
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      appendMessagePart,
+      agentStore: store,
+    });
+
+    expect(appendMessagePart).not.toHaveBeenCalled();
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-error",
+        tool: GENERATIVE_UI_TOOL_NAME,
+        toolCallId: "tool-call-malformed-stacked",
+        errorText: "Request should adhere to chart requirements.",
+      })
+    );
+  });
+
   it("accepts generated UI specs that omit optional props", async () => {
     const store = createAgentStore();
     const addToolOutput = vi.fn().mockResolvedValue(undefined);
@@ -349,13 +390,7 @@ describe("toolRegistry", () => {
       agentStore: store,
     });
 
-    expect(appendMessagePart).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: JSON_RENDER_DATA_PART_TYPE,
-        id: "tool-call-9",
-        data: expect.objectContaining({ type: "flat", spec, state: {} }),
-      })
-    );
+    expect(appendMessagePart).not.toHaveBeenCalled();
     expect(addToolOutput).toHaveBeenCalledWith(
       expect.objectContaining({
         state: "output-available",

@@ -157,4 +157,172 @@ describe("GenerativeUI", () => {
         .background
     ).toBe("var(--global-color-gray-600)");
   });
+
+  it("renders stacked bar chart specs", () => {
+    renderGeneratedUI([
+      {
+        type: LEGACY_JSON_RENDER_DATA_PART_TYPE,
+        data: {
+          root: "chart",
+          elements: {
+            chart: {
+              type: "StackedBarChart",
+              props: {
+                title: "Span Status By Service",
+                data: [
+                  {
+                    label: "api",
+                    segments: [
+                      { label: "ok", value: 84 },
+                      { label: "error", value: 6 },
+                    ],
+                  },
+                  {
+                    label: "worker",
+                    segments: [
+                      { label: "ok", value: 41 },
+                      { label: "error", value: 9 },
+                    ],
+                  },
+                ],
+              },
+              children: [],
+            },
+          },
+        },
+      },
+    ]);
+
+    expect(container.textContent).toContain("Span Status By Service");
+    expect(container.textContent).toContain("worker");
+  });
+
+  it("renders completed stacked bar chart tool parts", () => {
+    renderGeneratedUI([
+      {
+        type: "tool-render_generated_ui",
+        state: "output-available",
+        input: {
+          spec: {
+            root: "chart3",
+            elements: {
+              chart3: {
+                type: "StackedBarChart",
+                props: {
+                  title: "Stacked Bar Chart",
+                  data: [
+                    {
+                      label: "Team A",
+                      segments: [
+                        { label: "Success", value: 18 },
+                        { label: "Retry", value: 4 },
+                        { label: "Error", value: 2 },
+                      ],
+                    },
+                    {
+                      label: "Team B",
+                      segments: [
+                        { label: "Success", value: 14 },
+                        { label: "Retry", value: 6 },
+                        { label: "Error", value: 3 },
+                      ],
+                    },
+                    {
+                      label: "Team C",
+                      segments: [
+                        { label: "Success", value: 20 },
+                        { label: "Retry", value: 2 },
+                        { label: "Error", value: 1 },
+                      ],
+                    },
+                  ],
+                },
+                children: [],
+              },
+            },
+          },
+          state: {},
+        },
+      },
+    ]);
+
+    expect(container.textContent).toContain("Stacked Bar Chart");
+    expect(container.textContent).toContain("Team C");
+  });
+
+  it("does not attempt to render generated UI specs with cyclic children", () => {
+    renderGeneratedUI([
+      {
+        type: LEGACY_JSON_RENDER_DATA_PART_TYPE,
+        data: {
+          root: "chart",
+          elements: {
+            chart: {
+              type: "StackedBarChart",
+              props: {
+                title: "Span Status By Service",
+                data: [
+                  {
+                    label: "api",
+                    segments: [
+                      { label: "ok", value: 84 },
+                      { label: "error", value: 6 },
+                    ],
+                  },
+                  {
+                    label: "worker",
+                    segments: [
+                      { label: "ok", value: 41 },
+                      { label: "error", value: 9 },
+                    ],
+                  },
+                ],
+              },
+              children: ["chart"],
+            },
+          },
+        },
+      },
+    ]);
+
+    expect(container.textContent).toContain(
+      "Generated UI was requested, but no renderable spec was found in the message parts."
+    );
+  });
+
+  it("does not attempt to render malformed stacked bar chart tool parts", () => {
+    renderGeneratedUI([
+      {
+        type: "tool-render_generated_ui",
+        state: "output-available",
+        input: {
+          spec: {
+            root: "stacked",
+            elements: {
+              stacked: {
+                type: "StackedBarChart",
+                props: {
+                  title: "Stacked Bar Chart — Token Usage by Model",
+                  data: [
+                    {
+                      label: "gpt-4o",
+                      segments: [
+                        { label: "Prompt", value: 12500 },
+                        { label: "Completion", value: 8200 },
+                        {},
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      },
+    ]);
+
+    expect(container.textContent).toContain(
+      "Generated UI was requested, but no renderable spec was found in the message parts."
+    );
+  });
 });

@@ -21,7 +21,10 @@ function createGeneratedUIPart({
             type: "BarChart",
             props: {
               title,
-              data: [{ label: "Count", value: 1 }],
+              data: [
+                { label: "Count", value: 1 },
+                { label: "Errors", value: 0 },
+              ],
             },
             children: [],
           },
@@ -68,6 +71,52 @@ describe("groupMessageParts", () => {
 
     expect(grouped).toEqual([
       { kind: "tool-solo", part: streamingToolPart, index: 0 },
+    ]);
+  });
+
+  it("does not treat invalid completed generated UI tool calls as render slots", () => {
+    const firstPart = createGeneratedUIPart({ title: "First chart" });
+    const invalidStackedToolPart = {
+      type: "tool-render_generated_ui",
+      toolCallId: "tool-call-invalid-stacked",
+      state: "output-available",
+      output: "Generated UI rendered in chat.",
+      input: {
+        spec: {
+          root: "stacked",
+          elements: {
+            stacked: {
+              type: "StackedBarChart",
+              props: {
+                title: "Stacked Bar Chart — Token Usage by Model",
+                data: [
+                  {
+                    label: "gpt-4o",
+                    segments: [
+                      { label: "Prompt", value: 12500 },
+                      { label: "Completion", value: 8200 },
+                      {},
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+    } as UIMessage["parts"][number];
+    const secondPart = createGeneratedUIPart({ title: "Second chart" });
+
+    const grouped = groupMessageParts([
+      firstPart,
+      invalidStackedToolPart,
+      secondPart,
+    ]);
+
+    expect(grouped).toEqual([
+      { kind: "generative-ui", part: firstPart, index: 0 },
+      { kind: "tool-solo", part: invalidStackedToolPart, index: 1 },
+      { kind: "generative-ui", part: secondPart, index: 2 },
     ]);
   });
 });
