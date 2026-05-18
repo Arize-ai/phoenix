@@ -3,8 +3,13 @@ title: "Deno"
 description: "Run TypeScript code evaluators inside the Phoenix server using a sandboxed Deno subprocess."
 ---
 
-<img src="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/deno.svg" alt="Deno" style={{ height: '64px' }} />
+<div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginTop: '1.5rem', marginBottom: '1.5rem' }}>
+<img src="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/deno.svg" alt="Deno" className="invert-on-dark" style={{ height: '112px', flexShrink: 0 }} />
+<div>
 
 The **Deno** sandbox runs TypeScript code in a `deno run` subprocess locked down with `--no-prompt --no-config --no-remote --no-npm` and no `--allow-*` flags beyond a scoped `--allow-env` for declared environment variables. The script can't read files, open sockets, spawn processes, fetch remote modules, or import `npm:` packages — these flags aren't user-configurable. Like the WebAssembly sandbox, it runs locally inside the Phoenix server, starts in milliseconds, and requires no credentials, making it the default choice for TypeScript code evaluators that don't need outbound network access or third-party packages.
+
+</div>
+</div>
 
 Configure it from [Settings → Sandboxes](/docs/phoenix/settings/sandboxes). Learn more about Deno's permission model at [deno.land](https://deno.land/).
