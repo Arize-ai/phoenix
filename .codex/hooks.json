@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$(git rev-parse --show-toplevel)/.codex/hooks/run_changed_file_checks.sh\"",
+            "statusMessage": "Running changed-file checks"
+          }
+        ]
+      }
+    ]
+  }
+}
