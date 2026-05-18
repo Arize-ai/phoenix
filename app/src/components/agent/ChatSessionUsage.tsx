@@ -26,9 +26,14 @@ type ChatSessionUsage = {
   sessionId: string;
 };
 
+type CachePromptDetails = {
+  "cache read": number;
+  "cache write"?: number;
+};
+
 type CacheUsageDisplay = {
   summaryText: string | null;
-  promptDetails: Record<string, number> | undefined;
+  promptDetails: CachePromptDetails | undefined;
 };
 
 function getLatestAssistantMessageUsage(
@@ -72,7 +77,7 @@ export function getCacheUsageDisplay({
       promptDetails: undefined,
     };
   }
-  const visiblePromptDetails: Record<string, number> = {
+  const visiblePromptDetails: CachePromptDetails = {
     "cache read": cacheRead,
   };
   const summaryParts = [`cache read ${cacheRead.toLocaleString()}`];
