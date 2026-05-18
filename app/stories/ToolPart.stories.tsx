@@ -3,6 +3,10 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { useEffect, useRef } from "react";
 
 import {
+  DOCS_FILESYSTEM_QUERY_TOOL_NAME,
+  DOCS_SEARCH_TOOL_NAME,
+} from "@phoenix/agent/tools/docs";
+import {
   ElicitationDraftProvider,
   type PendingElicitationDraft,
 } from "@phoenix/components/agent/ElicitationDraftContext";
@@ -417,7 +421,7 @@ const askUserResumeFailedPart = makePart({
 // ---------------------------------------------------------------------------
 
 const docsSearchPart = makePart({
-  toolName: "search_phoenix",
+  toolName: DOCS_SEARCH_TOOL_NAME,
   state: "output-available",
   input: { query: "how to configure tracing" },
   output:
@@ -425,13 +429,13 @@ const docsSearchPart = makePart({
 });
 
 const docsSearchRunningPart = makePart({
-  toolName: "search_phoenix",
+  toolName: DOCS_SEARCH_TOOL_NAME,
   state: "input-available",
   input: { query: "embeddings visualization" },
 });
 
 const docsFileSystemQueryPart = makePart({
-  toolName: "query_docs_filesystem_phoenix",
+  toolName: DOCS_FILESYSTEM_QUERY_TOOL_NAME,
   state: "output-available",
   input: { command: "head -80 /docs/tracing/quickstart.mdx" },
   output:
@@ -439,7 +443,7 @@ const docsFileSystemQueryPart = makePart({
 });
 
 const docsFileSystemQueryRunningPart = makePart({
-  toolName: "query_docs_filesystem_phoenix",
+  toolName: DOCS_FILESYSTEM_QUERY_TOOL_NAME,
   state: "input-available",
   input: { command: "head -80 /docs/evaluation/overview.mdx" },
 });

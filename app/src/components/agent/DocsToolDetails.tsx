@@ -1,6 +1,8 @@
 import { getToolName } from "ai";
 
 import {
+  DOCS_FILESYSTEM_QUERY_TOOL_NAME,
+  DOCS_SEARCH_TOOL_NAME,
   isDocsToolName,
   parseDocsFileSystemQueryInput,
   parseDocsSearchInput,
@@ -20,11 +22,11 @@ const OUTPUT_PREVIEW_LENGTH = 200;
  */
 export function getDocsToolPreview(part: ToolInvocationPart): string {
   const toolName = getToolName(part);
-  if (toolName === "search_phoenix") {
+  if (toolName === DOCS_SEARCH_TOOL_NAME) {
     const input = parseDocsSearchInput(part.input);
     return input ? `Searching: ${input.query}` : "";
   }
-  if (toolName === "query_docs_filesystem_phoenix") {
+  if (toolName === DOCS_FILESYSTEM_QUERY_TOOL_NAME) {
     const input = parseDocsFileSystemQueryInput(part.input);
     return input ? `Running: ${input.command}` : "";
   }
@@ -41,7 +43,7 @@ export function formatDocsToolState(
   const toolName = getToolName(part);
   switch (state) {
     case "input-streaming":
-      return toolName === "query_docs_filesystem_phoenix"
+      return toolName === DOCS_FILESYSTEM_QUERY_TOOL_NAME
         ? "Querying…"
         : "Searching…";
     case "input-available":
@@ -61,7 +63,7 @@ export function formatDocsToolState(
  */
 export function DocsToolDetails({ part }: { part: ToolInvocationPart }) {
   const toolName = getToolName(part);
-  const isSearch = toolName === "search_phoenix";
+  const isSearch = toolName === DOCS_SEARCH_TOOL_NAME;
 
   const inputLabel = isSearch ? "Query" : "Command";
   const inputText = getInputText(part, isSearch);

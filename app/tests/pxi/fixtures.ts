@@ -1,6 +1,7 @@
 import { expect, test as base } from "@playwright/test";
 import type { APIRequestContext, Page, TestInfo } from "@playwright/test";
 
+import { DOCS_TOOL_NAMES } from "../../src/agent/tools/docs";
 import {
   DEFAULT_ASSISTANT_MODEL,
   DEFAULT_ASSISTANT_PROJECT_NAME,
@@ -208,15 +209,12 @@ export class PxiDriver {
   }
 
   expectDocsToolCalled(turn: PxiTurn) {
-    // These names intentionally match Phoenix's docs tool prompt contract.
-    // If the docs tool names change, update this assertion with the prompt.
-    const docsToolNames = ["search_phoenix", "query_docs_filesystem_phoenix"];
     const hasCalledDocsTool = turn.calledTools.some((toolName) =>
-      docsToolNames.includes(toolName)
+      (DOCS_TOOL_NAMES as readonly string[]).includes(toolName)
     );
     expect(
       hasCalledDocsTool,
-      `Expected the PXI trace to include a documentation tool call (${docsToolNames.join(
+      `Expected the PXI trace to include a documentation tool call (${DOCS_TOOL_NAMES.join(
         ", "
       )}). This assertion is intentionally coupled to Phoenix's current docs tool prompt contract; if those tool names change, update the smoke test alongside the prompt. Called tools: ${turn.calledTools.join(
         ", "

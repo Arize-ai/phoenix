@@ -18,12 +18,15 @@ export type DocsFileSystemQueryInput = {
  */
 export type DocsToolOutput = string;
 
+export const DOCS_SEARCH_TOOL_NAME = "search_phoenix";
+export const DOCS_FILESYSTEM_QUERY_TOOL_NAME = "query_docs_filesystem_phoenix";
+
 /**
  * Names of backend docs tools. Used for rendering dispatch.
  */
 export const DOCS_TOOL_NAMES = [
-  "search_phoenix",
-  "query_docs_filesystem_phoenix",
+  DOCS_SEARCH_TOOL_NAME,
+  DOCS_FILESYSTEM_QUERY_TOOL_NAME,
 ] as const;
 export type DocsToolName = (typeof DOCS_TOOL_NAMES)[number];
 
