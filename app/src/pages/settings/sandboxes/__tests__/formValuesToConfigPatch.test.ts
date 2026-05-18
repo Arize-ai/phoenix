@@ -1,61 +1,57 @@
 import { describe, expect, it } from "vitest";
 
 import type { BackendInfo, SandboxConfigFormValues } from "../types";
-import {
-  formValuesToConfigPatch,
-  getDependencyPreview,
-  getDisplaySandboxConfig,
-} from "../utils";
+import { formValuesToConfigPatch, getDependencyPreview } from "../utils";
 
 type PartialBackend = Pick<
   BackendInfo,
-  "supportsEnvVars" | "internetAccess" | "dependenciesLanguage"
+  "kind" | "supportsEnvVars" | "internetAccess" | "supportsDependencies"
 >;
 
 const emptyValues: SandboxConfigFormValues = {
   sandboxProviderId: "",
+  language: "PYTHON",
   name: "",
   description: "",
   timeout: 600,
   envVars: [],
   internetAccessEnabled: false,
   dependenciesText: "",
-  dependenciesLockfile: null,
 };
 
-const noCapabilityBackend: PartialBackend = {
+const wasmNoCapabilityBackend: PartialBackend = {
+  kind: "WASM",
   supportsEnvVars: false,
   internetAccess: "NONE",
-  dependenciesLanguage: null,
+  supportsDependencies: false,
 };
 
-const fullCapabilityBackend: PartialBackend = {
+const e2bFullCapabilityBackend: PartialBackend = {
+  kind: "E2B",
   supportsEnvVars: true,
   internetAccess: "BOOLEAN",
-  dependenciesLanguage: "PYTHON",
+  supportsDependencies: true,
 };
 
-describe("formValuesToConfigPatch — capability-only output", () => {
-  it("(a) no capabilities supported: result is empty", () => {
+describe("formValuesToConfigPatch — variant + capability output", () => {
+  it("(a) no capabilities supported: variant carries only language", () => {
     const result = formValuesToConfigPatch(
       emptyValues,
-      noCapabilityBackend as BackendInfo
+      wasmNoCapabilityBackend as BackendInfo
     );
 
-    expect(result["env_vars"]).toBeUndefined();
-    expect(result["internet_access"]).toBeUndefined();
-    expect(result["dependencies"]).toBeUndefined();
+    // WASM variant is the kind-mapped key; inner config carries only
+    // ``language`` (required pydantic field on every Config) when no
+    // capabilities are configured.
+    expect(result).toEqual({ wasm: { language: "PYTHON" } });
   });
 
-  it("(b) backend undefined: result is empty", () => {
+  it("(b) backend undefined: result is empty (caller must guard)", () => {
     const result = formValuesToConfigPatch(emptyValues, undefined);
-
-    expect(result["env_vars"]).toBeUndefined();
-    expect(result["internet_access"]).toBeUndefined();
-    expect(result["dependencies"]).toBeUndefined();
+    expect(result).toEqual({});
   });
 
-  it("(f) capability flag True: form values are authoritative for env_vars", () => {
+  it("(f) capability flag True: form values become envVars entries inside the variant", () => {
     const values: SandboxConfigFormValues = {
       ...emptyValues,
       envVars: [{ kind: "literal", name: "NEW", value: "new" }],
@@ -63,80 +59,124 @@ describe("formValuesToConfigPatch — capability-only output", () => {
 
     const result = formValuesToConfigPatch(
       values,
-      fullCapabilityBackend as BackendInfo
+      e2bFullCapabilityBackend as BackendInfo
     );
 
-    expect(result["env_vars"]).toEqual([
-      { kind: "literal", name: "NEW", value: "new" },
-    ]);
+    expect(result).toEqual({
+      e2b: {
+        language: "PYTHON",
+        envVars: [{ name: "NEW", value: { literal: "new" } }],
+        internetAccess: { mode: "DENY" },
+      },
+    });
   });
 
-  it("(positive) all capabilities set: result contains exactly the three capability keys", () => {
+  it("(positive) all capabilities set: variant carries envVars + internetAccess + dependencies", () => {
     const values: SandboxConfigFormValues = {
       ...emptyValues,
       envVars: [{ kind: "literal", name: "KEY", value: "val" }],
       internetAccessEnabled: true,
       dependenciesText: "numpy\npandas",
-      dependenciesLockfile: "numpy==1.26.0\npandas==2.0.0",
     };
 
     const result = formValuesToConfigPatch(
       values,
-      fullCapabilityBackend as BackendInfo
+      e2bFullCapabilityBackend as BackendInfo
     );
 
     expect(result).toEqual({
-      env_vars: [{ kind: "literal", name: "KEY", value: "val" }],
-      internet_access: { mode: "allow" },
-      dependencies: {
-        packages: ["numpy", "pandas"],
-        lockfile: "numpy==1.26.0\npandas==2.0.0",
+      e2b: {
+        language: "PYTHON",
+        envVars: [{ name: "KEY", value: { literal: "val" } }],
+        internetAccess: { mode: "ALLOW" },
+        dependencies: {
+          packages: ["numpy", "pandas"],
+        },
       },
     });
   });
 
-  it("(negative) env_vars absent when supportsEnvVars but envVars is empty", () => {
+  it("(negative) envVars absent when supportsEnvVars but envVars is empty", () => {
     const result = formValuesToConfigPatch(
       emptyValues,
-      fullCapabilityBackend as BackendInfo
+      e2bFullCapabilityBackend as BackendInfo
     );
 
-    expect(result).not.toHaveProperty("env_vars");
+    // internetAccess is always emitted for BOOLEAN backends; envVars is omitted
+    // because the list is empty.
+    expect(result).toEqual({
+      e2b: { language: "PYTHON", internetAccess: { mode: "DENY" } },
+    });
   });
 
-  it("(negative) dependencies absent when dependenciesLanguage set but dependenciesText is empty", () => {
+  it("(negative) dependencies absent when supportsDependencies is true but dependenciesText is empty", () => {
     const result = formValuesToConfigPatch(
       { ...emptyValues, dependenciesText: "" },
-      fullCapabilityBackend as BackendInfo
+      e2bFullCapabilityBackend as BackendInfo
     );
 
-    expect(result).not.toHaveProperty("dependencies");
+    expect(result["e2b"]).not.toHaveProperty("dependencies");
   });
 
-  it("(negative) internet_access absent when internetAccess is NONE", () => {
+  it("(negative) internetAccess absent when internetAccess is NONE", () => {
     const result = formValuesToConfigPatch(
       { ...emptyValues, internetAccessEnabled: true },
-      noCapabilityBackend as BackendInfo
+      wasmNoCapabilityBackend as BackendInfo
     );
 
-    expect(result).not.toHaveProperty("internet_access");
+    expect(result["wasm"]).not.toHaveProperty("internetAccess");
+  });
+
+  it("secret_ref env vars produce {secretKey} variant", () => {
+    const values: SandboxConfigFormValues = {
+      ...emptyValues,
+      envVars: [
+        { kind: "secret_ref", name: "OPENAI_API_KEY", secret_key: "openai_k" },
+      ],
+    };
+
+    const result = formValuesToConfigPatch(
+      values,
+      e2bFullCapabilityBackend as BackendInfo
+    );
+
+    expect(result).toEqual({
+      e2b: {
+        language: "PYTHON",
+        envVars: [{ name: "OPENAI_API_KEY", value: { secretKey: "openai_k" } }],
+        internetAccess: { mode: "DENY" },
+      },
+    });
   });
 });
 
 describe("getDependencyPreview", () => {
-  it("returns null when no language is advertised", () => {
+  it("returns null when deps are unsupported", () => {
     expect(
       getDependencyPreview({
         packagesText: "numpy",
-        dependenciesLanguage: null,
-        backendType: "E2B",
+        supportsDependencies: false,
+        language: "PYTHON",
+        kind: "WASM",
       })
     ).toBeNull();
     expect(
       getDependencyPreview({
         packagesText: "numpy",
-        dependenciesLanguage: undefined,
-        backendType: "E2B",
+        supportsDependencies: undefined,
+        language: "PYTHON",
+        kind: "E2B",
+      })
+    ).toBeNull();
+  });
+
+  it("returns null when no language is selected", () => {
+    expect(
+      getDependencyPreview({
+        packagesText: "numpy",
+        supportsDependencies: true,
+        language: null,
+        kind: "E2B",
       })
     ).toBeNull();
   });
@@ -145,15 +185,17 @@ describe("getDependencyPreview", () => {
     expect(
       getDependencyPreview({
         packagesText: "",
-        dependenciesLanguage: "PYTHON",
-        backendType: "E2B",
+        supportsDependencies: true,
+        language: "PYTHON",
+        kind: "E2B",
       })
     ).toBeNull();
     expect(
       getDependencyPreview({
         packagesText: "   \n  ",
-        dependenciesLanguage: "PYTHON",
-        backendType: "E2B",
+        supportsDependencies: true,
+        language: "PYTHON",
+        kind: "E2B",
       })
     ).toBeNull();
   });
@@ -162,8 +204,9 @@ describe("getDependencyPreview", () => {
     expect(
       getDependencyPreview({
         packagesText: "numpy\npandas==2.0",
-        dependenciesLanguage: "PYTHON",
-        backendType: "E2B",
+        supportsDependencies: true,
+        language: "PYTHON",
+        kind: "E2B",
       })
     ).toBe("pip install numpy pandas==2.0");
   });
@@ -172,8 +215,9 @@ describe("getDependencyPreview", () => {
     expect(
       getDependencyPreview({
         packagesText: "numpy",
-        dependenciesLanguage: "PYTHON",
-        backendType: "DAYTONA_PYTHON",
+        supportsDependencies: true,
+        language: "PYTHON",
+        kind: "DAYTONA",
       })
     ).toBe("pip install numpy");
   });
@@ -182,8 +226,9 @@ describe("getDependencyPreview", () => {
     expect(
       getDependencyPreview({
         packagesText: "numpy\npandas==2.0",
-        dependenciesLanguage: "PYTHON",
-        backendType: "MODAL",
+        supportsDependencies: true,
+        language: "PYTHON",
+        kind: "MODAL",
       })
     ).toBe('image.pip_install("numpy", "pandas==2.0")');
   });
@@ -192,100 +237,10 @@ describe("getDependencyPreview", () => {
     expect(
       getDependencyPreview({
         packagesText: "lodash\n@scope/pkg@1.2.3",
-        dependenciesLanguage: "TYPESCRIPT",
-        backendType: "DENO",
+        supportsDependencies: true,
+        language: "TYPESCRIPT",
+        kind: "DENO",
       })
     ).toBe("npm install lodash @scope/pkg@1.2.3");
-  });
-});
-
-describe("getDisplaySandboxConfig", () => {
-  it("redacts literal env_var values", () => {
-    const result = getDisplaySandboxConfig({
-      env_vars: [
-        { kind: "literal", name: "OPENAI_API_KEY", value: "sk-secret" },
-      ],
-    });
-
-    expect(result).toEqual({
-      env_vars: [
-        {
-          kind: "literal",
-          name: "OPENAI_API_KEY",
-          value: "<redacted>",
-        },
-      ],
-    });
-  });
-
-  it("preserves secret_ref entries unchanged", () => {
-    const config = {
-      env_vars: [
-        {
-          kind: "secret_ref",
-          name: "OPENAI_API_KEY",
-          secret_key: "openai_key",
-        },
-      ],
-    };
-
-    expect(getDisplaySandboxConfig(config)).toEqual(config);
-  });
-
-  it("preserves siblings of env_vars", () => {
-    const result = getDisplaySandboxConfig({
-      env_vars: [{ kind: "literal", name: "A", value: "1" }],
-      internet_access: { mode: "allow" },
-      dependencies: { packages: ["numpy"] },
-    });
-
-    expect(result).toEqual({
-      env_vars: [{ kind: "literal", name: "A", value: "<redacted>" }],
-      internet_access: { mode: "allow" },
-      dependencies: { packages: ["numpy"] },
-    });
-  });
-
-  it("does not mutate the input object", () => {
-    const original = {
-      env_vars: [{ kind: "literal", name: "A", value: "1" }],
-    };
-    const snapshot = JSON.parse(JSON.stringify(original));
-
-    getDisplaySandboxConfig(original);
-
-    expect(original).toEqual(snapshot);
-  });
-
-  it("passes through non-object configs unchanged", () => {
-    expect(getDisplaySandboxConfig(null)).toBeNull();
-    expect(getDisplaySandboxConfig(undefined)).toBeUndefined();
-    expect(getDisplaySandboxConfig("string")).toBe("string");
-    expect(getDisplaySandboxConfig(42)).toBe(42);
-  });
-
-  it("passes through malformed env_vars (non-array) unchanged", () => {
-    const result = getDisplaySandboxConfig({
-      env_vars: "not-an-array",
-    });
-    expect(result).toEqual({ env_vars: "not-an-array" });
-  });
-
-  it("passes through malformed env_var entries (non-object) unchanged", () => {
-    const result = getDisplaySandboxConfig({
-      env_vars: ["string-entry", null, 42],
-    });
-    expect(result).toEqual({
-      env_vars: ["string-entry", null, 42],
-    });
-  });
-
-  it("does not throw on literal entry missing value field", () => {
-    const result = getDisplaySandboxConfig({
-      env_vars: [{ kind: "literal", name: "A" }],
-    });
-    expect(result).toEqual({
-      env_vars: [{ kind: "literal", name: "A" }],
-    });
   });
 });

@@ -3,10 +3,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { BackendInfo } from "../types";
 import { shouldShowLocalDenoTrustWarning } from "../utils";
 
-type TrustWarningBackend = Pick<BackendInfo, "backendType" | "status">;
+type TrustWarningBackend = Pick<BackendInfo, "kind" | "status">;
 
 const denoBackend = (status: BackendInfo["status"]): TrustWarningBackend => ({
-  backendType: "DENO",
+  kind: "DENO",
   status,
 });
 
@@ -62,7 +62,7 @@ describe("shouldShowLocalDenoTrustWarning", () => {
   it("returns false for non-DENO backends regardless of status", () => {
     window.Config.managementUrl = undefined;
     const wasm: TrustWarningBackend = {
-      backendType: "WASM",
+      kind: "WASM",
       status: "AVAILABLE",
     };
     expect(shouldShowLocalDenoTrustWarning(wasm)).toBe(false);

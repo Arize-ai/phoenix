@@ -1,8 +1,8 @@
 """
 Core types for the sandbox backend system.
 
-Only depends on stdlib and pydantic (a core Phoenix dependency). Safe to
-import unconditionally regardless of optional sandbox extras.
+Depends only on stdlib, pydantic, and core Phoenix DB type aliases. Safe to
+import unconditionally regardless of optional sandbox SDK extras.
 """
 
 from __future__ import annotations
@@ -14,16 +14,32 @@ from dataclasses import dataclass
 from typing import (
     Annotated,
     Any,
+    ClassVar,
+    Generic,
     Literal,
     Mapping,
     Optional,
+    Sequence,
     Type,
+    TypeVar,
     Union,
     get_args,
 )
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-from starlette.datastructures import Secret
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Discriminator,
+    Field,
+    SecretStr,
+    Tag,
+    TypeAdapter,
+    field_validator,
+    model_validator,
+)
+from typing_extensions import TypeAlias
+
+from phoenix.db.models import SandboxProviderKind
 
 
 class UnsupportedOperation(Exception):
@@ -99,90 +115,555 @@ def _validated_package_list(packages: list[str], validate_one: Callable[[str], s
     return out
 
 
+SANDBOX_PROVIDER_KINDS: frozenset[SandboxProviderKind] = frozenset(get_args(SandboxProviderKind))
+
+
 # ---------------------------------------------------------------------------
-# SandboxProviderFamily — closed set of provider families used as the trust
-# boundary for PHOENIX_ALLOWED_SANDBOX_PROVIDERS. Adding a new provider
-# family requires adding its name here AND setting `family = "..."` on the
-# adapter class. Pyright/mypy will reject mismatches at type-check time.
+# Shared config building blocks — env vars, internet access, dependencies.
+# ---------------------------------------------------------------------------
+
+
+class _BaseModel(BaseModel):
+    """Project-local pydantic base.
+
+    Centralizes the ``extra='forbid' + frozen=True`` config so every Config,
+    Credentials, Deployment, and capability-mixin model in this file shares
+    one source of truth: unknown keys are rejected, and instances are
+    immutable post-validation. Subclasses inherit the config via MRO; they
+    can still override individual keys when they need to.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+
+class EnvVarLiteral(_BaseModel):
+    """An env-var value supplied inline as plaintext."""
+
+    literal: str
+
+
+class EnvVarSecretRef(_BaseModel):
+    """An env-var value resolved at runtime from a secret row by key."""
+
+    secret_key: str
+
+
+def _env_var_discriminator(v: Any) -> str:
+    """Pick which variant a stored env-var dict belongs to by key presence.
+
+    Stored JSON shape is ``{"literal": ...}`` xor ``{"secret_key": ...}`` —
+    the keys are self-disambiguating, so the union does not add a redundant
+    ``type`` tag to the on-disk representation. Returns an unmatched tag for
+    invalid input so pydantic surfaces it as a ``ValidationError`` (rather
+    than letting a bare ``ValueError`` escape past the union adapter).
+    """
+    if isinstance(v, EnvVarLiteral):
+        return "literal"
+    if isinstance(v, EnvVarSecretRef):
+        return "secret_ref"
+    if isinstance(v, dict):
+        if "literal" in v:
+            return "literal"
+        if "secret_key" in v:
+            return "secret_ref"
+    return "__invalid__"
+
+
+EnvVarValue: TypeAlias = Annotated[
+    Union[
+        Annotated[EnvVarLiteral, Tag("literal")],
+        Annotated[EnvVarSecretRef, Tag("secret_ref")],
+    ],
+    Discriminator(_env_var_discriminator),
+]
+
+#: TypeAdapter for parsing/validating a single stored env-var blob. Exposed
+#: separately because ``EnvVarValue`` is a union alias and cannot host
+#: ``model_validate`` directly.
+ENV_VAR_VALUE_ADAPTER: TypeAdapter[Union[EnvVarLiteral, EnvVarSecretRef]] = TypeAdapter(EnvVarValue)
+
+
+class InternetAccessConfig(_BaseModel):
+    mode: Literal["deny", "allow"] = "allow"
+
+
+class DependenciesConfig(_BaseModel):
+    """Per-language dependency list.
+
+    Pure data container: per-package syntax (pip vs. npm) is validated at the
+    parent ``_Config`` level using its ``language`` field, so this model itself
+    needs no external context. That keeps ``SandboxConfig.config`` JSON
+    self-sufficient for re-hydration via ``model_validate`` without any
+    extra ``language`` argument.
+
+    Generic, language-agnostic cleanup (whitespace trimming) lives on the
+    ``packages`` field itself so it applies uniformly regardless of how the
+    model was constructed — raw JSON, a nested pydantic submodel handed up
+    from the GraphQL ``to_orm`` path, a stored DB row, or a unit test.
+    """
+
+    packages: list[str] = Field(default_factory=list)
+
+    @field_validator("packages", mode="after")
+    @classmethod
+    def _strip_packages(cls, packages: list[str]) -> list[str]:
+        return [pkg.strip() for pkg in packages]
+
+
+# ---------------------------------------------------------------------------
+# Capability mixins. A per-adapter Config model composes from these to declare
+# which capabilities it exposes. Capability gates dispatch via
+# isinstance(config, _SupportsX) — model membership IS the structural signal.
+# ---------------------------------------------------------------------------
+
+
+class SupportsEnvVars(_BaseModel):
+    """Mixin: config carries a user-supplied env_vars mapping.
+
+    Keyed by env-var name; name uniqueness is structural (no validator needed).
+    """
+
+    env_vars: dict[str, EnvVarValue] = Field(
+        default_factory=dict,
+        title="Environment Variables",
+        description="Environment variables set at build time; not overridable per call.",
+    )
+
+
+class SupportsInternetAccess(_BaseModel):
+    """Mixin: config carries an internet_access toggle."""
+
+    internet_access: Optional[InternetAccessConfig] = Field(
+        default=None,
+        title="Internet Access",
+        description="Controls whether the sandbox can reach the internet.",
+    )
+
+
+class SupportsDependencies(_BaseModel):
+    """Mixin: config carries a dependency list.
+
+    The per-package syntax (pip vs. npm) is selected by the concrete config's
+    ``language`` field in ``_Config._validate_package_syntax``.
+    """
+
+    dependencies: Optional[DependenciesConfig] = Field(
+        default=None,
+        title="Dependencies",
+        description="Packages to install before code execution.",
+    )
+
+
+class _RuntimePackageInstallation(_BaseModel):
+    """Mixin: the adapter installs packages inside the sandbox at runtime.
+
+    Cross-field validator: when packages are present and
+    ``internet_access.mode='deny'``, the install would have no network. Reject
+    at validate time rather than at execute time.
+
+    Adapters that bake dependencies in at build time (e.g. Modal Image builds
+    on the orchestrator's network, not the sandbox's) should NOT compose this.
+    Mixin presence IS the "installs packages at runtime" signal — no separate
+    metadata flag is needed.
+    """
+
+    @model_validator(mode="after")
+    def _deps_require_internet(self) -> "_RuntimePackageInstallation":
+        deps = getattr(self, "dependencies", None)
+        ia = getattr(self, "internet_access", None)
+        if deps is not None and deps.packages and ia is not None and ia.mode == "deny":
+            raise ValueError(
+                "Runtime package installation requires network access; "
+                "internet_access.mode='deny' is incompatible with non-empty "
+                "dependencies.packages. Set internet_access.mode to 'allow' "
+                "or remove dependencies.packages."
+            )
+        return self
+
+
+# ---------------------------------------------------------------------------
+# Per-adapter Config models. Composed from the capability mixins above so the
+# structural signal is "this config IS-A _SupportsX" rather than "this config
+# happens to define a field named X". Adapters that install packages inside
+# the sandbox at runtime additionally compose ``_RuntimePackageInstallation``
+# so the deny+packages cross-field invariant is enforced by pydantic.
 #
-# The family of an adapter is the unit at which the allowlist operates:
-# all (backend_type, language) variants of a family share one allowlist
-# entry. Extending an existing family with a new language is just a new
-# adapter class with the same `family`; extending Phoenix with a new
-# provider family adds a literal here.
+# Every per-adapter Config inherits from ``_Config``. The base carries the
+# row-immutable ``language`` field and a model_validator that enforces
+# per-language package syntax (pip vs npm) against any ``dependencies``
+# capability the subclass may compose. Subclasses also pin ``kind`` to their
+# specific ``Literal``. Both ``kind`` and ``language`` are real pydantic
+# fields, so they serialize into the JSON config blob — together they make
+# the blob self-sufficient for re-hydration via ``model_validate`` (no
+# external context required) and let pydantic dispatch on ``kind`` for the
+# discriminated-union pattern. ``language`` duplicates the row-column but is
+# immutable (writes set both consistently) so the two can't drift.
 # ---------------------------------------------------------------------------
-SandboxProviderFamily = Literal["WASM", "E2B", "DAYTONA", "VERCEL", "DENO", "MODAL"]
 
 
-SANDBOX_PROVIDER_FAMILIES: frozenset[SandboxProviderFamily] = frozenset(
-    get_args(SandboxProviderFamily)
+class _Config(_BaseModel):
+    """Base for every per-adapter Config model.
+
+    Carries the per-language package-syntax validator. Subclasses declare
+    ``kind`` and ``language`` as their own ``Literal`` fields — narrowing
+    ``language`` to the set the adapter actually supports lets pydantic reject
+    unsupported languages at parse time, so no runtime ``supported_languages``
+    check is needed.
+    """
+
+    @model_validator(mode="after")
+    def _validate_package_syntax(self) -> "_Config":
+        """Syntax-check each ``dependencies.packages`` entry against the
+        config's ``language``.
+
+        Runs as an after-validator so it sees the fully constructed model
+        regardless of how the input arrived — raw JSON, GraphQL ``to_orm``
+        handing up an already-constructed ``DependenciesConfig`` submodel, a
+        stored DB row, or a unit test. Generic whitespace trimming has
+        already been applied by ``DependenciesConfig._strip_packages``; this
+        validator only enforces the language-specific (pip vs. npm) grammar.
+        """
+        deps = getattr(self, "dependencies", None)
+        if deps is None or not deps.packages:
+            return self
+        # ``language`` is declared on each concrete subclass (with a
+        # ``Literal`` narrowing the supported set) rather than on this base —
+        # see the comment block above. Read it via ``getattr`` to stay
+        # type-checkable on the base.
+        language = getattr(self, "language", None)
+        if language == "PYTHON":
+            validate_one = validate_python_package_spec
+        elif language == "TYPESCRIPT":
+            validate_one = validate_npm_package_spec
+        else:
+            return self
+        _validated_package_list(deps.packages, validate_one)
+        return self
+
+
+class E2BConfig(
+    _Config,
+    SupportsEnvVars,
+    SupportsInternetAccess,
+    SupportsDependencies,
+    _RuntimePackageInstallation,
+):
+    kind: Literal["E2B"] = "E2B"
+    language: Literal["PYTHON"] = "PYTHON"
+
+
+class DaytonaConfig(
+    _Config,
+    SupportsEnvVars,
+    SupportsInternetAccess,
+    SupportsDependencies,
+    _RuntimePackageInstallation,
+):
+    kind: Literal["DAYTONA"] = "DAYTONA"
+    language: Literal["PYTHON", "TYPESCRIPT"]
+
+
+class DenoConfig(_Config, SupportsEnvVars):
+    kind: Literal["DENO"] = "DENO"
+    language: Literal["TYPESCRIPT"] = "TYPESCRIPT"
+
+
+class VercelConfig(
+    _Config,
+    SupportsEnvVars,
+    SupportsInternetAccess,
+    SupportsDependencies,
+    _RuntimePackageInstallation,
+):
+    kind: Literal["VERCEL"] = "VERCEL"
+    language: Literal["PYTHON", "TYPESCRIPT"]
+
+
+class WASMConfig(_Config):
+    kind: Literal["WASM"] = "WASM"
+    language: Literal["PYTHON"] = "PYTHON"
+
+
+class ModalConfig(
+    _Config,
+    SupportsEnvVars,
+    SupportsInternetAccess,
+    SupportsDependencies,
+):
+    # Modal bakes deps into the Image at build time, not at runtime; do not
+    # compose ``_RuntimePackageInstallation``.
+    kind: Literal["MODAL"] = "MODAL"
+    language: Literal["PYTHON"] = "PYTHON"
+
+
+# ---------------------------------------------------------------------------
+# Discriminated union over all per-adapter Config models, tagged by ``kind``.
+# Lets callers (read path, migrations, tests) parse a stored ``SandboxConfig.config``
+# JSON blob without knowing which concrete subclass to pick — pydantic dispatches
+# on the ``kind`` field and returns the right typed instance.
+# ---------------------------------------------------------------------------
+
+
+SandboxConfigModel: TypeAlias = Annotated[
+    Union[
+        E2BConfig,
+        DaytonaConfig,
+        DenoConfig,
+        VercelConfig,
+        WASMConfig,
+        ModalConfig,
+    ],
+    Field(discriminator="kind"),
+]
+
+#: Pydantic adapter for parsing a stored ``SandboxConfig.config`` JSON blob
+#: into the right concrete Config subclass by discriminating on ``kind``.
+#:
+#: Callers reading rows that pre-date the in-blob ``kind`` / ``language``
+#: fields should merge those columns into the dict before calling
+#: ``validate_python`` — the row columns are the storage-layer source of truth.
+SANDBOX_CONFIG_ADAPTER: TypeAdapter[SandboxConfigModel] = TypeAdapter(SandboxConfigModel)
+
+
+# ---------------------------------------------------------------------------
+# Per-adapter Deployment models. Admin-scoped, singleton-per-kind (same scope
+# as credentials). Validated against ``sandbox_providers.config`` JSON. URL
+# fields run through a scheme validator to defeat the env-reader SSRF vector
+# that the SDKs would otherwise activate when Phoenix doesn't pass an explicit
+# kwarg.
+# ---------------------------------------------------------------------------
+
+
+_LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+
+
+def _validate_url_scheme(value: Optional[str]) -> Optional[str]:
+    """Reject any scheme other than ``https`` or ``http://localhost``.
+
+    Cheap SSRF guard. Stops ``file://``, ``javascript:``, gopher://, etc. and
+    keeps plain ``http://`` off the public-Internet path. Plain http to
+    localhost stays allowed for dev installs that point at a local Daytona OSS.
+    """
+    if value is None or value == "":
+        return value
+    from urllib.parse import urlparse
+
+    parsed = urlparse(value)
+    if parsed.scheme not in ("https", "http"):
+        raise ValueError(
+            f"URL scheme must be https:// or http:// (got {parsed.scheme!r}); "
+            f"reject schemes such as file://, gopher://, javascript: that would enable SSRF."
+        )
+    if parsed.scheme == "http" and (parsed.hostname or "") not in _LOCAL_HOSTS:
+        raise ValueError(
+            f"http:// is only permitted for localhost; got host {parsed.hostname!r}. "
+            "Use https:// for non-local Daytona / E2B deployments."
+        )
+    return value
+
+
+class NoDeployment(_BaseModel):
+    """Sentinel: this adapter exposes no deployment routing (e.g. WASM, Deno)."""
+
+
+class DaytonaDeployment(_BaseModel):
+    """Daytona on-prem routing. Empty → Daytona's hosted SaaS default."""
+
+    kind: Literal["DAYTONA"] = "DAYTONA"
+    api_url: Optional[str] = Field(
+        default=None,
+        title="Daytona API URL",
+        description=(
+            "Daytona API endpoint URL for on-prem deployments. Leave empty to use "
+            "Daytona's hosted SaaS (https://app.daytona.io/api)."
+        ),
+    )
+    target: Optional[str] = Field(
+        default=None,
+        title="Daytona Target",
+        description=(
+            "Daytona runner target region. Leave empty to use the organization's default."
+        ),
+    )
+
+    @field_validator("api_url", mode="after")
+    @classmethod
+    def _check_api_url(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_url_scheme(v)
+
+
+class E2BDeployment(_BaseModel):
+    """E2B enterprise routing. Empty → E2B's hosted SaaS default."""
+
+    kind: Literal["E2B"] = "E2B"
+    domain: Optional[str] = Field(
+        default=None,
+        title="E2B Domain",
+        description=(
+            "E2B API domain for enterprise deployments. Leave empty to use E2B's hosted SaaS."
+        ),
+    )
+    api_url: Optional[str] = Field(
+        default=None,
+        title="E2B API URL",
+        description=(
+            "Full E2B API URL override. Mutually exclusive with ``domain``; prefer ``domain`` "
+            "unless you need to override the full URL."
+        ),
+    )
+
+    @field_validator("api_url", mode="after")
+    @classmethod
+    def _check_api_url(cls, v: Optional[str]) -> Optional[str]:
+        return _validate_url_scheme(v)
+
+    @model_validator(mode="after")
+    def _domain_xor_api_url(self) -> "E2BDeployment":
+        # The two fields target overlapping SDK kwargs and the E2B SDK's
+        # precedence between them is undocumented — reject the combination
+        # at validate-time rather than forwarding both and hoping.
+        if self.domain is not None and self.api_url is not None:
+            raise ValueError(
+                "E2BDeployment: 'domain' and 'api_url' are mutually exclusive — "
+                "set one of them, not both. Prefer 'domain' unless you need to "
+                "override the full URL."
+            )
+        return self
+
+
+class VercelDeployment(NoDeployment):
+    """Vercel has no public routing kwargs on AsyncSandbox.create today."""
+
+    kind: Literal["VERCEL"] = "VERCEL"
+
+
+class ModalDeployment(NoDeployment):
+    """Modal's public Client.from_credentials() does not expose a server_url kwarg.
+
+    Self-hosted Modal deployments are routed via ``MODAL_SERVER_URL`` in the
+    Phoenix process env, which the Modal SDK reads natively. Phoenix does not
+    author that env var.
+    """
+
+    kind: Literal["MODAL"] = "MODAL"
+
+
+class WASMDeployment(NoDeployment):
+    """WASM runs in-process; no deployment routing applies."""
+
+    kind: Literal["WASM"] = "WASM"
+
+
+class DenoDeployment(NoDeployment):
+    """Deno runs as a local subprocess; no deployment routing applies."""
+
+    kind: Literal["DENO"] = "DENO"
+
+
+# ---------------------------------------------------------------------------
+# Discriminated union over every concrete deployment model. Mirrors the
+# ``SandboxConfigModel`` pattern — one union member per provider kind. The
+# four NoDeployment-style providers (WASM, Deno, Vercel, Modal) join the
+# union via their own ``kind`` Literal even though they carry no routing
+# fields, so the read path can dispatch on ``kind`` uniformly without a
+# special-case short-circuit. The discriminator key is written into the
+# stored ``SandboxProvider.config`` JSON blob alongside the row's own
+# ``kind`` column, so the read path can re-hydrate the right concrete
+# subclass via pydantic without a separate ``kind`` argument.
+#
+# ``NoDeployment`` itself stays as the test-stub / adapter-base default
+# (see ``SandboxAdapter.deployment_config_model``) — it has no ``kind``
+# discriminator so it is intentionally not a union member.
+# ---------------------------------------------------------------------------
+
+
+SandboxDeploymentModel: TypeAlias = Annotated[
+    Union[
+        DaytonaDeployment,
+        E2BDeployment,
+        VercelDeployment,
+        ModalDeployment,
+        WASMDeployment,
+        DenoDeployment,
+    ],
+    Field(discriminator="kind"),
+]
+
+#: Pydantic adapter for parsing a stored ``SandboxProvider.config`` JSON
+#: blob into the right concrete Deployment subclass by discriminating on
+#: ``kind``. Used by the GraphQL read path; the per-adapter write path
+#: continues to use the typed ``deployment_config_model`` directly since
+#: it already knows the kind.
+SANDBOX_DEPLOYMENT_ADAPTER: TypeAdapter[SandboxDeploymentModel] = TypeAdapter(
+    SandboxDeploymentModel
 )
 
 
 # ---------------------------------------------------------------------------
-# Shared config shapes — imported by per-adapter configs that opt in.
+# Per-adapter Credentials models. Field names equal credential keys exactly,
+# so a resolved credential dict validates without renaming. Title / description
+# come from pydantic FieldInfo and feed ProviderCredentialSpec for the GraphQL
+# layer (see ``credential_specs_from``).
 # ---------------------------------------------------------------------------
 
 
-class EnvVarLiteral(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    kind: Literal["literal"]
-    name: str
-    value: str
+class NoCredentials(_BaseModel):
+    """Sentinel: this adapter takes no provider credentials (e.g. WASM, Deno)."""
 
 
-class EnvVarSecretRef(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    kind: Literal["secret_ref"]
-    name: str
-    secret_key: str
-
-
-EnvVarEntry = Annotated[
-    Union[EnvVarLiteral, EnvVarSecretRef],
-    Field(discriminator="kind"),
-]
+class E2BCredentials(_BaseModel):
+    E2B_API_KEY: SecretStr = Field(
+        title="E2B API Key",
+        description="API key for the E2B sandbox service.",
+    )
 
 
-class InternetAccessConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    mode: Literal["deny", "allow"] = "allow"
-
-
-class PythonDependenciesConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    packages: list[str] = Field(default_factory=list)
-    lockfile: Optional[str] = None
-
-    @field_validator("packages", mode="after")
-    @classmethod
-    def _validate_python_specs(cls, packages: list[str]) -> list[str]:
-        return _validated_package_list(packages, validate_python_package_spec)
+class DaytonaCredentials(_BaseModel):
+    DAYTONA_API_KEY: SecretStr = Field(
+        title="Daytona API Key",
+        description="API key for the Daytona sandbox service.",
+    )
 
 
-class TypescriptDependenciesConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class VercelCredentials(_BaseModel):
+    VERCEL_TOKEN: SecretStr = Field(
+        title="Vercel Access Token",
+        description=(
+            "Vercel access token. "
+            "See https://vercel.com/docs/vercel-sandbox/concepts/authentication"
+        ),
+    )
+    VERCEL_PROJECT_ID: SecretStr = Field(
+        title="Vercel Project ID",
+        description="Vercel project identifier.",
+    )
+    VERCEL_TEAM_ID: SecretStr = Field(
+        title="Vercel Team ID",
+        description="Vercel team identifier.",
+    )
 
-    packages: list[str] = Field(default_factory=list)
-    lockfile: Optional[str] = None
 
-    @field_validator("packages", mode="after")
-    @classmethod
-    def _validate_npm_specs(cls, packages: list[str]) -> list[str]:
-        return _validated_package_list(packages, validate_npm_package_spec)
+class ModalCredentials(_BaseModel):
+    MODAL_TOKEN_ID: SecretStr = Field(
+        title="Modal Token ID",
+        description="Modal authentication token ID.",
+    )
+    MODAL_TOKEN_SECRET: SecretStr = Field(
+        title="Modal Token Secret",
+        description="Modal authentication token secret.",
+    )
 
 
-@dataclass
+# ---------------------------------------------------------------------------
+# ProviderCredentialSpec — GraphQL surface for "what credentials does this
+# adapter need?". Derived from ``credentials_model.model_fields`` instead of
+# being declared in parallel (one source of truth).
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
 class ProviderCredentialSpec:
-    """Describes a provider credential env var required by a sandbox adapter.
-
-    Used by _resolve_sandbox_credentials() for DB secret lookup and by
-    setSandboxCredential/deleteSandboxCredential mutations for key validation.
-    """
+    """GraphQL-facing credential spec, derived from a credentials model field."""
 
     key: str
     display_name: str
@@ -190,141 +671,29 @@ class ProviderCredentialSpec:
     is_required: bool = True
 
 
+def credential_specs_from(model: Type[BaseModel]) -> list[ProviderCredentialSpec]:
+    """Derive ProviderCredentialSpec list from a credentials model's fields.
+
+    Field title / description / is_required come from pydantic FieldInfo, so the
+    credentials model is the single source of truth — adding a credential is one
+    pydantic field, not two declarations.
+    """
+    specs: list[ProviderCredentialSpec] = []
+    for name, info in model.model_fields.items():
+        specs.append(
+            ProviderCredentialSpec(
+                key=name,
+                display_name=info.title or name,
+                description=info.description or "",
+                is_required=info.is_required(),
+            )
+        )
+    return specs
+
+
 # ---------------------------------------------------------------------------
-# Per-adapter pydantic config models.
-# extra="forbid" rejects unknown keys at validate_config.
-# All config fields are optional — adapters use defaults for missing keys.
+# ExecutionResult + SandboxBackend protocol.
 # ---------------------------------------------------------------------------
-
-
-class E2BConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    env_vars: list[EnvVarEntry] = Field(
-        default_factory=list,
-        title="Environment Variables",
-        description="Environment variables set at build time; not overridable per call.",
-    )
-    internet_access: Optional[InternetAccessConfig] = Field(
-        default=None,
-        title="Internet Access",
-        description="Controls whether the sandbox can reach the internet.",
-    )
-    dependencies: Optional[PythonDependenciesConfig] = Field(
-        default=None,
-        title="Python Dependencies",
-        description="Python packages to install before code execution.",
-    )
-
-
-class DaytonaPythonConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    env_vars: list[EnvVarEntry] = Field(
-        default_factory=list,
-        title="Environment Variables",
-        description="Environment variables set at build time; not overridable per call.",
-    )
-    internet_access: Optional[InternetAccessConfig] = Field(
-        default=None,
-        title="Internet Access",
-        description="Controls whether the sandbox can reach the internet.",
-    )
-    dependencies: Optional[PythonDependenciesConfig] = Field(
-        default=None,
-        title="Python Dependencies",
-        description="Python packages to install before code execution.",
-    )
-
-
-class DaytonaTypescriptConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    env_vars: list[EnvVarEntry] = Field(
-        default_factory=list,
-        title="Environment Variables",
-        description="Environment variables set at build time; not overridable per call.",
-    )
-    internet_access: Optional[InternetAccessConfig] = Field(
-        default=None,
-        title="Internet Access",
-        description="Controls whether the sandbox can reach the internet.",
-    )
-    dependencies: Optional[TypescriptDependenciesConfig] = Field(
-        default=None,
-        title="TypeScript Dependencies",
-        description="npm packages to install before code execution.",
-    )
-
-
-class DenoConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    env_vars: list[EnvVarEntry] = Field(
-        default_factory=list,
-        title="Environment Variables",
-        description="Environment variables set at build time; not overridable per call.",
-    )
-    internet_access: Optional[InternetAccessConfig] = Field(
-        default=None,
-        title="Internet Access",
-        description="Controls whether the sandbox can reach the internet.",
-    )
-
-
-class _VercelConfigBase(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    env_vars: list[EnvVarEntry] = Field(
-        default_factory=list,
-        title="Environment Variables",
-        description="Environment variables set at build time; not overridable per call.",
-    )
-    internet_access: Optional[InternetAccessConfig] = Field(
-        default=None,
-        title="Internet Access",
-        description="Controls whether the sandbox can reach the internet.",
-    )
-
-
-class VercelPythonConfig(_VercelConfigBase):
-    dependencies: Optional[PythonDependenciesConfig] = Field(
-        default=None,
-        title="Python Dependencies",
-        description="Python packages to install before code execution.",
-    )
-
-
-class VercelTypescriptConfig(_VercelConfigBase):
-    dependencies: Optional[TypescriptDependenciesConfig] = Field(
-        default=None,
-        title="TypeScript Dependencies",
-        description="npm packages to install before code execution.",
-    )
-
-
-class WASMConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-
-class ModalConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    env_vars: list[EnvVarEntry] = Field(
-        default_factory=list,
-        title="Environment Variables",
-        description="Environment variables set at build time; not overridable per call.",
-    )
-    internet_access: Optional[InternetAccessConfig] = Field(
-        default=None,
-        title="Internet Access",
-        description="Controls whether the sandbox can reach the internet.",
-    )
-    dependencies: Optional[PythonDependenciesConfig] = Field(
-        default=None,
-        title="Python Dependencies",
-        description="Python packages to install before code execution.",
-    )
 
 
 # Matches ANSI CSI escape sequences (e.g. color codes from tput / chalk).
@@ -356,21 +725,24 @@ class ExecutionResult:
 
 def compose_secret_values(
     user_env: Optional[Mapping[str, str]],
-    *credentials: Optional[Secret],
+    *credentials: Optional[SecretStr],
 ) -> frozenset[str]:
     """Combine user-env plaintext values with provider credential plaintexts.
 
     Called by each ``SandboxBackend.__init__`` to populate ``self.secret_values``
-    in a single place. Empty/None credential entries are dropped so adapters
-    with partial credential sets (e.g. one missing key) don't introduce
-    empty-string entries that would mask everywhere.
-
-    Credentials are passed as ``starlette.datastructures.Secret`` and unwrapped
-    via ``str()`` for the masking layer, which performs string replacement on
-    emitted span attributes and exception messages and therefore needs the
-    plaintext form to match against.
+    in a single place. Credentials are unwrapped to plaintext for the span
+    masking layer. Empty credentials are dropped so a backend with a partial
+    credential set doesn't introduce empty-string entries that would mask
+    everywhere.
     """
-    return frozenset((user_env or {}).values()) | frozenset(str(c) for c in credentials if c)
+    values: set[str] = set((user_env or {}).values())
+    for cred in credentials:
+        if cred is None:
+            continue
+        plaintext = cred.get_secret_value()
+        if plaintext:
+            values.add(plaintext)
+    return frozenset(values)
 
 
 class SandboxBackend(ABC):
@@ -425,7 +797,7 @@ class SandboxBackend(ABC):
 
 class BaseNoSessionBackend(SandboxBackend):
     """
-    Mixin for stateless sandbox backends (e.g. WASM, Vercel).
+    Mixin for stateless sandbox backends (e.g. WASM, Deno).
 
     Provides no-op start_session and stop_session implementations.
     Subclasses only need to implement execute() and close().
@@ -438,34 +810,55 @@ class BaseNoSessionBackend(SandboxBackend):
         pass
 
 
-class SandboxAdapter(ABC):
+# ---------------------------------------------------------------------------
+# SandboxAdapter — generic over config and credentials pydantic models.
+#
+# Each concrete adapter parameterizes the base over its own Config and
+# Credentials models. Past validation, internal code operates on typed
+# instances; the dict-typed boundary lives only at I/O edges (GraphQL JSON
+# input, DB JSON storage, env-var resolution).
+# ---------------------------------------------------------------------------
+
+
+ConfigT = TypeVar("ConfigT", bound=_Config)
+CredT = TypeVar("CredT", bound=BaseModel)
+DeployT = TypeVar("DeployT", bound=BaseModel)
+
+
+class SandboxAdapter(Generic[ConfigT, CredT, DeployT], ABC):
     """
     Abstract base class for sandbox adapters.
 
-    An adapter bridges a SandboxConfig (DB row) and a SandboxBackend instance.
-    It owns credential resolution and backend construction.
+    Parameterized over a config pydantic model and a credentials pydantic
+    model. One adapter registers per :attr:`kind`; multi-language adapters
+    use the concrete config model's ``language`` field to route execution.
     """
 
-    #: Unique key identifying this adapter (matches backend_type in sandbox_providers).
-    key: str
-
-    #: Provider family — the trust boundary for PHOENIX_ALLOWED_SANDBOX_PROVIDERS.
-    #: All adapters that share infrastructure / SDK / credentials / isolation
-    #: boundary (e.g. VercelPythonAdapter and VercelTypescriptAdapter both
-    #: family="VERCEL") share an allowlist entry.
-    family: SandboxProviderFamily
+    #: Canonical provider kind (matches ``sandbox_providers.kind`` and dict keys).
+    kind: ClassVar[SandboxProviderKind]
 
     #: Human-readable name for display in the UI.
-    display_name: str
+    display_name: ClassVar[str]
 
-    #: Language this adapter supports (must match Language.name values in DB).
-    language: Literal["PYTHON", "TYPESCRIPT"]
+    #: Where the sandbox's code execution physically happens. Not derivable
+    #: from ``config_model`` structure — declared per-adapter and reflected
+    #: into ``AdapterMetadata.hosting_type`` for the GraphQL surface.
+    hosting_type: ClassVar[Literal["local", "hosted"]]
 
-    #: Pydantic model used for config validation. Subclasses override at class level.
-    config_model: Type[BaseModel] = BaseModel
+    #: Human-readable install / setup hints surfaced in the UI when the
+    #: adapter is in NOT_INSTALLED / MISSING_CREDENTIALS state. Not derivable.
+    dependency_hints: ClassVar[Sequence[str]] = ()
 
-    #: Specs for provider credential env vars required by this adapter.
-    credential_specs: list["ProviderCredentialSpec"] = []
+    #: Typed pydantic model used to validate resolved provider credentials.
+    #: Subclasses override at class level (e.g. ``credentials_model = E2BCredentials``).
+    #: Defaults to ``NoCredentials`` (WASM, Deno).
+    credentials_model: ClassVar[Type[BaseModel]] = NoCredentials
+
+    #: Typed pydantic model used to validate ``SandboxProvider.config`` —
+    #: admin-scoped, singleton-per-kind deployment routing (e.g. Daytona
+    #: ``api_url`` / ``target`` for on-prem). Defaults to ``NoDeployment``
+    #: for adapters that expose no routing.
+    deployment_config_model: ClassVar[Type[BaseModel]] = NoDeployment
 
     @classmethod
     def probe_dependencies(cls) -> None:
@@ -474,336 +867,51 @@ class SandboxAdapter(ABC):
         Called by ``phoenix.server.sandbox.__init__`` at registration time. Subclasses
         whose backend depends on an optional extra (wasmtime, e2b_code_interpreter,
         daytona_sdk, vercel, modal, ...) should override this to import their SDK
-        and let the ImportError bubble. Adapters without optional SDK deps (e.g.
-        Deno, which shells out to the ``deno`` CLI) inherit this no-op default.
-
-        The registration block in ``phoenix.server.sandbox.__init__`` wraps the
-        adapter import + ``probe_dependencies()`` + registration in a single
-        ``try/except ImportError``: a failed probe results in the adapter being
-        absent from ``_SANDBOX_ADAPTERS``, which the status resolver maps to
-        ``status=NOT_INSTALLED`` (and surfaces the adapter's dependency hints).
+        and let the ImportError bubble.
         """
         return None
+
+    @classmethod
+    def credential_specs(cls) -> list[ProviderCredentialSpec]:
+        """Derive credential specs from this adapter's credentials_model fields."""
+        return credential_specs_from(cls.credentials_model)
+
+    #: Pydantic model class for validating ``SandboxConfig.config``. Single
+    #: class per adapter — the per-language pip-vs-npm dependency check is
+    #: driven by the Config's own ``language`` field, not by selecting a
+    #: different class. Each subclass narrows ``language`` to a ``Literal``
+    #: matching the adapter's supported set, so pydantic rejects unsupported
+    #: languages at ``model_validate`` time (no runtime supported-set check
+    #: needed).
+    #:
+    #: Why not ``ClassVar[Type[ConfigT]]`` like ``credentials_model`` /
+    #: ``deployment_config_model`` above: pyright rejects ``ClassVar`` whose
+    #: type includes a TypeVar (the TypeVar binds per-subclass via the
+    #: ``SandboxAdapter[ConfigT, CredT, DeployT]`` parameterization, which
+    #: conflicts with ``ClassVar``'s "same for every instance" semantics).
+    #: Subclasses still assign at class scope (``config_model = WASMConfig``),
+    #: which works at runtime; the annotation is just an instance attribute
+    #: hint instead.
+    config_model: Type[ConfigT]
 
     @abstractmethod
     def build_backend(
         self,
-        config: Mapping[str, Any],
+        config: ConfigT,
+        *,
+        credentials: CredT,
+        deployment: DeployT,
         user_env: Optional[Mapping[str, str]] = None,
     ) -> SandboxBackend:
-        """Construct and return a SandboxBackend from the provided config.
+        """Construct and return a SandboxBackend from typed config + credentials + deployment.
 
-        The canonical capability contract is defined on AdapterMetadata
-        (phoenix.server.sandbox.AdapterMetadata). Each flag on that class
-        specifies the runtime obligation for this method:
+        All three model arguments are pre-validated pydantic instances; the
+        adapter reaches for typed attributes directly (e.g. ``config.env_vars``,
+        ``config.language``, ``credentials.E2B_API_KEY.get_secret_value()``,
+        ``deployment.api_url``). No dict introspection.
 
-        - supports_env_vars: if True, forward user_env to the backend at
-          execute-time or creation-time as appropriate. If False, MUST raise
-          UnsupportedOperation when user_env is non-empty.
-        - internet_access_capability: if "none", MUST raise UnsupportedOperation
-          when config.get("internet_access") resolves to a non-"none" mode.
-        - dependencies_language: if None, MUST raise UnsupportedOperation when
-          config.get("dependencies") contains non-empty packages.
-
-        user_env is a pre-resolved plaintext mapping of user-supplied environment
-        variables (name → value). It is passed as a sibling argument — NOT
-        merged into config — to prevent collision with PHOENIX_SANDBOX_*
-        credential keys that adapters read from config.
+        ``user_env`` is a resolved plaintext mapping (name → value), passed as a
+        sibling argument — never merged into config — so it cannot collide with
+        provider credential keys.
         """
         ...
-
-    def validate_config(self, config: Mapping[str, Any]) -> dict[str, Any]:
-        """
-        Validate config via the adapter's pydantic config_model, then apply
-        capability gates from AdapterMetadata.
-
-        Returns the validated config dict. Raises ValueError on struct-validation
-        failures and pydantic ValidationError when the validated config violates
-        an advertised capability:
-          - supports_env_vars is False and config has non-empty env_vars
-          - internet_access_capability == "none" and config has an
-            internet_access block
-          - dependencies_language is None and config.dependencies.packages
-            is non-empty
-
-        The per-adapter build_backend capability guards remain in place as
-        defense-in-depth (see _enforce_capabilities template method).
-        """
-        from pydantic import ValidationError
-
-        try:
-            validated = self.config_model.model_validate(config)
-        except ValidationError as exc:
-            raise ValueError(str(exc)) from exc
-        # model_dump preserves extra fields because models use extra="allow"
-        validated_dict = validated.model_dump()
-        self._enforce_unique_env_var_names(validated_dict)
-        self._enforce_capability_gates(validated_dict)
-        return validated_dict
-
-    def _enforce_unique_env_var_names(self, config: Mapping[str, Any]) -> None:
-        """Reject duplicate ``name`` values in config.env_vars.
-
-        Silent last-wins is unsafe: two entries with the same name but
-        different kinds (e.g. literal vs secret_ref) would let one arbitrarily
-        override the other at resolve time. Fail at write time instead so the
-        caller sees a deterministic diagnostic.
-        """
-        from pydantic import ValidationError
-        from pydantic_core import InitErrorDetails, PydanticCustomError
-
-        env_vars = config.get("env_vars") or []
-        seen: set[str] = set()
-        duplicates: list[str] = []
-        for entry in env_vars:
-            name = entry.get("name") if isinstance(entry, dict) else getattr(entry, "name", None)
-            if not isinstance(name, str):
-                continue
-            if name in seen and name not in duplicates:
-                duplicates.append(name)
-            seen.add(name)
-
-        if not duplicates:
-            return
-
-        errors: list[InitErrorDetails] = [
-            InitErrorDetails(
-                type=PydanticCustomError(
-                    "duplicate_env_var_name",
-                    (
-                        "Duplicate env_var name '{name}': env_var names must be "
-                        "unique within a single SandboxConfig."
-                    ),
-                    {"name": name},
-                ),
-                loc=("env_vars",),
-                input=env_vars,
-            )
-            for name in duplicates
-        ]
-        raise ValidationError.from_exception_data(type(self).__name__, errors)
-
-    def _enforce_capability_gates(self, config: Mapping[str, Any]) -> None:
-        """Raise pydantic ValidationError if config violates AdapterMetadata
-        capability flags.
-
-        Metadata is resolved via a lazy import to avoid a circular dependency
-        between `types.py` and `sandbox.__init__`.
-        """
-        from pydantic import ValidationError
-        from pydantic_core import InitErrorDetails, PydanticCustomError
-
-        try:
-            from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
-        except ImportError:
-            return
-        metadata = SANDBOX_ADAPTER_METADATA.get(self.key)
-        if metadata is None:
-            return
-
-        errors: list[InitErrorDetails] = []
-
-        env_vars = config.get("env_vars")
-        if not metadata.supports_env_vars and env_vars:
-            errors.append(
-                InitErrorDetails(
-                    type=PydanticCustomError(
-                        "capability_violation",
-                        (
-                            "{adapter} adapter does not support user-defined "
-                            "environment variables; remove env_vars or switch "
-                            "to an adapter that supports them."
-                        ),
-                        {"adapter": self.key},
-                    ),
-                    loc=("env_vars",),
-                    input=env_vars,
-                )
-            )
-
-        internet_access = config.get("internet_access")
-        if metadata.internet_access_capability == "none" and internet_access is not None:
-            errors.append(
-                InitErrorDetails(
-                    type=PydanticCustomError(
-                        "capability_violation",
-                        (
-                            "{adapter} adapter does not support internet_access "
-                            "configuration; remove the internet_access field or "
-                            "switch to an adapter that supports it."
-                        ),
-                        {"adapter": self.key},
-                    ),
-                    loc=("internet_access",),
-                    input=internet_access,
-                )
-            )
-
-        dependencies = config.get("dependencies")
-        if metadata.dependencies_language is None and dependencies:
-            packages = dependencies.get("packages") if isinstance(dependencies, dict) else None
-            if packages:
-                errors.append(
-                    InitErrorDetails(
-                        type=PydanticCustomError(
-                            "capability_violation",
-                            (
-                                "{adapter} adapter does not support dependency "
-                                "installation; remove dependencies.packages or "
-                                "switch to an adapter that supports it."
-                            ),
-                            {"adapter": self.key},
-                        ),
-                        loc=("dependencies", "packages"),
-                        input=packages,
-                    )
-                )
-
-        # Runtime-install adapters install packages INSIDE the sandbox via
-        # run_code, so a sandbox created with the network already denied has no
-        # PyPI access and the install silently fails. Reject the combination
-        # eagerly.
-        if metadata.installs_packages_at_runtime and metadata.dependencies_language is not None:
-            ia_mode: Optional[str] = None
-            if isinstance(internet_access, dict):
-                ia_mode = internet_access.get("mode")
-            elif internet_access is not None:
-                ia_mode = getattr(internet_access, "mode", None)
-            packages_list: list[Any] = []
-            if isinstance(dependencies, dict):
-                packages_list = dependencies.get("packages") or []
-            elif dependencies is not None:
-                packages_list = getattr(dependencies, "packages", None) or []
-            if ia_mode == "deny" and packages_list:
-                errors.append(
-                    InitErrorDetails(
-                        type=PydanticCustomError(
-                            "capability_violation",
-                            (
-                                "{adapter} adapter installs packages inside the "
-                                "sandbox at runtime, so internet_access.mode='deny' "
-                                "is incompatible with non-empty "
-                                "dependencies.packages: pip cannot reach PyPI from "
-                                "a network-denied sandbox. Set internet_access.mode "
-                                "to 'allow' or remove dependencies.packages."
-                            ),
-                            {"adapter": self.key},
-                        ),
-                        loc=("dependencies", "packages"),
-                        input=packages_list,
-                    )
-                )
-
-        if errors:
-            raise ValidationError.from_exception_data(
-                type(self).__name__,
-                errors,
-            )
-
-    def _enforce_capabilities(
-        self,
-        config: Mapping[str, Any],
-        user_env: Optional[Mapping[str, str]] = None,
-    ) -> None:
-        """Raise UnsupportedOperation if config/user_env violates this adapter's
-        advertised capabilities per SANDBOX_ADAPTER_METADATA.
-
-        Build-time (second) capability guard. The first guard runs at
-        validate_config time via ``_enforce_capability_gates`` and raises
-        pydantic ValidationError. This method runs at ``build_backend`` time,
-        enforcing the same contract against the effective runtime inputs
-        (including per-execute ``user_env``) and raising UnsupportedOperation
-        so executor surfaces (evaluators, chat_mutations) can surface the
-        violation as an adapter error.
-
-        Contract:
-        - ``supports_env_vars`` is False → config's ``env_vars`` list must be
-          empty AND ``user_env`` must be falsy.
-        - ``internet_access_capability == "none"`` → config must not carry an
-          ``internet_access`` block whose ``mode`` is non-None.
-        - ``dependencies_language is None`` → config must not carry non-empty
-          ``dependencies.packages``.
-
-        ``config`` is a plain dict after validate_config (model_validate →
-        model_dump). Nested shapes are dual-accessed via ``dict.get()`` /
-        ``getattr()`` so callers passing pydantic instances still work.
-        """
-        # Lazy import to avoid circular dependency with sandbox/__init__.py.
-        try:
-            from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
-        except ImportError:
-            return
-        metadata = SANDBOX_ADAPTER_METADATA.get(self.key)
-        if metadata is None:
-            return
-
-        if not metadata.supports_env_vars:
-            env_vars = config.get("env_vars") or []
-            if env_vars:
-                raise UnsupportedOperation(
-                    f"{self.display_name} backend does not support user-supplied "
-                    "environment variables. Remove the `env_vars` field or switch "
-                    "to a backend that supports env vars."
-                )
-            if user_env:
-                raise UnsupportedOperation(
-                    f"{self.display_name} backend does not support user-supplied "
-                    "environment variables. Disable env_vars for this config or "
-                    "switch to a backend that supports env vars."
-                )
-
-        if metadata.internet_access_capability == "none":
-            internet_access = config.get("internet_access")
-            if internet_access is not None:
-                mode = (
-                    internet_access.get("mode")
-                    if isinstance(internet_access, dict)
-                    else getattr(internet_access, "mode", None)
-                )
-                if mode is not None:
-                    raise UnsupportedOperation(
-                        f"{self.display_name} backend does not support "
-                        "`internet_access` configuration. Remove the field or "
-                        "switch to a backend that supports it."
-                    )
-
-        if metadata.dependencies_language is None:
-            deps = config.get("dependencies")
-            if deps is not None:
-                packages = (
-                    deps.get("packages")
-                    if isinstance(deps, dict)
-                    else getattr(deps, "packages", None)
-                ) or []
-                if packages:
-                    raise UnsupportedOperation(
-                        f"{self.display_name} backend does not support "
-                        "dependency installation. Remove `dependencies.packages` "
-                        "or switch to a backend that supports dependencies."
-                    )
-
-        # Runtime-install combo guard (mirrors _enforce_capability_gates).
-        # Defense-in-depth: validate_config already rejects this at write time,
-        # but a misconfigured stored config reaching build_backend (e.g. via a
-        # path that bypassed validate_config) must still fail loudly rather
-        # than silently producing a sandbox where pip install fails.
-        if metadata.installs_packages_at_runtime and metadata.dependencies_language is not None:
-            internet_access = config.get("internet_access")
-            ia_mode: Optional[str] = None
-            if isinstance(internet_access, dict):
-                ia_mode = internet_access.get("mode")
-            elif internet_access is not None:
-                ia_mode = getattr(internet_access, "mode", None)
-            deps = config.get("dependencies")
-            packages_list: list[Any] = []
-            if isinstance(deps, dict):
-                packages_list = deps.get("packages") or []
-            elif deps is not None:
-                packages_list = getattr(deps, "packages", None) or []
-            if ia_mode == "deny" and packages_list:
-                raise UnsupportedOperation(
-                    f"{self.display_name} backend installs packages inside the "
-                    "sandbox at runtime; internet_access.mode='deny' blocks pip "
-                    "from reaching PyPI. Set internet_access.mode to 'allow' or "
-                    "remove dependencies.packages."
-                )

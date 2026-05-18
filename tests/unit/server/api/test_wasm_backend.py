@@ -11,13 +11,17 @@ metadata, build_backend config plumbing).
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any  # noqa: F401
-from unittest.mock import MagicMock, patch  # noqa: F401
+from typing import TYPE_CHECKING, Any, cast  # noqa: F401
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+from unittest.mock import AsyncMock, MagicMock, patch  # noqa: F401
 
 import pytest
 
 pytest.importorskip("wasmtime", reason="wasmtime optional extra not installed")
 
+from phoenix.server.sandbox import SecretsContext  # noqa: E402
 from phoenix.server.sandbox.types import ExecutionResult  # noqa: E402
 from phoenix.server.sandbox.wasm_backend import (  # noqa: E402
     WASMAdapter,
@@ -25,6 +29,26 @@ from phoenix.server.sandbox.wasm_backend import (  # noqa: E402
     WASMBinaryProbe,
     _run_wasm,
 )
+
+
+def _empty_secrets_context() -> SecretsContext:
+    """A ``SecretsContext`` whose DB lookups all resolve to "nothing".
+
+    The resolver tests below exercise ``get_sandbox_backend_info`` which:
+    (a) reads provider credentials via ``session.scalars(...)``, and
+    (b) reads the deployment row via ``session.get(...)``.
+    Neither call should produce real DB results — we just need awaitable
+    stubs so the await sites don't TypeError. The behavior under test is
+    the WASM-binary probe path; credential and deployment resolution are
+    out of scope.
+    """
+    empty_scalars_result = MagicMock()
+    empty_scalars_result.all = MagicMock(return_value=[])
+    session = MagicMock(
+        get=AsyncMock(return_value=None),
+        scalars=AsyncMock(return_value=empty_scalars_result),
+    )
+    return SecretsContext(session=cast("AsyncSession", session), decrypt=lambda b: b)
 
 
 class TestWASMBackendSessionNoop:
@@ -91,23 +115,27 @@ class TestRunWasm:
 
 
 class TestWASMAdapter:
-    def test_key(self) -> None:
-        assert WASMAdapter.key == "WASM"
+    def test_kind(self) -> None:
+        assert WASMAdapter.kind == "WASM"
 
-    def test_language(self) -> None:
-        assert WASMAdapter.language == "PYTHON"
+    def test_supported_languages_from_config_literal(self) -> None:
+        # The Config's ``language: Literal[...]`` is the structural source of
+        # truth for supported languages; the adapter no longer carries a
+        # separate ``supported_languages`` frozenset.
+        from typing import get_args
+
+        assert get_args(WASMAdapter.config_model.model_fields["language"].annotation) == ("PYTHON",)
 
     def test_build_backend_returns_wasm_backend(self) -> None:
+        from phoenix.server.sandbox.types import NoCredentials, WASMConfig, WASMDeployment
+
         adapter = WASMAdapter()
-        backend = adapter.build_backend({})
+        backend = adapter.build_backend(
+            WASMConfig(language="PYTHON"),
+            credentials=NoCredentials(),
+            deployment=WASMDeployment(),
+        )
         assert isinstance(backend, WASMBackend)
-
-    def test_build_backend_returns_sandbox_backend(self) -> None:
-        from phoenix.server.sandbox.types import SandboxBackend
-
-        adapter = WASMAdapter()
-        backend = adapter.build_backend({})
-        assert isinstance(backend, SandboxBackend)
 
 
 class TestEngineCaching:
@@ -194,36 +222,32 @@ class TestRunWasmStdoutCapture:
             def inherit_env(self) -> None:
                 pass
 
-        # Real Store needed to construct a real wasmtime.Func
-        store = wasmtime.Store()
-        ft = wasmtime.FuncType([], [])
-
-        def _start_impl(caller: object) -> None:
-            del caller
-            if stdout_cb_holder:
-                stdout_cb_holder[0](b"hello from wasm\n")
-
-        start_func = wasmtime.Func(store, ft, _start_impl, access_caller=True)
+        class _StartFunc:
+            def __call__(self, store: object) -> None:
+                del store
+                if stdout_cb_holder:
+                    stdout_cb_holder[0](b"hello from wasm\n")
 
         mock_exports = MagicMock()
-        mock_exports.get.return_value = start_func
+        mock_exports.get.return_value = _StartFunc()
 
         mock_instance = MagicMock()
         mock_instance.exports.return_value = mock_exports
 
-        fake_engine = wasmtime.Engine()
+        fake_store = MagicMock()
 
         with patch(
             "phoenix.server.sandbox.wasm_backend._get_engine_and_module",
-            return_value=(fake_engine, MagicMock()),
+            return_value=(MagicMock(), MagicMock()),
         ):
             with patch("wasmtime.WasiConfig", _CapturingWasiConfig):
                 with patch("wasmtime.Linker") as mock_linker_cls:
                     mock_linker = MagicMock()
                     mock_linker_cls.return_value = mock_linker
                     mock_linker.instantiate.return_value = mock_instance
-                    with patch("wasmtime.Store", return_value=store):
-                        result = _run_wasm(Path("/fake/cpython.wasm"), "x=1", timeout=5)
+                    with patch("wasmtime.Store", return_value=fake_store):
+                        with patch.object(wasmtime, "Func", _StartFunc):
+                            result = _run_wasm(Path("/fake/cpython.wasm"), "x=1", timeout=5)
 
         assert result.error is None
         assert result.stdout == "hello from wasm\n"
@@ -261,35 +285,32 @@ class TestRunWasmStdoutCapture:
             def inherit_env(self) -> None:
                 pass
 
-        store = wasmtime.Store()
-        ft = wasmtime.FuncType([], [])
-
-        def _start_impl(caller: object) -> None:
-            del caller
-            if stderr_cb_holder:
-                stderr_cb_holder[0](b"error output\n")
-
-        start_func = wasmtime.Func(store, ft, _start_impl, access_caller=True)
+        class _StartFunc:
+            def __call__(self, store: object) -> None:
+                del store
+                if stderr_cb_holder:
+                    stderr_cb_holder[0](b"error output\n")
 
         mock_exports = MagicMock()
-        mock_exports.get.return_value = start_func
+        mock_exports.get.return_value = _StartFunc()
 
         mock_instance = MagicMock()
         mock_instance.exports.return_value = mock_exports
 
-        fake_engine = wasmtime.Engine()
+        fake_store = MagicMock()
 
         with patch(
             "phoenix.server.sandbox.wasm_backend._get_engine_and_module",
-            return_value=(fake_engine, MagicMock()),
+            return_value=(MagicMock(), MagicMock()),
         ):
             with patch("wasmtime.WasiConfig", _CapturingWasiConfig):
                 with patch("wasmtime.Linker") as mock_linker_cls:
                     mock_linker = MagicMock()
                     mock_linker_cls.return_value = mock_linker
                     mock_linker.instantiate.return_value = mock_instance
-                    with patch("wasmtime.Store", return_value=store):
-                        result = _run_wasm(Path("/fake/cpython.wasm"), "x=1", timeout=5)
+                    with patch("wasmtime.Store", return_value=fake_store):
+                        with patch.object(wasmtime, "Func", _StartFunc):
+                            result = _run_wasm(Path("/fake/cpython.wasm"), "x=1", timeout=5)
 
         assert result.error is None
         assert result.stderr == "error output\n"
@@ -336,32 +357,29 @@ class TestRunWasmStdoutCapture:
             def inherit_env(self) -> None:
                 pass
 
-        store = wasmtime.Store()
-        ft = wasmtime.FuncType([], [])
-
-        def _noop_start(caller: object) -> None:
-            del caller
-
-        start_func = wasmtime.Func(store, ft, _noop_start, access_caller=True)
+        class _StartFunc:
+            def __call__(self, store: object) -> None:
+                del store
 
         mock_exports = MagicMock()
-        mock_exports.get.return_value = start_func
+        mock_exports.get.return_value = _StartFunc()
         mock_instance = MagicMock()
         mock_instance.exports.return_value = mock_exports
 
-        fake_engine = wasmtime.Engine()
+        fake_store = MagicMock()
 
         with patch(
             "phoenix.server.sandbox.wasm_backend._get_engine_and_module",
-            return_value=(fake_engine, MagicMock()),
+            return_value=(MagicMock(), MagicMock()),
         ):
             with patch("wasmtime.WasiConfig", _CapturingWasiConfig):
                 with patch("wasmtime.Linker") as mock_linker_cls:
                     mock_linker = MagicMock()
                     mock_linker_cls.return_value = mock_linker
                     mock_linker.instantiate.return_value = mock_instance
-                    with patch("wasmtime.Store", return_value=store):
-                        result = _run_wasm(Path("/fake/cpython.wasm"), "print(1)", timeout=5)
+                    with patch("wasmtime.Store", return_value=fake_store):
+                        with patch.object(wasmtime, "Func", _StartFunc):
+                            result = _run_wasm(Path("/fake/cpython.wasm"), "print(1)", timeout=5)
 
         assert result.error is None
         assert len(stdin_path_holder) == 1
@@ -371,19 +389,51 @@ class TestRunWasmStdoutCapture:
 class TestTempFileCleanup:
     """_run_wasm cleans up its temp stdin file after execution."""
 
-    def test_stdin_temp_file_is_deleted_after_run(self) -> None:
-        # Run with a nonexistent binary — will error but should still clean up
-        result = _run_wasm(Path("/does/not/exist.wasm"), "x=1", timeout=5)
+    def test_stdin_temp_file_is_deleted_after_run(self, tmp_path: Path) -> None:
+        import wasmtime
+
+        stdin_path = tmp_path / "stdin.py"
+
+        class _NamedTempFile:
+            def __enter__(self) -> Any:
+                self._file = stdin_path.open("w")
+                return self._file
+
+            def __exit__(self, *args: object) -> None:
+                self._file.close()
+
+        mock_linker = MagicMock()
+        mock_linker.instantiate.side_effect = RuntimeError("instantiate failed")
+        with patch(
+            "phoenix.server.sandbox.wasm_backend._get_engine_and_module",
+            return_value=(MagicMock(), MagicMock()),
+        ):
+            with patch("tempfile.NamedTemporaryFile", return_value=_NamedTempFile()):
+                with patch.object(wasmtime, "WasiConfig", return_value=MagicMock()):
+                    with patch.object(wasmtime, "Store", return_value=MagicMock()):
+                        with patch.object(wasmtime, "Linker", return_value=mock_linker):
+                            result = _run_wasm(Path("/fake.wasm"), "x=1", timeout=5)
+
         assert result.error is not None
+        assert not stdin_path.exists()
 
     def test_no_env_inherited_into_sandbox(self) -> None:
         """Verify wasi.inherit_env() is not called — user code gets no server env."""
         import wasmtime
 
-        with patch.object(wasmtime.Module, "from_file"):
-            with patch.object(wasmtime.WasiConfig, "inherit_env") as mock_inherit:
-                _run_wasm(Path("/fake.wasm"), "x=1", timeout=5)
-                mock_inherit.assert_not_called()
+        mock_wasi = MagicMock()
+        mock_linker = MagicMock()
+        mock_linker.instantiate.side_effect = RuntimeError("stop before real instantiate")
+        with patch(
+            "phoenix.server.sandbox.wasm_backend._get_engine_and_module",
+            return_value=(MagicMock(), MagicMock()),
+        ):
+            with patch.object(wasmtime, "WasiConfig", return_value=mock_wasi):
+                with patch.object(wasmtime, "Store", return_value=MagicMock()):
+                    with patch.object(wasmtime, "Linker", return_value=mock_linker):
+                        _run_wasm(Path("/fake.wasm"), "x=1", timeout=5)
+
+        mock_wasi.inherit_env.assert_not_called()
 
 
 class TestWASMAdapterProbeBinary:
@@ -480,7 +530,7 @@ class TestSandboxBackendsResolverWASMStatus:
     on top of build_backend() so that status reflects binary-asset presence,
     not just SDK-importability.
 
-    These tests exercise the resolver helper ``_get_sandbox_backend_info_with_session``
+    These tests exercise the resolver helper ``get_sandbox_backend_info``
     directly — it is the single locus of the probe wiring and is more
     surgical to test than the full GraphQL surface.
     """
@@ -488,7 +538,7 @@ class TestSandboxBackendsResolverWASMStatus:
     async def test_wasm_reports_available_when_probe_finds_binary(self) -> None:
         from phoenix.server.api.types.SandboxConfig import (
             SandboxBackendStatus,
-            _get_sandbox_backend_info_with_session,
+            get_sandbox_backend_info,
         )
         from phoenix.server.sandbox import _SANDBOX_ADAPTERS
 
@@ -502,15 +552,17 @@ class TestSandboxBackendsResolverWASMStatus:
                     path=Path("/opt/phoenix/wasm/python-3.12.0.wasm"),
                 ),
             ):
-                infos = await _get_sandbox_backend_info_with_session(session=None, decrypt=None)
-        wasm = next(info for info in infos if info.backend_type == "WASM")
+                infos = await get_sandbox_backend_info(
+                    secrets=_empty_secrets_context(),
+                )
+        wasm = next(info for info in infos if info.kind.value == "WASM")
         assert wasm.status == SandboxBackendStatus.AVAILABLE
         assert wasm.status_detail is None
 
     async def test_wasm_reports_unavailable_when_env_var_set_but_missing(self) -> None:
         from phoenix.server.api.types.SandboxConfig import (
             SandboxBackendStatus,
-            _get_sandbox_backend_info_with_session,
+            get_sandbox_backend_info,
         )
         from phoenix.server.sandbox import _SANDBOX_ADAPTERS
 
@@ -522,15 +574,17 @@ class TestSandboxBackendsResolverWASMStatus:
                 "probe_binary",
                 return_value=WASMBinaryProbe(available=False, detail=detail, path=None),
             ):
-                infos = await _get_sandbox_backend_info_with_session(session=None, decrypt=None)
-        wasm = next(info for info in infos if info.backend_type == "WASM")
+                infos = await get_sandbox_backend_info(
+                    secrets=_empty_secrets_context(),
+                )
+        wasm = next(info for info in infos if info.kind.value == "WASM")
         assert wasm.status == SandboxBackendStatus.UNAVAILABLE
         assert wasm.status_detail == detail
 
     async def test_wasm_reports_unavailable_when_unset_and_no_cache(self) -> None:
         from phoenix.server.api.types.SandboxConfig import (
             SandboxBackendStatus,
-            _get_sandbox_backend_info_with_session,
+            get_sandbox_backend_info,
         )
         from phoenix.server.sandbox import _SANDBOX_ADAPTERS
 
@@ -541,8 +595,10 @@ class TestSandboxBackendsResolverWASMStatus:
                 "probe_binary",
                 return_value=WASMBinaryProbe(available=False, detail=detail, path=None),
             ):
-                infos = await _get_sandbox_backend_info_with_session(session=None, decrypt=None)
-        wasm = next(info for info in infos if info.backend_type == "WASM")
+                infos = await get_sandbox_backend_info(
+                    secrets=_empty_secrets_context(),
+                )
+        wasm = next(info for info in infos if info.kind.value == "WASM")
         assert wasm.status == SandboxBackendStatus.UNAVAILABLE
         assert wasm.status_detail == detail
 
@@ -551,7 +607,7 @@ class TestSandboxBackendsResolverWASMStatus:
         ``urllib.request.urlretrieve`` is never called.
         """
         from phoenix.server.api.types.SandboxConfig import (
-            _get_sandbox_backend_info_with_session,
+            get_sandbox_backend_info,
         )
         from phoenix.server.sandbox import _SANDBOX_ADAPTERS
 
@@ -564,5 +620,7 @@ class TestSandboxBackendsResolverWASMStatus:
                     "urllib.request.urlretrieve",
                     side_effect=AssertionError("network used"),
                 ) as mock_retrieve:
-                    await _get_sandbox_backend_info_with_session(session=None, decrypt=None)
+                    await get_sandbox_backend_info(
+                        secrets=_empty_secrets_context(),
+                    )
         mock_retrieve.assert_not_called()

@@ -23,7 +23,6 @@ import { SandboxProviderCredentialsDialog } from "./SandboxProviderCredentialsDi
 import { sandboxesTableCSS } from "./styles";
 import type { BackendInfo, ProviderRow, SandboxProvider } from "./types";
 import {
-  formatTimestamp,
   getBackendDescription,
   LanguageWithIcon,
   SandboxHostingTypeBadge,
@@ -51,8 +50,7 @@ export function SandboxProvidersCard({
         <thead>
           <tr>
             <th>Provider</th>
-            <th>Language</th>
-            <th>Updated</th>
+            <th>Languages</th>
             <th>Status</th>
             <th />
           </tr>
@@ -64,23 +62,23 @@ export function SandboxProvidersCard({
               <tr key={provider.id}>
                 <td>
                   <Flex direction="row" gap="size-100" alignItems="center">
-                    <SandboxProviderIcon
-                      backendType={backend.backendType}
-                      height={18}
-                    />
+                    <SandboxProviderIcon kind={backend.kind} height={18} />
                     <span>{backend.displayName}</span>
                     <SandboxHostingTypeBadge
                       hostingType={backend.hostingType}
                     />
                     <ContextualHelp variant="info">
-                      {getBackendDescription(backend.backendType)}
+                      {getBackendDescription(backend.kind)}
                     </ContextualHelp>
                   </Flex>
                 </td>
                 <td>
-                  <LanguageWithIcon language={provider.language} />
+                  <Flex direction="row" gap="size-100">
+                    {[...provider.supportedLanguages].map((lang) => (
+                      <LanguageWithIcon key={lang} language={lang} />
+                    ))}
+                  </Flex>
                 </td>
-                <td>{formatTimestamp(provider.updatedAt)}</td>
                 <td>
                   {canEnable ? (
                     <ProviderEnabledSwitch

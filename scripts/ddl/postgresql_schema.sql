@@ -199,21 +199,10 @@ CREATE INDEX ix_prompts_prompt_labels_prompt_label_id ON public.prompts_prompt_l
 -- Table: sandbox_providers
 -- ------------------------
 CREATE TABLE public.sandbox_providers (
-    id bigserial NOT NULL,
-    backend_type VARCHAR NOT NULL,
-    language VARCHAR NOT NULL,
-    enabled BOOLEAN NOT NULL DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    CONSTRAINT pk_sandbox_providers PRIMARY KEY (id),
-    CONSTRAINT uq_sandbox_providers_backend_type_language
-        UNIQUE (backend_type, language),
-    CONSTRAINT uq_sandbox_providers_language_id
-        UNIQUE (language, id),
-    CONSTRAINT fk_sandbox_providers_language_languages FOREIGN KEY
-        (language)
-        REFERENCES public.languages (name)
-        ON DELETE RESTRICT
+    kind VARCHAR NOT NULL,
+    enabled BOOLEAN NOT NULL,
+    config JSONB NOT NULL DEFAULT '{}'::jsonb,
+    CONSTRAINT pk_sandbox_providers PRIMARY KEY (kind)
 );
 
 
@@ -221,7 +210,7 @@ CREATE TABLE public.sandbox_providers (
 -- ----------------------
 CREATE TABLE public.sandbox_configs (
     id bigserial NOT NULL,
-    sandbox_provider_id BIGINT NOT NULL,
+    provider_kind VARCHAR NOT NULL,
     language VARCHAR NOT NULL,
     name VARCHAR NOT NULL,
     description VARCHAR,
@@ -233,15 +222,12 @@ CREATE TABLE public.sandbox_configs (
     CONSTRAINT pk_sandbox_configs PRIMARY KEY (id),
     CONSTRAINT uq_sandbox_configs_language_id
         UNIQUE (language, id),
-    CONSTRAINT uq_sandbox_configs_sandbox_provider_id_name
-        UNIQUE (sandbox_provider_id, name),
-    CONSTRAINT fk_sandbox_configs_provider_language FOREIGN KEY
-        (sandbox_provider_id, language)
-        REFERENCES public.sandbox_providers (id, language),
-    CONSTRAINT fk_sandbox_configs_sandbox_provider_id_sandbox_providers
+    CONSTRAINT uq_sandbox_configs_provider_kind_name
+        UNIQUE (provider_kind, name),
+    CONSTRAINT fk_sandbox_configs_provider_kind_sandbox_providers
         FOREIGN KEY
-        (sandbox_provider_id)
-        REFERENCES public.sandbox_providers (id)
+        (provider_kind)
+        REFERENCES public.sandbox_providers (kind)
         ON DELETE CASCADE
 );
 

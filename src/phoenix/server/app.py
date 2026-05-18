@@ -36,10 +36,11 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.utils import is_body_allowed_for_status_code
 from grpc.aio import ServerInterceptor
 from grpc_interceptor import AsyncServerInterceptor
+from pydantic import SecretStr
 from pydantic_ai.mcp import MCPServerStreamableHTTP
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
-from starlette.datastructures import URL, Secret
+from starlette.datastructures import URL
 from starlette.datastructures import State as StarletteState
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
@@ -131,7 +132,7 @@ from phoenix.server.api.dataloaders import (
     PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
     SandboxConfigsByProviderDataLoader,
-    SandboxProviderByIdDataLoader,
+    SandboxProviderDataLoader,
     SecretsDataLoader,
     SessionAnnotationsBySessionDataLoader,
     SessionIODataLoader,
@@ -757,7 +758,7 @@ def create_graphql_router(
     cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
     event_queue: CanPutItem[DmlEvent],
     read_only: bool = False,
-    secret: Optional[Secret] = None,
+    secret: Optional[SecretStr] = None,
     token_store: Optional[TokenStore] = None,
     email_sender: Optional[EmailSender] = None,
 ) -> GraphQLRouter[Context, None]:
@@ -901,7 +902,7 @@ def create_graphql_router(
                     cache_map=cache_for_dataloaders.record_count if cache_for_dataloaders else None,
                 ),
                 sandbox_configs_by_provider=SandboxConfigsByProviderDataLoader(db),
-                sandbox_provider_by_id=SandboxProviderByIdDataLoader(db),
+                sandbox_provider=SandboxProviderDataLoader(db),
                 secret_fields=TableFieldsDataLoader(db, models.Secret),
                 secrets=SecretsDataLoader(db),
                 session_annotations_by_session=SessionAnnotationsBySessionDataLoader(db),
@@ -1068,7 +1069,7 @@ def create_app(
     serve_ui: bool = True,
     startup_callbacks: Iterable[_Callback] = (),
     shutdown_callbacks: Iterable[_Callback] = (),
-    secret: Optional[Secret] = None,
+    secret: Optional[SecretStr] = None,
     password_reset_token_expiry: Optional[timedelta] = None,
     access_token_expiry: Optional[timedelta] = None,
     refresh_token_expiry: Optional[timedelta] = None,
@@ -1174,7 +1175,7 @@ def create_app(
 
         graphql_schema_extensions.append(_OpenTelemetryExtension)
     encryption_service = EncryptionService(secret=secret)
-    redactor = Redactor(secret=secret or Secret(""))
+    redactor = Redactor(secret=secret or SecretStr(""))
     experiment_runner = ExperimentRunner(
         db,
         decrypt=encryption_service.decrypt,
@@ -1360,16 +1361,16 @@ def create_app(
     return app
 
 
-def _add_get_secret_method(*, app: FastAPI, secret: Optional[Secret]) -> FastAPI:
+def _add_get_secret_method(*, app: FastAPI, secret: Optional[SecretStr]) -> FastAPI:
     """
     Dynamically adds a `get_secret` method to the app's `state`.
     """
     app.state._secret = secret
 
-    def get_secret(self: StarletteState) -> Secret:
+    def get_secret(self: StarletteState) -> SecretStr:
         if (secret := self._secret) is None:
             raise ValueError("app secret is not set")
-        assert isinstance(secret, Secret)
+        assert isinstance(secret, SecretStr)
         return secret
 
     app.state.get_secret = MethodType(get_secret, app.state)

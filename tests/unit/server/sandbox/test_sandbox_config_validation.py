@@ -2,7 +2,8 @@
 
 Scope is limited to logic we own:
 - `validate_config()`'s wrapping of pydantic ValidationError as ValueError.
-- `EnvVarEntry` discriminated-union and `extra="forbid"` design contracts.
+- `EnvVarValue`'s "exactly one of literal/secret_key" invariant and
+  `extra="forbid"` design contract.
 
 Per-adapter pydantic schema re-verification (round-tripping every adapter's
 config model) is intentionally absent — the cross-adapter conformance suite
@@ -19,13 +20,16 @@ import pytest
 from pydantic import BaseModel
 
 from phoenix.server.sandbox.types import (
-    EnvVarEntry,
+    ENV_VAR_VALUE_ADAPTER,
+    DependenciesConfig,
+    E2BDeployment,
     EnvVarLiteral,
     EnvVarSecretRef,
     InternetAccessConfig,
-    PythonDependenciesConfig,
+    NoCredentials,
+    NoDeployment,
     SandboxAdapter,
-    TypescriptDependenciesConfig,
+    SandboxBackend,
     validate_npm_package_spec,
     validate_python_package_spec,
 )
@@ -35,106 +39,90 @@ from phoenix.server.sandbox.types import (
 # ---------------------------------------------------------------------------
 
 
-def _make_adapter(config_model_cls: type) -> SandboxAdapter:
+def _make_adapter(
+    config_model_cls: Any,
+) -> Any:
     """Create a minimal SandboxAdapter with the given config_model."""
 
-    class _ConcreteAdapter(SandboxAdapter):
-        key = "TEST"
-        family = "WASM"  # any canonical family — gate doesn't filter for these tests
+    class _ConcreteAdapter(SandboxAdapter):  # type: ignore[type-arg]
+        kind = "TEST"  # type: ignore[assignment]
         display_name = "Test"
-        language = "PYTHON"
         config_model = config_model_cls
+        credentials_model = NoCredentials
+        deployment_config_model = NoDeployment
 
         def build_backend(
-            self, config: Mapping[str, Any], user_env: Optional[Mapping[str, str]] = None
-        ) -> Any:
-            return None
+            self,
+            config: BaseModel,
+            *,
+            credentials: NoCredentials,
+            deployment: NoDeployment,
+            user_env: Optional[Mapping[str, str]] = None,
+        ) -> SandboxBackend:
+            raise NotImplementedError
 
     return _ConcreteAdapter()
 
 
 # ---------------------------------------------------------------------------
-# validate_config() error path: pydantic ValidationError → ValueError
+# Config validation error path: pydantic ValidationError surfaces directly
+# from ``config_model.model_validate``.
 # ---------------------------------------------------------------------------
 
 
-class TestValidateConfigErrorPath:
-    """validate_config wraps pydantic ValidationError as ValueError for mutation-layer callers."""
+class TestConfigModelValidation:
+    """Pydantic ValidationError from ``adapter.config_model.model_validate``
+    surfaces with the offending field name for mutation-layer callers."""
 
-    def test_pydantic_errors_surface_as_value_error(self) -> None:
-        from pydantic import BaseModel, ConfigDict
+    def test_pydantic_errors_name_the_offending_field(self) -> None:
+        from pydantic import BaseModel, ConfigDict, ValidationError
 
         class RequiredFieldModel(BaseModel):
             model_config = ConfigDict(extra="allow")
             required_field: str  # no default → required
 
         adapter = _make_adapter(RequiredFieldModel)
-        with pytest.raises(ValueError, match="required_field"):
-            adapter.validate_config({})
+        with pytest.raises(ValidationError, match="required_field"):
+            adapter.config_model.model_validate({})
 
 
 # ---------------------------------------------------------------------------
-# EnvVarEntry discriminated union + extra="forbid" + secret_ref shape
+# EnvVarValue: "exactly one of literal/secret_key" + extra="forbid"
 # ---------------------------------------------------------------------------
 
 
-_ENVVAR_ROUND_TRIP_CASES: list[tuple[dict[str, Any], type[BaseModel], dict[str, Any]]] = [
-    (
-        {"kind": "literal", "name": "FOO", "value": "bar"},
-        EnvVarLiteral,
-        {"name": "FOO", "value": "bar"},
-    ),
-    (
-        {"kind": "secret_ref", "name": "BAR", "secret_key": "my-secret"},
-        EnvVarSecretRef,
-        {"name": "BAR", "secret_key": "my-secret"},
-    ),
-]
+class TestEnvVarValue:
+    def test_literal_round_trip(self) -> None:
+        v = ENV_VAR_VALUE_ADAPTER.validate_python({"literal": "bar"})
+        assert isinstance(v, EnvVarLiteral)
+        assert v.literal == "bar"
+        assert v.model_dump() == {"literal": "bar"}
 
-
-class TestEnvVarEntryDiscriminatedUnion:
-    @pytest.mark.parametrize("raw,expected_cls,expected_attrs", _ENVVAR_ROUND_TRIP_CASES)
-    def test_round_trip(
-        self,
-        raw: dict[str, Any],
-        expected_cls: type[BaseModel],
-        expected_attrs: dict[str, Any],
-    ) -> None:
-        from pydantic import TypeAdapter
-
-        ta: TypeAdapter[EnvVarEntry] = TypeAdapter(EnvVarEntry)
-        parsed = ta.validate_python(raw)
-        assert isinstance(parsed, expected_cls)
-        for attr, val in expected_attrs.items():
-            assert getattr(parsed, attr) == val
-        assert ta.dump_python(parsed) == raw
-
-    def test_invalid_kind_raises(self) -> None:
-        from pydantic import TypeAdapter, ValidationError
-
-        ta: TypeAdapter[EnvVarEntry] = TypeAdapter(EnvVarEntry)
-        with pytest.raises(ValidationError):
-            ta.validate_python({"kind": "unknown", "name": "X"})
+    def test_secret_ref_round_trip(self) -> None:
+        v = ENV_VAR_VALUE_ADAPTER.validate_python({"secret_key": "my-secret"})
+        assert isinstance(v, EnvVarSecretRef)
+        assert v.secret_key == "my-secret"
+        assert v.model_dump() == {"secret_key": "my-secret"}
 
     @pytest.mark.parametrize(
-        "cls,payload",
+        "payload",
         [
-            (EnvVarLiteral, {"kind": "literal", "name": "X", "value": "v", "extra": "bad"}),
-            (
-                EnvVarSecretRef,
-                {"kind": "secret_ref", "name": "X", "secret_key": "k", "extra": "bad"},
-            ),
+            {},  # neither key
+            {"literal": "v", "secret_key": "k"},  # both keys → discriminator picks "literal"
+            #                                       and ``extra="forbid"`` rejects ``secret_key``
         ],
     )
-    def test_forbids_extra_fields(self, cls: type[BaseModel], payload: dict[str, Any]) -> None:
+    def test_rejects_neither_or_both(self, payload: dict[str, Any]) -> None:
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
-            cls.model_validate(payload)
+            ENV_VAR_VALUE_ADAPTER.validate_python(payload)
 
-    def test_secret_ref_dump_has_no_value_field(self) -> None:
-        raw = {"kind": "secret_ref", "name": "SECRET_VAR", "secret_key": "prod-api-key"}
-        assert "value" not in EnvVarSecretRef.model_validate(raw).model_dump()
+    def test_forbids_extra_fields(self) -> None:
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            ENV_VAR_VALUE_ADAPTER.validate_python({"literal": "v", "extra": "bad"})
 
 
 # ---------------------------------------------------------------------------
@@ -146,8 +134,7 @@ class TestEnvVarEntryDiscriminatedUnion:
     "model_cls,payload",
     [
         (InternetAccessConfig, {"mode": "allow", "extra": "bad"}),
-        (PythonDependenciesConfig, {"packages": [], "unknown": "x"}),
-        (TypescriptDependenciesConfig, {"packages": [], "unknown": "x"}),
+        (DependenciesConfig, {"packages": [], "unknown": "x"}),
     ],
 )
 def test_nested_leaf_models_forbid_extra_fields(
@@ -160,28 +147,47 @@ def test_nested_leaf_models_forbid_extra_fields(
 
 
 # ---------------------------------------------------------------------------
-# Package-spec validators + dependency-config string normalization
+# Package-spec validators + dependency-config string normalization.
+#
+# ``DependenciesConfig`` picks the per-package syntax validator based on the
+# ``language`` threaded via ``ValidationInfo.context``. Tests pass
+# ``context={"language": ...}`` explicitly because they bypass the adapter
+# layer that would normally thread it through.
 # ---------------------------------------------------------------------------
+
+
+def _validate_deps(packages: list[str], language: str) -> DependenciesConfig:
+    # Package-syntax validation lives on the parent ``_Config`` (it reads
+    # ``self.language`` and walks the optional ``dependencies`` capability),
+    # so we exercise it through a concrete per-adapter Config rather than
+    # constructing a bare ``DependenciesConfig`` in isolation. Daytona is
+    # chosen because it accepts both PYTHON and TYPESCRIPT — its Config's
+    # ``language: Literal["PYTHON", "TYPESCRIPT"]`` matches the test matrix.
+    from phoenix.server.sandbox.types import DaytonaConfig
+
+    cfg = DaytonaConfig.model_validate(
+        {"language": language, "dependencies": {"packages": packages}}
+    )
+    assert cfg.dependencies is not None
+    return cfg.dependencies
 
 
 class TestTypescriptDependenciesValidation:
     def test_strips_and_accepts_valid(self) -> None:
-        cfg = TypescriptDependenciesConfig(
-            packages=["  lodash  ", "lodash@^4.17", "@scope/pkg@1.2.3"],
-        )
+        cfg = _validate_deps(["  lodash  ", "lodash@^4.17", "@scope/pkg@1.2.3"], "TYPESCRIPT")
         assert cfg.packages == ["lodash", "lodash@^4.17", "@scope/pkg@1.2.3"]
 
     def test_rejects_invalid_with_index(self) -> None:
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError, match=r"packages\[1\]"):
-            TypescriptDependenciesConfig(packages=["lodash", "has spaces"])
+            _validate_deps(["lodash", "has spaces"], "TYPESCRIPT")
 
     def test_rejects_python_style_spec(self) -> None:
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError, match="invalid npm package spec"):
-            TypescriptDependenciesConfig(packages=["openai>=6.37.0"])
+            _validate_deps(["openai>=6.37.0"], "TYPESCRIPT")
 
 
 class TestValidateNpmPackageSpec:
@@ -248,11 +254,37 @@ class TestValidatePythonPackageSpec:
 
 class TestPythonDependenciesValidation:
     def test_strips_and_accepts_valid(self) -> None:
-        cfg = PythonDependenciesConfig(packages=["  requests  ", "numpy==1.26.0"])
+        cfg = _validate_deps(["  requests  ", "numpy==1.26.0"], "PYTHON")
         assert cfg.packages == ["requests", "numpy==1.26.0"]
 
     def test_rejects_invalid_with_index(self) -> None:
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError, match=r"packages\[1\]"):
-            PythonDependenciesConfig(packages=["requests", "bad name!"])
+            _validate_deps(["requests", "bad name!"], "PYTHON")
+
+
+# ---------------------------------------------------------------------------
+# E2BDeployment: ``domain`` and ``api_url`` are mutually exclusive
+# ---------------------------------------------------------------------------
+
+
+class TestE2BDeploymentDomainApiUrlMutualExclusion:
+    """``domain`` and ``api_url`` map to overlapping E2B SDK kwargs whose
+    precedence is undocumented. Reject the combination at validate time so
+    operators see a clear error instead of silently relying on the SDK's
+    internal ordering."""
+
+    def test_either_alone_is_accepted(self) -> None:
+        E2BDeployment(domain="example.e2b.dev")
+        E2BDeployment(api_url="https://example.e2b.dev/api")
+        E2BDeployment()  # both unset → hosted SaaS default
+
+    def test_both_set_is_rejected(self) -> None:
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError, match="mutually exclusive"):
+            E2BDeployment(
+                domain="example.e2b.dev",
+                api_url="https://example.e2b.dev/api",
+            )

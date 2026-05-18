@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dfb87967dba1762d2760b00c7346db5f>>
+ * @generated SignedSource<<4b11b4e0c92a0bd263c4f6c075776190>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,10 +10,12 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
+export type InternetAccessChoice = "ALLOW" | "DENY";
 export type InternetAccessMode = "ALLOWLIST" | "BOOLEAN" | "NONE";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type SandboxBackendStatus = "AVAILABLE" | "MISSING_CREDENTIALS" | "NOT_INSTALLED" | "UNAVAILABLE";
+export type SandboxProviderKind = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "VERCEL" | "WASM";
 export type EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery$variables = {
   datasetEvaluatorId: string;
   datasetId: string;
@@ -65,23 +67,45 @@ export type EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery$data = {
     readonly id: string;
   };
   readonly sandboxBackends: ReadonlyArray<{
-    readonly backendType: string;
-    readonly dependenciesLanguage: Language | null;
     readonly internetAccess: InternetAccessMode;
+    readonly kind: SandboxProviderKind;
     readonly status: SandboxBackendStatus;
+    readonly supportsDependencies: boolean;
     readonly supportsEnvVars: boolean;
   }>;
   readonly sandboxProviders: ReadonlyArray<{
-    readonly backendType: string;
     readonly configs: ReadonlyArray<{
-      readonly config: any;
+      readonly config: {
+        readonly dependencies: {
+          readonly packages: ReadonlyArray<string>;
+        } | null;
+        readonly envVars: ReadonlyArray<{
+          readonly name: string;
+          readonly value: {
+            readonly __typename: "SandboxConfigEnvVarLiteral";
+            readonly literal: string;
+          } | {
+            readonly __typename: "SandboxConfigEnvVarSecretRef";
+            readonly secretKey: string;
+          } | {
+            // This will never be '%other', but we need some
+            // value in case none of the concrete values match.
+            readonly __typename: "%other";
+          };
+        }>;
+        readonly internetAccess: {
+          readonly mode: InternetAccessChoice;
+        } | null;
+      };
       readonly description: string | null;
       readonly id: string;
+      readonly language: Language;
       readonly name: string;
       readonly timeout: number;
     }>;
     readonly enabled: boolean;
-    readonly language: Language;
+    readonly kind: SandboxProviderKind;
+    readonly supportedLanguages: ReadonlyArray<Language>;
   }>;
 };
 export type EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery = {
@@ -277,7 +301,7 @@ v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "backendType",
+  "name": "supportedLanguages",
   "storageKey": null
 },
 v17 = {
@@ -290,6 +314,13 @@ v17 = {
 v18 = {
   "alias": null,
   "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v19 = {
+  "alias": null,
+  "args": null,
   "concreteType": "SandboxConfig",
   "kind": "LinkedField",
   "name": "configs",
@@ -298,6 +329,7 @@ v18 = {
     (v2/*: any*/),
     (v4/*: any*/),
     (v5/*: any*/),
+    (v12/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -308,14 +340,106 @@ v18 = {
     {
       "alias": null,
       "args": null,
-      "kind": "ScalarField",
+      "concreteType": "SandboxConfigData",
+      "kind": "LinkedField",
       "name": "config",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "SandboxConfigEnvVar",
+          "kind": "LinkedField",
+          "name": "envVars",
+          "plural": true,
+          "selections": [
+            (v4/*: any*/),
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": null,
+              "kind": "LinkedField",
+              "name": "value",
+              "plural": false,
+              "selections": [
+                (v18/*: any*/),
+                {
+                  "kind": "InlineFragment",
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "literal",
+                      "storageKey": null
+                    }
+                  ],
+                  "type": "SandboxConfigEnvVarLiteral",
+                  "abstractKey": null
+                },
+                {
+                  "kind": "InlineFragment",
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "secretKey",
+                      "storageKey": null
+                    }
+                  ],
+                  "type": "SandboxConfigEnvVarSecretRef",
+                  "abstractKey": null
+                }
+              ],
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "SandboxConfigInternetAccess",
+          "kind": "LinkedField",
+          "name": "internetAccess",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "mode",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "SandboxConfigDependencies",
+          "kind": "LinkedField",
+          "name": "dependencies",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "packages",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ],
       "storageKey": null
     }
   ],
   "storageKey": null
 },
-v19 = {
+v20 = {
   "alias": null,
   "args": null,
   "concreteType": "SandboxBackendInfo",
@@ -323,7 +447,7 @@ v19 = {
   "name": "sandboxBackends",
   "plural": true,
   "selections": [
-    (v16/*: any*/),
+    (v11/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -349,17 +473,10 @@ v19 = {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "dependenciesLanguage",
+      "name": "supportsDependencies",
       "storageKey": null
     }
   ],
-  "storageKey": null
-},
-v20 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "__typename",
   "storageKey": null
 },
 v21 = {
@@ -370,7 +487,7 @@ v21 = {
   "name": "outputConfigs",
   "plural": true,
   "selections": [
-    (v20/*: any*/),
+    (v18/*: any*/),
     (v8/*: any*/),
     (v9/*: any*/),
     {
@@ -469,14 +586,14 @@ return {
         "name": "sandboxProviders",
         "plural": true,
         "selections": [
+          (v11/*: any*/),
           (v16/*: any*/),
-          (v12/*: any*/),
           (v17/*: any*/),
-          (v18/*: any*/)
+          (v19/*: any*/)
         ],
         "storageKey": null
       },
-      (v19/*: any*/)
+      (v20/*: any*/)
     ],
     "type": "Query",
     "abstractKey": null
@@ -495,7 +612,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v20/*: any*/),
+          (v18/*: any*/),
           (v2/*: any*/),
           {
             "kind": "InlineFragment",
@@ -521,7 +638,7 @@ return {
                     "name": "evaluator",
                     "plural": false,
                     "selections": [
-                      (v20/*: any*/),
+                      (v18/*: any*/),
                       (v2/*: any*/),
                       (v11/*: any*/),
                       {
@@ -570,28 +687,28 @@ return {
         "name": "sandboxProviders",
         "plural": true,
         "selections": [
+          (v11/*: any*/),
           (v16/*: any*/),
-          (v12/*: any*/),
           (v17/*: any*/),
-          (v18/*: any*/),
+          (v19/*: any*/),
           (v2/*: any*/)
         ],
         "storageKey": null
       },
-      (v19/*: any*/)
+      (v20/*: any*/)
     ]
   },
   "params": {
-    "cacheID": "b14afdd2ffaf1f8c6f64f875f321a2c6",
+    "cacheID": "9b26c7b53ed83fb05b6e9e49bcd1c37d",
     "id": null,
     "metadata": {},
     "name": "EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery",
     "operationKind": "query",
-    "text": "query EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery(\n  $datasetEvaluatorId: ID!\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        name\n        description\n        inputMapping {\n          literalMapping\n          pathMapping\n        }\n        outputConfigs {\n          __typename\n          ... on CategoricalAnnotationConfig {\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on ContinuousAnnotationConfig {\n            name\n            optimizationDirection\n            lowerBound\n            upperBound\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        evaluator {\n          __typename\n          id\n          kind\n          ... on CodeEvaluator {\n            name\n            description\n            language\n            sandboxConfig {\n              id\n            }\n            outputConfigs {\n              __typename\n              ... on CategoricalAnnotationConfig {\n                name\n                optimizationDirection\n                values {\n                  label\n                  score\n                }\n              }\n              ... on ContinuousAnnotationConfig {\n                name\n                optimizationDirection\n                lowerBound\n                upperBound\n              }\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n            currentVersion {\n              sourceCode\n              id\n            }\n          }\n        }\n      }\n    }\n  }\n  sandboxProviders {\n    backendType\n    language\n    enabled\n    configs {\n      id\n      name\n      description\n      timeout\n      config\n    }\n    id\n  }\n  sandboxBackends {\n    backendType\n    status\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n  }\n}\n"
+    "text": "query EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery(\n  $datasetEvaluatorId: ID!\n  $datasetId: ID!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        name\n        description\n        inputMapping {\n          literalMapping\n          pathMapping\n        }\n        outputConfigs {\n          __typename\n          ... on CategoricalAnnotationConfig {\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on ContinuousAnnotationConfig {\n            name\n            optimizationDirection\n            lowerBound\n            upperBound\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n        evaluator {\n          __typename\n          id\n          kind\n          ... on CodeEvaluator {\n            name\n            description\n            language\n            sandboxConfig {\n              id\n            }\n            outputConfigs {\n              __typename\n              ... on CategoricalAnnotationConfig {\n                name\n                optimizationDirection\n                values {\n                  label\n                  score\n                }\n              }\n              ... on ContinuousAnnotationConfig {\n                name\n                optimizationDirection\n                lowerBound\n                upperBound\n              }\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n            currentVersion {\n              sourceCode\n              id\n            }\n          }\n        }\n      }\n    }\n  }\n  sandboxProviders {\n    kind\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      config {\n        envVars {\n          name\n          value {\n            __typename\n            ... on SandboxConfigEnvVarLiteral {\n              literal\n            }\n            ... on SandboxConfigEnvVarSecretRef {\n              secretKey\n            }\n          }\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n    }\n    id\n  }\n  sandboxBackends {\n    kind\n    status\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "dcf5addb8cb7cba09c8cc72927595f30";
+(node as any).hash = "9e14961fe328f614cfe68bb00b94feb1";
 
 export default node;

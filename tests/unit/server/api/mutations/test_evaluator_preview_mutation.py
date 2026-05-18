@@ -217,7 +217,7 @@ class TestInlineCodeEvaluatorPreviewMutation:
         gql_client: AsyncGraphQLClient,
         sandbox_config: models.SandboxConfig,
     ) -> None:
-        wrong_type_id = str(GlobalID("SandboxProvider", str(sandbox_config.id)))
+        wrong_type_id = str(GlobalID("SandboxProvider", sandbox_config.provider_kind))
 
         result = await self._preview_inline_code_evaluator(
             gql_client,
@@ -266,7 +266,7 @@ class TestInlineCodeEvaluatorPreviewMutation:
         sandbox_config: models.SandboxConfig,
     ) -> None:
         async with db() as session:
-            provider = await session.get(models.SandboxProvider, sandbox_config.sandbox_provider_id)
+            provider = await session.get(models.SandboxProvider, sandbox_config.provider_kind)
             assert provider is not None
             provider.enabled = False
             await session.commit()
@@ -307,7 +307,7 @@ class TestInlineCodeEvaluatorPreviewMutation:
         )
 
         with patch(
-            "phoenix.server.sandbox.build_sandbox_backend",
+            "phoenix.server.api.mutations.chat_mutations.build_sandbox_backend",
             return_value=backend,
         ):
             result = await self._preview_inline_code_evaluator(

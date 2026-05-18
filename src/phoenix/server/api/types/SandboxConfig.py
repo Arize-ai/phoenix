@@ -1,9 +1,9 @@
 """
 GQL types for sandbox backend configuration.
 
-Exposes SandboxProvider (one per backend_type × language pair) and
-SandboxConfig (named per-provider config that a CodeEvaluator points to).
-SandboxBackendInfo summarises all known backends including install status.
+Exposes SandboxProvider (one row per canonical ``kind``) and SandboxConfig
+(named configuration that CodeEvaluators point to). SandboxBackendInfo
+summarises all known backends including install status.
 """
 
 from __future__ import annotations
@@ -11,27 +11,34 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional, cast
+from typing import Annotated, Any, Optional, Union
 
 import strawberry
-from strawberry.relay import GlobalID, Node, NodeID
-from strawberry.scalars import JSON
+from strawberry.relay import Node, NodeID
 from strawberry.types import Info
 
 from phoenix.db import models
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.context import Context
-from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.sandbox import (
     SANDBOX_ADAPTER_METADATA,
     MissingSecretError,
-    build_sandbox_backend,
-    get_missing_sandbox_auth_detail,
+    SecretsContext,
+    probe_sandbox_backend_buildable,
 )
-from phoenix.server.sandbox.types import UnsupportedOperation
+from phoenix.server.sandbox.types import (
+    SANDBOX_CONFIG_ADAPTER,
+    SANDBOX_DEPLOYMENT_ADAPTER,
+    DaytonaDeployment,
+    E2BDeployment,
+    EnvVarLiteral,
+    SupportsDependencies,
+    SupportsEnvVars,
+    SupportsInternetAccess,
+    UnsupportedOperation,
+)
 
 logger = logging.getLogger(__name__)
-
-DEFAULT_SANDBOX_TIMEOUT_SECONDS = 300
 
 
 @strawberry.type
@@ -51,6 +58,21 @@ class Language(Enum):
     PYTHON = "PYTHON"
     TYPESCRIPT = "TYPESCRIPT"
 
+    def to_orm(self) -> models.LanguageName:
+        return self.value
+
+
+@strawberry.enum
+class SandboxProviderKind(Enum):
+    """Canonical kind of a sandbox provider. Mirrors `models.SandboxProviderKind`."""
+
+    WASM = "WASM"
+    E2B = "E2B"
+    DAYTONA = "DAYTONA"
+    VERCEL = "VERCEL"
+    DENO = "DENO"
+    MODAL = "MODAL"
+
 
 @strawberry.enum
 class SandboxBackendStatus(Enum):
@@ -68,9 +90,125 @@ class SandboxBackendStatus(Enum):
 
 @strawberry.enum
 class InternetAccessMode(Enum):
+    """Describes an *adapter's* internet-access capability (read-only)."""
+
     NONE = "none"
     BOOLEAN = "boolean"
     ALLOWLIST = "allowlist"
+
+
+@strawberry.enum
+class InternetAccessChoice(Enum):
+    """User-facing internet access selection on a stored sandbox config."""
+
+    ALLOW = "allow"
+    DENY = "deny"
+
+
+@strawberry.type
+class SandboxConfigEnvVarLiteral:
+    literal: str
+
+
+@strawberry.type
+class SandboxConfigEnvVarSecretRef:
+    secret_key: str
+
+
+SandboxConfigEnvVarValue = Annotated[
+    Union[SandboxConfigEnvVarLiteral, SandboxConfigEnvVarSecretRef],
+    strawberry.union(
+        "SandboxConfigEnvVarValue",
+        description=(
+            "An env-var's value. Either a literal string or a reference to a Secret row by key."
+        ),
+    ),
+]
+
+
+@strawberry.type
+class SandboxConfigEnvVar:
+    name: str
+    value: SandboxConfigEnvVarValue
+
+
+@strawberry.type
+class SandboxConfigInternetAccess:
+    mode: InternetAccessChoice
+
+
+@strawberry.type
+class SandboxConfigDependencies:
+    packages: list[str]
+
+
+@strawberry.type
+class SandboxConfigData:
+    """Typed view of a stored sandbox config's per-capability fields.
+
+    Capability presence is **not** encoded here — readers correlate with
+    ``SandboxBackendInfo`` (via ``provider.kind``) to know which capabilities
+    the adapter actually supports. An empty ``env_vars`` list / ``None`` for
+    ``internet_access`` or ``dependencies`` can mean either "supported but
+    unset" or "unsupported"; the backend info disambiguates.
+    """
+
+    env_vars: list[SandboxConfigEnvVar]
+    internet_access: Optional[SandboxConfigInternetAccess] = None
+    dependencies: Optional[SandboxConfigDependencies] = None
+
+    @classmethod
+    def from_stored(cls, stored: Any) -> "SandboxConfigData":
+        """Build a ``SandboxConfigData`` from a stored ``SandboxConfig.config`` dict.
+
+        Parses through ``SANDBOX_CONFIG_ADAPTER`` (the pydantic discriminated
+        union) so the read path uses the same typed surface as the write path —
+        the blob carries its own ``kind`` and ``language`` fields, written
+        atomically with the row columns, so no external context is needed.
+
+        Capability fields are extracted via ``isinstance`` against the
+        ``Supports{EnvVars,InternetAccess,Dependencies}`` mixins, which lets
+        the type checker narrow ``cfg`` and surfaces a clear signal for which
+        capability each branch reads.
+
+        Validation errors fall back to an empty ``SandboxConfigData`` rather
+        than surfacing a 500. Writes go through the same pydantic validators,
+        so newly-stored rows can't be malformed; this guard is purely defensive.
+        """
+        raw = stored if isinstance(stored, dict) else {}
+        try:
+            cfg = SANDBOX_CONFIG_ADAPTER.validate_python(raw)
+        except Exception as exc:
+            logger.warning("Failed to parse stored sandbox config: %s", exc)
+            return cls(env_vars=[], internet_access=None, dependencies=None)
+
+        env_vars: list[SandboxConfigEnvVar] = []
+        if isinstance(cfg, SupportsEnvVars):
+            for name, ev in cfg.env_vars.items():
+                value: Union[SandboxConfigEnvVarLiteral, SandboxConfigEnvVarSecretRef]
+                if isinstance(ev, EnvVarLiteral):
+                    value = SandboxConfigEnvVarLiteral(literal=ev.literal)
+                else:
+                    value = SandboxConfigEnvVarSecretRef(secret_key=ev.secret_key)
+                env_vars.append(SandboxConfigEnvVar(name=name, value=value))
+
+        internet_access: Optional[SandboxConfigInternetAccess] = None
+        if isinstance(cfg, SupportsInternetAccess) and cfg.internet_access is not None:
+            internet_access = SandboxConfigInternetAccess(
+                mode=InternetAccessChoice(cfg.internet_access.mode)
+            )
+
+        dependencies: Optional[SandboxConfigDependencies] = None
+        if isinstance(cfg, SupportsDependencies) and cfg.dependencies is not None:
+            dependencies = SandboxConfigDependencies(
+                packages=list(cfg.dependencies.packages),
+            )
+
+        return cls(
+            env_vars=env_vars,
+            internet_access=internet_access,
+            dependencies=dependencies,
+        )
 
 
 @strawberry.enum
@@ -88,13 +226,13 @@ class SandboxHostingType(Enum):
 @strawberry.type
 class SandboxBackendInfo:
     """
-    Static + runtime information about a sandbox backend type.
+    Static + runtime information about a sandbox backend provider kind.
 
     One instance per entry in SANDBOX_ADAPTER_METADATA, regardless of whether
     any SandboxProvider rows exist in the DB.
     """
 
-    backend_type: str
+    kind: SandboxProviderKind
     display_name: str
     hosting_type: SandboxHostingType
     supported_languages: list[Language]
@@ -103,72 +241,130 @@ class SandboxBackendInfo:
     dependency_hints: list[str]
     supports_env_vars: bool
     internet_access: InternetAccessMode
-    dependencies_language: Optional[Language]
+    supports_dependencies: bool
     credential_specs: list[SandboxProviderCredentialSpec]
 
 
 @strawberry.type
+class DaytonaDeploymentData:
+    """Admin-scoped Daytona deployment routing (read view).
+
+    Mirrors the ``DaytonaDeployment`` pydantic model. ``None`` values mean
+    "fall back to Daytona's hosted SaaS default."
+    """
+
+    api_url: Optional[str]
+    target: Optional[str]
+
+
+@strawberry.type
+class E2BDeploymentData:
+    """Admin-scoped E2B deployment routing (read view).
+
+    Mirrors the ``E2BDeployment`` pydantic model. ``domain`` and ``api_url``
+    are mutually exclusive on the write side; the read side surfaces whichever
+    one was stored.
+    """
+
+    domain: Optional[str]
+    api_url: Optional[str]
+
+
+SandboxDeployment = Annotated[
+    Union[DaytonaDeploymentData, E2BDeploymentData],
+    strawberry.union(
+        "SandboxDeployment",
+        description=(
+            "Admin-scoped deployment routing for a sandbox provider. Only "
+            "providers that expose routing kwargs on their SDK ``create()`` "
+            "appear in this union; others (WASM, Deno, Vercel, Modal) expose "
+            "``deployment: null``."
+        ),
+    ),
+]
+
+
+@strawberry.type
 class SandboxProvider(Node):
-    """
-    A sandbox provider row — one per (backend_type, language) pair.
+    """A sandbox provider row — one per canonical provider ``kind``."""
 
-    Admins configure credentials / enabled flag here; CodeEvaluators select a
-    SandboxConfig that points back to a SandboxProvider.
-    """
-
-    id: NodeID[int]
+    id: NodeID[models.SandboxProviderKind]
     db_record: strawberry.Private[Optional[models.SandboxProvider]] = None
 
     def __post_init__(self) -> None:
-        if self.db_record and self.id != self.db_record.id:
+        if self.db_record and self.id != self.db_record.kind:
             raise ValueError("SandboxProvider ID mismatch")
 
     @strawberry.field
-    async def backend_type(self, info: Info[Context, None]) -> str:
-        record = await self._get_record(info)
-        return record.backend_type
+    async def kind(self) -> SandboxProviderKind:
+        return SandboxProviderKind(self.id)
 
     @strawberry.field
-    async def language(self, info: Info[Context, None]) -> Language:
-        record = await self._get_record(info)
-        return Language(record.language)
+    async def supported_languages(self) -> list[Language]:
+        meta = SANDBOX_ADAPTER_METADATA[self.id]
+        return [Language(lang) for lang in sorted(meta.supported_languages)]
 
     @strawberry.field
     async def enabled(self, info: Info[Context, None]) -> bool:
         record = await self._get_record(info)
         return record.enabled
 
-    @strawberry.field
-    async def created_at(self, info: Info[Context, None]) -> datetime:
+    @strawberry.field(  # type: ignore
+        description=(
+            "Admin-scoped deployment routing parsed from the stored "
+            "``SandboxProvider.config`` JSON. Returns ``null`` for providers "
+            "whose SDK has no routing kwargs (WASM, Deno, Vercel, Modal) or "
+            "when the stored blob is empty."
+        )
+    )
+    async def deployment(self, info: Info[Context, None]) -> Optional[SandboxDeployment]:
         record = await self._get_record(info)
-        return record.created_at
-
-    @strawberry.field
-    async def updated_at(self, info: Info[Context, None]) -> datetime:
-        record = await self._get_record(info)
-        return record.updated_at
+        return _deployment_from_stored(record.config)
 
     @strawberry.field
     async def configs(self, info: Info[Context, None]) -> list["SandboxConfig"]:
-        record = await self._get_record(info)
-        rows = await info.context.data_loaders.sandbox_configs_by_provider.load(record.id)
+        rows = await info.context.data_loaders.sandbox_configs_by_provider.load(self.id)
         return [SandboxConfig(id=row.id, db_record=row) for row in rows]
 
     async def _get_record(self, info: Info[Context, None]) -> models.SandboxProvider:
         if self.db_record is not None:
             return self.db_record
-        from sqlalchemy import select
-
         async with info.context.db() as session:
-            row = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.id == self.id)
-            )
+            row = await session.get(models.SandboxProvider, self.id)
         if row is None:
             from phoenix.server.api.exceptions import NotFound
 
             raise NotFound(f"SandboxProvider not found: {self.id}")
         self.db_record = row
         return row
+
+
+def _deployment_from_stored(stored: Any) -> Optional[SandboxDeployment]:
+    """Project a stored ``SandboxProvider.config`` JSON blob into the GraphQL
+    union via the ``SandboxDeploymentModel`` discriminated union.
+
+    The blob is self-sufficient: writes persist the ``kind`` discriminator
+    alongside the routing fields via ``model_dump``, so the ``TypeAdapter``
+    re-hydrates the right concrete subclass without an external ``kind``
+    argument. An empty blob (no deployment ever written) returns ``None``.
+    Only the two providers with non-trivial routing (Daytona, E2B) have a
+    corresponding GraphQL union member; NoDeployment-style providers
+    (WASM, Deno, Vercel, Modal) validate to typed instances that carry
+    only their ``kind`` discriminator and surface as ``deployment: null``
+    on the GraphQL side.
+    """
+    if not isinstance(stored, dict) or not stored:
+        return None
+    try:
+        dep = SANDBOX_DEPLOYMENT_ADAPTER.validate_python(stored)
+    except Exception as exc:
+        logger.warning("Failed to parse stored sandbox deployment: %s", exc)
+        return None
+    if isinstance(dep, DaytonaDeployment):
+        return DaytonaDeploymentData(api_url=dep.api_url, target=dep.target)
+    if isinstance(dep, E2BDeployment):
+        return E2BDeploymentData(domain=dep.domain, api_url=dep.api_url)
+    return None
 
 
 @strawberry.type
@@ -187,7 +383,7 @@ class SandboxConfig(Node):
             raise ValueError("SandboxConfig ID mismatch")
 
     @strawberry.field
-    async def name(self, info: Info[Context, None]) -> str:
+    async def name(self, info: Info[Context, None]) -> Identifier:
         record = await self._get_record(info)
         return record.name
 
@@ -197,11 +393,14 @@ class SandboxConfig(Node):
         return record.description
 
     @strawberry.field
-    async def config(self, info: Info[Context, None]) -> JSON:
-        from phoenix.server.api.helpers.sandbox_redaction import redact_env_var_literals
-
+    async def language(self, info: Info[Context, None]) -> Language:
         record = await self._get_record(info)
-        return cast(JSON, redact_env_var_literals(record.config))
+        return Language(record.language)
+
+    @strawberry.field
+    async def config(self, info: Info[Context, None]) -> SandboxConfigData:
+        record = await self._get_record(info)
+        return SandboxConfigData.from_stored(record.config)
 
     @strawberry.field(  # type: ignore
         description="Execution timeout in seconds (includes package install on ephemeral calls)."
@@ -218,10 +417,8 @@ class SandboxConfig(Node):
     @strawberry.field
     async def provider(self, info: Info[Context, None]) -> SandboxProvider:
         record = await self._get_record(info)
-        provider = await info.context.data_loaders.sandbox_provider_by_id.load(
-            record.sandbox_provider_id
-        )
-        return SandboxProvider(id=record.sandbox_provider_id, db_record=provider)
+        provider = await info.context.data_loaders.sandbox_provider.load(record.provider_kind)
+        return SandboxProvider(id=record.provider_kind, db_record=provider)
 
     @strawberry.field
     async def created_at(self, info: Info[Context, None]) -> datetime:
@@ -236,12 +433,8 @@ class SandboxConfig(Node):
     async def _get_record(self, info: Info[Context, None]) -> models.SandboxConfig:
         if self.db_record is not None:
             return self.db_record
-        from sqlalchemy import select
-
         async with info.context.db() as session:
-            row = await session.scalar(
-                select(models.SandboxConfig).where(models.SandboxConfig.id == self.id)
-            )
+            row = await session.get(models.SandboxConfig, self.id)
         if row is None:
             from phoenix.server.api.exceptions import NotFound
 
@@ -251,94 +444,14 @@ class SandboxConfig(Node):
 
 
 # ---------------------------------------------------------------------------
-# Input types
-# ---------------------------------------------------------------------------
-
-
-@strawberry.input
-class CreateSandboxConfigInput:
-    sandbox_provider_id: GlobalID
-    name: Identifier
-    description: Optional[str] = None
-    config: Optional[JSON] = None
-    timeout: Optional[int] = None
-    enabled: bool = True
-
-
-@strawberry.input
-class UpdateSandboxConfigInput:
-    id: GlobalID
-    name: Optional[Identifier] = strawberry.UNSET
-    description: Optional[str] = strawberry.UNSET
-    config: Optional[JSON] = strawberry.UNSET
-    timeout: Optional[int] = strawberry.UNSET
-    enabled: Optional[bool] = strawberry.UNSET
-
-
-@strawberry.input
-class UpdateSandboxProviderInput:
-    id: GlobalID
-    enabled: Optional[bool] = strawberry.UNSET
-
-
-@strawberry.input
-class DeleteSandboxConfigInput:
-    id: GlobalID
-
-
-@strawberry.input
-class SetSandboxCredentialInput:
-    backend_type: str
-    key: str
-    value: str
-
-
-@strawberry.input
-class DeleteSandboxCredentialInput:
-    backend_type: str
-    key: str
-
-
-# ---------------------------------------------------------------------------
 # Converter helpers
 # ---------------------------------------------------------------------------
 
 
-def to_gql_sandbox_config(row: models.SandboxConfig) -> SandboxConfig:
-    return SandboxConfig(id=row.id, db_record=row)
-
-
-def to_gql_sandbox_provider(row: models.SandboxProvider) -> SandboxProvider:
-    return SandboxProvider(id=row.id, db_record=row)
-
-
-async def get_sandbox_backend_info(
-    info: Optional[Any] = None,
-) -> list[SandboxBackendInfo]:
-    """
-    Return one SandboxBackendInfo per entry in SANDBOX_ADAPTER_METADATA,
-    with runtime status derived from build_sandbox_backend().
-
-    Pass the Strawberry `info` object so DB-stored credentials are resolved
-    when checking backend availability. Falls back to env-only resolution if
-    info is None.
-    """
-    session = None
-    decrypt = None
-    if info is not None:
-        context = info.context
-        decrypt = context.decrypt
-        # Open a read session for credential lookup during availability check
-        async with context.db.read() as _session:
-            session = _session
-            return await _get_sandbox_backend_info_with_session(session=session, decrypt=decrypt)
-    return await _get_sandbox_backend_info_with_session(session=None, decrypt=None)
-
-
-def _probe_wasm_binary(backend_type: str) -> Optional[str]:
+def _probe_wasm_binary(provider_kind: models.SandboxProviderKind) -> Optional[str]:
     """Run the WASM-binary capability probe and return a status_detail string.
 
-    Returns None when this backend_type is not WASM, or when the binary is
+    Returns None when ``provider_kind`` is not WASM, or when the binary is
     locally resolvable (probe says ``available=True``). Returns the probe's
     ``detail`` string when the WASM binary is not present locally — the
     caller treats a non-None return as falsifying evidence and forces the
@@ -346,11 +459,11 @@ def _probe_wasm_binary(backend_type: str) -> Optional[str]:
 
     Importing ``WASMAdapter`` is gated on the ``wasmtime`` optional extra,
     so an ImportError here means the SDK is missing — that case is already
-    handled by the ``backend_type not in _SANDBOX_ADAPTERS`` branch in the
+    handled by the ``provider_kind not in SANDBOX_ADAPTERS`` branch in the
     caller, but we re-handle it defensively (returning None) so this helper
     cannot regress that branch.
     """
-    if backend_type != "WASM":
+    if provider_kind != "WASM":
         return None
     try:
         from phoenix.server.sandbox.wasm_backend import WASMAdapter
@@ -363,14 +476,15 @@ def _probe_wasm_binary(backend_type: str) -> Optional[str]:
 
 
 def _build_credential_specs(
-    backend_type: str,
+    provider_kind: models.SandboxProviderKind,
 ) -> list[SandboxProviderCredentialSpec]:
-    """Mirror an adapter's credential_specs into GQL types."""
-    from phoenix.server.sandbox import _SANDBOX_ADAPTERS
+    """Mirror an adapter's credential specs (derived from credentials_model) into GQL types."""
+    from phoenix.server.sandbox import SANDBOX_ADAPTERS
 
-    adapter = _SANDBOX_ADAPTERS.get(backend_type)
-    if adapter is None or not adapter.credential_specs:
+    adapter = SANDBOX_ADAPTERS.get(provider_kind)
+    if adapter is None:
         return []
+    specs = adapter.credential_specs()
     return [
         SandboxProviderCredentialSpec(
             key=spec.key,
@@ -378,48 +492,47 @@ def _build_credential_specs(
             description=spec.description,
             is_required=spec.is_required,
         )
-        for spec in adapter.credential_specs
+        for spec in specs
     ]
 
 
-async def _get_sandbox_backend_info_with_session(
-    session: Optional[Any],
-    decrypt: Optional[Any],
+async def get_sandbox_backend_info(
+    *,
+    secrets: SecretsContext,
 ) -> list[SandboxBackendInfo]:
-    from phoenix.server.sandbox import _SANDBOX_ADAPTERS
+    """Return one ``SandboxBackendInfo`` per entry in ``SANDBOX_ADAPTER_METADATA``.
+
+    The caller is responsible for opening the ``SecretsContext`` (DB read
+    session + decrypt). The DB is needed to distinguish
+    ``MISSING_CREDENTIALS`` from ``AVAILABLE`` (credentials live in the
+    ``secrets`` table). The single in-tree caller is the ``sandbox_backends``
+    GraphQL resolver, which opens its session via ``info.context.db.read()``
+    and pairs it with ``info.context.decrypt``.
+    """
+    from phoenix.server.sandbox import SANDBOX_ADAPTERS
 
     infos: list[SandboxBackendInfo] = []
-    for backend_type, meta in SANDBOX_ADAPTER_METADATA.items():
+    for provider_kind, meta in SANDBOX_ADAPTER_METADATA.items():
+        probe_language: models.LanguageName = sorted(meta.supported_languages)[0]
         status_detail: Optional[str] = None
-        if backend_type not in _SANDBOX_ADAPTERS:
+        if provider_kind not in SANDBOX_ADAPTERS:
             status = SandboxBackendStatus.NOT_INSTALLED
         else:
-            missing_auth_detail = await get_missing_sandbox_auth_detail(
-                backend_type,
-                session=session,
-                decrypt=decrypt,
-            )
+            missing_auth_detail = await secrets.missing_auth_detail(provider_kind)
             if missing_auth_detail is not None:
                 status = SandboxBackendStatus.MISSING_CREDENTIALS
                 status_detail = missing_auth_detail
             else:
-                # Backend-specific runtime-asset gates layered on top of
-                # build_backend(): adapter registration only proves the SDK
-                # is importable. For backends that defer runtime preconditions
-                # past build_backend (e.g. WASM lazy-downloads its CPython
-                # binary), call a side-effect-free probe so the GraphQL status
-                # reflects whether execution will actually succeed without a
-                # network round-trip. Build_backend() is still called for the
-                # general AVAILABLE/UNAVAILABLE path; the probe short-circuits
-                # only when it has falsifying evidence (binary absent).
-                wasm_probe_detail = _probe_wasm_binary(backend_type)
+                wasm_probe_detail = _probe_wasm_binary(provider_kind)
                 if wasm_probe_detail is not None:
                     status = SandboxBackendStatus.UNAVAILABLE
                     status_detail = wasm_probe_detail
                 else:
                     try:
-                        backend = await build_sandbox_backend(
-                            backend_type, session=session, decrypt=decrypt
+                        backend = await probe_sandbox_backend_buildable(
+                            provider_kind,
+                            language=probe_language,
+                            secrets=secrets,
                         )
                         status = (
                             SandboxBackendStatus.AVAILABLE
@@ -427,59 +540,25 @@ async def _get_sandbox_backend_info_with_session(
                             else SandboxBackendStatus.UNAVAILABLE
                         )
                     except (ValueError, MissingSecretError, UnsupportedOperation) as exc:
-                        # Adapter is registered but construction failed because a
-                        # runtime precondition is not met (auth not configured,
-                        # missing user secret, capability mismatch). Surface as
-                        # UNAVAILABLE instead of 500ing the whole query — capability
-                        # advertisement must continue to work for adapters the admin
-                        # hasn't configured yet.
                         logger.debug(
-                            f"sandboxBackends: {backend_type!r} unavailable: {exc}",
+                            f"sandboxBackends: {provider_kind!r} unavailable: {exc}",
                         )
                         status = SandboxBackendStatus.UNAVAILABLE
                         status_detail = str(exc)
-        credential_specs = _build_credential_specs(backend_type)
+        credential_specs = _build_credential_specs(provider_kind)
         infos.append(
             SandboxBackendInfo(
-                backend_type=backend_type,
+                kind=SandboxProviderKind(provider_kind),
                 display_name=meta.display_name,
                 hosting_type=SandboxHostingType(meta.hosting_type),
-                supported_languages=[Language(meta.language)] if meta.language else [],
+                supported_languages=[Language(lang) for lang in sorted(meta.supported_languages)],
                 status=status,
                 status_detail=status_detail,
-                dependency_hints=meta.dependency_hints,
+                dependency_hints=list(meta.dependency_hints),
                 supports_env_vars=meta.supports_env_vars,
                 internet_access=InternetAccessMode(meta.internet_access_capability),
-                dependencies_language=(
-                    Language(meta.dependencies_language) if meta.dependencies_language else None
-                ),
+                supports_dependencies=meta.supports_dependencies,
                 credential_specs=credential_specs,
             )
         )
     return infos
-
-
-def sandbox_config_from_input(
-    input_: CreateSandboxConfigInput,
-    provider_id: int,
-    provider_language: str,
-) -> dict[str, Any]:
-    """Convert CreateSandboxConfigInput to a dict of column values.
-
-    `provider_language` is inherited from the parent SandboxProvider and stored
-    on the row so the composite FK to sandbox_providers(id, language) holds; the
-    schema rejects any (sandbox_provider_id, language) pair that does not match
-    the provider.
-    """
-    values: dict[str, Any] = {
-        "sandbox_provider_id": provider_id,
-        "language": provider_language,
-        "name": input_.name,
-        "description": input_.description,
-        "config": input_.config if input_.config is not None else {},
-        "timeout": input_.timeout
-        if input_.timeout is not None
-        else DEFAULT_SANDBOX_TIMEOUT_SECONDS,
-        "enabled": input_.enabled,
-    }
-    return values

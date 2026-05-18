@@ -90,10 +90,7 @@ export function SandboxConfigsCard({
                     </td>
                     <td>
                       <Flex direction="row" gap="size-100" alignItems="center">
-                        <SandboxProviderIcon
-                          backendType={backend.backendType}
-                          height={18}
-                        />
+                        <SandboxProviderIcon kind={backend.kind} height={18} />
                         <Text>{backend.displayName}</Text>
                         <SandboxHostingTypeBadge
                           hostingType={backend.hostingType}
@@ -101,7 +98,7 @@ export function SandboxConfigsCard({
                       </Flex>
                     </td>
                     <td>
-                      <LanguageWithIcon language={provider.language} />
+                      <LanguageWithIcon language={config.language} />
                     </td>
                     <td>
                       <Flex direction="column" gap="size-50" alignItems="start">

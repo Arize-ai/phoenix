@@ -3,28 +3,27 @@ from secrets import token_hex
 import sqlalchemy
 
 from phoenix.db import models
-from phoenix.server.api.dataloaders import SandboxProviderByIdDataLoader
+from phoenix.server.api.dataloaders import SandboxProviderDataLoader
 from phoenix.server.sandbox.sync import sync_languages
 from phoenix.server.types import DbSessionFactory
 
 
-async def test_sandbox_provider_by_id_batches_lookups(db: DbSessionFactory) -> None:
-    """Loading N provider ids issues a single batched query and preserves key order."""
+async def test_sandbox_provider_batches_lookups(db: DbSessionFactory) -> None:
+    """Loading N provider kinds issues a single batched query and preserves key order."""
     async with db() as session:
         await sync_languages(session)
+        kinds = [f"z-{token_hex(3)}" for _ in range(4)]
         providers = [
             models.SandboxProvider(
-                backend_type=f"backend-{token_hex(3)}",
-                language="PYTHON",
+                kind=k,
                 enabled=True,
             )
-            for _ in range(4)
+            for k in kinds
         ]
         session.add_all(providers)
         await session.flush()
-        ids = [p.id for p in providers]
 
-    loader = SandboxProviderByIdDataLoader(db)
+    loader = SandboxProviderDataLoader(db)
 
     query_count = 0
 
@@ -35,12 +34,12 @@ async def test_sandbox_provider_by_id_batches_lookups(db: DbSessionFactory) -> N
             query_count += 1
 
     try:
-        keys = [*ids, ids[0]]
+        keys = [*kinds, kinds[0]]
         results = await loader._load_fn(keys)
     finally:
         sqlalchemy.event.remove(sqlalchemy.engine.Engine, "before_cursor_execute", count_queries)
 
     assert query_count == 1
-    assert [r.id if r is not None else None for r in results] == keys
-    missing = await loader._load_fn([max(ids) + 1000])
+    assert [(r.kind if r is not None else None) for r in results] == keys
+    missing = await loader._load_fn(["__nonexistent-kind__"])
     assert missing == [None]

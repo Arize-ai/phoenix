@@ -3210,7 +3210,7 @@ def _get_credential_from_input(
     if not credentials:
         return None
     return next(
-        (str(c.value) for c in credentials if c.env_var_name == env_var_name),
+        (c.value.get_secret_value() for c in credentials if c.env_var_name == env_var_name),
         None,
     )
 

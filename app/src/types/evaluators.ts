@@ -127,6 +127,14 @@ export type EvaluatorKind = "LLM" | "CODE" | "BUILTIN";
 
 export type CodeEvaluatorLanguage = "PYTHON" | "TYPESCRIPT";
 
+export type SandboxProviderKind =
+  | "WASM"
+  | "E2B"
+  | "DAYTONA"
+  | "VERCEL"
+  | "DENO"
+  | "MODAL";
+
 /**
  * The source data for evaluator input mappings.
  *

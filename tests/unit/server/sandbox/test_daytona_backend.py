@@ -7,10 +7,34 @@ import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from starlette.datastructures import Secret
+from pydantic import SecretStr
 
-_API_KEY = Secret("test-key")
-_ALT_KEY = Secret("key")
+from phoenix.db.models import LanguageName
+
+_API_KEY = SecretStr("test-key")
+_ALT_KEY = SecretStr("key")
+
+
+# Imported lazily inline to avoid pulling pydantic at module-collection time
+def _daytona_creds(key: str = "test-key") -> "DaytonaCredentials":
+    from phoenix.server.sandbox.types import DaytonaCredentials
+
+    return DaytonaCredentials(DAYTONA_API_KEY=key)
+
+
+def _daytona_config(language: LanguageName = "PYTHON") -> "DaytonaConfig":
+    from phoenix.server.sandbox.types import DaytonaConfig
+
+    return DaytonaConfig(language=language)
+
+
+from phoenix.server.sandbox.types import (  # noqa: E402
+    DaytonaConfig,
+    DaytonaCredentials,
+    DaytonaDeployment,
+)
+
+_DAYTONA_DEPLOY = DaytonaDeployment()
 
 
 class _CodeRunParams:
@@ -89,7 +113,7 @@ class TestCodeRunParamsKwarg:
         with patch.dict(sys.modules, modules):
             from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
 
-            backend = DaytonaSandboxBackend(api_key=_API_KEY, user_env=user_env)
+            backend = DaytonaSandboxBackend(api_key=_API_KEY, user_env=user_env, language="PYTHON")
             await backend.execute("print('hi')", session_key="s1")
 
         workspace = daytona_mod.AsyncDaytona.return_value.create.return_value
@@ -121,7 +145,7 @@ class TestCodeRunParamsKwarg:
         with patch.dict(sys.modules, modules):
             from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
 
-            backend = DaytonaSandboxBackend(api_key=_API_KEY, user_env={})
+            backend = DaytonaSandboxBackend(api_key=_API_KEY, user_env={}, language="PYTHON")
             await backend.execute("1+1", session_key="s1")
 
         workspace = daytona_mod.AsyncDaytona.return_value.create.return_value
@@ -147,7 +171,9 @@ class TestNetworkBlockAll:
         with patch.dict(sys.modules, modules):
             from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
 
-            backend = DaytonaSandboxBackend(api_key=_ALT_KEY, network_block_all=True)
+            backend = DaytonaSandboxBackend(
+                api_key=_ALT_KEY, network_block_all=True, language="PYTHON"
+            )
             await backend.execute("1", session_key="s1")
 
         create_call = daytona_mod.AsyncDaytona.return_value.create.call_args
@@ -173,7 +199,9 @@ class TestNetworkBlockAll:
         with patch.dict(sys.modules, modules):
             from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
 
-            backend = DaytonaSandboxBackend(api_key=_ALT_KEY, network_block_all=False)
+            backend = DaytonaSandboxBackend(
+                api_key=_ALT_KEY, network_block_all=False, language="PYTHON"
+            )
             await backend.execute("1", session_key="s1")
 
         create_call = daytona_mod.AsyncDaytona.return_value.create.call_args
@@ -196,7 +224,9 @@ class TestNetworkBlockAll:
         with patch.dict(sys.modules, modules):
             from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
 
-            backend = DaytonaSandboxBackend(api_key=_ALT_KEY, network_block_all=True)
+            backend = DaytonaSandboxBackend(
+                api_key=_ALT_KEY, network_block_all=True, language="PYTHON"
+            )
             await backend.start_session("sess")
 
         create_call = daytona_mod.AsyncDaytona.return_value.create.call_args
@@ -227,7 +257,7 @@ class TestEphemeralTeardown:
         with patch.dict(sys.modules, modules):
             from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
 
-            backend = DaytonaSandboxBackend(api_key=_API_KEY)
+            backend = DaytonaSandboxBackend(api_key=_API_KEY, language="PYTHON")
             result = await backend.execute("raise RuntimeError()", session_key="ephemeral")
 
         assert result.error is not None
@@ -253,7 +283,7 @@ class TestEphemeralTeardown:
         with patch.dict(sys.modules, modules):
             from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
 
-            backend = DaytonaSandboxBackend(api_key=_API_KEY)
+            backend = DaytonaSandboxBackend(api_key=_API_KEY, language="PYTHON")
             with pytest.raises((asyncio.TimeoutError, TimeoutError)):
                 await asyncio.wait_for(
                     backend.execute("sleep(10)", session_key="ephemeral"),
@@ -265,25 +295,33 @@ class TestEphemeralTeardown:
 
 
 class TestBuildBackendCredentialValidation:
-    """``DaytonaPythonAdapter.build_backend`` must fail closed when api_key
+    """``DaytonaAdapter.build_backend`` must fail closed when api_key
     is missing, instead of letting the SDK fall back to ``DAYTONA_API_KEY``
     autodiscovery from process env (which differs from Phoenix's declared
     ``DAYTONA_API_KEY`` and would bypass Phoenix's resolution).
     """
 
     def test_missing_api_key_raises_value_error(self) -> None:
-        from phoenix.server.sandbox.daytona_backend import DaytonaPythonAdapter
+        from phoenix.server.sandbox.daytona_backend import DaytonaAdapter
 
-        adapter = DaytonaPythonAdapter()
+        adapter = DaytonaAdapter()
         with pytest.raises(ValueError, match="DAYTONA_API_KEY"):
-            adapter.build_backend({})
+            adapter.build_backend(
+                _daytona_config(),
+                credentials=_daytona_creds(""),
+                deployment=_DAYTONA_DEPLOY,
+            )
 
     def test_empty_api_key_raises_value_error(self) -> None:
-        from phoenix.server.sandbox.daytona_backend import DaytonaPythonAdapter
+        from phoenix.server.sandbox.daytona_backend import DaytonaAdapter
 
-        adapter = DaytonaPythonAdapter()
-        with pytest.raises(ValueError, match="PHOENIX_SANDBOX_DAYTONA_API_KEY"):
-            adapter.build_backend({"PHOENIX_SANDBOX_DAYTONA_API_KEY": ""})
+        adapter = DaytonaAdapter()
+        with pytest.raises(ValueError, match="DAYTONA_API_KEY"):
+            adapter.build_backend(
+                _daytona_config(),
+                credentials=_daytona_creds(""),
+                deployment=_DAYTONA_DEPLOY,
+            )
 
 
 class TestTypescriptRouting:
@@ -432,9 +470,29 @@ async def test_execute_strips_ansi_in_raised_exception_path() -> None:
     with patch.dict(sys.modules, modules):
         from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
 
-        backend = DaytonaSandboxBackend(api_key=_API_KEY)
+        backend = DaytonaSandboxBackend(api_key=_API_KEY, language="PYTHON")
         with patch.object(backend, "_get_client", side_effect=RuntimeError("\x1b[31mboom\x1b[0m")):
             result = await backend.execute("noop", session_key="ephemeral")
 
     assert result.error == "boom"
     assert result.stderr == "boom"
+
+
+def test_build_backend_wires_packages_to_backend() -> None:
+    """``DaytonaAdapter.build_backend`` forwards ``config.dependencies.packages``
+    onto the returned ``DaytonaSandboxBackend._packages``."""
+    from phoenix.server.sandbox.daytona_backend import DaytonaAdapter
+    from phoenix.server.sandbox.types import (
+        DaytonaConfig,
+        DaytonaCredentials,
+        DaytonaDeployment,
+    )
+
+    adapter = DaytonaAdapter()
+    packages = ["requests", "numpy"]
+    config = DaytonaConfig.model_validate(
+        {"language": "PYTHON", "dependencies": {"packages": packages}}
+    )
+    creds = DaytonaCredentials(DAYTONA_API_KEY=SecretStr("k"))
+    backend = adapter.build_backend(config, credentials=creds, deployment=DaytonaDeployment())
+    assert backend._packages == packages  # type: ignore[attr-defined]

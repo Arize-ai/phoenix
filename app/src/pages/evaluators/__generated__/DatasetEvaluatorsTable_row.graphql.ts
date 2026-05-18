@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<51677f448fca06114e64fc0d0e9429e4>>
+ * @generated SignedSource<<9902fab3e3b1dcfe761b9cee8bcfb39a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,6 +12,7 @@ import { ReaderInlineDataFragment } from 'relay-runtime';
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type SandboxProviderKind = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "VERCEL" | "WASM";
 import { FragmentRefs } from "relay-runtime";
 export type DatasetEvaluatorsTable_row$data = {
   readonly description: string | null;
@@ -36,7 +37,7 @@ export type DatasetEvaluatorsTable_row$data = {
       readonly id: string;
       readonly name: string;
       readonly provider: {
-        readonly backendType: string;
+        readonly kind: SandboxProviderKind;
       };
     } | null;
     readonly updatedAt: string;
@@ -60,6 +61,6 @@ const node: ReaderInlineDataFragment = {
   "name": "DatasetEvaluatorsTable_row"
 };
 
-(node as any).hash = "9293ad736f30aa525b9fc37dc9a49802";
+(node as any).hash = "a0ae26c0e6f618644a3ef7e6ebc907e3";
 
 export default node;

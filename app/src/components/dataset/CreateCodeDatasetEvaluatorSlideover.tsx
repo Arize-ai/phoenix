@@ -103,23 +103,43 @@ const CreateCodeEvaluatorDialog = ({
     graphql`
       query CreateCodeDatasetEvaluatorSlideoverQuery {
         sandboxProviders {
-          backendType
-          language
+          kind
+          supportedLanguages
           enabled
           configs {
             id
             name
             description
+            language
             timeout
-            config
+            config {
+              envVars {
+                name
+                value {
+                  __typename
+                  ... on SandboxConfigEnvVarLiteral {
+                    literal
+                  }
+                  ... on SandboxConfigEnvVarSecretRef {
+                    secretKey
+                  }
+                }
+              }
+              internetAccess {
+                mode
+              }
+              dependencies {
+                packages
+              }
+            }
           }
         }
         sandboxBackends {
-          backendType
+          kind
           status
           supportsEnvVars
           internetAccess
-          dependenciesLanguage
+          supportsDependencies
         }
       }
     `,

@@ -177,53 +177,38 @@ function defaultConfigName(provider: ProviderRow): string {
   return getIdentifier(provider.backend.displayName);
 }
 
-function configToFormValues(config: SandboxConfig["config"]): {
+export function configToFormValues(config: SandboxConfig["config"]): {
   envVars: EnvVarFormEntry[];
   internetAccessEnabled: boolean;
   dependenciesText: string;
-  dependenciesLockfile: string | null;
 } {
-  const raw = (config as Record<string, unknown>) ?? {};
-  const rawEnvVars = Array.isArray(raw["env_vars"]) ? raw["env_vars"] : [];
-  const envVars: EnvVarFormEntry[] = rawEnvVars.map((entry: unknown) => {
-    if (
-      entry != null &&
-      typeof entry === "object" &&
-      "kind" in entry &&
-      (entry as Record<string, unknown>)["kind"] === "secret_ref"
-    ) {
-      const e = entry as Record<string, unknown>;
+  const envVars: EnvVarFormEntry[] = config.envVars.map((ev) => {
+    if (ev.value.__typename === "SandboxConfigEnvVarSecretRef") {
       return {
         kind: "secret_ref" as const,
-        name: String(e["name"] ?? ""),
-        secret_key: String(e["secret_key"] ?? ""),
+        name: ev.name,
+        secret_key: ev.value.secretKey,
       };
     }
-    const e = (entry ?? {}) as Record<string, unknown>;
-    return {
-      kind: "literal" as const,
-      name: String(e["name"] ?? ""),
-      value: String(e["value"] ?? ""),
-    };
+    if (ev.value.__typename === "SandboxConfigEnvVarLiteral") {
+      return {
+        kind: "literal" as const,
+        name: ev.name,
+        value: ev.value.literal,
+      };
+    }
+    // Unknown union member (schema drift) — fall back to empty literal.
+    return { kind: "literal" as const, name: ev.name, value: "" };
   });
 
-  const internetAccess = raw["internet_access"] as
-    | Record<string, unknown>
-    | undefined;
-  const internetAccessEnabled = internetAccess?.["mode"] === "allow";
+  const internetAccessEnabled = config.internetAccess?.mode === "ALLOW";
 
-  const deps = raw["dependencies"] as Record<string, unknown> | undefined;
-  const packages = Array.isArray(deps?.["packages"])
-    ? (deps!["packages"] as string[]).join("\n")
-    : "";
-  const dependenciesLockfile =
-    typeof deps?.["lockfile"] === "string" ? deps["lockfile"] : null;
+  const packages = config.dependencies?.packages.join("\n") ?? "";
 
   return {
     envVars,
     internetAccessEnabled,
     dependenciesText: packages,
-    dependenciesLockfile,
   };
 }
 
@@ -240,14 +225,12 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
     envVars: initEnvVars,
     internetAccessEnabled: initInternetAccess,
     dependenciesText: initDepsText,
-    dependenciesLockfile: initDepsLockfile,
   } = existingConfig != null
     ? configToFormValues(existingConfig.config)
     : {
         envVars: [],
         internetAccessEnabled: false,
         dependenciesText: "",
-        dependenciesLockfile: null,
       };
 
   const form = useForm<SandboxConfigFormValues>({
@@ -255,23 +238,30 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
       mode === "edit"
         ? {
             sandboxProviderId: props.provider.id,
+            // Language is immutable post-create; carry the existing value so
+            // form state matches the row but no UI exposes it for editing.
+            language: props.config.language,
             name: props.config.name,
             description: props.config.description ?? "",
             timeout: props.config.timeout,
             envVars: initEnvVars,
             internetAccessEnabled: initInternetAccess,
             dependenciesText: initDepsText,
-            dependenciesLockfile: initDepsLockfile,
           }
         : {
             sandboxProviderId: defaultProvider?.provider.id ?? "",
+            // When the default provider supports exactly one language, prefill
+            // it; otherwise leave empty and require the user to pick.
+            language:
+              defaultProvider?.provider.supportedLanguages.length === 1
+                ? defaultProvider.provider.supportedLanguages[0]
+                : "",
             name: defaultProvider ? defaultConfigName(defaultProvider) : "",
             description: "",
             timeout: DEFAULT_SANDBOX_TIMEOUT_SECONDS,
             envVars: [],
             internetAccessEnabled: false,
             dependenciesText: "",
-            dependenciesLockfile: null,
           },
   });
 
@@ -289,6 +279,17 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
     mode === "edit"
       ? existingBackend
       : providers.find((p) => p.provider.id === selectedProviderId)?.backend;
+  const selectedLanguage = useWatch({
+    control: form.control,
+    name: "language",
+  });
+  // Effective execution language for adapter capability rendering. Picks from
+  // the form's language selector — Daytona / Vercel allow either, single-
+  // language adapters auto-fill via the provider-change effect below.
+  const dependencyLanguage: "PYTHON" | "TYPESCRIPT" | null =
+    selectedLanguage === "PYTHON" || selectedLanguage === "TYPESCRIPT"
+      ? selectedLanguage
+      : null;
 
   const [commitCreate, isCreating] =
     useMutation<SandboxConfigDialogCreateSandboxConfigMutation>(graphql`
@@ -319,6 +320,15 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
 
   const handleSubmit = form.handleSubmit((values) => {
     setError(null);
+    // ``activeBackend`` is null only if no provider is selected. The form's
+    // ``required`` rule on ``sandboxProviderId`` makes this unreachable in
+    // practice, but guard explicitly so the empty ``@oneOf`` payload that
+    // ``formValuesToConfigPatch`` would otherwise produce never reaches the
+    // server.
+    if (!activeBackend) {
+      setError("Provider is required");
+      return;
+    }
     const finalConfig = formValuesToConfigPatch(values, activeBackend);
 
     const onCompleted = () => {
@@ -339,10 +349,13 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
     };
 
     if (mode === "create") {
+      if (values.language !== "PYTHON" && values.language !== "TYPESCRIPT") {
+        setError("Language is required");
+        return;
+      }
       commitCreate({
         variables: {
           input: {
-            sandboxProviderId: values.sandboxProviderId,
             name: values.name,
             description: values.description || null,
             timeout: values.timeout,
@@ -403,19 +416,36 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                       }
                       onChange={(key) => {
                         field.onChange(key);
+                        const selected = providers.find(
+                          (p) => p.provider.id === key
+                        );
+                        // Auto-fill language when the chosen provider supports
+                        // exactly one; clear it otherwise so the user is forced
+                        // to pick in the language selector below.
+                        if (selected) {
+                          const langs = selected.provider.supportedLanguages;
+                          form.setValue(
+                            "language",
+                            langs.length === 1 ? langs[0] : ""
+                          );
+                        }
+                        // Reset capability-gated fields so values typed under
+                        // a prior provider don't silently re-appear when the
+                        // user picks a different one. ``formValuesToConfigPatch``
+                        // already drops them on send for backends that don't
+                        // support a capability, but the form state staying
+                        // populated is confusing UX.
+                        form.setValue("envVars", []);
+                        form.setValue("internetAccessEnabled", false);
+                        form.setValue("dependenciesText", "");
                         const currentName = form.getValues("name");
                         const isDefaultName =
                           !currentName ||
                           providers.some(
                             (p) => defaultConfigName(p) === currentName
                           );
-                        if (isDefaultName) {
-                          const selected = providers.find(
-                            (p) => p.provider.id === key
-                          );
-                          if (selected) {
-                            form.setValue("name", defaultConfigName(selected));
-                          }
+                        if (isDefaultName && selected) {
+                          form.setValue("name", defaultConfigName(selected));
                         }
                       }}
                     />
@@ -428,6 +458,57 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                 />
               )}
             </Suspense>
+            {mode === "create" &&
+              (() => {
+                const selected = providers.find(
+                  (p) => p.provider.id === selectedProviderId
+                );
+                const langs = selected?.provider.supportedLanguages ?? [];
+                // Hide the picker when the chosen provider supports a single
+                // language — language is already auto-filled on provider
+                // selection. The mutation still sends the language explicitly.
+                if (langs.length <= 1) return null;
+                return (
+                  <Controller
+                    name="language"
+                    control={form.control}
+                    rules={{
+                      validate: (v) =>
+                        v === "PYTHON" || v === "TYPESCRIPT"
+                          ? true
+                          : "Language is required",
+                    }}
+                    render={({ field, fieldState }) => (
+                      <Select
+                        selectedKey={field.value || null}
+                        onSelectionChange={(key) => {
+                          if (typeof key === "string") field.onChange(key);
+                        }}
+                        onBlur={field.onBlur}
+                        isInvalid={fieldState.invalid}
+                      >
+                        <Label>Language</Label>
+                        <Button>
+                          <SelectValue />
+                          <SelectChevronUpDownIcon />
+                        </Button>
+                        <Popover>
+                          <ListBox>
+                            {langs.map((lang) => (
+                              <ListBoxItem key={lang} id={lang}>
+                                {lang === "PYTHON" ? "Python" : "TypeScript"}
+                              </ListBoxItem>
+                            ))}
+                          </ListBox>
+                        </Popover>
+                        {fieldState.error ? (
+                          <FieldError>{fieldState.error.message}</FieldError>
+                        ) : null}
+                      </Select>
+                    )}
+                  />
+                );
+              })()}
             {mode === "create" && (
               <Controller
                 name="name"
@@ -558,17 +639,16 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                 </Text>
               </Flex>
             ) : null}
-            {activeBackend?.dependenciesLanguage != null ? (
+            {activeBackend?.supportsDependencies &&
+            dependencyLanguage != null ? (
               <Controller
                 name="dependenciesText"
                 control={form.control}
                 rules={{
                   validate: (value) => {
-                    const language = activeBackend?.dependenciesLanguage;
-                    if (language == null) return true;
                     const result = validateDependencyPackages({
                       packagesText: value,
-                      language,
+                      language: dependencyLanguage,
                     });
                     return result.valid ? true : result.message;
                   },
@@ -576,20 +656,21 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                 render={({ field, fieldState }) => {
                   const preview = getDependencyPreview({
                     packagesText: field.value,
-                    dependenciesLanguage: activeBackend.dependenciesLanguage,
-                    backendType: activeBackend.backendType,
+                    supportsDependencies: activeBackend.supportsDependencies,
+                    language: dependencyLanguage,
+                    kind: activeBackend.kind,
                   });
                   return (
                     <Flex direction="column" gap="size-50">
                       <TextField {...field} isInvalid={fieldState.invalid}>
                         <Label>
-                          {activeBackend.dependenciesLanguage === "PYTHON"
+                          {dependencyLanguage === "PYTHON"
                             ? "Python Packages"
                             : "npm Packages"}
                         </Label>
                         <TextArea
                           placeholder={
-                            activeBackend.dependenciesLanguage === "PYTHON"
+                            dependencyLanguage === "PYTHON"
                               ? "requests\nnumpy==1.26.0"
                               : "@types/node\nlodash"
                           }

@@ -1,7 +1,7 @@
 """Unit tests for E2BSandboxBackend and E2BAdapter.
 
 Scope: E2B-specific SDK kwarg shapes and pip-install-via-run_code wiring.
-Metadata and cross-adapter rejection coverage lives in test_capability_matrix.py.
+Metadata and cross-adapter config conformance lives in test_unified_config_contract.py.
 """
 
 from __future__ import annotations
@@ -10,12 +10,16 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from starlette.datastructures import Secret
+from pydantic import SecretStr
 
 from phoenix.server.sandbox.e2b_backend import E2BAdapter, E2BSandboxBackend
+from phoenix.server.sandbox.types import E2BConfig, E2BCredentials, E2BDeployment
 
-_API_KEY = Secret("k")
+_API_KEY = SecretStr("k")
 _CANONICAL_API_KEY = "E2B_API_KEY"
+_CREDS = E2BCredentials(E2B_API_KEY=SecretStr("k"))
+_EMPTY_CREDS = E2BCredentials(E2B_API_KEY=SecretStr(""))
+_DEPLOY = E2BDeployment()
 
 
 def _make_mock_sandbox_cls(create_result: Any = None) -> MagicMock:
@@ -55,7 +59,9 @@ def test_build_backend_translates_internet_access_to_allow_flag(
     """E2BAdapter.build_backend translates internet_access.mode → allow_internet_access kwarg."""
     adapter = E2BAdapter()
     backend: E2BSandboxBackend = adapter.build_backend(  # type: ignore[assignment]
-        {_CANONICAL_API_KEY: "k", **config}
+        E2BConfig.model_validate({**config, "language": "PYTHON"}),
+        credentials=_CREDS,
+        deployment=_DEPLOY,
     )
     assert backend._create_kwargs()["allow_internet_access"] is expected
 
@@ -171,7 +177,9 @@ async def test_ephemeral_execute_installs_packages_before_run_code() -> None:
 def test_build_backend_wires_packages(config: dict[str, Any], expected_packages: list[str]) -> None:
     adapter = E2BAdapter()
     backend: E2BSandboxBackend = adapter.build_backend(  # type: ignore[assignment]
-        {_CANONICAL_API_KEY: "k", **config}
+        E2BConfig.model_validate({**config, "language": "PYTHON"}),
+        credentials=_CREDS,
+        deployment=_DEPLOY,
     )
     assert backend._packages == expected_packages
 
@@ -183,9 +191,11 @@ def test_build_backend_requires_api_key() -> None:
     """
     adapter = E2BAdapter()
     with pytest.raises(ValueError, match=_CANONICAL_API_KEY):
-        adapter.build_backend({})
-    with pytest.raises(ValueError, match=_CANONICAL_API_KEY):
-        adapter.build_backend({_CANONICAL_API_KEY: ""})
+        adapter.build_backend(
+            E2BConfig(language="PYTHON"),
+            credentials=_EMPTY_CREDS,
+            deployment=_DEPLOY,
+        )
 
 
 @pytest.mark.asyncio

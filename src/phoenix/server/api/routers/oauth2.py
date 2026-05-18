@@ -13,12 +13,13 @@ from fastapi import APIRouter, Cookie, Depends, Path, Query, Request
 from joserfc import jwt
 from joserfc.errors import JoseError
 from joserfc.jwk import OctKey
+from pydantic import SecretStr
 from sqlalchemy import Boolean, and_, case, cast, func, insert, or_, select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
-from starlette.datastructures import URL, Secret, URLPath
+from starlette.datastructures import URL, URLPath
 from starlette.responses import RedirectResponse
 from starlette.routing import Router
 from typing_extensions import Annotated, NotRequired, TypeGuard
@@ -878,7 +879,7 @@ def _get_create_tokens_endpoint(*, request: Request, origin_url: str, idp_name: 
 
 
 def _generate_state_for_oauth2_authorization_code_flow(
-    *, secret: Secret, origin_url: str, return_url: Optional[str]
+    *, secret: SecretStr, origin_url: str, return_url: Optional[str]
 ) -> str:
     """
     Generates a JWT whose payload contains both an OAuth2 state (generated using
@@ -894,7 +895,7 @@ def _generate_state_for_oauth2_authorization_code_flow(
     )
     if return_url is not None:
         payload["return_url"] = return_url
-    return jwt.encode(header, dict(payload), OctKey.import_key(str(secret)))
+    return jwt.encode(header, dict(payload), OctKey.import_key(secret.get_secret_value()))
 
 
 class _OAuth2StatePayload(TypedDict):
@@ -907,11 +908,11 @@ class _OAuth2StatePayload(TypedDict):
     return_url: NotRequired[str]
 
 
-def _parse_state_payload(*, secret: Secret, state: str) -> _OAuth2StatePayload:
+def _parse_state_payload(*, secret: SecretStr, state: str) -> _OAuth2StatePayload:
     """
     Validates the JWT signature and parses the return URL from the OAuth2 state.
     """
-    claims = jwt.decode(state, OctKey.import_key(str(secret))).claims
+    claims = jwt.decode(state, OctKey.import_key(secret.get_secret_value())).claims
     if _is_oauth2_state_payload(claims):
         return claims
     raise ValueError("Invalid OAuth2 state payload.")

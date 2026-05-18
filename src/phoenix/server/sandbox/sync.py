@@ -2,8 +2,8 @@
 Startup synchronization of sandbox provider registry to the database.
 
 `sync_languages` seeds the fixed PYTHON/TYPESCRIPT rows in `languages`.
-`sync_sandbox_providers` seeds one `sandbox_providers` row per
-(backend_type, language) pair drawn from SANDBOX_ADAPTER_METADATA.
+`sync_sandbox_providers` seeds one `sandbox_providers` row per canonical adapter
+kind (keys from the metadata mapping passed by the sandbox package).
 
 Both functions are idempotent and safe to call on every startup. Inserts
 use `ON CONFLICT DO NOTHING` so that concurrent startups across replicas
@@ -14,7 +14,7 @@ no-op rather than raising IntegrityError.
 from __future__ import annotations
 
 import logging
-from typing import Any, Mapping, Protocol, Sequence
+from typing import Any, Mapping, Sequence
 
 from sqlalchemy import Executable, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -22,17 +22,11 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
-from phoenix.db.models import Base
+from phoenix.db.models import Base, SandboxProviderKind
 
 logger = logging.getLogger(__name__)
 
 _BUILTIN_LANGUAGES = ["PYTHON", "TYPESCRIPT"]
-
-
-class _HasLanguage(Protocol):
-    """Structural type for AdapterMetadata — avoids a circular import."""
-
-    language: str
 
 
 def _on_conflict_do_nothing(
@@ -93,50 +87,37 @@ async def sync_languages(session: AsyncSession) -> None:
 
 async def sync_sandbox_providers(
     session: AsyncSession,
-    adapter_metadata: Mapping[str, _HasLanguage],
+    adapter_metadata: Mapping[SandboxProviderKind, Any],
 ) -> None:
-    """Seed one sandbox_providers row per (backend_type, language) pair.
+    """Seed one sandbox_providers row per metadata key (provider kind).
 
-    The caller (sandbox/__init__.py) passes SANDBOX_ADAPTER_METADATA so
-    this module has no import dependency on the sandbox package itself.
-    Existing rows (matched by backend_type + language) are left untouched
-    so user-configured values (enabled) are preserved — we use
-    `ON CONFLICT DO NOTHING`, never `DO UPDATE`.
+    The caller passes SANDBOX_ADAPTER_METADATA so this module avoids importing
+    the full sandbox adapter registry.
+
+    Existing rows (matched by kind) are left untouched so configured values
+    (enabled) are preserved — ``ON CONFLICT DO NOTHING``, never ``DO UPDATE``.
 
     Safe to call multiple times (idempotent) and across concurrent replicas
     (race-safe via ON CONFLICT DO NOTHING).
     """
-    # Build set of known language names to guard against unknown languages.
-    lang_result = await session.execute(select(models.Language.name))
-    known_languages: set[str] = {row[0] for row in lang_result.fetchall()}
+    kinds = list(adapter_metadata.keys())
 
-    # Build set of already-present (backend_type, language) pairs (optimization:
-    # avoid issuing inserts that would all be no-ops).
-    existing_result = await session.execute(
-        select(models.SandboxProvider.backend_type, models.SandboxProvider.language)
-    )
-    existing_pairs: set[tuple[str, str]] = {(row[0], row[1]) for row in existing_result.fetchall()}
+    existing_result = await session.execute(select(models.SandboxProvider.kind))
+    existing_kinds: set[str] = {row[0] for row in existing_result.fetchall()}
 
     rows_to_insert: list[dict[str, object]] = []
-    for key, meta in adapter_metadata.items():
-        lang_name = meta.language
-        if lang_name not in known_languages:
-            logger.warning(
-                f"Language '{lang_name}' not found in languages table; "
-                f"skipping sandbox_providers row for {key}/{lang_name}"
-            )
+    for kind in kinds:
+        if kind in existing_kinds:
             continue
-        if (key, lang_name) in existing_pairs:
-            continue
-        rows_to_insert.append({"backend_type": key, "language": lang_name})
-        logger.info(f"Inserted sandbox_providers row: backend_type={key!r}, language={lang_name!r}")
+        rows_to_insert.append({"kind": kind, "enabled": True})
+        logger.info(f"Inserted sandbox_providers row: kind={kind!r}")
 
     if rows_to_insert:
         stmt = _on_conflict_do_nothing(
             session,
             models.SandboxProvider,
             rows_to_insert,
-            unique_columns=["backend_type", "language"],
+            unique_columns=["kind"],
         )
         await session.execute(stmt)
 

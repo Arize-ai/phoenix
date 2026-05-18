@@ -67,7 +67,7 @@ test.describe("Settings Sandboxes", () => {
         dialog.getByLabel("Allow Internet Access")
       ).not.toBeVisible();
 
-      // Dependencies: WASM has no dependenciesLanguage — neither package
+      // Dependencies: WASM does not support dependencies — neither package
       // editor label should be visible.
       await expect(dialog.getByLabel("Python Packages")).not.toBeVisible();
       await expect(dialog.getByLabel("npm Packages")).not.toBeVisible();
@@ -159,12 +159,14 @@ test.describe("Settings Sandboxes", () => {
         dialog.getByText("Environment Variables", { exact: true })
       ).toBeVisible();
 
-      // The literal env var we saved should be shown by name. The literal
-      // value is redacted on read (see `redact_env_var_literals`) so the
-      // value input round-trips as "<redacted>", not the cleartext we typed.
-      // Re-saving requires the user to retype the value.
+      // The literal env var we saved should round-trip by name and value.
+      // Read-time redaction was intentionally removed (see the rationale in
+      // `src/phoenix/server/api/helpers/sandbox_redaction.py`) — admins who
+      // can read this dialog can already author evaluators that exfiltrate
+      // these values at execute time, so redacting the read API only
+      // introduced a clobber bug when admins edited without retyping.
       await expect(dialog.locator('input[value="MY_TEST_VAR"]')).toBeVisible();
-      await expect(dialog.locator('input[value="<redacted>"]')).toBeVisible();
+      await expect(dialog.locator('input[value="hello-world"]')).toBeVisible();
 
       // Close without changes
       await dialog.getByRole("button", { name: /cancel/i }).click();

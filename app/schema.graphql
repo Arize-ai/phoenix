@@ -781,10 +781,9 @@ input CreatePromptVersionTagInput {
 }
 
 input CreateSandboxConfigInput {
-  sandboxProviderId: ID!
+  config: SandboxConfigVariantInput!
   name: Identifier!
   description: String = null
-  config: JSON = null
   timeout: Int = null
   enabled: Boolean! = true
 }
@@ -1155,6 +1154,23 @@ input DatasetVersionSort {
 """Date with time (isoformat)"""
 scalar DateTime
 
+input DaytonaConfigInput {
+  language: Language!
+  envVars: [EnvVarInput!]! = []
+  internetAccess: InternetAccessInput = null
+  dependencies: DependenciesInput = null
+}
+
+type DaytonaDeploymentData {
+  apiUrl: String
+  target: String
+}
+
+input DaytonaDeploymentInput {
+  apiUrl: String = null
+  target: String = null
+}
+
 type DbTableStats {
   tableName: String!
   numBytes: Float!
@@ -1274,23 +1290,21 @@ type DeleteSandboxConfigPayload {
   query: Query!
 }
 
-input DeleteSandboxCredentialInput {
-  backendType: String!
-  key: String!
-}
-
-type DeleteSandboxCredentialPayload {
-  backendType: String!
-  key: String!
-  query: Query!
-}
-
 input DeleteUsersInput {
   userIds: [ID!]!
 }
 
 type DeleteUsersPayload {
   userIds: [ID!]!
+}
+
+input DenoConfigInput {
+  language: Language!
+  envVars: [EnvVarInput!]! = []
+}
+
+input DependenciesInput {
+  packages: [String!]! = []
 }
 
 type DismissExperimentPayload {
@@ -1390,6 +1404,33 @@ type DocumentRetrievalMetrics {
   Return 1.0 if any score is truthy (i.e. is a hit), e.g. score=1. Otherwise, return `NaN` if any score is non-finite (e.g. `NaN`), or return 0.0 if all scores are falsy, e.g. all scores are 0.
   """
   hit: Float
+}
+
+input E2BConfigInput {
+  language: Language!
+  envVars: [EnvVarInput!]! = []
+  internetAccess: InternetAccessInput = null
+  dependencies: DependenciesInput = null
+}
+
+type E2BDeploymentData {
+  domain: String
+  apiUrl: String
+}
+
+input E2BDeploymentInput {
+  domain: String = null
+  apiUrl: String = null
+}
+
+input EnvVarInput {
+  name: String!
+  value: EnvVarValueInput!
+}
+
+input EnvVarValueInput @oneOf {
+  literal: String
+  secretKey: String
 }
 
 enum EvalAttr {
@@ -2112,6 +2153,15 @@ input InlineLLMEvaluatorInput {
   description: String = null
 }
 
+enum InternetAccessChoice {
+  ALLOW
+  DENY
+}
+
+input InternetAccessInput {
+  mode: InternetAccessChoice!
+}
+
 enum InternetAccessMode {
   NONE
   BOOLEAN
@@ -2156,6 +2206,13 @@ enum Language {
 enum MimeType {
   text
   json
+}
+
+input ModalConfigInput {
+  language: Language! = PYTHON
+  envVars: [EnvVarInput!]! = []
+  internetAccess: InternetAccessInput = null
+  dependencies: DependenciesInput = null
 }
 
 interface ModelInterface {
@@ -2264,8 +2321,6 @@ type Mutation {
   updateSandboxConfig(input: UpdateSandboxConfigInput!): UpdateSandboxConfigPayload!
   deleteSandboxConfig(input: DeleteSandboxConfigInput!): DeleteSandboxConfigPayload!
   updateSandboxProvider(input: UpdateSandboxProviderInput!): UpdateSandboxProviderPayload!
-  setSandboxCredential(input: SetSandboxCredentialInput!): SetSandboxCredentialPayload!
-  deleteSandboxCredential(input: DeleteSandboxCredentialInput!): DeleteSandboxCredentialPayload!
   upsertOrDeleteSecrets(input: UpsertOrDeleteSecretsMutationInput!): UpsertOrDeleteSecretsMutationPayload!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
   createSpanNote(annotationInput: CreateSpanNoteInput!): SpanAnnotationMutationPayload!
@@ -3298,7 +3353,7 @@ enum RevisionKind {
 }
 
 type SandboxBackendInfo {
-  backendType: String!
+  kind: SandboxProviderKind!
   displayName: String!
   hostingType: SandboxHostingType!
   supportedLanguages: [Language!]!
@@ -3307,7 +3362,7 @@ type SandboxBackendInfo {
   dependencyHints: [String!]!
   supportsEnvVars: Boolean!
   internetAccess: InternetAccessMode!
-  dependenciesLanguage: Language
+  supportsDependencies: Boolean!
   credentialSpecs: [SandboxProviderCredentialSpec!]!
 }
 
@@ -3321,9 +3376,10 @@ enum SandboxBackendStatus {
 type SandboxConfig implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
-  name: String!
+  name: Identifier!
   description: String
-  config: JSON!
+  language: Language!
+  config: SandboxConfigData!
 
   """
   Execution timeout in seconds (includes package install on ephemeral calls).
@@ -3335,6 +3391,57 @@ type SandboxConfig implements Node {
   updatedAt: DateTime!
 }
 
+type SandboxConfigData {
+  envVars: [SandboxConfigEnvVar!]!
+  internetAccess: SandboxConfigInternetAccess
+  dependencies: SandboxConfigDependencies
+}
+
+type SandboxConfigDependencies {
+  packages: [String!]!
+}
+
+type SandboxConfigEnvVar {
+  name: String!
+  value: SandboxConfigEnvVarValue!
+}
+
+type SandboxConfigEnvVarLiteral {
+  literal: String!
+}
+
+type SandboxConfigEnvVarSecretRef {
+  secretKey: String!
+}
+
+"""
+An env-var's value. Either a literal string or a reference to a Secret row by key.
+"""
+union SandboxConfigEnvVarValue = SandboxConfigEnvVarLiteral | SandboxConfigEnvVarSecretRef
+
+type SandboxConfigInternetAccess {
+  mode: InternetAccessChoice!
+}
+
+input SandboxConfigVariantInput @oneOf {
+  e2b: E2BConfigInput
+  daytona: DaytonaConfigInput
+  deno: DenoConfigInput
+  vercel: VercelConfigInput
+  wasm: WASMConfigInput
+  modal: ModalConfigInput
+}
+
+"""
+Admin-scoped deployment routing for a sandbox provider. Only providers that expose routing kwargs on their SDK ``create()`` appear in this union; others (WASM, Deno, Vercel, Modal) expose ``deployment: null``.
+"""
+union SandboxDeployment = DaytonaDeploymentData | E2BDeploymentData
+
+input SandboxDeploymentVariantInput @oneOf {
+  daytona: DaytonaDeploymentInput
+  e2b: E2BDeploymentInput
+}
+
 enum SandboxHostingType {
   LOCAL
   HOSTED
@@ -3343,11 +3450,14 @@ enum SandboxHostingType {
 type SandboxProvider implements Node {
   """The Globally Unique ID of this object"""
   id: ID!
-  backendType: String!
-  language: Language!
+  kind: SandboxProviderKind!
+  supportedLanguages: [Language!]!
   enabled: Boolean!
-  createdAt: DateTime!
-  updatedAt: DateTime!
+
+  """
+  Admin-scoped deployment routing parsed from the stored ``SandboxProvider.config`` JSON. Returns ``null`` for providers whose SDK has no routing kwargs (WASM, Deno, Vercel, Modal) or when the stored blob is empty.
+  """
+  deployment: SandboxDeployment
   configs: [SandboxConfig!]!
 }
 
@@ -3356,6 +3466,15 @@ type SandboxProviderCredentialSpec {
   displayName: String!
   description: String!
   isRequired: Boolean!
+}
+
+enum SandboxProviderKind {
+  WASM
+  E2B
+  DAYTONA
+  VERCEL
+  DENO
+  MODAL
 }
 
 type Secret implements Node {
@@ -3428,18 +3547,6 @@ input SetPromptVersionTagInput {
   promptVersionId: ID!
   name: Identifier!
   description: String = null
-}
-
-input SetSandboxCredentialInput {
-  backendType: String!
-  key: String!
-  value: String!
-}
-
-type SetSandboxCredentialPayload {
-  backendType: String!
-  key: String!
-  query: Query!
 }
 
 enum ShapeExamplesLanguage {
@@ -4180,7 +4287,7 @@ input UpdateSandboxConfigInput {
   id: ID!
   name: Identifier
   description: String
-  config: JSON
+  config: SandboxConfigVariantInput
   timeout: Int
   enabled: Boolean
 }
@@ -4193,6 +4300,7 @@ type UpdateSandboxConfigPayload {
 input UpdateSandboxProviderInput {
   id: ID!
   enabled: Boolean
+  deployment: SandboxDeploymentVariantInput
 }
 
 type UpdateSandboxProviderPayload {
@@ -4285,4 +4393,15 @@ enum UserRoleInput {
 type ValidationResult {
   isValid: Boolean!
   errorMessage: String
+}
+
+input VercelConfigInput {
+  language: Language!
+  envVars: [EnvVarInput!]! = []
+  internetAccess: InternetAccessInput = null
+  dependencies: DependenciesInput = null
+}
+
+input WASMConfigInput {
+  language: Language! = PYTHON
 }

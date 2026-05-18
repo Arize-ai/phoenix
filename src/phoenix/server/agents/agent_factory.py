@@ -1,5 +1,6 @@
 from opentelemetry.trace import NoOpTracerProvider, TracerProvider
 from pydantic_ai import Agent, DeferredToolRequests, RunContext
+from pydantic_ai.capabilities import ProcessHistory
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.models import Model
 
@@ -62,6 +63,6 @@ def build_agent(
         output_type=[str, DeferredToolRequests],
         instructions=[AGENT_STATIC_SYSTEM_PROMPT, _build_dynamic_instructions],
         toolsets=[_build_toolset],
-        history_processors=[_inject_ui_context],
+        capabilities=[ProcessHistory(_inject_ui_context)],
     )
     return OpenInferenceAgentWrapper(agent, tracer_provider=provider)

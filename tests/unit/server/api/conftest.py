@@ -1683,7 +1683,7 @@ async def seed_sandbox_providers(
     db: DbSessionFactory,
     seed_languages: None,
 ) -> None:
-    """Seed one sandbox_providers row per (backend_type, language) pair."""
+    """Seed one sandbox_providers row per canonical provider kind."""
     async with db() as session:
         await sync_sandbox_providers(session, SANDBOX_ADAPTER_METADATA)
 
@@ -1696,15 +1696,15 @@ async def sandbox_config(
     """Return a SandboxConfig linked to the first available WASM/PYTHON provider."""
     async with db() as session:
         provider = await session.scalar(
-            select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
+            select(models.SandboxProvider).where(models.SandboxProvider.kind == "WASM")
         )
         assert provider is not None, (
             "WASM sandbox provider not found; ensure seed_sandbox_providers ran"
         )
         config = models.SandboxConfig(
-            sandbox_provider_id=provider.id,
-            language=provider.language,
-            name="test-sandbox-config",
+            provider_kind=provider.kind,
+            language="PYTHON",
+            name=Identifier("test-sandbox-config"),
             description="Fixture sandbox config for tests",
             config={},
             timeout=30,

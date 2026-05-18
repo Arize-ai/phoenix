@@ -40,11 +40,11 @@ export const datasetEvaluatorDetailsLoaderGQL = graphql`
       }
     }
     sandboxBackends {
-      backendType
+      kind
       displayName
       supportsEnvVars
       internetAccess
-      dependenciesLanguage
+      supportsDependencies
     }
   }
 `;

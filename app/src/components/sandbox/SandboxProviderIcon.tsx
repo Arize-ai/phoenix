@@ -6,6 +6,8 @@ const iconWrapCSS = css`
   flex-shrink: 0;
 `;
 
+import type { SandboxProviderKind } from "@phoenix/types";
+
 type IconProps = { height: number };
 
 const DaytonaSVG = ({ height }: IconProps) => (
@@ -181,31 +183,29 @@ const WasmSVG = ({ height }: IconProps) => (
   </svg>
 );
 
-const ICONS_BY_BACKEND_TYPE: Record<string, React.FC<IconProps>> = {
+const ICONS_BY_KIND: Record<SandboxProviderKind, React.FC<IconProps>> = {
   WASM: WasmSVG,
   E2B: E2BSVG,
-  DAYTONA_PYTHON: DaytonaSVG,
-  DAYTONA_TYPESCRIPT: DaytonaSVG,
-  VERCEL_PYTHON: VercelSVG,
-  VERCEL_TYPESCRIPT: VercelSVG,
+  DAYTONA: DaytonaSVG,
+  VERCEL: VercelSVG,
   DENO: DenoSVG,
   MODAL: ModalSVG,
 };
 
 export type SandboxProviderIconProps = {
-  backendType: string;
+  kind: SandboxProviderKind;
   height?: number;
 };
 
 /**
- * Renders the brand icon for a sandbox backend. Returns null when no icon is
- * registered for the given backend type, so callers can use it unconditionally.
+ * Renders the brand icon for a sandbox provider. Returns null when no icon is
+ * registered for the given provider kind, so callers can use it unconditionally.
  */
 export function SandboxProviderIcon({
-  backendType,
+  kind,
   height = 18,
 }: SandboxProviderIconProps) {
-  const Icon = ICONS_BY_BACKEND_TYPE[backendType];
+  const Icon = ICONS_BY_KIND[kind];
   if (!Icon) {
     return null;
   }

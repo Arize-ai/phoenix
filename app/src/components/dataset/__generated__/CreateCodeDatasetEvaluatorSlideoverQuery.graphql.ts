@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5e7217b521d69f64a137190e14bd60a0>>
+ * @generated SignedSource<<06b1c3b73e476377da625fba238d8e91>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,29 +9,53 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
+export type InternetAccessChoice = "ALLOW" | "DENY";
 export type InternetAccessMode = "ALLOWLIST" | "BOOLEAN" | "NONE";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type SandboxBackendStatus = "AVAILABLE" | "MISSING_CREDENTIALS" | "NOT_INSTALLED" | "UNAVAILABLE";
+export type SandboxProviderKind = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "VERCEL" | "WASM";
 export type CreateCodeDatasetEvaluatorSlideoverQuery$variables = Record<PropertyKey, never>;
 export type CreateCodeDatasetEvaluatorSlideoverQuery$data = {
   readonly sandboxBackends: ReadonlyArray<{
-    readonly backendType: string;
-    readonly dependenciesLanguage: Language | null;
     readonly internetAccess: InternetAccessMode;
+    readonly kind: SandboxProviderKind;
     readonly status: SandboxBackendStatus;
+    readonly supportsDependencies: boolean;
     readonly supportsEnvVars: boolean;
   }>;
   readonly sandboxProviders: ReadonlyArray<{
-    readonly backendType: string;
     readonly configs: ReadonlyArray<{
-      readonly config: any;
+      readonly config: {
+        readonly dependencies: {
+          readonly packages: ReadonlyArray<string>;
+        } | null;
+        readonly envVars: ReadonlyArray<{
+          readonly name: string;
+          readonly value: {
+            readonly __typename: "SandboxConfigEnvVarLiteral";
+            readonly literal: string;
+          } | {
+            readonly __typename: "SandboxConfigEnvVarSecretRef";
+            readonly secretKey: string;
+          } | {
+            // This will never be '%other', but we need some
+            // value in case none of the concrete values match.
+            readonly __typename: "%other";
+          };
+        }>;
+        readonly internetAccess: {
+          readonly mode: InternetAccessChoice;
+        } | null;
+      };
       readonly description: string | null;
       readonly id: string;
+      readonly language: Language;
       readonly name: string;
       readonly timeout: number;
     }>;
     readonly enabled: boolean;
-    readonly language: Language;
+    readonly kind: SandboxProviderKind;
+    readonly supportedLanguages: ReadonlyArray<Language>;
   }>;
 };
 export type CreateCodeDatasetEvaluatorSlideoverQuery = {
@@ -44,14 +68,14 @@ var v0 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "backendType",
+  "name": "kind",
   "storageKey": null
 },
 v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "language",
+  "name": "supportedLanguages",
   "storageKey": null
 },
 v2 = {
@@ -71,24 +95,32 @@ v3 = {
 v4 = {
   "alias": null,
   "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
   "concreteType": "SandboxConfig",
   "kind": "LinkedField",
   "name": "configs",
   "plural": true,
   "selections": [
     (v3/*: any*/),
+    (v4/*: any*/),
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "name",
+      "name": "description",
       "storageKey": null
     },
     {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "description",
+      "name": "language",
       "storageKey": null
     },
     {
@@ -101,14 +133,112 @@ v4 = {
     {
       "alias": null,
       "args": null,
-      "kind": "ScalarField",
+      "concreteType": "SandboxConfigData",
+      "kind": "LinkedField",
       "name": "config",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "SandboxConfigEnvVar",
+          "kind": "LinkedField",
+          "name": "envVars",
+          "plural": true,
+          "selections": [
+            (v4/*: any*/),
+            {
+              "alias": null,
+              "args": null,
+              "concreteType": null,
+              "kind": "LinkedField",
+              "name": "value",
+              "plural": false,
+              "selections": [
+                {
+                  "alias": null,
+                  "args": null,
+                  "kind": "ScalarField",
+                  "name": "__typename",
+                  "storageKey": null
+                },
+                {
+                  "kind": "InlineFragment",
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "literal",
+                      "storageKey": null
+                    }
+                  ],
+                  "type": "SandboxConfigEnvVarLiteral",
+                  "abstractKey": null
+                },
+                {
+                  "kind": "InlineFragment",
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "secretKey",
+                      "storageKey": null
+                    }
+                  ],
+                  "type": "SandboxConfigEnvVarSecretRef",
+                  "abstractKey": null
+                }
+              ],
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "SandboxConfigInternetAccess",
+          "kind": "LinkedField",
+          "name": "internetAccess",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "mode",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "SandboxConfigDependencies",
+          "kind": "LinkedField",
+          "name": "dependencies",
+          "plural": false,
+          "selections": [
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "packages",
+              "storageKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ],
       "storageKey": null
     }
   ],
   "storageKey": null
 },
-v5 = {
+v6 = {
   "alias": null,
   "args": null,
   "concreteType": "SandboxBackendInfo",
@@ -142,7 +272,7 @@ v5 = {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "dependenciesLanguage",
+      "name": "supportsDependencies",
       "storageKey": null
     }
   ],
@@ -166,11 +296,11 @@ return {
           (v0/*: any*/),
           (v1/*: any*/),
           (v2/*: any*/),
-          (v4/*: any*/)
+          (v5/*: any*/)
         ],
         "storageKey": null
       },
-      (v5/*: any*/)
+      (v6/*: any*/)
     ],
     "type": "Query",
     "abstractKey": null
@@ -192,25 +322,25 @@ return {
           (v0/*: any*/),
           (v1/*: any*/),
           (v2/*: any*/),
-          (v4/*: any*/),
+          (v5/*: any*/),
           (v3/*: any*/)
         ],
         "storageKey": null
       },
-      (v5/*: any*/)
+      (v6/*: any*/)
     ]
   },
   "params": {
-    "cacheID": "829630d1a89eebd47463937078c1212c",
+    "cacheID": "9a406df1d0362a062fe92674faa750fa",
     "id": null,
     "metadata": {},
     "name": "CreateCodeDatasetEvaluatorSlideoverQuery",
     "operationKind": "query",
-    "text": "query CreateCodeDatasetEvaluatorSlideoverQuery {\n  sandboxProviders {\n    backendType\n    language\n    enabled\n    configs {\n      id\n      name\n      description\n      timeout\n      config\n    }\n    id\n  }\n  sandboxBackends {\n    backendType\n    status\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n  }\n}\n"
+    "text": "query CreateCodeDatasetEvaluatorSlideoverQuery {\n  sandboxProviders {\n    kind\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      config {\n        envVars {\n          name\n          value {\n            __typename\n            ... on SandboxConfigEnvVarLiteral {\n              literal\n            }\n            ... on SandboxConfigEnvVarSecretRef {\n              secretKey\n            }\n          }\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n    }\n    id\n  }\n  sandboxBackends {\n    kind\n    status\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "07b3d83efa8b385d187c54ab77bf6108";
+(node as any).hash = "09d72a45f55106311c4ad0c169227eb7";
 
 export default node;

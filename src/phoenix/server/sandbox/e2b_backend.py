@@ -13,12 +13,13 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
 
-from starlette.datastructures import Secret
+from pydantic import SecretStr
 
 from .types import (
     E2BConfig,
+    E2BCredentials,
+    E2BDeployment,
     ExecutionResult,
-    ProviderCredentialSpec,
     SandboxAdapter,
     SandboxBackend,
     compose_secret_values,
@@ -43,12 +44,14 @@ class E2BSandboxBackend(SandboxBackend):
 
     def __init__(
         self,
-        api_key: Secret,
+        api_key: SecretStr,
         template: Optional[str] = None,
         metadata: Optional[str] = None,
         user_env: Optional[Mapping[str, str]] = None,
         allow_internet_access: bool = True,
         packages: Optional[Sequence[str]] = None,
+        domain: Optional[str] = None,
+        api_url: Optional[str] = None,
     ) -> None:
         self._api_key = api_key
         # ``template=None`` lets ``AsyncSandbox.create()`` fall back to its
@@ -62,6 +65,8 @@ class E2BSandboxBackend(SandboxBackend):
         self._user_env: dict[str, str] = dict(user_env or {})
         self._allow_internet_access = allow_internet_access
         self._packages: list[str] = list(packages) if packages else []
+        self._domain = domain
+        self._api_url = api_url
         self._sessions: dict[str, AsyncSandbox] = {}
         self.secret_values = compose_secret_values(user_env, self._api_key)
 
@@ -76,16 +81,22 @@ class E2BSandboxBackend(SandboxBackend):
         The E2B SDK expects metadata as Dict[str, str]. A string value from
         the config is passed under the key ``"info"``, so the sandbox is
         tagged with ``{"info": "<value>"}``. ``api_key`` is forwarded via the
-        SDK's ``ApiParams`` (``**opts``) on ``create()``.
+        SDK's ``ApiParams`` (``**opts``) on ``create()``. ``domain`` and
+        ``api_url`` are forwarded only when set so the SDK applies its own
+        hosted defaults otherwise.
         """
         kwargs: dict[str, Any] = {
-            "api_key": str(self._api_key),
+            "api_key": self._api_key.get_secret_value(),
             "allow_internet_access": self._allow_internet_access,
         }
         if self._template is not None:
             kwargs["template"] = self._template
         if self._metadata is not None:
             kwargs["metadata"] = {"info": self._metadata}
+        if self._domain is not None:
+            kwargs["domain"] = self._domain
+        if self._api_url is not None:
+            kwargs["api_url"] = self._api_url
         return kwargs
 
     async def _install_packages(self, sandbox: AsyncSandbox) -> None:
@@ -172,19 +183,17 @@ class E2BSandboxBackend(SandboxBackend):
             await self.stop_session(key)
 
 
-class E2BAdapter(SandboxAdapter):
-    key = "E2B"
-    family = "E2B"
+class E2BAdapter(SandboxAdapter[E2BConfig, E2BCredentials, E2BDeployment]):
+    kind = "E2B"
     display_name = "E2B"
-    language = "PYTHON"
+    hosting_type = "hosted"
+    dependency_hints = (
+        "Install Phoenix with the `e2b` extra.",
+        "Provide `E2B_API_KEY`.",
+    )
     config_model = E2BConfig
-    credential_specs = [
-        ProviderCredentialSpec(
-            key=ENV_E2B_API_KEY,
-            display_name="E2B API Key",
-            description="API key for the E2B sandbox service.",
-        ),
-    ]
+    credentials_model = E2BCredentials
+    deployment_config_model = E2BDeployment
 
     @classmethod
     def probe_dependencies(cls) -> None:
@@ -193,40 +202,38 @@ class E2BAdapter(SandboxAdapter):
 
     def build_backend(
         self,
-        config: Mapping[str, Any],
+        config: E2BConfig,
+        *,
+        credentials: E2BCredentials,
+        deployment: E2BDeployment,
         user_env: Optional[Mapping[str, str]] = None,
     ) -> SandboxBackend:
-        self._enforce_capabilities(config, user_env)
         # Fail-closed on missing credential. Passing an empty api_key would let
         # the E2B SDK silently fall back to ``os.getenv("E2B_API_KEY")``
         # (e2b.connection_config:94). Phoenix's resolver already consults that
         # env var, so reaching this branch with an empty key means Phoenix
         # decided "no credential available"; raise rather than let the SDK
         # auto-discover and bypass that decision.
-        api_key: str = config.get(ENV_E2B_API_KEY) or ""
+        api_key = credentials.E2B_API_KEY.get_secret_value()
         if not api_key:
             raise ValueError(
                 "E2B sandbox authentication is not configured. Set "
-                "E2B_API_KEY via setSandboxCredential or as a "
-                "process environment variable."
+                "E2B_API_KEY in Settings → Sandboxes → E2B → Credentials, "
+                "or as a process environment variable."
             )
-        internet_access = config.get("internet_access")
-        if internet_access is not None:
-            mode = (
-                internet_access.get("mode")
-                if isinstance(internet_access, dict)
-                else getattr(internet_access, "mode", None)
-            )
-            allow_internet_access = mode != "deny"
-        else:
-            allow_internet_access = True
-        deps = config.get("dependencies") or {}
-        packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
+        allow_internet_access = (
+            config.internet_access is None or config.internet_access.mode != "deny"
+        )
+        packages: list[str] = (
+            list(config.dependencies.packages) if config.dependencies is not None else []
+        )
         return E2BSandboxBackend(
-            api_key=Secret(api_key),
+            api_key=SecretStr(api_key),
             template=None,
             metadata=None,
             user_env=user_env,
             allow_internet_access=allow_internet_access,
             packages=packages or None,
+            domain=deployment.domain,
+            api_url=deployment.api_url,
         )

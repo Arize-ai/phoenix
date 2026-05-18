@@ -12,13 +12,21 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from starlette.datastructures import Secret
+from pydantic import BaseModel, SecretStr
 
+from phoenix.db.models import LanguageName
+from phoenix.server.sandbox.types import (
+    VercelConfig,
+    VercelCredentials,
+    VercelDeployment,
+)
 from phoenix.server.sandbox.vercel_backend import VercelSandboxBackend
 
-_TOKEN = Secret("t")
-_PROJECT = Secret("p")
-_TEAM = Secret("m")
+_VERCEL_DEPLOY = VercelDeployment()
+
+_TOKEN = SecretStr("t")
+_PROJECT = SecretStr("p")
+_TEAM = SecretStr("m")
 
 
 def _make_vercel_sdk_mock(
@@ -66,13 +74,15 @@ def test_constructor_rejects_missing_credentials() -> None:
     """
     with pytest.raises(ValueError, match="token, project_id, and team_id"):
         VercelSandboxBackend(
-            token=Secret(""), project_id=_PROJECT, team_id=_TEAM, language="PYTHON"
+            token=SecretStr(""), project_id=_PROJECT, team_id=_TEAM, language="PYTHON"
         )
     with pytest.raises(ValueError, match="token, project_id, and team_id"):
-        VercelSandboxBackend(token=_TOKEN, project_id=Secret(""), team_id=_TEAM, language="PYTHON")
+        VercelSandboxBackend(
+            token=_TOKEN, project_id=SecretStr(""), team_id=_TEAM, language="PYTHON"
+        )
     with pytest.raises(ValueError, match="token, project_id, and team_id"):
         VercelSandboxBackend(
-            token=_TOKEN, project_id=_PROJECT, team_id=Secret(""), language="PYTHON"
+            token=_TOKEN, project_id=_PROJECT, team_id=SecretStr(""), language="PYTHON"
         )
 
 
@@ -263,9 +273,9 @@ async def test_create_sandbox_forwards_access_token_triple_as_kwargs(
     """
     captured_kwargs = patched_vercel_sdk_with_kwargs
     backend = VercelSandboxBackend(
-        token=Secret("db-resolved-token"),
-        project_id=Secret("proj-id"),
-        team_id=Secret("team-id"),
+        token=SecretStr("db-resolved-token"),
+        project_id=SecretStr("proj-id"),
+        team_id=SecretStr("team-id"),
         language="PYTHON",
     )
     await backend._create_sandbox()
@@ -326,93 +336,84 @@ async def test_create_sandbox_omits_network_policy_when_internet_access_unset(
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize(
-    "adapter_module_path,adapter_cls_name,language",
-    [
-        ("phoenix.server.sandbox.vercel_backend", "VercelPythonAdapter", "PYTHON"),
-        ("phoenix.server.sandbox.vercel_backend", "VercelTypescriptAdapter", "TYPESCRIPT"),
-    ],
-)
-def test_adapter_build_backend_maps_internet_access_allow(
-    adapter_module_path: str, adapter_cls_name: str, language: str
-) -> None:
-    import importlib
+_LANGUAGES: list[LanguageName] = ["PYTHON", "TYPESCRIPT"]
 
-    mod = importlib.import_module(adapter_module_path)
-    adapter = getattr(mod, adapter_cls_name)()
+
+def _vercel_creds() -> "VercelCredentials":
+    from phoenix.server.sandbox.types import VercelCredentials
+
+    return VercelCredentials(VERCEL_TOKEN="t", VERCEL_PROJECT_ID="p", VERCEL_TEAM_ID="m")
+
+
+def _vercel_config(payload: dict[str, Any], language: LanguageName) -> "BaseModel":
+    return VercelConfig.model_validate({**payload, "language": language})
+
+
+@pytest.mark.parametrize("language", _LANGUAGES)
+def test_adapter_build_backend_maps_internet_access_allow(language: LanguageName) -> None:
+    from phoenix.server.sandbox.vercel_backend import VercelAdapter
+
+    adapter = VercelAdapter()
     backend = adapter.build_backend(
-        {
-            "internet_access": {"mode": "allow"},
-            "VERCEL_TOKEN": "t",
-            "VERCEL_PROJECT_ID": "p",
-            "VERCEL_TEAM_ID": "m",
-        }
+        _vercel_config({"internet_access": {"mode": "allow"}}, language),  # type: ignore[arg-type]
+        credentials=_vercel_creds(),
+        deployment=_VERCEL_DEPLOY,
     )
+    assert isinstance(backend, VercelSandboxBackend)
     assert backend._internet_access is True
     assert backend._language == language
 
 
-@pytest.mark.parametrize(
-    "adapter_module_path,adapter_cls_name",
-    [
-        ("phoenix.server.sandbox.vercel_backend", "VercelPythonAdapter"),
-        ("phoenix.server.sandbox.vercel_backend", "VercelTypescriptAdapter"),
-    ],
-)
+@pytest.mark.parametrize("language", _LANGUAGES)
 def test_adapter_build_backend_maps_internet_access_deny_no_packages(
-    adapter_module_path: str, adapter_cls_name: str
+    language: LanguageName,
 ) -> None:
-    import importlib
+    from phoenix.server.sandbox.vercel_backend import VercelAdapter
 
-    mod = importlib.import_module(adapter_module_path)
-    adapter = getattr(mod, adapter_cls_name)()
+    adapter = VercelAdapter()
     backend = adapter.build_backend(
-        {
-            "internet_access": {"mode": "deny"},
-            "VERCEL_TOKEN": "t",
-            "VERCEL_PROJECT_ID": "p",
-            "VERCEL_TEAM_ID": "m",
-        }
+        _vercel_config({"internet_access": {"mode": "deny"}}, language),  # type: ignore[arg-type]
+        credentials=_vercel_creds(),
+        deployment=_VERCEL_DEPLOY,
     )
+    assert isinstance(backend, VercelSandboxBackend)
     assert backend._internet_access is False
 
 
-@pytest.mark.parametrize(
-    "adapter_module_path,adapter_cls_name",
-    [
-        ("phoenix.server.sandbox.vercel_backend", "VercelPythonAdapter"),
-        ("phoenix.server.sandbox.vercel_backend", "VercelTypescriptAdapter"),
-    ],
-)
+@pytest.mark.parametrize("language", _LANGUAGES)
 def test_adapter_build_backend_omits_internet_access_when_absent(
-    adapter_module_path: str, adapter_cls_name: str
+    language: LanguageName,
 ) -> None:
-    import importlib
+    from phoenix.server.sandbox.vercel_backend import VercelAdapter
 
-    mod = importlib.import_module(adapter_module_path)
-    adapter = getattr(mod, adapter_cls_name)()
+    adapter = VercelAdapter()
     backend = adapter.build_backend(
-        {
-            "VERCEL_TOKEN": "t",
-            "VERCEL_PROJECT_ID": "p",
-            "VERCEL_TEAM_ID": "m",
-        }
+        _vercel_config({}, language),  # type: ignore[arg-type]
+        credentials=_vercel_creds(),
+        deployment=_VERCEL_DEPLOY,
     )
+    assert isinstance(backend, VercelSandboxBackend)
     assert backend._internet_access is None
 
 
-@pytest.mark.parametrize(
-    "adapter_cls_name",
-    ["VercelPythonAdapter", "VercelTypescriptAdapter"],
-)
-def test_adapter_build_backend_fails_closed_on_missing_triple(adapter_cls_name: str) -> None:
+@pytest.mark.parametrize("language", _LANGUAGES)
+def test_adapter_build_backend_fails_closed_on_missing_triple(language: LanguageName) -> None:
     """Missing any of the three credentials must raise ValueError before SDK call."""
-    import importlib
+    from phoenix.server.sandbox.types import VercelCredentials
+    from phoenix.server.sandbox.vercel_backend import VercelAdapter
 
-    mod = importlib.import_module("phoenix.server.sandbox.vercel_backend")
-    adapter = getattr(mod, adapter_cls_name)()
+    adapter = VercelAdapter()
+    partial_creds = VercelCredentials(
+        VERCEL_TOKEN=SecretStr("t"),
+        VERCEL_PROJECT_ID=SecretStr(""),
+        VERCEL_TEAM_ID=SecretStr(""),
+    )
     with pytest.raises(ValueError, match="Vercel sandbox authentication is not configured"):
-        adapter.build_backend({"VERCEL_TOKEN": "t"})
+        adapter.build_backend(
+            _vercel_config({}, language),  # type: ignore[arg-type]
+            credentials=partial_creds,
+            deployment=_VERCEL_DEPLOY,
+        )
 
 
 @pytest.mark.asyncio
@@ -433,7 +434,9 @@ async def test_execute_strips_ansi_from_all_three_fields(
         return result
 
     sandbox.run_command = _run_command
-    backend = VercelSandboxBackend(token=_TOKEN, project_id=_PROJECT, team_id=_TEAM)
+    backend = VercelSandboxBackend(
+        token=_TOKEN, project_id=_PROJECT, team_id=_TEAM, language="PYTHON"
+    )
 
     async def _fake_create_sandbox() -> Any:
         return sandbox
@@ -452,7 +455,9 @@ async def test_execute_strips_ansi_in_raised_exception_path(
 ) -> None:
     """When an exception is raised inside execute(), its str() lands on
     stderr/error — ANSI bytes in the exception message must be stripped."""
-    backend = VercelSandboxBackend(token=_TOKEN, project_id=_PROJECT, team_id=_TEAM)
+    backend = VercelSandboxBackend(
+        token=_TOKEN, project_id=_PROJECT, team_id=_TEAM, language="PYTHON"
+    )
 
     async def _explode() -> Any:
         raise RuntimeError("\x1b[31mprovider error\x1b[0m")
@@ -462,3 +467,20 @@ async def test_execute_strips_ansi_in_raised_exception_path(
 
     assert result.error == "provider error"
     assert result.stderr == "provider error"
+
+
+@pytest.mark.parametrize("language", _LANGUAGES)
+def test_build_backend_wires_packages_to_backend(language: LanguageName) -> None:
+    """``VercelAdapter.build_backend`` forwards ``config.dependencies.packages``
+    onto the returned ``VercelSandboxBackend._packages`` for each execution
+    language."""
+    from phoenix.server.sandbox.vercel_backend import VercelAdapter
+
+    adapter = VercelAdapter()
+    packages = ["requests", "numpy"]
+    backend = adapter.build_backend(
+        _vercel_config({"dependencies": {"packages": packages}}, language),  # type: ignore[arg-type]
+        credentials=_vercel_creds(),
+        deployment=_VERCEL_DEPLOY,
+    )
+    assert backend._packages == packages  # type: ignore[attr-defined]

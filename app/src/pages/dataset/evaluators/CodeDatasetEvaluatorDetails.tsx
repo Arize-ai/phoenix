@@ -24,13 +24,9 @@ import { useViewerCanManageSandboxes } from "@phoenix/contexts";
 import type { CodeDatasetEvaluatorDetails_datasetEvaluator$key } from "@phoenix/pages/dataset/evaluators/__generated__/CodeDatasetEvaluatorDetails_datasetEvaluator.graphql";
 import type { datasetEvaluatorDetailsLoaderQuery } from "@phoenix/pages/dataset/evaluators/__generated__/datasetEvaluatorDetailsLoaderQuery.graphql";
 import {
-  friendlySettingLabel,
-  getDisplaySandboxConfig,
+  getSandboxConfigSettings,
   LanguageWithIcon,
-  languageLabel,
-  summarizeConfig,
 } from "@phoenix/pages/settings/sandboxes/utils";
-import { isPlainObject } from "@phoenix/utils/jsonUtils";
 
 type SandboxBackendInfo =
   datasetEvaluatorDetailsLoaderQuery["response"]["sandboxBackends"][number];
@@ -149,7 +145,7 @@ function ProviderCapabilitiesHelp({
           <CapabilityRow
             label="dependencies"
             value={getDependenciesLabel(
-              sandboxBackend?.dependenciesLanguage ?? null
+              sandboxBackend?.supportsDependencies ?? false
             )}
           />
         </Flex>
@@ -271,85 +267,21 @@ function OutputConfigBlock({ config }: { config: OutputConfig }) {
   );
 }
 
-// Keys that are presented as a single row (not flattened into dot-paths) so
-// we can apply a friendly human-readable summary value.
-const COLLAPSED_SETTING_KEYS = new Set(["env_vars", "internet_access"]);
+/** Values that should render in muted-italic (off / none) vs plain mono. */
+const MUTED_SETTING_VALUES = new Set(["off", "none"]);
 
-function flattenSettings(
-  value: unknown,
-  prefix = ""
-): Array<[string, unknown]> {
-  if (!isPlainObject(value) || Object.keys(value).length === 0) {
-    return prefix ? [[prefix, value]] : [];
-  }
-  const result: Array<[string, unknown]> = [];
-  for (const [key, v] of Object.entries(value)) {
-    const path = prefix ? `${prefix}.${key}` : key;
-    if (!prefix && COLLAPSED_SETTING_KEYS.has(key)) {
-      result.push([path, v]);
-    } else if (isPlainObject(v) && Object.keys(v).length > 0) {
-      result.push(...flattenSettings(v, path));
-    } else {
-      result.push([path, v]);
-    }
-  }
-  return result;
-}
-
-function isInternetAccessOff(value: unknown): boolean {
-  if (value == null) return true;
-  if (isPlainObject(value)) {
-    const mode = value["mode"];
-    if (mode == null) return true;
-    if (typeof mode === "string" && mode.toLowerCase() === "deny") return true;
-  }
-  if (typeof value === "string" && value.toLowerCase() === "deny") return true;
-  return false;
-}
-
-function MutedSettingValue({ children }: { children: ReactNode }) {
+function SettingValue({ value }: { value: string }) {
+  const isMuted = MUTED_SETTING_VALUES.has(value);
   return (
-    <Text size="S" fontFamily="mono" color="text-500" fontStyle="italic">
-      {children}
+    <Text
+      size="S"
+      fontFamily="mono"
+      color={isMuted ? "text-500" : undefined}
+      fontStyle={isMuted ? "italic" : undefined}
+    >
+      {value}
     </Text>
   );
-}
-
-function MonoSettingValue({ children }: { children: ReactNode }) {
-  return (
-    <Text size="S" fontFamily="mono">
-      {children}
-    </Text>
-  );
-}
-
-function SettingValue({ keyPath, value }: { keyPath: string; value: unknown }) {
-  if (keyPath === "env_vars") {
-    if (value == null || (Array.isArray(value) && value.length === 0)) {
-      return <MutedSettingValue>none</MutedSettingValue>;
-    }
-  }
-  if (keyPath === "internet_access") {
-    if (isInternetAccessOff(value)) {
-      return <MutedSettingValue>off</MutedSettingValue>;
-    }
-  }
-  if (value == null) {
-    return <MutedSettingValue>null</MutedSettingValue>;
-  }
-  if (Array.isArray(value)) {
-    if (value.length === 0) {
-      return <MutedSettingValue>empty list</MutedSettingValue>;
-    }
-    return <MonoSettingValue>{JSON.stringify(value)}</MonoSettingValue>;
-  }
-  if (typeof value === "object") {
-    if (Object.keys(value as object).length === 0) {
-      return <MutedSettingValue>empty</MutedSettingValue>;
-    }
-    return <MonoSettingValue>{JSON.stringify(value)}</MonoSettingValue>;
-  }
-  return <MonoSettingValue>{String(value)}</MonoSettingValue>;
 }
 
 function formatPathMappingValue(value: unknown): string {
@@ -381,11 +313,9 @@ function getInternetAccessLabel(
 }
 
 function getDependenciesLabel(
-  dependenciesLanguage: SandboxBackendInfo["dependenciesLanguage"]
+  supportsDependencies: SandboxBackendInfo["supportsDependencies"]
 ) {
-  return dependenciesLanguage == null
-    ? "Not supported"
-    : languageLabel(dependenciesLanguage);
+  return supportsDependencies ? "Supported" : "Not supported";
 }
 
 export function CodeDatasetEvaluatorDetails({
@@ -447,10 +377,28 @@ export function CodeDatasetEvaluatorDetails({
               name
               description
               timeout
-              config
+              config {
+                envVars {
+                  name
+                  value {
+                    __typename
+                    ... on SandboxConfigEnvVarLiteral {
+                      literal
+                    }
+                    ... on SandboxConfigEnvVarSecretRef {
+                      secretKey
+                    }
+                  }
+                }
+                internetAccess {
+                  mode
+                }
+                dependencies {
+                  packages
+                }
+              }
               provider {
-                backendType
-                language
+                kind
               }
             }
             currentVersion {
@@ -474,11 +422,11 @@ export function CodeDatasetEvaluatorDetails({
       ? datasetEvaluator.outputConfigs
       : (evaluator.outputConfigs ?? []);
   const sandboxConfig = evaluator.sandboxConfig ?? null;
-  const sandboxBackendByType = useMemo(
+  const sandboxBackendByKind = useMemo(
     () =>
       new Map(
         sandboxBackends.map((sandboxBackend) => [
-          sandboxBackend.backendType,
+          sandboxBackend.kind,
           sandboxBackend,
         ])
       ),
@@ -486,7 +434,7 @@ export function CodeDatasetEvaluatorDetails({
   );
   const sandboxBackend =
     sandboxConfig != null
-      ? sandboxBackendByType.get(sandboxConfig.provider.backendType)
+      ? sandboxBackendByKind.get(sandboxConfig.provider.kind)
       : undefined;
 
   const pathMappingEntries = useMemo(
@@ -512,17 +460,12 @@ export function CodeDatasetEvaluatorDetails({
 
   const canManageSandboxes = useViewerCanManageSandboxes();
 
-  const customSettings = useMemo(() => {
-    if (sandboxConfig == null) return null;
-    if (summarizeConfig(sandboxConfig.config) === "No custom settings") {
-      return null;
-    }
-    return getDisplaySandboxConfig(sandboxConfig.config);
-  }, [sandboxConfig]);
-
-  const flattenedCustomSettings = useMemo(
-    () => flattenSettings(customSettings),
-    [customSettings]
+  const customSettings = useMemo(
+    () =>
+      sandboxConfig == null
+        ? []
+        : getSandboxConfigSettings(sandboxConfig.config),
+    [sandboxConfig]
   );
 
   // currentVersion is nullable on the schema (a CodeEvaluator can exist
@@ -644,12 +587,12 @@ export function CodeDatasetEvaluatorDetails({
                     value={
                       <Flex direction="row" gap="size-100" alignItems="center">
                         <SandboxProviderIcon
-                          backendType={sandboxConfig.provider.backendType}
+                          kind={sandboxConfig.provider.kind}
                           height={16}
                         />
                         <Text size="S">
                           {sandboxBackend?.displayName ??
-                            sandboxConfig.provider.backendType}
+                            sandboxConfig.provider.kind}
                         </Text>
                       </Flex>
                     }
@@ -661,11 +604,11 @@ export function CodeDatasetEvaluatorDetails({
                     value={`${sandboxConfig.timeout} seconds`}
                   />
                 </ListItem>
-                {flattenedCustomSettings.map(([key, v]) => (
-                  <ListItem key={key}>
+                {customSettings.map((setting) => (
+                  <ListItem key={setting.key}>
                     <SandboxRow
-                      label={friendlySettingLabel(key)}
-                      value={<SettingValue keyPath={key} value={v} />}
+                      label={setting.label}
+                      value={<SettingValue value={setting.value} />}
                     />
                   </ListItem>
                 ))}

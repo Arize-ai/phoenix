@@ -3734,13 +3734,13 @@ class TestGetEvaluators:
     ) -> None:
         async with db() as session:
             provider = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
+                select(models.SandboxProvider).where(models.SandboxProvider.kind == "WASM")
             )
             assert provider is not None
             sandbox_config = models.SandboxConfig(
-                sandbox_provider_id=provider.id,
-                language=provider.language,
-                name="disabled-runtime-config",
+                provider_kind=provider.kind,
+                language="PYTHON",
+                name=Identifier("disabled-runtime-config"),
                 config={},
                 timeout=30,
                 enabled=False,
@@ -3752,7 +3752,7 @@ class TestGetEvaluators:
                 name=Identifier("disabled-runtime-eval"),
                 input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                 output_configs=[],
-                language=provider.language,
+                language="PYTHON",
                 sandbox_config_id=sandbox_config.id,
             )
             session.add(code_eval)
@@ -3798,19 +3798,19 @@ class TestGetEvaluators:
             return object()
 
         monkeypatch.setattr(
-            "phoenix.server.sandbox.build_sandbox_backend",
+            "phoenix.server.api.evaluators.build_sandbox_backend",
             fake_build_sandbox_backend,
         )
 
         async with db() as session:
             provider = await session.scalar(
-                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
+                select(models.SandboxProvider).where(models.SandboxProvider.kind == "WASM")
             )
             assert provider is not None
             sandbox_config = models.SandboxConfig(
-                sandbox_provider_id=provider.id,
-                language=provider.language,
-                name="shared-runtime-config",
+                provider_kind=provider.kind,
+                language="PYTHON",
+                name=Identifier("shared-runtime-config"),
                 config={},
                 timeout=30,
             )
@@ -3824,7 +3824,7 @@ class TestGetEvaluators:
                     name=Identifier(f"shared-runtime-eval-{index}"),
                     input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
                     output_configs=[],
-                    language=provider.language,
+                    language="PYTHON",
                     sandbox_config_id=sandbox_config.id,
                 )
                 session.add(code_eval)

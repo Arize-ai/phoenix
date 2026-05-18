@@ -27,6 +27,7 @@ from phoenix.db.helpers import (
     insert_experiment_with_examples_snapshot,
 )
 from phoenix.db.types.experiment_config import PlaygroundConfig
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
@@ -512,7 +513,7 @@ async def _as_coroutine(iterable: AsyncIterator[GenericType]) -> GenericType:
     return await iterable.__anext__()
 
 
-def _default_playground_experiment_name(prompt_name: Optional[str] = None) -> str:
+def _default_playground_experiment_name(prompt_name: Optional[Identifier] = None) -> str:
     name = "playground-experiment"
     if prompt_name:
         name = f"{name} prompt:{prompt_name}"

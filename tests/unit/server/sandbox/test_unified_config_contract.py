@@ -1,78 +1,70 @@
-"""Parametrized contract tests for the unified sandbox adapter config contract.
+"""Cross-check tests: adapter metadata vs. structural Config composition.
 
-Iterates over every key in SANDBOX_ADAPTER_METADATA and asserts that each
-adapter's build_backend() enforces the flag/runtime agreement declared in the
-metadata:
+Each adapter declares its capabilities twice:
 
-- supports_env_vars=False  → build_backend(user_env={..}) raises UnsupportedOperation
-- internet_access="none"   → build_backend(config={"internet_access": {"mode": "allow"}})
-                             raises UnsupportedOperation
-- dependencies_language=None → build_backend(config={"dependencies": {"packages": ["x"]}})
-                               raises UnsupportedOperation
+1. **`AdapterMetadata`** (``supports_env_vars``, ``internet_access_capability``,
+   ``supports_dependencies``) — feeds the GraphQL ``SandboxBackendInfo`` type
+   so the UI knows which fields to render.
+2. **Pydantic Config composition** (e.g. ``class E2BConfig(_SupportsEnvVars,
+   ...)``) — determines which fields actually exist on the validated model,
+   enforced via ``extra="forbid"``.
 
-This is the structural conformance surface: every adapter in
-SANDBOX_ADAPTER_METADATA is exercised against the rejection contract for any
-capability it declares unsupported. Positive-path SDK forwarding is
-intentionally not covered here — it would re-verify library mock shapes
-rather than authored invariants. Real adapter drift surfaces in integration
-or deploy; targeted coverage is added then.
+If those two sources disagree, the UI either renders a field the server
+will reject, or hides a field the server would accept. The parametrized
+tests below derive the adapter list from **metadata** and call **the
+pydantic validator** — they pass iff the two sources agree.
 
-SDK mocking strategy:
-- Modal: sys.modules["modal"] must be patched before ModalSandboxBackend.__init__
-- Vercel: the unsupported-capability and interlock guards fire before credential
-  access so no env patching is needed for the rejection tests.
-- Deno/Daytona/E2B/WASM: construct without external SDKs.
+Additionally:
+
+- ``_RuntimePackageInstallation`` mixin presence (not a metadata flag) is the
+  signal for "this adapter installs packages inside the sandbox at runtime,"
+  and a smoke test confirms the mixin's cross-field ``model_validator``
+  actually fires.
+- A general ``extra="forbid"`` regression test asserts every adapter rejects
+  unknown keys (the closed-set contract that defeats stale fields and SSRF
+  smuggling).
+- A pinned ``_REMOVED_FIELD_CASES`` regression set documents historically
+  accepted scalar fields that must stay rejected.
 """
 
 from __future__ import annotations
 
-import sys
-from typing import Any
-from unittest.mock import MagicMock, patch
+import importlib
+from typing import Any, cast
 
 import pytest
 
+from phoenix.db.models import LanguageName, SandboxProviderKind
 from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
-from phoenix.server.sandbox.types import UnsupportedOperation
+from phoenix.server.sandbox.types import _RuntimePackageInstallation
 
 # ---------------------------------------------------------------------------
 # Adapter instantiation helpers
 # ---------------------------------------------------------------------------
 
-_ADAPTER_MODULES = {
+_ADAPTER_MODULES: dict[SandboxProviderKind, tuple[str, str]] = {
     "WASM": ("phoenix.server.sandbox.wasm_backend", "WASMAdapter"),
     "E2B": ("phoenix.server.sandbox.e2b_backend", "E2BAdapter"),
-    "DAYTONA_PYTHON": ("phoenix.server.sandbox.daytona_backend", "DaytonaPythonAdapter"),
-    "DAYTONA_TYPESCRIPT": (
-        "phoenix.server.sandbox.daytona_backend",
-        "DaytonaTypescriptAdapter",
-    ),
-    "VERCEL_PYTHON": ("phoenix.server.sandbox.vercel_backend", "VercelPythonAdapter"),
-    "VERCEL_TYPESCRIPT": ("phoenix.server.sandbox.vercel_backend", "VercelTypescriptAdapter"),
+    "DAYTONA": ("phoenix.server.sandbox.daytona_backend", "DaytonaAdapter"),
+    "VERCEL": ("phoenix.server.sandbox.vercel_backend", "VercelAdapter"),
     "DENO": ("phoenix.server.sandbox.deno_backend", "DenoAdapter"),
     "MODAL": ("phoenix.server.sandbox.modal_backend", "ModalAdapter"),
 }
 
 
-def _get_adapter(key: str) -> Any:
-    module_path, cls_name = _ADAPTER_MODULES[key]
-    import importlib
+def _default_language(kind: str) -> LanguageName:
+    meta = SANDBOX_ADAPTER_METADATA[cast(SandboxProviderKind, kind)]
+    return sorted(meta.supported_languages)[0]
 
+
+def _get_adapter(key: str) -> Any:
+    module_path, cls_name = _ADAPTER_MODULES[cast(SandboxProviderKind, key)]
     mod = importlib.import_module(module_path)
     return getattr(mod, cls_name)()
 
 
-def _modal_mock() -> MagicMock:
-    modal = MagicMock()
-    modal.App.lookup.return_value = MagicMock()
-    modal.Image.debian_slim.return_value = MagicMock()
-    modal.Sandbox.create = MagicMock()
-    modal.Sandbox.create.aio = MagicMock()
-    return modal
-
-
 # ---------------------------------------------------------------------------
-# Contract test: supports_env_vars=False → reject non-empty user_env
+# Contract test: supports_env_vars=False → validate_config rejects env_vars
 # ---------------------------------------------------------------------------
 
 _ADAPTERS_WITHOUT_ENV_VARS = [
@@ -81,14 +73,19 @@ _ADAPTERS_WITHOUT_ENV_VARS = [
 
 
 @pytest.mark.parametrize("adapter_key", _ADAPTERS_WITHOUT_ENV_VARS)
-def test_env_vars_false_raises_for_non_empty_user_env(adapter_key: str) -> None:
+def test_env_vars_false_rejects_non_empty_env_vars(adapter_key: str) -> None:
+    """Adapters declaring supports_env_vars=False have a config model that
+    either omits the env_vars field entirely (extra="forbid" rejects it) or
+    has a capability gate rejecting non-empty values."""
     adapter = _get_adapter(adapter_key)
-    with pytest.raises(UnsupportedOperation):
-        adapter.build_backend({}, user_env={"SECRET": "value"})
+    with pytest.raises(ValueError):
+        adapter.config_model.model_validate(
+            {"env_vars": {"X": {"literal": "v"}}, "language": _default_language(adapter_key)},
+        )
 
 
 # ---------------------------------------------------------------------------
-# Contract test: internet_access="none" → reject non-"none" internet_access config
+# Contract test: internet_access="none" → validate_config rejects the field
 # ---------------------------------------------------------------------------
 
 _ADAPTERS_WITHOUT_INTERNET_ACCESS = [
@@ -101,60 +98,50 @@ _INTERNET_ACCESS_CONFIG = {"internet_access": {"mode": "allow"}}
 
 
 @pytest.mark.parametrize("adapter_key", _ADAPTERS_WITHOUT_INTERNET_ACCESS)
-def test_internet_access_none_raises_for_non_none_config(adapter_key: str) -> None:
-    if adapter_key == "MODAL":
-        modal_mock = _modal_mock()
-        with patch.dict(sys.modules, {"modal": modal_mock}):
-            adapter = _get_adapter(adapter_key)
-            with pytest.raises(UnsupportedOperation):
-                adapter.build_backend(_INTERNET_ACCESS_CONFIG)
-    else:
-        adapter = _get_adapter(adapter_key)
-        with pytest.raises(UnsupportedOperation):
-            adapter.build_backend(_INTERNET_ACCESS_CONFIG)
+def test_internet_access_none_rejects_non_none_config(adapter_key: str) -> None:
+    adapter = _get_adapter(adapter_key)
+    with pytest.raises(ValueError):
+        adapter.config_model.model_validate(
+            {**_INTERNET_ACCESS_CONFIG, "language": _default_language(adapter_key)}
+        )
 
 
 # ---------------------------------------------------------------------------
-# Contract test: dependencies_language=None → reject non-empty packages
+# Contract test: supports_dependencies=False → validate_config rejects packages
 # ---------------------------------------------------------------------------
 
 _ADAPTERS_WITHOUT_DEPENDENCIES = [
-    key for key, meta in SANDBOX_ADAPTER_METADATA.items() if meta.dependencies_language is None
+    key for key, meta in SANDBOX_ADAPTER_METADATA.items() if not meta.supports_dependencies
 ]
 
 _DEPENDENCIES_CONFIG = {"dependencies": {"packages": ["numpy"]}}
 
 
 @pytest.mark.parametrize("adapter_key", _ADAPTERS_WITHOUT_DEPENDENCIES)
-def test_dependencies_none_raises_for_non_empty_packages(adapter_key: str) -> None:
-    if adapter_key == "MODAL":
-        modal_mock = _modal_mock()
-        with patch.dict(sys.modules, {"modal": modal_mock}):
-            adapter = _get_adapter(adapter_key)
-            with pytest.raises(UnsupportedOperation):
-                adapter.build_backend(_DEPENDENCIES_CONFIG)
-    elif adapter_key in ("VERCEL_PYTHON", "VERCEL_TYPESCRIPT"):
-        # Guard fires before credential check.
-        adapter = _get_adapter(adapter_key)
-        with pytest.raises(UnsupportedOperation):
-            adapter.build_backend(_DEPENDENCIES_CONFIG)
-    else:
-        adapter = _get_adapter(adapter_key)
-        with pytest.raises(UnsupportedOperation):
-            adapter.build_backend(_DEPENDENCIES_CONFIG)
+def test_dependencies_none_rejects_non_empty_packages(adapter_key: str) -> None:
+    adapter = _get_adapter(adapter_key)
+    with pytest.raises(ValueError):
+        adapter.config_model.model_validate(
+            {**_DEPENDENCIES_CONFIG, "language": _default_language(adapter_key)}
+        )
 
 
 # ---------------------------------------------------------------------------
-# Contract test: installs_packages_at_runtime=True adapters reject the combo
-# of internet_access.mode='deny' + non-empty dependencies.packages. pip
-# cannot reach PyPI from a network-denied sandbox when install runs inside
-# the sandbox via run_code.
+# Contract test: adapters that install packages inside the sandbox at runtime
+# reject the combo of internet_access.mode='deny' + non-empty
+# dependencies.packages via the ``_RuntimePackageInstallation`` mixin's
+# ``model_validator``. Mixin presence on the per-adapter Config IS the
+# "installs packages at runtime" signal — there's no separate metadata flag.
 # ---------------------------------------------------------------------------
+
+
+def _composes_runtime_package_installation(adapter_key: str) -> bool:
+    adapter = _get_adapter(adapter_key)
+    return issubclass(adapter.config_model, _RuntimePackageInstallation)
+
 
 _RUNTIME_INSTALL_ADAPTERS = [
-    key
-    for key, meta in SANDBOX_ADAPTER_METADATA.items()
-    if meta.installs_packages_at_runtime and meta.dependencies_language is not None
+    key for key in SANDBOX_ADAPTER_METADATA if _composes_runtime_package_installation(key)
 ]
 
 _DENY_PLUS_PACKAGES_CONFIG = {
@@ -164,18 +151,13 @@ _DENY_PLUS_PACKAGES_CONFIG = {
 
 
 @pytest.mark.parametrize("adapter_key", _RUNTIME_INSTALL_ADAPTERS)
-def test_runtime_install_rejects_deny_plus_packages(adapter_key: str) -> None:
-    adapter = _get_adapter(adapter_key)
-    with pytest.raises(UnsupportedOperation):
-        adapter.build_backend(_DENY_PLUS_PACKAGES_CONFIG)
-
-
-@pytest.mark.parametrize("adapter_key", _RUNTIME_INSTALL_ADAPTERS)
 def test_runtime_install_validate_config_rejects_deny_plus_packages(adapter_key: str) -> None:
-    """Same combo must be rejected at write-time validation (not just runtime)."""
+    """The runtime-install + deny combo is rejected at validate_config time."""
     adapter = _get_adapter(adapter_key)
     with pytest.raises(ValueError):
-        adapter.validate_config(_DENY_PLUS_PACKAGES_CONFIG)
+        adapter.config_model.model_validate(
+            {**_DENY_PLUS_PACKAGES_CONFIG, "language": _default_language(adapter_key)}
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -185,8 +167,54 @@ def test_runtime_install_validate_config_rejects_deny_plus_packages(adapter_key:
 
 
 def test_all_metadata_keys_have_adapter_module_entry() -> None:
-    missing = set(SANDBOX_ADAPTER_METADATA.keys()) - set(_ADAPTER_MODULES.keys())
+    meta_keys = set(SANDBOX_ADAPTER_METADATA.keys())
+    module_keys = set(_ADAPTER_MODULES.keys())
+    missing = meta_keys - module_keys
     assert not missing, (
         f"Adapters in SANDBOX_ADAPTER_METADATA have no entry in _ADAPTER_MODULES: {missing}. "
         "Add an entry to _ADAPTER_MODULES in this test file."
     )
+
+
+# ---------------------------------------------------------------------------
+# Closed-set contract: every adapter rejects unknown top-level keys.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("adapter_key", list(SANDBOX_ADAPTER_METADATA.keys()))
+def test_extra_keys_rejected_in_validate_config(adapter_key: str) -> None:
+    """``validate_config`` rejects unknown keys (``extra='forbid'`` contract)."""
+    adapter = _get_adapter(adapter_key)
+    with pytest.raises(ValueError):
+        adapter.config_model.model_validate(
+            {"_unknown_field": "some_value", "language": _default_language(adapter_key)}
+        )
+
+
+# ---------------------------------------------------------------------------
+# Pinned regression: historically accepted scalar fields must stay rejected.
+# Each entry documents a field that used to live on a per-adapter config and
+# was removed; this guard catches accidental reintroduction.
+# ---------------------------------------------------------------------------
+
+_REMOVED_FIELD_CASES = [
+    ("E2B", "template", "custom-template"),
+    ("E2B", "cwd", "/workspace"),
+    ("E2B", "metadata", "some-metadata"),
+    ("DAYTONA", "server_url", "https://example.com"),
+    ("MODAL", "app_name", "my-app"),
+    ("MODAL", "timeout", 300),
+    ("MODAL", "idle_timeout", 120),
+]
+
+
+@pytest.mark.parametrize("adapter_key,field,value", _REMOVED_FIELD_CASES)
+def test_removed_scalar_fields_rejected_by_validate_config(
+    adapter_key: str, field: str, value: object
+) -> None:
+    """Removed non-capability fields are no longer accepted by ``validate_config``."""
+    adapter = _get_adapter(adapter_key)
+    with pytest.raises(ValueError):
+        adapter.config_model.model_validate(
+            {field: value, "language": _default_language(adapter_key)}
+        )

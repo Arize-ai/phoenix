@@ -24,7 +24,7 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Mapping, Optional
+from typing import TYPE_CHECKING, Mapping, Optional
 
 if TYPE_CHECKING:
     import wasmtime
@@ -32,9 +32,11 @@ if TYPE_CHECKING:
 from .types import (
     BaseNoSessionBackend,
     ExecutionResult,
+    NoCredentials,
     SandboxAdapter,
     SandboxBackend,
     WASMConfig,
+    WASMDeployment,
 )
 
 logger = logging.getLogger(__name__)
@@ -173,12 +175,20 @@ class WASMBinaryProbe:
     path: Optional[Path]
 
 
-class WASMAdapter(SandboxAdapter):
-    key = "WASM"
-    family = "WASM"
+class WASMAdapter(SandboxAdapter[WASMConfig, NoCredentials, WASMDeployment]):
+    kind = "WASM"
     display_name = "WebAssembly"
-    language = "PYTHON"
+    hosting_type = "local"
+    dependency_hints = (
+        "Install Phoenix with the `wasm` extra so `wasmtime` is available.",
+        (
+            "Allow Phoenix to download the CPython WASM binary on first use, "
+            "or pre-populate the local WASM cache."
+        ),
+    )
     config_model = WASMConfig
+    credentials_model = NoCredentials
+    deployment_config_model = WASMDeployment
 
     @classmethod
     def probe_dependencies(cls) -> None:
@@ -187,10 +197,12 @@ class WASMAdapter(SandboxAdapter):
 
     def build_backend(
         self,
-        config: Mapping[str, Any],
+        config: WASMConfig,
+        *,
+        credentials: NoCredentials,
+        deployment: WASMDeployment,
         user_env: Optional[Mapping[str, str]] = None,
     ) -> SandboxBackend:
-        self._enforce_capabilities(config, user_env)
         return WASMBackend()
 
     @staticmethod

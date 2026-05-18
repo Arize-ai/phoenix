@@ -59,12 +59,11 @@ function SandboxProviderOptionContent({
 }) {
   return (
     <Flex direction="row" gap="size-100" alignItems="center">
-      <SandboxProviderIcon
-        backendType={option.backend.backendType}
-        height={18}
-      />
+      <SandboxProviderIcon kind={option.backend.kind} height={18} />
       <Text>{option.backend.displayName}</Text>
-      <Text color="text-500">{languageLabel(option.provider.language)}</Text>
+      <Text color="text-500">
+        {option.provider.supportedLanguages.map(languageLabel).join(" · ")}
+      </Text>
     </Flex>
   );
 }
@@ -87,15 +86,15 @@ export function SandboxProviderSelect({
     graphql`
       query SandboxProviderSelectQuery {
         sandboxBackends {
-          backendType
+          kind
           displayName
           hostingType
           status
         }
         sandboxProviders {
           id
-          backendType
-          language
+          kind
+          supportedLanguages
           enabled
         }
       }
@@ -104,13 +103,13 @@ export function SandboxProviderSelect({
   );
 
   const options = useMemo(() => {
-    const backendByType = new Map(
-      data.sandboxBackends.map((backend) => [backend.backendType, backend])
+    const backendByKind = new Map(
+      data.sandboxBackends.map((backend) => [backend.kind, backend])
     );
     return data.sandboxProviders
       .map((provider) => ({
         provider,
-        backend: backendByType.get(provider.backendType),
+        backend: backendByKind.get(provider.kind),
       }))
       .filter(
         (option): option is SandboxProviderOption => option.backend != null
@@ -120,16 +119,11 @@ export function SandboxProviderSelect({
           option.provider.id === selectedKey || filter == null || filter(option)
       )
       .sort((a, b) => {
-        // Local providers first, then alphabetical by display name, then by
-        // language for stable ordering when two providers share a name.
+        // Local providers first, then alphabetical by display name.
         const aLocal = a.backend.hostingType === "LOCAL" ? 0 : 1;
         const bLocal = b.backend.hostingType === "LOCAL" ? 0 : 1;
         if (aLocal !== bLocal) return aLocal - bLocal;
-        const nameCmp = a.backend.displayName.localeCompare(
-          b.backend.displayName
-        );
-        if (nameCmp !== 0) return nameCmp;
-        return a.provider.language.localeCompare(b.provider.language);
+        return a.backend.displayName.localeCompare(b.backend.displayName);
       });
   }, [data.sandboxBackends, data.sandboxProviders, selectedKey, filter]);
 

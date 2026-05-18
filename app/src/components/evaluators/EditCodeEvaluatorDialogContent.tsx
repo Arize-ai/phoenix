@@ -256,7 +256,7 @@ export const EditCodeEvaluatorDialogContent = ({
   const compatibleSandboxConfigs = useMemo(
     () =>
       sandboxConfigs.filter(
-        (sandboxConfig) => sandboxConfig.providerLanguage === language
+        (sandboxConfig) => sandboxConfig.language === language
       ),
     [language, sandboxConfigs]
   );
@@ -600,56 +600,26 @@ const SandboxConfigRow = ({
   );
 };
 
-function getSandboxEnvVarsLabel(config: unknown) {
-  const sandboxConfig = getSandboxConfigRecord(config);
-  const envVars = Array.isArray(sandboxConfig?.env_vars)
-    ? sandboxConfig.env_vars
-    : [];
-  const envVarNames = envVars
-    .map((entry) => {
-      if (entry != null && typeof entry === "object" && "name" in entry) {
-        return String((entry as Record<string, unknown>).name ?? "");
-      }
-      return "";
-    })
-    .filter(Boolean);
+type SandboxConfigForLabels = {
+  readonly envVars: ReadonlyArray<{ readonly name: string }>;
+  readonly internetAccess: { readonly mode: "ALLOW" | "DENY" } | null;
+  readonly dependencies: { readonly packages: ReadonlyArray<string> } | null;
+};
 
-  return envVarNames.length > 0 ? envVarNames.join(", ") : "none";
+function getSandboxEnvVarsLabel(config: SandboxConfigForLabels) {
+  const names = config.envVars.map((ev) => ev.name);
+  return names.length > 0 ? names.join(", ") : "none";
 }
 
-function getSandboxInternetAccessConfigLabel(config: unknown) {
-  const sandboxConfig = getSandboxConfigRecord(config);
-  const internetAccess = sandboxConfig?.internet_access;
-  if (internetAccess == null || typeof internetAccess !== "object") {
-    return "not configured";
-  }
-
-  const mode = (internetAccess as Record<string, unknown>).mode;
-  return typeof mode === "string" ? mode : "not configured";
+function getSandboxInternetAccessConfigLabel(config: SandboxConfigForLabels) {
+  if (config.internetAccess == null) return "not configured";
+  return config.internetAccess.mode === "ALLOW" ? "allow" : "deny";
 }
 
-function getSandboxDependenciesConfigLabel(config: unknown) {
-  const sandboxConfig = getSandboxConfigRecord(config);
-  const dependencies = sandboxConfig?.dependencies;
-  if (dependencies == null || typeof dependencies !== "object") {
-    return "none";
-  }
-
-  const packages = Array.isArray(
-    (dependencies as Record<string, unknown>).packages
-  )
-    ? ((dependencies as Record<string, unknown>).packages as unknown[])
-        .map((pkg) => String(pkg))
-        .filter(Boolean)
-    : [];
-
+function getSandboxDependenciesConfigLabel(config: SandboxConfigForLabels) {
+  if (config.dependencies == null) return "none";
+  const packages = config.dependencies.packages;
   return packages.length > 0 ? packages.join(", ") : "none";
-}
-
-function getSandboxConfigRecord(config: unknown) {
-  return config != null && typeof config === "object"
-    ? (config as Record<string, unknown>)
-    : null;
 }
 
 /**

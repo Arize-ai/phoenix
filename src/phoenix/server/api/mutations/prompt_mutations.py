@@ -12,7 +12,7 @@ from strawberry.relay.types import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.db.types.identifier import Identifier as IdentifierModel
+from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.model_provider import is_sdk_compatible_with_model_provider
 from phoenix.db.types.prompts import normalize_invocation_parameters_for_write
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
@@ -26,7 +26,6 @@ from phoenix.server.api.mutations.prompt_version_tag_mutations import (
     upsert_prompt_version_tag,
 )
 from phoenix.server.api.queries import Query
-from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt
 from phoenix.server.bearer_auth import PhoenixUser
@@ -88,9 +87,8 @@ class PromptMutationMixin:
             prompt_version = input.prompt_version.to_orm_prompt_version(user_id)
         except ValidationError as error:
             raise BadRequest(str(error))
-        name = IdentifierModel.model_validate(str(input.name))
         prompt = models.Prompt(
-            name=name,
+            name=input.name,
             description=input.description,
             metadata_=input.metadata or {},
             prompt_versions=[prompt_version],
@@ -191,7 +189,6 @@ class PromptMutationMixin:
                 raise NotFound(f"Prompt with ID '{input.prompt_id}' not found")
 
             # Create new prompt
-            name = IdentifierModel.model_validate(str(input.name))
             # Handle description: inherit if UNSET, otherwise use value (can be None)
             if input.description is UNSET:
                 description = prompt.description
@@ -205,7 +202,7 @@ class PromptMutationMixin:
                 metadata = cast(dict[str, Any], input.metadata or {})
 
             new_prompt = models.Prompt(
-                name=name,
+                name=input.name,
                 source_prompt_id=prompt_id,
                 description=description,
                 metadata_=metadata,

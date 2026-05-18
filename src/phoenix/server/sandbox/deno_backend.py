@@ -11,12 +11,14 @@ from __future__ import annotations
 import asyncio
 import logging
 import shutil
-from typing import Any, Mapping, Optional
+from typing import Mapping, Optional
 
 from .types import (
     BaseNoSessionBackend,
     DenoConfig,
+    DenoDeployment,
     ExecutionResult,
+    NoCredentials,
     SandboxAdapter,
     SandboxBackend,
     compose_secret_values,
@@ -112,17 +114,25 @@ class DenoSandboxBackend(BaseNoSessionBackend):
         pass
 
 
-class DenoAdapter(SandboxAdapter):
-    key = "DENO"
-    family = "DENO"
+class DenoAdapter(SandboxAdapter[DenoConfig, NoCredentials, DenoDeployment]):
+    kind = "DENO"
     display_name = "Deno"
-    language = "TYPESCRIPT"
+    hosting_type = "local"
+    dependency_hints = (
+        "Install the Deno runtime and ensure the `deno` binary is available on PATH.",
+    )
     config_model = DenoConfig
+    credentials_model = NoCredentials
+    deployment_config_model = DenoDeployment
 
     def build_backend(
-        self, config: Mapping[str, Any], user_env: Optional[Mapping[str, str]] = None
+        self,
+        config: DenoConfig,
+        *,
+        credentials: NoCredentials,
+        deployment: DenoDeployment,
+        user_env: Optional[Mapping[str, str]] = None,
     ) -> SandboxBackend:
-        self._enforce_capabilities(config, user_env)
         deno_executable = shutil.which("deno")
         if deno_executable is None:
             raise ValueError(

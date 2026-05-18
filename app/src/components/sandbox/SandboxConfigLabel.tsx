@@ -15,6 +15,7 @@ import {
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
 import { getSandboxConfigSettings } from "@phoenix/pages/settings/sandboxes/utils";
+import type { SandboxProviderKind } from "@phoenix/types";
 
 import type { SandboxConfigLabelDetailsQuery } from "./__generated__/SandboxConfigLabelDetailsQuery.graphql";
 
@@ -29,9 +30,9 @@ type SandboxConfigLabelProps = {
    */
   name: string;
   /**
-   * The backend type of the sandbox provider, used to render the provider icon.
+   * The canonical kind of the sandbox provider, used to render the provider icon.
    */
-  backendType: string;
+  kind: SandboxProviderKind;
 };
 
 /**
@@ -42,13 +43,13 @@ type SandboxConfigLabelProps = {
 export function SandboxConfigLabel({
   sandboxConfigId,
   name,
-  backendType,
+  kind,
 }: SandboxConfigLabelProps) {
   return (
     <TooltipTrigger delay={500}>
       <TriggerWrap>
         <Flex direction="row" gap="size-100" alignItems="center" minWidth={0}>
-          <SandboxProviderIcon backendType={backendType} height={18} />
+          <SandboxProviderIcon kind={kind} height={18} />
           <Text minWidth={0}>
             <Truncate>{name}</Truncate>
           </Text>
@@ -94,7 +95,26 @@ function SandboxConfigLabelDetails({
           __typename
           ... on SandboxConfig {
             timeout
-            config
+            config {
+              envVars {
+                name
+                value {
+                  __typename
+                  ... on SandboxConfigEnvVarLiteral {
+                    literal
+                  }
+                  ... on SandboxConfigEnvVarSecretRef {
+                    secretKey
+                  }
+                }
+              }
+              internetAccess {
+                mode
+              }
+              dependencies {
+                packages
+              }
+            }
           }
         }
       }
