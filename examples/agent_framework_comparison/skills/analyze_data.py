@@ -5,6 +5,7 @@ import sys
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 from dotenv import load_dotenv
 from openai import OpenAI
+from utils import _guard  # noqa: F401 — patches Completions.create for empty-choices guard
 from openinference.instrumentation import using_prompt_template
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry import trace
@@ -87,6 +88,8 @@ class AnalyzeData(Skill):
                         },
                     ],
                 )
+            if not response.choices or response.choices[0].message is None:
+                raise ValueError("LLM returned empty or filtered response")
             analysis_result = response.choices[0].message.content
             span.set_attribute(SpanAttributes.OUTPUT_VALUE, analysis_result)
             return analysis_result

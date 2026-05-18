@@ -74,6 +74,8 @@ def analyze_stock(request: StockAnalysisRequest) -> dict:
         response_format={"type": "json_object"},
     )
 
+    if not response.choices or response.choices[0].message is None:
+        raise ValueError("LLM returned empty or filtered response")
     analysis = json.loads(response.choices[0].message.content)
     return analysis
 
@@ -122,6 +124,8 @@ def optimize_portfolio(request: PortfolioOptimizationRequest) -> dict:
         response_format={"type": "json_object"},
     )
 
+    if not response.choices or response.choices[0].message is None:
+        raise ValueError("LLM returned empty or filtered response")
     optimization = json.loads(response.choices[0].message.content)
 
     return optimization
@@ -163,6 +167,8 @@ def forecast_market_trends(sector: str, timeframe: int = 6) -> dict:
         response_format={"type": "json_object"},
     )
 
+    if not response.choices or response.choices[0].message is None:
+        raise ValueError("LLM returned empty or filtered response")
     forecast = json.loads(response.choices[0].message.content)
     return forecast
 
@@ -206,6 +212,8 @@ def analyze_economic_indicator(indicator: str, country: str = "United States") -
         response_format={"type": "json_object"},
     )
 
+    if not response.choices or response.choices[0].message is None:
+        raise ValueError("LLM returned empty or filtered response")
     analysis = json.loads(response.choices[0].message.content)
     return analysis
 
@@ -262,6 +270,8 @@ def generate_investment_report(client_profile: dict, market_analysis: dict) -> d
         response_format={"type": "json_object"},
     )
 
+    if not response.choices or response.choices[0].message is None:
+        raise ValueError("LLM returned empty or filtered response")
     report = json.loads(response.choices[0].message.content)
     report["timestamp"] = datetime.now().isoformat()
     return report

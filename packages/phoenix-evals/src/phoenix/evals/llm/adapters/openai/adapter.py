@@ -99,6 +99,8 @@ class OpenAIAdapter(BaseLLMAdapter):
             response = self.client.chat.completions.create(
                 model=self.model_name, messages=messages, **kwargs
             )
+            if not response.choices or response.choices[0].message is None:
+                raise ValueError("OpenAI returned empty or filtered choices")
             content = response.choices[0].message.content
             if content is None:
                 raise ValueError("OpenAI returned None content")
@@ -119,6 +121,8 @@ class OpenAIAdapter(BaseLLMAdapter):
             response = await self.client.chat.completions.create(
                 model=self.model_name, messages=messages, **kwargs
             )
+            if not response.choices or response.choices[0].message is None:
+                raise ValueError("OpenAI returned empty or filtered choices")
             content = response.choices[0].message.content
             if content is None:
                 raise ValueError("OpenAI returned None content")
@@ -266,6 +270,8 @@ class OpenAIAdapter(BaseLLMAdapter):
             response_format=response_format,
             **kwargs,
         )
+        if not response.choices or response.choices[0].message is None:
+            raise ValueError("OpenAI returned empty or filtered choices")
         content = response.choices[0].message.content
         if content is None:
             raise ValueError("OpenAI returned no content")
@@ -292,6 +298,8 @@ class OpenAIAdapter(BaseLLMAdapter):
             **kwargs,
         )
 
+        if not response.choices or response.choices[0].message is None:
+            raise ValueError("No tool calls in response")
         tool_calls = response.choices[0].message.tool_calls
         if not tool_calls:
             raise ValueError("No tool calls in response")
@@ -327,6 +335,8 @@ class OpenAIAdapter(BaseLLMAdapter):
             response_format=response_format,
             **kwargs,
         )
+        if not response.choices or response.choices[0].message is None:
+            raise ValueError("OpenAI returned empty or filtered choices")
         content = response.choices[0].message.content
         if content is None:
             raise ValueError("OpenAI returned no content")
@@ -353,6 +363,8 @@ class OpenAIAdapter(BaseLLMAdapter):
             **kwargs,
         )
 
+        if not response.choices or response.choices[0].message is None:
+            raise ValueError("No tool calls in response")
         tool_calls = response.choices[0].message.tool_calls
         if not tool_calls:
             raise ValueError("No tool calls in response")

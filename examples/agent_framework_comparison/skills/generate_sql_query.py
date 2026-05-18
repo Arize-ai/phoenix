@@ -5,6 +5,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 
 from agent_framework_comparison.db.database import get_schema, get_table, run_query
 from openai import OpenAI
+from utils import _guard  # noqa: F401 — patches Completions.create for empty-choices guard
 from openinference.instrumentation import using_prompt_template
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry import trace
@@ -90,6 +91,8 @@ class GenerateSQLQuery(Skill):
                 ],
             )
 
+        if not response.choices or response.choices[0].message is None:
+            raise ValueError("LLM returned empty or filtered response")
         sql_query = response.choices[0].message.content
 
         tracer = trace.get_tracer(__name__)

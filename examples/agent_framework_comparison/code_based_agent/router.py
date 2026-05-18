@@ -6,6 +6,7 @@ sys.path.insert(1, os.path.join(sys.path[0], ".."))
 
 from dotenv import load_dotenv
 from openai import OpenAI
+from utils import _guard  # noqa: F401 — patches Completions.create for empty-choices guard
 from openinference.instrumentation import using_prompt_template
 from openinference.semconv.trace import SpanAttributes
 from opentelemetry import trace
@@ -43,6 +44,8 @@ def router(messages, parent_context):
                 tools=skill_map.get_combined_function_description_for_openai(),
             )
 
+        if not response.choices or response.choices[0].message is None:
+            raise ValueError("LLM returned empty or filtered response")
         messages.append(response.choices[0].message)
         tool_calls = response.choices[0].message.tool_calls
         if tool_calls:
