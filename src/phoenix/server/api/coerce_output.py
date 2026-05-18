@@ -12,7 +12,7 @@ Triple-collapse model (two-stage):
       - Bare scalar (str, int, float, bool, None) → bare triple
       - Dict with any subset of {label, score, explanation} keys → triple by key
     Not accepted:
-      - Tuples (deferred per D5)
+      - Tuples
       - Multi-output routing dicts (handled by the runner, not this function)
 
   Stage 2 — per-config validators: check the triple against config requirements.

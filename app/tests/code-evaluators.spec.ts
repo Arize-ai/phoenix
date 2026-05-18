@@ -907,8 +907,7 @@ test.describe.serial("Code Evaluators", () => {
 
   // Language is no longer editable in the Edit slideover (gated to create mode
   // since the revision-history feature). The original scenario depends on
-  // toggling Language inside the editor; revisit when language switching is
-  // exposed in another flow.
+  // toggling Language inside the editor, which the current UI does not expose.
   test.skip("language switch on categorical evaluator swaps the editor between Python and TypeScript defaults", async ({
     page,
   }) => {
@@ -989,7 +988,7 @@ test.describe.serial("Code Evaluators", () => {
     await expect(page.getByTestId("dialog")).not.toBeVisible();
   });
 
-  // D6: Tab in the Python editor inserts four spaces, not a tab character.
+  // Tab in the Python editor inserts four spaces, not a tab character.
   test("Tab in Python code editor inserts four spaces", async ({ page }) => {
     await gotoDatasetEvaluators(page, datasetName);
 
@@ -1020,14 +1019,14 @@ test.describe.serial("Code Evaluators", () => {
     await expect(page.getByTestId("dialog")).not.toBeVisible();
   });
 
-  // D4: literal env_var values are redacted from the evaluator details page.
-  // The only Python backend that's available in the bare test environment is
-  // WASM, which does not advertise `supports_env_vars`. E2B/Daytona/Modal/
-  // Vercel all advertise env vars but require provider credentials before
-  // their configs surface in the evaluator's Sandbox picker (see
-  // `mapSandboxConfigOptions`'s AVAILABLE-backend filter). Without those
-  // credentials this scenario cannot exercise the redaction path end-to-end,
-  // so skip until the test harness can stand up an env-var-capable backend.
+  // Literal env_var values are redacted from the evaluator details page.
+  // The only Python backend available in the bare test environment is WASM,
+  // which does not advertise `supports_env_vars`. E2B/Daytona/Modal/Vercel
+  // all advertise env vars but require provider credentials before their
+  // configs surface in the evaluator's Sandbox picker (see
+  // `mapSandboxConfigOptions`'s AVAILABLE-backend filter). This scenario
+  // requires an env-var-capable backend with credentials to exercise the
+  // redaction path end-to-end.
   test.skip("redacts literal env_var values on evaluator details page", async ({
     page,
   }) => {
@@ -1060,7 +1059,7 @@ test.describe.serial("Code Evaluators", () => {
   });
 });
 
-// D5: env-var Name auto-populate behavior in the SandboxConfigDialog.
+// env-var Name auto-populate behavior in the SandboxConfigDialog.
 // Independent from the eval/dataset fixtures above.
 test.describe
   .serial("Code Evaluators — sandbox env-var Name auto-populate", () => {
