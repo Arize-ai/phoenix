@@ -74,6 +74,21 @@ Before submitting a pull request, please make sure the following is done:
 - Make sure your code lints with `pnpm lint` for app changes.
 - Run type checking with `make typecheck-python` and `npm run typecheck` for app changes.
 
+### Claude Code Review On Forks
+
+The Claude Code Review workflow runs on pull requests and uses `ANTHROPIC_API_KEY`.
+For repository-owned branches, this is an upstream repository secret configured by
+maintainers.
+
+If you want to run the same workflow in your own fork before opening or updating a
+pull request, add `ANTHROPIC_API_KEY` as a repository secret in your fork at
+`https://github.com/{username}/phoenix/settings/secrets/actions`. Use a repository
+secret, not an environment secret.
+
+GitHub does not pass fork repository secrets to pull request workflows running in
+the upstream repository. Maintainers may need to rerun or review Claude results
+from a trusted repository context for external fork pull requests.
+
 ### Pull Request (PR) Descriptions
 
 A PR description is a public record of what change is being made and why it was made. It will become a permanent part of our version control history, and will possibly be read by many people other than your reviewers over the years. Follow the following guidelines when writing a PR description:
