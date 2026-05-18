@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from opentelemetry.trace import NoOpTracerProvider, TracerProvider
 from pydantic_ai import RunContext
 from pydantic_ai.capabilities import AbstractCapability, CapabilityFunc, CombinedCapability
 from pydantic_ai.tools import ToolDefinition
@@ -60,33 +59,21 @@ def get_external_tool_definition(name: str) -> ToolDefinition | None:
 def get_external_tool_capability_function(
     *,
     instructions: AgentInstructions,
-    tracer_provider: TracerProvider | None = None,
 ) -> CapabilityFunc[AgentDependencies]:
     """Return a ``CapabilityFunc`` that assembles the per-run external-tool
     capability bundle. Static capabilities are always included; dynamic
     capabilities self-gate via ``include_for_run``.
     """
-    provider = tracer_provider or NoOpTracerProvider()
     static_capabilities: list[AbstractStaticCapability[AgentDependencies]] = [
-        BashCapability(instructions=instructions.bash_tool, tracer_provider=provider),
-        AskUserCapability(instructions=instructions.ask_user_tool, tracer_provider=provider),
-        SetTimeRangeCapability(
-            instructions=instructions.set_time_range_tool, tracer_provider=provider
-        ),
+        BashCapability(instructions=instructions.bash_tool),
+        AskUserCapability(instructions=instructions.ask_user_tool),
+        SetTimeRangeCapability(instructions=instructions.set_time_range_tool),
     ]
     dynamic_capabilities: list[AbstractDynamicCapability[AgentDependencies]] = [
-        SetSpansFilterCapability(
-            instructions=instructions.set_spans_filter_tool, tracer_provider=provider
-        ),
-        ReadPromptInstanceCapability(
-            instructions=instructions.read_prompt_instance_tool, tracer_provider=provider
-        ),
-        ClonePromptInstanceCapability(
-            instructions=instructions.clone_prompt_instance_tool, tracer_provider=provider
-        ),
-        EditPromptInstanceCapability(
-            instructions=instructions.edit_prompt_instance_tool, tracer_provider=provider
-        ),
+        SetSpansFilterCapability(instructions=instructions.set_spans_filter_tool),
+        ReadPromptInstanceCapability(instructions=instructions.read_prompt_instance_tool),
+        ClonePromptInstanceCapability(instructions=instructions.clone_prompt_instance_tool),
+        EditPromptInstanceCapability(instructions=instructions.edit_prompt_instance_tool),
     ]
 
     def _build(ctx: RunContext[AgentDependencies]) -> AbstractCapability[AgentDependencies]:

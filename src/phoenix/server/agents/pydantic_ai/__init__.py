@@ -9,6 +9,9 @@
 from phoenix.server.agents.pydantic_ai.openinference_toolset_wrapper import (
     OpenInferenceToolsetWrapper,
 )
+from phoenix.server.agents.pydantic_ai.openinference_capability_wrapper import (
+    OpenInferenceCapabilityWrapper,
+)
 from phoenix.server.agents.pydantic_ai.openinference_model_wrapper import (
     OpenInferenceModelWrapper,
 )
@@ -18,6 +21,7 @@ from phoenix.server.agents.pydantic_ai.openinference_agent_wrapper import (
 
 __all__ = [
     "OpenInferenceAgentWrapper",
+    "OpenInferenceCapabilityWrapper",
     "OpenInferenceModelWrapper",
     "OpenInferenceToolsetWrapper",
 ]

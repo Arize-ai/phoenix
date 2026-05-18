@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import json
-from typing import Callable
+from dataclasses import dataclass
+from typing import Any, Callable
 
 import pytest
 from openinference.instrumentation import OITracer, TraceConfig
@@ -16,11 +17,18 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode, Tracer
 from pydantic_ai._run_context import RunContext
+from pydantic_ai.capabilities import AbstractCapability
+from pydantic_ai.messages import ToolCallPart
 from pydantic_ai.models.test import TestModel
-from pydantic_ai.toolsets import FunctionToolset
+from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.usage import RunUsage
 
-from phoenix.server.agents.pydantic_ai import OpenInferenceToolsetWrapper
+from phoenix.server.agents.pydantic_ai import OpenInferenceCapabilityWrapper
+
+
+@dataclass
+class _NoOpCapability(AbstractCapability[None]):
+    """Bare capability used as the wrapped target — every default hook applies."""
 
 
 @pytest.fixture
@@ -41,27 +49,31 @@ def tracer(tracer_provider: TracerProvider) -> Tracer:
 
 
 @pytest.fixture
-def add_toolset() -> FunctionToolset[None]:
-    toolset: FunctionToolset[None] = FunctionToolset()
-
-    @toolset.tool_plain
-    def add(a: int, b: int) -> int:
-        """Add two integers."""
-        return a + b
-
-    return toolset
+def add_tool_def() -> ToolDefinition:
+    return ToolDefinition(
+        name="add",
+        description="Add two integers.",
+        parameters_json_schema={
+            "type": "object",
+            "properties": {"a": {"type": "integer"}, "b": {"type": "integer"}},
+            "required": ["a", "b"],
+            "additionalProperties": False,
+        },
+    )
 
 
 @pytest.fixture
-def raising_toolset() -> FunctionToolset[None]:
-    toolset: FunctionToolset[None] = FunctionToolset()
-
-    @toolset.tool_plain
-    def explode(reason: str) -> str:
-        """Always raises with the given reason."""
-        raise RuntimeError(f"boom: {reason}")
-
-    return toolset
+def explode_tool_def() -> ToolDefinition:
+    return ToolDefinition(
+        name="explode",
+        description="Always raises with the given reason.",
+        parameters_json_schema={
+            "type": "object",
+            "properties": {"reason": {"type": "string"}},
+            "required": ["reason"],
+            "additionalProperties": False,
+        },
+    )
 
 
 @pytest.fixture
@@ -78,19 +90,29 @@ def make_ctx() -> Callable[..., RunContext[None]]:
     return _factory
 
 
-async def test_call_tool_emits_tool_span(
-    add_toolset: FunctionToolset[None],
+async def test_wrap_tool_execute_emits_tool_span(
+    add_tool_def: ToolDefinition,
     in_memory_span_exporter: InMemorySpanExporter,
     tracer: Tracer,
     make_ctx: Callable[..., RunContext[None]],
 ) -> None:
-    wrapped_toolset = OpenInferenceToolsetWrapper(add_toolset, tracer=tracer)
+    wrapper = OpenInferenceCapabilityWrapper[None](
+        wrapped=_NoOpCapability(),
+        tracer=tracer,
+    )
     tool_args = {"a": 2, "b": 3}
 
-    async with wrapped_toolset:
-        ctx = make_ctx(tool_call_id="call_42", tool_name="add")
-        tools = await wrapped_toolset.get_tools(ctx)
-        result = await wrapped_toolset.call_tool("add", tool_args, ctx, tools["add"])
+    async def handler(args: dict[str, Any]) -> int:
+        a: int = args["a"]
+        b: int = args["b"]
+        return a + b
+
+    ctx = make_ctx(tool_call_id="call_42", tool_name="add")
+    call = ToolCallPart(tool_name="add", args=tool_args, tool_call_id="call_42")
+
+    result = await wrapper.wrap_tool_execute(
+        ctx, call=call, tool_def=add_tool_def, args=tool_args, handler=handler
+    )
 
     assert result == 5
 
@@ -131,19 +153,28 @@ async def test_call_tool_emits_tool_span(
     assert not attributes
 
 
-async def test_call_tool_records_exception_when_tool_raises(
-    raising_toolset: FunctionToolset[None],
+async def test_wrap_tool_execute_records_exception_when_handler_raises(
+    explode_tool_def: ToolDefinition,
     in_memory_span_exporter: InMemorySpanExporter,
     tracer: Tracer,
     make_ctx: Callable[..., RunContext[None]],
 ) -> None:
-    wrapped_toolset = OpenInferenceToolsetWrapper(raising_toolset, tracer=tracer)
+    wrapper = OpenInferenceCapabilityWrapper[None](
+        wrapped=_NoOpCapability(),
+        tracer=tracer,
+    )
+    tool_args = {"reason": "kaboom"}
 
-    async with wrapped_toolset:
-        ctx = make_ctx(tool_call_id="call_err", tool_name="explode")
-        tools = await wrapped_toolset.get_tools(ctx)
-        with pytest.raises(RuntimeError, match="boom: kaboom"):
-            await wrapped_toolset.call_tool("explode", {"reason": "kaboom"}, ctx, tools["explode"])
+    async def handler(args: dict[str, Any]) -> str:
+        raise RuntimeError(f"boom: {args['reason']}")
+
+    ctx = make_ctx(tool_call_id="call_err", tool_name="explode")
+    call = ToolCallPart(tool_name="explode", args=tool_args, tool_call_id="call_err")
+
+    with pytest.raises(RuntimeError, match="boom: kaboom"):
+        await wrapper.wrap_tool_execute(
+            ctx, call=call, tool_def=explode_tool_def, args=tool_args, handler=handler
+        )
 
     (span,) = in_memory_span_exporter.get_finished_spans()
     assert span.name == "explode"

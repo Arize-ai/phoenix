@@ -1,16 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
-from opentelemetry.trace import NoOpTracerProvider, TracerProvider
 from pydantic_ai import RunContext
 from pydantic_ai.tools import SystemPromptFunc, ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
 from pydantic_ai.toolsets.external import ExternalToolset
 
 from phoenix.server.agents.capabilities.base import AbstractDynamicCapability
-from phoenix.server.agents.pydantic_ai import OpenInferenceToolsetWrapper
 from phoenix.server.agents.types import AgentDependencies
 
 NAME = "clone_prompt_instance"
@@ -52,13 +50,9 @@ TOOL_DEFINITION = ToolDefinition(
 @dataclass
 class ClonePromptInstanceCapability(AbstractDynamicCapability[AgentDependencies]):
     instructions: str
-    tracer_provider: TracerProvider = field(default_factory=NoOpTracerProvider)
 
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
-        return OpenInferenceToolsetWrapper(
-            ExternalToolset[AgentDependencies]([TOOL_DEFINITION]),
-            tracer_provider=self.tracer_provider,
-        )
+        return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
 
     def get_dynamic_instructions(self) -> SystemPromptFunc[AgentDependencies]:
         instructions = self.instructions

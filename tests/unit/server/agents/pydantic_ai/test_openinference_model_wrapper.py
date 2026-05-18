@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import pytest
+from openinference.instrumentation import OITracer, TraceConfig
 from openinference.semconv.trace import (
     MessageAttributes,
     OpenInferenceLLMProviderValues,
@@ -19,7 +20,7 @@ from openinference.semconv.trace import (
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.trace import StatusCode
+from opentelemetry.trace import StatusCode, Tracer
 from pydantic_ai.messages import (
     ModelMessage,
     ModelRequest,
@@ -58,16 +59,21 @@ def tracer_provider(in_memory_span_exporter: InMemorySpanExporter) -> TracerProv
 
 
 @pytest.fixture
-def wrapped_model(
-    tracer_provider: TracerProvider,
-    anthropic_api_key: str,
-) -> OpenInferenceModelWrapper:
-    inner = AnthropicModel(MODEL_NAME, provider=AnthropicProvider())
-    return OpenInferenceModelWrapper(inner, tracer_provider=tracer_provider)
+def tracer(tracer_provider: TracerProvider) -> Tracer:
+    return OITracer(tracer_provider.get_tracer("test"), config=TraceConfig())
 
 
 @pytest.fixture
-def raising_model(tracer_provider: TracerProvider) -> OpenInferenceModelWrapper:
+def wrapped_model(
+    tracer: Tracer,
+    anthropic_api_key: str,
+) -> OpenInferenceModelWrapper:
+    inner = AnthropicModel(MODEL_NAME, provider=AnthropicProvider())
+    return OpenInferenceModelWrapper(inner, tracer=tracer)
+
+
+@pytest.fixture
+def raising_model(tracer: Tracer) -> OpenInferenceModelWrapper:
     """An OpenInferenceModelWrapper whose underlying model raises on request,
     used to exercise the wrapper's exception-handling path without hitting the
     network."""
@@ -92,7 +98,7 @@ def raising_model(tracer_provider: TracerProvider) -> OpenInferenceModelWrapper:
             raise RuntimeError("boom from raising model")
             yield  # pragma: no cover
 
-    return OpenInferenceModelWrapper(_RaisingModel(TestModel()), tracer_provider=tracer_provider)
+    return OpenInferenceModelWrapper(_RaisingModel(TestModel()), tracer=tracer)
 
 
 async def test_request_emits_llm_span_for_text_response(

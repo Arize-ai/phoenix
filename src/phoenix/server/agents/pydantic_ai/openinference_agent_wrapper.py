@@ -8,8 +8,6 @@ from typing import Any, Callable, Literal, TypeAlias
 
 import pydantic
 from openinference.instrumentation import (
-    OITracer,
-    TraceConfig,
     get_input_attributes,
     get_metadata_attributes,
     get_output_attributes,
@@ -21,7 +19,7 @@ from openinference.semconv.trace import (
     SpanAttributes,
     ToolCallAttributes,
 )
-from opentelemetry.trace import Status, StatusCode, Tracer, TracerProvider
+from opentelemetry.trace import Status, StatusCode, Tracer
 from opentelemetry.util.types import AttributeValue
 from pydantic_ai.agent.abstract import AbstractAgent
 from pydantic_ai.agent.wrapper import WrapperAgent
@@ -77,19 +75,16 @@ class OpenInferenceAgentWrapper(WrapperAgent[AgentDepsT, OutputDataT]):
     execution paths.
     """
 
-    _tracer: Tracer
+    tracer: Tracer
 
     def __init__(
         self,
         wrapped: AbstractAgent[AgentDepsT, OutputDataT],
         *,
-        tracer_provider: TracerProvider,
+        tracer: Tracer,
     ) -> None:
         super().__init__(wrapped)
-        self._tracer = OITracer(
-            tracer_provider.get_tracer(__name__),
-            config=TraceConfig(),
-        )
+        self.tracer = tracer
 
     @asynccontextmanager
     async def iter(
@@ -170,7 +165,7 @@ class OpenInferenceAgentWrapper(WrapperAgent[AgentDepsT, OutputDataT]):
             )
             if tool_def.description is not None:
                 attributes[SpanAttributes.TOOL_DESCRIPTION] = tool_def.description
-        with self._tracer.start_as_current_span(name=tool_name, attributes=attributes) as span:
+        with self.tracer.start_as_current_span(name=tool_name, attributes=attributes) as span:
             outcome = tool_return_part.outcome
             if outcome == "success":
                 span.set_status(Status(StatusCode.OK))
@@ -206,7 +201,7 @@ class OpenInferenceAgentWrapper(WrapperAgent[AgentDepsT, OutputDataT]):
         metadata: dict[str, Any] = {"input": iter_method_arguments}
         attributes.update(get_metadata_attributes(metadata=metadata))
         span_name = f"{self.name or type(self.wrapped).__name__}.iter"
-        with self._tracer.start_as_current_span(
+        with self.tracer.start_as_current_span(
             name=span_name,
             attributes=attributes,
         ) as span:

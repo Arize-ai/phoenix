@@ -19,6 +19,7 @@ from __future__ import annotations
 from os import getenv
 from typing import Any, Callable, Literal, Protocol, cast
 
+from openinference.instrumentation import OITracer, TraceConfig
 from opentelemetry.trace import NoOpTracerProvider, TracerProvider
 from pydantic import ValidationError
 from pydantic_ai.models import Model as PydanticAIModel
@@ -190,10 +191,12 @@ async def build_model(
         # both appear.
         assert_never(model)
         raise ValueError(f"Unsupported model selection type: {type(model).__name__}")
-    return OpenInferenceModelWrapper(
-        pydantic_ai_model,
-        tracer_provider=tracer_provider or NoOpTracerProvider(),
+    resolved_tracer_provider = tracer_provider or NoOpTracerProvider()
+    tracer = OITracer(
+        resolved_tracer_provider.get_tracer("phoenix.server.agents"),
+        config=TraceConfig(),
     )
+    return OpenInferenceModelWrapper(pydantic_ai_model, tracer=tracer)
 
 
 async def _get_pydantic_ai_model_from_generative_model_custom_provider(

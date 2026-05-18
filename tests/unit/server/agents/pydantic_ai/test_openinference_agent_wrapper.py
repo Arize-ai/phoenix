@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import pytest
+from openinference.instrumentation import OITracer, TraceConfig
 from openinference.semconv.trace import (
     OpenInferenceMimeTypeValues,
     OpenInferenceSpanKindValues,
@@ -15,7 +16,7 @@ from openinference.semconv.trace import (
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.trace import StatusCode
+from opentelemetry.trace import StatusCode, Tracer
 from pydantic_ai import Agent
 from pydantic_ai.messages import (
     ModelMessage,
@@ -63,22 +64,27 @@ def tracer_provider(in_memory_span_exporter: InMemorySpanExporter) -> TracerProv
 
 
 @pytest.fixture
-def wrapped_model(tracer_provider: TracerProvider) -> OpenInferenceModelWrapper:
+def tracer(tracer_provider: TracerProvider) -> OITracer:
+    return OITracer(tracer_provider.get_tracer("test"), config=TraceConfig())
+
+
+@pytest.fixture
+def wrapped_model(tracer: Tracer) -> OpenInferenceModelWrapper:
     inner = TestModel(custom_output_text=MODEL_OUTPUT_TEXT)
-    return OpenInferenceModelWrapper(inner, tracer_provider=tracer_provider)
+    return OpenInferenceModelWrapper(inner, tracer=tracer)
 
 
 @pytest.fixture
 def wrapped_agent(
     wrapped_model: OpenInferenceModelWrapper,
-    tracer_provider: TracerProvider,
+    tracer: Tracer,
 ) -> OpenInferenceAgentWrapper:
     inner: Agent[None, str] = Agent(
         wrapped_model,
         name="TestAgent",
         deps_type=type(None),
     )
-    return OpenInferenceAgentWrapper(inner, tracer_provider=tracer_provider)
+    return OpenInferenceAgentWrapper(inner, tracer=tracer)
 
 
 @pytest.fixture
@@ -112,16 +118,16 @@ def raising_model() -> WrapperModel:
 @pytest.fixture
 def raising_agent(
     raising_model: WrapperModel,
-    tracer_provider: TracerProvider,
+    tracer: Tracer,
 ) -> OpenInferenceAgentWrapper:
     """An OpenInferenceAgentWrapper whose underlying model always raises."""
     inner: Agent[None, str] = Agent(raising_model, deps_type=type(None))
-    return OpenInferenceAgentWrapper(inner, tracer_provider=tracer_provider)
+    return OpenInferenceAgentWrapper(inner, tracer=tracer)
 
 
 @pytest.fixture
 def test_model_agent(
-    tracer_provider: TracerProvider,
+    tracer: Tracer,
 ) -> OpenInferenceAgentWrapper:
     """An OpenInferenceAgentWrapper backed by TestModel — no network, no VCR.
 
@@ -129,7 +135,7 @@ def test_model_agent(
     (e.g. external tool span backfill) and don't care about model output.
     """
     inner: Agent[None, str] = Agent(TestModel(), deps_type=type(None))
-    return OpenInferenceAgentWrapper(inner, tracer_provider=tracer_provider)
+    return OpenInferenceAgentWrapper(inner, tracer=tracer)
 
 
 def _get_agent_span(spans: tuple[ReadableSpan, ...]) -> ReadableSpan:

@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
-from opentelemetry.trace import NoOpTracerProvider, TracerProvider
 from pydantic_ai.mcp import MCPServerStreamableHTTP
 from pydantic_ai.toolsets import AgentToolset
 
 from phoenix.server.agents.capabilities.base import AbstractStaticCapability
-from phoenix.server.agents.pydantic_ai import OpenInferenceToolsetWrapper
 from phoenix.server.agents.types import AgentDependencies
 
 
@@ -27,13 +25,9 @@ class MintlifyDocsMCPCapability(AbstractStaticCapability[AgentDependencies]):
 
     mcp_server: MCPServerStreamableHTTP
     instructions: str
-    tracer_provider: TracerProvider = field(default_factory=NoOpTracerProvider)
 
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
-        return OpenInferenceToolsetWrapper(
-            self.mcp_server,
-            tracer_provider=self.tracer_provider,
-        )
+        return self.mcp_server
 
     def get_static_instructions(self) -> str:
         return self.instructions

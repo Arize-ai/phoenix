@@ -1,8 +1,13 @@
 from __future__ import annotations
 
-from opentelemetry.trace import NoOpTracerProvider, TracerProvider
+from openinference.instrumentation import OITracer, TraceConfig
+from opentelemetry.trace import NoOpTracerProvider, Tracer, TracerProvider
 from pydantic_ai import Agent, DeferredToolRequests
-from pydantic_ai.capabilities import AgentCapability
+from pydantic_ai.capabilities import (
+    AbstractCapability,
+    CombinedCapability,
+    DynamicCapability,
+)
 from pydantic_ai.mcp import MCPServerStreamableHTTP
 from pydantic_ai.models import Model
 from pydantic_ai.models.anthropic import AnthropicModel
@@ -16,7 +21,10 @@ from phoenix.server.agents.capabilities.tools.external import (
     get_external_tool_capability_function,
 )
 from phoenix.server.agents.prompts import AgentInstructions
-from phoenix.server.agents.pydantic_ai import OpenInferenceAgentWrapper
+from phoenix.server.agents.pydantic_ai import (
+    OpenInferenceAgentWrapper,
+    OpenInferenceCapabilityWrapper,
+)
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
 
 
@@ -29,12 +37,19 @@ def build_agent(
 ) -> OpenInferenceAgentWrapper[AgentDependencies, AgentOutput]:
     resolved_instructions = instructions or AgentInstructions()
     provider = tracer_provider or NoOpTracerProvider()
-    capabilities: list[AgentCapability[AgentDependencies]] = [
-        get_external_tool_capability_function(
-            instructions=resolved_instructions,
-            tracer_provider=provider,
+    tracer: Tracer = OITracer(
+        provider.get_tracer("phoenix.server.agents"),
+        config=TraceConfig(),
+    )
+    capabilities: list[AbstractCapability[AgentDependencies]] = [
+        DynamicCapability(
+            capability_func=get_external_tool_capability_function(
+                instructions=resolved_instructions,
+            ),
         ),
-        get_context_capability_function(instructions=resolved_instructions),
+        DynamicCapability(
+            capability_func=get_context_capability_function(instructions=resolved_instructions),
+        ),
     ]
     if isinstance(model, AnthropicModel):
         capabilities.append(AnthropicPromptCacheCapability())
@@ -43,9 +58,13 @@ def build_agent(
             MintlifyDocsMCPCapability(
                 mcp_server=docs_mcp_server,
                 instructions=resolved_instructions.docs_tool,
-                tracer_provider=provider,
             )
         )
+
+    traced_capability = OpenInferenceCapabilityWrapper(
+        wrapped=CombinedCapability(capabilities=capabilities),
+        tracer=tracer,
+    )
 
     agent: Agent[AgentDependencies, AgentOutput] = Agent(
         model,
@@ -53,6 +72,6 @@ def build_agent(
         deps_type=AgentDependencies,
         output_type=[str, DeferredToolRequests],
         instructions=resolved_instructions.base,
-        capabilities=capabilities,
+        capabilities=[traced_capability],
     )
-    return OpenInferenceAgentWrapper(agent, tracer_provider=provider)
+    return OpenInferenceAgentWrapper(agent, tracer=tracer)
