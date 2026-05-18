@@ -151,7 +151,6 @@ export const DialogFooter = ({ children, ...props }: DialogFooterProps) => {
 
 export type DialogCloseButtonProps = ButtonProps & {
   close?: () => void;
-  isDrawer?: boolean;
 };
 
 /**
@@ -162,11 +161,9 @@ export const DialogCloseButton = ({
   children,
   close,
   onPress,
-  isDrawer: isDrawerProp,
   ...props
 }: DialogCloseButtonProps) => {
-  const drawerContext = useContext(DrawerContext);
-  const isDrawer = isDrawerProp ?? drawerContext;
+  const isDrawer = useContext(DrawerContext);
   const defaultIcon = isDrawer ? (
     <Icons.ArrowheadRightOutline />
   ) : (

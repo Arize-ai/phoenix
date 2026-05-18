@@ -290,11 +290,10 @@ function RootSpanOutputMetadata({ rootSpan }: RootSpanProps) {
         isOpen={isAnnotationDialogOpen}
         onOpenChange={setIsAnnotationDialogOpen}
       >
-        <Modal size="S">
+        <Modal variant="slideover" size="L">
           <EditSpanAnnotationsDialog
             spanNodeId={rootSpan.id}
             projectId={rootSpan.project.id}
-            isDrawer={false}
           />
         </Modal>
       </ModalOverlay>

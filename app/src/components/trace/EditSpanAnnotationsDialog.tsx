@@ -10,9 +10,7 @@ import {
 import type { SpanAnnotationsEditorProps } from "./SpanAnnotationsEditor";
 import { SpanAnnotationsEditor } from "./SpanAnnotationsEditor";
 
-type EditSpanAnnotationsDialogProps = SpanAnnotationsEditorProps & {
-  isDrawer?: boolean;
-};
+type EditSpanAnnotationsDialogProps = SpanAnnotationsEditorProps;
 export function EditSpanAnnotationsDialog(
   props: EditSpanAnnotationsDialogProps
 ) {
@@ -22,7 +20,7 @@ export function EditSpanAnnotationsDialog(
         <DialogHeader>
           <DialogTitle>Annotate</DialogTitle>
           <DialogTitleExtra>
-            <DialogCloseButton slot="close" isDrawer={props.isDrawer} />
+            <DialogCloseButton slot="close" />
           </DialogTitleExtra>
         </DialogHeader>
         <SpanAnnotationsEditor {...props} />
