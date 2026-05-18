@@ -10,7 +10,7 @@ import {
 
 /**
  * Generates the server-owned generated UI artifacts in
- * `src/phoenix/server/generated_ui` from the frontend generative UI catalog.
+ * `src/phoenix/server/generative_ui` from the frontend generative UI catalog.
  *
  * The Python agent tool loads these files at runtime to define the
  * `render_generated_ui` tool's description, JSON schema, and manifest. Run this
@@ -19,7 +19,7 @@ import {
  * its prompt contract changes.
  */
 const repoRoot = path.resolve(process.cwd(), "..");
-const outputDirectory = path.join(repoRoot, "src/phoenix/server/generated_ui");
+const outputDirectory = path.join(repoRoot, "src/phoenix/server/generative_ui");
 
 const manifest = {
   version: 1,

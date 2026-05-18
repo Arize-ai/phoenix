@@ -207,7 +207,7 @@ codegen-ts-app: ## Generate TypeScript OpenAPI types for app/
 schema-generative-ui: ## Generate PXI generated UI catalog schema artifacts
 	@echo -e "$(CYAN)Generating PXI generated UI catalog schema artifacts...$(NC)"
 	@cd $(APP_DIR) && $(PNPM) run --silent generate:generative-ui-catalog
-	@echo -e "$(GREEN)✓ src/phoenix/server/generated_ui$(NC)"
+	@echo -e "$(GREEN)✓ src/phoenix/server/generative_ui$(NC)"
 
 openapi: schema-openapi codegen-python-client codegen-ts-client codegen-ts-app ## Generate OpenAPI schema and all clients (full workflow)
 	@echo -e "$(GREEN)✓ OpenAPI schema workflow complete$(NC)"
