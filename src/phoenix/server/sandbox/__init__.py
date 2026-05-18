@@ -52,8 +52,6 @@ from phoenix.server.sandbox.deno_backend import DenoAdapter
 from phoenix.server.sandbox.e2b_backend import E2BAdapter
 from phoenix.server.sandbox.modal_backend import ModalAdapter
 from phoenix.server.sandbox.types import (
-    ENV_VAR_VALUE_ADAPTER,
-    EnvVarLiteral,
     EnvVarValue,
     SandboxAdapter,
     SandboxBackend,
@@ -397,11 +395,10 @@ class SecretsContext:
 
     async def resolve_user_env(
         self,
-        raw_env_vars: Mapping[str, Any],
+        env_vars: Mapping[str, EnvVarValue],
     ) -> dict[str, str]:
-        """Parse env_vars mapping, resolve secret_refs, return plaintext name→value dict.
+        """Resolve secret_ref env vars and return plaintext name→value dict.
 
-        Literal entries are resolved unconditionally — they never touch the DB.
         Secret-ref entries go through ``fetch_secrets``; decrypt failures and
         missing rows both surface as ``MissingSecretError`` (fail-closed —
         silently dropping would leave the user-intended env absent at
@@ -414,14 +411,11 @@ class SecretsContext:
         injected sandbox env values at execute time via ``os.environ``. See
         ``api/helpers/sandbox_redaction.py`` for the broader threat model.
         """
-        entries: dict[str, EnvVarValue] = {
-            name: ENV_VAR_VALUE_ADAPTER.validate_python(v) for name, v in raw_env_vars.items()
-        }
         # Collect secret keys that need DB resolution (deduplicated, order-preserving)
         secret_keys: list[str] = []
         seen: set[str] = set()
-        for entry in entries.values():
-            if not isinstance(entry, EnvVarLiteral) and entry.secret_key not in seen:
+        for entry in env_vars.values():
+            if entry.secret_key not in seen:
                 secret_keys.append(entry.secret_key)
                 seen.add(entry.secret_key)
 
@@ -437,11 +431,8 @@ class SecretsContext:
             )
 
         user_env: dict[str, str] = {}
-        for name, entry in entries.items():
-            if isinstance(entry, EnvVarLiteral):
-                user_env[name] = entry.literal
-            else:
-                user_env[name] = resolved_secrets[entry.secret_key]
+        for name, entry in env_vars.items():
+            user_env[name] = resolved_secrets[entry.secret_key]
         return user_env
 
     async def missing_auth_detail(
@@ -588,16 +579,11 @@ async def _build_backend_for(
     typed_deployment = adapter.deployment_config_model.model_validate(deployment_blob)
 
     user_env: dict[str, str] = {}
-    raw_env_vars: dict[str, Any] = {}
+    env_vars: Mapping[str, EnvVarValue] = {}
     if isinstance(validated_config, SupportsEnvVars):
-        raw_env_vars = {
-            name: v.model_dump(exclude_none=True) for name, v in validated_config.env_vars.items()
-        }
-    if raw_env_vars:
-        # Literal entries resolve unconditionally; secret_refs require DB
-        # context and raise MissingSecretError when ``secrets`` is absent
-        # (fail-closed rather than silent-drop the user-intended env).
-        user_env = await secrets.resolve_user_env(raw_env_vars)
+        env_vars = validated_config.env_vars
+    if env_vars:
+        user_env = await secrets.resolve_user_env(env_vars)
 
     try:
         # Each backend populates self.secret_values in __init__ via

@@ -62,7 +62,10 @@ export function SandboxProvidersCard({
               <tr key={provider.id}>
                 <td>
                   <Flex direction="row" gap="size-100" alignItems="center">
-                    <SandboxProviderIcon backendType={backend.backendType} height={18} />
+                    <SandboxProviderIcon
+                      backendType={backend.backendType}
+                      height={18}
+                    />
                     <span>{backend.displayName}</span>
                     <SandboxHostingTypeBadge
                       hostingType={backend.hostingType}

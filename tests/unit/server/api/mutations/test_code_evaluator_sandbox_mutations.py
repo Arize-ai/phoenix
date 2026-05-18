@@ -897,7 +897,7 @@ class TestConfigValidationPath:
                     "input": {
                         "config": _variant(
                             provider.backend_type,
-                            {"envVars": [{"name": "FOO", "value": {"literal": "bar"}}]},
+                            {"envVars": [{"name": "FOO", "secretKey": "foo-secret"}]},
                         ),
                         "name": "e2b-valid",
                     }
@@ -968,7 +968,7 @@ class TestConfigValidationPath:
                         "id": _config_global_id(config_id),
                         "config": _variant(
                             "E2B",
-                            {"envVars": [{"name": "FOO", "value": {"literal": "bar"}}]},
+                            {"envVars": [{"name": "FOO", "secretKey": "foo-secret"}]},
                         ),
                     }
                 },
@@ -1007,7 +1007,7 @@ class TestConfigValidationPath:
                         "id": _config_global_id(config_id),
                         "config": _variant(
                             "E2B",
-                            {"envVars": [{"name": "FOO", "value": {"literal": "bar"}}]},
+                            {"envVars": [{"name": "FOO", "secretKey": "foo-secret"}]},
                         ),
                     }
                 },
@@ -1018,7 +1018,7 @@ class TestConfigValidationPath:
             row = await session.get(models.SandboxConfig, config_id)
         assert row is not None
         # env_vars was provided — must be persisted in the new dict shape
-        assert row.config.get("env_vars") == {"FOO": {"literal": "bar"}}
+        assert row.config.get("env_vars") == {"FOO": {"secret_key": "foo-secret"}}
 
     async def test_create_env_var_round_trip(
         self,
@@ -1040,7 +1040,7 @@ class TestConfigValidationPath:
                     "input": {
                         "config": _variant(
                             provider.backend_type,
-                            {"envVars": [{"name": "FOO", "value": {"literal": "bar"}}]},
+                            {"envVars": [{"name": "FOO", "secretKey": "foo-secret"}]},
                         ),
                         "name": "e2b-env-vars",
                     }
@@ -1056,4 +1056,4 @@ class TestConfigValidationPath:
             row = await session.get(models.SandboxConfig, row_id)
         assert row is not None
         env_vars = row.config.get("env_vars")
-        assert env_vars == {"FOO": {"literal": "bar"}}
+        assert env_vars == {"FOO": {"secret_key": "foo-secret"}}

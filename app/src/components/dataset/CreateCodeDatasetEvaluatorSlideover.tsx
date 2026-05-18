@@ -115,15 +115,7 @@ const CreateCodeEvaluatorDialog = ({
             config {
               envVars {
                 name
-                value {
-                  __typename
-                  ... on SandboxConfigEnvVarLiteral {
-                    literal
-                  }
-                  ... on SandboxConfigEnvVarSecretRef {
-                    secretKey
-                  }
-                }
+                secretKey
               }
               internetAccess {
                 mode

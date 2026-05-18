@@ -275,10 +275,10 @@ export type SandboxConfigSetting = {
  * Flattens a sandbox config into display-ready `label → value` rows for the
  * settings summary shown in the configs table.
  *
- * Env-var literal values are intentionally *not* shown — we surface the
- * variable *names* (not values) so the summary stays glanceable without
- * leaking long values into table cells. Internet access is normalized to a
- * plain "on" / "off" so it is obvious whether it is enabled.
+ * Env-var secret keys are intentionally *not* shown — we surface the variable
+ * *names* so the summary stays glanceable without exposing implementation
+ * details in table cells. Internet access is normalized to a plain "on" /
+ * "off" so it is obvious whether it is enabled.
  */
 export function getSandboxConfigSettings(
   config: SandboxConfigShape
@@ -339,18 +339,10 @@ export function formValuesToConfigPatch(
   const capabilities: Record<string, unknown> = { language: values.language };
 
   if (backend?.supportsEnvVars && values.envVars.length > 0) {
-    capabilities["envVars"] = values.envVars.map((entry) => {
-      if (entry.kind === "secret_ref") {
-        return {
-          name: entry.name,
-          value: { secretKey: entry.secret_key },
-        };
-      }
-      return {
-        name: entry.name,
-        value: { literal: entry.value },
-      };
-    });
+    capabilities["envVars"] = values.envVars.map((entry) => ({
+      name: entry.name,
+      secretKey: entry.secretKey,
+    }));
   }
 
   if (backend?.internetAccess === "BOOLEAN") {

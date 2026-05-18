@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c2fc8daedc9f1f742a284142ae49a911>>
+ * @generated SignedSource<<805c6e60f2d5004b267dfaf8109fd296>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -36,11 +36,7 @@ export type E2BConfigInput = {
 };
 export type EnvVarInput = {
   name: string;
-  value: EnvVarValueInput;
-};
-export type EnvVarValueInput = {
-  literal?: string | null;
-  secretKey?: string | null;
+  secretKey: string;
 };
 export type InternetAccessInput = {
   mode: InternetAccessChoice;
@@ -360,47 +356,8 @@ return {
                               {
                                 "alias": null,
                                 "args": null,
-                                "concreteType": null,
-                                "kind": "LinkedField",
-                                "name": "value",
-                                "plural": false,
-                                "selections": [
-                                  {
-                                    "alias": null,
-                                    "args": null,
-                                    "kind": "ScalarField",
-                                    "name": "__typename",
-                                    "storageKey": null
-                                  },
-                                  {
-                                    "kind": "InlineFragment",
-                                    "selections": [
-                                      {
-                                        "alias": null,
-                                        "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "literal",
-                                        "storageKey": null
-                                      }
-                                    ],
-                                    "type": "SandboxConfigEnvVarLiteral",
-                                    "abstractKey": null
-                                  },
-                                  {
-                                    "kind": "InlineFragment",
-                                    "selections": [
-                                      {
-                                        "alias": null,
-                                        "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "secretKey",
-                                        "storageKey": null
-                                      }
-                                    ],
-                                    "type": "SandboxConfigEnvVarSecretRef",
-                                    "abstractKey": null
-                                  }
-                                ],
+                                "kind": "ScalarField",
+                                "name": "secretKey",
                                 "storageKey": null
                               }
                             ],
@@ -467,12 +424,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9be085e370c6d61931f4db4e8e542096",
+    "cacheID": "8ee535a894e8bb6aa9bdee468ca0a627",
     "id": null,
     "metadata": {},
     "name": "SandboxConfigDialogUpdateSandboxConfigMutation",
     "operationKind": "mutation",
-    "text": "mutation SandboxConfigDialogUpdateSandboxConfigMutation(\n  $input: UpdateSandboxConfigInput!\n) {\n  updateSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      enabled\n      config {\n        envVars {\n          name\n          value {\n            __typename\n            ... on SandboxConfigEnvVarLiteral {\n              literal\n            }\n            ... on SandboxConfigEnvVarSecretRef {\n              secretKey\n            }\n          }\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n      updatedAt\n    }\n  }\n}\n"
+    "text": "mutation SandboxConfigDialogUpdateSandboxConfigMutation(\n  $input: UpdateSandboxConfigInput!\n) {\n  updateSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      enabled\n      config {\n        envVars {\n          name\n          secretKey\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();

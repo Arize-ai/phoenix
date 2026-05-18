@@ -31,7 +31,6 @@ from phoenix.server.sandbox.types import (
     SANDBOX_DEPLOYMENT_ADAPTER,
     DaytonaDeployment,
     E2BDeployment,
-    EnvVarLiteral,
     SupportsDependencies,
     SupportsEnvVars,
     SupportsInternetAccess,
@@ -106,30 +105,9 @@ class InternetAccessChoice(Enum):
 
 
 @strawberry.type
-class SandboxConfigEnvVarLiteral:
-    literal: str
-
-
-@strawberry.type
-class SandboxConfigEnvVarSecretRef:
-    secret_key: str
-
-
-SandboxConfigEnvVarValue = Annotated[
-    Union[SandboxConfigEnvVarLiteral, SandboxConfigEnvVarSecretRef],
-    strawberry.union(
-        "SandboxConfigEnvVarValue",
-        description=(
-            "An env-var's value. Either a literal string or a reference to a Secret row by key."
-        ),
-    ),
-]
-
-
-@strawberry.type
 class SandboxConfigEnvVar:
     name: str
-    value: SandboxConfigEnvVarValue
+    secret_key: str
 
 
 @strawberry.type
@@ -185,12 +163,7 @@ class SandboxConfigData:
         env_vars: list[SandboxConfigEnvVar] = []
         if isinstance(cfg, SupportsEnvVars):
             for name, ev in cfg.env_vars.items():
-                value: Union[SandboxConfigEnvVarLiteral, SandboxConfigEnvVarSecretRef]
-                if isinstance(ev, EnvVarLiteral):
-                    value = SandboxConfigEnvVarLiteral(literal=ev.literal)
-                else:
-                    value = SandboxConfigEnvVarSecretRef(secret_key=ev.secret_key)
-                env_vars.append(SandboxConfigEnvVar(name=name, value=value))
+                env_vars.append(SandboxConfigEnvVar(name=name, secret_key=ev.secret_key))
 
         internet_access: Optional[SandboxConfigInternetAccess] = None
         if isinstance(cfg, SupportsInternetAccess) and cfg.internet_access is not None:

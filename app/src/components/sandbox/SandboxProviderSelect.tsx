@@ -59,7 +59,10 @@ function SandboxProviderOptionContent({
 }) {
   return (
     <Flex direction="row" gap="size-100" alignItems="center">
-      <SandboxProviderIcon backendType={option.backend.backendType} height={18} />
+      <SandboxProviderIcon
+        backendType={option.backend.backendType}
+        height={18}
+      />
       <Text>{option.backend.displayName}</Text>
       <Text color="text-500">
         {option.provider.supportedLanguages.map(languageLabel).join(" · ")}

@@ -45,8 +45,6 @@ from phoenix.server.sandbox.types import (
     DependenciesConfig,
     E2BConfig,
     E2BDeployment,
-    EnvVarLiteral,
-    EnvVarSecretRef,
     EnvVarValue,
     InternetAccessConfig,
     ModalConfig,
@@ -70,24 +68,11 @@ DEFAULT_SANDBOX_TIMEOUT_SECONDS = 300
 @strawberry.input
 class EnvVarInput:
     name: str
-    value: EnvVarValueInput
+    secret_key: str
 
     def to_orm(self) -> EnvVarValue:
         """Build the pydantic ``EnvVarValue`` for this entry (without the name)."""
-        v = self.value
-        if v.literal is not strawberry.UNSET and v.literal is not None:
-            return EnvVarLiteral(literal=v.literal)
-        if v.secret_key is not strawberry.UNSET and v.secret_key is not None:
-            return EnvVarSecretRef(secret_key=v.secret_key)
-        raise BadRequest("env_var value must specify exactly one of: literal, secret_key")
-
-
-@strawberry.input(one_of=True)
-class EnvVarValueInput:
-    """One environment variable's value. Exactly one of ``literal`` / ``secret_key`` set."""
-
-    literal: Optional[str] = strawberry.UNSET
-    secret_key: Optional[str] = strawberry.UNSET
+        return EnvVarValue(secret_key=self.secret_key)
 
 
 @strawberry.input

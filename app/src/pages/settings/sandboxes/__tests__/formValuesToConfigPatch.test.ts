@@ -54,7 +54,7 @@ describe("formValuesToConfigPatch — variant + capability output", () => {
   it("(f) capability flag True: form values become envVars entries inside the variant", () => {
     const values: SandboxConfigFormValues = {
       ...emptyValues,
-      envVars: [{ kind: "literal", name: "NEW", value: "new" }],
+      envVars: [{ name: "NEW", secretKey: "new_secret" }],
     };
 
     const result = formValuesToConfigPatch(
@@ -65,7 +65,7 @@ describe("formValuesToConfigPatch — variant + capability output", () => {
     expect(result).toEqual({
       e2b: {
         language: "PYTHON",
-        envVars: [{ name: "NEW", value: { literal: "new" } }],
+        envVars: [{ name: "NEW", secretKey: "new_secret" }],
         internetAccess: { mode: "DENY" },
       },
     });
@@ -74,7 +74,7 @@ describe("formValuesToConfigPatch — variant + capability output", () => {
   it("(positive) all capabilities set: variant carries envVars + internetAccess + dependencies", () => {
     const values: SandboxConfigFormValues = {
       ...emptyValues,
-      envVars: [{ kind: "literal", name: "KEY", value: "val" }],
+      envVars: [{ name: "KEY", secretKey: "key_secret" }],
       internetAccessEnabled: true,
       dependenciesText: "numpy\npandas",
     };
@@ -87,7 +87,7 @@ describe("formValuesToConfigPatch — variant + capability output", () => {
     expect(result).toEqual({
       e2b: {
         language: "PYTHON",
-        envVars: [{ name: "KEY", value: { literal: "val" } }],
+        envVars: [{ name: "KEY", secretKey: "key_secret" }],
         internetAccess: { mode: "ALLOW" },
         dependencies: {
           packages: ["numpy", "pandas"],
@@ -127,12 +127,10 @@ describe("formValuesToConfigPatch — variant + capability output", () => {
     expect(result["wasm"]).not.toHaveProperty("internetAccess");
   });
 
-  it("secret_ref env vars produce {secretKey} variant", () => {
+  it("env vars produce flattened secretKey values", () => {
     const values: SandboxConfigFormValues = {
       ...emptyValues,
-      envVars: [
-        { kind: "secret_ref", name: "OPENAI_API_KEY", secret_key: "openai_k" },
-      ],
+      envVars: [{ name: "OPENAI_API_KEY", secretKey: "openai_k" }],
     };
 
     const result = formValuesToConfigPatch(
@@ -143,7 +141,7 @@ describe("formValuesToConfigPatch — variant + capability output", () => {
     expect(result).toEqual({
       e2b: {
         language: "PYTHON",
-        envVars: [{ name: "OPENAI_API_KEY", value: { secretKey: "openai_k" } }],
+        envVars: [{ name: "OPENAI_API_KEY", secretKey: "openai_k" }],
         internetAccess: { mode: "DENY" },
       },
     });

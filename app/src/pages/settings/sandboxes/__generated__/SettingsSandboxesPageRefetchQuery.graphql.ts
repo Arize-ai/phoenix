@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0d21229253c8787030214e1a2aa02a74>>
+ * @generated SignedSource<<22d2de98dd2857a886b55489e2e0b49b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -239,47 +239,8 @@ return {
                       {
                         "alias": null,
                         "args": null,
-                        "concreteType": null,
-                        "kind": "LinkedField",
-                        "name": "value",
-                        "plural": false,
-                        "selections": [
-                          {
-                            "alias": null,
-                            "args": null,
-                            "kind": "ScalarField",
-                            "name": "__typename",
-                            "storageKey": null
-                          },
-                          {
-                            "kind": "InlineFragment",
-                            "selections": [
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "literal",
-                                "storageKey": null
-                              }
-                            ],
-                            "type": "SandboxConfigEnvVarLiteral",
-                            "abstractKey": null
-                          },
-                          {
-                            "kind": "InlineFragment",
-                            "selections": [
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "secretKey",
-                                "storageKey": null
-                              }
-                            ],
-                            "type": "SandboxConfigEnvVarSecretRef",
-                            "abstractKey": null
-                          }
-                        ],
+                        "kind": "ScalarField",
+                        "name": "secretKey",
                         "storageKey": null
                       }
                     ],
@@ -340,16 +301,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "3ee6d5f67b2455a9ce6c8249630b717e",
+    "cacheID": "c929032ba1d1e35a0d096c0d3b017bb9",
     "id": null,
     "metadata": {},
     "name": "SettingsSandboxesPageRefetchQuery",
     "operationKind": "query",
-    "text": "query SettingsSandboxesPageRefetchQuery {\n  ...SettingsSandboxesPageFragment\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      enabled\n      config {\n        envVars {\n          name\n          value {\n            __typename\n            ... on SandboxConfigEnvVarLiteral {\n              literal\n            }\n            ... on SandboxConfigEnvVarSecretRef {\n              secretKey\n            }\n          }\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n      updatedAt\n    }\n  }\n}\n"
+    "text": "query SettingsSandboxesPageRefetchQuery {\n  ...SettingsSandboxesPageFragment\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      enabled\n      config {\n        envVars {\n          name\n          secretKey\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d6b4a173dc6b120e82f0a1df629b1384";
+(node as any).hash = "3d2272767b923b1414b367e3c3cba621";
 
 export default node;

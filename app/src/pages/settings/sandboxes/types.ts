@@ -22,9 +22,10 @@ export type ConfigRow = {
   config: SandboxConfig;
 };
 
-export type EnvVarFormEntry =
-  | { kind: "literal"; name: string; value: string }
-  | { kind: "secret_ref"; name: string; secret_key: string };
+export type EnvVarFormEntry = {
+  name: string;
+  secretKey: string;
+};
 
 export type SandboxConfigFormValues = {
   sandboxProviderId: string;

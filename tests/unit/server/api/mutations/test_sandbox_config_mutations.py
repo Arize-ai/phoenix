@@ -144,8 +144,8 @@ class TestCapabilityGates:
                             "e2b": {
                                 "language": "PYTHON",
                                 "envVars": [
-                                    {"name": "FOO", "value": {"literal": "first"}},
-                                    {"name": "FOO", "value": {"literal": "second"}},
+                                    {"name": "FOO", "secretKey": "first"},
+                                    {"name": "FOO", "secretKey": "second"},
                                 ],
                             }
                         },

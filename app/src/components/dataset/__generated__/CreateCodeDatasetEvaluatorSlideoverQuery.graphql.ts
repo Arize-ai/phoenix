@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7e68553136a15f0e78f33cc30cc6cda3>>
+ * @generated SignedSource<<5a644a0bc5cc2e07b315913979cae18e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -32,17 +32,7 @@ export type CreateCodeDatasetEvaluatorSlideoverQuery$data = {
         } | null;
         readonly envVars: ReadonlyArray<{
           readonly name: string;
-          readonly value: {
-            readonly __typename: "SandboxConfigEnvVarLiteral";
-            readonly literal: string;
-          } | {
-            readonly __typename: "SandboxConfigEnvVarSecretRef";
-            readonly secretKey: string;
-          } | {
-            // This will never be '%other', but we need some
-            // value in case none of the concrete values match.
-            readonly __typename: "%other";
-          };
+          readonly secretKey: string;
         }>;
         readonly internetAccess: {
           readonly mode: InternetAccessChoice;
@@ -150,47 +140,8 @@ v5 = {
             {
               "alias": null,
               "args": null,
-              "concreteType": null,
-              "kind": "LinkedField",
-              "name": "value",
-              "plural": false,
-              "selections": [
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "__typename",
-                  "storageKey": null
-                },
-                {
-                  "kind": "InlineFragment",
-                  "selections": [
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "literal",
-                      "storageKey": null
-                    }
-                  ],
-                  "type": "SandboxConfigEnvVarLiteral",
-                  "abstractKey": null
-                },
-                {
-                  "kind": "InlineFragment",
-                  "selections": [
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "secretKey",
-                      "storageKey": null
-                    }
-                  ],
-                  "type": "SandboxConfigEnvVarSecretRef",
-                  "abstractKey": null
-                }
-              ],
+              "kind": "ScalarField",
+              "name": "secretKey",
               "storageKey": null
             }
           ],
@@ -331,16 +282,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "9cab789c313dc7f0ed8f203286b4e3d7",
+    "cacheID": "d0f7ce5ba2741c5b3a625311f5f02c1f",
     "id": null,
     "metadata": {},
     "name": "CreateCodeDatasetEvaluatorSlideoverQuery",
     "operationKind": "query",
-    "text": "query CreateCodeDatasetEvaluatorSlideoverQuery {\n  sandboxProviders {\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      config {\n        envVars {\n          name\n          value {\n            __typename\n            ... on SandboxConfigEnvVarLiteral {\n              literal\n            }\n            ... on SandboxConfigEnvVarSecretRef {\n              secretKey\n            }\n          }\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n    }\n    id\n  }\n  sandboxBackends {\n    backendType\n    status\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n  }\n}\n"
+    "text": "query CreateCodeDatasetEvaluatorSlideoverQuery {\n  sandboxProviders {\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      config {\n        envVars {\n          name\n          secretKey\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n    }\n    id\n  }\n  sandboxBackends {\n    backendType\n    status\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "13988eb93c9f7b339b6b7f9a22181787";
+(node as any).hash = "c69bb10ac38c3e255f0b6745bcc89fd5";
 
 export default node;

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3567009cea0fb5adfa600c85f36750e3>>
+ * @generated SignedSource<<979d92a28e24f01526f556ca0bb35175>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -22,17 +22,7 @@ export type SandboxConfigLabelDetailsQuery$data = {
       } | null;
       readonly envVars: ReadonlyArray<{
         readonly name: string;
-        readonly value: {
-          readonly __typename: "SandboxConfigEnvVarLiteral";
-          readonly literal: string;
-        } | {
-          readonly __typename: "SandboxConfigEnvVarSecretRef";
-          readonly secretKey: string;
-        } | {
-          // This will never be '%other', but we need some
-          // value in case none of the concrete values match.
-          readonly __typename: "%other";
-        };
+        readonly secretKey: string;
       }>;
       readonly internetAccess: {
         readonly mode: InternetAccessChoice;
@@ -108,41 +98,8 @@ v3 = {
             {
               "alias": null,
               "args": null,
-              "concreteType": null,
-              "kind": "LinkedField",
-              "name": "value",
-              "plural": false,
-              "selections": [
-                (v2/*: any*/),
-                {
-                  "kind": "InlineFragment",
-                  "selections": [
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "literal",
-                      "storageKey": null
-                    }
-                  ],
-                  "type": "SandboxConfigEnvVarLiteral",
-                  "abstractKey": null
-                },
-                {
-                  "kind": "InlineFragment",
-                  "selections": [
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "secretKey",
-                      "storageKey": null
-                    }
-                  ],
-                  "type": "SandboxConfigEnvVarSecretRef",
-                  "abstractKey": null
-                }
-              ],
+              "kind": "ScalarField",
+              "name": "secretKey",
               "storageKey": null
             }
           ],
@@ -244,16 +201,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "fbdcf774fd30726c94bda79a5a35ec60",
+    "cacheID": "9b20002e72206009e3bb8aa5d1dca880",
     "id": null,
     "metadata": {},
     "name": "SandboxConfigLabelDetailsQuery",
     "operationKind": "query",
-    "text": "query SandboxConfigLabelDetailsQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on SandboxConfig {\n      timeout\n      config {\n        envVars {\n          name\n          value {\n            __typename\n            ... on SandboxConfigEnvVarLiteral {\n              literal\n            }\n            ... on SandboxConfigEnvVarSecretRef {\n              secretKey\n            }\n          }\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query SandboxConfigLabelDetailsQuery(\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ... on SandboxConfig {\n      timeout\n      config {\n        envVars {\n          name\n          secretKey\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7a710c1e84ea580fa9170ae9c0136798";
+(node as any).hash = "de09cbe3e33e623c35d7f0debf0dbf2f";
 
 export default node;

@@ -2,8 +2,7 @@
 
 Scope is limited to logic we own:
 - `validate_config()`'s wrapping of pydantic ValidationError as ValueError.
-- `EnvVarValue`'s "exactly one of literal/secret_key" invariant and
-  `extra="forbid"` design contract.
+- `EnvVarValue`'s secret_key-only shape and `extra="forbid"` design contract.
 
 Per-adapter pydantic schema re-verification (round-tripping every adapter's
 config model) is intentionally absent — the cross-adapter conformance suite
@@ -20,11 +19,8 @@ import pytest
 from pydantic import BaseModel
 
 from phoenix.server.sandbox.types import (
-    ENV_VAR_VALUE_ADAPTER,
     DependenciesConfig,
     E2BDeployment,
-    EnvVarLiteral,
-    EnvVarSecretRef,
     InternetAccessConfig,
     NoCredentials,
     NoDeployment,
@@ -84,45 +80,6 @@ class TestConfigModelValidation:
         adapter = _make_adapter(RequiredFieldModel)
         with pytest.raises(ValidationError, match="required_field"):
             adapter.config_model.model_validate({})
-
-
-# ---------------------------------------------------------------------------
-# EnvVarValue: "exactly one of literal/secret_key" + extra="forbid"
-# ---------------------------------------------------------------------------
-
-
-class TestEnvVarValue:
-    def test_literal_round_trip(self) -> None:
-        v = ENV_VAR_VALUE_ADAPTER.validate_python({"literal": "bar"})
-        assert isinstance(v, EnvVarLiteral)
-        assert v.literal == "bar"
-        assert v.model_dump() == {"literal": "bar"}
-
-    def test_secret_ref_round_trip(self) -> None:
-        v = ENV_VAR_VALUE_ADAPTER.validate_python({"secret_key": "my-secret"})
-        assert isinstance(v, EnvVarSecretRef)
-        assert v.secret_key == "my-secret"
-        assert v.model_dump() == {"secret_key": "my-secret"}
-
-    @pytest.mark.parametrize(
-        "payload",
-        [
-            {},  # neither key
-            {"literal": "v", "secret_key": "k"},  # both keys → discriminator picks "literal"
-            #                                       and ``extra="forbid"`` rejects ``secret_key``
-        ],
-    )
-    def test_rejects_neither_or_both(self, payload: dict[str, Any]) -> None:
-        from pydantic import ValidationError
-
-        with pytest.raises(ValidationError):
-            ENV_VAR_VALUE_ADAPTER.validate_python(payload)
-
-    def test_forbids_extra_fields(self) -> None:
-        from pydantic import ValidationError
-
-        with pytest.raises(ValidationError):
-            ENV_VAR_VALUE_ADAPTER.validate_python({"literal": "v", "extra": "bad"})
 
 
 # ---------------------------------------------------------------------------

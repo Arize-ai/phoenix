@@ -20,16 +20,7 @@ import type { CodeEvaluatorLanguage, SandboxBackendType } from "@phoenix/types";
 export type SandboxConfigOptionConfig = {
   readonly envVars: ReadonlyArray<{
     readonly name: string;
-    readonly value:
-      | {
-          readonly __typename: "SandboxConfigEnvVarLiteral";
-          readonly literal: string;
-        }
-      | {
-          readonly __typename: "SandboxConfigEnvVarSecretRef";
-          readonly secretKey: string;
-        }
-      | { readonly __typename: "%other" };
+    readonly secretKey: string;
   }>;
   readonly internetAccess: { readonly mode: "ALLOW" | "DENY" } | null;
   readonly dependencies: {

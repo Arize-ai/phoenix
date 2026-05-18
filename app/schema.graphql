@@ -1425,12 +1425,7 @@ input E2BDeploymentInput {
 
 input EnvVarInput {
   name: String!
-  value: EnvVarValueInput!
-}
-
-input EnvVarValueInput @oneOf {
-  literal: String
-  secretKey: String
+  secretKey: String!
 }
 
 enum EvalAttr {
@@ -3412,21 +3407,8 @@ type SandboxConfigDependencies {
 
 type SandboxConfigEnvVar {
   name: String!
-  value: SandboxConfigEnvVarValue!
-}
-
-type SandboxConfigEnvVarLiteral {
-  literal: String!
-}
-
-type SandboxConfigEnvVarSecretRef {
   secretKey: String!
 }
-
-"""
-An env-var's value. Either a literal string or a reference to a Secret row by key.
-"""
-union SandboxConfigEnvVarValue = SandboxConfigEnvVarLiteral | SandboxConfigEnvVarSecretRef
 
 type SandboxConfigInternetAccess {
   mode: InternetAccessChoice!

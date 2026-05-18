@@ -13,7 +13,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import (
     Annotated,
-    Any,
     ClassVar,
     Generic,
     Literal,
@@ -29,10 +28,8 @@ from typing import (
 from pydantic import (
     BaseModel,
     ConfigDict,
-    Discriminator,
     Field,
     SecretStr,
-    Tag,
     TypeAdapter,
     field_validator,
     model_validator,
@@ -136,51 +133,10 @@ class _BaseModel(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
-class EnvVarLiteral(_BaseModel):
-    """An env-var value supplied inline as plaintext."""
-
-    literal: str
-
-
-class EnvVarSecretRef(_BaseModel):
+class EnvVarValue(_BaseModel):
     """An env-var value resolved at runtime from a secret row by key."""
 
     secret_key: str
-
-
-def _env_var_discriminator(v: Any) -> str:
-    """Pick which variant a stored env-var dict belongs to by key presence.
-
-    Stored JSON shape is ``{"literal": ...}`` xor ``{"secret_key": ...}`` —
-    the keys are self-disambiguating, so the union does not add a redundant
-    ``type`` tag to the on-disk representation. Returns an unmatched tag for
-    invalid input so pydantic surfaces it as a ``ValidationError`` (rather
-    than letting a bare ``ValueError`` escape past the union adapter).
-    """
-    if isinstance(v, EnvVarLiteral):
-        return "literal"
-    if isinstance(v, EnvVarSecretRef):
-        return "secret_ref"
-    if isinstance(v, dict):
-        if "literal" in v:
-            return "literal"
-        if "secret_key" in v:
-            return "secret_ref"
-    return "__invalid__"
-
-
-EnvVarValue: TypeAlias = Annotated[
-    Union[
-        Annotated[EnvVarLiteral, Tag("literal")],
-        Annotated[EnvVarSecretRef, Tag("secret_ref")],
-    ],
-    Discriminator(_env_var_discriminator),
-]
-
-#: TypeAdapter for parsing/validating a single stored env-var blob. Exposed
-#: separately because ``EnvVarValue`` is a union alias and cannot host
-#: ``model_validate`` directly.
-ENV_VAR_VALUE_ADAPTER: TypeAdapter[Union[EnvVarLiteral, EnvVarSecretRef]] = TypeAdapter(EnvVarValue)
 
 
 class InternetAccessConfig(_BaseModel):

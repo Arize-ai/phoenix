@@ -80,7 +80,10 @@ def test_env_vars_false_rejects_non_empty_env_vars(adapter_key: str) -> None:
     adapter = _get_adapter(adapter_key)
     with pytest.raises(ValueError):
         adapter.config_model.model_validate(
-            {"env_vars": {"X": {"literal": "v"}}, "language": _default_language(adapter_key)},
+            {
+                "env_vars": {"X": {"secret_key": "secret-v"}},
+                "language": _default_language(adapter_key),
+            },
         )
 
 

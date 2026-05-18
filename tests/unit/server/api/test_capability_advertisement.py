@@ -37,15 +37,7 @@ mutation CreateSandboxConfig($input: CreateSandboxConfigInput!) {
             config {
                 envVars {
                     name
-                    value {
-                        __typename
-                        ... on SandboxConfigEnvVarLiteral {
-                            literal
-                        }
-                        ... on SandboxConfigEnvVarSecretRef {
-                            secretKey
-                        }
-                    }
+                    secretKey
                 }
             }
         }
@@ -100,9 +92,8 @@ async def test_sandbox_config_secret_ref_env_var_round_trips(
     db: DbSessionFactory,
     seed_sandbox_providers: None,
 ) -> None:
-    """A secret_ref env var entry persists through create as the typed union
-    member ``SandboxConfigEnvVarSecretRef``; the secret value itself is not
-    on the read path (only the key reference is)."""
+    """A secret_ref env var entry persists through create with a flattened
+    GraphQL shape; the DB still stores the nested pydantic shape."""
     result = await gql_client.execute(
         _CREATE,
         variables={
@@ -113,7 +104,7 @@ async def test_sandbox_config_secret_ref_env_var_round_trips(
                         "envVars": [
                             {
                                 "name": "API_TOKEN",
-                                "value": {"secretKey": "my_secret_key"},
+                                "secretKey": "my_secret_key",
                             }
                         ],
                     }
@@ -128,10 +119,7 @@ async def test_sandbox_config_secret_ref_env_var_round_trips(
     assert env_vars == [
         {
             "name": "API_TOKEN",
-            "value": {
-                "__typename": "SandboxConfigEnvVarSecretRef",
-                "secretKey": "my_secret_key",
-            },
+            "secretKey": "my_secret_key",
         }
     ]
 

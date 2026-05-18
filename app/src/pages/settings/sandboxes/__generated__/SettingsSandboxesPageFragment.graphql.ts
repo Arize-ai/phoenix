@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0febeb78d2723141e8c470a33dc9d33b>>
+ * @generated SignedSource<<e4f22eb06e6905b59d4eacae3ae62b48>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -44,17 +44,7 @@ export type SettingsSandboxesPageFragment$data = {
         } | null;
         readonly envVars: ReadonlyArray<{
           readonly name: string;
-          readonly value: {
-            readonly __typename: "SandboxConfigEnvVarLiteral";
-            readonly literal: string;
-          } | {
-            readonly __typename: "SandboxConfigEnvVarSecretRef";
-            readonly secretKey: string;
-          } | {
-            // This will never be '%other', but we need some
-            // value in case none of the concrete values match.
-            readonly __typename: "%other";
-          };
+          readonly secretKey: string;
         }>;
         readonly internetAccess: {
           readonly mode: InternetAccessChoice;
@@ -291,47 +281,8 @@ return {
                     {
                       "alias": null,
                       "args": null,
-                      "concreteType": null,
-                      "kind": "LinkedField",
-                      "name": "value",
-                      "plural": false,
-                      "selections": [
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "__typename",
-                          "storageKey": null
-                        },
-                        {
-                          "kind": "InlineFragment",
-                          "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "literal",
-                              "storageKey": null
-                            }
-                          ],
-                          "type": "SandboxConfigEnvVarLiteral",
-                          "abstractKey": null
-                        },
-                        {
-                          "kind": "InlineFragment",
-                          "selections": [
-                            {
-                              "alias": null,
-                              "args": null,
-                              "kind": "ScalarField",
-                              "name": "secretKey",
-                              "storageKey": null
-                            }
-                          ],
-                          "type": "SandboxConfigEnvVarSecretRef",
-                          "abstractKey": null
-                        }
-                      ],
+                      "kind": "ScalarField",
+                      "name": "secretKey",
                       "storageKey": null
                     }
                   ],
@@ -395,6 +346,6 @@ return {
 };
 })();
 
-(node as any).hash = "d6b4a173dc6b120e82f0a1df629b1384";
+(node as any).hash = "3d2272767b923b1414b367e3c3cba621";
 
 export default node;

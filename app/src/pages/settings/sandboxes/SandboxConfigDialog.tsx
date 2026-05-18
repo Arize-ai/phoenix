@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { Suspense, useRef, useState } from "react";
+import { Suspense, useState } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 
@@ -149,19 +149,11 @@ type SandboxConfigDialogContentProps = (
 
 const NOT_SUPPORTED_COPY = "Not supported by the selected backend.";
 
-// Shared flex sizing for env-var row inputs so the Name and source fields
-// share remaining space evenly. This prevents column widths from shifting
-// when the user toggles between literal "value" and "secret_ref" kinds.
+// Shared flex sizing for env-var row inputs so the Name and Secret fields
+// share remaining space evenly.
 const envVarFieldFillCSS = css`
   flex: 1;
   min-width: 0;
-`;
-
-// Stable min-width for the Kind selector so the row doesn't shift laterally
-// when the user toggles between "Value" and "Secret" (the two labels have
-// different lengths). Sized to fit the longer label plus dropdown chevron.
-const envVarKindFieldCSS = css`
-  min-width: 7rem;
 `;
 
 // The env-var row controls are top-aligned (see `alignItems="start"` below) so
@@ -182,24 +174,10 @@ export function configToFormValues(config: SandboxConfig["config"]): {
   internetAccessEnabled: boolean;
   dependenciesText: string;
 } {
-  const envVars: EnvVarFormEntry[] = config.envVars.map((ev) => {
-    if (ev.value.__typename === "SandboxConfigEnvVarSecretRef") {
-      return {
-        kind: "secret_ref" as const,
-        name: ev.name,
-        secret_key: ev.value.secretKey,
-      };
-    }
-    if (ev.value.__typename === "SandboxConfigEnvVarLiteral") {
-      return {
-        kind: "literal" as const,
-        name: ev.name,
-        value: ev.value.literal,
-      };
-    }
-    // Unknown union member (schema drift) — fall back to empty literal.
-    return { kind: "literal" as const, name: ev.name, value: "" };
-  });
+  const envVars: EnvVarFormEntry[] = config.envVars.map((ev) => ({
+    name: ev.name,
+    secretKey: ev.secretKey,
+  }));
 
   const internetAccessEnabled = config.internetAccess?.mode === "ALLOW";
 
@@ -605,9 +583,7 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                     width: fit-content;
                   `}
                   leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
-                  onPress={() =>
-                    appendEnvVar({ kind: "literal", name: "", value: "" })
-                  }
+                  onPress={() => appendEnvVar({ name: "", secretKey: "" })}
                 >
                   Add Variable
                 </Button>
@@ -730,53 +706,14 @@ function EnvVarRow({
   form: ReturnType<typeof useForm<SandboxConfigFormValues>>;
   onRemove: () => void;
 }) {
-  const kind = useWatch({
-    control: form.control,
-    name: `envVars.${index}.kind`,
-  });
   // Track the previously selected secret key so the secret-ref → name
   // auto-populate guard can tell whether the current Name was implicitly
   // taken from the prior secret key (and is therefore safe to overwrite).
   // Initialized once per row from the loaded form value.
-  const previousSecretKeyRef = useRef<string>(
-    form.getValues(`envVars.${index}.secret_key`) ?? ""
+  const [previousSecretKey, setPreviousSecretKey] = useState(
+    form.getValues(`envVars.${index}.secretKey`) ?? ""
   );
 
-  const kindField = (
-    <div css={envVarKindFieldCSS}>
-      <Controller
-        name={`envVars.${index}.kind`}
-        control={form.control}
-        render={({ field }) => (
-          <Select
-            {...field}
-            onChange={(v) => {
-              field.onChange(v);
-              if (v === "literal") {
-                form.setValue(`envVars.${index}.secret_key`, "");
-                previousSecretKeyRef.current = "";
-              }
-              if (v === "secret_ref") {
-                form.setValue(`envVars.${index}.value`, "");
-              }
-            }}
-          >
-            <Label>Kind</Label>
-            <Button>
-              <SelectValue />
-              <SelectChevronUpDownIcon />
-            </Button>
-            <Popover>
-              <ListBox>
-                <ListBoxItem id="literal">Value</ListBoxItem>
-                <ListBoxItem id="secret_ref">Secret</ListBoxItem>
-              </ListBox>
-            </Popover>
-          </Select>
-        )}
-      />
-    </div>
-  );
   const nameField = (
     <div css={envVarFieldFillCSS}>
       <Controller
@@ -807,54 +744,29 @@ function EnvVarRow({
     </div>
   );
 
-  if (kind === "secret_ref") {
-    const handleSecretKeySelected = (newKey: string) => {
-      const currentName = form.getValues(`envVars.${index}.name`) ?? "";
-      const previousKey = previousSecretKeyRef.current;
-      const shouldAutoPopulate =
-        currentName === "" || currentName === previousKey;
-      // Update the ref BEFORE setValue so listeners that re-read the row
-      // observe a consistent prior-key value.
-      previousSecretKeyRef.current = newKey;
-      if (shouldAutoPopulate) {
-        form.setValue(`envVars.${index}.name`, newKey);
-      }
-    };
-    return (
-      <Flex gap="size-100" alignItems="start">
-        {kindField}
-        {nameField}
-        <div css={envVarFieldFillCSS}>
-          <Suspense
-            fallback={<SecretKeyInputFallback index={index} form={form} />}
-          >
-            <SecretKeyComboBox
-              index={index}
-              form={form}
-              onSecretKeySelected={handleSecretKeySelected}
-            />
-          </Suspense>
-        </div>
-        {removeButton}
-      </Flex>
-    );
-  }
+  const handleSecretKeySelected = (newKey: string) => {
+    const currentName = form.getValues(`envVars.${index}.name`) ?? "";
+    const shouldAutoPopulate =
+      currentName === "" || currentName === previousSecretKey;
+    setPreviousSecretKey(newKey);
+    if (shouldAutoPopulate) {
+      form.setValue(`envVars.${index}.name`, newKey);
+    }
+  };
 
   return (
     <Flex gap="size-100" alignItems="start">
-      {kindField}
       {nameField}
       <div css={envVarFieldFillCSS}>
-        <Controller
-          name={`envVars.${index}.value`}
-          control={form.control}
-          render={({ field }) => (
-            <TextField {...field}>
-              <Label>Value</Label>
-              <Input placeholder="value" />
-            </TextField>
-          )}
-        />
+        <Suspense
+          fallback={<SecretKeyInputFallback index={index} form={form} />}
+        >
+          <SecretKeyComboBox
+            index={index}
+            form={form}
+            onSecretKeySelected={handleSecretKeySelected}
+          />
+        </Suspense>
       </div>
       {removeButton}
     </Flex>
@@ -870,7 +782,7 @@ function SecretKeyInputFallback({
 }) {
   return (
     <Controller
-      name={`envVars.${index}.secret_key`}
+      name={`envVars.${index}.secretKey`}
       control={form.control}
       render={({ field }) => (
         <TextField {...field}>
@@ -913,7 +825,7 @@ function SecretKeyComboBox({
 
   return (
     <Controller
-      name={`envVars.${index}.secret_key`}
+      name={`envVars.${index}.secretKey`}
       control={form.control}
       rules={{ required: "Secret is required" }}
       render={({ field, fieldState }) => (

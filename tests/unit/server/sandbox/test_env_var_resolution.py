@@ -2,7 +2,7 @@
 
 Scope is the authored invariants only:
 - Minimal happy-path that `_resolve_user_env` returns the expected
-  literal+secret_ref shape from the new ``dict[str, EnvVarValue]`` input.
+  secret_ref shape from the ``dict[str, EnvVarValue]`` input.
 
 Per-kind/per-scenario resolution walks and end-to-end forwarding through
 adapter SDK mocks live in the mutation-layer suite (`gql_client` cache
@@ -21,7 +21,7 @@ import pytest
 
 from phoenix.server.sandbox import SecretsContext
 from phoenix.server.sandbox.e2b_backend import E2BAdapter
-from phoenix.server.sandbox.types import EnvVarLiteral
+from phoenix.server.sandbox.types import EnvVarValue
 
 
 def _make_session(secrets: dict[str, bytes]) -> Any:
@@ -47,16 +47,16 @@ def _identity_decrypt(data: bytes) -> bytes:
 
 class TestResolveUserEnvShape:
     @pytest.mark.asyncio
-    async def test_literal_and_secret_ref_resolve_into_expected_shape(self) -> None:
-        """Minimal happy path: a mixed literal + secret_ref pair resolves to {name: value}."""
-        raw = {
-            "PLAIN": {"literal": "hello"},
-            "SECRET": {"secret_key": "my-key"},
+    async def test_secret_refs_resolve_into_expected_shape(self) -> None:
+        """Minimal happy path: secret_ref entries resolve to {name: value}."""
+        env_vars = {
+            "FIRST": EnvVarValue(secret_key="first-key"),
+            "SECOND": EnvVarValue(secret_key="second-key"),
         }
-        session = _make_session({"my-key": b"world"})
+        session = _make_session({"first-key": b"hello", "second-key": b"world"})
         secrets = SecretsContext(session=session, decrypt=_identity_decrypt)
-        result = await secrets.resolve_user_env(raw)
-        assert result == {"PLAIN": "hello", "SECRET": "world"}
+        result = await secrets.resolve_user_env(env_vars)
+        assert result == {"FIRST": "hello", "SECOND": "world"}
 
 
 class TestEnvVarsAcceptedAndPersisted:
@@ -65,13 +65,13 @@ class TestEnvVarsAcceptedAndPersisted:
         adapter = E2BAdapter()
         config = {
             "env_vars": {
-                "A": {"literal": "1"},
-                "B": {"literal": "2"},
+                "A": {"secret_key": "key-1"},
+                "B": {"secret_key": "key-2"},
             },
         }
         result = adapter.config_model.model_validate({**config, "language": "PYTHON"})
         assert len(result.env_vars) == 2
         a = result.env_vars["A"]
         b = result.env_vars["B"]
-        assert isinstance(a, EnvVarLiteral) and a.literal == "1"
-        assert isinstance(b, EnvVarLiteral) and b.literal == "2"
+        assert a.secret_key == "key-1"
+        assert b.secret_key == "key-2"
