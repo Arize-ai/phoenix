@@ -1110,7 +1110,7 @@ class TestRedactionContracts:
 
 
 # ---------------------------------------------------------------------------
-# Span attribute contract — D3: Sandbox output is parsed (not raw stdout),
+# Span attribute contract: Sandbox output is parsed (not raw stdout),
 # debug-print stdout lands on metadata.stdout, parse-failure surfaces parse_error.
 # ---------------------------------------------------------------------------
 

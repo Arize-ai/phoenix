@@ -51,14 +51,15 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # languages: natural PK on name (D1)
+    # languages: natural PK on name so adapter/config tables FK by language
+    # string directly (no surrogate key indirection).
     op.create_table(
         "languages",
         sa.Column("name", sa.String, primary_key=True),
     )
     op.execute(sa.text("INSERT INTO languages (name) VALUES ('PYTHON'), ('TYPESCRIPT')"))
 
-    # sandbox_providers: language + UNIQUE(language, id) for composite-FK target (D2).
+    # sandbox_providers: language + UNIQUE(language, id) for composite-FK target.
     # UNIQUE column order is (language, id) — flipped from natural (id, language) — so the
     # constraint's underlying index doubles as a leftmost-prefix index on `language` alone,
     # at zero extra storage. Composite (id, language) point lookups are unchanged, and
@@ -90,7 +91,7 @@ def upgrade() -> None:
         sa.UniqueConstraint("language", "id"),
     )
 
-    # sandbox_configs: language + UNIQUE(language, id) + composite FK → sandbox_providers (D2).
+    # sandbox_configs: language + UNIQUE(language, id) + composite FK → sandbox_providers.
     # The composite FK fk_sandbox_configs_provider_language is named explicitly because its
     # auto-generated name (column_0_name="sandbox_provider_id") would collide with the simple
     # FK on the same first column.
