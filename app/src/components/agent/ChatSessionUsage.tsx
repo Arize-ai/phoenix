@@ -26,6 +26,16 @@ type ChatSessionUsage = {
   sessionId: string;
 };
 
+type CachePromptDetails = {
+  "cache read": number;
+  "cache write"?: number;
+};
+
+type CacheUsageDisplay = {
+  summaryText: string | null;
+  promptDetails: CachePromptDetails | undefined;
+};
+
 function getLatestAssistantMessageUsage(
   messages: AgentUIMessage[]
 ): AgentSessionUsage | null {
@@ -48,6 +58,42 @@ function getLatestAssistantMessageUsage(
   return null;
 }
 
+export function getCacheUsageDisplay({
+  promptDetails,
+}: {
+  promptDetails: AgentSessionUsage["tokenCount"]["promptDetails"];
+}): CacheUsageDisplay {
+  if (!promptDetails) {
+    return {
+      summaryText: null,
+      promptDetails: undefined,
+    };
+  }
+  const cacheRead = promptDetails?.cacheRead ?? 0;
+  const cacheWrite = promptDetails?.cacheWrite ?? 0;
+  if (cacheRead <= 0 && cacheWrite <= 0) {
+    return {
+      summaryText: null,
+      promptDetails: undefined,
+    };
+  }
+  const visiblePromptDetails: CachePromptDetails = {
+    "cache read": cacheRead,
+  };
+  const summaryParts = [`cache read ${cacheRead.toLocaleString()}`];
+
+  // OpenAI does not report cache writes, so we omit this metric from the UI when it's zero.
+  if (cacheWrite > 0) {
+    visiblePromptDetails["cache write"] = cacheWrite;
+    summaryParts.push(`cache write ${cacheWrite.toLocaleString()}`);
+  }
+
+  return {
+    summaryText: `latest ${summaryParts.join(" / ")}`,
+    promptDetails: visiblePromptDetails,
+  };
+}
+
 export const ChatSessionUsage = ({ sessionId }: ChatSessionUsage) => {
   const usage = useAgentContext((state) => {
     const session = state.sessionMap[sessionId];
@@ -55,21 +101,14 @@ export const ChatSessionUsage = ({ sessionId }: ChatSessionUsage) => {
     return getLatestAssistantMessageUsage(session.messages) ?? session.usage;
   });
   if (!usage) return null;
-  const promptDetails = usage.tokenCount.promptDetails
-    ? {
-        "cache read": usage.tokenCount.promptDetails.cacheRead,
-        "cache write": usage.tokenCount.promptDetails.cacheWrite,
-      }
-    : undefined;
-  const cacheRead = usage.tokenCount.promptDetails?.cacheRead ?? 0;
-  const cacheWrite = usage.tokenCount.promptDetails?.cacheWrite ?? 0;
-  const hasCacheUsage = cacheRead > 0 || cacheWrite > 0;
+  const { summaryText, promptDetails } = getCacheUsageDisplay({
+    promptDetails: usage.tokenCount.promptDetails,
+  });
   return (
     <div css={chatSessionUsageCSS}>
-      {hasCacheUsage ? (
+      {summaryText ? (
         <Text size="XS" color="text-300" fontFamily="mono">
-          latest cache read {cacheRead.toLocaleString()} / write{" "}
-          {cacheWrite.toLocaleString()}
+          {summaryText}
         </Text>
       ) : null}
       <TooltipTrigger>
