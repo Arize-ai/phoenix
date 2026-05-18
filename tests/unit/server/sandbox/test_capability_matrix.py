@@ -239,7 +239,7 @@ _ALL_ADAPTER_KEYS = list(SANDBOX_ADAPTER_METADATA.keys())
 
 @pytest.mark.parametrize("adapter_key", _ALL_ADAPTER_KEYS)
 def test_extra_keys_rejected_in_validate_config(adapter_key: str) -> None:
-    """validate_config rejects unknown keys (extra='forbid' D10 contract)."""
+    """validate_config rejects unknown keys (extra='forbid' contract)."""
     adapter = _get_adapter(adapter_key)
     config = {"_unknown_field": "some_value"}
     with pytest.raises(ValueError):
@@ -260,7 +260,7 @@ def test_all_metadata_keys_covered_by_adapter_modules() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Removed scalar fields rejected by validate_config (extra="forbid" D10)
+# Removed scalar fields rejected by validate_config (extra="forbid")
 # ---------------------------------------------------------------------------
 
 _REMOVED_FIELD_CASES = [

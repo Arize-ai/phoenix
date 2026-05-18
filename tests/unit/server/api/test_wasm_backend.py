@@ -389,11 +389,11 @@ class TestTempFileCleanup:
 class TestWASMAdapterProbeBinary:
     """WASMAdapter.probe_binary() reports binary-asset availability without I/O.
 
-    The probe is the *capability-probe path* per D3/D4 — it reports whether the
-    CPython WASM binary is locally resolvable so the GraphQL sandboxBackends
-    resolver can surface accurate ``SandboxBackendStatus``. It MUST NOT touch
-    the network and MUST NOT create cache files; the assertions below pin
-    those invariants explicitly.
+    The probe is the capability-probe path — it reports whether the CPython
+    WASM binary is locally resolvable so the GraphQL sandboxBackends resolver
+    can surface accurate ``SandboxBackendStatus``. It MUST NOT touch the
+    network and MUST NOT create cache files; the assertions below pin those
+    invariants explicitly.
     """
 
     def test_probe_returns_available_when_resolver_returns_path(self) -> None:
@@ -457,8 +457,8 @@ class TestWASMAdapterProbeBinary:
         argument can be redirected to an empty tmp dir (the default cache
         path may exist on dev workstations). Patches
         ``urllib.request.urlretrieve`` to fail any attempted network call —
-        the assertion that the resolver did NOT invoke it is the
-        load-bearing check that the probe path stays side-effect-free.
+        the assertion that the resolver did NOT invoke it is the critical
+        check that the probe path stays side-effect-free.
         ``WASMAdapter.probe_binary()`` itself is exercised end-to-end in
         the other tests in this class.
         """
@@ -478,7 +478,7 @@ class TestWASMAdapterProbeBinary:
 class TestSandboxBackendsResolverWASMStatus:
     """The sandboxBackends GraphQL resolver layers ``WASMAdapter.probe_binary()``
     on top of build_backend() so that status reflects binary-asset presence,
-    not just SDK-importability per D4.
+    not just SDK-importability.
 
     These tests exercise the resolver helper ``_get_sandbox_backend_info_with_session``
     directly — it is the single locus of the probe wiring and is more
