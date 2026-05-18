@@ -39,6 +39,7 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.server.agents.agent_factory import build_agent
+from phoenix.server.agents.capabilities import get_external_tool_definition
 from phoenix.server.agents.context import (
     ChatContext,
     resolve_contexts,
@@ -47,7 +48,6 @@ from phoenix.server.agents.exceptions import AgentError, SummarizationError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.summarization import summarize_messages
-from phoenix.server.agents.toolsets.external.tools import get_external_tool_definition
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
 from phoenix.server.api.openapi.registry import register_openapi_schema
 from phoenix.server.bearer_auth import is_authenticated
