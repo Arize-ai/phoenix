@@ -16,7 +16,7 @@ pandas>=1.0
 prometheus_client
 psycopg[binary,pool]
 py-grpc-prometheus
-pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=1.87.0
+pydantic-ai-slim[anthropic,bedrock,google,mcp,openai,ui]>=1.95.0
 pypistats  # this is needed to type-check third-party packages
 requests  # this is needed to type-check third-party packages
 strawberry-graphql[opentelemetry]==0.314.3

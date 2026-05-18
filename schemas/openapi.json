@@ -9628,7 +9628,7 @@
           "mutationsEnabled"
         ],
         "title": "GraphQLContext",
-        "description": "GraphQL runtime state.\n\nUnlike the other contexts this one always emits a block \u2014 when no instance\nis present the policy defaults to ``disabled`` (the safe default). Callers\nin the absent case should use :meth:`render_disabled_default`."
+        "description": "GraphQL runtime state."
       },
       "HTTPValidationError": {
         "properties": {

@@ -1,7 +1,10 @@
+from typing import Any
+
 from pydantic_ai import RunContext
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.usage import RunUsage
 
+from phoenix.server.agents.capabilities.base import AbstractDynamicCapability
 from phoenix.server.agents.capabilities.contexts.app import AppContextCapability
 from phoenix.server.agents.capabilities.contexts.project import ProjectContextCapability
 from phoenix.server.agents.context import (
@@ -23,6 +26,20 @@ def _get_run_context(contexts: ResolvedContexts) -> RunContext[AgentDependencies
     )
 
 
+def _render(
+    capability: AbstractDynamicCapability[AgentDependencies],
+    ctx: RunContext[AgentDependencies],
+) -> str:
+    # `SystemPromptFunc` is a Union that includes zero-arg variants, so calling
+    # `func(ctx)` directly trips mypy's `call-arg` check. Widening to `Any` here
+    # bypasses the union narrowing problem; correctness is enforced by the
+    # `isinstance` assertion below.
+    func: Any = capability.get_dynamic_instructions()
+    result = func(ctx)
+    assert isinstance(result, str)
+    return result
+
+
 class TestAppContextCapabilityRender:
     def test_sanitizes_browser_clock_fields(self) -> None:
         capability = AppContextCapability(instructions=_DEFAULT_INSTRUCTIONS.app_context)
@@ -35,8 +52,7 @@ class TestAppContextCapabilityRender:
                 ),
             )
         )
-        content = capability.get_dynamic_instructions()(ctx)
-        assert content is not None
+        content = _render(capability, ctx)
         assert content.startswith("<phoenix_app_context>")
         assert content.endswith("</phoenix_app_context>")
         assert content.count("</phoenix_app_context>") == 1
@@ -56,8 +72,7 @@ class TestProjectContextCapabilityRender:
                 ),
             )
         )
-        content = capability.get_dynamic_instructions()(ctx)
-        assert content is not None
+        content = _render(capability, ctx)
         assert content.count("</phoenix_project_context>") == 1
         assert "[/phoenix_project_context]" in content
         assert "line_one line_two" in content
@@ -75,7 +90,6 @@ class TestProjectContextCapabilityRender:
                 ),
             )
         )
-        content = capability.get_dynamic_instructions()(ctx)
-        assert content is not None
+        content = _render(capability, ctx)
         assert "… [truncated]" in content
         assert long_condition not in content

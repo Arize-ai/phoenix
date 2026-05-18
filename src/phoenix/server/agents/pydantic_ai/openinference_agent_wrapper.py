@@ -26,8 +26,6 @@ from pydantic_ai.agent.wrapper import WrapperAgent
 from pydantic_ai.messages import (
     AudioUrl,
     BinaryContent,
-    BuiltinToolCallPart,
-    BuiltinToolReturnPart,
     CachePoint,
     CompactionPart,
     DocumentUrl,
@@ -38,6 +36,8 @@ from pydantic_ai.messages import (
     ModelRequestPart,
     ModelResponse,
     ModelResponsePart,
+    NativeToolCallPart,
+    NativeToolReturnPart,
     RetryPromptPart,
     SystemPromptPart,
     TextContent,
@@ -368,8 +368,8 @@ def _get_text_content_from_model_response_part(part: ModelResponsePart) -> str |
         part,
         (
             ToolCallPart,
-            BuiltinToolCallPart,
-            BuiltinToolReturnPart,
+            NativeToolCallPart,
+            NativeToolReturnPart,
             ThinkingPart,
             CompactionPart,
             FilePart,

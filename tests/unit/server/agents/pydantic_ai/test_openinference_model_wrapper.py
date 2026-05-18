@@ -127,7 +127,7 @@ async def test_request_emits_llm_span_for_text_response(
             messages=messages,
             model_settings=settings,
             model_request_parameters=ModelRequestParameters(
-                function_tools=[], builtin_tools=[], output_tools=[]
+                function_tools=[], native_tools=[], output_tools=[]
             ),
         )
 
@@ -191,7 +191,7 @@ async def test_request_emits_llm_span_for_text_response(
 
     parsed_params = parsed_input["model_request_parameters"]
     assert parsed_params["function_tools"] == []
-    assert parsed_params["builtin_tools"] == []
+    assert parsed_params["native_tools"] == []
     assert parsed_params["output_tools"] == []
     assert parsed_params["allow_text_output"] is True
 
@@ -243,7 +243,7 @@ async def test_request_emits_llm_span_for_tool_call_response(
             messages=messages,
             model_settings=settings,
             model_request_parameters=ModelRequestParameters(
-                function_tools=[weather_tool], builtin_tools=[], output_tools=[]
+                function_tools=[weather_tool], native_tools=[], output_tools=[]
             ),
         )
 
@@ -329,7 +329,7 @@ async def test_request_stream_emits_llm_span(
             messages=messages,
             model_settings=settings,
             model_request_parameters=ModelRequestParameters(
-                function_tools=[], builtin_tools=[], output_tools=[]
+                function_tools=[], native_tools=[], output_tools=[]
             ),
             run_context=None,
         ) as stream:
@@ -388,7 +388,7 @@ async def test_request_stream_emits_llm_span(
 
     parsed_params = parsed_input["model_request_parameters"]
     assert parsed_params["function_tools"] == []
-    assert parsed_params["builtin_tools"] == []
+    assert parsed_params["native_tools"] == []
     assert parsed_params["output_tools"] == []
     assert parsed_params["allow_text_output"] is True
 
@@ -458,7 +458,7 @@ async def test_request_emits_tool_return_message_in_history(
             messages=history,
             model_settings=settings,
             model_request_parameters=ModelRequestParameters(
-                function_tools=[weather_tool], builtin_tools=[], output_tools=[]
+                function_tools=[weather_tool], native_tools=[], output_tools=[]
             ),
         )
 
@@ -558,7 +558,7 @@ async def test_request_raises_expected_exception_events(
             messages=[ModelRequest(parts=[UserPromptPart(content="anything")])],
             model_settings=None,
             model_request_parameters=ModelRequestParameters(
-                function_tools=[], builtin_tools=[], output_tools=[]
+                function_tools=[], native_tools=[], output_tools=[]
             ),
         )
 
