@@ -1087,12 +1087,7 @@ test.describe
     ).toBeVisible();
     await dialog.getByRole("button", { name: "Add Variable" }).click();
 
-    // Switch the env-var row to the Secret-ref kind.
-    await selectFromSelect(page, dialog, "Kind", "Secret");
-
-    // The env-var Name input is the last "Name" input in the dialog;
-    // the first one is the sandbox config name.
-    const envVarNameInput = dialog.getByLabel("Name").last();
+    const envVarNameInput = dialog.getByLabel("Variable Name");
     await expect(envVarNameInput).toHaveValue("");
 
     // Blank Name → selecting a secret auto-populates Name with the key.
