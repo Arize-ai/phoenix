@@ -1,16 +1,12 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import type { ModalOverlayProps } from "react-aria-components";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
+import { Group, Panel } from "react-resizable-panels";
 import invariant from "tiny-invariant";
 
-import {
-  Dialog,
-  Empty,
-  Flex,
-  Loading,
-  Modal,
-  ModalOverlay,
-} from "@phoenix/components";
+import { Dialog, Empty, Flex, Loading } from "@phoenix/components";
+import { EvaluatorAgentChatPanel } from "@phoenix/components/agent/EvaluatorAgentChatPanel";
+import { Drawer } from "@phoenix/components/core/overlay/Drawer";
+import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
 import type { EditCodeDatasetEvaluatorSlideover_createCodeEvaluatorVersionMutation } from "@phoenix/components/dataset/__generated__/EditCodeDatasetEvaluatorSlideover_createCodeEvaluatorVersionMutation.graphql";
 import type { EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery } from "@phoenix/components/dataset/__generated__/EditCodeDatasetEvaluatorSlideover_datasetEvaluatorQuery.graphql";
 import type { EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation.graphql";
@@ -40,7 +36,9 @@ type EditCodeDatasetEvaluatorSlideoverProps = {
   datasetId: string;
   updateConnectionIds?: string[];
   onUpdate?: () => void;
-} & ModalOverlayProps;
+  isOpen?: boolean;
+  onOpenChange?: (isOpen: boolean) => void;
+};
 
 export function EditCodeDatasetEvaluatorSlideover({
   datasetEvaluatorId,
@@ -49,9 +47,11 @@ export function EditCodeDatasetEvaluatorSlideover({
   onUpdate,
   onOpenChange,
   isOpen,
-  ...props
 }: EditCodeDatasetEvaluatorSlideoverProps) {
   const isDirtyRef = useRef(false);
+  const { defaultSize, onSizeChange } = useDefaultDrawerSize({
+    id: "edit-code-dataset-evaluator",
+  });
 
   // Reset dirty state when slideover opens
   useEffect(() => {
@@ -60,50 +60,64 @@ export function EditCodeDatasetEvaluatorSlideover({
     }
   }, [isOpen]);
 
-  const handleOpenChange = useCallback(
-    (nextIsOpen: boolean) => {
-      if (!nextIsOpen && isDirtyRef.current) {
-        const confirmed = window.confirm(
-          "You have unsaved changes. Are you sure you want to close?"
-        );
-        if (!confirmed) return;
-      }
-      onOpenChange?.(nextIsOpen);
-    },
-    [onOpenChange]
-  );
+  const handleClose = useCallback(() => {
+    if (isDirtyRef.current) {
+      const confirmed = window.confirm(
+        "You have unsaved changes. Are you sure you want to close?"
+      );
+      if (!confirmed) return;
+    }
+    onOpenChange?.(false);
+  }, [onOpenChange]);
 
   const handleDirtyChange = useCallback((isDirty: boolean) => {
     isDirtyRef.current = isDirty;
   }, []);
 
   return (
-    <ModalOverlay {...props} isOpen={isOpen} onOpenChange={handleOpenChange}>
-      <Modal variant="slideover" size="fullscreen">
-        <Dialog aria-label="Edit code evaluator on dataset">
-          {({ close }) => (
-            <Suspense
-              fallback={
-                <Flex flex={1} alignItems="center">
-                  <Loading />
-                </Flex>
-              }
+    <Drawer
+      isOpen={isOpen}
+      onClose={handleClose}
+      defaultSize={defaultSize ?? "80%"}
+      minSize="40%"
+      maxSize="95%"
+      onResize={onSizeChange}
+    >
+      <Dialog aria-label="Edit code evaluator on dataset">
+        {({ close }) => (
+          <Group
+            orientation="horizontal"
+            style={{ height: "100%", overflow: "hidden" }}
+          >
+            <Panel
+              id="evaluator-dialog-content"
+              defaultSize="68%"
+              minSize="40%"
             >
-              {datasetEvaluatorId && (
-                <EditCodeDatasetEvaluatorSlideoverContent
-                  datasetEvaluatorId={datasetEvaluatorId}
-                  onClose={close}
-                  onDirtyChange={handleDirtyChange}
-                  datasetId={datasetId}
-                  updateConnectionIds={updateConnectionIds}
-                  onUpdate={onUpdate}
-                />
-              )}
-            </Suspense>
-          )}
-        </Dialog>
-      </Modal>
-    </ModalOverlay>
+              <Suspense
+                fallback={
+                  <Flex flex={1} alignItems="center">
+                    <Loading />
+                  </Flex>
+                }
+              >
+                {datasetEvaluatorId && (
+                  <EditCodeDatasetEvaluatorSlideoverContent
+                    datasetEvaluatorId={datasetEvaluatorId}
+                    onClose={close}
+                    onDirtyChange={handleDirtyChange}
+                    datasetId={datasetId}
+                    updateConnectionIds={updateConnectionIds}
+                    onUpdate={onUpdate}
+                  />
+                )}
+              </Suspense>
+            </Panel>
+            <EvaluatorAgentChatPanel />
+          </Group>
+        )}
+      </Dialog>
+    </Drawer>
   );
 }
 

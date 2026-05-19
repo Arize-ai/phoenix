@@ -30,12 +30,13 @@ export type AgentPosition = "detached" | "pinned";
  * Which surface currently hosts the agent chat panel.
  * - "docked": the resizable panel in the main layout
  * - "trace": the embedded panel inside a trace slideover
+ * - "evaluator": the embedded panel inside a code evaluator slideover
  *
  * When a surface mounts it claims the active location; the Layout uses this
  * to decide whether to render the docked panel (only when no other surface
  * has claimed the location).
  */
-export type AgentPanelLocation = "docked" | "trace";
+export type AgentPanelLocation = "docked" | "trace" | "evaluator";
 
 /** Server-provided PXI configuration exposed to the frontend. */
 export type AgentServerConfig = {

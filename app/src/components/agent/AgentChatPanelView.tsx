@@ -192,3 +192,22 @@ export function TraceAgentChatFrame({ children }: { children: ReactNode }) {
     </AgentChatFrame>
   );
 }
+
+/**
+ * Presentational shell for the code evaluator slideover's embedded PXI panel.
+ */
+export function EvaluatorAgentChatFrame({ children }: { children: ReactNode }) {
+  return (
+    <AgentChatFrame
+      panelId="evaluator-agent-chat"
+      panelProps={{
+        defaultSize: "32%",
+        minSize: "24%",
+        maxSize: "45%",
+      }}
+      contentCss={tracePanelContentCSS}
+    >
+      {children}
+    </AgentChatFrame>
+  );
+}

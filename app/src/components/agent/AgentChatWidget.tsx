@@ -3,7 +3,6 @@ import { AnimatePresence, motion } from "motion/react";
 import { createPortal } from "react-dom";
 
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
-import { useHasOpenModal } from "@phoenix/hooks/useHasOpenModal";
 
 import { PxiGlyph } from "./PxiGlyph";
 import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
@@ -19,7 +18,7 @@ const buttonCSS = css`
   right: 36px;
   border: none;
   cursor: pointer;
-  z-index: 1000;
+  z-index: 1002;
   background: transparent;
   padding: 0;
   display: flex;
@@ -67,16 +66,13 @@ export function AgentChatWidget() {
   const isOpen = useAgentContext((state) => state.isOpen);
   const toggleOpen = useAgentContext((state) => state.toggleOpen);
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
-  const hasOpenModal = useHasOpenModal();
   const isStreaming = useAgentContext((state) =>
     activeSessionId
       ? state.chatStatusBySessionId[activeSessionId] === "streaming"
       : false
   );
 
-  // Use contextual entrypoints inside modals (e.g. trace slideover header)
-  // instead of letting the global FAB compete with overlay hit-testing.
-  if (!isAssistantAgentEnabled || isOpen || hasOpenModal) {
+  if (!isAssistantAgentEnabled || isOpen) {
     return null;
   }
 
