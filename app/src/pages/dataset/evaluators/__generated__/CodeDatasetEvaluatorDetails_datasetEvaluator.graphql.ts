@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<850a3cfbda20c9271ef288dab5a8d86a>>
+ * @generated SignedSource<<3c831ed7e27119fbb317f312190dff78>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -29,6 +29,7 @@ export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
       readonly lowerBound?: number | null;
       readonly name?: string;
       readonly optimizationDirection?: OptimizationDirection;
+      readonly threshold?: number | null;
       readonly upperBound?: number | null;
       readonly values?: ReadonlyArray<{
         readonly label: string;
@@ -66,6 +67,7 @@ export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
     readonly lowerBound?: number | null;
     readonly name?: string;
     readonly optimizationDirection?: OptimizationDirection;
+    readonly threshold?: number | null;
     readonly upperBound?: number | null;
     readonly values?: ReadonlyArray<{
       readonly label: string;
@@ -164,6 +166,22 @@ v3 = {
         }
       ],
       "type": "ContinuousAnnotationConfig",
+      "abstractKey": null
+    },
+    {
+      "kind": "InlineFragment",
+      "selections": [
+        (v1/*: any*/),
+        (v2/*: any*/),
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "threshold",
+          "storageKey": null
+        }
+      ],
+      "type": "FreeformAnnotationConfig",
       "abstractKey": null
     }
   ],
@@ -374,6 +392,6 @@ return {
 };
 })();
 
-(node as any).hash = "53f65643e7219f400edd2fd8872b4fd8";
+(node as any).hash = "f6db6b8a7683d602ff749b80c5e039fa";
 
 export default node;

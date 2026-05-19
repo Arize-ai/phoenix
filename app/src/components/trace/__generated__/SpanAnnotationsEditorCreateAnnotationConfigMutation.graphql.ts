@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c3a226b0494477bb140a6f46a6a717e6>>
+ * @generated SignedSource<<b7369c9fdabdbdf87e9b96937a2921cf>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -37,7 +37,11 @@ export type ContinuousAnnotationConfigInput = {
 };
 export type FreeformAnnotationConfigInput = {
   description?: string | null;
+  lowerBound?: number | null;
   name: string;
+  optimizationDirection?: OptimizationDirection | null;
+  threshold?: number | null;
+  upperBound?: number | null;
 };
 export type SpanAnnotationsEditorCreateAnnotationConfigMutation$variables = {
   input: CreateAnnotationConfigInput;

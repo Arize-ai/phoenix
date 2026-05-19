@@ -1,8 +1,8 @@
 """Direct unit tests for `_resolve_sandbox_credentials` precedence and omission.
 
 Full DB → build_sandbox_backend → build_backend integration is covered by the
-mutation-layer suite via `gql_client`; this file keeps only
-the two direct-call invariants the helper itself owns:
+mutation-layer suite via `gql_client`; this file keeps only the two
+direct-call behaviors the helper itself owns:
 
 - DB-stored credential wins over an env-var of the same key.
 - A spec key with no DB row and no env-var is omitted from the result, not

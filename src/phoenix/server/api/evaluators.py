@@ -30,6 +30,7 @@ from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
     ContinuousOutputConfig,
+    FreeformOutputConfig,
     OptimizationDirection,
     OutputConfigType,
 )
@@ -880,7 +881,9 @@ async def get_evaluators(
                 output_cfgs: list[OutputConfigType] = [
                     c
                     for c in code_row.output_configs
-                    if isinstance(c, (CategoricalOutputConfig, ContinuousOutputConfig))
+                    if isinstance(
+                        c, (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig)
+                    )
                 ]
                 runner = CodeEvaluatorRunner(
                     name=eval_name,
@@ -2584,9 +2587,9 @@ class CodeEvaluatorRunner(BaseEvaluator):
     """
     Evaluator that executes user-provided source code in a sandbox.
 
-    The user's source_code must define a callable named ``evaluate``. We wrap
-    it in a small script that calls ``evaluate(**mapped_inputs)`` and coerce
-    the return value via _coerce_output against each output_config.
+    The user's source_code must define a callable named ``evaluate``.
+    The harness calls ``evaluate(**mapped_inputs)`` and coerces the return
+    value via _coerce_output against each output_config.
 
     Supports both PYTHON and TYPESCRIPT languages. The sandbox session key
     is derived from the runner's name (``self._name``).

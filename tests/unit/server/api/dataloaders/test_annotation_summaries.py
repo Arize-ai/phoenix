@@ -174,6 +174,64 @@ async def test_missing_label_aggregation(
     assert result.mean_score() == pytest.approx(0.777, rel=1e-2)  # type: ignore[call-arg]
 
 
+async def test_mixed_emit_coverage_counts(
+    db: DbSessionFactory,
+    data_with_mixed_emit: None,
+) -> None:
+    """Mixed-emit: 60 score-only, 30 PASS label-only, 10 FAIL label-only.
+
+    Asserts score_count=60, label_count=40, label_fractions, mean_score, and count=100.
+    """
+    start_time = datetime.fromisoformat("2021-01-01T00:00:00.000+00:00")
+    end_time = datetime.fromisoformat("2021-01-01T01:00:00.000+00:00")
+
+    async with db() as session:
+        project_id = await session.scalar(
+            select(models.Project.id).where(models.Project.name == "mixed_emit")
+        )
+        assert isinstance(project_id, int)
+
+    result = await AnnotationSummaryDataLoader(db).load(
+        ("span", project_id, TimeRange(start=start_time, end=end_time), None, None, "coverage")
+    )
+    assert result is not None
+    assert result.score_count() == 60  # type: ignore[call-arg, comparison-overlap]
+    assert result.label_count() == 40  # type: ignore[call-arg, comparison-overlap]
+    assert result.count() == 100  # type: ignore[call-arg, comparison-overlap]
+
+    expected_mean = sum(i / 100.0 for i in range(60)) / 60
+    assert result.mean_score() == pytest.approx(expected_mean, rel=1e-4)  # type: ignore[call-arg]
+
+    # label_fractions are entity-weighted: each entity counts once in the denominator
+    # (100 total entities), so PASS=30/100=0.30, FAIL=10/100=0.10.
+    label_fracs = {lf.label: lf.fraction for lf in result.label_fractions()}  # type: ignore[call-arg, attr-defined]
+    assert label_fracs["PASS"] == pytest.approx(0.30, rel=1e-4)
+    assert label_fracs["FAIL"] == pytest.approx(0.10, rel=1e-4)
+
+
+async def test_pure_score_only_coverage_counts(
+    db: DbSessionFactory,
+    data_with_null_labels: None,
+) -> None:
+    """Pure score-only: all rows have label=None. Asserts label_count=0, label_fractions=[], no crash."""
+    start_time = datetime.fromisoformat("2021-01-01T00:00:00.000+00:00")
+    end_time = datetime.fromisoformat("2021-01-01T01:00:00.000+00:00")
+
+    async with db() as session:
+        project_id = await session.scalar(
+            select(models.Project.id).where(models.Project.name == "null_labels")
+        )
+        assert isinstance(project_id, int)
+
+    result = await AnnotationSummaryDataLoader(db).load(
+        ("span", project_id, TimeRange(start=start_time, end=end_time), None, None, "unlabeled")
+    )
+    assert result is not None
+    assert result.label_count() == 0  # type: ignore[call-arg, comparison-overlap]
+    assert result.label_fractions() == []  # type: ignore[call-arg, comparison-overlap]
+    assert result.score_count() > 0  # type: ignore[call-arg, operator]
+
+
 async def test_null_label_handling(
     db: DbSessionFactory,
     data_with_null_labels: None,

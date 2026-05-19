@@ -1057,3 +1057,91 @@ class TestConfigValidationPath:
         assert row is not None
         env_vars = row.config.get("env_vars")
         assert env_vars == {"FOO": {"secret_key": "foo-secret"}}
+
+
+_CREATE_CODE_EVALUATOR_WITH_OUTPUT_CONFIGS = """
+mutation CreateCodeEvaluator($input: CreateCodeEvaluatorInput!) {
+    createCodeEvaluator(input: $input) {
+        evaluator {
+            id
+            ... on CodeEvaluator {
+                outputConfigs {
+                    __typename
+                    ... on FreeformAnnotationConfig {
+                        name
+                        optimizationDirection
+                        threshold
+                    }
+                }
+            }
+        }
+    }
+}
+"""
+
+
+class TestFreeformOutputConfigRoundTrip:
+    async def test_create_with_freeform_threshold_round_trips(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        result = await gql_client.execute(
+            _CREATE_CODE_EVALUATOR_WITH_OUTPUT_CONFIGS,
+            variables={
+                "input": {
+                    "name": "freeform-with-threshold",
+                    "language": "PYTHON",
+                    "sourceCode": "def evaluate(output):\n    return {'score': 0.8}",
+                    "sandboxConfigId": _config_global_id(sandbox_config.id),
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                    "outputConfigs": [
+                        {
+                            "freeform": {
+                                "name": "result",
+                                "optimizationDirection": "MAXIMIZE",
+                                "threshold": 0.7,
+                            }
+                        }
+                    ],
+                }
+            },
+        )
+        assert result.data and not result.errors, result.errors
+        cfg = result.data["createCodeEvaluator"]["evaluator"]["outputConfigs"][0]
+        assert cfg["__typename"] == "FreeformAnnotationConfig"
+        assert cfg["name"] == "result"
+        assert cfg["optimizationDirection"] == "MAXIMIZE"
+        assert cfg["threshold"] == 0.7
+
+    async def test_create_with_freeform_no_threshold_round_trips_null(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        result = await gql_client.execute(
+            _CREATE_CODE_EVALUATOR_WITH_OUTPUT_CONFIGS,
+            variables={
+                "input": {
+                    "name": "freeform-no-threshold",
+                    "language": "PYTHON",
+                    "sourceCode": "def evaluate(output):\n    return {'score': 0.5}",
+                    "sandboxConfigId": _config_global_id(sandbox_config.id),
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                    "outputConfigs": [
+                        {
+                            "freeform": {
+                                "name": "result",
+                                "optimizationDirection": "MAXIMIZE",
+                            }
+                        }
+                    ],
+                }
+            },
+        )
+        assert result.data and not result.errors, result.errors
+        cfg = result.data["createCodeEvaluator"]["evaluator"]["outputConfigs"][0]
+        assert cfg["__typename"] == "FreeformAnnotationConfig"
+        assert cfg["threshold"] is None

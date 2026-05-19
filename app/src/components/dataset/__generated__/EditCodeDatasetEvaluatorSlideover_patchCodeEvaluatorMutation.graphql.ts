@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4b38dbcd49360ad57de3886ca8167bf4>>
+ * @generated SignedSource<<34e1b31f27f2bbde207a88ab72677e91>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -46,7 +46,11 @@ export type ContinuousAnnotationConfigInput = {
 };
 export type FreeformAnnotationConfigInput = {
   description?: string | null;
+  lowerBound?: number | null;
   name: string;
+  optimizationDirection?: OptimizationDirection | null;
+  threshold?: number | null;
+  upperBound?: number | null;
 };
 export type EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation$variables = {
   input: PatchCodeEvaluatorInput;

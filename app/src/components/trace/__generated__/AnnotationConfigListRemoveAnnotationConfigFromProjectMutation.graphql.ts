@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<61d50e11657cfa55b30f51ca58107a88>>
+ * @generated SignedSource<<11ea3698a413b0697e500c2843449afa>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -121,6 +121,13 @@ v11 = {
   "args": null,
   "kind": "ScalarField",
   "name": "score",
+  "storageKey": null
+},
+v12 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "optimizationDirection",
   "storageKey": null
 };
 return {
@@ -347,13 +354,7 @@ return {
                                         "name": "upperBound",
                                         "storageKey": null
                                       },
-                                      {
-                                        "alias": null,
-                                        "args": null,
-                                        "kind": "ScalarField",
-                                        "name": "optimizationDirection",
-                                        "storageKey": null
-                                      }
+                                      (v12/*: any*/)
                                     ],
                                     "type": "ContinuousAnnotationConfig",
                                     "abstractKey": null
@@ -361,7 +362,15 @@ return {
                                   {
                                     "kind": "InlineFragment",
                                     "selections": [
-                                      (v9/*: any*/)
+                                      (v9/*: any*/),
+                                      (v12/*: any*/),
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "threshold",
+                                        "storageKey": null
+                                      }
                                     ],
                                     "type": "FreeformAnnotationConfig",
                                     "abstractKey": null
@@ -474,12 +483,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ac0ee63febc8956acc1d1b43505591c3",
+    "cacheID": "304a4ea3e800271c3d932814ad2c4bfc",
     "id": null,
     "metadata": {},
     "name": "AnnotationConfigListRemoveAnnotationConfigFromProjectMutation",
     "operationKind": "mutation",
-    "text": "mutation AnnotationConfigListRemoveAnnotationConfigFromProjectMutation(\n  $projectId: ID!\n  $annotationConfigId: ID!\n  $spanId: ID!\n  $filterUserIds: [ID!]\n) {\n  removeAnnotationConfigFromProject(input: {projectId: $projectId, annotationConfigId: $annotationConfigId}) {\n    query {\n      projectNode: node(id: $projectId) {\n        __typename\n        ... on Project {\n          id\n          ...AnnotationConfigListProjectAnnotationConfigFragment\n        }\n        id\n      }\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          id\n          ...SpanAnnotationsEditor_spanAnnotations_3lpqY\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment AnnotationConfigListProjectAnnotationConfigFragment on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n          description\n        }\n        ... on CategoricalAnnotationConfig {\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          lowerBound\n          upperBound\n          optimizationDirection\n        }\n        ... on FreeformAnnotationConfig {\n          name\n        }\n      }\n    }\n  }\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations_3lpqY on Span {\n  id\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {userIds: $filterUserIds}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n  }\n}\n"
+    "text": "mutation AnnotationConfigListRemoveAnnotationConfigFromProjectMutation(\n  $projectId: ID!\n  $annotationConfigId: ID!\n  $spanId: ID!\n  $filterUserIds: [ID!]\n) {\n  removeAnnotationConfigFromProject(input: {projectId: $projectId, annotationConfigId: $annotationConfigId}) {\n    query {\n      projectNode: node(id: $projectId) {\n        __typename\n        ... on Project {\n          id\n          ...AnnotationConfigListProjectAnnotationConfigFragment\n        }\n        id\n      }\n      node(id: $spanId) {\n        __typename\n        ... on Span {\n          id\n          ...SpanAnnotationsEditor_spanAnnotations_3lpqY\n        }\n        id\n      }\n    }\n  }\n}\n\nfragment AnnotationConfigListProjectAnnotationConfigFragment on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          name\n          annotationType\n          description\n        }\n        ... on CategoricalAnnotationConfig {\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          lowerBound\n          upperBound\n          optimizationDirection\n        }\n        ... on FreeformAnnotationConfig {\n          name\n          optimizationDirection\n          threshold\n        }\n      }\n    }\n  }\n}\n\nfragment SpanAnnotationsEditor_spanAnnotations_3lpqY on Span {\n  id\n  filteredSpanAnnotations: spanAnnotations(filter: {exclude: {names: [\"note\"]}, include: {userIds: $filterUserIds}}) {\n    id\n    name\n    annotatorKind\n    score\n    label\n    explanation\n    createdAt\n  }\n}\n"
   }
 };
 })();

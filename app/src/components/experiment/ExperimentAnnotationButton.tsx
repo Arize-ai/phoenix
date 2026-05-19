@@ -53,7 +53,7 @@ export function ExperimentAnnotationButton({
           <AnnotationNameAndValue
             positiveOptimization={positiveOptimization}
             annotation={annotation}
-            displayPreference="score"
+            displayPreference="score-and-label"
             maxWidth="unset"
             showColorSwatch={false}
           />

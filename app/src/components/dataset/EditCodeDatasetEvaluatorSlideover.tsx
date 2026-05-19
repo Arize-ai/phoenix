@@ -17,7 +17,7 @@ import type { EditCodeDatasetEvaluatorSlideover_patchCodeEvaluatorMutation } fro
 import type { EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation } from "@phoenix/components/dataset/__generated__/EditCodeDatasetEvaluatorSlideover_updateDatasetCodeEvaluatorMutation.graphql";
 import { mapSandboxConfigOptions } from "@phoenix/components/evaluators/CodeEvaluatorLanguageSandboxFields";
 import {
-  createDefaultContinuousOutputConfig,
+  createDefaultFreeformOutputConfig,
   EditCodeEvaluatorDialogContent,
 } from "@phoenix/components/evaluators/EditCodeEvaluatorDialogContent";
 import { buildOutputConfigsInput } from "@phoenix/components/evaluators/utils";
@@ -31,6 +31,7 @@ import {
 import type {
   ClassificationEvaluatorAnnotationConfig,
   ContinuousEvaluatorAnnotationConfig,
+  FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
 import type { Mutable } from "@phoenix/typeUtils";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -143,6 +144,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
                   pathMapping
                 }
                 outputConfigs {
+                  __typename
                   ... on CategoricalAnnotationConfig {
                     name
                     optimizationDirection
@@ -154,6 +156,13 @@ function EditCodeDatasetEvaluatorSlideoverContent({
                   ... on ContinuousAnnotationConfig {
                     name
                     optimizationDirection
+                    lowerBound
+                    upperBound
+                  }
+                  ... on FreeformAnnotationConfig {
+                    name
+                    optimizationDirection
+                    threshold
                     lowerBound
                     upperBound
                   }
@@ -169,6 +178,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
                       id
                     }
                     outputConfigs {
+                      __typename
                       ... on CategoricalAnnotationConfig {
                         name
                         optimizationDirection
@@ -180,6 +190,13 @@ function EditCodeDatasetEvaluatorSlideoverContent({
                       ... on ContinuousAnnotationConfig {
                         name
                         optimizationDirection
+                        lowerBound
+                        upperBound
+                      }
+                      ... on FreeformAnnotationConfig {
+                        name
+                        optimizationDirection
+                        threshold
                         lowerBound
                         upperBound
                       }
@@ -310,10 +327,11 @@ function EditCodeDatasetEvaluatorSlideoverContent({
       ? datasetEvaluator.outputConfigs
       : evaluator.outputConfigs?.length
         ? evaluator.outputConfigs
-        : [createDefaultContinuousOutputConfig(datasetEvaluator.name ?? "")]
+        : [createDefaultFreeformOutputConfig(datasetEvaluator.name ?? "")]
   ) as Mutable<
     | ContinuousEvaluatorAnnotationConfig
     | ClassificationEvaluatorAnnotationConfig
+    | FreeformEvaluatorAnnotationConfig
   >[];
   const initialState: EvaluatorStoreProps = {
     evaluator: {

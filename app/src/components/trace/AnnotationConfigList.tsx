@@ -102,6 +102,8 @@ export function AnnotationConfigList(props: {
                 }
                 ... on FreeformAnnotationConfig {
                   name
+                  optimizationDirection
+                  threshold
                 }
               }
             }

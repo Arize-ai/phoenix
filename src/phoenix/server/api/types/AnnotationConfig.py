@@ -104,6 +104,10 @@ class ContinuousAnnotationConfig(Node, AnnotationConfigBase):
 @strawberry.type
 class FreeformAnnotationConfig(Node, AnnotationConfigBase):
     id_attr: NodeID[int]
+    optimization_direction: OptimizationDirection
+    threshold: Optional[float]
+    lower_bound: Optional[float]
+    upper_bound: Optional[float]
 
 
 AnnotationConfig: TypeAlias = Annotated[
@@ -160,6 +164,10 @@ def _to_gql_freeform_annotation_config(
         name=annotation_config.name,
         annotation_type=config.type,
         description=config.description,
+        optimization_direction=config.optimization_direction or OptimizationDirection.NONE,
+        threshold=(config.thresholds[0] if config.thresholds else None),
+        lower_bound=config.lower_bound,
+        upper_bound=config.upper_bound,
     )
 
 

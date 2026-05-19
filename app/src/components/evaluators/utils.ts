@@ -8,9 +8,11 @@ import { getInstancePromptParamsFromStore } from "@phoenix/pages/playground/play
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
 import type {
   ClassificationEvaluatorAnnotationConfig,
+  ContinuousEvaluatorAnnotationConfig,
   EvaluatorInputMapping,
   EvaluatorMappingSource,
   EvaluatorOptimizationDirection,
+  FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
 import { isObject } from "@phoenix/typeUtils";
 
@@ -308,9 +310,15 @@ const toAnnotationConfigInput = (
     lowerBound?: number | null;
     upperBound?: number | null;
   };
+  freeform?: {
+    name: string;
+    optimizationDirection: EvaluatorOptimizationDirection;
+    threshold?: number | null;
+    lowerBound?: number | null;
+    upperBound?: number | null;
+  };
 } => {
   if ("values" in config) {
-    // Categorical config
     return {
       categorical: {
         name: config.name,
@@ -323,13 +331,32 @@ const toAnnotationConfigInput = (
     };
   }
 
-  // Continuous config
+  if ("threshold" in config) {
+    const freeformConfig = config as FreeformEvaluatorAnnotationConfig;
+    return {
+      freeform: {
+        name: freeformConfig.name,
+        optimizationDirection: freeformConfig.optimizationDirection,
+        ...(freeformConfig.threshold != null
+          ? { threshold: freeformConfig.threshold }
+          : {}),
+        ...(freeformConfig.lowerBound != null
+          ? { lowerBound: freeformConfig.lowerBound }
+          : {}),
+        ...(freeformConfig.upperBound != null
+          ? { upperBound: freeformConfig.upperBound }
+          : {}),
+      },
+    };
+  }
+
+  const continuousConfig = config as ContinuousEvaluatorAnnotationConfig;
   return {
     continuous: {
-      name: config.name,
-      optimizationDirection: config.optimizationDirection,
-      lowerBound: config.lowerBound ?? null,
-      upperBound: config.upperBound ?? null,
+      name: continuousConfig.name,
+      optimizationDirection: continuousConfig.optimizationDirection,
+      lowerBound: continuousConfig.lowerBound ?? null,
+      upperBound: continuousConfig.upperBound ?? null,
     },
   };
 };

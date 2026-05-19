@@ -11,3 +11,5 @@ class ExperimentAnnotationSummary:
     mean_score: Optional[float]
     count: int
     error_count: int
+    score_count: int
+    label_count: int
