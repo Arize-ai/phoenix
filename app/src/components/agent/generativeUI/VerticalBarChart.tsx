@@ -20,29 +20,29 @@ const MAX_BAR_SIZE = 18;
 
 const legendRowCSS = css`
   display: flex;
-  margin-top: 4px;
+  margin-top: var(--global-dimension-size-50);
 `;
 
 const legendCSS = css`
   display: flex;
-  gap: 12px;
-  margin-left: 32px;
+  gap: var(--global-dimension-size-150);
+  margin-left: var(--global-dimension-size-400);
 `;
 
 const legendItemCSS = css`
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--global-dimension-size-50);
 `;
 
 const legendSwatchCSS = css`
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
+  width: var(--global-dimension-size-100);
+  height: var(--global-dimension-size-100);
+  border-radius: var(--global-rounding-xsmall);
 `;
 
 const legendLabelCSS = css`
-  font-size: 11px;
+  font-size: var(--global-dimension-font-size-50);
   color: var(--global-color-gray-600);
 `;
 

@@ -11,21 +11,21 @@ import type { StackedBarDatum } from "./types";
 const rowsCSS = css`
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--global-dimension-size-75);
 `;
 
 const rowCSS = css`
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--global-dimension-size-150);
 `;
 
 const labelCSS = css`
-  width: 60px;
+  width: var(--global-dimension-size-750);
   flex-shrink: 0;
   text-align: right;
   color: var(--global-text-color-700);
-  font-size: 11px;
+  font-size: var(--global-dimension-font-size-50);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -33,42 +33,42 @@ const labelCSS = css`
 
 const trackCSS = css`
   flex: 1;
-  height: 6px;
-  border-radius: 3px;
+  height: var(--global-dimension-size-75);
+  border-radius: var(--global-dimension-size-40);
   background: var(--global-color-gray-300);
   overflow: hidden;
   display: flex;
-  gap: 2px;
+  gap: var(--global-dimension-size-25);
 `;
 
 const valueCSS = css`
-  width: 40px;
+  width: var(--global-dimension-size-500);
   flex-shrink: 0;
   color: var(--global-text-color-700);
-  font-size: 11px;
+  font-size: var(--global-dimension-font-size-50);
 `;
 
 const legendCSS = css`
   display: flex;
-  gap: 12px;
-  margin-left: 72px;
-  margin-top: 4px;
+  gap: var(--global-dimension-size-150);
+  margin-left: var(--global-dimension-size-900);
+  margin-top: var(--global-dimension-size-50);
 `;
 
 const legendItemCSS = css`
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--global-dimension-size-50);
 `;
 
 const legendSwatchCSS = css`
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
+  width: var(--global-dimension-size-100);
+  height: var(--global-dimension-size-100);
+  border-radius: var(--global-rounding-xsmall);
 `;
 
 const legendLabelCSS = css`
-  font-size: 11px;
+  font-size: var(--global-dimension-font-size-50);
   color: var(--global-color-gray-600);
 `;
 

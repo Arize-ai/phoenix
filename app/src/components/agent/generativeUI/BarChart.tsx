@@ -9,21 +9,21 @@ import type { ChartDatum } from "./types";
 const rowsCSS = css`
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--global-dimension-size-50);
 `;
 
 const rowCSS = css`
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--global-dimension-size-150);
 `;
 
 const labelCSS = css`
-  width: 100px;
+  width: var(--global-dimension-size-1250);
   flex-shrink: 0;
   text-align: right;
   color: var(--global-text-color-700);
-  font-size: 12px;
+  font-size: var(--global-dimension-font-size-75);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -31,22 +31,22 @@ const labelCSS = css`
 
 const trackCSS = css`
   flex: 1;
-  height: 6px;
-  border-radius: 3px;
+  height: var(--global-dimension-size-75);
+  border-radius: var(--global-dimension-size-40);
   background: var(--global-color-gray-300);
   overflow: hidden;
 `;
 
 const barCSS = css`
   height: 100%;
-  border-radius: 3px;
+  border-radius: var(--global-dimension-size-40);
 `;
 
 const valueCSS = css`
-  width: 40px;
+  width: var(--global-dimension-size-500);
   flex-shrink: 0;
   color: var(--global-text-color-700);
-  font-size: 12px;
+  font-size: var(--global-dimension-font-size-75);
 `;
 
 export function BarChart({

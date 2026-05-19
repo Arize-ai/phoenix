@@ -25,8 +25,8 @@ const titleCSS = css`
 const chartAreaCSS = css`
   display: flex;
   align-items: flex-end;
-  gap: 8px;
-  height: 90px;
+  gap: var(--global-dimension-size-100);
+  height: var(--global-dimension-size-1125);
 `;
 
 const barWrapperCSS = css`
@@ -39,7 +39,7 @@ const barWrapperCSS = css`
 const axisCSS = css`
   display: flex;
   justify-content: space-between;
-  margin-top: 8px;
+  margin-top: var(--global-dimension-size-100);
 `;
 
 /**
