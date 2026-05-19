@@ -232,6 +232,7 @@ exclude = [
 artifacts = [
   "src/phoenix/server/static",
   "src/phoenix/server/generative_ui",
+  "src/phoenix/server/agents/prompts",
   "src/phoenix/db/migrations",
   "src/phoenix/server/cost_tracking/model_cost_manifest.json",
   "src/phoenix/server/api/helpers/substitutions/server.yaml",
@@ -254,6 +255,7 @@ exclude = [
 artifacts = [
   "src/phoenix/server/static",
   "src/phoenix/server/generative_ui",
+  "src/phoenix/server/agents/prompts",
   "src/phoenix/db/migrations",
   "src/phoenix/server/cost_tracking/model_cost_manifest.json",
   "src/phoenix/server/api/helpers/substitutions/server.yaml",
