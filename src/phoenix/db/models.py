@@ -2777,9 +2777,11 @@ class SandboxProvider(Base):
 class SandboxConfig(HasId):
     __tablename__ = "sandbox_configs"
     backend_type: Mapped[SandboxBackendType] = mapped_column(
-        ForeignKey("sandbox_providers.backend_type", ondelete="CASCADE"), nullable=False
+        ForeignKey("sandbox_providers.backend_type", ondelete="RESTRICT"), nullable=False
     )
-    language: Mapped[LanguageName] = mapped_column(nullable=False)
+    language: Mapped[LanguageName] = mapped_column(
+        ForeignKey("languages.name", ondelete="RESTRICT"), nullable=False
+    )
     name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(nullable=True)
     config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, server_default="{}")
