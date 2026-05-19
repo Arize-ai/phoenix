@@ -313,6 +313,7 @@ export function TracesTable(props: TracesTableProps) {
                       trace {
                         id
                         traceId
+                        ...TraceAnnotationSummaryGroup
                       }
                       spanAnnotations {
                         id
@@ -585,13 +586,7 @@ export function TracesTable(props: TracesTableProps) {
           }
           return (
             <Flex direction="row" gap="size-50" wrap="wrap">
-              <TraceAnnotationSummaryGroupTokens
-                trace={
-                  row.original.trace as unknown as Parameters<
-                    typeof TraceAnnotationSummaryGroupTokens
-                  >[0]["trace"]
-                }
-              />
+              <TraceAnnotationSummaryGroupTokens trace={row.original.trace} />
             </Flex>
           );
         },

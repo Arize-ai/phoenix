@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ef2f21045651ab9dec05f250f317be63>>
+ * @generated SignedSource<<58a49b81205a32ccf67b00d50925c6de>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -56,6 +56,7 @@ export type TracesTable_spans$data = {
               readonly trace: {
                 readonly id: string;
                 readonly traceId: string;
+                readonly " $fragmentSpreads": FragmentRefs<"TraceAnnotationSummaryGroup">;
               };
               readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
             };
@@ -265,6 +266,11 @@ v14 = [
   (v1/*: any*/)
 ],
 v15 = {
+  "args": null,
+  "kind": "FragmentSpread",
+  "name": "TraceAnnotationSummaryGroup"
+},
+v16 = {
   "alias": null,
   "args": null,
   "concreteType": "SpanAnnotation",
@@ -299,12 +305,12 @@ v15 = {
   ],
   "storageKey": null
 },
-v16 = {
+v17 = {
   "args": null,
   "kind": "FragmentSpread",
   "name": "AnnotationSummaryGroup"
 },
-v17 = {
+v18 = {
   "alias": null,
   "args": null,
   "concreteType": "DocumentRetrievalMetrics",
@@ -552,15 +558,11 @@ return {
                       "selections": (v14/*: any*/),
                       "storageKey": null
                     },
-                    {
-                      "args": null,
-                      "kind": "FragmentSpread",
-                      "name": "TraceAnnotationSummaryGroup"
-                    }
+                    (v15/*: any*/)
                   ],
                   "storageKey": null
                 },
-                (v15/*: any*/),
+                (v16/*: any*/),
                 {
                   "alias": null,
                   "args": null,
@@ -571,8 +573,8 @@ return {
                   "selections": (v14/*: any*/),
                   "storageKey": null
                 },
-                (v16/*: any*/),
                 (v17/*: any*/),
+                (v18/*: any*/),
                 {
                   "alias": null,
                   "args": [
@@ -636,13 +638,14 @@ return {
                               "plural": false,
                               "selections": [
                                 (v2/*: any*/),
-                                (v12/*: any*/)
+                                (v12/*: any*/),
+                                (v15/*: any*/)
                               ],
                               "storageKey": null
                             },
-                            (v15/*: any*/),
                             (v16/*: any*/),
-                            (v17/*: any*/)
+                            (v17/*: any*/),
+                            (v18/*: any*/)
                           ],
                           "storageKey": null
                         }
@@ -718,6 +721,6 @@ return {
 };
 })();
 
-(node as any).hash = "2a6a616d8b34df0eed9de03f602016bc";
+(node as any).hash = "5d1040d221e66eaff9722604dd904f31";
 
 export default node;

@@ -227,47 +227,47 @@ export const AnnotationSummaryGroupTokens = ({
     return renderEmptyState();
   }
 
-  const tokens = summaryGroups.map(({ key, summary, annotations }) => {
-    const latestAnnotation = annotations[0];
-    const meanScore = summary?.meanScore;
-    if (!latestAnnotation) {
-      return null;
-    }
-    return (
-      <AnnotationSummaryPopover
-        key={key}
-        annotations={annotations}
-        width="500px"
-        meanScore={meanScore}
-        showFilterActions={showFilterActions}
-      >
-        <AnnotationLabel
-          annotation={latestAnnotation}
-          annotationDisplayPreference="none"
-          css={annotationLabelCSS}
-          clickable
-        >
-          {meanScore != null ? (
-            <SummaryValuePreview
-              name={latestAnnotation.name}
-              meanScore={meanScore}
-              size="S"
-              disableAnimation
-              annotationConfig={
-                categoricalAnnotationConfigsByName[latestAnnotation.name]
-              }
-            />
-          ) : (
-            <SummaryValueLabelPreview labelFractions={summary.labelFractions} />
-          )}
-        </AnnotationLabel>
-      </AnnotationSummaryPopover>
-    );
-  });
-
   return (
     <Flex direction="row" gap="size-50" wrap="wrap">
-      {tokens}
+      {summaryGroups.map(({ key, summary, annotations }) => {
+        const latestAnnotation = annotations[0];
+        const meanScore = summary?.meanScore;
+        if (!latestAnnotation) {
+          return null;
+        }
+        return (
+          <AnnotationSummaryPopover
+            key={key}
+            annotations={annotations}
+            width="500px"
+            meanScore={meanScore}
+            showFilterActions={showFilterActions}
+          >
+            <AnnotationLabel
+              annotation={latestAnnotation}
+              annotationDisplayPreference="none"
+              css={annotationLabelCSS}
+              clickable
+            >
+              {meanScore != null ? (
+                <SummaryValuePreview
+                  name={latestAnnotation.name}
+                  meanScore={meanScore}
+                  size="S"
+                  disableAnimation
+                  annotationConfig={
+                    categoricalAnnotationConfigsByName[latestAnnotation.name]
+                  }
+                />
+              ) : (
+                <SummaryValueLabelPreview
+                  labelFractions={summary.labelFractions}
+                />
+              )}
+            </AnnotationLabel>
+          </AnnotationSummaryPopover>
+        );
+      })}
     </Flex>
   );
 };
@@ -284,31 +284,29 @@ export const AnnotationSummaryGroupStacks = ({
     return renderEmptyState();
   }
 
-  const stacks = summaryGroups.map(({ key, summary, annotations }) => {
-    const latestAnnotation = annotations[0];
-    if (!latestAnnotation) {
-      return null;
-    }
-    return (
-      <Summary name={latestAnnotation.name} key={key}>
-        <SummaryValue
-          name={latestAnnotation.name}
-          meanScore={summary.meanScore}
-          labelFractions={summary.labelFractions}
-          count={summary.count}
-          scoreCount={summary.scoreCount}
-          labelCount={summary.labelCount}
-          annotationConfig={
-            categoricalAnnotationConfigsByName[latestAnnotation.name]
-          }
-        />
-      </Summary>
-    );
-  });
-
   return (
     <Flex direction="row" gap="size-400" wrap={includeTraceAnnotations}>
-      {stacks}
+      {summaryGroups.map(({ key, summary, annotations }) => {
+        const latestAnnotation = annotations[0];
+        if (!latestAnnotation) {
+          return null;
+        }
+        return (
+          <Summary name={latestAnnotation.name} key={key}>
+            <SummaryValue
+              name={latestAnnotation.name}
+              meanScore={summary.meanScore}
+              labelFractions={summary.labelFractions}
+              count={summary.count}
+              scoreCount={summary.scoreCount}
+              labelCount={summary.labelCount}
+              annotationConfig={
+                categoricalAnnotationConfigsByName[latestAnnotation.name]
+              }
+            />
+          </Summary>
+        );
+      })}
     </Flex>
   );
 };
