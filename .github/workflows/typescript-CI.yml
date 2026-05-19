@@ -32,6 +32,7 @@ jobs:
             app:
               - "app/**"
               - "schemas/openapi.json"
+              - "src/phoenix/server/generative_ui/**"
               - ".oxlintrc.json"
               - ".oxfmtrc.jsonc"
               - ".nvmrc"
@@ -79,6 +80,10 @@ jobs:
         working-directory: ./app
         run: |
           pnpm run generate:openapi
+          git diff --exit-code
+      - name: Generative UI Schema Codegen
+        run: |
+          make schema-generative-ui
           git diff --exit-code
       - name: Test
         working-directory: ./app

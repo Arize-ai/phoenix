@@ -1,11 +1,13 @@
 import { isTextUIPart, isToolUIPart, type UIMessage } from "ai";
 
+import { isGenerativeUIPart } from "./generativeUI";
 import type { ToolPartType } from "./ToolPart";
 
 export type GroupedPart =
   | { kind: "text"; part: UIMessage["parts"][number]; index: number }
   | { kind: "tool-solo"; part: ToolPartType; index: number }
   | { kind: "tool-group"; parts: ToolPartType[]; startIndex: number }
+  | { kind: "generative-ui"; part: UIMessage["parts"][number]; index: number }
   | { kind: "other"; part: UIMessage["parts"][number]; index: number };
 
 /**
@@ -71,7 +73,10 @@ export function groupMessageParts(parts: UIMessage["parts"]): GroupedPart[] {
       continue;
     }
 
-    if (isToolUIPart(part)) {
+    if (isGenerativeUIPart(part)) {
+      flushToolRun();
+      result.push({ kind: "generative-ui", part, index: i });
+    } else if (isToolUIPart(part)) {
       if (!toolRun) {
         toolRun = { parts: [], startIndex: i };
       }

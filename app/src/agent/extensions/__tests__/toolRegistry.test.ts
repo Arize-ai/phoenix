@@ -7,6 +7,7 @@ import {
   CLONE_PROMPT_INSTANCE_TOOL_NAME,
   EDIT_PROMPT_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPrompt";
+import { GENERATIVE_UI_TOOL_NAME } from "@phoenix/components/agent/generativeUICatalog";
 import { createAgentStore } from "@phoenix/store/agentStore";
 
 describe("toolRegistry", () => {
@@ -178,6 +179,222 @@ describe("toolRegistry", () => {
         state: "output-available",
         tool: CLONE_PROMPT_INSTANCE_TOOL_NAME,
         output: "cloned",
+      })
+    );
+  });
+
+  it("resolves generative UI tool calls without mutating message parts", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const appendMessagePart = vi.fn();
+    const spec = {
+      root: "chart",
+      elements: {
+        chart: {
+          type: "BarChart",
+          props: {
+            title: "Trace Summary",
+            data: [
+              { label: "Total spans", value: 42 },
+              { label: "Error spans", value: 3 },
+            ],
+          },
+          children: [],
+        },
+      },
+    };
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-7",
+        toolName: GENERATIVE_UI_TOOL_NAME,
+        input: { spec },
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      appendMessagePart,
+      agentStore: store,
+    });
+
+    expect(appendMessagePart).not.toHaveBeenCalled();
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-available",
+        tool: GENERATIVE_UI_TOOL_NAME,
+      })
+    );
+  });
+
+  it("fails generative UI tool calls with invalid render specs", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const appendMessagePart = vi.fn();
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-8",
+        toolName: GENERATIVE_UI_TOOL_NAME,
+        input: {
+          spec: {
+            root: "chart",
+            elements: {
+              chart: {
+                type: "LineChart",
+                props: { title: null, data: null },
+                children: [],
+              },
+            },
+          },
+        },
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      appendMessagePart,
+      agentStore: store,
+    });
+
+    expect(appendMessagePart).not.toHaveBeenCalled();
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-error",
+        tool: GENERATIVE_UI_TOOL_NAME,
+        toolCallId: "tool-call-8",
+        errorText: "Request should adhere to chart requirements.",
+      })
+    );
+  });
+
+  it("adds chart guidance for generative UI count violations", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const appendMessagePart = vi.fn();
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-8b",
+        toolName: GENERATIVE_UI_TOOL_NAME,
+        input: {
+          spec: {
+            root: "chart",
+            elements: {
+              chart: {
+                type: "VerticalBarChart",
+                props: {
+                  title: "Traces Per Day",
+                  data: Array.from({ length: 31 }, (_, index) => ({
+                    label: `Day ${index + 1}`,
+                    value: index,
+                  })),
+                },
+                children: [],
+              },
+            },
+          },
+        },
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      appendMessagePart,
+      agentStore: store,
+    });
+
+    expect(appendMessagePart).not.toHaveBeenCalled();
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-error",
+        tool: GENERATIVE_UI_TOOL_NAME,
+        toolCallId: "tool-call-8b",
+        errorText: "Request should adhere to chart requirements.",
+      })
+    );
+  });
+
+  it("fails malformed stacked bar chart specs before rendering", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const appendMessagePart = vi.fn();
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-malformed-stacked",
+        toolName: GENERATIVE_UI_TOOL_NAME,
+        input: {
+          spec: {
+            root: "stacked",
+            elements: {
+              stacked: {
+                type: "StackedBarChart",
+                props: {
+                  title: "Stacked Bar Chart — Token Usage by Model",
+                  data: [
+                    {
+                      label: "gpt-4o",
+                      segments: [
+                        { label: "Prompt", value: 12500 },
+                        { label: "Completion", value: 8200 },
+                        {},
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      appendMessagePart,
+      agentStore: store,
+    });
+
+    expect(appendMessagePart).not.toHaveBeenCalled();
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-error",
+        tool: GENERATIVE_UI_TOOL_NAME,
+        toolCallId: "tool-call-malformed-stacked",
+        errorText: "Request should adhere to chart requirements.",
+      })
+    );
+  });
+
+  it("accepts generative UI specs that omit optional props", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const appendMessagePart = vi.fn();
+    const spec = {
+      root: "line",
+      elements: {
+        line: {
+          type: "LineChart",
+          props: {
+            title: "Daily error count",
+            lines: [{ label: "Errors", data: [0, 0, 1, 0] }],
+            xLabels: ["May 10", "May 11", "May 12", "May 13"],
+          },
+          children: [],
+        },
+      },
+    };
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-9",
+        toolName: GENERATIVE_UI_TOOL_NAME,
+        input: { spec, state: {} },
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      appendMessagePart,
+      agentStore: store,
+    });
+
+    expect(appendMessagePart).not.toHaveBeenCalled();
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-available",
+        tool: GENERATIVE_UI_TOOL_NAME,
       })
     );
   });

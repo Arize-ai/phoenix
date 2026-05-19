@@ -1,0 +1,46 @@
+{
+  "type": "object",
+  "properties": {
+    "root": {
+      "type": "string"
+    },
+    "elements": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "enum": [
+              "BarChart",
+              "VerticalBarChart",
+              "StackedBarChart",
+              "LineChart"
+            ]
+          },
+          "props": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "visible": {}
+        },
+        "required": [
+          "type",
+          "props",
+          "children"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "root",
+    "elements"
+  ],
+  "additionalProperties": false
+}

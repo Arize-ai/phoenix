@@ -229,3 +229,43 @@ export const useCategoryChartColors = (): Record<
 export const CATEGORICAL_CHART_COLORS = Object.keys(
   CategoryChartLightColors
 ) as CategoricalChartColor[];
+
+type GrayscaleCategoricalColor = "gray1" | "gray2" | "gray3" | "gray4";
+
+const GrayscaleCategoricalLightColors: Record<
+  GrayscaleCategoricalColor,
+  string
+> = {
+  gray1: "var(--global-color-gray-800)",
+  gray2: "var(--global-color-gray-600)",
+  gray3: "var(--global-color-gray-500)",
+  gray4: "var(--global-color-gray-400)",
+};
+
+const GrayscaleCategoricalDarkColors: Record<
+  GrayscaleCategoricalColor,
+  string
+> = {
+  gray1: "var(--global-color-gray-800)",
+  gray2: "var(--global-color-gray-600)",
+  gray3: "var(--global-color-gray-500)",
+  gray4: "var(--global-color-gray-400)",
+};
+
+export const useGrayscaleCategoricalColors = (): Record<
+  GrayscaleCategoricalColor,
+  string
+> => {
+  const { theme } = useTheme();
+  return useMemo(
+    () =>
+      theme === "dark"
+        ? GrayscaleCategoricalDarkColors
+        : GrayscaleCategoricalLightColors,
+    [theme]
+  );
+};
+
+export const GRAYSCALE_CATEGORICAL_COLORS = Object.keys(
+  GrayscaleCategoricalLightColors
+) as GrayscaleCategoricalColor[];

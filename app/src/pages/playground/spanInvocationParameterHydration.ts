@@ -1,12 +1,10 @@
+import { isPlainObject } from "@phoenix/utils/jsonUtils";
+
 /**
  * Best-effort OpenAI API classification from recorded span attributes.
  * Standalone helper — span → canonical config goes through the provider
  * adapter dispatcher's `spanInvocationToConfigAndPromoted` instead.
  */
-
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return v != null && typeof v === "object" && !Array.isArray(v);
-}
 
 /**
  * Best-effort OpenAI API classification from recorded invocation parameter keys.

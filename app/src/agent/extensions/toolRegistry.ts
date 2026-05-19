@@ -22,8 +22,13 @@ import {
   type EditPromptInput,
   type ReadPromptInput,
 } from "@phoenix/agent/tools/playgroundPrompt";
+import {
+  GENERATIVE_UI_TOOL_NAME,
+  renderGenerativeUISpecSchema,
+} from "@phoenix/components/agent/generativeUICatalog";
 import type { TimeRangeKey } from "@phoenix/components/datetime/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
+import { isPlainObject } from "@phoenix/utils/jsonUtils";
 
 import {
   getAgentCapabilityDefinition,
@@ -32,6 +37,7 @@ import {
 } from "./capabilities";
 
 type AddToolOutput = Chat<UIMessage>["addToolOutput"];
+type AppendMessagePart = (part: UIMessage["parts"][number]) => void;
 
 /** Minimal tool-call shape produced by the AI SDK runtime. */
 export type AgentToolCall = {
@@ -46,6 +52,7 @@ type AgentToolHandlerContext<TInput> = {
   input: TInput;
   sessionId: string | null;
   addToolOutput: AddToolOutput;
+  appendMessagePart: AppendMessagePart;
   agentStore: AgentStore;
   capabilities: AgentCapabilities;
 };
@@ -57,7 +64,7 @@ type AgentToolHandlerContext<TInput> = {
 type RegisteredAgentTool<TInput> = {
   name: string;
   parseInput: (input: unknown) => TInput | null;
-  invalidInputErrorText: string;
+  invalidInputErrorText: string | ((input: unknown) => string);
   requiredCapabilities?: AgentCapabilityKey[];
   uiBehavior?: AgentToolUIBehavior;
   execute: (context: AgentToolHandlerContext<TInput>) => Promise<void>;
@@ -154,6 +161,22 @@ export type SetTimeRangeInput = {
   endTime?: string;
 };
 
+export type RenderGenerativeUIInput = {
+  /**
+   * Complete json-render flat spec describing the UI tree to render.
+   * The root must identify one element in `elements`; each element declares its
+   * component `type`, concrete `props`, and an empty `children` array for the
+   * current chart-only catalog.
+   */
+  spec: Record<string, unknown>;
+  /**
+   * Optional initial json-render state model for specs that reference `$state`.
+   * Most chart calls should put literal data directly in `spec.elements[id].props`
+   * and omit this value, which the parser normalizes to an empty object.
+   */
+  state: Record<string, unknown>;
+};
+
 /**
  * **Drift warning:** These allowed `timeRangeKey` values must stay in sync with
  * the server-side enum in
@@ -170,6 +193,7 @@ function isValidTimeRangeKey(value: unknown): value is TimeRangeKey {
 
 const setTimeRangeInvalidInputErrorText = `Invalid ${SET_TIME_RANGE_TOOL_NAME} input. Expected { timeRangeKey: ${TIME_RANGE_KEYS.map((key) => `"${key}"`).join(" | ")}, startTime?: string, endTime?: string }.`;
 
+/** Parse the server-provided span filter tool payload into the client action shape. */
 function parseSetSpansFilterInput(input: unknown): SetSpansFilterInput | null {
   if (typeof input !== "object" || input === null) return null;
   const candidate = input as {
@@ -287,6 +311,70 @@ const setTimeRangeAgentTool = createRegisteredAgentTool<SetTimeRangeInput>({
     }
   },
 });
+
+/** Parse and validate the render_generative_ui tool input. */
+function parseRenderGenerativeUIInput(
+  input: unknown
+): RenderGenerativeUIInput | null {
+  if (typeof input !== "object" || input === null) return null;
+  const candidate = input as { spec?: unknown; state?: unknown };
+  const specResult = renderGenerativeUISpecSchema.safeParse(candidate.spec);
+  if (!specResult.success) {
+    return null;
+  }
+  if (candidate.state !== undefined && !isPlainObject(candidate.state)) {
+    return null;
+  }
+  return {
+    spec: specResult.data,
+    state: candidate.state ?? {},
+  };
+}
+
+/**
+ * Maps generative UI schema failures to a user-facing tool error message.
+ * Keeps chart cardinality failures specific while collapsing other schema
+ * errors into a generic render failure.
+ */
+function getRenderGenerativeUIInvalidInputErrorText(input: unknown): string {
+  const defaultErrorText = "I couldn't render that generative UI.";
+
+  if (typeof input !== "object" || input === null) {
+    return defaultErrorText;
+  }
+
+  const candidate = input as { spec?: unknown };
+  const specResult = renderGenerativeUISpecSchema.safeParse(candidate.spec);
+  if (specResult.success) {
+    return defaultErrorText;
+  }
+
+  const hasChartRequirementIssue = specResult.error.issues.some((issue) => {
+    return issue.path.some(
+      (segment) =>
+        segment === "data" || segment === "segments" || segment === "lines"
+    );
+  });
+
+  return hasChartRequirementIssue
+    ? `Request should adhere to chart requirements.`
+    : defaultErrorText;
+}
+
+const renderGenerativeUIAgentTool =
+  createRegisteredAgentTool<RenderGenerativeUIInput>({
+    name: GENERATIVE_UI_TOOL_NAME,
+    parseInput: parseRenderGenerativeUIInput,
+    invalidInputErrorText: getRenderGenerativeUIInvalidInputErrorText,
+    execute: async ({ toolCall, addToolOutput }) => {
+      await addToolOutput({
+        state: "output-available",
+        tool: GENERATIVE_UI_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        output: "Generative UI rendered in chat.",
+      });
+    },
+  });
 
 const readPromptAgentTool = createRegisteredAgentTool<ReadPromptInput>({
   name: READ_PROMPT_TOOL_NAME,
@@ -421,6 +509,7 @@ const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   bashAgentTool as RegisteredAgentTool<unknown>,
   askUserAgentTool as RegisteredAgentTool<unknown>,
   setTimeRangeAgentTool as RegisteredAgentTool<unknown>,
+  renderGenerativeUIAgentTool as RegisteredAgentTool<unknown>,
   setSpansFilterAgentTool as RegisteredAgentTool<unknown>,
   readPromptAgentTool as RegisteredAgentTool<unknown>,
   clonePromptInstanceAgentTool as RegisteredAgentTool<unknown>,
@@ -438,6 +527,7 @@ export function getAgentToolUIBehavior(
   return agentToolRegistryByName.get(toolName)?.uiBehavior;
 }
 
+/** Returns the capability keys required by a tool that are currently disabled. */
 function getMissingCapabilities({
   registeredTool,
   capabilities,
@@ -452,6 +542,7 @@ function getMissingCapabilities({
   );
 }
 
+/** Formats a stable user-facing error for capability-gated tool calls. */
 function buildMissingCapabilitiesErrorText(
   missingCapabilities: AgentCapabilityKey[]
 ): string {
@@ -472,11 +563,13 @@ export async function handleRegisteredAgentToolCall({
   toolCall,
   sessionId,
   addToolOutput,
+  appendMessagePart,
   agentStore,
 }: {
   toolCall: AgentToolCall;
   sessionId: string | null;
   addToolOutput: AddToolOutput;
+  appendMessagePart?: AppendMessagePart;
   agentStore: AgentStore;
 }) {
   const registeredTool = agentToolRegistryByName.get(toolCall.toolName);
@@ -494,11 +587,15 @@ export async function handleRegisteredAgentToolCall({
   const input = registeredTool.parseInput(toolCall.input);
 
   if (input == null) {
+    const invalidInputErrorText =
+      typeof registeredTool.invalidInputErrorText === "function"
+        ? registeredTool.invalidInputErrorText(toolCall.input)
+        : registeredTool.invalidInputErrorText;
     await addToolOutput({
       state: "output-error",
       tool: toolCall.toolName,
       toolCallId: toolCall.toolCallId,
-      errorText: registeredTool.invalidInputErrorText,
+      errorText: invalidInputErrorText,
     });
     return;
   }
@@ -524,6 +621,7 @@ export async function handleRegisteredAgentToolCall({
     input,
     sessionId,
     addToolOutput,
+    appendMessagePart: appendMessagePart ?? (() => {}),
     agentStore,
     capabilities,
   });

@@ -14,6 +14,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     clone_prompt_instance,
     edit_prompt_instance,
     read_prompt_instance,
+    render_generative_ui,
     set_spans_filter,
     set_time_range,
 )
@@ -27,6 +28,9 @@ from phoenix.server.agents.capabilities.tools.external.edit_prompt_instance impo
 )
 from phoenix.server.agents.capabilities.tools.external.read_prompt_instance import (
     ReadPromptInstanceCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.render_generative_ui import (
+    RenderGenerativeUICapability,
 )
 from phoenix.server.agents.capabilities.tools.external.set_spans_filter import (
     SetSpansFilterCapability,
@@ -45,6 +49,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         clone_prompt_instance.TOOL_DEFINITION,
         edit_prompt_instance.TOOL_DEFINITION,
         read_prompt_instance.TOOL_DEFINITION,
+        render_generative_ui.RENDER_GENERATIVE_UI_TOOL_DEFINITION,
         set_spans_filter.TOOL_DEFINITION,
         set_time_range.TOOL_DEFINITION,
     )
@@ -68,6 +73,7 @@ def get_external_tool_capability_function(
         BashCapability(instructions=instructions.bash_tool),
         AskUserCapability(instructions=instructions.ask_user_tool),
         SetTimeRangeCapability(instructions=instructions.set_time_range_tool),
+        RenderGenerativeUICapability(instructions=instructions.render_generative_ui_tool),
     ]
     dynamic_capabilities: list[AbstractDynamicCapability[AgentDependencies]] = [
         SetSpansFilterCapability(instructions=instructions.set_spans_filter_tool),
@@ -89,6 +95,7 @@ __all__ = [
     "ClonePromptInstanceCapability",
     "EditPromptInstanceCapability",
     "ReadPromptInstanceCapability",
+    "RenderGenerativeUICapability",
     "SetSpansFilterCapability",
     "SetTimeRangeCapability",
     "get_external_tool_capability_function",
