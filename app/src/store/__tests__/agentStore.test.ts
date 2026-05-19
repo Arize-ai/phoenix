@@ -248,6 +248,7 @@ describe("agentStore", () => {
         "bash.retainInactiveSessions": true,
         "graphql.mutations": true,
         "session.storeSessions": false,
+        "web.access": false,
       });
       expect(store.getState().observability).toEqual({
         storeLocalTraces: true,

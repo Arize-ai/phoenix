@@ -8,7 +8,8 @@
 export type AgentCapabilityKey =
   | "bash.retainInactiveSessions"
   | "graphql.mutations"
-  | "session.storeSessions";
+  | "session.storeSessions"
+  | "web.access";
 
 /** Describes one capability and how it should appear across the app. */
 export type AgentCapabilityDefinition = {
@@ -27,6 +28,7 @@ const DEFAULT_AGENT_CAPABILITIES: AgentCapabilities = {
   "bash.retainInactiveSessions": false,
   "graphql.mutations": false,
   "session.storeSessions": false,
+  "web.access": false,
 };
 
 /** Ordered capability catalog used by the UI and runtime. */
@@ -54,6 +56,15 @@ export const AGENT_CAPABILITY_DEFINITIONS: AgentCapabilityDefinition[] = [
     label: "Store recent sessions",
     description:
       "Keeps the three most recent chat sessions instead of replacing session history when starting a new chat.",
+    defaultValue: false,
+    scope: "global",
+    controlSurface: "experimental-settings",
+  },
+  {
+    key: "web.access",
+    label: "Allow web access",
+    description:
+      "Lets PXI use provider-native web search and URL fetching when the selected model supports it.",
     defaultValue: false,
     scope: "global",
     controlSurface: "experimental-settings",

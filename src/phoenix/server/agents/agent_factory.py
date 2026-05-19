@@ -7,6 +7,8 @@ from pydantic_ai.capabilities import (
     AbstractCapability,
     CombinedCapability,
     DynamicCapability,
+    WebFetch,
+    WebSearch,
 )
 from pydantic_ai.mcp import MCPServerStreamableHTTP
 from pydantic_ai.models import Model
@@ -33,6 +35,7 @@ def build_agent(
     model: Model,
     instructions: AgentInstructions | None = None,
     docs_mcp_server: MCPServerStreamableHTTP | None = None,
+    enable_web_access: bool = False,
     tracer_provider: TracerProvider | None = None,
 ) -> OpenInferenceAgentWrapper[AgentDependencies, AgentOutput]:
     resolved_instructions = instructions or AgentInstructions()
@@ -59,6 +62,15 @@ def build_agent(
                 mcp_server=docs_mcp_server,
                 instructions=resolved_instructions.docs_tool,
             )
+        )
+    if enable_web_access:
+        # If model provider supports web access natively, the agent will have access to the web
+        # via these capabilities
+        capabilities.extend(
+            [
+                WebSearch(native=True, local=False),
+                WebFetch(native=True, local=False),
+            ]
         )
 
     traced_capability = OpenInferenceCapabilityWrapper(

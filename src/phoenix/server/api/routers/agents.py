@@ -34,7 +34,10 @@ from starlette.requests import Request
 from starlette.responses import Response
 from typing_extensions import TypeIs, assert_never
 
-from phoenix.config import get_env_phoenix_agents_assistant_project_name
+from phoenix.config import (
+    get_env_phoenix_agents_assistant_project_name,
+    get_env_phoenix_agents_web_access_enabled,
+)
 from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
@@ -150,6 +153,12 @@ class _ObservabilityMixin(BaseModel):
     export_remote_traces: bool = Field(default=False, alias="exportRemoteTraces")
 
 
+class _AgentRequestCapabilities(_CamelModel):
+    """Per-request PXI capabilities requested by the browser."""
+
+    web_access: bool = False
+
+
 class _ChatMessageMixin(_ObservabilityMixin):
     """Phoenix-specific extensions added to Vercel AI request messages."""
 
@@ -160,6 +169,7 @@ class _ChatMessageMixin(_ObservabilityMixin):
     contexts: list[ChatContext] = Field(default_factory=list)
     messages: list[AssistantMetadataUIMessage]
     model: AgentModelSelection
+    capabilities: _AgentRequestCapabilities = Field(default_factory=_AgentRequestCapabilities)
 
 
 class ChatSubmitMessage(_ChatMessageMixin, SubmitMessage):
@@ -464,6 +474,8 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
         agent = build_agent(
             model=model,
             docs_mcp_server=request.app.state.docs_mcp_server,
+            enable_web_access=body.capabilities.web_access
+            and get_env_phoenix_agents_web_access_enabled(),
             tracer_provider=tracer_provider,
         )
         adapter: VercelAIAdapter[AgentDependencies, AgentOutput] = VercelAIAdapter(

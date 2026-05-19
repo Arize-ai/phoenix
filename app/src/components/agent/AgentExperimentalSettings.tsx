@@ -4,10 +4,6 @@ import { getAgentCapabilitiesForControlSurface } from "@phoenix/agent/extensions
 import { Alert, Flex, Switch, Text, View } from "@phoenix/components";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 
-const experimentalCapabilities = getAgentCapabilitiesForControlSurface(
-  "experimental-settings"
-);
-
 const settingsCSS = css`
   display: flex;
   flex-direction: column;
@@ -47,6 +43,14 @@ const detailsCSS = css`
 export function AgentExperimentalSettings() {
   const store = useAgentStore();
   const capabilities = useAgentContext((state) => state.capabilities);
+  const isWebAccessEnabled = useAgentContext(
+    (state) => state.agentsConfig.webAccessEnabled
+  );
+  const experimentalCapabilities = getAgentCapabilitiesForControlSurface(
+    "experimental-settings"
+  ).filter(
+    (definition) => definition.key !== "web.access" || isWebAccessEnabled
+  );
 
   if (experimentalCapabilities.length === 0) {
     return null;

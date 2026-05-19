@@ -1641,6 +1641,7 @@ export interface components {
             contexts?: components["schemas"]["ChatContext"][];
             /** Model */
             model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
+            capabilities?: components["schemas"]["_AgentRequestCapabilities"];
         } & {
             [key: string]: unknown;
         };
@@ -1677,6 +1678,7 @@ export interface components {
             contexts?: components["schemas"]["ChatContext"][];
             /** Model */
             model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
+            capabilities?: components["schemas"]["_AgentRequestCapabilities"];
         } & {
             [key: string]: unknown;
         };
@@ -5017,6 +5019,17 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, unknown>;
+        };
+        /**
+         * _AgentRequestCapabilities
+         * @description Per-request PXI capabilities requested by the browser.
+         */
+        _AgentRequestCapabilities: {
+            /**
+             * Webaccess
+             * @default false
+             */
+            webAccess?: boolean;
         };
         /**
          * _SummarizeRequest

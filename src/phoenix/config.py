@@ -78,6 +78,11 @@ ENV_PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME = "PHOENIX_AGENTS_ASSISTANT_PROJECT_NA
 """
 Project name used for assistant agent traces.
 """
+ENV_PHOENIX_AGENTS_DISABLE_WEB_ACCESS = "PHOENIX_AGENTS_DISABLE_WEB_ACCESS"
+"""
+Disables PXI native web search and web fetch capabilities even when external
+resources are otherwise allowed.
+"""
 ENV_PHOENIX_WORKING_DIR = "PHOENIX_WORKING_DIR"
 """
 The directory in which to save, load, and export datasets. This directory must
@@ -1275,6 +1280,14 @@ def get_env_phoenix_agents_collector_api_key() -> Optional[str]:
 
 def get_env_phoenix_agents_assistant_project_name() -> str:
     return getenv(ENV_PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME, "assistant_agent")
+
+
+def get_env_phoenix_agents_disable_web_access() -> bool:
+    return _bool_val(ENV_PHOENIX_AGENTS_DISABLE_WEB_ACCESS, False)
+
+
+def get_env_phoenix_agents_web_access_enabled() -> bool:
+    return get_env_allow_external_resources() and not get_env_phoenix_agents_disable_web_access()
 
 
 class AuthSettings(NamedTuple):

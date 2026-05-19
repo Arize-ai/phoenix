@@ -87,6 +87,11 @@ type AgentsConfig {
   The project name used for assistant agent traces. Resolved from the PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME environment variable.
   """
   assistantProjectName: String!
+
+  """
+  Whether PXI can expose native web search and web fetch capabilities. False when external resources are disabled or PHOENIX_AGENTS_DISABLE_WEB_ACCESS is true.
+  """
+  webAccessEnabled: Boolean!
 }
 
 interface Annotation {

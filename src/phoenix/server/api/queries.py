@@ -20,6 +20,7 @@ from phoenix.config import (
     get_env_database_allocated_storage_capacity_gibibytes,
     get_env_phoenix_agents_assistant_project_name,
     get_env_phoenix_agents_collector_endpoint,
+    get_env_phoenix_agents_web_access_enabled,
     getenv,
 )
 from phoenix.db import models
@@ -1470,6 +1471,7 @@ class Query:
         return AgentsConfig(
             collector_endpoint=get_env_phoenix_agents_collector_endpoint(),
             assistant_project_name=get_env_phoenix_agents_assistant_project_name(),
+            web_access_enabled=get_env_phoenix_agents_web_access_enabled(),
         )
 
     @strawberry.field

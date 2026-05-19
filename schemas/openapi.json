@@ -7385,6 +7385,9 @@
                 "custom": "#/components/schemas/CustomProviderModelSelection"
               }
             }
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/_AgentRequestCapabilities"
           }
         },
         "additionalProperties": true,
@@ -7470,6 +7473,9 @@
                 "custom": "#/components/schemas/CustomProviderModelSelection"
               }
             }
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/_AgentRequestCapabilities"
           }
         },
         "additionalProperties": true,
@@ -15377,6 +15383,18 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "_AgentRequestCapabilities": {
+        "properties": {
+          "webAccess": {
+            "type": "boolean",
+            "title": "Webaccess",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "_AgentRequestCapabilities",
+        "description": "Per-request PXI capabilities requested by the browser."
       },
       "_SummarizeRequest": {
         "properties": {

@@ -24,6 +24,8 @@ type BuildAgentChatRequestBodyOptions = {
   observability: AgentObservabilitySettings;
   /** Whether a remote collector is configured for this Phoenix instance. */
   hasRemoteCollector: boolean;
+  /** Whether this Phoenix instance allows PXI web search/fetch. */
+  isWebAccessEnabled: boolean;
   /** Typed page and mounted UI contexts for the current turn. */
   contexts: AgentContext[];
   /** Provider + model selection for this turn. */
@@ -75,6 +77,7 @@ export function buildAgentChatRequestBody({
   capabilities,
   observability,
   hasRemoteCollector,
+  isWebAccessEnabled,
   contexts,
   modelSelection,
 }: BuildAgentChatRequestBodyOptions): BuildAgentChatRequestBodyResult {
@@ -91,6 +94,9 @@ export function buildAgentChatRequestBody({
     messageId,
     ingestTraces: observability.storeLocalTraces,
     exportRemoteTraces: observability.exportRemoteTraces && hasRemoteCollector,
+    capabilities: {
+      webAccess: capabilities["web.access"] && isWebAccessEnabled,
+    },
     contexts: requestContexts,
     model: modelSelection,
   };

@@ -900,6 +900,10 @@ class ValidationError(TypedDict):
     ctx: NotRequired[Mapping[str, Any]]
 
 
+class FieldAgentRequestCapabilities(TypedDict):
+    webAccess: NotRequired[bool]
+
+
 class FieldSummarizeResponse(TypedDict):
     summary: str
 
@@ -1455,6 +1459,7 @@ class ChatRegenerateMessage(TypedDict):
             ]
         ]
     ]
+    capabilities: NotRequired[FieldAgentRequestCapabilities]
 
 
 class ChatSubmitMessage(TypedDict):
@@ -1476,6 +1481,7 @@ class ChatSubmitMessage(TypedDict):
             ]
         ]
     ]
+    capabilities: NotRequired[FieldAgentRequestCapabilities]
 
 
 class CreateSpansRequestBody(TypedDict):
