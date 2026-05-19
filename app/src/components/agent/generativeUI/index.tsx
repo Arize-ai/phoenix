@@ -13,21 +13,21 @@ import {
   JSON_RENDER_DATA_PART_TYPE,
   LEGACY_JSON_RENDER_DATA_PART_TYPE,
 } from "../generativeUICatalog";
-import { GeneratedUIPlaceholder } from "./GeneratedUIPlaceholder";
-import { generativeUIRegistry, UnknownGeneratedElement } from "./registry";
+import { GenerativeUIPlaceholder } from "./GenerativeUIPlaceholder";
+import { generativeUIRegistry, UnknownGenerativeElement } from "./registry";
 import { getSpecAndState, isGenerativeUIPart } from "./specParts";
 
 export { JSON_RENDER_DATA_PART_TYPE, LEGACY_JSON_RENDER_DATA_PART_TYPE };
 export { isGenerativeUIPart };
 
-const generatedUICSS = css`
+const generativeUICSS = css`
   margin-top: var(--global-dimension-size-200);
   margin-bottom: var(--global-dimension-size-200);
 `;
 
 export function GenerativeUI({ parts }: { parts: DataPart[] }) {
   return (
-    <ErrorBoundary fallback={GeneratedUIErrorFallback}>
+    <ErrorBoundary fallback={GenerativeUIErrorFallback}>
       <GenerativeUIRenderer parts={parts} />
     </ErrorBoundary>
   );
@@ -37,7 +37,7 @@ function GenerativeUIRenderer({ parts }: { parts: DataPart[] }) {
   const { spec, state } = getSpecAndState(parts);
 
   return (
-    <div css={generatedUICSS}>
+    <div css={generativeUICSS}>
       {spec ? (
         <StateProvider initialState={state}>
           <VisibilityProvider>
@@ -45,22 +45,22 @@ function GenerativeUIRenderer({ parts }: { parts: DataPart[] }) {
               <Renderer
                 spec={spec}
                 registry={generativeUIRegistry}
-                fallback={UnknownGeneratedElement}
+                fallback={UnknownGenerativeElement}
               />
             </ActionProvider>
           </VisibilityProvider>
         </StateProvider>
       ) : (
-        <GeneratedUIPlaceholder message="Generated UI was requested, but no renderable spec was found in the message parts." />
+        <GenerativeUIPlaceholder message="Generative UI was requested, but no renderable spec was found in the message parts." />
       )}
     </div>
   );
 }
 
-function GeneratedUIErrorFallback() {
+function GenerativeUIErrorFallback() {
   return (
-    <div css={generatedUICSS}>
-      <GeneratedUIPlaceholder message="Generated UI could not be rendered." />
+    <div css={generativeUICSS}>
+      <GenerativeUIPlaceholder message="Generative UI could not be rendered." />
     </div>
   );
 }

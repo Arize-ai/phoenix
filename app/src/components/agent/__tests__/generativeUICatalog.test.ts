@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { renderGeneratedUISpecSchema } from "@phoenix/components/agent/generativeUICatalog";
+import { renderGenerativeUISpecSchema } from "@phoenix/components/agent/generativeUICatalog";
 
 function buildSpec(element: Record<string, unknown>) {
   return {
@@ -14,10 +14,10 @@ function buildSpec(element: Record<string, unknown>) {
   };
 }
 
-describe("renderGeneratedUISpecSchema", () => {
+describe("renderGenerativeUISpecSchema", () => {
   it("accepts chart specs at the configured bounds", () => {
     expect(
-      renderGeneratedUISpecSchema.safeParse(
+      renderGenerativeUISpecSchema.safeParse(
         buildSpec({
           type: "BarChart",
           props: {
@@ -32,7 +32,7 @@ describe("renderGeneratedUISpecSchema", () => {
     ).toBe(true);
 
     expect(
-      renderGeneratedUISpecSchema.safeParse(
+      renderGenerativeUISpecSchema.safeParse(
         buildSpec({
           type: "VerticalBarChart",
           props: {
@@ -50,7 +50,7 @@ describe("renderGeneratedUISpecSchema", () => {
     ).toBe(true);
 
     expect(
-      renderGeneratedUISpecSchema.safeParse(
+      renderGenerativeUISpecSchema.safeParse(
         buildSpec({
           type: "StackedBarChart",
           props: {
@@ -68,7 +68,7 @@ describe("renderGeneratedUISpecSchema", () => {
     ).toBe(true);
 
     expect(
-      renderGeneratedUISpecSchema.safeParse(
+      renderGenerativeUISpecSchema.safeParse(
         buildSpec({
           type: "LineChart",
           props: {
@@ -85,7 +85,7 @@ describe("renderGeneratedUISpecSchema", () => {
 
   it("rejects bar charts outside the supported item count", () => {
     expect(
-      renderGeneratedUISpecSchema.safeParse(
+      renderGenerativeUISpecSchema.safeParse(
         buildSpec({
           type: "BarChart",
           props: {
@@ -97,7 +97,7 @@ describe("renderGeneratedUISpecSchema", () => {
     ).toBe(false);
 
     expect(
-      renderGeneratedUISpecSchema.safeParse(
+      renderGenerativeUISpecSchema.safeParse(
         buildSpec({
           type: "BarChart",
           props: {
@@ -114,7 +114,7 @@ describe("renderGeneratedUISpecSchema", () => {
 
   it("rejects vertical bar charts outside the supported item count", () => {
     expect(
-      renderGeneratedUISpecSchema.safeParse(
+      renderGenerativeUISpecSchema.safeParse(
         buildSpec({
           type: "VerticalBarChart",
           props: {
@@ -126,7 +126,7 @@ describe("renderGeneratedUISpecSchema", () => {
     ).toBe(false);
 
     expect(
-      renderGeneratedUISpecSchema.safeParse(
+      renderGenerativeUISpecSchema.safeParse(
         buildSpec({
           type: "VerticalBarChart",
           props: {
@@ -143,7 +143,7 @@ describe("renderGeneratedUISpecSchema", () => {
 
   it("rejects horizontal stacked bar charts outside the supported row and segment counts", () => {
     expect(
-      renderGeneratedUISpecSchema.safeParse(
+      renderGenerativeUISpecSchema.safeParse(
         buildSpec({
           type: "StackedBarChart",
           props: {
@@ -163,7 +163,7 @@ describe("renderGeneratedUISpecSchema", () => {
     ).toBe(false);
 
     expect(
-      renderGeneratedUISpecSchema.safeParse(
+      renderGenerativeUISpecSchema.safeParse(
         buildSpec({
           type: "StackedBarChart",
           props: {
@@ -181,7 +181,7 @@ describe("renderGeneratedUISpecSchema", () => {
     ).toBe(false);
 
     expect(
-      renderGeneratedUISpecSchema.safeParse(
+      renderGenerativeUISpecSchema.safeParse(
         buildSpec({
           type: "StackedBarChart",
           props: {
@@ -205,7 +205,7 @@ describe("renderGeneratedUISpecSchema", () => {
     ).toBe(false);
 
     expect(
-      renderGeneratedUISpecSchema.safeParse(
+      renderGenerativeUISpecSchema.safeParse(
         buildSpec({
           type: "StackedBarChart",
           props: {
@@ -234,7 +234,7 @@ describe("renderGeneratedUISpecSchema", () => {
 
   it("rejects line charts outside the supported series count", () => {
     expect(
-      renderGeneratedUISpecSchema.safeParse(
+      renderGenerativeUISpecSchema.safeParse(
         buildSpec({
           type: "LineChart",
           props: {
@@ -246,7 +246,7 @@ describe("renderGeneratedUISpecSchema", () => {
     ).toBe(false);
 
     expect(
-      renderGeneratedUISpecSchema.safeParse(
+      renderGenerativeUISpecSchema.safeParse(
         buildSpec({
           type: "LineChart",
           props: {
@@ -263,7 +263,7 @@ describe("renderGeneratedUISpecSchema", () => {
 
   it("rejects the removed vertical stacked bar chart type", () => {
     expect(
-      renderGeneratedUISpecSchema.safeParse(
+      renderGenerativeUISpecSchema.safeParse(
         buildSpec({
           type: "VerticalStackedBarChart",
           props: {

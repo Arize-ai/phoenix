@@ -6,7 +6,7 @@ import { Message, MessageContent } from "@phoenix/components/ai/message";
 import { MarkdownBlock } from "@phoenix/components/markdown";
 
 import { AssistantMessageActions } from "./AssistantMessageActions";
-import { GenerativeUI } from "./GenerativeUI";
+import { GenerativeUI } from "./generativeUI";
 import { groupMessageParts } from "./groupMessageParts";
 import { ToolPart } from "./ToolPart";
 import { ToolPartGroup } from "./ToolPartGroup";

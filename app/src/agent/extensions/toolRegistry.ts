@@ -24,7 +24,7 @@ import {
 } from "@phoenix/agent/tools/playgroundPrompt";
 import {
   GENERATIVE_UI_TOOL_NAME,
-  renderGeneratedUISpecSchema,
+  renderGenerativeUISpecSchema,
 } from "@phoenix/components/agent/generativeUICatalog";
 import type { TimeRangeKey } from "@phoenix/components/datetime/types";
 import type { AgentStore } from "@phoenix/store/agentStore";
@@ -161,8 +161,19 @@ export type SetTimeRangeInput = {
   endTime?: string;
 };
 
-export type RenderGeneratedUIInput = {
+export type RenderGenerativeUIInput = {
+  /**
+   * Complete json-render flat spec describing the UI tree to render.
+   * The root must identify one element in `elements`; each element declares its
+   * component `type`, concrete `props`, and an empty `children` array for the
+   * current chart-only catalog.
+   */
   spec: Record<string, unknown>;
+  /**
+   * Optional initial json-render state model for specs that reference `$state`.
+   * Most chart calls should put literal data directly in `spec.elements[id].props`
+   * and omit this value, which the parser normalizes to an empty object.
+   */
   state: Record<string, unknown>;
 };
 
@@ -301,12 +312,13 @@ const setTimeRangeAgentTool = createRegisteredAgentTool<SetTimeRangeInput>({
   },
 });
 
-function parseRenderGeneratedUIInput(
+/** Parse and validate the render_generative_ui tool input. */
+function parseRenderGenerativeUIInput(
   input: unknown
-): RenderGeneratedUIInput | null {
+): RenderGenerativeUIInput | null {
   if (typeof input !== "object" || input === null) return null;
   const candidate = input as { spec?: unknown; state?: unknown };
-  const specResult = renderGeneratedUISpecSchema.safeParse(candidate.spec);
+  const specResult = renderGenerativeUISpecSchema.safeParse(candidate.spec);
   if (!specResult.success) {
     return null;
   }
@@ -320,19 +332,19 @@ function parseRenderGeneratedUIInput(
 }
 
 /**
- * Maps generated UI schema failures to a user-facing tool error message.
+ * Maps generative UI schema failures to a user-facing tool error message.
  * Keeps chart cardinality failures specific while collapsing other schema
  * errors into a generic render failure.
  */
-function getRenderGeneratedUIInvalidInputErrorText(input: unknown): string {
-  const defaultErrorText = "I couldn't render that generated UI.";
+function getRenderGenerativeUIInvalidInputErrorText(input: unknown): string {
+  const defaultErrorText = "I couldn't render that generative UI.";
 
   if (typeof input !== "object" || input === null) {
     return defaultErrorText;
   }
 
   const candidate = input as { spec?: unknown };
-  const specResult = renderGeneratedUISpecSchema.safeParse(candidate.spec);
+  const specResult = renderGenerativeUISpecSchema.safeParse(candidate.spec);
   if (specResult.success) {
     return defaultErrorText;
   }
@@ -349,17 +361,17 @@ function getRenderGeneratedUIInvalidInputErrorText(input: unknown): string {
     : defaultErrorText;
 }
 
-const renderGeneratedUIAgentTool =
-  createRegisteredAgentTool<RenderGeneratedUIInput>({
+const renderGenerativeUIAgentTool =
+  createRegisteredAgentTool<RenderGenerativeUIInput>({
     name: GENERATIVE_UI_TOOL_NAME,
-    parseInput: parseRenderGeneratedUIInput,
-    invalidInputErrorText: getRenderGeneratedUIInvalidInputErrorText,
+    parseInput: parseRenderGenerativeUIInput,
+    invalidInputErrorText: getRenderGenerativeUIInvalidInputErrorText,
     execute: async ({ toolCall, addToolOutput }) => {
       await addToolOutput({
         state: "output-available",
         tool: GENERATIVE_UI_TOOL_NAME,
         toolCallId: toolCall.toolCallId,
-        output: "Generated UI rendered in chat.",
+        output: "Generative UI rendered in chat.",
       });
     },
   });
@@ -497,7 +509,7 @@ const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   bashAgentTool as RegisteredAgentTool<unknown>,
   askUserAgentTool as RegisteredAgentTool<unknown>,
   setTimeRangeAgentTool as RegisteredAgentTool<unknown>,
-  renderGeneratedUIAgentTool as RegisteredAgentTool<unknown>,
+  renderGenerativeUIAgentTool as RegisteredAgentTool<unknown>,
   setSpansFilterAgentTool as RegisteredAgentTool<unknown>,
   readPromptAgentTool as RegisteredAgentTool<unknown>,
   clonePromptInstanceAgentTool as RegisteredAgentTool<unknown>,

@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   GenerativeUI,
   LEGACY_JSON_RENDER_DATA_PART_TYPE,
-} from "@phoenix/components/agent/GenerativeUI";
+} from "@phoenix/components/agent/generativeUI";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
 let container: HTMLDivElement;
@@ -38,7 +38,7 @@ afterEach(() => {
   container.remove();
 });
 
-function renderGeneratedUI(parts: unknown[]) {
+function renderGenerativeUI(parts: unknown[]) {
   act(() => {
     root.render(
       <ThemeProvider themeMode="light" disableBodyTheme>
@@ -51,8 +51,8 @@ function renderGeneratedUI(parts: unknown[]) {
 }
 
 describe("GenerativeUI", () => {
-  it("renders valid generated UI specs", () => {
-    renderGeneratedUI([
+  it("renders valid generative UI specs", () => {
+    renderGenerativeUI([
       {
         type: LEGACY_JSON_RENDER_DATA_PART_TYPE,
         data: {
@@ -77,8 +77,8 @@ describe("GenerativeUI", () => {
     expect(container.textContent).toContain("Trace Summary");
   });
 
-  it("does not attempt to render invalid generated UI specs", () => {
-    renderGeneratedUI([
+  it("does not attempt to render invalid generative UI specs", () => {
+    renderGenerativeUI([
       {
         type: LEGACY_JSON_RENDER_DATA_PART_TYPE,
         data: {
@@ -95,14 +95,14 @@ describe("GenerativeUI", () => {
     ]);
 
     expect(container.textContent).toContain(
-      "Generated UI was requested, but no renderable spec was found in the message parts."
+      "Generative UI was requested, but no renderable spec was found in the message parts."
     );
   });
 
-  it("renders failed generated UI tool calls as tool parts, not generated UI", () => {
-    renderGeneratedUI([
+  it("renders failed generative UI tool calls as tool parts, not generative UI", () => {
+    renderGenerativeUI([
       {
-        type: "tool-render_generated_ui",
+        type: "tool-render_generative_ui",
         state: "output-error",
         input: {
           spec: {
@@ -120,12 +120,12 @@ describe("GenerativeUI", () => {
     ]);
 
     expect(container.textContent).toContain(
-      "Generated UI was requested, but no renderable spec was found in the message parts."
+      "Generative UI was requested, but no renderable spec was found in the message parts."
     );
   });
 
   it("keeps legend swatch colors aligned with labeled line series indices", () => {
-    renderGeneratedUI([
+    renderGenerativeUI([
       {
         type: LEGACY_JSON_RENDER_DATA_PART_TYPE,
         data: {
@@ -159,7 +159,7 @@ describe("GenerativeUI", () => {
   });
 
   it("renders stacked bar chart specs", () => {
-    renderGeneratedUI([
+    renderGenerativeUI([
       {
         type: LEGACY_JSON_RENDER_DATA_PART_TYPE,
         data: {
@@ -198,9 +198,9 @@ describe("GenerativeUI", () => {
   });
 
   it("renders completed stacked bar chart tool parts", () => {
-    renderGeneratedUI([
+    renderGenerativeUI([
       {
-        type: "tool-render_generated_ui",
+        type: "tool-render_generative_ui",
         state: "output-available",
         input: {
           spec: {
@@ -250,8 +250,8 @@ describe("GenerativeUI", () => {
     expect(container.textContent).toContain("Team C");
   });
 
-  it("does not attempt to render generated UI specs with cyclic children", () => {
-    renderGeneratedUI([
+  it("does not attempt to render generative UI specs with cyclic children", () => {
+    renderGenerativeUI([
       {
         type: LEGACY_JSON_RENDER_DATA_PART_TYPE,
         data: {
@@ -286,14 +286,14 @@ describe("GenerativeUI", () => {
     ]);
 
     expect(container.textContent).toContain(
-      "Generated UI was requested, but no renderable spec was found in the message parts."
+      "Generative UI was requested, but no renderable spec was found in the message parts."
     );
   });
 
   it("does not attempt to render malformed stacked bar chart tool parts", () => {
-    renderGeneratedUI([
+    renderGenerativeUI([
       {
-        type: "tool-render_generated_ui",
+        type: "tool-render_generative_ui",
         state: "output-available",
         input: {
           spec: {
@@ -322,7 +322,7 @@ describe("GenerativeUI", () => {
     ]);
 
     expect(container.textContent).toContain(
-      "Generated UI was requested, but no renderable spec was found in the message parts."
+      "Generative UI was requested, but no renderable spec was found in the message parts."
     );
   });
 });

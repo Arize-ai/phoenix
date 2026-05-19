@@ -1,14 +1,14 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { BarChart } from "@phoenix/components/agent/GenerativeUI/BarChart";
-import { ChartFrame } from "@phoenix/components/agent/GenerativeUI/ChartFrame";
-import { GeneratedUIPlaceholder } from "@phoenix/components/agent/GenerativeUI/GeneratedUIPlaceholder";
-import { LineChart } from "@phoenix/components/agent/GenerativeUI/LineChart";
-import { StackedBarChart } from "@phoenix/components/agent/GenerativeUI/StackedBarChart";
-import { VerticalBarChart } from "@phoenix/components/agent/GenerativeUI/VerticalBarChart";
+import { BarChart } from "@phoenix/components/agent/generativeUI/BarChart";
+import { ChartFrame } from "@phoenix/components/agent/generativeUI/ChartFrame";
+import { GenerativeUIPlaceholder } from "@phoenix/components/agent/generativeUI/GenerativeUIPlaceholder";
+import { LineChart } from "@phoenix/components/agent/generativeUI/LineChart";
+import { StackedBarChart } from "@phoenix/components/agent/generativeUI/StackedBarChart";
+import { VerticalBarChart } from "@phoenix/components/agent/generativeUI/VerticalBarChart";
 
 const meta: Meta = {
-  title: "Agent/GenerativeUI",
+  title: "Agent/generativeUI",
   parameters: {
     layout: "padded",
   },
@@ -237,24 +237,24 @@ export const ChartFrameWithoutTitle: StoryObj<typeof ChartFrame> = {
   ),
 };
 
-// GeneratedUIPlaceholder Stories
+// GenerativeUIPlaceholder Stories
 
-export const PlaceholderDefault: StoryObj<typeof GeneratedUIPlaceholder> = {
+export const PlaceholderDefault: StoryObj<typeof GenerativeUIPlaceholder> = {
   render: () => (
-    <GeneratedUIPlaceholder message="Generated UI was requested, but no renderable spec was found." />
+    <GenerativeUIPlaceholder message="Generative UI was requested, but no renderable spec was found." />
   ),
 };
 
 export const PlaceholderUnsupportedElement: StoryObj<
-  typeof GeneratedUIPlaceholder
+  typeof GenerativeUIPlaceholder
 > = {
   render: () => (
-    <GeneratedUIPlaceholder message="Unsupported generated UI element: PieChart" />
+    <GenerativeUIPlaceholder message="Unsupported generative UI element: PieChart" />
   ),
 };
 
-export const PlaceholderError: StoryObj<typeof GeneratedUIPlaceholder> = {
+export const PlaceholderError: StoryObj<typeof GenerativeUIPlaceholder> = {
   render: () => (
-    <GeneratedUIPlaceholder message="Generated UI could not be rendered due to invalid data." />
+    <GenerativeUIPlaceholder message="Generative UI could not be rendered due to invalid data." />
   ),
 };

@@ -9,7 +9,7 @@ const placeholderCSS = css`
   background: var(--global-color-gray-50);
 `;
 
-export function GeneratedUIPlaceholder({ message }: { message: string }) {
+export function GenerativeUIPlaceholder({ message }: { message: string }) {
   return (
     <div css={placeholderCSS}>
       <Text color="text-700">{message}</Text>

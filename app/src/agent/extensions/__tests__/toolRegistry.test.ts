@@ -183,7 +183,7 @@ describe("toolRegistry", () => {
     );
   });
 
-  it("resolves generated UI tool calls without mutating message parts", async () => {
+  it("resolves generative UI tool calls without mutating message parts", async () => {
     const store = createAgentStore();
     const addToolOutput = vi.fn().mockResolvedValue(undefined);
     const appendMessagePart = vi.fn();
@@ -225,7 +225,7 @@ describe("toolRegistry", () => {
     );
   });
 
-  it("fails generated UI tool calls with invalid render specs", async () => {
+  it("fails generative UI tool calls with invalid render specs", async () => {
     const store = createAgentStore();
     const addToolOutput = vi.fn().mockResolvedValue(undefined);
     const appendMessagePart = vi.fn();
@@ -264,7 +264,7 @@ describe("toolRegistry", () => {
     );
   });
 
-  it("adds chart guidance for generated UI count violations", async () => {
+  it("adds chart guidance for generative UI count violations", async () => {
     const store = createAgentStore();
     const addToolOutput = vi.fn().mockResolvedValue(undefined);
     const appendMessagePart = vi.fn();
@@ -359,7 +359,7 @@ describe("toolRegistry", () => {
     );
   });
 
-  it("accepts generated UI specs that omit optional props", async () => {
+  it("accepts generative UI specs that omit optional props", async () => {
     const store = createAgentStore();
     const addToolOutput = vi.fn().mockResolvedValue(undefined);
     const appendMessagePart = vi.fn();

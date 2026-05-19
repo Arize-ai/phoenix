@@ -4,7 +4,7 @@ import { z } from "zod";
 
 export const JSON_RENDER_DATA_PART_TYPE = SPEC_DATA_PART_TYPE;
 export const LEGACY_JSON_RENDER_DATA_PART_TYPE = "data-json-render";
-export const GENERATIVE_UI_TOOL_NAME = "render_generated_ui";
+export const GENERATIVE_UI_TOOL_NAME = "render_generative_ui";
 
 // Bar charts disallow single visualizations
 // At most 12 rows, at most 4 segments
@@ -80,7 +80,7 @@ const lineChartPropsSchema = z.object({
   xLabels: z.array(z.string()).nullish(),
 });
 
-const generatedUIElementSchema = z.discriminatedUnion("type", [
+const generativeUIElementSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("BarChart"),
     props: barChartPropsSchema,
@@ -103,13 +103,13 @@ const generatedUIElementSchema = z.discriminatedUnion("type", [
   }),
 ]);
 
-export const renderGeneratedUISpecSchema = z
+export const renderGenerativeUISpecSchema = z
   .object({
     root: z.string(),
-    elements: z.record(z.string(), generatedUIElementSchema),
+    elements: z.record(z.string(), generativeUIElementSchema),
   })
   .refine((spec) => spec.root in spec.elements, {
-    message: "Generated UI root must reference an element.",
+    message: "Generative UI root must reference an element.",
     path: ["root"],
   })
   .refine(
@@ -118,7 +118,7 @@ export const renderGeneratedUISpecSchema = z
         (element.children ?? []).every((childId) => childId in spec.elements)
       ),
     {
-      message: "Generated UI children must reference existing elements.",
+      message: "Generative UI children must reference existing elements.",
       path: ["elements"],
     }
   );
@@ -149,7 +149,7 @@ export const generativeUICatalog = defineCatalog(schema, {
 });
 
 export const GENERATIVE_UI_CATALOG_RULES = [
-  "Use one chart component as the root of each generated UI call.",
+  "Use one chart component as the root of each generative UI call.",
   "Keep BarChart data arrays between 2 and 12 items.",
   "Keep VerticalBarChart data arrays between 2 and 12 items. Each bar supports one base value and one optional highlight value, not arbitrary stacked subdivisions.",
   "Keep StackedBarChart data arrays between 2 and 12 items, with 2 to 4 segments in each bar.",
@@ -157,7 +157,7 @@ export const GENERATIVE_UI_CATALOG_RULES = [
   "Keep LineChart series arrays between 1 and 4 items.",
   "Prefer BarChart, VerticalBarChart, StackedBarChart, and LineChart for quantitative answers.",
   "If you erroneously encounter a limit, don't announce the specific limit numbers, just correct the counts and re-render.",
-  `Use the ${GENERATIVE_UI_TOOL_NAME} tool when a generated UI would answer the user better than prose alone.`,
+  `Use the ${GENERATIVE_UI_TOOL_NAME} tool when a generative UI would answer the user better than prose alone.`,
 ];
 
 export const generativeUICatalogPrompt = generativeUICatalog.prompt({

@@ -9,11 +9,11 @@ import {
 } from "../src/components/agent/generativeUICatalog";
 
 /**
- * Generates the server-owned generated UI artifacts in
+ * Generates the server-owned generative UI artifacts in
  * `src/phoenix/server/generative_ui` from the frontend generative UI catalog.
  *
  * The Python agent tool loads these files at runtime to define the
- * `render_generated_ui` tool's description, JSON schema, and manifest. Run this
+ * `render_generative_ui` tool's description, JSON schema, and manifest. Run this
  * script via `make schema-generative-ui`. CI also runs that target to ensure
  * the checked-in artifacts stay in sync whenever the generative UI catalog or
  * its prompt contract changes.
@@ -42,7 +42,7 @@ const toolRules = GENERATIVE_UI_CATALOG_RULES.map((rule) => `- ${rule}`).join(
   "\n"
 );
 const toolDescription = [
-  "Render a generated UI in the Phoenix chat using the available components below.",
+  "Render a generative UI in the Phoenix chat using the available components below.",
   "Use this tool when a compact visual UI such as metrics, charts, or an analytical card would answer the user better than prose alone.",
   "The `spec` argument must be one complete UI tree in this shape: `{ root: string, elements: Record<string, { type: string, props: object, children: [] }> }`.",
   "`root` is the id of the chart element to render. Each chart component is a leaf node, so `children` must be an empty array.",

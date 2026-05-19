@@ -1,6 +1,6 @@
 import { isTextUIPart, isToolUIPart, type UIMessage } from "ai";
 
-import { isGenerativeUIPart } from "./GenerativeUI";
+import { isGenerativeUIPart } from "./generativeUI";
 import type { ToolPartType } from "./ToolPart";
 
 export type GroupedPart =

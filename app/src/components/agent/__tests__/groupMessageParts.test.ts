@@ -5,7 +5,7 @@ import { JSON_RENDER_DATA_PART_TYPE } from "@phoenix/components/agent/generative
 
 import { groupMessageParts } from "../groupMessageParts";
 
-function createGeneratedUIPart({
+function createGenerativeUIPart({
   title,
 }: {
   title: string;
@@ -36,9 +36,9 @@ function createGeneratedUIPart({
 }
 
 describe("groupMessageParts", () => {
-  it("creates a render slot for each generated UI part", () => {
-    const firstPart = createGeneratedUIPart({ title: "First chart" });
-    const secondPart = createGeneratedUIPart({ title: "Second chart" });
+  it("creates a render slot for each generative UI part", () => {
+    const firstPart = createGenerativeUIPart({ title: "First chart" });
+    const secondPart = createGenerativeUIPart({ title: "Second chart" });
 
     const grouped = groupMessageParts([firstPart, secondPart]);
 
@@ -48,9 +48,9 @@ describe("groupMessageParts", () => {
     ]);
   });
 
-  it("keeps streaming generated UI tool calls as tool parts", () => {
+  it("keeps streaming generative UI tool calls as tool parts", () => {
     const streamingToolPart = {
-      type: "tool-render_generated_ui",
+      type: "tool-render_generative_ui",
       toolCallId: "tool-call-1",
       state: "input-streaming",
       input: {
@@ -74,13 +74,13 @@ describe("groupMessageParts", () => {
     ]);
   });
 
-  it("does not treat invalid completed generated UI tool calls as render slots", () => {
-    const firstPart = createGeneratedUIPart({ title: "First chart" });
+  it("does not treat invalid completed generative UI tool calls as render slots", () => {
+    const firstPart = createGenerativeUIPart({ title: "First chart" });
     const invalidStackedToolPart = {
-      type: "tool-render_generated_ui",
+      type: "tool-render_generative_ui",
       toolCallId: "tool-call-invalid-stacked",
       state: "output-available",
-      output: "Generated UI rendered in chat.",
+      output: "Generative UI rendered in chat.",
       input: {
         spec: {
           root: "stacked",
@@ -105,7 +105,7 @@ describe("groupMessageParts", () => {
         },
       },
     } as UIMessage["parts"][number];
-    const secondPart = createGeneratedUIPart({ title: "Second chart" });
+    const secondPart = createGenerativeUIPart({ title: "Second chart" });
 
     const grouped = groupMessageParts([
       firstPart,

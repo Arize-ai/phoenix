@@ -2,7 +2,7 @@ import { defineRegistry, type ComponentRenderer } from "@json-render/react";
 
 import { generativeUICatalog } from "../generativeUICatalog";
 import { BarChart } from "./BarChart";
-import { GeneratedUIPlaceholder } from "./GeneratedUIPlaceholder";
+import { GenerativeUIPlaceholder } from "./GenerativeUIPlaceholder";
 import { LineChart } from "./LineChart";
 import { StackedBarChart } from "./StackedBarChart";
 import { VerticalBarChart } from "./VerticalBarChart";
@@ -36,8 +36,8 @@ export const { registry: generativeUIRegistry } = defineRegistry(
   }
 );
 
-export const UnknownGeneratedElement: ComponentRenderer = ({ element }) => (
-  <GeneratedUIPlaceholder
-    message={`Unsupported generated UI element: ${element.type}`}
+export const UnknownGenerativeElement: ComponentRenderer = ({ element }) => (
+  <GenerativeUIPlaceholder
+    message={`Unsupported generative UI element: ${element.type}`}
   />
 );

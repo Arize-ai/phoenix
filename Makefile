@@ -49,7 +49,7 @@ help: ## Show this help message
 	@echo -e "  schema-graphql         - Generate GraphQL schema only"
 	@echo -e "  relay-build            - Build Relay from existing schema"
 	@echo -e "  schema-openapi         - Generate OpenAPI schema only"
-	@echo -e "  schema-generative-ui   - Generate PXI generated UI catalog schema artifacts"
+	@echo -e "  schema-generative-ui   - Generate PXI generative UI catalog schema artifacts"
 	@echo -e "  codegen-python-client  - Generate Python client types from OpenAPI"
 	@echo -e "  codegen-ts-client      - Generate TypeScript client types from OpenAPI"
 	@echo -e "  codegen-ts-app         - Generate TypeScript OpenAPI types for frontend (app/)"
@@ -204,8 +204,8 @@ codegen-ts-app: ## Generate TypeScript OpenAPI types for app/
 	@cd $(APP_DIR) && $(PNPM) run --silent generate:openapi
 	@echo -e "$(GREEN)✓ Done$(NC)"
 
-schema-generative-ui: ## Generate PXI generated UI catalog schema artifacts
-	@echo -e "$(CYAN)Generating PXI generated UI catalog schema artifacts...$(NC)"
+schema-generative-ui: ## Generate PXI generative UI catalog schema artifacts
+	@echo -e "$(CYAN)Generating PXI generative UI catalog schema artifacts...$(NC)"
 	@cd $(APP_DIR) && $(PNPM) run --silent generate:generative-ui-catalog
 	@echo -e "$(GREEN)✓ src/phoenix/server/generative_ui$(NC)"
 

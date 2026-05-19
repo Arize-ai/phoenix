@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "toolName": "render_generated_ui",
+  "toolName": "render_generative_ui",
   "components": [
     "BarChart",
     "VerticalBarChart",
