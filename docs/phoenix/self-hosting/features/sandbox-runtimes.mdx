@@ -1,6 +1,6 @@
 ---
-title: "Sandbox Runtimes"
-description: How Phoenix's code-execution sandbox providers are wired in self-hosted deployments
+title: "Sandbox Backends"
+description: How Phoenix's code-execution sandbox backends are wired in self-hosted deployments
 ---
 
 Phoenix supports multiple code-execution sandbox providers for evaluators and other LLM-driven workflows. This page describes which providers are ready to use in the official `arizephoenix/phoenix` container and what extra setup the others need.
@@ -21,7 +21,7 @@ Outside the official container — for example, when running `pip install arize-
 
 ## Container-bundled runtimes
 
-The official `arizephoenix/phoenix` image bundles both local sandbox runtimes so they work without any operator action.
+The official `arizephoenix/phoenix` image bundles both local sandbox backends so they work without any operator action.
 
 ### Deno
 
