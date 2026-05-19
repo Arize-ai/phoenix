@@ -12,6 +12,7 @@ Reach for a code evaluator when you want full control over how the evaluation is
 - Call third-party APIs or evaluation services, pull in your own libraries, or mix multiple LLMs inside a single judge.
 - Compose custom logic — parsers, validators, scoring formulas, structural diffs — alongside any model calls you need.
 - Craft the eval exactly the way you want it, without being constrained to a single built-in judge template.
+- Run a deterministic, code-only path next to your LLM judges — repeatable scores with no per-call model cost.
 
 <Info>
 This page covers code evaluators authored **in the Phoenix UI** and run by Phoenix's sandbox backends. If you'd rather write evaluators locally and report scores with the `arize-phoenix-evals` SDK, see the [client-side code evaluators](/docs/phoenix/evaluation/how-to-evals/code-evaluators) guide.
@@ -125,28 +126,28 @@ Backends fall into two groups based on where the code actually runs:
 
 ```mermaid
 flowchart LR
-    Phoenix[Phoenix Server]
-
-    subgraph local [Local — in-process]
-        WASM[WebAssembly<br/>Python]
-        Deno[Deno<br/>TypeScript]
+    subgraph phoenixHost ["Phoenix Machine"]
+        Server[Phoenix Server]
+        subgraph localBox ["Local Sandbox"]
+            WASM[WebAssembly<br/>Python]
+            Deno[Deno<br/>TypeScript]
+        end
+        Server --> localBox
     end
 
-    subgraph hosted [Hosted — third-party API]
-        E2B[E2B]
-        Daytona[Daytona]
-        Vercel[Vercel Sandbox]
-        Modal[Modal]
+    subgraph provider ["Hosted Provider — E2B / Daytona / Vercel / Modal"]
+        subgraph hostedBox ["Sandbox"]
+            Code[Evaluator code]
+        end
     end
 
-    Phoenix -->|subprocess / wasmtime| local
-    Phoenix -.->|HTTPS| hosted
+    Server -. HTTPS .-> hostedBox
 ```
 
 **Local** backends (WebAssembly, Deno) ship with Phoenix and need no credentials, so they're available immediately on self-hosted deployments. **Hosted** backends (E2B, Daytona, Vercel, Modal) run each invocation on a third-party provider's infrastructure, which buys stronger isolation, longer timeouts, package installation, and outbound network access. See [Sandbox Backends](/docs/phoenix/self-hosting/features/sandbox-runtimes) for the full capability matrix.
 
 <Tip>
-If your evaluator needs to install a package or call an external API, pick a hosted backend. The local runtimes are intentionally restricted.
+If your evaluator needs to install a package or call an external API, pick a hosted backend. The local backends are intentionally restricted.
 </Tip>
 
 The walkthrough below shows creating a Python code evaluator that runs on a Daytona sandbox — from picking the hosted backend through testing the evaluator against a dataset example.
@@ -168,8 +169,8 @@ The editor includes a **Test** panel that runs the current draft against a chose
 Copy-paste starting points for common evaluator patterns. Each page spells out the exact **sandbox configuration** — backend, dependencies, internet access, environment variables — to provision under **Settings → Sandboxes** before you save.
 
 <CardGroup cols={3}>
-  <Card title="JSON Match" icon="brackets-curly" href="/docs/phoenix/evaluation/server-evals/code-evaluators/json-match">
-    Pass when output and reference parse to the same JSON structure. Local sandbox.
+  <Card title="JSON Distance" icon="brackets-curly" href="/docs/phoenix/evaluation/server-evals/code-evaluators/json-distance">
+    Count differing fields between output and a golden-dataset reference. Local sandbox.
   </Card>
   <Card title="Regex Match" icon="asterisk" href="/docs/phoenix/evaluation/server-evals/code-evaluators/regex-match">
     Pass when output matches a regular expression. Local sandbox.

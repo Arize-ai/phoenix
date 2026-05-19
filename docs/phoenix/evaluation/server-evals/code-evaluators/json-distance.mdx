@@ -1,0 +1,142 @@
+---
+title: "JSON Distance"
+sidebarTitle: "JSON Distance"
+description: "Count the structural differences between an output JSON and a reference from a golden dataset."
+---
+
+Parses both sides as JSON and returns the number of differing fields, array elements, and scalar values. A score of `0` means the two structures are identical; higher scores mean more fields drifted from the reference.
+
+Reach for this when you have a **golden dataset** — examples paired with the exact JSON a correct model run should produce — and you want to know *how close* the output got, not just whether it was perfect. Typical cases:
+
+- **Structured extraction.** The model pulls fields out of a document (invoice line items, contact records, form data) and you have hand-labeled JSON for each example. A binary match collapses "one wrong field" and "everything wrong" into the same score; distance tells them apart, which is what you want when tracking regressions across prompt or model changes.
+- **Tool call arguments.** An agent emits a tool call whose `arguments` object should match a known-good payload. Per-field distance pinpoints whether the model is consistently dropping one argument vs. hallucinating a different shape entirely.
+- **Prompt-change A/B.** You're comparing two prompt versions against the same golden references. Mean distance moves smoothly as quality changes; mean exact-match doesn't, because most diffs are partial.
+
+If you only need a strict pass/fail on the entire document, the simpler version is one line: `output == reference`. Use distance when partial credit matters.
+
+<Tip>
+Phoenix also ships a [JSON Distance pre-built metric](/docs/phoenix/evaluation/server-evals/pre-built-metrics/json-distance) that runs without a sandbox. Use the code evaluator version below when you want to customize the scoring — e.g., weighting some fields more heavily, ignoring keys, or normalizing values before comparing.
+</Tip>
+
+## Code
+
+<Tabs>
+<Tab title="Python" icon="python">
+```python
+import json
+
+
+def evaluate(output, reference):
+    try:
+        actual = json.loads(output) if isinstance(output, str) else output
+        expected = (
+            json.loads(reference) if isinstance(reference, str) else reference
+        )
+    except (TypeError, ValueError) as exc:
+        return {
+            "label": "invalid",
+            "score": None,
+            "explanation": f"Failed to parse JSON: {exc}",
+        }
+
+    def distance(a, b):
+        if isinstance(a, dict) and isinstance(b, dict):
+            return sum(distance(a.get(k), b.get(k)) for k in set(a) | set(b))
+        if isinstance(a, list) and isinstance(b, list):
+            pairs = sum(distance(x, y) for x, y in zip(a, b))
+            return pairs + abs(len(a) - len(b))
+        return 0 if a == b else 1
+
+    score = distance(actual, expected)
+    return {
+        "label": "match" if score == 0 else "mismatch",
+        "score": float(score),
+        "explanation": (
+            "Output matches the reference exactly."
+            if score == 0
+            else f"{score} field(s) differ from the reference."
+        ),
+    }
+```
+</Tab>
+<Tab title="TypeScript" icon="js">
+```typescript
+function evaluate({ output, reference }: EvaluatorParams) {
+  const parse = (v: unknown) =>
+    typeof v === "string" ? JSON.parse(v) : v;
+
+  let actual: unknown;
+  let expected: unknown;
+  try {
+    actual = parse(output);
+    expected = parse(reference);
+  } catch (err) {
+    return {
+      label: "invalid",
+      score: null,
+      explanation: `Failed to parse JSON: ${(err as Error).message}`,
+    };
+  }
+
+  const isObject = (v: unknown): v is Record<string, unknown> =>
+    typeof v === "object" && v !== null && !Array.isArray(v);
+
+  function distance(a: unknown, b: unknown): number {
+    if (isObject(a) && isObject(b)) {
+      const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+      let total = 0;
+      for (const k of keys) total += distance(a[k], b[k]);
+      return total;
+    }
+    if (Array.isArray(a) && Array.isArray(b)) {
+      const paired = Math.min(a.length, b.length);
+      let total = Math.abs(a.length - b.length);
+      for (let i = 0; i < paired; i++) total += distance(a[i], b[i]);
+      return total;
+    }
+    return a === b ? 0 : 1;
+  }
+
+  const score = distance(actual, expected);
+  return {
+    label: score === 0 ? "match" : "mismatch",
+    score,
+    explanation:
+      score === 0
+        ? "Output matches the reference exactly."
+        : `${score} field(s) differ from the reference.`,
+  };
+}
+```
+</Tab>
+</Tabs>
+
+The walk descends into objects and arrays, counting one point per differing scalar leaf and one point per extra or missing element. Nested differences accumulate, so a wrong value three layers deep counts the same as one at the top.
+
+## Input mapping
+
+| Parameter | Bind to |
+|-----------|---------|
+| `output` | The model output — usually `output`, or a nested path like `output.tool_calls[0].arguments` if the JSON lives inside a larger blob. |
+| `reference` | The ground-truth JSON from your golden dataset — typically `reference`. |
+
+## Output configuration
+
+Continuous score:
+
+| Field | Value |
+|-------|-------|
+| Score range | `0` (identical) to unbounded |
+| Optimization direction | **minimize** |
+| Threshold | Optional — e.g., `0` to color any non-exact match as a regression. |
+
+The categorical `label` is informational; the `score` is the primary signal.
+
+## Runtime requirements
+
+| Setting | Value |
+|---------|-------|
+| Sandbox | Any — works in the in-process **WebAssembly** (Python) or **Deno** (TypeScript) backends. |
+| Dependencies | None — uses `json` / built-in `JSON`. |
+| Internet access | Not required. |
+| Environment variables | None. |
