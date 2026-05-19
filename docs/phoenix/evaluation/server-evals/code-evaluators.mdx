@@ -46,7 +46,7 @@ From authoring to results, you'll work through five steps:
 
 1. **Create the evaluator** — From a dataset's **Evaluators** tab, choose **Add evaluator → Create new code evaluator**. Pick a language (Python or TypeScript) and a sandbox configuration.
 2. **Write `evaluate(...)`** — The editor opens pre-populated with an `evaluate(...)` function. Its parameters become the evaluator's inputs.
-3. **Configure output** — Declare whether the evaluator returns a continuous score (e.g. `0.0`–`1.0`) or a categorical label (e.g. `pass` / `fail`).
+3. **Configure the annotation** — Pick an optimization direction (maximize vs. minimize) and, optionally, a threshold for pass/fail coloring.
 4. **Map inputs** — Bind each parameter to a path on the [evaluation parameters](/docs/phoenix/evaluation/server-evals/input-mapping#evaluation-parameters) (`input`, `output`, `reference`, `metadata`) or to a literal value.
 5. **Test, save, run** — Dry-run the evaluator against a dataset example in the test panel, save it, then run an experiment. Scores land on every new run automatically.
 
@@ -100,9 +100,9 @@ The function returns an object with three optional fields:
 | `score` | number | A numeric score. Required for continuous evaluators. Categorical evaluators can omit it — Phoenix fills it in from the configured label-to-score mapping. |
 | `explanation` | string | Free-form text shown alongside the score. Useful for debugging surprising results. |
 
-### Output configuration
+### Annotation configuration
 
-An evaluator's output config is descriptive — it tells Phoenix how to interpret whatever your function returns, not what shape it must produce.
+An evaluator's annotation config is descriptive — it tells Phoenix how to interpret whatever your function returns, not what shape it must produce.
 
 - **Optimization direction** — `maximize` or `minimize`, used to render trends correctly in experiment comparisons.
 - **Threshold** *(optional)* — A numeric cutoff that splits scores into pass/fail for threshold-pivoted coloring in result views. Leave it unset if pass/fail isn't meaningful for your metric.
@@ -132,7 +132,7 @@ The walkthrough below shows creating a Python code evaluator that runs on a Dayt
 
 Every time you save an evaluator's source, Phoenix creates a new **evaluator version** that executes for subsequent experiment runs. Older versions are retained so you can audit which code produced any historical score.
 
-The evaluator's **name**, **description**, **output configuration**, **input mapping**, and **sandbox binding** live on the evaluator itself rather than on a version — editing those updates the evaluator in place without creating a new version.
+The evaluator's **name**, **description**, **annotation configuration**, **input mapping**, and **sandbox binding** live on the evaluator itself rather than on a version — editing those updates the evaluator in place without creating a new version.
 
 ## Testing Before You Save
 
