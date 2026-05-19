@@ -18,7 +18,7 @@ export type AgentCapabilityDefinition = {
   description: string;
   defaultValue: boolean;
   scope: "global" | "session";
-  controlSurface?: "experimental-settings";
+  controlSurface?: "agent-settings" | "experimental-settings";
 };
 
 /** Boolean runtime snapshot keyed by capability name. */
@@ -67,7 +67,7 @@ export const AGENT_CAPABILITY_DEFINITIONS: AgentCapabilityDefinition[] = [
       "Lets PXI use provider-native web search and URL fetching when the selected model supports it.",
     defaultValue: false,
     scope: "global",
-    controlSurface: "experimental-settings",
+    controlSurface: "agent-settings",
   },
 ];
 

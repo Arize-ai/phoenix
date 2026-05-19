@@ -1,4 +1,5 @@
 import { css } from "@emotion/react";
+import type { ReactNode } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 import { Button, Flex, Label } from "@phoenix/components";
@@ -23,7 +24,7 @@ export type AgentSettingsFormValues = {
   model: ModelMenuValue;
 };
 
-export function AgentSettingsForm() {
+export function AgentSettingsForm({ children }: { children?: ReactNode }) {
   const store = useAgentStore();
   const defaultModelConfig = useAgentContext(
     (state) => state.defaultModelConfig
@@ -69,6 +70,7 @@ export function AgentSettingsForm() {
           )}
         />
       </div>
+      {children}
       <Flex direction="row" gap="size-100" justifyContent="end" width="100%">
         <Button type="submit" variant="primary" isDisabled={!formState.isDirty}>
           Save
