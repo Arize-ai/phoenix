@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from openinference.instrumentation import OITracer, TraceConfig
 from opentelemetry.trace import NoOpTracerProvider, Tracer, TracerProvider
 from pydantic_ai import Agent, DeferredToolRequests
@@ -15,6 +17,7 @@ from pydantic_ai.models.anthropic import AnthropicModel
 from phoenix.server.agents.capabilities import (
     AnthropicPromptCacheCapability,
     MintlifyDocsMCPCapability,
+    SkillsCapability,
     get_context_capability_function,
 )
 from phoenix.server.agents.capabilities.tools.external import (
@@ -55,6 +58,7 @@ def build_agent(
         DynamicCapability(
             capability_func=get_context_capability_function(instructions=resolved_instructions),
         ),
+        SkillsCapability(directories=[Path(__file__).resolve().parent / "prompts" / "skills"]),
     ]
     if isinstance(model, AnthropicModel):
         capabilities.append(AnthropicPromptCacheCapability())
