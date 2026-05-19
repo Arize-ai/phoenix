@@ -423,22 +423,30 @@ class NoDeployment(_BaseModel):
 
 
 class DaytonaDeployment(_BaseModel):
-    """Daytona on-prem routing. Empty → Daytona's hosted SaaS default."""
+    """Daytona on-prem routing.
+
+    When a field is left empty, the Daytona SDK reads the corresponding
+    process env var (``DAYTONA_API_URL`` / ``DAYTONA_SERVER_URL`` /
+    ``DAYTONA_TARGET``) and falls back to its hosted SaaS default
+    (``https://app.daytona.io/api``) if unset.
+    """
 
     backend_type: Literal["DAYTONA"] = "DAYTONA"
     api_url: Optional[str] = Field(
         default=None,
         title="Daytona API URL",
         description=(
-            "Daytona API endpoint URL for on-prem deployments. Leave empty to use "
-            "Daytona's hosted SaaS (https://app.daytona.io/api)."
+            "Daytona API endpoint URL for on-prem deployments. Leave empty to fall back "
+            "to the ``DAYTONA_API_URL`` process env var, or Daytona's hosted SaaS "
+            "(https://app.daytona.io/api) if unset."
         ),
     )
     target: Optional[str] = Field(
         default=None,
         title="Daytona Target",
         description=(
-            "Daytona runner target region. Leave empty to use the organization's default."
+            "Daytona runner target region. Leave empty to fall back to the "
+            "``DAYTONA_TARGET`` process env var, or the organization's default if unset."
         ),
     )
 
@@ -449,14 +457,20 @@ class DaytonaDeployment(_BaseModel):
 
 
 class E2BDeployment(_BaseModel):
-    """E2B enterprise routing. Empty → E2B's hosted SaaS default."""
+    """E2B enterprise routing.
+
+    When a field is left empty, the E2B SDK reads the corresponding
+    process env var (``E2B_DOMAIN`` / ``E2B_API_URL``) and falls back to
+    its hosted SaaS default (``e2b.app``) if unset.
+    """
 
     backend_type: Literal["E2B"] = "E2B"
     domain: Optional[str] = Field(
         default=None,
         title="E2B Domain",
         description=(
-            "E2B API domain for enterprise deployments. Leave empty to use E2B's hosted SaaS."
+            "E2B API domain for enterprise deployments. Leave empty to fall back to the "
+            "``E2B_DOMAIN`` process env var, or E2B's hosted SaaS (``e2b.app``) if unset."
         ),
     )
     api_url: Optional[str] = Field(
@@ -464,7 +478,8 @@ class E2BDeployment(_BaseModel):
         title="E2B API URL",
         description=(
             "Full E2B API URL override. Mutually exclusive with ``domain``; prefer ``domain`` "
-            "unless you need to override the full URL."
+            "unless you need to override the full URL. Leave empty to fall back to the "
+            "``E2B_API_URL`` process env var."
         ),
     )
 

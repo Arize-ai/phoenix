@@ -272,8 +272,12 @@ class DaytonaAdapter(SandboxAdapter[DaytonaConfig, DaytonaCredentials, DaytonaDe
         auto-discover and bypass that decision.
 
         ``deployment.api_url`` and ``deployment.target`` flow through as
-        explicit ``DaytonaConfig`` kwargs so the SDK's env-reader does not
-        silently route on-prem traffic to attacker-controlled URLs.
+        ``DaytonaConfig`` kwargs. When either is ``None``, the SDK's
+        ``DaytonaEnvReader`` reads ``DAYTONA_API_URL`` / ``DAYTONA_SERVER_URL``
+        / ``DAYTONA_TARGET`` from the process env and falls back to
+        ``https://app.daytona.io/api`` if unset (daytona_sdk/_async/daytona.py:153-179).
+        Phoenix does not block that env-var fallback — the process env is
+        the trust boundary that already holds ``DAYTONA_API_KEY``.
         """
         lang = config.language
         api_key = credentials.DAYTONA_API_KEY.get_secret_value()
