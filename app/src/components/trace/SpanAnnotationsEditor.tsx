@@ -373,6 +373,8 @@ function SpanAnnotationsList(props: {
                   }
                   ... on FreeformAnnotationConfig {
                     name
+                    optimizationDirection
+                    threshold
                   }
                 }
               }

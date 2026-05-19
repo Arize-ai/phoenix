@@ -72,6 +72,10 @@ class FreeformAnnotationConfigData(V1RoutesBaseModel):
     name: str
     type: Literal[AnnotationType.FREEFORM.value]  # type: ignore[name-defined]
     description: Optional[str] = None
+    optimization_direction: Optional[OptimizationDirection] = None
+    threshold: Optional[float] = None
+    lower_bound: Optional[float] = None
+    upper_bound: Optional[float] = None
 
 
 AnnotationConfigData: TypeAlias = Annotated[
@@ -141,6 +145,10 @@ def db_to_api_annotation_config(
             name=name,
             type=type_,
             description=description,
+            optimization_direction=config.optimization_direction,
+            threshold=(config.thresholds[0] if config.thresholds else None),
+            lower_bound=config.lower_bound,
+            upper_bound=config.upper_bound,
         )
     assert_never(config)
 
@@ -444,4 +452,8 @@ def _to_db_freeform_annotation_config(
     return FreeformAnnotationConfigModel(
         type=AnnotationType.FREEFORM.value,
         description=input_config.description,
+        optimization_direction=input_config.optimization_direction,
+        thresholds=([input_config.threshold] if input_config.threshold is not None else None),
+        lower_bound=input_config.lower_bound,
+        upper_bound=input_config.upper_bound,
     )

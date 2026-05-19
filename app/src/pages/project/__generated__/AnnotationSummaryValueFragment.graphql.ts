@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<67cb99184d5779d5072808a74c1640e5>>
+ * @generated SignedSource<<20772b65bb63b9b2b0585a4886312131>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -29,12 +29,15 @@ export type AnnotationSummaryValueFragment$data = {
   };
   readonly id: string;
   readonly spanAnnotationSummary: {
+    readonly count: number;
+    readonly labelCount: number;
     readonly labelFractions: ReadonlyArray<{
       readonly fraction: number;
       readonly label: string;
     }>;
     readonly meanScore: number | null;
     readonly name: string;
+    readonly scoreCount: number;
   } | null;
   readonly " $fragmentType": "AnnotationSummaryValueFragment";
 };
@@ -213,6 +216,27 @@ return {
         {
           "alias": null,
           "args": null,
+          "kind": "ScalarField",
+          "name": "count",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "scoreCount",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "labelCount",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
           "concreteType": "LabelFraction",
           "kind": "LinkedField",
           "name": "labelFractions",
@@ -246,6 +270,6 @@ return {
 };
 })();
 
-(node as any).hash = "aa59ac59f1e8626db047b2e546df43f4";
+(node as any).hash = "75c9ee77316944d83f16c7853c47f535";
 
 export default node;

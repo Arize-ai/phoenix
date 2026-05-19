@@ -21,6 +21,7 @@ from phoenix.db.types.annotation_configs import (
     AnnotationConfigType,
     CategoricalOutputConfig,
     ContinuousOutputConfig,
+    FreeformOutputConfig,
     OutputConfigType,
 )
 from phoenix.db.types.identifier import Identifier
@@ -85,6 +86,17 @@ def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> OutputConf
             optimization_direction=cont.optimization_direction,
             lower_bound=cont.lower_bound,
             upper_bound=cont.upper_bound,
+        )
+    elif input.freeform is not None and input.freeform is not UNSET:
+        free = input.freeform
+        return FreeformOutputConfig(
+            type=AnnotationType.FREEFORM.value,
+            name=free.name,
+            description=free.description,
+            optimization_direction=free.optimization_direction,
+            thresholds=[free.threshold] if free.threshold is not None else None,
+            lower_bound=free.lower_bound,
+            upper_bound=free.upper_bound,
         )
     raise BadRequest("Invalid output config input")
 
@@ -1130,7 +1142,10 @@ class EvaluatorMutationMixin:
             dataset_evaluator.output_configs = [
                 config
                 for config in code_evaluator.output_configs
-                if isinstance(config, (CategoricalOutputConfig, ContinuousOutputConfig))
+                if isinstance(
+                    config,
+                    (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig),
+                )
             ]
 
         return DatasetEvaluatorMutationPayload(
@@ -1216,7 +1231,10 @@ class EvaluatorMutationMixin:
             dataset_evaluator.output_configs = [
                 config
                 for config in evaluator.output_configs
-                if isinstance(config, (CategoricalOutputConfig, ContinuousOutputConfig))
+                if isinstance(
+                    config,
+                    (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig),
+                )
             ]
 
         return DatasetEvaluatorMutationPayload(

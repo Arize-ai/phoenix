@@ -135,6 +135,9 @@ function AnnotationSummaryValue(props: {
           filterCondition: $filterCondition
         ) {
           name
+          count
+          scoreCount
+          labelCount
           labelFractions {
             label
             fraction
@@ -162,6 +165,9 @@ function AnnotationSummaryValue(props: {
       name={annotationName}
       meanScore={data?.spanAnnotationSummary?.meanScore}
       labelFractions={data?.spanAnnotationSummary?.labelFractions}
+      count={data?.spanAnnotationSummary?.count}
+      scoreCount={data?.spanAnnotationSummary?.scoreCount}
+      labelCount={data?.spanAnnotationSummary?.labelCount}
       annotationConfig={
         data?.annotationConfigs?.edges.find(
           (edge) => edge.node.name === annotationName
@@ -290,6 +296,12 @@ function useAnnotationSummaryChartColors(name: string) {
   return colors;
 }
 
+type SummaryValueProps = SummaryValuePreviewProps & {
+  count?: number | null;
+  scoreCount?: number | null;
+  labelCount?: number | null;
+};
+
 export function SummaryValue({
   name,
   meanScore,
@@ -298,7 +310,10 @@ export function SummaryValue({
   disableAnimation = false,
   meanScoreFallback,
   annotationConfig,
-}: SummaryValuePreviewProps) {
+  count,
+  scoreCount,
+  labelCount,
+}: SummaryValueProps) {
   const hasMeanScore = typeof meanScore === "number";
   const hasLabelFractions =
     Array.isArray(labelFractions) && labelFractions.length > 0;
@@ -325,6 +340,9 @@ export function SummaryValue({
           labelFractions={labelFractions}
           meanScore={meanScore}
           annotationConfig={annotationConfig}
+          count={count}
+          scoreCount={scoreCount}
+          labelCount={labelCount}
         />
       </RichTooltip>
     </TooltipTrigger>
@@ -444,15 +462,30 @@ export function SummaryValueBreakdown({
   labelFractions,
   meanScore,
   annotationConfig,
+  count,
+  scoreCount,
+  labelCount,
 }: {
   annotationName: string;
   labelFractions?: readonly { label: string; fraction: number }[];
   meanScore?: number | null;
   annotationConfig?: AnnotationConfig;
+  count?: number | null;
+  scoreCount?: number | null;
+  labelCount?: number | null;
 }) {
   const colors = useAnnotationSummaryChartColors(annotationName);
   const hasMeanScore = typeof meanScore === "number" && !isNaN(meanScore);
   const hasLabelFractions = labelFractions && labelFractions.length > 0;
+  const isScorePartial =
+    typeof scoreCount === "number" &&
+    typeof count === "number" &&
+    scoreCount < count;
+  const isLabelPartial =
+    typeof labelCount === "number" &&
+    typeof count === "number" &&
+    labelCount < count;
+  const hasCoverage = isScorePartial || isLabelPartial;
   return (
     <View width="size-2400">
       <Flex direction="column" gap="size-50">
@@ -481,6 +514,21 @@ export function SummaryValueBreakdown({
             <Text>mean score</Text>
             <MeanScore value={meanScore} />
           </Flex>
+        ) : null}
+        {hasCoverage && (hasLabelFractions || hasMeanScore) ? (
+          <ChartTooltipDivider />
+        ) : null}
+        {isScorePartial ? (
+          <Text
+            color="text-700"
+            size="S"
+          >{`${scoreCount} of ${count} scored`}</Text>
+        ) : null}
+        {isLabelPartial ? (
+          <Text
+            color="text-700"
+            size="S"
+          >{`${labelCount} of ${count} labeled`}</Text>
         ) : null}
       </Flex>
     </View>

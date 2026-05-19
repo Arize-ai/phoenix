@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<7fb05d6ab1916eb82d1b1137ded6c970>>
+ * @generated SignedSource<<78c142dd7c5b56690f755681b5a9f630>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -25,14 +25,30 @@ export type PlaygroundDatasetSection_evaluator$data = {
   };
   readonly name: string;
   readonly outputConfigs: ReadonlyArray<{
-    readonly lowerBound?: number | null;
-    readonly name?: string;
-    readonly optimizationDirection?: OptimizationDirection;
-    readonly upperBound?: number | null;
-    readonly values?: ReadonlyArray<{
+    readonly __typename: "CategoricalAnnotationConfig";
+    readonly name: string;
+    readonly optimizationDirection: OptimizationDirection;
+    readonly values: ReadonlyArray<{
       readonly label: string;
       readonly score: number | null;
     }>;
+  } | {
+    readonly __typename: "ContinuousAnnotationConfig";
+    readonly lowerBound: number | null;
+    readonly name: string;
+    readonly optimizationDirection: OptimizationDirection;
+    readonly upperBound: number | null;
+  } | {
+    readonly __typename: "FreeformAnnotationConfig";
+    readonly lowerBound: number | null;
+    readonly name: string;
+    readonly optimizationDirection: OptimizationDirection;
+    readonly threshold: number | null;
+    readonly upperBound: number | null;
+  } | {
+    // This will never be '%other', but we need some
+    // value in case none of the concrete values match.
+    readonly __typename: "%other";
   }>;
   readonly " $fragmentType": "PlaygroundDatasetSection_evaluator";
 };
@@ -46,6 +62,6 @@ const node: ReaderInlineDataFragment = {
   "name": "PlaygroundDatasetSection_evaluator"
 };
 
-(node as any).hash = "b5a9048217a1c8c6fd8bdf0393bf711a";
+(node as any).hash = "b0f1e302292c35fa4c0dd8cddc798e0d";
 
 export default node;

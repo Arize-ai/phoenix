@@ -1,4 +1,4 @@
-"""Unit tests for ModalSandboxBackend focusing on kwarg forwarding invariants.
+"""Unit tests for ModalSandboxBackend focusing on kwarg forwarding.
 
 Scope: Modal-specific SDK kwarg shapes that parametrized capability-matrix tests
 can't express — `env` vs `env_dict`, `block_network`, `Image.pip_install` wiring,

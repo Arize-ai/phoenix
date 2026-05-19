@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<18913ec0ce484c8672561603af09dc83>>
+ * @generated SignedSource<<d0b7cea8c23e22adc053f9fbe6ae9a60>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -37,7 +37,11 @@ export type ContinuousAnnotationConfigInput = {
 };
 export type FreeformAnnotationConfigInput = {
   description?: string | null;
+  lowerBound?: number | null;
   name: string;
+  optimizationDirection?: OptimizationDirection | null;
+  threshold?: number | null;
+  upperBound?: number | null;
 };
 export type SettingsAnnotationsPageCreateAnnotationConfigMutation$variables = {
   input: CreateAnnotationConfigInput;

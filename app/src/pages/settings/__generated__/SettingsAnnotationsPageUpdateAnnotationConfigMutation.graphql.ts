@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f924330cae4f6cb4c471193fa5df15e9>>
+ * @generated SignedSource<<41c4a8804f639cb4a0d349862f731b93>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -39,7 +39,11 @@ export type ContinuousAnnotationConfigInput = {
 };
 export type FreeformAnnotationConfigInput = {
   description?: string | null;
+  lowerBound?: number | null;
   name: string;
+  optimizationDirection?: OptimizationDirection | null;
+  threshold?: number | null;
+  upperBound?: number | null;
 };
 export type SettingsAnnotationsPageUpdateAnnotationConfigMutation$variables = {
   input: UpdateAnnotationConfigInput;
@@ -266,7 +270,15 @@ return {
                               (v2/*: any*/),
                               (v3/*: any*/),
                               (v4/*: any*/),
-                              (v5/*: any*/)
+                              (v5/*: any*/),
+                              (v6/*: any*/),
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "threshold",
+                                "storageKey": null
+                              }
                             ],
                             "type": "FreeformAnnotationConfig",
                             "abstractKey": null
@@ -297,12 +309,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "061e03033b94ecf7796c1f75b9a9cca2",
+    "cacheID": "30e419dbb36072b86b093cfc14c75a79",
     "id": null,
     "metadata": {},
     "name": "SettingsAnnotationsPageUpdateAnnotationConfigMutation",
     "operationKind": "mutation",
-    "text": "mutation SettingsAnnotationsPageUpdateAnnotationConfigMutation(\n  $input: UpdateAnnotationConfigInput!\n) {\n  updateAnnotationConfig(input: $input) {\n    query {\n      ...AnnotationConfigTableFragment\n    }\n  }\n}\n\nfragment AnnotationConfigTableFragment on Query {\n  annotationConfigs {\n    edges {\n      annotationConfig: node {\n        __typename\n        ... on CategoricalAnnotationConfig {\n          id\n          name\n          description\n          annotationType\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          id\n          name\n          description\n          annotationType\n          optimizationDirection\n          upperBound\n          lowerBound\n        }\n        ... on FreeformAnnotationConfig {\n          id\n          name\n          description\n          annotationType\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
+    "text": "mutation SettingsAnnotationsPageUpdateAnnotationConfigMutation(\n  $input: UpdateAnnotationConfigInput!\n) {\n  updateAnnotationConfig(input: $input) {\n    query {\n      ...AnnotationConfigTableFragment\n    }\n  }\n}\n\nfragment AnnotationConfigTableFragment on Query {\n  annotationConfigs {\n    edges {\n      annotationConfig: node {\n        __typename\n        ... on CategoricalAnnotationConfig {\n          id\n          name\n          description\n          annotationType\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          id\n          name\n          description\n          annotationType\n          optimizationDirection\n          upperBound\n          lowerBound\n        }\n        ... on FreeformAnnotationConfig {\n          id\n          name\n          description\n          annotationType\n          optimizationDirection\n          threshold\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n}\n"
   }
 };
 })();

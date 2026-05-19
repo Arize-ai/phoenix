@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a24f6f97eea0f69b2562c60573d1a24f>>
+ * @generated SignedSource<<38089fddf6ce55c51fd6464b8fbeb9c9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -32,12 +32,15 @@ export type TraceAnnotationSummaryGroup$data = {
     readonly id: string;
   };
   readonly traceAnnotationSummaries: ReadonlyArray<{
+    readonly count: number;
+    readonly labelCount: number;
     readonly labelFractions: ReadonlyArray<{
       readonly fraction: number;
       readonly label: string;
     }>;
     readonly meanScore: number | null;
     readonly name: string;
+    readonly scoreCount: number;
   }>;
   readonly traceAnnotations: ReadonlyArray<{
     readonly annotatorKind: AnnotatorKind;
@@ -246,6 +249,27 @@ return {
         {
           "alias": null,
           "args": null,
+          "kind": "ScalarField",
+          "name": "count",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "scoreCount",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "labelCount",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
           "concreteType": "LabelFraction",
           "kind": "LinkedField",
           "name": "labelFractions",
@@ -279,6 +303,6 @@ return {
 };
 })();
 
-(node as any).hash = "f31b1e45d832ed394114b603b98b25b8";
+(node as any).hash = "e7ae39b92a3d988c3293d53e493b6ad2";
 
 export default node;

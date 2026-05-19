@@ -25,8 +25,13 @@ export type AnnotationConfigCategorical = Pick<
 
 export type AnnotationConfigFreeform = Pick<
   AnnotationConfigBase,
-  "id" | "name" | "description"
-> & { annotationType: "FREEFORM" };
+  "id" | "name" | "description" | "optimizationDirection"
+> & {
+  annotationType: "FREEFORM";
+  threshold?: number | null;
+  lowerBound?: number | null;
+  upperBound?: number | null;
+};
 
 export type AnnotationConfigType = NonNullable<
   AnnotationConfigBase["annotationType"]

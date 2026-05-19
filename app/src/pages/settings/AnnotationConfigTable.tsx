@@ -206,6 +206,8 @@ export const AnnotationConfigTable = ({
                 name
                 description
                 annotationType
+                optimizationDirection
+                threshold
               }
             }
           }
