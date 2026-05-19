@@ -3,8 +3,13 @@ title: "Vercel Sandbox"
 description: "Run code evaluators in ephemeral compute on Vercel's infrastructure."
 ---
 
-<img src="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/vercel.svg" alt="Vercel Sandbox" style={{ height: '64px' }} />
+<div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginTop: '1.5rem', marginBottom: '1.5rem' }}>
+<img src="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/vercel.svg" alt="Vercel Sandbox" className="invert-on-dark" style={{ height: '112px', flexShrink: 0 }} />
+<div>
 
 [**Vercel Sandbox**](https://vercel.com/docs/vercel-sandbox) runs code in ephemeral compute on Vercel's infrastructure, scoped to a Vercel team and project. It's a good fit when your team is already on Vercel and you'd like sandbox usage to roll up under the same billing and access controls.
+
+</div>
+</div>
 
 To use Vercel Sandbox, create a token and note your team and project IDs in the Vercel dashboard, then add `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, and `VERCEL_TEAM_ID` from [Settings → Sandboxes](/docs/phoenix/settings/sandboxes).
