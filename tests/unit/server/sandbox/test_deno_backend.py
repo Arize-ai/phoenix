@@ -6,6 +6,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from phoenix.server.sandbox.deno_backend import DenoAdapter, DenoSandboxBackend
+from phoenix.server.sandbox.types import DenoConfig, DenoDeployment, NoCredentials
+
+_DENO_CFG = DenoConfig(language="TYPESCRIPT")
+_DENO_CREDS = NoCredentials()
+_DENO_DEPLOY = DenoDeployment()
 
 
 class _StubProcess:
@@ -30,7 +35,11 @@ class TestDenoAdapter:
 
         with patch("phoenix.server.sandbox.deno_backend.shutil.which", return_value=None):
             with pytest.raises(ValueError, match="Deno is not installed"):
-                adapter.build_backend({})
+                adapter.build_backend(
+                    _DENO_CFG,
+                    credentials=_DENO_CREDS,
+                    deployment=_DENO_DEPLOY,
+                )
 
     def test_build_backend_uses_resolved_deno_path(self) -> None:
         adapter = DenoAdapter()
@@ -39,7 +48,12 @@ class TestDenoAdapter:
             "phoenix.server.sandbox.deno_backend.shutil.which",
             return_value="/opt/homebrew/bin/deno",
         ):
-            backend = adapter.build_backend({}, user_env={"TOKEN": "value"})
+            backend = adapter.build_backend(
+                _DENO_CFG,
+                credentials=_DENO_CREDS,
+                deployment=_DENO_DEPLOY,
+                user_env={"TOKEN": "value"},
+            )
 
         assert isinstance(backend, DenoSandboxBackend)
         assert backend._build_command() == [

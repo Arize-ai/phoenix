@@ -23,6 +23,7 @@ from phoenix.db.types.annotation_configs import (
     ContinuousOutputConfig,
     OutputConfigType,
 )
+from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
@@ -50,7 +51,6 @@ from phoenix.server.api.types.Evaluator import (
     DatasetEvaluator,
     LLMEvaluator,
 )
-from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.PromptVersion import PromptVersion
 from phoenix.server.api.types.SandboxConfig import Language, SandboxConfig
@@ -109,24 +109,23 @@ def _raise_on_uninferable_evaluate_signature(source_code: str, language: Languag
 
 async def _generate_unique_evaluator_name(
     session: AsyncSession,
-    base_name: str,
+    base_name: Identifier,
     max_attempts: int = 5,
-) -> IdentifierModel:
+) -> Identifier:
     """
     Generate a unique evaluator name by appending a suffix if needed.
     Returns the original name if unique, otherwise appends a random suffix.
     Retries up to max_attempts times if random collisions occur.
     """
-    name = IdentifierModel.model_validate(base_name)
     exists = await session.scalar(
-        select(models.Evaluator.id).where(models.Evaluator.name == name).limit(1)
+        select(models.Evaluator.id).where(models.Evaluator.name == base_name).limit(1)
     )
     if exists is None:
-        return name
+        return base_name
 
     for _ in range(max_attempts):
         candidate = f"{base_name}-{token_hex(4)}"
-        candidate_name = IdentifierModel.model_validate(candidate)
+        candidate_name = Identifier.model_validate(candidate)
         exists = await session.scalar(
             select(models.Evaluator.id).where(models.Evaluator.name == candidate_name).limit(1)
         )
@@ -389,7 +388,7 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
-                evaluator_name = await _generate_unique_evaluator_name(session, input.name)
+                evaluator_name = await _generate_unique_evaluator_name(session, validated_name)
 
                 dataset_name = await session.scalar(
                     select(models.Dataset.name).where(models.Dataset.id == dataset_id)
@@ -945,7 +944,7 @@ class EvaluatorMutationMixin:
             if "foreign" in str(e).lower():
                 raise NotFound(f"Dataset with id {input.dataset_id} not found")
             raise BadRequest(
-                f"DatasetEvaluator with name {input.name} already exists"
+                f"DatasetEvaluator with name {input.name} already exists "
                 f"for dataset {input.dataset_id}"
             )
 
@@ -1123,7 +1122,7 @@ class EvaluatorMutationMixin:
             if "foreign" in str(e).lower():
                 raise NotFound(f"Dataset with id {input.dataset_id} not found")
             raise BadRequest(
-                f"DatasetEvaluator with name {input.name} already exists"
+                f"DatasetEvaluator with name {input.name} already exists "
                 f"for dataset {input.dataset_id}"
             )
 

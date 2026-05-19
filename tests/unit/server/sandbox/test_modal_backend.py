@@ -4,7 +4,7 @@ Scope: Modal-specific SDK kwarg shapes that parametrized capability-matrix tests
 can't express — `env` vs `env_dict`, `block_network`, `Image.pip_install` wiring,
 and the explicit-client auth path (no os.environ mutation).
 Generic "capability rejected when unsupported" coverage lives in
-test_capability_matrix.py.
+test_unified_config_contract.py.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from typing import Any, Mapping
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from starlette.datastructures import Secret
+from pydantic import SecretStr
 
 
 def _make_modal_mock() -> MagicMock:
@@ -38,10 +38,31 @@ def _make_modal_mock() -> MagicMock:
 
 _TOKEN_ID_RAW = "ak-test-id"
 _TOKEN_SECRET_RAW = "as-test-secret"
-_TOKEN_ID = Secret(_TOKEN_ID_RAW)
-_TOKEN_SECRET = Secret(_TOKEN_SECRET_RAW)
+_TOKEN_ID = SecretStr(_TOKEN_ID_RAW)
+_TOKEN_SECRET = SecretStr(_TOKEN_SECRET_RAW)
 _CANONICAL_TOKEN_ID = "MODAL_TOKEN_ID"
 _CANONICAL_TOKEN_SECRET = "MODAL_TOKEN_SECRET"
+
+from phoenix.server.sandbox.types import (  # noqa: E402
+    ModalConfig,
+    ModalCredentials,
+    ModalDeployment,
+)
+
+_MODAL_CREDS = ModalCredentials(
+    MODAL_TOKEN_ID=_TOKEN_ID_RAW,
+    MODAL_TOKEN_SECRET=_TOKEN_SECRET_RAW,
+)
+_MODAL_DEPLOY = ModalDeployment()
+
+
+def _modal_config(payload: dict[str, Any]) -> ModalConfig:
+    """Strip credential keys from a legacy dict-shaped config and validate."""
+    user_only = {
+        k: v for k, v in payload.items() if k not in {_CANONICAL_TOKEN_ID, _CANONICAL_TOKEN_SECRET}
+    }
+    user_only.setdefault("language", "PYTHON")
+    return ModalConfig.model_validate(user_only)
 
 
 @pytest.mark.asyncio
@@ -85,22 +106,18 @@ def test_pip_install_invoked_only_when_packages_present() -> None:
 
         adapter = ModalAdapter()
         with_pkgs: Any = adapter.build_backend(
-            {
-                "dependencies": {"packages": ["cowsay"]},
-                _CANONICAL_TOKEN_ID: _TOKEN_ID_RAW,
-                _CANONICAL_TOKEN_SECRET: _TOKEN_SECRET_RAW,
-            }
+            _modal_config({"dependencies": {"packages": ["cowsay"]}}),
+            credentials=_MODAL_CREDS,
+            deployment=_MODAL_DEPLOY,
         )
         slim_image.pip_install.assert_called_once_with(["cowsay"])
         assert with_pkgs._image is installed_image
 
         slim_image.pip_install.reset_mock()
         without_pkgs: Any = adapter.build_backend(
-            {
-                "dependencies": {"packages": []},
-                _CANONICAL_TOKEN_ID: _TOKEN_ID_RAW,
-                _CANONICAL_TOKEN_SECRET: _TOKEN_SECRET_RAW,
-            }
+            _modal_config({"dependencies": {"packages": []}}),
+            credentials=_MODAL_CREDS,
+            deployment=_MODAL_DEPLOY,
         )
         slim_image.pip_install.assert_not_called()
         assert without_pkgs._image is slim_image
@@ -168,7 +185,11 @@ def test_build_backend_sets_block_network_from_internet_access(
         from phoenix.server.sandbox.modal_backend import ModalAdapter
 
         adapter = ModalAdapter()
-        backend: Any = adapter.build_backend(config)
+        backend: Any = adapter.build_backend(
+            _modal_config(config),
+            credentials=_MODAL_CREDS,
+            deployment=_MODAL_DEPLOY,
+        )
     assert backend._block_network is expected
 
 
@@ -179,10 +200,20 @@ def test_build_backend_requires_both_tokens() -> None:
         from phoenix.server.sandbox.modal_backend import ModalAdapter
 
         adapter = ModalAdapter()
+        missing_id_creds = ModalCredentials(MODAL_TOKEN_ID="", MODAL_TOKEN_SECRET=_TOKEN_SECRET_RAW)
+        missing_secret_creds = ModalCredentials(MODAL_TOKEN_ID=_TOKEN_ID_RAW, MODAL_TOKEN_SECRET="")
         with pytest.raises(ValueError, match=_CANONICAL_TOKEN_ID):
-            adapter.build_backend({_CANONICAL_TOKEN_SECRET: _TOKEN_SECRET_RAW})
+            adapter.build_backend(
+                ModalConfig(language="PYTHON"),
+                credentials=missing_id_creds,
+                deployment=_MODAL_DEPLOY,
+            )
         with pytest.raises(ValueError, match=_CANONICAL_TOKEN_ID):
-            adapter.build_backend({_CANONICAL_TOKEN_ID: _TOKEN_ID_RAW})
+            adapter.build_backend(
+                ModalConfig(language="PYTHON"),
+                credentials=missing_secret_creds,
+                deployment=_MODAL_DEPLOY,
+            )
 
 
 @pytest.mark.asyncio
@@ -275,3 +306,28 @@ async def test_execute_strips_ansi_in_raised_exception_path() -> None:
 
     assert result.error == "provider error"
     assert result.stderr == "provider error"
+
+
+def test_adapter_build_backend_wires_packages_to_image() -> None:
+    """``ModalAdapter.build_backend`` calls ``Image.debian_slim().pip_install(packages)``
+    so the packages are baked into the Modal Image at deploy time (not installed
+    inside the running sandbox)."""
+    from phoenix.server.sandbox.types import ModalConfig, ModalCredentials, ModalDeployment
+
+    modal_mock = _make_modal_mock()
+    pip_image = MagicMock()
+    modal_mock.Image.debian_slim.return_value.pip_install.return_value = pip_image
+    packages = ["pandas", "scikit-learn"]
+    with patch.dict(sys.modules, {"modal": modal_mock}):
+        from phoenix.server.sandbox.modal_backend import ModalAdapter
+
+        adapter = ModalAdapter()
+        config = ModalConfig.model_validate(
+            {"language": "PYTHON", "dependencies": {"packages": packages}}
+        )
+        creds = ModalCredentials(
+            MODAL_TOKEN_ID=SecretStr("id"), MODAL_TOKEN_SECRET=SecretStr("secret")
+        )
+        backend = adapter.build_backend(config, credentials=creds, deployment=ModalDeployment())
+    modal_mock.Image.debian_slim.return_value.pip_install.assert_called_once_with(packages)
+    assert backend._image is pip_image  # type: ignore[attr-defined]

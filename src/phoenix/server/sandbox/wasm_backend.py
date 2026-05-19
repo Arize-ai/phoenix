@@ -24,7 +24,7 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Mapping, Optional
+from typing import TYPE_CHECKING, Mapping, Optional
 
 if TYPE_CHECKING:
     import wasmtime
@@ -32,9 +32,11 @@ if TYPE_CHECKING:
 from .types import (
     BaseNoSessionBackend,
     ExecutionResult,
+    NoCredentials,
     SandboxAdapter,
     SandboxBackend,
     WASMConfig,
+    WASMDeployment,
 )
 
 logger = logging.getLogger(__name__)
@@ -122,17 +124,12 @@ def _run_wasm(binary_path: Path, code: str, timeout: int) -> ExecutionResult:
 class WASMBackend(BaseNoSessionBackend):
     """Local CPython-WASM sandbox backend. Stateless and single-node."""
 
-    def __init__(
-        self,
-        binary_path: Optional[Path] = None,
-    ) -> None:
+    def __init__(self) -> None:
         # secret_values stays at the SandboxBackend class default (frozenset()):
         # WASM takes no provider credentials and does not support user_env.
-        self._binary_path = binary_path
+        pass
 
     def _resolve_binary(self) -> Path:
-        if self._binary_path is not None:
-            return self._binary_path
         from phoenix.server.sandbox._download import ensure_wasm_binary
 
         return ensure_wasm_binary()
@@ -173,12 +170,20 @@ class WASMBinaryProbe:
     path: Optional[Path]
 
 
-class WASMAdapter(SandboxAdapter):
-    key = "WASM"
-    family = "WASM"
+class WASMAdapter(SandboxAdapter[WASMConfig, NoCredentials, WASMDeployment]):
+    backend_type = "WASM"
     display_name = "WebAssembly"
-    language = "PYTHON"
+    hosting_type = "local"
+    dependency_hints = (
+        "Install Phoenix with the `wasm` extra so `wasmtime` is available.",
+        (
+            "Allow Phoenix to download the CPython WASM binary on first use, "
+            "or pre-populate the local WASM cache."
+        ),
+    )
     config_model = WASMConfig
+    credentials_model = NoCredentials
+    deployment_config_model = WASMDeployment
 
     @classmethod
     def probe_dependencies(cls) -> None:
@@ -187,10 +192,12 @@ class WASMAdapter(SandboxAdapter):
 
     def build_backend(
         self,
-        config: Mapping[str, Any],
+        config: WASMConfig,
+        *,
+        credentials: NoCredentials,
+        deployment: WASMDeployment,
         user_env: Optional[Mapping[str, str]] = None,
     ) -> SandboxBackend:
-        self._enforce_capabilities(config, user_env)
         return WASMBackend()
 
     @staticmethod

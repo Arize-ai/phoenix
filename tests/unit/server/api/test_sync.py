@@ -2,16 +2,17 @@
 
 Covers:
 - sync_languages: inserts PYTHON and TYPESCRIPT rows, is idempotent
-- sync_sandbox_providers: inserts one row per (backend_type, language) pair,
-  preserves existing rows, handles unknown languages gracefully
+- sync_sandbox_providers: inserts one row per provider ``kind`` key in metadata,
+  preserves existing rows, is idempotent
 """
 
-from typing import Any
+from typing import Any, Mapping, cast
 
 import pytest
 from sqlalchemy import select
 
 from phoenix.db import models
+from phoenix.db.models import SandboxBackendType
 from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
 from phoenix.server.sandbox.sync import sync_languages, sync_sandbox_providers
 from phoenix.server.types import DbSessionFactory
@@ -51,9 +52,9 @@ class TestSyncSandboxProviders:
         async with db() as session:
             providers = list(await session.scalars(select(models.SandboxProvider)))
 
-        # At minimum one WASM/PYTHON row should exist
-        backend_types = {p.backend_type for p in providers}
-        assert "WASM" in backend_types
+        kinds = {p.backend_type for p in providers}
+        assert "WASM" in kinds
+        assert kinds == set(SANDBOX_ADAPTER_METADATA.keys())
 
     async def test_idempotent(
         self,
@@ -66,23 +67,19 @@ class TestSyncSandboxProviders:
             await sync_sandbox_providers(session, SANDBOX_ADAPTER_METADATA)
 
         async with db() as session:
-            count_result = await session.execute(select(models.SandboxProvider))
-            providers = list(count_result.scalars())
+            providers = list(await session.scalars(select(models.SandboxProvider)))
 
-        # Each (backend_type, language) pair should appear exactly once
-        pairs = [(p.backend_type, p.language) for p in providers]
-        assert len(pairs) == len(set(pairs)), "Duplicate (backend_type, language) pairs found"
+        kinds = [p.backend_type for p in providers]
+        assert len(kinds) == len(set(kinds)), "Duplicate provider kinds found"
 
     async def test_preserves_existing_user_config(
         self,
         db: DbSessionFactory,
         seed_languages: None,
     ) -> None:
-        # Seed once
         async with db() as session:
             await sync_sandbox_providers(session, SANDBOX_ADAPTER_METADATA)
 
-        # Disable the WASM provider
         async with db() as session:
             provider = await session.scalar(
                 select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
@@ -90,7 +87,6 @@ class TestSyncSandboxProviders:
             assert provider is not None
             provider.enabled = False
 
-        # Re-seed — should not overwrite the existing row
         async with db() as session:
             await sync_sandbox_providers(session, SANDBOX_ADAPTER_METADATA)
 
@@ -101,63 +97,71 @@ class TestSyncSandboxProviders:
             assert provider is not None
             assert provider.enabled is False
 
-    async def test_unknown_language_skipped(
+    async def test_extra_metadata_kind_inserted(
         self,
         db: DbSessionFactory,
         seed_languages: None,
     ) -> None:
-        bad_metadata: dict[str, Any] = {
-            "FAKE": type(
-                "_FakeMeta",
-                (),
-                {"language": "COBOL"},
-            )(),
+        extra: dict[str, Any] = {
+            "FAKE": SANDBOX_ADAPTER_METADATA["WASM"],
         }
-        # Should not raise even when language does not exist in DB
         async with db() as session:
-            await sync_sandbox_providers(session, bad_metadata)
+            await sync_sandbox_providers(session, cast(Mapping[SandboxBackendType, Any], extra))
 
         async with db() as session:
-            count = len(
-                list(
-                    await session.scalars(
-                        select(models.SandboxProvider).where(
-                            models.SandboxProvider.backend_type == "FAKE"
-                        )
-                    )
-                )
+            row = await session.scalar(
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "FAKE")
             )
-        assert count == 0
+        assert row is not None
+        assert row.enabled is True
 
-    async def test_requires_languages_to_exist(
+    async def test_inserts_even_when_languages_empty(
         self,
         db: DbSessionFactory,
     ) -> None:
-        # Without sync_languages first, no providers should be inserted
         async with db() as session:
             await sync_sandbox_providers(session, SANDBOX_ADAPTER_METADATA)
 
         async with db() as session:
             count = len(list(await session.scalars(select(models.SandboxProvider))))
-        assert count == 0
+        assert count == len(SANDBOX_ADAPTER_METADATA)
 
 
 class TestAdapterMetadataConsistency:
-    """Adapter class language must match SANDBOX_ADAPTER_METADATA."""
+    """Installed adapter capability sets must agree with SANDBOX_ADAPTER_METADATA."""
 
-    def test_e2b_adapter_language_matches_metadata(self) -> None:
+    def test_e2b_adapter_languages_matches_metadata(self) -> None:
         try:
             from phoenix.server.sandbox.e2b_backend import E2BAdapter
+
+            inst = E2BAdapter()
         except ImportError:
             pytest.skip("e2b optional extra not installed")
-        assert E2BAdapter.language == SANDBOX_ADAPTER_METADATA["E2B"].language, (
-            f"E2BAdapter.language {E2BAdapter.language!r} does not match "
-            f"metadata {SANDBOX_ADAPTER_METADATA['E2B'].language!r}"
+        meta = SANDBOX_ADAPTER_METADATA["E2B"]
+        # The Config's ``language: Literal[...]`` is the structural source of
+        # truth; ``AdapterMetadata.supported_languages`` is its mirror for the
+        # GraphQL surface. Assert they match.
+        from typing import get_args
+
+        assert (
+            frozenset(get_args(inst.config_model.model_fields["language"].annotation))
+            == meta.supported_languages
         )
 
-    def test_wasm_adapter_language_matches_metadata(self) -> None:
+    def test_wasm_adapter_languages_matches_metadata(self) -> None:
         try:
             from phoenix.server.sandbox.wasm_backend import WASMAdapter
+
+            inst = WASMAdapter()
         except ImportError:
             pytest.skip("wasmtime optional extra not installed")
-        assert WASMAdapter.language == SANDBOX_ADAPTER_METADATA["WASM"].language
+        meta = SANDBOX_ADAPTER_METADATA["WASM"]
+        # The Config's ``language: Literal[...]`` is the structural source of
+        # truth; ``AdapterMetadata.supported_languages`` is its mirror for the
+        # GraphQL surface. Assert they match.
+        from typing import get_args
+
+        assert (
+            frozenset(get_args(inst.config_model.model_fields["language"].annotation))
+            == meta.supported_languages
+        )

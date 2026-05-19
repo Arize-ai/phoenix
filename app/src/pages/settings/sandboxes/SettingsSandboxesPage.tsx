@@ -60,7 +60,7 @@ function SettingsSandboxesPageContent({
           statusDetail
           supportsEnvVars
           internetAccess
-          dependenciesLanguage
+          supportsDependencies
           credentialSpecs {
             key
             displayName
@@ -71,16 +71,27 @@ function SettingsSandboxesPageContent({
         sandboxProviders {
           id
           backendType
-          language
+          supportedLanguages
           enabled
-          updatedAt
           configs {
             id
             name
             description
+            language
             timeout
             enabled
-            config
+            config {
+              envVars {
+                name
+                secretKey
+              }
+              internetAccess {
+                mode
+              }
+              dependencies {
+                packages
+              }
+            }
             updatedAt
           }
         }
@@ -106,23 +117,28 @@ function SettingsSandboxesPageContent({
           row.backend != null
       )
       .sort((a, b) => {
-        // Local providers first, then alphabetical by display name, then by
-        // language for stable ordering when two providers share a name.
+        // Local providers first, then alphabetical by display name.
         const aLocal = a.backend.hostingType === "LOCAL" ? 0 : 1;
         const bLocal = b.backend.hostingType === "LOCAL" ? 0 : 1;
         if (aLocal !== bLocal) return aLocal - bLocal;
-        const nameCmp = a.backend.displayName.localeCompare(
-          b.backend.displayName
-        );
-        if (nameCmp !== 0) return nameCmp;
-        return a.provider.language.localeCompare(b.provider.language);
+        return a.backend.displayName.localeCompare(b.backend.displayName);
       }) satisfies ProviderRow[];
   }, [data.sandboxBackends, data.sandboxProviders]);
 
   const configRows = useMemo(
     () =>
       providerRows.flatMap(({ backend, provider }) =>
-        provider.configs.map((config) => ({ backend, provider, config }))
+        [...provider.configs]
+          .sort((leftConfig, rightConfig) => {
+            const nameComparison = leftConfig.name.localeCompare(
+              rightConfig.name
+            );
+            if (nameComparison !== 0) {
+              return nameComparison;
+            }
+            return leftConfig.id.localeCompare(rightConfig.id);
+          })
+          .map((config) => ({ backend, provider, config }))
       ) as ConfigRow[],
     [providerRows]
   );

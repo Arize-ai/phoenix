@@ -75,7 +75,7 @@ from .._helpers import (
 )
 
 NOW = datetime.now(timezone.utc)
-_decode_jwt = partial(jwt.decode, options=dict(verify_signature=False))
+_decode_jwt = partial(jwt.decode, options={"verify_signature": False})
 _TokenT = TypeVar("_TokenT", _AccessToken, _RefreshToken)
 
 
@@ -1107,6 +1107,145 @@ class TestGraphQLQuery:
             logged_in_user.gql(_app, query)
 
 
+class TestSandboxConfigMutations:
+    QUERY = """
+      mutation CreateSandboxConfig($input: CreateSandboxConfigInput!) {
+        createSandboxConfig(input: $input) {
+          sandboxConfig {
+            id
+            name
+          }
+        }
+      }
+
+      mutation UpdateSandboxConfig($input: UpdateSandboxConfigInput!) {
+        updateSandboxConfig(input: $input) {
+          sandboxConfig {
+            id
+            description
+          }
+        }
+      }
+    """
+
+    @pytest.mark.parametrize(
+        "role_or_user,expectation",
+        [
+            (_VIEWER, _DENIED),
+            (_MEMBER, _DENIED),
+            (_ADMIN, _OK),
+            (_DEFAULT_ADMIN, _OK),
+        ],
+    )
+    def test_only_admin_can_create_sandbox_config(
+        self,
+        role_or_user: _RoleOrUser,
+        expectation: _OK_OR_DENIED,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        logged_in_user = _get_user(_app, role_or_user).log_in(_app)
+        with expectation:
+            logged_in_user.gql(
+                _app,
+                query=self.QUERY,
+                operation_name="CreateSandboxConfig",
+                variables={
+                    "input": {
+                        "config": {"wasm": {"language": "PYTHON"}},
+                        "name": f"auth-create-sandbox-{token_hex(8)}",
+                    }
+                },
+            )
+
+    @pytest.mark.parametrize(
+        "role_or_user,expectation",
+        [
+            (_VIEWER, _DENIED),
+            (_MEMBER, _DENIED),
+            (_ADMIN, _OK),
+            (_DEFAULT_ADMIN, _OK),
+        ],
+    )
+    def test_only_admin_can_update_sandbox_config(
+        self,
+        role_or_user: _RoleOrUser,
+        expectation: _OK_OR_DENIED,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        response, _ = _DEFAULT_ADMIN.gql(
+            _app,
+            query=self.QUERY,
+            operation_name="CreateSandboxConfig",
+            variables={
+                "input": {
+                    "config": {"wasm": {"language": "PYTHON"}},
+                    "name": f"auth-update-sandbox-{token_hex(8)}",
+                }
+            },
+        )
+        sandbox_config_id = response["data"]["createSandboxConfig"]["sandboxConfig"]["id"]
+
+        logged_in_user = _get_user(_app, role_or_user).log_in(_app)
+        with expectation:
+            logged_in_user.gql(
+                _app,
+                query=self.QUERY,
+                operation_name="UpdateSandboxConfig",
+                variables={
+                    "input": {
+                        "id": sandbox_config_id,
+                        "description": f"updated by {role_or_user}",
+                    }
+                },
+            )
+
+
+class TestGenerativeModelCustomProviderMutations:
+    QUERY = """
+      mutation TestGenerativeModelCustomProviderCredentials(
+        $input: GenerativeModelCustomerProviderConfigInput!
+      ) {
+        testGenerativeModelCustomProviderCredentials(input: $input) {
+          error
+        }
+      }
+    """
+
+    @pytest.mark.parametrize(
+        "role_or_user,expectation",
+        [
+            (_VIEWER, _DENIED),
+            (_MEMBER, _DENIED),
+            (_ADMIN, _OK),
+            (_DEFAULT_ADMIN, _OK),
+        ],
+    )
+    def test_only_admin_can_test_custom_provider_credentials(
+        self,
+        role_or_user: _RoleOrUser,
+        expectation: _OK_OR_DENIED,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        logged_in_user = _get_user(_app, role_or_user).log_in(_app)
+        with expectation:
+            logged_in_user.gql(
+                _app,
+                query=self.QUERY,
+                operation_name="TestGenerativeModelCustomProviderCredentials",
+                variables={
+                    "input": {
+                        "openai": {
+                            "openaiAuthenticationMethod": {"apiKey": "sk-test"},
+                            "openaiClientKwargs": {"baseUrl": "http://127.0.0.1:9/v1"},
+                        }
+                    }
+                },
+            )
+
+
 class TestSpanExporters:
     @pytest.mark.parametrize(
         "use_api_key,expires_at,expected",
@@ -1418,7 +1557,7 @@ class TestSpanAnnotations:
         )
 
         # Check that the annotation remains unchanged
-        response, _ = user.gql(
+        response, _ = logged_in_member.gql(
             _app,
             query=self.QUERY,
             operation_name="GetSpanAnnotation",
@@ -1589,7 +1728,7 @@ class TestTraceAnnotations:
         )
 
         # Check that the annotation remains unchanged
-        response, _ = user.gql(
+        response, _ = logged_in_member.gql(
             _app,
             query=self.QUERY,
             operation_name="GetTraceAnnotation",
@@ -1705,11 +1844,11 @@ class TestSecretsCRUDAndValueVisibility:
         assert secret["value"]["__typename"] == "DecryptedSecret"
         # Server emits the value as a RedactedString token — un-redact before
         # comparing against the original plaintext.
-        from starlette.datastructures import Secret
+        from pydantic import SecretStr
 
         from phoenix.server.redaction import Redactor
 
-        _redactor = Redactor(secret=Secret(_app.env["PHOENIX_SECRET"]))
+        _redactor = Redactor(secret=SecretStr(_app.env["PHOENIX_SECRET"]))
         assert _redactor.unredact(secret["value"]["value"]) == secret_value
 
         # Member and Viewer should get Unauthorized when accessing secret value field

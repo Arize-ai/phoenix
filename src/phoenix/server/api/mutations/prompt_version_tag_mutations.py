@@ -9,12 +9,11 @@ from strawberry.relay import GlobalID
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.db.types.identifier import Identifier as IdentifierModel
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.queries import Query
-from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt
 from phoenix.server.api.types.PromptVersion import PromptVersion
@@ -130,11 +129,9 @@ async def upsert_prompt_version_tag(
     session: AsyncSession,
     prompt_id: int,
     prompt_version_id: int,
-    name_str: str,
+    name: Identifier,
     description: Optional[str] = None,
 ) -> models.PromptVersionTag:
-    name = IdentifierModel.model_validate(name_str)
-
     existing_tag = await session.scalar(
         select(models.PromptVersionTag).where(
             models.PromptVersionTag.prompt_id == prompt_id,

@@ -23,7 +23,6 @@ import { SandboxProviderCredentialsDialog } from "./SandboxProviderCredentialsDi
 import { sandboxesTableCSS } from "./styles";
 import type { BackendInfo, ProviderRow, SandboxProvider } from "./types";
 import {
-  formatTimestamp,
   getBackendDescription,
   LanguageWithIcon,
   SandboxHostingTypeBadge,
@@ -51,8 +50,7 @@ export function SandboxProvidersCard({
         <thead>
           <tr>
             <th>Provider</th>
-            <th>Language</th>
-            <th>Updated</th>
+            <th>Languages</th>
             <th>Status</th>
             <th />
           </tr>
@@ -78,9 +76,12 @@ export function SandboxProvidersCard({
                   </Flex>
                 </td>
                 <td>
-                  <LanguageWithIcon language={provider.language} />
+                  <Flex direction="row" gap="size-300">
+                    {[...provider.supportedLanguages].map((lang) => (
+                      <LanguageWithIcon key={lang} language={lang} />
+                    ))}
+                  </Flex>
                 </td>
-                <td>{formatTimestamp(provider.updatedAt)}</td>
                 <td>
                   {canEnable ? (
                     <ProviderEnabledSwitch
