@@ -299,3 +299,8 @@ For training-data filtering, return a non-zero score only when **all** jurors ag
 
 - [Pairwise Evaluator](/docs/phoenix/evaluation/server-evals/code-evaluators/pairwise) — single LLM judging `output` head-to-head against a `reference` baseline (blinded to avoid position bias).
 - [Composite Evaluator](/docs/phoenix/evaluation/server-evals/code-evaluators/composite) — combine different *axes* of judgment (from possibly different judges) into one score.
+
+## Further reading
+
+- [Who can we trust? LLM-as-a-jury for Comparative Assessment](https://arxiv.org/abs/2602.16610) — Qian et al. Proposes BT-sigma, jointly inferring item rankings *and* judge reliability from pairwise comparisons so jurors with different trust levels can be aggregated without weighting them equally. Useful background when tuning the per-juror weights in the example above.
+- [12 Angry AI Agents: Evaluating Multi-Agent LLM Decision-Making Through Cinematic Jury Deliberation](https://arxiv.org/abs/2605.01986) — Ersoz. Finds anchoring is the dominant failure mode of LLMs in simulated jury deliberation — supporting the design choice in this page of running jurors **independently in parallel** rather than letting them see each other's verdicts.
