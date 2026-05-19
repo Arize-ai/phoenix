@@ -58,6 +58,8 @@ const AGENT_CURATED_BUILT_IN_MODELS: readonly AgentBuiltInModelSelection[] = [
   { provider: "OPENAI", modelName: "gpt-5.4" },
   { provider: "OPENAI", modelName: "gpt-5.4-mini" },
   { provider: "OPENAI", modelName: "gpt-5.5" },
+  { provider: "GOOGLE", modelName: "gemini-3.1-pro-preview" },
+  { provider: "GOOGLE", modelName: "gemini-3.5-flash" },
 ];
 
 type CustomProviderInfo = {
