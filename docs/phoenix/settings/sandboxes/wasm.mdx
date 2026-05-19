@@ -13,3 +13,9 @@ The **WebAssembly** sandbox runs Python code in a CPython interpreter compiled t
 </div>
 
 Configure it from [Settings → Sandboxes](/docs/phoenix/settings/sandboxes). Learn more about WebAssembly at [webassembly.org](https://webassembly.org/).
+
+## Security model
+
+WebAssembly enforces isolation through **memory-safe, sandboxed execution**: the guest can only read and write inside its own linear memory, cannot forge pointers into the host's address space, and has no ambient access to syscalls, the filesystem, or the network. Phoenix relies on this boundary plus `wasmtime`'s capability-based host interface to keep evaluator code contained inside the Phoenix process.
+
+For the full threat model — including memory-safety guarantees, control-flow integrity, and the side-channel caveats that apply to any in-process sandbox — see WebAssembly's [Security](https://webassembly.org/docs/security/) documentation.
