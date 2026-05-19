@@ -4,7 +4,7 @@ import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
 import { Loading } from "@phoenix/components/core/loading";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
-import { AgentChatHeader, EvaluatorAgentChatFrame } from "./AgentChatPanelView";
+import { AgentChatHeader, DrawerChatFrame } from "./AgentChatPanelView";
 import { ChatView } from "./Chat";
 import {
   EMPTY_SESSION_DISPLAY_NAME,
@@ -36,11 +36,11 @@ export function EvaluatorAgentChatPanel() {
   }
 
   return (
-    <EvaluatorAgentChatFrame>
+    <DrawerChatFrame panelId="evaluator-agent-chat">
       <Suspense fallback={<Loading />}>
         <EvaluatorAgentChatController />
       </Suspense>
-    </EvaluatorAgentChatFrame>
+    </DrawerChatFrame>
   );
 }
 

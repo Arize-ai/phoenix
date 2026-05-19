@@ -163,7 +163,7 @@ export function DockedAgentChatFrame({ children }: { children: ReactNode }) {
   );
 }
 
-const tracePanelContentCSS = css`
+const drawerChatContentCSS = css`
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -175,37 +175,29 @@ const tracePanelContentCSS = css`
 `;
 
 /**
- * Presentational shell for the trace slideover's embedded PXI panel.
+ * Presentational shell for a PXI panel embedded inside a drawer/slideover
+ * surface (e.g. the trace details drawer, the code evaluator drawer).
+ *
+ * Each call site passes a unique `panelId` so the surrounding react-resizable
+ * `Group` can identify and persist its layout independently from other
+ * surfaces.
  */
-export function TraceAgentChatFrame({ children }: { children: ReactNode }) {
+export function DrawerChatFrame({
+  panelId,
+  children,
+}: {
+  panelId: string;
+  children: ReactNode;
+}) {
   return (
     <AgentChatFrame
-      panelId="trace-agent-chat"
+      panelId={panelId}
       panelProps={{
         defaultSize: "32%",
         minSize: "24%",
         maxSize: "45%",
       }}
-      contentCss={tracePanelContentCSS}
-    >
-      {children}
-    </AgentChatFrame>
-  );
-}
-
-/**
- * Presentational shell for the code evaluator slideover's embedded PXI panel.
- */
-export function EvaluatorAgentChatFrame({ children }: { children: ReactNode }) {
-  return (
-    <AgentChatFrame
-      panelId="evaluator-agent-chat"
-      panelProps={{
-        defaultSize: "32%",
-        minSize: "24%",
-        maxSize: "45%",
-      }}
-      contentCss={tracePanelContentCSS}
+      contentCss={drawerChatContentCSS}
     >
       {children}
     </AgentChatFrame>

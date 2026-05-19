@@ -1,7 +1,7 @@
 import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
-import { AgentChatHeader, TraceAgentChatFrame } from "./AgentChatPanelView";
+import { AgentChatHeader, DrawerChatFrame } from "./AgentChatPanelView";
 import { ChatView } from "./Chat";
 import {
   EMPTY_SESSION_DISPLAY_NAME,
@@ -71,7 +71,7 @@ function TraceAgentChatController() {
   });
 
   return (
-    <TraceAgentChatFrame>
+    <DrawerChatFrame panelId="trace-agent-chat">
       <AgentChatHeader
         sessionDisplayName={sessionDisplayName}
         orderedSessions={orderedSessions}
@@ -97,6 +97,6 @@ function TraceAgentChatController() {
           <ChatSessionUsage sessionId={activeSessionId} />
         ) : null}
       </ChatView>
-    </TraceAgentChatFrame>
+    </DrawerChatFrame>
   );
 }
