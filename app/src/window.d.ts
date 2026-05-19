@@ -29,6 +29,10 @@ declare global {
        * Passed from the backend to ensure single source of truth.
        */
       authErrorMessages: Record<string, string>;
+      /** Default playground model provider from PHOENIX_DEFAULT_MODEL_PROVIDER. Null if not set. */
+      defaultModelProvider?: string | null;
+      /** Default playground model name from PHOENIX_DEFAULT_MODEL_NAME. Null if not set. */
+      defaultModelName?: string | null;
     };
   }
 }

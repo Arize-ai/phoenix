@@ -109,6 +109,8 @@
               hasDbThreshold: Boolean("{{has_db_threshold}}" == "True"),
               allowExternalResources: Boolean("{{allow_external_resources}}" == "True"),
               authErrorMessages: {{auth_error_messages | tojson}},
+              defaultModelProvider: {{default_model_provider | tojson}},
+              defaultModelName: {{default_model_name | tojson}},
           }),
           writable: false
       });
