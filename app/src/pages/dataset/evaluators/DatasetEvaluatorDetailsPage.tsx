@@ -120,7 +120,7 @@ function DatasetEvaluatorDetailsPageContent({
               <Flex
                 direction="column"
                 gap="size-300"
-                maxWidth={1000}
+                maxWidth={1600}
                 marginStart="auto"
                 marginEnd="auto"
               >
