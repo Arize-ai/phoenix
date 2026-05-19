@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<12d1565c8f071a5815b791979078e84f>>
+ * @generated SignedSource<<814b3b9fe6aa715aaf98bfb289a3a4a4>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,7 +12,7 @@ import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type InternetAccessMode = "ALLOWLIST" | "BOOLEAN" | "NONE";
-export type Language = "PYTHON" | "TYPESCRIPT";
+export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "VERCEL" | "WASM";
 export type TimeRange = {
   end?: string | null;
   start?: string | null;
@@ -44,10 +44,10 @@ export type datasetEvaluatorDetailsLoaderQuery$data = {
     readonly id: string;
   };
   readonly sandboxBackends: ReadonlyArray<{
-    readonly backendType: string;
-    readonly dependenciesLanguage: Language | null;
+    readonly backendType: SandboxBackendType;
     readonly displayName: string;
     readonly internetAccess: InternetAccessMode;
+    readonly supportsDependencies: boolean;
     readonly supportsEnvVars: boolean;
   }>;
 };
@@ -174,7 +174,7 @@ v13 = {
       "alias": null,
       "args": null,
       "kind": "ScalarField",
-      "name": "dependenciesLanguage",
+      "name": "supportsDependencies",
       "storageKey": null
     }
   ],
@@ -184,31 +184,24 @@ v14 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "language",
+  "name": "optimizationDirection",
   "storageKey": null
 },
 v15 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "optimizationDirection",
+  "name": "label",
   "storageKey": null
 },
 v16 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "label",
-  "storageKey": null
-},
-v17 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
   "name": "score",
   "storageKey": null
 },
-v18 = {
+v17 = {
   "alias": null,
   "args": null,
   "concreteType": "CategoricalAnnotationValue",
@@ -216,26 +209,26 @@ v18 = {
   "name": "values",
   "plural": true,
   "selections": [
-    (v16/*: any*/),
-    (v17/*: any*/)
+    (v15/*: any*/),
+    (v16/*: any*/)
   ],
   "storageKey": null
+},
+v18 = {
+  "kind": "InlineFragment",
+  "selections": [
+    (v7/*: any*/),
+    (v14/*: any*/),
+    (v17/*: any*/)
+  ],
+  "type": "CategoricalAnnotationConfig",
+  "abstractKey": null
 },
 v19 = {
   "kind": "InlineFragment",
   "selections": [
     (v7/*: any*/),
-    (v15/*: any*/),
-    (v18/*: any*/)
-  ],
-  "type": "CategoricalAnnotationConfig",
-  "abstractKey": null
-},
-v20 = {
-  "kind": "InlineFragment",
-  "selections": [
-    (v7/*: any*/),
-    (v15/*: any*/),
+    (v14/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -254,11 +247,11 @@ v20 = {
   "type": "ContinuousAnnotationConfig",
   "abstractKey": null
 },
-v21 = {
+v20 = {
   "kind": "InlineFragment",
   "selections": [
     (v7/*: any*/),
-    (v15/*: any*/),
+    (v14/*: any*/),
     {
       "alias": null,
       "args": null,
@@ -270,7 +263,7 @@ v21 = {
   "type": "FreeformAnnotationConfig",
   "abstractKey": null
 },
-v22 = {
+v21 = {
   "kind": "InlineFragment",
   "selections": [
     (v5/*: any*/)
@@ -278,67 +271,67 @@ v22 = {
   "type": "Node",
   "abstractKey": "__isNode"
 },
-v23 = [
+v22 = [
   (v5/*: any*/),
   (v7/*: any*/)
 ],
-v24 = {
+v23 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "strict",
   "storageKey": null
 },
-v25 = {
+v24 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "temperature",
   "storageKey": null
 },
-v26 = {
+v25 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "frequencyPenalty",
   "storageKey": null
 },
-v27 = {
+v26 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "presencePenalty",
   "storageKey": null
 },
-v28 = {
+v27 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "topP",
   "storageKey": null
 },
-v29 = {
+v28 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "extraBody",
   "storageKey": null
 },
-v30 = {
+v29 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "stopSequences",
   "storageKey": null
 },
-v31 = {
+v30 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "toolCallId",
   "storageKey": null
 },
-v32 = [
+v31 = [
   {
     "kind": "Literal",
     "name": "first",
@@ -368,7 +361,7 @@ v32 = [
     "variableName": "timeRange"
   }
 ],
-v33 = {
+v32 = {
   "alias": null,
   "args": null,
   "concreteType": "LabelFraction",
@@ -383,39 +376,39 @@ v33 = {
       "name": "fraction",
       "storageKey": null
     },
-    (v16/*: any*/)
+    (v15/*: any*/)
   ],
   "storageKey": null
 },
-v34 = {
+v33 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "count",
   "storageKey": null
 },
-v35 = {
+v34 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "meanScore",
   "storageKey": null
 },
-v36 = {
+v35 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "scoreCount",
   "storageKey": null
 },
-v37 = {
+v36 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "labelCount",
   "storageKey": null
 },
-v38 = {
+v37 = {
   "alias": null,
   "args": null,
   "concreteType": "Project",
@@ -468,13 +461,13 @@ v38 = {
                   "selections": [
                     (v5/*: any*/),
                     (v7/*: any*/),
-                    (v15/*: any*/),
-                    (v18/*: any*/)
+                    (v14/*: any*/),
+                    (v17/*: any*/)
                   ],
                   "type": "CategoricalAnnotationConfig",
                   "abstractKey": null
                 },
-                (v22/*: any*/)
+                (v21/*: any*/)
               ],
               "storageKey": null
             }
@@ -487,11 +480,11 @@ v38 = {
   ],
   "storageKey": null
 },
-v39 = [
+v38 = [
   (v5/*: any*/),
   (v7/*: any*/),
+  (v15/*: any*/),
   (v16/*: any*/),
-  (v17/*: any*/),
   {
     "alias": null,
     "args": null,
@@ -533,7 +526,7 @@ v39 = [
     "storageKey": null
   }
 ],
-v40 = [
+v39 = [
   {
     "alias": "value",
     "args": null,
@@ -698,7 +691,13 @@ return {
                         "kind": "InlineFragment",
                         "selections": [
                           (v11/*: any*/),
-                          (v14/*: any*/),
+                          {
+                            "alias": null,
+                            "args": null,
+                            "kind": "ScalarField",
+                            "name": "language",
+                            "storageKey": null
+                          },
                           {
                             "alias": null,
                             "args": null,
@@ -708,10 +707,10 @@ return {
                             "plural": true,
                             "selections": [
                               (v9/*: any*/),
+                              (v18/*: any*/),
                               (v19/*: any*/),
                               (v20/*: any*/),
-                              (v21/*: any*/),
-                              (v22/*: any*/)
+                              (v21/*: any*/)
                             ],
                             "storageKey": null
                           },
@@ -736,8 +735,67 @@ return {
                               {
                                 "alias": null,
                                 "args": null,
-                                "kind": "ScalarField",
+                                "concreteType": "SandboxConfigData",
+                                "kind": "LinkedField",
                                 "name": "config",
+                                "plural": false,
+                                "selections": [
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "SandboxConfigEnvVar",
+                                    "kind": "LinkedField",
+                                    "name": "envVars",
+                                    "plural": true,
+                                    "selections": [
+                                      (v7/*: any*/),
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "secretKey",
+                                        "storageKey": null
+                                      }
+                                    ],
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "SandboxConfigInternetAccess",
+                                    "kind": "LinkedField",
+                                    "name": "internetAccess",
+                                    "plural": false,
+                                    "selections": [
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "mode",
+                                        "storageKey": null
+                                      }
+                                    ],
+                                    "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "SandboxConfigDependencies",
+                                    "kind": "LinkedField",
+                                    "name": "dependencies",
+                                    "plural": false,
+                                    "selections": [
+                                      {
+                                        "alias": null,
+                                        "args": null,
+                                        "kind": "ScalarField",
+                                        "name": "packages",
+                                        "storageKey": null
+                                      }
+                                    ],
+                                    "storageKey": null
+                                  }
+                                ],
                                 "storageKey": null
                               },
                               {
@@ -749,7 +807,6 @@ return {
                                 "plural": false,
                                 "selections": [
                                   (v12/*: any*/),
-                                  (v14/*: any*/),
                                   (v5/*: any*/)
                                 ],
                                 "storageKey": null
@@ -792,9 +849,9 @@ return {
                             "plural": true,
                             "selections": [
                               (v9/*: any*/),
+                              (v18/*: any*/),
                               (v19/*: any*/),
-                              (v20/*: any*/),
-                              (v22/*: any*/)
+                              (v21/*: any*/)
                             ],
                             "storageKey": null
                           }
@@ -812,7 +869,7 @@ return {
                             "kind": "LinkedField",
                             "name": "prompt",
                             "plural": false,
-                            "selections": (v23/*: any*/),
+                            "selections": (v22/*: any*/),
                             "storageKey": null
                           },
                           {
@@ -874,7 +931,7 @@ return {
                                               },
                                               (v7/*: any*/),
                                               (v8/*: any*/),
-                                              (v24/*: any*/)
+                                              (v23/*: any*/)
                                             ],
                                             "storageKey": null
                                           }
@@ -951,7 +1008,7 @@ return {
                                   {
                                     "kind": "InlineFragment",
                                     "selections": [
-                                      (v25/*: any*/),
+                                      (v24/*: any*/),
                                       {
                                         "alias": "openaiMaxTokens",
                                         "args": null,
@@ -966,9 +1023,9 @@ return {
                                         "name": "maxCompletionTokens",
                                         "storageKey": null
                                       },
+                                      (v25/*: any*/),
                                       (v26/*: any*/),
                                       (v27/*: any*/),
-                                      (v28/*: any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -990,7 +1047,7 @@ return {
                                         "name": "reasoningEffort",
                                         "storageKey": null
                                       },
-                                      (v29/*: any*/)
+                                      (v28/*: any*/)
                                     ],
                                     "type": "PromptOpenAIInvocationParameters",
                                     "abstractKey": null
@@ -1005,9 +1062,9 @@ return {
                                         "name": "maxTokens",
                                         "storageKey": null
                                       },
-                                      (v25/*: any*/),
-                                      (v28/*: any*/),
-                                      (v30/*: any*/),
+                                      (v24/*: any*/),
+                                      (v27/*: any*/),
+                                      (v29/*: any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -1087,7 +1144,7 @@ return {
                                         ],
                                         "storageKey": null
                                       },
-                                      (v29/*: any*/)
+                                      (v28/*: any*/)
                                     ],
                                     "type": "PromptAnthropicInvocationParameters",
                                     "abstractKey": null
@@ -1095,7 +1152,7 @@ return {
                                   {
                                     "kind": "InlineFragment",
                                     "selections": [
-                                      (v25/*: any*/),
+                                      (v24/*: any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -1103,10 +1160,10 @@ return {
                                         "name": "maxOutputTokens",
                                         "storageKey": null
                                       },
-                                      (v30/*: any*/),
-                                      (v27/*: any*/),
+                                      (v29/*: any*/),
                                       (v26/*: any*/),
-                                      (v28/*: any*/),
+                                      (v25/*: any*/),
+                                      (v27/*: any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -1160,9 +1217,9 @@ return {
                                         "name": "maxTokens",
                                         "storageKey": null
                                       },
-                                      (v25/*: any*/),
-                                      (v28/*: any*/),
-                                      (v30/*: any*/)
+                                      (v24/*: any*/),
+                                      (v27/*: any*/),
+                                      (v29/*: any*/)
                                     ],
                                     "type": "PromptAwsInvocationParameters",
                                     "abstractKey": null
@@ -1177,7 +1234,7 @@ return {
                                 "kind": "LinkedField",
                                 "name": "customProvider",
                                 "plural": false,
-                                "selections": (v23/*: any*/),
+                                "selections": (v22/*: any*/),
                                 "storageKey": null
                               },
                               {
@@ -1205,7 +1262,7 @@ return {
                                         "name": "schema",
                                         "storageKey": null
                                       },
-                                      (v24/*: any*/)
+                                      (v23/*: any*/)
                                     ],
                                     "storageKey": null
                                   }
@@ -1284,7 +1341,7 @@ return {
                                                     "name": "toolCall",
                                                     "plural": false,
                                                     "selections": [
-                                                      (v31/*: any*/),
+                                                      (v30/*: any*/),
                                                       {
                                                         "alias": null,
                                                         "args": null,
@@ -1322,7 +1379,7 @@ return {
                                                     "name": "toolResult",
                                                     "plural": false,
                                                     "selections": [
-                                                      (v31/*: any*/),
+                                                      (v30/*: any*/),
                                                       {
                                                         "alias": null,
                                                         "args": null,
@@ -1434,7 +1491,7 @@ return {
                       },
                       {
                         "alias": null,
-                        "args": (v32/*: any*/),
+                        "args": (v31/*: any*/),
                         "concreteType": "SpanConnection",
                         "kind": "LinkedField",
                         "name": "spans",
@@ -1560,16 +1617,16 @@ return {
                                         "name": "traceAnnotationSummaries",
                                         "plural": true,
                                         "selections": [
+                                          (v32/*: any*/),
                                           (v33/*: any*/),
                                           (v34/*: any*/),
-                                          (v35/*: any*/),
                                           (v7/*: any*/),
-                                          (v36/*: any*/),
-                                          (v37/*: any*/)
+                                          (v35/*: any*/),
+                                          (v36/*: any*/)
                                         ],
                                         "storageKey": null
                                       },
-                                      (v38/*: any*/),
+                                      (v37/*: any*/),
                                       {
                                         "alias": null,
                                         "args": null,
@@ -1577,7 +1634,7 @@ return {
                                         "kind": "LinkedField",
                                         "name": "traceAnnotations",
                                         "plural": true,
-                                        "selections": (v39/*: any*/),
+                                        "selections": (v38/*: any*/),
                                         "storageKey": null
                                       }
                                     ],
@@ -1590,7 +1647,7 @@ return {
                                     "kind": "LinkedField",
                                     "name": "input",
                                     "plural": false,
-                                    "selections": (v40/*: any*/),
+                                    "selections": (v39/*: any*/),
                                     "storageKey": null
                                   },
                                   {
@@ -1600,7 +1657,7 @@ return {
                                     "kind": "LinkedField",
                                     "name": "output",
                                     "plural": false,
-                                    "selections": (v40/*: any*/),
+                                    "selections": (v39/*: any*/),
                                     "storageKey": null
                                   },
                                   {
@@ -1610,7 +1667,7 @@ return {
                                     "kind": "LinkedField",
                                     "name": "spanAnnotations",
                                     "plural": true,
-                                    "selections": (v39/*: any*/),
+                                    "selections": (v38/*: any*/),
                                     "storageKey": null
                                   },
                                   {
@@ -1621,12 +1678,12 @@ return {
                                     "name": "spanAnnotationSummaries",
                                     "plural": true,
                                     "selections": [
+                                      (v32/*: any*/),
+                                      (v34/*: any*/),
+                                      (v7/*: any*/),
                                       (v33/*: any*/),
                                       (v35/*: any*/),
-                                      (v7/*: any*/),
-                                      (v34/*: any*/),
-                                      (v36/*: any*/),
-                                      (v37/*: any*/)
+                                      (v36/*: any*/)
                                     ],
                                     "storageKey": null
                                   },
@@ -1669,7 +1726,7 @@ return {
                                     ],
                                     "storageKey": null
                                   },
-                                  (v38/*: any*/)
+                                  (v37/*: any*/)
                                 ],
                                 "storageKey": null
                               },
@@ -1726,7 +1783,7 @@ return {
                       },
                       {
                         "alias": null,
-                        "args": (v32/*: any*/),
+                        "args": (v31/*: any*/),
                         "filters": [
                           "sort",
                           "rootSpansOnly",
@@ -1776,10 +1833,10 @@ return {
                     "plural": true,
                     "selections": [
                       (v9/*: any*/),
+                      (v18/*: any*/),
                       (v19/*: any*/),
-                      (v20/*: any*/),
-                      (v22/*: any*/),
-                      (v21/*: any*/)
+                      (v21/*: any*/),
+                      (v20/*: any*/)
                     ],
                     "storageKey": null
                   }
@@ -1797,16 +1854,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "31f994079a67dcead55e2b16d2464743",
+    "cacheID": "9b0c8cd310bd6986c1373811761c02ca",
     "id": null,
     "metadata": {},
     "name": "datasetEvaluatorDetailsLoaderQuery",
     "operationKind": "query",
-    "text": "query datasetEvaluatorDetailsLoaderQuery(\n  $datasetId: ID!\n  $datasetEvaluatorId: ID!\n  $timeRange: TimeRange\n  $orphanSpanAsRootSpan: Boolean!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        name\n        description\n        evaluator {\n          __typename\n          kind\n          description\n          ... on CodeEvaluator {\n            versionCount\n          }\n          id\n        }\n        project {\n          id\n          ...DatasetEvaluatorSpans_project\n        }\n        ...BuiltInDatasetEvaluatorDetails_datasetEvaluator\n        ...CodeDatasetEvaluatorDetails_datasetEvaluator\n        ...LLMDatasetEvaluatorDetails_datasetEvaluator\n      }\n    }\n  }\n  sandboxBackends {\n    backendType\n    displayName\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment BuiltInDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {\n  id\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n  evaluator {\n    __typename\n    kind\n    name\n    ... on BuiltInEvaluator {\n      outputConfigs {\n        __typename\n        ... on CategoricalAnnotationConfig {\n          name\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          name\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment CodeDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {\n  id\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on FreeformAnnotationConfig {\n      name\n      optimizationDirection\n      threshold\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n  evaluator {\n    __typename\n    kind\n    ... on CodeEvaluator {\n      id\n      name\n      description\n      language\n      outputConfigs {\n        __typename\n        ... on CategoricalAnnotationConfig {\n          name\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          name\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          name\n          optimizationDirection\n          threshold\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n      sandboxConfig {\n        id\n        name\n        description\n        timeout\n        config\n        provider {\n          backendType\n          language\n          id\n        }\n      }\n      currentVersion {\n        sourceCode\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment DatasetEvaluatorSpans_project on Project {\n  id\n  ...SpansTable_spans\n}\n\nfragment LLMDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {\n  id\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    kind\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        tools {\n          tools {\n            __typename\n            ... on PromptToolFunction {\n              function {\n                parameters\n              }\n            }\n            ... on PromptToolRaw {\n              raw\n            }\n          }\n        }\n        ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n        ...PromptChatMessagesCard__main\n        id\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n    id\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n\nfragment PromptChatMessagesCard__main on PromptVersion {\n  provider: modelProvider\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment PromptInvocationParametersReadableFragment on PromptInvocationParameters {\n  __isPromptInvocationParameters: __typename\n  __typename\n  ... on PromptOpenAIInvocationParameters {\n    temperature\n    openaiMaxTokens: maxTokens\n    maxCompletionTokens\n    frequencyPenalty\n    presencePenalty\n    topP\n    seed\n    stop\n    reasoningEffort\n    extraBody\n  }\n  ... on PromptAnthropicInvocationParameters {\n    anthropicMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n    outputConfig {\n      effort\n    }\n    thinking {\n      __typename\n      ... on PromptAnthropicThinkingDisabled {\n        disabled\n      }\n      ... on PromptAnthropicThinkingEnabled {\n        budgetTokens\n        enabledDisplay: display\n      }\n      ... on PromptAnthropicThinkingAdaptive {\n        adaptiveDisplay: display\n      }\n    }\n    extraBody\n  }\n  ... on PromptGoogleInvocationParameters {\n    temperature\n    maxOutputTokens\n    stopSequences\n    presencePenalty\n    frequencyPenalty\n    topP\n    topK\n    thinkingConfig {\n      thinkingBudget\n      thinkingLevel\n      includeThoughts\n    }\n  }\n  ... on PromptAwsInvocationParameters {\n    awsMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n  }\n}\n\nfragment SpanColumnSelector_annotations on Project {\n  spanAnnotationNames\n}\n\nfragment SpanColumnSelector_traceAnnotations on Project {\n  traceAnnotationsNames\n}\n\nfragment SpansTable_spans on Project {\n  name\n  spanAnnotationNames\n  ...SpanColumnSelector_annotations\n  ...SpanColumnSelector_traceAnnotations\n  spans(first: 30, sort: {col: startTime, dir: desc}, rootSpansOnly: true, orphanSpanAsRootSpan: $orphanSpanAsRootSpan, timeRange: $timeRange) {\n    edges {\n      span: node {\n        id\n        spanKind\n        name\n        metadata\n        statusCode\n        startTime\n        latencyMs\n        cumulativeTokenCountTotal\n        spanId\n        trace {\n          id\n          traceId\n          costSummary {\n            total {\n              cost\n            }\n          }\n          traceAnnotationSummaries {\n            labelFractions {\n              fraction\n              label\n            }\n            count\n            meanScore\n            name\n          }\n          ...TraceAnnotationSummaryGroup\n        }\n        input {\n          value: truncatedValue\n        }\n        output {\n          value: truncatedValue\n        }\n        spanAnnotations {\n          id\n          name\n          label\n          score\n          annotatorKind\n          createdAt\n        }\n        spanAnnotationSummaries {\n          labelFractions {\n            fraction\n            label\n          }\n          meanScore\n          name\n        }\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        ...AnnotationSummaryGroup\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  traceAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  traceAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters {\n    __typename\n    ...PromptInvocationParametersReadableFragment\n  }\n  customProvider {\n    id\n    name\n  }\n  responseFormat {\n    jsonSchema {\n      name\n      description\n      schema\n      strict\n    }\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    tools {\n      __typename\n      ... on PromptToolFunction {\n        function {\n          name\n          description\n          parameters\n          strict\n        }\n      }\n      ... on PromptToolRaw {\n        raw\n      }\n    }\n    toolChoice {\n      type\n      functionName\n    }\n    disableParallelToolCalls\n  }\n}\n"
+    "text": "query datasetEvaluatorDetailsLoaderQuery(\n  $datasetId: ID!\n  $datasetEvaluatorId: ID!\n  $timeRange: TimeRange\n  $orphanSpanAsRootSpan: Boolean!\n) {\n  dataset: node(id: $datasetId) {\n    __typename\n    id\n    ... on Dataset {\n      id\n      datasetEvaluator(datasetEvaluatorId: $datasetEvaluatorId) {\n        id\n        name\n        description\n        evaluator {\n          __typename\n          kind\n          description\n          ... on CodeEvaluator {\n            versionCount\n          }\n          id\n        }\n        project {\n          id\n          ...DatasetEvaluatorSpans_project\n        }\n        ...BuiltInDatasetEvaluatorDetails_datasetEvaluator\n        ...CodeDatasetEvaluatorDetails_datasetEvaluator\n        ...LLMDatasetEvaluatorDetails_datasetEvaluator\n      }\n    }\n  }\n  sandboxBackends {\n    backendType\n    displayName\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment BuiltInDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {\n  id\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n  evaluator {\n    __typename\n    kind\n    name\n    ... on BuiltInEvaluator {\n      outputConfigs {\n        __typename\n        ... on CategoricalAnnotationConfig {\n          name\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          name\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n    id\n  }\n}\n\nfragment CodeDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {\n  id\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on FreeformAnnotationConfig {\n      name\n      optimizationDirection\n      threshold\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n  evaluator {\n    __typename\n    kind\n    ... on CodeEvaluator {\n      id\n      name\n      description\n      language\n      outputConfigs {\n        __typename\n        ... on CategoricalAnnotationConfig {\n          name\n          optimizationDirection\n          values {\n            label\n            score\n          }\n        }\n        ... on ContinuousAnnotationConfig {\n          name\n          optimizationDirection\n          lowerBound\n          upperBound\n        }\n        ... on FreeformAnnotationConfig {\n          name\n          optimizationDirection\n          threshold\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n      sandboxConfig {\n        id\n        name\n        description\n        timeout\n        config {\n          envVars {\n            name\n            secretKey\n          }\n          internetAccess {\n            mode\n          }\n          dependencies {\n            packages\n          }\n        }\n        provider {\n          backendType\n          id\n        }\n      }\n      currentVersion {\n        sourceCode\n        id\n      }\n    }\n    id\n  }\n}\n\nfragment DatasetEvaluatorSpans_project on Project {\n  id\n  ...SpansTable_spans\n}\n\nfragment LLMDatasetEvaluatorDetails_datasetEvaluator on DatasetEvaluator {\n  id\n  inputMapping {\n    literalMapping\n    pathMapping\n  }\n  evaluator {\n    __typename\n    kind\n    ... on LLMEvaluator {\n      prompt {\n        id\n        name\n      }\n      promptVersion {\n        modelName\n        modelProvider\n        tools {\n          tools {\n            __typename\n            ... on PromptToolFunction {\n              function {\n                parameters\n              }\n            }\n            ... on PromptToolRaw {\n              raw\n            }\n          }\n        }\n        ...fetchPlaygroundPrompt_promptVersionToInstance_promptVersion\n        ...PromptChatMessagesCard__main\n        id\n      }\n      promptVersionTag {\n        name\n        id\n      }\n    }\n    id\n  }\n  outputConfigs {\n    __typename\n    ... on CategoricalAnnotationConfig {\n      name\n      optimizationDirection\n      values {\n        label\n        score\n      }\n    }\n    ... on ContinuousAnnotationConfig {\n      name\n      optimizationDirection\n      lowerBound\n      upperBound\n    }\n    ... on Node {\n      __isNode: __typename\n      id\n    }\n  }\n}\n\nfragment PromptChatMessagesCard__main on PromptVersion {\n  provider: modelProvider\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                arguments\n                name\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  templateType\n  templateFormat\n}\n\nfragment PromptInvocationParametersReadableFragment on PromptInvocationParameters {\n  __isPromptInvocationParameters: __typename\n  __typename\n  ... on PromptOpenAIInvocationParameters {\n    temperature\n    openaiMaxTokens: maxTokens\n    maxCompletionTokens\n    frequencyPenalty\n    presencePenalty\n    topP\n    seed\n    stop\n    reasoningEffort\n    extraBody\n  }\n  ... on PromptAnthropicInvocationParameters {\n    anthropicMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n    outputConfig {\n      effort\n    }\n    thinking {\n      __typename\n      ... on PromptAnthropicThinkingDisabled {\n        disabled\n      }\n      ... on PromptAnthropicThinkingEnabled {\n        budgetTokens\n        enabledDisplay: display\n      }\n      ... on PromptAnthropicThinkingAdaptive {\n        adaptiveDisplay: display\n      }\n    }\n    extraBody\n  }\n  ... on PromptGoogleInvocationParameters {\n    temperature\n    maxOutputTokens\n    stopSequences\n    presencePenalty\n    frequencyPenalty\n    topP\n    topK\n    thinkingConfig {\n      thinkingBudget\n      thinkingLevel\n      includeThoughts\n    }\n  }\n  ... on PromptAwsInvocationParameters {\n    awsMaxTokens: maxTokens\n    temperature\n    topP\n    stopSequences\n  }\n}\n\nfragment SpanColumnSelector_annotations on Project {\n  spanAnnotationNames\n}\n\nfragment SpanColumnSelector_traceAnnotations on Project {\n  traceAnnotationsNames\n}\n\nfragment SpansTable_spans on Project {\n  name\n  spanAnnotationNames\n  ...SpanColumnSelector_annotations\n  ...SpanColumnSelector_traceAnnotations\n  spans(first: 30, sort: {col: startTime, dir: desc}, rootSpansOnly: true, orphanSpanAsRootSpan: $orphanSpanAsRootSpan, timeRange: $timeRange) {\n    edges {\n      span: node {\n        id\n        spanKind\n        name\n        metadata\n        statusCode\n        startTime\n        latencyMs\n        cumulativeTokenCountTotal\n        spanId\n        trace {\n          id\n          traceId\n          costSummary {\n            total {\n              cost\n            }\n          }\n          traceAnnotationSummaries {\n            labelFractions {\n              fraction\n              label\n            }\n            count\n            meanScore\n            name\n          }\n          ...TraceAnnotationSummaryGroup\n        }\n        input {\n          value: truncatedValue\n        }\n        output {\n          value: truncatedValue\n        }\n        spanAnnotations {\n          id\n          name\n          label\n          score\n          annotatorKind\n          createdAt\n        }\n        spanAnnotationSummaries {\n          labelFractions {\n            fraction\n            label\n          }\n          meanScore\n          name\n        }\n        documentRetrievalMetrics {\n          evaluationName\n          ndcg\n          precision\n          hit\n        }\n        ...AnnotationSummaryGroup\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment TraceAnnotationSummaryGroup on Trace {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  traceAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  traceAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment fetchPlaygroundPrompt_promptVersionToInstance_promptVersion on PromptVersion {\n  id\n  modelName\n  modelProvider\n  invocationParameters {\n    __typename\n    ...PromptInvocationParametersReadableFragment\n  }\n  customProvider {\n    id\n    name\n  }\n  responseFormat {\n    jsonSchema {\n      name\n      description\n      schema\n      strict\n    }\n  }\n  template {\n    __typename\n    ... on PromptChatTemplate {\n      messages {\n        role\n        content {\n          __typename\n          ... on TextContentPart {\n            text {\n              text\n            }\n          }\n          ... on ToolCallContentPart {\n            toolCall {\n              toolCallId\n              toolCall {\n                name\n                arguments\n              }\n            }\n          }\n          ... on ToolResultContentPart {\n            toolResult {\n              toolCallId\n              result\n            }\n          }\n        }\n      }\n    }\n    ... on PromptStringTemplate {\n      template\n    }\n  }\n  tools {\n    tools {\n      __typename\n      ... on PromptToolFunction {\n        function {\n          name\n          description\n          parameters\n          strict\n        }\n      }\n      ... on PromptToolRaw {\n        raw\n      }\n    }\n    toolChoice {\n      type\n      functionName\n    }\n    disableParallelToolCalls\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "d1748b1f7582c1fcefaaa227f921bc93";
+(node as any).hash = "cd92662f46c0a0d17f70ee46109cb469";
 
 export default node;
