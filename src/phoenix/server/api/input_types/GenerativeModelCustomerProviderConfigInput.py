@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 
 import strawberry
 from strawberry import UNSET
@@ -27,9 +27,9 @@ from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.types.RedactedString import RedactedString
 
 
-def _clean_headers(headers: JSON | None) -> dict[str, str] | None:
+def _clean_headers(headers: Any) -> Optional[dict[str, str]]:
     """Drop entries whose value is empty or whitespace-only."""
-    if not headers:
+    if not headers or not hasattr(headers, "items"):
         return None
     cleaned = {k: v for k, v in headers.items() if isinstance(v, str) and v.strip()}
     return cleaned or None
