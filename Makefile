@@ -387,7 +387,7 @@ dev-docker: ## Run Docker devops environment (use ARGS= to pass arguments, defau
 
 dev-mock-llm: ## Start the mock LLM server
 	@echo -e "$(CYAN)Starting mock LLM server...$(NC)"
-	cd scripts/mock-llm-server && $(PNPM) install --frozen-lockfile && $(PNPM) run build:all && $(PNPM) start
+	cd scripts/mock-llm-server && $(PNPM) install && $(PNPM) run build:all && $(PNPM) start
 
 #=============================================================================
 # Cleanup
