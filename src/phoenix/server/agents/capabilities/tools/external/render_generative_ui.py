@@ -25,15 +25,41 @@ def _load_json(name: str) -> dict[str, Any]:
     return cast(dict[str, Any], json.loads((_GENERATIVE_UI_DIR / name).read_text(encoding="utf-8")))
 
 
-# The generative UI schema comes from json-render's `catalog.jsonSchema()`. It
-# constrains the flat spec shape and allowed component names, but leaves element
-# `props` open because json-render represents elements as an arbitrary ID-keyed
-# record where each `props` schema depends on that element's `type`. The
-# generative UI tool description carries the concrete prop contract, and the browser
-# validates calls against the TypeScript catalog before rendering.
+# The frontend catalog generator owns json-render-specific artifacts that depend
+# on the current React registry. The backend owns the external-tool wrapper and
+# composes these generated catalog details into the tool definition below.
 _GENERATIVE_UI_SPEC_SCHEMA = _load_json("spec_schema.json")
+_GENERATIVE_UI_COMPONENT_REFERENCE = _load_text("component_reference.txt")
 
-_RENDER_GENERATIVE_UI_PARAMETERS: dict[str, Any] = {
+DESCRIPTION = "\n".join(
+    [
+        "Render a generative UI in the Phoenix chat using the available components below.",
+        (
+            "Use this tool when a compact visual UI such as metrics, charts, or an "
+            "analytical card would answer the user better than prose alone."
+        ),
+        (
+            "The `spec` argument must be one complete UI tree in this shape: "
+            "`{ root: string, elements: Record<string, { type: string, props: "
+            "object, children: [] }> }`."
+        ),
+        (
+            "`root` is the id of the chart element to render. Each chart component "
+            "is a leaf node, so `children` must be an empty array."
+        ),
+        (
+            "Every element `type` must come from the component list below, and every "
+            "element must include `type`, `props`, and `children`."
+        ),
+        (
+            "Do not provide partial updates, JSONL patches, markdown, or prose inside "
+            "`spec`; provide the full render tree in one object."
+        ),
+        _GENERATIVE_UI_COMPONENT_REFERENCE,
+    ]
+)
+
+PARAMETERS: dict[str, Any] = {
     "type": "object",
     "properties": {
         "spec": {
@@ -55,16 +81,18 @@ _RENDER_GENERATIVE_UI_PARAMETERS: dict[str, Any] = {
 
 RENDER_GENERATIVE_UI_TOOL_DEFINITION = ToolDefinition(
     name=RENDER_GENERATIVE_UI_TOOL_NAME,
-    description=_load_text("tool_description.txt"),
-    parameters_json_schema=_RENDER_GENERATIVE_UI_PARAMETERS,
+    description=DESCRIPTION,
+    parameters_json_schema=PARAMETERS,
     kind="external",
 )
 
 
 @dataclass
 class RenderGenerativeUICapability(AbstractStaticCapability[AgentDependencies]):
+    instructions: str
+
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return ExternalToolset[AgentDependencies]([RENDER_GENERATIVE_UI_TOOL_DEFINITION])
 
     def get_static_instructions(self) -> str:
-        return ""
+        return self.instructions

@@ -2,21 +2,21 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import {
-  GENERATIVE_UI_CATALOG_RULES,
   GENERATIVE_UI_TOOL_NAME,
   generativeUICatalog,
   generativeUICatalogPrompt,
 } from "../src/components/agent/generativeUICatalog";
 
 /**
- * Generates the server-owned generative UI artifacts in
+ * Generates the frontend-owned generative UI catalog artifacts in
  * `src/phoenix/server/generative_ui` from the frontend generative UI catalog.
  *
- * The Python agent tool loads these files at runtime to define the
- * `render_generative_ui` tool's description, JSON schema, and manifest. Run this
- * script via `make schema-generative-ui`. CI also runs that target to ensure
- * the checked-in artifacts stay in sync whenever the generative UI catalog or
- * its prompt contract changes.
+ * The Python agent tool owns the static external-tool definition and loads only
+ * the catalog-derived pieces it cannot know itself: the json-render spec schema,
+ * component/action manifest, and generated component reference. Behavioral tool
+ * guidance belongs in server-side XML prompts, not in generated artifacts. Run
+ * this script via `make schema-generative-ui`. CI also runs that target to ensure
+ * checked-in artifacts stay in sync whenever the frontend catalog changes.
  */
 const repoRoot = path.resolve(process.cwd(), "..");
 const outputDirectory = path.join(repoRoot, "src/phoenix/server/generative_ui");
@@ -31,36 +31,20 @@ const manifest = {
 // json-render emits an open `props` object in `catalog.jsonSchema()` because
 // each element's props depend on its runtime `type` inside an arbitrary
 // `elements` record. The concrete prop contract is still generated into
-// `tool_description.txt` via `catalog.prompt()` and enforced client-side with
+// `component_reference.txt` via `catalog.prompt()` and enforced client-side with
 // `generativeUICatalog.validate()` before rendering.
 const specJsonSchema = getToolFriendlyJsonSchema(
   generativeUICatalog.jsonSchema()
 );
 
-const componentReference = getComponentReference(generativeUICatalogPrompt);
-const toolRules = GENERATIVE_UI_CATALOG_RULES.map((rule) => `- ${rule}`).join(
-  "\n"
-);
-const toolDescription = [
-  "Render a generative UI in the Phoenix chat using the available components below.",
-  "Use this tool when a compact visual UI such as metrics, charts, or an analytical card would answer the user better than prose alone.",
-  "The `spec` argument must be one complete UI tree in this shape: `{ root: string, elements: Record<string, { type: string, props: object, children: [] }> }`.",
-  "`root` is the id of the chart element to render. Each chart component is a leaf node, so `children` must be an empty array.",
-  "Every element `type` must come from the component list below, and every element must include `type`, `props`, and `children`.",
-  "Do not provide partial updates, JSONL patches, markdown, or prose inside `spec`; provide the full render tree in one object.",
-  "Follow these rules when choosing and configuring chart components:",
-  toolRules,
-  "",
-  componentReference,
-  "",
-].join("\n");
+const componentReference = `${getComponentReference(generativeUICatalogPrompt)}\n`;
 
 async function main() {
   await mkdir(outputDirectory, { recursive: true });
   await Promise.all([
     writeFile(
-      path.join(outputDirectory, "tool_description.txt"),
-      `${toolDescription}\n`
+      path.join(outputDirectory, "component_reference.txt"),
+      componentReference
     ),
     writeFile(
       path.join(outputDirectory, "spec_schema.json"),
@@ -88,6 +72,12 @@ function getToolFriendlyJsonSchema(schema: object): object {
   return removeRequiredField(schema, "visible") as object;
 }
 
+/**
+ * Removes json-render's internal required fields from the model-facing schema.
+ * The React renderer can infer omitted visibility metadata, but catalog.jsonSchema()
+ * still marks `visible` as required for its full runtime spec contract. External
+ * tool callers should not have to provide that internal field.
+ */
 function removeRequiredField(value: unknown, fieldName: string): unknown {
   if (Array.isArray(value)) {
     return value

@@ -73,7 +73,7 @@ def get_external_tool_capability_function(
         BashCapability(instructions=instructions.bash_tool),
         AskUserCapability(instructions=instructions.ask_user_tool),
         SetTimeRangeCapability(instructions=instructions.set_time_range_tool),
-        RenderGenerativeUICapability(),
+        RenderGenerativeUICapability(instructions=instructions.render_generative_ui_tool),
     ]
     dynamic_capabilities: list[AbstractDynamicCapability[AgentDependencies]] = [
         SetSpansFilterCapability(instructions=instructions.set_spans_filter_tool),
