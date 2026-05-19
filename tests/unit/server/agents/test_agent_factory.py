@@ -18,11 +18,15 @@ from anthropic.types.beta import (
 from anthropic.types.beta.message_create_params import MessageCreateParams
 from jinja2 import Template
 from pydantic_ai import RunContext
+from pydantic_ai.capabilities import WebFetch, WebSearch
 from pydantic_ai.models.anthropic import AnthropicModel
+from pydantic_ai.models.test import TestModel
+from pydantic_ai.native_tools import WebSearchTool
+from pydantic_ai.profiles import ModelProfile
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from typing_extensions import TypeIs, assert_never
 
-from phoenix.server.agents.agent_factory import build_agent
+from phoenix.server.agents.agent_factory import _get_native_web_access_capabilities, build_agent
 from phoenix.server.agents.capabilities import (
     MintlifyDocsMCPServer,
 )
@@ -440,3 +444,32 @@ class TestCapabilityInstructionsOverride:
         joined_system = "\n".join(_get_system_texts(captured_request.body))
         assert "CUSTOM_BASH_SENTINEL" in joined_system
         assert _DEFAULT_INSTRUCTIONS.bash_tool.render() not in joined_system
+
+
+class TestNativeWebAccessCapabilities:
+    def test_only_adds_supported_native_web_tools(self) -> None:
+        model = TestModel(
+            profile=ModelProfile(
+                supported_native_tools=frozenset({WebSearchTool}),
+            )
+        )
+
+        capabilities = _get_native_web_access_capabilities(model)
+
+        assert [type(capability) for capability in capabilities] == [WebSearch]
+
+    def test_adds_no_web_tools_when_model_supports_none(self) -> None:
+        model = TestModel(
+            profile=ModelProfile(
+                supported_native_tools=frozenset(),
+            )
+        )
+
+        assert _get_native_web_access_capabilities(model) == []
+
+    def test_adds_fetch_when_supported(self) -> None:
+        model = TestModel()
+
+        capabilities = _get_native_web_access_capabilities(model)
+
+        assert WebFetch in [type(capability) for capability in capabilities]
