@@ -10,7 +10,6 @@ import {
 } from "@phoenix/components";
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { assertUnreachable } from "@phoenix/typeUtils";
-import { isPlainObject } from "@phoenix/utils/jsonUtils";
 import { getDependencyPackages } from "@phoenix/utils/packageSpecUtils";
 
 import type {
@@ -20,7 +19,7 @@ import type {
 } from "./types";
 
 type Language =
-  | SandboxProvider["language"]
+  | SandboxProvider["supportedLanguages"][number]
   | BackendInfo["supportedLanguages"][number];
 
 export function StatusText({
@@ -121,10 +120,6 @@ export function SandboxHostingTypeBadge({
   );
 }
 
-export function formatTimestamp(value: string) {
-  return new Date(value).toLocaleString();
-}
-
 export function statusLabel(status: BackendInfo["status"]) {
   switch (status) {
     case "AVAILABLE":
@@ -197,14 +192,10 @@ export function getBackendDescription(backendType: BackendInfo["backendType"]) {
       return "Local WebAssembly runtime";
     case "E2B":
       return "Cloud Python sandbox";
-    case "DAYTONA_PYTHON":
-      return "Daytona workspace-backed Python runtime";
-    case "DAYTONA_TYPESCRIPT":
-      return "Daytona workspace-backed TypeScript runtime";
-    case "VERCEL_PYTHON":
-      return "Vercel cloud Python sandbox";
-    case "VERCEL_TYPESCRIPT":
-      return "Vercel cloud TypeScript sandbox";
+    case "DAYTONA":
+      return "Daytona workspace-backed Python and TypeScript runtimes";
+    case "VERCEL":
+      return "Vercel cloud Python and TypeScript sandboxes";
     case "DENO":
       return "Local Deno TypeScript runtime";
     case "MODAL":
@@ -215,46 +206,22 @@ export function getBackendDescription(backendType: BackendInfo["backendType"]) {
 }
 
 /**
- * Returns a copy of a sandbox config safe for display, with literal env_var
- * values redacted. Non-object configs and non-array env_vars pass through
- * unchanged so that malformed payloads do not throw and do not unmask
- * unexpected fields.
- */
-export function getDisplaySandboxConfig(config: unknown): unknown {
-  if (!isPlainObject(config)) {
-    return config;
-  }
-  const result: Record<string, unknown> = { ...config };
-  const envVars = result["env_vars"];
-  if (Array.isArray(envVars)) {
-    result["env_vars"] = envVars.map((entry) => {
-      if (!isPlainObject(entry)) {
-        return entry;
-      }
-      if (entry["kind"] === "literal" && "value" in entry) {
-        return { ...entry, value: "<redacted>" };
-      }
-      return entry;
-    });
-  }
-  return result;
-}
-
-/**
  * Produces a one-line install-command preview for the dependency textarea.
- * Returns null when there is nothing to display (no language advertised, no
- * packages typed) so the caller can hide the preview entirely.
+ * Returns null when there is nothing to display (deps unsupported, language
+ * absent, or no packages typed) so the caller can hide the preview entirely.
  */
 export function getDependencyPreview({
   packagesText,
-  dependenciesLanguage,
+  supportsDependencies,
+  language,
   backendType,
 }: {
   packagesText: string;
-  dependenciesLanguage: BackendInfo["dependenciesLanguage"] | undefined | null;
+  supportsDependencies: boolean | undefined | null;
+  language: "PYTHON" | "TYPESCRIPT" | null | undefined;
   backendType: BackendInfo["backendType"] | undefined;
 }): string | null {
-  if (dependenciesLanguage == null) {
+  if (!supportsDependencies || language == null) {
     return null;
   }
   const packages = getDependencyPackages(packagesText);
@@ -262,7 +229,7 @@ export function getDependencyPreview({
     return null;
   }
   const joined = packages.join(" ");
-  if (dependenciesLanguage === "TYPESCRIPT") {
+  if (language === "TYPESCRIPT") {
     return `npm install ${joined}`;
   }
   // Python branch: shape the preview after the install path the backend uses.
@@ -273,46 +240,31 @@ export function getDependencyPreview({
   return `pip install ${joined}`;
 }
 
-export function summarizeConfig(config: unknown) {
-  if (!isPlainObject(config) || Object.keys(config).length === 0) {
-    return "No custom settings";
-  }
-  const keys = Object.keys(config);
-  if (keys.length === 1) {
-    return `1 setting: ${keys[0]}`;
-  }
-  return `${keys.length} settings: ${keys.slice(0, 2).join(", ")}${keys.length > 2 ? ", ..." : ""}`;
-}
-
-const FRIENDLY_SETTING_LABELS: Record<string, string> = {
-  env_vars: "Environment Variables",
-  internet_access: "Internet Access",
-  dependencies: "Dependencies",
+/**
+ * Structural shape of ``SandboxConfig.config`` as returned by GraphQL. Each
+ * call site's Relay-generated type is assignable to this (or to a subset
+ * thereof) via duck typing, so utilities here don't need to import a
+ * per-query fragment type.
+ */
+export type SandboxConfigShape = {
+  readonly envVars: ReadonlyArray<{ readonly name: string }>;
+  readonly internetAccess: { readonly mode: "ALLOW" | "DENY" } | null;
+  readonly dependencies: { readonly packages: ReadonlyArray<string> } | null;
 };
 
-/**
- * Human-readable label for a sandbox config setting key. Falls back to
- * title-casing snake_case segments and joining dot-paths with " / " so
- * unknown keys still render cleanly.
- */
-export function friendlySettingLabel(key: string): string {
-  if (FRIENDLY_SETTING_LABELS[key]) return FRIENDLY_SETTING_LABELS[key];
-  return key
-    .split(".")
-    .map((part) =>
-      part
-        .split("_")
-        .map((s) =>
-          s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1)
-        )
-        .join(" ")
-    )
-    .join(" / ");
+export function summarizeConfig(config: SandboxConfigShape): string {
+  const labels: string[] = [];
+  if (config.envVars.length > 0) labels.push("env_vars");
+  if (config.internetAccess != null) labels.push("internet_access");
+  if (config.dependencies != null) labels.push("dependencies");
+  if (labels.length === 0) return "No custom settings";
+  if (labels.length === 1) return `1 setting: ${labels[0]}`;
+  return `${labels.length} settings: ${labels.slice(0, 2).join(", ")}${labels.length > 2 ? ", ..." : ""}`;
 }
 
 export type SandboxConfigSetting = {
-  /** The raw config key, e.g. "env_vars". */
-  key: string;
+  /** Stable key used by callers to discriminate (e.g. "env_vars"). */
+  key: "env_vars" | "internet_access" | "dependencies";
   /** Human-readable label, e.g. "Environment Variables". */
   label: string;
   /** Compact, display-safe value summary, e.g. "FOO, BAR" or "on". */
@@ -320,114 +272,100 @@ export type SandboxConfigSetting = {
 };
 
 /**
- * Flattens a sandbox config into display-ready `label → value` pairs for the
+ * Flattens a sandbox config into display-ready `label → value` rows for the
  * settings summary shown in the configs table.
  *
- * Env-var literal values are already redacted by {@link getDisplaySandboxConfig};
- * we surface the variable *names* (not values) so it is clear which variables
- * are set without leaking secrets. Internet access is normalized to a plain
- * "on" / "off" (or an allowlist) so it is obvious whether it is enabled.
+ * Env-var secret keys are intentionally *not* shown — we surface the variable
+ * *names* so the summary stays glanceable without exposing implementation
+ * details in table cells. Internet access is normalized to a plain "on" /
+ * "off" so it is obvious whether it is enabled.
  */
 export function getSandboxConfigSettings(
-  config: unknown
+  config: SandboxConfigShape
 ): SandboxConfigSetting[] {
-  const display = getDisplaySandboxConfig(config);
-  if (!isPlainObject(display)) {
-    return [];
+  const settings: SandboxConfigSetting[] = [];
+
+  if (config.envVars.length > 0) {
+    settings.push({
+      key: "env_vars",
+      label: "Environment Variables",
+      value: config.envVars.map((ev) => ev.name).join(", "),
+    });
   }
-  return Object.entries(display).map(([key, value]) => ({
-    key,
-    label: friendlySettingLabel(key),
-    value: summarizeSandboxSettingValue(key, value),
-  }));
+
+  if (config.internetAccess != null) {
+    settings.push({
+      key: "internet_access",
+      label: "Internet Access",
+      value: config.internetAccess.mode === "ALLOW" ? "on" : "off",
+    });
+  }
+
+  if (config.dependencies != null) {
+    const pkgs = config.dependencies.packages;
+    settings.push({
+      key: "dependencies",
+      label: "Dependencies",
+      value: pkgs.length > 0 ? pkgs.join(", ") : "none",
+    });
+  }
+
+  return settings;
 }
 
-function summarizeSandboxSettingValue(key: string, value: unknown): string {
-  switch (key) {
-    case "env_vars": {
-      if (!Array.isArray(value) || value.length === 0) {
-        return "none";
-      }
-      return value
-        .map((entry) =>
-          isPlainObject(entry) && typeof entry["name"] === "string"
-            ? entry["name"]
-            : "?"
-        )
-        .join(", ");
-    }
-    case "internet_access":
-      return summarizeInternetAccess(value);
-    case "dependencies": {
-      if (!isPlainObject(value)) {
-        return "configured";
-      }
-      const packages = Array.isArray(value["packages"])
-        ? value["packages"]
-        : [];
-      return packages.length > 0
-        ? packages.map((p) => String(p)).join(", ")
-        : "none";
-    }
-    default:
-      if (value == null) return "—";
-      return typeof value === "object" ? JSON.stringify(value) : String(value);
-  }
-}
-
-function summarizeInternetAccess(value: unknown): string {
-  if (value == null) return "off";
-  if (typeof value === "string") {
-    return value.toLowerCase() === "deny" ? "off" : value;
-  }
-  if (isPlainObject(value)) {
-    const rawMode = value["mode"];
-    const mode = typeof rawMode === "string" ? rawMode.toLowerCase() : null;
-    if (mode == null || mode === "deny") return "off";
-    const domains = value["domains"];
-    if (Array.isArray(domains) && domains.length > 0) {
-      return `allowlist · ${domains.map((d) => String(d)).join(", ")}`;
-    }
-    return mode === "allow" ? "on" : mode;
-  }
-  return "on";
-}
+/**
+ * Maps a backend kind to the strawberry oneOf variant key on
+ * ``SandboxConfigVariantInput``. Mirrors ``_VARIANT_FIELDS`` in
+ * ``server/api/mutations/sandbox_config_mutations.py``.
+ */
+const VARIANT_KEY_BY_BACKEND_TYPE: Record<BackendInfo["backendType"], string> =
+  {
+    E2B: "e2b",
+    DAYTONA: "daytona",
+    DENO: "deno",
+    VERCEL: "vercel",
+    WASM: "wasm",
+    MODAL: "modal",
+  };
 
 export function formValuesToConfigPatch(
   values: SandboxConfigFormValues,
   backend: BackendInfo | undefined
 ): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
+  // ``language`` now lives inside each per-provider variant input
+  // (mirroring the pydantic Config's ``language`` field). The dialog form
+  // tracks language at the top level; we copy it into the inner capabilities
+  // dict here so the GraphQL input shape matches the schema.
+  const capabilities: Record<string, unknown> = { language: values.language };
 
   if (backend?.supportsEnvVars && values.envVars.length > 0) {
-    result["env_vars"] = values.envVars.map((entry) => {
-      if (entry.kind === "secret_ref") {
-        return {
-          kind: "secret_ref",
-          name: entry.name,
-          secret_key: entry.secret_key,
-        };
-      }
-      return { kind: "literal", name: entry.name, value: entry.value };
-    });
+    capabilities["envVars"] = values.envVars.map((entry) => ({
+      name: entry.name,
+      secretKey: entry.secretKey,
+    }));
   }
 
   if (backend?.internetAccess === "BOOLEAN") {
-    result["internet_access"] = {
-      mode: values.internetAccessEnabled ? "allow" : "deny",
+    capabilities["internetAccess"] = {
+      mode: values.internetAccessEnabled ? "ALLOW" : "DENY",
     };
   }
 
-  if (backend?.dependenciesLanguage != null) {
+  if (backend?.supportsDependencies) {
     const packages = getDependencyPackages(values.dependenciesText);
     if (packages.length > 0) {
-      const dep: Record<string, unknown> = { packages };
-      if (values.dependenciesLockfile != null) {
-        dep["lockfile"] = values.dependenciesLockfile;
-      }
-      result["dependencies"] = dep;
+      capabilities["dependencies"] = { packages };
     }
   }
 
-  return result;
+  // WASM accepts no per-config options; senders pass {}.
+  const variantKey = backend
+    ? VARIANT_KEY_BY_BACKEND_TYPE[backend.backendType]
+    : null;
+  if (variantKey == null) {
+    // No backend selected yet; caller must guard before sending. Return
+    // an empty object so the dialog can detect "no variant set".
+    return {};
+  }
+  return { [variantKey]: capabilities };
 }

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bf686f175816d5da09d434e2ccd9f60d>>
+ * @generated SignedSource<<acd61e65dba636ec0229ce00aec8168c>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,13 +10,64 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type InternetAccessChoice = "ALLOW" | "DENY";
+export type Language = "PYTHON" | "TYPESCRIPT";
 export type UpdateSandboxConfigInput = {
-  config?: any | null;
+  config?: SandboxConfigVariantInput | null;
   description?: string | null;
   enabled?: boolean | null;
   id: string;
   name?: string | null;
   timeout?: number | null;
+};
+export type SandboxConfigVariantInput = {
+  daytona?: DaytonaConfigInput | null;
+  deno?: DenoConfigInput | null;
+  e2b?: E2BConfigInput | null;
+  modal?: ModalConfigInput | null;
+  vercel?: VercelConfigInput | null;
+  wasm?: WASMConfigInput | null;
+};
+export type E2BConfigInput = {
+  dependencies?: DependenciesInput | null;
+  envVars?: ReadonlyArray<EnvVarInput>;
+  internetAccess?: InternetAccessInput | null;
+  language: Language;
+};
+export type EnvVarInput = {
+  name: string;
+  secretKey: string;
+};
+export type InternetAccessInput = {
+  mode: InternetAccessChoice;
+};
+export type DependenciesInput = {
+  packages?: ReadonlyArray<string>;
+};
+export type DaytonaConfigInput = {
+  dependencies?: DependenciesInput | null;
+  envVars?: ReadonlyArray<EnvVarInput>;
+  internetAccess?: InternetAccessInput | null;
+  language: Language;
+};
+export type DenoConfigInput = {
+  envVars?: ReadonlyArray<EnvVarInput>;
+  language: Language;
+};
+export type VercelConfigInput = {
+  dependencies?: DependenciesInput | null;
+  envVars?: ReadonlyArray<EnvVarInput>;
+  internetAccess?: InternetAccessInput | null;
+  language: Language;
+};
+export type WASMConfigInput = {
+  language?: Language;
+};
+export type ModalConfigInput = {
+  dependencies?: DependenciesInput | null;
+  envVars?: ReadonlyArray<EnvVarInput>;
+  internetAccess?: InternetAccessInput | null;
+  language?: Language;
 };
 export type SandboxConfigsCardConfigEnabledSwitchMutation$variables = {
   input: UpdateSandboxConfigInput;
@@ -66,28 +117,35 @@ v4 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "description",
+  "name": "supportedLanguages",
   "storageKey": null
 },
 v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "id",
+  "name": "description",
   "storageKey": null
 },
 v6 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "enabled",
+  "name": "id",
   "storageKey": null
 },
 v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
-  "name": "updatedAt",
+  "name": "enabled",
+  "storageKey": null
+},
+v8 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
   "storageKey": null
 };
 return {
@@ -174,13 +232,7 @@ return {
                     "name": "dependencyHints",
                     "storageKey": null
                   },
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "supportedLanguages",
-                    "storageKey": null
-                  },
+                  (v4/*: any*/),
                   {
                     "alias": null,
                     "args": null,
@@ -213,7 +265,7 @@ return {
                     "alias": null,
                     "args": null,
                     "kind": "ScalarField",
-                    "name": "dependenciesLanguage",
+                    "name": "supportsDependencies",
                     "storageKey": null
                   },
                   {
@@ -232,7 +284,7 @@ return {
                         "storageKey": null
                       },
                       (v3/*: any*/),
-                      (v4/*: any*/),
+                      (v5/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -254,16 +306,9 @@ return {
                 "name": "sandboxProviders",
                 "plural": true,
                 "selections": [
-                  (v5/*: any*/),
-                  (v2/*: any*/),
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "language",
-                    "storageKey": null
-                  },
                   (v6/*: any*/),
+                  (v2/*: any*/),
+                  (v4/*: any*/),
                   (v7/*: any*/),
                   {
                     "alias": null,
@@ -273,15 +318,16 @@ return {
                     "name": "configs",
                     "plural": true,
                     "selections": [
+                      (v6/*: any*/),
+                      (v8/*: any*/),
                       (v5/*: any*/),
                       {
                         "alias": null,
                         "args": null,
                         "kind": "ScalarField",
-                        "name": "name",
+                        "name": "language",
                         "storageKey": null
                       },
-                      (v4/*: any*/),
                       {
                         "alias": null,
                         "args": null,
@@ -289,15 +335,80 @@ return {
                         "name": "timeout",
                         "storageKey": null
                       },
-                      (v6/*: any*/),
+                      (v7/*: any*/),
+                      {
+                        "alias": null,
+                        "args": null,
+                        "concreteType": "SandboxConfigData",
+                        "kind": "LinkedField",
+                        "name": "config",
+                        "plural": false,
+                        "selections": [
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "SandboxConfigEnvVar",
+                            "kind": "LinkedField",
+                            "name": "envVars",
+                            "plural": true,
+                            "selections": [
+                              (v8/*: any*/),
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "secretKey",
+                                "storageKey": null
+                              }
+                            ],
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "SandboxConfigInternetAccess",
+                            "kind": "LinkedField",
+                            "name": "internetAccess",
+                            "plural": false,
+                            "selections": [
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "mode",
+                                "storageKey": null
+                              }
+                            ],
+                            "storageKey": null
+                          },
+                          {
+                            "alias": null,
+                            "args": null,
+                            "concreteType": "SandboxConfigDependencies",
+                            "kind": "LinkedField",
+                            "name": "dependencies",
+                            "plural": false,
+                            "selections": [
+                              {
+                                "alias": null,
+                                "args": null,
+                                "kind": "ScalarField",
+                                "name": "packages",
+                                "storageKey": null
+                              }
+                            ],
+                            "storageKey": null
+                          }
+                        ],
+                        "storageKey": null
+                      },
                       {
                         "alias": null,
                         "args": null,
                         "kind": "ScalarField",
-                        "name": "config",
+                        "name": "updatedAt",
                         "storageKey": null
-                      },
-                      (v7/*: any*/)
+                      }
                     ],
                     "storageKey": null
                   }
@@ -313,12 +424,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0ad9f097d4ba461049b5c73836477482",
+    "cacheID": "c0c320417918349fa4d7557bcff0e217",
     "id": null,
     "metadata": {},
     "name": "SandboxConfigsCardConfigEnabledSwitchMutation",
     "operationKind": "mutation",
-    "text": "mutation SandboxConfigsCardConfigEnabledSwitchMutation(\n  $input: UpdateSandboxConfigInput!\n) {\n  updateSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    dependenciesLanguage\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n    updatedAt\n    configs {\n      id\n      name\n      description\n      timeout\n      enabled\n      config\n      updatedAt\n    }\n  }\n}\n"
+    "text": "mutation SandboxConfigsCardConfigEnabledSwitchMutation(\n  $input: UpdateSandboxConfigInput!\n) {\n  updateSandboxConfig(input: $input) {\n    query {\n      ...SettingsSandboxesPageFragment\n    }\n  }\n}\n\nfragment SettingsSandboxesPageFragment on Query {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    dependencyHints\n    supportedLanguages\n    status\n    statusDetail\n    supportsEnvVars\n    internetAccess\n    supportsDependencies\n    credentialSpecs {\n      key\n      displayName\n      description\n      isRequired\n    }\n  }\n  sandboxProviders {\n    id\n    backendType\n    supportedLanguages\n    enabled\n    configs {\n      id\n      name\n      description\n      language\n      timeout\n      enabled\n      config {\n        envVars {\n          name\n          secretKey\n        }\n        internetAccess {\n          mode\n        }\n        dependencies {\n          packages\n        }\n      }\n      updatedAt\n    }\n  }\n}\n"
   }
 };
 })();

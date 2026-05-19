@@ -11,8 +11,8 @@ from typing import Any, Generic, Optional, TypeVar
 from joserfc import jwt
 from joserfc.errors import JoseError
 from joserfc.jwk import OctKey
+from pydantic import SecretStr
 from sqlalchemy import Select, delete, select
-from starlette.datastructures import Secret
 
 from phoenix.auth import (
     JWT_ALGORITHM,
@@ -52,7 +52,7 @@ class JwtStore:
     def __init__(
         self,
         db: DbSessionFactory,
-        secret: Secret,
+        secret: SecretStr,
         algorithm: str = JWT_ALGORITHM,
         sleep_seconds: int = 10,
         **kwargs: Any,
@@ -79,7 +79,7 @@ class JwtStore:
 
     async def read(self, token: Token) -> Optional[ClaimSet]:
         try:
-            decoded = jwt.decode(str(token), OctKey.import_key(str(self._secret)))
+            decoded = jwt.decode(str(token), OctKey.import_key(self._secret.get_secret_value()))
         except JoseError:
             return None
         if (jti := decoded.claims.get("jti")) is None:
@@ -230,7 +230,7 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
     def __init__(
         self,
         db: DbSessionFactory,
-        secret: Secret,
+        secret: SecretStr,
         algorithm: str = JWT_ALGORITHM,
         sleep_seconds: int = 10,
         **kwargs: Any,
@@ -246,7 +246,7 @@ class _Store(DaemonTask, Generic[_ClaimSetT, _TokenT, _TokenIdT, _RecordT], ABC)
     def _encode(self, claim: ClaimSet) -> str:
         payload: dict[str, Any] = dict(jti=claim.token_id)
         header = {"alg": self._algorithm}
-        return jwt.encode(header, payload, OctKey.import_key(str(self._secret)))
+        return jwt.encode(header, payload, OctKey.import_key(self._secret.get_secret_value()))
 
     async def get(self, token_id: _TokenIdT) -> Optional[_ClaimSetT]:
         if claims := self._claims.get(token_id):

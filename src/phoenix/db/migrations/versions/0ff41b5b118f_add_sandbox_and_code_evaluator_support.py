@@ -59,27 +59,16 @@ def upgrade() -> None:
     )
     op.execute(sa.text("INSERT INTO languages (name) VALUES ('PYTHON'), ('TYPESCRIPT')"))
 
-    # sandbox_providers: language + UNIQUE(language, id) for composite-FK target.
-    # UNIQUE column order is (language, id) — flipped from natural (id, language) — so the
-    # constraint's underlying index doubles as a leftmost-prefix index on `language` alone,
-    # at zero extra storage. Composite (id, language) point lookups are unchanged, and
-    # id-only lookups still hit the PK.
     op.create_table(
         "sandbox_providers",
-        sa.Column("id", _Integer, primary_key=True),
-        sa.Column("backend_type", sa.String, nullable=False),
+        sa.Column("backend_type", sa.String, primary_key=True),
+        sa.Column("enabled", sa.Boolean, nullable=False),
+        sa.Column("config", JSON_, nullable=False, server_default="{}"),
         sa.Column(
-            "language",
-            sa.String,
-            sa.ForeignKey("languages.name", ondelete="RESTRICT"),
-            nullable=False,
-        ),
-        sa.Column("enabled", sa.Boolean, nullable=False, server_default=sa.text("true")),
-        sa.Column(
-            "created_at",
-            sa.TIMESTAMP(timezone=True),
-            nullable=False,
-            server_default=sa.func.now(),
+            "user_id",
+            _Integer,
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
         ),
         sa.Column(
             "updated_at",
@@ -87,21 +76,16 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.UniqueConstraint("backend_type", "language"),
-        sa.UniqueConstraint("language", "id"),
     )
+    op.create_index("ix_sandbox_providers_user_id", "sandbox_providers", ["user_id"])
 
-    # sandbox_configs: language + UNIQUE(language, id) + composite FK → sandbox_providers.
-    # The composite FK fk_sandbox_configs_provider_language is named explicitly because its
-    # auto-generated name (column_0_name="sandbox_provider_id") would collide with the simple
-    # FK on the same first column.
     op.create_table(
         "sandbox_configs",
         sa.Column("id", _Integer, primary_key=True),
         sa.Column(
-            "sandbox_provider_id",
-            _Integer,
-            sa.ForeignKey("sandbox_providers.id", ondelete="CASCADE"),
+            "backend_type",
+            sa.String,
+            sa.ForeignKey("sandbox_providers.backend_type", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column("language", sa.String, nullable=False),
@@ -122,14 +106,16 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
-        sa.UniqueConstraint("sandbox_provider_id", "name"),
-        sa.UniqueConstraint("language", "id"),
-        sa.ForeignKeyConstraint(
-            ["sandbox_provider_id", "language"],
-            ["sandbox_providers.id", "sandbox_providers.language"],
-            name="fk_sandbox_configs_provider_language",
+        sa.Column(
+            "user_id",
+            _Integer,
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
         ),
+        sa.UniqueConstraint("backend_type", "name"),
+        sa.UniqueConstraint("language", "id"),
     )
+    op.create_index("ix_sandbox_configs_user_id", "sandbox_configs", ["user_id"])
 
     # code_evaluators: ADD COLUMN to a pre-existing table requires batch_alter_table on SQLite.
     # The composite FK fk_code_evaluators_sandbox_config_language is named explicitly because

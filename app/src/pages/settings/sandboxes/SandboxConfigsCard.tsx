@@ -101,7 +101,7 @@ export function SandboxConfigsCard({
                       </Flex>
                     </td>
                     <td>
-                      <LanguageWithIcon language={provider.language} />
+                      <LanguageWithIcon language={config.language} />
                     </td>
                     <td>
                       <Flex direction="column" gap="size-50" alignItems="start">

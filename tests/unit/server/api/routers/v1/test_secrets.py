@@ -5,7 +5,7 @@ from secrets import token_hex
 import httpx
 import pytest
 import sqlalchemy as sa
-from starlette.datastructures import Secret
+from pydantic import SecretStr
 
 from phoenix.db import models
 from phoenix.server.api.openapi.schema import get_openapi_schema
@@ -14,8 +14,8 @@ from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
 # The in-process test app is constructed with no PHOENIX_SECRET, so the
-# server-side Redactor is keyed off Secret("").
-_REDACTOR = Redactor(secret=Secret(""))
+# server-side Redactor is keyed off SecretStr("").
+_REDACTOR = Redactor(secret=SecretStr(""))
 
 SECRETS_QUERY = """
 query SecretsQuery($keys: [String!]) {

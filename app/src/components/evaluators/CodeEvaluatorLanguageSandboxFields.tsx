@@ -14,21 +14,32 @@ import {
 } from "@phoenix/components";
 import { PythonSVG, TypeScriptSVG } from "@phoenix/components/core/icon/Icons";
 import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
-import type { CodeEvaluatorLanguage } from "@phoenix/types";
+import type { CodeEvaluatorLanguage, SandboxBackendType } from "@phoenix/types";
+
+/** Structural shape of ``SandboxConfig.config`` as returned by GraphQL. */
+export type SandboxConfigOptionConfig = {
+  readonly envVars: ReadonlyArray<{
+    readonly name: string;
+    readonly secretKey: string;
+  }>;
+  readonly internetAccess: { readonly mode: "ALLOW" | "DENY" } | null;
+  readonly dependencies: {
+    readonly packages: ReadonlyArray<string>;
+  } | null;
+};
 
 export type SandboxConfigOption = {
   id: string;
   name: string;
   description?: string | null;
-  backendType: string;
+  backendType: SandboxBackendType;
   providerLabel: string;
-  providerLanguage: CodeEvaluatorLanguage;
-  providerBackendType: string;
+  language: CodeEvaluatorLanguage;
   timeout?: number | null;
-  config?: unknown;
+  config: SandboxConfigOptionConfig;
   supportsEnvVars?: boolean;
   internetAccess?: string;
-  dependenciesLanguage?: CodeEvaluatorLanguage | null;
+  supportsDependencies?: boolean;
 };
 
 export type CodeEvaluatorLanguageFieldProps = {
@@ -110,8 +121,7 @@ export const CodeEvaluatorSandboxField = ({
 }: CodeEvaluatorSandboxFieldProps) => {
   // Filter configs to only show those matching the current language
   const compatibleConfigs = useMemo(
-    () =>
-      sandboxConfigs.filter((config) => config.providerLanguage === language),
+    () => sandboxConfigs.filter((config) => config.language === language),
     [sandboxConfigs, language]
   );
 
@@ -157,7 +167,7 @@ export const CodeEvaluatorSandboxField = ({
             >
               <Flex direction="row" gap="size-100" alignItems="center">
                 <SandboxProviderIcon
-                  backendType={item.providerBackendType}
+                  backendType={item.backendType}
                   height={18}
                 />
                 <Text>{item.name}</Text>
@@ -170,43 +180,43 @@ export const CodeEvaluatorSandboxField = ({
   );
 };
 
-const BACKEND_TYPE_LABELS: Record<string, string> = {
+const BACKEND_TYPE_LABELS: Record<SandboxBackendType, string> = {
   WASM: "WebAssembly",
   E2B: "E2B",
-  DAYTONA_PYTHON: "Daytona",
-  DAYTONA_TYPESCRIPT: "Daytona",
-  VERCEL_PYTHON: "Vercel",
-  VERCEL_TYPESCRIPT: "Vercel",
+  DAYTONA: "Daytona",
+  VERCEL: "Vercel",
   DENO: "Deno",
   MODAL: "Modal",
 };
 
-const backendTypeLabel = (backendType: string): string =>
+const backendTypeLabel = (backendType: SandboxBackendType): string =>
   BACKEND_TYPE_LABELS[backendType] ?? backendType;
 
 /**
  * Maps sandbox provider data from GraphQL to SandboxConfigOption[].
  * Only includes configs from enabled providers whose backends are available.
+ * One option is produced per SandboxConfig row (config.language drives the
+ * option's language).
  */
 export const mapSandboxConfigOptions = (
   sandboxProviders: ReadonlyArray<{
-    language: CodeEvaluatorLanguage;
-    backendType: string;
+    backendType: SandboxBackendType;
     enabled: boolean;
     configs: ReadonlyArray<{
       id: string;
       name: string;
       description?: string | null;
+      language: CodeEvaluatorLanguage;
       timeout?: number | null;
-      config?: unknown;
+      config: SandboxConfigOptionConfig;
     }>;
   }>,
   sandboxBackends: ReadonlyArray<{
-    backendType: string;
+    backendType: SandboxBackendType;
     status: string;
     supportsEnvVars?: boolean;
     internetAccess?: string;
-    dependenciesLanguage?: CodeEvaluatorLanguage | null;
+    supportsDependencies?: boolean;
   }>
 ): SandboxConfigOption[] => {
   const availableBackendsByType = new Map(
@@ -227,14 +237,32 @@ export const mapSandboxConfigOptions = (
         name: config.name,
         description: config.description,
         backendType: provider.backendType,
-        providerLanguage: provider.language,
         providerLabel: backendTypeLabel(provider.backendType),
-        providerBackendType: provider.backendType,
+        language: config.language,
         timeout: config.timeout,
         config: config.config,
         supportsEnvVars: backend?.supportsEnvVars,
         internetAccess: backend?.internetAccess,
-        dependenciesLanguage: backend?.dependenciesLanguage,
+        supportsDependencies: backend?.supportsDependencies,
       }));
+    })
+    .sort((leftOption, rightOption) => {
+      const providerComparison = leftOption.providerLabel.localeCompare(
+        rightOption.providerLabel
+      );
+      if (providerComparison !== 0) {
+        return providerComparison;
+      }
+      const backendTypeComparison = leftOption.backendType.localeCompare(
+        rightOption.backendType
+      );
+      if (backendTypeComparison !== 0) {
+        return backendTypeComparison;
+      }
+      const nameComparison = leftOption.name.localeCompare(rightOption.name);
+      if (nameComparison !== 0) {
+        return nameComparison;
+      }
+      return leftOption.id.localeCompare(rightOption.id);
     });
 };

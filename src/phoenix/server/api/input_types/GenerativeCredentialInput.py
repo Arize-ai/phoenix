@@ -1,11 +1,10 @@
 import strawberry
-
-from phoenix.server.api.types.SecretString import SecretString
+from pydantic import SecretStr
 
 
 @strawberry.input
 class GenerativeCredentialInput:
     env_var_name: str
     """The name of the environment variable to set."""
-    value: SecretString
+    value: SecretStr
     """The value of the environment variable to set."""

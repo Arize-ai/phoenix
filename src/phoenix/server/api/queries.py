@@ -143,6 +143,7 @@ from phoenix.server.api.types.User import User
 from phoenix.server.api.types.UserApiKey import UserApiKey
 from phoenix.server.api.types.UserRole import UserRole
 from phoenix.server.api.types.ValidationResult import ValidationResult
+from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
 from phoenix.utilities.template_formatters import TemplateFormatterError
 
 initialize_playground_clients()
@@ -1010,6 +1011,11 @@ class Query:
         type_name = global_id.type_name
         if type_name == Secret.__name__:
             return Secret(id=global_id.node_id)
+        if type_name == SandboxProvider.__name__:
+            backend_type = global_id.node_id
+            if backend_type not in SANDBOX_BACKEND_TYPES:
+                raise NotFound(f"Unknown sandbox backend type: {backend_type}")
+            return SandboxProvider(id=type_cast(models.SandboxBackendType, backend_type))
         node_id = int(global_id.node_id)
         if type_name == "Dimension" or type_name == "EmbeddingDimension":
             raise NotFound(f"Unknown node type: {type_name}")
@@ -1069,8 +1075,6 @@ class Query:
             return DatasetEvaluator(id=node_id)
         elif type_name == SandboxConfig.__name__:
             return SandboxConfig(id=node_id)
-        elif type_name == SandboxProvider.__name__:
-            return SandboxProvider(id=node_id)
         if type_name == GenerativeModelCustomProvider.__name__:
             return GenerativeModelCustomProvider(id=node_id)
         raise NotFound(f"Unknown node type: {type_name}")
@@ -1692,20 +1696,26 @@ class Query:
 
     @strawberry.field
     async def sandbox_backends(self, info: Info[Context, None]) -> list[SandboxBackendInfo]:
-        """Return static + runtime info for all known sandbox backends."""
-        return await get_sandbox_backend_info(info)
+        """Return static + runtime info for all known sandbox backends.
+
+        Opens a read session so ``get_sandbox_backend_info`` can resolve
+        per-provider credentials (the ``secrets`` table) to distinguish
+        ``MISSING_CREDENTIALS`` from ``AVAILABLE``.
+        """
+        from phoenix.server.sandbox import SecretsContext
+
+        async with info.context.db.read() as session:
+            return await get_sandbox_backend_info(
+                secrets=SecretsContext(session=session, decrypt=info.context.decrypt),
+            )
 
     @strawberry.field
     async def sandbox_providers(self, info: Info[Context, None]) -> list[SandboxProvider]:
         """Return all persisted sandbox providers with their nested configs."""
-        stmt = select(models.SandboxProvider).order_by(
-            models.SandboxProvider.backend_type.asc(),
-            models.SandboxProvider.language.asc(),
-            models.SandboxProvider.id.asc(),
-        )
-        async with info.context.db() as session:
+        stmt = select(models.SandboxProvider).order_by(models.SandboxProvider.backend_type.asc())
+        async with info.context.db.read() as session:
             rows = (await session.scalars(stmt)).all()
-        return [SandboxProvider(id=row.id, db_record=row) for row in rows]
+        return [SandboxProvider(id=row.backend_type, db_record=row) for row in rows]
 
 
 def _consolidate_sqlite_db_table_stats(

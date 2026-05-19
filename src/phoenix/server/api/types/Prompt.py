@@ -10,10 +10,9 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.db.types.identifier import Identifier as IdentifierModel
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import NotFound
-from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.pagination import (
     ConnectionArgs,
@@ -124,15 +123,11 @@ class Prompt(Node):
                 if not version:
                     raise NotFound(f"Prompt version not found: {version_id}")
             elif tag_name:
-                try:
-                    name = IdentifierModel(tag_name)
-                except ValueError:
-                    raise NotFound(f"Prompt version tag not found: {tag_name}")
                 version = await session.scalar(
                     select(models.PromptVersion)
                     .where(models.PromptVersion.prompt_id == self.id)
                     .join_from(models.PromptVersion, models.PromptVersionTag)
-                    .where(models.PromptVersionTag.name == name)
+                    .where(models.PromptVersionTag.name == tag_name)
                 )
                 if not version:
                     raise NotFound(f"This prompt has no associated versions by tag {tag_name}")

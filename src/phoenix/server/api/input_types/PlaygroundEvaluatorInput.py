@@ -5,11 +5,11 @@ from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 
 from phoenix.db.types.evaluators import InputMapping, JSONPath, validate_jsonpath
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.input_types.AnnotationConfigInput import (
     AnnotationConfigInput,
 )
-from phoenix.server.api.types.Identifier import Identifier
 
 
 @strawberry.input

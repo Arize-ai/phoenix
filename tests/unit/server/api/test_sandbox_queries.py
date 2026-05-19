@@ -1,7 +1,8 @@
-from typing import Any, Mapping, Optional
+from typing import Mapping, Optional
 from unittest.mock import MagicMock
 
 import pytest
+from pydantic import BaseModel, ConfigDict, SecretStr
 from sqlalchemy import func, select
 from strawberry.relay import GlobalID
 
@@ -12,37 +13,42 @@ from phoenix.server.sandbox import (
     AdapterMetadata,
 )
 from phoenix.server.sandbox.types import (
-    ProviderCredentialSpec,
+    NoDeployment,
     SandboxAdapter,
     SandboxBackend,
 )
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
-_TEST_AUTH_BACKEND = "TEST_AUTH_BACKEND"
+_TEST_AUTH_KIND: models.SandboxBackendType = "WASM"
 _TEST_AUTH_KEY = "TEST_AUTH_KEY"
 
 
-class _TestAuthAdapter(SandboxAdapter):
-    key = _TEST_AUTH_BACKEND
-    family = "WASM"  # any canonical family — gate doesn't filter for these tests
+class _EmptyConfig(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+
+class _TestAuthCreds(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    TEST_AUTH_KEY: SecretStr = SecretStr("")
+
+
+class _TestAuthAdapter(SandboxAdapter):  # type: ignore[type-arg]
+    backend_type = _TEST_AUTH_KIND
     display_name = "Test Auth Backend"
-    language = "PYTHON"
-    credential_specs = [ProviderCredentialSpec(key=_TEST_AUTH_KEY, display_name="Test Auth Key")]
+    config_model = _EmptyConfig
+    credentials_model = _TestAuthCreds
+    deployment_config_model = NoDeployment
 
     def build_backend(
         self,
-        config: Mapping[str, Any],
+        config: _EmptyConfig,
+        *,
+        credentials: _TestAuthCreds,
+        deployment: NoDeployment,
         user_env: Optional[Mapping[str, str]] = None,
     ) -> SandboxBackend:
         return MagicMock(spec=SandboxBackend)
-
-
-@pytest.fixture(autouse=True)
-def _clean_test_auth_backend() -> Any:
-    yield
-    SANDBOX_ADAPTER_METADATA.pop(_TEST_AUTH_BACKEND, None)
-    _SANDBOX_ADAPTERS.pop(_TEST_AUTH_BACKEND, None)
 
 
 async def test_sandbox_providers_returns_nested_configs(
@@ -51,7 +57,7 @@ async def test_sandbox_providers_returns_nested_configs(
     sandbox_config: models.SandboxConfig,
 ) -> None:
     async with db() as session:
-        provider = await session.get(models.SandboxProvider, sandbox_config.sandbox_provider_id)
+        provider = await session.get(models.SandboxProvider, sandbox_config.backend_type)
     assert provider is not None
 
     query = """
@@ -59,15 +65,26 @@ async def test_sandbox_providers_returns_nested_configs(
         sandboxProviders {
           id
           backendType
-          language
+          supportedLanguages
           enabled
           configs {
             id
             name
             description
+            language
             timeout
             enabled
-            config
+            config {
+              envVars {
+                name
+              }
+              internetAccess {
+                mode
+              }
+              dependencies {
+                packages
+              }
+            }
           }
         }
       }
@@ -80,19 +97,26 @@ async def test_sandbox_providers_returns_nested_configs(
     provider_result = next(
         item
         for item in response.data["sandboxProviders"]
-        if item["id"] == str(GlobalID("SandboxProvider", str(provider.id)))
+        if item["id"] == str(GlobalID("SandboxProvider", provider.backend_type))
     )
     assert provider_result["backendType"] == provider.backend_type
-    assert provider_result["language"] == "PYTHON"
+    assert provider_result["supportedLanguages"] == sorted(
+        SANDBOX_ADAPTER_METADATA[provider.backend_type].supported_languages
+    )
     assert provider_result["enabled"] is True
     assert provider_result["configs"] == [
         {
             "id": str(GlobalID("SandboxConfig", str(sandbox_config.id))),
-            "name": sandbox_config.name,
+            "name": sandbox_config.name.root,
             "description": sandbox_config.description,
+            "language": sandbox_config.language,
             "timeout": sandbox_config.timeout,
             "enabled": sandbox_config.enabled,
-            "config": sandbox_config.config,
+            "config": {
+                "envVars": [],
+                "internetAccess": None,
+                "dependencies": None,
+            },
         }
     ]
 
@@ -103,7 +127,9 @@ async def test_sandbox_backends_and_providers_can_be_loaded_together(
     seed_sandbox_providers: None,
 ) -> None:
     async with db() as session:
-        provider_count = await session.scalar(select(func.count(models.SandboxProvider.id)))
+        provider_count = await session.scalar(
+            select(func.count(models.SandboxProvider.backend_type))
+        )
 
     query = """
       query {
@@ -137,16 +163,23 @@ async def test_sandbox_backends_and_providers_can_be_loaded_together(
         "Install Phoenix with the `e2b` extra.",
         "Provide `E2B_API_KEY`.",
     ]
-    assert backends["DAYTONA_PYTHON"]["dependencyHints"] == [
+    assert backends["DAYTONA"]["dependencyHints"] == [
         "Install Phoenix with the `daytona` extra.",
-        "Provide `PHOENIX_SANDBOX_DAYTONA_API_KEY`.",
+        "Provide `DAYTONA_API_KEY`.",
     ]
-    assert backends["VERCEL_PYTHON"]["dependencyHints"] == [
+    assert backends["VERCEL"]["dependencyHints"] == [
         "Install Phoenix with the `vercel` extra.",
-        "Set all of `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, and `VERCEL_TEAM_ID`. See https://vercel.com/docs/vercel-sandbox/concepts/authentication",
+        (
+            "Set all of `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, and `VERCEL_TEAM_ID`. "
+            "See https://vercel.com/docs/vercel-sandbox/concepts/authentication"
+        ),
     ]
     assert backends["DENO"]["dependencyHints"] == [
         "Install the Deno runtime and ensure the `deno` binary is available on PATH.",
+    ]
+    assert backends["MODAL"]["dependencyHints"] == [
+        "Install Phoenix with the `modal` extra.",
+        "Provide `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` environment variables.",
     ]
     assert len(response.data["sandboxProviders"]) == provider_count
 
@@ -156,11 +189,15 @@ async def test_sandbox_backends_reports_missing_credentials_status(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv(_TEST_AUTH_KEY, raising=False)
-    SANDBOX_ADAPTER_METADATA[_TEST_AUTH_BACKEND] = AdapterMetadata(
-        display_name="Test Auth Backend",
-        language="PYTHON",
+    monkeypatch.setitem(
+        SANDBOX_ADAPTER_METADATA,
+        _TEST_AUTH_KIND,
+        AdapterMetadata(
+            display_name="Test Auth Backend",
+            supported_languages=frozenset({"PYTHON"}),
+        ),
     )
-    _SANDBOX_ADAPTERS[_TEST_AUTH_BACKEND] = _TestAuthAdapter()
+    monkeypatch.setitem(_SANDBOX_ADAPTERS, _TEST_AUTH_KIND, _TestAuthAdapter())
 
     query = """
       query {
@@ -177,5 +214,26 @@ async def test_sandbox_backends_reports_missing_credentials_status(
     assert response.data is not None
 
     backends = {backend["backendType"]: backend for backend in response.data["sandboxBackends"]}
-    assert backends[_TEST_AUTH_BACKEND]["status"] == "MISSING_CREDENTIALS"
-    assert backends[_TEST_AUTH_BACKEND]["statusDetail"] == f"Set `{_TEST_AUTH_KEY}`."
+    assert backends[_TEST_AUTH_KIND]["status"] == "MISSING_CREDENTIALS"
+    assert backends[_TEST_AUTH_KIND]["statusDetail"] == f"Set `{_TEST_AUTH_KEY}`."
+
+
+async def test_node_rejects_unknown_sandbox_backend_type(
+    gql_client: AsyncGraphQLClient,
+) -> None:
+    response = await gql_client.execute(
+        """
+        query SandboxProviderNode($id: ID!) {
+          node(id: $id) {
+            id
+          }
+        }
+        """,
+        variables={"id": str(GlobalID("SandboxProvider", "__bad_provider__"))},
+    )
+
+    assert response.errors
+    assert any(
+        "Unknown sandbox backend type: __bad_provider__" in (error.message or "")
+        for error in response.errors
+    ), response.errors

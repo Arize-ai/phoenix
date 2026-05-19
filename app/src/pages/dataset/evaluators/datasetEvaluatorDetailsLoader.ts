@@ -44,7 +44,7 @@ export const datasetEvaluatorDetailsLoaderGQL = graphql`
       displayName
       supportsEnvVars
       internetAccess
-      dependenciesLanguage
+      supportsDependencies
     }
   }
 `;

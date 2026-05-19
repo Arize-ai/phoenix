@@ -51,7 +51,7 @@ class BearerTokenAuthBackend(HasTokenStore, AuthenticationBackend):
                 return None
             if (
                 (admin_secret := get_env_phoenix_admin_secret())
-                and token == str(admin_secret)
+                and token == admin_secret.get_secret_value()
                 and config.SYSTEM_USER_ID is not None
             ):
                 return AuthCredentials(), PhoenixSystemUser(UserId(config.SYSTEM_USER_ID))
@@ -125,7 +125,7 @@ class ApiKeyInterceptor(HasTokenStore, AsyncServerInterceptor):
                     break
                 if (
                     (admin_secret := get_env_phoenix_admin_secret())
-                    and token == str(admin_secret)
+                    and token == admin_secret.get_secret_value()
                     and config.SYSTEM_USER_ID is not None
                 ):
                     return await method(request_or_iterator, context)

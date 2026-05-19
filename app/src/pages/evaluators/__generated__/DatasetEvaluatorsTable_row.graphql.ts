@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<51677f448fca06114e64fc0d0e9429e4>>
+ * @generated SignedSource<<fe1a63f48f72ebdf099c9c317f0b0150>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,6 +12,7 @@ import { ReaderInlineDataFragment } from 'relay-runtime';
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "VERCEL" | "WASM";
 import { FragmentRefs } from "relay-runtime";
 export type DatasetEvaluatorsTable_row$data = {
   readonly description: string | null;
@@ -36,7 +37,7 @@ export type DatasetEvaluatorsTable_row$data = {
       readonly id: string;
       readonly name: string;
       readonly provider: {
-        readonly backendType: string;
+        readonly backendType: SandboxBackendType;
       };
     } | null;
     readonly updatedAt: string;

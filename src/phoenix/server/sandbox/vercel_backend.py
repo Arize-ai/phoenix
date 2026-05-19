@@ -8,8 +8,7 @@ otherwise spins up an ephemeral sandbox (create → run_command → stop).
 Requires the ``vercel`` extra (``vercel>=0.5.8``). The SDK import is lazy (in
 ``VercelSandboxBackend._create_sandbox``) so the module remains importable
 when the extra is absent. Adapter availability is gated by
-``VercelPythonAdapter.probe_dependencies`` /
-``VercelTypescriptAdapter.probe_dependencies`` at registration time, which
+``VercelAdapter.probe_dependencies`` at registration time, which
 surfaces a missing extra as ``status=NOT_INSTALLED`` instead of a runtime
 error during evaluation.
 
@@ -32,17 +31,20 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence, TypedDict
 
-from starlette.datastructures import Secret
+from pydantic import SecretStr
+
+from phoenix.db.models import LanguageName
 
 from .types import (
     ExecutionResult,
-    ProviderCredentialSpec,
     SandboxAdapter,
     SandboxBackend,
-    VercelPythonConfig,
-    VercelTypescriptConfig,
+    VercelConfig,
+    VercelCredentials,
+    VercelDeployment,
     compose_secret_values,
 )
 
@@ -67,19 +69,20 @@ logger = logging.getLogger(__name__)
 # Language → runtime + command mapping
 # ---------------------------------------------------------------------------
 
-_LANGUAGE_CONFIGS: dict[str, _LanguageConfig] = {
-    "PYTHON": _LanguageConfig(
-        runtime="python3.13",
-        cmd="python3",
-        args_prefix=["-c"],
-    ),
-    "TYPESCRIPT": _LanguageConfig(
-        runtime="node24",
-        cmd="node",
-        args_prefix=["--input-type=module-typescript", "-e"],
-    ),
-}
-_DEFAULT_LANGUAGE = "TYPESCRIPT"
+_LANGUAGE_CONFIGS: Mapping[LanguageName, _LanguageConfig] = MappingProxyType(
+    {
+        "PYTHON": _LanguageConfig(
+            runtime="python3.13",
+            cmd="python3",
+            args_prefix=["-c"],
+        ),
+        "TYPESCRIPT": _LanguageConfig(
+            runtime="node24",
+            cmd="node",
+            args_prefix=["--input-type=module-typescript", "-e"],
+        ),
+    }
+)
 
 
 class VercelSandboxBackend(SandboxBackend):
@@ -102,10 +105,10 @@ class VercelSandboxBackend(SandboxBackend):
     def __init__(
         self,
         *,
-        token: Secret,
-        project_id: Secret,
-        team_id: Secret,
-        language: str = _DEFAULT_LANGUAGE,
+        token: SecretStr,
+        project_id: SecretStr,
+        team_id: SecretStr,
+        language: LanguageName,
         user_env: Optional[Mapping[str, str]] = None,
         packages: Optional[Sequence[str]] = None,
         internet_access: Optional[bool] = None,
@@ -115,7 +118,7 @@ class VercelSandboxBackend(SandboxBackend):
         self._token = token
         self._project_id = project_id
         self._team_id = team_id
-        self._language = language.upper() if language else _DEFAULT_LANGUAGE
+        self._language = language
         self._user_env: dict[str, str] = dict(user_env or {})
         self._packages: list[str] = list(packages) if packages else []
         self._internet_access = internet_access
@@ -129,7 +132,7 @@ class VercelSandboxBackend(SandboxBackend):
         )
 
     def _lang_cfg(self) -> _LanguageConfig:
-        return _LANGUAGE_CONFIGS.get(self._language, _LANGUAGE_CONFIGS[_DEFAULT_LANGUAGE])
+        return _LANGUAGE_CONFIGS[self._language]
 
     def _network_policy(self) -> Optional[str]:
         """Map ``internet_access`` (True/False/None) to the SDK string form.
@@ -148,9 +151,9 @@ class VercelSandboxBackend(SandboxBackend):
         runtime: str = self._lang_cfg()["runtime"]
         create_kwargs: dict[str, Any] = {
             "runtime": runtime,
-            "token": str(self._token),
-            "project_id": str(self._project_id),
-            "team_id": str(self._team_id),
+            "token": self._token.get_secret_value(),
+            "project_id": self._project_id.get_secret_value(),
+            "team_id": self._team_id.get_secret_value(),
         }
         network_policy = self._network_policy()
         if network_policy is not None:
@@ -276,54 +279,9 @@ class VercelSandboxBackend(SandboxBackend):
             await self.stop_session(key)
 
 
-def _resolve_internet_access(config: Mapping[str, Any]) -> Optional[bool]:
-    """Project an InternetAccessConfig mode onto a tri-state bool/None.
-
-    ``None`` means the config did not specify internet_access at all — let
-    the Vercel SDK default apply (i.e., omit network_policy=). ``True`` →
-    "allow-all", ``False`` → "deny-all"; the string mapping lives in
-    ``VercelSandboxBackend._network_policy``.
-    """
-    internet_access = config.get("internet_access")
-    if internet_access is None:
-        return None
-    mode = (
-        internet_access.get("mode")
-        if isinstance(internet_access, dict)
-        else getattr(internet_access, "mode", None)
-    )
-    if mode == "deny":
-        return False
-    if mode == "allow":
-        return True
-    return None
-
-
 # Linked from credential descriptions and authentication error messages so
 # users hitting either surface have a direct pointer to provisioning steps.
 _VERCEL_AUTH_DOCS_URL = "https://vercel.com/docs/vercel-sandbox/concepts/authentication"
-
-_VERCEL_ENV_VAR_SPECS = [
-    ProviderCredentialSpec(
-        key=ENV_VERCEL_TOKEN,
-        display_name="Vercel Access Token",
-        description=f"Vercel personal access token. See {_VERCEL_AUTH_DOCS_URL}",
-    ),
-    ProviderCredentialSpec(
-        key=ENV_VERCEL_PROJECT_ID,
-        display_name="Vercel Project ID",
-        description=f"Vercel project ID. See {_VERCEL_AUTH_DOCS_URL}",
-    ),
-    ProviderCredentialSpec(
-        key=ENV_VERCEL_TEAM_ID,
-        display_name="Vercel Team ID",
-        description=(
-            "Vercel team ID — find it under Team Settings → General "
-            "(https://vercel.com/teams/your_team_name_here/settings#team-id). "
-            f"See {_VERCEL_AUTH_DOCS_URL}"
-        ),
-    ),
-]
 
 
 def _probe_vercel_sdk() -> None:
@@ -331,48 +289,22 @@ def _probe_vercel_sdk() -> None:
     import vercel.sandbox  # noqa: F401
 
 
-def _build_vercel_backend(
-    config: Mapping[str, Any],
-    *,
-    language: str,
-    user_env: Optional[Mapping[str, str]] = None,
-) -> SandboxBackend:
-    """Construct a VercelSandboxBackend from a resolved config + user_env.
-
-    All three access-token fields must be populated. Raises ``ValueError``
-    when any is missing so the executor surfaces an actionable error.
-    """
-    token = str(config.get(ENV_VERCEL_TOKEN) or "")
-    project_id = str(config.get(ENV_VERCEL_PROJECT_ID) or "")
-    team_id = str(config.get(ENV_VERCEL_TEAM_ID) or "")
-    if not (token and project_id and team_id):
-        raise ValueError(
-            "Vercel sandbox authentication is not configured. Set "
-            "VERCEL_TOKEN, VERCEL_PROJECT_ID, "
-            "and VERCEL_TEAM_ID via setSandboxCredential. "
-            f"See {_VERCEL_AUTH_DOCS_URL}"
-        )
-    deps = config.get("dependencies") or {}
-    packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
-    internet_access = _resolve_internet_access(config)
-    return VercelSandboxBackend(
-        token=Secret(token),
-        project_id=Secret(project_id),
-        team_id=Secret(team_id),
-        language=language,
-        user_env=user_env,
-        packages=packages,
-        internet_access=internet_access,
+class VercelAdapter(SandboxAdapter[VercelConfig, VercelCredentials, VercelDeployment]):
+    backend_type = "VERCEL"
+    display_name = "Vercel"
+    hosting_type = "hosted"
+    dependency_hints = (
+        "Install Phoenix with the `vercel` extra.",
+        (
+            "Set all of `VERCEL_TOKEN`, "
+            "`VERCEL_PROJECT_ID`, and "
+            "`VERCEL_TEAM_ID`. See "
+            "https://vercel.com/docs/vercel-sandbox/concepts/authentication"
+        ),
     )
-
-
-class VercelPythonAdapter(SandboxAdapter):
-    key = "VERCEL_PYTHON"
-    family = "VERCEL"
-    display_name = "Vercel"
-    language = "PYTHON"
-    config_model = VercelPythonConfig
-    credential_specs = _VERCEL_ENV_VAR_SPECS
+    config_model = VercelConfig
+    credentials_model = VercelCredentials
+    deployment_config_model = VercelDeployment
 
     @classmethod
     def probe_dependencies(cls) -> None:
@@ -380,29 +312,46 @@ class VercelPythonAdapter(SandboxAdapter):
 
     def build_backend(
         self,
-        config: Mapping[str, Any],
+        config: VercelConfig,
+        *,
+        credentials: VercelCredentials,
+        deployment: VercelDeployment,
         user_env: Optional[Mapping[str, str]] = None,
     ) -> SandboxBackend:
-        self._enforce_capabilities(config, user_env)
-        return _build_vercel_backend(config, language="PYTHON", user_env=user_env)
+        """Construct a VercelSandboxBackend from typed config + credentials.
 
-
-class VercelTypescriptAdapter(SandboxAdapter):
-    key = "VERCEL_TYPESCRIPT"
-    family = "VERCEL"
-    display_name = "Vercel"
-    language = "TYPESCRIPT"
-    config_model = VercelTypescriptConfig
-    credential_specs = _VERCEL_ENV_VAR_SPECS
-
-    @classmethod
-    def probe_dependencies(cls) -> None:
-        _probe_vercel_sdk()
-
-    def build_backend(
-        self,
-        config: Mapping[str, Any],
-        user_env: Optional[Mapping[str, str]] = None,
-    ) -> SandboxBackend:
-        self._enforce_capabilities(config, user_env)
-        return _build_vercel_backend(config, language="TYPESCRIPT", user_env=user_env)
+        All three access-token fields must be populated. Raises ``ValueError``
+        when any is missing so the executor surfaces an actionable error.
+        """
+        lang = config.language
+        token = credentials.VERCEL_TOKEN.get_secret_value()
+        project_id = credentials.VERCEL_PROJECT_ID.get_secret_value()
+        team_id = credentials.VERCEL_TEAM_ID.get_secret_value()
+        if not (token and project_id and team_id):
+            raise ValueError(
+                "Vercel sandbox authentication is not configured. Set "
+                "VERCEL_TOKEN, VERCEL_PROJECT_ID, and VERCEL_TEAM_ID in "
+                "Settings → Sandboxes → Vercel → Credentials. "
+                f"See {_VERCEL_AUTH_DOCS_URL}"
+            )
+        packages: list[str] = (
+            list(config.dependencies.packages) if config.dependencies is not None else []
+        )
+        internet_access: Optional[bool]
+        if config.internet_access is None:
+            internet_access = None
+        elif config.internet_access.mode == "deny":
+            internet_access = False
+        elif config.internet_access.mode == "allow":
+            internet_access = True
+        else:
+            internet_access = None
+        return VercelSandboxBackend(
+            token=SecretStr(token),
+            project_id=SecretStr(project_id),
+            team_id=SecretStr(team_id),
+            language=lang,
+            user_env=user_env,
+            packages=packages,
+            internet_access=internet_access,
+        )

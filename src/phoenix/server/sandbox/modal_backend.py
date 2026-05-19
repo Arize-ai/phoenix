@@ -32,12 +32,13 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
 
-from starlette.datastructures import Secret
+from pydantic import SecretStr
 
 from .types import (
     ExecutionResult,
     ModalConfig,
-    ProviderCredentialSpec,
+    ModalCredentials,
+    ModalDeployment,
     SandboxAdapter,
     SandboxBackend,
     compose_secret_values,
@@ -71,8 +72,8 @@ class ModalSandboxBackend(SandboxBackend):
 
     def __init__(
         self,
-        token_id: Secret,
-        token_secret: Secret,
+        token_id: SecretStr,
+        token_secret: SecretStr,
         *,
         timeout: int = _DEFAULT_TIMEOUT,
         idle_timeout: int = _DEFAULT_IDLE_TIMEOUT,
@@ -84,8 +85,8 @@ class ModalSandboxBackend(SandboxBackend):
         if not token_id or not token_secret:
             raise ValueError(
                 "Modal sandbox requires both MODAL_TOKEN_ID and "
-                "MODAL_TOKEN_SECRET. Set them via setSandboxCredential "
-                "or as process environment variables."
+                "MODAL_TOKEN_SECRET. Set them in Settings → Sandboxes → "
+                "Modal → Credentials, or as process environment variables."
             )
 
         import modal
@@ -120,7 +121,7 @@ class ModalSandboxBackend(SandboxBackend):
         async with self._client_lock:
             if self._client is None:
                 self._client = await modal.Client.from_credentials.aio(
-                    str(self._token_id), str(self._token_secret)
+                    self._token_id.get_secret_value(), self._token_secret.get_secret_value()
                 )
         return self._client
 
@@ -211,24 +212,17 @@ class ModalSandboxBackend(SandboxBackend):
             await self.stop_session(key)
 
 
-class ModalAdapter(SandboxAdapter):
-    key = "MODAL"
-    family = "MODAL"
+class ModalAdapter(SandboxAdapter[ModalConfig, ModalCredentials, ModalDeployment]):
+    backend_type = "MODAL"
     display_name = "Modal"
-    language = "PYTHON"
+    hosting_type = "hosted"
+    dependency_hints = (
+        "Install Phoenix with the `modal` extra.",
+        "Provide `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` environment variables.",
+    )
     config_model = ModalConfig
-    credential_specs = [
-        ProviderCredentialSpec(
-            key=ENV_MODAL_TOKEN_ID,
-            display_name="Modal Token ID",
-            description="Token ID issued by `modal token new`.",
-        ),
-        ProviderCredentialSpec(
-            key=ENV_MODAL_TOKEN_SECRET,
-            display_name="Modal Token Secret",
-            description="Token secret issued by `modal token new`.",
-        ),
-    ]
+    credentials_model = ModalCredentials
+    deployment_config_model = ModalDeployment
 
     @classmethod
     def probe_dependencies(cls) -> None:
@@ -237,26 +231,28 @@ class ModalAdapter(SandboxAdapter):
 
     def build_backend(
         self,
-        config: Mapping[str, Any],
+        config: ModalConfig,
+        *,
+        credentials: ModalCredentials,
+        deployment: ModalDeployment,
         user_env: Optional[Mapping[str, str]] = None,
     ) -> SandboxBackend:
-        self._enforce_capabilities(config, user_env)
-        token_id = config.get(ENV_MODAL_TOKEN_ID) or ""
-        token_secret = config.get(ENV_MODAL_TOKEN_SECRET) or ""
+        token_id = credentials.MODAL_TOKEN_ID.get_secret_value()
+        token_secret = credentials.MODAL_TOKEN_SECRET.get_secret_value()
         if not token_id or not token_secret:
             raise ValueError(
                 "Modal sandbox authentication is not configured. Set both "
-                "MODAL_TOKEN_ID and MODAL_TOKEN_SECRET "
-                "via setSandboxCredential or as process environment variables."
+                "MODAL_TOKEN_ID and MODAL_TOKEN_SECRET in Settings → "
+                "Sandboxes → Modal → Credentials, or as process environment "
+                "variables."
             )
-        deps = config.get("dependencies") or {}
-        packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
-        ia = config.get("internet_access") or {}
-        mode = ia.get("mode") if isinstance(ia, dict) else getattr(ia, "mode", None)
-        block_network: bool = mode == "deny"
+        packages: list[str] = (
+            list(config.dependencies.packages) if config.dependencies is not None else []
+        )
+        block_network = config.internet_access is not None and config.internet_access.mode == "deny"
         return ModalSandboxBackend(
-            token_id=Secret(token_id),
-            token_secret=Secret(token_secret),
+            token_id=SecretStr(token_id),
+            token_secret=SecretStr(token_secret),
             timeout=_DEFAULT_TIMEOUT,
             idle_timeout=_DEFAULT_IDLE_TIMEOUT,
             app_name="phoenix-sandbox",

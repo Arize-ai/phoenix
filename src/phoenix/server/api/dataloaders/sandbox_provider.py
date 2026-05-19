@@ -7,27 +7,29 @@ from typing_extensions import TypeAlias
 from phoenix.db import models
 from phoenix.server.types import DbSessionFactory
 
-SandboxProviderId: TypeAlias = int
-Key: TypeAlias = SandboxProviderId
+SandboxBackendTypeKey: TypeAlias = str
+Key: TypeAlias = SandboxBackendTypeKey
 Result: TypeAlias = Optional[models.SandboxProvider]
 
 
-class SandboxProviderByIdDataLoader(DataLoader[Key, Result]):
-    """Batches requests for sandbox providers by their primary key."""
+class SandboxProviderDataLoader(DataLoader[Key, Result]):
+    """Batches requests for sandbox providers by canonical ``kind`` (string PK)."""
 
     def __init__(self, db: DbSessionFactory) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
-        provider_ids = list(set(keys))
-        providers_by_id: dict[Key, models.SandboxProvider] = {}
+        kind_set = set(keys)
+        providers_by_kind: dict[str, models.SandboxProvider] = {}
 
         async with self._db() as session:
             data = await session.stream_scalars(
-                select(models.SandboxProvider).where(models.SandboxProvider.id.in_(provider_ids))
+                select(models.SandboxProvider).where(
+                    models.SandboxProvider.backend_type.in_(kind_set)
+                )
             )
             async for provider in data:
-                providers_by_id[provider.id] = provider
+                providers_by_kind[provider.backend_type] = provider
 
-        return [providers_by_id.get(key) for key in keys]
+        return [providers_by_kind.get(key) for key in keys]

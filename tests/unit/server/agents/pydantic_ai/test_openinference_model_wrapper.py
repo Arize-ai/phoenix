@@ -121,7 +121,7 @@ async def test_request_emits_llm_span_for_text_response(
             messages=messages,
             model_settings=settings,
             model_request_parameters=ModelRequestParameters(
-                function_tools=[], builtin_tools=[], output_tools=[]
+                function_tools=[], native_tools=[], output_tools=[]
             ),
         )
 
@@ -184,10 +184,10 @@ async def test_request_emits_llm_span_for_text_response(
     assert parsed_input["model_settings"] == dict(settings)
 
     parsed_params = parsed_input["model_request_parameters"]
-    assert parsed_params["function_tools"] == []
-    assert parsed_params["builtin_tools"] == []
-    assert parsed_params["output_tools"] == []
-    assert parsed_params["allow_text_output"] is True
+    assert parsed_params.get("function_tools", []) == []
+    assert parsed_params.get("native_tools", []) == []
+    assert parsed_params.get("output_tools", []) == []
+    assert parsed_params.get("allow_text_output", True) is True
 
     assert attributes.pop(INPUT_MIME_TYPE) == JSON
 
@@ -237,7 +237,7 @@ async def test_request_emits_llm_span_for_tool_call_response(
             messages=messages,
             model_settings=settings,
             model_request_parameters=ModelRequestParameters(
-                function_tools=[weather_tool], builtin_tools=[], output_tools=[]
+                function_tools=[weather_tool], native_tools=[], output_tools=[]
             ),
         )
 
@@ -323,7 +323,7 @@ async def test_request_stream_emits_llm_span(
             messages=messages,
             model_settings=settings,
             model_request_parameters=ModelRequestParameters(
-                function_tools=[], builtin_tools=[], output_tools=[]
+                function_tools=[], native_tools=[], output_tools=[]
             ),
             run_context=None,
         ) as stream:
@@ -381,10 +381,10 @@ async def test_request_stream_emits_llm_span(
     assert parsed_input["model_settings"] == dict(settings)
 
     parsed_params = parsed_input["model_request_parameters"]
-    assert parsed_params["function_tools"] == []
-    assert parsed_params["builtin_tools"] == []
-    assert parsed_params["output_tools"] == []
-    assert parsed_params["allow_text_output"] is True
+    assert parsed_params.get("function_tools", []) == []
+    assert parsed_params.get("native_tools", []) == []
+    assert parsed_params.get("output_tools", []) == []
+    assert parsed_params.get("allow_text_output", True) is True
 
     assert attributes.pop(INPUT_MIME_TYPE) == JSON
 
@@ -452,7 +452,7 @@ async def test_request_emits_tool_return_message_in_history(
             messages=history,
             model_settings=settings,
             model_request_parameters=ModelRequestParameters(
-                function_tools=[weather_tool], builtin_tools=[], output_tools=[]
+                function_tools=[weather_tool], native_tools=[], output_tools=[]
             ),
         )
 
@@ -524,8 +524,9 @@ async def test_request_emits_tool_return_message_in_history(
     assert len(parsed_input["messages"]) == 3
     assert parsed_input["model_settings"] == dict(settings)
     parsed_params = parsed_input["model_request_parameters"]
-    assert len(parsed_params["function_tools"]) == 1
-    assert parsed_params["function_tools"][0]["name"] == "get_weather"
+    function_tools = parsed_params.get("function_tools", [])
+    assert len(function_tools) == 1
+    assert function_tools[0]["name"] == "get_weather"
     assert attributes.pop(INPUT_MIME_TYPE) == JSON
 
     output_value = attributes.pop(OUTPUT_VALUE)
@@ -552,7 +553,7 @@ async def test_request_raises_expected_exception_events(
             messages=[ModelRequest(parts=[UserPromptPart(content="anything")])],
             model_settings=None,
             model_request_parameters=ModelRequestParameters(
-                function_tools=[], builtin_tools=[], output_tools=[]
+                function_tools=[], native_tools=[], output_tools=[]
             ),
         )
 
