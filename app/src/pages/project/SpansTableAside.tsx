@@ -1,7 +1,6 @@
 import { Focusable } from "react-aria";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import { Group } from "react-resizable-panels";
-import { useParams } from "react-router";
 
 import {
   CopyField,
@@ -22,6 +21,7 @@ import { TitledPanel } from "@phoenix/components/react-resizable-panels";
 import { RichTokenBreakdown } from "@phoenix/components/RichTokenCostBreakdown";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
+import { useTracingContext } from "@phoenix/contexts/TracingContext";
 import { costFormatter, intFormatter } from "@phoenix/utils/numberFormatUtils";
 
 import type { SpansTableAsideQuery } from "./__generated__/SpansTableAsideQuery.graphql";
@@ -30,7 +30,7 @@ import { DocumentEvaluationSummary } from "./DocumentEvaluationSummary";
 
 export function SpansTableAside(props: { filterCondition?: string | null }) {
   const filterCondition = props.filterCondition || null;
-  const { projectId } = useParams();
+  const projectId = useTracingContext((state) => state.projectId);
   const { timeRange } = useTimeRange();
   const { fetchKey } = useStreamState();
   const data = useLazyLoadQuery<SpansTableAsideQuery>(
@@ -76,7 +76,7 @@ export function SpansTableAside(props: { filterCondition?: string | null }) {
       }
     `,
     {
-      id: projectId as string,
+      id: projectId,
       timeRange: {
         start: timeRange?.start?.toISOString(),
         end: timeRange?.end?.toISOString(),
@@ -103,7 +103,7 @@ export function SpansTableAside(props: { filterCondition?: string | null }) {
               <Label>Name</Label>
               <CopyInput />
             </CopyField>
-            <CopyField value={projectId ?? ""}>
+            <CopyField value={projectId}>
               <Label>ID</Label>
               <CopyInput />
             </CopyField>

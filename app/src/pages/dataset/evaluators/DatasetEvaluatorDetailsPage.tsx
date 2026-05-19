@@ -19,9 +19,14 @@ import {
 } from "@phoenix/components";
 import { Counter } from "@phoenix/components/core/counter";
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
+import {
+  ConnectedTimeRangeSelector,
+  TimeRangeProvider,
+} from "@phoenix/components/datetime";
 import { EditBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditBuiltInDatasetEvaluatorSlideover";
 import { EditCodeDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditCodeDatasetEvaluatorSlideover";
 import { EditLLMDatasetEvaluatorSlideover } from "@phoenix/components/dataset/EditLLMDatasetEvaluatorSlideover";
+import { TopNavActions } from "@phoenix/components/nav";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { datasetEvaluatorDetailsLoaderQuery } from "@phoenix/pages/dataset/evaluators/__generated__/datasetEvaluatorDetailsLoaderQuery.graphql";
 import { BuiltInDatasetEvaluatorDetails } from "@phoenix/pages/dataset/evaluators/BuiltInDatasetEvaluatorDetails";
@@ -57,9 +62,14 @@ export function DatasetEvaluatorDetailsPage() {
   });
 
   return (
-    <Suspense fallback={<Loading />}>
-      <DatasetEvaluatorDetailsPageContent data={data} />
-    </Suspense>
+    <TimeRangeProvider>
+      <TopNavActions>
+        <ConnectedTimeRangeSelector size="S" />
+      </TopNavActions>
+      <Suspense fallback={<Loading />}>
+        <DatasetEvaluatorDetailsPageContent data={data} />
+      </Suspense>
+    </TimeRangeProvider>
   );
 }
 
@@ -154,7 +164,7 @@ function DatasetEvaluatorDetailsPageContent({
           </LazyTabPanel>
         )}
         <LazyTabPanel id="spans">
-          <DatasetEvaluatorSpans projectRef={datasetEvaluator.project} />
+          <DatasetEvaluatorSpans projectId={datasetEvaluator.project.id} />
         </LazyTabPanel>
       </Tabs>
       {isLLMEvaluator && (
