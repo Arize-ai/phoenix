@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from phoenix.server.sandbox import _resolve_sandbox_credentials
+from phoenix.server.sandbox import SecretsContext
 from phoenix.server.sandbox.types import ProviderCredentialSpec
 
 
@@ -49,7 +49,8 @@ class TestResolveSandboxCredentials:
     async def test_db_wins_over_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("CRED_A", "env-value")
         session = _make_session({"CRED_A": b"db-value"})
-        result = await _resolve_sandbox_credentials(session, _identity_decrypt, [_SPEC_A])
+        secrets = SecretsContext(session=session, decrypt=_identity_decrypt)
+        result = await secrets.resolve_credentials([_SPEC_A])
         assert result == {"CRED_A": "db-value"}
 
     @pytest.mark.asyncio
@@ -61,6 +62,7 @@ class TestResolveSandboxCredentials:
         """
         monkeypatch.delenv("CRED_A", raising=False)
         session = _make_session({})
-        result = await _resolve_sandbox_credentials(session, _identity_decrypt, [_SPEC_A])
+        secrets = SecretsContext(session=session, decrypt=_identity_decrypt)
+        result = await secrets.resolve_credentials([_SPEC_A])
         assert result == {}
         assert "CRED_A" not in result

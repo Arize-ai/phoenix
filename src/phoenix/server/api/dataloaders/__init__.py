@@ -61,7 +61,7 @@ from .prompt_version_sequence_number import PromptVersionSequenceNumberDataLoade
 from .prompt_versions import PromptVersionDataLoader
 from .record_counts import RecordCountCache, RecordCountDataLoader
 from .sandbox_configs_by_provider import SandboxConfigsByProviderDataLoader
-from .sandbox_provider_by_id import SandboxProviderByIdDataLoader
+from .sandbox_provider import SandboxProviderDataLoader
 from .secrets import SecretsDataLoader
 from .session_annotations_by_session import SessionAnnotationsBySessionDataLoader
 from .session_io import SessionIODataLoader
@@ -152,7 +152,7 @@ __all__ = [
     "PromptVersionSequenceNumberDataLoader",
     "RecordCountDataLoader",
     "SandboxConfigsByProviderDataLoader",
-    "SandboxProviderByIdDataLoader",
+    "SandboxProviderDataLoader",
     "SecretsDataLoader",
     "SessionAnnotationsBySessionDataLoader",
     "SessionIODataLoader",

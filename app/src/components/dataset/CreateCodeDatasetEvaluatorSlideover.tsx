@@ -104,14 +104,26 @@ const CreateCodeEvaluatorDialog = ({
       query CreateCodeDatasetEvaluatorSlideoverQuery {
         sandboxProviders {
           backendType
-          language
+          supportedLanguages
           enabled
           configs {
             id
             name
             description
+            language
             timeout
-            config
+            config {
+              envVars {
+                name
+                secretKey
+              }
+              internetAccess {
+                mode
+              }
+              dependencies {
+                packages
+              }
+            }
           }
         }
         sandboxBackends {
@@ -119,7 +131,7 @@ const CreateCodeEvaluatorDialog = ({
           status
           supportsEnvVars
           internetAccess
-          dependenciesLanguage
+          supportsDependencies
         }
       }
     `,

@@ -15,6 +15,7 @@ import {
 import { Truncate } from "@phoenix/components/core/utility/Truncate";
 import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
 import { getSandboxConfigSettings } from "@phoenix/pages/settings/sandboxes/utils";
+import type { SandboxBackendType } from "@phoenix/types";
 
 import type { SandboxConfigLabelDetailsQuery } from "./__generated__/SandboxConfigLabelDetailsQuery.graphql";
 
@@ -29,9 +30,9 @@ type SandboxConfigLabelProps = {
    */
   name: string;
   /**
-   * The backend type of the sandbox provider, used to render the provider icon.
+   * The canonical kind of the sandbox provider, used to render the provider icon.
    */
-  backendType: string;
+  backendType: SandboxBackendType;
 };
 
 /**
@@ -94,7 +95,18 @@ function SandboxConfigLabelDetails({
           __typename
           ... on SandboxConfig {
             timeout
-            config
+            config {
+              envVars {
+                name
+                secretKey
+              }
+              internetAccess {
+                mode
+              }
+              dependencies {
+                packages
+              }
+            }
           }
         }
       }

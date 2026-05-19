@@ -1,7 +1,4 @@
-"""Shared redaction for sandbox-config secret material.
-
-``redact_env_var_literals`` is used by the ``SandboxConfig.config`` GraphQL
-resolver to redact literal env-var values at read time.
+"""Span-text masking for sandbox-injected secrets.
 
 ``SandboxSecretMasker`` masks verbatim plaintext secrets from OTEL span
 attributes, status descriptions, and exception events emitted by
@@ -48,10 +45,7 @@ for the threat model above, because variant N+1 always exists.
 
 from __future__ import annotations
 
-import hashlib
-from typing import Any, Iterable
-
-REDACTED_ENV_VAR_VALUE = "<redacted>"
+from typing import Iterable
 
 
 class SandboxSecretMasker:
@@ -79,30 +73,3 @@ class SandboxSecretMasker:
         for idx, secret in enumerate(self._secrets):
             text = text.replace(secret, f"<redacted:{idx}>")
         return text
-
-
-def redact_env_var_literals(config: Any) -> Any:
-    """Return a copy of ``config`` with literal env-var values redacted.
-
-    Literal entries keep ``kind: "literal"`` and ``name`` unchanged, expose
-    ``value: "<redacted>"``, and gain a 16-hex-char ``value_digest`` so
-    callers can detect rotation. Secret-ref entries pass through. The input
-    is not mutated.
-    """
-    if not isinstance(config, dict):
-        return config
-    env_vars = config.get("env_vars")
-    if not isinstance(env_vars, list):
-        return config
-    redacted_env_vars: list[Any] = []
-    for entry in env_vars:
-        if isinstance(entry, dict) and entry.get("kind") == "literal":
-            redacted_entry = dict(entry)
-            raw_value = entry.get("value", "")
-            value_bytes = raw_value.encode("utf-8") if isinstance(raw_value, str) else b""
-            redacted_entry["value"] = REDACTED_ENV_VAR_VALUE
-            redacted_entry["value_digest"] = hashlib.sha256(value_bytes).hexdigest()[:16]
-            redacted_env_vars.append(redacted_entry)
-        else:
-            redacted_env_vars.append(entry)
-    return {**config, "env_vars": redacted_env_vars}

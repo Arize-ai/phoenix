@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f2bc5138c35e454fdab8aaab13fd1715>>
+ * @generated SignedSource<<850a3cfbda20c9271ef288dab5a8d86a>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,8 +10,10 @@
 
 import { ReaderFragment } from 'relay-runtime';
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
+export type InternetAccessChoice = "ALLOW" | "DENY";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
+export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "VERCEL" | "WASM";
 import { FragmentRefs } from "relay-runtime";
 export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
   readonly evaluator: {
@@ -34,13 +36,23 @@ export type CodeDatasetEvaluatorDetails_datasetEvaluator$data = {
       }>;
     }>;
     readonly sandboxConfig?: {
-      readonly config: any;
+      readonly config: {
+        readonly dependencies: {
+          readonly packages: ReadonlyArray<string>;
+        } | null;
+        readonly envVars: ReadonlyArray<{
+          readonly name: string;
+          readonly secretKey: string;
+        }>;
+        readonly internetAccess: {
+          readonly mode: InternetAccessChoice;
+        } | null;
+      };
       readonly description: string | null;
       readonly id: string;
       readonly name: string;
       readonly provider: {
-        readonly backendType: string;
-        readonly language: Language;
+        readonly backendType: SandboxBackendType;
       };
       readonly timeout: number;
     } | null;
@@ -163,13 +175,6 @@ v4 = {
   "kind": "ScalarField",
   "name": "description",
   "storageKey": null
-},
-v5 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "language",
-  "storageKey": null
 };
 return {
   "argumentDefinitions": [],
@@ -225,7 +230,13 @@ return {
             (v0/*: any*/),
             (v1/*: any*/),
             (v4/*: any*/),
-            (v5/*: any*/),
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "language",
+              "storageKey": null
+            },
             (v3/*: any*/),
             {
               "alias": null,
@@ -248,8 +259,67 @@ return {
                 {
                   "alias": null,
                   "args": null,
-                  "kind": "ScalarField",
+                  "concreteType": "SandboxConfigData",
+                  "kind": "LinkedField",
                   "name": "config",
+                  "plural": false,
+                  "selections": [
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "SandboxConfigEnvVar",
+                      "kind": "LinkedField",
+                      "name": "envVars",
+                      "plural": true,
+                      "selections": [
+                        (v1/*: any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "secretKey",
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "SandboxConfigInternetAccess",
+                      "kind": "LinkedField",
+                      "name": "internetAccess",
+                      "plural": false,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "mode",
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    },
+                    {
+                      "alias": null,
+                      "args": null,
+                      "concreteType": "SandboxConfigDependencies",
+                      "kind": "LinkedField",
+                      "name": "dependencies",
+                      "plural": false,
+                      "selections": [
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "packages",
+                          "storageKey": null
+                        }
+                      ],
+                      "storageKey": null
+                    }
+                  ],
                   "storageKey": null
                 },
                 {
@@ -266,8 +336,7 @@ return {
                       "kind": "ScalarField",
                       "name": "backendType",
                       "storageKey": null
-                    },
-                    (v5/*: any*/)
+                    }
                   ],
                   "storageKey": null
                 }
@@ -305,6 +374,6 @@ return {
 };
 })();
 
-(node as any).hash = "bb4bbd88be4773bb0ae55a8598ade320";
+(node as any).hash = "53f65643e7219f400edd2fd8872b4fd8";
 
 export default node;

@@ -17,6 +17,7 @@ from phoenix.db.types.annotation_configs import (
     ContinuousOutputConfig,
     OutputConfigType,
 )
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import BuiltInEvaluator as BuiltInEvaluatorClass
 from phoenix.server.api.exceptions import NotFound
@@ -32,8 +33,6 @@ from phoenix.server.api.types.pagination import (
     connection_from_list,
 )
 from phoenix.server.api.types.SandboxConfig import Language
-
-from .Identifier import Identifier
 
 if TYPE_CHECKING:
     from .Dataset import Dataset

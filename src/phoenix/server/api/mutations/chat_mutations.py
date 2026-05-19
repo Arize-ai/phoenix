@@ -3,6 +3,7 @@ from typing import Any, Optional, cast
 
 import strawberry
 from pydantic import ValidationError
+from sqlalchemy import select
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 
@@ -14,11 +15,12 @@ from phoenix.db.types.annotation_configs import (
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
-    EvaluationResult as EvaluationResultDict,
-)
-from phoenix.server.api.evaluators import (
+    CodeEvaluatorRunner,
     create_llm_evaluator_from_inline,
     get_builtin_evaluator_by_key,
+)
+from phoenix.server.api.evaluators import (
+    EvaluationResult as EvaluationResultDict,
 )
 from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.evaluators import (
@@ -39,6 +41,12 @@ from phoenix.server.api.types.ExperimentRunAnnotation import ExperimentRunAnnota
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.SandboxConfig import SandboxConfig
 from phoenix.server.api.types.Trace import Trace
+from phoenix.server.sandbox import (
+    MissingSecretError,
+    SecretsContext,
+    build_sandbox_backend,
+)
+from phoenix.server.sandbox.types import UnsupportedOperation
 
 logger = logging.getLogger(__name__)
 
@@ -99,9 +107,6 @@ async def _resolve_inline_code_evaluator_backend(
     sandbox_config_id: Optional[strawberry.relay.GlobalID],
     language: str,
 ) -> tuple[Any, Optional[int]]:
-    from phoenix.server.sandbox import MissingSecretError, build_sandbox_backend
-    from phoenix.server.sandbox.types import UnsupportedOperation
-
     if sandbox_config_id is None:
         raise BadRequest(
             f"No sandbox configuration selected for language '{language}'. "
@@ -128,7 +133,11 @@ async def _resolve_inline_code_evaluator_backend(
             )
 
         sandbox_timeout = sandbox_cfg.timeout
-        provider = await session.get(models.SandboxProvider, sandbox_cfg.sandbox_provider_id)
+        provider = await session.scalar(
+            select(models.SandboxProvider).where(
+                models.SandboxProvider.backend_type == sandbox_cfg.backend_type
+            )
+        )
         if provider is None:
             raise BadRequest(
                 f"Sandbox provider for configuration '{sandbox_cfg.name}' was not found"
@@ -141,16 +150,13 @@ async def _resolve_inline_code_evaluator_backend(
                 )
             )
 
-        if provider.language != language:
+        if sandbox_cfg.language != language:
             raise BadRequest("Sandbox provider language does not match code evaluator language")
 
-        backend_type = provider.backend_type
         try:
             sandbox_backend = await build_sandbox_backend(
-                backend_type,
-                config=sandbox_cfg.config,
-                session=session,
-                decrypt=info.context.decrypt,
+                sandbox_cfg,
+                secrets=SecretsContext(session=session, decrypt=info.context.decrypt),
             )
         except (
             MissingSecretError,
@@ -162,7 +168,7 @@ async def _resolve_inline_code_evaluator_backend(
 
     if sandbox_backend is None:
         raise BadRequest(
-            f"Sandbox backend '{backend_type}' is unavailable for language '{language}'. "
+            f"Sandbox backend '{provider.backend_type}' is unavailable for language '{language}'. "
             "Ensure the backend is installed and configured."
         )
 
@@ -271,10 +277,6 @@ class ChatCompletionMutationMixin:
                 if type_name != CodeEvaluator.__name__:
                     raise BadRequest(f"Expected code evaluator, got {type_name}")
 
-                from phoenix.server.api.evaluators import CodeEvaluatorRunner
-                from phoenix.server.sandbox import MissingSecretError, build_sandbox_backend
-                from phoenix.server.sandbox.types import UnsupportedOperation
-
                 code_evaluator_version = (
                     await info.context.data_loaders.latest_code_evaluator_versions.load(db_id)
                 )
@@ -294,8 +296,7 @@ class ChatCompletionMutationMixin:
                     # Execution dispatches against the tip's current sandbox_config_id
                     # so a patchCodeEvaluator takes effect immediately.
                     sandbox_backend = None
-                    backend_type: str | None = None
-                    sandbox_config: dict[str, Any] | None = None
+                    live_sandbox_config: models.SandboxConfig | None = None
                     sandbox_timeout: int | None = None
                     tip_sandbox_config_id = code_evaluator_record.sandbox_config_id
                     if tip_sandbox_config_id is not None:
@@ -311,12 +312,15 @@ class ChatCompletionMutationMixin:
                                     "disabled. Enable it before testing this evaluator."
                                 )
                             )
-                        live_sandbox_provider = await session.get(
-                            models.SandboxProvider, live_sandbox_config.sandbox_provider_id
+                        live_sandbox_provider = await session.scalar(
+                            select(models.SandboxProvider).where(
+                                models.SandboxProvider.backend_type
+                                == live_sandbox_config.backend_type
+                            )
                         )
                         if live_sandbox_provider is None:
-                            provider_id = live_sandbox_config.sandbox_provider_id
-                            raise BadRequest(f"SandboxProvider not found: {provider_id}")
+                            pk = live_sandbox_config.backend_type
+                            raise BadRequest(f"SandboxProvider not found: {pk}")
                         if not live_sandbox_provider.enabled:
                             raise BadRequest(
                                 (
@@ -324,8 +328,6 @@ class ChatCompletionMutationMixin:
                                     "disabled. Enable it before testing this evaluator."
                                 )
                             )
-                        backend_type = live_sandbox_provider.backend_type
-                        sandbox_config = live_sandbox_config.config
                         sandbox_timeout = live_sandbox_config.timeout
 
                     # Eagerly capture scalar fields before session closes
@@ -338,13 +340,13 @@ class ChatCompletionMutationMixin:
                         if isinstance(c, (CategoricalOutputConfig, ContinuousOutputConfig))
                     ]
 
-                    if backend_type is not None:
+                    if live_sandbox_config is not None:
                         try:
                             sandbox_backend = await build_sandbox_backend(
-                                backend_type,
-                                config=sandbox_config,
-                                session=session,
-                                decrypt=info.context.decrypt,
+                                live_sandbox_config,
+                                secrets=SecretsContext(
+                                    session=session, decrypt=info.context.decrypt
+                                ),
                             )
                         except (
                             MissingSecretError,
@@ -383,8 +385,6 @@ class ChatCompletionMutationMixin:
                     all_results.append(_to_evaluation_result(eval_result, eval_result["name"]))
 
             elif inline_code_evaluator := evaluator_input.inline_code_evaluator:
-                from phoenix.server.api.evaluators import CodeEvaluatorRunner
-
                 language = inline_code_evaluator.language.value
                 evaluator_name = inline_code_evaluator.name
                 evaluator_description = inline_code_evaluator.description

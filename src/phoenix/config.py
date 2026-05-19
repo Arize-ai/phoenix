@@ -27,15 +27,16 @@ import wrapt
 from email_validator import EmailNotValidError, validate_email
 from ldap3.core.exceptions import LDAPInvalidDnError
 from ldap3.utils.dn import parse_dn
-from starlette.datastructures import URL, Secret
+from pydantic import SecretStr
+from starlette.datastructures import URL
 from typing_extensions import TypeAlias, get_args
 
 from phoenix.utilities.logging import log_a_list
 from phoenix.utilities.re import parse_env_headers
 
 if TYPE_CHECKING:
+    from phoenix.db.models import SandboxBackendType
     from phoenix.server.oauth2 import OAuth2Clients
-    from phoenix.server.sandbox.types import SandboxProviderFamily
 
 # Assignable roles (SYSTEM is internal-only and not included)
 AssignableUserRoleName: TypeAlias = Literal["ADMIN", "MEMBER", "VIEWER"]
@@ -776,15 +777,13 @@ The default retention policy for traces in days.
 ENV_PHOENIX_SANDBOX_PROVIDER = "PHOENIX_SANDBOX_PROVIDER"
 """
 The default sandbox backend type to use for code evaluator execution.
-Accepted values: WASM, E2B, DAYTONA_PYTHON, DAYTONA_TYPESCRIPT,
-VERCEL_PYTHON, VERCEL_TYPESCRIPT, DENO, MODAL.
+Accepted values: WASM, E2B, DAYTONA, VERCEL, DENO, MODAL.
 When not set, the WASM (local WebAssembly) backend is used.
 """
 ENV_PHOENIX_ALLOWED_SANDBOX_PROVIDERS = "PHOENIX_ALLOWED_SANDBOX_PROVIDERS"
 """
-A comma-separated list of sandbox provider families to allow.
-Accepted values: WASM, E2B, DAYTONA, VERCEL, DENO, MODAL.
-Listing a family allows all of its language variants. Case-insensitive.
+A comma-separated list of sandbox providers to allow.
+Accepted values: WASM, E2B, DAYTONA, VERCEL, DENO, MODAL. Case-insensitive.
 When not set, all providers are allowed. To disable all sandbox providers, set to NONE.
 Example: PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO
 """
@@ -1209,44 +1208,44 @@ def validate_env_allowed_providers() -> None:
         )
 
 
-def get_env_allowed_sandbox_providers() -> frozenset[SandboxProviderFamily]:
-    """Effective set of allowed sandbox provider family names.
+def get_env_allowed_sandbox_providers() -> frozenset[SandboxBackendType]:
+    """Effective set of allowed sandbox provider kind names.
 
-    - Unset → ``SANDBOX_PROVIDER_FAMILIES`` (all families allowed).
+    - Unset → ``SANDBOX_BACKEND_TYPES`` (all kinds allowed).
     - Parsed tokens include ``NONE`` → empty frozenset (kill switch; other
       tokens in the same value are not applied).
     - Otherwise → frozenset of stripped, uppercased comma-separated tokens.
 
     The concrete return value is always a ``frozenset``. It is annotated
-    as ``frozenset[SandboxProviderFamily]`` because callers only need
-    membership tests against the closed family set; the parsed branch uses
+    as ``frozenset[SandboxBackendType]`` because callers only need
+    membership tests against the closed kind set; the parsed branch uses
     ``typing.cast`` since parsing alone would infer ``frozenset[str]``.
     ``validate_env_allowed_sandbox_providers`` runs at startup and rejects
     unknown names before the server reads this setting for allowlisting.
     """
-    from phoenix.server.sandbox.types import SANDBOX_PROVIDER_FAMILIES
+    from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
 
     raw = getenv(ENV_PHOENIX_ALLOWED_SANDBOX_PROVIDERS)
     if not raw:
-        return SANDBOX_PROVIDER_FAMILIES
+        return SANDBOX_BACKEND_TYPES
     names = frozenset(name.strip().upper() for name in raw.split(",") if name.strip())
     if "NONE" in names:
         return frozenset()
-    return cast("frozenset[SandboxProviderFamily]", names)
+    return cast("frozenset[SandboxBackendType]", names)
 
 
 def validate_env_allowed_sandbox_providers() -> None:
     """Raise ValueError if PHOENIX_ALLOWED_SANDBOX_PROVIDERS contains unknown
-    family names. Called at startup so typos fail fast rather than silently
+    provider kinds. Called at startup so typos fail fast rather than silently
     locking out every provider.
     """
-    from phoenix.server.sandbox.types import SANDBOX_PROVIDER_FAMILIES
+    from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
 
-    if names := get_env_allowed_sandbox_providers() - SANDBOX_PROVIDER_FAMILIES:
+    if names := get_env_allowed_sandbox_providers() - SANDBOX_BACKEND_TYPES:
         raise ValueError(
-            f"PHOENIX_ALLOWED_SANDBOX_PROVIDERS contains unrecognized family names: "
+            f"PHOENIX_ALLOWED_SANDBOX_PROVIDERS contains unrecognized kind names: "
             f"{', '.join(sorted(names))}. "
-            f"Valid names are: {', '.join(sorted(SANDBOX_PROVIDER_FAMILIES))}"
+            f"Valid names are: {', '.join(sorted(SANDBOX_BACKEND_TYPES))}"
         )
 
 
@@ -1265,28 +1264,28 @@ def get_env_brute_force_login_protection_max_attempts() -> int:
     return _int_val(ENV_PHOENIX_BRUTE_FORCE_LOGIN_PROTECTION_MAX_ATTEMPTS, 5)
 
 
-def get_env_phoenix_secret() -> Secret:
+def get_env_phoenix_secret() -> SecretStr:
     """
     Gets the value of the PHOENIX_SECRET environment variable
     and performs validation.
     """
     phoenix_secret = getenv(ENV_PHOENIX_SECRET)
     if phoenix_secret is None:
-        return Secret("")
+        return SecretStr("")
     from phoenix.auth import REQUIREMENTS_FOR_PHOENIX_SECRET
 
     REQUIREMENTS_FOR_PHOENIX_SECRET.validate(phoenix_secret, "Phoenix secret")
-    return Secret(phoenix_secret)
+    return SecretStr(phoenix_secret)
 
 
-def get_env_phoenix_admin_secret() -> Secret:
+def get_env_phoenix_admin_secret() -> SecretStr:
     """
     Gets the value of the PHOENIX_ADMIN_SECRET environment variable
     and performs validation.
     """
     phoenix_admin_secret = getenv(ENV_PHOENIX_ADMIN_SECRET)
     if phoenix_admin_secret is None:
-        return Secret("")
+        return SecretStr("")
     if not (phoenix_secret := get_env_phoenix_secret()):
         raise ValueError(
             f"`{ENV_PHOENIX_ADMIN_SECRET}` must be not be set without "
@@ -1295,17 +1294,17 @@ def get_env_phoenix_admin_secret() -> Secret:
     from phoenix.auth import REQUIREMENTS_FOR_PHOENIX_SECRET
 
     REQUIREMENTS_FOR_PHOENIX_SECRET.validate(phoenix_admin_secret, "Phoenix secret")
-    if phoenix_admin_secret == str(phoenix_secret):
+    if phoenix_admin_secret == phoenix_secret.get_secret_value():
         raise ValueError(
             f"`{ENV_PHOENIX_ADMIN_SECRET}` must be different from `{ENV_PHOENIX_SECRET}`"
         )
-    return Secret(phoenix_admin_secret)
+    return SecretStr(phoenix_admin_secret)
 
 
-def get_env_default_admin_initial_password() -> Secret:
+def get_env_default_admin_initial_password() -> SecretStr:
     from phoenix.auth import DEFAULT_ADMIN_PASSWORD
 
-    return Secret(getenv(ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD) or DEFAULT_ADMIN_PASSWORD)
+    return SecretStr(getenv(ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD) or DEFAULT_ADMIN_PASSWORD)
 
 
 def get_env_cookies_path() -> str:
@@ -1338,8 +1337,8 @@ def get_env_phoenix_agents_assistant_project_name() -> str:
 class AuthSettings(NamedTuple):
     enable_auth: bool
     disable_basic_auth: bool
-    phoenix_secret: Secret
-    phoenix_admin_secret: Secret
+    phoenix_secret: SecretStr
+    phoenix_admin_secret: SecretStr
     oauth2_clients: OAuth2Clients
     ldap_config: Optional[LDAPConfig]
 

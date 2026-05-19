@@ -58,14 +58,14 @@ A common pattern is to enable a local sandbox for the everyday case (pure-logic 
 
 ## Sandbox Providers
 
-A **provider** is a backend + language pair — for example, *Vercel Sandbox — Python* or *Daytona — TypeScript*. Each row shows the backend's display name, the language, when the provider was last updated, its current runtime status, and a gear icon to configure credentials. The **Enabled** switch appears once the runtime is reachable; flipping it off hides the provider's configurations from evaluator authors without deleting them.
+A **provider** is a sandbox backend account/runtime — for example, *Vercel Sandbox* or *Daytona*. Each row shows the backend's display name, supported languages, current runtime status, and a gear icon to configure credentials. The **Enabled** switch appears once the runtime is reachable; flipping it off hides the provider's configurations from evaluator authors without deleting them.
 
 ### Configuring credentials
 
 Click the gear icon next to a provider to open the credentials dialog. The dialog lists the credential fields the backend declares — for example:
 
 - **E2B** — `E2B_API_KEY`
-- **Daytona** — `PHOENIX_SANDBOX_DAYTONA_API_KEY`
+- **Daytona** — `DAYTONA_API_KEY`
 - **Modal** — `MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET`
 - **Vercel Sandbox** — `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID`
 
@@ -87,7 +87,8 @@ The dialog exposes the following fields. Fields that aren't supported by the sel
 
 | Field | Notes |
 |-------|-------|
-| **Provider** | Required. The backend + language pair this config targets. Configs are language-scoped — a Python config can only be selected by Python evaluators. |
+| **Provider** | Required. The sandbox provider this config targets. Provider credentials and deployment routing are shared across that provider's supported languages. |
+| **Language** | Required. Auto-filled for single-language providers; selected explicitly for multi-language providers. Configs are language-scoped — a Python config can only be selected by Python evaluators. |
 | **Name** | Required. Lowercase letters, digits, dashes, and underscores. Must start and end with a letter or digit. Used to identify the config in the evaluator UI. |
 | **Description** | Optional free-form text shown next to the config name. |
 | **Timeout (seconds)** | Required. Total time allowed for sandbox setup and execution. Defaults to **300s**. |

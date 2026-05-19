@@ -478,11 +478,11 @@ def _redactor(_app: _AppInfo) -> "Redactor":
     Tests use this to redact values before sending and to un-redact server-emitted
     tokens — verifying symmetric round-trips end-to-end.
     """
-    from starlette.datastructures import Secret
+    from pydantic import SecretStr
 
     from phoenix.server.redaction import Redactor
 
-    return Redactor(secret=Secret(_app.env["PHOENIX_SECRET"]))
+    return Redactor(secret=SecretStr(_app.env["PHOENIX_SECRET"]))
 
 
 @pytest.fixture(scope="package")

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<c1d30166ac70f52a6e0c511e3ba90f98>>
+ * @generated SignedSource<<2d727a8bfc9a2bc3037491d5b67a8a27>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,20 +11,21 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type SandboxBackendStatus = "AVAILABLE" | "MISSING_CREDENTIALS" | "NOT_INSTALLED" | "UNAVAILABLE";
+export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "VERCEL" | "WASM";
 export type SandboxHostingType = "HOSTED" | "LOCAL";
 export type SandboxProviderSelectQuery$variables = Record<PropertyKey, never>;
 export type SandboxProviderSelectQuery$data = {
   readonly sandboxBackends: ReadonlyArray<{
-    readonly backendType: string;
+    readonly backendType: SandboxBackendType;
     readonly displayName: string;
     readonly hostingType: SandboxHostingType;
     readonly status: SandboxBackendStatus;
   }>;
   readonly sandboxProviders: ReadonlyArray<{
-    readonly backendType: string;
+    readonly backendType: SandboxBackendType;
     readonly enabled: boolean;
     readonly id: string;
-    readonly language: Language;
+    readonly supportedLanguages: ReadonlyArray<Language>;
   }>;
 };
 export type SandboxProviderSelectQuery = {
@@ -94,7 +95,7 @@ v1 = [
         "alias": null,
         "args": null,
         "kind": "ScalarField",
-        "name": "language",
+        "name": "supportedLanguages",
         "storageKey": null
       },
       {
@@ -126,16 +127,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "891c5ebc9db29c0b106fe39945f2756b",
+    "cacheID": "42d29259e4b238dcb302735225ba153d",
     "id": null,
     "metadata": {},
     "name": "SandboxProviderSelectQuery",
     "operationKind": "query",
-    "text": "query SandboxProviderSelectQuery {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    status\n  }\n  sandboxProviders {\n    id\n    backendType\n    language\n    enabled\n  }\n}\n"
+    "text": "query SandboxProviderSelectQuery {\n  sandboxBackends {\n    backendType\n    displayName\n    hostingType\n    status\n  }\n  sandboxProviders {\n    id\n    backendType\n    supportedLanguages\n    enabled\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "8d20fa72d4cba405e430d26cc8a08dec";
+(node as any).hash = "40b8f43cd90c889754ca91a395c37dc0";
 
 export default node;

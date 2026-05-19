@@ -531,8 +531,9 @@ async def test_request_emits_tool_return_message_in_history(
     assert len(parsed_input["messages"]) == 3
     assert parsed_input["model_settings"] == dict(settings)
     parsed_params = parsed_input["model_request_parameters"]
-    assert len(parsed_params["function_tools"]) == 1
-    assert parsed_params["function_tools"][0]["name"] == "get_weather"
+    function_tools = parsed_params.get("function_tools", [])
+    assert len(function_tools) == 1
+    assert function_tools[0]["name"] == "get_weather"
     assert attributes.pop(INPUT_MIME_TYPE) == JSON
 
     output_value = attributes.pop(OUTPUT_VALUE)

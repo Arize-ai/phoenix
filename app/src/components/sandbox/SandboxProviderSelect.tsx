@@ -64,7 +64,9 @@ function SandboxProviderOptionContent({
         height={18}
       />
       <Text>{option.backend.displayName}</Text>
-      <Text color="text-500">{languageLabel(option.provider.language)}</Text>
+      <Text color="text-500">
+        {option.provider.supportedLanguages.map(languageLabel).join(" · ")}
+      </Text>
     </Flex>
   );
 }
@@ -95,7 +97,7 @@ export function SandboxProviderSelect({
         sandboxProviders {
           id
           backendType
-          language
+          supportedLanguages
           enabled
         }
       }
@@ -120,16 +122,11 @@ export function SandboxProviderSelect({
           option.provider.id === selectedKey || filter == null || filter(option)
       )
       .sort((a, b) => {
-        // Local providers first, then alphabetical by display name, then by
-        // language for stable ordering when two providers share a name.
+        // Local providers first, then alphabetical by display name.
         const aLocal = a.backend.hostingType === "LOCAL" ? 0 : 1;
         const bLocal = b.backend.hostingType === "LOCAL" ? 0 : 1;
         if (aLocal !== bLocal) return aLocal - bLocal;
-        const nameCmp = a.backend.displayName.localeCompare(
-          b.backend.displayName
-        );
-        if (nameCmp !== 0) return nameCmp;
-        return a.provider.language.localeCompare(b.provider.language);
+        return a.backend.displayName.localeCompare(b.backend.displayName);
       });
   }, [data.sandboxBackends, data.sandboxProviders, selectedKey, filter]);
 

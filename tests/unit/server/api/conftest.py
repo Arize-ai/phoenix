@@ -1683,7 +1683,7 @@ async def seed_sandbox_providers(
     db: DbSessionFactory,
     seed_languages: None,
 ) -> None:
-    """Seed one sandbox_providers row per (backend_type, language) pair."""
+    """Seed one sandbox_providers row per canonical provider kind."""
     async with db() as session:
         await sync_sandbox_providers(session, SANDBOX_ADAPTER_METADATA)
 
@@ -1702,9 +1702,9 @@ async def sandbox_config(
             "WASM sandbox provider not found; ensure seed_sandbox_providers ran"
         )
         config = models.SandboxConfig(
-            sandbox_provider_id=provider.id,
-            language=provider.language,
-            name="test-sandbox-config",
+            backend_type=provider.backend_type,
+            language="PYTHON",
+            name=Identifier("test-sandbox-config"),
             description="Fixture sandbox config for tests",
             config={},
             timeout=30,

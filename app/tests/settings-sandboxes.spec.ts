@@ -1,5 +1,11 @@
 import { randomUUID } from "crypto";
-import { expect, test, type Locator, type Response } from "@playwright/test";
+import {
+  expect,
+  test,
+  type Locator,
+  type Page,
+  type Response,
+} from "@playwright/test";
 
 function isGraphQLMutationResponse(response: Response, operationName: string) {
   if (!response.url().includes("/graphql") || response.status() !== 200) {
@@ -11,6 +17,29 @@ function isGraphQLMutationResponse(response: Response, operationName: string) {
 
 function escapeRegex(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+async function upsertSecret(page: Page, key: string) {
+  const response = await page.request.post("/graphql", {
+    data: {
+      operationName: "UpsertOrDeleteSecretsMutation",
+      query: `
+        mutation UpsertOrDeleteSecretsMutation($input: UpsertOrDeleteSecretsMutationInput!) {
+          upsertOrDeleteSecrets(input: $input) {
+            upsertedSecrets {
+              key
+            }
+          }
+        }
+      `,
+      variables: {
+        input: {
+          secrets: [{ key, value: "hello-world" }],
+        },
+      },
+    },
+  });
+  expect(response.ok()).toBe(true);
 }
 
 /**
@@ -36,6 +65,7 @@ async function selectProvider(dialog: Locator, providerName: string | RegExp) {
 test.describe("Settings Sandboxes", () => {
   test.describe.serial("capability-gated editors", () => {
     const configName = `e2e-sandbox-${randomUUID().slice(0, 8)}`;
+    const envSecretKey = `E2E_SANDBOX_SECRET_${randomUUID().slice(0, 8)}`;
 
     test("WASM provider hides env vars, internet access, and dependencies editors", async ({
       page,
@@ -67,7 +97,7 @@ test.describe("Settings Sandboxes", () => {
         dialog.getByLabel("Allow Internet Access")
       ).not.toBeVisible();
 
-      // Dependencies: WASM has no dependenciesLanguage — neither package
+      // Dependencies: WASM does not support dependencies — neither package
       // editor label should be visible.
       await expect(dialog.getByLabel("Python Packages")).not.toBeVisible();
       await expect(dialog.getByLabel("npm Packages")).not.toBeVisible();
@@ -102,12 +132,14 @@ test.describe("Settings Sandboxes", () => {
         dialog.getByText("Environment Variables", { exact: true })
       ).toBeVisible();
 
-      // Add a literal env var
+      await upsertSecret(page, envSecretKey);
+
+      // Add a secret-backed env var.
       await dialog.getByRole("button", { name: "Add Variable" }).click();
       // Fill the env var name (last "Name" input since the first is the config name)
       await dialog.getByLabel("Name").last().fill("MY_TEST_VAR");
-      // The default kind is "literal" — fill the value
-      await dialog.getByLabel("Value").last().fill("hello-world");
+      await dialog.getByRole("combobox", { name: "Secret" }).click();
+      await page.getByRole("option", { name: envSecretKey }).click();
 
       // Fill in the sandbox config name (first "Name" input)
       await dialog.getByLabel("Name").first().fill(configName);
@@ -159,12 +191,11 @@ test.describe("Settings Sandboxes", () => {
         dialog.getByText("Environment Variables", { exact: true })
       ).toBeVisible();
 
-      // The literal env var we saved should be shown by name. The literal
-      // value is redacted on read (see `redact_env_var_literals`) so the
-      // value input round-trips as "<redacted>", not the cleartext we typed.
-      // Re-saving requires the user to retype the value.
+      // The env var should round-trip by name and secret reference.
       await expect(dialog.locator('input[value="MY_TEST_VAR"]')).toBeVisible();
-      await expect(dialog.locator('input[value="<redacted>"]')).toBeVisible();
+      await expect(
+        dialog.getByRole("combobox", { name: "Secret" })
+      ).toHaveValue(envSecretKey);
 
       // Close without changes
       await dialog.getByRole("button", { name: /cancel/i }).click();

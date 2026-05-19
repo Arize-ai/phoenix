@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 import httpx
 import pytest
-from starlette.datastructures import Secret
+from pydantic import SecretStr
 
 from phoenix.server.api.exceptions import Unauthorized
 from phoenix.server.redaction import Redactor
@@ -29,7 +29,7 @@ _UNSET: Any = object()
 @functools.lru_cache(maxsize=None)
 def _redactor_for(phoenix_secret: str) -> Redactor:
     """Cached Redactor keyed off the running server's PHOENIX_SECRET."""
-    return Redactor(Secret(phoenix_secret))
+    return Redactor(SecretStr(phoenix_secret))
 
 
 def _unredact(app: _AppInfo, token: str) -> str:

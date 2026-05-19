@@ -194,14 +194,26 @@ function EditCodeDatasetEvaluatorSlideoverContent({
           }
           sandboxProviders {
             backendType
-            language
+            supportedLanguages
             enabled
             configs {
               id
               name
               description
+              language
               timeout
-              config
+              config {
+                envVars {
+                  name
+                  secretKey
+                }
+                internetAccess {
+                  mode
+                }
+                dependencies {
+                  packages
+                }
+              }
             }
           }
           sandboxBackends {
@@ -209,7 +221,7 @@ function EditCodeDatasetEvaluatorSlideoverContent({
             status
             supportsEnvVars
             internetAccess
-            dependenciesLanguage
+            supportsDependencies
           }
         }
       `,

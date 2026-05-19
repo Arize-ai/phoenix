@@ -4,8 +4,7 @@ Daytona sandbox backend.
 Requires the ``daytona_sdk`` package (optional extra). Imports of the SDK are
 lazy (in ``DaytonaSandboxBackend._get_client`` and ``execute``) so the module
 remains importable when the extra is absent. Adapter availability is gated by
-``DaytonaPythonAdapter.probe_dependencies`` /
-``DaytonaTypescriptAdapter.probe_dependencies`` at registration time, which
+``DaytonaAdapter.probe_dependencies`` at registration time, which
 surfaces a missing extra as ``status=NOT_INSTALLED`` instead of a runtime
 error during evaluation.
 
@@ -21,15 +20,17 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
+from typing import TYPE_CHECKING, Mapping, Optional, Sequence
 
-from starlette.datastructures import Secret
+from pydantic import SecretStr
+
+from phoenix.db.models import LanguageName
 
 from .types import (
-    DaytonaPythonConfig,
-    DaytonaTypescriptConfig,
+    DaytonaConfig,
+    DaytonaCredentials,
+    DaytonaDeployment,
     ExecutionResult,
-    ProviderCredentialSpec,
     SandboxAdapter,
     SandboxBackend,
     compose_secret_values,
@@ -57,34 +58,32 @@ def _to_execution_result(response: ExecuteResponse) -> ExecutionResult:
     )
 
 
-_DEFAULT_LANGUAGE = "PYTHON"
-
-
 class DaytonaSandboxBackend(SandboxBackend):
     """Sandbox backend executing code in Daytona workspaces.
 
-    Language routing is driven by ``language`` (PYTHON | TYPESCRIPT). The default
-    preserves binary compatibility with every existing call site that does not
-    pass ``language=`` explicitly. PYTHON routes ``CreateSandboxFromSnapshotParams``
-    to ``CodeLanguage.PYTHON`` and installs packages via ``pip``; TYPESCRIPT
-    routes to ``CodeLanguage.TYPESCRIPT`` and installs via ``npm``.
+    Language routing is driven by the required ``language`` argument
+    (PYTHON | TYPESCRIPT). PYTHON routes ``CreateSandboxFromSnapshotParams`` to
+    ``CodeLanguage.PYTHON`` and installs packages via ``pip``; TYPESCRIPT routes
+    to ``CodeLanguage.TYPESCRIPT`` and installs via ``npm``.
     """
 
     def __init__(
         self,
-        api_key: Secret,
-        server_url: str = "",
+        api_key: SecretStr,
+        language: LanguageName,
+        api_url: Optional[str] = None,
+        target: Optional[str] = None,
         user_env: Optional[Mapping[str, str]] = None,
         packages: Optional[Sequence[str]] = None,
         network_block_all: bool = False,
-        language: str = _DEFAULT_LANGUAGE,
     ) -> None:
         self._api_key = api_key
-        self._server_url = server_url
+        self._api_url = api_url
+        self._target = target
         self._user_env: dict[str, str] = dict(user_env or {})
         self._packages: list[str] = list(packages) if packages else []
         self._network_block_all = network_block_all
-        self._language = language.upper() if language else _DEFAULT_LANGUAGE
+        self._language = language
         self._sessions: dict[str, AsyncSandbox] = {}
         self._client: Optional[AsyncDaytona] = None
         self.secret_values = compose_secret_values(user_env, self._api_key)
@@ -92,12 +91,16 @@ class DaytonaSandboxBackend(SandboxBackend):
     def _get_client(self) -> AsyncDaytona:
         if self._client is not None:
             return self._client
-        from daytona_sdk import AsyncDaytona, DaytonaConfig
+        # Alias SDK's ``DaytonaConfig`` locally so it doesn't shadow Phoenix's
+        # ``DaytonaConfig`` pydantic model imported at module scope.
+        from daytona_sdk import AsyncDaytona
+        from daytona_sdk import DaytonaConfig as _SDKDaytonaConfig
 
         self._client = AsyncDaytona(
-            DaytonaConfig(
-                api_key=str(self._api_key),
-                api_url=self._server_url or None,
+            _SDKDaytonaConfig(
+                api_key=self._api_key.get_secret_value(),
+                api_url=self._api_url,
+                target=self._target,
             )
         )
         return self._client
@@ -230,89 +233,72 @@ class DaytonaSandboxBackend(SandboxBackend):
             self._client = None
 
 
-_DAYTONA_CREDENTIAL_SPECS = [
-    ProviderCredentialSpec(
-        key="PHOENIX_SANDBOX_DAYTONA_API_KEY",
-        display_name="Daytona API Key",
-        description="API key for the Daytona sandbox service.",
-    ),
-]
-
-
-def _build_daytona_backend(
-    config: Mapping[str, Any],
-    *,
-    language: str,
-    user_env: Optional[Mapping[str, str]] = None,
-) -> SandboxBackend:
-    """Construct a DaytonaSandboxBackend for either language adapter.
-
-    Fail-closed on missing credential. Passing an empty api_key would let the
-    Daytona SDK silently fall back to ``DAYTONA_API_KEY`` from the process env
-    (daytona_sdk/_async/daytona.py:168). The SDK's autodiscovery name differs
-    from Phoenix's declared name (``PHOENIX_SANDBOX_DAYTONA_API_KEY``) so that
-    fallback would bypass Phoenix's credential resolution entirely.
-    """
-    api_key: str = config.get("PHOENIX_SANDBOX_DAYTONA_API_KEY") or ""
-    if not api_key:
-        raise ValueError(
-            "Daytona sandbox authentication is not configured. Set "
-            "PHOENIX_SANDBOX_DAYTONA_API_KEY via setSandboxCredential or as "
-            "a process environment variable."
-        )
-    deps = config.get("dependencies") or {}
-    packages: list[str] = deps.get("packages", []) if isinstance(deps, dict) else []
-    internet_access = config.get("internet_access") or {}
-    mode: str = internet_access.get("mode", "") if isinstance(internet_access, dict) else ""
-    network_block_all = mode == "deny"
-    return DaytonaSandboxBackend(
-        api_key=Secret(api_key),
-        server_url="",
-        user_env=user_env,
-        packages=packages,
-        network_block_all=network_block_all,
-        language=language,
-    )
-
-
 def _probe_daytona_sdk() -> None:
     """Verify ``daytona_sdk`` is installed; ImportError → NOT_INSTALLED."""
     import daytona_sdk  # noqa: F401
 
 
-class DaytonaPythonAdapter(SandboxAdapter):
-    key = "DAYTONA_PYTHON"
-    family = "DAYTONA"
+class DaytonaAdapter(SandboxAdapter[DaytonaConfig, DaytonaCredentials, DaytonaDeployment]):
+    backend_type = "DAYTONA"
     display_name = "Daytona"
-    language = "PYTHON"
-    config_model = DaytonaPythonConfig
-    credential_specs = _DAYTONA_CREDENTIAL_SPECS
+    hosting_type = "hosted"
+    dependency_hints = (
+        "Install Phoenix with the `daytona` extra.",
+        "Provide `DAYTONA_API_KEY`.",
+    )
+    config_model = DaytonaConfig
+    credentials_model = DaytonaCredentials
+    deployment_config_model = DaytonaDeployment
 
     @classmethod
     def probe_dependencies(cls) -> None:
         _probe_daytona_sdk()
 
     def build_backend(
-        self, config: Mapping[str, Any], user_env: Optional[Mapping[str, str]] = None
+        self,
+        config: DaytonaConfig,
+        *,
+        credentials: DaytonaCredentials,
+        deployment: DaytonaDeployment,
+        user_env: Optional[Mapping[str, str]] = None,
     ) -> SandboxBackend:
-        self._enforce_capabilities(config, user_env)
-        return _build_daytona_backend(config, language="PYTHON", user_env=user_env)
+        """Construct a DaytonaSandboxBackend for either language.
 
+        Fail-closed on missing credential. Passing an empty api_key would let
+        the Daytona SDK silently fall back to ``os.getenv("DAYTONA_API_KEY")``
+        (daytona_sdk/_async/daytona.py:168). Phoenix's resolver already consults
+        that env var, so reaching this branch with an empty key means Phoenix
+        decided "no credential available"; raise rather than let the SDK
+        auto-discover and bypass that decision.
 
-class DaytonaTypescriptAdapter(SandboxAdapter):
-    key = "DAYTONA_TYPESCRIPT"
-    family = "DAYTONA"
-    display_name = "Daytona"
-    language = "TYPESCRIPT"
-    config_model = DaytonaTypescriptConfig
-    credential_specs = _DAYTONA_CREDENTIAL_SPECS
-
-    @classmethod
-    def probe_dependencies(cls) -> None:
-        _probe_daytona_sdk()
-
-    def build_backend(
-        self, config: Mapping[str, Any], user_env: Optional[Mapping[str, str]] = None
-    ) -> SandboxBackend:
-        self._enforce_capabilities(config, user_env)
-        return _build_daytona_backend(config, language="TYPESCRIPT", user_env=user_env)
+        ``deployment.api_url`` and ``deployment.target`` flow through as
+        ``DaytonaConfig`` kwargs. When either is ``None``, the SDK's
+        ``DaytonaEnvReader`` reads ``DAYTONA_API_URL`` / ``DAYTONA_SERVER_URL``
+        / ``DAYTONA_TARGET`` from the process env and falls back to
+        ``https://app.daytona.io/api`` if unset (daytona_sdk/_async/daytona.py:153-179).
+        Phoenix does not block that env-var fallback — the process env is
+        the trust boundary that already holds ``DAYTONA_API_KEY``.
+        """
+        lang = config.language
+        api_key = credentials.DAYTONA_API_KEY.get_secret_value()
+        if not api_key:
+            raise ValueError(
+                "Daytona sandbox authentication is not configured. Set "
+                "DAYTONA_API_KEY in Settings → Sandboxes → "
+                "Daytona → Credentials, or as a process environment variable."
+            )
+        packages: list[str] = (
+            list(config.dependencies.packages) if config.dependencies is not None else []
+        )
+        network_block_all = (
+            config.internet_access is not None and config.internet_access.mode == "deny"
+        )
+        return DaytonaSandboxBackend(
+            api_key=SecretStr(api_key),
+            api_url=deployment.api_url,
+            target=deployment.target,
+            user_env=user_env,
+            packages=packages,
+            network_block_all=network_block_all,
+            language=lang,
+        )

@@ -4,11 +4,12 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 import pytest
+from pydantic import SecretStr
 from sqlalchemy import insert
-from starlette.datastructures import Secret
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.models import SandboxBackendType
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
@@ -31,8 +32,8 @@ from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
 # The in-process test app is constructed with no PHOENIX_SECRET, so the
-# server-side Redactor is keyed off Secret("").
-_REDACTOR = Redactor(secret=Secret(""))
+# server-side Redactor is keyed off SecretStr("").
+_REDACTOR = Redactor(secret=SecretStr(""))
 
 
 async def test_projects_omits_experiment_projects(
@@ -2707,7 +2708,7 @@ class TestEvaluatorsQuery:
 
 @pytest.mark.parametrize("backend_type", list(SANDBOX_ADAPTER_METADATA.keys()))
 async def test_sandbox_backends_capability_flags(
-    backend_type: str,
+    backend_type: SandboxBackendType,
     gql_client: AsyncGraphQLClient,
     seed_sandbox_providers: None,
 ) -> None:
@@ -2715,9 +2716,10 @@ async def test_sandbox_backends_capability_flags(
       query {
         sandboxBackends {
           backendType
+          supportedLanguages
           supportsEnvVars
           internetAccess
-          dependenciesLanguage
+          supportsDependencies
         }
       }
     """
@@ -2729,6 +2731,7 @@ async def test_sandbox_backends_capability_flags(
     assert backend_type in backends, f"{backend_type} not found in sandboxBackends response"
     backend = backends[backend_type]
 
+    assert backend["supportedLanguages"] == sorted(meta.supported_languages)
     assert backend["supportsEnvVars"] is meta.supports_env_vars, backend_type
     assert backend["internetAccess"] == meta.internet_access_capability.upper(), backend_type
-    assert backend["dependenciesLanguage"] == meta.dependencies_language, backend_type
+    assert backend["supportsDependencies"] is meta.supports_dependencies, backend_type

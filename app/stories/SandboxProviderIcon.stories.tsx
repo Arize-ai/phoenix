@@ -2,12 +2,12 @@ import type { Meta, StoryObj } from "@storybook/react";
 
 import { SandboxProviderIcon } from "@phoenix/components/sandbox/SandboxProviderIcon";
 
-const BACKEND_TYPES = [
-  "DAYTONA_PYTHON",
+const PROVIDER_KINDS = [
+  "DAYTONA",
   "MODAL",
   "WASM",
   "DENO",
-  "VERCEL_PYTHON",
+  "VERCEL",
   "E2B",
 ] as const;
 
@@ -32,9 +32,9 @@ export const Gallery: Story = {
         gap: 24,
       }}
     >
-      {BACKEND_TYPES.map((backendType) => (
+      {PROVIDER_KINDS.map((kind) => (
         <li
-          key={backendType}
+          key={kind}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -43,8 +43,8 @@ export const Gallery: Story = {
             minWidth: 96,
           }}
         >
-          <SandboxProviderIcon backendType={backendType} height={48} />
-          <span style={{ fontSize: 12 }}>{backendType}</span>
+          <SandboxProviderIcon backendType={kind} height={48} />
+          <span style={{ fontSize: 12 }}>{kind}</span>
         </li>
       ))}
     </ul>

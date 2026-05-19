@@ -172,6 +172,7 @@ def render_values_w_union(
 UserRoleName: TypeAlias = Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
 AuthMethod: TypeAlias = Literal["LOCAL", "OAUTH2", "LDAP"]
 EvaluatorKind: TypeAlias = Literal["LLM", "CODE", "BUILTIN"]
+SandboxBackendType: TypeAlias = Literal["WASM", "E2B", "DAYTONA", "VERCEL", "DENO", "MODAL"]
 LanguageName: TypeAlias = Literal["PYTHON", "TYPESCRIPT"]
 GenerativeModelSDK: TypeAlias = Literal[
     "openai",
@@ -2747,32 +2748,39 @@ class Language(Base):
     name: Mapped[LanguageName] = mapped_column(String, primary_key=True)
 
 
-class SandboxProvider(HasId):
+class SandboxProvider(Base):
+    """Sandbox provider row — keyed by canonical provider kind.
+
+    ``config`` is an admin-scoped JSON blob validated against the adapter's
+    ``deployment_config_model`` (e.g. Daytona's ``api_url`` / ``target`` for
+    on-prem routing). It is **not** the user-level capability config — that
+    lives on ``sandbox_configs.config`` and is validated against
+    ``config_model``.
+    """
+
     __tablename__ = "sandbox_providers"
-    backend_type: Mapped[str] = mapped_column(nullable=False)
-    language: Mapped[LanguageName] = mapped_column(
-        ForeignKey("languages.name", ondelete="RESTRICT"), nullable=False
+
+    backend_type: Mapped[SandboxBackendType] = mapped_column(String, primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, server_default="{}")
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
     )
-    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
-    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    # UNIQUE column order is (language, id) — the constraint's underlying index doubles as
-    # a leftmost-prefix index on `language` alone, at zero extra storage.
-    __table_args__ = (
-        UniqueConstraint("backend_type", "language"),
-        UniqueConstraint("language", "id"),
-    )
+    user: Mapped[Optional["User"]] = relationship("User")
 
 
 class SandboxConfig(HasId):
     __tablename__ = "sandbox_configs"
-    sandbox_provider_id: Mapped[int] = mapped_column(
-        ForeignKey("sandbox_providers.id", ondelete="CASCADE"), nullable=False
+    backend_type: Mapped[SandboxBackendType] = mapped_column(
+        ForeignKey("sandbox_providers.backend_type", ondelete="CASCADE"), nullable=False
     )
     language: Mapped[LanguageName] = mapped_column(nullable=False)
-    name: Mapped[str] = mapped_column(nullable=False)
+    name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(nullable=True)
     config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, server_default="{}")
     timeout: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -2781,18 +2789,15 @@ class SandboxConfig(HasId):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
-    # UNIQUE(language, id) flips natural column order — see SandboxProvider for rationale.
-    # The composite FK fk_sandbox_configs_provider_language is named explicitly because its
-    # auto-generated name (column_0_name="sandbox_provider_id") would collide with the
-    # simple FK on the same first column.
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    user: Mapped[Optional["User"]] = relationship("User")
     __table_args__ = (
-        UniqueConstraint("sandbox_provider_id", "name"),
+        UniqueConstraint("backend_type", "name"),
         UniqueConstraint("language", "id"),
-        ForeignKeyConstraint(
-            ["sandbox_provider_id", "language"],
-            ["sandbox_providers.id", "sandbox_providers.language"],
-            name="fk_sandbox_configs_provider_language",
-        ),
     )
 
 

@@ -26,7 +26,7 @@ from contextvars import ContextVar
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from starlette.datastructures import Secret
+from pydantic import SecretStr
 
 # Domain separation: redaction keys must not equal DB-encryption keys even when
 # derived from the same PHOENIX_SECRET.
@@ -54,18 +54,18 @@ _WIRE_PREFIX = f"{_DELIM}{_MARKER}{_DELIM}"
 class Redactor:
     """Symmetric redact/unredact keyed off PHOENIX_SECRET."""
 
-    def __init__(self, secret: Secret) -> None:
+    def __init__(self, secret: SecretStr) -> None:
         self._fernet = Fernet(self._derive_key(secret))
 
     @staticmethod
-    def _derive_key(secret: Secret) -> bytes:
+    def _derive_key(secret: SecretStr) -> bytes:
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=_FERNET_KEY_LENGTH,
             salt=_REDACTION_KEY_DERIVATION_SALT,
             iterations=_PBKDF2_ITERATIONS,
         )
-        key_bytes = kdf.derive(str(secret).encode("utf-8"))
+        key_bytes = kdf.derive(secret.get_secret_value().encode("utf-8"))
         return base64.urlsafe_b64encode(key_bytes)
 
     @staticmethod

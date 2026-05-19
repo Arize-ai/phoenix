@@ -22,19 +22,28 @@ export type ConfigRow = {
   config: SandboxConfig;
 };
 
-export type EnvVarFormEntry =
-  | { kind: "literal"; name: string; value: string }
-  | { kind: "secret_ref"; name: string; secret_key: string };
+export type EnvVarFormEntry = {
+  name: string;
+  secretKey: string;
+};
 
 export type SandboxConfigFormValues = {
   sandboxProviderId: string;
+  /**
+   * The execution language for this config. Required on create; row-immutable
+   * post-create. The form still embeds it inside the variant payload on
+   * update (the schema requires it on every `Sandbox*ConfigInput`), but the
+   * server rejects a mismatched value at the language-immutability guard in
+   * ``update_sandbox_config`` — see `sandbox_config_mutations.py:533-540`.
+   * The UI disables editing on edit mode.
+   */
+  language: "PYTHON" | "TYPESCRIPT" | "";
   name: string;
   description: string;
   timeout: number;
   envVars: EnvVarFormEntry[];
   internetAccessEnabled: boolean;
   dependenciesText: string;
-  dependenciesLockfile: string | null;
 };
 
 // Must stay aligned with the backend column server_default in

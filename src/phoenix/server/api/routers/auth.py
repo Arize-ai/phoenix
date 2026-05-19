@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlencode, urlparse, urlunparse
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from pydantic import SecretStr
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 
@@ -172,7 +173,10 @@ async def _login(request: Request) -> Response:
 
     loop = asyncio.get_running_loop()
     password_is_valid = partial(
-        is_valid_password, password=password, salt=salt, password_hash=password_hash
+        is_valid_password,
+        password=SecretStr(password),
+        salt=salt,
+        password_hash=password_hash,
     )
     if not await loop.run_in_executor(None, password_is_valid):
         _record_brute_force_failure(email)
@@ -315,7 +319,8 @@ async def _reset_password(request: Request) -> Response:
     user.password_salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
     loop = asyncio.get_running_loop()
     user.password_hash = await loop.run_in_executor(
-        None, partial(compute_password_hash, password=password, salt=user.password_salt)
+        None,
+        partial(compute_password_hash, password=SecretStr(password), salt=user.password_salt),
     )
     user.reset_password = False
     async with request.app.state.db() as session:

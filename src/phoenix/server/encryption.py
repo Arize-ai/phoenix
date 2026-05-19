@@ -26,7 +26,7 @@ import base64
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from starlette.datastructures import Secret
+from pydantic import SecretStr
 
 # Salt for key derivation (public, hardcoded)
 # Provides domain separation to ensure encryption keys differ from other keys that might
@@ -54,7 +54,7 @@ _FERNET_MIN_TOKEN_SIZE = (
 class EncryptionService:
     """Service for encrypting and decrypting sensitive data."""
 
-    def __init__(self, secret: Secret | None = None) -> None:
+    def __init__(self, secret: SecretStr | None = None) -> None:
         """Initialize encryption service."""
         # Validate and initialize Fernet
         try:
@@ -63,7 +63,7 @@ class EncryptionService:
             raise ValueError(f"Failed to initialize encryption: {e}") from e
 
     @staticmethod
-    def _derive_encryption_key(secret: Secret | None) -> bytes:
+    def _derive_encryption_key(secret: SecretStr | None) -> bytes:
         """Derive Fernet-compatible key from secret using PBKDF2-HMAC-SHA256.
 
         If secret is None/empty, derives a deterministic key from empty password.
@@ -74,7 +74,8 @@ class EncryptionService:
             salt=_ENCRYPTION_KEY_DERIVATION_SALT,
             iterations=_PBKDF2_ITERATIONS,
         )
-        key_bytes = kdf.derive(str(secret or "").encode("utf-8"))
+        plaintext = secret.get_secret_value() if secret is not None else ""
+        key_bytes = kdf.derive(plaintext.encode("utf-8"))
         # Fernet expects base64-encoded key
         return base64.urlsafe_b64encode(key_bytes)
 

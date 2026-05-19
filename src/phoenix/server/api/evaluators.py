@@ -25,6 +25,7 @@ from strawberry.relay import GlobalID
 from typing_extensions import NotRequired, TypedDict, assert_never
 
 from phoenix.db import models
+from phoenix.db.helpers import latest_code_evaluator_versions_by_evaluator_id
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
@@ -59,7 +60,11 @@ from phoenix.server.api.input_types.PromptVersionInput import (
 )
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
-from phoenix.server.sandbox import MissingSecretError  # noqa: E402
+from phoenix.server.sandbox import (  # noqa: E402
+    MissingSecretError,
+    SecretsContext,
+    build_sandbox_backend,
+)
 from phoenix.server.sandbox.types import ExecutionResult, SandboxBackend, UnsupportedOperation
 
 logger = logging.getLogger(__name__)
@@ -792,11 +797,6 @@ async def get_evaluators(
     code_evaluators_by_id: dict[int, CodeEvaluatorRunner] = {}
     code_evaluator_languages_by_id: dict[int, str] = {}
     if code_orm_by_id:
-        from phoenix.db.helpers import (
-            latest_code_evaluator_versions_by_evaluator_id,
-        )
-        from phoenix.server.sandbox import build_sandbox_backend
-
         code_rows = [code_orm_by_id[evaluator_id] for evaluator_id in sorted(code_orm_by_id)]
         latest_versions = await latest_code_evaluator_versions_by_evaluator_id(
             list(code_orm_by_id), session
@@ -812,7 +812,7 @@ async def get_evaluators(
                 select(models.SandboxConfig, models.SandboxProvider)
                 .join(
                     models.SandboxProvider,
-                    models.SandboxProvider.id == models.SandboxConfig.sandbox_provider_id,
+                    models.SandboxProvider.backend_type == models.SandboxConfig.backend_type,
                 )
                 .where(models.SandboxConfig.id.in_(tip_sandbox_config_ids))
             )
@@ -820,7 +820,7 @@ async def get_evaluators(
                 sandbox_config.id: (sandbox_config, sandbox_provider)
                 for sandbox_config, sandbox_provider in sandbox_rows
             }
-        backend_by_sandbox_key: dict[tuple[int, int], Optional[SandboxBackend]] = {}
+        backend_by_sandbox_key: dict[tuple[str, int], Optional[SandboxBackend]] = {}
         evaluator_base_by_id = {
             evaluator.id: evaluator for _, evaluator in dataset_evaluators_by_id.values()
         }
@@ -856,14 +856,12 @@ async def get_evaluators(
                         )
                     )
                 sandbox_timeout = live_sandbox_config.timeout
-                sandbox_key = (live_sandbox_provider.id, live_sandbox_config.id)
+                sandbox_key = (live_sandbox_provider.backend_type, live_sandbox_config.id)
                 if sandbox_key not in backend_by_sandbox_key:
                     try:
                         backend_by_sandbox_key[sandbox_key] = await build_sandbox_backend(
-                            live_sandbox_provider.backend_type,
-                            config=live_sandbox_config.config,
-                            session=session,
-                            decrypt=decrypt,
+                            live_sandbox_config,
+                            secrets=SecretsContext(session=session, decrypt=decrypt),
                         )
                     except (
                         MissingSecretError,
