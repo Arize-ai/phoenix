@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Optional
 
 import strawberry
 from strawberry import UNSET
@@ -23,16 +23,9 @@ from phoenix.db.types.model_provider import (
     OpenAICustomProviderConfig,
 )
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.helpers.headers import clean_headers
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.types.RedactedString import RedactedString
-
-
-def _clean_headers(headers: Any) -> Optional[dict[str, str]]:
-    """Drop entries whose value is empty or whitespace-only."""
-    if not headers or not hasattr(headers, "items"):
-        return None
-    cleaned = {k: v for k, v in headers.items() if isinstance(v, str) and v.strip()}
-    return cleaned or None
 
 
 @strawberry.input
@@ -55,7 +48,7 @@ class OpenAIClientKwargsInput:
             base_url=self.base_url or None,
             organization=self.organization or None,
             project=self.project or None,
-            default_headers=_clean_headers(self.default_headers),
+            default_headers=clean_headers(self.default_headers),
         )
 
 
@@ -130,7 +123,7 @@ class AzureOpenAIClientKwargsInput:
     def to_orm(self) -> AzureOpenAIClientKwargs:
         return AzureOpenAIClientKwargs(
             azure_endpoint=self.azure_endpoint,
-            default_headers=_clean_headers(self.default_headers),
+            default_headers=clean_headers(self.default_headers),
         )
 
 
@@ -168,7 +161,7 @@ class AnthropicClientKwargsInput:
     def to_orm(self) -> AnthropicClientKwargs:
         return AnthropicClientKwargs(
             base_url=self.base_url or None,
-            default_headers=_clean_headers(self.default_headers),
+            default_headers=clean_headers(self.default_headers),
         )
 
 
@@ -201,7 +194,7 @@ class GoogleGenAIHttpOptionsInput:
     def to_orm(self) -> GoogleGenAIHttpOptions:
         return GoogleGenAIHttpOptions(
             base_url=self.base_url or None,
-            headers=_clean_headers(self.headers),
+            headers=clean_headers(self.headers),
         )
 
 
