@@ -53,6 +53,9 @@ const useSessionAnnotationSummaryGroup = (
           }
         }
         sessionAnnotationSummaries {
+          count
+          scoreCount
+          labelCount
           labelFractions {
             fraction
             label
@@ -212,6 +215,9 @@ export const SessionAnnotationSummaryGroupStacks = ({
               name={latestAnnotation.name}
               meanScore={summary.meanScore}
               labelFractions={summary.labelFractions}
+              count={summary.count}
+              scoreCount={summary.scoreCount}
+              labelCount={summary.labelCount}
               annotationConfig={
                 categoricalAnnotationConfigsByName[latestAnnotation.name]
               }

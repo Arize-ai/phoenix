@@ -63,6 +63,8 @@ export function SpanAside(props: SpanAsideProps) {
                 }
                 ... on FreeformAnnotationConfig {
                   name
+                  optimizationDirection
+                  threshold
                 }
               }
             }

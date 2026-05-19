@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<0b50899e7ce01bff6836fcdb39e508ba>>
+ * @generated SignedSource<<4255c90e2faab67c837a7211942bff8e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -26,6 +26,7 @@ export type ExperimentCompareDetailsQuery$data = {
             readonly lowerBound?: number | null;
             readonly name?: string;
             readonly optimizationDirection?: OptimizationDirection;
+            readonly threshold?: number | null;
             readonly upperBound?: number | null;
             readonly values?: ReadonlyArray<{
               readonly label: string;
@@ -455,13 +456,29 @@ v27 = {
   "abstractKey": null
 },
 v28 = {
+  "kind": "InlineFragment",
+  "selections": [
+    (v17/*: any*/),
+    (v25/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "threshold",
+      "storageKey": null
+    }
+  ],
+  "type": "FreeformAnnotationConfig",
+  "abstractKey": null
+},
+v29 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v29 = {
+v30 = {
   "alias": null,
   "args": null,
   "concreteType": "Trace",
@@ -633,7 +650,8 @@ return {
                             "plural": true,
                             "selections": [
                               (v26/*: any*/),
-                              (v27/*: any*/)
+                              (v27/*: any*/),
+                              (v28/*: any*/)
                             ],
                             "storageKey": null
                           }
@@ -676,7 +694,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v28/*: any*/),
+          (v29/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -711,7 +729,7 @@ return {
                           (v10/*: any*/),
                           (v11/*: any*/),
                           (v12/*: any*/),
-                          (v29/*: any*/),
+                          (v30/*: any*/),
                           (v16/*: any*/),
                           {
                             "alias": null,
@@ -742,7 +760,7 @@ return {
                                       (v18/*: any*/),
                                       (v19/*: any*/),
                                       (v20/*: any*/),
-                                      (v29/*: any*/)
+                                      (v30/*: any*/)
                                     ],
                                     "storageKey": null
                                   }
@@ -777,7 +795,7 @@ return {
         "name": "node",
         "plural": false,
         "selections": [
-          (v28/*: any*/),
+          (v29/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
@@ -816,9 +834,10 @@ return {
                             "name": "outputConfigs",
                             "plural": true,
                             "selections": [
-                              (v28/*: any*/),
+                              (v29/*: any*/),
                               (v26/*: any*/),
                               (v27/*: any*/),
+                              (v28/*: any*/),
                               {
                                 "kind": "InlineFragment",
                                 "selections": [
@@ -851,16 +870,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "01bd28e6f83cad16b2aef1db846d94eb",
+    "cacheID": "a7d84be25dc2f5e8874be558c4e641a5",
     "id": null,
     "metadata": {},
     "name": "ExperimentCompareDetailsQuery",
     "operationKind": "query",
-    "text": "query ExperimentCompareDetailsQuery(\n  $datasetId: ID!\n  $datasetExampleId: ID!\n  $datasetVersionId: ID!\n  $experimentIds: [ID!]!\n) {\n  example: node(id: $datasetExampleId) {\n    __typename\n    ... on DatasetExample {\n      revision(datasetVersionId: $datasetVersionId) {\n        input\n        referenceOutput: output\n      }\n      experimentRuns(experimentIds: $experimentIds, first: 120) {\n        edges {\n          run: node {\n            id\n            repetitionNumber\n            latencyMs\n            experimentId\n            output\n            error\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  label\n                  score\n                  metadata\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds, includeEphemeral: true) {\n        edges {\n          experiment: node {\n            id\n            name\n            repetitions\n          }\n        }\n      }\n      experimentAnnotationSummaries {\n        annotationName\n        minScore\n        maxScore\n      }\n      datasetEvaluators(first: 100) {\n        edges {\n          node {\n            name\n            outputConfigs {\n              __typename\n              ... on CategoricalAnnotationConfig {\n                name\n                optimizationDirection\n                values {\n                  label\n                  score\n                }\n              }\n              ... on ContinuousAnnotationConfig {\n                name\n                optimizationDirection\n                lowerBound\n                upperBound\n              }\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ExperimentCompareDetailsQuery(\n  $datasetId: ID!\n  $datasetExampleId: ID!\n  $datasetVersionId: ID!\n  $experimentIds: [ID!]!\n) {\n  example: node(id: $datasetExampleId) {\n    __typename\n    ... on DatasetExample {\n      revision(datasetVersionId: $datasetVersionId) {\n        input\n        referenceOutput: output\n      }\n      experimentRuns(experimentIds: $experimentIds, first: 120) {\n        edges {\n          run: node {\n            id\n            repetitionNumber\n            latencyMs\n            experimentId\n            output\n            error\n            trace {\n              traceId\n              projectId\n              id\n            }\n            costSummary {\n              total {\n                cost\n                tokens\n              }\n            }\n            annotations {\n              edges {\n                annotation: node {\n                  id\n                  name\n                  label\n                  score\n                  metadata\n                  trace {\n                    traceId\n                    projectId\n                    id\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n    id\n  }\n  dataset: node(id: $datasetId) {\n    __typename\n    ... on Dataset {\n      experiments(filterIds: $experimentIds, includeEphemeral: true) {\n        edges {\n          experiment: node {\n            id\n            name\n            repetitions\n          }\n        }\n      }\n      experimentAnnotationSummaries {\n        annotationName\n        minScore\n        maxScore\n      }\n      datasetEvaluators(first: 100) {\n        edges {\n          node {\n            name\n            outputConfigs {\n              __typename\n              ... on CategoricalAnnotationConfig {\n                name\n                optimizationDirection\n                values {\n                  label\n                  score\n                }\n              }\n              ... on ContinuousAnnotationConfig {\n                name\n                optimizationDirection\n                lowerBound\n                upperBound\n              }\n              ... on FreeformAnnotationConfig {\n                name\n                optimizationDirection\n                threshold\n              }\n              ... on Node {\n                __isNode: __typename\n                id\n              }\n            }\n            id\n          }\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "aaaf2094d98c0ad54bd543de715842b6";
+(node as any).hash = "ef0f456b90e305408ffa8b156ae9e790";
 
 export default node;

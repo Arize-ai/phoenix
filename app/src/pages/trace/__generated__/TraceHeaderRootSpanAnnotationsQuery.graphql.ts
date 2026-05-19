@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5e1e115e8059d698665a73fd6ab903a1>>
+ * @generated SignedSource<<f4a5de87d69da9cb8dc5218ca626bddf>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -288,6 +288,27 @@ return {
                   {
                     "alias": null,
                     "args": null,
+                    "kind": "ScalarField",
+                    "name": "count",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "scoreCount",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "labelCount",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
                     "concreteType": "LabelFraction",
                     "kind": "LinkedField",
                     "name": "labelFractions",
@@ -326,12 +347,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "e9ed5ba3e066bebd2161b440786fb0b9",
+    "cacheID": "94764e62df730b8d9bef8e6452af61ae",
     "id": null,
     "metadata": {},
     "name": "TraceHeaderRootSpanAnnotationsQuery",
     "operationKind": "query",
-    "text": "query TraceHeaderRootSpanAnnotationsQuery(\n  $spanId: ID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      ...TraceHeaderRootSpanAnnotationsFragment\n    }\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment TraceHeaderRootSpanAnnotationsFragment on Span {\n  ...AnnotationSummaryGroup\n}\n"
+    "text": "query TraceHeaderRootSpanAnnotationsQuery(\n  $spanId: ID!\n) {\n  span: node(id: $spanId) {\n    __typename\n    ... on Span {\n      ...TraceHeaderRootSpanAnnotationsFragment\n    }\n    id\n  }\n}\n\nfragment AnnotationSummaryGroup on Span {\n  project {\n    id\n    annotationConfigs {\n      edges {\n        node {\n          __typename\n          ... on AnnotationConfigBase {\n            __isAnnotationConfigBase: __typename\n            annotationType\n          }\n          ... on CategoricalAnnotationConfig {\n            id\n            name\n            optimizationDirection\n            values {\n              label\n              score\n            }\n          }\n          ... on Node {\n            __isNode: __typename\n            id\n          }\n        }\n      }\n    }\n  }\n  spanAnnotations {\n    id\n    name\n    label\n    score\n    annotatorKind\n    createdAt\n    user {\n      username\n      profilePictureUrl\n      id\n    }\n  }\n  spanAnnotationSummaries {\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      fraction\n      label\n    }\n    meanScore\n    name\n  }\n}\n\nfragment TraceHeaderRootSpanAnnotationsFragment on Span {\n  ...AnnotationSummaryGroup\n}\n"
   }
 };
 })();

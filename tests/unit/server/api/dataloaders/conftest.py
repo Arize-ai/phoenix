@@ -375,6 +375,111 @@ async def data_with_missing_labels(db: DbSessionFactory) -> None:
 
 
 @pytest.fixture
+async def data_with_mixed_emit(db: DbSessionFactory) -> None:
+    """
+    60 score-only rows, 30 label-only rows ("PASS"), 10 label-only rows ("FAIL"),
+    0 dual-null rows — all on a single span each.
+
+    Expected: score_count=60, label_count=40, mean_score=avg(scores 0..59),
+              label_fractions=[{PASS: 0.75}, {FAIL: 0.25}], count=100.
+    """
+    orig_time = datetime.fromisoformat("2021-01-01T00:00:00.000+00:00")
+    async with db() as session:
+        project_id = await session.scalar(
+            insert(models.Project).values(name="mixed_emit").returning(models.Project.id)
+        )
+        trace_id = await session.scalar(
+            insert(models.Trace)
+            .values(
+                trace_id="trace_mixed_emit",
+                project_rowid=project_id,
+                start_time=orig_time,
+                end_time=orig_time + timedelta(minutes=5),
+            )
+            .returning(models.Trace.id)
+        )
+
+        def _span(idx: int) -> dict[str, object]:
+            return dict(
+                trace_rowid=trace_id,
+                span_id=f"mixed_span{idx}",
+                name=f"mixed_span{idx}",
+                parent_id="",
+                span_kind="UNKNOWN",
+                start_time=orig_time + timedelta(seconds=idx),
+                end_time=orig_time + timedelta(seconds=idx + 1),
+                attributes={"llm": {"token_count": {"prompt": 10, "completion": 10}}},
+                events=[],
+                status_code="OK",
+                status_message="ok",
+                cumulative_error_count=0,
+                cumulative_llm_token_count_prompt=0,
+                cumulative_llm_token_count_completion=0,
+                llm_token_count_prompt=10,
+                llm_token_count_completion=10,
+            )
+
+        # 60 score-only rows (label=None, score=i/100)
+        for i in range(60):
+            span_id = await session.scalar(
+                insert(models.Span).values(**_span(i)).returning(models.Span.id)
+            )
+            await session.execute(
+                insert(models.SpanAnnotation).values(
+                    name="coverage",
+                    span_rowid=span_id,
+                    label=None,
+                    score=i / 100.0,
+                    metadata_={},
+                    annotator_kind="LLM",
+                    identifier=f"score_only_{i}",
+                    source="APP",
+                    user_id=None,
+                )
+            )
+
+        # 30 label-only rows (label="PASS", score=None)
+        for i in range(60, 90):
+            span_id = await session.scalar(
+                insert(models.Span).values(**_span(i)).returning(models.Span.id)
+            )
+            await session.execute(
+                insert(models.SpanAnnotation).values(
+                    name="coverage",
+                    span_rowid=span_id,
+                    label="PASS",
+                    score=None,
+                    metadata_={},
+                    annotator_kind="LLM",
+                    identifier=f"label_pass_{i}",
+                    source="APP",
+                    user_id=None,
+                )
+            )
+
+        # 10 label-only rows (label="FAIL", score=None)
+        for i in range(90, 100):
+            span_id = await session.scalar(
+                insert(models.Span).values(**_span(i)).returning(models.Span.id)
+            )
+            await session.execute(
+                insert(models.SpanAnnotation).values(
+                    name="coverage",
+                    span_rowid=span_id,
+                    label="FAIL",
+                    score=None,
+                    metadata_={},
+                    annotator_kind="LLM",
+                    identifier=f"label_fail_{i}",
+                    source="APP",
+                    user_id=None,
+                )
+            )
+
+        await session.commit()
+
+
+@pytest.fixture
 async def data_with_null_labels(db: DbSessionFactory) -> None:
     """
     Creates one project, one trace, and three spans for testing annotations with NULL labels.

@@ -11,6 +11,7 @@ from phoenix.db import models
 from phoenix.db.types.annotation_configs import (
     CategoricalOutputConfig,
     ContinuousOutputConfig,
+    FreeformOutputConfig,
 )
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
@@ -337,7 +338,14 @@ class ChatCompletionMutationMixin:
                     output_configs = [
                         c
                         for c in code_evaluator_record.output_configs
-                        if isinstance(c, (CategoricalOutputConfig, ContinuousOutputConfig))
+                        if isinstance(
+                            c,
+                            (
+                                CategoricalOutputConfig,
+                                ContinuousOutputConfig,
+                                FreeformOutputConfig,
+                            ),
+                        )
                     ]
 
                     if live_sandbox_config is not None:
@@ -396,7 +404,14 @@ class ChatCompletionMutationMixin:
                     for c in _convert_output_config_inputs_to_pydantic(
                         inline_code_evaluator.output_configs
                     )
-                    if isinstance(c, (CategoricalOutputConfig, ContinuousOutputConfig))
+                    if isinstance(
+                        c,
+                        (
+                            CategoricalOutputConfig,
+                            ContinuousOutputConfig,
+                            FreeformOutputConfig,
+                        ),
+                    )
                 ]
 
                 sandbox_backend, sandbox_timeout = await _resolve_inline_code_evaluator_backend(

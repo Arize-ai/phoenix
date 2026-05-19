@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1ef98c655acd4ed11b4edbd94fcb6fb4>>
+ * @generated SignedSource<<e2a3649e0c60f4b02cc508b8cbee4664>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -22,6 +22,7 @@ export type AnnotationConfigListProjectAnnotationConfigFragment$data = {
         readonly lowerBound?: number | null;
         readonly name?: string;
         readonly optimizationDirection?: OptimizationDirection;
+        readonly threshold?: number | null;
         readonly upperBound?: number | null;
         readonly values?: ReadonlyArray<{
           readonly label: string;
@@ -43,6 +44,13 @@ var v0 = {
   "args": null,
   "kind": "ScalarField",
   "name": "name",
+  "storageKey": null
+},
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "optimizationDirection",
   "storageKey": null
 };
 return {
@@ -160,13 +168,7 @@ return {
                       "name": "upperBound",
                       "storageKey": null
                     },
-                    {
-                      "alias": null,
-                      "args": null,
-                      "kind": "ScalarField",
-                      "name": "optimizationDirection",
-                      "storageKey": null
-                    }
+                    (v1/*: any*/)
                   ],
                   "type": "ContinuousAnnotationConfig",
                   "abstractKey": null
@@ -174,7 +176,15 @@ return {
                 {
                   "kind": "InlineFragment",
                   "selections": [
-                    (v0/*: any*/)
+                    (v0/*: any*/),
+                    (v1/*: any*/),
+                    {
+                      "alias": null,
+                      "args": null,
+                      "kind": "ScalarField",
+                      "name": "threshold",
+                      "storageKey": null
+                    }
                   ],
                   "type": "FreeformAnnotationConfig",
                   "abstractKey": null
@@ -194,6 +204,6 @@ return {
 };
 })();
 
-(node as any).hash = "7bed597e9a0dc874ed67506a8a4f870c";
+(node as any).hash = "aee2ac10c3f902342db0df0a3a2ac879";
 
 export default node;

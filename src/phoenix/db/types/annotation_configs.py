@@ -100,6 +100,20 @@ class ContinuousAnnotationConfig(_BaseAnnotationConfig):
 
 class FreeformAnnotationConfig(_BaseAnnotationConfig):
     type: Literal[AnnotationType.FREEFORM.value]  # type: ignore[name-defined]
+    optimization_direction: Optional[OptimizationDirection] = None
+    thresholds: Optional[list[float]] = None
+    lower_bound: Optional[float] = None
+    upper_bound: Optional[float] = None
+
+    @model_validator(mode="after")
+    def check_bounds(self) -> Self:
+        if (
+            self.lower_bound is not None
+            and self.upper_bound is not None
+            and self.lower_bound >= self.upper_bound
+        ):
+            raise ValueError("Lower bound must be strictly less than upper bound")
+        return self
 
 
 AnnotationConfigType: TypeAlias = Annotated[
@@ -170,8 +184,12 @@ class ContinuousOutputConfig(ContinuousAnnotationConfig):
         return [bare, dict_form]
 
 
+class FreeformOutputConfig(FreeformAnnotationConfig):
+    name: str
+
+
 OutputConfigType: TypeAlias = Annotated[
-    Union[CategoricalOutputConfig, ContinuousOutputConfig],
+    Union[CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig],
     Field(..., discriminator="type"),
 ]
 

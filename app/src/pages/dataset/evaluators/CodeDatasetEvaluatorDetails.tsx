@@ -40,6 +40,7 @@ type OutputConfig = {
   }> | null;
   lowerBound?: number | null;
   upperBound?: number | null;
+  threshold?: number | null;
 };
 
 const splitLayoutCSS = css`
@@ -236,23 +237,27 @@ function formatBound(value: number | null | undefined): string {
 
 function OutputConfigBlock({ config }: { config: OutputConfig }) {
   const isCategorical = config.values != null;
+  const isContinuous = config.lowerBound != null || config.upperBound != null;
+  const isFreeform = !isCategorical && !isContinuous;
   const direction = formatOptimizationDirection(config.optimizationDirection);
 
   return (
     <div css={annotationGridCSS}>
       <AnnotationCell label="Name" value={config.name} />
-      <AnnotationCell
-        label="Type"
-        value={isCategorical ? "Categorical" : "Continuous"}
-      />
-      <AnnotationCell label="Optimization Direction" value={direction} />
-      {isCategorical ? (
-        <AnnotationCell
-          label="Values"
-          value={formatCategoricalValues(config.values)}
-        />
-      ) : (
+      {isCategorical && (
         <>
+          <AnnotationCell label="Type" value="Categorical" />
+          <AnnotationCell label="Optimization Direction" value={direction} />
+          <AnnotationCell
+            label="Values"
+            value={formatCategoricalValues(config.values)}
+          />
+        </>
+      )}
+      {isContinuous && (
+        <>
+          <AnnotationCell label="Type" value="Continuous" />
+          <AnnotationCell label="Optimization Direction" value={direction} />
           <AnnotationCell
             label="Lower bound"
             value={formatBound(config.lowerBound)}
@@ -260,6 +265,16 @@ function OutputConfigBlock({ config }: { config: OutputConfig }) {
           <AnnotationCell
             label="Upper bound"
             value={formatBound(config.upperBound)}
+          />
+        </>
+      )}
+      {isFreeform && (
+        <>
+          <AnnotationCell label="Type" value="Freeform" />
+          <AnnotationCell label="Optimization Direction" value={direction} />
+          <AnnotationCell
+            label="Threshold"
+            value={config.threshold != null ? String(config.threshold) : "—"}
           />
         </>
       )}
@@ -348,6 +363,11 @@ export function CodeDatasetEvaluatorDetails({
             lowerBound
             upperBound
           }
+          ... on FreeformAnnotationConfig {
+            name
+            optimizationDirection
+            threshold
+          }
         }
         evaluator {
           kind
@@ -370,6 +390,11 @@ export function CodeDatasetEvaluatorDetails({
                 optimizationDirection
                 lowerBound
                 upperBound
+              }
+              ... on FreeformAnnotationConfig {
+                name
+                optimizationDirection
+                threshold
               }
             }
             sandboxConfig {
@@ -460,10 +485,8 @@ export function CodeDatasetEvaluatorDetails({
     [sandboxConfig]
   );
 
-  // currentVersion is nullable on the schema (a CodeEvaluator can exist
-  // without any version: fixtures, backfills, partial-commit recovery.
-  // Render a bounded missing-version state instead of throwing so the rest
-  // of the page can still surface the evaluator's identity and config.
+  // currentVersion can be null (e.g. fixtures, backfills) — render an
+  // empty state rather than throwing.
   if (!currentVersion || !currentVersion.sourceCode) {
     return (
       <Flex flex={1} alignItems="center" justifyContent="center">

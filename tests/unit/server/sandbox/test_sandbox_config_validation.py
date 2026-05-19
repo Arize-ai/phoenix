@@ -1,4 +1,4 @@
-"""Unit tests for the authored invariants in sandbox config validation.
+"""Unit tests for sandbox config validation behavior.
 
 Scope is limited to logic we own:
 - `validate_config()`'s wrapping of pydantic ValidationError as ValueError.

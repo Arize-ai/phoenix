@@ -65,11 +65,19 @@ from phoenix.server.types import DbSessionFactory
                 "name": "config-name",
                 "type": AnnotationType.FREEFORM.value,
                 "description": "Test description",
+                "optimization_direction": OptimizationDirection.MAXIMIZE.value,
+                "threshold": 0.5,
+                "lower_bound": 0.0,
+                "upper_bound": 1.0,
             },
             {
                 "name": "updated-config-name",
                 "type": AnnotationType.FREEFORM.value,
                 "description": "Updated description",
+                "optimization_direction": OptimizationDirection.MINIMIZE.value,
+                "threshold": 0.25,
+                "lower_bound": -1.0,
+                "upper_bound": 2.0,
             },
             id="freeform",
         ),
@@ -394,6 +402,21 @@ async def test_update_continuous_annotation_config_with_invalid_bounds_returns_e
     update_config["upper_bound"] = 0.0
 
     response = await httpx_client.put(f"/v1/annotation_configs/{config_id}", json=update_config)
+    assert response.status_code == 400
+    assert "Lower bound must be strictly less than upper bound" in response.text
+
+
+async def test_create_freeform_annotation_config_with_invalid_bounds_returns_expected_error(
+    httpx_client: AsyncClient,
+) -> None:
+    config = {
+        "name": "test-config",
+        "type": AnnotationType.FREEFORM.value,
+        "description": "test description",
+        "lower_bound": 1.0,
+        "upper_bound": 0.0,
+    }
+    response = await httpx_client.post("/v1/annotation_configs", json=config)
     assert response.status_code == 400
     assert "Lower bound must be strictly less than upper bound" in response.text
 
