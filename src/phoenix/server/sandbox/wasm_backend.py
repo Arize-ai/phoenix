@@ -21,10 +21,12 @@ import asyncio
 import logging
 import os
 import tempfile
+import threading
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Mapping, Optional
+from typing import TYPE_CHECKING, Iterator, Mapping, Optional
 
 if TYPE_CHECKING:
     import wasmtime
@@ -45,12 +47,69 @@ _WASM_BINARY_PATH_ENV = "PHOENIX_WASM_BINARY_PATH"
 
 _DEFAULT_TIMEOUT_SECONDS = 30
 _EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="wasm-sandbox")
+_EPOCH_INTERVAL_SECONDS = 1.0
 
 
 # Module-level cache: path → (engine, compiled module).
 # Engine and module must be paired — a module compiled with one engine
 # cannot be used with a store from a different engine.
 _MODULE_CACHE: dict[str, tuple[wasmtime.Engine, wasmtime.Module]] = {}
+_EPOCH_TICKERS: dict[int, "_EngineEpochTicker"] = {}
+_EPOCH_TICKERS_LOCK = threading.Lock()
+
+
+class _EngineEpochTicker:
+    def __init__(self, engine: wasmtime.Engine) -> None:
+        self._engine = engine
+        self._stop = threading.Event()
+        self._thread = threading.Thread(
+            target=self._run,
+            name="wasm-sandbox-epoch",
+            daemon=True,
+        )
+        self._ref_count = 0
+
+    def acquire(self) -> None:
+        self._ref_count += 1
+        if not self._thread.is_alive():
+            self._thread.start()
+
+    def release(self) -> bool:
+        self._ref_count -= 1
+        return self._ref_count <= 0
+
+    def stop(self) -> None:
+        self._stop.set()
+        self._thread.join(timeout=_EPOCH_INTERVAL_SECONDS)
+
+    def _run(self) -> None:
+        while not self._stop.wait(_EPOCH_INTERVAL_SECONDS):
+            try:
+                self._engine.increment_epoch()
+            except Exception:
+                logger.debug("Error incrementing WASM engine epoch", exc_info=True)
+
+
+@contextmanager
+def _engine_epoch_ticker(engine: wasmtime.Engine) -> Iterator[None]:
+    """Drive wasmtime epoch deadlines while any store using this engine is active."""
+    engine_key = id(engine)
+    with _EPOCH_TICKERS_LOCK:
+        ticker = _EPOCH_TICKERS.get(engine_key)
+        if ticker is None:
+            ticker = _EngineEpochTicker(engine)
+            _EPOCH_TICKERS[engine_key] = ticker
+        ticker.acquire()
+    try:
+        yield
+    finally:
+        stop_ticker = False
+        with _EPOCH_TICKERS_LOCK:
+            stop_ticker = ticker.release()
+            if stop_ticker:
+                _EPOCH_TICKERS.pop(engine_key, None)
+        if stop_ticker:
+            ticker.stop()
 
 
 def _get_engine_and_module(binary_path: Path) -> tuple[wasmtime.Engine, wasmtime.Module]:
@@ -95,11 +154,12 @@ def _run_wasm(binary_path: Path, code: str, timeout: int) -> ExecutionResult:
         store.set_wasi(wasi)
         store.set_epoch_deadline(timeout)
 
-        instance = linker.instantiate(store, module)
-        exports = instance.exports(store)
-        start = exports.get("_start")
-        if isinstance(start, _wasm.Func):
-            start(store)
+        with _engine_epoch_ticker(engine):
+            instance = linker.instantiate(store, module)
+            exports = instance.exports(store)
+            start = exports.get("_start")
+            if isinstance(start, _wasm.Func):
+                start(store)
 
         return ExecutionResult(
             stdout=b"".join(stdout_chunks).decode("utf-8", errors="replace"),

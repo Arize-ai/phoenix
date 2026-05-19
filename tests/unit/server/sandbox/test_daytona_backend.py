@@ -44,9 +44,11 @@ class _CodeRunParams:
         self,
         argv: list[str] | None = None,
         env: dict[str, str] | None = None,
+        timeout: int | None = None,
     ) -> None:
         self.argv = argv
         self.env = env
+        self.timeout = timeout
 
 
 class _CreateSandboxFromSnapshotParams:
@@ -155,6 +157,51 @@ class TestCodeRunParamsKwarg:
         assert params.env is None, (
             f"Expected params.env=None for empty user_env, got {params.env!r}"
         )
+
+    @pytest.mark.asyncio
+    async def test_ephemeral_execute_passes_timeout_to_code_run_params(self) -> None:
+        """Per-execute timeout must reach Daytona's code_run params on ephemeral runs."""
+        daytona_mod, process_mod = _make_daytona_mocks()
+
+        modules = {
+            "daytona_sdk": daytona_mod,
+            "daytona_sdk.common": MagicMock(),
+            "daytona_sdk.common.process": process_mod,
+        }
+        with patch.dict(sys.modules, modules):
+            from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
+
+            backend = DaytonaSandboxBackend(api_key=_API_KEY, user_env={}, language="PYTHON")
+            await backend.execute("1+1", session_key="s1", timeout=7)
+
+        workspace = daytona_mod.AsyncDaytona.return_value.create.return_value
+        call_args = workspace.process.code_run.call_args
+        params = call_args.kwargs["params"]
+        assert isinstance(params, _CodeRunParams)
+        assert params.timeout == 7
+
+    @pytest.mark.asyncio
+    async def test_session_execute_passes_timeout_to_code_run_params(self) -> None:
+        """Per-execute timeout must also reach Daytona when reusing a named session."""
+        daytona_mod, process_mod = _make_daytona_mocks()
+
+        modules = {
+            "daytona_sdk": daytona_mod,
+            "daytona_sdk.common": MagicMock(),
+            "daytona_sdk.common.process": process_mod,
+        }
+        with patch.dict(sys.modules, modules):
+            from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
+
+            backend = DaytonaSandboxBackend(api_key=_API_KEY, user_env={}, language="PYTHON")
+            await backend.start_session("s1")
+            await backend.execute("1+1", session_key="s1", timeout=11)
+
+        workspace = daytona_mod.AsyncDaytona.return_value.create.return_value
+        call_args = workspace.process.code_run.call_args
+        params = call_args.kwargs["params"]
+        assert isinstance(params, _CodeRunParams)
+        assert params.timeout == 11
 
 
 class TestNetworkBlockAll:

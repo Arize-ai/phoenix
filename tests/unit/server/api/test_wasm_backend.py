@@ -10,6 +10,7 @@ metadata, build_backend config plumbing).
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast  # noqa: F401
 
@@ -372,6 +373,79 @@ class TestRunWasmStdoutCapture:
         assert result.error is None
         assert len(stdin_path_holder) == 1
         assert stdin_path_holder[0].endswith(".py")
+
+    def test_run_wasm_arms_epoch_ticker_for_timeout_deadline(self) -> None:
+        """WASM timeout requires both a store deadline and an engine epoch driver."""
+        import wasmtime
+
+        ticker_events: list[tuple[str, object]] = []
+
+        @contextmanager
+        def _fake_epoch_ticker(engine: object) -> Any:
+            ticker_events.append(("enter", engine))
+            try:
+                yield
+            finally:
+                ticker_events.append(("exit", engine))
+
+        class _CapturingWasiConfig:
+            @property
+            def stdout_custom(self) -> None:
+                raise AttributeError("unreadable attribute")
+
+            @stdout_custom.setter
+            def stdout_custom(self, cb: object) -> None:
+                del cb
+
+            @property
+            def stderr_custom(self) -> None:
+                raise AttributeError("unreadable attribute")
+
+            @stderr_custom.setter
+            def stderr_custom(self, cb: object) -> None:
+                del cb
+
+            @property
+            def stdin_file(self) -> None:
+                raise AttributeError("unreadable attribute")
+
+            @stdin_file.setter
+            def stdin_file(self, path: object) -> None:
+                del path
+
+        class _StartFunc:
+            def __call__(self, store: object) -> None:
+                del store
+
+        engine = MagicMock(name="engine")
+        module = MagicMock(name="module")
+        fake_store = MagicMock()
+        mock_exports = MagicMock()
+        mock_exports.get.return_value = _StartFunc()
+        mock_instance = MagicMock()
+        mock_instance.exports.return_value = mock_exports
+
+        with patch(
+            "phoenix.server.sandbox.wasm_backend._get_engine_and_module",
+            return_value=(engine, module),
+        ):
+            with patch(
+                "phoenix.server.sandbox.wasm_backend._engine_epoch_ticker",
+                _fake_epoch_ticker,
+                create=True,
+            ):
+                with patch("wasmtime.WasiConfig", _CapturingWasiConfig):
+                    with patch("wasmtime.Linker") as mock_linker_cls:
+                        mock_linker = MagicMock()
+                        mock_linker_cls.return_value = mock_linker
+                        mock_linker.instantiate.return_value = mock_instance
+                        with patch("wasmtime.Store", return_value=fake_store):
+                            with patch.object(wasmtime, "Func", _StartFunc):
+                                result = _run_wasm(Path("/fake/cpython.wasm"), "x=1", timeout=7)
+
+        assert result.error is None
+        fake_store.set_epoch_deadline.assert_called_once_with(7)
+        assert ticker_events == [("enter", engine), ("exit", engine)]
 
 
 class TestTempFileCleanup:

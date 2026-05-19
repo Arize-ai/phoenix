@@ -417,6 +417,75 @@ def test_adapter_build_backend_fails_closed_on_missing_triple(language: Language
 
 
 @pytest.mark.asyncio
+async def test_exec_code_forwards_timeout_to_run_command() -> None:
+    """Per-execute timeout must reach the Vercel run_command call."""
+    captured_kwargs: list[dict[str, Any]] = []
+
+    async def _run_command(cmd: str, args: list[str], **kwargs: Any) -> Any:
+        captured_kwargs.append(dict(kwargs))
+        result = MagicMock()
+        result.exit_code = 0
+        result.stdout = AsyncMock(return_value="ok\n")
+        result.stderr = AsyncMock(return_value="")
+        return result
+
+    sandbox = MagicMock()
+    sandbox.run_command = _run_command
+    backend = VercelSandboxBackend(
+        token=_TOKEN, project_id=_PROJECT, team_id=_TEAM, language="PYTHON"
+    )
+
+    result = await backend._exec_code(sandbox, "print('ok')", env={"A": "B"}, timeout=13)
+
+    assert result.error is None
+    assert captured_kwargs == [{"env": {"A": "B"}, "timeout": 13}]
+
+
+@pytest.mark.asyncio
+async def test_execute_forwards_timeout_to_cached_session(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Session reuse path must not drop the per-execute timeout."""
+    sandbox = MagicMock()
+    backend = VercelSandboxBackend(
+        token=_TOKEN, project_id=_PROJECT, team_id=_TEAM, language="PYTHON"
+    )
+    backend._sessions["s1"] = sandbox
+    mock_exec = AsyncMock(return_value=MagicMock(error=None))
+    monkeypatch.setattr(backend, "_exec_code", mock_exec)
+
+    await backend.execute("print('ok')", session_key="s1", timeout=17)
+
+    mock_exec.assert_awaited_once_with(sandbox, "print('ok')", env=None, timeout=17)
+
+
+@pytest.mark.asyncio
+async def test_execute_forwards_timeout_to_ephemeral_sandbox(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Ephemeral Vercel executions must enforce the same per-execute timeout."""
+    sandbox = MagicMock()
+    sandbox.stop = AsyncMock()
+    sandbox.client = MagicMock()
+    sandbox.client.aclose = AsyncMock()
+    backend = VercelSandboxBackend(
+        token=_TOKEN, project_id=_PROJECT, team_id=_TEAM, language="PYTHON"
+    )
+    mock_create = AsyncMock(return_value=sandbox)
+    mock_install = AsyncMock()
+    mock_exec = AsyncMock(return_value=MagicMock(error=None))
+    monkeypatch.setattr(backend, "_create_sandbox", mock_create)
+    monkeypatch.setattr(backend, "_install_packages", mock_install)
+    monkeypatch.setattr(backend, "_exec_code", mock_exec)
+
+    await backend.execute("print('ok')", session_key="ephemeral", timeout=19)
+
+    mock_exec.assert_awaited_once_with(sandbox, "print('ok')", env=None, timeout=19)
+    sandbox.stop.assert_awaited_once()
+    sandbox.client.aclose.assert_awaited_once()
+
+
+@pytest.mark.asyncio
 async def test_execute_strips_ansi_from_all_three_fields(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

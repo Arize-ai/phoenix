@@ -9,6 +9,7 @@ test_unified_config_contract.py.
 
 from __future__ import annotations
 
+import asyncio
 import os
 import sys
 from typing import Any, Mapping
@@ -266,6 +267,75 @@ async def test_client_construction_is_memoized_across_sandbox_creates() -> None:
     assert modal_mock.Client.from_credentials.aio.await_count == 1
     assert modal_mock.App.lookup.aio.await_count == 1
     assert modal_mock.Sandbox.create.aio.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_exec_code_terminates_proc_when_timeout_expires() -> None:
+    """Per-execute timeout must terminate the Modal process, not just return locally."""
+    modal_mock = _make_modal_mock()
+    with patch.dict(sys.modules, {"modal": modal_mock}):
+        from phoenix.server.sandbox.modal_backend import ModalSandboxBackend
+
+        backend = ModalSandboxBackend(token_id=_TOKEN_ID, token_secret=_TOKEN_SECRET)
+
+        never = asyncio.Event()
+        proc = MagicMock()
+        proc.stdout.read.aio = AsyncMock(side_effect=never.wait)
+        proc.stderr.read.aio = AsyncMock(side_effect=never.wait)
+        proc.wait.aio = AsyncMock(side_effect=never.wait)
+        proc.terminate.aio = AsyncMock()
+        sandbox = MagicMock()
+        sandbox.exec.aio = AsyncMock(return_value=proc)
+
+        result = await backend._exec_code(sandbox, "while True: pass", timeout=0.01)
+
+    assert result.stdout == ""
+    assert result.error is not None
+    assert "timed out" in result.error.lower()
+    proc.terminate.aio.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_execute_forwards_timeout_to_cached_session(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Session reuse path must not drop the per-execute timeout."""
+    modal_mock = _make_modal_mock()
+    with patch.dict(sys.modules, {"modal": modal_mock}):
+        from phoenix.server.sandbox.modal_backend import ModalSandboxBackend
+
+        backend = ModalSandboxBackend(token_id=_TOKEN_ID, token_secret=_TOKEN_SECRET)
+        sandbox = MagicMock()
+        backend._sessions["s1"] = sandbox
+        mock_exec = AsyncMock(return_value=MagicMock(error=None))
+        monkeypatch.setattr(backend, "_exec_code", mock_exec)
+
+        await backend.execute("print('ok')", session_key="s1", timeout=23)
+
+    mock_exec.assert_awaited_once_with(sandbox, "print('ok')", timeout=23)
+
+
+@pytest.mark.asyncio
+async def test_execute_forwards_timeout_to_ephemeral_sandbox(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Ephemeral Modal executions must enforce the same per-execute timeout."""
+    modal_mock = _make_modal_mock()
+    with patch.dict(sys.modules, {"modal": modal_mock}):
+        from phoenix.server.sandbox.modal_backend import ModalSandboxBackend
+
+        backend = ModalSandboxBackend(token_id=_TOKEN_ID, token_secret=_TOKEN_SECRET)
+        sandbox = MagicMock()
+        sandbox.terminate.aio = AsyncMock()
+        mock_create = AsyncMock(return_value=sandbox)
+        mock_exec = AsyncMock(return_value=MagicMock(error=None))
+        monkeypatch.setattr(backend, "_create_sandbox", mock_create)
+        monkeypatch.setattr(backend, "_exec_code", mock_exec)
+
+        await backend.execute("print('ok')", session_key="ephemeral", timeout=29)
+
+    mock_exec.assert_awaited_once_with(sandbox, "print('ok')", timeout=29)
+    sandbox.terminate.aio.assert_awaited_once()
 
 
 @pytest.mark.asyncio

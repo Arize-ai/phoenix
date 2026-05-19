@@ -237,12 +237,16 @@ class VercelSandboxBackend(SandboxBackend):
         sandbox: AsyncSandbox,
         code: str,
         env: Optional[dict[str, str]] = None,
+        timeout: Optional[int] = None,
     ) -> ExecutionResult:
         """Run code in a sandbox and collect stdout/stderr."""
         lang_cfg = self._lang_cfg()
         cmd: str = lang_cfg["cmd"]
         args: list[str] = lang_cfg["args_prefix"] + [code]
-        result = await sandbox.run_command(cmd, args, env=env)
+        run_kwargs: dict[str, Any] = {"env": env}
+        if timeout is not None:
+            run_kwargs["timeout"] = timeout
+        result = await sandbox.run_command(cmd, args, **run_kwargs)
         stdout, stderr = await asyncio.gather(result.stdout(), result.stderr())
         exit_code = result.exit_code
         error: Optional[str] = stderr if exit_code != 0 else None
@@ -258,13 +262,13 @@ class VercelSandboxBackend(SandboxBackend):
             session_env: Optional[dict[str, str]] = self._user_env or None
             sandbox = self._sessions.get(session_key)
             if sandbox is not None:
-                return await self._exec_code(sandbox, code, env=session_env)
+                return await self._exec_code(sandbox, code, env=session_env, timeout=timeout)
             else:
                 # Ephemeral: create, install (if configured), exec, stop.
                 sandbox = await self._create_sandbox()
                 try:
                     await self._install_packages(sandbox)
-                    return await self._exec_code(sandbox, code, env=session_env)
+                    return await self._exec_code(sandbox, code, env=session_env, timeout=timeout)
                 finally:
                     try:
                         await sandbox.stop()

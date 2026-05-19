@@ -177,14 +177,30 @@ class ModalSandboxBackend(SandboxBackend):
             await sandbox.terminate.aio()
             logger.debug(f"Stopped Modal session '{session_key}'")
 
-    async def _exec_code(self, sandbox: Sandbox, code: str) -> ExecutionResult:
+    async def _exec_code(
+        self,
+        sandbox: Sandbox,
+        code: str,
+        timeout: Optional[int] = None,
+    ) -> ExecutionResult:
         """Run code in a sandbox and collect stdout/stderr."""
         proc = await sandbox.exec.aio("python", "-c", code)
-        stdout, stderr = await asyncio.gather(
-            proc.stdout.read.aio(),
-            proc.stderr.read.aio(),
-        )
-        exit_code = await proc.wait.aio()
+        try:
+            stdout, stderr, exit_code = await asyncio.wait_for(
+                asyncio.gather(
+                    proc.stdout.read.aio(),
+                    proc.stderr.read.aio(),
+                    proc.wait.aio(),
+                ),
+                timeout=timeout,
+            )
+        except asyncio.TimeoutError:
+            try:
+                await proc.terminate.aio()
+            except Exception:
+                logger.debug("Error terminating Modal process after timeout", exc_info=True)
+            error = f"Modal sandbox execution timed out after {timeout} seconds"
+            return ExecutionResult(stdout="", stderr=error, error=error)
         error: Optional[str] = stderr if exit_code != 0 else None
         return ExecutionResult(stdout=stdout or "", stderr=stderr or "", error=error)
 
@@ -197,11 +213,11 @@ class ModalSandboxBackend(SandboxBackend):
         try:
             sandbox = self._sessions.get(session_key)
             if sandbox is not None:
-                return await self._exec_code(sandbox, code)
+                return await self._exec_code(sandbox, code, timeout=timeout)
             else:
                 sandbox = await self._create_sandbox()
                 try:
-                    return await self._exec_code(sandbox, code)
+                    return await self._exec_code(sandbox, code, timeout=timeout)
                 finally:
                     await sandbox.terminate.aio()
         except Exception as exc:
