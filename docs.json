@@ -243,7 +243,7 @@
                       {
                         "group": "Examples",
                         "pages": [
-                          "docs/phoenix/evaluation/server-evals/code-evaluators/json-match",
+                          "docs/phoenix/evaluation/server-evals/code-evaluators/json-distance",
                           "docs/phoenix/evaluation/server-evals/code-evaluators/regex-match",
                           "docs/phoenix/evaluation/server-evals/code-evaluators/embedding-distance",
                           "docs/phoenix/evaluation/server-evals/code-evaluators/scikit-learn",
