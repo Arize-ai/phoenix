@@ -74,7 +74,6 @@ export function SpanAside(props: SpanAsideProps) {
         startTime
         endTime
         tokenCountTotal
-        ...TraceHeaderRootSpanAnnotationsFragment
         ...SpanAsideAnnotationList_span
         ...AnnotationSummaryGroup
       }
@@ -171,7 +170,13 @@ function SpanAsideAnnotationList(props: {
         spanAnnotations {
           id
         }
-        ...AnnotationSummaryGroup
+        trace {
+          id
+          traceAnnotations {
+            id
+          }
+        }
+        ...AnnotationSummaryGroup @arguments(includeTraceAnnotations: true)
       }
     `,
     props.span
@@ -185,7 +190,8 @@ function SpanAsideAnnotationList(props: {
       annotationListPanelRef.current.expand();
     }
   });
-  const hasAnnotations = data.spanAnnotations.length > 0;
+  const hasAnnotations =
+    data.spanAnnotations.length > 0 || data.trace.traceAnnotations.length > 0;
   return (
     <TitledPanel
       ref={annotationListPanelRef}
@@ -209,7 +215,11 @@ function SpanAsideAnnotationList(props: {
           overflow="auto"
           maxHeight="100%"
         >
-          <AnnotationSummaryGroupTokens span={data} />
+          <AnnotationSummaryGroupTokens
+            span={data}
+            includeTraceAnnotations
+            renderEmptyState={() => null}
+          />
         </View>
       </FocusScope>
     </TitledPanel>

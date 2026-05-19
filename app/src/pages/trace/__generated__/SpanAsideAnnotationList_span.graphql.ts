@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<bb2c4ad8d3023aa59d7ca2fd4cf39a97>>
+ * @generated SignedSource<<95e6ad9063900c57221b9666c7340f52>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -25,6 +25,12 @@ export type SpanAsideAnnotationList_span$data = {
   readonly spanAnnotations: ReadonlyArray<{
     readonly id: string;
   }>;
+  readonly trace: {
+    readonly id: string;
+    readonly traceAnnotations: ReadonlyArray<{
+      readonly id: string;
+    }>;
+  };
   readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
   readonly " $fragmentType": "SpanAsideAnnotationList_span";
 };
@@ -126,7 +132,35 @@ return {
       "storageKey": null
     },
     {
+      "alias": null,
       "args": null,
+      "concreteType": "Trace",
+      "kind": "LinkedField",
+      "name": "trace",
+      "plural": false,
+      "selections": [
+        (v0/*: any*/),
+        {
+          "alias": null,
+          "args": null,
+          "concreteType": "TraceAnnotation",
+          "kind": "LinkedField",
+          "name": "traceAnnotations",
+          "plural": true,
+          "selections": (v1/*: any*/),
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    },
+    {
+      "args": [
+        {
+          "kind": "Literal",
+          "name": "includeTraceAnnotations",
+          "value": true
+        }
+      ],
       "kind": "FragmentSpread",
       "name": "AnnotationSummaryGroup"
     }
@@ -136,6 +170,6 @@ return {
 };
 })();
 
-(node as any).hash = "8db090103425204eda8bf8e16580f622";
+(node as any).hash = "9cd397ed19247fa47959933f3b5a3be9";
 
 export default node;

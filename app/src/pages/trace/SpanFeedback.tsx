@@ -21,6 +21,7 @@ import { TableEmpty } from "@phoenix/components/table/TableEmpty";
 import { TimestampCell } from "@phoenix/components/table/TimestampCell";
 import { AnnotatorKindToken } from "@phoenix/components/trace/AnnotatorKindToken";
 import { SpanAnnotationActionMenu } from "@phoenix/components/trace/SpanAnnotationActionMenu";
+import { TraceAnnotationActionMenu } from "@phoenix/components/trace/TraceAnnotationActionMenu";
 import { UserPicture } from "@phoenix/components/user/UserPicture";
 import { useNotifySuccess } from "@phoenix/contexts";
 
@@ -30,27 +31,61 @@ import type {
 } from "./__generated__/SpanFeedback_annotations.graphql";
 import { SpanAnnotationsEmpty } from "./SpanAnnotationsEmpty";
 
-type TableRow = SpanFeedback_annotations$data["spanAnnotations"][number] & {
-  spanNodeId: string;
-};
+type SpanAnnotation = SpanFeedback_annotations$data["spanAnnotations"][number];
+type TraceAnnotation =
+  SpanFeedback_annotations$data["trace"]["traceAnnotations"][number];
+
+type TableRow =
+  | (TraceAnnotation & {
+      annotationScope: "trace";
+      traceNodeId: string;
+      spanNodeId: string;
+    })
+  | (SpanAnnotation & {
+      annotationScope: "span";
+      spanNodeId: string;
+    });
 
 const spanAnnotationsTableWrapCSS = css`
   overflow: auto;
 `;
 
+const sortAnnotationsByCreatedAtDesc = <
+  T extends { readonly createdAt: string },
+>(
+  annotations: readonly T[]
+) => {
+  return [...annotations].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+};
+
 function SpanAnnotationsTable({
-  annotations,
+  spanAnnotations,
+  traceAnnotations,
   spanNodeId,
+  traceNodeId,
 }: {
-  annotations: SpanFeedback_annotations$data["spanAnnotations"];
+  spanAnnotations: SpanFeedback_annotations$data["spanAnnotations"];
+  traceAnnotations: SpanFeedback_annotations$data["trace"]["traceAnnotations"];
   spanNodeId: string;
+  traceNodeId: string;
 }) {
   const tableData = useMemo<TableRow[]>(() => {
-    return annotations.map((annotation) => ({
-      ...annotation,
-      spanNodeId,
-    }));
-  }, [annotations, spanNodeId]);
+    return [
+      ...sortAnnotationsByCreatedAtDesc(traceAnnotations).map((annotation) => ({
+        ...annotation,
+        annotationScope: "trace" as const,
+        traceNodeId,
+        spanNodeId,
+      })),
+      ...sortAnnotationsByCreatedAtDesc(spanAnnotations).map((annotation) => ({
+        ...annotation,
+        annotationScope: "span" as const,
+        spanNodeId,
+      })),
+    ];
+  }, [spanAnnotations, spanNodeId, traceAnnotations, traceNodeId]);
   const notifySuccess = useNotifySuccess();
   const [error, setError] = useState<string | null>(null);
 
@@ -145,6 +180,20 @@ function SpanAnnotationsTable({
         accessorKey: "actions",
         size: 100,
         cell: ({ row }) => {
+          if (row.original.annotationScope === "trace") {
+            return (
+              <TraceAnnotationActionMenu
+                annotationId={row.original.id}
+                traceNodeId={row.original.traceNodeId}
+                spanNodeId={row.original.spanNodeId}
+                annotationName={row.original.name}
+                onTraceAnnotationActionSuccess={notifySuccess}
+                onTraceAnnotationActionError={(error) => {
+                  setError(error.message);
+                }}
+              />
+            );
+          }
           return (
             <SpanAnnotationActionMenu
               annotationId={row.original.id}
@@ -162,9 +211,7 @@ function SpanAnnotationsTable({
     [setError, notifySuccess]
   );
 
-  const [sorting, setSorting] = useState<SortingState>([
-    { id: "createdAt", desc: true },
-  ]);
+  const [sorting, setSorting] = useState<SortingState>([]);
   // eslint-disable-next-line react-hooks-js/incompatible-library
   const table = useReactTable({
     columns,
@@ -259,6 +306,27 @@ export function SpanFeedback({ span }: { span: SpanFeedback_annotations$key }) {
     graphql`
       fragment SpanFeedback_annotations on Span {
         id
+        trace {
+          id
+          traceAnnotations {
+            id
+            name
+            label
+            score
+            explanation
+            metadata
+            annotatorKind
+            identifier
+            source
+            createdAt
+            updatedAt
+            user {
+              id
+              username
+              profilePictureUrl
+            }
+          }
+        }
         spanAnnotations {
           id
           name
@@ -282,11 +350,17 @@ export function SpanFeedback({ span }: { span: SpanFeedback_annotations$key }) {
     span
   );
 
-  const annotations = data.spanAnnotations;
-
-  const hasAnnotations = data.spanAnnotations.length > 0;
+  const spanAnnotations = data.spanAnnotations;
+  const traceAnnotations = data.trace.traceAnnotations;
+  const hasAnnotations =
+    spanAnnotations.length > 0 || traceAnnotations.length > 0;
   return hasAnnotations ? (
-    <SpanAnnotationsTable annotations={annotations} spanNodeId={data.id} />
+    <SpanAnnotationsTable
+      spanAnnotations={spanAnnotations}
+      traceAnnotations={traceAnnotations}
+      spanNodeId={data.id}
+      traceNodeId={data.trace.id}
+    />
   ) : (
     <SpanAnnotationsEmpty />
   );

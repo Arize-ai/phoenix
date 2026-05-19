@@ -3,7 +3,10 @@ import React, { useMemo } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import { Flex } from "@phoenix/components";
-import type { AnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/AnnotationSummaryGroup.graphql";
+import type {
+  AnnotationSummaryGroup$data,
+  AnnotationSummaryGroup$key,
+} from "@phoenix/components/annotation/__generated__/AnnotationSummaryGroup.graphql";
 import { AnnotationLabel } from "@phoenix/components/annotation/AnnotationLabel";
 import { AnnotationSummaryPopover } from "@phoenix/components/annotation/AnnotationSummaryPopover";
 import {
@@ -14,10 +17,33 @@ import {
 } from "@phoenix/pages/project/AnnotationSummary";
 import type { AnnotationConfigCategorical } from "@phoenix/pages/settings/types";
 
-const useAnnotationSummaryGroup = (span: AnnotationSummaryGroup$key) => {
+type AnnotationSummaryGroupTrace = NonNullable<
+  AnnotationSummaryGroup$data["trace"]
+>;
+type AnnotationSummaryGroupAnnotationList =
+  | AnnotationSummaryGroup$data["spanAnnotations"]
+  | AnnotationSummaryGroupTrace["traceAnnotations"];
+type AnnotationSummaryGroupAnnotation =
+  AnnotationSummaryGroupAnnotationList[number];
+type AnnotationSummaryGroupSummaryList =
+  | AnnotationSummaryGroup$data["spanAnnotationSummaries"]
+  | AnnotationSummaryGroupTrace["traceAnnotationSummaries"];
+type AnnotationSummaryGroupSummary = AnnotationSummaryGroupSummaryList[number];
+
+const useAnnotationSummaryGroup = (
+  span: AnnotationSummaryGroup$key,
+  {
+    includeTraceAnnotations = false,
+  }: {
+    includeTraceAnnotations?: boolean;
+  } = {}
+) => {
   const data = useFragment<AnnotationSummaryGroup$key>(
     graphql`
-      fragment AnnotationSummaryGroup on Span {
+      fragment AnnotationSummaryGroup on Span
+      @argumentDefinitions(
+        includeTraceAnnotations: { type: "Boolean!", defaultValue: false }
+      ) {
         project {
           id
           annotationConfigs {
@@ -37,6 +63,31 @@ const useAnnotationSummaryGroup = (span: AnnotationSummaryGroup$key) => {
                 }
               }
             }
+          }
+        }
+        trace @include(if: $includeTraceAnnotations) {
+          traceAnnotations {
+            id
+            name
+            label
+            score
+            annotatorKind
+            createdAt
+            user {
+              username
+              profilePictureUrl
+            }
+          }
+          traceAnnotationSummaries {
+            count
+            scoreCount
+            labelCount
+            labelFractions {
+              fraction
+              label
+            }
+            meanScore
+            name
           }
         }
         spanAnnotations {
@@ -67,41 +118,69 @@ const useAnnotationSummaryGroup = (span: AnnotationSummaryGroup$key) => {
     span
   );
   const { spanAnnotations, spanAnnotationSummaries } = data;
-  const sortedSummariesByName = useMemo(
-    () =>
-      spanAnnotationSummaries
-        // Note annotations are not displayed in summary groups
-        .filter((summary) => summary.name !== "note")
-        .sort((a, b) => {
-          return a.name.localeCompare(b.name);
-        }),
-    [spanAnnotationSummaries]
-  );
-  // newest first
-  const annotationsByName = useMemo(
-    () =>
-      spanAnnotations.reduce(
-        (acc, annotation) => {
-          if (annotation.label == null && annotation.score == null) {
-            return acc;
-          }
-          if (!acc[annotation.name]) {
-            acc[annotation.name] = [annotation];
-          } else {
-            acc[annotation.name] = [annotation, ...acc[annotation.name]].sort(
-              (a, b) => {
-                return (
-                  new Date(b.createdAt).getTime() -
-                  new Date(a.createdAt).getTime()
-                );
-              }
-            );
-          }
+  const trace = includeTraceAnnotations ? data.trace : null;
+  const sortSummaries = (
+    summaries: AnnotationSummaryGroupSummaryList
+  ): AnnotationSummaryGroupSummary[] =>
+    [...summaries]
+      // Note annotations are not displayed in summary groups
+      .filter((summary) => summary.name !== "note")
+      .sort((a, b) => {
+        return a.name.localeCompare(b.name);
+      });
+  const groupAnnotationsByName = (
+    annotations: AnnotationSummaryGroupAnnotationList
+  ) =>
+    annotations.reduce(
+      (acc, annotation) => {
+        if (annotation.label == null && annotation.score == null) {
           return acc;
-        },
-        {} as Record<string, typeof spanAnnotations>
-      ),
+        }
+        if (!acc[annotation.name]) {
+          acc[annotation.name] = [annotation];
+        } else {
+          acc[annotation.name] = [annotation, ...acc[annotation.name]].sort(
+            (a, b) => {
+              return (
+                new Date(b.createdAt).getTime() -
+                new Date(a.createdAt).getTime()
+              );
+            }
+          );
+        }
+        return acc;
+      },
+      {} as Record<string, AnnotationSummaryGroupAnnotation[]>
+    );
+  const spanAnnotationsByName = useMemo(
+    () => groupAnnotationsByName(spanAnnotations),
     [spanAnnotations]
+  );
+  const traceAnnotationsByName = useMemo(
+    () => groupAnnotationsByName(trace?.traceAnnotations ?? []),
+    [trace?.traceAnnotations]
+  );
+  const summaryGroups = useMemo(
+    () => [
+      ...(trace
+        ? sortSummaries(trace.traceAnnotationSummaries).map((summary) => ({
+            key: `trace:${summary.name}`,
+            summary,
+            annotations: traceAnnotationsByName[summary.name] ?? [],
+          }))
+        : []),
+      ...sortSummaries(spanAnnotationSummaries).map((summary) => ({
+        key: `span:${summary.name}`,
+        summary,
+        annotations: spanAnnotationsByName[summary.name] ?? [],
+      })),
+    ],
+    [
+      spanAnnotationSummaries,
+      spanAnnotationsByName,
+      trace,
+      traceAnnotationsByName,
+    ]
   );
   const categoricalAnnotationConfigsByName = useMemo(() => {
     return data.project.annotationConfigs.edges.reduce(
@@ -116,8 +195,7 @@ const useAnnotationSummaryGroup = (span: AnnotationSummaryGroup$key) => {
     );
   }, [data.project.annotationConfigs]);
   return {
-    sortedSummariesByName,
-    annotationsByName,
+    summaryGroups,
     categoricalAnnotationConfigsByName,
   };
 };
@@ -126,7 +204,7 @@ type AnnotationSummaryGroupProps = {
   span: AnnotationSummaryGroup$key;
   showFilterActions?: boolean;
   renderEmptyState?: () => React.ReactNode;
-  wrapTokens?: boolean;
+  includeTraceAnnotations?: boolean;
 };
 
 const annotationLabelCSS = css`
@@ -140,28 +218,25 @@ export const AnnotationSummaryGroupTokens = ({
   span,
   showFilterActions = false,
   renderEmptyState,
-  wrapTokens = true,
+  includeTraceAnnotations = false,
 }: AnnotationSummaryGroupProps) => {
-  const {
-    sortedSummariesByName,
-    annotationsByName,
-    categoricalAnnotationConfigsByName,
-  } = useAnnotationSummaryGroup(span);
+  const { summaryGroups, categoricalAnnotationConfigsByName } =
+    useAnnotationSummaryGroup(span, { includeTraceAnnotations });
 
-  if (sortedSummariesByName.length === 0 && renderEmptyState) {
+  if (summaryGroups.length === 0 && renderEmptyState) {
     return renderEmptyState();
   }
 
-  const tokens = sortedSummariesByName.map((summary) => {
-    const latestAnnotation = annotationsByName[summary.name]?.[0];
+  const tokens = summaryGroups.map(({ key, summary, annotations }) => {
+    const latestAnnotation = annotations[0];
     const meanScore = summary?.meanScore;
     if (!latestAnnotation) {
       return null;
     }
     return (
       <AnnotationSummaryPopover
-        key={latestAnnotation.id}
-        annotations={annotationsByName[summary.name]}
+        key={key}
+        annotations={annotations}
         width="500px"
         meanScore={meanScore}
         showFilterActions={showFilterActions}
@@ -190,10 +265,6 @@ export const AnnotationSummaryGroupTokens = ({
     );
   });
 
-  if (!wrapTokens) {
-    return <>{tokens}</>;
-  }
-
   return (
     <Flex direction="row" gap="size-50" wrap="wrap">
       {tokens}
@@ -204,39 +275,40 @@ export const AnnotationSummaryGroupTokens = ({
 export const AnnotationSummaryGroupStacks = ({
   span,
   renderEmptyState,
+  includeTraceAnnotations = false,
 }: AnnotationSummaryGroupProps) => {
-  const {
-    sortedSummariesByName,
-    annotationsByName,
-    categoricalAnnotationConfigsByName,
-  } = useAnnotationSummaryGroup(span);
+  const { summaryGroups, categoricalAnnotationConfigsByName } =
+    useAnnotationSummaryGroup(span, { includeTraceAnnotations });
 
-  if (sortedSummariesByName.length === 0 && renderEmptyState) {
+  if (summaryGroups.length === 0 && renderEmptyState) {
     return renderEmptyState();
   }
+
+  const stacks = summaryGroups.map(({ key, summary, annotations }) => {
+    const latestAnnotation = annotations[0];
+    if (!latestAnnotation) {
+      return null;
+    }
+    return (
+      <Summary name={latestAnnotation.name} key={key}>
+        <SummaryValue
+          name={latestAnnotation.name}
+          meanScore={summary.meanScore}
+          labelFractions={summary.labelFractions}
+          count={summary.count}
+          scoreCount={summary.scoreCount}
+          labelCount={summary.labelCount}
+          annotationConfig={
+            categoricalAnnotationConfigsByName[latestAnnotation.name]
+          }
+        />
+      </Summary>
+    );
+  });
+
   return (
-    <Flex direction="row" gap="size-400">
-      {sortedSummariesByName.map((summary) => {
-        const latestAnnotation = annotationsByName[summary.name]?.[0];
-        if (!latestAnnotation) {
-          return null;
-        }
-        return (
-          <Summary name={latestAnnotation.name} key={latestAnnotation.id}>
-            <SummaryValue
-              name={latestAnnotation.name}
-              meanScore={summary.meanScore}
-              labelFractions={summary.labelFractions}
-              count={summary.count}
-              scoreCount={summary.scoreCount}
-              labelCount={summary.labelCount}
-              annotationConfig={
-                categoricalAnnotationConfigsByName[latestAnnotation.name]
-              }
-            />
-          </Summary>
-        );
-      })}
+    <Flex direction="row" gap="size-400" wrap={includeTraceAnnotations}>
+      {stacks}
     </Flex>
   );
 };

@@ -188,6 +188,9 @@ export function SpanDetails({
             trace {
               id
               traceId
+              traceAnnotations {
+                id
+              }
             }
             name
             spanKind
@@ -351,7 +354,11 @@ export function SpanDetails({
             <TabList>
               <Tab id="info">Info</Tab>
               <Tab id="annotations">
-                Annotations <Counter>{span.spanAnnotations.length}</Counter>
+                Annotations{" "}
+                <Counter>
+                  {span.trace.traceAnnotations.length +
+                    span.spanAnnotations.length}
+                </Counter>
               </Tab>
               <Tab id="attributes">Attributes</Tab>
               <Tab id="events">

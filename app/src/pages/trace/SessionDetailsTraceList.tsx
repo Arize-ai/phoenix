@@ -33,7 +33,6 @@ import {
   View,
 } from "@phoenix/components";
 import { AnnotationSummaryGroupTokens } from "@phoenix/components/annotation/AnnotationSummaryGroup";
-import { TraceAnnotationSummaryGroupTokens } from "@phoenix/components/annotation/TraceAnnotationSummaryGroup";
 import { DynamicContent } from "@phoenix/components/DynamicContent";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { EditSpanAnnotationsDialog } from "@phoenix/components/trace/EditSpanAnnotationsDialog";
@@ -297,18 +296,11 @@ function RootSpanOutputMetadata({ rootSpan }: RootSpanProps) {
           />
         </Modal>
       </ModalOverlay>
-      <Flex direction="row" gap="size-50" wrap="wrap" alignSelf="start">
-        <TraceAnnotationSummaryGroupTokens
-          trace={rootSpan.trace}
-          renderEmptyState={() => null}
-          wrapTokens={false}
-        />
-        <AnnotationSummaryGroupTokens
-          span={rootSpan}
-          renderEmptyState={() => null}
-          wrapTokens={false}
-        />
-      </Flex>
+      <AnnotationSummaryGroupTokens
+        span={rootSpan}
+        includeTraceAnnotations
+        renderEmptyState={() => null}
+      />
     </>
   );
 }
@@ -567,7 +559,6 @@ export function SessionDetailsTraceList({
               rootSpan {
                 trace {
                   id
-                  ...TraceAnnotationSummaryGroup
                   ...TraceFeedbackActionToolbar_trace
                   costSummary {
                     total {
@@ -596,7 +587,7 @@ export function SessionDetailsTraceList({
                 startTime
                 endTime
                 spanId
-                ...AnnotationSummaryGroup
+                ...AnnotationSummaryGroup @arguments(includeTraceAnnotations: true)
               }
             }
           }

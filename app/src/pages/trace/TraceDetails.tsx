@@ -79,6 +79,8 @@ export function TraceDetails(props: TraceDetailsProps) {
                     id
                     spanId
                     parentId
+                    ...AnnotationSummaryGroup
+                      @arguments(includeTraceAnnotations: true)
                   }
                 }
               }
@@ -277,9 +279,7 @@ function TraceHeader({
             <Text size="L">--</Text>
           )}
         </Flex>
-        {rootSpan ? (
-          <TraceHeaderRootSpanAnnotations spanId={rootSpan.id} />
-        ) : null}
+        {rootSpan ? <TraceHeaderRootSpanAnnotations span={rootSpan} /> : null}
         {sessionId && (
           <span
             css={css`

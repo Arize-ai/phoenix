@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<6e096659e3a3852e5c4d4ecfbe930901>>
+ * @generated SignedSource<<5dc9406c07e4bc1ffbe4ba14944b436f>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -32,6 +32,27 @@ export type SpanFeedback_annotations$data = {
       readonly username: string;
     } | null;
   }>;
+  readonly trace: {
+    readonly id: string;
+    readonly traceAnnotations: ReadonlyArray<{
+      readonly annotatorKind: AnnotatorKind;
+      readonly createdAt: string;
+      readonly explanation: string | null;
+      readonly id: string;
+      readonly identifier: string;
+      readonly label: string | null;
+      readonly metadata: any;
+      readonly name: string;
+      readonly score: number | null;
+      readonly source: AnnotationSource;
+      readonly updatedAt: string;
+      readonly user: {
+        readonly id: string;
+        readonly profilePictureUrl: string | null;
+        readonly username: string;
+      } | null;
+    }>;
+  };
   readonly " $fragmentType": "SpanFeedback_annotations";
 };
 export type SpanFeedback_annotations$key = {
@@ -46,7 +67,106 @@ var v0 = {
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
-};
+},
+v1 = [
+  (v0/*: any*/),
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "name",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "label",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "score",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "explanation",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "metadata",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "annotatorKind",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "identifier",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "source",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "createdAt",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "kind": "ScalarField",
+    "name": "updatedAt",
+    "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "User",
+    "kind": "LinkedField",
+    "name": "user",
+    "plural": false,
+    "selections": [
+      (v0/*: any*/),
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "username",
+        "storageKey": null
+      },
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "profilePictureUrl",
+        "storageKey": null
+      }
+    ],
+    "storageKey": null
+  }
+];
 return {
   "argumentDefinitions": [],
   "kind": "Fragment",
@@ -57,109 +177,33 @@ return {
     {
       "alias": null,
       "args": null,
-      "concreteType": "SpanAnnotation",
+      "concreteType": "Trace",
       "kind": "LinkedField",
-      "name": "spanAnnotations",
-      "plural": true,
+      "name": "trace",
+      "plural": false,
       "selections": [
         (v0/*: any*/),
         {
           "alias": null,
           "args": null,
-          "kind": "ScalarField",
-          "name": "name",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "label",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "score",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "explanation",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "metadata",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "annotatorKind",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "identifier",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "source",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "createdAt",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "kind": "ScalarField",
-          "name": "updatedAt",
-          "storageKey": null
-        },
-        {
-          "alias": null,
-          "args": null,
-          "concreteType": "User",
+          "concreteType": "TraceAnnotation",
           "kind": "LinkedField",
-          "name": "user",
-          "plural": false,
-          "selections": [
-            (v0/*: any*/),
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "username",
-              "storageKey": null
-            },
-            {
-              "alias": null,
-              "args": null,
-              "kind": "ScalarField",
-              "name": "profilePictureUrl",
-              "storageKey": null
-            }
-          ],
+          "name": "traceAnnotations",
+          "plural": true,
+          "selections": (v1/*: any*/),
           "storageKey": null
         }
       ],
+      "storageKey": null
+    },
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "SpanAnnotation",
+      "kind": "LinkedField",
+      "name": "spanAnnotations",
+      "plural": true,
+      "selections": (v1/*: any*/),
       "storageKey": null
     }
   ],
@@ -168,6 +212,6 @@ return {
 };
 })();
 
-(node as any).hash = "9a73b57370acadba7a0398c1439e9893";
+(node as any).hash = "cf2d93ab66e874b12494526776ca8212";
 
 export default node;

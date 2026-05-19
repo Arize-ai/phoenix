@@ -1,35 +1,16 @@
-import { graphql, useFragment, useLazyLoadQuery } from "react-relay";
-
+import type { AnnotationSummaryGroup$key } from "@phoenix/components/annotation/__generated__/AnnotationSummaryGroup.graphql";
 import { AnnotationSummaryGroupStacks } from "@phoenix/components/annotation/AnnotationSummaryGroup";
-import type { TraceHeaderRootSpanAnnotationsFragment$key } from "@phoenix/pages/trace/__generated__/TraceHeaderRootSpanAnnotationsFragment.graphql";
 
-import type { TraceHeaderRootSpanAnnotationsQuery } from "./__generated__/TraceHeaderRootSpanAnnotationsQuery.graphql";
-
-export function TraceHeaderRootSpanAnnotations({ spanId }: { spanId: string }) {
-  const query = useLazyLoadQuery<TraceHeaderRootSpanAnnotationsQuery>(
-    graphql`
-      query TraceHeaderRootSpanAnnotationsQuery($spanId: ID!) {
-        span: node(id: $spanId) {
-          ... on Span {
-            ...TraceHeaderRootSpanAnnotationsFragment
-          }
-        }
-      }
-    `,
-    { spanId },
-    {
-      fetchPolicy: "store-and-network",
-    }
-  );
-  const span = useFragment<TraceHeaderRootSpanAnnotationsFragment$key>(
-    graphql`
-      fragment TraceHeaderRootSpanAnnotationsFragment on Span {
-        ...AnnotationSummaryGroup
-      }
-    `,
-    query.span
-  );
+export function TraceHeaderRootSpanAnnotations({
+  span,
+}: {
+  span: AnnotationSummaryGroup$key;
+}) {
   return (
-    <AnnotationSummaryGroupStacks span={span} renderEmptyState={() => null} />
+    <AnnotationSummaryGroupStacks
+      span={span}
+      includeTraceAnnotations
+      renderEmptyState={() => null}
+    />
   );
 }
