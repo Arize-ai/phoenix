@@ -48,7 +48,7 @@ describe("groupMessageParts", () => {
     ]);
   });
 
-  it("keeps streaming generative UI tool calls as tool parts", () => {
+  it("creates a render slot for streaming generative UI tool calls", () => {
     const streamingToolPart = {
       type: "tool-render_generative_ui",
       toolCallId: "tool-call-1",
@@ -70,7 +70,23 @@ describe("groupMessageParts", () => {
     const grouped = groupMessageParts([streamingToolPart]);
 
     expect(grouped).toEqual([
-      { kind: "tool-solo", part: streamingToolPart, index: 0 },
+      { kind: "generative-ui", part: streamingToolPart, index: 0 },
+    ]);
+  });
+
+  it("keeps failed generative UI tool calls as tool parts", () => {
+    const failedToolPart = {
+      type: "tool-render_generative_ui",
+      toolCallId: "tool-call-1",
+      state: "output-error",
+      input: undefined,
+      errorText: "I couldn't render that generative UI.",
+    } as UIMessage["parts"][number];
+
+    const grouped = groupMessageParts([failedToolPart]);
+
+    expect(grouped).toEqual([
+      { kind: "tool-solo", part: failedToolPart, index: 0 },
     ]);
   });
 

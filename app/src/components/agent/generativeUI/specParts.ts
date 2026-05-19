@@ -10,17 +10,30 @@ import {
   renderGenerativeUISpecSchema,
 } from "../generativeUICatalog";
 
+const EMPTY_STATE: Record<string, unknown> = {};
+
 /**
- * Returns true when a message part can supply a generative UI render spec.
- * Completed tool calls are included only when their input still validates, so
- * stale or failed render attempts fall back to normal tool-call rendering.
+ * Returns true when a message part should occupy an in-chat generative UI slot.
+ * Pending render tool calls are included so they can show a skeleton while args
+ * stream in. Completed tool calls are included only when their input validates,
+ * so stale or failed render attempts fall back to normal tool-call rendering.
  */
 export function isGenerativeUIPart(part: DataPart): boolean {
   return (
     part.type === JSON_RENDER_DATA_PART_TYPE ||
     part.type === LEGACY_JSON_RENDER_DATA_PART_TYPE ||
-    isRenderGenerativeUIToolPart(part)
+    isPendingRenderGenerativeUIToolPart(part) ||
+    isRenderableRenderGenerativeUIToolPart(part)
   );
+}
+
+/** Returns true while a render_generative_ui tool call is still producing args/output. */
+export function isPendingRenderGenerativeUIToolPart(part: DataPart): boolean {
+  if (!isRenderGenerativeUIToolPart(part)) {
+    return false;
+  }
+  const state = (part as { state?: unknown }).state;
+  return state !== "output-available" && state !== "output-error";
 }
 
 /**
@@ -41,7 +54,7 @@ export function getSpecAndState(parts: DataPart[]): {
 /** Returns the spec embedded in a completed render_generative_ui tool call. */
 function getToolSpec(parts: DataPart[]): Spec | null {
   for (const part of parts) {
-    if (!isRenderGenerativeUIToolPart(part)) {
+    if (!isRenderableRenderGenerativeUIToolPart(part)) {
       continue;
     }
     const input = getToolInput(part);
@@ -102,36 +115,40 @@ function getState(parts: DataPart[]): Record<string, unknown> {
     ) {
       return payload.spec.state;
     }
-    if (isRenderGenerativeUIToolPart(part)) {
+    if (isRenderableRenderGenerativeUIToolPart(part)) {
       const input = getToolInput(part);
       if (isPlainObject(input) && isPlainObject(input.state)) {
         return input.state;
       }
     }
   }
-  return {};
+  return EMPTY_STATE;
 }
 
 /**
  * Identifies completed render_generative_ui tool parts that can be rendered.
- * Streaming, failed, and malformed tool calls are intentionally excluded to
- * avoid flicker and to preserve user-visible tool errors.
+ * Failed and malformed tool calls are intentionally excluded to preserve
+ * user-visible tool errors.
  */
-function isRenderGenerativeUIToolPart(part: DataPart): boolean {
+function isRenderableRenderGenerativeUIToolPart(part: DataPart): boolean {
   if ((part as { state?: unknown }).state !== "output-available") {
     return false;
   }
+  return isRenderGenerativeUIToolPart(part) && hasRenderableToolInput(part);
+}
+
+/** Identifies any render_generative_ui tool part regardless of execution state. */
+function isRenderGenerativeUIToolPart(part: DataPart): boolean {
   if (part.type === `tool-${GENERATIVE_UI_TOOL_NAME}`) {
-    return hasRenderableToolInput(part);
+    return true;
   }
   if (part.type !== "dynamic-tool") {
     return false;
   }
   const candidate = part as { toolName?: unknown; tool?: unknown };
   return (
-    (candidate.toolName === GENERATIVE_UI_TOOL_NAME ||
-      candidate.tool === GENERATIVE_UI_TOOL_NAME) &&
-    hasRenderableToolInput(part)
+    candidate.toolName === GENERATIVE_UI_TOOL_NAME ||
+    candidate.tool === GENERATIVE_UI_TOOL_NAME
   );
 }
 
@@ -149,5 +166,5 @@ function getToolInput(part: DataPart): unknown {
 /** Validates an unknown value against the generative UI render spec contract. */
 function parseSpec(value: unknown): Spec | null {
   const result = renderGenerativeUISpecSchema.safeParse(value);
-  return result.success ? (result.data as Spec) : null;
+  return result.success ? (value as Spec) : null;
 }

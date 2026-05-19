@@ -14,8 +14,13 @@ import {
   LEGACY_JSON_RENDER_DATA_PART_TYPE,
 } from "../generativeUICatalog";
 import { GenerativeUIPlaceholder } from "./GenerativeUIPlaceholder";
+import { GenerativeUISkeleton } from "./GenerativeUISkeleton";
 import { generativeUIRegistry, UnknownGenerativeElement } from "./registry";
-import { getSpecAndState, isGenerativeUIPart } from "./specParts";
+import {
+  getSpecAndState,
+  isGenerativeUIPart,
+  isPendingRenderGenerativeUIToolPart,
+} from "./specParts";
 
 export { JSON_RENDER_DATA_PART_TYPE, LEGACY_JSON_RENDER_DATA_PART_TYPE };
 export { isGenerativeUIPart };
@@ -34,6 +39,16 @@ export function GenerativeUI({ parts }: { parts: DataPart[] }) {
 }
 
 function GenerativeUIRenderer({ parts }: { parts: DataPart[] }) {
+  const isPending = parts.some(isPendingRenderGenerativeUIToolPart);
+
+  if (isPending) {
+    return (
+      <div css={generativeUICSS}>
+        <GenerativeUISkeleton />
+      </div>
+    );
+  }
+
   const { spec, state } = getSpecAndState(parts);
 
   return (
