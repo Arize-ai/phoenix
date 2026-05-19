@@ -22,6 +22,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode, Tracer
 from pydantic_ai.messages import (
+    InstructionPart,
     ModelMessage,
     ModelRequest,
     ModelResponse,
@@ -547,6 +548,44 @@ async def test_request_emits_tool_return_message_in_history(
     assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
 
     assert not attributes
+
+
+async def test_request_emits_system_message_from_instructions(
+    tracer: Tracer,
+    in_memory_span_exporter: InMemorySpanExporter,
+) -> None:
+    wrapped = OpenInferenceModelWrapper(TestModel(), tracer=tracer)
+    static_text = "You are a helpful assistant."
+    dynamic_text = "Current time: 2026-05-19."
+    joined = f"{static_text}\n\n{dynamic_text}"
+    messages: list[ModelMessage] = [
+        ModelRequest(
+            parts=[UserPromptPart(content="Hi.")],
+            instructions=joined,
+        )
+    ]
+
+    await wrapped.request(
+        messages=messages,
+        model_settings=None,
+        model_request_parameters=ModelRequestParameters(
+            function_tools=[],
+            native_tools=[],
+            output_tools=[],
+            instruction_parts=[
+                InstructionPart(content=static_text),
+                InstructionPart(content=dynamic_text, dynamic=True),
+            ],
+        ),
+    )
+
+    spans = in_memory_span_exporter.get_finished_spans()
+    assert len(spans) == 1
+    attributes = dict(spans[0].attributes or {})
+    assert attributes[f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}"] == "system"
+    assert attributes[f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_CONTENT}"] == joined
+    assert attributes[f"{LLM_INPUT_MESSAGES}.1.{MESSAGE_ROLE}"] == "user"
+    assert attributes[f"{LLM_INPUT_MESSAGES}.1.{MESSAGE_CONTENT}"] == "Hi."
 
 
 async def test_request_raises_expected_exception_events(

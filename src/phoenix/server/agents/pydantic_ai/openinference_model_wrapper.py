@@ -22,6 +22,7 @@ from openinference.semconv.trace import (
 )
 from opentelemetry.trace import Status, StatusCode, Tracer
 from pydantic_ai import RunContext
+from pydantic_ai._instrumentation import get_instructions
 from pydantic_ai.messages import (
     ModelMessage,
     ModelRequest,
@@ -111,6 +112,9 @@ class OpenInferenceModelWrapper(WrapperModel):
         model_request_parameters: ModelRequestParameters,
     ) -> Iterator[Callable[[ModelResponse], None]]:
         input_messages: list[Message] = []
+        instructions = get_instructions(messages, model_request_parameters)
+        if instructions:
+            input_messages.append(Message(role="system", content=instructions))
         for msg in messages:
             if isinstance(msg, ModelRequest):
                 input_messages.extend(_request_to_oi_messages(msg))
