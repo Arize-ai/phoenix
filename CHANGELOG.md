@@ -1,5 +1,12 @@
 # Changelog
 
+## [15.11.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.11.0...arize-phoenix-v15.11.1) (2026-05-19)
+
+
+### Bug Fixes
+
+* **agents:** instrument PXI agent system prompt on LLM spans ([#13329](https://github.com/Arize-ai/phoenix/issues/13329)) ([e2b672a](https://github.com/Arize-ai/phoenix/commit/e2b672abde9ecf800a14e985762434d61292baee))
+
 ## [15.11.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.10.1...arize-phoenix-v15.11.0) (2026-05-19)
 
 
