@@ -26,6 +26,7 @@ from pydantic_ai.messages import (
     ModelMessage,
     ModelRequest,
     ModelResponse,
+    NativeToolCallPart,
     PartDeltaEvent,
     PartStartEvent,
     SystemPromptPart,
@@ -100,6 +101,39 @@ def raising_model(tracer: Tracer) -> OpenInferenceModelWrapper:
             yield  # pragma: no cover
 
     return OpenInferenceModelWrapper(_RaisingModel(TestModel()), tracer=tracer)
+
+
+@pytest.fixture
+def native_tool_model(tracer: Tracer) -> OpenInferenceModelWrapper:
+    class _NativeToolModel(WrapperModel):
+        async def request(
+            self,
+            messages: list[ModelMessage],
+            model_settings: ModelSettings | None,
+            model_request_parameters: ModelRequestParameters,
+        ) -> ModelResponse:
+            return ModelResponse(
+                parts=[
+                    NativeToolCallPart(
+                        tool_name="web_search",
+                        args={"query": "phoenix tracing"},
+                        tool_call_id="native-call-1",
+                    )
+                ]
+            )
+
+        @asynccontextmanager
+        async def request_stream(
+            self,
+            messages: list[ModelMessage],
+            model_settings: ModelSettings | None,
+            model_request_parameters: ModelRequestParameters,
+            run_context: Any = None,
+        ) -> AsyncIterator[StreamedResponse]:
+            raise RuntimeError("streaming is not used")
+            yield  # pragma: no cover
+
+    return OpenInferenceModelWrapper(_NativeToolModel(TestModel()), tracer=tracer)
 
 
 async def test_request_emits_llm_span_for_text_response(
@@ -256,8 +290,11 @@ async def test_request_emits_llm_span_for_tool_call_response(
     assert tool_call_part.tool_call_id
 
     spans = in_memory_span_exporter.get_finished_spans()
-    assert len(spans) == 1
-    attributes = dict(spans[0].attributes or {})
+    llm_spans = [
+        span for span in spans if (span.attributes or {}).get(OPENINFERENCE_SPAN_KIND) == LLM
+    ]
+    assert len(llm_spans) == 1
+    attributes = dict(llm_spans[0].attributes or {})
 
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
     assert attributes.pop(LLM_PROVIDER) == PROVIDER_ANTHROPIC
@@ -313,6 +350,45 @@ async def test_request_emits_llm_span_for_tool_call_response(
     assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
 
     assert not attributes
+
+
+async def test_request_emits_llm_span_for_native_tool_call_response(
+    native_tool_model: OpenInferenceModelWrapper,
+    in_memory_span_exporter: InMemorySpanExporter,
+) -> None:
+    await native_tool_model.request(
+        messages=[ModelRequest(parts=[UserPromptPart(content="search the web")])],
+        model_settings=None,
+        model_request_parameters=ModelRequestParameters(
+            function_tools=[], native_tools=[], output_tools=[]
+        ),
+    )
+
+    spans = in_memory_span_exporter.get_finished_spans()
+    assert len(spans) == 1
+    attributes = dict(spans[0].attributes or {})
+
+    assert attributes.pop(f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}") == "assistant"
+    assert (
+        attributes.pop(f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.0.{TOOL_CALL_ID}")
+        == "native-call-1"
+    )
+    assert (
+        attributes.pop(f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.0.{TOOL_CALL_FUNCTION_NAME}")
+        == "web_search"
+    )
+    args_attr = attributes.pop(
+        f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_TOOL_CALLS}.0.{TOOL_CALL_FUNCTION_ARGUMENTS_JSON}"
+    )
+    assert isinstance(args_attr, str)
+    assert json.loads(args_attr) == {"query": "phoenix tracing"}
+
+    tool_spans = [
+        span for span in spans if (span.attributes or {}).get(OPENINFERENCE_SPAN_KIND) == TOOL
+    ]
+    assert len(tool_spans) == 1
+    tool_attributes = dict(tool_spans[0].attributes or {})
+    assert tool_attributes.pop(TOOL_NAME) == "web_search"
 
 
 async def test_request_stream_emits_llm_span(
@@ -659,6 +735,7 @@ LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
 LLM_TOOLS = SpanAttributes.LLM_TOOLS
 TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
+TOOL_NAME = SpanAttributes.TOOL_NAME
 MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
 MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
 MESSAGE_TOOL_CALLS = MessageAttributes.MESSAGE_TOOL_CALLS
@@ -672,6 +749,7 @@ OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
 
 LLM = OpenInferenceSpanKindValues.LLM.value
+TOOL = OpenInferenceSpanKindValues.TOOL.value
 PROVIDER_ANTHROPIC = OpenInferenceLLMProviderValues.ANTHROPIC.value
 SYSTEM_ANTHROPIC = OpenInferenceLLMSystemValues.ANTHROPIC.value
 JSON = OpenInferenceMimeTypeValues.JSON.value

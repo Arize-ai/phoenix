@@ -22,6 +22,8 @@ from pydantic_ai.messages import (
     ModelMessage,
     ModelRequest,
     ModelResponse,
+    NativeToolCallPart,
+    NativeToolReturnPart,
     TextPart,
     ToolCallPart,
     ToolReturnPart,
@@ -113,6 +115,54 @@ def raising_model() -> WrapperModel:
             yield  # pragma: no cover
 
     return _RaisingWrapperModel(TestModel())
+
+
+@pytest.fixture
+def native_tool_agent(tracer: Tracer) -> OpenInferenceAgentWrapper:
+    class _NativeToolModel(WrapperModel):
+        async def request(
+            self,
+            messages: list[ModelMessage],
+            model_settings: ModelSettings | None,
+            model_request_parameters: ModelRequestParameters,
+        ) -> ModelResponse:
+            return ModelResponse(
+                parts=[
+                    NativeToolCallPart(
+                        tool_name="web_search",
+                        args={"query": "phoenix tracing"},
+                        tool_call_id="native-call-1",
+                        provider_name="openai",
+                        provider_details={"type": "web_search_call"},
+                    ),
+                    NativeToolReturnPart(
+                        tool_name="web_search",
+                        content={"results": [{"title": "Phoenix"}]},
+                        tool_call_id="native-call-1",
+                        provider_name="openai",
+                        provider_details={"status": "completed"},
+                    ),
+                    TextPart(content="I found Phoenix tracing documentation."),
+                ]
+            )
+
+        @asynccontextmanager
+        async def request_stream(
+            self,
+            messages: list[ModelMessage],
+            model_settings: ModelSettings | None,
+            model_request_parameters: ModelRequestParameters,
+            run_context: Any = None,
+        ) -> AsyncIterator[StreamedResponse]:
+            raise RuntimeError("streaming is not used")
+            yield  # pragma: no cover
+
+    inner: Agent[None, str] = Agent(
+        OpenInferenceModelWrapper(_NativeToolModel(TestModel()), tracer=tracer),
+        name="NativeToolAgent",
+        deps_type=type(None),
+    )
+    return OpenInferenceAgentWrapper(inner, tracer=tracer)
 
 
 @pytest.fixture
@@ -578,6 +628,47 @@ async def test_tool_span_args_come_from_prior_tool_call_part(
     assert json.loads(tool_parameters) == dict(
         SET_TIME_RANGE_TOOL_DEFINITION.parameters_json_schema
     )
+    assert not attributes
+
+
+async def test_emits_tool_span_for_provider_native_tool(
+    native_tool_agent: OpenInferenceAgentWrapper,
+    in_memory_span_exporter: InMemorySpanExporter,
+) -> None:
+    result = await native_tool_agent.run("search the web")
+    assert result.output == "I found Phoenix tracing documentation."
+
+    spans = in_memory_span_exporter.get_finished_spans()
+    agent_span = _get_agent_span(spans)
+    tool_spans = _get_tool_spans(spans)
+    assert len(tool_spans) == 1
+    tool_span = tool_spans[0]
+    assert tool_span.name == "web_search"
+    assert tool_span.parent is not None
+    assert tool_span.parent.span_id == agent_span.context.span_id
+    assert tool_span.context.trace_id == agent_span.context.trace_id
+    assert tool_span.status.status_code == StatusCode.OK
+
+    attributes = dict(tool_span.attributes or {})
+    assert attributes.pop(OPENINFERENCE_SPAN_KIND) == TOOL
+    assert attributes.pop(TOOL_NAME) == "web_search"
+    assert attributes.pop(TOOL_CALL_ID) == "native-call-1"
+    input_value = attributes.pop(INPUT_VALUE)
+    assert isinstance(input_value, str)
+    assert json.loads(input_value) == {"query": "phoenix tracing"}
+    assert attributes.pop(INPUT_MIME_TYPE) == JSON
+    output_value = attributes.pop(OUTPUT_VALUE)
+    assert isinstance(output_value, str)
+    assert json.loads(output_value) == {"results": [{"title": "Phoenix"}]}
+    assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
+    metadata = json.loads(attributes.pop(METADATA))
+    assert metadata == {
+        "native_tool": {
+            "provider_name": "openai",
+            "provider_details": {"type": "web_search_call"},
+            "tool_kind": None,
+        }
+    }
     assert not attributes
 
 
