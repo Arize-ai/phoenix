@@ -3393,6 +3393,7 @@ type SandboxConfig implements Node {
   provider: SandboxProvider!
   createdAt: DateTime!
   updatedAt: DateTime!
+  user: User
 }
 
 type SandboxConfigData {
@@ -3450,6 +3451,8 @@ type SandboxProvider implements Node {
   """
   deployment: SandboxDeployment
   configs: [SandboxConfig!]!
+  updatedAt: DateTime!
+  user: User
 }
 
 type SandboxProviderCredentialSpec {

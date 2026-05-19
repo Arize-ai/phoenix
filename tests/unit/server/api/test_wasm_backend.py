@@ -55,53 +55,41 @@ class TestWASMBackendSessionNoop:
     """WASMBackend inherits BaseNoSessionBackend — start/stop are no-ops."""
 
     async def test_start_session_does_not_raise(self) -> None:
-        backend = WASMBackend(binary_path=Path("/nonexistent"))
+        backend = WASMBackend()
         await backend.start_session("any-key")
 
     async def test_stop_session_does_not_raise(self) -> None:
-        backend = WASMBackend(binary_path=Path("/nonexistent"))
+        backend = WASMBackend()
         await backend.stop_session("any-key")
 
     async def test_close_does_not_raise(self) -> None:
-        backend = WASMBackend(binary_path=Path("/nonexistent"))
+        backend = WASMBackend()
         await backend.close()
 
 
 class TestWASMBackendExecute:
     """WASMBackend.execute() delegates to _run_wasm in a thread executor."""
 
-    async def test_execute_returns_execution_result(self) -> None:
+    async def test_execute_resolves_binary_and_delegates_to_run_wasm(self) -> None:
+        """execute() resolves the binary via ensure_wasm_binary, then delegates to _run_wasm."""
         expected = ExecutionResult(stdout="hello\n", stderr="")
-        binary_path = Path("/fake/cpython.wasm")
-        backend = WASMBackend(binary_path=binary_path)
+        fake_path = Path("/downloaded/cpython.wasm")
+        backend = WASMBackend()
 
         with patch(
-            "phoenix.server.sandbox.wasm_backend._run_wasm",
-            return_value=expected,
-        ) as mock_run:
-            result = await backend.execute("print('hello')", session_key="k")
+            "phoenix.server.sandbox._download.ensure_wasm_binary",
+            return_value=fake_path,
+        ):
+            with patch(
+                "phoenix.server.sandbox.wasm_backend._run_wasm",
+                return_value=expected,
+            ) as mock_run:
+                result = await backend.execute("print('hello')", session_key="k")
 
         assert result is expected
         from phoenix.server.sandbox.wasm_backend import _DEFAULT_TIMEOUT_SECONDS
 
-        mock_run.assert_called_once_with(binary_path, "print('hello')", _DEFAULT_TIMEOUT_SECONDS)
-
-    async def test_execute_resolves_binary_via_download_when_path_is_none(self) -> None:
-        expected = ExecutionResult(stdout="", stderr="")
-        fake_path = Path("/downloaded/cpython.wasm")
-
-        backend = WASMBackend(binary_path=None)
-        with patch(
-            "phoenix.server.sandbox.wasm_backend._run_wasm",
-            return_value=expected,
-        ):
-            with patch(
-                "phoenix.server.sandbox._download.ensure_wasm_binary",
-                return_value=fake_path,
-            ):
-                result = await backend.execute("", session_key="k")
-
-        assert result is expected
+        mock_run.assert_called_once_with(fake_path, "print('hello')", _DEFAULT_TIMEOUT_SECONDS)
 
 
 class TestRunWasm:

@@ -35,13 +35,13 @@ def _make_mock_sandbox_cls(create_result: Any = None) -> MagicMock:
 
 def test_create_kwargs_defaults_to_allow_true() -> None:
     """Default allow_internet_access must be True when not specified."""
-    backend = E2BSandboxBackend(api_key=_API_KEY, template="base")
+    backend = E2BSandboxBackend(api_key=_API_KEY)
     assert backend._create_kwargs()["allow_internet_access"] is True
 
 
 @pytest.mark.parametrize("allow", [True, False])
 def test_create_kwargs_forwards_allow_internet_access(allow: bool) -> None:
-    backend = E2BSandboxBackend(api_key=_API_KEY, template="base", allow_internet_access=allow)
+    backend = E2BSandboxBackend(api_key=_API_KEY, allow_internet_access=allow)
     assert backend._create_kwargs()["allow_internet_access"] is allow
 
 
@@ -70,7 +70,7 @@ def test_build_backend_translates_internet_access_to_allow_flag(
 @pytest.mark.parametrize("allow", [True, False])
 async def test_start_session_forwards_allow_internet_access(allow: bool) -> None:
     mock_cls = _make_mock_sandbox_cls()
-    backend = E2BSandboxBackend(api_key=_API_KEY, template="base", allow_internet_access=allow)
+    backend = E2BSandboxBackend(api_key=_API_KEY, allow_internet_access=allow)
     with patch.object(backend, "_get_sandbox_cls", return_value=mock_cls):
         await backend.start_session("s1")
     assert mock_cls.create.call_args.kwargs["allow_internet_access"] is allow
@@ -80,7 +80,7 @@ async def test_start_session_forwards_allow_internet_access(allow: bool) -> None
 async def test_start_session_installs_packages_via_run_code() -> None:
     """Non-empty packages trigger a pip install run_code; absent otherwise."""
     mock_cls = _make_mock_sandbox_cls()
-    backend = E2BSandboxBackend(api_key=_API_KEY, template="base", packages=["cowsay"])
+    backend = E2BSandboxBackend(api_key=_API_KEY, packages=["cowsay"])
     with patch.object(backend, "_get_sandbox_cls", return_value=mock_cls):
         await backend.start_session("s1")
     sandbox_instance = mock_cls.create.return_value
@@ -92,7 +92,7 @@ async def test_start_session_installs_packages_via_run_code() -> None:
 @pytest.mark.asyncio
 async def test_start_session_without_packages_skips_run_code() -> None:
     mock_cls = _make_mock_sandbox_cls()
-    backend = E2BSandboxBackend(api_key=_API_KEY, template="base", packages=None)
+    backend = E2BSandboxBackend(api_key=_API_KEY, packages=None)
     with patch.object(backend, "_get_sandbox_cls", return_value=mock_cls):
         await backend.start_session("s1")
     mock_cls.create.return_value.run_code.assert_not_called()
@@ -107,7 +107,7 @@ async def test_pip_install_failure_raises_and_leaves_no_cached_session() -> None
             error="ModuleNotFoundError: No module named pip",
         )
     )
-    backend = E2BSandboxBackend(api_key=_API_KEY, template="base", packages=["bad-pkg"])
+    backend = E2BSandboxBackend(api_key=_API_KEY, packages=["bad-pkg"])
     with patch.object(backend, "_get_sandbox_cls", return_value=mock_cls):
         with pytest.raises(RuntimeError):
             await backend.start_session("s1")
@@ -127,7 +127,7 @@ async def test_package_specs_pass_through_to_subprocess_unmodified() -> None:
     """
     mock_cls = _make_mock_sandbox_cls()
     specs = ["numpy>=1.0", "requests[security]", "pandas==2.1.0"]
-    backend = E2BSandboxBackend(api_key=_API_KEY, template="base", packages=specs)
+    backend = E2BSandboxBackend(api_key=_API_KEY, packages=specs)
     with patch.object(backend, "_get_sandbox_cls", return_value=mock_cls):
         await backend.start_session("s1")
     code_arg = mock_cls.create.return_value.run_code.call_args.args[0]
@@ -156,7 +156,7 @@ async def test_ephemeral_execute_installs_packages_before_run_code() -> None:
     # Make the context-manager protocol work for `async with await create(...)`.
     sandbox_instance.__aenter__ = AsyncMock(return_value=sandbox_instance)
     sandbox_instance.__aexit__ = AsyncMock(return_value=None)
-    backend = E2BSandboxBackend(api_key=_API_KEY, template="base", packages=["cowsay"])
+    backend = E2BSandboxBackend(api_key=_API_KEY, packages=["cowsay"])
     with patch.object(backend, "_get_sandbox_cls", return_value=mock_cls):
         await backend.execute("print('hi')", session_key="s1")
     # Two run_code calls are expected: pip install (first), then user code.
@@ -214,7 +214,7 @@ async def test_execute_strips_ansi_from_all_three_fields() -> None:
     sandbox_cls = MagicMock()
     sandbox_cls.create = AsyncMock(return_value=sandbox)
 
-    backend = E2BSandboxBackend(api_key=_API_KEY, template="base")
+    backend = E2BSandboxBackend(api_key=_API_KEY)
     with patch.object(backend, "_get_sandbox_cls", return_value=sandbox_cls):
         result = await backend.execute("noop", session_key="ephemeral")
 
@@ -230,7 +230,7 @@ async def test_execute_strips_ansi_in_raised_exception_path() -> None:
     sandbox_cls = MagicMock()
     sandbox_cls.create = AsyncMock(side_effect=RuntimeError("\x1b[31mprovider error\x1b[0m"))
 
-    backend = E2BSandboxBackend(api_key=_API_KEY, template="base")
+    backend = E2BSandboxBackend(api_key=_API_KEY)
     with patch.object(backend, "_get_sandbox_cls", return_value=sandbox_cls):
         result = await backend.execute("noop", session_key="ephemeral")
 

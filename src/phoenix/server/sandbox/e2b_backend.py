@@ -45,8 +45,6 @@ class E2BSandboxBackend(SandboxBackend):
     def __init__(
         self,
         api_key: SecretStr,
-        template: Optional[str] = None,
-        metadata: Optional[str] = None,
         user_env: Optional[Mapping[str, str]] = None,
         allow_internet_access: bool = True,
         packages: Optional[Sequence[str]] = None,
@@ -54,14 +52,6 @@ class E2BSandboxBackend(SandboxBackend):
         api_url: Optional[str] = None,
     ) -> None:
         self._api_key = api_key
-        # ``template=None`` lets ``AsyncSandbox.create()`` fall back to its
-        # ``default_template`` (``code-interpreter-v1``), which is the only
-        # image that runs the Jupyter server ``run_code()`` POSTs to on
-        # ``JUPYTER_PORT`` (49999). The previously hard-coded ``"base"`` template
-        # is the generic E2B image and does NOT run Jupyter, so every call
-        # surfaced as ``502 The sandbox is running but port is not open``.
-        self._template = template
-        self._metadata = metadata
         self._user_env: dict[str, str] = dict(user_env or {})
         self._allow_internet_access = allow_internet_access
         self._packages: list[str] = list(packages) if packages else []
@@ -78,21 +68,21 @@ class E2BSandboxBackend(SandboxBackend):
     def _create_kwargs(self) -> dict[str, Any]:
         """Build kwargs for AsyncSandbox.create().
 
-        The E2B SDK expects metadata as Dict[str, str]. A string value from
-        the config is passed under the key ``"info"``, so the sandbox is
-        tagged with ``{"info": "<value>"}``. ``api_key`` is forwarded via the
-        SDK's ``ApiParams`` (``**opts``) on ``create()``. ``domain`` and
-        ``api_url`` are forwarded only when set so the SDK applies its own
-        hosted defaults otherwise.
+        Omitting ``template`` lets the SDK fall back to its ``default_template``
+        (``code-interpreter-v1``), which is the only image that runs the
+        Jupyter server ``run_code()`` POSTs to on ``JUPYTER_PORT`` (49999).
+        The previously hard-coded ``"base"`` template was the generic E2B
+        image and did NOT run Jupyter, so every call surfaced as
+        ``502 The sandbox is running but port is not open``.
+
+        ``api_key`` is forwarded via the SDK's ``ApiParams`` (``**opts``) on
+        ``create()``. ``domain`` and ``api_url`` are forwarded only when set
+        so the SDK applies its own hosted defaults otherwise.
         """
         kwargs: dict[str, Any] = {
             "api_key": self._api_key.get_secret_value(),
             "allow_internet_access": self._allow_internet_access,
         }
-        if self._template is not None:
-            kwargs["template"] = self._template
-        if self._metadata is not None:
-            kwargs["metadata"] = {"info": self._metadata}
         if self._domain is not None:
             kwargs["domain"] = self._domain
         if self._api_url is not None:
@@ -229,8 +219,6 @@ class E2BAdapter(SandboxAdapter[E2BConfig, E2BCredentials, E2BDeployment]):
         )
         return E2BSandboxBackend(
             api_key=SecretStr(api_key),
-            template=None,
-            metadata=None,
             user_env=user_env,
             allow_internet_access=allow_internet_access,
             packages=packages or None,

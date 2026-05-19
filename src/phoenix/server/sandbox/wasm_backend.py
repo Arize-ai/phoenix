@@ -124,17 +124,12 @@ def _run_wasm(binary_path: Path, code: str, timeout: int) -> ExecutionResult:
 class WASMBackend(BaseNoSessionBackend):
     """Local CPython-WASM sandbox backend. Stateless and single-node."""
 
-    def __init__(
-        self,
-        binary_path: Optional[Path] = None,
-    ) -> None:
+    def __init__(self) -> None:
         # secret_values stays at the SandboxBackend class default (frozenset()):
         # WASM takes no provider credentials and does not support user_env.
-        self._binary_path = binary_path
+        pass
 
     def _resolve_binary(self) -> Path:
-        if self._binary_path is not None:
-            return self._binary_path
         from phoenix.server.sandbox._download import ensure_wasm_binary
 
         return ensure_wasm_binary()
