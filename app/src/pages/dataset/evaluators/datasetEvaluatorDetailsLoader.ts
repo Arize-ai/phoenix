@@ -10,8 +10,6 @@ export const datasetEvaluatorDetailsLoaderGQL = graphql`
   query datasetEvaluatorDetailsLoaderQuery(
     $datasetId: ID!
     $datasetEvaluatorId: ID!
-    $timeRange: TimeRange
-    $orphanSpanAsRootSpan: Boolean!
   ) {
     dataset: node(id: $datasetId) {
       id
@@ -31,7 +29,6 @@ export const datasetEvaluatorDetailsLoaderGQL = graphql`
           }
           project {
             id
-            ...DatasetEvaluatorSpans_project
           }
           ...BuiltInDatasetEvaluatorDetails_datasetEvaluator
           ...CodeDatasetEvaluatorDetails_datasetEvaluator
@@ -70,13 +67,13 @@ export async function datasetEvaluatorDetailsLoader(
   const data = await fetchQuery<datasetEvaluatorDetailsLoaderQuery>(
     RelayEnvironment,
     datasetEvaluatorDetailsLoaderGQL,
-    { datasetId, datasetEvaluatorId: evaluatorId, orphanSpanAsRootSpan: true }
+    { datasetId, datasetEvaluatorId: evaluatorId }
   ).toPromise();
 
   const queryRef = loadQuery<datasetEvaluatorDetailsLoaderQuery>(
     RelayEnvironment,
     datasetEvaluatorDetailsLoaderGQL,
-    { datasetId, datasetEvaluatorId: evaluatorId, orphanSpanAsRootSpan: true }
+    { datasetId, datasetEvaluatorId: evaluatorId }
   );
 
   const evaluatorDisplayName = data?.dataset?.datasetEvaluator?.name ?? null;
