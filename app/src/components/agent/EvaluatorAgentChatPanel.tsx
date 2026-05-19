@@ -17,7 +17,7 @@ import { useAgentChatPanelState } from "./useAgentChatPanelState";
 /**
  * Agent chat panel embedded inside the code evaluator slideover.
  *
- * Claims `activePanelLocation = "evaluator"` while mounted so the Layout
+ * Claims `activePanelLocation = "drawer"` while mounted so the Layout
  * suppresses the docked panel. Released back to `"docked"` on unmount.
  *
  * The Frame (Separator + Panel) renders eagerly so the surrounding Group
@@ -29,7 +29,7 @@ import { useAgentChatPanelState } from "./useAgentChatPanelState";
 export function EvaluatorAgentChatPanel() {
   const isAgentsEnabled = useFeatureFlag("agents");
   const { isOpen } = useAgentChatPanelState();
-  useActiveChatPanelWhileMounted("evaluator");
+  useActiveChatPanelWhileMounted("drawer");
 
   if (!isAgentsEnabled || !isOpen) {
     return null;

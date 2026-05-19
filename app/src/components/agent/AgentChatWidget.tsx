@@ -18,7 +18,7 @@ const buttonCSS = css`
   right: 36px;
   border: none;
   cursor: pointer;
-  z-index: 1002;
+  z-index: 1000;
   background: transparent;
   padding: 0;
   display: flex;

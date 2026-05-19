@@ -29,14 +29,14 @@ export type AgentPosition = "detached" | "pinned";
 /**
  * Which surface currently hosts the agent chat panel.
  * - "docked": the resizable panel in the main layout
- * - "trace": the embedded panel inside a trace slideover
- * - "evaluator": the embedded panel inside a code evaluator slideover
+ * - "drawer": an embedded panel inside any drawer/slideover surface (e.g.
+ *   trace details, code evaluator editor)
  *
  * When a surface mounts it claims the active location; the Layout uses this
  * to decide whether to render the docked panel (only when no other surface
  * has claimed the location).
  */
-export type AgentPanelLocation = "docked" | "trace" | "evaluator";
+export type AgentPanelLocation = "docked" | "drawer";
 
 /** Server-provided PXI configuration exposed to the frontend. */
 export type AgentServerConfig = {
@@ -127,9 +127,9 @@ export interface AgentProps {
   position: AgentPosition;
   /**
    * Which surface currently hosts the agent chat panel.
-   * Defaults to "docked". Set to "trace" when a trace slideover mounts its
-   * own embedded chat panel, which suppresses the docked panel in Layout.
-   * This field is ephemeral and not persisted.
+   * Defaults to "docked". Set to "drawer" when a drawer/slideover surface
+   * mounts its own embedded chat panel, which suppresses the docked panel
+   * in Layout. This field is ephemeral and not persisted.
    */
   activePanelLocation: AgentPanelLocation;
   /** Ordered list of session IDs. */

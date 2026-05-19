@@ -14,13 +14,13 @@ import { useAgentChatPanelState } from "./useAgentChatPanelState";
 /**
  * Agent chat panel embedded inside the trace slideover.
  *
- * Claims `activePanelLocation = "trace"` while mounted so the Layout
+ * Claims `activePanelLocation = "drawer"` while mounted so the Layout
  * suppresses the docked panel. Released back to `"docked"` on unmount.
  */
 export function TraceAgentChatPanel() {
   const isAgentsEnabled = useFeatureFlag("agents");
   const { isOpen } = useAgentChatPanelState();
-  useActiveChatPanelWhileMounted("trace");
+  useActiveChatPanelWhileMounted("drawer");
 
   if (!isAgentsEnabled || !isOpen) {
     return null;
