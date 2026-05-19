@@ -13,3 +13,15 @@ The **Deno** sandbox runs TypeScript code in a `deno run` subprocess locked down
 </div>
 
 Configure it from [Settings → Sandboxes](/docs/phoenix/settings/sandboxes). Learn more about Deno's permission model at [deno.land](https://deno.land/).
+
+## Risks of running untrusted code
+
+Phoenix runs evaluator scripts through `deno run` with no `--allow-*` flags beyond a scoped `--allow-env` for the environment variables declared on the sandbox configuration. That removes filesystem, network, subprocess, and remote-module access — but it does **not** make running untrusted code safe in general. Deno itself calls this out in [Executing untrusted code](https://docs.deno.com/runtime/fundamentals/security/#executing-untrusted-code): permission flags reduce blast radius, they don't eliminate it.
+
+Specifically:
+
+- **Declared environment variables are readable by the script.** Anything you expose through the configuration's env vars (including values resolved from secret references) can be read by `Deno.env.get` and exfiltrated through whatever side channels the script has — including its return value or thrown errors. Only put credentials in the sandbox env that the evaluator legitimately needs.
+- **The sandbox shares the Phoenix host's CPU and memory.** A pathological script can still consume resources up to the configured timeout. Keep timeouts tight for evaluators that run on untrusted inputs.
+- **Deno's permission model is the security boundary.** Phoenix relies on the upstream `deno` binary enforcing `--no-prompt --no-config --no-remote --no-npm` and the absence of `--allow-read`, `--allow-write`, `--allow-net`, `--allow-run`, etc. A bug or misconfiguration in `deno` itself would weaken that boundary.
+
+If you are not comfortable with this trust model — for example, you need to run code from sources you don't control and cannot accept the residual risks above — **do not use the Deno sandbox**. Use a [hosted sandbox](/docs/phoenix/settings/sandboxes#hosted-sandboxes) (E2B, Daytona, Vercel, Modal) instead, which executes the code on a remote VM or micro-VM isolated from the Phoenix host.
