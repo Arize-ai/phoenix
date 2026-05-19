@@ -23,6 +23,7 @@ from phoenix.db.types.model_provider import (
     OpenAICustomProviderConfig,
 )
 from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.helpers.headers import clean_headers
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.types.RedactedString import RedactedString
 
@@ -47,7 +48,7 @@ class OpenAIClientKwargsInput:
             base_url=self.base_url or None,
             organization=self.organization or None,
             project=self.project or None,
-            default_headers=self.default_headers or None,
+            default_headers=clean_headers(self.default_headers),
         )
 
 
@@ -122,7 +123,7 @@ class AzureOpenAIClientKwargsInput:
     def to_orm(self) -> AzureOpenAIClientKwargs:
         return AzureOpenAIClientKwargs(
             azure_endpoint=self.azure_endpoint,
-            default_headers=self.default_headers or None,
+            default_headers=clean_headers(self.default_headers),
         )
 
 
@@ -160,7 +161,7 @@ class AnthropicClientKwargsInput:
     def to_orm(self) -> AnthropicClientKwargs:
         return AnthropicClientKwargs(
             base_url=self.base_url or None,
-            default_headers=self.default_headers or None,
+            default_headers=clean_headers(self.default_headers),
         )
 
 
@@ -193,7 +194,7 @@ class GoogleGenAIHttpOptionsInput:
     def to_orm(self) -> GoogleGenAIHttpOptions:
         return GoogleGenAIHttpOptions(
             base_url=self.base_url or None,
-            headers=self.headers or None,
+            headers=clean_headers(self.headers),
         )
 
 

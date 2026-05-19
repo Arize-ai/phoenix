@@ -342,7 +342,10 @@ class GenerativeModelCustomProviderMutationMixin:
         Uses models.list() where available, or a dummy model name where
         non-auth errors indicate valid credentials.
         """
-        config = input.to_orm()
+        try:
+            config = input.to_orm()
+        except ValidationError as e:
+            raise BadRequest(f"Invalid client config: {e}") from e
 
         if config.root.type == "openai":
             try:
