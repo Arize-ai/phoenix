@@ -423,6 +423,94 @@ function getStatusVariant(
   }
 }
 
+/**
+ * Returns a string field from arbitrary tool input records, or an empty string
+ * when the field is absent or not textual.
+ */
+function getStringField(
+  record: Record<string, unknown>,
+  field: string
+): string {
+  const value = record[field];
+  return typeof value === "string" ? value : "";
+}
+
+/**
+ * Returns the first non-empty string from a list of possible field names.
+ */
+function getFirstStringField(
+  record: Record<string, unknown>,
+  fields: string[]
+): string {
+  for (const field of fields) {
+    const value = getStringField(record, field);
+    if (value) {
+      return value;
+    }
+  }
+  return "";
+}
+
+/**
+ * Formats native web-search action types for display in the collapsed tool row.
+ */
+function formatNativeWebSearchType(type: string): string {
+  return type
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+/**
+ * Derives a compact preview for native web-search and web-fetch tool calls from
+ * provider-specific input shapes.
+ */
+function getNativeWebToolPreview(
+  toolName: string,
+  part: ToolInvocationPart
+): string {
+  const input = part.input;
+  if (typeof input === "string") {
+    return input;
+  }
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    return "";
+  }
+  const inputRecord = input as Record<string, unknown>;
+  if (toolName === "web_search") {
+    const type = getStringField(inputRecord, "type");
+    if (type && type !== "search") {
+      const value =
+        getFirstStringField(inputRecord, ["url", "uri", "href"]) ||
+        getFirstStringField(inputRecord, ["query", "q", "search_query"]);
+      const label = formatNativeWebSearchType(type);
+      return value ? `${label}: ${value}` : label;
+    }
+    const query = getFirstStringField(inputRecord, [
+      "query",
+      "q",
+      "search_query",
+    ]);
+    if (query) {
+      return query;
+    }
+    const queries = inputRecord.queries;
+    if (Array.isArray(queries)) {
+      return (
+        queries.find(
+          (value): value is string =>
+            typeof value === "string" && value.length > 0
+        ) ?? ""
+      );
+    }
+  }
+  if (toolName === "web_fetch") {
+    return getFirstStringField(inputRecord, ["url", "uri", "href"]);
+  }
+  return "";
+}
+
 function getToolPresentation(
   toolName: string,
   part: ToolInvocationPart
@@ -458,6 +546,37 @@ function getToolPresentation(
         statusVariant,
         details: <EditPromptToolDetails part={part} />,
       };
+    case "web_search":
+    case "web_fetch": {
+      const inputStr = JSON.stringify(part.input, null, 2);
+      const outputStr =
+        part.state === "output-available"
+          ? JSON.stringify(part.output, null, 2)
+          : "";
+      return {
+        preview: getNativeWebToolPreview(toolName, part),
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        details: (
+          <div className="tool-part__body">
+            <ToolPartLabel>Input</ToolPartLabel>
+            <ToolPartCodeBlock>{inputStr}</ToolPartCodeBlock>
+            {part.state === "output-available" ? (
+              <>
+                <ToolPartLabel>Output</ToolPartLabel>
+                <ToolPartCodeBlock>{outputStr}</ToolPartCodeBlock>
+              </>
+            ) : null}
+            {part.state === "output-error" ? (
+              <>
+                <ToolPartLabel variant="danger">Error</ToolPartLabel>
+                <ToolPartCodeBlock>{part.errorText ?? ""}</ToolPartCodeBlock>
+              </>
+            ) : null}
+          </div>
+        ),
+      };
+    }
     default: {
       if (isDocsToolName(toolName)) {
         return {

@@ -8,7 +8,7 @@ import {
 } from "@phoenix/agent/tools/playgroundPrompt";
 import { AgentProvider } from "@phoenix/contexts/AgentContext";
 
-import { ToolPart } from "../ToolPart";
+import { getToolPartPreview, ToolPart } from "../ToolPart";
 import { ToolPartGroup } from "../ToolPartGroup";
 import type { ToolInvocationPart } from "../toolPartTypes";
 
@@ -105,6 +105,53 @@ describe("tool disclosure controls", () => {
 
     click(summary);
     expect(details?.hasAttribute("open")).toBe(false);
+  });
+
+  it("previews native web search queries", () => {
+    expect(
+      getToolPartPreview(
+        createToolPart({
+          type: "dynamic-tool",
+          toolName: "web_search",
+          input: { query: "phoenix pxi web search" },
+        } as Partial<ToolInvocationPart>)
+      )
+    ).toBe("phoenix pxi web search");
+
+    expect(
+      getToolPartPreview(
+        createToolPart({
+          type: "dynamic-tool",
+          toolName: "web_search",
+          input: { queries: ["first query", "second query"] },
+        } as Partial<ToolInvocationPart>)
+      )
+    ).toBe("first query");
+
+    expect(
+      getToolPartPreview(
+        createToolPart({
+          type: "dynamic-tool",
+          toolName: "web_search",
+          input: {
+            type: "open_page",
+            url: "https://ai.google.dev/gemini-api/docs/models",
+          },
+        } as Partial<ToolInvocationPart>)
+      )
+    ).toBe("Open Page: https://ai.google.dev/gemini-api/docs/models");
+  });
+
+  it("previews native web fetch urls", () => {
+    expect(
+      getToolPartPreview(
+        createToolPart({
+          type: "dynamic-tool",
+          toolName: "web_fetch",
+          input: { url: "https://example.com/docs" },
+        } as Partial<ToolInvocationPart>)
+      )
+    ).toBe("https://example.com/docs");
   });
 
   it("allows manually collapsing and expanding an auto-open solo tool part", () => {
