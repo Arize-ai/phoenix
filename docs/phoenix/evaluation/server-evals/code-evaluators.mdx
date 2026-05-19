@@ -126,6 +126,10 @@ The available backends are:
 If your evaluator needs to install a package or call an external API, pick a hosted backend. The local runtimes are intentionally restricted.
 </Tip>
 
+The walkthrough below shows creating a Python code evaluator that runs on a Daytona sandbox — from picking the hosted backend through testing the evaluator against a dataset example.
+
+<video src="https://storage.googleapis.com/arize-phoenix-assets/assets/videos/sandboxes/code_evaluator_on_daytona.mp4" width="100%" height="100%" style={{ display: 'block', objectFit: 'fill', backgroundColor: 'transparent' }} controls autoPlay muted loop />
+
 ## Versioning
 
 Every time you save an evaluator's source, Phoenix creates a new **evaluator version** that executes for subsequent experiment runs. Older versions are retained so you can audit which code produced any historical score.
