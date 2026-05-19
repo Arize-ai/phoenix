@@ -69,6 +69,7 @@ def upgrade() -> None:
             _Integer,
             sa.ForeignKey("users.id", ondelete="SET NULL"),
             nullable=True,
+            index=True,
         ),
         sa.Column(
             "updated_at",
@@ -77,7 +78,6 @@ def upgrade() -> None:
             server_default=sa.func.now(),
         ),
     )
-    op.create_index("ix_sandbox_providers_user_id", "sandbox_providers", ["user_id"])
 
     op.create_table(
         "sandbox_configs",
@@ -85,10 +85,15 @@ def upgrade() -> None:
         sa.Column(
             "backend_type",
             sa.String,
-            sa.ForeignKey("sandbox_providers.backend_type", ondelete="CASCADE"),
+            sa.ForeignKey("sandbox_providers.backend_type", ondelete="RESTRICT"),
             nullable=False,
         ),
-        sa.Column("language", sa.String, nullable=False),
+        sa.Column(
+            "language",
+            sa.String,
+            sa.ForeignKey("languages.name", ondelete="RESTRICT"),
+            nullable=False,
+        ),
         sa.Column("name", sa.String, nullable=False),
         sa.Column("description", sa.String, nullable=True),
         sa.Column("config", JSON_, nullable=False, server_default="{}"),
@@ -111,11 +116,11 @@ def upgrade() -> None:
             _Integer,
             sa.ForeignKey("users.id", ondelete="SET NULL"),
             nullable=True,
+            index=True,
         ),
         sa.UniqueConstraint("backend_type", "name"),
-        sa.UniqueConstraint("language", "id"),
+        sa.UniqueConstraint("language", "id"),  # needed for the composite FK
     )
-    op.create_index("ix_sandbox_configs_user_id", "sandbox_configs", ["user_id"])
 
     # code_evaluators: ADD COLUMN to a pre-existing table requires batch_alter_table on SQLite.
     # The composite FK fk_code_evaluators_sandbox_config_language is named explicitly because
@@ -132,7 +137,7 @@ def upgrade() -> None:
                 sa.String,
                 sa.ForeignKey("languages.name", ondelete="RESTRICT"),
                 nullable=False,
-                server_default="PYTHON",
+                server_default="PYTHON",  # removed below
             )
         )
         batch_op.add_column(
@@ -180,6 +185,7 @@ def upgrade() -> None:
             _Integer,
             sa.ForeignKey("users.id", ondelete="SET NULL"),
             nullable=True,
+            index=True,
         ),
         sa.Column("source_code", sa.String, nullable=False, server_default=""),
         sa.Column(
@@ -194,11 +200,6 @@ def upgrade() -> None:
         "ix_code_evaluator_code_versions_code_evaluator_id_id",
         "code_evaluator_code_versions",
         ["code_evaluator_id", "id"],
-    )
-    op.create_index(
-        "ix_code_evaluator_code_versions_user_id",
-        "code_evaluator_code_versions",
-        ["user_id"],
     )
 
 

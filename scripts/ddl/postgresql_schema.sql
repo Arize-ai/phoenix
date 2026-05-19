@@ -1422,7 +1422,11 @@ CREATE TABLE public.sandbox_configs (
         FOREIGN KEY
         (backend_type)
         REFERENCES public.sandbox_providers (backend_type)
-        ON DELETE CASCADE,
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_sandbox_configs_language_languages FOREIGN KEY
+        (language)
+        REFERENCES public.languages (name)
+        ON DELETE RESTRICT,
     CONSTRAINT fk_sandbox_configs_user_id_users FOREIGN KEY
         (user_id)
         REFERENCES public.users (id)
