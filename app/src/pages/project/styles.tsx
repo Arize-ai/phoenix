@@ -4,6 +4,8 @@ export const spansTableCSS = css`
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
   .span-filter-condition-field {
     flex: 1 1 auto;
