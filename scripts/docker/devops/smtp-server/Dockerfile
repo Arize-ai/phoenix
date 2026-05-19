@@ -11,8 +11,7 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml* ./
 COPY ui/package.json ./ui/
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN pnpm install
 
 # Install UI dependencies
 RUN cd ui && pnpm install

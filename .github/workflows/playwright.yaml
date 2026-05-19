@@ -114,9 +114,19 @@ jobs:
           deno-version: v2.1.4
       - name: Pre-download CPython WASM binary
         working-directory: ${{ github.workspace }}
+        # URL/filename/sha256 MUST stay in sync with
+        # src/phoenix/server/sandbox/_download.py (_WASM_URL /
+        # _WASM_FILENAME / _WASM_SHA256). The sha256 assertion guards
+        # against upstream release-asset tampering.
         run: |
           mkdir -p .cache/wasm
-          python -c "import urllib.request; urllib.request.urlretrieve('https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm', '.cache/wasm/python-3.12.0.wasm')"
+          python -c "import hashlib, sys, urllib.request; \
+          url = 'https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm'; \
+          dest = '.cache/wasm/python-3.12.0.wasm'; \
+          expected = 'e5dc5a398b07b54ea8fdb503bf68fb583d533f10ec3f930963e02b9505f7a763'; \
+          urllib.request.urlretrieve(url, dest); \
+          actual = hashlib.sha256(open(dest, 'rb').read()).hexdigest(); \
+          (actual == expected) or sys.exit(f'SHA-256 mismatch for {dest}: expected {expected}, got {actual}')"
           echo "PHOENIX_WASM_BINARY_PATH=${{ github.workspace }}/.cache/wasm/python-3.12.0.wasm" >> "$GITHUB_ENV"
       - name: Run Playwright tests
         run: pnpm test:e2e

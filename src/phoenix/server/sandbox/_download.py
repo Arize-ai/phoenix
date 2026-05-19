@@ -45,7 +45,7 @@ _WASM_URL = f"{_WASM_RELEASE_BASE}/{_WASM_FILENAME}"
 
 # SHA-256 of the official release binary (for integrity check).
 # Set to empty string to skip verification (e.g. during development).
-_WASM_SHA256 = ""
+_WASM_SHA256 = "e5dc5a398b07b54ea8fdb503bf68fb583d533f10ec3f930963e02b9505f7a763"
 
 _DEFAULT_CACHE_DIR = Path.home() / ".cache" / "phoenix" / "wasm"
 
