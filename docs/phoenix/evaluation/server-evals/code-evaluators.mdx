@@ -105,6 +105,7 @@ The function returns an object with three optional fields:
 An evaluator's annotation config is descriptive — it tells Phoenix how to interpret whatever your function returns, not what shape it must produce.
 
 - **Optimization direction** — `maximize` or `minimize`, used to render trends correctly in experiment comparisons.
+- **Lower / upper bound** *(optional)* — The expected numeric range for scores. Used to normalize values for visualization.
 - **Threshold** *(optional)* — A numeric cutoff that splits scores into pass/fail for threshold-pivoted coloring in result views. Leave it unset if pass/fail isn't meaningful for your metric.
 
 ## Sandbox Runtimes
