@@ -1,5 +1,18 @@
 # Changelog
 
+## [15.10.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.10.0...arize-phoenix-v15.10.1) (2026-05-18)
+
+
+### Bug Fixes
+
+* **agents:** persist agent turn as a root span ([#13282](https://github.com/Arize-ai/phoenix/issues/13282)) ([3e64b24](https://github.com/Arize-ai/phoenix/commit/3e64b24ea21b356ac370e197fed755878ebcc6d2))
+* **app:** hide zero PXI cache write usage ([#13289](https://github.com/Arize-ai/phoenix/issues/13289)) ([7e4a0b1](https://github.com/Arize-ai/phoenix/commit/7e4a0b1cdfd7581602b53423e8371ab256e76d87))
+
+
+### Documentation
+
+* remove dead nav entries from docs.json ([#13286](https://github.com/Arize-ai/phoenix/issues/13286)) ([91c0e19](https://github.com/Arize-ai/phoenix/commit/91c0e19d9f9bb16f29aad1b9a0bf720635cd5b39))
+
 ## [15.10.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.9.0...arize-phoenix-v15.10.0) (2026-05-15)
 
 
