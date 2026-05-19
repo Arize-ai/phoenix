@@ -11,9 +11,10 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from enum import Enum
-from typing import Annotated, Any, Optional, Union
+from typing import TYPE_CHECKING, Annotated, Any, Optional, Union
 
 import strawberry
+from strawberry import lazy
 from strawberry.relay import Node, NodeID
 from strawberry.types import Info
 
@@ -38,6 +39,9 @@ from phoenix.server.sandbox.types import (
 )
 
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from .User import User
 
 
 @strawberry.type
@@ -299,6 +303,20 @@ class SandboxProvider(Node):
         rows = await info.context.data_loaders.sandbox_configs_by_provider.load(self.id)
         return [SandboxConfig(id=row.id, db_record=row) for row in rows]
 
+    @strawberry.field
+    async def updated_at(self, info: Info[Context, None]) -> datetime:
+        record = await self._get_record(info)
+        return record.updated_at
+
+    @strawberry.field
+    async def user(self, info: Info[Context, None]) -> Annotated["User", lazy(".User")] | None:
+        record = await self._get_record(info)
+        if record.user_id is None:
+            return None
+        from .User import User
+
+        return User(id=record.user_id)
+
     async def _get_record(self, info: Info[Context, None]) -> models.SandboxProvider:
         if self.db_record is not None:
             return self.db_record
@@ -402,6 +420,15 @@ class SandboxConfig(Node):
     async def updated_at(self, info: Info[Context, None]) -> datetime:
         record = await self._get_record(info)
         return record.updated_at
+
+    @strawberry.field
+    async def user(self, info: Info[Context, None]) -> Annotated["User", lazy(".User")] | None:
+        record = await self._get_record(info)
+        if record.user_id is None:
+            return None
+        from .User import User
+
+        return User(id=record.user_id)
 
     async def _get_record(self, info: Info[Context, None]) -> models.SandboxConfig:
         if self.db_record is not None:

@@ -64,7 +64,20 @@ def upgrade() -> None:
         sa.Column("backend_type", sa.String, primary_key=True),
         sa.Column("enabled", sa.Boolean, nullable=False),
         sa.Column("config", JSON_, nullable=False, server_default="{}"),
+        sa.Column(
+            "user_id",
+            _Integer,
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.TIMESTAMP(timezone=True),
+            nullable=False,
+            server_default=sa.func.now(),
+        ),
     )
+    op.create_index("ix_sandbox_providers_user_id", "sandbox_providers", ["user_id"])
 
     op.create_table(
         "sandbox_configs",
@@ -93,9 +106,16 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.func.now(),
         ),
+        sa.Column(
+            "user_id",
+            _Integer,
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
         sa.UniqueConstraint("backend_type", "name"),
         sa.UniqueConstraint("language", "id"),
     )
+    op.create_index("ix_sandbox_configs_user_id", "sandbox_configs", ["user_id"])
 
     # code_evaluators: ADD COLUMN to a pre-existing table requires batch_alter_table on SQLite.
     # The composite FK fk_code_evaluators_sandbox_config_language is named explicitly because

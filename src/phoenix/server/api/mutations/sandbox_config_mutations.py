@@ -458,6 +458,7 @@ class SandboxConfigMutationMixin:
             row = input.to_orm()
         except (ValueError, ValidationError, UnsupportedOperation) as exc:
             raise BadRequest(str(exc))
+        row.user_id = info.context.user_id
         try:
             async with info.context.db() as session:
                 session.add(row)
@@ -514,6 +515,7 @@ class SandboxConfigMutationMixin:
                     row.timeout = input.timeout
                 if isinstance(input.enabled, bool):
                     row.enabled = input.enabled
+                row.user_id = info.context.user_id
         except (PostgreSQLIntegrityError, SQLiteIntegrityError):
             raise Conflict("A sandbox config with that name already exists for this provider")
 
@@ -578,6 +580,8 @@ class SandboxConfigMutationMixin:
                             "match the provider being updated."
                         )
                     row.config = validated.model_dump(mode="json", exclude_none=True)
+
+            row.user_id = info.context.user_id
 
         return UpdateSandboxProviderPayload(
             sandbox_provider=SandboxProvider(id=row.backend_type, db_record=row),

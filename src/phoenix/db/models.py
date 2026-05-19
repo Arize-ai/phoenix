@@ -2763,6 +2763,15 @@ class SandboxProvider(Base):
     backend_type: Mapped[SandboxBackendType] = mapped_column(String, primary_key=True)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False)
     config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, server_default="{}")
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    user: Mapped[Optional["User"]] = relationship("User")
 
 
 class SandboxConfig(HasId):
@@ -2780,6 +2789,12 @@ class SandboxConfig(HasId):
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    user: Mapped[Optional["User"]] = relationship("User")
     __table_args__ = (
         UniqueConstraint("backend_type", "name"),
         UniqueConstraint("language", "id"),
