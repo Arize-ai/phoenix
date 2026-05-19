@@ -6,7 +6,13 @@ description: "Poll multiple LLMs as judges and combine their verdicts with a wei
 
 An **LLM jury** runs the same judgment through several LLMs — typically from different providers — and combines their verdicts. Each juror has a trust weight, the final score is the weighted average of the per-juror scores, and the per-juror labels (plus any errors) land in the `explanation` so you can audit who voted what.
 
-Reach for this when:
+The example below is **reference-free**: the jurors score the answer against the question alone, with no ground-truth label to compare against. This is the right pattern when you don't have labeled data — production traces, open-ended generation, or any task where the "correct" answer isn't a fixed string you can store in a dataset.
+
+<Info>
+**Reference-free vs. reference-based.** An evaluator is *reference-based* when it compares the output to a known-good answer stored alongside the example — that label is what makes a dataset a **golden dataset**, and metrics like [JSON Distance](/docs/phoenix/evaluation/server-evals/code-evaluators/json-distance) or the [Pairwise Evaluator](/docs/phoenix/evaluation/server-evals/code-evaluators/pairwise) rely on it. *Reference-free* evaluators skip that comparison and judge the output against the input alone (or against rubric criteria), which is what you have to do when no golden answer exists. To convert this example to reference-based, change the prompt to compare `output` against `reference` and bind the `reference` parameter in the input-mapping panel.
+</Info>
+
+Reach for an LLM jury when:
 
 - One judge's biases or self-preference are skewing your scores and you want a more robust verdict.
 - The output is high-stakes and the extra cost of N model calls is worth a more reliable score.
@@ -16,7 +22,7 @@ The implementation uses `arize-phoenix-evals` / `@arizeai/phoenix-evals` to put 
 
 ```mermaid
 flowchart LR
-    Inputs["output<br/>reference"]
+    Inputs["input<br/>output"]
     subgraph jury [Jury]
         direction TB
         J1["Juror A<br/>weight 1.0"]
@@ -45,8 +51,8 @@ Every juror sees the same prompt; their verdicts and weights combine into one sc
 from phoenix.evals import LLM, ClassificationEvaluator
 
 _PROMPT = (
-    "Is the answer factually correct given the reference?\n\n"
-    "Reference: {reference}\n\nAnswer: {output}"
+    "Does the answer correctly and completely address the question?\n\n"
+    "Question: {input}\n\nAnswer: {output}"
 )
 _CHOICES = {"correct": 1.0, "partially_correct": 0.5, "incorrect": 0.0}
 
@@ -72,15 +78,15 @@ _EVALUATORS = [
 ]
 
 
-def evaluate(output, reference):
-    if not output or not reference:
+def evaluate(output, input):
+    if not output or not input:
         return {
             "label": "missing",
             "score": 0.0,
-            "explanation": "Missing output or reference.",
+            "explanation": "Missing input or output.",
         }
 
-    inputs = {"output": str(output), "reference": str(reference)}
+    inputs = {"input": str(input), "output": str(output)}
     weighted_sum = 0.0
     weight_total = 0.0
     parts = []
@@ -133,13 +139,13 @@ import {
 } from "@arizeai/phoenix-evals";
 
 const PROMPT =
-  "Is the answer factually correct given the reference?\n\n" +
-  "Reference: {{ reference }}\n\nAnswer: {{ output }}";
+  "Does the answer correctly and completely address the question?\n\n" +
+  "Question: {{ input }}\n\nAnswer: {{ output }}";
 const CHOICES = { correct: 1, partially_correct: 0.5, incorrect: 0 };
 
 // Each juror: an evaluator + a trust weight.
 const JURORS: Array<{
-  evaluator: ClassificationEvaluator<{ output: string; reference: string }>;
+  evaluator: ClassificationEvaluator<{ input: string; output: string }>;
   weight: number;
   name: string;
 }> = [
@@ -175,16 +181,16 @@ const JURORS: Array<{
   },
 ];
 
-async function evaluate({ output, reference }: EvaluatorParams) {
-  if (!output || !reference) {
+async function evaluate({ output, input }: EvaluatorParams) {
+  if (!output || !input) {
     return {
       label: "missing",
       score: 0,
-      explanation: "Missing output or reference.",
+      explanation: "Missing input or output.",
     };
   }
 
-  const inputs = { output: String(output), reference: String(reference) };
+  const inputs = { input: String(input), output: String(output) };
 
   // Fan out to all jurors in parallel — independent API calls.
   const settled = await Promise.allSettled(
@@ -243,8 +249,10 @@ ai
 
 | Parameter | Bind to |
 |-----------|---------|
+| `input` | The question (or prompt/task) the model was asked to answer, usually `input`. |
 | `output` | The model output to grade, usually `output`. |
-| `reference` | The ground-truth answer the jurors compare against, usually `reference`. |
+
+No `reference` is required — this is a reference-free judgment. If you do have labeled data and want to use it, add a `reference` parameter to the function signature, update the prompt to incorporate it, and bind it in the input-mapping panel.
 
 ## Output configuration
 
