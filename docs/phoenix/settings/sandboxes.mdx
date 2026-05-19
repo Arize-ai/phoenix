@@ -1,13 +1,13 @@
 ---
 title: "Sandboxes"
-description: "Configure the sandbox runtimes that execute code evaluators and other server-side code workloads."
+description: "Configure the sandbox backends that execute code evaluators and other server-side code workloads."
 ---
 
 ![Sandboxes](https://storage.googleapis.com/arize-phoenix-assets/assets/images/sandboxes_banner.png)
 
 A **sandbox** is an isolated runtime that executes a snippet of code on demand. It's fast enough to run on every evaluation, but locked down enough that the code can't read the host filesystem, exfiltrate secrets, or make arbitrary network calls. Phoenix uses sandboxes to run [code evaluators](/docs/phoenix/evaluation/server-evals/code-evaluators) — an author writes a Python or TypeScript function and Phoenix runs it server-side without exposing the rest of your deployment.
 
-The **Settings → Sandboxes** page is where an administrator picks which sandbox runtimes are available and bundles them into reusable configurations that evaluator authors choose from. It has two cards:
+The **Settings → Sandboxes** page is where an administrator picks which sandbox backends are available and bundles them into reusable configurations that evaluator authors choose from. It has two cards:
 
 - **Sandbox Providers** — One row per backend. Set credentials, enable a provider, see runtime status.
 - **Sandbox Configurations** — Reusable named configs (timeout, environment variables, internet access, dependencies) that evaluators select from.
@@ -19,6 +19,31 @@ Only users with the **Admin** role can view or edit this page. Non-admin users a
 ## Local vs. hosted sandboxes
 
 Phoenix supports two flavors of sandbox, distinguished by where the code actually runs. The **hosting type** badge on each provider row tells you which kind you're looking at.
+
+```mermaid
+flowchart LR
+    subgraph phoenixHost ["Phoenix Machine"]
+        Server[Phoenix Server]
+        subgraph localBox ["Local Sandbox"]
+            WASM[WebAssembly]
+            Deno[Deno]
+        end
+        Server --> localBox
+    end
+
+    subgraph provider ["Hosted Provider — E2B / Daytona / Vercel / Modal"]
+        subgraph hostedBox ["Sandbox"]
+            Libs[Third-party libraries]
+            Net[Outbound internet]
+        end
+    end
+
+    Server -. HTTPS .-> hostedBox
+```
+
+<Info>
+**Local sandboxes** run on the Phoenix machine itself — fully isolated, no credentials needed, but they share the Phoenix process's CPU and memory and can't reach the internet or install packages. **Hosted sandboxes** run on a remote machine operated by a third-party provider, so they support third-party libraries, outbound web access, and isolation from Phoenix's own resources — at the cost of per-call network latency and provider credentials.
+</Info>
 
 <AccordionGroup>
   <Accordion title="Local sandboxes" icon="server">
@@ -54,7 +79,7 @@ Phoenix supports two flavors of sandbox, distinguished by where the code actuall
   </Accordion>
 </AccordionGroup>
 
-A common pattern is to enable a local sandbox for the everyday case (pure-logic checks, regex, JSON diffs) and one hosted sandbox for the cases that need extra horsepower (dependencies, network calls, longer runtimes). See [Sandbox Runtimes](/docs/phoenix/self-hosting/features/sandbox-runtimes) for the full capability matrix and self-hosting setup.
+A common pattern is to enable a local sandbox for the everyday case (pure-logic checks, regex, JSON diffs) and one hosted sandbox for the cases that need extra horsepower (dependencies, network calls, longer runtimes). See [Sandbox Backends](/docs/phoenix/self-hosting/features/sandbox-runtimes) for the full capability matrix and self-hosting setup.
 
 ## Sandbox Providers
 
