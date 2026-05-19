@@ -11,7 +11,9 @@ import type { ErrorBoundaryFallbackProps } from "./types";
  * To be used in small UI components where you don't want to destroy the layout.
  * Hover to see the underlying error message.
  */
-export function TextErrorBoundaryFallback({ error }: ErrorBoundaryFallbackProps) {
+export function TextErrorBoundaryFallback({
+  error,
+}: ErrorBoundaryFallbackProps) {
   const content = (
     <div
       css={css`
