@@ -102,12 +102,10 @@ The function returns an object with three optional fields:
 
 ### Output configuration
 
-Each evaluator declares one of two **output shapes**:
+An evaluator's output config is descriptive — it tells Phoenix how to interpret whatever your function returns, not what shape it must produce.
 
-- **Continuous score** — A numeric value within a configurable range (default `0.0`–`1.0`). Use for similarity scores, distances, or any graded metric.
-- **Categorical label** — A fixed set of labels, each mapped to a numeric score. The label your function returns must be one of the configured values.
-
-You also pick an **optimization direction** (maximize vs. minimize) so Phoenix can render trends correctly in experiment comparisons.
+- **Optimization direction** — `maximize` or `minimize`, used to render trends correctly in experiment comparisons.
+- **Threshold** *(optional)* — A numeric cutoff that splits scores into pass/fail for threshold-pivoted coloring in result views. Leave it unset if pass/fail isn't meaningful for your metric.
 
 ## Sandbox Runtimes
 
