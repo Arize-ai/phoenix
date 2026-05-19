@@ -57,14 +57,23 @@ RUN uv pip install dist/*.whl --no-deps
 
 # Pre-download the CPython WASM binary so the WASM sandbox provider works
 # inside the distroless final image without network egress or a writable
-# home cache. The URL/filename here MUST stay in sync with
-# src/phoenix/server/sandbox/_download.py (_WASM_URL / _WASM_FILENAME);
-# the env var PHOENIX_WASM_BINARY_PATH (set in the final stage) is the
-# authoritative resolver hook consumed by ensure_wasm_binary(). Uses
-# python (already present in the uv builder image) instead of curl/wget
-# so we don't add an apt-get install layer.
+# home cache. The URL/filename/sha256 here MUST stay in sync with
+# src/phoenix/server/sandbox/_download.py (_WASM_URL / _WASM_FILENAME /
+# _WASM_SHA256); the env var PHOENIX_WASM_BINARY_PATH (set in the final
+# stage) is the authoritative resolver hook consumed by
+# ensure_wasm_binary(). The sha256 assertion guards against upstream
+# release-asset tampering — TLS alone is not enough for a binary that
+# executes user code in the sandbox. Uses python (already present in
+# the uv builder image) instead of curl/wget so we don't add an apt-get
+# install layer.
 RUN mkdir -p /wasm \
-  && python -c "import urllib.request; urllib.request.urlretrieve('https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm', '/wasm/python-3.12.0.wasm')"
+  && python -c "import hashlib, sys, urllib.request; \
+url = 'https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm'; \
+dest = '/wasm/python-3.12.0.wasm'; \
+expected = 'e5dc5a398b07b54ea8fdb503bf68fb583d533f10ec3f930963e02b9505f7a763'; \
+urllib.request.urlretrieve(url, dest); \
+actual = hashlib.sha256(open(dest, 'rb').read()).hexdigest(); \
+(actual == expected) or sys.exit(f'SHA-256 mismatch for {dest}: expected {expected}, got {actual}')"
 
 # Bundle the Deno runtime so the local DENO sandbox provider works inside
 # the distroless image. denoland/deno:bin-<version> is a scratch-based
