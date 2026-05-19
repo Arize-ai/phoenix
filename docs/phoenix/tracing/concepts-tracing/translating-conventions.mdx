@@ -311,6 +311,85 @@ View on npm
   </Step>
 </Steps>
 
+## View OpenTelemetry GenAI Traces from Go in Phoenix
+
+There is no Go equivalent of `@arizeai/openinference-genai` today, so the Go flow does not convert GenAI attributes to OpenInference in-process. Instead, emit GenAI-convention spans directly with the standard OpenTelemetry Go SDK; Phoenix ingests them as-is.
+
+<Info>
+Spans emitted this way do not carry `openinference.span.kind` or structured `llm.input_messages.*` / `llm.output_messages.*` indexing. They appear in Phoenix and remain queryable by `gen_ai.*` attributes, but Phoenix UI features that key off OpenInference attributes will be reduced. For Go SDKs with dedicated OpenInference instrumentation (OpenAI, Anthropic), prefer those instead.
+</Info>
+
+<Steps>
+  <Step title={<span className="step-title">Install Required Packages</span>}>
+    ```bash
+    go get go.opentelemetry.io/otel
+    go get go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp
+    go get go.opentelemetry.io/otel/sdk
+    go get go.opentelemetry.io/otel/semconv/v1.32.0
+    ```
+  </Step>
+  <Step title={<span className="step-title">Configure the Tracer Provider</span>}>
+    Point an OTLP/HTTP exporter at Phoenix. For Phoenix Cloud, set `PHOENIX_COLLECTOR_ENDPOINT` and `PHOENIX_API_KEY`.
+
+    ```go
+    import (
+        "context"
+
+        "go.opentelemetry.io/otel"
+        "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+        "go.opentelemetry.io/otel/sdk/resource"
+        sdktrace "go.opentelemetry.io/otel/sdk/trace"
+        semconv "go.opentelemetry.io/otel/semconv/v1.32.0"
+    )
+
+    exporter, _ := otlptracehttp.New(ctx,
+        otlptracehttp.WithEndpoint("localhost:6006"),
+        otlptracehttp.WithURLPath("/v1/traces"),
+        otlptracehttp.WithInsecure(),
+    )
+    res, _ := resource.New(ctx, resource.WithAttributes(
+        semconv.ServiceName("my-go-app"),
+    ))
+    tp := sdktrace.NewTracerProvider(
+        sdktrace.WithBatcher(exporter),
+        sdktrace.WithResource(res),
+    )
+    otel.SetTracerProvider(tp)
+    ```
+  </Step>
+  <Step title={<span className="step-title">Emit a GenAI-Convention Span</span>}>
+    Wrap each LLM call in a span and set the canonical `gen_ai.*` attributes from `go.opentelemetry.io/otel/semconv/v1.32.0`.
+
+    ```go
+    import (
+        "go.opentelemetry.io/otel"
+        semconv "go.opentelemetry.io/otel/semconv/v1.32.0"
+        "go.opentelemetry.io/otel/trace"
+    )
+
+    tracer := otel.Tracer("my-go-app")
+    ctx, span := tracer.Start(ctx, "llm.generate",
+        trace.WithAttributes(
+            semconv.GenAISystemKey.String("gemini"),
+            semconv.GenAIOperationNameKey.String("chat"),
+            semconv.GenAIRequestModelKey.String("gemini-2.0-flash"),
+        ),
+    )
+    defer span.End()
+
+    // ... make the LLM call ...
+
+    span.SetAttributes(
+        semconv.GenAIResponseModelKey.String("gemini-2.0-flash"),
+        semconv.GenAIUsageInputTokensKey.Int(promptTokens),
+        semconv.GenAIUsageOutputTokensKey.Int(completionTokens),
+    )
+    ```
+
+    For a worked end-to-end example using `google.golang.org/genai`, see [Gemini Go SDK](/docs/phoenix/integrations/llm-providers/google-gen-ai/gemini-go-sdk).
+  </Step>
+</Steps>
+
 ## Learn More
 
 - [OpenInference Semantic Conventions](https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md)
