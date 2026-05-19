@@ -164,7 +164,9 @@ function DatasetEvaluatorDetailsPageContent({
           </LazyTabPanel>
         )}
         <LazyTabPanel id="spans">
-          <DatasetEvaluatorSpans projectId={datasetEvaluator.project.id} />
+          <Suspense fallback={<Loading />}>
+            <DatasetEvaluatorSpans projectId={datasetEvaluator.project.id} />
+          </Suspense>
         </LazyTabPanel>
       </Tabs>
       {isLLMEvaluator && (

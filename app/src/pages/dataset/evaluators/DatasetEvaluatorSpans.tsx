@@ -1,7 +1,6 @@
-import { Suspense, useMemo } from "react";
+import { useMemo } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
-import { Loading } from "@phoenix/components";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { ProjectProvider } from "@phoenix/contexts/ProjectContext";
 import { StreamStateProvider } from "@phoenix/contexts/StreamStateContext";
@@ -11,22 +10,6 @@ import { SpanFiltersProvider } from "@phoenix/pages/project/SpanFiltersContext";
 import { SpansTable } from "@phoenix/pages/project/SpansTable";
 
 export function DatasetEvaluatorSpans({ projectId }: { projectId: string }) {
-  return (
-    <ProjectProvider projectId={projectId}>
-      <StreamStateProvider>
-        <TracingProvider projectId={projectId} tableId="spans">
-          <SpanFiltersProvider>
-            <Suspense fallback={<Loading />}>
-              <DatasetEvaluatorSpansContent projectId={projectId} />
-            </Suspense>
-          </SpanFiltersProvider>
-        </TracingProvider>
-      </StreamStateProvider>
-    </ProjectProvider>
-  );
-}
-
-function DatasetEvaluatorSpansContent({ projectId }: { projectId: string }) {
   const { timeRange } = useTimeRange();
   const timeRangeVariable = useMemo(
     () => ({
@@ -59,5 +42,15 @@ function DatasetEvaluatorSpansContent({ projectId }: { projectId: string }) {
       fetchKey: `${projectId}-${timeRangeVariable.start}-${timeRangeVariable.end}`,
     }
   );
-  return <SpansTable project={data.project} />;
+  return (
+    <ProjectProvider projectId={projectId}>
+      <StreamStateProvider>
+        <TracingProvider projectId={projectId} tableId="spans">
+          <SpanFiltersProvider>
+            <SpansTable project={data.project} />
+          </SpanFiltersProvider>
+        </TracingProvider>
+      </StreamStateProvider>
+    </ProjectProvider>
+  );
 }
