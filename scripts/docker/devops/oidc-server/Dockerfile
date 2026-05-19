@@ -7,9 +7,12 @@ RUN corepack enable
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json pnpm-lock.yaml ./
-COPY frontend/package*.json ./frontend/
+# Copy package files. ``pnpm-lock.yaml*`` (with trailing glob) tolerates the
+# lockfile being absent — lock files under ``scripts/docker/devops/`` are
+# untracked per the SBOM-scanner directive, and pnpm install falls back to a
+# fresh resolve when no lockfile is present.
+COPY package*.json pnpm-lock.yaml* ./
+COPY frontend/package*.json frontend/pnpm-lock.yaml* ./frontend/
 
 # Install dependencies
 RUN pnpm install
