@@ -10,7 +10,18 @@ from phoenix.server.agents.capabilities.skills import (
     SkillsToolset,
 )
 
-_TEMPLATE = Template("Available skills:\n{{ skills_list }}")
+_TEMPLATE = Template(
+    "Available skills:\n"
+    "{%- for skill in skills | sort(attribute='name') %}\n"
+    "<skill>\n"
+    "<name>{{ skill.name }}</name>\n"
+    "<description>{{ skill.description }}</description>\n"
+    "{%- if skill.uri %}\n"
+    "<uri>{{ skill.uri }}</uri>\n"
+    "{%- endif %}\n"
+    "</skill>\n"
+    "{%- endfor %}"
+)
 
 
 def test_skills_capability_get_toolset() -> None:
@@ -22,11 +33,11 @@ def test_skills_capability_get_toolset() -> None:
 
 
 def test_get_static_instructions_renders_empty_skills_list() -> None:
-    """With no skills, the rendered string still substitutes `{skills_list}` (with empty content)."""
+    """With no skills, the rendered string still contains the leading header (no skill blocks)."""
     toolset = SkillsToolset(skills=[])
     capability = SkillsCapability(toolset=toolset, instructions=_TEMPLATE)
 
-    assert capability.get_static_instructions() == "Available skills:\n"
+    assert capability.get_static_instructions() == "Available skills:"
 
 
 def test_get_static_instructions_renders_skills_xml() -> None:
