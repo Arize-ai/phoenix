@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from jinja2 import Template
 from pydantic_ai.toolsets import AgentToolset
@@ -16,13 +16,9 @@ class SkillsCapability(AbstractStaticCapability[AgentDependencies]):
 
     toolset: SkillsToolset
     instructions: Template
-    _rendered: str = field(init=False, repr=False)
-
-    def __post_init__(self) -> None:
-        self._rendered = self.instructions.render(skills=list(self.toolset.skills.values()))
 
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return self.toolset
 
     def get_static_instructions(self) -> str:
-        return self._rendered
+        return self.instructions.render(skills=list(self.toolset.skills.values()))
