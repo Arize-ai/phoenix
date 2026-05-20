@@ -170,5 +170,6 @@ examples:
     def test_loads_in_app_links_dataset(self) -> None:
         dataset = load_dataset("in_app_links")
         assert dataset.dataset_name == "in_app_links"
-        assert len(dataset.examples) == 3
+        assert len(dataset.examples) == 4
         assert "in_app_links_valid" in dataset.evaluators
+        assert any(example["id"] == "dataset-resource-link" for example in dataset.examples)

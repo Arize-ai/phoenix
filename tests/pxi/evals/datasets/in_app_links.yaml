@@ -36,3 +36,18 @@ examples:
           - /settings/general
     metadata:
       category: settings
+  - id: dataset-resource-link
+    input:
+      query: Link me to where I can see experiments for my PXI link evals dataset.
+      resource:
+        type: dataset
+        name: PXI link evals
+        id: RGF0YXNldDox
+    expected:
+      tools:
+        required: []
+      links:
+        required_in_app:
+          - /datasets/RGF0YXNldDox/experiments
+    metadata:
+      category: dynamic-resource

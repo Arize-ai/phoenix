@@ -192,6 +192,19 @@ class TestInAppLinksValid:
         assert result["score"] == 1.0
         assert result["label"] == "pass"
 
+    def test_dynamic_resource_markdown_link_passes(self) -> None:
+        result = evaluate_in_app_links(
+            output=_link_output(
+                "Open the [PXI link evals dataset](/datasets/RGF0YXNldDox/experiments)."
+            ),
+            expected=_link_expected("/datasets/RGF0YXNldDox/experiments"),
+        )
+        assert result["score"] == 1.0
+        assert result["label"] == "pass"
+        assert result["metadata"]["observed_markdown_hrefs"] == [
+            "/datasets/RGF0YXNldDox/experiments"
+        ]
+
     def test_missing_required_path_fails(self) -> None:
         result = evaluate_in_app_links(
             output=_link_output("Open [General settings](/settings/general)."),
