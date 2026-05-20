@@ -11,8 +11,8 @@ from pydantic_ai._griffe import doc_descriptions
 from pydantic_ai._run_context import RunContext
 from pydantic_ai.toolsets import FunctionToolset
 
-from phoenix.server.agents.capabilities.skills.skill_resource import SkillResource
 from phoenix.server.agents.capabilities.skills.skill import Skill
+from phoenix.server.agents.capabilities.skills.skill_resource import SkillResource
 from phoenix.server.agents.capabilities.skills.skill_wrapper import SkillWrapper
 
 
@@ -405,7 +405,6 @@ class SkillsToolset(FunctionToolset[Any]):
         *,
         name: str | None = None,
         description: str | None = None,
-        license: str | None = None,
         compatibility: str | None = None,
         metadata: dict[str, Any] | None = None,
         resources: list[SkillResource] | None = None,
@@ -440,7 +439,6 @@ class SkillsToolset(FunctionToolset[Any]):
             func: The function that returns skill content (must return str).
             name: Skill name (defaults to normalized function name: underscores → hyphens).
             description: Skill description (inferred from docstring if not provided).
-            license: Optional license information (e.g., "Apache-2.0").
             compatibility: Optional environment requirements (e.g., "Requires Python 3.10+").
             metadata: Additional metadata fields as a dictionary.
             resources: Initial list of resources to attach to the skill.
@@ -475,7 +473,6 @@ class SkillsToolset(FunctionToolset[Any]):
                 function=f,
                 name=skill_name,
                 description=skill_description,
-                license=license,
                 compatibility=compatibility,
                 metadata=metadata,
                 resources=list(resources) if resources else [],

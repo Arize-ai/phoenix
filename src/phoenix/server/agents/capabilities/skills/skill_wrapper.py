@@ -7,56 +7,21 @@ from pydantic.json_schema import GenerateJsonSchema
 from pydantic_ai import _function_schema
 from pydantic_ai.tools import DocstringFormat, GenerateToolJsonSchema
 
-from phoenix.server.agents.capabilities.skills.skill_resource import SkillResource
 from phoenix.server.agents.capabilities.skills.skill import Skill
+from phoenix.server.agents.capabilities.skills.skill_resource import SkillResource
 
 # Generic type variable for dependencies
 DepsT = TypeVar("DepsT")
 
 
 class SkillWrapper(Generic[DepsT]):
-    """Generic wrapper for decorator-based skill creation with type-safe dependencies.
-
-    Typically created via `@skills.skill` decorator on a SkillsToolset instance.
-
-    Example:
-        ```python
-        from dataclasses import dataclass
-        from pydantic_ai import RunContext
-        from pydantic_ai.toolsets.skills import SkillsToolset
-
-        @dataclass
-        class MyDeps:
-            database: DatabaseConn
-
-        skills = SkillsToolset[MyDeps]()
-
-        @skills.skill(resources=[], metadata={'version': '1.0'})
-        def data_analyzer(ctx: RunContext[MyDeps]) -> str:
-            '''Analyze data from the database.'''
-            return 'Use this skill for data analysis...'
-
-        @data_analyzer.resource
-        async def get_schema(ctx: RunContext[MyDeps]) -> str:
-            return await ctx.deps.database.get_schema()
-        ```
-
-    Attributes:
-        function: Function that returns skill content.
-        name: Skill name (normalized from function name).
-        description: Brief description (from docstring if not provided).
-        license: Optional license information.
-        compatibility: Optional environment requirements.
-        metadata: Additional metadata fields.
-        resources: List of resources attached to the skill.
-    """
+    """Generic wrapper for decorator-based skill creation with type-safe dependencies."""
 
     def __init__(
         self,
         function: Callable[[], str],
         name: str,
         description: str | None,
-        license: str | None,
         compatibility: str | None,
         metadata: dict[str, Any] | None,
         resources: list[SkillResource],
@@ -67,7 +32,6 @@ class SkillWrapper(Generic[DepsT]):
             function: Function that returns skill content.
             name: Skill name (already normalized).
             description: Skill description.
-            license: Optional license information.
             compatibility: Optional environment requirements.
             metadata: Additional metadata fields.
             resources: Initial list of resources.
@@ -75,7 +39,6 @@ class SkillWrapper(Generic[DepsT]):
         self.function = function
         self.name = name
         self.description = description
-        self.license = license
         self.compatibility = compatibility
         self.metadata = metadata
         self.resources = list(resources)
@@ -160,7 +123,6 @@ class SkillWrapper(Generic[DepsT]):
             name=self.name,
             description=self.description or "",
             content=content,
-            license=self.license,
             compatibility=self.compatibility,
             resources=self.resources,
             uri=None,  # __post_init__ will assign skill://{name}

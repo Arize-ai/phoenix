@@ -15,54 +15,11 @@ from phoenix.server.agents.capabilities.skills.skill_resource import SkillResour
 
 @dataclass
 class Skill:
-    """A skill instance with metadata, content, and resources.
-
-    Can be created programmatically or loaded from filesystem directories.
-
-    Example - Programmatic skill with decorators:
-        ```python
-        from pydantic_ai import RunContext
-        from pydantic_ai.toolsets.skills import Skill, SkillResource
-
-        # Create a skill (uri is optional and only for file-based skills)
-        my_skill = Skill(
-            name='hr-analytics-skill',
-            description='Skill for HR analytics',
-            content='Use this skill for HR data analysis...',
-            resources=[
-                SkillResource(name='table-schemas', content='Schema definitions...')
-            ]
-        )
-
-        # Add callable resources
-        @my_skill.resource
-        def get_db_context() -> str:
-            return "Dynamic database context."
-
-        @my_skill.resource
-        async def get_samples(ctx: RunContext[MyDeps]) -> str:
-            return await ctx.deps.get_samples()
-        ```
-
-    Attributes:
-        name: Skill name.
-        description: Brief description of what the skill does.
-        content: Main instructional content.
-        license: Optional license information.
-        compatibility: Optional environment requirements (max 500 chars).
-        resources: List of resources (files or callables).
-        uri: URI for the skill's base location. When not provided, a ``skill://{name}``
-            (scheme-based URI) is automatically assigned for internal reference. For
-            filesystem-based skills, this is explicitly set by the filesystem
-            discovery/loading utilities to the resolved directory path; it can also be
-            overridden explicitly when constructing a ``Skill``.
-        metadata: Additional metadata fields.
-    """
+    """A skill instance with metadata, content, and resources."""
 
     name: str
     description: str
     content: str
-    license: str | None = None
     compatibility: str | None = None
     resources: list[SkillResource] = field(default_factory=list)
     uri: str | None = None
@@ -129,21 +86,18 @@ class Skill:
 
         # Coerce YAML scalar fields to str — YAML may return int/float/None
         description = str(frontmatter.get("description") or "")
-        license_field = frontmatter.get("license")
-        license_field = str(license_field) if license_field is not None else None
         compatibility_field = frontmatter.get("compatibility")
         compatibility_field = str(compatibility_field) if compatibility_field is not None else None
         metadata = {
             k: v
             for k, v in frontmatter.items()
-            if k not in ("name", "description", "license", "compatibility")
+            if k not in ("name", "description", "compatibility")
         }
 
         return cls(
             name=name,
             description=description,
             content=instructions,
-            license=license_field,
             compatibility=compatibility_field,
             uri=str(skill_folder),
             resources=list(resources) if resources else [],
