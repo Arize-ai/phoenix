@@ -452,6 +452,30 @@ function getFirstStringField(
 }
 
 /**
+ * Provider-native web tools use different input field names for target URLs.
+ * Check the known URL aliases in priority order when building collapsed previews.
+ */
+const NATIVE_WEB_URL_FIELDS = ["url", "uri", "href"];
+
+/**
+ * Provider-native web search tools use different input field names for search
+ * text. Check the known query aliases in priority order for preview text.
+ */
+const NATIVE_WEB_SEARCH_QUERY_FIELDS = ["query", "q", "search_query"];
+
+/**
+ * Pydantic AI's provider-native web search tool name as it appears in AI SDK
+ * tool invocation parts.
+ */
+const NATIVE_WEB_SEARCH_TOOL_NAME = "web_search";
+
+/**
+ * Pydantic AI's provider-native web fetch tool name as it appears in AI SDK
+ * tool invocation parts.
+ */
+const NATIVE_WEB_FETCH_TOOL_NAME = "web_fetch";
+
+/**
  * Formats native web-search action types for display in the collapsed tool row.
  */
 function formatNativeWebSearchType(type: string): string {
@@ -478,20 +502,19 @@ function getNativeWebToolPreview(
     return "";
   }
   const inputRecord = input as Record<string, unknown>;
-  if (toolName === "web_search") {
+  if (toolName === NATIVE_WEB_SEARCH_TOOL_NAME) {
     const type = getStringField(inputRecord, "type");
     if (type && type !== "search") {
       const value =
-        getFirstStringField(inputRecord, ["url", "uri", "href"]) ||
-        getFirstStringField(inputRecord, ["query", "q", "search_query"]);
+        getFirstStringField(inputRecord, NATIVE_WEB_URL_FIELDS) ||
+        getFirstStringField(inputRecord, NATIVE_WEB_SEARCH_QUERY_FIELDS);
       const label = formatNativeWebSearchType(type);
       return value ? `${label}: ${value}` : label;
     }
-    const query = getFirstStringField(inputRecord, [
-      "query",
-      "q",
-      "search_query",
-    ]);
+    const query = getFirstStringField(
+      inputRecord,
+      NATIVE_WEB_SEARCH_QUERY_FIELDS
+    );
     if (query) {
       return query;
     }
@@ -505,8 +528,8 @@ function getNativeWebToolPreview(
       );
     }
   }
-  if (toolName === "web_fetch") {
-    return getFirstStringField(inputRecord, ["url", "uri", "href"]);
+  if (toolName === NATIVE_WEB_FETCH_TOOL_NAME) {
+    return getFirstStringField(inputRecord, NATIVE_WEB_URL_FIELDS);
   }
   return "";
 }
@@ -546,8 +569,8 @@ function getToolPresentation(
         statusVariant,
         details: <EditPromptToolDetails part={part} />,
       };
-    case "web_search":
-    case "web_fetch": {
+    case NATIVE_WEB_SEARCH_TOOL_NAME:
+    case NATIVE_WEB_FETCH_TOOL_NAME: {
       const inputStr = JSON.stringify(part.input, null, 2);
       const outputStr =
         part.state === "output-available"
