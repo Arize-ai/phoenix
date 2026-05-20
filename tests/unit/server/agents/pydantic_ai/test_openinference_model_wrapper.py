@@ -365,8 +365,11 @@ async def test_request_emits_llm_span_for_native_tool_call_response(
     )
 
     spans = in_memory_span_exporter.get_finished_spans()
-    assert len(spans) == 1
-    attributes = dict(spans[0].attributes or {})
+    llm_spans = [
+        span for span in spans if (span.attributes or {}).get(OPENINFERENCE_SPAN_KIND) == LLM
+    ]
+    assert len(llm_spans) == 1
+    attributes = dict(llm_spans[0].attributes or {})
 
     assert attributes.pop(f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}") == "assistant"
     assert (
