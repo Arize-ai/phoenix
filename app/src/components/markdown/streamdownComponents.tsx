@@ -10,11 +10,13 @@ import {
   useState,
 } from "react";
 import { DialogTrigger } from "react-aria-components";
+import { Link as RouterLink } from "react-router";
 import {
   extractTableDataFromElement,
   tableDataToCSV,
   tableDataToMarkdown,
   type Components,
+  type ExtraProps,
 } from "streamdown";
 
 import { IconButton } from "../core/button";
@@ -109,6 +111,53 @@ const linkCSS = css`
 const strongCSS = css`
   font-weight: var(--global-font-weight-semibold);
 `;
+
+function shouldPreserveExternalLinkAttributes({
+  href,
+}: {
+  href: string | undefined;
+}) {
+  if (!href) {
+    return false;
+  }
+
+  try {
+    const url = new URL(href, window.location.href);
+
+    // Streamdown adds target/rel for links. Preserve those for external links
+    // so they keep opening in a new tab, but strip them from internal links so
+    // React Router can handle same-tab SPA navigation.
+    return url.origin !== window.location.origin;
+  } catch {
+    return false;
+  }
+}
+
+export function MarkdownLink({
+  children,
+  className,
+  href,
+  rel,
+  target,
+  node: _node,
+  ...rest
+}: ComponentPropsWithoutRef<"a"> & ExtraProps) {
+  const externalLinkAttributes = shouldPreserveExternalLinkAttributes({ href })
+    ? { rel, target }
+    : {};
+
+  return (
+    <RouterLink
+      css={linkCSS}
+      className={className}
+      to={href ?? ""}
+      {...externalLinkAttributes}
+      {...rest}
+    >
+      {children}
+    </RouterLink>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Lists
@@ -478,11 +527,7 @@ export const streamdownComponents: Components = {
       {children}
     </strong>
   ),
-  a: ({ children, className, href, ...rest }) => (
-    <a css={linkCSS} className={className} href={href} {...rest}>
-      {children}
-    </a>
-  ),
+  a: MarkdownLink,
   ul: ({ children, className, ...rest }) => (
     <ul css={listCSS} className={className} {...rest}>
       {children}

@@ -12,6 +12,7 @@ from typing import Any
 
 import pytest
 
+from tests.pxi.evals.evaluators.links import evaluate_in_app_links
 from tests.pxi.evals.evaluators.tools import (
     _normalize_arg_value,
     evaluate_set_spans_filter_args,
@@ -172,6 +173,64 @@ def _output_with_args(name: str, args: dict[str, Any]) -> dict[str, Any]:
             }
         ]
     }
+
+
+def _link_output(assistant_text: str | None) -> dict[str, Any]:
+    return {"assistant_text": assistant_text}
+
+
+def _link_expected(*required: str) -> dict[str, Any]:
+    return {"tools": {"required": []}, "links": {"required_in_app": list(required)}}
+
+
+class TestInAppLinksValid:
+    def test_required_root_relative_markdown_link_passes(self) -> None:
+        result = evaluate_in_app_links(
+            output=_link_output("Open [Agent settings](/settings/agents)."),
+            expected=_link_expected("/settings/agents"),
+        )
+        assert result["score"] == 1.0
+        assert result["label"] == "pass"
+
+    def test_dynamic_resource_markdown_link_passes(self) -> None:
+        result = evaluate_in_app_links(
+            output=_link_output(
+                "Open the [PXI link evals dataset](/datasets/RGF0YXNldDox/experiments)."
+            ),
+            expected=_link_expected("/datasets/RGF0YXNldDox/experiments"),
+        )
+        assert result["score"] == 1.0
+        assert result["label"] == "pass"
+        assert result["metadata"]["observed_markdown_hrefs"] == [
+            "/datasets/RGF0YXNldDox/experiments"
+        ]
+
+    def test_missing_required_path_fails(self) -> None:
+        result = evaluate_in_app_links(
+            output=_link_output("Open [General settings](/settings/general)."),
+            expected=_link_expected("/settings/agents"),
+        )
+        assert result["score"] == 0.0
+        assert result["label"] == "fail"
+        assert result["metadata"]["missing_required_in_app"] == ["/settings/agents"]
+
+    def test_absolute_local_app_link_fails(self) -> None:
+        result = evaluate_in_app_links(
+            output=_link_output("Open [Agent settings](http://localhost:6006/settings/agents)."),
+            expected=_link_expected("/settings/agents"),
+        )
+        assert result["label"] == "fail"
+        assert result["metadata"]["invalid_in_app_hrefs"] == [
+            "http://localhost:6006/settings/agents"
+        ]
+
+    def test_bare_url_fails(self) -> None:
+        result = evaluate_in_app_links(
+            output=_link_output("Open http://localhost:6006/settings/agents."),
+            expected=_link_expected("/settings/agents"),
+        )
+        assert result["label"] == "fail"
+        assert result["metadata"]["bare_urls"] == ["http://localhost:6006/settings/agents."]
 
 
 class TestNormalizeArgValue:

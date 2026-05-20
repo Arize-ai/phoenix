@@ -1,0 +1,53 @@
+dataset_name: in_app_links
+description: PXI server-side eval suite for root-relative Phoenix UI markdown links.
+evaluators:
+  - in_app_links_valid
+examples:
+  - id: agent-settings-link
+    input:
+      query: Link me to the Phoenix agent settings page.
+    expected:
+      tools:
+        required: []
+      links:
+        required_in_app:
+          - /settings/agents
+    metadata:
+      category: settings
+  - id: ai-provider-settings-link
+    input:
+      query: Where can I configure AI providers in Phoenix? Include a link.
+    expected:
+      tools:
+        required: []
+      links:
+        required_in_app:
+          - /settings/providers
+    metadata:
+      category: settings
+  - id: general-settings-link
+    input:
+      query: Link me to the Phoenix general settings page.
+    expected:
+      tools:
+        required: []
+      links:
+        required_in_app:
+          - /settings/general
+    metadata:
+      category: settings
+  - id: dataset-resource-link
+    input:
+      query: Link me to where I can see experiments for my PXI link evals dataset.
+      resource:
+        type: dataset
+        name: PXI link evals
+        id: RGF0YXNldDox
+    expected:
+      tools:
+        required: []
+      links:
+        required_in_app:
+          - /datasets/RGF0YXNldDox/experiments
+    metadata:
+      category: dynamic-resource
