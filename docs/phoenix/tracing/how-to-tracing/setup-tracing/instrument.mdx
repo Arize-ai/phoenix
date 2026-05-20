@@ -84,6 +84,8 @@ Configure the OpenTelemetry Go SDK with an OTLP/HTTP exporter pointed at Phoenix
 ```go
 import (
     "context"
+    "os"
+    "strings"
 
     "go.opentelemetry.io/otel"
     "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
@@ -92,12 +94,30 @@ import (
     semconvotel "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
+func phoenixTraceEndpoint(endpoint string) string {
+    endpoint = strings.TrimRight(endpoint, "/")
+    if strings.HasSuffix(endpoint, "/v1/traces") {
+        return endpoint
+    }
+    return endpoint + "/v1/traces"
+}
+
 ctx := context.Background()
-exporter, _ := otlptracehttp.New(ctx,
+opts := []otlptracehttp.Option{
     otlptracehttp.WithEndpoint("localhost:6006"),
     otlptracehttp.WithURLPath("/v1/traces"),
     otlptracehttp.WithInsecure(),
-)
+}
+if endpoint := os.Getenv("PHOENIX_COLLECTOR_ENDPOINT"); endpoint != "" {
+    opts = []otlptracehttp.Option{
+        otlptracehttp.WithEndpointURL(phoenixTraceEndpoint(endpoint)),
+        otlptracehttp.WithHeaders(map[string]string{
+            "Authorization": "Bearer " + os.Getenv("PHOENIX_API_KEY"),
+        }),
+    }
+}
+
+exporter, _ := otlptracehttp.New(ctx, opts...)
 res, _ := resource.New(ctx, resource.WithAttributes(
     semconvotel.ServiceName("your project name"),
 ))

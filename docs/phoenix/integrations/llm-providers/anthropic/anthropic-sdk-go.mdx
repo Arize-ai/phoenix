@@ -26,6 +26,7 @@ package main
 import (
 	"context"
 	"os"
+	"strings"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
@@ -33,6 +34,14 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
+
+func phoenixTraceEndpoint(endpoint string) string {
+	endpoint = strings.TrimRight(endpoint, "/")
+	if strings.HasSuffix(endpoint, "/v1/traces") {
+		return endpoint
+	}
+	return endpoint + "/v1/traces"
+}
 
 func initTracer(ctx context.Context) (*sdktrace.TracerProvider, error) {
 	// Default: self-hosted Phoenix on localhost.
@@ -44,8 +53,7 @@ func initTracer(ctx context.Context) (*sdktrace.TracerProvider, error) {
 	}
 	if endpoint := os.Getenv("PHOENIX_COLLECTOR_ENDPOINT"); endpoint != "" {
 		opts = []otlptracehttp.Option{
-			otlptracehttp.WithEndpoint(endpoint),
-			otlptracehttp.WithURLPath("/v1/traces"),
+			otlptracehttp.WithEndpointURL(phoenixTraceEndpoint(endpoint)),
 			otlptracehttp.WithHeaders(map[string]string{
 				"Authorization": "Bearer " + os.Getenv("PHOENIX_API_KEY"),
 			}),
@@ -100,7 +108,7 @@ func main() {
 	ctx = instrumentation.WithUser(ctx, "user-xyz")
 
 	resp, _ := client.Messages.New(ctx, anthropic.MessageNewParams{
-		Model:     "claude-3-5-sonnet-latest",
+		Model:     anthropic.ModelClaudeHaiku4_5,
 		MaxTokens: 1024,
 		Messages: []anthropic.MessageParam{
 			anthropic.NewUserMessage(anthropic.NewTextBlock("Write a haiku about recursion.")),
