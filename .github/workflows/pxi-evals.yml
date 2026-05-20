@@ -3,6 +3,10 @@ permissions:
   contents: read
 
 on:
+  pull_request:
+    paths:
+      - "evals/**"
+      - "src/phoenix/server/agents/**"
   workflow_dispatch:
 
 concurrency:

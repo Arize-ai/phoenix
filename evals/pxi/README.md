@@ -160,11 +160,12 @@ the server-owned agent output, including tool selection and deferred tool
 arguments. Use Playwright when the behavior depends on browser rendering,
 frontend dispatch, page state transitions, or visual/UI assertions.
 
-## Manual CI
+## CI
 
 The `PXI Evals` GitHub Actions workflow runs live regression evals against
-Phoenix Cloud. It is intentionally manual-only: maintainers run it from the
-Actions tab on PR branches that change PXI evals or PXI agent behavior.
+Phoenix Cloud. It runs on PRs that change `evals/**` or
+`src/phoenix/server/agents/**`, and maintainers can also run it manually from
+the Actions tab.
 
 The workflow invokes the runner for every YAML file in
 `evals/pxi/datasets/*.yaml` with `--splits regression` and
