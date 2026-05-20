@@ -1177,6 +1177,9 @@
               {
                 "group": "05.2026",
                 "pages": [
+                  "docs/phoenix/release-notes/05-2026/05-15-2026-otel-semconv-conversion",
+                  "docs/phoenix/release-notes/05-2026/05-15-2026-session-feedback-and-atif",
+                  "docs/phoenix/release-notes/05-2026/05-13-2026-playground-thinking-controls",
                   "docs/phoenix/release-notes/05-2026/05-13-2026-session-and-annotations",
                   "docs/phoenix/release-notes/05-2026/05-10-2026-playground-preferences",
                   "docs/phoenix/release-notes/05-2026/05-08-2026-otlp-project-header",

@@ -7,6 +7,35 @@ description: The latest from the Phoenix team.
 GitHub
 </Card>
 
+<Update label="05.15.2026">
+## [05.15.2026: OTel GenAI Semantic Convention Auto-Conversion](/docs/phoenix/release-notes/05-2026/05-15-2026-otel-semconv-conversion)
+**Available in arize-phoenix 15.10.0+**
+
+Phoenix now automatically converts OTel GenAI semantic convention attributes (`gen_ai.*`) to OpenInference at ingest time. Traces from OpenTelemetry-native instrumentations — OpenAI, Anthropic, and Google GenAI contrib packages — now render with full message I/O, tool calls, retrieval documents, and token counts without code changes.
+
+- **Zero-config** — point any OTel-native instrumentation at Phoenix's OTLP endpoint; conversion happens server-side
+- **OpenInference wins** — spans that already carry OpenInference attributes are untouched; conversion only fills in what's missing
+- **Full coverage** — input/output messages, tool definitions and results, system instructions, retrieval documents, usage tokens, provider, and model name
+</Update>
+
+<Update label="05.15.2026">
+## [05.15.2026: Session Trace Feedback and ATIF v1.7](/docs/phoenix/release-notes/05-2026/05-15-2026-session-feedback-and-atif)
+**Available in arize-phoenix 15.10.0+ (server), arize-phoenix-client 2.7.0+ (Python)**
+
+- **Session feedback toolbar** — thumbs-up/down and annotate buttons appear on each turn in Session Details; clicking creates a `user_feedback` trace annotation with toggle behavior
+- **ATIF v1.7 trajectory upload** — `upload_atif_trajectories_as_spans` now supports embedded subagent trajectories via `subagent_trajectories`, `trajectory_id`-based deterministic span IDs for idempotent re-uploads, `session_id` in trajectory headers, and deterministic dispatch steps (`llm_call_count: 0`)
+</Update>
+
+<Update label="05.13.2026">
+## [05.13.2026: Playground Thinking Controls](/docs/phoenix/release-notes/05-2026/05-13-2026-playground-thinking-controls)
+**Available in arize-phoenix 15.8.0+**
+
+The Playground now exposes first-class extended thinking controls for Anthropic and Google models, persisted with saved prompts.
+
+- **Anthropic** — Thinking mode (adaptive/enabled/off), token budget (min 1,024), thinking display toggle, and output effort level
+- **Google** — Thinking budget and thinking level (LOW / MEDIUM / HIGH)
+</Update>
+
 <Update label="05.13.2026">
 ## [05.13.2026: Session Enhancements and Annotation Identifiers](/docs/phoenix/release-notes/05-2026/05-13-2026-session-and-annotations)
 **Available in arize-phoenix 15.7.0+**
