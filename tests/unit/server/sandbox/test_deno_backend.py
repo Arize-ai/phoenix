@@ -52,7 +52,6 @@ class TestDenoAdapter:
                 _DENO_CFG,
                 credentials=_DENO_CREDS,
                 deployment=_DENO_DEPLOY,
-                user_env={"TOKEN": "value"},
             )
 
         assert isinstance(backend, DenoSandboxBackend)
@@ -63,17 +62,33 @@ class TestDenoAdapter:
             "--no-config",
             "--no-remote",
             "--no-npm",
-            "--allow-env=TOKEN",
             "-",
         ]
 
+    def test_build_backend_rejects_user_env(self) -> None:
+        """Defense-in-depth: even if a caller passes user_env, the Deno adapter
+        refuses to construct a backend that could leak env vars to the
+        subprocess."""
+        adapter = DenoAdapter()
+
+        with patch(
+            "phoenix.server.sandbox.deno_backend.shutil.which",
+            return_value="/opt/homebrew/bin/deno",
+        ):
+            with pytest.raises(
+                ValueError, match="do not support user-supplied environment variables"
+            ):
+                adapter.build_backend(
+                    _DENO_CFG,
+                    credentials=_DENO_CREDS,
+                    deployment=_DENO_DEPLOY,
+                    user_env={"TOKEN": "value"},
+                )
+
 
 class TestDenoSandboxBackend:
-    def test_build_command_scopes_env_permissions_exactly(self) -> None:
-        backend = DenoSandboxBackend(
-            deno_executable="/usr/local/bin/deno",
-            user_env={"B": "2", "A": "1"},
-        )
+    def test_build_command_has_no_allow_env(self) -> None:
+        backend = DenoSandboxBackend(deno_executable="/usr/local/bin/deno")
 
         assert backend._build_command() == [
             "/usr/local/bin/deno",
@@ -82,24 +97,20 @@ class TestDenoSandboxBackend:
             "--no-config",
             "--no-remote",
             "--no-npm",
-            "--allow-env=A,B",
             "-",
         ]
 
-    def test_build_subprocess_env_includes_only_user_env(self) -> None:
-        backend = DenoSandboxBackend(
-            deno_executable="/usr/local/bin/deno",
-            user_env={"SECRET": "value"},
-        )
+    def test_build_subprocess_env_is_empty(self) -> None:
+        """Deno sandboxes never receive any environment variables — the child
+        process runs with an empty env so it cannot read the Phoenix server's
+        ambient process env either."""
+        backend = DenoSandboxBackend(deno_executable="/usr/local/bin/deno")
 
-        assert backend._build_subprocess_env() == {"SECRET": "value"}
+        assert backend._build_subprocess_env() == {}
 
     @pytest.mark.asyncio
     async def test_execute_successfully_runs_deno_process(self) -> None:
-        backend = DenoSandboxBackend(
-            deno_executable="/usr/local/bin/deno",
-            user_env={"TOKEN": "secret", "FOO": "bar"},
-        )
+        backend = DenoSandboxBackend(deno_executable="/usr/local/bin/deno")
         proc = _StubProcess(stdout=b"ok\n", stderr=b"", returncode=0)
 
         with patch(
@@ -113,10 +124,7 @@ class TestDenoSandboxBackend:
         assert result.error is None
         proc.communicate.assert_awaited_once_with(b"console.log('ok')")
         assert create_subprocess_exec.await_args is not None
-        assert create_subprocess_exec.await_args.kwargs["env"] == {
-            "TOKEN": "secret",
-            "FOO": "bar",
-        }
+        assert create_subprocess_exec.await_args.kwargs["env"] == {}
         assert create_subprocess_exec.await_args.args == (
             "/usr/local/bin/deno",
             "run",
@@ -124,7 +132,6 @@ class TestDenoSandboxBackend:
             "--no-config",
             "--no-remote",
             "--no-npm",
-            "--allow-env=FOO,TOKEN",
             "-",
         )
 

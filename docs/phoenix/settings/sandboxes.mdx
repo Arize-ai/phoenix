@@ -117,7 +117,7 @@ The dialog exposes the following fields. Fields that aren't supported by the sel
 | **Name** | Required. Lowercase letters, digits, dashes, and underscores. Must start and end with a letter or digit. Used to identify the config in the evaluator UI. |
 | **Description** | Optional free-form text shown next to the config name. |
 | **Timeout (seconds)** | Required. Total time allowed for sandbox setup and execution. Defaults to **300s**. |
-| **Environment Variables** | One row per variable. Each row is either a **literal value** typed inline, or a **secret reference** to a key from [Settings → Secrets](/docs/phoenix/settings/secrets). Available only for backends that support env vars. |
+| **Environment Variables** | One row per variable. Each row is either a **literal value** typed inline, or a **secret reference** to a key from [Settings → Secrets](/docs/phoenix/settings/secrets). Available only for backends that support env vars; the Deno sandbox does not accept any user-supplied env vars and the field is hidden when Deno is selected. |
 | **Allow Internet Access** | Toggle for backends that gate outbound networking. When off, the sandbox runs with no network egress. |
 | **Dependencies** | One package per line. The dialog shows whether the backend takes Python packages (e.g. `requests`, `numpy==1.26.0`) or npm packages (e.g. `@types/node`, `lodash`). Phoenix installs these before each execution. |
 

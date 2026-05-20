@@ -7,7 +7,7 @@ description: "Run TypeScript code evaluators inside the Phoenix server using a s
 <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/deno.svg" alt="Deno" className="invert-on-dark" style={{ height: '112px', flexShrink: 0 }} />
 <div>
 
-The **Deno** sandbox runs TypeScript code evaluators inside a locked-down Deno process on the Phoenix server. Scripts cannot read your files, open network connections, run other programs, or pull in third-party packages — the only things they can read are the environment variables you explicitly add to the sandbox configuration. Because Deno runs locally inside Phoenix, it starts in milliseconds and needs no credentials, which makes it the default choice for TypeScript evaluators that don't need outbound network access or third-party libraries.
+The **Deno** sandbox runs TypeScript code evaluators inside a locked-down Deno process on the Phoenix server. Scripts cannot read your files, open network connections, run other programs, pull in third-party packages, or read any environment variables — the Deno sandbox is intentionally configured with no env-var passthrough at all. Because Deno runs locally inside Phoenix, it starts in milliseconds and needs no credentials, which makes it the default choice for TypeScript evaluators that don't need outbound network access or third-party libraries.
 
 </div>
 </div>
@@ -18,7 +18,7 @@ Configure it from [Settings → Sandboxes](/docs/phoenix/settings/sandboxes). Fo
 
 The Deno sandbox is tightly restricted, but it is **not a substitute for running untrusted code on isolated infrastructure**. Deno itself makes this point in [Executing untrusted code](https://docs.deno.com/runtime/fundamentals/security/#executing-untrusted-code): restricting permissions limits what an attacker can do, but it does not eliminate the risk. Before using the Deno sandbox for code you do not control, understand the three caveats below.
 
-- **Anything you put in the sandbox's environment variables is visible to the script.** This includes values pulled from secret references in your configuration. A malicious script can read these and pass them back out through its return value or an error message. Only expose the credentials the evaluator actually needs.
+- **Environment variables are intentionally unavailable to Deno sandboxes.** The Deno sandbox does not accept user-supplied env vars and the child process runs with an empty environment, so the script cannot read either configuration-time secrets or the Phoenix server's ambient process env. If your TypeScript evaluator needs to read a secret, use a hosted sandbox instead.
 - **The script shares CPU and memory with the Phoenix server.** A script that runs an infinite loop or allocates too much memory will keep doing so until the configured timeout expires. Keep timeouts short for evaluators that handle untrusted input.
 - **The security boundary depends on Deno itself.** Phoenix relies on Deno to enforce the restrictions. A bug in Deno would weaken the protection.
 

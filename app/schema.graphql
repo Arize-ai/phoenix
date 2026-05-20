@@ -1300,7 +1300,6 @@ type DeleteUsersPayload {
 
 input DenoConfigInput {
   language: Language!
-  envVars: [EnvVarInput!]! = []
 }
 
 input DependenciesInput {

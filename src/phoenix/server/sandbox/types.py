@@ -319,7 +319,11 @@ class DaytonaConfig(
     language: Literal["PYTHON", "TYPESCRIPT"]
 
 
-class DenoConfig(_Config, SupportsEnvVars):
+class DenoConfig(_Config):
+    # Deno runs untrusted TypeScript locally; we deliberately do not compose
+    # SupportsEnvVars so no user-supplied env vars can ever reach the
+    # subprocess. The adapter metadata's ``supports_env_vars`` derives from the
+    # mixin, so this also hides env-var UI in the frontend.
     backend_type: Literal["DENO"] = "DENO"
     language: Literal["TYPESCRIPT"] = "TYPESCRIPT"
 
