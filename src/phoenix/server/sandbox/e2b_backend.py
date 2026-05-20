@@ -83,18 +83,28 @@ class E2BSandboxBackend(SandboxBackend):
 
         return AsyncSandbox
 
-    def _create_kwargs(self) -> dict[str, Any]:
-        # Do NOT pass template: only the SDK default (code-interpreter-v1)
-        # runs the Jupyter server that run_code() POSTs to. The "base" image
-        # returns "502 The sandbox is running but port is not open".
-        kwargs: dict[str, Any] = {
+    def _get_sandbox_query_cls(self) -> type[Any]:
+        """Lazy-import ``SandboxQuery``; tests patch this to avoid the e2b extra."""
+        from e2b.sandbox.sandbox_api import SandboxQuery
+
+        return SandboxQuery
+
+    def _api_opts(self) -> dict[str, Any]:
+        """SDK-routing kwargs shared by ``create`` / ``connect`` / ``list`` / ``kill``.
+
+        Do NOT pass ``template`` here: only the SDK default
+        (code-interpreter-v1) runs the Jupyter server ``run_code()`` POSTs to;
+        the "base" image responds "502 The sandbox is running but port is
+        not open".
+        """
+        opts: dict[str, Any] = {
             "api_key": self._api_key.get_secret_value(),
         }
         if self._domain is not None:
-            kwargs["domain"] = self._domain
+            opts["domain"] = self._domain
         if self._api_url is not None:
-            kwargs["api_url"] = self._api_url
-        return kwargs
+            opts["api_url"] = self._api_url
+        return opts
 
     def _create_kwargs(self, session_key: Optional[str]) -> dict[str, Any]:
         """Build kwargs for ``AsyncSandbox.create()``.

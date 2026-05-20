@@ -539,10 +539,21 @@ class SandboxBackend(ABC):
         ...
 
     @abstractmethod
-    async def start_session(self, session_key: str) -> None: ...
+    async def execute_in_session(
+        self,
+        handle: object,
+        code: str,
+        timeout: Optional[int] = None,
+    ) -> ExecutionResult:
+        """Execute ``code`` against the opaque ``handle`` returned by
+        ``find_or_create_session``. The handle is provider-specific and
+        opaque to the manager."""
+        ...
 
     @abstractmethod
-    async def stop_session(self, session_key: str) -> None: ...
+    async def close_session(self, session_key: str) -> None:
+        """Tear down the remote session bound to ``session_key`` (idempotent)."""
+        ...
 
     @abstractmethod
     async def execute(
@@ -591,7 +602,8 @@ class SandboxBackend(ABC):
 
 
 class BaseNoSessionBackend(SandboxBackend):
-    """Stateless sandbox backends; no-op start_session / stop_session."""
+    """Stateless sandbox backends; no-op session lifecycle (the manager
+    treats every call as a fresh remote execution)."""
 
     async def find_or_create_session(self, session_key: str) -> object:
         return _NO_SESSION_HANDLE

@@ -147,6 +147,23 @@ class VercelSandboxBackend(SandboxBackend):
             create_kwargs["network_policy"] = network_policy
         return await AsyncSandbox.create(**create_kwargs)
 
+    async def _get_sandbox(self, sandbox_id: str) -> AsyncSandbox:
+        """Reconnect to an existing Vercel sandbox by id (no creation)."""
+        from vercel.sandbox import AsyncSandbox
+
+        return await AsyncSandbox.get(
+            sandbox_id=sandbox_id,
+            token=self._token.get_secret_value(),
+            project_id=self._project_id.get_secret_value(),
+            team_id=self._team_id.get_secret_value(),
+        )
+
+    def _is_alive(self, sandbox: AsyncSandbox) -> bool:
+        """``True`` if ``sandbox.status`` reflects a usable runtime state."""
+        # ``status`` is a ``SandboxStatus`` enum; compare by value so a future
+        # SDK rename of the enum members doesn't silently flip this branch.
+        return getattr(sandbox.status, "value", None) in {"running", "pending"}
+
     async def _install_packages(self, sandbox: AsyncSandbox) -> None:
         # PYTHON uses `python3 -m pip install --user` so install and exec
         # target the same interpreter without needing sudo.

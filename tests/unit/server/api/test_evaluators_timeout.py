@@ -170,7 +170,7 @@ class TestTimeoutWrapper:
         )
 
         await asyncio.sleep(0)
-        assert len(backend.stop_session_calls) == 1
+        assert len(backend.close_session_calls) == 1
 
     @pytest.mark.asyncio
     async def test_close_session_exception_during_timeout_does_not_propagate(

@@ -234,7 +234,7 @@ async def test_ephemeral_execute_install_failure_surfaces_as_execution_error(
     assert result.error is not None and "pip: package not found" in result.error
     sandbox_mock.stop.assert_awaited_once()
     sandbox_mock.client.aclose.assert_awaited_once()
-    assert "ephemeral" not in backend._sessions
+    assert "ephemeral" not in _vercel_backend._session_id_map
 
 
 @pytest.mark.asyncio
