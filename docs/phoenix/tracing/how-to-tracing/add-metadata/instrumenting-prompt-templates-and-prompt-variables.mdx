@@ -90,7 +90,7 @@ Instrumenting prompt templates and variables allows you to track and visualize p
 
   <Tab title="Go" icon="golang">
 
-    Go has no prompt-template context helper today. Set the prompt-template attributes directly on the LLM span using the typed constants in [`github.com/Arize-ai/openinference/go/semconv`](https://github.com/Arize-ai/openinference/tree/main/go/semconv):
+    Go has no prompt-template context helper today. Set the prompt-template attributes directly on the LLM span using the typed constants in [`github.com/Arize-ai/openinference/go/openinference-semantic-conventions`](https://github.com/Arize-ai/openinference/tree/main/go/openinference-semantic-conventions):
 
     ```go
     import (
@@ -98,7 +98,7 @@ Instrumenting prompt templates and variables allows you to track and visualize p
 
         "go.opentelemetry.io/otel/attribute"
 
-        "github.com/Arize-ai/openinference/go/semconv"
+        "github.com/Arize-ai/openinference/go/openinference-semantic-conventions"
     )
 
     variables := map[string]string{"city": "Johannesburg", "date": "July 11"}

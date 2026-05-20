@@ -358,11 +358,12 @@ Spans emitted this way do not carry `openinference.span.kind` or structured `llm
     ```
   </Step>
   <Step title={<span className="step-title">Emit a GenAI-Convention Span</span>}>
-    Wrap each LLM call in a span and set the canonical `gen_ai.*` attributes from `go.opentelemetry.io/otel/semconv/v1.32.0`.
+    Wrap each LLM call in a span and set the canonical `gen_ai.*` attributes using OpenTelemetry semantic-convention helpers where available.
 
     ```go
     import (
         "go.opentelemetry.io/otel"
+        "go.opentelemetry.io/otel/attribute"
         semconv "go.opentelemetry.io/otel/semconv/v1.32.0"
         "go.opentelemetry.io/otel/trace"
     )
@@ -370,9 +371,9 @@ Spans emitted this way do not carry `openinference.span.kind` or structured `llm
     tracer := otel.Tracer("my-go-app")
     ctx, span := tracer.Start(ctx, "llm.generate",
         trace.WithAttributes(
-            semconv.GenAISystemKey.String("gemini"),
-            semconv.GenAIOperationNameKey.String("chat"),
-            semconv.GenAIRequestModelKey.String("gemini-2.0-flash"),
+            attribute.String("gen_ai.system", "gemini"),
+            attribute.String("gen_ai.operation.name", "chat"),
+            semconv.GenAIRequestModel("gemini-2.0-flash"),
         ),
     )
     defer span.End()
@@ -380,9 +381,9 @@ Spans emitted this way do not carry `openinference.span.kind` or structured `llm
     // ... make the LLM call ...
 
     span.SetAttributes(
-        semconv.GenAIResponseModelKey.String("gemini-2.0-flash"),
-        semconv.GenAIUsageInputTokensKey.Int(promptTokens),
-        semconv.GenAIUsageOutputTokensKey.Int(completionTokens),
+        semconv.GenAIResponseModel("gemini-2.0-flash"),
+        semconv.GenAIUsageInputTokens(promptTokens),
+        semconv.GenAIUsageOutputTokens(completionTokens),
     )
     ```
 

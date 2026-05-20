@@ -3,14 +3,14 @@ title: "Anthropic SDK Go"
 description: Instrument and observe Anthropic calls in Go
 ---
 
-This module provides instrumentation for the [Anthropic Go SDK (`anthropics/anthropic-sdk-go`)](https://github.com/anthropics/anthropic-sdk-go) using the [`openinference-instrumentation-anthropic`](https://github.com/Arize-ai/openinference/tree/main/go/instrumentation/anthropic) Go package, exporting OpenInference LLM spans to Phoenix. Requires `anthropic-sdk-go` v1.43+ (which introduced `option.Middleware`).
+This module provides instrumentation for the [Anthropic Go SDK (`anthropics/anthropic-sdk-go`)](https://github.com/anthropics/anthropic-sdk-go) using the [`openinference-instrumentation-anthropic`](https://github.com/Arize-ai/openinference/tree/main/go/openinference-instrumentation-anthropic-sdk-go) Go package, exporting OpenInference LLM spans to Phoenix. Requires `anthropic-sdk-go` v1.43+ (which introduced `option.Middleware`).
 
 ## Install
 
 ```bash
 go get github.com/anthropics/anthropic-sdk-go
-go get github.com/Arize-ai/openinference/go/instrumentation
-go get github.com/Arize-ai/openinference/go/instrumentation/anthropic
+go get github.com/Arize-ai/openinference/go/openinference-instrumentation
+go get github.com/Arize-ai/openinference/go/openinference-instrumentation-anthropic-sdk-go
 go get go.opentelemetry.io/otel
 go get go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp
 go get go.opentelemetry.io/otel/sdk
@@ -70,7 +70,7 @@ func initTracer(ctx context.Context) (*sdktrace.TracerProvider, error) {
 
 ## Run Anthropic
 
-Pass `anthropicotel.Middleware` to the client via `option.WithMiddleware`. Session and user identifiers propagate via baggage to every LLM span descended from the context.
+Pass `anthropicotel.Middleware` to the client via `option.WithMiddleware`. Session and user identifiers are stored on the Go context and applied to every LLM span descended from it.
 
 ```go expandable
 package main
@@ -83,8 +83,8 @@ import (
 	"github.com/anthropics/anthropic-sdk-go/option"
 	"go.opentelemetry.io/otel"
 
-	"github.com/Arize-ai/openinference/go/instrumentation"
-	anthropicotel "github.com/Arize-ai/openinference/go/instrumentation/anthropic"
+	"github.com/Arize-ai/openinference/go/openinference-instrumentation"
+	anthropicotel "github.com/Arize-ai/openinference/go/openinference-instrumentation-anthropic-sdk-go"
 )
 
 func main() {
@@ -112,7 +112,7 @@ func main() {
 }
 ```
 
-To redact sensitive data, set `OPENINFERENCE_HIDE_INPUTS=true` or `OPENINFERENCE_HIDE_OUTPUTS=true`. See the [openinference Go README](https://github.com/Arize-ai/openinference/tree/main/go/instrumentation/anthropic) for the full env-var matrix and the in-code `WithTraceConfig` override.
+To redact sensitive data, set `OPENINFERENCE_HIDE_INPUTS=true` or `OPENINFERENCE_HIDE_OUTPUTS=true`. See the [openinference Go README](https://github.com/Arize-ai/openinference/tree/main/go/openinference-instrumentation-anthropic-sdk-go) for the full env-var matrix and the in-code `WithTraceConfig` override.
 
 ## Observe
 
@@ -120,6 +120,6 @@ After setting up instrumentation and running your Anthropic application, traces 
 
 ## Resources
 
-* [OpenInference Go package for Anthropic](https://github.com/Arize-ai/openinference/tree/main/go/instrumentation/anthropic)
+* [OpenInference Go package for Anthropic](https://github.com/Arize-ai/openinference/tree/main/go/openinference-instrumentation-anthropic-sdk-go)
 
 * [Anthropic Go SDK](https://github.com/anthropics/anthropic-sdk-go)

@@ -90,27 +90,26 @@ Below is an example of how to set these values in code using our OpenAI Python a
 
     ```go
     import (
-        "net/http"
-
+        "github.com/openai/openai-go"
+        "github.com/openai/openai-go/option"
         "go.opentelemetry.io/otel"
 
-        "github.com/Arize-ai/openinference/go/instrumentation"
-        openaiotel "github.com/Arize-ai/openinference/go/instrumentation/openai"
+        "github.com/Arize-ai/openinference/go/openinference-instrumentation"
+        openaiotel "github.com/Arize-ai/openinference/go/openinference-instrumentation-openai-go"
     )
 
-    cfg := openai.DefaultConfig(apiKey)
-    cfg.HTTPClient = &http.Client{
-        Transport: openaiotel.NewTransport(
-            http.DefaultTransport,
+    client := openai.NewClient(
+        option.WithAPIKey(apiKey),
+        option.WithMiddleware(openaiotel.Middleware(
             otel.Tracer("my-app"),
             openaiotel.WithTraceConfig(instrumentation.TraceConfig{
                 HideInputs: true,
             }),
-        ),
-    }
+        )),
+    )
     ```
 
-    For the Anthropic Go instrumentor, the equivalent is `anthropicotel.Middleware(otel.Tracer(...), anthropicotel.WithTraceConfig(instrumentation.TraceConfig{...}))`. See [OpenAI Go SDK](/docs/phoenix/integrations/llm-providers/openai/openai-go-sdk) and [Anthropic SDK Go](/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go) for full setup.
+    The Anthropic Go instrumentor uses the same shape: `option.WithMiddleware(anthropicotel.Middleware(otel.Tracer(...), anthropicotel.WithTraceConfig(instrumentation.TraceConfig{...})))`. See [OpenAI Go SDK](/docs/phoenix/integrations/llm-providers/openai/openai-go-sdk) and [Anthropic SDK Go](/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go) for full setup.
 
   </Tab>
 

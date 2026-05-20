@@ -3,14 +3,14 @@ title: "OpenAI Go SDK"
 description: Instrument and observe OpenAI calls in Go
 ---
 
-This module provides instrumentation for the [OpenAI Go SDK (`sashabaranov/go-openai`)](https://github.com/sashabaranov/go-openai) using the [`openinference-instrumentation-openai`](https://github.com/Arize-ai/openinference/tree/main/go/instrumentation/openai) Go package, exporting OpenInference LLM spans to Phoenix.
+This module provides instrumentation for the [OpenAI Go SDK (`openai/openai-go`)](https://github.com/openai/openai-go) using the [`openinference-instrumentation-openai-go`](https://github.com/Arize-ai/openinference/tree/main/go/openinference-instrumentation-openai-go) Go package, exporting OpenInference LLM spans to Phoenix.
 
 ## Install
 
 ```bash
-go get github.com/sashabaranov/go-openai
-go get github.com/Arize-ai/openinference/go/instrumentation
-go get github.com/Arize-ai/openinference/go/instrumentation/openai
+go get github.com/openai/openai-go
+go get github.com/Arize-ai/openinference/go/openinference-instrumentation
+go get github.com/Arize-ai/openinference/go/openinference-instrumentation-openai-go
 go get go.opentelemetry.io/otel
 go get go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp
 go get go.opentelemetry.io/otel/sdk
@@ -70,7 +70,7 @@ func initTracer(ctx context.Context) (*sdktrace.TracerProvider, error) {
 
 ## Run OpenAI
 
-Wire `openaiotel.NewTransport` into the OpenAI client's HTTP transport. Session and user identifiers propagate via baggage to every LLM span descended from the context.
+Pass `openaiotel.Middleware` to the client via `option.WithMiddleware`. Session and user identifiers are stored on the Go context and applied to every LLM span descended from it.
 
 ```go expandable
 package main
@@ -78,14 +78,15 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"os"
 
-	"github.com/sashabaranov/go-openai"
+	"github.com/openai/openai-go"
+	"github.com/openai/openai-go/option"
+	"github.com/openai/openai-go/shared"
 	"go.opentelemetry.io/otel"
 
-	"github.com/Arize-ai/openinference/go/instrumentation"
-	openaiotel "github.com/Arize-ai/openinference/go/instrumentation/openai"
+	"github.com/Arize-ai/openinference/go/openinference-instrumentation"
+	openaiotel "github.com/Arize-ai/openinference/go/openinference-instrumentation-openai-go"
 )
 
 func main() {
@@ -93,26 +94,25 @@ func main() {
 	tp, _ := initTracer(ctx)
 	defer tp.Shutdown(ctx)
 
-	cfg := openai.DefaultConfig(os.Getenv("OPENAI_API_KEY"))
-	cfg.HTTPClient = &http.Client{
-		Transport: openaiotel.NewTransport(http.DefaultTransport, otel.Tracer("openai-go-app")),
-	}
-	client := openai.NewClientWithConfig(cfg)
+	client := openai.NewClient(
+		option.WithAPIKey(os.Getenv("OPENAI_API_KEY")),
+		option.WithMiddleware(openaiotel.Middleware(otel.Tracer("openai-go-app"))),
+	)
 
 	ctx = instrumentation.WithSession(ctx, "session-abc")
 	ctx = instrumentation.WithUser(ctx, "user-xyz")
 
-	resp, _ := client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-		Model: openai.GPT4o,
-		Messages: []openai.ChatCompletionMessage{
-			{Role: openai.ChatMessageRoleUser, Content: "Write a haiku."},
+	resp, _ := client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
+		Model: shared.ChatModelGPT4o,
+		Messages: []openai.ChatCompletionMessageParamUnion{
+			openai.UserMessage("Write a haiku."),
 		},
 	})
 	fmt.Println(resp.Choices[0].Message.Content)
 }
 ```
 
-To redact sensitive data, set `OPENINFERENCE_HIDE_INPUTS=true` or `OPENINFERENCE_HIDE_OUTPUTS=true`. See the [openinference Go README](https://github.com/Arize-ai/openinference/tree/main/go/instrumentation/openai) for the full env-var matrix and the in-code `WithTraceConfig` override.
+To redact sensitive data, set `OPENINFERENCE_HIDE_INPUTS=true` or `OPENINFERENCE_HIDE_OUTPUTS=true`. See the [openinference Go README](https://github.com/Arize-ai/openinference/tree/main/go/openinference-instrumentation-openai-go) for the full env-var matrix and the in-code `WithTraceConfig` override.
 
 ## Observe
 
@@ -120,6 +120,6 @@ After setting up instrumentation and running your OpenAI application, traces wil
 
 ## Resources
 
-* [OpenInference Go package for OpenAI](https://github.com/Arize-ai/openinference/tree/main/go/instrumentation/openai)
+* [OpenInference Go package for OpenAI](https://github.com/Arize-ai/openinference/tree/main/go/openinference-instrumentation-openai-go)
 
-* [OpenAI Go SDK](https://github.com/sashabaranov/go-openai)
+* [OpenAI Go SDK](https://github.com/openai/openai-go)

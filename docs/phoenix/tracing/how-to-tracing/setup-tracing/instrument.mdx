@@ -43,8 +43,8 @@ For detailed API documentation, consult the respective documentation sites.
 Phoenix does not ship a `phoenix-otel-go` wrapper. Install the OpenInference Go semconv + instrumentation packages plus the stock OpenTelemetry Go SDK:
 
 ```bash
-go get github.com/Arize-ai/openinference/go/semconv
-go get github.com/Arize-ai/openinference/go/instrumentation
+go get github.com/Arize-ai/openinference/go/openinference-semantic-conventions
+go get github.com/Arize-ai/openinference/go/openinference-instrumentation
 go get go.opentelemetry.io/otel
 go get go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp
 go get go.opentelemetry.io/otel/sdk
@@ -155,7 +155,7 @@ import (
     "go.opentelemetry.io/otel/codes"
     "go.opentelemetry.io/otel/trace"
 
-    "github.com/Arize-ai/openinference/go/semconv"
+    "github.com/Arize-ai/openinference/go/openinference-semantic-conventions"
 )
 
 func myFunc(ctx context.Context, input string) (string, error) {
@@ -227,7 +227,7 @@ import (
     "go.opentelemetry.io/otel/codes"
     "go.opentelemetry.io/otel/trace"
 
-    "github.com/Arize-ai/openinference/go/semconv"
+    "github.com/Arize-ai/openinference/go/openinference-semantic-conventions"
 )
 
 tracer := otel.Tracer("my-app")
@@ -395,7 +395,7 @@ import (
     "go.opentelemetry.io/otel/attribute"
     "go.opentelemetry.io/otel/trace"
 
-    "github.com/Arize-ai/openinference/go/semconv"
+    "github.com/Arize-ai/openinference/go/openinference-semantic-conventions"
 )
 
 tracer := otel.Tracer("my-app")
@@ -492,7 +492,7 @@ import (
     "go.opentelemetry.io/otel/attribute"
     "go.opentelemetry.io/otel/trace"
 
-    "github.com/Arize-ai/openinference/go/semconv"
+    "github.com/Arize-ai/openinference/go/openinference-semantic-conventions"
 )
 
 tracer := otel.Tracer("my-app")
@@ -615,7 +615,7 @@ import (
     "go.opentelemetry.io/otel/attribute"
     "go.opentelemetry.io/otel/trace"
 
-    "github.com/Arize-ai/openinference/go/semconv"
+    "github.com/Arize-ai/openinference/go/openinference-semantic-conventions"
 )
 
 tracer := otel.Tracer("my-app")
@@ -1308,7 +1308,7 @@ import (
     "go.opentelemetry.io/otel/attribute"
     "go.opentelemetry.io/otel/trace"
 
-    "github.com/Arize-ai/openinference/go/semconv"
+    "github.com/Arize-ai/openinference/go/openinference-semantic-conventions"
 )
 
 tracer := otel.Tracer("my-app")
@@ -1390,7 +1390,7 @@ Use `instrumentation.WithSuppression` to mark a context such that any OpenInfere
 
 ```go
 import (
-    "github.com/Arize-ai/openinference/go/instrumentation"
+    "github.com/Arize-ai/openinference/go/openinference-instrumentation"
 )
 
 ctx := instrumentation.WithSuppression(ctx)
@@ -1452,13 +1452,13 @@ await context.with(
 </Tab>
 
 <Tab title="Go" icon="golang">
-Use the helpers in [`github.com/Arize-ai/openinference/go/instrumentation`](https://github.com/Arize-ai/openinference/tree/main/go/instrumentation) to propagate session, user, metadata, and tags via OTel baggage. Auto-instrumentors (OpenAI Go, Anthropic Go) automatically apply these to every LLM span descended from the context:
+Use the helpers in [`github.com/Arize-ai/openinference/go/openinference-instrumentation`](https://github.com/Arize-ai/openinference/tree/main/go/openinference-instrumentation) to store session, user, metadata, and tags on `context.Context`. Auto-instrumentors (OpenAI Go, Anthropic Go) automatically apply these to every LLM span descended from the context:
 
 ```go
 import (
     "encoding/json"
 
-    "github.com/Arize-ai/openinference/go/instrumentation"
+    "github.com/Arize-ai/openinference/go/openinference-instrumentation"
 )
 
 metadata := map[string]any{"key-1": "value_1", "key-2": "value_2"}
@@ -1587,7 +1587,6 @@ await withSpan(
 <Tab title="Go" icon="golang">
 For SDKs with OpenInference Go auto-instrumentation (OpenAI Go, Anthropic Go), multimodal content is captured automatically when you call the SDK with image-containing messages — no per-span code required.
 
-For manual spans, attach image content using the indexed `llm.input_messages.{i}.message.contents.{j}.*` attributes from `github.com/Arize-ai/openinference/go/semconv`. The Python `openinference.instrumentation` message-builder helpers do not yet have a Go equivalent — refer to the [OpenInference spec](https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md) for the full multimodal attribute taxonomy.
+For manual spans, attach image content using the indexed `llm.input_messages.{i}.message.contents.{j}.*` attributes from `github.com/Arize-ai/openinference/go/openinference-semantic-conventions`. The Python `openinference.instrumentation` message-builder helpers do not yet have a Go equivalent — refer to the [OpenInference spec](https://github.com/Arize-ai/openinference/blob/main/spec/semantic_conventions.md) for the full multimodal attribute taxonomy.
 </Tab>
 </Tabs>
-

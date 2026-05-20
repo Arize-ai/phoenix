@@ -69,7 +69,7 @@ func initTracer(ctx context.Context) (*sdktrace.TracerProvider, error) {
 
 ## Run Gemini
 
-Wrap each Gemini call in a span and set `gen_ai.*` attributes from `go.opentelemetry.io/otel/semconv/v1.32.0`.
+Wrap each Gemini call in a span and set `gen_ai.*` attributes using OpenTelemetry semantic-convention helpers where available.
 
 ```go expandable
 package main
@@ -80,6 +80,7 @@ import (
 	"os"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	semconv "go.opentelemetry.io/otel/semconv/v1.32.0"
 	"go.opentelemetry.io/otel/trace"
@@ -104,9 +105,9 @@ func main() {
 
 	ctx, span := tracer.Start(ctx, "gemini.generate_content",
 		trace.WithAttributes(
-			semconv.GenAISystemKey.String("gemini"),
-			semconv.GenAIOperationNameKey.String("chat"),
-			semconv.GenAIRequestModelKey.String(modelName),
+			attribute.String("gen_ai.system", "gemini"),
+			attribute.String("gen_ai.operation.name", "chat"),
+			semconv.GenAIRequestModel(modelName),
 		),
 	)
 	defer span.End()
@@ -118,11 +119,11 @@ func main() {
 		return
 	}
 
-	span.SetAttributes(semconv.GenAIResponseModelKey.String(modelName))
+	span.SetAttributes(semconv.GenAIResponseModel(modelName))
 	if usage := resp.UsageMetadata; usage != nil {
 		span.SetAttributes(
-			semconv.GenAIUsageInputTokensKey.Int(int(usage.PromptTokenCount)),
-			semconv.GenAIUsageOutputTokensKey.Int(int(usage.CandidatesTokenCount)),
+			semconv.GenAIUsageInputTokens(int(usage.PromptTokenCount)),
+			semconv.GenAIUsageOutputTokens(int(usage.CandidatesTokenCount)),
 		)
 	}
 	fmt.Println(resp.Text())

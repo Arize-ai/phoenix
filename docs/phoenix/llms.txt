@@ -213,13 +213,16 @@
 - [OpenAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-tracing): Auto-instrument OpenAI Python SDK with openinference-instrumentation-openai
 - [OpenAI Agents SDK Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-agents-sdk-tracing): Trace OpenAI Agents SDK workflows including tool calls and handoffs
 - [OpenAI Node.js SDK](https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-node-js-sdk): Instrument OpenAI calls in TypeScript/Node.js
+- [OpenAI Go SDK](https://arize.com/docs/phoenix/integrations/llm-providers/openai/openai-go-sdk): Instrument openai/openai-go with openinference-instrumentation-openai-go middleware
 - [Anthropic Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/anthropic/anthropic-tracing): Auto-instrument Anthropic Python SDK
 - [Anthropic TypeScript SDK](https://arize.com/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-typescript): Instrument Anthropic calls in TypeScript
+- [Anthropic SDK Go](https://arize.com/docs/phoenix/integrations/llm-providers/anthropic/anthropic-sdk-go): Instrument anthropics/anthropic-sdk-go with openinference-instrumentation-anthropic-sdk-go middleware
 - [Amazon Bedrock Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-tracing): Auto-instrument Bedrock SDK with openinference-instrumentation-bedrock
 - [Amazon Bedrock Agents Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-agents-tracing): Trace Bedrock agent orchestration workflows
 - [Amazon Bedrock Agent Runtime JS](https://arize.com/docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-agent-runtime-js): Instrument Bedrock Agent Runtime in TypeScript
 - [Amazon Bedrock SDK JS](https://arize.com/docs/phoenix/integrations/llm-providers/amazon-bedrock/amazon-bedrock-sdk-js): Instrument Bedrock SDK in TypeScript
 - [Google GenAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/google-genai-tracing): Auto-instrument Google GenAI SDK
+- [Gemini Go SDK](https://arize.com/docs/phoenix/integrations/llm-providers/google-gen-ai/gemini-go-sdk): Instrument google.golang.org/genai using OTel GenAI semantic conventions (Phoenix ingests gen_ai.* attributes)
 - [Groq Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/groq/groq-tracing): Auto-instrument Groq SDK
 - [LiteLLM Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/litellm/litellm-tracing): Auto-instrument LiteLLM unified API calls
 - [MistralAI Tracing](https://arize.com/docs/phoenix/integrations/llm-providers/mistralai/mistralai-tracing): Auto-instrument MistralAI SDK
