@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from jinja2 import Template
 from pydantic_ai import RunContext
 from pydantic_ai.tools import SystemPromptFunc
 
@@ -11,7 +12,7 @@ from phoenix.server.agents.types import AgentDependencies
 
 @dataclass
 class TraceContextCapability(AbstractDynamicCapability[AgentDependencies]):
-    instructions: str
+    instructions: Template
 
     def get_dynamic_instructions(self) -> SystemPromptFunc[AgentDependencies]:
         instructions = self.instructions
@@ -20,10 +21,7 @@ class TraceContextCapability(AbstractDynamicCapability[AgentDependencies]):
             trace = ctx.deps.contexts.trace
             if trace is None:
                 return None
-            return instructions.format(
-                project_node_id=trace.project_node_id,
-                otel_trace_id=trace.otel_trace_id,
-            )
+            return instructions.render(trace=trace)
 
         return _instructions
 

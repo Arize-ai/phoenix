@@ -3,6 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from jinja2 import Template
+
+from phoenix.server.agents.prompts._render import get_template
+
 _PROMPTS_DIR = Path(__file__).parent
 
 
@@ -22,17 +26,12 @@ _CLONE_PROMPT_INSTANCE_TOOL_INSTRUCTIONS = _read(
     "tools/CLONE_PROMPT_INSTANCE_TOOL_INSTRUCTIONS.xml"
 )
 _EDIT_PROMPT_INSTANCE_TOOL_INSTRUCTIONS = _read("tools/EDIT_PROMPT_INSTANCE_TOOL_INSTRUCTIONS.xml")
-_GRAPHQL_MUTATIONS_ENABLED_INSTRUCTIONS = _read(
-    "context/GRAPHQL_MUTATIONS_ENABLED_INSTRUCTIONS.xml"
-)
-_GRAPHQL_MUTATIONS_DISABLED_INSTRUCTIONS = _read(
-    "context/GRAPHQL_MUTATIONS_DISABLED_INSTRUCTIONS.xml"
-)
-_APP_CONTEXT_INSTRUCTIONS = _read("context/APP_CONTEXT_INSTRUCTIONS.xml")
-_PROJECT_CONTEXT_INSTRUCTIONS = _read("context/PROJECT_CONTEXT_INSTRUCTIONS.xml")
-_TRACE_CONTEXT_INSTRUCTIONS = _read("context/TRACE_CONTEXT_INSTRUCTIONS.xml")
-_SPAN_CONTEXT_INSTRUCTIONS = _read("context/SPAN_CONTEXT_INSTRUCTIONS.xml")
-_PLAYGROUND_CONTEXT_INSTRUCTIONS = _read("context/PLAYGROUND_CONTEXT_INSTRUCTIONS.xml")
+_APP_CONTEXT_TEMPLATE = get_template("context/APP_CONTEXT_INSTRUCTIONS.xml.j2")
+_PROJECT_CONTEXT_TEMPLATE = get_template("context/PROJECT_CONTEXT_INSTRUCTIONS.xml.j2")
+_TRACE_CONTEXT_TEMPLATE = get_template("context/TRACE_CONTEXT_INSTRUCTIONS.xml.j2")
+_SPAN_CONTEXT_TEMPLATE = get_template("context/SPAN_CONTEXT_INSTRUCTIONS.xml.j2")
+_PLAYGROUND_CONTEXT_TEMPLATE = get_template("context/PLAYGROUND_CONTEXT_INSTRUCTIONS.xml.j2")
+_GRAPHQL_MUTATIONS_TEMPLATE = get_template("context/GRAPHQL_MUTATIONS_INSTRUCTIONS.xml.j2")
 
 SUMMARIZATION_SYSTEM_PROMPT = _read("summarization/SUMMARIZATION_PROMPT_INSTRUCTIONS.xml")
 
@@ -51,13 +50,12 @@ class AgentInstructions:
     read_prompt_instance_tool: str = _READ_PROMPT_INSTANCE_TOOL_INSTRUCTIONS
     clone_prompt_instance_tool: str = _CLONE_PROMPT_INSTANCE_TOOL_INSTRUCTIONS
     edit_prompt_instance_tool: str = _EDIT_PROMPT_INSTANCE_TOOL_INSTRUCTIONS
-    graphql_mutations_enabled: str = _GRAPHQL_MUTATIONS_ENABLED_INSTRUCTIONS
-    graphql_mutations_disabled: str = _GRAPHQL_MUTATIONS_DISABLED_INSTRUCTIONS
-    app_context: str = _APP_CONTEXT_INSTRUCTIONS
-    project_context: str = _PROJECT_CONTEXT_INSTRUCTIONS
-    trace_context: str = _TRACE_CONTEXT_INSTRUCTIONS
-    span_context: str = _SPAN_CONTEXT_INSTRUCTIONS
-    playground_context: str = _PLAYGROUND_CONTEXT_INSTRUCTIONS
+    app_context: Template = _APP_CONTEXT_TEMPLATE
+    project_context: Template = _PROJECT_CONTEXT_TEMPLATE
+    trace_context: Template = _TRACE_CONTEXT_TEMPLATE
+    span_context: Template = _SPAN_CONTEXT_TEMPLATE
+    playground_context: Template = _PLAYGROUND_CONTEXT_TEMPLATE
+    graphql_mutations: Template = _GRAPHQL_MUTATIONS_TEMPLATE
 
 
 __all__ = [

@@ -1,5 +1,9 @@
 <phoenix_playground_context>
   <description>The playground prompt editor is mounted. Use the alphabetic `label` (A, B, C, D) when discussing instances with the user, and pass the numeric `instance_id` when calling tools.</description>
-  <instances>{instance_elements}</instances>
+  <instances>
+{% for instance_id in playground.instance_ids %}
+    <instance label="{{ instance_labels[loop.index0] }}" instance_id="{{ instance_id }}"/>
+{% endfor %}
+  </instances>
   <guidance>Call `read_prompt_instance` before proposing edits, `clone_prompt_instance` to create comparison variants, and `edit_prompt_instance` to show the user an approval diff before changing prompt messages.</guidance>
 </phoenix_playground_context>
