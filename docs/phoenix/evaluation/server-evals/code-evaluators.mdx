@@ -144,10 +144,10 @@ flowchart LR
     Server -. HTTPS .-> hostedBox
 ```
 
-**Local** backends (WebAssembly, Deno) ship with Phoenix and need no credentials, so they're available immediately on self-hosted deployments. **Hosted** backends (E2B, Daytona, Vercel, Modal) run each invocation on a third-party provider's infrastructure, which buys stronger isolation, longer timeouts, package installation, and outbound network access. See [Sandbox Backends](/docs/phoenix/self-hosting/features/sandbox-runtimes) for the full capability matrix.
+**Local** backends (WebAssembly, Deno) ship with Phoenix and need no credentials, so they're available immediately on self-hosted deployments — but they only run **simple, self-contained code**: no environment variables, no network access, no installed packages. **Hosted** backends (E2B, Daytona, Vercel, Modal) run each invocation on a third-party provider's infrastructure, and are the only backends that support environment variables, outbound network access, and third-party dependencies. See [Sandbox Backends](/docs/phoenix/self-hosting/features/sandbox-runtimes) for the full capability matrix.
 
 <Tip>
-If your evaluator needs to install a package or call an external API, pick a hosted backend. The local backends are intentionally restricted.
+If your evaluator needs to read an environment variable, install a package, or call an external API, pick a hosted backend. The local backends are intentionally restricted to simple code evaluation.
 </Tip>
 
 The walkthrough below shows creating a Python code evaluator that runs on a Daytona sandbox — from picking the hosted backend through testing the evaluator against a dataset example.

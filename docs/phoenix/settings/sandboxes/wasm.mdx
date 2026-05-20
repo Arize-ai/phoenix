@@ -1,21 +1,31 @@
 ---
 title: "WebAssembly"
-description: "Run Python code evaluators inside the Phoenix server using a sandboxed Python interpreter."
+description: "Run simple Python code evaluators locally inside the Phoenix server."
 ---
 
 <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginTop: '1.5rem', marginBottom: '1.5rem' }}>
 <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/wasm.svg" alt="WebAssembly" style={{ height: '112px', flexShrink: 0 }} />
 <div>
 
-The **WebAssembly** sandbox runs Python code evaluators inside an isolated [WebAssembly](https://webassembly.org/) runtime on the Phoenix server. Scripts cannot read your files, open network connections, or access anything else on the host — Phoenix controls exactly which operations the Python code is allowed to perform. It runs locally inside Phoenix, starts in milliseconds, and needs no credentials, which makes it the default choice for fast Python evaluators that handle pure logic (regex, JSON parsing, scoring functions, etc.).
+The **WebAssembly** sandbox is a **local sandbox** for **simple Python evaluators** — pure-logic checks like regex matches, JSON parsing, and scoring functions. It runs locally inside the Phoenix server, starts in milliseconds, and needs no credentials.
 
 </div>
 </div>
 
-Configure it from [Settings → Sandboxes](/docs/phoenix/settings/sandboxes). For background on the underlying technology, see [webassembly.org](https://webassembly.org/).
+Configure it from [Settings → Sandboxes](/docs/phoenix/settings/sandboxes).
 
-## Security model
+## What it supports
 
-WebAssembly runs the Python interpreter inside a strictly isolated environment. Memory is partitioned so the script can only touch its own data, and the script has no built-in access to the filesystem, network, or operating system. Phoenix decides explicitly which operations to allow, and everything else is denied by default.
+The WebAssembly sandbox runs your Python in an isolated [WebAssembly](https://webassembly.org/) runtime on the Phoenix server. It is intentionally limited to **self-contained code**:
 
-For the full security model — including memory safety, control-flow integrity, and the side-channel limitations that apply to any in-process sandbox — see WebAssembly's [Security](https://webassembly.org/docs/security/) documentation.
+| Capability | Supported? |
+| :-- | :-- |
+| Environment variables | ❌ Not supported — use a hosted sandbox |
+| Network access | ❌ Not supported — use a hosted sandbox |
+| Third-party dependencies | ❌ Not supported — use a hosted sandbox |
+
+If your evaluator needs **any** of the above, it cannot run on WebAssembly. Use a [hosted sandbox](/docs/phoenix/settings/sandboxes#local-vs-hosted-sandboxes) (E2B, Daytona, Vercel, or Modal) instead — those run each evaluation on an isolated remote VM with full support for environment variables, outbound network access, and installed packages.
+
+## Running untrusted code
+
+WebAssembly runs the Python interpreter inside a strictly isolated environment — memory is partitioned and the script has no built-in access to the filesystem, network, or operating system. The sandbox still runs in the Phoenix server process, so the script shares CPU and memory with Phoenix. For the full security model, see WebAssembly's [Security](https://webassembly.org/docs/security/) documentation.

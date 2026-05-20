@@ -5,6 +5,10 @@ description: Set up the sandbox providers that run code evaluators on your self-
 
 Phoenix runs code evaluators (and other LLM-driven workloads that need to execute code) inside sandboxes. This page tells you which sandbox providers are ready to use in the official `arizephoenix/phoenix` container, what extra setup the others need, and how to read the status badges shown on **Settings → Sandboxes**.
 
+<Warning>
+**Local sandboxes (Deno, WebAssembly) are for simple code evaluation only.** Environment variables, network access, and third-party dependencies are supported **only** in hosted sandboxes (E2B, Daytona, Vercel, Modal).
+</Warning>
+
 ## Reading the status on Settings → Sandboxes
 
 Each provider on the **Settings → Sandboxes** page shows a status that tells you whether it's ready to run code:
