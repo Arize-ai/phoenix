@@ -72,6 +72,10 @@ spec:
 Network policies require a CNI plugin that supports them (e.g., Calico, Cilium, Weave Net). On GKE with Workload Identity enabled, you may also need to block `169.254.169.252/32` in addition to the `169.254.0.0/16` range.
 </Note>
 
+<Info>
+For a deeper treatment — default-deny patterns, identity-based selectors, FQDN allowlists for LLM providers, and copy-ready Cilium manifests — see the [Network Policies](/docs/phoenix/self-hosting/security/network-policies) reference.
+</Info>
+
 **AWS Security Groups**
 
 Configure outbound rules to allow only HTTPS traffic to known AI provider IP ranges, or route traffic through a NAT gateway with restricted routing.

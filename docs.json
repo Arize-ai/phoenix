@@ -1050,7 +1050,8 @@
             "pages": [
               "docs/phoenix/settings/access-control-rbac",
               "docs/phoenix/self-hosting/security/privacy",
-              "docs/phoenix/self-hosting/security/network-security"
+              "docs/phoenix/self-hosting/security/network-security",
+              "docs/phoenix/self-hosting/security/network-policies"
             ]
           },
           {

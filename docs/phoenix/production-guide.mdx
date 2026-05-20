@@ -3,13 +3,20 @@ title: "Production Guide"
 description: "Moving your application to production: steps for reliability and scale"
 ---
 
-Moving your Phoenix deployment from development to production requires additional configuration for reliability, performance, and scalability. This page outlines the key steps and considerations to prepare your Phoenix instance for production workloads.
+Moving to production involves two distinct concerns, and this guide is organized around them:
+
+- **[Tracing pipeline](#tracing-pipeline)** — how your instrumented application delivers telemetry to Phoenix reliably and efficiently. Configured in your application's OpenTelemetry exporters and collectors.
+- **[Phoenix server](#phoenix-server)** — how you deploy, scale, and secure the self-hosted Phoenix instance that receives, stores, and serves that telemetry.
+
+The two are configured and operated independently. Tune the **tracing pipeline** where your application runs; tune the **Phoenix server** where your deployment runs. A change to one does not affect the other.
 
 <Info>
   For a managed deployment where Arize handles installation, maintenance, and ongoing operations, see [Arize AX](https://arize.com/docs/ax/selfhosting).
 </Info>
 
-## Configuration
+## Tracing Pipeline
+
+These settings live in your **instrumented application** — the OpenTelemetry exporters and collectors that carry spans, metrics, and logs to Phoenix. They control the reliability and efficiency of data delivery and have no effect on the Phoenix server itself.
 
 ### Enable Batch Processing
 
@@ -21,11 +28,15 @@ The batch processor supports:
 
 * **Time-based batching** (batch emits after a configurable timeout)
 
-### **Use gRPC Transport**
+### Use gRPC Transport
 
 Switch your exporters to use gRPC wherever possible to maximize payload compression and reduce network overhead in production environments.
 
-### **Scaling Facilities**
+## Phoenix Server
+
+These settings apply to the **self-hosted Phoenix deployment** that receives, stores, and serves your telemetry. They are independent of how your application is instrumented — they govern the reliability, scale, and security of the server itself.
+
+### Scaling
 
 Plan for scaling resources to match your workload, including:
 
@@ -34,14 +45,6 @@ Plan for scaling resources to match your workload, including:
 * **Disk scaling** for log and trace ingestion, especially if retaining high volumes.
 
 * **Horizontal scaling** if your deployment needs to handle increased concurrency.
-
-### Enable Database Backups
-
-Ensure that automated backups are enabled for your Postgres instance. This protects your data and allows recovery in the event of failures or data corruption.
-
-## Resourcing Guidelines
-
-Depending on your workload, you might need to provision your Phoenix instance with varying memory and data resources.
 
 ### Memory Sizing
 
@@ -67,9 +70,9 @@ For production and scalable deployments, Phoenix supports PostgreSQL. The databa
 
 Regularly monitor disk utilization to plan for scaling and ensure stable, reliable operation.
 
-### Backups
+### Database Backups
 
-A solid backup plan protects your data and supports disaster recovery. Implement a Postgres backup strategy that considers:
+Ensure automated backups are enabled for your Postgres instance — they protect your data and support recovery from failures or data corruption. A solid backup plan considers:
 
 * **Backup frequency:** How often backups occur.
 
@@ -77,4 +80,12 @@ A solid backup plan protects your data and supports disaster recovery. Implement
 
 * **Test restores:** Regularly verify backups by restoring data.
 
+### Network Hardening
 
+The Phoenix server accepts OpenTelemetry traces from arbitrary clients and makes outbound HTTPS calls to LLM provider APIs for evals, the Playground, and annotations. That combination makes a Phoenix pod an attractive pivot point if the process is ever compromised. If you want to genuinely lock down the network traffic and network access available to your Phoenix instance, restrict it at the infrastructure level rather than relying on application-level controls alone.
+
+On Kubernetes, the strongest control is a **network policy** enforced by a CNI such as [Cilium](https://cilium.io/). A well-scoped policy puts the Phoenix pod into allow-list mode: it can reach its database, the cluster DNS resolver, and an explicit allowlist of LLM provider domains — and nothing else. Critically, it blocks egress to private IP ranges and the cloud provider metadata endpoint (`169.254.169.254`), which is the first thing an attacker reaches for after compromising a workload.
+
+<Info>
+  See the [Network Policies](/docs/phoenix/self-hosting/security/network-policies) reference for copy-ready Cilium policies and the hardening principles behind them. For application-level controls — provider allowlists, HTTP proxies, and CSRF protection — see [Network Security](/docs/phoenix/self-hosting/security/network-security).
+</Info>
