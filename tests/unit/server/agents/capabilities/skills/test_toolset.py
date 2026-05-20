@@ -5,8 +5,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from phoenix.server.agents.capabilities.skills import Skill, SkillsToolset
-from phoenix.server.agents.capabilities.skills.local import create_file_based_resource
+from phoenix.server.agents.capabilities.skills import Skill, SkillResource, SkillsToolset
 
 
 @pytest.fixture
@@ -52,8 +51,8 @@ See FORMS.md for details.
         Skill.from_file(
             skill2_dir / "SKILL.md",
             resources=[
-                create_file_based_resource(name="FORMS.md", uri=str(forms_file)),
-                create_file_based_resource(name="REFERENCE.md", uri=str(reference_file)),
+                SkillResource(name="FORMS.md", uri=str(forms_file)),
+                SkillResource(name="REFERENCE.md", uri=str(reference_file)),
             ],
         ),
     ]

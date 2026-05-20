@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 
-from phoenix.server.agents.capabilities.skills.local import create_file_based_resource
 from phoenix.server.agents.capabilities.skills.resource import SkillResource
 from phoenix.server.agents.capabilities.skills.skill import Skill
 
@@ -121,7 +120,7 @@ def test_from_file_attaches_explicit_resources(tmp_path: Path) -> None:
 
     skill = Skill.from_file(
         skill_file,
-        resources=[create_file_based_resource(name="schema.json", uri=str(schema_file))],
+        resources=[SkillResource(name="schema.json", uri=str(schema_file))],
     )
 
     assert len(skill.resources) == 1
