@@ -10,6 +10,7 @@ metadata, build_backend config plumbing).
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast  # noqa: F401
 
@@ -678,3 +679,144 @@ class TestSandboxBackendsResolverWASMStatus:
                         secrets=_empty_secrets_context(),
                     )
         mock_retrieve.assert_not_called()
+
+
+class TestEpochTicker:
+    """The epoch ticker is what makes the WASM execution timeout fire at all:
+    wasmtime traps a runaway guest only once the engine epoch passes the
+    store's deadline, and that epoch advances solely via increment_epoch()."""
+
+    def test_start_epoch_ticker_advances_engine_epoch(self) -> None:
+        from phoenix.server.sandbox import wasm_backend
+
+        increments = 0
+
+        class _FakeEngine:
+            def increment_epoch(self) -> None:
+                nonlocal increments
+                increments += 1
+
+        with patch.object(wasm_backend, "_EPOCH_TICK_SECONDS", 0.01):
+            wasm_backend._start_epoch_ticker(cast(Any, _FakeEngine()))
+            time.sleep(0.1)
+
+        assert increments >= 3, "ticker must keep advancing the engine epoch"
+
+    def test_get_engine_and_module_starts_one_ticker_per_engine(self) -> None:
+        import wasmtime
+
+        from phoenix.server.sandbox import wasm_backend
+        from phoenix.server.sandbox.wasm_backend import _MODULE_CACHE, _get_engine_and_module
+
+        fake_path = Path("/fake/ticker-per-engine.wasm")
+        _MODULE_CACHE.pop(str(fake_path), None)
+
+        with patch.object(wasm_backend, "_start_epoch_ticker") as mock_ticker:
+            with patch.object(wasmtime.Module, "from_file", return_value="fake_module"):
+                engine1, _ = _get_engine_and_module(fake_path)
+                engine2, _ = _get_engine_and_module(fake_path)
+
+        assert engine1 is engine2
+        # One engine → one ticker; the cached second call must not start another.
+        mock_ticker.assert_called_once_with(engine1)
+        _MODULE_CACHE.pop(str(fake_path), None)
+
+
+class TestRunWasmTimeout:
+    """_run_wasm enforces the per-execution timeout via the store's epoch
+    deadline and classifies a deadline trap as a timeout."""
+
+    def test_reports_timeout_when_trap_fires_after_deadline(self) -> None:
+        import wasmtime
+
+        from phoenix.server.sandbox import wasm_backend
+
+        class _TrappingStart:
+            def __call__(self, store: object) -> None:
+                del store
+                raise RuntimeError("wasm trap: interrupt")
+
+        mock_exports = MagicMock()
+        mock_exports.get.return_value = _TrappingStart()
+        mock_instance = MagicMock()
+        mock_instance.exports.return_value = mock_exports
+        fake_store = MagicMock()
+
+        with patch(
+            "phoenix.server.sandbox.wasm_backend._get_engine_and_module",
+            return_value=(MagicMock(), MagicMock()),
+        ):
+            with patch("wasmtime.Linker") as mock_linker_cls:
+                mock_linker_cls.return_value.instantiate.return_value = mock_instance
+                with patch("wasmtime.Store", return_value=fake_store):
+                    with patch.object(wasmtime, "Func", _TrappingStart):
+                        # started_at, then the except branch reads 30s later.
+                        with patch.object(
+                            wasm_backend.time, "monotonic", side_effect=[100.0, 130.0]
+                        ):
+                            result = _run_wasm(
+                                Path("/fake/cpython.wasm"), "while True: pass", timeout=30
+                            )
+
+        # 30s timeout / 1s tick → a 30-tick epoch deadline.
+        fake_store.set_epoch_deadline.assert_called_once_with(30)
+        assert result.error == "Execution timed out after 30s"
+
+    def test_preserves_generic_error_raised_before_timeout(self) -> None:
+        import wasmtime
+
+        from phoenix.server.sandbox import wasm_backend
+
+        class _FailingStart:
+            def __call__(self, store: object) -> None:
+                del store
+                raise RuntimeError("integer division by zero")
+
+        mock_exports = MagicMock()
+        mock_exports.get.return_value = _FailingStart()
+        mock_instance = MagicMock()
+        mock_instance.exports.return_value = mock_exports
+
+        with patch(
+            "phoenix.server.sandbox.wasm_backend._get_engine_and_module",
+            return_value=(MagicMock(), MagicMock()),
+        ):
+            with patch("wasmtime.Linker") as mock_linker_cls:
+                mock_linker_cls.return_value.instantiate.return_value = mock_instance
+                with patch("wasmtime.Store", return_value=MagicMock()):
+                    with patch.object(wasmtime, "Func", _FailingStart):
+                        # Only 0.5s elapsed — far under the 30s timeout, so the
+                        # error is a genuine guest fault, not a deadline trap.
+                        with patch.object(
+                            wasm_backend.time, "monotonic", side_effect=[100.0, 100.5]
+                        ):
+                            result = _run_wasm(Path("/fake/cpython.wasm"), "1/0", timeout=30)
+
+        assert result.error == "integer division by zero"
+
+    def test_epoch_deadline_is_at_least_one_tick(self) -> None:
+        import wasmtime
+
+        class _NoopStart:
+            def __call__(self, store: object) -> None:
+                del store
+
+        mock_exports = MagicMock()
+        mock_exports.get.return_value = _NoopStart()
+        mock_instance = MagicMock()
+        mock_instance.exports.return_value = mock_exports
+        fake_store = MagicMock()
+
+        with patch(
+            "phoenix.server.sandbox.wasm_backend._get_engine_and_module",
+            return_value=(MagicMock(), MagicMock()),
+        ):
+            with patch("wasmtime.Linker") as mock_linker_cls:
+                mock_linker_cls.return_value.instantiate.return_value = mock_instance
+                with patch("wasmtime.Store", return_value=fake_store):
+                    with patch.object(wasmtime, "Func", _NoopStart):
+                        result = _run_wasm(Path("/fake/cpython.wasm"), "x=1", timeout=0)
+
+        # ceil(0 / 1.0) is 0, floored to a minimum of one tick.
+        fake_store.set_epoch_deadline.assert_called_once_with(1)
+        assert result.error is None

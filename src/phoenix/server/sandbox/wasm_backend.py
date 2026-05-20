@@ -5,7 +5,11 @@ Executes Python code locally via a CPython 3.12 WebAssembly binary using the
 ``wasmtime`` runtime. Stateless — inherits BaseNoSessionBackend.
 
 The WASM binary is downloaded on first use via _download.ensure_wasm_binary().
-Execution runs in a thread pool to avoid blocking the event loop.
+Execution runs in a thread pool to avoid blocking the event loop. The
+per-execution timeout is enforced through wasmtime epoch interruption: a
+daemon ticker thread advances the engine epoch (see _start_epoch_ticker) so a
+store's epoch deadline actually traps runaway guest code instead of letting it
+run forever and leak a worker thread.
 
 Requires the ``wasmtime`` package (optional extra). Runtime imports are lazy
 inside ``_run_wasm`` and ``_get_engine_and_module`` so the module remains
@@ -19,8 +23,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import os
 import tempfile
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -47,33 +54,79 @@ _DEFAULT_TIMEOUT_SECONDS = 30
 _EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="wasm-sandbox")
 
 
+# Wall-clock interval between engine epoch increments. A store's epoch
+# deadline is a tick count, so with a 1s tick it maps directly to seconds.
+_EPOCH_TICK_SECONDS = 1.0
+
 # Module-level cache: path → (engine, compiled module).
 # Engine and module must be paired — a module compiled with one engine
 # cannot be used with a store from a different engine.
 _MODULE_CACHE: dict[str, tuple[wasmtime.Engine, wasmtime.Module]] = {}
 
+# Serializes the check-compile-cache sequence in _get_engine_and_module so
+# concurrent _EXECUTOR worker threads cannot create duplicate engines — each
+# duplicate would also spawn its own (orphaned, never-stopping) ticker thread.
+_MODULE_CACHE_LOCK = threading.Lock()
+
+
+def _start_epoch_ticker(engine: wasmtime.Engine) -> None:
+    """Advance *engine*'s epoch on a daemon thread, once per _EPOCH_TICK_SECONDS.
+
+    wasmtime epoch interruption only traps a running guest once the engine's
+    epoch counter passes the store's deadline, and that counter advances ONLY
+    when increment_epoch() is called. Without this ticker the deadline set in
+    _run_wasm would never be reached, so guest code such as an infinite loop
+    would run forever and permanently consume an _EXECUTOR worker thread —
+    four such executions would wedge the WASM backend process-wide.
+
+    The thread is a daemon (never blocks interpreter shutdown) and keeps the
+    engine alive, which is fine: engines live in _MODULE_CACHE for the life of
+    the process anyway.
+    """
+
+    def _tick() -> None:
+        while True:
+            time.sleep(_EPOCH_TICK_SECONDS)
+            engine.increment_epoch()
+
+    threading.Thread(target=_tick, name="wasm-epoch-ticker", daemon=True).start()
+
 
 def _get_engine_and_module(binary_path: Path) -> tuple[wasmtime.Engine, wasmtime.Module]:
-    """Return a cached (engine, module) pair, compiling on first use."""
+    """Return a cached (engine, module) pair, compiling on first use.
+
+    The first call for a binary creates the engine and starts its epoch-ticker
+    thread (see _start_epoch_ticker) so per-store epoch deadlines fire. The
+    lock keeps that one-time setup atomic across worker threads.
+    """
     import wasmtime as _wasm
 
     cache_key = str(binary_path)
-    if cache_key not in _MODULE_CACHE:
-        engine_cfg = _wasm.Config()
-        engine_cfg.epoch_interruption = True
-        engine = _wasm.Engine(engine_cfg)
-        module = _wasm.Module.from_file(engine, str(binary_path))
-        _MODULE_CACHE[cache_key] = (engine, module)
-    return _MODULE_CACHE[cache_key]
+    with _MODULE_CACHE_LOCK:
+        if cache_key not in _MODULE_CACHE:
+            engine_cfg = _wasm.Config()
+            engine_cfg.epoch_interruption = True
+            engine = _wasm.Engine(engine_cfg)
+            module = _wasm.Module.from_file(engine, str(binary_path))
+            _start_epoch_ticker(engine)
+            _MODULE_CACHE[cache_key] = (engine, module)
+        return _MODULE_CACHE[cache_key]
 
 
 def _run_wasm(binary_path: Path, code: str, timeout: int) -> ExecutionResult:
-    """Execute *code* in a wasmtime WASI context. Runs in a thread."""
+    """Execute *code* in a wasmtime WASI context. Runs in a thread.
+
+    The *timeout* (seconds) is enforced via the store's epoch deadline, which
+    the engine ticker thread advances; runaway guest code traps after roughly
+    *timeout* seconds and is reported as a timeout rather than running forever
+    and leaking this worker thread.
+    """
     import wasmtime as _wasm
 
     stdout_chunks: list[bytes] = []
     stderr_chunks: list[bytes] = []
     stdin_path: str | None = None
+    started_at = time.monotonic()
 
     try:
         engine, module = _get_engine_and_module(binary_path)
@@ -93,7 +146,11 @@ def _run_wasm(binary_path: Path, code: str, timeout: int) -> ExecutionResult:
 
         store = _wasm.Store(engine)
         store.set_wasi(wasi)
-        store.set_epoch_deadline(timeout)
+        # Epoch deadline, expressed in engine ticks. The ticker advances one
+        # tick every _EPOCH_TICK_SECONDS, so ceil(timeout / tick) ticks is
+        # roughly `timeout` seconds; at least one tick so a deadline always
+        # exists.
+        store.set_epoch_deadline(max(1, math.ceil(timeout / _EPOCH_TICK_SECONDS)))
 
         instance = linker.instantiate(store, module)
         exports = instance.exports(store)
@@ -106,15 +163,17 @@ def _run_wasm(binary_path: Path, code: str, timeout: int) -> ExecutionResult:
             stderr=b"".join(stderr_chunks).decode("utf-8", errors="replace"),
         )
     except Exception as exc:
-        return ExecutionResult(
-            stdout=b"".join(stdout_chunks).decode("utf-8", errors="replace"),
-            stderr=b"".join(stderr_chunks).decode("utf-8", errors="replace"),
-            error=str(exc),
-        )
+        stdout = b"".join(stdout_chunks).decode("utf-8", errors="replace")
+        stderr = b"".join(stderr_chunks).decode("utf-8", errors="replace")
+        # An epoch-deadline trap fires ~timeout seconds in. wasmtime surfaces
+        # it as a generic trap, so identify it by elapsed wall time and report
+        # an actionable timeout message instead of a raw trap string.
+        if time.monotonic() - started_at >= timeout:
+            message = f"Execution timed out after {timeout}s"
+            return ExecutionResult(stdout=stdout, stderr=stderr, error=message)
+        return ExecutionResult(stdout=stdout, stderr=stderr, error=str(exc))
     finally:
         if stdin_path is not None:
-            import os
-
             try:
                 os.unlink(stdin_path)
             except OSError:
