@@ -31,22 +31,13 @@ The official `arizephoenix/phoenix` image bundles both local sandbox backends so
 
 ### Deno
 
-The `deno` binary is installed into the container image at `/usr/local/bin/deno`, which is on the default `PATH`. Phoenix picks it up automatically — no environment variables or extra setup required.
+The `deno` binary is bundled in the container image and on the default `PATH`. Phoenix picks it up automatically — no environment variables or extra setup required.
 
 ### WebAssembly (CPython WASM)
 
-The Python WebAssembly binary (`python-3.12.0.wasm`) is fetched during the Docker image build and baked into the container at `/opt/phoenix/wasm/python-3.12.0.wasm`, so running the container needs no extra download. The container also sets:
+The container ships with the Python WebAssembly runtime already in place and the `PHOENIX_WASM_BINARY_PATH` environment variable pre-set to point at it. The WebAssembly sandbox works out of the box — no download on first use, no writable cache directory, and no network access required (it runs even in air-gapped deployments).
 
-```
-PHOENIX_WASM_BINARY_PATH=/opt/phoenix/wasm/python-3.12.0.wasm
-```
-
-When `PHOENIX_WASM_BINARY_PATH` is set, Phoenix uses only the file at that path:
-
-- If the file is present, the WebAssembly sandbox is ready to run immediately — no download, no first-run delay.
-- If the file is missing, the WebAssembly sandbox shows as **Unavailable** in **Settings → Sandboxes** rather than silently downloading a replacement.
-
-This means the WebAssembly sandbox works out of the box in the container — even in air-gapped environments — without needing a writable cache directory or network access.
+If you ever override `PHOENIX_WASM_BINARY_PATH` yourself, Phoenix will use only the file at that path. If the file isn't there, the WebAssembly sandbox shows as **Unavailable** in **Settings → Sandboxes** rather than silently falling back to a download.
 
 ## Non-container deployments
 
@@ -76,9 +67,6 @@ export PHOENIX_WASM_BINARY_PATH=/path/to/python-3.12.0.wasm
 
 Once `PHOENIX_WASM_BINARY_PATH` is set, Phoenix will only use that file. If the file is missing, the sandbox reports an error instead of falling back to the download.
 
-<Tip>
-You can copy `python-3.12.0.wasm` out of an `arizephoenix/phoenix` container (`/opt/phoenix/wasm/python-3.12.0.wasm`) to seed an air-gapped host without re-fetching from upstream.
-</Tip>
 
 ### Hosted providers
 
@@ -123,8 +111,8 @@ The container-ready column reflects the post-install state of the `arizephoenix/
 
 | Provider (kind) | Languages | Container-ready | Extra setup outside container | Credentials | Runtime location |
 | :-- | :-- | :-- | :-- | :-- | :-- |
-| **Deno (local)** (`DENO`) | TypeScript | Yes — `deno` bundled at `/usr/local/bin/deno` | Install Deno on `PATH` | None | On the Phoenix server |
-| **WebAssembly (local)** (`WASM`) | Python | Yes — Python WebAssembly runtime bundled at `$PHOENIX_WASM_BINARY_PATH` | `pip install 'arize-phoenix[wasm]'`; optionally set `PHOENIX_WASM_BINARY_PATH` | None | On the Phoenix server |
+| **Deno (local)** (`DENO`) | TypeScript | Yes — `deno` bundled in the image | Install Deno on `PATH` | None | On the Phoenix server |
+| **WebAssembly (local)** (`WASM`) | Python | Yes — Python WebAssembly runtime bundled in the image | `pip install 'arize-phoenix[wasm]'`; optionally set `PHOENIX_WASM_BINARY_PATH` | None | On the Phoenix server |
 | **E2B** (`E2B`) | Python | Ready with credentials — already in container | `pip install 'arize-phoenix[e2b]'` | `E2B_API_KEY` | E2B cloud |
 | **Daytona** (`DAYTONA`) | Python, TypeScript | Ready with credentials — already in container | `pip install 'arize-phoenix[daytona]'` | `DAYTONA_API_KEY` | Daytona cloud |
 | **Vercel Sandbox** (`VERCEL`) | Python, TypeScript | Ready with credentials — already in container | `pip install 'arize-phoenix[vercel]'` | `VERCEL_TOKEN` + `VERCEL_PROJECT_ID` + `VERCEL_TEAM_ID` ([auth docs](https://vercel.com/docs/vercel-sandbox/concepts/authentication)) | Vercel cloud |
@@ -149,7 +137,7 @@ You'll see this when `PHOENIX_WASM_BINARY_PATH` is set but the file at that path
 How to fix it:
 
 - Check the file is where you expect it. If you're mounting it into a container, confirm the volume mount is correct.
-- If you're using the official `arizephoenix/phoenix` image, leave `PHOENIX_WASM_BINARY_PATH` unset (or at its default value of `/opt/phoenix/wasm/python-3.12.0.wasm`) — the binary is already in the right place.
+- If you're using the official `arizephoenix/phoenix` image, leave `PHOENIX_WASM_BINARY_PATH` at its default — the binary is already in the right place.
 - If you'd rather let Phoenix download the binary, unset `PHOENIX_WASM_BINARY_PATH` and Phoenix will fetch and cache it on first use.
 
 ### "WebAssembly binary will be downloaded on first use"
@@ -167,4 +155,4 @@ You'll see this when Phoenix tries to run the Deno binary but can't find it on y
 How to fix it:
 
 - **Non-container hosts:** install Deno (see the [Deno install guide](https://deno.land/install)) and make sure the user running Phoenix can find it on their `PATH`.
-- **Official `arizephoenix/phoenix` container:** Deno is pre-installed at `/usr/local/bin/deno`. If you're still seeing this error inside the container, your deployment is overriding `PATH` or replacing the entrypoint in a way that hides the bundled binary — restore the defaults or add `/usr/local/bin` back to `PATH`.
+- **Official `arizephoenix/phoenix` container:** Deno is pre-installed and on the default `PATH`. If you're still seeing this error inside the container, your deployment is overriding `PATH` or replacing the entrypoint in a way that hides the bundled binary — restore the defaults.
