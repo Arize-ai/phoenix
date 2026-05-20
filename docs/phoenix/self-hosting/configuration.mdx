@@ -85,6 +85,8 @@ The following environment variables will control how your phoenix server runs.
 
 * **PHOENIX\_ALLOWED\_PROVIDERS:** A comma-separated, case-insensitive list of model provider names to display in the playground UI. When unset, all providers are shown. Set to `NONE` to hide all providers. Unrecognized provider names will cause a startup error. Supported values: `OPENAI`, `ANTHROPIC`, `AZURE_OPENAI`, `GOOGLE`, `DEEPSEEK`, `XAI`, `OLLAMA`, `AWS`, `CEREBRAS`, `FIREWORKS`, `GROQ`, `MOONSHOT`, `PERPLEXITY`, `TOGETHER`. Example: `PHOENIX_ALLOWED_PROVIDERS=OPENAI,ANTHROPIC`. Available since version 13.13.0.
 
+* **PHOENIX\_ALLOWED\_SANDBOX\_PROVIDERS:** A comma-separated, case-insensitive list of code-execution sandbox providers that Phoenix is permitted to use. When unset, all providers are allowed. Set to `NONE` to disable every sandbox provider. Unrecognized provider names will cause a startup error. Supported values: `WASM`, `DENO`, `E2B`, `DAYTONA`, `VERCEL`, `MODAL`. Example: `PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO`. See [Sandbox Backends](self-hosting/features/sandbox-runtimes#restricting-which-providers-are-allowed) for details.
+
 ### Logging
 
 * **PHOENIX\_LOG\_SQL:** Whether to log all SQL statements to stdout. Useful for debugging database queries. Defaults to `false`. Available since version 13.4.0.

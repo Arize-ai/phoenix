@@ -18,6 +18,7 @@ from strawberry import lazy
 from strawberry.relay import Node, NodeID
 from strawberry.types import Info
 
+from phoenix.config import get_env_allowed_sandbox_providers
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.context import Context
@@ -89,6 +90,8 @@ class SandboxBackendStatus(Enum):
     """Adapter is installed but backend creation failed (e.g. bad credentials)."""
     NOT_INSTALLED = "NOT_INSTALLED"
     """Optional dependency for this backend is not installed."""
+    DISABLED = "DISABLED"
+    """Backend is excluded from PHOENIX_ALLOWED_SANDBOX_PROVIDERS on the server."""
 
 
 @strawberry.enum
@@ -511,11 +514,15 @@ async def get_sandbox_backend_info(
     """
     from phoenix.server.sandbox import SANDBOX_ADAPTERS
 
+    allowed_backend_types = get_env_allowed_sandbox_providers()
     infos: list[SandboxBackendInfo] = []
     for backend_type, meta in SANDBOX_ADAPTER_METADATA.items():
         probe_language: models.LanguageName = sorted(meta.supported_languages)[0]
         status_detail: Optional[str] = None
-        if backend_type not in SANDBOX_ADAPTERS:
+        if backend_type not in allowed_backend_types:
+            status = SandboxBackendStatus.DISABLED
+            status_detail = "Disabled on the server."
+        elif backend_type not in SANDBOX_ADAPTERS:
             status = SandboxBackendStatus.NOT_INSTALLED
         else:
             missing_auth_detail = await secrets.missing_auth_detail(backend_type)

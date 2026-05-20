@@ -21,6 +21,7 @@ from phoenix.config import (
     TLSConfigVerifyClient,
     get_env_access_token_expiry,
     get_env_allowed_origins,
+    get_env_allowed_sandbox_providers,
     get_env_auth_settings,
     get_env_dangerously_enable_agents,
     get_env_database_connection_str,
@@ -125,12 +126,25 @@ _WELCOME_MESSAGE = Environment(loader=BaseLoader()).from_string("""
 {%- if schema %}
 |    - Schema: {{ schema }}
 {%- endif %}
+|
+|  📦 Code Sandbox Providers 📦
+{%- for provider in sandbox_providers %}
+|  - {{ provider.name }}: {{ "✅ Allowed" if provider.enabled else "❌ Disabled" }}
+{%- endfor %}
 {%- if agents_enabled %}
 |
 |  🧪 Experimental Features 🧪
 |  Agents: Enabled
 {%- endif %}
 """)
+
+
+def _get_sandbox_provider_statuses() -> list[dict[str, object]]:
+    """Return per-provider enabled/disabled status for the launch banner."""
+    from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
+
+    allowed = get_env_allowed_sandbox_providers()
+    return [{"name": name, "enabled": name in allowed} for name in sorted(SANDBOX_BACKEND_TYPES)]
 
 
 def _add_server_args(parser: ArgumentParser) -> None:
@@ -292,6 +306,7 @@ def run(args: Namespace) -> None:
         tls_verify_client=tls_verify_client,
         allowed_origins=allowed_origins,
         agents_enabled=get_env_dangerously_enable_agents(),
+        sandbox_providers=_get_sandbox_provider_statuses(),
     )
 
     msg = no_emojis_on_windows(msg)
