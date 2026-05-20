@@ -11,12 +11,42 @@ from pydantic_ai._griffe import doc_descriptions
 from pydantic_ai._run_context import RunContext
 from pydantic_ai.toolsets import FunctionToolset
 
-from phoenix.server.agents.capabilities.skills.types import (
-    Skill,
-    SkillResource,
-    SkillWrapper,
-    normalize_skill_name,
-)
+from phoenix.server.agents.capabilities.skills.resource import SkillResource
+from phoenix.server.agents.capabilities.skills.skill import Skill
+from phoenix.server.agents.capabilities.skills.wrapper import SkillWrapper
+
+
+def normalize_skill_name(func_name: str) -> str:
+    """Normalize a function name to a valid skill name.
+
+    Converts underscores to hyphens and lowercases.
+
+    Args:
+        func_name: The function name to normalize.
+
+    Returns:
+        Normalized skill name (lowercase, underscores replaced with hyphens).
+
+    Raises:
+        ValueError: If the normalized name exceeds 64 characters.
+
+    Example:
+        ```python
+        normalize_skill_name('data_analyzer')  # Returns 'data-analyzer'
+        normalize_skill_name('my_cool_skill')  # Returns 'my-cool-skill'
+        ```
+    """
+    # Replace underscores with hyphens and convert to lowercase
+    normalized = func_name.replace("_", "-").lower()
+
+    # Check length
+    if len(normalized) > 64:
+        raise ValueError(
+            f"Skill name '{normalized}' exceeds 64 characters ({len(normalized)} chars)."
+        )
+
+    return normalized
+
 
 # Template used by load_skill
 LOAD_SKILL_TEMPLATE = """<skill>

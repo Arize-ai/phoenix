@@ -5,7 +5,8 @@ from pathlib import Path
 import pytest
 
 from phoenix.server.agents.capabilities.skills.local import create_file_based_resource
-from phoenix.server.agents.capabilities.skills.types import Skill, SkillResource
+from phoenix.server.agents.capabilities.skills.resource import SkillResource
+from phoenix.server.agents.capabilities.skills.skill import Skill
 
 
 def test_skill_creation() -> None:
