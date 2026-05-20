@@ -52,7 +52,7 @@ def normalize_skill_name(func_name: str) -> str:
 LOAD_SKILL_TEMPLATE = """<skill>
 <name>{skill_name}</name>
 <description>{description}</description>
-<uri>{uri}</uri>
+<path>{path}</path>
 
 <resources>
 {resources_list}
@@ -100,7 +100,7 @@ class SkillsToolset(FunctionToolset[Any]):
 
         custom_skill = Skill(
             name="my-skill",
-            uri="./custom",
+            path="./custom",
             metadata=SkillMetadata(name="my-skill", description="Custom skill"),
             content="Instructions here",
         )
@@ -332,7 +332,7 @@ class SkillsToolset(FunctionToolset[Any]):
             return LOAD_SKILL_TEMPLATE.format(
                 skill_name=skill.name,
                 description=skill.description,
-                uri=skill.uri or "N/A",
+                path=skill.path or "N/A",
                 resources_list=resources_list,
                 content=skill.content,
             )
@@ -405,7 +405,6 @@ class SkillsToolset(FunctionToolset[Any]):
         *,
         name: str | None = None,
         description: str | None = None,
-        compatibility: str | None = None,
         metadata: dict[str, Any] | None = None,
         resources: list[SkillResource] | None = None,
     ) -> Any:
@@ -439,7 +438,6 @@ class SkillsToolset(FunctionToolset[Any]):
             func: The function that returns skill content (must return str).
             name: Skill name (defaults to normalized function name: underscores → hyphens).
             description: Skill description (inferred from docstring if not provided).
-            compatibility: Optional environment requirements (e.g., "Requires Python 3.10+").
             metadata: Additional metadata fields as a dictionary.
             resources: Initial list of resources to attach to the skill.
 
@@ -473,7 +471,6 @@ class SkillsToolset(FunctionToolset[Any]):
                 function=f,
                 name=skill_name,
                 description=skill_description,
-                compatibility=compatibility,
                 metadata=metadata,
                 resources=list(resources) if resources else [],
             )

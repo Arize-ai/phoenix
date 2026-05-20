@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from phoenix.server.agents.capabilities.skills.skill_resource import SkillResource
 from phoenix.server.agents.capabilities.skills.skill import Skill
+from phoenix.server.agents.capabilities.skills.skill_resource import SkillResource
 
 
 def test_skill_creation() -> None:
@@ -43,20 +43,20 @@ def test_skill_resource_creation() -> None:
     assert resource.uri is None
 
 
-def test_skill_uri_auto_assigned_when_none() -> None:
-    """Test that Skill auto-assigns a skill:// URI when uri is not provided."""
+def test_skill_path_defaults_to_none() -> None:
+    """Test that Skill.path defaults to None when not provided."""
     skill = Skill(name="my-skill", description="A skill", content="Instructions")
 
-    assert skill.uri == "skill://my-skill"
+    assert skill.path is None
 
 
-def test_skill_explicit_uri_preserved() -> None:
-    """Test that an explicitly provided URI is not overwritten by __post_init__."""
+def test_skill_explicit_path_preserved() -> None:
+    """Test that an explicitly provided path is preserved."""
     skill = Skill(
-        name="my-skill", description="A skill", content="Instructions", uri="custom://my-uri"
+        name="my-skill", description="A skill", content="Instructions", path="/tmp/my-skill"
     )
 
-    assert skill.uri == "custom://my-uri"
+    assert skill.path == "/tmp/my-skill"
 
 
 def _write_skill_md(directory: Path, content: str) -> Path:
@@ -79,7 +79,7 @@ def test_from_file_skill_md_path(tmp_path: Path) -> None:
     assert skill.name == "my-skill"
     assert skill.description == "A skill"
     assert "Instructions" in skill.content
-    assert skill.uri == str(skill_dir.resolve())
+    assert skill.path == str(skill_dir.resolve())
     assert skill.resources == []
 
 

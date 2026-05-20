@@ -16,8 +16,8 @@ _TEMPLATE = Template(
     "<skill>\n"
     "<name>{{ skill.name }}</name>\n"
     "<description>{{ skill.description }}</description>\n"
-    "{%- if skill.uri %}\n"
-    "<uri>{{ skill.uri }}</uri>\n"
+    "{%- if skill.path %}\n"
+    "<path>{{ skill.path }}</path>\n"
     "{%- endif %}\n"
     "</skill>\n"
     "{%- endfor %}"
@@ -42,8 +42,8 @@ def test_get_static_instructions_renders_empty_skills_list() -> None:
 
 def test_get_static_instructions_renders_skills_xml() -> None:
     """Each skill should appear in the rendered output as a <skill> block, sorted by name."""
-    s1 = Skill(name="b-skill", description="second", content="...", uri="skill://b")
-    s2 = Skill(name="a-skill", description="first", content="...", uri="skill://a")
+    s1 = Skill(name="b-skill", description="second", content="...", path="/tmp/b")
+    s2 = Skill(name="a-skill", description="first", content="...", path="/tmp/a")
     toolset = SkillsToolset(skills=[s1, s2])
     capability = SkillsCapability(toolset=toolset, instructions=_TEMPLATE)
 
@@ -52,4 +52,4 @@ def test_get_static_instructions_renders_skills_xml() -> None:
     assert "<name>b-skill</name>" in rendered
     assert rendered.index("a-skill") < rendered.index("b-skill")  # sorted
     assert "<description>first</description>" in rendered
-    assert "<uri>skill://a</uri>" in rendered
+    assert "<path>/tmp/a</path>" in rendered

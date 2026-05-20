@@ -22,7 +22,6 @@ class SkillWrapper(Generic[DepsT]):
         function: Callable[[], str],
         name: str,
         description: str | None,
-        compatibility: str | None,
         metadata: dict[str, Any] | None,
         resources: list[SkillResource],
     ) -> None:
@@ -32,14 +31,12 @@ class SkillWrapper(Generic[DepsT]):
             function: Function that returns skill content.
             name: Skill name (already normalized).
             description: Skill description.
-            compatibility: Optional environment requirements.
             metadata: Additional metadata fields.
             resources: Initial list of resources.
         """
         self.function = function
         self.name = name
         self.description = description
-        self.compatibility = compatibility
         self.metadata = metadata
         self.resources = list(resources)
 
@@ -123,8 +120,7 @@ class SkillWrapper(Generic[DepsT]):
             name=self.name,
             description=self.description or "",
             content=content,
-            compatibility=self.compatibility,
             resources=self.resources,
-            uri=None,  # __post_init__ will assign skill://{name}
+            path=None,
             metadata=self.metadata,
         )

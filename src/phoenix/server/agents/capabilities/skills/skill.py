@@ -20,22 +20,9 @@ class Skill:
     name: str
     description: str
     content: str
-    compatibility: str | None = None
     resources: list[SkillResource] = field(default_factory=list)
-    uri: str | None = None
+    path: str | None = None
     metadata: dict[str, Any] | None = None
-
-    def __post_init__(self) -> None:
-        """Auto-assign a skill:// URI for any Skill instantiated with no URI.
-
-        This fires for any ``Skill`` where ``uri=None`` at construction time, including
-        programmatic skills. Filesystem-based skills have their ``uri`` set explicitly
-        by the filesystem discovery/loading utilities (overwriting this default), so the
-        auto-assigned value is effectively a transient default for those cases.
-        The resulting URI follows the convention: ``skill://{name}``.
-        """
-        if self.uri is None:
-            self.uri = f"skill://{self.name}"
 
     @classmethod
     def from_file(
@@ -86,20 +73,13 @@ class Skill:
 
         # Coerce YAML scalar fields to str — YAML may return int/float/None
         description = str(frontmatter.get("description") or "")
-        compatibility_field = frontmatter.get("compatibility")
-        compatibility_field = str(compatibility_field) if compatibility_field is not None else None
-        metadata = {
-            k: v
-            for k, v in frontmatter.items()
-            if k not in ("name", "description", "compatibility")
-        }
+        metadata = {k: v for k, v in frontmatter.items() if k not in ("name", "description")}
 
         return cls(
             name=name,
             description=description,
             content=instructions,
-            compatibility=compatibility_field,
-            uri=str(skill_folder),
+            path=str(skill_folder),
             resources=list(resources) if resources else [],
             metadata=metadata if metadata else None,
         )
