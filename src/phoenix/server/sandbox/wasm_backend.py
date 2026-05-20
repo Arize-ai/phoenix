@@ -56,19 +56,15 @@ _EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="wasm-sandbox")
 # 1s tick: store epoch deadline (a tick count) maps directly to seconds.
 _EPOCH_INTERVAL_SECONDS = 1.0
 
-# Upper bound on a single guest's WebAssembly linear memory. memory.grow past
-# this fails inside the guest (a MemoryError in CPython-WASM) instead of
-# OOM-killing the Phoenix process. With _EXECUTOR's 4 workers the worst-case
-# host footprint is bounded at 4 × this. Generous enough for normal evaluator
-# code; bump this constant if a legitimate workload needs more.
+# Cap on a single guest's WebAssembly linear memory. An over-cap memory.grow
+# fails inside the guest (MemoryError in CPython-WASM) rather than OOM-killing
+# the Phoenix process. Worst-case host footprint is 4 × this — _EXECUTOR runs
+# 4 workers.
 _MAX_WASM_MEMORY_BYTES = 256 * 1024 * 1024
 
-# Per-stream sliding-window cap on guest stdout/stderr held in host memory. The
-# WASI output callbacks append every guest write to a host buffer, so without a
-# cap a guest that prints in a loop grows host RAM for the whole execution
-# window — a vector _MAX_WASM_MEMORY_BYTES (which bounds only the guest's own
-# memory) does not address. _BoundedOutputSink retains the most recent bytes up
-# to this cap and drops older output.
+# Per-stream cap on guest stdout/stderr retained in host memory. Distinct from
+# _MAX_WASM_MEMORY_BYTES: that bounds the guest's own memory, not what the host
+# accumulates from its output. See _BoundedOutputSink.
 _MAX_OUTPUT_BYTES = 1024 * 1024
 
 
@@ -153,19 +149,16 @@ def _get_engine_and_module(binary_path: Path) -> tuple[wasmtime.Engine, wasmtime
 
 
 class _BoundedOutputSink:
-    """Accumulates guest stdout/stderr, retaining a sliding window of the most
-    recent ``limit`` bytes.
-
-    The WASI ``stdout_custom`` / ``stderr_custom`` callbacks hand every guest
-    write to the host; appending without bound lets a guest that prints in a
-    loop grow host RAM for the whole execution window.
+    """Accumulates guest stdout/stderr into a sliding window of the most recent
+    ``limit`` bytes, so a guest that prints in a loop cannot grow host RAM
+    without bound.
 
     The window keeps the **tail**, not the head. This is deliberate: the
     code-evaluator harness prints its fenced result markers (parsed by
     ``_extract_fenced_result``) last, after the user's code, so head-truncation
-    would drop them and break result parsing. The retained tail always contains
-    that final marker block, which is tiny relative to ``limit``.
-    ``getvalue()`` prepends a notice when older output was dropped.
+    would drop them and break result parsing — the tiny trailing marker block
+    always fits the retained tail. ``getvalue()`` prepends a notice when older
+    output was dropped.
     """
 
     def __init__(self, limit: int) -> None:
@@ -174,11 +167,10 @@ class _BoundedOutputSink:
         self._dropped = 0
 
     def write(self, data: bytes) -> None:
-        # A single write at least as large as the window makes everything
-        # buffered so far — and all but the payload's own tail — unreachable.
-        # Slice it down instead of appending the whole payload: appending would
-        # transiently copy all of `data` into `_buf`, so the sink's footprint
-        # would track the largest callback payload rather than the window.
+        # A write at least as large as the window makes everything buffered so
+        # far unreachable. Slice to the tail rather than appending: `_buf +=`
+        # would copy the whole payload in, so the sink's transient footprint
+        # would track the largest callback payload, not the window.
         if len(data) >= self._limit:
             self._dropped += len(self._buf) + (len(data) - self._limit)
             self._buf = bytearray(data[-self._limit :])
@@ -232,11 +224,8 @@ def _run_wasm(binary_path: Path, code: str, timeout: int) -> ExecutionResult:
         store.set_wasi(wasi)
         # Deadline in engine ticks; with a 1s tick this is `timeout` seconds.
         store.set_epoch_deadline(timeout)
-        # Cap the guest's WebAssembly linear memory — one of the two host-RAM
-        # vectors for a single execution (captured output, bounded by the
-        # sinks above, is the other). Must be set before instantiate(), when
-        # the guest memory is created; an over-cap memory.grow then fails
-        # inside the guest rather than OOM-killing the Phoenix process.
+        # Must be set before instantiate(), where the guest memory is created.
+        # See _MAX_WASM_MEMORY_BYTES.
         store.set_limits(memory_size=_MAX_WASM_MEMORY_BYTES)
 
         with _engine_epoch_ticker(engine):
