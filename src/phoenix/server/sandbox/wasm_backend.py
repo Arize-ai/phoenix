@@ -214,22 +214,29 @@ class WASMAdapter(SandboxAdapter[WASMConfig, NoCredentials, WASMDeployment]):
         Outcomes:
         - ``available=True`` — a binary file exists at
           ``$PHOENIX_WASM_BINARY_PATH`` (when the env var is set) or at the
-          default cache location (when it is unset).
+          default location under the Phoenix working directory (when the env
+          var is unset).
         - ``available=False`` with detail
           ``"PHOENIX_WASM_BINARY_PATH=<path> is set but the file does not exist."``
           — the env var is set but the file is missing. The execution path
           treats the env var as authoritative and will NOT fall back to lazy
           download in that case, so this is the correct surfaced state.
+        - ``available=False`` with the no-local-storage short-form detail —
+          Phoenix is running with a postgres database and no
+          ``PHOENIX_WORKING_DIR``, so the runtime cannot be saved locally
+          and no operator-supplied binary path is set.
         - ``available=False`` with detail
           ``"WASM binary not present locally; will download on first use."``
-          — env var unset and no cache file. Execution will succeed via
-          lazy download on first use, but operators may want to pre-warm
-          the cache to avoid a cold-start cost.
-
-        The two distinct detail strings let docs/UI link to the relevant
-        remediation.
+          — env var unset, working directory writable, and the binary has
+          not yet been downloaded. Execution will succeed via lazy download
+          on first use, but operators may want to pre-warm the binary to
+          avoid a cold-start cost.
         """
-        from phoenix.server.sandbox._download import resolve_wasm_binary_if_present
+        from phoenix.config import _no_local_storage
+        from phoenix.server.sandbox._download import (
+            no_local_storage_message,
+            resolve_wasm_binary_if_present,
+        )
 
         resolved = resolve_wasm_binary_if_present()
         if resolved is not None:
@@ -240,6 +247,12 @@ class WASMAdapter(SandboxAdapter[WASMConfig, NoCredentials, WASMDeployment]):
             return WASMBinaryProbe(
                 available=False,
                 detail=(f"{_WASM_BINARY_PATH_ENV}={env_path} is set but the file does not exist."),
+                path=None,
+            )
+        if _no_local_storage():
+            return WASMBinaryProbe(
+                available=False,
+                detail=no_local_storage_message(short=True),
                 path=None,
             )
         return WASMBinaryProbe(

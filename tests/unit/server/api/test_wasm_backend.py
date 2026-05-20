@@ -485,6 +485,30 @@ class TestWASMAdapterProbeBinary:
         assert probe.detail == "WASM binary not present locally; will download on first use."
         mock_retrieve.assert_not_called()
 
+    def test_probe_returns_no_local_storage_detail(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """In no-local-storage mode (postgres configured, no working dir set)
+        with no operator-supplied binary path, the probe surfaces the
+        canonical short-form remediation string used by the settings panel.
+        """
+        monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
+        with patch(
+            "phoenix.server.sandbox._download.resolve_wasm_binary_if_present",
+            return_value=None,
+        ):
+            with patch(
+                "phoenix.config._no_local_storage",
+                return_value=True,
+            ):
+                with patch(
+                    "urllib.request.urlretrieve",
+                    side_effect=AssertionError("network used"),
+                ) as mock_retrieve:
+                    probe = WASMAdapter.probe_binary()
+        assert probe.available is False
+        assert probe.path is None
+        assert probe.detail == "No-local-storage mode: set PHOENIX_WORKING_DIR to enable WASM."
+        mock_retrieve.assert_not_called()
+
     def test_probe_does_not_invoke_real_resolver_network_path(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
@@ -507,7 +531,7 @@ class TestWASMAdapterProbeBinary:
         with patch(
             "urllib.request.urlretrieve", side_effect=AssertionError("network used")
         ) as mock_retrieve:
-            resolved = _download.resolve_wasm_binary_if_present(cache_dir=empty_cache)
+            resolved = _download.resolve_wasm_binary_if_present(wasm_dir=empty_cache)
         assert resolved is None, "resolver must report no binary when env unset and cache empty"
         mock_retrieve.assert_not_called()
         assert not empty_cache.exists(), "probe must not create the cache directory"
@@ -607,6 +631,30 @@ class TestSandboxBackendsResolverWASMStatus:
         wasm = next(info for info in infos if info.backend_type.value == "WASM")
         assert wasm.status == SandboxBackendStatus.DISABLED
         assert wasm.status_detail == "Disabled on the server."
+
+    async def test_wasm_reports_no_local_storage_status_detail(self) -> None:
+        """The settings panel surfaces the short-form remediation when the
+        probe reports no-local-storage mode.
+        """
+        from phoenix.server.api.types.SandboxConfig import (
+            SandboxBackendStatus,
+            get_sandbox_backend_info,
+        )
+        from phoenix.server.sandbox import _SANDBOX_ADAPTERS
+
+        detail = "No-local-storage mode: set PHOENIX_WORKING_DIR to enable WASM."
+        with patch.dict(_SANDBOX_ADAPTERS, {"WASM": WASMAdapter()}, clear=False):
+            with patch.object(
+                WASMAdapter,
+                "probe_binary",
+                return_value=WASMBinaryProbe(available=False, detail=detail, path=None),
+            ):
+                infos = await get_sandbox_backend_info(
+                    secrets=_empty_secrets_context(),
+                )
+        wasm = next(info for info in infos if info.backend_type.value == "WASM")
+        assert wasm.status == SandboxBackendStatus.UNAVAILABLE
+        assert wasm.status_detail == detail
 
     async def test_wasm_status_path_does_not_invoke_network(self) -> None:
         """Resolver-level guarantee: even when the probe is exercised end-to-end,
