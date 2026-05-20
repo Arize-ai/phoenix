@@ -17,7 +17,7 @@ import {
   Icons,
   Input,
   Label,
-  Link,
+  LinkButton,
   List,
   ListItem,
   NumberField,
@@ -309,15 +309,22 @@ export const EditCodeEvaluatorDialogContent = ({
           </Alert>
         )}
         {hasNoSandboxConfigs ? (
-          <Alert variant="warning" title="No sandboxes configured">
-            You can still draft and save this evaluator now.{" "}
-            <Link to="/settings/sandboxes">Configure a sandbox</Link> later to
-            test or execute it.
+          <Alert
+            variant="warning"
+            banner
+            extra={
+              <LinkButton size="S" to="/settings/sandboxes">
+                Configure a sandbox
+              </LinkButton>
+            }
+          >
+            No sandboxes configured. You can still draft and save this
+            evaluator now. Configure a sandbox later to test or execute it.
           </Alert>
         ) : null}
 
         {unavailableSandboxSelectionMessage ? (
-          <Alert variant="warning" title="Sandbox unavailable">
+          <Alert variant="warning" banner>
             {unavailableSandboxSelectionMessage}
           </Alert>
         ) : null}
