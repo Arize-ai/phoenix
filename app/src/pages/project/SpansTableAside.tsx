@@ -96,7 +96,13 @@ export function SpansTableAside(props: { filterCondition?: string | null }) {
 
   return (
     <Group orientation="vertical">
-      <TitledPanel title="Project Info" panelProps={{ defaultSize: "0%" }}>
+      <TitledPanel
+        title="Project Info"
+        panelProps={{
+          defaultSize: "0%",
+          minSize: 240,
+        }}
+      >
         <View padding="size-200" overflow="auto" height="100%">
           <Flex direction="column" gap="size-100" minWidth="size-3400">
             <CopyField value={project?.name ?? ""}>
