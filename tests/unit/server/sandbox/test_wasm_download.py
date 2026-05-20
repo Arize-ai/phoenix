@@ -19,6 +19,8 @@ from phoenix.server.sandbox._download import (
     PHOENIX_WASM_BINARY_PATH_ENV,
     WASMBinaryUnavailable,
     ensure_wasm_binary,
+    no_local_storage_message,
+    prefetch_wasm_binary_if_needed,
     resolve_wasm_binary_if_present,
 )
 
@@ -41,7 +43,7 @@ class TestResolveWasmBinaryIfPresent:
         # cache_dir intentionally points at an empty dir to prove the
         # env-var path takes precedence and no cache lookup happened.
         empty_cache = tmp_path / "empty-cache"
-        result = resolve_wasm_binary_if_present(cache_dir=empty_cache)
+        result = resolve_wasm_binary_if_present(wasm_dir=empty_cache)
 
         assert result == binary
         assert not empty_cache.exists(), "probe path must not create cache_dir as a side effect"
@@ -59,7 +61,7 @@ class TestResolveWasmBinaryIfPresent:
         cache_dir.mkdir()
         (cache_dir / _FILENAME).write_bytes(b"cached")
 
-        assert resolve_wasm_binary_if_present(cache_dir=cache_dir, filename=_FILENAME) is None
+        assert resolve_wasm_binary_if_present(wasm_dir=cache_dir, filename=_FILENAME) is None
 
     def test_env_var_unset_and_cache_present_returns_cache_path(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -70,7 +72,7 @@ class TestResolveWasmBinaryIfPresent:
         cached = cache_dir / _FILENAME
         cached.write_bytes(b"cached wasm")
 
-        result = resolve_wasm_binary_if_present(cache_dir=cache_dir, filename=_FILENAME)
+        result = resolve_wasm_binary_if_present(wasm_dir=cache_dir, filename=_FILENAME)
 
         assert result == cached
 
@@ -81,7 +83,7 @@ class TestResolveWasmBinaryIfPresent:
         cache_dir = tmp_path / "cache"
         # Note: cache_dir intentionally not created.
 
-        assert resolve_wasm_binary_if_present(cache_dir=cache_dir, filename=_FILENAME) is None
+        assert resolve_wasm_binary_if_present(wasm_dir=cache_dir, filename=_FILENAME) is None
         assert not cache_dir.exists(), "probe path must not create cache_dir as a side effect"
 
     def test_probe_path_never_calls_urlretrieve(
@@ -99,7 +101,7 @@ class TestResolveWasmBinaryIfPresent:
 
         with patch("phoenix.server.sandbox._download.urllib.request.urlretrieve") as mock_retrieve:
             for _ in range(3):
-                resolve_wasm_binary_if_present(cache_dir=cache_dir, filename=_FILENAME)
+                resolve_wasm_binary_if_present(wasm_dir=cache_dir, filename=_FILENAME)
 
         mock_retrieve.assert_not_called()
         assert not cache_dir.exists()
@@ -120,7 +122,7 @@ class TestEnsureWasmBinaryEnvVarOverride:
 
         with patch("phoenix.server.sandbox._download.urllib.request.urlretrieve") as mock_retrieve:
             result = ensure_wasm_binary(
-                cache_dir=tmp_path / "unused-cache",
+                wasm_dir=tmp_path / "unused-cache",
                 expected_sha256="",
             )
 
@@ -136,7 +138,7 @@ class TestEnsureWasmBinaryEnvVarOverride:
         with patch("phoenix.server.sandbox._download.urllib.request.urlretrieve") as mock_retrieve:
             with pytest.raises(WASMBinaryUnavailable, match=re.escape(str(missing))):
                 ensure_wasm_binary(
-                    cache_dir=tmp_path / "unused-cache",
+                    wasm_dir=tmp_path / "unused-cache",
                     expected_sha256="",
                 )
 
@@ -157,7 +159,7 @@ class TestEnsureWasmBinaryEnvVarUnset:
 
         with patch("phoenix.server.sandbox._download.urllib.request.urlretrieve") as mock_retrieve:
             result = ensure_wasm_binary(
-                cache_dir=cache_dir,
+                wasm_dir=cache_dir,
                 filename=_FILENAME,
                 expected_sha256="",
             )
@@ -182,7 +184,7 @@ class TestEnsureWasmBinaryEnvVarUnset:
             side_effect=_fake_retrieve,
         ) as mock_retrieve:
             result = ensure_wasm_binary(
-                cache_dir=cache_dir,
+                wasm_dir=cache_dir,
                 filename=_FILENAME,
                 expected_sha256="",
             )
@@ -208,5 +210,148 @@ class TestEnsureWasmBinaryEnvVarUnset:
         cached.write_bytes(b"cached wasm")
 
         # Probe path: should fall through to cache lookup.
-        result = resolve_wasm_binary_if_present(cache_dir=cache_dir, filename=_FILENAME)
+        result = resolve_wasm_binary_if_present(wasm_dir=cache_dir, filename=_FILENAME)
         assert result == cached
+
+    def test_cached_binary_with_bad_sha256_is_unlinked_and_raises(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A cached binary that fails sha256 verification (e.g. tampered at
+        rest, partial write from a crashed prior run) is unlinked and a
+        ValueError is raised so the next call re-downloads cleanly rather
+        than serving the poisoned file forever.
+        """
+        import hashlib
+
+        monkeypatch.delenv(PHOENIX_WASM_BINARY_PATH_ENV, raising=False)
+        wasm_dir = tmp_path / "wasm"
+        wasm_dir.mkdir()
+        cached = wasm_dir / _FILENAME
+        cached.write_bytes(b"tampered cached payload")
+
+        expected_sha = hashlib.sha256(b"real upstream").hexdigest()
+
+        with pytest.raises(ValueError, match="SHA-256 mismatch"):
+            ensure_wasm_binary(
+                wasm_dir=wasm_dir,
+                filename=_FILENAME,
+                expected_sha256=expected_sha,
+            )
+
+        assert not cached.exists(), "tampered cached binary must be unlinked on verify failure"
+
+    def test_no_local_storage_raises_unavailable(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """In no-local-storage mode the execution path raises rather than
+        writing the binary anywhere. The exception message points operators
+        at PHOENIX_WORKING_DIR and does not mention PHOENIX_WASM_BINARY_PATH.
+        """
+        monkeypatch.delenv(PHOENIX_WASM_BINARY_PATH_ENV, raising=False)
+        monkeypatch.setattr("phoenix.server.sandbox._download._no_local_storage", lambda: True)
+        wasm_dir = tmp_path / "wasm"
+
+        with patch("phoenix.server.sandbox._download.urllib.request.urlretrieve") as mock_retrieve:
+            with pytest.raises(WASMBinaryUnavailable) as exc_info:
+                ensure_wasm_binary(
+                    wasm_dir=wasm_dir,
+                    filename=_FILENAME,
+                    expected_sha256="",
+                )
+
+        assert str(exc_info.value) == no_local_storage_message()
+        assert "PHOENIX_WASM_BINARY_PATH" not in str(exc_info.value)
+        mock_retrieve.assert_not_called()
+        assert not wasm_dir.exists()
+
+
+# ---------------------------------------------------------------------------
+# prefetch_wasm_binary_if_needed (server-startup pre-fetch)
+# ---------------------------------------------------------------------------
+
+
+class TestPrefetchWasmBinaryIfNeeded:
+    async def test_prefetch_downloads_when_missing(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Happy path: the startup callback resolves the binary, writing it
+        to the configured WASM directory via the underlying
+        ``ensure_wasm_binary`` call. The pinned sha256 is monkeypatched to
+        match the fake-download payload so the integrity check passes
+        without needing the real 26MB upstream binary.
+        """
+        import hashlib
+
+        monkeypatch.delenv(PHOENIX_WASM_BINARY_PATH_ENV, raising=False)
+        wasm_dir = tmp_path / "wasm"
+        monkeypatch.setattr("phoenix.server.sandbox._download._default_wasm_dir", lambda: wasm_dir)
+
+        payload = b"downloaded wasm"
+        payload_sha = hashlib.sha256(payload).hexdigest()
+        monkeypatch.setattr("phoenix.server.sandbox._download._WASM_SHA256", payload_sha)
+
+        def _fake_retrieve(_url: str, dest: str) -> None:
+            Path(dest).write_bytes(payload)
+
+        with patch(
+            "phoenix.server.sandbox._download.urllib.request.urlretrieve",
+            side_effect=_fake_retrieve,
+        ) as mock_retrieve:
+            await prefetch_wasm_binary_if_needed()
+
+        mock_retrieve.assert_called_once()
+        assert (wasm_dir / _FILENAME).read_bytes() == payload
+
+    async def test_prefetch_fails_soft_on_hash_mismatch(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A poisoned upstream binary (sha256 does not match the pinned
+        hash) is unlinked and the startup callback logs at WARNING
+        instead of crashing Phoenix. The next call retries cleanly.
+        """
+        import hashlib
+
+        monkeypatch.delenv(PHOENIX_WASM_BINARY_PATH_ENV, raising=False)
+        wasm_dir = tmp_path / "wasm"
+        monkeypatch.setattr("phoenix.server.sandbox._download._default_wasm_dir", lambda: wasm_dir)
+
+        expected_sha = hashlib.sha256(b"real upstream").hexdigest()
+        monkeypatch.setattr("phoenix.server.sandbox._download._WASM_SHA256", expected_sha)
+
+        def _poisoned_retrieve(_url: str, dest: str) -> None:
+            Path(dest).write_bytes(b"tampered payload")
+
+        with patch(
+            "phoenix.server.sandbox._download.urllib.request.urlretrieve",
+            side_effect=_poisoned_retrieve,
+        ):
+            with caplog.at_level("WARNING", logger="phoenix.server.sandbox._download"):
+                await prefetch_wasm_binary_if_needed()
+
+        assert not (wasm_dir / _FILENAME).exists(), "tampered binary must be unlinked"
+        assert any(
+            "integrity check" in record.message and record.levelname == "WARNING"
+            for record in caplog.records
+        )
+
+    async def test_prefetch_fails_soft_on_download_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """When the underlying download raises, the callback logs at
+        WARNING and returns normally so Phoenix startup proceeds.
+        """
+        monkeypatch.delenv(PHOENIX_WASM_BINARY_PATH_ENV, raising=False)
+        wasm_dir = tmp_path / "wasm"
+        monkeypatch.setattr("phoenix.server.sandbox._download._default_wasm_dir", lambda: wasm_dir)
+
+        with patch(
+            "phoenix.server.sandbox._download.urllib.request.urlretrieve",
+            side_effect=OSError("network down"),
+        ):
+            with caplog.at_level("WARNING", logger="phoenix.server.sandbox._download"):
+                await prefetch_wasm_binary_if_needed()
+
+        assert any(
+            "WASM sandbox binary" in record.message and record.levelname == "WARNING"
+            for record in caplog.records
+        )

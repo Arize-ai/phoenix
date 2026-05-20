@@ -197,6 +197,7 @@ from phoenix.server.oauth2 import OAuth2Clients
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
 from phoenix.server.redaction import Redactor, current_redactor
 from phoenix.server.retention import TraceDataSweeper
+from phoenix.server.sandbox._download import prefetch_wasm_binary_if_needed
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
@@ -1088,6 +1089,7 @@ def create_app(
     startup_callbacks_list: list[_Callback] = list(startup_callbacks)
     shutdown_callbacks_list: list[_Callback] = list(shutdown_callbacks)
     startup_callbacks_list.append(Facilitator(db=db))
+    startup_callbacks_list.append(prefetch_wasm_binary_if_needed)
     initial_batch_of_spans: Iterable[tuple[Span, str]] = (
         ()
         if initial_spans is None

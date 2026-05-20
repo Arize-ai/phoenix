@@ -2903,6 +2903,7 @@ class RestrictedPath(wrapt.ObjectProxy):  # type: ignore[misc]
 ROOT_DIR = RestrictedPath(WORKING_DIR)
 INFERENCES_DIR = RestrictedPath(WORKING_DIR / "inferences")
 TRACE_DATASETS_DIR = RestrictedPath(WORKING_DIR / "trace_datasets")
+WASM_DIR = RestrictedPath(WORKING_DIR / "wasm")
 
 
 def ensure_working_dir_if_needed() -> None:
@@ -2921,6 +2922,7 @@ def ensure_working_dir_if_needed() -> None:
             ROOT_DIR,
             INFERENCES_DIR,
             TRACE_DATASETS_DIR,
+            WASM_DIR,
         ):
             path.mkdir(parents=True, exist_ok=True)
     except Exception as e:
