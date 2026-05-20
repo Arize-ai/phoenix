@@ -661,7 +661,9 @@ async def test_emits_tool_span_for_provider_native_tool(
     assert isinstance(output_value, str)
     assert json.loads(output_value) == {"results": [{"title": "Phoenix"}]}
     assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
-    metadata = json.loads(attributes.pop(METADATA))
+    metadata_value = attributes.pop(METADATA)
+    assert isinstance(metadata_value, str)
+    metadata = json.loads(metadata_value)
     assert metadata == {
         "native_tool": {
             "provider_name": "openai",
