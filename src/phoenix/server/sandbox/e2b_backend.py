@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import functools
 import logging
-from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar, Mapping, Optional, Sequence, cast
 
 from pydantic import SecretStr
+from typing_extensions import override
 
 from .types import (
     E2BConfig,
@@ -15,19 +17,41 @@ from .types import (
     SandboxAdapter,
     SandboxBackend,
     compose_secret_values,
+    compute_config_fingerprint,
 )
 
 if TYPE_CHECKING:
+    from e2b.sandbox.sandbox_api import SandboxInfo
     from e2b_code_interpreter.code_interpreter_async import AsyncSandbox
-    from e2b_code_interpreter.models import Execution
+    from e2b_code_interpreter.models import Context, Execution
+
+
+@functools.cache
+def _e2b_session_gone_exception_classes() -> tuple[type[BaseException], ...]:
+    """E2B SDK exception classes meaning the remote sandbox is gone (lazy import)."""
+    try:
+        from e2b.exceptions import SandboxNotFoundException
+    except ImportError:
+        return ()
+    return (SandboxNotFoundException,)
+
 
 logger = logging.getLogger(__name__)
 
 ENV_E2B_API_KEY = "E2B_API_KEY"
 
+# Metadata key binding a Phoenix session_key to its E2B sandbox.
+_METADATA_SESSION_KEY = "phoenix_session_key"
+
+# Provider-side max-lifetime ceiling so orphans get reaped after a hard
+# Phoenix crash (SDK default is 300s).
+_SESSION_TIMEOUT_SECONDS = 600
+
 
 class E2BSandboxBackend(SandboxBackend):
     """Sandbox backend executing code in E2B cloud sandboxes."""
+
+    provider: ClassVar[str] = "E2B"
 
     def __init__(
         self,
@@ -44,8 +68,15 @@ class E2BSandboxBackend(SandboxBackend):
         self._packages: list[str] = list(packages) if packages else []
         self._domain = domain
         self._api_url = api_url
-        self._sessions: dict[str, AsyncSandbox] = {}
         self.secret_values = compose_secret_values(user_env, self._api_key)
+
+    @override
+    def config_fingerprint(self) -> str:
+        return compute_config_fingerprint(
+            backend_type="E2B",
+            packages=self._packages,
+            internet_access_mode=str(self._allow_internet_access),
+        )
 
     def _get_sandbox_cls(self) -> type[AsyncSandbox]:
         from e2b_code_interpreter.code_interpreter_async import AsyncSandbox
@@ -58,12 +89,26 @@ class E2BSandboxBackend(SandboxBackend):
         # returns "502 The sandbox is running but port is not open".
         kwargs: dict[str, Any] = {
             "api_key": self._api_key.get_secret_value(),
-            "allow_internet_access": self._allow_internet_access,
         }
         if self._domain is not None:
             kwargs["domain"] = self._domain
         if self._api_url is not None:
             kwargs["api_url"] = self._api_url
+        return kwargs
+
+    def _create_kwargs(self, session_key: Optional[str]) -> dict[str, Any]:
+        """Build kwargs for ``AsyncSandbox.create()``.
+
+        Omitting ``template`` selects ``code-interpreter-v1`` — the only
+        image running the Jupyter server ``run_code()`` POSTs to.
+        """
+        kwargs: dict[str, Any] = {
+            "allow_internet_access": self._allow_internet_access,
+            "timeout": _SESSION_TIMEOUT_SECONDS,
+            **self._api_opts(),
+        }
+        if session_key is not None:
+            kwargs["metadata"] = {_METADATA_SESSION_KEY: session_key}
         return kwargs
 
     async def _install_packages(self, sandbox: AsyncSandbox) -> None:
@@ -85,60 +130,236 @@ class E2BSandboxBackend(SandboxBackend):
         if execution.error:
             raise RuntimeError(f"pip install failed for {self._packages!r}: {execution.error}")
 
-    async def start_session(self, session_key: str) -> None:
-        if session_key in self._sessions:
-            logger.debug(f"E2B session '{session_key}' already exists; reusing")
-            return
+    async def _list_sandboxes_for_key(self, session_key: str) -> list[SandboxInfo]:
+        """List running E2B sandboxes tagged with ``session_key`` (server-side filter)."""
         sandbox_cls = self._get_sandbox_cls()
-        sandbox = await sandbox_cls.create(**self._create_kwargs())
+        sandbox_query_cls = self._get_sandbox_query_cls()
+        paginator = sandbox_cls.list(
+            query=sandbox_query_cls(metadata={_METADATA_SESSION_KEY: session_key}),
+            **self._api_opts(),
+        )
+        results: list[SandboxInfo] = []
+        while paginator.has_next:
+            results.extend(await paginator.next_items())
+        return results
+
+    @override
+    async def find_or_create_session(self, session_key: str) -> object:
+        """List-by-metadata; connect to the oldest alive sandbox or create fresh.
+
+        Install runs only on the create path. Post-create dedup re-lists and
+        kills duplicates from competing replicas (oldest-by-``started_at``
+        wins — deterministic across replicas).
+        """
+        sandbox_cls = self._get_sandbox_cls()
+
+        existing = await self._list_sandboxes_for_key(session_key)
+        if existing:
+            existing.sort(key=lambda info: info.started_at)
+            oldest = existing[0]
+            try:
+                # connect() is typed as base AsyncSandbox; cast restores the
+                # code-interpreter subclass.
+                sandbox = cast(
+                    "AsyncSandbox",
+                    await sandbox_cls.connect(
+                        oldest.sandbox_id,
+                        **self._api_opts(),
+                    ),
+                )
+            except Exception as exc:
+                # Fall through to create on stale handles / reaper races.
+                logger.debug(
+                    "E2B connect failed for session_key=%r sandbox_id=%s; "
+                    "falling through to create: %s",
+                    session_key,
+                    oldest.sandbox_id,
+                    exc,
+                )
+            else:
+                if await self._is_alive(sandbox):
+                    logger.debug(
+                        "E2B session reuse: connected to sandbox_id=%s for key=%r",
+                        oldest.sandbox_id,
+                        session_key,
+                    )
+                    return sandbox
+                logger.debug(
+                    "E2B sandbox_id=%s for key=%r failed alive probe; creating a fresh one",
+                    oldest.sandbox_id,
+                    session_key,
+                )
+
+        sandbox = await sandbox_cls.create(**self._create_kwargs(session_key))
         await self._install_packages(sandbox)
-        self._sessions[session_key] = sandbox
-        logger.debug(f"Started E2B session '{session_key}'")
+        return await self._dedupe_after_create(session_key, sandbox)
 
-    async def stop_session(self, session_key: str) -> None:
-        sandbox = self._sessions.pop(session_key, None)
-        if sandbox is not None:
-            await sandbox.kill()
-            logger.debug(f"Stopped E2B session '{session_key}'")
+    async def _dedupe_after_create(
+        self,
+        session_key: str,
+        just_created: AsyncSandbox,
+    ) -> AsyncSandbox:
+        """Pick oldest-by-``started_at`` survivor; kill the rest (incl. ours if older lost)."""
+        sandbox_cls = self._get_sandbox_cls()
+        candidates = await self._list_sandboxes_for_key(session_key)
+        if len(candidates) <= 1:
+            return just_created
+        candidates.sort(key=lambda info: info.started_at)
+        survivor_info = candidates[0]
+        if survivor_info.sandbox_id == just_created.sandbox_id:
+            survivor: AsyncSandbox = just_created
+        else:
+            try:
+                survivor = cast(
+                    "AsyncSandbox",
+                    await sandbox_cls.connect(
+                        survivor_info.sandbox_id,
+                        **self._api_opts(),
+                    ),
+                )
+            except Exception as exc:
+                # Keep our create live rather than enforce oldest-wins on a dead handle.
+                logger.warning(
+                    "E2B dedup: connect to older survivor sandbox_id=%s "
+                    "failed (%s); keeping just-created sandbox_id=%s",
+                    survivor_info.sandbox_id,
+                    exc,
+                    just_created.sandbox_id,
+                )
+                return just_created
+        for loser in candidates[1:]:
+            try:
+                await sandbox_cls.kill(loser.sandbox_id, **self._api_opts())
+            except Exception as exc:
+                logger.warning(
+                    "E2B dedup: failed to kill loser sandbox_id=%s for key=%r: %s",
+                    loser.sandbox_id,
+                    session_key,
+                    exc,
+                )
+        return survivor
 
+    async def _is_alive(self, sandbox: AsyncSandbox) -> bool:
+        """Best-effort alive probe; treat any SDK error as not-alive."""
+        try:
+            return await sandbox.is_running()
+        except Exception as exc:
+            logger.debug(
+                "E2B is_running probe failed for sandbox_id=%s: %s",
+                getattr(sandbox, "sandbox_id", "<unknown>"),
+                exc,
+            )
+            return False
+
+    @override
+    async def execute_in_session(
+        self,
+        handle: object,
+        code: str,
+        timeout: Optional[int] = None,
+    ) -> ExecutionResult:
+        """Execute ``code`` in a per-call code context inside the shared sandbox.
+
+        Each call gets its own kernel (fresh globals, parallel-safe) inside
+        the shared sandbox container. Context is removed in ``finally``;
+        orphans are reaped when ``close_session`` kills the sandbox.
+        """
+        sandbox: AsyncSandbox = handle  # type: ignore[assignment]
+        ctx: Optional[Context] = None
+        try:
+            ctx = await sandbox.create_code_context(language="python")
+            execution: Execution = await sandbox.run_code(
+                code,
+                context=ctx,
+                envs=self._user_env or None,
+                timeout=timeout,
+            )
+            return _execution_to_result(execution)
+        except Exception as exc:
+            if self.is_session_gone(exc):
+                raise
+            return ExecutionResult(stdout="", stderr=str(exc), error=str(exc))
+        finally:
+            if ctx is not None:
+                try:
+                    await sandbox.remove_code_context(ctx)
+                except Exception as cleanup_exc:
+                    # Best-effort: orphan contexts are reaped on sandbox kill.
+                    logger.warning(
+                        "E2B remove_code_context failed for sandbox_id=%s: %s",
+                        getattr(sandbox, "sandbox_id", "<unknown>"),
+                        cleanup_exc,
+                    )
+
+    @override
     async def execute(
         self,
         code: str,
         session_key: str,
         timeout: Optional[int] = None,
     ) -> ExecutionResult:
+        """Direct one-shot: ephemeral sandbox (untagged) with packages, run, kill."""
         try:
-            sandbox = self._sessions.get(session_key)
-            execution: Execution
-            if sandbox is not None:
-                execution = await sandbox.run_code(
+            sandbox_cls = self._get_sandbox_cls()
+            async with await sandbox_cls.create(**self._create_kwargs(session_key=None)) as sb:
+                await self._install_packages(sb)
+                execution: Execution = await sb.run_code(
                     code,
                     envs=self._user_env or None,
                     timeout=timeout,
                 )
-            else:
-                # Ephemeral path: evaluator calls execute() without start_session,
-                # so install configured packages here too.
-                sandbox_cls = self._get_sandbox_cls()
-                async with await sandbox_cls.create(**self._create_kwargs()) as sb:
-                    await self._install_packages(sb)
-                    execution = await sb.run_code(
-                        code,
-                        envs=self._user_env or None,
-                        timeout=timeout,
-                    )
-
-            stdout = "\n".join(execution.logs.stdout) if execution.logs.stdout else ""
-            stderr = "\n".join(execution.logs.stderr) if execution.logs.stderr else ""
-            error_str: Optional[str] = str(execution.error) if execution.error else None
-
-            return ExecutionResult(stdout=stdout, stderr=stderr, error=error_str)
+                return _execution_to_result(execution)
         except Exception as exc:
-            return ExecutionResult(stdout="", stderr=str(exc), error=str(exc))
+            return ExecutionResult(
+                stdout="",
+                stderr=str(exc),
+                error=str(exc),
+            )
 
+    @override
+    async def close_session(self, session_key: str) -> None:
+        """Kill every E2B sandbox tagged with ``session_key`` (idempotent)."""
+        sandbox_cls = self._get_sandbox_cls()
+        try:
+            matches = await self._list_sandboxes_for_key(session_key)
+        except Exception as exc:
+            logger.warning(
+                "E2B close_session: list failed for key=%r: %s",
+                session_key,
+                exc,
+            )
+            return
+        for info in matches:
+            try:
+                await sandbox_cls.kill(info.sandbox_id, **self._api_opts())
+            except Exception as exc:
+                logger.warning(
+                    "E2B close_session: kill failed for sandbox_id=%s key=%r: %s",
+                    info.sandbox_id,
+                    session_key,
+                    exc,
+                )
+
+    @override
     async def close(self) -> None:
-        for key in list(self._sessions):
-            await self.stop_session(key)
+        return None
+
+    @override
+    def is_session_gone(self, exc: BaseException) -> bool:
+        """Classify ``SandboxNotFoundException`` as session-gone.
+
+        Other E2B exceptions are NOT classified — ``TimeoutException``
+        conflates per-call timeout with sandbox-idle timeout, so classifying
+        it would trigger spurious rebinds on long-running user code.
+        """
+        return isinstance(exc, _e2b_session_gone_exception_classes())
+
+
+def _execution_to_result(execution: Execution) -> ExecutionResult:
+    stdout = "\n".join(execution.logs.stdout) if execution.logs.stdout else ""
+    stderr = "\n".join(execution.logs.stderr) if execution.logs.stderr else ""
+    error_str: Optional[str] = str(execution.error) if execution.error else None
+    return ExecutionResult(stdout=stdout, stderr=stderr, error=error_str)
 
 
 class E2BAdapter(SandboxAdapter[E2BConfig, E2BCredentials, E2BDeployment]):

@@ -157,6 +157,7 @@ if TYPE_CHECKING:
     from phoenix.server.api.helpers.message_helpers import PlaygroundMessage
     from phoenix.server.api.helpers.playground_clients import ChatCompletionChunk
     from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
+    from phoenix.server.sandbox.session_manager import SandboxSessionManager
     from phoenix.tracers import Tracer
 
 
@@ -2158,11 +2159,16 @@ class ExperimentRunner(DaemonTask):
         *,
         decrypt: Callable[[bytes], bytes],
         tracer_factory: Callable[[], Tracer],
+        sandbox_session_manager: "SandboxSessionManager",
     ) -> None:
         super().__init__()
         self._db = db
         self._decrypt = decrypt
         self._tracer_factory = tracer_factory
+        # Forwarded to every ``CodeEvaluatorRunner`` constructed by
+        # ``get_evaluators`` so dataset-eval sessions participate in the
+        # manager's invalidation/eviction coordination.
+        self._sandbox_session_manager = sandbox_session_manager
         self._experiments: dict[ExperimentId, RunningExperiment] = {}
         self._seats = Semaphore(self.MAX_CONCURRENT)
         self._work_available = anyio.Event()
@@ -2542,7 +2548,9 @@ class ExperimentRunner(DaemonTask):
                 dataset_evaluator_ids=dataset_evaluator_ids,
                 session=session,
                 decrypt=self._decrypt,
+                experiment_id=experiment_id,
                 credentials=credentials,
+                sandbox_session_manager=self._sandbox_session_manager,
             )
             evaluator_run_specs = [
                 EvaluatorRunSpec(

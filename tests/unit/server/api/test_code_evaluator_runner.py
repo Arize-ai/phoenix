@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any, ClassVar, Optional, cast
 from unittest.mock import AsyncMock
 
 import pytest
@@ -23,7 +24,39 @@ from phoenix.server.api.evaluators import (
     CodeEvaluatorRunner,
 )
 from phoenix.server.api.helpers.sandbox_redaction import SandboxSecretMasker
-from phoenix.server.sandbox.types import ExecutionResult
+from phoenix.server.sandbox.session_manager import SandboxSessionManager
+from phoenix.server.sandbox.types import BaseNoSessionBackend, ExecutionResult
+
+
+class _StatelessTestBackend(BaseNoSessionBackend):
+    """Stateless test backend with an AsyncMock-backed ``execute``.
+
+    Stateless (``BaseNoSessionBackend``) backends short-circuit the manager's
+    ``acquire`` to a sentinel handle; ``execute_in_session`` delegates to
+    ``execute``. Tests configure ``backend.execute`` directly (as an
+    AsyncMock) and assert via ``backend.execute.call_args`` /
+    ``assert_not_called`` / ``return_value`` / ``side_effect``.
+    """
+
+    family: ClassVar[str] = "TEST"
+
+    def __init__(self, secret_values: Optional[frozenset[str]] = None) -> None:
+        self.secret_values = secret_values or frozenset()
+        # AsyncMock satisfies the awaitable signature of ``execute``.
+        self.execute = AsyncMock()  # type: ignore[method-assign]
+
+    async def execute(
+        self,
+        code: str,
+        session_key: str = "",
+        timeout: Optional[int] = None,
+    ) -> ExecutionResult:
+        # Stub satisfying the SandboxBackend abstract contract; replaced
+        # per-instance by an AsyncMock above. Never reached at runtime.
+        raise NotImplementedError
+
+    async def close(self) -> None:
+        return None
 
 
 def _fenced(payload: str) -> str:
@@ -68,19 +101,17 @@ def _make_runner(
     backend_raises: Exception | None = None,
     timeout: int | None = None,
     fence_stdout: bool = True,
-) -> tuple[CodeEvaluatorRunner, AsyncMock]:
-    backend = AsyncMock()
-    backend.secret_values = frozenset()
+) -> tuple[CodeEvaluatorRunner, Any]:
+    backend = _StatelessTestBackend()
+    mock_execute = cast(AsyncMock, backend.execute)
     if backend_raises is not None:
-        backend.execute = AsyncMock(side_effect=backend_raises)
+        mock_execute.side_effect = backend_raises
     else:
         stdout = _fenced(backend_stdout) if fence_stdout else backend_stdout
-        backend.execute = AsyncMock(
-            return_value=ExecutionResult(
-                stdout=stdout,
-                stderr="",
-                error=backend_error,
-            )
+        mock_execute.return_value = ExecutionResult(
+            stdout=stdout,
+            stderr="",
+            error=backend_error,
         )
     runner = CodeEvaluatorRunner(
         name="test-runner",
@@ -90,6 +121,8 @@ def _make_runner(
         sandbox_backend=backend,
         language=language,
         timeout=timeout,
+        sandbox_session_manager=SandboxSessionManager(),
+        session_key="evaluator:test-runner",
     )
     return runner, backend
 
@@ -266,17 +299,6 @@ class TestEvaluateSuccessPath:
             output_configs=[_categorical_config()],
         )
         assert results[0]["annotator_kind"] == "CODE"
-
-    async def test_runner_name_used_as_session_key(self) -> None:
-        runner, backend = _make_runner(backend_stdout='"pass"')
-        await runner.evaluate(
-            context={},
-            input_mapping=_EMPTY_MAPPING,
-            name="test",
-            output_configs=[_categorical_config()],
-        )
-        call_kwargs = backend.execute.call_args
-        assert call_kwargs.kwargs.get("session_key") == runner._name
 
     async def test_timeout_forwarded_to_backend_execute(self) -> None:
         runner, backend = _make_runner(backend_stdout='"pass"', timeout=45)
@@ -731,9 +753,8 @@ class TestEvaluateTracing:
         raw_sandbox_metadata = sandbox_attrs[METADATA]
         assert isinstance(raw_sandbox_metadata, str)
         sandbox_metadata = json.loads(raw_sandbox_metadata)
-        assert sandbox_metadata["backend_type"] == "AsyncMock"
+        assert sandbox_metadata["backend_type"] == "_StatelessTestBackend"
         assert sandbox_metadata["language"] == "PYTHON"
-        assert sandbox_metadata["session_key"] == runner._name
         assert sandbox_metadata["timeout"] == 30
 
         assert len(results) == 1
@@ -847,18 +868,16 @@ def _make_runner_with_secret(
     backend_stdout: str = '"pass"',
     backend_error: str | None = None,
     backend_raises: Exception | None = None,
-) -> tuple[CodeEvaluatorRunner, AsyncMock]:
-    backend = AsyncMock()
-    backend.secret_values = frozenset({secret})
+) -> tuple[CodeEvaluatorRunner, Any]:
+    backend = _StatelessTestBackend(secret_values=frozenset({secret}))
+    mock_execute = cast(AsyncMock, backend.execute)
     if backend_raises is not None:
-        backend.execute = AsyncMock(side_effect=backend_raises)
+        mock_execute.side_effect = backend_raises
     else:
-        backend.execute = AsyncMock(
-            return_value=ExecutionResult(
-                stdout=_fenced(backend_stdout),
-                stderr="",
-                error=backend_error,
-            )
+        mock_execute.return_value = ExecutionResult(
+            stdout=_fenced(backend_stdout),
+            stderr="",
+            error=backend_error,
         )
     runner = CodeEvaluatorRunner(
         name="test-runner",
@@ -868,6 +887,8 @@ def _make_runner_with_secret(
         sandbox_backend=backend,
         language="PYTHON",
         timeout=None,
+        sandbox_session_manager=SandboxSessionManager(),
+        session_key="evaluator:test-runner",
     )
     return runner, backend
 
@@ -1160,6 +1181,8 @@ class TestSandboxSpanContract:
             language="PYTHON",
             timeout=None,
             evaluator_version_id=version_gid,
+            sandbox_session_manager=SandboxSessionManager(),
+            session_key="evaluator:test-runner",
         )
         tracer, exporter = _make_tracer()
         await runner.evaluate(

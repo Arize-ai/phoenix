@@ -365,6 +365,15 @@ class ChatCompletionMutationMixin:
                         "Please configure a sandbox provider at /settings/sandboxes."
                     )
 
+                # Test mutation runs are ephemeral by design: each click spins
+                # up a fresh sandbox via ``backend.execute``'s own
+                # ``async with`` lifecycle and tears it down on exit. The
+                # session manager is intentionally bypassed so test cleanup
+                # never depends on hitting the same replica on a follow-up
+                # request — a property the deprecated ``stopEvaluatorSession``
+                # mutation could not deliver under load balancing. No
+                # ``session_key`` is supplied because the ephemeral
+                # ``backend.execute`` path does not consult it.
                 runner = CodeEvaluatorRunner(
                     name=evaluator_name,
                     description=evaluator_description,
@@ -376,6 +385,7 @@ class ChatCompletionMutationMixin:
                     evaluator_version_id=str(
                         GlobalID("CodeEvaluatorVersion", str(code_evaluator_version.id))
                     ),
+                    sandbox_session_manager=None,
                 )
                 eval_results = await runner.evaluate(
                     context=context,
@@ -413,6 +423,24 @@ class ChatCompletionMutationMixin:
                     language=language,
                 )
 
+                # Test mutation runs are ephemeral by design: each click spins
+                # up a fresh sandbox via ``backend.execute``'s own
+                # ``async with`` lifecycle and tears it down on exit. The
+                # session manager is intentionally bypassed so test cleanup
+                # never depends on hitting the same replica on a follow-up
+                # request — a property the deprecated ``stopEvaluatorSession``
+                # mutation could not deliver under load balancing.
+                #
+                # ``user_id`` and ``(sandbox_config_id, language)`` remain in
+                # the session_key for diagnostic value on provider-side spans
+                # only; they no longer partition reusable sessions because no
+                # session is reused.
+                user_id = info.context.user_id
+                inline_session_key = (
+                    f"inline-test:{user_id if user_id is not None else 'anon'}"
+                    f":{inline_code_evaluator.sandbox_config_id}:{language}"
+                )
+
                 runner = CodeEvaluatorRunner(
                     name=evaluator_name,
                     description=evaluator_description,
@@ -421,6 +449,8 @@ class ChatCompletionMutationMixin:
                     sandbox_backend=sandbox_backend,
                     language=language,
                     timeout=sandbox_timeout,
+                    session_key=inline_session_key,
+                    sandbox_session_manager=None,
                 )
                 eval_results = await runner.evaluate(
                     context=context,

@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import logging
+from datetime import timedelta
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence, TypedDict
+from typing import TYPE_CHECKING, Any, ClassVar, Mapping, Optional, Sequence, TypedDict
 
 from pydantic import SecretStr
+from typing_extensions import override
 
 from phoenix.db.models import LanguageName
 
@@ -19,10 +22,21 @@ from .types import (
     VercelCredentials,
     VercelDeployment,
     compose_secret_values,
+    compute_config_fingerprint,
 )
 
 if TYPE_CHECKING:
     from vercel.sandbox import AsyncSandbox
+
+
+@functools.cache
+def _vercel_session_gone_exception_classes() -> tuple[type[BaseException], ...]:
+    """Vercel SDK exception classes meaning the remote sandbox is gone (lazy import)."""
+    try:
+        from vercel.sandbox import SandboxNotFoundError
+    except ImportError:
+        return ()
+    return (SandboxNotFoundError,)
 
 
 class _LanguageConfig(TypedDict):
@@ -53,9 +67,25 @@ _LANGUAGE_CONFIGS: Mapping[LanguageName, _LanguageConfig] = MappingProxyType(
     }
 )
 
+# Vercel max-lifetime: bounds the cost of a leaked sandbox after a Phoenix
+# crash. Passed as timedelta so the unit (vs. the SDK's int=ms) is explicit.
+_VERCEL_CREATE_TIMEOUT = timedelta(seconds=600)
+
+# Process-local session binding. See module docstring for the cross-process
+# limitation. Dict ops are GIL-atomic so a race on setdefault still resolves
+# to a single Lock.
+_session_id_map: dict[str, str] = {}
+_session_id_locks: dict[str, asyncio.Lock] = {}
+
+
+def _get_key_lock(session_key: str) -> asyncio.Lock:
+    return _session_id_locks.setdefault(session_key, asyncio.Lock())
+
 
 class VercelSandboxBackend(SandboxBackend):
     """Sandbox backend executing code via Vercel Sandbox."""
+
+    provider: ClassVar[str] = "VERCEL"
 
     def __init__(
         self,
@@ -77,13 +107,20 @@ class VercelSandboxBackend(SandboxBackend):
         self._user_env: dict[str, str] = dict(user_env or {})
         self._packages: list[str] = list(packages) if packages else []
         self._internet_access = internet_access
-        self._sessions: dict[str, AsyncSandbox] = {}
-        self._session_locks: dict[str, asyncio.Lock] = {}
         self.secret_values = compose_secret_values(
             user_env,
             self._token,
             self._project_id,
             self._team_id,
+        )
+
+    @override
+    def config_fingerprint(self) -> str:
+        return compute_config_fingerprint(
+            backend_type="VERCEL",
+            packages=self._packages,
+            internet_access_mode=str(self._internet_access),
+            language=self._language,
         )
 
     def _lang_cfg(self) -> _LanguageConfig:
@@ -103,6 +140,7 @@ class VercelSandboxBackend(SandboxBackend):
             "token": self._token.get_secret_value(),
             "project_id": self._project_id.get_secret_value(),
             "team_id": self._team_id.get_secret_value(),
+            "timeout": _VERCEL_CREATE_TIMEOUT,
         }
         network_policy = self._network_policy()
         if network_policy is not None:
@@ -127,13 +165,29 @@ class VercelSandboxBackend(SandboxBackend):
                 f"{cmd} install {self._packages!r} failed (exit {result.exit_code}): {stderr}"
             )
 
-    async def start_session(self, session_key: str) -> None:
-        if session_key not in self._session_locks:
-            self._session_locks[session_key] = asyncio.Lock()
-        async with self._session_locks[session_key]:
-            if session_key in self._sessions:
-                logger.debug(f"Vercel session '{session_key}' already exists; reusing")
-                return
+    @override
+    async def find_or_create_session(self, session_key: str) -> AsyncSandbox:
+        """Process-local bind: reconnect via ``get(sandbox_id)`` or create fresh."""
+        key_lock = _get_key_lock(session_key)
+        async with key_lock:
+            existing_id = _session_id_map.get(session_key)
+            if existing_id is not None:
+                try:
+                    sandbox = await self._get_sandbox(existing_id)
+                except Exception:
+                    logger.debug(
+                        "Vercel find_or_create_session: get(sandbox_id=%s) failed "
+                        "for key=%r; treating as stale and recreating",
+                        existing_id,
+                        session_key,
+                        exc_info=True,
+                    )
+                    sandbox = None
+                if sandbox is not None and self._is_alive(sandbox):
+                    logger.debug(f"Vercel session '{session_key}' reused")
+                    return sandbox
+                _session_id_map.pop(session_key, None)
+
             sandbox = await self._create_sandbox()
             try:
                 await self._install_packages(sandbox)
@@ -157,17 +211,82 @@ class VercelSandboxBackend(SandboxBackend):
                         exc_info=True,
                     )
                 raise
-            self._sessions[session_key] = sandbox
-        logger.debug(f"Started Vercel session '{session_key}'")
+            _session_id_map[session_key] = sandbox.sandbox_id
+            logger.debug(
+                "Vercel session '%s' created (sandbox_id=%s)",
+                session_key,
+                sandbox.sandbox_id,
+            )
+            return sandbox
 
-    async def stop_session(self, session_key: str) -> None:
-        sandbox = self._sessions.pop(session_key, None)
-        if sandbox is not None:
+    @override
+    async def execute_in_session(
+        self,
+        handle: object,
+        code: str,
+        timeout: Optional[int] = None,
+    ) -> ExecutionResult:
+        sandbox: AsyncSandbox = handle  # type: ignore[assignment]
+        try:
+            session_env: Optional[dict[str, str]] = self._user_env or None
+            return await self._exec_code(sandbox, code, env=session_env)
+        except Exception as exc:
+            if self.is_session_gone(exc):
+                raise
+            return ExecutionResult(stdout="", stderr=str(exc), error=str(exc))
+
+    @override
+    def is_session_gone(self, exc: BaseException) -> bool:
+        """Classify ``SandboxNotFoundError`` (404 from run_command) as session-gone.
+
+        Other ``APIError`` subclasses (auth/permission/rate-limit/server) are
+        NOT classified — they recur on a fresh session or are transient.
+        """
+        return isinstance(exc, _vercel_session_gone_exception_classes())
+
+    @override
+    async def close_session(self, session_key: str) -> None:
+        """Drop the binding and best-effort stop the remote sandbox.
+
+        Pop both ``_session_id_map`` and ``_session_id_locks`` synchronously
+        under the per-key lock — before any ``await`` — so a concurrent
+        same-key ``find_or_create_session`` can't race the teardown.
+        """
+        key_lock = _get_key_lock(session_key)
+        async with key_lock:
+            sandbox_id = _session_id_map.pop(session_key, None)
+            _session_id_locks.pop(session_key, None)
+            if sandbox_id is None:
+                return
+            try:
+                sandbox = await self._get_sandbox(sandbox_id)
+            except Exception:
+                logger.debug(
+                    "Vercel close_session: get(sandbox_id=%s) failed for key=%r; "
+                    "treating as already-absent",
+                    sandbox_id,
+                    session_key,
+                    exc_info=True,
+                )
+                return
             try:
                 await sandbox.stop()
+            except Exception:
+                logger.debug(
+                    "Vercel close_session: stop failed for sandbox_id=%s key=%r",
+                    sandbox_id,
+                    session_key,
+                    exc_info=True,
+                )
+            try:
                 await sandbox.client.aclose()
             except Exception:
-                logger.debug(f"Error stopping Vercel session '{session_key}'", exc_info=True)
+                logger.debug(
+                    "Vercel close_session: client.aclose failed for sandbox_id=%s key=%r",
+                    sandbox_id,
+                    session_key,
+                    exc_info=True,
+                )
             logger.debug(f"Stopped Vercel session '{session_key}'")
 
     async def _exec_code(
@@ -185,34 +304,36 @@ class VercelSandboxBackend(SandboxBackend):
         error: Optional[str] = stderr if exit_code != 0 else None
         return ExecutionResult(stdout=stdout or "", stderr=stderr or "", error=error)
 
+    @override
     async def execute(
         self,
         code: str,
         session_key: str,
         timeout: Optional[int] = None,
     ) -> ExecutionResult:
+        """Direct one-shot (create → install → exec → stop).
+
+        Always ephemeral — does NOT consult ``_session_id_map`` so two direct
+        callers cannot accidentally share a remote sandbox.
+        """
         try:
             session_env: Optional[dict[str, str]] = self._user_env or None
-            sandbox = self._sessions.get(session_key)
-            if sandbox is not None:
+            sandbox = await self._create_sandbox()
+            try:
+                await self._install_packages(sandbox)
                 return await self._exec_code(sandbox, code, env=session_env)
-            else:
-                sandbox = await self._create_sandbox()
+            finally:
                 try:
-                    await self._install_packages(sandbox)
-                    return await self._exec_code(sandbox, code, env=session_env)
-                finally:
-                    try:
-                        await sandbox.stop()
-                        await sandbox.client.aclose()
-                    except Exception:
-                        pass
+                    await sandbox.stop()
+                    await sandbox.client.aclose()
+                except Exception:
+                    pass
         except Exception as exc:
             return ExecutionResult(stdout="", stderr=str(exc), error=str(exc))
 
+    @override
     async def close(self) -> None:
-        for key in list(self._sessions):
-            await self.stop_session(key)
+        return None
 
 
 _VERCEL_AUTH_DOCS_URL = "https://vercel.com/docs/vercel-sandbox/concepts/authentication"

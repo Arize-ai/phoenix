@@ -107,6 +107,7 @@ if TYPE_CHECKING:
     from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
     from phoenix.server.dml_event import DmlEvent
     from phoenix.server.email.types import EmailSender
+    from phoenix.server.sandbox.session_manager import SandboxSessionManager
     from phoenix.server.types import (
         CanGetLastUpdatedAt,
         CanPutItem,
@@ -258,6 +259,7 @@ class Context(BaseContext):
     cache_for_dataloaders: Optional[CacheForDataLoaders]
     span_cost_calculator: SpanCostCalculator
     experiment_runner: ExperimentRunner
+    sandbox_session_manager: SandboxSessionManager
     encrypt: Callable[[bytes], bytes]
     decrypt: Callable[[bytes], bytes]
     last_updated_at: CanGetLastUpdatedAt = _NoOp()

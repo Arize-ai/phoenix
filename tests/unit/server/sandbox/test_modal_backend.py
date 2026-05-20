@@ -279,6 +279,76 @@ async def test_execute_strips_ansi_in_raised_exception_path() -> None:
     assert result.stderr == "provider error"
 
 
+def test_is_session_gone_classifies_sandbox_terminated_and_not_found() -> None:
+    """NotFoundError / SandboxTerminatedError / SandboxTimeoutError → True;
+    plain RuntimeError → False.
+
+    These three SDK exceptions are the signals that the remote Modal sandbox
+    is gone (reaped after idle_timeout, terminated out-of-band, or hit its
+    timeout ceiling) — the cases where a rebind+retry would recover.
+    Unrelated user-code errors must NOT classify, so the manager doesn't
+    churn fresh sessions on every failed evaluation.
+    """
+    pytest.importorskip("modal")
+    from modal.exception import NotFoundError, SandboxTerminatedError, SandboxTimeoutError
+
+    modal_mock = _make_modal_mock()
+    with patch.dict(sys.modules, {"modal": modal_mock}):
+        from phoenix.server.sandbox.modal_backend import ModalSandboxBackend
+
+        backend = ModalSandboxBackend(token_id=_TOKEN_ID, token_secret=_TOKEN_SECRET)
+
+    assert backend.is_session_gone(NotFoundError("gone")) is True
+    assert backend.is_session_gone(SandboxTerminatedError()) is True
+    assert backend.is_session_gone(SandboxTimeoutError()) is True
+    assert backend.is_session_gone(RuntimeError("user oops")) is False
+
+
+@pytest.mark.asyncio
+async def test_execute_in_session_propagates_session_gone_exception() -> None:
+    """A classified SDK exception inside _exec_code must propagate, not wrap.
+
+    Without the narrow re-raise the manager has no signal to retry against —
+    every SDK failure arrives as ExecutionResult(error=...), indistinguishable
+    from user code.
+    """
+    pytest.importorskip("modal")
+    from modal.exception import SandboxTerminatedError
+
+    modal_mock = _make_modal_mock()
+    with patch.dict(sys.modules, {"modal": modal_mock}):
+        from phoenix.server.sandbox.modal_backend import ModalSandboxBackend
+
+        backend = ModalSandboxBackend(token_id=_TOKEN_ID, token_secret=_TOKEN_SECRET)
+        sandbox = MagicMock()
+        sandbox.exec.aio = AsyncMock(side_effect=SandboxTerminatedError())
+
+        with pytest.raises(SandboxTerminatedError):
+            await backend.execute_in_session(sandbox, "print('hi')")
+
+
+@pytest.mark.asyncio
+async def test_execute_in_session_wraps_non_session_gone_exception() -> None:
+    """Non-classified exceptions continue to wrap as ExecutionResult.
+
+    Regression guard: the narrowed handler must only re-raise session-gone
+    exceptions; everything else (user-code error, transient SDK fault) keeps
+    the existing ExecutionResult wrap.
+    """
+    modal_mock = _make_modal_mock()
+    with patch.dict(sys.modules, {"modal": modal_mock}):
+        from phoenix.server.sandbox.modal_backend import ModalSandboxBackend
+
+        backend = ModalSandboxBackend(token_id=_TOKEN_ID, token_secret=_TOKEN_SECRET)
+        sandbox = MagicMock()
+        sandbox.exec.aio = AsyncMock(side_effect=RuntimeError("user oops"))
+
+        result = await backend.execute_in_session(sandbox, "print('hi')")
+
+    assert result.error == "user oops"
+    assert result.stderr == "user oops"
+
+
 def test_adapter_build_backend_wires_packages_to_image() -> None:
     from phoenix.server.sandbox.types import ModalConfig, ModalCredentials, ModalDeployment
 

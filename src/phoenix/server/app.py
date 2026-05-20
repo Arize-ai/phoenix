@@ -198,6 +198,7 @@ from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
 from phoenix.server.redaction import Redactor, current_redactor
 from phoenix.server.retention import TraceDataSweeper
 from phoenix.server.sandbox._download import prefetch_wasm_binary_if_needed
+from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
@@ -651,6 +652,7 @@ def _lifespan(
     generative_model_store: GenerativeModelStore,
     db_disk_usage_monitor: DbDiskUsageMonitor,
     experiment_runner: ExperimentRunner,
+    sandbox_session_manager: SandboxSessionManager,
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
@@ -701,6 +703,12 @@ def _lifespan(
             await stack.enter_async_context(span_cost_calculator)
             await stack.enter_async_context(generative_model_store)
             await stack.enter_async_context(db_disk_usage_monitor)
+            # ``sandbox_session_manager`` must enter before ``experiment_runner``
+            # so ``AsyncExitStack`` tears them down in reverse and the runner
+            # (which consumes the manager) stops first. If the runner outlived
+            # its manager, any ``acquire`` it issued after the manager's
+            # shutdown snapshot would leak a provider session past the daemon.
+            await stack.enter_async_context(sandbox_session_manager)
             await stack.enter_async_context(experiment_runner)
             if docs_mcp_server is not None:
                 await stack.enter_async_context(docs_mcp_server)
@@ -754,6 +762,7 @@ def create_graphql_router(
     authentication_enabled: bool,
     span_cost_calculator: SpanCostCalculator,
     experiment_runner: ExperimentRunner,
+    sandbox_session_manager: SandboxSessionManager,
     encrypt: Callable[[bytes], bytes],
     decrypt: Callable[[bytes], bytes],
     cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
@@ -984,6 +993,7 @@ def create_graphql_router(
             email_sender=email_sender,
             span_cost_calculator=span_cost_calculator,
             experiment_runner=experiment_runner,
+            sandbox_session_manager=sandbox_session_manager,
             encrypt=encrypt,
             decrypt=decrypt,
         )
@@ -1178,10 +1188,12 @@ def create_app(
         graphql_schema_extensions.append(_OpenTelemetryExtension)
     encryption_service = EncryptionService(secret=secret)
     redactor = Redactor(secret=secret or SecretStr(""))
+    sandbox_session_manager = SandboxSessionManager()
     experiment_runner = ExperimentRunner(
         db,
         decrypt=encryption_service.decrypt,
         tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),
+        sandbox_session_manager=sandbox_session_manager,
     )
     graphql_router = create_graphql_router(
         db=db,
@@ -1196,6 +1208,7 @@ def create_app(
         email_sender=email_sender,
         span_cost_calculator=span_cost_calculator,
         experiment_runner=experiment_runner,
+        sandbox_session_manager=sandbox_session_manager,
         encrypt=encryption_service.encrypt,
         decrypt=encryption_service.decrypt,
     )
@@ -1226,6 +1239,7 @@ def create_app(
             generative_model_store=generative_model_store,
             db_disk_usage_monitor=DbDiskUsageMonitor(db, email_sender),
             experiment_runner=experiment_runner,
+            sandbox_session_manager=sandbox_session_manager,
             grpc_interceptors=grpc_interceptors,
             token_store=token_store,
             tracer_provider=tracer_provider,
@@ -1344,6 +1358,7 @@ def create_app(
     app.state.redactor = redactor
     app.state.span_queue_is_full = lambda: bulk_inserter.is_full
     app.state.docs_mcp_server = docs_mcp_server
+    app.state.sandbox_session_manager = sandbox_session_manager
     app = _add_get_secret_method(app=app, secret=secret)
     app = _add_get_token_store_method(app=app, token_store=token_store)
     if tracer_provider:

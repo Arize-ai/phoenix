@@ -8,12 +8,29 @@ import pytest
 from pydantic import BaseModel, SecretStr
 
 from phoenix.db.models import LanguageName
+from phoenix.server.sandbox import vercel_backend as _vercel_backend
 from phoenix.server.sandbox.types import (
     VercelConfig,
     VercelCredentials,
     VercelDeployment,
 )
 from phoenix.server.sandbox.vercel_backend import VercelSandboxBackend
+
+
+@pytest.fixture(autouse=True)
+def _clear_vercel_session_id_map() -> Any:
+    """Reset the module-level session_key→sandbox_id map between tests.
+
+    The Vercel backend reuses sessions across ephemeral wrapper instances by
+    looking up sandbox ids in a process-local dict; tests would otherwise leak
+    state into each other.
+    """
+    _vercel_backend._session_id_map.clear()
+    try:
+        yield
+    finally:
+        _vercel_backend._session_id_map.clear()
+
 
 _VERCEL_DEPLOY = VercelDeployment()
 
@@ -105,10 +122,10 @@ async def test_start_session_installs_python_packages_with_pip_user(
         return sandbox_mock
 
     monkeypatch.setattr(backend, "_create_sandbox", _fake_create_sandbox)
-    await backend.start_session("s1")
+    await backend.find_or_create_session("s1")
 
     assert captured == [("python3", ["-m", "pip", "install", "--user", "requests", "numpy"])]
-    assert "s1" in backend._sessions
+    assert "s1" in _vercel_backend._session_id_map
 
 
 @pytest.mark.asyncio
@@ -128,10 +145,10 @@ async def test_start_session_installs_typescript_packages_with_npm(
         return sandbox_mock
 
     monkeypatch.setattr(backend, "_create_sandbox", _fake_create_sandbox)
-    await backend.start_session("s1")
+    await backend.find_or_create_session("s1")
 
     assert captured == [("npm", ["install", "lodash"])]
-    assert "s1" in backend._sessions
+    assert "s1" in _vercel_backend._session_id_map
 
 
 @pytest.mark.asyncio
@@ -156,11 +173,11 @@ async def test_start_session_install_failure_stops_sandbox_and_does_not_cache(
     monkeypatch.setattr(backend, "_create_sandbox", _fake_create_sandbox)
 
     with pytest.raises(RuntimeError, match="pip: package not found"):
-        await backend.start_session("s1")
+        await backend.find_or_create_session("s1")
 
     sandbox_mock.stop.assert_awaited_once()
     sandbox_mock.client.aclose.assert_awaited_once()
-    assert "s1" not in backend._sessions
+    assert "s1" not in _vercel_backend._session_id_map
 
 
 @pytest.mark.asyncio
@@ -187,7 +204,7 @@ async def test_ephemeral_execute_runs_install_before_user_code(
     assert captured[0] == ("python3", ["-m", "pip", "install", "--user", "requests"])
     sandbox_mock.stop.assert_awaited_once()
     sandbox_mock.client.aclose.assert_awaited_once()
-    assert "ephemeral" not in backend._sessions
+    assert "ephemeral" not in _vercel_backend._session_id_map
     assert result.error is None or result.error == ""
 
 
@@ -420,3 +437,111 @@ def test_build_backend_wires_packages_to_backend(language: LanguageName) -> None
         deployment=_VERCEL_DEPLOY,
     )
     assert backend._packages == packages  # type: ignore[attr-defined]
+
+
+# ---------------------------------------------------------------------------
+# is_session_gone classifier + narrowed execute_in_session handler
+# ---------------------------------------------------------------------------
+
+
+def _make_sandbox_not_found_error() -> Exception:
+    """Construct a real ``vercel.sandbox.SandboxNotFoundError``.
+
+    The SDK's ``APIError`` ``__init__`` expects an ``httpx.Response``; we stub
+    one with a ``MagicMock`` since the classifier only checks the exception
+    type. ``SandboxNotFoundError`` is the SDK's typed signal that a 404 was
+    returned for a sandbox-scoped endpoint (e.g. ``run_command``).
+    """
+    from vercel.sandbox import SandboxNotFoundError
+
+    response = MagicMock()
+    response.status_code = 404
+    return SandboxNotFoundError(response, "HTTP 404")
+
+
+def _make_sandbox_server_error() -> Exception:
+    """Construct a real ``vercel.sandbox.SandboxServerError`` (5xx).
+
+    Used to verify a sibling ``APIError`` subclass is NOT classified as
+    session-gone — transient infra failures must continue to wrap as
+    ``ExecutionResult(error=...)``.
+    """
+    from vercel.sandbox import SandboxServerError
+
+    response = MagicMock()
+    response.status_code = 503
+    return SandboxServerError(response, "HTTP 503")
+
+
+def test_is_session_gone_classifies_sandbox_not_found() -> None:
+    """SandboxNotFoundError → True; plain RuntimeError → False.
+
+    SandboxNotFoundError is the Vercel SDK's typed 404 signal — the sandbox
+    id no longer resolves. Unrelated user-code errors must NOT classify, so
+    the manager doesn't churn fresh sessions on every failed evaluation.
+    """
+    pytest.importorskip("vercel")
+    backend = VercelSandboxBackend(
+        token=_TOKEN, project_id=_PROJECT, team_id=_TEAM, language="PYTHON"
+    )
+    assert backend.is_session_gone(_make_sandbox_not_found_error()) is True
+    assert backend.is_session_gone(RuntimeError("user oops")) is False
+
+
+def test_is_session_gone_does_not_classify_sibling_api_error() -> None:
+    """A 5xx ``SandboxServerError`` shares the ``APIError`` base but is not
+    session-gone — under-classification preserves the existing wrap path for
+    transient infra failures.
+    """
+    pytest.importorskip("vercel")
+    backend = VercelSandboxBackend(
+        token=_TOKEN, project_id=_PROJECT, team_id=_TEAM, language="PYTHON"
+    )
+    assert backend.is_session_gone(_make_sandbox_server_error()) is False
+
+
+@pytest.mark.asyncio
+async def test_execute_in_session_propagates_session_gone_exception() -> None:
+    """A classified SDK exception inside ``run_command`` must propagate, not wrap.
+
+    Without the narrow re-raise the manager has no signal to retry against —
+    every SDK failure arrives as ``ExecutionResult(error=...)``, indistinguishable
+    from user code.
+    """
+    pytest.importorskip("vercel")
+    from vercel.sandbox import SandboxNotFoundError
+
+    backend = VercelSandboxBackend(
+        token=_TOKEN, project_id=_PROJECT, team_id=_TEAM, language="PYTHON"
+    )
+    error = _make_sandbox_not_found_error()
+
+    async def _explode(*_args: Any, **_kwargs: Any) -> Any:
+        raise error
+
+    sandbox = MagicMock()
+    sandbox.run_command = _explode
+
+    with pytest.raises(SandboxNotFoundError) as excinfo:
+        await backend.execute_in_session(sandbox, "print(1)")
+    assert excinfo.value is error
+
+
+@pytest.mark.asyncio
+async def test_execute_in_session_wraps_non_session_gone_exception() -> None:
+    """Non-classified exceptions continue to surface as
+    ``ExecutionResult(error=...)`` — the existing failure shape is preserved
+    for everything outside the SandboxNotFoundError class.
+    """
+    backend = VercelSandboxBackend(
+        token=_TOKEN, project_id=_PROJECT, team_id=_TEAM, language="PYTHON"
+    )
+
+    async def _explode(*_args: Any, **_kwargs: Any) -> Any:
+        raise RuntimeError("transient")
+
+    sandbox = MagicMock()
+    sandbox.run_command = _explode
+
+    result = await backend.execute_in_session(sandbox, "print(1)")
+    assert result.error is not None and "transient" in result.error
