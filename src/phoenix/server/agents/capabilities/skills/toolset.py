@@ -13,7 +13,7 @@ from pydantic_ai.toolsets import FunctionToolset
 
 from phoenix.server.agents.capabilities.skills.skill_resource import SkillResource
 from phoenix.server.agents.capabilities.skills.skill import Skill
-from phoenix.server.agents.capabilities.skills.wrapper import SkillWrapper
+from phoenix.server.agents.capabilities.skills.skill_wrapper import SkillWrapper
 
 
 def normalize_skill_name(func_name: str) -> str:
