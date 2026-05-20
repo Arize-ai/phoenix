@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from jinja2 import Template
 from pydantic_ai.mcp import MCPServerStreamableHTTP
 from pydantic_ai.toolsets import AgentToolset
 
@@ -24,10 +25,10 @@ class MintlifyDocsMCPCapability(AbstractStaticCapability[AgentDependencies]):
     guidance text."""
 
     mcp_server: MCPServerStreamableHTTP
-    instructions: str
+    instructions: Template
 
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return self.mcp_server
 
     def get_static_instructions(self) -> str:
-        return self.instructions
+        return self.instructions.render()

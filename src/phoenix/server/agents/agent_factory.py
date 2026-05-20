@@ -71,7 +71,7 @@ def build_agent(
         name="PXIAgent",
         deps_type=AgentDependencies,
         output_type=[str, DeferredToolRequests],
-        instructions=resolved_instructions.base,
+        instructions=resolved_instructions.base.render(),
         capabilities=[traced_capability],
     )
     return OpenInferenceAgentWrapper(agent, tracer=tracer)

@@ -6,28 +6,26 @@ from jinja2 import Template
 
 from phoenix.server.agents.prompts.templating import get_template
 
-_BASE_INSTRUCTIONS = get_template("base/BASE_INSTRUCTIONS.xml.j2").render()
-_DOCS_TOOL_INSTRUCTIONS = get_template("tools/DOCS_TOOL_INSTRUCTIONS.xml.j2").render()
-_BASH_TOOL_INSTRUCTIONS = get_template("tools/BASH_TOOL_INSTRUCTIONS.xml.j2").render()
-_ASK_USER_TOOL_INSTRUCTIONS = get_template("tools/ASK_USER_TOOL_INSTRUCTIONS.xml.j2").render()
-_SET_TIME_RANGE_TOOL_INSTRUCTIONS = get_template(
-    "tools/SET_TIME_RANGE_TOOL_INSTRUCTIONS.xml.j2"
-).render()
+_BASE_INSTRUCTIONS = get_template("base/BASE_INSTRUCTIONS.xml.j2")
+_DOCS_TOOL_INSTRUCTIONS = get_template("tools/DOCS_TOOL_INSTRUCTIONS.xml.j2")
+_BASH_TOOL_INSTRUCTIONS = get_template("tools/BASH_TOOL_INSTRUCTIONS.xml.j2")
+_ASK_USER_TOOL_INSTRUCTIONS = get_template("tools/ASK_USER_TOOL_INSTRUCTIONS.xml.j2")
+_SET_TIME_RANGE_TOOL_INSTRUCTIONS = get_template("tools/SET_TIME_RANGE_TOOL_INSTRUCTIONS.xml.j2")
 _RENDER_GENERATIVE_UI_TOOL_INSTRUCTIONS = get_template(
     "tools/RENDER_GENERATIVE_UI_TOOL_INSTRUCTIONS.xml.j2"
-).render()
+)
 _SET_SPANS_FILTER_TOOL_INSTRUCTIONS = get_template(
     "tools/SET_SPANS_FILTER_TOOL_INSTRUCTIONS.xml.j2"
-).render()
+)
 _READ_PROMPT_INSTANCE_TOOL_INSTRUCTIONS = get_template(
     "tools/READ_PROMPT_INSTANCE_TOOL_INSTRUCTIONS.xml.j2"
-).render()
+)
 _CLONE_PROMPT_INSTANCE_TOOL_INSTRUCTIONS = get_template(
     "tools/CLONE_PROMPT_INSTANCE_TOOL_INSTRUCTIONS.xml.j2"
-).render()
+)
 _EDIT_PROMPT_INSTANCE_TOOL_INSTRUCTIONS = get_template(
     "tools/EDIT_PROMPT_INSTANCE_TOOL_INSTRUCTIONS.xml.j2"
-).render()
+)
 _APP_CONTEXT_TEMPLATE = get_template("context/APP_CONTEXT_INSTRUCTIONS.xml.j2")
 _PROJECT_CONTEXT_TEMPLATE = get_template("context/PROJECT_CONTEXT_INSTRUCTIONS.xml.j2")
 _TRACE_CONTEXT_TEMPLATE = get_template("context/TRACE_CONTEXT_INSTRUCTIONS.xml.j2")
@@ -44,16 +42,16 @@ SUMMARIZATION_SYSTEM_PROMPT = get_template(
 class AgentInstructions:
     """Typed bundle of every prompt template the chat agent uses."""
 
-    base: str = _BASE_INSTRUCTIONS
-    docs_tool: str = _DOCS_TOOL_INSTRUCTIONS
-    bash_tool: str = _BASH_TOOL_INSTRUCTIONS
-    ask_user_tool: str = _ASK_USER_TOOL_INSTRUCTIONS
-    set_time_range_tool: str = _SET_TIME_RANGE_TOOL_INSTRUCTIONS
-    render_generative_ui_tool: str = _RENDER_GENERATIVE_UI_TOOL_INSTRUCTIONS
-    set_spans_filter_tool: str = _SET_SPANS_FILTER_TOOL_INSTRUCTIONS
-    read_prompt_instance_tool: str = _READ_PROMPT_INSTANCE_TOOL_INSTRUCTIONS
-    clone_prompt_instance_tool: str = _CLONE_PROMPT_INSTANCE_TOOL_INSTRUCTIONS
-    edit_prompt_instance_tool: str = _EDIT_PROMPT_INSTANCE_TOOL_INSTRUCTIONS
+    base: Template = _BASE_INSTRUCTIONS
+    docs_tool: Template = _DOCS_TOOL_INSTRUCTIONS
+    bash_tool: Template = _BASH_TOOL_INSTRUCTIONS
+    ask_user_tool: Template = _ASK_USER_TOOL_INSTRUCTIONS
+    set_time_range_tool: Template = _SET_TIME_RANGE_TOOL_INSTRUCTIONS
+    render_generative_ui_tool: Template = _RENDER_GENERATIVE_UI_TOOL_INSTRUCTIONS
+    set_spans_filter_tool: Template = _SET_SPANS_FILTER_TOOL_INSTRUCTIONS
+    read_prompt_instance_tool: Template = _READ_PROMPT_INSTANCE_TOOL_INSTRUCTIONS
+    clone_prompt_instance_tool: Template = _CLONE_PROMPT_INSTANCE_TOOL_INSTRUCTIONS
+    edit_prompt_instance_tool: Template = _EDIT_PROMPT_INSTANCE_TOOL_INSTRUCTIONS
     app_context: Template = _APP_CONTEXT_TEMPLATE
     project_context: Template = _PROJECT_CONTEXT_TEMPLATE
     trace_context: Template = _TRACE_CONTEXT_TEMPLATE
