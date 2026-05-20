@@ -1,23 +1,15 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TypeAlias
 
 import yaml
 
+Frontmatter: TypeAlias = dict[str, Any]
+SkillContent: TypeAlias = str
 
-def parse_skill_md(content: str) -> tuple[dict[str, Any], str]:
-    """Parse a SKILL.md file into frontmatter and instructions.
 
-    Args:
-        content: Full content of the SKILL.md file.
-
-    Returns:
-        Tuple of (frontmatter_dict, instructions_markdown).
-
-    Raises:
-        ValueError: If the file does not begin with a YAML frontmatter fence,
-            if YAML parsing fails, or if the frontmatter is not a mapping.
-    """
+def parse_skill_md(content: str) -> tuple[Frontmatter, SkillContent]:
+    """Parse a SKILL.md file into frontmatter and instructions."""
     lines = content.split("\n")
 
     # Frontmatter must open at line 0
