@@ -182,6 +182,35 @@ class TestCapabilityGates:
         assert result.errors
         assert result.data is None
 
+    async def test_env_vars_field_absent_from_deno_input_returns_error(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        """Deno sandboxes intentionally don't accept env vars — ``DenoConfigInput``
+        has no ``envVars`` field, so the GraphQL parser rejects it outright."""
+        provider = await _get_provider(db, "DENO")
+        config = await _create_config_for_provider(db, provider)
+
+        with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"DENO": _deno_adapter}):
+            result = await gql_client.execute(
+                _UPDATE,
+                variables={
+                    "input": {
+                        "id": _config_global_id(config.id),
+                        "config": {
+                            "deno": {
+                                "language": "TYPESCRIPT",
+                                "envVars": [{"name": "FOO", "secretKey": "k"}],
+                            }
+                        },
+                    }
+                },
+            )
+        assert result.errors
+        assert result.data is None
+
     async def test_dependencies_packages_on_unsupported_adapter_returns_error(
         self,
         gql_client: AsyncGraphQLClient,

@@ -10,7 +10,7 @@ A **sandbox** is an isolated runtime that executes a snippet of code on demand. 
 The **Settings → Sandboxes** page is where administrators pick which sandbox providers are available and bundle them into named, reusable configurations that anyone writing a code evaluator can pick from. The page has two cards:
 
 - **Sandbox Providers** — one row per provider. Each row lets you set the provider's credentials, enable or disable it for your deployment, and see whether it's currently ready to run code.
-- **Sandbox Configurations** — named runtime profiles you create once and re-use. Each one bundles a provider with a timeout, environment variables, optional internet access, and any dependencies that should be pre-installed.
+- **Sandbox Configurations** — named runtime profiles you create once and re-use. Each one bundles a provider with a timeout and, for hosted providers, environment variables, optional internet access, and any dependencies that should be pre-installed.
 
 <Note>
 Only users with the **Admin** role can view or edit this page. Non-admin users are routed away from the tab.
@@ -19,6 +19,10 @@ Only users with the **Admin** role can view or edit this page. Non-admin users a
 ## Local vs. hosted sandboxes
 
 Phoenix supports two kinds of sandbox, distinguished by where the code actually runs. The badge on each row in **Sandbox Providers** (labeled either **Local** or **Hosted**) tells you which kind it is.
+
+<Warning>
+**Environment variables, network access, and third-party dependencies are only supported in hosted sandboxes.** Local sandboxes (Deno and WebAssembly) are for **simple, self-contained code evaluation** — pure-logic checks like regex matches, JSON parsing, and scoring functions. If your evaluator needs to read a secret, call an API, or import a package, you must use a hosted sandbox.
+</Warning>
 
 ```mermaid
 flowchart LR
@@ -41,26 +45,24 @@ flowchart LR
     Server -. HTTPS .-> hostedBox
 ```
 
-<Info>
-**Local sandboxes** run on the Phoenix machine itself — fully isolated, no credentials needed, but they share the Phoenix process's CPU and memory and can't reach the internet or install packages. **Hosted sandboxes** run on a remote machine operated by a third-party provider, so they support third-party libraries, outbound web access, and isolation from Phoenix's own resources — at the cost of per-call network latency and provider credentials.
-</Info>
-
 <AccordionGroup>
-  <Accordion title="Local sandboxes" icon="server">
-    **Local sandboxes** run inside the Phoenix server process itself. They start in milliseconds and require no external credentials, which makes them the fastest and cheapest option. The trade-off is narrower isolation than a full VM and a smaller capability surface — they can't install arbitrary packages, and they can't reach the public internet.
+  <Accordion title="Local sandboxes — simple code evaluation only" icon="server">
+    **Local sandboxes** run inside the Phoenix server process itself. They start in milliseconds and require no external credentials, which makes them the fastest and cheapest option for **simple, self-contained evaluators** — regex matches, JSON parsing, scoring functions, and other pure logic.
+
+    They **do not** support environment variables, network access, or third-party dependencies. If your evaluator needs any of those, use a hosted sandbox.
 
     <CardGroup cols={2}>
       <Card title="WebAssembly" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/wasm.svg" href="/docs/phoenix/settings/sandboxes/wasm">
-        Runs Python in an isolated WebAssembly runtime with no access to your filesystem or network.
+        Runs simple Python evaluators in an isolated WebAssembly runtime. No env vars, network, or packages.
       </Card>
       <Card title="Deno" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/deno.svg" href="/docs/phoenix/settings/sandboxes/deno">
-        Runs TypeScript in a locked-down Deno process — no filesystem, network, or third-party package access.
+        Runs simple TypeScript evaluators in a locked-down Deno process. No env vars, network, or packages.
       </Card>
     </CardGroup>
   </Accordion>
 
-  <Accordion title="Hosted sandboxes" icon="cloud">
-    **Hosted sandboxes** run on a third-party provider's infrastructure. Each invocation spins up a fresh sandbox there — a VM, micro-VM, or container, depending on the provider. The upside: kernel-level isolation, longer maximum timeouts, the ability to install Python or npm packages at execution time, and opt-in outbound network access. The cost: per-call round-trip latency and the need to configure credentials for the upstream service.
+  <Accordion title="Hosted sandboxes — full capability" icon="cloud">
+    **Hosted sandboxes** run on a third-party provider's infrastructure. Each invocation spins up a fresh sandbox there — a VM, micro-VM, or container, depending on the provider. They are the **only** sandboxes that support environment variables, outbound network access, and third-party dependencies, plus kernel-level isolation and longer maximum timeouts. The cost: per-call round-trip latency and the need to configure credentials for the upstream service.
 
     <CardGroup cols={2}>
       <Card title="E2B" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/e2b.svg" href="/docs/phoenix/settings/sandboxes/e2b">
@@ -98,7 +100,11 @@ Values are stored encrypted at rest using the server's `PHOENIX_SECRET`. The dia
 
 ## Sandbox Configurations
 
-A **sandbox configuration** is a named, reusable runtime profile — a provider plus its timeout, environment variables, internet-access setting, and any pre-installed dependencies. Code evaluators don't pick a provider directly; they pick a configuration. This means administrators can set up a small set of vetted profiles — for example, "Python with `requests` and `numpy`" or "Node.js with internet access" — and the people writing evaluators just pick the profile that fits their script.
+A **sandbox configuration** is a named, reusable runtime profile. For a **local** provider it's just a provider and a timeout. For a **hosted** provider it can also carry environment variables, an internet-access setting, and pre-installed dependencies. Code evaluators don't pick a provider directly; they pick a configuration. This means administrators can set up a small set of vetted profiles — for example, "Python with `requests` and `numpy`" or "Node.js with internet access" — and the people writing evaluators just pick the profile that fits their script.
+
+<Warning>
+Environment variables, internet access, and dependencies are **hosted-sandbox-only**. A local-sandbox configuration (Deno or WebAssembly) is just a provider and a timeout — those fields are hidden in the dialog when a local provider is selected.
+</Warning>
 
 <Warning>
 Environment-variable values — including the values resolved from secret references — are visible to any code that runs in the sandbox (for example, `os.environ` in Python). Treat them as readable by anyone authorized to author or run an evaluator against the config.
@@ -108,18 +114,18 @@ Environment-variable values — including the values resolved from secret refere
 
 Click **New Sandbox** in the Sandbox Configurations card. Only providers that are currently available *and* enabled by an administrator appear in the picker.
 
-The dialog exposes the following fields. Fields that aren't supported by the selected backend are shown as **Not supported by the selected backend**.
+The dialog exposes the following fields. The last three are **hosted-sandbox-only** — when a local provider (Deno or WebAssembly) is selected they are hidden entirely.
 
-| Field | Notes |
-|-------|-------|
-| **Provider** | Required. The sandbox provider this config targets. Provider credentials and deployment routing are shared across that provider's supported languages. |
-| **Language** | Required. Auto-filled for single-language providers; selected explicitly for multi-language providers. Configs are language-scoped — a Python config can only be selected by Python evaluators. |
-| **Name** | Required. Lowercase letters, digits, dashes, and underscores. Must start and end with a letter or digit. Used to identify the config in the evaluator UI. |
-| **Description** | Optional free-form text shown next to the config name. |
-| **Timeout (seconds)** | Required. Total time allowed for sandbox setup and execution. Defaults to **300s**. |
-| **Environment Variables** | One row per variable. Each row is either a **literal value** typed inline, or a **secret reference** to a key from [Settings → Secrets](/docs/phoenix/settings/secrets). Available only for backends that support env vars. |
-| **Allow Internet Access** | Toggle for backends that gate outbound networking. When off, the sandbox runs with no network egress. |
-| **Dependencies** | One package per line. The dialog shows whether the backend takes Python packages (e.g. `requests`, `numpy==1.26.0`) or npm packages (e.g. `@types/node`, `lodash`). Phoenix installs these before each execution. |
+| Field | Availability | Notes |
+|-------|-------------|-------|
+| **Provider** | All | Required. The sandbox provider this config targets. Provider credentials and deployment routing are shared across that provider's supported languages. |
+| **Language** | All | Required. Auto-filled for single-language providers; selected explicitly for multi-language providers. Configs are language-scoped — a Python config can only be selected by Python evaluators. |
+| **Name** | All | Required. Lowercase letters, digits, dashes, and underscores. Must start and end with a letter or digit. Used to identify the config in the evaluator UI. |
+| **Description** | All | Optional free-form text shown next to the config name. |
+| **Timeout (seconds)** | All | Required. Total time allowed for sandbox setup and execution. Defaults to **300s**. |
+| **Environment Variables** | Hosted only | One row per variable. Each row is either a **literal value** typed inline, or a **secret reference** to a key from [Settings → Secrets](/docs/phoenix/settings/secrets). |
+| **Allow Internet Access** | Hosted only | Toggle for outbound networking. When off, the sandbox runs with no network egress. |
+| **Dependencies** | Hosted only | One package per line — Python packages (e.g. `requests`, `numpy==1.26.0`) or npm packages (e.g. `@types/node`, `lodash`). Phoenix installs these before each execution. |
 
 ## Next steps
 

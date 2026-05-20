@@ -154,20 +154,15 @@ class DaytonaConfigInput:
 
 @strawberry.input
 class DenoConfigInput:
-    """Deno runs as a local subprocess with no network policy hook, so it
-    doesn't carry an ``internet_access`` field. Env vars are still supported."""
+    """Deno runs as a local subprocess with no network policy hook and no
+    env-var passthrough. Deno sandboxes intentionally cannot receive any
+    user-supplied environment variables, so this input carries only
+    ``language``."""
 
     language: Language
-    env_vars: list[EnvVarInput] = strawberry.field(default_factory=list)
-
-    def __post_init__(self) -> None:
-        _names_are_unique(self.env_vars)
 
     def to_orm(self) -> DenoConfig:
-        fields: dict[str, Any] = {"language": self.language.to_orm()}
-        if self.env_vars:
-            fields["env_vars"] = {ev.name: ev.to_orm() for ev in self.env_vars}
-        return DenoConfig.model_validate(fields)
+        return DenoConfig.model_validate({"language": self.language.to_orm()})
 
 
 @strawberry.input
