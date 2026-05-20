@@ -638,7 +638,7 @@ type CreateCodeEvaluatorVersionPayload {
   evaluator: CodeEvaluator!
 
   """
-  True when a new CodeEvaluatorVersion row was appended. False when the call dedup'd against the existing tip because source_code was unchanged. Exposes idempotency explicitly so clients can distinguish a saved revision from a no-op.
+  True when a new CodeEvaluatorVersion row was appended. False when the call dedup'd against the existing tip because source_code was unchanged.
   """
   wasCreated: Boolean!
   query: Query!
@@ -2287,7 +2287,7 @@ type Mutation {
   patchCodeEvaluator(input: PatchCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
 
   """
-  Append a new immutable CodeEvaluatorVersion. If the proposed source_code is identical to the current tip version, no new row is appended and was_created=false. Sandbox rebinding lives on patchCodeEvaluator and does not bump a version on its own.
+  Append a new immutable CodeEvaluatorVersion. If source_code matches the current tip, no row is appended and was_created=false.
   """
   createCodeEvaluatorVersion(input: CreateCodeEvaluatorVersionInput!): CreateCodeEvaluatorVersionPayload!
   stopExperiment(experimentId: ID!): StopExperimentPayload!
