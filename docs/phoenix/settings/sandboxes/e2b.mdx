@@ -7,9 +7,38 @@ description: "Run code evaluators in E2B's hosted micro-VM sandboxes."
 <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/e2b.svg" alt="E2B" className="invert-on-dark" style={{ height: '112px', flexShrink: 0 }} />
 <div>
 
-[**E2B**](https://e2b.dev/) provides hosted micro-VM sandboxes purpose-built for executing AI-generated code. Each invocation spins up a fresh VM on E2B's infrastructure, so Phoenix can run untrusted Python with kernel-level isolation, install dependencies at execution time, and opt in to outbound network access — without exposing the rest of your deployment.
+[**E2B**](https://e2b.dev/) runs each evaluation inside a fresh micro-VM on its own infrastructure. That gives you kernel-level isolation — much stronger than the local sandboxes — plus the ability to install Python packages on the fly and reach the public internet when the configuration allows it. The trade-off is per-call network latency and the need to manage an E2B account.
 
 </div>
 </div>
 
-To use E2B, sign up at [e2b.dev](https://e2b.dev/) and create an API key, then add it as `E2B_API_KEY` from [Settings → Sandboxes](/docs/phoenix/settings/sandboxes).
+## When to choose E2B
+
+Pick E2B when you need any of the following from your Python evaluators:
+
+- **Stronger isolation than the local WebAssembly sandbox.** Every run gets its own micro-VM, so an evaluator can't see anything from your Phoenix server or from other runs.
+- **Third-party Python packages at runtime.** Add packages like `pandas`, `requests`, or anything else to the sandbox configuration and E2B installs them before each run.
+- **Outbound network access.** Enable internet on the configuration if your evaluator needs to call an API.
+- **Longer timeouts** for evaluators that need more than a few seconds to run.
+
+If your evaluators are quick, pure-logic Python (regex, JSON parsing, scoring functions) and don't need third-party packages or network access, the local [WebAssembly sandbox](/docs/phoenix/settings/sandboxes/wasm) will be faster and free.
+
+## Setup
+
+1. **Create an E2B account** at [e2b.dev](https://e2b.dev/) if you don't already have one.
+2. **Generate an API key** in the E2B dashboard.
+3. **Add the key to Phoenix.** Open [Settings → Sandboxes](/docs/phoenix/settings/sandboxes), find the **E2B** row, click the gear icon, and paste your key as `E2B_API_KEY`. You can also set it as an environment variable on the Phoenix server instead.
+4. **Create a configuration.** In the **Sandbox Configurations** card, click **New Sandbox**, pick **E2B**, set the timeout and any environment variables or dependencies the evaluator needs, and save.
+
+Once the configuration exists, code evaluators can select it from their settings.
+
+## Pricing and quotas
+
+E2B charges per second of sandbox runtime. See [e2b.dev/pricing](https://e2b.dev/pricing) for current rates and free-tier limits. Phoenix doesn't add any markup — you pay E2B directly.
+
+## Troubleshooting
+
+- **The row says "Missing credentials"** — Phoenix hasn't received your API key. Open the gear icon on the E2B row and paste it in.
+- **The row says "Not installed"** — the E2B integration isn't installed. On a non-container Phoenix install, run `pip install 'arize-phoenix[e2b]'` and restart Phoenix. The official `arizephoenix/phoenix` container already has it.
+- **The row says "Disabled"** — an administrator has excluded E2B via the [`PHOENIX_ALLOWED_SANDBOX_PROVIDERS`](/docs/phoenix/self-hosting/features/sandbox-runtimes#restricting-which-providers-are-allowed) allowlist. Either add `E2B` to the allowlist or remove the variable.
+- **Evaluations fail with an authentication error** — your API key is likely wrong or revoked. Regenerate it in the E2B dashboard and update the credential in Phoenix.

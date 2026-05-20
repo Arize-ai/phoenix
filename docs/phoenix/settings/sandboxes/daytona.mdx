@@ -7,9 +7,36 @@ description: "Run code evaluators in Daytona's managed development sandboxes."
 <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/daytona.svg" alt="Daytona" className="invert-on-dark" style={{ height: '112px', flexShrink: 0 }} />
 <div>
 
-[**Daytona**](https://www.daytona.io/) provides managed development sandboxes with fast, snapshot-based startup. Phoenix uses it as a hosted backend for both Python and TypeScript code evaluators that need stronger isolation than the local sandboxes, longer maximum timeouts, or runtime dependency installation.
+[**Daytona**](https://www.daytona.io/) runs each evaluation in a managed development sandbox on its own cloud. Sandboxes start from snapshots, which keeps startup fast, and Daytona supports both Python and TypeScript evaluators.
 
 </div>
 </div>
 
-To use Daytona, sign up at [daytona.io](https://www.daytona.io/) and generate an API key, then add it as `DAYTONA_API_KEY` from [Settings → Sandboxes](/docs/phoenix/settings/sandboxes).
+## When to choose Daytona
+
+Pick Daytona when you want a single hosted provider that handles both **Python and TypeScript** evaluators, or when you need any of the following:
+
+- **Stronger isolation than the local sandboxes.** Every run gets its own sandbox with no access to your Phoenix server.
+- **Third-party packages at runtime.** Install Python or npm packages on the configuration and Daytona has them ready before each run.
+- **Outbound network access** for evaluators that call out to APIs.
+- **Longer timeouts** for slower evaluators.
+
+If your team writes only one language, a single-language hosted provider (E2B for Python, Vercel for TypeScript) may be a closer fit. If you don't need packages or network access, the local [WebAssembly](/docs/phoenix/settings/sandboxes/wasm) or [Deno](/docs/phoenix/settings/sandboxes/deno) sandboxes will be cheaper and faster.
+
+## Setup
+
+1. **Create a Daytona account** at [daytona.io](https://www.daytona.io/) if you don't already have one.
+2. **Generate an API key** in the Daytona dashboard.
+3. **Add the key to Phoenix.** Open [Settings → Sandboxes](/docs/phoenix/settings/sandboxes), find the **Daytona** row, click the gear icon, and paste the key as `DAYTONA_API_KEY`. You can also set it as an environment variable on the Phoenix server instead.
+4. **Create a configuration.** In **Sandbox Configurations**, click **New Sandbox**, pick **Daytona**, choose the language (Python or TypeScript), set the timeout and any environment variables or dependencies, and save.
+
+## Pricing and quotas
+
+See [daytona.io/pricing](https://www.daytona.io/pricing) for current rates and free-tier limits. Phoenix doesn't add a markup.
+
+## Troubleshooting
+
+- **The row says "Missing credentials"** — Phoenix hasn't received your API key. Open the gear icon on the Daytona row and paste it in.
+- **The row says "Not installed"** — the Daytona integration isn't installed. On a non-container Phoenix install, run `pip install 'arize-phoenix[daytona]'` and restart Phoenix. The official `arizephoenix/phoenix` container already has it.
+- **The row says "Disabled"** — an administrator has excluded Daytona via the [`PHOENIX_ALLOWED_SANDBOX_PROVIDERS`](/docs/phoenix/self-hosting/features/sandbox-runtimes#restricting-which-providers-are-allowed) allowlist. Either add `DAYTONA` to the allowlist or remove the variable.
+- **Evaluations fail with an authentication error** — your API key is wrong, expired, or revoked. Regenerate it in the Daytona dashboard and update it in Phoenix.
