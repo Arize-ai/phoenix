@@ -332,7 +332,7 @@ class SkillsToolset(FunctionToolset[Any]):
             return LOAD_SKILL_TEMPLATE.format(
                 skill_name=skill.name,
                 description=skill.description,
-                path=skill.path or "N/A",
+                path=skill.path,
                 resources_list=resources_list,
                 content=skill.content,
             )

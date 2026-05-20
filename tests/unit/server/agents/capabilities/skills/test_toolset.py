@@ -347,7 +347,12 @@ def test_exclude_tools_programmatic_skills(sample_skills: list[Skill]) -> None:
     """Test exclude_tools with programmatic skills."""
     from phoenix.server.agents.capabilities.skills import Skill
 
-    custom_skill = Skill(name="custom-skill", description="Custom skill", content="Content")
+    custom_skill = Skill(
+        name="custom-skill",
+        description="Custom skill",
+        content="Content",
+        path=Path("/tmp/custom-skill"),
+    )
 
     toolset = SkillsToolset(
         skills=[custom_skill],

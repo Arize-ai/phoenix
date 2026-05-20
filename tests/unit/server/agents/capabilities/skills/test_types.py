@@ -10,11 +10,17 @@ from phoenix.server.agents.capabilities.skills.skill_resource import SkillResour
 
 def test_skill_creation() -> None:
     """Test creating Skill with required fields."""
-    skill = Skill(name="test-skill", description="A test skill", content="Test instructions")
+    skill = Skill(
+        name="test-skill",
+        description="A test skill",
+        content="Test instructions",
+        path=Path("/tmp/test-skill"),
+    )
 
     assert skill.name == "test-skill"
     assert skill.description == "A test skill"
     assert skill.content == "Test instructions"
+    assert skill.path == Path("/tmp/test-skill")
     assert skill.resources == []
     assert skill.metadata is None
 
@@ -25,6 +31,7 @@ def test_skill_with_metadata() -> None:
         name="test-skill",
         description="A test skill",
         content="Test instructions",
+        path=Path("/tmp/test-skill"),
         metadata={"version": "1.0.0", "author": "Test Author"},
     )
 
@@ -41,22 +48,6 @@ def test_skill_resource_creation() -> None:
     assert resource.content == "Reference documentation here"
     assert resource.function is None
     assert resource.uri is None
-
-
-def test_skill_path_defaults_to_none() -> None:
-    """Test that Skill.path defaults to None when not provided."""
-    skill = Skill(name="my-skill", description="A skill", content="Instructions")
-
-    assert skill.path is None
-
-
-def test_skill_explicit_path_preserved() -> None:
-    """Test that an explicitly provided path is preserved."""
-    skill = Skill(
-        name="my-skill", description="A skill", content="Instructions", path="/tmp/my-skill"
-    )
-
-    assert skill.path == "/tmp/my-skill"
 
 
 def _write_skill_md(directory: Path, content: str) -> Path:
@@ -79,7 +70,7 @@ def test_from_file_skill_md_path(tmp_path: Path) -> None:
     assert skill.name == "my-skill"
     assert skill.description == "A skill"
     assert "Instructions" in skill.content
-    assert skill.path == str(skill_dir.resolve())
+    assert skill.path == skill_dir.resolve()
     assert skill.resources == []
 
 
@@ -89,25 +80,14 @@ def test_from_file_missing_skill_md(tmp_path: Path) -> None:
         Skill.from_file(tmp_path / "nonexistent" / "SKILL.md")
 
 
-def test_from_file_missing_name_validate_true(tmp_path: Path) -> None:
-    """Missing name with validate=True raises ValueError."""
+def test_from_file_missing_name_raises(tmp_path: Path) -> None:
+    """Missing name raises ValueError."""
     skill_file = _write_skill_md(
         tmp_path / "no-name", "---\ndescription: No name\n---\n\nContent.\n"
     )
 
     with pytest.raises(ValueError, match='missing the required "name" field'):
-        Skill.from_file(skill_file, validate=True)
-
-
-def test_from_file_missing_name_validate_false(tmp_path: Path) -> None:
-    """Missing name with validate=False falls back to the directory name."""
-    skill_file = _write_skill_md(
-        tmp_path / "my-fallback-skill", "---\ndescription: No name\n---\n\nContent.\n"
-    )
-
-    skill = Skill.from_file(skill_file, validate=False)
-
-    assert skill.name == "my-fallback-skill"
+        Skill.from_file(skill_file)
 
 
 def test_from_file_attaches_explicit_resources(tmp_path: Path) -> None:
@@ -141,15 +121,4 @@ def test_from_file_non_dict_frontmatter_raises(tmp_path: Path) -> None:
     skill_file = _write_skill_md(tmp_path / "bad-skill", "---\n- item1\n- item2\n---\n\nContent.\n")
 
     with pytest.raises(ValueError, match="mapping"):
-        Skill.from_file(skill_file, validate=False)
-
-
-def test_from_file_integer_name_field(tmp_path: Path) -> None:
-    """A numeric name in YAML (e.g. name: 123) is coerced to str, not TypeError."""
-    skill_file = _write_skill_md(
-        tmp_path / "numeric-name", "---\nname: 123\ndescription: A skill\n---\n\nContent.\n"
-    )
-
-    skill = Skill.from_file(skill_file, validate=False)
-
-    assert skill.name == "123"
+        Skill.from_file(skill_file)

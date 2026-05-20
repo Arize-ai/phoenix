@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from jinja2 import Template
 
 from phoenix.server.agents.capabilities.skills import (
@@ -42,8 +44,8 @@ def test_get_static_instructions_renders_empty_skills_list() -> None:
 
 def test_get_static_instructions_renders_skills_xml() -> None:
     """Each skill should appear in the rendered output as a <skill> block, sorted by name."""
-    s1 = Skill(name="b-skill", description="second", content="...", path="/tmp/b")
-    s2 = Skill(name="a-skill", description="first", content="...", path="/tmp/a")
+    s1 = Skill(name="b-skill", description="second", content="...", path=Path("/tmp/b"))
+    s2 = Skill(name="a-skill", description="first", content="...", path=Path("/tmp/a"))
     toolset = SkillsToolset(skills=[s1, s2])
     capability = SkillsCapability(toolset=toolset, instructions=_TEMPLATE)
 

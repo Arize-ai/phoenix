@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+import inspect
+from collections.abc import Awaitable, Callable
+from pathlib import Path
 from typing import Any, Generic, TypeVar
 
 from pydantic.json_schema import GenerateJsonSchema
@@ -42,14 +44,19 @@ class SkillWrapper(Generic[DepsT]):
 
     def resource(
         self,
-        func: Callable[..., Any] | None = None,
+        func: Callable[..., object | Awaitable[object]] | None = None,
         *,
         name: str | None = None,
         description: str | None = None,
-        takes_ctx: bool | None = None,
         docstring_format: DocstringFormat = "auto",
         schema_generator: type[GenerateJsonSchema] | None = None,
-    ) -> Callable[..., Any] | Callable[[Callable[..., Any]], Callable[..., Any]]:
+    ) -> (
+        Callable[..., object | Awaitable[object]]
+        | Callable[
+            [Callable[..., object | Awaitable[object]]],
+            Callable[..., object | Awaitable[object]],
+        ]
+    ):
         """Decorator to attach a callable resource to the skill.
 
         The decorated function can optionally take RunContext as its first argument
@@ -74,7 +81,6 @@ class SkillWrapper(Generic[DepsT]):
             func: The function to register as a resource.
             name: Resource name (defaults to function name).
             description: Resource description (inferred from docstring if not provided).
-            takes_ctx: Whether function takes RunContext (auto-detected if None).
             docstring_format: Format of the docstring ('auto', 'google', 'numpy', 'sphinx').
             schema_generator: Custom JSON schema generator class.
 
@@ -82,13 +88,15 @@ class SkillWrapper(Generic[DepsT]):
             The original function (allows use as decorator).
         """
 
-        def decorator(f: Callable[..., Any]) -> Callable[..., Any]:
+        def decorator(
+            f: Callable[..., object | Awaitable[object]],
+        ) -> Callable[..., object | Awaitable[object]]:
             resource_name = name or f.__name__
             gen = schema_generator or GenerateToolJsonSchema
             func_schema = _function_schema.function_schema(
                 f,
                 schema_generator=gen,
-                takes_ctx=takes_ctx,
+                takes_ctx=None,
                 docstring_format=docstring_format,
                 require_parameter_descriptions=False,
             )
@@ -121,6 +129,6 @@ class SkillWrapper(Generic[DepsT]):
             description=self.description or "",
             content=content,
             resources=self.resources,
-            path=None,
+            path=Path(inspect.getfile(self.function)),
             metadata=self.metadata,
         )
