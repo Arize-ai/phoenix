@@ -445,7 +445,7 @@ class SkillsToolset(FunctionToolset[Any]):
             A SkillWrapper instance that can be used to attach resources.
         """
 
-        def decorator(f: Callable[[], str]) -> SkillWrapper[Any]:
+        def decorator(f: Callable[[], str]) -> SkillWrapper:
             # Derive name from function name if not provided
             if name is not None:
                 # Explicit name provided - validate length only
@@ -467,7 +467,7 @@ class SkillsToolset(FunctionToolset[Any]):
                 skill_description = desc
 
             # Create the skill wrapper
-            wrapper: SkillWrapper[Any] = SkillWrapper(
+            wrapper: SkillWrapper = SkillWrapper(
                 function=f,
                 name=skill_name,
                 description=skill_description,
@@ -492,7 +492,7 @@ class SkillsToolset(FunctionToolset[Any]):
             # Called without arguments: @skills.skill
             return decorator(func)
 
-    def _register_skill(self, skill: Skill | SkillWrapper[Any]) -> None:
+    def _register_skill(self, skill: Skill | SkillWrapper) -> None:
         """Register a skill with the toolset.
 
         Converts SkillWrapper instances to Skill dataclasses before registering.

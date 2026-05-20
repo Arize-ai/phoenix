@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Generic, TypeVar, overload
+from typing import Any, TypeVar, overload
 
 from pydantic_ai import _function_schema
 from pydantic_ai.tools import DocstringFormat, GenerateToolJsonSchema
@@ -14,14 +14,11 @@ from phoenix.server.agents.capabilities.skills.skill_resource import (
     SkillResource,
 )
 
-# Generic type variable for dependencies
-DepsT = TypeVar("DepsT")
-
 ResourceFunctionType = TypeVar("ResourceFunctionType", bound=ResourceFunction)
 
 
-class SkillWrapper(Generic[DepsT]):
-    """Generic wrapper for decorator-based skill creation with type-safe dependencies."""
+class SkillWrapper:
+    """Wrapper for decorator-based skill creation."""
 
     def __init__(
         self,
