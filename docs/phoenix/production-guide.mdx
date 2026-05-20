@@ -87,5 +87,5 @@ The Phoenix server accepts OpenTelemetry traces from arbitrary clients and makes
 On Kubernetes, the strongest control is a **network policy** enforced by a CNI such as [Cilium](https://cilium.io/). A well-scoped policy puts the Phoenix pod into allow-list mode: it can reach its database, the cluster DNS resolver, and an explicit allowlist of LLM provider domains — and nothing else. Critically, it blocks egress to private IP ranges and the cloud provider metadata endpoint (`169.254.169.254`), which is the first thing an attacker reaches for after compromising a workload.
 
 <Info>
-  See the [Network Policies](/docs/phoenix/self-hosting/security/network-policies) reference for copy-ready Cilium policies and the hardening principles behind them. For application-level controls — provider allowlists, HTTP proxies, and CSRF protection — see [Network Security](/docs/phoenix/self-hosting/security/network-security).
+  See [Network Security](/docs/phoenix/self-hosting/security/network-security) for application-level controls — provider allowlists, HTTP proxies, and CSRF protection — and the [Network Policies (Kubernetes)](/docs/phoenix/self-hosting/security/network-security#network-policies-kubernetes) section for copy-ready Cilium policies and the hardening principles behind them.
 </Info>
