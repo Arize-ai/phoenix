@@ -7,8 +7,10 @@ This tree is the canonical home for PXI-specific eval work.
 - `harness/` runs live PXI agent experiments against Phoenix datasets.
 - `datasets/` stores YAML datasets shared by harness and CI workflows.
 - `evaluators/` stores code evaluators for PXI tool behavior.
-- `tests/` contains fast unit coverage for the harness and evaluators.
 - `trace_ingest/` is reserved for future trace-to-dataset tooling.
+
+Fast unit coverage for the harness and evaluators lives under
+`tests/unit/pxi/evals/`.
 
 ## Splits
 
