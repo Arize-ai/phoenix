@@ -150,6 +150,44 @@ All formats support variable substitution. Python supports both f-string (`{vari
   </Tab>
 </Tabs>
 
+# Writing a prompt template
+
+A successful judge prompt template has five elements:
+
+## Define the judge's role
+
+In the first part of your prompt, define the judge's role. This consists of giving it domain context: tell it what kind of inputs you're expecting and what the output it will be judging is supposed to accomplish. Framing like "you are an expert evaluator" is common but not critical; instead focus on saying what the inputs and outputs are.
+
+## Explicit criteria
+
+Avoid ambiguous or aspirational instructions like "a good response" or "a helpful answer". Focus on explicit instructions: what specific elements of a response would make it helpful? For example, for a financial agent, one criterion might be "Contains a specific buy/sell/hold recommendation", or for a customer service agent it might be "mentions specific actions to take in the UI to resolve the issue".
+
+Also include criteria for failure: what would make the response **not helpful**? This is often drawn from inspecting traces.
+
+## Include labeled data
+
+Include variable names that will be expanded at runtime, e.g. `{input}` and `{output}` or `{question}` and `{answer}` (see above). In your template, surround these variables with clear labels to the LLM so that it understands where your instructions end and inputs and outputs begin and end. You can use labels like
+
+```
+[BEGIN DATA]
+************
+User query: {input}
+************
+Financial Report: {output}
+************
+[END DATA]
+```
+
+XML tags are also a clear way to mark beginning and ending blocks.
+
+## Add examples
+
+LLMs are often better at matching the pattern of an example than they are at following instructions which can be interpreted multiple ways. Include specific examples of what a passing or failing output might look like. Again, be careful to label these with XML or other tags so that the LLM does not mistake examples for the real output it should be judging.
+
+## Constrain the output
+
+Finally, you should tell the LLM what it should output. This should usually be a simple one-word response, which will get mapped to the `choices` and scores that you supply (see above).
+
 # Using Phoenix Prompt Versions as Eval Templates (Python)
 
 If your prompt is already stored in Phoenix Prompt Management, you can convert it directly into an evals `PromptTemplate` with `phoenix_prompt_to_prompt_template`.
