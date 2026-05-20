@@ -1673,7 +1673,6 @@ async def experiments_with_incomplete_runs(db: DbSessionFactory) -> ExperimentsW
 
 @pytest.fixture
 async def seed_languages(db: DbSessionFactory) -> None:
-    """Ensure PYTHON and TYPESCRIPT rows exist in the languages table."""
     async with db() as session:
         await sync_languages(session)
 
@@ -1683,7 +1682,6 @@ async def seed_sandbox_providers(
     db: DbSessionFactory,
     seed_languages: None,
 ) -> None:
-    """Seed one sandbox_providers row per canonical provider kind."""
     async with db() as session:
         await sync_sandbox_providers(session, SANDBOX_ADAPTER_METADATA)
 
@@ -1693,7 +1691,6 @@ async def sandbox_config(
     db: DbSessionFactory,
     seed_sandbox_providers: None,
 ) -> models.SandboxConfig:
-    """Return a SandboxConfig linked to the first available WASM/PYTHON provider."""
     async with db() as session:
         provider = await session.scalar(
             select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")

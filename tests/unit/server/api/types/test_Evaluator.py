@@ -1318,11 +1318,6 @@ class TestDatasetEvaluatorFields:
 
 
 class TestCodeEvaluatorVersionGraphQLTraversal:
-    """End-to-end happy-path traversal of the CodeEvaluator version surface
-    through gql_client. Pinning this case catches schema-binding regressions
-    (CodeEvaluatorVersion.previousVersion / version(versionId) / sequenceNumber)
-    that direct-resolver unit tests miss."""
-
     async def test_currentVersion_versions_sequence_previous(
         self,
         db: DbSessionFactory,

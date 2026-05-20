@@ -2749,14 +2749,7 @@ class Language(Base):
 
 
 class SandboxProvider(Base):
-    """Sandbox provider row — keyed by canonical provider kind.
-
-    ``config`` is an admin-scoped JSON blob validated against the adapter's
-    ``deployment_config_model`` (e.g. Daytona's ``api_url`` / ``target`` for
-    on-prem routing). It is **not** the user-level capability config — that
-    lives on ``sandbox_configs.config`` and is validated against
-    ``config_model``.
-    """
+    """Admin-scoped provider config; user-level config lives on SandboxConfig."""
 
     __tablename__ = "sandbox_providers"
 

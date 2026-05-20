@@ -1,12 +1,4 @@
-"""
-E2B sandbox backend.
-
-Requires the ``e2b_code_interpreter`` package (optional extra). Imports of the
-SDK are lazy (in ``E2BSandboxBackend._get_sandbox_cls``) so the module remains
-importable when the extra is absent. Adapter availability is gated by
-``E2BAdapter.probe_dependencies`` at registration time, which surfaces a
-missing extra as ``status=NOT_INSTALLED`` instead of a runtime error.
-"""
+"""E2B sandbox backend."""
 
 from __future__ import annotations
 
@@ -35,12 +27,7 @@ ENV_E2B_API_KEY = "E2B_API_KEY"
 
 
 class E2BSandboxBackend(SandboxBackend):
-    """Sandbox backend executing code in E2B cloud sandboxes.
-
-    Supports named sessions via start_session/stop_session for sandbox reuse
-    across multiple execute() calls, or ephemeral execution (no session) which
-    spins up a fresh sandbox per call.
-    """
+    """Sandbox backend executing code in E2B cloud sandboxes."""
 
     def __init__(
         self,
@@ -66,19 +53,9 @@ class E2BSandboxBackend(SandboxBackend):
         return AsyncSandbox
 
     def _create_kwargs(self) -> dict[str, Any]:
-        """Build kwargs for AsyncSandbox.create().
-
-        Omitting ``template`` lets the SDK fall back to its ``default_template``
-        (``code-interpreter-v1``), which is the only image that runs the
-        Jupyter server ``run_code()`` POSTs to on ``JUPYTER_PORT`` (49999).
-        The previously hard-coded ``"base"`` template was the generic E2B
-        image and did NOT run Jupyter, so every call surfaced as
-        ``502 The sandbox is running but port is not open``.
-
-        ``api_key`` is forwarded via the SDK's ``ApiParams`` (``**opts``) on
-        ``create()``. ``domain`` and ``api_url`` are forwarded only when set
-        so the SDK applies its own hosted defaults otherwise.
-        """
+        # Do NOT pass template: only the SDK default (code-interpreter-v1)
+        # runs the Jupyter server that run_code() POSTs to. The "base" image
+        # returns "502 The sandbox is running but port is not open".
         kwargs: dict[str, Any] = {
             "api_key": self._api_key.get_secret_value(),
             "allow_internet_access": self._allow_internet_access,
@@ -90,14 +67,9 @@ class E2BSandboxBackend(SandboxBackend):
         return kwargs
 
     async def _install_packages(self, sandbox: AsyncSandbox) -> None:
-        """pip-install configured packages via run_code.
-
-        ``{self._packages!r}`` serializes the list as a Python list literal
-        with each spec wrapped in correctly escaped string quotes. ``shlex.quote``
-        must NOT be used here: the generated code calls ``subprocess.run`` with
-        a list (no shell), so any shell-style quoting becomes part of the argv
-        element and pip rejects e.g. ``'numpy>=1.0'`` as an invalid name.
-        """
+        # Do not shlex.quote: the generated code passes a list to
+        # subprocess.run (no shell), so shell quoting would break specs like
+        # 'numpy>=1.0'. The !r format renders correct Python list literals.
         if not self._packages:
             return
         install_code = (
@@ -145,12 +117,8 @@ class E2BSandboxBackend(SandboxBackend):
                     timeout=timeout,
                 )
             else:
-                # Ephemeral: spin up a fresh sandbox, run, then close.
-                # The evaluator path enters via execute() without ever calling
-                # start_session(), so configured dependencies.packages must be
-                # installed here too — otherwise they're silently dropped (the
-                # only other install site is start_session). Mirrors the
-                # Daytona ephemeral branch.
+                # Ephemeral path: evaluator calls execute() without start_session,
+                # so install configured packages here too.
                 sandbox_cls = self._get_sandbox_cls()
                 async with await sandbox_cls.create(**self._create_kwargs()) as sb:
                     await self._install_packages(sb)
@@ -187,7 +155,6 @@ class E2BAdapter(SandboxAdapter[E2BConfig, E2BCredentials, E2BDeployment]):
 
     @classmethod
     def probe_dependencies(cls) -> None:
-        """Verify ``e2b_code_interpreter`` is installed; ImportError → NOT_INSTALLED."""
         import e2b_code_interpreter  # noqa: F401
 
     def build_backend(
@@ -198,12 +165,8 @@ class E2BAdapter(SandboxAdapter[E2BConfig, E2BCredentials, E2BDeployment]):
         deployment: E2BDeployment,
         user_env: Optional[Mapping[str, str]] = None,
     ) -> SandboxBackend:
-        # Fail-closed on missing credential. Passing an empty api_key would let
-        # the E2B SDK silently fall back to ``os.getenv("E2B_API_KEY")``
-        # (e2b.connection_config:94). Phoenix's resolver already consults that
-        # env var, so reaching this branch with an empty key means Phoenix
-        # decided "no credential available"; raise rather than let the SDK
-        # auto-discover and bypass that decision.
+        # Fail-closed: empty api_key would let the SDK silently fall back to
+        # os.getenv("E2B_API_KEY"), bypassing Phoenix's credential resolution.
         api_key = credentials.E2B_API_KEY.get_secret_value()
         if not api_key:
             raise ValueError(

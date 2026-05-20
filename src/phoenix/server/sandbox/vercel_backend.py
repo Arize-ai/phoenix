@@ -1,31 +1,4 @@
-"""
-Vercel sandbox backend.
-
-Session-capable — start_session() creates an AsyncSandbox and caches it by
-session_key. execute() reuses the cached sandbox if one exists for the key,
-otherwise spins up an ephemeral sandbox (create → run_command → stop).
-
-Requires the ``vercel`` extra (``vercel>=0.5.8``). The SDK import is lazy (in
-``VercelSandboxBackend._create_sandbox``) so the module remains importable
-when the extra is absent. Adapter availability is gated by
-``VercelAdapter.probe_dependencies`` at registration time, which
-surfaces a missing extra as ``status=NOT_INSTALLED`` instead of a runtime
-error during evaluation.
-
-Authentication uses the Vercel Sandbox access-token triple, forwarded as
-explicit kwargs to ``AsyncSandbox.create``. Phoenix resolves those credentials
-from the SDK-native ``VERCEL_TOKEN`` / ``VERCEL_PROJECT_ID`` / ``VERCEL_TEAM_ID``
-keys. The SDK's alternative OIDC path is not supported — it relied on
-``os.environ`` mutation since the SDK has no ``oidc_token=`` kwarg, and
-Phoenix's deployment model (self-hosted server, not a Vercel runtime context)
-has no documented OIDC workflow. See
-https://vercel.com/docs/vercel-sandbox/concepts/authentication
-
-Language routing
-----------------
-- PYTHON  → runtime="python3.13", run_command("python3", ["-c", code])
-- TYPESCRIPT → runtime="node24", run_command("node", ["--input-type=module-typescript", "-e", code])
-"""
+"""Vercel sandbox backend (vercel>=0.5.8). Auth via access-token triple."""
 
 from __future__ import annotations
 
@@ -65,10 +38,6 @@ ENV_VERCEL_TEAM_ID = "VERCEL_TEAM_ID"
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Language → runtime + command mapping
-# ---------------------------------------------------------------------------
-
 _LANGUAGE_CONFIGS: Mapping[LanguageName, _LanguageConfig] = MappingProxyType(
     {
         "PYTHON": _LanguageConfig(
@@ -86,21 +55,7 @@ _LANGUAGE_CONFIGS: Mapping[LanguageName, _LanguageConfig] = MappingProxyType(
 
 
 class VercelSandboxBackend(SandboxBackend):
-    """Sandbox backend executing code via Vercel Sandbox (vercel >= 0.5.8).
-
-    Supports named sessions via start_session/stop_session for sandbox reuse
-    across multiple execute() calls, or ephemeral execution (no session) which
-    spins up a fresh sandbox per call.
-
-    Credentials: the access-token triple ``token``/``project_id``/``team_id``
-    is forwarded directly to ``AsyncSandbox.create`` as explicit kwargs. No
-    ``os.environ`` mutation.
-
-    Network policy: pass ``internet_access`` as ``True`` (allow-all),
-    ``False`` (deny-all), or ``None`` (omit — let the SDK default apply).
-    The string form is forwarded to ``AsyncSandbox.create(network_policy=)``;
-    the SDK accepts ``"allow-all"`` / ``"deny-all"`` and converts internally.
-    """
+    """Sandbox backend executing code via Vercel Sandbox."""
 
     def __init__(
         self,
@@ -135,12 +90,6 @@ class VercelSandboxBackend(SandboxBackend):
         return _LANGUAGE_CONFIGS[self._language]
 
     def _network_policy(self) -> Optional[str]:
-        """Map ``internet_access`` (True/False/None) to the SDK string form.
-
-        Returned values: ``"allow-all"``, ``"deny-all"``, or ``None`` to omit
-        the kwarg entirely (SDK default applies). The Vercel SDK accepts these
-        string aliases on ``AsyncSandbox.create(network_policy=)`` as of 0.5.8.
-        """
         if self._internet_access is None:
             return None
         return "allow-all" if self._internet_access else "deny-all"
@@ -161,18 +110,8 @@ class VercelSandboxBackend(SandboxBackend):
         return await AsyncSandbox.create(**create_kwargs)
 
     async def _install_packages(self, sandbox: AsyncSandbox) -> None:
-        """Run language-routed install for configured packages before user code.
-
-        PYTHON → `python3 -m pip install --user <pkgs>` (invoked through the
-        same `python3` binary the exec path uses, so install and execute target
-        the same interpreter; `--user` avoids needing sudo and writes to the
-        sandbox user's ~/.local).
-        TYPESCRIPT → `npm install <pkgs>` from the default cwd.
-
-        Raises RuntimeError(stderr) on non-zero exit so callers (start_session
-        and ephemeral execute) can either propagate as a fail-fast session
-        startup error or surface as an ExecutionResult.error.
-        """
+        # PYTHON uses `python3 -m pip install --user` so install and exec
+        # target the same interpreter without needing sudo.
         if not self._packages:
             return
         if self._language == "PYTHON":
@@ -199,9 +138,8 @@ class VercelSandboxBackend(SandboxBackend):
             try:
                 await self._install_packages(sandbox)
             except Exception:
-                # Install failed — the sandbox is live but unusable. Stop and
-                # close it before re-raising so we don't leak a billable
-                # Vercel resource that lingers until the SDK's idle timeout.
+                # Install failed: stop the live sandbox so we don't leak a
+                # billable resource until the SDK idle timeout.
                 try:
                     await sandbox.stop()
                 except Exception:
@@ -238,7 +176,6 @@ class VercelSandboxBackend(SandboxBackend):
         code: str,
         env: Optional[dict[str, str]] = None,
     ) -> ExecutionResult:
-        """Run code in a sandbox and collect stdout/stderr."""
         lang_cfg = self._lang_cfg()
         cmd: str = lang_cfg["cmd"]
         args: list[str] = lang_cfg["args_prefix"] + [code]
@@ -260,7 +197,6 @@ class VercelSandboxBackend(SandboxBackend):
             if sandbox is not None:
                 return await self._exec_code(sandbox, code, env=session_env)
             else:
-                # Ephemeral: create, install (if configured), exec, stop.
                 sandbox = await self._create_sandbox()
                 try:
                     await self._install_packages(sandbox)
@@ -279,13 +215,10 @@ class VercelSandboxBackend(SandboxBackend):
             await self.stop_session(key)
 
 
-# Linked from credential descriptions and authentication error messages so
-# users hitting either surface have a direct pointer to provisioning steps.
 _VERCEL_AUTH_DOCS_URL = "https://vercel.com/docs/vercel-sandbox/concepts/authentication"
 
 
 def _probe_vercel_sdk() -> None:
-    """Verify ``vercel.sandbox`` is installed; ImportError → NOT_INSTALLED."""
     import vercel.sandbox  # noqa: F401
 
 
@@ -318,11 +251,6 @@ class VercelAdapter(SandboxAdapter[VercelConfig, VercelCredentials, VercelDeploy
         deployment: VercelDeployment,
         user_env: Optional[Mapping[str, str]] = None,
     ) -> SandboxBackend:
-        """Construct a VercelSandboxBackend from typed config + credentials.
-
-        All three access-token fields must be populated. Raises ``ValueError``
-        when any is missing so the executor surfaces an actionable error.
-        """
         lang = config.language
         token = credentials.VERCEL_TOKEN.get_secret_value()
         project_id = credentials.VERCEL_PROJECT_ID.get_secret_value()

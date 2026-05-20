@@ -360,8 +360,7 @@ class CreateCodeEvaluatorVersionPayload:
     was_created: bool = strawberry.field(
         description=(
             "True when a new CodeEvaluatorVersion row was appended. False when the call"
-            " dedup'd against the existing tip because source_code was unchanged. Exposes"
-            " idempotency explicitly so clients can distinguish a saved revision from a no-op."
+            " dedup'd against the existing tip because source_code was unchanged."
         )
     )
     query: Query
@@ -1248,7 +1247,6 @@ class EvaluatorMutationMixin:
         info: Info[Context, None],
         input: CreateCodeEvaluatorInput,
     ) -> CodeEvaluatorMutationPayload:
-        """Create a new CodeEvaluator with source code and optional sandbox config."""
         user_id: Optional[int] = None
         assert isinstance(request := info.context.request, Request)
         if "user" in request.scope:
@@ -1310,7 +1308,6 @@ class EvaluatorMutationMixin:
         info: Info[Context, None],
         input: PatchCodeEvaluatorInput,
     ) -> CodeEvaluatorMutationPayload:
-        """Update fields on an existing CodeEvaluator."""
         evaluator_id = from_global_id_with_expected_type(
             global_id=input.id, expected_type_name=CodeEvaluator.__name__
         )
@@ -1373,10 +1370,8 @@ class EvaluatorMutationMixin:
     @strawberry.mutation(  # type: ignore
         permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
         description=(
-            "Append a new immutable CodeEvaluatorVersion. If the proposed source_code"
-            " is identical to the current tip version, no new row is appended"
-            " and was_created=false. Sandbox rebinding lives on"
-            " patchCodeEvaluator and does not bump a version on its own."
+            "Append a new immutable CodeEvaluatorVersion. If source_code matches the"
+            " current tip, no row is appended and was_created=false."
         ),
     )
     async def create_code_evaluator_version(
@@ -1384,7 +1379,6 @@ class EvaluatorMutationMixin:
         info: Info[Context, None],
         input: CreateCodeEvaluatorVersionInput,
     ) -> CreateCodeEvaluatorVersionPayload:
-        """Create an immutable CodeEvaluatorVersion unless content is unchanged."""
         evaluator_id = from_global_id_with_expected_type(
             global_id=input.code_evaluator_id, expected_type_name=CodeEvaluator.__name__
         )

@@ -1108,27 +1108,9 @@ class TestGraphQLQuery:
 
 
 class TestSandboxAndCodeEvaluatorPermissions:
-    """Role-based permission coverage for the sandbox and code-evaluator
-    GraphQL surfaces, consolidated into one test per role.
-
-    This test exercises every surface with a single logged-in user per
-    role, so a user account is created once per role rather than once per
-    surface. Setup resources are created by the pre-existing default admin, so
-    setup itself never adds to the user-instantiation count.
-
-    Three permission tiers are asserted:
-
-      * Admin-only writes — the sandbox-config mutations carry
-        IsAdminIfAuthEnabled (createSandboxConfig, updateSandboxConfig,
-        deleteSandboxConfig, updateSandboxProvider): admins only.
-      * Member-allowed writes — the code-evaluator mutations and
-        evaluatorPreviews carry only IsNotViewer (createCodeEvaluator,
-        patchCodeEvaluator, createCodeEvaluatorVersion,
-        create/updateDatasetCodeEvaluator, evaluatorPreviews): admins and
-        members, but not viewers.
-      * Unrestricted reads — sandbox/provider/config values and code-evaluator
-        source carry no permission class and are readable by every role.
-    """
+    # Tier 1 (admin-only): sandbox-config mutations + updateSandboxProvider.
+    # Tier 2 (IsNotViewer): code-evaluator mutations + evaluatorPreviews.
+    # Tier 3 (unrestricted): sandbox/provider/config reads + code-evaluator source.
 
     QUERY = """
       mutation CreateSandboxConfig($input: CreateSandboxConfigInput!) {
@@ -1286,21 +1268,16 @@ class TestSandboxAndCodeEvaluatorPermissions:
             },
         )["createDatasetCodeEvaluator"]["evaluator"]["id"]
 
-        # The single user instantiation + login for this role.
         user = _get_user(_app, role_or_user).log_in(_app)
 
         def check(allowed: bool, operation: str, variables: dict[str, Any]) -> None:
-            """Run ``operation`` as ``user``: expect a clean response when
-            ``allowed``, otherwise an Unauthorized error. A fresh expectation
-            is built per call so a denied surface does not abort later ones.
-            """
             if allowed:
                 user.gql(_app, query=self.QUERY, operation_name=operation, variables=variables)
             else:
                 with pytest.raises(Unauthorized):
                     user.gql(_app, query=self.QUERY, operation_name=operation, variables=variables)
 
-        # Tier 1 — admin-only sandbox-config writes.
+        # Tier 1 — admin-only sandbox-config writes
         check(
             is_admin,
             "CreateSandboxConfig",
@@ -1321,11 +1298,10 @@ class TestSandboxAndCodeEvaluatorPermissions:
             "UpdateSandboxProvider",
             {"input": {"id": provider_id, "enabled": True}},
         )
-        # Delete runs last: for admins it removes the setup config, which the
-        # update assertion above has already exercised.
+        # Delete runs last so admins remove the already-exercised setup config.
         check(is_admin, "DeleteSandboxConfig", {"input": {"id": sandbox_config_id}})
 
-        # Tier 2 — member-allowed code-evaluator writes & previews.
+        # Tier 2 — member-allowed code-evaluator writes & previews
         members_allowed = not is_viewer
         check(
             members_allowed,
@@ -1377,19 +1353,14 @@ class TestSandboxAndCodeEvaluatorPermissions:
                 }
             },
         )
-        # One IsNotViewer guard covers evaluatorPreviews for every evaluator
-        # shape (inline/persisted, code/LLM); an empty previews list exercises
-        # the gate without needing a live sandbox backend.
+        # Empty previews list exercises the IsNotViewer gate without a live backend.
         check(members_allowed, "EvaluatorPreviews", {"input": {"previews": []}})
 
-        # Tier 3 — unrestricted reads. These succeed for every role, viewers
-        # included; a permission class added to any read field would surface
-        # here as an Unauthorized error instead of data.
+        # Tier 3 — unrestricted reads (succeed for every role, viewers included)
         sandbox_read, _ = user.gql(_app, query=self.QUERY, operation_name="SandboxReadAccess")
         sandbox_data = sandbox_read["data"]
         assert sandbox_data["sandboxBackends"]
         wasm = [p for p in sandbox_data["sandboxProviders"] if p["backendType"] == "WASM"]
-        # The config-value resolver returned a payload rather than Unauthorized.
         assert wasm and wasm[0]["configs"] and wasm[0]["configs"][0]["config"] is not None
 
         evaluator_read, _ = user.gql(

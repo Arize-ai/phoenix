@@ -130,17 +130,9 @@ class CategoricalOutputConfig(CategoricalAnnotationConfig):
     name: str
 
     def shape_examples(self, language: str = _PYTHON, mode: str = "full") -> list[str]:
-        """Return code snippet strings illustrating valid return shapes for this config.
-
-        mode='full'    — all valid shapes (bare label + dict-by-key)
-        mode='curated' — same for categorical (bare + dict-with-explanation)
-        Tuple shapes are not in the accepted set.
-        """
+        """Return code snippet strings illustrating valid return shapes for this config."""
         example_label = self.values[0].label if self.values else "pass"
-        # json.dumps wraps the label in double quotes and escapes ", \, and
-        # newlines. JSON string literals are valid in both Python and TS source,
-        # so a label like `say "hi"` produces well-formed code in either target
-        # rather than a SyntaxError.
+        # json.dumps produces a JSON string literal valid as source in both Python and TS.
         label_literal = json.dumps(example_label)
         bare = _return_stmt(label_literal, language)
         dict_form = _return_stmt(f'{{"label": {label_literal}, "explanation": "..."}}', language)
@@ -151,12 +143,7 @@ class ContinuousOutputConfig(ContinuousAnnotationConfig):
     name: str
 
     def shape_examples(self, language: str = _PYTHON, mode: str = "full") -> list[str]:
-        """Return code snippet strings illustrating valid return shapes for this config.
-
-        mode='full'    — all valid shapes (bare score + dict-by-key)
-        mode='curated' — same for continuous (bare + dict-with-explanation)
-        Tuple shapes are not in the accepted set.
-        """
+        """Return code snippet strings illustrating valid return shapes for this config."""
         if self.lower_bound is not None and self.upper_bound is not None:
             example_score = (self.lower_bound + self.upper_bound) / 2
             bounds_hint = f"{self.lower_bound} - {self.upper_bound}"
@@ -199,11 +186,7 @@ class OutputConfig(RootModel[OutputConfigType]):
 
 
 def bare_shape_examples(language: str = _PYTHON, mode: str = "full") -> list[str]:
-    """Return code snippet strings illustrating valid return shapes when no output config exists.
-
-    Accepts bare scalars (str → label, numeric → score) and recognized dict-by-key shapes.
-    Lists and nested objects are rejected.
-    """
+    """Return code snippet strings illustrating valid return shapes when no output config exists."""
     bare_str = _return_stmt('"pass"', language)
     bare_num = _return_stmt("0.5", language)
     dict_form = _return_stmt('{"label": "pass", "explanation": "..."}', language)
@@ -216,11 +199,7 @@ def bare_shape_examples(language: str = _PYTHON, mode: str = "full") -> list[str
 def _config_bare_value(config: "CategoricalOutputConfig | ContinuousOutputConfig") -> str:
     if isinstance(config, CategoricalOutputConfig):
         label = config.values[0].label if config.values else "pass"
-        # json.dumps escapes ", \, and newlines so the result is valid string
-        # literal syntax for both Python and TS (see CategoricalOutputConfig
-        # .shape_examples for the same rationale).
         return json.dumps(label)
-    # ContinuousOutputConfig
     if config.lower_bound is not None and config.upper_bound is not None:
         score = (config.lower_bound + config.upper_bound) / 2
     elif config.lower_bound is not None:
@@ -237,12 +216,7 @@ def multi_output_shape_examples(
     language: str = _PYTHON,
     mode: str = "curated",
 ) -> list[str]:
-    """Return code snippet strings for multi-output routing dicts.
-
-    Renders a routing dict where each key is a config name and the value is
-    the curated bare shape for that config. A top-level 'explanation' key is
-    shown as a shared fallback.
-    """
+    """Return code snippet strings for multi-output routing dicts."""
     lines: list[str] = []
     for config in configs:
         bare_value = _config_bare_value(config)

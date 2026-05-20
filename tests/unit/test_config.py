@@ -2276,19 +2276,19 @@ class TestValidateEnvAllowedSandboxProviders:
         monkeypatch.delenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", raising=False)
         from phoenix.config import validate_env_allowed_sandbox_providers
 
-        validate_env_allowed_sandbox_providers()  # should not raise
+        validate_env_allowed_sandbox_providers()
 
     def test_none_does_not_raise(self, monkeypatch: MonkeyPatch) -> None:
         monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "NONE")
         from phoenix.config import validate_env_allowed_sandbox_providers
 
-        validate_env_allowed_sandbox_providers()  # should not raise
+        validate_env_allowed_sandbox_providers()
 
     def test_valid_kinds_do_not_raise(self, monkeypatch: MonkeyPatch) -> None:
         monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "WASM,VERCEL,DENO")
         from phoenix.config import validate_env_allowed_sandbox_providers
 
-        validate_env_allowed_sandbox_providers()  # should not raise
+        validate_env_allowed_sandbox_providers()
 
     def test_invalid_kind_raises(self, monkeypatch: MonkeyPatch) -> None:
         monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "WASM,VERCLE")

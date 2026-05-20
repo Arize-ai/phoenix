@@ -1,10 +1,3 @@
-"""Unit tests for VercelSandboxBackend.
-
-Scope: Vercel-specific SDK kwarg shapes, runtime package install, and
-network_policy forwarding. Cross-adapter capability conformance lives in
-test_unified_config_contract.py.
-"""
-
 from __future__ import annotations
 
 import sys
@@ -32,13 +25,6 @@ _TEAM = SecretStr("m")
 def _make_vercel_sdk_mock(
     captured_kwargs: list[dict[str, Any]] | None = None,
 ) -> MagicMock:
-    """Return a mock vercel.sandbox module suitable for ``patch.dict``.
-
-    If ``captured_kwargs`` is provided, every ``AsyncSandbox.create()`` call
-    appends a snapshot of its kwargs dict so tests can assert the SDK kwarg
-    shape (e.g., network_policy presence/value).
-    """
-
     async def _create(**kwargs: Any) -> Any:
         if captured_kwargs is not None:
             captured_kwargs.append(dict(kwargs))
@@ -56,10 +42,6 @@ def _make_vercel_sdk_mock(
 
 @pytest.fixture
 def patched_vercel_sdk_with_kwargs() -> Any:
-    """Patch the vercel.sandbox module in sys.modules so the deferred import
-    inside _create_sandbox resolves to our mock, and yield a list capturing
-    the kwargs passed to every AsyncSandbox.create() call.
-    """
     captured_kwargs: list[dict[str, Any]] = []
     sdk = _make_vercel_sdk_mock(captured_kwargs=captured_kwargs)
     parent = MagicMock()
@@ -69,9 +51,6 @@ def patched_vercel_sdk_with_kwargs() -> Any:
 
 
 def test_constructor_rejects_missing_credentials() -> None:
-    """All three of token/project_id/team_id are required — empty Secret or
-    empty string for any of them raises at __init__.
-    """
     with pytest.raises(ValueError, match="token, project_id, and team_id"):
         VercelSandboxBackend(
             token=SecretStr(""), project_id=_PROJECT, team_id=_TEAM, language="PYTHON"
@@ -84,11 +63,6 @@ def test_constructor_rejects_missing_credentials() -> None:
         VercelSandboxBackend(
             token=_TOKEN, project_id=_PROJECT, team_id=SecretStr(""), language="PYTHON"
         )
-
-
-# ---------------------------------------------------------------------------
-# Package install — language-routed run_command argv shape
-# ---------------------------------------------------------------------------
 
 
 def _make_install_sandbox_mock(
@@ -118,7 +92,6 @@ def _make_install_sandbox_mock(
 async def test_start_session_installs_python_packages_with_pip_user(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """PYTHON + packages → start_session issues `python3 -m pip install --user <pkgs>`."""
     sandbox_mock, captured = _make_install_sandbox_mock()
     backend = VercelSandboxBackend(
         token=_TOKEN,
@@ -142,7 +115,6 @@ async def test_start_session_installs_python_packages_with_pip_user(
 async def test_start_session_installs_typescript_packages_with_npm(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """TYPESCRIPT + packages → start_session issues `npm install <pkgs>`."""
     sandbox_mock, captured = _make_install_sandbox_mock()
     backend = VercelSandboxBackend(
         token=_TOKEN,
@@ -166,9 +138,6 @@ async def test_start_session_installs_typescript_packages_with_npm(
 async def test_start_session_install_failure_stops_sandbox_and_does_not_cache(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """When _install_packages raises, start_session must stop the sandbox,
-    aclose the client, NOT cache the session, and propagate the RuntimeError.
-    """
     sandbox_mock, _captured = _make_install_sandbox_mock(
         install_exit_code=1,
         install_stderr="pip: package not found",
@@ -198,10 +167,6 @@ async def test_start_session_install_failure_stops_sandbox_and_does_not_cache(
 async def test_ephemeral_execute_runs_install_before_user_code(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """When execute() runs without a cached session, the ephemeral branch must
-    issue the install run_command before the user-code run_command, then stop
-    the sandbox and aclose the client in the finally block.
-    """
     sandbox_mock, captured = _make_install_sandbox_mock()
     backend = VercelSandboxBackend(
         token=_TOKEN,
@@ -230,10 +195,6 @@ async def test_ephemeral_execute_runs_install_before_user_code(
 async def test_ephemeral_execute_install_failure_surfaces_as_execution_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """An install failure on the ephemeral path must surface as
-    ExecutionResult.error (not a raised exception) while stop + aclose still
-    run in the finally block.
-    """
     sandbox_mock, _captured = _make_install_sandbox_mock(
         install_exit_code=1,
         install_stderr="pip: package not found",
@@ -259,18 +220,10 @@ async def test_ephemeral_execute_install_failure_surfaces_as_execution_error(
     assert "ephemeral" not in backend._sessions
 
 
-# ---------------------------------------------------------------------------
-# Credential forwarding — token/project_id/team_id reach AsyncSandbox.create as kwargs
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.asyncio
 async def test_create_sandbox_forwards_access_token_triple_as_kwargs(
     patched_vercel_sdk_with_kwargs: list[dict[str, Any]],
 ) -> None:
-    """The resolved access-token triple is forwarded to AsyncSandbox.create as
-    explicit token/project_id/team_id kwargs. No os.environ mutation.
-    """
     captured_kwargs = patched_vercel_sdk_with_kwargs
     backend = VercelSandboxBackend(
         token=SecretStr("db-resolved-token"),
@@ -285,11 +238,6 @@ async def test_create_sandbox_forwards_access_token_triple_as_kwargs(
     assert kwargs.get("project_id") == "proj-id"
     assert kwargs.get("team_id") == "team-id"
     assert backend.secret_values == frozenset({"db-resolved-token", "proj-id", "team-id"})
-
-
-# ---------------------------------------------------------------------------
-# network_policy forwarding — internet_access → AsyncSandbox.create(network_policy=)
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -329,11 +277,6 @@ async def test_create_sandbox_omits_network_policy_when_internet_access_unset(
     await backend._create_sandbox()
     assert len(captured_kwargs) == 1
     assert "network_policy" not in captured_kwargs[0]
-
-
-# ---------------------------------------------------------------------------
-# Adapter-level wiring — config internet_access.mode → backend internet_access
-# ---------------------------------------------------------------------------
 
 
 _LANGUAGES: list[LanguageName] = ["PYTHON", "TYPESCRIPT"]
@@ -398,7 +341,6 @@ def test_adapter_build_backend_omits_internet_access_when_absent(
 
 @pytest.mark.parametrize("language", _LANGUAGES)
 def test_adapter_build_backend_fails_closed_on_missing_triple(language: LanguageName) -> None:
-    """Missing any of the three credentials must raise ValueError before SDK call."""
     from phoenix.server.sandbox.types import VercelCredentials
     from phoenix.server.sandbox.vercel_backend import VercelAdapter
 
@@ -420,7 +362,6 @@ def test_adapter_build_backend_fails_closed_on_missing_triple(language: Language
 async def test_execute_strips_ansi_from_all_three_fields(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """stdout, stderr, and error returned by the Vercel backend are ANSI-stripped."""
     sandbox = MagicMock()
     sandbox.stop = AsyncMock()
     sandbox.client = MagicMock()
@@ -453,8 +394,6 @@ async def test_execute_strips_ansi_from_all_three_fields(
 async def test_execute_strips_ansi_in_raised_exception_path(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """When an exception is raised inside execute(), its str() lands on
-    stderr/error — ANSI bytes in the exception message must be stripped."""
     backend = VercelSandboxBackend(
         token=_TOKEN, project_id=_PROJECT, team_id=_TEAM, language="PYTHON"
     )
@@ -471,9 +410,6 @@ async def test_execute_strips_ansi_in_raised_exception_path(
 
 @pytest.mark.parametrize("language", _LANGUAGES)
 def test_build_backend_wires_packages_to_backend(language: LanguageName) -> None:
-    """``VercelAdapter.build_backend`` forwards ``config.dependencies.packages``
-    onto the returned ``VercelSandboxBackend._packages`` for each execution
-    language."""
     from phoenix.server.sandbox.vercel_backend import VercelAdapter
 
     adapter = VercelAdapter()

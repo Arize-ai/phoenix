@@ -9,7 +9,6 @@ from phoenix.server.types import DbSessionFactory
 
 
 async def test_evaluator_by_id_batches_lookups(db: DbSessionFactory) -> None:
-    """Loading N evaluator ids issues a single batched query and preserves key order."""
     async with db() as session:
         prompt = models.Prompt(name=Identifier(token_hex(4)))
         session.add(prompt)
@@ -34,8 +33,6 @@ async def test_evaluator_by_id_batches_lookups(db: DbSessionFactory) -> None:
             query_count += 1
 
     try:
-        # Include a duplicate id to exercise key-deduplication; the loader should
-        # still issue one underlying SELECT and return one row per requested key.
         keys = [*ids, ids[0]]
         results = await loader._load_fn(keys)
     finally:
@@ -43,6 +40,5 @@ async def test_evaluator_by_id_batches_lookups(db: DbSessionFactory) -> None:
 
     assert query_count == 1
     assert [r.id if r is not None else None for r in results] == keys
-    # Unknown ids resolve to None without an extra query.
     missing = await loader._load_fn([max(ids) + 1000])
     assert missing == [None]

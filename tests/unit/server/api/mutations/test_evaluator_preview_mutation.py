@@ -324,8 +324,6 @@ class TestInlineCodeEvaluatorPreviewMutation:
 
 
 class TestCodeEvaluatorPreviewNoSandbox:
-    """BadRequest raised when a code evaluator has no sandbox configured must name the evaluator."""
-
     _MUTATION = TestEvaluatorPreviewMutation._MUTATION
 
     async def test_bad_request_message_contains_name_and_settings_hint(

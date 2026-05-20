@@ -13,8 +13,6 @@ Result: TypeAlias = list[models.SandboxConfig]
 
 
 class SandboxConfigsByProviderDataLoader(DataLoader[Key, Result]):
-    """Batches requests for sandbox configs associated with providers."""
-
     def __init__(self, db: DbSessionFactory) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db

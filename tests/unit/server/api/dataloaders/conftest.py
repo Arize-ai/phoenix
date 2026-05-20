@@ -379,9 +379,6 @@ async def data_with_mixed_emit(db: DbSessionFactory) -> None:
     """
     60 score-only rows, 30 label-only rows ("PASS"), 10 label-only rows ("FAIL"),
     0 dual-null rows — all on a single span each.
-
-    Expected: score_count=60, label_count=40, mean_score=avg(scores 0..59),
-              label_fractions=[{PASS: 0.75}, {FAIL: 0.25}], count=100.
     """
     orig_time = datetime.fromisoformat("2021-01-01T00:00:00.000+00:00")
     async with db() as session:
@@ -419,7 +416,6 @@ async def data_with_mixed_emit(db: DbSessionFactory) -> None:
                 llm_token_count_completion=10,
             )
 
-        # 60 score-only rows (label=None, score=i/100)
         for i in range(60):
             span_id = await session.scalar(
                 insert(models.Span).values(**_span(i)).returning(models.Span.id)
@@ -438,7 +434,6 @@ async def data_with_mixed_emit(db: DbSessionFactory) -> None:
                 )
             )
 
-        # 30 label-only rows (label="PASS", score=None)
         for i in range(60, 90):
             span_id = await session.scalar(
                 insert(models.Span).values(**_span(i)).returning(models.Span.id)
@@ -457,7 +452,6 @@ async def data_with_mixed_emit(db: DbSessionFactory) -> None:
                 )
             )
 
-        # 10 label-only rows (label="FAIL", score=None)
         for i in range(90, 100):
             span_id = await session.scalar(
                 insert(models.Span).values(**_span(i)).returning(models.Span.id)

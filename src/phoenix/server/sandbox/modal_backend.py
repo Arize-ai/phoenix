@@ -1,30 +1,4 @@
-"""
-Modal sandbox backend.
-
-Requires the ``modal`` package (optional extra). The SDK import is lazy (in
-``ModalSandboxBackend.__init__`` and the ``_ensure_*`` helpers) so the module
-remains importable when the extra is absent. Adapter availability is gated by
-``ModalAdapter.probe_dependencies`` at registration time, which surfaces a
-missing extra as ``status=NOT_INSTALLED`` instead of a runtime error during
-evaluation.
-
-Authentication: credentials are passed explicitly to the Modal SDK via
-``modal.Client.from_credentials(token_id, token_secret)`` and threaded through
-``modal.App.lookup`` and ``modal.Sandbox.create`` as a ``client=`` kwarg. The
-backend never mutates ``os.environ`` — DB-resolved tokens stay scoped to the
-adapter instance and cannot leak into the Phoenix process env, subprocesses,
-logs, or crash dumps.
-
-Session lifecycle
------------------
-- start_session(): creates a Modal Sandbox via Sandbox.create.aio() and
-  caches it by session_key. Sandboxes are long-lived (idle_timeout=300s,
-  hard timeout=600s).
-- stop_session(): terminates the cached sandbox via sandbox.terminate.aio().
-- execute(): runs code via sandbox.exec("python", "-c", code) inside the
-  cached session, or ephemeral (create → exec → terminate) if no session.
-- close(): terminates all cached sandboxes.
-"""
+"""Modal sandbox backend. Credentials passed explicitly to the SDK, never via os.environ."""
 
 from __future__ import annotations
 
@@ -58,17 +32,7 @@ ENV_MODAL_TOKEN_SECRET = "MODAL_TOKEN_SECRET"
 
 
 class ModalSandboxBackend(SandboxBackend):
-    """Sandbox backend executing code in Modal cloud sandboxes.
-
-    Supports named sessions via start_session/stop_session for sandbox reuse
-    across multiple execute() calls, or ephemeral execution (no session) which
-    spins up a fresh sandbox per call.
-
-    Credentials are passed explicitly to the SDK via ``modal.Client.from_credentials``
-    rather than via ``os.environ``. The client + app are constructed lazily on
-    first use so a missing/invalid token surfaces at sandbox-creation time —
-    consistent with how the rest of Phoenix's SDK adapters fail.
-    """
+    """Sandbox backend executing code in Modal cloud sandboxes."""
 
     def __init__(
         self,
@@ -108,12 +72,6 @@ class ModalSandboxBackend(SandboxBackend):
         self.secret_values = compose_secret_values(user_env, token_id, token_secret)
 
     async def _ensure_client(self) -> Client:
-        """Construct (or reuse) a typed Modal Client bound to this backend's credentials.
-
-        Double-checked locking: the unlocked fast path serves the steady-state
-        cache hit, and the re-check inside the lock prevents two concurrent
-        first-time callers from each constructing a client.
-        """
         import modal
 
         if self._client is not None:
@@ -126,10 +84,6 @@ class ModalSandboxBackend(SandboxBackend):
         return self._client
 
     async def _ensure_app(self) -> App:
-        """Look up (or create) the Modal App for sandbox association, using our client.
-
-        Double-checked locking, same rationale as ``_ensure_client``.
-        """
         import modal
 
         if self._app is not None:
@@ -178,7 +132,6 @@ class ModalSandboxBackend(SandboxBackend):
             logger.debug(f"Stopped Modal session '{session_key}'")
 
     async def _exec_code(self, sandbox: Sandbox, code: str) -> ExecutionResult:
-        """Run code in a sandbox and collect stdout/stderr."""
         proc = await sandbox.exec.aio("python", "-c", code)
         stdout, stderr = await asyncio.gather(
             proc.stdout.read.aio(),
@@ -226,7 +179,6 @@ class ModalAdapter(SandboxAdapter[ModalConfig, ModalCredentials, ModalDeployment
 
     @classmethod
     def probe_dependencies(cls) -> None:
-        """Verify ``modal`` is installed; ImportError → NOT_INSTALLED."""
         import modal  # noqa: F401
 
     def build_backend(

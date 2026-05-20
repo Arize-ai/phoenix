@@ -345,9 +345,7 @@ class TestTracer:
         assert len(tracer._self_exporter.get_finished_spans()) == 1  # buffer should not be cleared
 
     def test_get_db_traces_decodes_json_string_attributes(self, tracer: Tracer) -> None:
-        # The `metadata` attribute is a JSON string per OpenInference convention;
-        # get_db_traces should decode it into a dict so the UI renders it as an
-        # object rather than an escaped string.
+        # `metadata` is a JSON string per OpenInference convention; get_db_traces decodes it.
         with tracer.start_as_current_span(
             "span",
             attributes={

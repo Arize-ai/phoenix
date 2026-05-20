@@ -1,10 +1,4 @@
-"""
-GQL types for sandbox backend configuration.
-
-Exposes SandboxProvider (one row per canonical ``kind``) and SandboxConfig
-(named configuration that CodeEvaluators point to). SandboxBackendInfo
-summarises all known backends including install status.
-"""
+"""GQL types for sandbox backend configuration."""
 
 from __future__ import annotations
 
@@ -47,8 +41,6 @@ if TYPE_CHECKING:
 
 @strawberry.type
 class SandboxProviderCredentialSpec:
-    """GQL mirror of ProviderCredentialSpec."""
-
     key: str
     display_name: str
     description: str
@@ -57,8 +49,6 @@ class SandboxProviderCredentialSpec:
 
 @strawberry.enum
 class Language(Enum):
-    """Execution language for a code evaluator or sandbox provider."""
-
     PYTHON = "PYTHON"
     TYPESCRIPT = "TYPESCRIPT"
 
@@ -68,8 +58,6 @@ class Language(Enum):
 
 @strawberry.enum
 class SandboxBackendType(Enum):
-    """Canonical kind of a sandbox provider. Mirrors `models.SandboxBackendType`."""
-
     WASM = "WASM"
     E2B = "E2B"
     DAYTONA = "DAYTONA"
@@ -80,8 +68,6 @@ class SandboxBackendType(Enum):
 
 @strawberry.enum
 class SandboxBackendStatus(Enum):
-    """Runtime availability of a sandbox backend."""
-
     AVAILABLE = "AVAILABLE"
     """Adapter is installed and the backend was created successfully."""
     MISSING_CREDENTIALS = "MISSING_CREDENTIALS"
@@ -96,7 +82,7 @@ class SandboxBackendStatus(Enum):
 
 @strawberry.enum
 class InternetAccessMode(Enum):
-    """Describes an *adapter's* internet-access capability (read-only)."""
+    """Adapter's internet-access capability (read-only)."""
 
     NONE = "none"
     BOOLEAN = "boolean"
@@ -131,11 +117,9 @@ class SandboxConfigDependencies:
 class SandboxConfigData:
     """Typed view of a stored sandbox config's per-capability fields.
 
-    Capability presence is **not** encoded here — readers correlate with
-    ``SandboxBackendInfo`` (via ``provider.backend_type``) to know which capabilities
-    the adapter actually supports. An empty ``env_vars`` list / ``None`` for
-    ``internet_access`` or ``dependencies`` can mean either "supported but
-    unset" or "unsupported"; the backend info disambiguates.
+    Capability presence is not encoded here — readers correlate with
+    ``SandboxBackendInfo`` (via ``provider.backend_type``) to disambiguate
+    "supported but unset" from "unsupported".
     """
 
     env_vars: list[SandboxConfigEnvVar]
@@ -144,22 +128,7 @@ class SandboxConfigData:
 
     @classmethod
     def from_stored(cls, stored: Any) -> "SandboxConfigData":
-        """Build a ``SandboxConfigData`` from a stored ``SandboxConfig.config`` dict.
-
-        Parses through ``SANDBOX_CONFIG_ADAPTER`` (the pydantic discriminated
-        union) so the read path uses the same typed surface as the write path —
-        the blob carries its own ``kind`` and ``language`` fields, written
-        atomically with the row columns, so no external context is needed.
-
-        Capability fields are extracted via ``isinstance`` against the
-        ``Supports{EnvVars,InternetAccess,Dependencies}`` mixins, which lets
-        the type checker narrow ``cfg`` and surfaces a clear signal for which
-        capability each branch reads.
-
-        Validation errors fall back to an empty ``SandboxConfigData`` rather
-        than surfacing a 500. Writes go through the same pydantic validators,
-        so newly-stored rows can't be malformed; this guard is purely defensive.
-        """
+        # Validation errors fall back to an empty SandboxConfigData rather than 500.
         raw = stored if isinstance(stored, dict) else {}
         try:
             cfg = SANDBOX_CONFIG_ADAPTER.validate_python(raw)
@@ -196,22 +165,13 @@ class SandboxHostingType(Enum):
     """Where a sandbox backend physically executes code."""
 
     LOCAL = "local"
-    """The runtime executes on the same machine as the Phoenix server —
-    sandboxed, but consuming Phoenix's CPU/memory (e.g. WebAssembly, Deno)."""
+    """Runtime executes on the Phoenix server (e.g. WebAssembly, Deno)."""
     HOSTED = "hosted"
-    """Execution is delegated to an external provider over the network
-    (e.g. E2B, Daytona, Vercel, Modal); Phoenix only orchestrates."""
+    """Execution delegated to an external provider (e.g. E2B, Daytona, Vercel, Modal)."""
 
 
 @strawberry.type
 class SandboxBackendInfo:
-    """
-    Static + runtime information about a sandbox backend provider kind.
-
-    One instance per entry in SANDBOX_ADAPTER_METADATA, regardless of whether
-    any SandboxProvider rows exist in the DB.
-    """
-
     backend_type: SandboxBackendType
     display_name: str
     hosting_type: SandboxHostingType
@@ -227,25 +187,14 @@ class SandboxBackendInfo:
 
 @strawberry.type
 class DaytonaDeploymentData:
-    """Admin-scoped Daytona deployment routing (read view).
-
-    Mirrors the ``DaytonaDeployment`` pydantic model. ``None`` values mean
-    "fall back to Daytona's hosted SaaS default."
-    """
-
+    # None values mean "fall back to Daytona's hosted SaaS default".
     api_url: Optional[str]
     target: Optional[str]
 
 
 @strawberry.type
 class E2BDeploymentData:
-    """Admin-scoped E2B deployment routing (read view).
-
-    Mirrors the ``E2BDeployment`` pydantic model. ``domain`` and ``api_url``
-    are mutually exclusive on the write side; the read side surfaces whichever
-    one was stored.
-    """
-
+    # `domain` and `api_url` are mutually exclusive on the write side.
     domain: Optional[str]
     api_url: Optional[str]
 
@@ -266,8 +215,6 @@ SandboxDeployment = Annotated[
 
 @strawberry.type
 class SandboxProvider(Node):
-    """A sandbox provider row — one per canonical provider ``kind``."""
-
     id: NodeID[models.SandboxBackendType]
     db_record: strawberry.Private[Optional[models.SandboxProvider]] = None
 
@@ -334,19 +281,6 @@ class SandboxProvider(Node):
 
 
 def _deployment_from_stored(stored: Any) -> Optional[SandboxDeployment]:
-    """Project a stored ``SandboxProvider.config`` JSON blob into the GraphQL
-    union via the ``SandboxDeploymentModel`` discriminated union.
-
-    The blob is self-sufficient: writes persist the ``kind`` discriminator
-    alongside the routing fields via ``model_dump``, so the ``TypeAdapter``
-    re-hydrates the right concrete subclass without an external ``kind``
-    argument. An empty blob (no deployment ever written) returns ``None``.
-    Only the two providers with non-trivial routing (Daytona, E2B) have a
-    corresponding GraphQL union member; NoDeployment-style providers
-    (WASM, Deno, Vercel, Modal) validate to typed instances that carry
-    only their ``kind`` discriminator and surface as ``deployment: null``
-    on the GraphQL side.
-    """
     if not isinstance(stored, dict) or not stored:
         return None
     try:
@@ -363,11 +297,7 @@ def _deployment_from_stored(stored: Any) -> Optional[SandboxDeployment]:
 
 @strawberry.type
 class SandboxConfig(Node):
-    """
-    A named sandbox configuration under a SandboxProvider.
-
-    CodeEvaluators reference a SandboxConfig by ID.
-    """
+    """A named sandbox configuration under a SandboxProvider."""
 
     id: NodeID[int]
     db_record: strawberry.Private[Optional[models.SandboxConfig]] = None
@@ -446,26 +376,8 @@ class SandboxConfig(Node):
         return row
 
 
-# ---------------------------------------------------------------------------
-# Converter helpers
-# ---------------------------------------------------------------------------
-
-
 def _probe_wasm_binary(backend_type: models.SandboxBackendType) -> Optional[str]:
-    """Run the WASM-binary capability probe and return a status_detail string.
-
-    Returns None when ``backend_type`` is not WASM, or when the binary is
-    locally resolvable (probe says ``available=True``). Returns the probe's
-    ``detail`` string when the WASM binary is not present locally — the
-    caller treats a non-None return as falsifying evidence and forces the
-    backend to ``UNAVAILABLE`` without invoking ``build_backend()``.
-
-    Importing ``WASMAdapter`` is gated on the ``wasmtime`` optional extra,
-    so an ImportError here means the SDK is missing — that case is already
-    handled by the ``backend_type not in SANDBOX_ADAPTERS`` branch in the
-    caller, but we re-handle it defensively (returning None) so this helper
-    cannot regress that branch.
-    """
+    """Return None when the WASM binary is locally available; otherwise a status_detail string."""
     if backend_type != "WASM":
         return None
     try:
@@ -481,7 +393,6 @@ def _probe_wasm_binary(backend_type: models.SandboxBackendType) -> Optional[str]
 def _build_credential_specs(
     backend_type: models.SandboxBackendType,
 ) -> list[SandboxProviderCredentialSpec]:
-    """Mirror an adapter's credential specs (derived from credentials_model) into GQL types."""
     from phoenix.server.sandbox import SANDBOX_ADAPTERS
 
     adapter = SANDBOX_ADAPTERS.get(backend_type)
@@ -505,12 +416,8 @@ async def get_sandbox_backend_info(
 ) -> list[SandboxBackendInfo]:
     """Return one ``SandboxBackendInfo`` per entry in ``SANDBOX_ADAPTER_METADATA``.
 
-    The caller is responsible for opening the ``SecretsContext`` (DB read
-    session + decrypt). The DB is needed to distinguish
-    ``MISSING_CREDENTIALS`` from ``AVAILABLE`` (credentials live in the
-    ``secrets`` table). The single in-tree caller is the ``sandbox_backends``
-    GraphQL resolver, which opens its session via ``info.context.db.read()``
-    and pairs it with ``info.context.decrypt``.
+    Caller owns the ``SecretsContext`` (DB read session + decrypt) — the DB is
+    needed to distinguish ``MISSING_CREDENTIALS`` from ``AVAILABLE``.
     """
     from phoenix.server.sandbox import SANDBOX_ADAPTERS
 

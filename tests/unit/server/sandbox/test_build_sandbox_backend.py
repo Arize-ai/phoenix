@@ -1,11 +1,3 @@
-"""Unit tests for build_sandbox_backend() credential resolution behavior.
-
-build_sandbox_backend() does NOT cache — every call returns a fresh
-SandboxBackend. These tests assert the credential resolution +
-typed-credentials handoff contract; do not add tests here that depend on
-instance reuse for the same provider kind / config pair.
-"""
-
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -39,9 +31,6 @@ def _row(
     language: LanguageName = "PYTHON",
     config: Optional[Mapping[str, Any]] = None,
 ) -> models.SandboxConfig:
-    """Minimal SandboxConfig-shaped duck — ``build_sandbox_backend`` only reads
-    ``backend_type`` / ``language`` / ``config`` off it, so a SimpleNamespace
-    suffices and avoids the DB / pydantic Identifier round-trip."""
     return SimpleNamespace(  # type: ignore[return-value]
         backend_type=backend_type,
         language=language,
@@ -54,8 +43,6 @@ class _StubConfig(BaseModel):
 
 
 class _StubCreds(BaseModel):
-    """Single-field credentials model used by stub adapters in these tests."""
-
     model_config = ConfigDict(extra="forbid")
 
     CRED_X: SecretStr
@@ -72,23 +59,12 @@ def _make_session(secrets: dict[str, bytes]) -> Any:
     scalars_mock.all.return_value = rows
     session = MagicMock()
     session.scalars = AsyncMock(return_value=scalars_mock)
-    # The factory also loads SandboxProvider.config via session.scalar(...)/get to
-    # validate the typed deployment kwarg. These tests don't model a provider
-    # row, so return None (the factory falls back to an empty deployment).
     session.scalar = AsyncMock(return_value=None)
     session.get = AsyncMock(return_value=None)
     return session
 
 
 def _empty_secrets() -> SecretsContext:
-    """A ``SecretsContext`` whose DB lookups all resolve to "nothing".
-
-    Used by tests that exercise the env-fallback / unregistered-adapter /
-    allowlist-deny paths — production callers always pass a real
-    ``SecretsContext``, so the prior "secrets=_empty_secrets()" shorthand was only ever
-    a way to skip the DB. With ``SecretsContext`` now required, we still
-    skip the DB by handing back empty results from the mock.
-    """
     return SecretsContext(
         session=cast("AsyncSession", _make_session({})),
         decrypt=_identity_decrypt,
@@ -102,11 +78,7 @@ def _identity_decrypt(data: bytes) -> bytes:
 def _make_adapter(
     received: dict[str, Any],
 ) -> Any:
-    """Create a stub adapter that records the typed credentials + config it receives."""
-
     class _StubAdapter(SandboxAdapter):  # type: ignore[type-arg]
-        """Temporarily overlays the real WASM registration for these tests."""
-
         backend_type = "WASM"
         display_name = "Stub"
         config_model = _StubConfig
@@ -132,13 +104,10 @@ def _make_adapter(
 
 @pytest.fixture(autouse=True)
 def _suppress_wasm_optional_import_errors() -> Any:
-    """Tests patch WASM with a lightweight stub adapter."""
     yield
 
 
 class TestBuildSandboxBackendCredentialResolution:
-    """Credentials flow through a separate typed kwarg, NOT merged into config."""
-
     @pytest.mark.asyncio
     async def test_db_credential_flows_through_typed_kwarg(self) -> None:
         received: dict[str, Any] = {}
@@ -184,7 +153,6 @@ class TestBuildSandboxBackendCredentialResolution:
 class TestBuildSandboxBackendAdapterLookup:
     @pytest.mark.asyncio
     async def test_unregistered_backend_returns_none(self) -> None:
-        # Negative test: invalid kind exercises the unregistered path.
         result = await build_sandbox_backend(
             _row(backend_type="NONEXISTENT"),  # type: ignore[arg-type]
             secrets=_empty_secrets(),
@@ -207,9 +175,6 @@ class TestBuildSandboxBackendAdapterLookup:
 
 
 class TestSSRFBlocked:
-    """Non-capability keys must be rejected by validate_config inside
-    build_sandbox_backend(), blocking the SSRF vector."""
-
     @pytest.mark.asyncio
     async def test_daytona_server_url_raises_before_build_backend(self) -> None:
         adapter = DaytonaAdapter()

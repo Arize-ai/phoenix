@@ -13,8 +13,6 @@ Result: TypeAlias = Optional[models.Evaluator]
 
 
 class EvaluatorByIdDataLoader(DataLoader[Key, Result]):
-    """Batches requests for evaluators by their primary key."""
-
     def __init__(self, db: DbSessionFactory) -> None:
         super().__init__(load_fn=self._load_fn)
         self._db = db

@@ -1,17 +1,3 @@
-"""Unit tests for env var resolution.
-
-Scope is the authored invariants only:
-- Minimal happy-path that `_resolve_user_env` returns the expected
-  secret_ref shape from the ``dict[str, EnvVarValue]`` input.
-
-Per-kind/per-scenario resolution walks and end-to-end forwarding through
-adapter SDK mocks live in the mutation-layer suite (`gql_client` cache
-invalidation + secret_ref hydration tests), not here.
-
-Note: env-var name uniqueness is structural now (``env_vars`` is a dict);
-no separate validator is exercised here.
-"""
-
 from __future__ import annotations
 
 from typing import Any
@@ -25,7 +11,6 @@ from phoenix.server.sandbox.types import EnvVarValue
 
 
 def _make_session(secrets: dict[str, bytes]) -> Any:
-    """AsyncSession mock pre-loaded with key→encrypted_value rows."""
     rows = []
     for key, value in secrets.items():
         row = MagicMock()
@@ -48,7 +33,6 @@ def _identity_decrypt(data: bytes) -> bytes:
 class TestResolveUserEnvShape:
     @pytest.mark.asyncio
     async def test_secret_refs_resolve_into_expected_shape(self) -> None:
-        """Minimal happy path: secret_ref entries resolve to {name: value}."""
         env_vars = {
             "FIRST": EnvVarValue(secret_key="first-key"),
             "SECOND": EnvVarValue(secret_key="second-key"),
@@ -61,7 +45,6 @@ class TestResolveUserEnvShape:
 
 class TestEnvVarsAcceptedAndPersisted:
     def test_unique_env_vars_pass_and_persist(self) -> None:
-        """env_vars is a dict; uniqueness is structural. Two entries persist as a 2-entry dict."""
         adapter = E2BAdapter()
         config = {
             "env_vars": {

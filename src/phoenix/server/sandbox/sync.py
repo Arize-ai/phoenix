@@ -1,15 +1,4 @@
-"""
-Startup synchronization of sandbox provider registry to the database.
-
-`sync_languages` seeds the fixed PYTHON/TYPESCRIPT rows in `languages`.
-`sync_sandbox_providers` seeds one `sandbox_providers` row per canonical adapter
-kind (keys from the metadata mapping passed by the sandbox package).
-
-Both functions are idempotent and safe to call on every startup. Inserts
-use `ON CONFLICT DO NOTHING` so that concurrent startups across replicas
-do not race on the unique constraints — the second writer becomes a
-no-op rather than raising IntegrityError.
-"""
+"""Startup synchronization of sandbox provider registry to the database."""
 
 from __future__ import annotations
 
@@ -35,11 +24,7 @@ def _on_conflict_do_nothing(
     values: Sequence[Mapping[str, Any]],
     unique_columns: Sequence[str],
 ) -> Executable:
-    """Build a dialect-aware INSERT ... ON CONFLICT DO NOTHING statement.
-
-    PostgreSQL and SQLite both expose `on_conflict_do_nothing(index_elements=...)`
-    on their dialect-specific Insert constructs.
-    """
+    """Build a dialect-aware INSERT ... ON CONFLICT DO NOTHING statement."""
     bind = session.bind
     if bind is None:
         raise RuntimeError("Session has no bound engine; cannot determine SQL dialect.")
@@ -60,12 +45,7 @@ def _on_conflict_do_nothing(
 
 
 async def sync_languages(session: AsyncSession) -> None:
-    """Ensure PYTHON and TYPESCRIPT rows exist in the languages table.
-
-    Rows are never deleted; new names are inserted on demand.
-    Safe to call multiple times (idempotent) and across concurrent replicas
-    (race-safe via ON CONFLICT DO NOTHING).
-    """
+    """Ensure PYTHON and TYPESCRIPT rows exist in the languages table."""
     existing_result = await session.execute(select(models.Language.name))
     existing_names: set[str] = {row[0] for row in existing_result.fetchall()}
 
@@ -89,17 +69,7 @@ async def sync_sandbox_providers(
     session: AsyncSession,
     adapter_metadata: Mapping[SandboxBackendType, Any],
 ) -> None:
-    """Seed one sandbox_providers row per metadata key (provider kind).
-
-    The caller passes SANDBOX_ADAPTER_METADATA so this module avoids importing
-    the full sandbox adapter registry.
-
-    Existing rows (matched by kind) are left untouched so configured values
-    (enabled) are preserved — ``ON CONFLICT DO NOTHING``, never ``DO UPDATE``.
-
-    Safe to call multiple times (idempotent) and across concurrent replicas
-    (race-safe via ON CONFLICT DO NOTHING).
-    """
+    """Seed one sandbox_providers row per metadata key; existing rows preserved."""
     backend_types = list(adapter_metadata.keys())
 
     existing_result = await session.execute(select(models.SandboxProvider.backend_type))

@@ -1,20 +1,4 @@
-"""
-Daytona sandbox backend.
-
-Requires the ``daytona_sdk`` package (optional extra). Imports of the SDK are
-lazy (in ``DaytonaSandboxBackend._get_client`` and ``execute``) so the module
-remains importable when the extra is absent. Adapter availability is gated by
-``DaytonaAdapter.probe_dependencies`` at registration time, which
-surfaces a missing extra as ``status=NOT_INSTALLED`` instead of a runtime
-error during evaluation.
-
-Language routing
-----------------
-- PYTHON     → CreateSandboxFromSnapshotParams(language=CodeLanguage.PYTHON),
-               install via subprocess.run([sys.executable, "-m", "pip", "install", ...])
-- TYPESCRIPT → CreateSandboxFromSnapshotParams(language=CodeLanguage.TYPESCRIPT),
-               install via node:child_process spawnSync("npm", ["install", ...])
-"""
+"""Daytona sandbox backend."""
 
 from __future__ import annotations
 
@@ -48,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 def _to_execution_result(response: ExecuteResponse) -> ExecutionResult:
-    """Map daytona ExecuteResponse (combined stdout/stderr in `result`) to ExecutionResult."""
+    # Daytona ExecuteResponse combines stdout/stderr in `result`.
     output = response.result or ""
     failed = response.exit_code != 0
     return ExecutionResult(
@@ -59,13 +43,7 @@ def _to_execution_result(response: ExecuteResponse) -> ExecutionResult:
 
 
 class DaytonaSandboxBackend(SandboxBackend):
-    """Sandbox backend executing code in Daytona workspaces.
-
-    Language routing is driven by the required ``language`` argument
-    (PYTHON | TYPESCRIPT). PYTHON routes ``CreateSandboxFromSnapshotParams`` to
-    ``CodeLanguage.PYTHON`` and installs packages via ``pip``; TYPESCRIPT routes
-    to ``CodeLanguage.TYPESCRIPT`` and installs via ``npm``.
-    """
+    """Sandbox backend executing code in Daytona workspaces."""
 
     def __init__(
         self,
@@ -91,8 +69,7 @@ class DaytonaSandboxBackend(SandboxBackend):
     def _get_client(self) -> AsyncDaytona:
         if self._client is not None:
             return self._client
-        # Alias SDK's ``DaytonaConfig`` locally so it doesn't shadow Phoenix's
-        # ``DaytonaConfig`` pydantic model imported at module scope.
+        # Local alias prevents shadowing Phoenix's DaytonaConfig pydantic model.
         from daytona_sdk import AsyncDaytona
         from daytona_sdk import DaytonaConfig as _SDKDaytonaConfig
 
@@ -106,30 +83,13 @@ class DaytonaSandboxBackend(SandboxBackend):
         return self._client
 
     async def _install_packages(self, workspace: AsyncSandbox) -> None:
-        """Run language-routed install for configured packages before first user execute.
-
-        PYTHON     → ``subprocess.run([sys.executable, '-m', 'pip', 'install', *pkgs])``
-                     argv-style call from a small generated Python snippet.
-        TYPESCRIPT → ``spawnSync('npm', ['install', ...pkgs])`` from
-                     ``node:child_process`` — package names embedded as a JSON
-                     array literal, NOT shell-string interpolation.
-
-        Raises ``RuntimeError`` on non-zero exit so callers (start_session and
-        ephemeral execute) propagate the failure.
-        """
         if not self._packages:
             return
         if self._language == "TYPESCRIPT":
             packages_json = json.dumps(self._packages)
-            # Install into /tmp/node_modules so the package is resolvable
-            # from subsequent code_run invocations. Daytona's TS workspace
-            # writes each code_run snippet to /tmp/dtn_*.ts and executes it
-            # there; Node's require resolver walks /tmp/node_modules first
-            # (verified via require.resolve.paths from a live workspace).
-            # Default cwd is /home/daytona, and `npm install -g` lands in
-            # nvm's lib/node_modules which is NOT on the legacy GLOBAL_FOLDERS
-            # lookup path (Node searches lib/node, singular). Pinning cwd
-            # to /tmp puts the package exactly where the resolver looks.
+            # cwd=/tmp puts node_modules where Daytona's code_run snippets
+            # (written to /tmp/dtn_*.ts) can resolve them. npm install -g
+            # lands in a path Node's resolver does not search.
             install_code = (
                 f"const {{ spawnSync }} = require('node:child_process');\n"
                 f"const pkgs = {packages_json};\n"
@@ -234,7 +194,6 @@ class DaytonaSandboxBackend(SandboxBackend):
 
 
 def _probe_daytona_sdk() -> None:
-    """Verify ``daytona_sdk`` is installed; ImportError → NOT_INSTALLED."""
     import daytona_sdk  # noqa: F401
 
 
@@ -262,23 +221,8 @@ class DaytonaAdapter(SandboxAdapter[DaytonaConfig, DaytonaCredentials, DaytonaDe
         deployment: DaytonaDeployment,
         user_env: Optional[Mapping[str, str]] = None,
     ) -> SandboxBackend:
-        """Construct a DaytonaSandboxBackend for either language.
-
-        Fail-closed on missing credential. Passing an empty api_key would let
-        the Daytona SDK silently fall back to ``os.getenv("DAYTONA_API_KEY")``
-        (daytona_sdk/_async/daytona.py:168). Phoenix's resolver already consults
-        that env var, so reaching this branch with an empty key means Phoenix
-        decided "no credential available"; raise rather than let the SDK
-        auto-discover and bypass that decision.
-
-        ``deployment.api_url`` and ``deployment.target`` flow through as
-        ``DaytonaConfig`` kwargs. When either is ``None``, the SDK's
-        ``DaytonaEnvReader`` reads ``DAYTONA_API_URL`` / ``DAYTONA_SERVER_URL``
-        / ``DAYTONA_TARGET`` from the process env and falls back to
-        ``https://app.daytona.io/api`` if unset (daytona_sdk/_async/daytona.py:153-179).
-        Phoenix does not block that env-var fallback — the process env is
-        the trust boundary that already holds ``DAYTONA_API_KEY``.
-        """
+        # Fail-closed: empty api_key would let the SDK silently fall back to
+        # os.getenv("DAYTONA_API_KEY"), bypassing Phoenix's credential resolution.
         lang = config.language
         api_key = credentials.DAYTONA_API_KEY.get_secret_value()
         if not api_key:

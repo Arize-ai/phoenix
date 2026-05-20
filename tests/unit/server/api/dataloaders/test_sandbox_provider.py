@@ -9,7 +9,6 @@ from phoenix.server.types import DbSessionFactory
 
 
 async def test_sandbox_provider_batches_lookups(db: DbSessionFactory) -> None:
-    """Loading N provider kinds issues a single batched query and preserves key order."""
     async with db() as session:
         await sync_languages(session)
         kinds = [f"z-{token_hex(3)}" for _ in range(4)]
