@@ -802,3 +802,19 @@ class TestBoundedOutputSink:
         # the host buffer never grows with total bytes written.
         assert notice.startswith("[output truncated")
         assert len(retained.encode("utf-8")) <= 100
+
+    def test_single_oversized_write_is_not_fully_buffered(self) -> None:
+        """A single callback payload larger than the window must be sliced
+        down on arrival — not appended whole — so the sink's footprint tracks
+        the window, not the largest payload a guest can hand it in one write."""
+        from phoenix.server.sandbox.wasm_backend import _BoundedOutputSink
+
+        sink = _BoundedOutputSink(limit=100)
+        sink.write(b"H" * 10_000 + b"T" * 100)  # one 10100-byte payload
+
+        # The buffer holds only the window immediately — the 10 KB head was
+        # never retained, not merely trimmed away afterwards.
+        assert len(sink._buf) == 100
+        value = sink.getvalue()
+        assert value.endswith("T" * 100)
+        assert "H" not in value.partition("\n")[2]

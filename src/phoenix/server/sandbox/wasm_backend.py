@@ -174,6 +174,15 @@ class _BoundedOutputSink:
         self._dropped = 0
 
     def write(self, data: bytes) -> None:
+        # A single write at least as large as the window makes everything
+        # buffered so far — and all but the payload's own tail — unreachable.
+        # Slice it down instead of appending the whole payload: appending would
+        # transiently copy all of `data` into `_buf`, so the sink's footprint
+        # would track the largest callback payload rather than the window.
+        if len(data) >= self._limit:
+            self._dropped += len(self._buf) + (len(data) - self._limit)
+            self._buf = bytearray(data[-self._limit :])
+            return
         self._buf += data
         # Trim lazily — only once the buffer reaches twice the window — so the
         # amortized cost is O(1) per byte rather than O(limit) per write.
