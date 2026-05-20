@@ -20,7 +20,7 @@ from pydantic.json_schema import GenerateJsonSchema
 from pydantic_ai import _function_schema
 from pydantic_ai.tools import DocstringFormat, GenerateToolJsonSchema
 
-from phoenix.server.agents.capabilities.skills._parsing import parse_skill_md
+from phoenix.server.agents.capabilities.skills.parsing import parse_skill_md
 
 # Generic type variable for dependencies
 DepsT = TypeVar("DepsT")
