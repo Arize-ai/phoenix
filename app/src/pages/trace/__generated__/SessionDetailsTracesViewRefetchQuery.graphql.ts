@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<866d6ee780ca1dce9fcf6bbb6628779f>>
+ * @generated SignedSource<<d7e210e2dead9701309073be12721209>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -75,7 +75,18 @@ v4 = {
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
-};
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v6 = [
+  (v5/*: any*/),
+  (v4/*: any*/)
+];
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
@@ -170,13 +181,7 @@ return {
                             "plural": false,
                             "selections": [
                               (v4/*: any*/),
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "name",
-                                "storageKey": null
-                              },
+                              (v5/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -247,8 +252,28 @@ return {
                                       }
                                     ],
                                     "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "TraceAnnotation",
+                                    "kind": "LinkedField",
+                                    "name": "traceAnnotations",
+                                    "plural": true,
+                                    "selections": (v6/*: any*/),
+                                    "storageKey": null
                                   }
                                 ],
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "SpanAnnotation",
+                                "kind": "LinkedField",
+                                "name": "spanAnnotations",
+                                "plural": true,
+                                "selections": (v6/*: any*/),
                                 "storageKey": null
                               }
                             ],
@@ -327,16 +352,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "ddd8d5f04d48f5fd2f390caaf697e1b9",
+    "cacheID": "cd108808b8339904ce4426d2cd443961",
     "id": null,
     "metadata": {},
     "name": "SessionDetailsTracesViewRefetchQuery",
     "operationKind": "query",
-    "text": "query SessionDetailsTracesViewRefetchQuery(\n  $after: String = null\n  $first: Int = 50\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionDetailsTracesView_traces_2HEEH6\n    id\n  }\n}\n\nfragment SessionDetailsTracesView_traces_2HEEH6 on ProjectSession {\n  numTraces\n  traces(first: $first, after: $after) {\n    edges {\n      trace: node {\n        id\n        traceId\n        rootSpan {\n          id\n          name\n          startTime\n          cumulativeTokenCountTotal\n          latencyMs\n          project {\n            id\n          }\n          trace {\n            id\n            costSummary {\n              total {\n                cost\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query SessionDetailsTracesViewRefetchQuery(\n  $after: String = null\n  $first: Int = 50\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...SessionDetailsTracesView_traces_2HEEH6\n    id\n  }\n}\n\nfragment SessionDetailsTracesView_traces_2HEEH6 on ProjectSession {\n  numTraces\n  traces(first: $first, after: $after) {\n    edges {\n      trace: node {\n        id\n        traceId\n        rootSpan {\n          id\n          name\n          startTime\n          cumulativeTokenCountTotal\n          latencyMs\n          project {\n            id\n          }\n          trace {\n            id\n            costSummary {\n              total {\n                cost\n              }\n            }\n          }\n          ...TraceAnnotationCountMetrics_span\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment TraceAnnotationCountMetrics_span on Span {\n  spanAnnotations {\n    name\n    id\n  }\n  trace {\n    traceAnnotations {\n      name\n      id\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3dcba931effcd48427f002639dbda225";
+(node as any).hash = "8b59171e68fdf88526656d583d3ff309";
 
 export default node;

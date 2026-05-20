@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<e4e1fd9f7e955001f097625f6bb5b465>>
+ * @generated SignedSource<<a051fb8c5cd9e88926f37d04567723ea>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -62,7 +62,18 @@ v5 = {
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
-};
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v7 = [
+  (v6/*: any*/),
+  (v5/*: any*/)
+];
 return {
   "fragment": {
     "argumentDefinitions": [
@@ -170,13 +181,7 @@ return {
                             "plural": false,
                             "selections": [
                               (v5/*: any*/),
-                              {
-                                "alias": null,
-                                "args": null,
-                                "kind": "ScalarField",
-                                "name": "name",
-                                "storageKey": null
-                              },
+                              (v6/*: any*/),
                               {
                                 "alias": null,
                                 "args": null,
@@ -247,8 +252,28 @@ return {
                                       }
                                     ],
                                     "storageKey": null
+                                  },
+                                  {
+                                    "alias": null,
+                                    "args": null,
+                                    "concreteType": "TraceAnnotation",
+                                    "kind": "LinkedField",
+                                    "name": "traceAnnotations",
+                                    "plural": true,
+                                    "selections": (v7/*: any*/),
+                                    "storageKey": null
                                   }
                                 ],
+                                "storageKey": null
+                              },
+                              {
+                                "alias": null,
+                                "args": null,
+                                "concreteType": "SpanAnnotation",
+                                "kind": "LinkedField",
+                                "name": "spanAnnotations",
+                                "plural": true,
+                                "selections": (v7/*: any*/),
                                 "storageKey": null
                               }
                             ],
@@ -327,12 +352,12 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5beab8c37f14a2a449ac3daae168bb2b",
+    "cacheID": "e434d135ceab225a0626ad69493f6919",
     "id": null,
     "metadata": {},
     "name": "SessionDetailsTracesViewQuery",
     "operationKind": "query",
-    "text": "query SessionDetailsTracesViewQuery(\n  $id: ID!\n  $first: Int!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      ...SessionDetailsTracesView_traces_3ASum4\n    }\n    id\n  }\n}\n\nfragment SessionDetailsTracesView_traces_3ASum4 on ProjectSession {\n  numTraces\n  traces(first: $first) {\n    edges {\n      trace: node {\n        id\n        traceId\n        rootSpan {\n          id\n          name\n          startTime\n          cumulativeTokenCountTotal\n          latencyMs\n          project {\n            id\n          }\n          trace {\n            id\n            costSummary {\n              total {\n                cost\n              }\n            }\n          }\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n"
+    "text": "query SessionDetailsTracesViewQuery(\n  $id: ID!\n  $first: Int!\n) {\n  session: node(id: $id) {\n    __typename\n    ... on ProjectSession {\n      ...SessionDetailsTracesView_traces_3ASum4\n    }\n    id\n  }\n}\n\nfragment SessionDetailsTracesView_traces_3ASum4 on ProjectSession {\n  numTraces\n  traces(first: $first) {\n    edges {\n      trace: node {\n        id\n        traceId\n        rootSpan {\n          id\n          name\n          startTime\n          cumulativeTokenCountTotal\n          latencyMs\n          project {\n            id\n          }\n          trace {\n            id\n            costSummary {\n              total {\n                cost\n              }\n            }\n          }\n          ...TraceAnnotationCountMetrics_span\n        }\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n  id\n}\n\nfragment TraceAnnotationCountMetrics_span on Span {\n  spanAnnotations {\n    name\n    id\n  }\n  trace {\n    traceAnnotations {\n      name\n      id\n    }\n    id\n  }\n}\n"
   }
 };
 })();

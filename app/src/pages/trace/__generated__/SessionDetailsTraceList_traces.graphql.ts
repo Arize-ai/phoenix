@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<4f3bc951593fc15b3cdee57fb38cc3e1>>
+ * @generated SignedSource<<6e0e69a7a3ff3d9c6b08b9ca28bd78e3>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -49,7 +49,7 @@ export type SessionDetailsTraceList_traces$data = {
             readonly id: string;
             readonly " $fragmentSpreads": FragmentRefs<"TraceFeedbackActionToolbar_trace">;
           };
-          readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup">;
+          readonly " $fragmentSpreads": FragmentRefs<"AnnotationSummaryGroup" | "TraceAnnotationCountMetrics_span">;
         } | null;
         readonly traceId: string;
       };
@@ -327,6 +327,11 @@ return {
                       ],
                       "kind": "FragmentSpread",
                       "name": "AnnotationSummaryGroup"
+                    },
+                    {
+                      "args": null,
+                      "kind": "FragmentSpread",
+                      "name": "TraceAnnotationCountMetrics_span"
                     }
                   ],
                   "storageKey": null
@@ -397,6 +402,6 @@ return {
 };
 })();
 
-(node as any).hash = "2198bc60735912a26bf3993ae0f763cb";
+(node as any).hash = "90bbbba7555655f451abaabf6930bc91";
 
 export default node;

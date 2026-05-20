@@ -57,6 +57,7 @@ import { ConnectedTraceTree } from "./ConnectedTraceTree";
 import { SessionViewTabs } from "./SessionViewTabs";
 import type { SessionView } from "./SessionViewTabs";
 import { SpanDetails } from "./SpanDetails";
+import { TraceAnnotationCountMetrics } from "./TraceAnnotationCountMetrics";
 
 const INITIAL_SELECTED_TRACE_MAX_PAGES = 3;
 
@@ -147,6 +148,7 @@ export function SessionDetailsTracesView({
                     }
                   }
                 }
+                ...TraceAnnotationCountMetrics_span
               }
             }
           }
@@ -555,6 +557,7 @@ function TraceRowMetricsLine({ trace }: { trace: SessionTraceRow }) {
       {latencyMs != null ? (
         <LatencyText latencyMs={latencyMs} size="S" />
       ) : null}
+      <TraceAnnotationCountMetrics span={trace.rootSpan} />
     </Flex>
   );
 }

@@ -60,6 +60,7 @@ import { safelyParseJSON } from "@phoenix/utils/jsonUtils";
 
 import { SessionViewTabs } from "./SessionViewTabs";
 import type { SessionView } from "./SessionViewTabs";
+import { TraceAnnotationCountMetrics } from "./TraceAnnotationCountMetrics";
 import { TraceFeedbackActionToolbar } from "./TraceFeedbackActionToolbar";
 
 export const sessionDetailsTraceListQuery = graphql`
@@ -498,6 +499,7 @@ function SessionTurnList({
                 {row.rootSpan.latencyMs != null ? (
                   <LatencyText latencyMs={row.rootSpan.latencyMs} size="S" />
                 ) : null}
+                <TraceAnnotationCountMetrics span={row.rootSpan} />
               </Flex>
             </Flex>
           </ListBoxItem>
@@ -588,6 +590,7 @@ export function SessionDetailsTraceList({
                 endTime
                 spanId
                 ...AnnotationSummaryGroup @arguments(includeTraceAnnotations: true)
+                ...TraceAnnotationCountMetrics_span
               }
             }
           }

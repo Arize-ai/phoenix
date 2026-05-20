@@ -6,6 +6,7 @@ Phoenix has a curated icon set in `app/src/components/core/icon/Icons.tsx`. Use 
 
 | Noun | Icon | Notes |
 |------|------|-------|
+| Annotation | `Icons.Scale` | Annotations and annotation counts. |
 | Project | `Icons.GridOutline` | Phoenix projects (the namespace concept). |
 | Trace | `Icons.Trace` | A single trace. |
 | Span | `Icons.WorkflowOutline` | A single span. The Lucide-style workflow glyph (two connected nodes) reads as a step in a workflow, which matches how spans relate. |
