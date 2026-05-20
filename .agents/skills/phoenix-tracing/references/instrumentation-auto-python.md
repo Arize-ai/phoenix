@@ -56,6 +56,21 @@ tracer_provider = register(project_name="my-app")  # No auto_instrument
 OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
 
+## OTel GenAI Native Instrumentation
+
+Phoenix automatically converts [OTel GenAI semantic convention](https://opentelemetry.io/docs/specs/semconv/gen-ai/) attributes (`gen_ai.*`) to OpenInference when receiving OTLP spans. This means you can use **OTel-native AI instrumentation** — any library that emits `gen_ai.*` attributes — without installing OpenInference instrumentors, and Phoenix will display spans with proper LLM span kind, model names, token counts, and message content.
+
+If a span already has OpenInference attributes set (e.g. from a dual-emitting instrumentor), those values take precedence over the synthesized ones.
+
+No client-side changes required. Send OTLP to Phoenix as usual:
+
+```python
+from phoenix.otel import register
+
+# Works with any OTel-native AI instrumentor that emits gen_ai.* attributes
+register(project_name="my-app")
+```
+
 ## Limitations
 
 Auto-instrumentation does NOT capture:

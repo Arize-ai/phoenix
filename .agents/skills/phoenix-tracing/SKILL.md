@@ -44,10 +44,11 @@ Reference these guidelines when:
 
 ### 2. Instrumentation
 
-- [instrumentation-auto-python](references/instrumentation-auto-python.md) - Auto-instrument OpenAI, LangChain, etc.
+- [instrumentation-auto-python](references/instrumentation-auto-python.md) - Auto-instrument OpenAI, LangChain, etc. (also covers OTel GenAI native instrumentation)
 - [instrumentation-auto-typescript](references/instrumentation-auto-typescript.md) - Auto-instrument supported frameworks
 - [instrumentation-manual-python](references/instrumentation-manual-python.md) - Custom spans with decorators
 - [instrumentation-manual-typescript](references/instrumentation-manual-typescript.md) - Custom spans with wrappers
+- [instrumentation-atif-python](references/instrumentation-atif-python.md) - Import ATIF agent trajectories (Claude Code, OpenHands, Codex, etc.)
 
 ### 3. Span Types (with full attribute schemas)
 
