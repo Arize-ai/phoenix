@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import functools
+import hashlib
 import logging
-from typing import TYPE_CHECKING, Any, Mapping, Optional, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar, Mapping, Optional, Sequence
 
 from pydantic import SecretStr
+from typing_extensions import override
 
 from .types import (
     ExecutionResult,
@@ -16,6 +19,7 @@ from .types import (
     SandboxAdapter,
     SandboxBackend,
     compose_secret_values,
+    compute_config_fingerprint,
 )
 
 if TYPE_CHECKING:
@@ -31,8 +35,24 @@ ENV_MODAL_TOKEN_ID = "MODAL_TOKEN_ID"
 ENV_MODAL_TOKEN_SECRET = "MODAL_TOKEN_SECRET"
 
 
+@functools.cache
+def _modal_session_gone_exception_classes() -> tuple[type[BaseException], ...]:
+    """Modal SDK exception classes meaning the remote sandbox is gone (lazy import)."""
+    try:
+        from modal.exception import (
+            NotFoundError,
+            SandboxTerminatedError,
+            SandboxTimeoutError,
+        )
+    except ImportError:
+        return ()
+    return (NotFoundError, SandboxTerminatedError, SandboxTimeoutError)
+
+
 class ModalSandboxBackend(SandboxBackend):
     """Sandbox backend executing code in Modal cloud sandboxes."""
+
+    provider: ClassVar[str] = "MODAL"
 
     def __init__(
         self,
@@ -62,14 +82,28 @@ class ModalSandboxBackend(SandboxBackend):
         self._app_name = app_name
         self._user_env: dict[str, str] = dict(user_env or {})
         self._block_network = block_network
-        self._sessions: dict[str, Sandbox] = {}
-        self._session_locks: dict[str, asyncio.Lock] = {}
         self._client: Optional[Client] = None
         self._app: Optional[App] = None
         self._client_lock = asyncio.Lock()
+        self._packages: list[str] = list(packages) if packages else []
         base_image = modal.Image.debian_slim()
-        self._image: Image = base_image.pip_install(list(packages)) if packages else base_image
+        self._image: Image = (
+            base_image.pip_install(self._packages) if self._packages else base_image
+        )
         self.secret_values = compose_secret_values(user_env, token_id, token_secret)
+
+    @override
+    def config_fingerprint(self) -> str:
+        return compute_config_fingerprint(
+            backend_type="MODAL",
+            packages=self._packages,
+            internet_access_mode=str(self._block_network),
+        )
+
+    @override
+    def provider_session_id(self, session_key: str) -> str:
+        # Modal sandbox names: alphanumeric + ``-``, max 64 chars.
+        return hashlib.sha256(session_key.encode()).hexdigest()[:32]
 
     async def _ensure_client(self) -> Client:
         import modal
@@ -96,7 +130,7 @@ class ModalSandboxBackend(SandboxBackend):
                 )
         return self._app
 
-    async def _create_sandbox(self) -> Sandbox:
+    async def _create_sandbox(self, *, name: Optional[str] = None) -> Sandbox:
         import modal
 
         client = await self._ensure_client()
@@ -108,28 +142,85 @@ class ModalSandboxBackend(SandboxBackend):
             "timeout": self._timeout,
             "idle_timeout": self._idle_timeout,
         }
+        if name is not None:
+            kwargs["name"] = name
         if self._user_env:
             kwargs["env"] = self._user_env
         if self._block_network:
             kwargs["block_network"] = True
         return await modal.Sandbox.create.aio(**kwargs)
 
-    async def start_session(self, session_key: str) -> None:
-        if session_key not in self._session_locks:
-            self._session_locks[session_key] = asyncio.Lock()
-        async with self._session_locks[session_key]:
-            if session_key in self._sessions:
-                logger.debug(f"Modal session '{session_key}' already exists; reusing")
-                return
-            sandbox = await self._create_sandbox()
-            self._sessions[session_key] = sandbox
-        logger.debug(f"Started Modal session '{session_key}'")
+    async def _from_name_if_alive(self, name: str) -> Optional[Sandbox]:
+        """Look up a named Modal sandbox; return None if missing or already exited."""
+        import modal
+        from modal.exception import NotFoundError
 
-    async def stop_session(self, session_key: str) -> None:
-        sandbox = self._sessions.pop(session_key, None)
-        if sandbox is not None:
+        client = await self._ensure_client()
+        try:
+            sandbox = await modal.Sandbox.from_name.aio(self._app_name, name, client=client)
+        except NotFoundError:
+            return None
+        # poll() returns None while running, else the exit code.
+        try:
+            returncode = await sandbox.poll.aio()
+        except Exception:
+            return None
+        if returncode is not None:
+            return None
+        return sandbox
+
+    @override
+    async def find_or_create_session(self, session_key: str) -> Sandbox:
+        from modal.exception import AlreadyExistsError
+
+        name = self.provider_session_id(session_key)
+        existing = await self._from_name_if_alive(name)
+        if existing is not None:
+            logger.debug(f"Modal session '{name}' already exists; reusing")
+            return existing
+        try:
+            sandbox = await self._create_sandbox(name=name)
+            logger.debug(f"Created Modal session '{name}'")
+            return sandbox
+        except AlreadyExistsError:
+            # Concurrent winner from another replica; re-attach via from_name.
+            attached = await self._from_name_if_alive(name)
+            if attached is None:
+                raise
+            logger.debug(f"Modal session '{name}' won by concurrent creator; attaching")
+            return attached
+
+    @override
+    async def execute_in_session(
+        self,
+        handle: object,
+        code: str,
+        timeout: Optional[int] = None,
+    ) -> ExecutionResult:
+        sandbox: Sandbox = handle  # type: ignore[assignment]
+        try:
+            return await self._exec_code(sandbox, code)
+        except Exception as exc:
+            if self.is_session_gone(exc):
+                raise
+            return ExecutionResult(stdout="", stderr=str(exc), error=str(exc))
+
+    @override
+    async def close_session(self, session_key: str) -> None:
+        import modal
+        from modal.exception import NotFoundError
+
+        name = self.provider_session_id(session_key)
+        client = await self._ensure_client()
+        try:
+            sandbox = await modal.Sandbox.from_name.aio(self._app_name, name, client=client)
+        except NotFoundError:
+            return
+        try:
             await sandbox.terminate.aio()
-            logger.debug(f"Stopped Modal session '{session_key}'")
+            logger.debug(f"Stopped Modal session '{name}'")
+        except NotFoundError:
+            return
 
     async def _exec_code(self, sandbox: Sandbox, code: str) -> ExecutionResult:
         proc = await sandbox.exec.aio("python", "-c", code)
@@ -141,28 +232,36 @@ class ModalSandboxBackend(SandboxBackend):
         error: Optional[str] = stderr if exit_code != 0 else None
         return ExecutionResult(stdout=stdout or "", stderr=stderr or "", error=error)
 
+    @override
     async def execute(
         self,
         code: str,
         session_key: str,
         timeout: Optional[int] = None,
     ) -> ExecutionResult:
+        """Direct one-shot ephemeral execution: create, run, terminate."""
         try:
-            sandbox = self._sessions.get(session_key)
-            if sandbox is not None:
+            sandbox = await self._create_sandbox()
+            try:
                 return await self._exec_code(sandbox, code)
-            else:
-                sandbox = await self._create_sandbox()
-                try:
-                    return await self._exec_code(sandbox, code)
-                finally:
-                    await sandbox.terminate.aio()
+            finally:
+                await sandbox.terminate.aio()
         except Exception as exc:
             return ExecutionResult(stdout="", stderr=str(exc), error=str(exc))
 
+    @override
     async def close(self) -> None:
-        for key in list(self._sessions):
-            await self.stop_session(key)
+        return None
+
+    @override
+    def is_session_gone(self, exc: BaseException) -> bool:
+        """Classify NotFoundError / SandboxTerminatedError / SandboxTimeoutError as gone.
+
+        Other Modal exceptions are NOT classified: ``AuthError`` /
+        ``InvalidError`` recur on a fresh session, ``ConnectionError`` is
+        transient transport noise.
+        """
+        return isinstance(exc, _modal_session_gone_exception_classes())
 
 
 class ModalAdapter(SandboxAdapter[ModalConfig, ModalCredentials, ModalDeployment]):

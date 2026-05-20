@@ -72,6 +72,7 @@ from phoenix.server.api.helpers.playground_clients import OpenAIStreamingClient
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
+from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import flatten
 from phoenix.tracers import Tracer
@@ -3629,7 +3630,9 @@ class TestGetEvaluators:
                 dataset_evaluator_ids=input_ids,
                 session=session,
                 decrypt=lambda x: x,
+                experiment_id=0,
                 credentials=None,
+                sandbox_session_manager=SandboxSessionManager(),
             )
 
         assert len(evaluators) == 4
@@ -3655,7 +3658,9 @@ class TestGetEvaluators:
                     dataset_evaluator_ids=input_ids,
                     session=session,
                     decrypt=lambda x: x,
+                    experiment_id=0,
                     credentials=None,
+                    sandbox_session_manager=SandboxSessionManager(),
                 )
 
     async def test_returns_empty_list_for_empty_input(
@@ -3667,7 +3672,9 @@ class TestGetEvaluators:
                 dataset_evaluator_ids=[],
                 session=session,
                 decrypt=lambda x: x,
+                experiment_id=0,
                 credentials=None,
+                sandbox_session_manager=SandboxSessionManager(),
             )
 
         assert evaluators == []
@@ -3720,7 +3727,9 @@ class TestGetEvaluators:
                     dataset_evaluator_ids=[de_code.id],
                     session=session,
                     decrypt=lambda x: x,
+                    experiment_id=0,
                     credentials=None,
+                    sandbox_session_manager=SandboxSessionManager(),
                 )
 
         assert "my-code-eval" in str(exc_info.value)
@@ -3780,7 +3789,9 @@ class TestGetEvaluators:
                     dataset_evaluator_ids=[dataset_evaluator.id],
                     session=session,
                     decrypt=lambda x: x,
+                    experiment_id=0,
                     credentials=None,
+                    sandbox_session_manager=SandboxSessionManager(),
                 )
 
     async def test_code_evaluator_reuses_backend_for_shared_sandbox_config(
@@ -3852,7 +3863,9 @@ class TestGetEvaluators:
                 dataset_evaluator_ids=dataset_evaluator_ids,
                 session=session,
                 decrypt=lambda x: x,
+                experiment_id=0,
                 credentials=None,
+                sandbox_session_manager=SandboxSessionManager(),
             )
 
         assert len(evaluators) == 2
@@ -3919,7 +3932,9 @@ class TestGetEvaluators:
                 dataset_evaluator_ids=input_ids,
                 session=session,
                 decrypt=lambda x: x,
+                experiment_id=0,
                 credentials=None,
+                sandbox_session_manager=SandboxSessionManager(),
             )
 
         assert len(evaluators) == 3
