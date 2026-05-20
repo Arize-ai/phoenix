@@ -405,11 +405,18 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
             );
           case selectedRepetitionError != null:
             return (
-              <View padding="size-200">
-                <PlaygroundErrorWrap>
-                  {selectedRepetitionError.message}
-                </PlaygroundErrorWrap>
-              </View>
+              <>
+                <View padding="size-200">
+                  <PlaygroundErrorWrap>
+                    {selectedRepetitionError.message}
+                  </PlaygroundErrorWrap>
+                </View>
+                <Suspense>
+                  {selectedRepetitionSpanId ? (
+                    <RunMetadataFooter spanId={selectedRepetitionSpanId} />
+                  ) : null}
+                </Suspense>
+              </>
             );
           default:
             return (
