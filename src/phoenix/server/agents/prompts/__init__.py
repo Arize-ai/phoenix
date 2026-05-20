@@ -5,7 +5,7 @@ from pathlib import Path
 
 from jinja2 import Template
 
-from phoenix.server.agents.prompts._render import get_template
+from phoenix.server.agents.prompts.templating import get_template
 
 _PROMPTS_DIR = Path(__file__).parent
 

@@ -10,9 +10,9 @@ _TEMPLATES_DIR = Path(__file__).parent
 
 _env = Environment(
     loader=FileSystemLoader(_TEMPLATES_DIR),
-    autoescape=False,
+    autoescape=False,  # escaping `<` to `&lt;` would corrupt the XML scaffolding
     keep_trailing_newline=False,
-    undefined=StrictUndefined,
+    undefined=StrictUndefined,  # raise on a missing variable instead of silently rendering empty
     trim_blocks=True,
     lstrip_blocks=True,
 )

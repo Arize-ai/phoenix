@@ -12,12 +12,7 @@ from phoenix.server.agents.types import AgentDependencies
 
 @dataclass
 class GraphQLMutationsCapability(AbstractDynamicCapability[AgentDependencies]):
-    """Always included so the model knows whether GraphQL mutations are available.
-
-    Renders the ENABLED branch when a ``GraphQLContext`` is present and
-    reports ``mutations_enabled=True``; otherwise renders the DISABLED branch
-    — the safe default when the context is absent.
-    """
+    """Always included so the model knows whether GraphQL mutations are available."""
 
     instructions: Template
 
