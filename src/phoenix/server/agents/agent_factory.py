@@ -86,6 +86,11 @@ def build_agent(
 def _get_native_web_access_capabilities(
     model: Model,
 ) -> list[AbstractCapability[AgentDependencies]]:
+    """Return native web capabilities supported by the selected model.
+
+    Provider-native web search and fetch are only registered when the model's
+    profile advertises support for the corresponding Pydantic AI native tool.
+    """
     supported_native_tools = model.profile.supported_native_tools
     capabilities: list[AbstractCapability[AgentDependencies]] = []
     if WebSearchTool in supported_native_tools:
