@@ -10,7 +10,7 @@ from pydantic_ai import _function_schema
 from pydantic_ai.tools import DocstringFormat, GenerateToolJsonSchema
 
 from phoenix.server.agents.capabilities.skills.parsing import parse_skill_md
-from phoenix.server.agents.capabilities.skills.resource import SkillResource
+from phoenix.server.agents.capabilities.skills.skill_resource import SkillResource
 
 
 @dataclass

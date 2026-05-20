@@ -11,7 +11,7 @@ from pydantic_ai._griffe import doc_descriptions
 from pydantic_ai._run_context import RunContext
 from pydantic_ai.toolsets import FunctionToolset
 
-from phoenix.server.agents.capabilities.skills.resource import SkillResource
+from phoenix.server.agents.capabilities.skills.skill_resource import SkillResource
 from phoenix.server.agents.capabilities.skills.skill import Skill
 from phoenix.server.agents.capabilities.skills.wrapper import SkillWrapper
 

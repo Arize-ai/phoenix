@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from phoenix.server.agents.capabilities.skills.resource import SkillResource
+from phoenix.server.agents.capabilities.skills.skill_resource import SkillResource
 from phoenix.server.agents.capabilities.skills.skill import Skill
 
 

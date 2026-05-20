@@ -7,7 +7,7 @@ from pydantic.json_schema import GenerateJsonSchema
 from pydantic_ai import _function_schema
 from pydantic_ai.tools import DocstringFormat, GenerateToolJsonSchema
 
-from phoenix.server.agents.capabilities.skills.resource import SkillResource
+from phoenix.server.agents.capabilities.skills.skill_resource import SkillResource
 from phoenix.server.agents.capabilities.skills.skill import Skill
 
 # Generic type variable for dependencies
