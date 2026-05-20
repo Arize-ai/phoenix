@@ -25,24 +25,40 @@ Phoenix supports two kinds of sandbox, distinguished by where the code actually 
 </Warning>
 
 ```mermaid
-flowchart LR
+%%{init: {'theme': 'base'}}%%
+flowchart TB
     subgraph phoenixHost ["Phoenix Machine"]
-        Server[Phoenix Server]
+        direction TB
+        Server("Phoenix Server")
         subgraph localBox ["Local Sandbox"]
-            WASM[WebAssembly]
-            Deno[Deno]
+            direction LR
+            WASM("WebAssembly")
+            Deno("Deno")
         end
         Server --> localBox
     end
 
-    subgraph provider ["Hosted Provider — E2B / Daytona / Vercel / Modal"]
-        subgraph hostedBox ["Sandbox"]
-            Libs[Third-party libraries]
-            Net[Outbound internet]
-        end
+    subgraph provider ["Hosted Sandbox — E2B / Daytona / Vercel / Modal"]
+        direction LR
+        Libs("Third-party libraries")
+        Net("Outbound internet")
     end
 
-    Server -. HTTPS .-> hostedBox
+    Server -. "HTTPS" .-> provider
+
+    classDef host fill:#FFFFFF,stroke:#475569,stroke-width:2px,color:#1E293B
+    classDef localNode fill:#FFFFFF,stroke:#2563EB,stroke-width:2px,color:#1E3A8A
+    classDef hostedNode fill:#FFFFFF,stroke:#7C3AED,stroke-width:2px,color:#4C1D95
+
+    class Server host
+    class WASM,Deno localNode
+    class Libs,Net hostedNode
+
+    style phoenixHost fill:#F1F5F9,stroke:#94A3B8,stroke-width:1px,color:#334155
+    style localBox fill:#DBEAFE,stroke:#2563EB,stroke-width:1px,color:#1E3A8A
+    style provider fill:#EDE9FE,stroke:#7C3AED,stroke-width:1px,color:#4C1D95
+
+    linkStyle default stroke:#94A3B8,stroke-width:2px
 ```
 
 <AccordionGroup>
