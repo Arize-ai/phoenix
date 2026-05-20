@@ -34,6 +34,7 @@ NC := \033[0m # No Color
 	openapi schema-openapi schema-generative-ui codegen-python-client codegen-ts-client codegen-ts-app \
 	dev dev-backend dev-frontend dev-docker dev-mock-llm \
 	test test-python test-frontend test-ts test-helm test-jcs typecheck typecheck-python typecheck-python-ty typecheck-frontend typecheck-ts \
+	test-python-evals \
 	format format-python format-frontend format-ts lint lint-python lint-frontend lint-ts clean-notebooks \
 	build build-python build-frontend build-ts \
 	codegen-prompts sync-models schema-ddl check-graphql-permissions gen-otel-models \
@@ -70,6 +71,7 @@ help: ## Show this help message
 	@echo -e "$(GREEN)Testing:$(NC)"
 	@echo -e "  $(YELLOW)test$(NC)                  - Run all tests (Python + frontend + TypeScript)"
 	@echo -e "  test-python            - Run Python tests (unit + integration)"
+	@echo -e "  test-python-evals      - Run PXI eval harness unit tests"
 	@echo -e "  test-frontend          - Run frontend tests (app/)"
 	@echo -e "  test-ts                - Run TypeScript package tests (js/)"
 	@echo -e "  test-helm              - Run Helm chart tests"
@@ -232,12 +234,14 @@ dev-frontend: ## Frontend only (React dev server)
 #=============================================================================
 
 test-python: ## Run Python tests (unit + integration)
-	@echo -e "$(CYAN)Running Python eval tests...$(NC)"
-	@$(UV) run pytest evals/
 	@echo -e "$(CYAN)Running Python unit tests...$(NC)"
 	@$(TOX) run -q -e unit_tests -- -n auto
 	@echo -e "$(CYAN)Running Python integration tests...$(NC)"
 	@$(TOX) run -q -e integration_tests
+
+test-python-evals: ## Run PXI eval harness unit tests
+	@echo -e "$(CYAN)Running PXI eval harness unit tests...$(NC)"
+	@$(UV) run pytest tests/unit/pxi/evals
 
 test-frontend: ## Run frontend tests (app/)
 	@echo -e "$(CYAN)Running frontend tests...$(NC)"

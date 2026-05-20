@@ -1,9 +1,8 @@
 """Unit tests for PXI eval-harness evaluators.
 
-These tests are intentionally not collected by ``tox -e unit_tests`` because the
-``evals/pxi/harness`` tree lives outside the unit-test root. Run them directly:
+Run directly:
 
-    uv run pytest evals/pxi/harness/test_evaluators.py
+    uv run pytest tests/unit/pxi/evals/test_evaluators.py
 """
 
 from __future__ import annotations

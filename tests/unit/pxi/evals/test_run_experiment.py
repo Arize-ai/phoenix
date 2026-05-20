@@ -2,7 +2,7 @@
 
 Run directly:
 
-    uv run pytest evals/pxi/harness/test_run_experiment.py
+    uv run pytest tests/unit/pxi/evals/test_run_experiment.py
 """
 
 from __future__ import annotations
