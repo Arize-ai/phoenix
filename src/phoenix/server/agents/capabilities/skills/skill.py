@@ -1,16 +1,20 @@
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar, overload
 
-from pydantic.json_schema import GenerateJsonSchema
 from pydantic_ai import _function_schema
 from pydantic_ai.tools import DocstringFormat, GenerateToolJsonSchema
 
 from phoenix.server.agents.capabilities.skills.parsing import parse_skill_md
-from phoenix.server.agents.capabilities.skills.skill_resource import SkillResource
+from phoenix.server.agents.capabilities.skills.skill_resource import (
+    ResourceFunctionType,
+    SkillResource,
+)
+
+ResourceFuncT = TypeVar("ResourceFuncT", bound=ResourceFunctionType)
 
 
 @dataclass
@@ -60,21 +64,27 @@ class Skill:
             metadata=metadata or None,
         )
 
+    @overload
+    def resource(self, func: ResourceFuncT) -> ResourceFuncT: ...
+
+    @overload
     def resource(
         self,
-        func: Callable[..., object | Awaitable[object]] | None = None,
+        func: None = None,
         *,
         name: str | None = None,
         description: str | None = None,
         docstring_format: DocstringFormat = "auto",
-        schema_generator: type[GenerateJsonSchema] | None = None,
-    ) -> (
-        Callable[..., object | Awaitable[object]]
-        | Callable[
-            [Callable[..., object | Awaitable[object]]],
-            Callable[..., object | Awaitable[object]],
-        ]
-    ):
+    ) -> Callable[[ResourceFuncT], ResourceFuncT]: ...
+
+    def resource(
+        self,
+        func: ResourceFuncT | None = None,
+        *,
+        name: str | None = None,
+        description: str | None = None,
+        docstring_format: DocstringFormat = "auto",
+    ) -> ResourceFuncT | Callable[[ResourceFuncT], ResourceFuncT]:
         """Decorator to register a callable as a skill resource.
 
         The decorated function can optionally take RunContext as its first argument
@@ -96,20 +106,16 @@ class Skill:
             name: Resource name (defaults to function name).
             description: Resource description (inferred from docstring if not provided).
             docstring_format: Format of the docstring ('auto', 'google', 'numpy', 'sphinx').
-            schema_generator: Custom JSON schema generator class.
 
         Returns:
             The original function (allows use as decorator).
         """
 
-        def decorator(
-            f: Callable[..., object | Awaitable[object]],
-        ) -> Callable[..., object | Awaitable[object]]:
+        def decorator(f: ResourceFuncT) -> ResourceFuncT:
             resource_name = name or f.__name__
-            gen = schema_generator or GenerateToolJsonSchema
             func_schema = _function_schema.function_schema(
                 f,
-                schema_generator=gen,
+                schema_generator=GenerateToolJsonSchema,
                 takes_ctx=None,
                 docstring_format=docstring_format,
                 require_parameter_descriptions=False,

@@ -4,10 +4,13 @@ import json
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeAlias
 
 import yaml
 from pydantic_ai import _function_schema
+
+ResourceFunctionType: TypeAlias = Callable[..., object | Awaitable[object]]
+"""A resource function: any callable, sync or async, returning anything."""
 
 
 @dataclass
@@ -27,7 +30,7 @@ class SkillResource:
     name: str
     description: str | None = None
     content: str | None = None
-    function: Callable[..., Any | Awaitable[Any]] | None = None
+    function: ResourceFunctionType | None = None
     takes_ctx: bool = False
     function_schema: _function_schema.FunctionSchema | None = None
     uri: str | None = None
