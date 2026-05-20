@@ -11,6 +11,12 @@ Phoenix, then run:
 uv run python tests/pxi/evals/run_experiment.py --dataset set_spans_filter
 ```
 
+For the in-app link suite:
+
+```bash
+uv run python tests/pxi/evals/run_experiment.py --dataset in_app_links
+```
+
 The runner checks `/healthz` against whichever Phoenix URL is configured
 (default `http://localhost:6006`, or `PHOENIX_COLLECTOR_ENDPOINT` /
 `OTEL_EXPORTER_OTLP_ENDPOINT` if set) before uploading anything. To use a

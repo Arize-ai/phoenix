@@ -166,3 +166,9 @@ examples:
         assert dataset.dataset_name == "set_spans_filter"
         assert len(dataset.examples) >= 1
         assert "correct_tools_called" in dataset.evaluators
+
+    def test_loads_in_app_links_dataset(self) -> None:
+        dataset = load_dataset("in_app_links")
+        assert dataset.dataset_name == "in_app_links"
+        assert len(dataset.examples) == 3
+        assert "in_app_links_valid" in dataset.evaluators

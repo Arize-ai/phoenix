@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from tests.pxi.evals.evaluators.links import in_app_links_valid
 from tests.pxi.evals.evaluators.tools import (
     correct_tools_called,
     set_spans_filter_args_match,
@@ -16,6 +17,7 @@ from tests.pxi.evals.evaluators.tools import (
 # ``@create_evaluator`` decorators in this package.
 EVALUATORS_BY_NAME: dict[str, Any] = {
     "correct_tools_called": correct_tools_called,
+    "in_app_links_valid": in_app_links_valid,
     "tool_call_args_match": tool_call_args_match,
     "set_spans_filter_args_match": set_spans_filter_args_match,
 }
@@ -23,6 +25,7 @@ EVALUATORS_BY_NAME: dict[str, Any] = {
 __all__ = [
     "EVALUATORS_BY_NAME",
     "correct_tools_called",
+    "in_app_links_valid",
     "set_spans_filter_args_match",
     "tool_call_args_match",
 ]
