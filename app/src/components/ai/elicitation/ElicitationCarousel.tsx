@@ -157,8 +157,8 @@ export function ElicitationCarousel({
    *   (including focused option buttons and inline text inputs).
    * - Plain Enter from a single-line text input (the inline freeform option
    *   entry) also advances or submits.
-   * The freeform `<textarea>` handles Enter via its own onKeyDown and stops
-   * propagation through `preventDefault`, so it is not handled here.
+   * The freeform `<textarea>` handles Enter via its own onKeyDown, so it is not
+   * handled here.
    * IME-safe via the `isComposing` guard.
    */
   const handleContainerKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
