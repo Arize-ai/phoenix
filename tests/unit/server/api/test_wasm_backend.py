@@ -590,6 +590,24 @@ class TestSandboxBackendsResolverWASMStatus:
         assert wasm.status == SandboxBackendStatus.UNAVAILABLE
         assert wasm.status_detail == detail
 
+    async def test_wasm_reports_disabled_when_excluded_by_env(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from phoenix.server.api.types.SandboxConfig import (
+            SandboxBackendStatus,
+            get_sandbox_backend_info,
+        )
+        from phoenix.server.sandbox import _SANDBOX_ADAPTERS
+
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "DENO")
+        with patch.dict(_SANDBOX_ADAPTERS, {"WASM": WASMAdapter()}, clear=False):
+            infos = await get_sandbox_backend_info(
+                secrets=_empty_secrets_context(),
+            )
+        wasm = next(info for info in infos if info.backend_type.value == "WASM")
+        assert wasm.status == SandboxBackendStatus.DISABLED
+        assert wasm.status_detail == "Disabled on the server."
+
     async def test_wasm_status_path_does_not_invoke_network(self) -> None:
         """Resolver-level guarantee: even when the probe is exercised end-to-end,
         ``urllib.request.urlretrieve`` is never called.

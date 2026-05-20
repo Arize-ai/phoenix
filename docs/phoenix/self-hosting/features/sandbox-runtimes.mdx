@@ -6,7 +6,7 @@ description: How Phoenix's code-execution sandbox backends are wired in self-hos
 Phoenix supports multiple code-execution sandbox providers for evaluators and other LLM-driven workflows. This page describes which providers are ready to use in the official `arizephoenix/phoenix` container and what extra setup the others need.
 
 <Info>
-The provider list, their advertised capabilities, and the status reported under **Settings → Sandboxes** are all driven by the static registry in `src/phoenix/server/sandbox/__init__.py` (`SANDBOX_ADAPTER_METADATA`). When a provider's optional Python extra is missing the adapter is dropped from the runtime registry and shows as `NOT_INSTALLED`; when its credentials are missing it shows as `MISSING_CREDENTIALS`; runtime-asset gates (Deno binary on `PATH`, CPython WASM binary file present) surface as `UNAVAILABLE` with a `statusDetail` string you can act on.
+The provider list, their advertised capabilities, and the status reported under **Settings → Sandboxes** are all driven by the static registry in `src/phoenix/server/sandbox/__init__.py` (`SANDBOX_ADAPTER_METADATA`). When a provider's optional Python extra is missing the adapter is dropped from the runtime registry and shows as `NOT_INSTALLED`; when its credentials are missing it shows as `MISSING_CREDENTIALS`; runtime-asset gates (Deno binary on `PATH`, CPython WASM binary file present) surface as `UNAVAILABLE` with a `statusDetail` string you can act on. Providers excluded by `PHOENIX_ALLOWED_SANDBOX_PROVIDERS` show as `DISABLED` and take precedence over the capability states above.
 </Info>
 
 ## Overview
@@ -89,6 +89,26 @@ pip install 'arize-phoenix[vercel]'   # Vercel Sandbox (Python and TypeScript)
 ```
 
 Provider credentials are configured under **Settings → Sandboxes** or via the Phoenix sandbox environment variables listed in the matrix below.
+
+## Restricting which providers are allowed
+
+Set `PHOENIX_ALLOWED_SANDBOX_PROVIDERS` to a comma-separated allowlist (case-insensitive). Unset means all providers are allowed; `NONE` disables every provider. Unknown names fail at startup.
+
+```bash
+export PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO   # local only
+export PHOENIX_ALLOWED_SANDBOX_PROVIDERS=NONE        # disable all
+```
+
+Disallowed providers show as `DISABLED` under **Settings → Sandboxes** with the tooltip "Disabled on the server.", and the startup banner prints a per-provider summary:
+
+```
+|  📦 Code Sandbox Providers 📦
+|  - DAYTONA: ❌ Disabled
+|  - DENO: ✅ Allowed
+|  - WASM: ✅ Allowed
+```
+
+The allowlist gates execution only; stored `SandboxConfig` rows for disallowed providers are preserved and reactivate when the provider is re-allowed.
 
 ## Compatibility matrix
 
