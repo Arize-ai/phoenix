@@ -92,7 +92,7 @@ class DenoSandboxBackend(BaseNoSessionBackend):
         session_key: str,
         timeout: Optional[int] = None,
     ) -> ExecutionResult:
-        proc: asyncio.subprocess.Process | None = None
+        process: asyncio.subprocess.Process | None = None
         cmd = self._build_command()
         exec_timeout = timeout if timeout is not None else 30
 
@@ -101,7 +101,7 @@ class DenoSandboxBackend(BaseNoSessionBackend):
         # coroutines; the working timeout below guarantees slots free up.
         async with _get_execution_slots():
             try:
-                proc = await asyncio.create_subprocess_exec(
+                process = await asyncio.create_subprocess_exec(
                     *cmd,
                     stdin=asyncio.subprocess.PIPE,
                     stdout=asyncio.subprocess.PIPE,
@@ -109,20 +109,20 @@ class DenoSandboxBackend(BaseNoSessionBackend):
                     env=self._build_subprocess_env(),
                 )
                 stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                    proc.communicate(code.encode("utf-8")),
+                    process.communicate(code.encode("utf-8")),
                     timeout=exec_timeout,
                 )
                 stdout = stdout_bytes.decode("utf-8", errors="replace")
                 stderr = stderr_bytes.decode("utf-8", errors="replace")
-                if proc.returncode == 0:
+                if process.returncode == 0:
                     return ExecutionResult(stdout=stdout, stderr=stderr)
-                error = stderr or f"Deno process exited with code {proc.returncode}"
+                error = stderr or f"Deno process exited with code {process.returncode}"
                 return ExecutionResult(stdout=stdout, stderr=stderr, error=error)
             except asyncio.TimeoutError:
-                if proc is not None:
-                    proc.kill()
+                if process is not None:
+                    process.kill()
                     try:
-                        await proc.wait()
+                        await process.wait()
                     except Exception:
                         logger.debug("Timed-out Deno process failed to exit cleanly", exc_info=True)
                 message = f"Execution timed out after {exec_timeout}s"
@@ -138,18 +138,18 @@ class DenoSandboxBackend(BaseNoSessionBackend):
             finally:
                 # Terminate the child on ANY exit from this block. An outer
                 # asyncio.wait_for (CodeEvaluatorRunner wraps execute()) can
-                # fire while proc.communicate() is in flight — its
+                # fire while process.communicate() is in flight — its
                 # CancelledError is a BaseException, so it is NOT caught by
                 # the handlers above and the asyncio.TimeoutError cleanup is
                 # skipped. Without this finally the Deno child would outlive
                 # its execute() call, and stop_session() is a no-op for this
-                # stateless backend. proc.kill() is a synchronous SIGKILL;
+                # stateless backend. process.kill() is a synchronous SIGKILL;
                 # asyncio's child watcher reaps the process once it exits.
                 # The returncode guard makes this a no-op on the success and
                 # asyncio.TimeoutError paths, where the process is already
                 # reaped.
-                if proc is not None and proc.returncode is None:
-                    proc.kill()
+                if process is not None and process.returncode is None:
+                    process.kill()
 
     async def close(self) -> None:
         pass
