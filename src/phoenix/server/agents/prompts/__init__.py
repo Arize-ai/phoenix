@@ -1,31 +1,33 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 
 from jinja2 import Template
 
 from phoenix.server.agents.prompts.templating import get_template
 
-_PROMPTS_DIR = Path(__file__).parent
-
-
-def _read(relpath: str) -> str:
-    return (_PROMPTS_DIR / relpath).read_text(encoding="utf-8").rstrip("\n")
-
-
-_BASE_INSTRUCTIONS = _read("base/BASE_INSTRUCTIONS.xml")
-_DOCS_TOOL_INSTRUCTIONS = _read("tools/DOCS_TOOL_INSTRUCTIONS.xml")
-_BASH_TOOL_INSTRUCTIONS = _read("tools/BASH_TOOL_INSTRUCTIONS.xml")
-_ASK_USER_TOOL_INSTRUCTIONS = _read("tools/ASK_USER_TOOL_INSTRUCTIONS.xml")
-_SET_TIME_RANGE_TOOL_INSTRUCTIONS = _read("tools/SET_TIME_RANGE_TOOL_INSTRUCTIONS.xml")
-_RENDER_GENERATIVE_UI_TOOL_INSTRUCTIONS = _read("tools/RENDER_GENERATIVE_UI_TOOL_INSTRUCTIONS.xml")
-_SET_SPANS_FILTER_TOOL_INSTRUCTIONS = _read("tools/SET_SPANS_FILTER_TOOL_INSTRUCTIONS.xml")
-_READ_PROMPT_INSTANCE_TOOL_INSTRUCTIONS = _read("tools/READ_PROMPT_INSTANCE_TOOL_INSTRUCTIONS.xml")
-_CLONE_PROMPT_INSTANCE_TOOL_INSTRUCTIONS = _read(
-    "tools/CLONE_PROMPT_INSTANCE_TOOL_INSTRUCTIONS.xml"
-)
-_EDIT_PROMPT_INSTANCE_TOOL_INSTRUCTIONS = _read("tools/EDIT_PROMPT_INSTANCE_TOOL_INSTRUCTIONS.xml")
+_BASE_INSTRUCTIONS = get_template("base/BASE_INSTRUCTIONS.xml.j2").render()
+_DOCS_TOOL_INSTRUCTIONS = get_template("tools/DOCS_TOOL_INSTRUCTIONS.xml.j2").render()
+_BASH_TOOL_INSTRUCTIONS = get_template("tools/BASH_TOOL_INSTRUCTIONS.xml.j2").render()
+_ASK_USER_TOOL_INSTRUCTIONS = get_template("tools/ASK_USER_TOOL_INSTRUCTIONS.xml.j2").render()
+_SET_TIME_RANGE_TOOL_INSTRUCTIONS = get_template(
+    "tools/SET_TIME_RANGE_TOOL_INSTRUCTIONS.xml.j2"
+).render()
+_RENDER_GENERATIVE_UI_TOOL_INSTRUCTIONS = get_template(
+    "tools/RENDER_GENERATIVE_UI_TOOL_INSTRUCTIONS.xml.j2"
+).render()
+_SET_SPANS_FILTER_TOOL_INSTRUCTIONS = get_template(
+    "tools/SET_SPANS_FILTER_TOOL_INSTRUCTIONS.xml.j2"
+).render()
+_READ_PROMPT_INSTANCE_TOOL_INSTRUCTIONS = get_template(
+    "tools/READ_PROMPT_INSTANCE_TOOL_INSTRUCTIONS.xml.j2"
+).render()
+_CLONE_PROMPT_INSTANCE_TOOL_INSTRUCTIONS = get_template(
+    "tools/CLONE_PROMPT_INSTANCE_TOOL_INSTRUCTIONS.xml.j2"
+).render()
+_EDIT_PROMPT_INSTANCE_TOOL_INSTRUCTIONS = get_template(
+    "tools/EDIT_PROMPT_INSTANCE_TOOL_INSTRUCTIONS.xml.j2"
+).render()
 _APP_CONTEXT_TEMPLATE = get_template("context/APP_CONTEXT_INSTRUCTIONS.xml.j2")
 _PROJECT_CONTEXT_TEMPLATE = get_template("context/PROJECT_CONTEXT_INSTRUCTIONS.xml.j2")
 _TRACE_CONTEXT_TEMPLATE = get_template("context/TRACE_CONTEXT_INSTRUCTIONS.xml.j2")
@@ -33,7 +35,9 @@ _SPAN_CONTEXT_TEMPLATE = get_template("context/SPAN_CONTEXT_INSTRUCTIONS.xml.j2"
 _PLAYGROUND_CONTEXT_TEMPLATE = get_template("context/PLAYGROUND_CONTEXT_INSTRUCTIONS.xml.j2")
 _GRAPHQL_MUTATIONS_TEMPLATE = get_template("context/GRAPHQL_MUTATIONS_INSTRUCTIONS.xml.j2")
 
-SUMMARIZATION_SYSTEM_PROMPT = _read("summarization/SUMMARIZATION_PROMPT_INSTRUCTIONS.xml")
+SUMMARIZATION_SYSTEM_PROMPT = get_template(
+    "summarization/SUMMARIZATION_PROMPT_INSTRUCTIONS.xml.j2"
+).render()
 
 
 @dataclass(frozen=True)
