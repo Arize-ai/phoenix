@@ -49,6 +49,11 @@ export function ElicitationOptionButton({
         if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
           return;
         }
+        // Let the carousel-level shortcut handle submit/advance without this
+        // option also toggling in the same bubbling key event.
+        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+          return;
+        }
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           onToggle();

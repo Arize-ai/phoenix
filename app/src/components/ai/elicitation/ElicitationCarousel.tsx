@@ -130,6 +130,75 @@ export function ElicitationCarousel({
     onSubmit({ answers, freeformTexts });
   };
 
+  /**
+   * Advance the carousel: submit if on the last question, otherwise go next.
+   * No-op if the current question cannot be advanced (no answer and no skip).
+   */
+  const advanceOrSubmit = () => {
+    const currentQuestionAnswers = answers[questions[currentIndex].id];
+    const currentHasAnswer = Array.isArray(currentQuestionAnswers)
+      ? currentQuestionAnswers.length > 0
+      : !!currentQuestionAnswers;
+    const currentCanAdvance =
+      currentHasAnswer || questions[currentIndex].allow_skip === true;
+    if (!currentCanAdvance) {
+      return;
+    }
+    if (currentIndex === total - 1) {
+      handleSubmit();
+    } else {
+      goTo(currentIndex + 1);
+    }
+  };
+
+  /**
+   * Container-level keyboard shortcuts:
+   * - Cmd/Ctrl+Enter advances or submits from anywhere in the carousel
+   *   (including focused option buttons and inline text inputs).
+   * - Plain Enter from a single-line text input (the inline freeform option
+   *   entry) also advances or submits.
+   * The freeform `<textarea>` handles Enter via its own onKeyDown, so it is not
+   * handled here.
+   * IME-safe via the `isComposing` guard.
+   */
+  const handleContainerKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Enter" || e.nativeEvent.isComposing) {
+      return;
+    }
+    const target = e.target as HTMLElement;
+    const isTextarea = target.tagName === "TEXTAREA";
+    if (isTextarea) {
+      return;
+    }
+    const isSingleLineInput =
+      target.tagName === "INPUT" &&
+      (target as HTMLInputElement).type === "text";
+    if (e.metaKey || e.ctrlKey || isSingleLineInput) {
+      e.preventDefault();
+      advanceOrSubmit();
+    }
+  };
+
+  /**
+   * Freeform textarea keyboard handling:
+   * - Enter advances/submits
+   * - Shift+Enter inserts a newline (default behavior)
+   * - Cmd/Ctrl+Enter also advances/submits
+   * - IME-safe via the `isComposing` guard
+   */
+  const handleFreeformKeyDown = (
+    e: React.KeyboardEvent<HTMLTextAreaElement>
+  ) => {
+    if (e.key !== "Enter" || e.nativeEvent.isComposing) {
+      return;
+    }
+    if (e.shiftKey) {
+      return;
+    }
+    e.preventDefault();
+    advanceOrSubmit();
+  };
+
   // Stagger delays for entry animation
   const stagger = isInitialMount.current ? STAGGER : 0;
   const headerDelay = stagger;
@@ -148,7 +217,7 @@ export function ElicitationCarousel({
 
   return (
     <FocusScope autoFocus contain restoreFocus>
-      <div css={elicitationCarouselCSS}>
+      <div css={elicitationCarouselCSS} onKeyDown={handleContainerKeyDown}>
         {/* Header with step indicator and dots */}
         <motion.div
           className="elicitation__header"
@@ -223,7 +292,8 @@ export function ElicitationCarousel({
                     onChange={(e) =>
                       setFreeformAnswer(question.id, e.target.value)
                     }
-                    placeholder="Type your response…"
+                    onKeyDown={handleFreeformKeyDown}
+                    placeholder="Type your response… (Enter to submit, Shift+Enter for newline)"
                     aria-label={question.prompt}
                   />
                 </motion.div>
