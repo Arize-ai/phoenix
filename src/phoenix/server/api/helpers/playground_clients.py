@@ -2611,16 +2611,11 @@ class AnthropicReasoningStreamingClient(AnthropicStreamingClient):
     pass
 
 
-GEMINI_2_0_MODELS = [
-    PROVIDER_DEFAULT,
-    "gemini-2.0-flash-lite",  # Will be deprecated and will be shut down on June 1, 2026.
-    "gemini-2.0-flash-001",  # Will be deprecated and will be shut down on June 1, 2026.
-]
-
-
 @register_llm_client(
     provider_key=GenerativeProviderKey.GOOGLE,
-    model_names=GEMINI_2_0_MODELS,
+    model_names=[
+        PROVIDER_DEFAULT,
+    ],
 )
 class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
     @property
@@ -3483,12 +3478,6 @@ async def _get_builtin_provider_client(
             "LLMClientFactory[GoogleAsyncClient]",
             LLMClientFactory(create_google_client, google_rate_limit_key(api_key, None)),
         )
-        if model_name in GEMINI_2_0_MODELS:
-            return GoogleStreamingClient(
-                client_factory=google_client_factory,
-                model_name=model_name,
-                provider=provider,
-            )
         if model_name in GEMINI_2_5_MODELS:
             return Gemini25GoogleStreamingClient(
                 client_factory=google_client_factory,
@@ -3997,12 +3986,6 @@ async def _get_custom_provider_client(
             google_genai_client_factory = cfg.get_client_factory(extra_headers=headers)
         except Exception as e:
             raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
-        if model_name in GEMINI_2_0_MODELS:
-            return GoogleStreamingClient(
-                client_factory=google_genai_client_factory,
-                model_name=model_name,
-                provider=provider,
-            )
         if model_name in GEMINI_2_5_MODELS:
             return Gemini25GoogleStreamingClient(
                 client_factory=google_genai_client_factory,
