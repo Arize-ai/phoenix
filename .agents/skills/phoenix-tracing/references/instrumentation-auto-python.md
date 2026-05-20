@@ -71,6 +71,36 @@ from phoenix.otel import register
 register(project_name="my-app")
 ```
 
+**OTel GenAI packages** (from [opentelemetry-python-genai](https://github.com/open-telemetry/opentelemetry-python-genai/tree/main/instrumentation)):
+
+- `opentelemetry-instrumentation-anthropic`
+- `opentelemetry-instrumentation-openai`
+
+```bash
+pip install opentelemetry-instrumentation-anthropic
+```
+
+```python
+from phoenix.otel import register
+from opentelemetry.instrumentation.anthropic import AnthropicInstrumentor
+import anthropic
+
+register(project_name="my-app")
+
+# Instrument Anthropic
+AnthropicInstrumentor().instrument()
+
+# Use Anthropic client as normal — spans are created automatically
+client = anthropic.Anthropic()
+response = client.messages.create(
+    model="claude-3-5-sonnet-20241022",
+    max_tokens=1024,
+    messages=[
+        {"role": "user", "content": "Hello, Claude!"}
+    ]
+)
+```
+
 ## Limitations
 
 Auto-instrumentation does NOT capture:
