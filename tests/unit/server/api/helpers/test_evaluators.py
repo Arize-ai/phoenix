@@ -3677,7 +3677,6 @@ class TestGetEvaluators:
         db: Any,
         seed_languages: None,
     ) -> None:
-        """NotFound raised for a CodeEvaluator with no sandbox must name the evaluator."""
         async with db() as session:
             dataset = models.Dataset(name="test-dataset-code-no-sandbox", metadata_={})
             session.add(dataset)

@@ -1,13 +1,3 @@
-"""Tests for WASMBackend and WASMAdapter.
-
-Tests that require the wasmtime package are marked with the ``wasmtime`` import
-guard — they are skipped automatically when wasmtime is not installed.
-
-Execution tests use a real WASM binary path fixture if available, otherwise
-they test only the non-execution surface (start/stop session no-ops, adapter
-metadata, build_backend config plumbing).
-"""
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -32,16 +22,6 @@ from phoenix.server.sandbox.wasm_backend import (  # noqa: E402
 
 
 def _empty_secrets_context() -> SecretsContext:
-    """A ``SecretsContext`` whose DB lookups all resolve to "nothing".
-
-    The resolver tests below exercise ``get_sandbox_backend_info`` which:
-    (a) reads provider credentials via ``session.scalars(...)``, and
-    (b) reads the deployment row via ``session.get(...)``.
-    Neither call should produce real DB results — we just need awaitable
-    stubs so the await sites don't TypeError. The behavior under test is
-    the WASM-binary probe path; credential and deployment resolution are
-    out of scope.
-    """
     empty_scalars_result = MagicMock()
     empty_scalars_result.all = MagicMock(return_value=[])
     session = MagicMock(
@@ -52,8 +32,6 @@ def _empty_secrets_context() -> SecretsContext:
 
 
 class TestWASMBackendSessionNoop:
-    """WASMBackend inherits BaseNoSessionBackend — start/stop are no-ops."""
-
     async def test_start_session_does_not_raise(self) -> None:
         backend = WASMBackend()
         await backend.start_session("any-key")
@@ -68,10 +46,7 @@ class TestWASMBackendSessionNoop:
 
 
 class TestWASMBackendExecute:
-    """WASMBackend.execute() delegates to _run_wasm in a thread executor."""
-
     async def test_execute_resolves_binary_and_delegates_to_run_wasm(self) -> None:
-        """execute() resolves the binary via ensure_wasm_binary, then delegates to _run_wasm."""
         expected = ExecutionResult(stdout="hello\n", stderr="")
         fake_path = Path("/downloaded/cpython.wasm")
         backend = WASMBackend()
@@ -93,10 +68,7 @@ class TestWASMBackendExecute:
 
 
 class TestRunWasm:
-    """_run_wasm returns ExecutionResult with error field on exception."""
-
     def test_returns_error_result_on_exception(self) -> None:
-        # Pass a nonexistent path — wasmtime.Module.from_file will raise
         result = _run_wasm(Path("/does/not/exist.wasm"), "x=1", timeout=5)
         assert result.error is not None
         assert not result.success
@@ -107,9 +79,6 @@ class TestWASMAdapter:
         assert WASMAdapter.backend_type == "WASM"
 
     def test_supported_languages_from_config_literal(self) -> None:
-        # The Config's ``language: Literal[...]`` is the structural source of
-        # truth for supported languages; the adapter no longer carries a
-        # separate ``supported_languages`` frozenset.
         from typing import get_args
 
         assert get_args(WASMAdapter.config_model.model_fields["language"].annotation) == ("PYTHON",)
@@ -127,8 +96,6 @@ class TestWASMAdapter:
 
 
 class TestEngineCaching:
-    """Engine and module are cached together to avoid cross-engine misuse."""
-
     def test_get_engine_and_module_caches_by_path(self) -> None:
         from phoenix.server.sandbox.wasm_backend import _MODULE_CACHE, _get_engine_and_module
 
@@ -166,19 +133,9 @@ class TestEngineCaching:
 
 
 class TestRunWasmStdoutCapture:
-    """_run_wasm captures stdout/stderr via WasiConfig setter-property assignment.
-
-    Patches _get_engine_and_module and Linker.instantiate to exercise the real
-    WasiConfig setter-property code path without a WASM binary.  A real
-    wasmtime.Func is used for _start so isinstance(start, wasmtime.Func) passes;
-    its callback invokes the captured stdout callback, proving bytes flow through
-    the accumulator and are decoded into result.stdout.
-    """
-
     def test_stdout_captured_via_setter_property(self) -> None:
         import wasmtime
 
-        # Captures the stdout/stderr callbacks registered via setter assignment
         stdout_cb_holder: list[Any] = []
         stderr_cb_holder: list[Any] = []
 
@@ -304,7 +261,6 @@ class TestRunWasmStdoutCapture:
         assert result.stderr == "error output\n"
 
     def test_wasi_config_setter_raises_on_read(self) -> None:
-        """WasiConfig.stdout_custom is set-only — reading it raises AttributeError."""
         import wasmtime
 
         wasi = wasmtime.WasiConfig()
@@ -312,7 +268,6 @@ class TestRunWasmStdoutCapture:
             _ = wasi.stdout_custom
 
     def test_stdin_assigned_via_setter_property(self) -> None:
-        """wasi.stdin_file assignment (not method call) is the correct API."""
         import wasmtime
 
         stdin_path_holder: list[Any] = []
@@ -375,8 +330,6 @@ class TestRunWasmStdoutCapture:
 
 
 class TestTempFileCleanup:
-    """_run_wasm cleans up its temp stdin file after execution."""
-
     def test_stdin_temp_file_is_deleted_after_run(self, tmp_path: Path) -> None:
         import wasmtime
 
@@ -406,7 +359,6 @@ class TestTempFileCleanup:
         assert not stdin_path.exists()
 
     def test_no_env_inherited_into_sandbox(self) -> None:
-        """Verify wasi.inherit_env() is not called — user code gets no server env."""
         import wasmtime
 
         mock_wasi = MagicMock()
@@ -425,15 +377,6 @@ class TestTempFileCleanup:
 
 
 class TestWASMAdapterProbeBinary:
-    """WASMAdapter.probe_binary() reports binary-asset availability without I/O.
-
-    The probe is the capability-probe path — it reports whether the CPython
-    WASM binary is locally resolvable so the GraphQL sandboxBackends resolver
-    can surface accurate ``SandboxBackendStatus``. It MUST NOT touch the
-    network and MUST NOT create cache files; the assertions below pin those
-    invariants explicitly.
-    """
-
     def test_probe_returns_available_when_resolver_returns_path(self) -> None:
         fake_path = Path("/opt/phoenix/wasm/python-3.12.0.wasm")
         with patch(
@@ -486,10 +429,6 @@ class TestWASMAdapterProbeBinary:
         mock_retrieve.assert_not_called()
 
     def test_probe_returns_no_local_storage_detail(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """In no-local-storage mode (postgres configured, no working dir set)
-        with no operator-supplied binary path, the probe surfaces the
-        canonical short-form remediation string used by the settings panel.
-        """
         monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
         with patch(
             "phoenix.server.sandbox._download.resolve_wasm_binary_if_present",
@@ -512,22 +451,10 @@ class TestWASMAdapterProbeBinary:
     def test_probe_does_not_invoke_real_resolver_network_path(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        """End-to-end with the real resolver: env var unset, empty cache → no
-        download attempted, resolver returns None.
-
-        Calls ``resolve_wasm_binary_if_present`` directly so the cache_dir
-        argument can be redirected to an empty tmp dir (the default cache
-        path may exist on dev workstations). Patches
-        ``urllib.request.urlretrieve`` to fail any attempted network call —
-        the assertion that the resolver did NOT invoke it is the critical
-        check that the probe path stays side-effect-free.
-        ``WASMAdapter.probe_binary()`` itself is exercised end-to-end in
-        the other tests in this class.
-        """
         from phoenix.server.sandbox import _download
 
         monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
-        empty_cache = tmp_path / "cache"  # does not exist; resolver must not create it
+        empty_cache = tmp_path / "cache"
         with patch(
             "urllib.request.urlretrieve", side_effect=AssertionError("network used")
         ) as mock_retrieve:
@@ -538,15 +465,6 @@ class TestWASMAdapterProbeBinary:
 
 
 class TestSandboxBackendsResolverWASMStatus:
-    """The sandboxBackends GraphQL resolver layers ``WASMAdapter.probe_binary()``
-    on top of build_backend() so that status reflects binary-asset presence,
-    not just SDK-importability.
-
-    These tests exercise the resolver helper ``get_sandbox_backend_info``
-    directly — it is the single locus of the probe wiring and is more
-    surgical to test than the full GraphQL surface.
-    """
-
     async def test_wasm_reports_available_when_probe_finds_binary(self) -> None:
         from phoenix.server.api.types.SandboxConfig import (
             SandboxBackendStatus,
@@ -633,9 +551,6 @@ class TestSandboxBackendsResolverWASMStatus:
         assert wasm.status_detail == "Disabled on the server."
 
     async def test_wasm_reports_no_local_storage_status_detail(self) -> None:
-        """The settings panel surfaces the short-form remediation when the
-        probe reports no-local-storage mode.
-        """
         from phoenix.server.api.types.SandboxConfig import (
             SandboxBackendStatus,
             get_sandbox_backend_info,
@@ -657,9 +572,6 @@ class TestSandboxBackendsResolverWASMStatus:
         assert wasm.status_detail == detail
 
     async def test_wasm_status_path_does_not_invoke_network(self) -> None:
-        """Resolver-level guarantee: even when the probe is exercised end-to-end,
-        ``urllib.request.urlretrieve`` is never called.
-        """
         from phoenix.server.api.types.SandboxConfig import (
             get_sandbox_backend_info,
         )

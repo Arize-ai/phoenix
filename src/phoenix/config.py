@@ -1212,16 +1212,8 @@ def get_env_allowed_sandbox_providers() -> frozenset[SandboxBackendType]:
     """Effective set of allowed sandbox provider kind names.
 
     - Unset → ``SANDBOX_BACKEND_TYPES`` (all kinds allowed).
-    - Parsed tokens include ``NONE`` → empty frozenset (kill switch; other
-      tokens in the same value are not applied).
+    - Token ``NONE`` → empty frozenset (kill switch; other tokens ignored).
     - Otherwise → frozenset of stripped, uppercased comma-separated tokens.
-
-    The concrete return value is always a ``frozenset``. It is annotated
-    as ``frozenset[SandboxBackendType]`` because callers only need
-    membership tests against the closed kind set; the parsed branch uses
-    ``typing.cast`` since parsing alone would infer ``frozenset[str]``.
-    ``validate_env_allowed_sandbox_providers`` runs at startup and rejects
-    unknown names before the server reads this setting for allowlisting.
     """
     from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
 
@@ -1235,10 +1227,7 @@ def get_env_allowed_sandbox_providers() -> frozenset[SandboxBackendType]:
 
 
 def validate_env_allowed_sandbox_providers() -> None:
-    """Raise ValueError if PHOENIX_ALLOWED_SANDBOX_PROVIDERS contains unknown
-    provider kinds. Called at startup so typos fail fast rather than silently
-    locking out every provider.
-    """
+    """Raise ValueError if PHOENIX_ALLOWED_SANDBOX_PROVIDERS contains unknown provider kinds."""
     from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
 
     if names := get_env_allowed_sandbox_providers() - SANDBOX_BACKEND_TYPES:

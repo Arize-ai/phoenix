@@ -51,8 +51,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # languages: natural PK on name so adapter/config tables FK by language
-    # string directly (no surrogate key indirection).
     op.create_table(
         "languages",
         sa.Column("name", sa.String, primary_key=True),
@@ -122,14 +120,8 @@ def upgrade() -> None:
         sa.UniqueConstraint("language", "id"),  # needed for the composite FK
     )
 
-    # code_evaluators: ADD COLUMN to a pre-existing table requires batch_alter_table on SQLite.
-    # The composite FK fk_code_evaluators_sandbox_config_language is named explicitly because
-    # its auto-generated name (column_0_name="sandbox_config_id") would collide with the
-    # simple FK on the same first column.
-    #
-    # `language` is added with server_default="PYTHON" only to backfill any existing rows
-    # under the new NOT NULL constraint; the persistent DDL default is dropped immediately
-    # after so callers must always supply a value.
+    # Composite FK named explicitly to avoid collision with the simple FK on
+    # sandbox_config_id (both would auto-name to the same identifier).
     with op.batch_alter_table("code_evaluators") as batch_op:
         batch_op.add_column(
             sa.Column(
@@ -169,8 +161,6 @@ def upgrade() -> None:
             ["id", "language"],
         )
 
-    # code_evaluator_code_versions: revision history of evaluator code. Language is immutable
-    # evaluator identity, so it lives only on code_evaluators.
     op.create_table(
         "code_evaluator_code_versions",
         sa.Column("id", _Integer, primary_key=True),
@@ -207,7 +197,6 @@ def downgrade() -> None:
     # Drop code_evaluator_code_versions first (FKs into code_evaluators).
     op.drop_table("code_evaluator_code_versions")
 
-    # Then remove composite FK + denormalized columns from code_evaluators.
     with op.batch_alter_table("code_evaluators") as batch_op:
         batch_op.drop_constraint("fk_code_evaluators_sandbox_config_language", type_="foreignkey")
         batch_op.drop_index("ix_code_evaluators_sandbox_config_id")

@@ -1,5 +1,3 @@
-"""Tests for capability advertisement via sandboxBackends and env_vars config round-trip."""
-
 from __future__ import annotations
 
 import pytest
@@ -50,7 +48,6 @@ async def test_sandbox_backends_full_ui_query_shape(
     gql_client: AsyncGraphQLClient,
     seed_sandbox_providers: None,
 ) -> None:
-    """UI-style query with all capability fields resolves without errors."""
     response = await gql_client.execute(query=_SANDBOX_BACKENDS_QUERY)
     assert not response.errors
     assert response.data is not None
@@ -72,7 +69,6 @@ async def test_sandbox_backends_capability_flags_per_adapter(
     gql_client: AsyncGraphQLClient,
     seed_sandbox_providers: None,
 ) -> None:
-    """Each adapter advertises capability flags consistent with SANDBOX_ADAPTER_METADATA."""
     meta = SANDBOX_ADAPTER_METADATA[backend_type]
     response = await gql_client.execute(query=_SANDBOX_BACKENDS_QUERY)
     assert not response.errors
@@ -92,8 +88,6 @@ async def test_sandbox_config_secret_ref_env_var_round_trips(
     db: DbSessionFactory,
     seed_sandbox_providers: None,
 ) -> None:
-    """A secret_ref env var entry persists through create with a flattened
-    GraphQL shape; the DB still stores the nested pydantic shape."""
     result = await gql_client.execute(
         _CREATE,
         variables={
@@ -123,7 +117,6 @@ async def test_sandbox_config_secret_ref_env_var_round_trips(
         }
     ]
 
-    # DB row stores ``{name: {secret_key}}`` — the pydantic shape.
     config_id = int(GlobalID.from_id(cfg["id"]).node_id)
     async with db() as session:
         row = await session.get(models.SandboxConfig, config_id)

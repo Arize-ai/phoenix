@@ -290,12 +290,8 @@ class ChatCompletionMutationMixin:
                     code_evaluator_record = await session.get(models.CodeEvaluator, db_id)
                     if code_evaluator_record is None:
                         raise BadRequest(f"Code evaluator with id {code_evaluator_id} not found")
-                    # Post-#13055: language is denormalized on the tip and aligned with
-                    # the version row by composite FK; read directly without a Language lookup.
                     language = code_evaluator_record.language
 
-                    # Execution dispatches against the tip's current sandbox_config_id
-                    # so a patchCodeEvaluator takes effect immediately.
                     sandbox_backend = None
                     live_sandbox_config: models.SandboxConfig | None = None
                     sandbox_timeout: int | None = None
@@ -331,7 +327,6 @@ class ChatCompletionMutationMixin:
                             )
                         sandbox_timeout = live_sandbox_config.timeout
 
-                    # Eagerly capture scalar fields before session closes
                     evaluator_name = code_evaluator_record.name.root
                     evaluator_description = code_evaluator_record.description
                     evaluator_source_code = code_evaluator_version.source_code
@@ -378,7 +373,6 @@ class ChatCompletionMutationMixin:
                     sandbox_backend=sandbox_backend,
                     language=language,
                     timeout=sandbox_timeout,
-                    # Backlink the trace to the persisted evaluator version.
                     evaluator_version_id=str(
                         GlobalID("CodeEvaluatorVersion", str(code_evaluator_version.id))
                     ),
@@ -398,7 +392,6 @@ class ChatCompletionMutationMixin:
                 evaluator_description = inline_code_evaluator.description
                 source_code = inline_code_evaluator.source_code
 
-                # Convert output configs
                 output_configs = [
                     c
                     for c in _convert_output_config_inputs_to_pydantic(

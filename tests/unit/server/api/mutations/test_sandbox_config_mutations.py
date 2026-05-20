@@ -1,13 +1,3 @@
-"""GraphQL-layer tests for sandbox config mutations.
-
-Scope: behavior that's surfaced via the GraphQL boundary on
-``createSandboxConfig`` / ``updateSandboxConfig`` / ``deleteSandboxConfig`` /
-``updateSandboxProvider`` — capability gates, timeout invariants, DB
-uniqueness, and rename semantics. Auth behavior is exercised in
-``tests/integration/auth/test_auth.py``; pure pydantic / adapter behavior is
-exercised in ``tests/unit/server/sandbox/``.
-"""
-
 from __future__ import annotations
 
 from collections.abc import Iterator
@@ -34,7 +24,7 @@ _wasm_adapter = WASMAdapter()
 
 @pytest.fixture(autouse=True)
 def _ensure_wasm_sandbox_adapter() -> Iterator[None]:
-    """WASM is omitted from ``_SANDBOX_ADAPTERS`` when wasmtime is not installed."""
+    # WASM is omitted from _SANDBOX_ADAPTERS when wasmtime is not installed.
     if "WASM" in sandbox_module._SANDBOX_ADAPTERS:
         yield
         return
@@ -121,16 +111,12 @@ async def _create_config_for_provider(
 
 
 class TestCapabilityGates:
-    """``update_sandbox_config`` rejects per-adapter capability violations."""
-
     async def test_duplicate_env_var_name_returns_bad_request(
         self,
         gql_client: AsyncGraphQLClient,
         db: DbSessionFactory,
         seed_sandbox_providers: None,
     ) -> None:
-        """The same env-var ``name`` twice is rejected by ``_names_are_unique``
-        on the strawberry input's ``__post_init__``."""
         provider = await _get_provider(db, "E2B")
         config = await _create_config_for_provider(db, provider)
 
@@ -163,7 +149,6 @@ class TestCapabilityGates:
         db: DbSessionFactory,
         seed_sandbox_providers: None,
     ) -> None:
-        """Deno exposes no GraphQL internet-access input, so the schema rejects the field."""
         provider = await _get_provider(db, "DENO")
         config = await _create_config_for_provider(db, provider)
 
@@ -188,8 +173,6 @@ class TestCapabilityGates:
         db: DbSessionFactory,
         seed_sandbox_providers: None,
     ) -> None:
-        """Deno sandboxes intentionally don't accept env vars — ``DenoConfigInput``
-        has no ``envVars`` field, so the GraphQL parser rejects it outright."""
         provider = await _get_provider(db, "DENO")
         config = await _create_config_for_provider(db, provider)
 
@@ -217,8 +200,6 @@ class TestCapabilityGates:
         db: DbSessionFactory,
         seed_sandbox_providers: None,
     ) -> None:
-        """``WASMConfigInput`` has no ``dependencies`` field, so the GraphQL
-        parser rejects it before any pydantic / capability-gate logic runs."""
         provider = await _get_provider(db, "WASM")
         config = await _create_config_for_provider(db, provider)
 
@@ -242,28 +223,11 @@ class TestCapabilityGates:
 
 
 class TestPackageSpecValidationThroughGraphQL:
-    """Invalid per-language package specs are rejected when submitted through
-    the GraphQL input boundary.
-
-    Distinct from the direct-pydantic tests in
-    ``tests/unit/server/sandbox/test_sandbox_config_validation.py`` —
-    those validate ``E2BConfig.model_validate({...})`` with a raw dict. The
-    GraphQL path is structurally different: each per-provider ``ConfigInput``
-    builds nested pydantic submodels (``DependenciesConfig(...)``) and hands
-    them up to the parent ``E2BConfig.model_validate({...})``. Pre-fix, the
-    parent's ``mode='before'`` validator short-circuited on
-    ``isinstance(deps, dict)`` being False and never ran the per-package
-    syntax check on that path. These tests pin that the after-validator
-    closes that gap.
-    """
-
     async def test_create_with_invalid_python_spec_returns_error(
         self,
         gql_client: AsyncGraphQLClient,
         seed_sandbox_providers: None,
     ) -> None:
-        """A pip-shaped Python config with an npm-style spec is rejected at
-        ``createSandboxConfig`` time, before any DB write."""
         with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
             result = await gql_client.execute(
                 _CREATE,
@@ -291,8 +255,6 @@ class TestPackageSpecValidationThroughGraphQL:
         gql_client: AsyncGraphQLClient,
         seed_sandbox_providers: None,
     ) -> None:
-        """A TypeScript Daytona config with a whitespace-containing spec is
-        rejected at ``createSandboxConfig`` time."""
         from phoenix.server.sandbox.daytona_backend import DaytonaAdapter
 
         daytona_adapter = DaytonaAdapter()
@@ -320,23 +282,11 @@ class TestPackageSpecValidationThroughGraphQL:
 
 
 class TestUpdateSandboxConfigInvariants:
-    """Row-immutability invariants on ``update_sandbox_config``.
-
-    The mutation must reject (a) variants that don't match the row's
-    ``backend_type`` and (b) language changes — both pin the
-    discriminator/language pair to what was set at create time. Also
-    covers the Language-Literal rejection on single-language provider
-    inputs (WASM rejects TYPESCRIPT, Deno rejects PYTHON) which fires at
-    pydantic ``model_validate`` time through the GraphQL boundary.
-    """
-
     async def test_wasm_rejects_typescript_language(
         self,
         gql_client: AsyncGraphQLClient,
         seed_sandbox_providers: None,
     ) -> None:
-        """``WASMConfig.language: Literal["PYTHON"]`` rejects TYPESCRIPT
-        at pydantic ``model_validate``; the mutation maps it to BadRequest."""
         result = await gql_client.execute(
             _CREATE,
             variables={
@@ -354,7 +304,6 @@ class TestUpdateSandboxConfigInvariants:
         gql_client: AsyncGraphQLClient,
         seed_sandbox_providers: None,
     ) -> None:
-        """``DenoConfig.language: Literal["TYPESCRIPT"]`` rejects PYTHON."""
         with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"DENO": _deno_adapter}):
             result = await gql_client.execute(
                 _CREATE,
@@ -374,8 +323,6 @@ class TestUpdateSandboxConfigInvariants:
         db: DbSessionFactory,
         seed_sandbox_providers: None,
     ) -> None:
-        """Updating an E2B config with a WASM variant is rejected because
-        ``backend_type`` is row-immutable."""
         provider = await _get_provider(db, "E2B")
         config = await _create_config_for_provider(db, provider)
 
@@ -398,9 +345,6 @@ class TestUpdateSandboxConfigInvariants:
         db: DbSessionFactory,
         seed_sandbox_providers: None,
     ) -> None:
-        """``language`` is row-immutable. Daytona supports both PYTHON and
-        TYPESCRIPT, so the variant↔kind check passes — only the
-        language-immutability guard blocks the rename."""
         provider = await _get_provider(db, "DAYTONA")
         async with db() as session:
             config = models.SandboxConfig(
@@ -428,15 +372,11 @@ class TestUpdateSandboxConfigInvariants:
 
 
 class TestTimeout:
-    """Timeout invariants on the create/update mutations."""
-
     async def test_create_without_timeout_persists_300(
         self,
         gql_client: AsyncGraphQLClient,
         seed_sandbox_providers: None,
     ) -> None:
-        """Creating a config without a timeout falls back to the
-        ``DEFAULT_SANDBOX_TIMEOUT_SECONDS`` (300) constant."""
         with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
             result = await gql_client.execute(
                 _CREATE_WITH_TIMEOUT,
@@ -455,7 +395,6 @@ class TestTimeout:
         gql_client: AsyncGraphQLClient,
         seed_sandbox_providers: None,
     ) -> None:
-        """An explicit timeout on create is persisted verbatim."""
         with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"E2B": _e2b_adapter}):
             result = await gql_client.execute(
                 _CREATE_WITH_TIMEOUT,
@@ -476,8 +415,6 @@ class TestTimeout:
         db: DbSessionFactory,
         seed_sandbox_providers: None,
     ) -> None:
-        """Updating an unrelated field leaves the stored timeout untouched —
-        PATCH semantics, not full replace."""
         provider = await _get_provider(db, "E2B")
         async with db() as session:
             config = models.SandboxConfig(
@@ -509,11 +446,6 @@ class TestTimeout:
         db: DbSessionFactory,
         seed_sandbox_providers: None,
     ) -> None:
-        """``timeout <= 0`` is rejected by ``__post_init__`` on both
-        ``CreateSandboxConfigInput`` and ``UpdateSandboxConfigInput`` —
-        independent copies of the same invariant. Both paths must remain
-        guarded.
-        """
         create_result = await gql_client.execute(
             _CREATE_WITH_TIMEOUT,
             variables={
@@ -546,16 +478,11 @@ class TestTimeout:
 
 
 class TestNameSemantics:
-    """Behavior around SandboxConfig.name on create and update."""
-
     async def test_create_duplicate_name_returns_error(
         self,
         gql_client: AsyncGraphQLClient,
         seed_sandbox_providers: None,
     ) -> None:
-        """Creating two configs with the same ``(backend_type, name)`` pair
-        violates the DB UNIQUE constraint; the create mutation converts the
-        IntegrityError into Conflict."""
         first = await gql_client.execute(
             _CREATE,
             variables={
@@ -585,8 +512,6 @@ class TestNameSemantics:
         seed_sandbox_providers: None,
         db: DbSessionFactory,
     ) -> None:
-        """Renaming a config to an existing name in the same provider
-        triggers the DB UNIQUE constraint on update."""
         provider = await _get_provider(db, "WASM")
         async with db() as session:
             existing = models.SandboxConfig(
@@ -626,7 +551,6 @@ class TestNameSemantics:
         seed_sandbox_providers: None,
         db: DbSessionFactory,
     ) -> None:
-        """Happy-path rename: the new name is applied and persisted."""
         provider = await _get_provider(db, "WASM")
         config = await _create_config_for_provider(db, provider)
         original_id = config.id
@@ -660,8 +584,6 @@ class TestNameSemantics:
         seed_sandbox_providers: None,
         db: DbSessionFactory,
     ) -> None:
-        """``name: null`` is a no-op on update — the existing name is
-        preserved. Distinguishes UNSET, None, and a real Identifier."""
         provider = await _get_provider(db, "WASM")
         config = await _create_config_for_provider(db, provider)
         original_name = config.name
@@ -708,21 +630,11 @@ mutation UpdateSandboxProvider($input: UpdateSandboxProviderInput!) {
 
 
 class TestUpdateSandboxProviderDeployment:
-    """``update_sandbox_provider`` accepts per-provider deployment routing
-    via a ``@oneOf`` variant. The mutation validates against the adapter's
-    typed pydantic deployment model (URL schemes, mutual exclusion, etc.)
-    and persists to ``SandboxProvider.config``; the read field
-    ``SandboxProvider.deployment`` projects the stored blob back through
-    the same validators.
-    """
-
     async def test_daytona_deployment_round_trips(
         self,
         gql_client: AsyncGraphQLClient,
         seed_sandbox_providers: None,
     ) -> None:
-        """Setting a Daytona deployment persists ``api_url`` + ``target`` and
-        the read field surfaces the stored values."""
         result = await gql_client.execute(
             _UPDATE_PROVIDER,
             variables={
@@ -750,7 +662,6 @@ class TestUpdateSandboxProviderDeployment:
         gql_client: AsyncGraphQLClient,
         seed_sandbox_providers: None,
     ) -> None:
-        """E2B accepts ``domain`` alone (``api_url`` left unset)."""
         result = await gql_client.execute(
             _UPDATE_PROVIDER,
             variables={
@@ -773,8 +684,6 @@ class TestUpdateSandboxProviderDeployment:
         gql_client: AsyncGraphQLClient,
         seed_sandbox_providers: None,
     ) -> None:
-        """E2BDeployment's mutual-exclusion validator fires through the
-        mutation boundary; the row's ``config`` is not mutated."""
         result = await gql_client.execute(
             _UPDATE_PROVIDER,
             variables={
@@ -802,8 +711,6 @@ class TestUpdateSandboxProviderDeployment:
         gql_client: AsyncGraphQLClient,
         seed_sandbox_providers: None,
     ) -> None:
-        """Submitting an E2B deployment variant against the Daytona provider
-        row is rejected as ``BadRequest`` before any DB write."""
         result = await gql_client.execute(
             _UPDATE_PROVIDER,
             variables={
@@ -821,8 +728,6 @@ class TestUpdateSandboxProviderDeployment:
         gql_client: AsyncGraphQLClient,
         seed_sandbox_providers: None,
     ) -> None:
-        """The ``api_url`` URL-scheme validator fires through the mutation
-        boundary — non-https/http schemes are rejected."""
         result = await gql_client.execute(
             _UPDATE_PROVIDER,
             variables={
@@ -842,14 +747,9 @@ class TestUpdateSandboxProviderDeployment:
         db: DbSessionFactory,
         seed_sandbox_providers: None,
     ) -> None:
-        """Not sending ``deployment`` is a no-op — the existing stored blob
-        survives an ``enabled``-only update."""
         async with db() as session:
             provider = await session.get(models.SandboxProvider, "DAYTONA")
             assert provider is not None
-            # Stored blobs include the ``kind`` discriminator (writes go
-            # through ``model_dump``); the read path validates via the
-            # ``SandboxDeploymentModel`` discriminated union.
             provider.config = {
                 "backend_type": "DAYTONA",
                 "api_url": "https://prior.daytona.example",
@@ -877,7 +777,6 @@ class TestUpdateSandboxProviderDeployment:
         db: DbSessionFactory,
         seed_sandbox_providers: None,
     ) -> None:
-        """Sending ``deployment: null`` resets deployment routing to provider defaults."""
         async with db() as session:
             provider = await session.get(models.SandboxProvider, "E2B")
             assert provider is not None
@@ -909,8 +808,6 @@ class TestUpdateSandboxProviderDeployment:
         gql_client: AsyncGraphQLClient,
         seed_sandbox_providers: None,
     ) -> None:
-        """Providers whose SDK has no routing kwargs (WASM here) expose
-        ``deployment: null`` on the read side."""
         result = await gql_client.execute(
             """
             query SandboxProvider($id: ID!) {

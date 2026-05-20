@@ -1,15 +1,3 @@
-"""Tests for _coerce_output in coerce_output.py.
-
-Covers all three modes:
-1. Bare passthrough (output_config=None)
-2. CategoricalOutputConfig — label validation + score lookup
-3. ContinuousOutputConfig — numeric extraction + bounds validation
-
-Also covers the bool-exclusion rule throughout, triple-collapse dict
-acceptance, explanation passthrough, multi-output routing, and the new
-no-config rejection of arbitrary dicts/lists.
-"""
-
 from __future__ import annotations
 
 import math
@@ -315,7 +303,6 @@ class TestShapeExamples:
     def test_continuous_shape_examples_includes_bounds_hint(self) -> None:
         config = _cont(lower_bound=0.0, upper_bound=10.0)
         examples = config.shape_examples(language="PYTHON", mode="full")
-        # The dict form should include a bounds range comment
         full_text = "\n".join(examples)
         assert "0.0" in full_text and "10.0" in full_text
 
@@ -325,47 +312,31 @@ class TestShapeExamples:
         assert any("0.5" in ex for ex in examples)
 
     def test_categorical_shape_examples_escapes_label_with_double_quote(self) -> None:
-        """A label containing `"` must produce well-formed Python source.
-
-        Naively interpolating ``f'"{label}"'`` for a label like ``pass"fail``
-        yields ``return "pass"fail"`` — a SyntaxError. json.dumps escapes the
-        embedded quote so the generated literal is valid Python (and TS).
-        """
         config = _cat([('pass"fail', 1.0)])
         examples = config.shape_examples(language="PYTHON", mode="full")
-        # Each example must be syntactically valid Python.
         import ast
 
         for ex in examples:
             ast.parse(ex)
-        # And the bare-return example must contain the escaped form, not the
-        # raw unescaped quote.
         bare = next(ex for ex in examples if ex.startswith("return "))
         assert '"pass\\"fail"' in bare, f"Expected escaped quote in {bare!r}"
 
     def test_categorical_shape_examples_escapes_label_with_backslash(self) -> None:
-        """A label containing `\\` must not introduce an unintended escape sequence."""
         config = _cat([("a\\b", 1.0)])
         examples = config.shape_examples(language="PYTHON", mode="full")
         import ast
 
         for ex in examples:
             ast.parse(ex)
-        # The literal value the generated Python returns must round-trip back
-        # to the original label string.
         bare = next(ex for ex in examples if ex.startswith("return "))
-        # Strip the "return " prefix and eval the literal.
         import ast as _ast
 
         returned = _ast.literal_eval(bare[len("return ") :].strip())
         assert returned == "a\\b"
 
     def test_categorical_shape_examples_typescript_escapes_label(self) -> None:
-        """TypeScript variant must also produce a valid string literal."""
         config = _cat([('say "hi"', 1.0)])
         examples = config.shape_examples(language="TYPESCRIPT", mode="full")
-        # JSON string literal syntax is valid TS string literal syntax, so
-        # the escaped form must appear and the raw unescaped quote must not.
         bare = next(ex for ex in examples if ex.startswith("return "))
         assert '"say \\"hi\\""' in bare, f"Expected escaped quotes in {bare!r}"
 
@@ -373,7 +344,6 @@ class TestShapeExamples:
         config = _cat()
         full = config.shape_examples(mode="full")
         curated = config.shape_examples(mode="curated")
-        # curated should not have more examples than full
         assert len(curated) <= len(full)
 
     def test_shape_examples_in_error_message(self) -> None:

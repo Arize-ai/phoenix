@@ -1,14 +1,4 @@
-"""
-GraphQL mutations for managing sandbox backend configuration.
-
-Provides CRUD for SandboxConfig rows (named per-provider configs that
-CodeEvaluators point to) and update operations for SandboxProvider rows.
-
-The config payload uses a ``@oneOf`` variant: each provider has its own
-typed input shape, so the schema expresses both the provider kind and the
-set of fields that provider accepts. ``language`` lives inside each variant
-because the pydantic config models carry it as part of the stored JSON blob.
-"""
+"""GraphQL mutations for sandbox backend configuration."""
 
 from __future__ import annotations
 
@@ -58,20 +48,12 @@ from phoenix.server.sandbox.types import (
 DEFAULT_SANDBOX_TIMEOUT_SECONDS = 300
 
 
-# ---------------------------------------------------------------------------
-# Shared input building blocks. Capability inputs are reused across provider
-# variants; each pydantic Config model in ``sandbox/types.py`` composes from
-# the same shapes, so one strawberry input per capability is enough.
-# ---------------------------------------------------------------------------
-
-
 @strawberry.input
 class EnvVarInput:
     name: str
     secret_key: str
 
     def to_orm(self) -> EnvVarValue:
-        """Build the pydantic ``EnvVarValue`` for this entry (without the name)."""
         return EnvVarValue(secret_key=self.secret_key)
 
 
@@ -85,21 +67,10 @@ class InternetAccessInput:
 
 @strawberry.input
 class DependenciesInput:
-    """Per-language package list. The package syntax (npm vs pip) is enforced
-    by the parent Config's model_validator, which reads ``language`` from
-    its own field — this leaf doesn't need to know the language."""
-
     packages: list[str] = strawberry.field(default_factory=list)
 
     def to_orm(self) -> DependenciesConfig:
         return DependenciesConfig(packages=list(self.packages))
-
-
-# ---------------------------------------------------------------------------
-# Per-provider config inputs. One per adapter Config pydantic model. Fields
-# mirror the capability mixins each adapter Config composes from (see
-# ``sandbox/types.py``).
-# ---------------------------------------------------------------------------
 
 
 def _names_are_unique(env_vars: list[EnvVarInput]) -> None:
@@ -154,11 +125,7 @@ class DaytonaConfigInput:
 
 @strawberry.input
 class DenoConfigInput:
-    """Deno runs as a local subprocess with no network policy hook and no
-    env-var passthrough. Deno sandboxes intentionally cannot receive any
-    user-supplied environment variables, so this input carries only
-    ``language``."""
-
+    # Deno intentionally has no env-var passthrough or network policy hook.
     language: Language
 
     def to_orm(self) -> DenoConfig:
@@ -188,15 +155,11 @@ class VercelConfigInput:
 
 @strawberry.input
 class WASMConfigInput:
-    """WASM accepts no per-config options beyond ``language`` today."""
-
     language: Language = Language.PYTHON
 
     def to_orm(self) -> WASMConfig:
-        # Route through ``model_validate`` so the ``language: Literal[...]``
-        # narrowing on ``WASMConfig`` rejects an unsupported language as a
-        # pydantic ValidationError, which the variant ``_convert`` maps to
-        # BadRequest. Direct construction would type-error here.
+        # Routed through model_validate so a Literal[...] language mismatch
+        # raises pydantic ValidationError (mapped to BadRequest at the caller).
         return WASMConfig.model_validate({"language": self.language.to_orm()})
 
 
@@ -223,12 +186,7 @@ class ModalConfigInput:
 
 @strawberry.input(one_of=True)
 class SandboxConfigVariantInput:
-    """Config payload, discriminated by provider kind.
-
-    Exactly one variant must be set. ``language`` lives inside each variant
-    (mirroring the pydantic Config's ``language`` field), so the input shape
-    matches the storage shape exactly.
-    """
+    """Config payload, discriminated by provider kind. Exactly one variant must be set."""
 
     e2b: Optional[E2BConfigInput] = strawberry.UNSET
     daytona: Optional[DaytonaConfigInput] = strawberry.UNSET
@@ -238,29 +196,6 @@ class SandboxConfigVariantInput:
     modal: Optional[ModalConfigInput] = strawberry.UNSET
 
     def to_orm(self) -> SandboxConfigModel:
-        """Return the typed pydantic Config from the selected variant.
-
-        Pure dispatch on the @oneOf variant — pydantic ``ValidationError``
-        and friends propagate to the caller. Mutation handlers map
-        ``(ValueError, ValidationError, UnsupportedOperation)`` to
-        ``BadRequest`` at the GraphQL boundary.
-
-        Language-support is enforced structurally by each Config's
-        ``language: Literal[...]`` narrowing — pydantic rejects an
-        unsupported language at ``model_validate`` time. No adapter-
-        installed check either: configs can be authored before the
-        adapter's SDK extra is installed (the operator workflow is
-        "configure now, install later"); adapter availability is enforced
-        at backend-build time and surfaced as
-        ``SandboxBackendStatus.NOT_INSTALLED``.
-
-        Strawberry's ``@oneOf`` enforces exactly-one-set at the schema
-        layer; the trailing ``BadRequest`` is a defensive guard against
-        schema-bypass paths.
-        """
-        # ``Optional[X] = strawberry.UNSET`` means the runtime attribute can be
-        # ``UNSET`` (not provided), ``None`` (provided as null), or an ``X``
-        # instance. Both the ``UNSET`` and ``None`` paths are no-ops.
         if self.e2b is not None and self.e2b is not strawberry.UNSET:
             return self.e2b.to_orm()
         if self.daytona is not None and self.daytona is not strawberry.UNSET:
@@ -274,14 +209,6 @@ class SandboxConfigVariantInput:
         if self.modal is not None and self.modal is not strawberry.UNSET:
             return self.modal.to_orm()
         raise BadRequest("config: exactly one provider variant must be set")
-
-
-# ---------------------------------------------------------------------------
-# Per-provider deployment inputs. Admin-scoped, singleton-per-kind routing
-# kwargs (mirroring ``sandbox_providers.config``). Only providers whose SDK
-# exposes routing kwargs on ``create()`` appear here — the rest accept no
-# deployment input today and are not part of the variant.
-# ---------------------------------------------------------------------------
 
 
 @strawberry.input
@@ -304,37 +231,21 @@ class E2BDeploymentInput:
 
 @strawberry.input(one_of=True)
 class SandboxDeploymentVariantInput:
-    """Deployment payload, discriminated by provider kind.
+    """Deployment payload, discriminated by provider kind. Exactly one variant must be set.
 
-    Exactly one variant must be set. Only providers with non-trivial routing
-    appear here — providers whose SDK has no routing kwargs (WASM, Deno,
-    Vercel, Modal) accept no deployment input and are absent from this
-    variant. Setting a deployment on those providers is a schema-level
-    error.
+    Providers whose SDK has no routing kwargs (WASM, Deno, Vercel, Modal) are
+    absent from this variant.
     """
 
     daytona: Optional[DaytonaDeploymentInput] = strawberry.UNSET
     e2b: Optional[E2BDeploymentInput] = strawberry.UNSET
 
     def to_orm(self) -> SandboxDeploymentModel:
-        """Return the typed pydantic deployment for the selected variant.
-
-        Pure dispatch — pydantic ``ValidationError`` propagates to the
-        caller; the mutation handler maps it to ``BadRequest``. The returned
-        model's ``.kind``
-        discriminator lets the caller match against the URL-encoded
-        ``backend_type``.
-        """
         if self.daytona is not None and self.daytona is not strawberry.UNSET:
             return self.daytona.to_orm()
         if self.e2b is not None and self.e2b is not strawberry.UNSET:
             return self.e2b.to_orm()
         raise BadRequest("deployment: exactly one provider variant must be set")
-
-
-# ---------------------------------------------------------------------------
-# Input types
-# ---------------------------------------------------------------------------
 
 
 @strawberry.input
@@ -350,8 +261,6 @@ class CreateSandboxConfigInput:
             raise BadRequest("timeout must be a positive integer")
 
     def to_orm(self) -> models.SandboxConfig:
-        # ``language`` is read off the validated pydantic Config (which got it
-        # from the variant input). Single source of truth.
         validated = self.config.to_orm()
         return models.SandboxConfig(
             backend_type=validated.backend_type,
@@ -402,11 +311,6 @@ class DeleteSandboxConfigInput:
         return from_global_id_with_expected_type(self.id, expected_type_name=SandboxConfig.__name__)
 
 
-# ---------------------------------------------------------------------------
-# Payload types
-# ---------------------------------------------------------------------------
-
-
 @strawberry.type
 class CreateSandboxConfigPayload:
     sandbox_config: SandboxConfig
@@ -431,15 +335,8 @@ class UpdateSandboxProviderPayload:
     query: Query
 
 
-# ---------------------------------------------------------------------------
-# Mixin
-# ---------------------------------------------------------------------------
-
-
 @strawberry.type
 class SandboxConfigMutationMixin:
-    """Mutations for sandbox backend configuration management."""
-
     @strawberry.mutation(
         permission_classes=[IsNotReadOnly, IsNotViewer, IsAdminIfAuthEnabled, IsLocked]
     )  # type: ignore
@@ -448,7 +345,6 @@ class SandboxConfigMutationMixin:
         info: Info[Context, None],
         input: CreateSandboxConfigInput,
     ) -> CreateSandboxConfigPayload:
-        """Create a new named sandbox configuration under an existing provider."""
         try:
             row = input.to_orm()
         except (ValueError, ValidationError, UnsupportedOperation) as exc:
@@ -475,8 +371,6 @@ class SandboxConfigMutationMixin:
         info: Info[Context, None],
         input: UpdateSandboxConfigInput,
     ) -> UpdateSandboxConfigPayload:
-        """Update fields on an existing SandboxConfig."""
-
         try:
             async with info.context.db() as session:
                 row = await session.get(models.SandboxConfig, input.row_id)
@@ -498,8 +392,7 @@ class SandboxConfigMutationMixin:
                             "to change provider."
                         )
                     if validated.language != row.language:
-                        # ``language`` is row-immutable. Reject mismatched updates the
-                        # same way ``kind`` mismatches are rejected.
+                        # language is row-immutable.
                         raise BadRequest(
                             f"Config language {validated.language!r} does not match "
                             f"existing row language {row.language!r}; language is "
@@ -542,15 +435,6 @@ class SandboxConfigMutationMixin:
         info: Info[Context, None],
         input: UpdateSandboxProviderInput,
     ) -> UpdateSandboxProviderPayload:
-        """Update a sandbox provider's enabled state and/or deployment routing.
-
-        Deployment routing is admin-scoped (singleton per provider kind) and
-        validated against the adapter's typed ``deployment_config_model`` via
-        the variant-input dispatch — the same validators that fire at read
-        time, so blobs cannot be written into a shape that would fail
-        re-validation when the backend is built.
-        """
-
         backend_type = input.backend_type
         async with info.context.db() as session:
             row = await session.get(models.SandboxProvider, backend_type)

@@ -1,16 +1,3 @@
-"""Unit tests for sandbox config validation behavior.
-
-Scope is limited to logic we own:
-- `validate_config()`'s wrapping of pydantic ValidationError as ValueError.
-- `EnvVarValue`'s secret_key-only shape and `extra="forbid"` design contract.
-
-Per-adapter pydantic schema re-verification (round-tripping every adapter's
-config model) is intentionally absent — the cross-adapter conformance suite
-(`test_unified_config_contract.py`) iterates over
-`SANDBOX_ADAPTER_METADATA.keys()` and one representative adapter is enough
-to exercise pydantic's framework behaviour here.
-"""
-
 from __future__ import annotations
 
 from typing import Any, Mapping, Optional
@@ -30,16 +17,10 @@ from phoenix.server.sandbox.types import (
     validate_python_package_spec,
 )
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
 
 def _make_adapter(
     config_model_cls: Any,
 ) -> Any:
-    """Create a minimal SandboxAdapter with the given config_model."""
-
     class _ConcreteAdapter(SandboxAdapter):  # type: ignore[type-arg]
         backend_type = "TEST"  # type: ignore[assignment]
         display_name = "Test"
@@ -60,31 +41,17 @@ def _make_adapter(
     return _ConcreteAdapter()
 
 
-# ---------------------------------------------------------------------------
-# Config validation error path: pydantic ValidationError surfaces directly
-# from ``config_model.model_validate``.
-# ---------------------------------------------------------------------------
-
-
 class TestConfigModelValidation:
-    """Pydantic ValidationError from ``adapter.config_model.model_validate``
-    surfaces with the offending field name for mutation-layer callers."""
-
     def test_pydantic_errors_name_the_offending_field(self) -> None:
         from pydantic import BaseModel, ConfigDict, ValidationError
 
         class RequiredFieldModel(BaseModel):
             model_config = ConfigDict(extra="allow")
-            required_field: str  # no default → required
+            required_field: str
 
         adapter = _make_adapter(RequiredFieldModel)
         with pytest.raises(ValidationError, match="required_field"):
             adapter.config_model.model_validate({})
-
-
-# ---------------------------------------------------------------------------
-# Nested leaf-model extra="forbid"
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -103,23 +70,8 @@ def test_nested_leaf_models_forbid_extra_fields(
         model_cls.model_validate(payload)
 
 
-# ---------------------------------------------------------------------------
-# Package-spec validators + dependency-config string normalization.
-#
-# ``DependenciesConfig`` picks the per-package syntax validator based on the
-# ``language`` threaded via ``ValidationInfo.context``. Tests pass
-# ``context={"language": ...}`` explicitly because they bypass the adapter
-# layer that would normally thread it through.
-# ---------------------------------------------------------------------------
-
-
 def _validate_deps(packages: list[str], language: str) -> DependenciesConfig:
-    # Package-syntax validation lives on the parent ``_Config`` (it reads
-    # ``self.language`` and walks the optional ``dependencies`` capability),
-    # so we exercise it through a concrete per-adapter Config rather than
-    # constructing a bare ``DependenciesConfig`` in isolation. Daytona is
-    # chosen because it accepts both PYTHON and TYPESCRIPT — its Config's
-    # ``language: Literal["PYTHON", "TYPESCRIPT"]`` matches the test matrix.
+    # Daytona chosen because its Config accepts both PYTHON and TYPESCRIPT.
     from phoenix.server.sandbox.types import DaytonaConfig
 
     cfg = DaytonaConfig.model_validate(
@@ -221,17 +173,7 @@ class TestPythonDependenciesValidation:
             _validate_deps(["requests", "bad name!"], "PYTHON")
 
 
-# ---------------------------------------------------------------------------
-# E2BDeployment: ``domain`` and ``api_url`` are mutually exclusive
-# ---------------------------------------------------------------------------
-
-
 class TestE2BDeploymentDomainApiUrlMutualExclusion:
-    """``domain`` and ``api_url`` map to overlapping E2B SDK kwargs whose
-    precedence is undocumented. Reject the combination at validate time so
-    operators see a clear error instead of silently relying on the SDK's
-    internal ordering."""
-
     def test_either_alone_is_accepted(self) -> None:
         E2BDeployment(domain="example.e2b.dev")
         E2BDeployment(api_url="https://example.e2b.dev/api")

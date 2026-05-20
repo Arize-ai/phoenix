@@ -1,19 +1,4 @@
-"""
-WASM sandbox backend.
-
-Executes Python code locally via a CPython 3.12 WebAssembly binary using the
-``wasmtime`` runtime. Stateless — inherits BaseNoSessionBackend.
-
-The WASM binary is downloaded on first use via _download.ensure_wasm_binary().
-Execution runs in a thread pool to avoid blocking the event loop.
-
-Requires the ``wasmtime`` package (optional extra). Runtime imports are lazy
-inside ``_run_wasm`` and ``_get_engine_and_module`` so the module remains
-importable when the extra is absent (test environments mock or skip). Adapter
-availability is gated by ``WASMAdapter.probe_dependencies`` at registration
-time, which surfaces a missing extra as ``status=NOT_INSTALLED`` instead of a
-runtime error during evaluation.
-"""
+"""WASM sandbox backend executing Python via CPython-WASM under wasmtime."""
 
 from __future__ import annotations
 
@@ -47,9 +32,8 @@ _DEFAULT_TIMEOUT_SECONDS = 30
 _EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="wasm-sandbox")
 
 
-# Module-level cache: path → (engine, compiled module).
-# Engine and module must be paired — a module compiled with one engine
-# cannot be used with a store from a different engine.
+# Engine and module must be paired: a module compiled with one engine cannot
+# be used with a store from a different engine.
 _MODULE_CACHE: dict[str, tuple[wasmtime.Engine, wasmtime.Module]] = {}
 
 
@@ -125,8 +109,6 @@ class WASMBackend(BaseNoSessionBackend):
     """Local CPython-WASM sandbox backend. Stateless and single-node."""
 
     def __init__(self) -> None:
-        # secret_values stays at the SandboxBackend class default (frozenset()):
-        # WASM takes no provider credentials and does not support user_env.
         pass
 
     def _resolve_binary(self) -> Path:
@@ -156,14 +138,7 @@ class WASMBackend(BaseNoSessionBackend):
 
 @dataclass(frozen=True)
 class WASMBinaryProbe:
-    """Outcome of a non-network probe for the CPython WASM binary.
-
-    ``available`` is True when a binary file is resolvable locally without any
-    download — either via ``$PHOENIX_WASM_BINARY_PATH`` (when set and the file
-    exists) or via the existing on-disk cache. ``detail`` is a human-readable
-    explanation suitable for ``SandboxBackendInfo.statusDetail``; it is None
-    when the binary is available.
-    """
+    """Outcome of a non-network probe for the CPython WASM binary."""
 
     available: bool
     detail: Optional[str]
@@ -202,36 +177,7 @@ class WASMAdapter(SandboxAdapter[WASMConfig, NoCredentials, WASMDeployment]):
 
     @staticmethod
     def probe_binary() -> WASMBinaryProbe:
-        """Report whether the CPython WASM binary is locally resolvable.
-
-        This is the *capability-probe* path — it MUST NOT touch the network,
-        MUST NOT create cache files, and MUST NOT write anywhere. It is called
-        from the GraphQL ``sandboxBackends`` resolver to surface accurate
-        ``SandboxBackendStatus`` for the WASM provider, layered on top of the
-        wasmtime-importable check that ``_SANDBOX_ADAPTERS`` registration
-        already provides.
-
-        Outcomes:
-        - ``available=True`` — a binary file exists at
-          ``$PHOENIX_WASM_BINARY_PATH`` (when the env var is set) or at the
-          default location under the Phoenix working directory (when the env
-          var is unset).
-        - ``available=False`` with detail
-          ``"PHOENIX_WASM_BINARY_PATH=<path> is set but the file does not exist."``
-          — the env var is set but the file is missing. The execution path
-          treats the env var as authoritative and will NOT fall back to lazy
-          download in that case, so this is the correct surfaced state.
-        - ``available=False`` with the no-local-storage short-form detail —
-          Phoenix is running with a postgres database and no
-          ``PHOENIX_WORKING_DIR``, so the runtime cannot be saved locally
-          and no operator-supplied binary path is set.
-        - ``available=False`` with detail
-          ``"WASM binary not present locally; will download on first use."``
-          — env var unset, working directory writable, and the binary has
-          not yet been downloaded. Execution will succeed via lazy download
-          on first use, but operators may want to pre-warm the binary to
-          avoid a cold-start cost.
-        """
+        """Report whether the CPython WASM binary is locally resolvable. No network, no writes."""
         from phoenix.config import _no_local_storage
         from phoenix.server.sandbox._download import (
             no_local_storage_message,

@@ -781,7 +781,6 @@ async def get_evaluators(
         elif isinstance(ev, models.CodeEvaluator):
             code_orm_by_id[ev.id] = ev
 
-    # Single batch query for all LLM evaluators (if any)
     llm_evaluators_by_id: dict[int, LLMEvaluator] = {}
     if llm_orm_by_id:
         llm_evaluator_orms = [llm_orm_by_id[eid] for eid in sorted(llm_orm_by_id)]
@@ -794,7 +793,6 @@ async def get_evaluators(
         for llm_evaluator_orm, llm_evaluator in zip(llm_evaluator_orms, llm_evaluators_list):
             llm_evaluators_by_id[llm_evaluator_orm.id] = llm_evaluator
 
-    # Single batch query for all CODE evaluators (if any)
     code_evaluators_by_id: dict[int, CodeEvaluatorRunner] = {}
     code_evaluator_languages_by_id: dict[int, str] = {}
     if code_orm_by_id:
@@ -893,16 +891,12 @@ async def get_evaluators(
                     sandbox_backend=backend,
                     language=language,
                     timeout=sandbox_timeout,
-                    # Persisted version exists for stored evaluators — surface
-                    # the GlobalID on the Sandbox span as metadata so a trace
-                    # backlinks to the immutable source-of-record version.
                     evaluator_version_id=str(
                         GlobalID("CodeEvaluatorVersion", str(code_version.id))
                     ),
                 )
                 code_evaluators_by_id[code_row.id] = runner
 
-    # Build result list in original input order, preserving duplicates
     evaluators: list[BaseEvaluator] = []
     for de_id in dataset_evaluator_ids:
         _, ev = dataset_evaluators_by_id[de_id]
@@ -2452,21 +2446,13 @@ def _infer_python_evaluate_input_schema(source_code: str) -> tuple[dict[str, Any
 _TYPESCRIPT_FUNCTION_SIGNATURE_RE = re.compile(r"function\s+evaluate\s*\(([^)]*)\)")
 _TYPESCRIPT_ARROW_SIGNATURE_RE = re.compile(r"(?:const|let|var)\s+evaluate\s*=\s*\(([^)]*)\)\s*=>")
 
-# Sentinel markers wrapping the JSON result printed by the generated script.
-# Some sandbox runtimes (e.g. Daytona, which prints a multi-line `npm notice`
-# banner on the first TS run) co-mingle banner text with user output on the
-# same stdout channel. ``_extract_fenced_result`` keeps the *last* complete
-# BEGIN/END pair so user ``print`` / ``console.log`` calls before the result
-# stay outside the fence and don't pollute the parsed value.
 _PHOENIX_RESULT_BEGIN = "===PHOENIX_RESULT_BEGIN==="
 _PHOENIX_RESULT_END = "===PHOENIX_RESULT_END==="
-# Markers must occupy their own line; ``\r\n`` line endings are accepted.
 _PHOENIX_RESULT_BEGIN_RE = re.compile(
     r"^" + re.escape(_PHOENIX_RESULT_BEGIN) + r"\s*$", re.MULTILINE
 )
 _PHOENIX_RESULT_END_RE = re.compile(r"^" + re.escape(_PHOENIX_RESULT_END) + r"\s*$", re.MULTILINE)
 
-# Legacy TS-prefixed aliases — kept for external imports.
 _TYPESCRIPT_RESULT_BEGIN = _PHOENIX_RESULT_BEGIN
 _TYPESCRIPT_RESULT_END = _PHOENIX_RESULT_END
 
@@ -2474,22 +2460,14 @@ _TYPESCRIPT_RESULT_END = _PHOENIX_RESULT_END
 def _extract_fenced_result(stdout: str) -> tuple[Optional[str], str]:
     """Extract the last complete fenced region from ``stdout``.
 
-    Returns ``(fenced_text, non_fenced_text)``:
-    - ``fenced_text`` is the content between the last complete BEGIN/END pair,
-      or ``None`` if no complete pair was found.
-    - ``non_fenced_text`` is everything outside the authoritative pair —
-      including any stray (unpaired) markers — joined back together with
-      newlines. This is what becomes ``metadata.stdout`` on the Sandbox span.
+    Returns ``(fenced_text, non_fenced_text)`` where ``fenced_text`` is the
+    content between the last complete BEGIN/END pair (or ``None``).
     """
     begin_matches = list(_PHOENIX_RESULT_BEGIN_RE.finditer(stdout))
     end_matches = list(_PHOENIX_RESULT_END_RE.finditer(stdout))
     if not begin_matches or not end_matches:
         return None, stdout
 
-    # Pair each BEGIN with the next END that follows it. Walk both sorted
-    # lists together so a BEGIN with no following END is dropped (treated as
-    # stray) rather than swallowing the next END that belongs to an earlier
-    # BEGIN.
     pairs: list[tuple[re.Match[str], re.Match[str]]] = []
     end_idx = 0
     for begin in begin_matches:
@@ -2505,9 +2483,6 @@ def _extract_fenced_result(stdout: str) -> tuple[Optional[str], str]:
 
     last_begin, last_end = pairs[-1]
     fenced = stdout[last_begin.end() : last_end.start()].strip("\r\n")
-    # Pre-fence: everything up to and including the newline after this BEGIN
-    # marker. Post-fence: everything after the END marker's line. Strip the
-    # marker lines themselves so they don't show up as orphan tokens.
     pre = stdout[: last_begin.start()].rstrip("\r\n")
     post = stdout[last_end.end() :].lstrip("\r\n")
     non_fenced = ("\n".join(p for p in (pre, post) if p)).rstrip()
@@ -2584,16 +2559,7 @@ async def _stop_session_quietly(
 
 
 class CodeEvaluatorRunner(BaseEvaluator):
-    """
-    Evaluator that executes user-provided source code in a sandbox.
-
-    The user's source_code must define a callable named ``evaluate``.
-    The harness calls ``evaluate(**mapped_inputs)`` and coerces the return
-    value via _coerce_output against each output_config.
-
-    Supports both PYTHON and TYPESCRIPT languages. The sandbox session key
-    is derived from the runner's name (``self._name``).
-    """
+    """Evaluator that executes user-provided source code in a sandbox."""
 
     def __init__(
         self,
@@ -2613,10 +2579,6 @@ class CodeEvaluatorRunner(BaseEvaluator):
         self._sandbox_backend: SandboxBackend = sandbox_backend
         self._language = language.upper()
         self._timeout = timeout
-        # GlobalID of the persisted code-evaluator version, when one exists.
-        # Stored evaluators pass it so the Sandbox span can link to the
-        # version detail page. Inline previews leave it None; the metadata
-        # key is then omitted (its absence signals "no stored version").
         self._evaluator_version_id = evaluator_version_id
 
     @property
@@ -2644,13 +2606,6 @@ class CodeEvaluatorRunner(BaseEvaluator):
         return ({}, None)
 
     def _build_python_harness(self, mapped_inputs: dict[str, Any]) -> str:
-        """Wrap source_code in a Python script that calls evaluate(**inputs).
-
-        Inputs are embedded via ``repr()`` so tracebacks show readable Python
-        literals rather than escape-heavy JSON strings. The result is printed
-        between sentinel markers so user ``print()`` calls and framework noise
-        on stdout don't pollute the parsed value.
-        """
         return (
             f"{self._source_code}\n\n"
             f"import json as _json\n"
@@ -2662,13 +2617,6 @@ class CodeEvaluatorRunner(BaseEvaluator):
         )
 
     def _build_typescript_harness(self, mapped_inputs: dict[str, Any]) -> str:
-        """Wrap source_code in a TypeScript script that calls evaluate(inputs).
-
-        Inputs are emitted as a JSON literal. The result is printed between
-        sentinel markers so runtime banner text (e.g. Daytona's first-run
-        ``npm notice``) and user ``console.log`` output stay out of the
-        parsed value.
-        """
         inputs_json = json.dumps(mapped_inputs)
         return (
             f"{self._source_code}\n\n"
@@ -2740,16 +2688,8 @@ class CodeEvaluatorRunner(BaseEvaluator):
                     for _ in (output_configs or [None])  # type: ignore[list-item]
                 ]
 
-            # `record_exception=False` + `set_status_on_exception=False` disables
-            # OTel's default auto-recording on the span's `with` __exit__. If we
-            # let the default fire, the unmasked exception lands on the span
-            # BEFORE the `except` below ever runs — masked records added later
-            # would be additive, and on an already-ended span are silently
-            # dropped. With auto-record disabled, our explicit
-            # `_record_masked_exception` / `_set_masked_status` calls are the
-            # only thing persisted, and the try/return-inside-with shape (mirror
-            # of the Sandbox span pattern below) ensures __exit__ sees no
-            # exception so the span ends cleanly with the masked content.
+            # OTel auto-record is disabled so explicit masked exception
+            # records below are the only thing persisted on these spans.
             with tracer_.start_as_current_span(
                 "Input Mapping",
                 attributes=_mask_attrs(
@@ -2791,7 +2731,6 @@ class CodeEvaluatorRunner(BaseEvaluator):
                         for _ in (output_configs or [None])  # type: ignore[list-item]
                     ]
 
-            # Build language-appropriate harness
             if self._language == "PYTHON":
                 code = self._build_python_harness(mapped_inputs)
             else:
@@ -2804,17 +2743,9 @@ class CodeEvaluatorRunner(BaseEvaluator):
             }
             if self._timeout is not None:
                 sandbox_metadata["timeout"] = int(self._timeout)
-            # When this runner was constructed from a persisted code-evaluator
-            # version, surface the version GlobalID on the Sandbox span so a
-            # trace points directly at the immutable source-of-record. Inline
-            # previews omit this (no persisted version exists) — the field's
-            # absence is itself informative.
             if self._evaluator_version_id is not None:
                 sandbox_metadata["code_evaluator_version_id"] = self._evaluator_version_id
 
-            # See Input Mapping above for rationale on the OTel auto-record
-            # kwargs — our explicit _record_masked_exception calls must be the
-            # sole exception/status writers so unmasked content never lands.
             with tracer_.start_as_current_span(
                 f"Sandbox: {self._name}",
                 attributes=_mask_attrs(
@@ -2897,8 +2828,6 @@ class CodeEvaluatorRunner(BaseEvaluator):
                         for _ in (output_configs or [None])  # type: ignore[list-item]
                     ]
 
-                # Split stdout into the fenced result (the parse candidate)
-                # and the surrounding text (recorded as metadata.stdout below).
                 fenced_text, non_fenced_stdout = _extract_fenced_result(execution.stdout)
 
                 raw_value: Any = None
@@ -2912,8 +2841,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
                         except json.JSONDecodeError as exc:
                             parse_error = f"result JSON parse failed: {exc.msg}"
 
-                # Merge all metadata fields into a single attribute write —
-                # multiple OI metadata writes overwrite rather than merge.
+                # Single OI metadata write — repeated writes overwrite, not merge.
                 merged_metadata = dict(sandbox_metadata)
                 if non_fenced_stdout:
                     merged_metadata["stdout"] = non_fenced_stdout
@@ -2933,10 +2861,6 @@ class CodeEvaluatorRunner(BaseEvaluator):
                 if execution.error:
                     _set_masked_status(sandbox_span, StatusCode.ERROR, execution.error, masker)
                 elif parse_error is not None:
-                    # Parse-failure path: fenced text (if any) goes on output
-                    # as text/plain; missing fence omits the output attribute
-                    # entirely so the trace UI distinguishes "no result"
-                    # from "result was a text scalar".
                     if fenced_text is not None:
                         sandbox_span.set_attributes(
                             _mask_attrs(
@@ -2946,8 +2870,6 @@ class CodeEvaluatorRunner(BaseEvaluator):
                         )
                     _set_masked_status(sandbox_span, StatusCode.ERROR, parse_error, masker)
                 else:
-                    # Happy path: parsed value as application/json (or as a
-                    # bare scalar — OI infers mime-type from type).
                     sandbox_span.set_attributes(
                         _mask_attrs(oi.get_output_attributes(raw_value), masker)
                     )
@@ -2962,11 +2884,7 @@ class CodeEvaluatorRunner(BaseEvaluator):
 
             multi_output = len(output_configs) > 1
 
-            # Multi-output routing: when raw_value is a dict whose keys cover every
-            # config.name, dispatch each named sub-value to _coerce_output individually.
-            # Top-level "explanation" acts as a shared fallback when a per-config
-            # sub-value omits its own explanation. Routing is suppressed when a
-            # parse_error is set so malformed input can't be misrouted.
+            # Route per-config when raw_value is a dict covering every config.name.
             routed = (
                 parse_error is None
                 and multi_output
@@ -2982,17 +2900,11 @@ class CodeEvaluatorRunner(BaseEvaluator):
             results: list[EvaluationResult] = []
             any_coerce_error = False
             last_coerce_error: Optional[str] = None
-            # On the happy path, pass the parsed dict to Parse Eval Result.
-            # On parse-error, pass the raw fenced text (or empty string if no
-            # fence) — never the bare string through _coerce_output, which
-            # would silently turn it into a categorical label.
             parse_input: Any
             if parse_error is None:
                 parse_input = raw_value
             else:
                 parse_input = fenced_text if fenced_text is not None else ""
-            # See Input Mapping above for rationale on the OTel auto-record
-            # kwargs.
             with tracer_.start_as_current_span(
                 "Parse Eval Result",
                 attributes=_mask_attrs(
@@ -3034,7 +2946,6 @@ class CodeEvaluatorRunner(BaseEvaluator):
                             )
                         )
                         continue
-                    # Per-config explanation wins; fall back to shared top-level explanation.
                     if explanation is None:
                         explanation = shared_explanation
                     results.append(
@@ -3078,10 +2989,6 @@ class CodeEvaluatorRunner(BaseEvaluator):
                 else:
                     parse_span.set_status(Status(StatusCode.OK))
 
-            # Root span: emit raw user-function return as output.value.
-            # Source code is intentionally NOT emitted on the span — it bloats
-            # telemetry and can carry sensitive content (hardcoded prompts,
-            # private logic) that masking does not cover.
             evaluator_span.set_attributes(
                 _mask_attrs(
                     dict(oi.get_output_attributes(raw_value)),

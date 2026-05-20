@@ -1,10 +1,7 @@
-"""Unit tests for the WASM binary resolver / download contract.
-
-These tests intentionally do NOT `pytest.importorskip("wasmtime")` — the
-capability-probe path (``resolve_wasm_binary_if_present``) and the env-var
-override on ``ensure_wasm_binary`` must be exercised even on installs
-without the ``wasm`` extra, since they back ``WASMAdapter.probe_binary()``
-in the GraphQL ``SandboxBackends`` resolver.
+"""Tests intentionally do NOT pytest.importorskip("wasmtime") — the
+capability-probe path and env-var override must work on installs without the
+wasm extra, since they back WASMAdapter.probe_binary() in the GraphQL
+SandboxBackends resolver.
 """
 
 from __future__ import annotations
@@ -25,11 +22,6 @@ from phoenix.server.sandbox._download import (
 )
 
 _FILENAME = "python-3.12.0.wasm"
-
-
-# ---------------------------------------------------------------------------
-# resolve_wasm_binary_if_present (capability-probe path)
-# ---------------------------------------------------------------------------
 
 
 class TestResolveWasmBinaryIfPresent:
@@ -89,12 +81,8 @@ class TestResolveWasmBinaryIfPresent:
     def test_probe_path_never_calls_urlretrieve(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """The capability-probe surface must be side-effect-free.
-
-        ``WASMAdapter.probe_binary()`` is invoked from the
-        ``SandboxBackends`` GraphQL resolver on every render of the
-        sandbox-config UI. A network round-trip there would be a serious
-        regression.
+        """probe_binary() runs on every render of the sandbox-config UI; a
+        network round-trip there would regress the resolver.
         """
         monkeypatch.delenv(PHOENIX_WASM_BINARY_PATH_ENV, raising=False)
         cache_dir = tmp_path / "cache"
@@ -105,11 +93,6 @@ class TestResolveWasmBinaryIfPresent:
 
         mock_retrieve.assert_not_called()
         assert not cache_dir.exists()
-
-
-# ---------------------------------------------------------------------------
-# ensure_wasm_binary (execution path)
-# ---------------------------------------------------------------------------
 
 
 class TestEnsureWasmBinaryEnvVarOverride:
@@ -173,9 +156,6 @@ class TestEnsureWasmBinaryEnvVarUnset:
         monkeypatch.delenv(PHOENIX_WASM_BINARY_PATH_ENV, raising=False)
         cache_dir = tmp_path / "cache"
 
-        # Stub urlretrieve to simulate a successful download by writing
-        # the destination file ourselves; we don't actually go to the
-        # network.
         def _fake_retrieve(_url: str, dest: str) -> None:
             Path(dest).write_bytes(b"downloaded wasm")
 
@@ -196,12 +176,9 @@ class TestEnsureWasmBinaryEnvVarUnset:
     def test_env_var_empty_string_treated_as_unset(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """An empty ``PHOENIX_WASM_BINARY_PATH`` should NOT trigger the
-        operator-path branch — empty string is a common docker-compose
-        artifact (e.g. unset variable expansion) and treating it as
-        authoritative would surface a confusing
-        ``WASMBinaryUnavailable("PHOENIX_WASM_BINARY_PATH= is set ...")``
-        on every probe.
+        """Empty string is a common docker-compose unset-variable artifact;
+        treating it as authoritative would surface a confusing
+        WASMBinaryUnavailable on every probe.
         """
         monkeypatch.setenv(PHOENIX_WASM_BINARY_PATH_ENV, "")
         cache_dir = tmp_path / "cache"
@@ -209,18 +186,12 @@ class TestEnsureWasmBinaryEnvVarUnset:
         cached = cache_dir / _FILENAME
         cached.write_bytes(b"cached wasm")
 
-        # Probe path: should fall through to cache lookup.
         result = resolve_wasm_binary_if_present(wasm_dir=cache_dir, filename=_FILENAME)
         assert result == cached
 
     def test_cached_binary_with_bad_sha256_is_unlinked_and_raises(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A cached binary that fails sha256 verification (e.g. tampered at
-        rest, partial write from a crashed prior run) is unlinked and a
-        ValueError is raised so the next call re-downloads cleanly rather
-        than serving the poisoned file forever.
-        """
         import hashlib
 
         monkeypatch.delenv(PHOENIX_WASM_BINARY_PATH_ENV, raising=False)
@@ -243,10 +214,6 @@ class TestEnsureWasmBinaryEnvVarUnset:
     def test_no_local_storage_raises_unavailable(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """In no-local-storage mode the execution path raises rather than
-        writing the binary anywhere. The exception message points operators
-        at PHOENIX_WORKING_DIR and does not mention PHOENIX_WASM_BINARY_PATH.
-        """
         monkeypatch.delenv(PHOENIX_WASM_BINARY_PATH_ENV, raising=False)
         monkeypatch.setattr("phoenix.server.sandbox._download._no_local_storage", lambda: True)
         wasm_dir = tmp_path / "wasm"
@@ -265,21 +232,12 @@ class TestEnsureWasmBinaryEnvVarUnset:
         assert not wasm_dir.exists()
 
 
-# ---------------------------------------------------------------------------
-# prefetch_wasm_binary_if_needed (server-startup pre-fetch)
-# ---------------------------------------------------------------------------
-
-
 class TestPrefetchWasmBinaryIfNeeded:
     async def test_prefetch_downloads_when_missing(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Happy path: the startup callback resolves the binary, writing it
-        to the configured WASM directory via the underlying
-        ``ensure_wasm_binary`` call. The pinned sha256 is monkeypatched to
-        match the fake-download payload so the integrity check passes
-        without needing the real 26MB upstream binary.
-        """
+        # Pinned sha256 monkeypatched to match the fake payload so the
+        # integrity check passes without the real 26MB upstream binary.
         import hashlib
 
         monkeypatch.delenv(PHOENIX_WASM_BINARY_PATH_ENV, raising=False)
@@ -305,10 +263,6 @@ class TestPrefetchWasmBinaryIfNeeded:
     async def test_prefetch_fails_soft_on_hash_mismatch(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """A poisoned upstream binary (sha256 does not match the pinned
-        hash) is unlinked and the startup callback logs at WARNING
-        instead of crashing Phoenix. The next call retries cleanly.
-        """
         import hashlib
 
         monkeypatch.delenv(PHOENIX_WASM_BINARY_PATH_ENV, raising=False)
@@ -337,9 +291,6 @@ class TestPrefetchWasmBinaryIfNeeded:
     async def test_prefetch_fails_soft_on_download_error(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """When the underlying download raises, the callback logs at
-        WARNING and returns normally so Phoenix startup proceeds.
-        """
         monkeypatch.delenv(PHOENIX_WASM_BINARY_PATH_ENV, raising=False)
         wasm_dir = tmp_path / "wasm"
         monkeypatch.setattr("phoenix.server.sandbox._download._default_wasm_dir", lambda: wasm_dir)

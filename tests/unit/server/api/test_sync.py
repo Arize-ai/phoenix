@@ -1,11 +1,3 @@
-"""Tests for sandbox DB seeding functions in sandbox/sync.py.
-
-Covers:
-- sync_languages: inserts PYTHON and TYPESCRIPT rows, is idempotent
-- sync_sandbox_providers: inserts one row per provider ``kind`` key in metadata,
-  preserves existing rows, is idempotent
-"""
-
 from typing import Any, Mapping, cast
 
 import pytest
@@ -128,8 +120,6 @@ class TestSyncSandboxProviders:
 
 
 class TestAdapterMetadataConsistency:
-    """Installed adapter capability sets must agree with SANDBOX_ADAPTER_METADATA."""
-
     def test_e2b_adapter_languages_matches_metadata(self) -> None:
         try:
             from phoenix.server.sandbox.e2b_backend import E2BAdapter
@@ -138,9 +128,6 @@ class TestAdapterMetadataConsistency:
         except ImportError:
             pytest.skip("e2b optional extra not installed")
         meta = SANDBOX_ADAPTER_METADATA["E2B"]
-        # The Config's ``language: Literal[...]`` is the structural source of
-        # truth; ``AdapterMetadata.supported_languages`` is its mirror for the
-        # GraphQL surface. Assert they match.
         from typing import get_args
 
         assert (
@@ -156,9 +143,6 @@ class TestAdapterMetadataConsistency:
         except ImportError:
             pytest.skip("wasmtime optional extra not installed")
         meta = SANDBOX_ADAPTER_METADATA["WASM"]
-        # The Config's ``language: Literal[...]`` is the structural source of
-        # truth; ``AdapterMetadata.supported_languages`` is its mirror for the
-        # GraphQL surface. Assert they match.
         from typing import get_args
 
         assert (

@@ -1,14 +1,3 @@
-"""Direct unit tests for `_resolve_sandbox_credentials` precedence and omission.
-
-Full DB → build_sandbox_backend → build_backend integration is covered by the
-mutation-layer suite via `gql_client`; this file keeps only the two
-direct-call behaviors the helper itself owns:
-
-- DB-stored credential wins over an env-var of the same key.
-- A spec key with no DB row and no env-var is omitted from the result, not
-  surfaced as `None`.
-"""
-
 from __future__ import annotations
 
 from typing import Any
@@ -21,7 +10,6 @@ from phoenix.server.sandbox.types import ProviderCredentialSpec
 
 
 def _make_session(secrets: dict[str, bytes]) -> Any:
-    """AsyncSession mock pre-loaded with key→encrypted_value rows."""
     rows = []
     for key, value in secrets.items():
         row = MagicMock()
@@ -55,11 +43,6 @@ class TestResolveSandboxCredentials:
 
     @pytest.mark.asyncio
     async def test_missing_key_omitted_not_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """A spec key with neither a DB row nor an env var is absent from the result.
-
-        Returning `None` would let downstream `dict.get()` checks treat absent
-        credentials as configured-with-empty-value — the omission is the contract.
-        """
         monkeypatch.delenv("CRED_A", raising=False)
         session = _make_session({})
         secrets = SecretsContext(session=session, decrypt=_identity_decrypt)

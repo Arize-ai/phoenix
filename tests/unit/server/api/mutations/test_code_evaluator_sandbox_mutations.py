@@ -1,10 +1,3 @@
-"""Tests for sandbox GQL mutations: createSandboxConfig, updateSandboxConfig,
-updateSandboxProvider, deleteSandboxConfig.
-
-Uses the gql_client fixture to send real GQL mutations against the in-memory
-test app, backed by seed_sandbox_providers DB fixtures.
-"""
-
 from __future__ import annotations
 
 from collections.abc import Iterator
@@ -32,17 +25,13 @@ _patched_adapters = {**sandbox_module._SANDBOX_ADAPTERS, "E2B": _e2b_adapter}
 
 @pytest.fixture(autouse=True)
 def _ensure_wasm_sandbox_adapter() -> Iterator[None]:
-    """WASM is omitted from ``_SANDBOX_ADAPTERS`` when wasmtime is not installed."""
+    # WASM is omitted from _SANDBOX_ADAPTERS when wasmtime is not installed.
     if "WASM" in sandbox_module._SANDBOX_ADAPTERS:
         yield
         return
     with patch.dict(sandbox_module._SANDBOX_ADAPTERS, {"WASM": _wasm_adapter}):
         yield
 
-
-# ---------------------------------------------------------------------------
-# GraphQL documents
-# ---------------------------------------------------------------------------
 
 _CREATE = """
 mutation CreateSandboxConfig($input: CreateSandboxConfigInput!) {
@@ -104,10 +93,6 @@ query SandboxProviders {
 }
 """
 
-# ---------------------------------------------------------------------------
-# Helper
-# ---------------------------------------------------------------------------
-
 
 def _config_global_id(config_id: int) -> str:
     return str(GlobalID("SandboxConfig", str(config_id)))
@@ -133,19 +118,9 @@ def _variant(
     *,
     language: str = "PYTHON",
 ) -> dict[str, dict[str, object]]:
-    """Wrap a per-provider config dict in the right oneOf variant key.
-
-    Each per-provider input now carries ``language``; inject it if the caller
-    didn't supply one. Tests that need TYPESCRIPT pass ``language=`` explicitly.
-    """
     base: dict[str, object] = dict(payload) if payload else {}
     base.setdefault("language", language)
     return {_KIND_TO_VARIANT[kind]: base}
-
-
-# ---------------------------------------------------------------------------
-# Tests
-# ---------------------------------------------------------------------------
 
 
 class TestCreateSandboxConfig:
@@ -306,7 +281,6 @@ class TestDeleteSandboxConfig:
         assert result.data and not result.errors
         assert result.data["deleteSandboxConfig"]["deletedId"] == config_gid
 
-        # Verify row is gone from DB
         async with db() as session:
             row = await session.get(models.SandboxConfig, config_id)
         assert row is None
@@ -450,7 +424,6 @@ async def _create_code_evaluator_with_config(
     db: DbSessionFactory,
     sandbox_config: models.SandboxConfig,
 ) -> int:
-    """Insert a CodeEvaluator with one version linked to the given sandbox config."""
     async with db() as session:
         provider = await session.get(models.SandboxProvider, sandbox_config.backend_type)
         assert provider is not None
@@ -514,7 +487,6 @@ class TestDisabledProviderAndConfigGuards:
         evaluator_db_id = await _create_code_evaluator_with_config(db, sandbox_config)
         evaluator_gid = str(GlobalID("CodeEvaluator", str(evaluator_db_id)))
 
-        # Disable the provider via the updateSandboxProvider mutation
         async with db() as session:
             provider = await session.get(models.SandboxProvider, sandbox_config.backend_type)
         assert provider is not None
@@ -529,7 +501,6 @@ class TestDisabledProviderAndConfigGuards:
         )
         assert result.data and not result.errors
 
-        # Preview should fail — no backend resolved when provider is disabled
         result = await gql_client.execute(
             _EVALUATOR_PREVIEWS,
             variables={
@@ -597,8 +568,6 @@ class TestCodeEvaluatorSandboxMutationIds:
         db: DbSessionFactory,
         sandbox_config: models.SandboxConfig,
     ) -> None:
-        """createCodeEvaluatorVersion appends a new immutable row when the
-        source_code changes. Sandbox binding is not part of the version row."""
         async with db() as session:
             code_eval = models.CodeEvaluator(
                 name=Identifier(root="test_update_code_evaluator"),
@@ -703,7 +672,6 @@ class TestCodeEvaluatorSandboxMutationIds:
         db: DbSessionFactory,
         sandbox_config: models.SandboxConfig,
     ) -> None:
-        """PatchCodeEvaluatorInput excludes sourceCode/language; they are not patchable here."""
         evaluator_db_id = await _create_code_evaluator_with_config(db, sandbox_config)
         evaluator_gid = str(GlobalID("CodeEvaluator", str(evaluator_db_id)))
 
@@ -720,8 +688,6 @@ class TestCodeEvaluatorSandboxMutationIds:
 
         assert result.errors
         assert result.data is None
-        # Unknown input fields are rejected at GraphQL validation; the HTTP test
-        # harness may redact parse/validation details behind a generic message.
 
     async def test_patch_code_evaluator_updates_sandbox_binding(
         self,
@@ -730,10 +696,6 @@ class TestCodeEvaluatorSandboxMutationIds:
         sandbox_config: models.SandboxConfig,
         seed_sandbox_providers: None,
     ) -> None:
-        """Happy path: patchCodeEvaluator(sandboxConfigId=B) updates the tip's
-        sandbox binding without bumping a version — sandbox is binding state on
-        the tip, not version content."""
-        # Build a second WASM/Python config (B) to switch the binding to.
         async with db() as session:
             python_provider = await session.scalar(
                 select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
@@ -782,7 +744,6 @@ class TestCodeEvaluatorSandboxMutationIds:
         evaluator_db_id = await _create_code_evaluator_with_config(db, sandbox_config)
         evaluator_gid = str(GlobalID("CodeEvaluator", str(evaluator_db_id)))
 
-        # Disable the sandbox config via the mutation
         result = await gql_client.execute(
             _UPDATE,
             variables={"input": {"id": _config_global_id(sandbox_config.id), "enabled": False}},
@@ -790,7 +751,6 @@ class TestCodeEvaluatorSandboxMutationIds:
         assert result.data and not result.errors
         assert result.data["updateSandboxConfig"]["sandboxConfig"]["enabled"] is False
 
-        # Preview should fail — no backend resolved when config is disabled
         result = await gql_client.execute(
             _EVALUATOR_PREVIEWS,
             variables={
@@ -819,14 +779,12 @@ class TestCrossProviderIsolation:
         db: DbSessionFactory,
         seed_sandbox_providers: None,
     ) -> None:
-        """Configs under provider A must not appear under provider B."""
         async with db() as session:
             wasm = await session.get(models.SandboxProvider, "WASM")
             e2b = await session.get(models.SandboxProvider, "E2B")
         assert wasm is not None
         assert e2b is not None
 
-        # Create configs under each provider
         wasm_names = ["wasm-cfg-1", "wasm-cfg-2"]
         e2b_names = ["e2b-cfg-1"]
         for name in wasm_names:
@@ -865,19 +823,10 @@ class TestCrossProviderIsolation:
 
         assert set(wasm_config_names) == set(wasm_names)
         assert set(e2b_config_names) == set(e2b_names)
-        # No overlap
         assert not set(wasm_config_names) & set(e2b_config_names)
 
 
 class TestConfigValidationPath:
-    """
-    Integration tests for the validation path in create/update mutations.
-
-    Patches _SANDBOX_ADAPTERS to always include E2BAdapter (which has declared
-    config fields), independent of whether e2b_code_interpreter is installed.
-    E2BAdapter.validate_config() only needs pydantic — no optional extras.
-    """
-
     async def test_create_valid_e2b_config_succeeds(
         self,
         gql_client: AsyncGraphQLClient,
@@ -911,13 +860,6 @@ class TestConfigValidationPath:
         db: DbSessionFactory,
         seed_sandbox_providers: None,
     ) -> None:
-        """extra="forbid" means unknown keys must be rejected at the mutation boundary.
-
-        Canonical config shape per adapter is the closed set declared on the
-        per-adapter pydantic model (env_vars / internet_access / dependencies).
-        Anything outside that set is a stale or attacker-supplied key and must
-        surface as a BadRequest rather than silently persisting.
-        """
         async with db() as session:
             provider = await session.scalar(
                 select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
@@ -947,7 +889,6 @@ class TestConfigValidationPath:
                 select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
             )
         assert provider is not None
-        # Create a config first
         async with db() as session:
             config = models.SandboxConfig(
                 backend_type=provider.backend_type,
@@ -981,7 +922,6 @@ class TestConfigValidationPath:
         db: DbSessionFactory,
         seed_sandbox_providers: None,
     ) -> None:
-        """After update, DB row stores the validated (pydantic model_dump) dict."""
         async with db() as session:
             provider = await session.scalar(
                 select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")
@@ -1017,7 +957,6 @@ class TestConfigValidationPath:
         async with db() as session:
             row = await session.get(models.SandboxConfig, config_id)
         assert row is not None
-        # env_vars was provided — must be persisted in the new dict shape
         assert row.config.get("env_vars") == {"FOO": {"secret_key": "foo-secret"}}
 
     async def test_create_env_var_round_trip(
@@ -1026,7 +965,6 @@ class TestConfigValidationPath:
         db: DbSessionFactory,
         seed_sandbox_providers: None,
     ) -> None:
-        """env_vars inside config persist through create mutation."""
         async with db() as session:
             provider = await session.scalar(
                 select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "E2B")

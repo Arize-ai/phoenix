@@ -178,10 +178,6 @@ async def test_mixed_emit_coverage_counts(
     db: DbSessionFactory,
     data_with_mixed_emit: None,
 ) -> None:
-    """Mixed-emit: 60 score-only, 30 PASS label-only, 10 FAIL label-only.
-
-    Asserts score_count=60, label_count=40, label_fractions, mean_score, and count=100.
-    """
     start_time = datetime.fromisoformat("2021-01-01T00:00:00.000+00:00")
     end_time = datetime.fromisoformat("2021-01-01T01:00:00.000+00:00")
 
@@ -213,7 +209,6 @@ async def test_pure_score_only_coverage_counts(
     db: DbSessionFactory,
     data_with_null_labels: None,
 ) -> None:
-    """Pure score-only: all rows have label=None. Asserts label_count=0, label_fractions=[], no crash."""
     start_time = datetime.fromisoformat("2021-01-01T00:00:00.000+00:00")
     end_time = datetime.fromisoformat("2021-01-01T01:00:00.000+00:00")
 

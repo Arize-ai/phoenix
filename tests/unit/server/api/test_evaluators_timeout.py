@@ -1,5 +1,3 @@
-"""Tests for the asyncio.wait_for timeout wrapper in CodeEvaluatorRunner.evaluate."""
-
 from __future__ import annotations
 
 import asyncio
@@ -54,8 +52,6 @@ _EMPTY_MAPPING = InputMapping(literal_mapping={}, path_mapping={})
 
 
 class _SlowBackend(SandboxBackend):
-    """Backend whose execute sleeps indefinitely; stop_session is tracked."""
-
     # CodeEvaluatorRunner reads secret_values to seed SandboxSecretMasker;
     # real backends get this attached by build_sandbox_backend(). Direct
     # test fixtures must declare it themselves.
@@ -87,8 +83,6 @@ class _SlowBackend(SandboxBackend):
 
 
 class _FastBackend(SandboxBackend):
-    """Backend that returns immediately with a configurable result."""
-
     # See _SlowBackend.secret_values for rationale.
     secret_values: frozenset[str] = frozenset()
 
@@ -140,7 +134,6 @@ class TestTimeoutWrapper:
             output_configs=[_categorical_config()],
         )
 
-        # Allow the fire-and-forget task to run
         await asyncio.sleep(0)
         assert len(backend.stop_session_calls) == 1
 
@@ -158,7 +151,6 @@ class TestTimeoutWrapper:
                 name="test",
                 output_configs=[_categorical_config()],
             )
-            # Let the fire-and-forget task run and log
             await asyncio.sleep(0)
 
         assert len(results) == 1

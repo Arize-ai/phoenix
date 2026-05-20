@@ -66,9 +66,6 @@ class TestDenoAdapter:
         ]
 
     def test_build_backend_rejects_user_env(self) -> None:
-        """Defense-in-depth: even if a caller passes user_env, the Deno adapter
-        refuses to construct a backend that could leak env vars to the
-        subprocess."""
         adapter = DenoAdapter()
 
         with patch(
@@ -101,9 +98,6 @@ class TestDenoSandboxBackend:
         ]
 
     def test_build_subprocess_env_is_empty(self) -> None:
-        """Deno sandboxes never receive any environment variables — the child
-        process runs with an empty env so it cannot read the Phoenix server's
-        ambient process env either."""
         backend = DenoSandboxBackend(deno_executable="/usr/local/bin/deno")
 
         assert backend._build_subprocess_env() == {}
@@ -201,8 +195,6 @@ class TestDenoSandboxBackend:
 
     @pytest.mark.asyncio
     async def test_execute_caps_concurrent_subprocesses(self) -> None:
-        """No more than _MAX_CONCURRENT_DENO_EXECUTIONS Deno subprocesses run
-        at once, so a large fan-out cannot exhaust the Phoenix host."""
         from phoenix.server.sandbox import deno_backend
 
         cap = deno_backend._MAX_CONCURRENT_DENO_EXECUTIONS
@@ -252,11 +244,6 @@ class TestDenoSandboxBackend:
 
     @pytest.mark.asyncio
     async def test_execute_kills_subprocess_on_outer_cancellation(self) -> None:
-        """An outer cancellation (e.g. CodeEvaluatorRunner's asyncio.wait_for
-        firing while proc.communicate() is in flight) must still kill the Deno
-        child. CancelledError is a BaseException, so it bypasses the
-        asyncio.TimeoutError cleanup path — the finally block is what prevents
-        the subprocess from outliving its execute() call."""
         backend = DenoSandboxBackend(deno_executable="/usr/local/bin/deno")
         proc = _StubProcess()
         # None = still running, so the finally's returncode guard fires.
@@ -286,15 +273,12 @@ class TestDenoSandboxBackend:
 
     @pytest.mark.asyncio
     async def test_execute_kills_subprocess_cancelled_after_queueing(self) -> None:
-        """The real trigger from CodeEvaluatorRunner: an execution waits for a
-        semaphore slot, then spawns its subprocess, then is externally
-        cancelled before its own internal timeout. The queued-then-started
-        path must still kill the Deno child.
+        """Queued-then-spawned execution that's externally cancelled before
+        its internal timeout must still kill the Deno child.
 
         Only proc.kill() is asserted: the cancellation-path finally issues a
-        synchronous SIGKILL and does not await proc.wait() — awaiting inside a
-        finally that runs during CancelledError unwinding gains no determinism,
-        and asyncio's child watcher reaps the killed process anyway."""
+        synchronous SIGKILL and does not await proc.wait().
+        """
         from phoenix.server.sandbox import deno_backend
 
         cap = deno_backend._MAX_CONCURRENT_DENO_EXECUTIONS

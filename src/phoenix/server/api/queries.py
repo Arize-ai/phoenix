@@ -1699,12 +1699,7 @@ class Query:
 
     @strawberry.field
     async def sandbox_backends(self, info: Info[Context, None]) -> list[SandboxBackendInfo]:
-        """Return static + runtime info for all known sandbox backends.
-
-        Opens a read session so ``get_sandbox_backend_info`` can resolve
-        per-provider credentials (the ``secrets`` table) to distinguish
-        ``MISSING_CREDENTIALS`` from ``AVAILABLE``.
-        """
+        """Return static + runtime info for all known sandbox backends."""
         from phoenix.server.sandbox import SecretsContext
 
         async with info.context.db.read() as session:
