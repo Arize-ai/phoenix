@@ -35,7 +35,7 @@ The `deno` binary is installed into the container image at `/usr/local/bin/deno`
 
 ### WebAssembly (CPython WASM)
 
-The Python WebAssembly binary (`python-3.12.0.wasm`) is downloaded when the image is built and shipped inside the container at `/opt/phoenix/wasm/python-3.12.0.wasm`. The container also sets:
+The Python WebAssembly binary (`python-3.12.0.wasm`) is fetched during the Docker image build and baked into the container at `/opt/phoenix/wasm/python-3.12.0.wasm`, so running the container needs no extra download. The container also sets:
 
 ```
 PHOENIX_WASM_BINARY_PATH=/opt/phoenix/wasm/python-3.12.0.wasm
@@ -80,9 +80,9 @@ Once `PHOENIX_WASM_BINARY_PATH` is set, Phoenix will only use that file. If the 
 You can copy `python-3.12.0.wasm` out of an `arizephoenix/phoenix` container (`/opt/phoenix/wasm/python-3.12.0.wasm`) to seed an air-gapped host without re-fetching from upstream.
 </Tip>
 
-### External-API providers
+### Hosted providers
 
-Each external provider has its own optional pip extra and credential requirements:
+Each hosted provider ships as a separate Phoenix extra and has its own credentials. The official `arizephoenix/phoenix` container already includes all four extras — you only need to install one of these when you're running on a custom image or a plain `pip install arize-phoenix`:
 
 ```bash
 pip install 'arize-phoenix[e2b]'      # E2B
