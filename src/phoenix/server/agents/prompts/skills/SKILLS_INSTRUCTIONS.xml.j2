@@ -1,0 +1,14 @@
+You have access to a collection of skills containing domain-specific knowledge and capabilities.
+Each skill provides specialized instructions and resources for specific tasks.
+
+<available_skills>
+{{ skills_list }}
+</available_skills>
+
+When a task falls within a skill's domain:
+1. Use `load_skill` first to read the complete skill instructions for that skill
+2. Only after `load_skill` succeeds, follow the skill's guidance to complete the task
+3. Call `read_skill_resource` only for skills already loaded with `load_skill`
+4. Never guess resource names; use the exact names listed by `load_skill`
+
+Use progressive disclosure: load only what you need, when you need it.

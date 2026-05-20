@@ -2,7 +2,7 @@
 
 import pytest
 
-from phoenix.server.agents.capabilities.skills.directory import parse_skill_md
+from phoenix.server.agents.capabilities.skills import parse_skill_md
 
 
 def test_parse_skill_md_with_frontmatter() -> None:
@@ -20,23 +20,21 @@ This is the main content.
 
     frontmatter, instructions = parse_skill_md(content)
 
-    assert frontmatter['name'] == 'test-skill'
-    assert frontmatter['description'] == 'A test skill for testing'
-    assert frontmatter['version'] == '1.0.0'
-    assert instructions.startswith('# Test Skill')
+    assert frontmatter["name"] == "test-skill"
+    assert frontmatter["description"] == "A test skill for testing"
+    assert frontmatter["version"] == "1.0.0"
+    assert instructions.startswith("# Test Skill")
 
 
 def test_parse_skill_md_without_frontmatter() -> None:
-    """Test parsing SKILL.md without frontmatter."""
+    """SKILL.md without a frontmatter fence should raise."""
     content = """# Test Skill
 
 This skill has no frontmatter.
 """
 
-    frontmatter, instructions = parse_skill_md(content)
-
-    assert frontmatter == {}
-    assert instructions.startswith('# Test Skill')
+    with pytest.raises(ValueError, match="frontmatter fence"):
+        parse_skill_md(content)
 
 
 def test_parse_skill_md_empty_frontmatter() -> None:
@@ -52,7 +50,7 @@ Content here.
     frontmatter, instructions = parse_skill_md(content)
 
     assert frontmatter == {}
-    assert instructions.startswith('# Test Skill')
+    assert instructions.startswith("# Test Skill")
 
 
 def test_parse_skill_md_invalid_yaml() -> None:
@@ -65,7 +63,7 @@ description: [unclosed array
 Content.
 """
 
-    with pytest.raises(ValueError, match='Failed to parse YAML frontmatter'):
+    with pytest.raises(ValueError, match="Failed to parse YAML frontmatter"):
         parse_skill_md(content)
 
 
@@ -83,8 +81,8 @@ description: |
 
     frontmatter, _ = parse_skill_md(content)
 
-    assert 'multiline' in frontmatter['description']
-    assert 'description for testing' in frontmatter['description']
+    assert "multiline" in frontmatter["description"]
+    assert "description for testing" in frontmatter["description"]
 
 
 def test_parse_skill_md_complex_frontmatter() -> None:
@@ -107,6 +105,6 @@ metadata:
 
     frontmatter, _ = parse_skill_md(content)
 
-    assert frontmatter['name'] == 'complex-skill'
-    assert frontmatter['tags'] == ['testing', 'example']
-    assert frontmatter['metadata']['category'] == 'test'
+    assert frontmatter["name"] == "complex-skill"
+    assert frontmatter["tags"] == ["testing", "example"]
+    assert frontmatter["metadata"]["category"] == "test"
