@@ -5,9 +5,11 @@ Executes Python code locally via a CPython 3.12 WebAssembly binary using the
 ``wasmtime`` runtime. Stateless — inherits BaseNoSessionBackend.
 
 The WASM binary is downloaded on first use via _download.ensure_wasm_binary().
-Execution runs in a thread pool to avoid blocking the event loop. Each store
-caps the guest's WebAssembly linear memory (_MAX_WASM_MEMORY_BYTES) so a single
-execution cannot exhaust host RAM.
+Execution runs in a thread pool to avoid blocking the event loop. A single
+execution's host-memory footprint is bounded on two fronts: the guest's
+WebAssembly linear memory is capped (_MAX_WASM_MEMORY_BYTES), and captured
+stdout/stderr is capped (_MAX_OUTPUT_BYTES) so a guest that prints in a loop
+cannot grow host RAM through output alone.
 
 Requires the ``wasmtime`` package (optional extra). Runtime imports are lazy
 inside ``_run_wasm`` and ``_get_engine_and_module`` so the module remains
@@ -60,6 +62,13 @@ _EPOCH_INTERVAL_SECONDS = 1.0
 # host footprint is bounded at 4 × this. Generous enough for normal evaluator
 # code; bump this constant if a legitimate workload needs more.
 _MAX_WASM_MEMORY_BYTES = 256 * 1024 * 1024
+
+# Per-stream cap on guest stdout/stderr held in host memory. The WASI output
+# callbacks append every guest write to a host buffer, so without a cap a guest
+# that prints in a loop grows host RAM for the whole execution window — a vector
+# that _MAX_WASM_MEMORY_BYTES (which bounds only the guest's own memory) does
+# not address. Bytes past the cap are dropped (see _BoundedOutputSink).
+_MAX_OUTPUT_BYTES = 1024 * 1024
 
 
 # Engine and module must be paired: a module compiled with one engine cannot
@@ -142,12 +151,46 @@ def _get_engine_and_module(binary_path: Path) -> tuple[wasmtime.Engine, wasmtime
     return _MODULE_CACHE[cache_key]
 
 
+class _BoundedOutputSink:
+    """Accumulates guest stdout/stderr bytes up to a fixed cap.
+
+    The WASI ``stdout_custom`` / ``stderr_custom`` callbacks hand every guest
+    write to the host; appending unconditionally would let a guest that prints
+    in a loop grow host RAM for the whole execution window. Bytes past
+    ``limit`` are dropped, and ``getvalue()`` appends a truncation marker so the
+    caller can tell output was cut.
+    """
+
+    def __init__(self, limit: int) -> None:
+        self._limit = limit
+        self._chunks: list[bytes] = []
+        self._size = 0
+        self._truncated = False
+
+    def write(self, data: bytes) -> None:
+        remaining = self._limit - self._size
+        if remaining <= 0:
+            self._truncated = True
+            return
+        if len(data) > remaining:
+            data = data[:remaining]
+            self._truncated = True
+        self._chunks.append(data)
+        self._size += len(data)
+
+    def getvalue(self) -> str:
+        text = b"".join(self._chunks).decode("utf-8", errors="replace")
+        if self._truncated:
+            text += f"\n[output truncated: exceeded {self._limit} bytes]"
+        return text
+
+
 def _run_wasm(binary_path: Path, code: str, timeout: int) -> ExecutionResult:
     """Execute *code* in a wasmtime WASI context. Runs in a thread."""
     import wasmtime as _wasm
 
-    stdout_chunks: list[bytes] = []
-    stderr_chunks: list[bytes] = []
+    stdout_sink = _BoundedOutputSink(_MAX_OUTPUT_BYTES)
+    stderr_sink = _BoundedOutputSink(_MAX_OUTPUT_BYTES)
     stdin_path: str | None = None
     started_at = time.monotonic()
 
@@ -158,8 +201,8 @@ def _run_wasm(binary_path: Path, code: str, timeout: int) -> ExecutionResult:
         linker.define_wasi()
 
         wasi = _wasm.WasiConfig()
-        wasi.stdout_custom = lambda data: stdout_chunks.append(data)
-        wasi.stderr_custom = lambda data: stderr_chunks.append(data)
+        wasi.stdout_custom = stdout_sink.write
+        wasi.stderr_custom = stderr_sink.write
 
         # Inject code via a temp stdin file
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
@@ -171,10 +214,11 @@ def _run_wasm(binary_path: Path, code: str, timeout: int) -> ExecutionResult:
         store.set_wasi(wasi)
         # Deadline in engine ticks; with a 1s tick this is `timeout` seconds.
         store.set_epoch_deadline(timeout)
-        # Cap the guest's linear memory so one execution cannot exhaust host
-        # RAM. Must be set before instantiate(), when the guest memory is
-        # created; an over-cap memory.grow then fails inside the guest rather
-        # than OOM-killing the Phoenix process.
+        # Cap the guest's WebAssembly linear memory — one of the two host-RAM
+        # vectors for a single execution (captured output, bounded by the
+        # sinks above, is the other). Must be set before instantiate(), when
+        # the guest memory is created; an over-cap memory.grow then fails
+        # inside the guest rather than OOM-killing the Phoenix process.
         store.set_limits(memory_size=_MAX_WASM_MEMORY_BYTES)
 
         with _engine_epoch_ticker(engine):
@@ -184,13 +228,10 @@ def _run_wasm(binary_path: Path, code: str, timeout: int) -> ExecutionResult:
             if isinstance(start, _wasm.Func):
                 start(store)
 
-        return ExecutionResult(
-            stdout=b"".join(stdout_chunks).decode("utf-8", errors="replace"),
-            stderr=b"".join(stderr_chunks).decode("utf-8", errors="replace"),
-        )
+        return ExecutionResult(stdout=stdout_sink.getvalue(), stderr=stderr_sink.getvalue())
     except Exception as exc:
-        stdout = b"".join(stdout_chunks).decode("utf-8", errors="replace")
-        stderr = b"".join(stderr_chunks).decode("utf-8", errors="replace")
+        stdout = stdout_sink.getvalue()
+        stderr = stderr_sink.getvalue()
         # Classify late traps as timeouts (raw wasmtime trap string is opaque).
         if time.monotonic() - started_at >= timeout:
             message = f"Execution timed out after {timeout}s"

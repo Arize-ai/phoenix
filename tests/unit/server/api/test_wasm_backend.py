@@ -751,3 +751,40 @@ class TestRunWasmMemoryLimit:
 
         fake_store.set_limits.assert_called_once_with(memory_size=_MAX_WASM_MEMORY_BYTES)
         assert result.error is None
+
+
+class TestBoundedOutputSink:
+    """_BoundedOutputSink caps host-side stdout/stderr capture so a guest that
+    prints in a loop cannot grow host RAM without bound — a vector the WASM
+    linear-memory limit does not cover."""
+
+    def test_passes_through_output_under_limit(self) -> None:
+        from phoenix.server.sandbox.wasm_backend import _BoundedOutputSink
+
+        sink = _BoundedOutputSink(limit=1024)
+        sink.write(b"hello ")
+        sink.write(b"world")
+
+        assert sink.getvalue() == "hello world"
+
+    def test_output_exactly_at_limit_is_not_truncated(self) -> None:
+        from phoenix.server.sandbox.wasm_backend import _BoundedOutputSink
+
+        sink = _BoundedOutputSink(limit=5)
+        sink.write(b"abcde")
+
+        assert sink.getvalue() == "abcde"
+
+    def test_truncates_and_bounds_host_memory_past_limit(self) -> None:
+        from phoenix.server.sandbox.wasm_backend import _BoundedOutputSink
+
+        sink = _BoundedOutputSink(limit=10)
+        # Simulate a guest printing in a loop far past the cap.
+        for _ in range(1000):
+            sink.write(b"xxxxxxxxxx")
+
+        value = sink.getvalue()
+        captured = value.split("\n[output truncated", 1)[0]
+        # Only the first `limit` bytes are kept, regardless of total written.
+        assert captured == "x" * 10
+        assert "[output truncated: exceeded 10 bytes]" in value
