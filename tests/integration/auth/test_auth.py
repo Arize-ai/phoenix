@@ -1107,99 +1107,299 @@ class TestGraphQLQuery:
             logged_in_user.gql(_app, query)
 
 
-class TestSandboxConfigMutations:
+class TestSandboxAndCodeEvaluatorPermissions:
+    """Role-based permission coverage for the sandbox and code-evaluator
+    GraphQL surfaces, consolidated into one test per role.
+
+    This test exercises every surface with a single logged-in user per
+    role, so a user account is created once per role rather than once per
+    surface. Setup resources are created by the pre-existing default admin, so
+    setup itself never adds to the user-instantiation count.
+
+    Three permission tiers are asserted:
+
+      * Admin-only writes — the sandbox-config mutations carry
+        IsAdminIfAuthEnabled (createSandboxConfig, updateSandboxConfig,
+        deleteSandboxConfig, updateSandboxProvider): admins only.
+      * Member-allowed writes — the code-evaluator mutations and
+        evaluatorPreviews carry only IsNotViewer (createCodeEvaluator,
+        patchCodeEvaluator, createCodeEvaluatorVersion,
+        create/updateDatasetCodeEvaluator, evaluatorPreviews): admins and
+        members, but not viewers.
+      * Unrestricted reads — sandbox/provider/config values and code-evaluator
+        source carry no permission class and are readable by every role.
+    """
+
     QUERY = """
       mutation CreateSandboxConfig($input: CreateSandboxConfigInput!) {
         createSandboxConfig(input: $input) {
-          sandboxConfig {
-            id
-            name
-          }
+          sandboxConfig { id }
         }
       }
 
       mutation UpdateSandboxConfig($input: UpdateSandboxConfigInput!) {
         updateSandboxConfig(input: $input) {
-          sandboxConfig {
+          sandboxConfig { id }
+        }
+      }
+
+      mutation DeleteSandboxConfig($input: DeleteSandboxConfigInput!) {
+        deleteSandboxConfig(input: $input) { deletedId }
+      }
+
+      mutation UpdateSandboxProvider($input: UpdateSandboxProviderInput!) {
+        updateSandboxProvider(input: $input) {
+          sandboxProvider { id }
+        }
+      }
+
+      mutation CreateCodeEvaluator($input: CreateCodeEvaluatorInput!) {
+        createCodeEvaluator(input: $input) {
+          evaluator { id }
+        }
+      }
+
+      mutation PatchCodeEvaluator($input: PatchCodeEvaluatorInput!) {
+        patchCodeEvaluator(input: $input) {
+          evaluator { id }
+        }
+      }
+
+      mutation CreateCodeEvaluatorVersion($input: CreateCodeEvaluatorVersionInput!) {
+        createCodeEvaluatorVersion(input: $input) { wasCreated }
+      }
+
+      mutation EvaluatorPreviews($input: EvaluatorPreviewsInput!) {
+        evaluatorPreviews(input: $input) {
+          results { evaluatorName }
+        }
+      }
+
+      mutation CreateDataset($input: CreateDatasetInput!) {
+        createDataset(input: $input) {
+          dataset { id }
+        }
+      }
+
+      mutation CreateDatasetCodeEvaluator($input: CreateDatasetCodeEvaluatorInput!) {
+        createDatasetCodeEvaluator(input: $input) {
+          evaluator { id }
+        }
+      }
+
+      mutation UpdateDatasetCodeEvaluator($input: UpdateDatasetCodeEvaluatorInput!) {
+        updateDatasetCodeEvaluator(input: $input) {
+          evaluator { id }
+        }
+      }
+
+      query SandboxReadAccess {
+        sandboxBackends { backendType }
+        sandboxProviders {
+          backendType
+          deployment { __typename }
+          configs {
             id
-            description
+            config {
+              envVars { name }
+              internetAccess { mode }
+              dependencies { packages }
+            }
+          }
+        }
+      }
+
+      query CodeEvaluatorReadAccess {
+        evaluators(first: 50) {
+          edges {
+            node {
+              id
+              ... on CodeEvaluator {
+                currentVersion { sourceCode }
+              }
+            }
           }
         }
       }
     """
 
-    @pytest.mark.parametrize(
-        "role_or_user,expectation",
-        [
-            (_VIEWER, _DENIED),
-            (_MEMBER, _DENIED),
-            (_ADMIN, _OK),
-            (_DEFAULT_ADMIN, _OK),
-        ],
-    )
-    def test_only_admin_can_create_sandbox_config(
-        self,
-        role_or_user: _RoleOrUser,
-        expectation: _OK_OR_DENIED,
-        _get_user: _GetUser,
-        _app: _AppInfo,
-    ) -> None:
-        logged_in_user = _get_user(_app, role_or_user).log_in(_app)
-        with expectation:
-            logged_in_user.gql(
-                _app,
-                query=self.QUERY,
-                operation_name="CreateSandboxConfig",
-                variables={
-                    "input": {
-                        "config": {"wasm": {"language": "PYTHON"}},
-                        "name": f"auth-create-sandbox-{token_hex(8)}",
-                    }
-                },
-            )
+    _SOURCE = "def evaluate(output):\n    return {'score': 1.0}"
+    _INPUT_MAPPING = {"literalMapping": {}, "pathMapping": {}}
 
     @pytest.mark.parametrize(
-        "role_or_user,expectation",
-        [
-            (_VIEWER, _DENIED),
-            (_MEMBER, _DENIED),
-            (_ADMIN, _OK),
-            (_DEFAULT_ADMIN, _OK),
-        ],
+        "role_or_user",
+        [_VIEWER, _MEMBER, _ADMIN, _DEFAULT_ADMIN],
+        ids=["viewer", "member", "admin", "default_admin"],
     )
-    def test_only_admin_can_update_sandbox_config(
+    def test_role_based_access(
         self,
         role_or_user: _RoleOrUser,
-        expectation: _OK_OR_DENIED,
         _get_user: _GetUser,
         _app: _AppInfo,
     ) -> None:
-        response, _ = _DEFAULT_ADMIN.gql(
-            _app,
-            query=self.QUERY,
-            operation_name="CreateSandboxConfig",
-            variables={
+        is_admin = role_or_user in (_ADMIN, _DEFAULT_ADMIN)
+        is_viewer = role_or_user is _VIEWER
+
+        def admin_gql(operation: str, variables: dict[str, Any]) -> dict[str, Any]:
+            response, _ = _DEFAULT_ADMIN.gql(
+                _app, query=self.QUERY, operation_name=operation, variables=variables
+            )
+            return response["data"]
+
+        sandbox_config_id = admin_gql(
+            "CreateSandboxConfig",
+            {
                 "input": {
                     "config": {"wasm": {"language": "PYTHON"}},
-                    "name": f"auth-update-sandbox-{token_hex(8)}",
+                    "name": f"auth-sandbox-{token_hex(8)}",
+                }
+            },
+        )["createSandboxConfig"]["sandboxConfig"]["id"]
+        provider_id = str(GlobalID("SandboxProvider", "WASM"))
+
+        code_evaluator_id = admin_gql(
+            "CreateCodeEvaluator",
+            {
+                "input": {
+                    "name": f"auth_code_evaluator_{token_hex(8)}",
+                    "language": "PYTHON",
+                    "sourceCode": self._SOURCE,
+                    "inputMapping": self._INPUT_MAPPING,
+                }
+            },
+        )["createCodeEvaluator"]["evaluator"]["id"]
+
+        dataset_id = admin_gql("CreateDataset", {"input": {"name": f"auth_ds_{token_hex(8)}"}})[
+            "createDataset"
+        ]["dataset"]["id"]
+
+        dataset_evaluator_id = admin_gql(
+            "CreateDatasetCodeEvaluator",
+            {
+                "input": {
+                    "datasetId": dataset_id,
+                    "evaluatorId": code_evaluator_id,
+                    "name": f"auth_dataset_eval_{token_hex(8)}",
+                    "inputMapping": self._INPUT_MAPPING,
+                }
+            },
+        )["createDatasetCodeEvaluator"]["evaluator"]["id"]
+
+        # The single user instantiation + login for this role.
+        user = _get_user(_app, role_or_user).log_in(_app)
+
+        def check(allowed: bool, operation: str, variables: dict[str, Any]) -> None:
+            """Run ``operation`` as ``user``: expect a clean response when
+            ``allowed``, otherwise an Unauthorized error. A fresh expectation
+            is built per call so a denied surface does not abort later ones.
+            """
+            if allowed:
+                user.gql(_app, query=self.QUERY, operation_name=operation, variables=variables)
+            else:
+                with pytest.raises(Unauthorized):
+                    user.gql(_app, query=self.QUERY, operation_name=operation, variables=variables)
+
+        # Tier 1 — admin-only sandbox-config writes.
+        check(
+            is_admin,
+            "CreateSandboxConfig",
+            {
+                "input": {
+                    "config": {"wasm": {"language": "PYTHON"}},
+                    "name": f"auth-sandbox-{token_hex(8)}",
                 }
             },
         )
-        sandbox_config_id = response["data"]["createSandboxConfig"]["sandboxConfig"]["id"]
+        check(
+            is_admin,
+            "UpdateSandboxConfig",
+            {"input": {"id": sandbox_config_id, "description": "updated"}},
+        )
+        check(
+            is_admin,
+            "UpdateSandboxProvider",
+            {"input": {"id": provider_id, "enabled": True}},
+        )
+        # Delete runs last: for admins it removes the setup config, which the
+        # update assertion above has already exercised.
+        check(is_admin, "DeleteSandboxConfig", {"input": {"id": sandbox_config_id}})
 
-        logged_in_user = _get_user(_app, role_or_user).log_in(_app)
-        with expectation:
-            logged_in_user.gql(
-                _app,
-                query=self.QUERY,
-                operation_name="UpdateSandboxConfig",
-                variables={
-                    "input": {
-                        "id": sandbox_config_id,
-                        "description": f"updated by {role_or_user}",
-                    }
-                },
-            )
+        # Tier 2 — member-allowed code-evaluator writes & previews.
+        members_allowed = not is_viewer
+        check(
+            members_allowed,
+            "CreateCodeEvaluator",
+            {
+                "input": {
+                    "name": f"auth_code_evaluator_{token_hex(8)}",
+                    "language": "PYTHON",
+                    "sourceCode": self._SOURCE,
+                    "inputMapping": self._INPUT_MAPPING,
+                }
+            },
+        )
+        check(
+            members_allowed,
+            "PatchCodeEvaluator",
+            {"input": {"id": code_evaluator_id, "description": "patched"}},
+        )
+        check(
+            members_allowed,
+            "CreateCodeEvaluatorVersion",
+            {
+                "input": {
+                    "codeEvaluatorId": code_evaluator_id,
+                    "sourceCode": "def evaluate(output):\n    return {'score': 0.5}",
+                }
+            },
+        )
+        check(
+            members_allowed,
+            "CreateDatasetCodeEvaluator",
+            {
+                "input": {
+                    "datasetId": dataset_id,
+                    "evaluatorId": code_evaluator_id,
+                    "name": f"auth_dataset_eval_{token_hex(8)}",
+                    "inputMapping": self._INPUT_MAPPING,
+                }
+            },
+        )
+        check(
+            members_allowed,
+            "UpdateDatasetCodeEvaluator",
+            {
+                "input": {
+                    "datasetEvaluatorId": dataset_evaluator_id,
+                    "name": f"auth_dataset_eval_{token_hex(8)}",
+                    "inputMapping": self._INPUT_MAPPING,
+                }
+            },
+        )
+        # One IsNotViewer guard covers evaluatorPreviews for every evaluator
+        # shape (inline/persisted, code/LLM); an empty previews list exercises
+        # the gate without needing a live sandbox backend.
+        check(members_allowed, "EvaluatorPreviews", {"input": {"previews": []}})
+
+        # Tier 3 — unrestricted reads. These succeed for every role, viewers
+        # included; a permission class added to any read field would surface
+        # here as an Unauthorized error instead of data.
+        sandbox_read, _ = user.gql(_app, query=self.QUERY, operation_name="SandboxReadAccess")
+        sandbox_data = sandbox_read["data"]
+        assert sandbox_data["sandboxBackends"]
+        wasm = [p for p in sandbox_data["sandboxProviders"] if p["backendType"] == "WASM"]
+        # The config-value resolver returned a payload rather than Unauthorized.
+        assert wasm and wasm[0]["configs"] and wasm[0]["configs"][0]["config"] is not None
+
+        evaluator_read, _ = user.gql(
+            _app, query=self.QUERY, operation_name="CodeEvaluatorReadAccess"
+        )
+        code_nodes = [
+            edge["node"]
+            for edge in evaluator_read["data"]["evaluators"]["edges"]
+            if edge["node"].get("currentVersion")
+        ]
+        assert code_nodes and code_nodes[0]["currentVersion"]["sourceCode"]
 
 
 class TestGenerativeModelCustomProviderMutations:
