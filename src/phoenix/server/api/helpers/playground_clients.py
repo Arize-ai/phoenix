@@ -1880,26 +1880,13 @@ class BedrockStreamingClient(PlaygroundStreamingClient["BedrockRuntimeClient"]):
         "gpt-4.1",
         "gpt-4.1-mini",
         "gpt-4.1-nano",
-        "gpt-4.1-2025-04-14",
-        "gpt-4.1-mini-2025-04-14",
-        "gpt-4.1-nano-2025-04-14",
         "gpt-4o",
-        "gpt-4o-2024-11-20",
-        "gpt-4o-2024-08-06",
-        "gpt-4o-2024-05-13",
         "chatgpt-4o-latest",
         "gpt-4o-mini",
-        "gpt-4o-mini-2024-07-18",
         "gpt-4-turbo",
-        "gpt-4-turbo-2024-04-09",
         "gpt-4-turbo-preview",
-        "gpt-4-0125-preview",
-        "gpt-4-1106-preview",
         "gpt-4",
-        "gpt-4-0613",
-        "gpt-3.5-turbo-0125",
         "gpt-3.5-turbo",
-        "gpt-3.5-turbo-1106",
     ],
 )
 class OpenAIStreamingClient(OpenAIBaseStreamingClient):
@@ -1912,42 +1899,27 @@ class OpenAIStreamingClient(OpenAIBaseStreamingClient):
 OPENAI_REASONING_MODELS = [
     "gpt-5.5",
     "gpt-5.4",
-    "gpt-5.4-2026-03-05",
     "gpt-5.4-mini",
     "gpt-5.4-nano",
     "gpt-5.4-pro",
-    "gpt-5.4-pro-2026-03-05",
     "gpt-5.3-chat-latest",
     "gpt-5.2",
-    "gpt-5.2-2025-12-11",
     "gpt-5.2-chat-latest",
     "gpt-5.2-pro",
-    "gpt-5.2-pro-2025-12-11",
     "gpt-5.1",
-    "gpt-5.1-2025-11-13",
     "gpt-5.1-chat-latest",
     "gpt-5",
-    "gpt-5-2025-08-07",
     "gpt-5-mini",
-    "gpt-5-mini-2025-08-07",
     "gpt-5-nano",
-    "gpt-5-nano-2025-08-07",
     "gpt-5-pro",
-    "gpt-5-pro-2025-10-06",
     "gpt-5-chat",
     "gpt-5-chat-latest",
     "o1",
     "o1-pro",
-    "o1-2024-12-17",
-    "o1-pro-2025-03-19",
     "o3",
     "o3-pro",
-    "o3-pro-2025-06-10",
-    "o3-2025-04-16",
     "o3-mini",
-    "o3-mini-2025-01-31",
     "o4-mini",
-    "o4-mini-2025-04-16",
 ]
 
 
@@ -2622,18 +2594,12 @@ ANTHROPIC_REASONING_MODELS = [
     "claude-opus-4-6",
     "claude-sonnet-4-6",
     "claude-opus-4-5",
-    "claude-opus-4-5-20251101",
     "claude-sonnet-4-5",
-    "claude-sonnet-4-5-20250929",
     "claude-haiku-4-5",
-    "claude-haiku-4-5-20251001",
     "claude-opus-4-1",
-    "claude-opus-4-1-20250805",
     "claude-sonnet-4-0",
-    "claude-sonnet-4-20250514",
     "claude-opus-4-0",
-    "claude-opus-4-20250514",
-    "claude-3-7-sonnet-20250219",
+    "claude-3-7-sonnet-latest",
 ]
 
 
@@ -2645,16 +2611,11 @@ class AnthropicReasoningStreamingClient(AnthropicStreamingClient):
     pass
 
 
-GEMINI_2_0_MODELS = [
-    PROVIDER_DEFAULT,
-    "gemini-2.0-flash-lite",  # Will be deprecated and will be shut down on June 1, 2026.
-    "gemini-2.0-flash-001",  # Will be deprecated and will be shut down on June 1, 2026.
-]
-
-
 @register_llm_client(
     provider_key=GenerativeProviderKey.GOOGLE,
-    model_names=GEMINI_2_0_MODELS,
+    model_names=[
+        PROVIDER_DEFAULT,
+    ],
 )
 class GoogleStreamingClient(PlaygroundStreamingClient["GoogleAsyncClient"]):
     @property
@@ -3031,8 +2992,8 @@ class Gemini25GoogleStreamingClient(GoogleStreamingClient):
 
 
 GEMINI_3_MODELS = [
+    "gemini-3.5-flash",
     "gemini-3.1-pro-preview",
-    "gemini-3-pro-preview",
     "gemini-3-flash-preview",
 ]
 
@@ -3517,12 +3478,6 @@ async def _get_builtin_provider_client(
             "LLMClientFactory[GoogleAsyncClient]",
             LLMClientFactory(create_google_client, google_rate_limit_key(api_key, None)),
         )
-        if model_name in GEMINI_2_0_MODELS:
-            return GoogleStreamingClient(
-                client_factory=google_client_factory,
-                model_name=model_name,
-                provider=provider,
-            )
         if model_name in GEMINI_2_5_MODELS:
             return Gemini25GoogleStreamingClient(
                 client_factory=google_client_factory,
@@ -4031,12 +3986,6 @@ async def _get_custom_provider_client(
             google_genai_client_factory = cfg.get_client_factory(extra_headers=headers)
         except Exception as e:
             raise BadRequest(f"Failed to create {cfg.type} client factory: {e}")
-        if model_name in GEMINI_2_0_MODELS:
-            return GoogleStreamingClient(
-                client_factory=google_genai_client_factory,
-                model_name=model_name,
-                provider=provider,
-            )
         if model_name in GEMINI_2_5_MODELS:
             return Gemini25GoogleStreamingClient(
                 client_factory=google_genai_client_factory,
