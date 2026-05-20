@@ -101,6 +101,7 @@ def _make_runner(
     backend_raises: Exception | None = None,
     timeout: int | None = None,
     fence_stdout: bool = True,
+    evaluator_version_id: str | None = None,
 ) -> tuple[CodeEvaluatorRunner, Any]:
     backend = _StatelessTestBackend()
     mock_execute = cast(AsyncMock, backend.execute)
@@ -121,6 +122,7 @@ def _make_runner(
         sandbox_backend=backend,
         language=language,
         timeout=timeout,
+        evaluator_version_id=evaluator_version_id,
         sandbox_session_manager=SandboxSessionManager(),
         session_key="evaluator:test-runner",
     )
@@ -1166,24 +1168,8 @@ class TestSandboxSpanContract:
     async def test_evaluator_version_id_lands_on_sandbox_metadata_when_provided(
         self,
     ) -> None:
-        backend = AsyncMock()
-        backend.secret_values = frozenset()
-        backend.execute = AsyncMock(
-            return_value=ExecutionResult(stdout=_fenced('"pass"'), stderr="", error=None)
-        )
         version_gid = "Q29kZUV2YWx1YXRvclZlcnNpb246NDI="
-        runner = CodeEvaluatorRunner(
-            name="t",
-            description=None,
-            source_code='def evaluate(**kw): return "pass"',
-            stored_output_configs=[_categorical_config()],
-            sandbox_backend=backend,
-            language="PYTHON",
-            timeout=None,
-            evaluator_version_id=version_gid,
-            sandbox_session_manager=SandboxSessionManager(),
-            session_key="evaluator:test-runner",
-        )
+        runner, _ = _make_runner(evaluator_version_id=version_gid)
         tracer, exporter = _make_tracer()
         await runner.evaluate(
             context={},
