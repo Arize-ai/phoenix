@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<acd61e65dba636ec0229ce00aec8168c>>
+ * @generated SignedSource<<beab48459ba481163a985a16f80adc0e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -51,7 +51,6 @@ export type DaytonaConfigInput = {
   language: Language;
 };
 export type DenoConfigInput = {
-  envVars?: ReadonlyArray<EnvVarInput>;
   language: Language;
 };
 export type VercelConfigInput = {

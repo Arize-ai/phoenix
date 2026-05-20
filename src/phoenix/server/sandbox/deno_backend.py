@@ -3,7 +3,8 @@ Local Deno sandbox backend.
 
 Stateless (BaseNoSessionBackend) — each execute() call is independent.
 Executes code through the local ``deno`` CLI with a default-deny permission
-model, granting only exact env-var access for server-injected variables.
+model. Deno sandboxes intentionally never receive any user-supplied
+environment variables.
 """
 
 from __future__ import annotations
@@ -30,14 +31,9 @@ logger = logging.getLogger(__name__)
 class DenoSandboxBackend(BaseNoSessionBackend):
     """Sandbox backend executing TypeScript code in a local Deno runtime."""
 
-    def __init__(
-        self,
-        deno_executable: str,
-        user_env: Optional[Mapping[str, str]] = None,
-    ) -> None:
+    def __init__(self, deno_executable: str) -> None:
         self._deno_executable = deno_executable
-        self._user_env: dict[str, str] = dict(user_env or {})
-        self.secret_values = compose_secret_values(user_env)
+        self.secret_values = compose_secret_values(None)
 
     def _build_command(self) -> list[str]:
         # Deno security docs: permissions are denied by default, but config
@@ -46,24 +42,21 @@ class DenoSandboxBackend(BaseNoSessionBackend):
         # Docs:
         # - https://docs.deno.com/runtime/fundamentals/security/
         # - https://docs.deno.com/runtime/reference/cli/run/
-        cmd = [
+        return [
             self._deno_executable,
             "run",
             "--no-prompt",
             "--no-config",
             "--no-remote",
             "--no-npm",
+            "-",
         ]
-        if self._user_env:
-            allowed_env_names = ",".join(sorted(self._user_env))
-            cmd.append(f"--allow-env={allowed_env_names}")
-        cmd.append("-")
-        return cmd
 
     def _build_subprocess_env(self) -> dict[str, str]:
-        # Pass only caller-resolved variables through to the child so Deno code
-        # cannot observe the Phoenix server's ambient environment.
-        return dict(self._user_env)
+        # Deno child runs with an empty environment so it cannot observe the
+        # Phoenix server's ambient process env. User-supplied env vars are
+        # intentionally not supported for Deno sandboxes.
+        return {}
 
     async def execute(
         self,
@@ -133,9 +126,15 @@ class DenoAdapter(SandboxAdapter[DenoConfig, NoCredentials, DenoDeployment]):
         deployment: DenoDeployment,
         user_env: Optional[Mapping[str, str]] = None,
     ) -> SandboxBackend:
+        # Deno sandboxes do not accept user-supplied environment variables.
+        # DenoConfig does not compose SupportsEnvVars, so SecretsContext should
+        # already resolve an empty mapping here; reject anything else as
+        # defense-in-depth.
+        if user_env:
+            raise ValueError("Deno sandboxes do not support user-supplied environment variables.")
         deno_executable = shutil.which("deno")
         if deno_executable is None:
             raise ValueError(
                 "Deno is not installed. Install Deno and ensure the `deno` binary is on PATH."
             )
-        return DenoSandboxBackend(deno_executable=deno_executable, user_env=user_env)
+        return DenoSandboxBackend(deno_executable=deno_executable)
