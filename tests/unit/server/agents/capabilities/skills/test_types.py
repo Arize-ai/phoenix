@@ -5,7 +5,10 @@ from pathlib import Path
 import pytest
 
 from phoenix.server.agents.capabilities.skills.skill import Skill
-from phoenix.server.agents.capabilities.skills.skill_resource import SkillResource
+from phoenix.server.agents.capabilities.skills.skill_resource import (
+    ContentSkillResource,
+    SkillResource,
+)
 
 
 def test_skill_creation() -> None:
@@ -40,14 +43,19 @@ def test_skill_with_metadata() -> None:
     assert skill.metadata["author"] == "Test Author"
 
 
-def test_skill_resource_creation() -> None:
-    """Test creating SkillResource with static content."""
-    resource = SkillResource(name="reference", content="Reference documentation here")
+def test_content_skill_resource_creation() -> None:
+    """Test creating ContentSkillResource with static content."""
+    resource = ContentSkillResource(name="reference", content="Reference documentation here")
 
     assert resource.name == "reference"
     assert resource.content == "Reference documentation here"
-    assert resource.function is None
-    assert resource.uri is None
+    assert not hasattr(resource, "function_schema")
+
+
+def test_skill_resource_is_abstract() -> None:
+    """SkillResource is an ABC and cannot be instantiated directly."""
+    with pytest.raises(TypeError, match="abstract"):
+        SkillResource(name="reference")  # type: ignore[abstract]
 
 
 def _write_skill_md(directory: Path, content: str) -> Path:
@@ -95,12 +103,10 @@ def test_from_file_attaches_explicit_resources(tmp_path: Path) -> None:
     skill_file = _write_skill_md(
         tmp_path / "my-skill", "---\nname: my-skill\ndescription: A skill\n---\n\nInstructions.\n"
     )
-    schema_file = tmp_path / "my-skill" / "schema.json"
-    schema_file.write_text('{"table": "users"}')
 
     skill = Skill.from_file(
         skill_file,
-        resources=[SkillResource(name="schema.json", uri=str(schema_file))],
+        resources=[ContentSkillResource(name="schema.json", content='{"table": "users"}')],
     )
 
     assert len(skill.resources) == 1

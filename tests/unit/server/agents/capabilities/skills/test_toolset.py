@@ -5,7 +5,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from phoenix.server.agents.capabilities.skills import Skill, SkillResource, SkillsToolset
+from phoenix.server.agents.capabilities.skills import ContentSkillResource, Skill, SkillsToolset
 
 
 @pytest.fixture
@@ -51,8 +51,8 @@ See FORMS.md for details.
         Skill.from_file(
             skill2_dir / "SKILL.md",
             resources=[
-                SkillResource(name="FORMS.md", uri=str(forms_file)),
-                SkillResource(name="REFERENCE.md", uri=str(reference_file)),
+                ContentSkillResource(name="FORMS.md", content=forms_file.read_text()),
+                ContentSkillResource(name="REFERENCE.md", content=reference_file.read_text()),
             ],
         ),
     ]
@@ -139,10 +139,8 @@ async def test_read_skill_resource_tool(sample_skills: list[Skill]) -> None:
 
     # Check that resources can be read
     for resource in skill.resources:
-        assert resource.uri is not None
-        resource_path = Path(resource.uri)
-        assert resource_path.exists()
-        assert resource_path.is_file()
+        assert isinstance(resource, ContentSkillResource)
+        assert resource.content
 
 
 @pytest.mark.asyncio

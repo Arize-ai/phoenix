@@ -10,6 +10,7 @@ from pydantic_ai.tools import DocstringFormat, GenerateToolJsonSchema
 
 from phoenix.server.agents.capabilities.skills.parsing import parse_skill_md
 from phoenix.server.agents.capabilities.skills.skill_resource import (
+    FunctionSkillResource,
     ResourceFunction,
     SkillResource,
 )
@@ -111,11 +112,10 @@ class Skill:
                 docstring_format=docstring_format,
                 require_parameter_descriptions=False,
             )
-            resource = SkillResource(
+            resource = FunctionSkillResource(
                 name=resource_name,
                 description=description or fn_schema.description,
                 function=resource_fn,
-                takes_ctx=fn_schema.takes_ctx,
                 function_schema=fn_schema,
             )
             self.resources.append(resource)

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import warnings
 from collections.abc import Callable
 from inspect import signature as get_signature
@@ -14,6 +13,9 @@ from pydantic_ai.toolsets import FunctionToolset
 from phoenix.server.agents.capabilities.skills.skill import Skill
 from phoenix.server.agents.capabilities.skills.skill_resource import SkillResource
 from phoenix.server.agents.capabilities.skills.skill_wrapper import SkillWrapper
+from phoenix.server.agents.prompts.templating import get_template
+
+_LOAD_SKILL_TEMPLATE = get_template("skills/LOAD_SKILL.xml.j2")
 
 
 def normalize_skill_name(func_name: str) -> str:
@@ -46,23 +48,6 @@ def normalize_skill_name(func_name: str) -> str:
         )
 
     return normalized
-
-
-# Template used by load_skill
-LOAD_SKILL_TEMPLATE = """<skill>
-<name>{skill_name}</name>
-<description>{description}</description>
-<path>{path}</path>
-
-<resources>
-{resources_list}
-</resources>
-
-<instructions>
-{content}
-</instructions>
-</skill>
-"""
 
 
 class SkillsToolset(FunctionToolset[Any]):
@@ -217,24 +202,6 @@ class SkillsToolset(FunctionToolset[Any]):
             raise KeyError(f"Skill '{name}' not found. Available: {available}")
         return self._skills[name]
 
-    def _build_resource_xml(self, resource: SkillResource) -> str:
-        """Build XML representation of a resource.
-
-        Args:
-            resource: The resource to format.
-
-        Returns:
-            XML string representation of the resource.
-        """
-        res_xml = f'<resource name="{resource.name}"'
-        if resource.description:
-            res_xml += f' description="{resource.description}"'
-        if resource.function and resource.function_schema:
-            params_json = json.dumps(resource.function_schema.json_schema)
-            res_xml += f" parameters={json.dumps(params_json)}"
-        res_xml += " />"
-        return res_xml
-
     def _find_skill_resource(self, skill: Skill, resource_name: str) -> SkillResource | None:
         """Find a resource in a skill by name.
 
@@ -317,25 +284,7 @@ class SkillsToolset(FunctionToolset[Any]):
                     "Call list_skills to see options and try again with an exact name."
                 )
 
-            skill = self._skills[skill_name]
-
-            # Build resources list with schemas for callable resources
-            resources_parts: list[str] = []
-            if skill.resources:
-                for res in skill.resources:
-                    resources_parts.append(self._build_resource_xml(res))
-            resources_list = (
-                "\n".join(resources_parts) if resources_parts else "<!-- No resources -->"
-            )
-
-            # Format response
-            return LOAD_SKILL_TEMPLATE.format(
-                skill_name=skill.name,
-                description=skill.description,
-                path=skill.path,
-                resources_list=resources_list,
-                content=skill.content,
-            )
+            return _LOAD_SKILL_TEMPLATE.render(skill=self._skills[skill_name])
 
     def _register_read_skill_resource(self) -> None:
         """Register the read_skill_resource tool."""
