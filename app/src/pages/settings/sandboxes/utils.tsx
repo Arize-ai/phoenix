@@ -45,7 +45,9 @@ export function StatusText({
   }
 
   const textColor =
-    status === "NOT_INSTALLED" || status === "DISABLED" ? "text-700" : "warning";
+    status === "NOT_INSTALLED" || status === "DISABLED"
+      ? "text-700"
+      : "warning";
 
   return (
     <TooltipTrigger delay={100}>
