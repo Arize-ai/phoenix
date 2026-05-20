@@ -775,16 +775,30 @@ class TestBoundedOutputSink:
 
         assert sink.getvalue() == "abcde"
 
-    def test_truncates_and_bounds_host_memory_past_limit(self) -> None:
+    def test_keeps_tail_so_trailing_result_markers_survive(self) -> None:
+        """The window must retain the tail: the code-evaluator harness prints
+        its fenced result markers last, so dropping the tail would break result
+        parsing for any evaluator that prints a lot before emitting them."""
         from phoenix.server.sandbox.wasm_backend import _BoundedOutputSink
 
-        sink = _BoundedOutputSink(limit=10)
-        # Simulate a guest printing in a loop far past the cap.
-        for _ in range(1000):
-            sink.write(b"xxxxxxxxxx")
+        sink = _BoundedOutputSink(limit=64)
+        sink.write(b"NOISE" * 1000)  # chatty user code, far past the cap
+        sink.write(b"===PHOENIX_RESULT_BEGIN===\n{}\n===PHOENIX_RESULT_END===")
 
         value = sink.getvalue()
-        captured = value.split("\n[output truncated", 1)[0]
-        # Only the first `limit` bytes are kept, regardless of total written.
-        assert captured == "x" * 10
-        assert "[output truncated: exceeded 10 bytes]" in value
+        assert value.endswith("===PHOENIX_RESULT_END===")
+        assert "===PHOENIX_RESULT_BEGIN===" in value
+        assert "[output truncated" in value
+
+    def test_retained_output_stays_bounded(self) -> None:
+        from phoenix.server.sandbox.wasm_backend import _BoundedOutputSink
+
+        sink = _BoundedOutputSink(limit=100)
+        for _ in range(100_000):  # 5 MB written in 50-byte chunks
+            sink.write(b"x" * 50)
+
+        notice, _, retained = sink.getvalue().partition("\n")
+        # A truncation notice plus at most `limit` bytes of retained output —
+        # the host buffer never grows with total bytes written.
+        assert notice.startswith("[output truncated")
+        assert len(retained.encode("utf-8")) <= 100

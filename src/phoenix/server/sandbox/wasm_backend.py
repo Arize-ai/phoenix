@@ -63,11 +63,12 @@ _EPOCH_INTERVAL_SECONDS = 1.0
 # code; bump this constant if a legitimate workload needs more.
 _MAX_WASM_MEMORY_BYTES = 256 * 1024 * 1024
 
-# Per-stream cap on guest stdout/stderr held in host memory. The WASI output
-# callbacks append every guest write to a host buffer, so without a cap a guest
-# that prints in a loop grows host RAM for the whole execution window — a vector
-# that _MAX_WASM_MEMORY_BYTES (which bounds only the guest's own memory) does
-# not address. Bytes past the cap are dropped (see _BoundedOutputSink).
+# Per-stream sliding-window cap on guest stdout/stderr held in host memory. The
+# WASI output callbacks append every guest write to a host buffer, so without a
+# cap a guest that prints in a loop grows host RAM for the whole execution
+# window — a vector _MAX_WASM_MEMORY_BYTES (which bounds only the guest's own
+# memory) does not address. _BoundedOutputSink retains the most recent bytes up
+# to this cap and drops older output.
 _MAX_OUTPUT_BYTES = 1024 * 1024
 
 
@@ -152,36 +153,44 @@ def _get_engine_and_module(binary_path: Path) -> tuple[wasmtime.Engine, wasmtime
 
 
 class _BoundedOutputSink:
-    """Accumulates guest stdout/stderr bytes up to a fixed cap.
+    """Accumulates guest stdout/stderr, retaining a sliding window of the most
+    recent ``limit`` bytes.
 
     The WASI ``stdout_custom`` / ``stderr_custom`` callbacks hand every guest
-    write to the host; appending unconditionally would let a guest that prints
-    in a loop grow host RAM for the whole execution window. Bytes past
-    ``limit`` are dropped, and ``getvalue()`` appends a truncation marker so the
-    caller can tell output was cut.
+    write to the host; appending without bound lets a guest that prints in a
+    loop grow host RAM for the whole execution window.
+
+    The window keeps the **tail**, not the head. This is deliberate: the
+    code-evaluator harness prints its fenced result markers (parsed by
+    ``_extract_fenced_result``) last, after the user's code, so head-truncation
+    would drop them and break result parsing. The retained tail always contains
+    that final marker block, which is tiny relative to ``limit``.
+    ``getvalue()`` prepends a notice when older output was dropped.
     """
 
     def __init__(self, limit: int) -> None:
         self._limit = limit
-        self._chunks: list[bytes] = []
-        self._size = 0
-        self._truncated = False
+        self._buf = bytearray()
+        self._dropped = 0
 
     def write(self, data: bytes) -> None:
-        remaining = self._limit - self._size
-        if remaining <= 0:
-            self._truncated = True
-            return
-        if len(data) > remaining:
-            data = data[:remaining]
-            self._truncated = True
-        self._chunks.append(data)
-        self._size += len(data)
+        self._buf += data
+        # Trim lazily — only once the buffer reaches twice the window — so the
+        # amortized cost is O(1) per byte rather than O(limit) per write.
+        if len(self._buf) > 2 * self._limit:
+            self._trim()
+
+    def _trim(self) -> None:
+        excess = len(self._buf) - self._limit
+        if excess > 0:
+            del self._buf[:excess]
+            self._dropped += excess
 
     def getvalue(self) -> str:
-        text = b"".join(self._chunks).decode("utf-8", errors="replace")
-        if self._truncated:
-            text += f"\n[output truncated: exceeded {self._limit} bytes]"
+        self._trim()
+        text = self._buf.decode("utf-8", errors="replace")
+        if self._dropped:
+            text = f"[output truncated: {self._dropped} earlier bytes dropped]\n{text}"
         return text
 
 
