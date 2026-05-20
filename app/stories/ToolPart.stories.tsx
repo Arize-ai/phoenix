@@ -3,6 +3,10 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { useEffect, useRef } from "react";
 
 import {
+  DOCS_FILESYSTEM_QUERY_TOOL_NAME,
+  DOCS_SEARCH_TOOL_NAME,
+} from "@phoenix/agent/tools/docs";
+import {
   ElicitationDraftProvider,
   type PendingElicitationDraft,
 } from "@phoenix/components/agent/ElicitationDraftContext";
@@ -417,7 +421,7 @@ const askUserResumeFailedPart = makePart({
 // ---------------------------------------------------------------------------
 
 const docsSearchPart = makePart({
-  toolName: "search_phoenix",
+  toolName: DOCS_SEARCH_TOOL_NAME,
   state: "output-available",
   input: { query: "how to configure tracing" },
   output:
@@ -425,23 +429,23 @@ const docsSearchPart = makePart({
 });
 
 const docsSearchRunningPart = makePart({
-  toolName: "search_phoenix",
+  toolName: DOCS_SEARCH_TOOL_NAME,
   state: "input-available",
   input: { query: "embeddings visualization" },
 });
 
-const docsGetPagePart = makePart({
-  toolName: "get_page_phoenix",
+const docsFileSystemQueryPart = makePart({
+  toolName: DOCS_FILESYSTEM_QUERY_TOOL_NAME,
   state: "output-available",
-  input: { page: "/docs/tracing/quickstart" },
+  input: { command: "head -80 /docs/tracing/quickstart.mdx" },
   output:
     "# Getting Started with Tracing\n\nPhoenix tracing helps you understand your LLM application's behavior...\n\n## Installation\n\n```bash\npip install arize-phoenix\n```\n\n## Quick Start\n\nImport and initialize the tracer:\n\n```python\nimport phoenix as px\npx.launch_app()\n```",
 });
 
-const docsGetPageRunningPart = makePart({
-  toolName: "get_page_phoenix",
+const docsFileSystemQueryRunningPart = makePart({
+  toolName: DOCS_FILESYSTEM_QUERY_TOOL_NAME,
   state: "input-available",
-  input: { page: "/docs/evaluation/overview" },
+  input: { command: "head -80 /docs/evaluation/overview.mdx" },
 });
 
 // ---------------------------------------------------------------------------
@@ -601,12 +605,12 @@ export const DocsSearchRunning: Story = {
   args: { part: docsSearchRunningPart },
 };
 
-/** A docs get_page tool that fetched page content. */
-export const DocsGetPage: Story = {
-  args: { part: docsGetPagePart },
+/** A docs filesystem query tool that returned command output. */
+export const DocsFileSystemQuery: Story = {
+  args: { part: docsFileSystemQueryPart },
 };
 
-/** A docs get_page tool currently fetching. */
-export const DocsGetPageRunning: Story = {
-  args: { part: docsGetPageRunningPart },
+/** A docs filesystem query tool currently running. */
+export const DocsFileSystemQueryRunning: Story = {
+  args: { part: docsFileSystemQueryRunningPart },
 };

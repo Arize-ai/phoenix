@@ -6529,12 +6529,10 @@
         },
         "responses": {
           "200": {
-            "description": "Vercel-AI-style SSE stream. The turn ends with a `message-metadata` chunk whose `messageMetadata` payload matches `AssistantMessageMetadata`. Declared here so the model is included in the generated OpenAPI components.",
+            "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AssistantMessageMetadata"
-                }
+                "schema": {}
               }
             }
           },
@@ -15438,6 +15436,25 @@
           "summary"
         ],
         "title": "_SummarizeResponse"
+      },
+      "ToolCallProviderMetadata": {
+        "additionalProperties": false,
+        "description": "Payload Phoenix stamps under the ``phoenix`` namespace of Vercel AI\n``providerMetadata`` on tool-call chunks (``tool-input-start`` and\n``tool-input-available``).",
+        "properties": {
+          "tool_execution_environment": {
+            "enum": [
+              "client",
+              "server"
+            ],
+            "title": "Tool Execution Environment",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tool_execution_environment"
+        ],
+        "title": "ToolCallProviderMetadata",
+        "type": "object"
       }
     }
   }

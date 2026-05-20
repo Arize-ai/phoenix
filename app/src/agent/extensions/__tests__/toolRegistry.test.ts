@@ -15,6 +15,50 @@ describe("toolRegistry", () => {
     localStorage.removeItem("arize-phoenix-agent");
   });
 
+  it("skips server-executed tools without producing output", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-server-1",
+        toolName: "search_docs",
+        input: { query: "phoenix" },
+        providerMetadata: {
+          phoenix: { tool_execution_environment: "server" },
+        },
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(addToolOutput).not.toHaveBeenCalled();
+  });
+
+  it("skips server-executed tools even when the name matches a client tool", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-server-2",
+        toolName: "ask_user",
+        input: {
+          questions: [{ id: "q-1", prompt: "Prompt", type: "freeform" }],
+        },
+        providerMetadata: {
+          phoenix: { tool_execution_environment: "server" },
+        },
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(addToolOutput).not.toHaveBeenCalled();
+  });
+
   it("returns an error output for unknown tools", async () => {
     const store = createAgentStore();
     const addToolOutput = vi.fn().mockResolvedValue(undefined);

@@ -315,6 +315,10 @@ class OtlpStatus(TypedDict):
     message: NotRequired[str]
 
 
+class PhoenixToolCallProviderMetadata(TypedDict):
+    tool_execution_environment: Literal["client", "server"]
+
+
 class PlaygroundContext(TypedDict):
     type: Literal["playground"]
     instanceIds: Sequence[int]

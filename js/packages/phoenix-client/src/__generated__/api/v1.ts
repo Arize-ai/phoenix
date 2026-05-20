@@ -5046,6 +5046,19 @@ export interface components {
             /** Summary */
             summary: string;
         };
+        /**
+         * ToolCallProviderMetadata
+         * @description Payload Phoenix stamps under the ``phoenix`` namespace of Vercel AI
+         *     ``providerMetadata`` on tool-call chunks (``tool-input-start`` and
+         *     ``tool-input-available``).
+         */
+        ToolCallProviderMetadata: {
+            /**
+             * Tool Execution Environment
+             * @enum {string}
+             */
+            tool_execution_environment: "client" | "server";
+        };
     };
     responses: never;
     parameters: never;
@@ -8871,13 +8884,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Vercel-AI-style SSE stream. The turn ends with a `message-metadata` chunk whose `messageMetadata` payload matches `AssistantMessageMetadata`. Declared here so the model is included in the generated OpenAPI components. */
+            /** @description Successful Response */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AssistantMessageMetadata"];
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

@@ -1,8 +1,10 @@
 import { getToolName } from "ai";
 
 import {
+  DOCS_FILESYSTEM_QUERY_TOOL_NAME,
+  DOCS_SEARCH_TOOL_NAME,
   isDocsToolName,
-  parseDocsGetPageInput,
+  parseDocsFileSystemQueryInput,
   parseDocsSearchInput,
 } from "@phoenix/agent/tools/docs";
 
@@ -20,13 +22,13 @@ const OUTPUT_PREVIEW_LENGTH = 200;
  */
 export function getDocsToolPreview(part: ToolInvocationPart): string {
   const toolName = getToolName(part);
-  if (toolName === "search_phoenix") {
+  if (toolName === DOCS_SEARCH_TOOL_NAME) {
     const input = parseDocsSearchInput(part.input);
     return input ? `Searching: ${input.query}` : "";
   }
-  if (toolName === "get_page_phoenix") {
-    const input = parseDocsGetPageInput(part.input);
-    return input ? `Fetching: ${input.page}` : "";
+  if (toolName === DOCS_FILESYSTEM_QUERY_TOOL_NAME) {
+    const input = parseDocsFileSystemQueryInput(part.input);
+    return input ? `Running: ${input.command}` : "";
   }
   return "";
 }
@@ -41,7 +43,9 @@ export function formatDocsToolState(
   const toolName = getToolName(part);
   switch (state) {
     case "input-streaming":
-      return toolName === "get_page_phoenix" ? "Fetching…" : "Searching…";
+      return toolName === DOCS_FILESYSTEM_QUERY_TOOL_NAME
+        ? "Querying…"
+        : "Searching…";
     case "input-available":
       return "Running…";
     case "output-available":
@@ -54,14 +58,14 @@ export function formatDocsToolState(
 }
 
 /**
- * Expanded detail view for a docs tool invocation showing the query or page
- * path and, when available, the text output from the MCP server.
+ * Expanded detail view for a docs tool invocation showing the search query or
+ * filesystem command and, when available, the text output from the MCP server.
  */
 export function DocsToolDetails({ part }: { part: ToolInvocationPart }) {
   const toolName = getToolName(part);
-  const isSearch = toolName === "search_phoenix";
+  const isSearch = toolName === DOCS_SEARCH_TOOL_NAME;
 
-  const inputLabel = isSearch ? "Query" : "Page";
+  const inputLabel = isSearch ? "Query" : "Command";
   const inputText = getInputText(part, isSearch);
   const outputText = getOutputText(part);
 
@@ -71,7 +75,7 @@ export function DocsToolDetails({ part }: { part: ToolInvocationPart }) {
       <ToolPartCodeBlock>{inputText}</ToolPartCodeBlock>
       {part.state === "output-available" ? (
         <>
-          <ToolPartLabel>{isSearch ? "Results" : "Content"}</ToolPartLabel>
+          <ToolPartLabel>{isSearch ? "Results" : "Output"}</ToolPartLabel>
           <ToolPartCodeBlock>{outputText || "(no output)"}</ToolPartCodeBlock>
         </>
       ) : null}
@@ -100,8 +104,8 @@ function getInputText(part: ToolInvocationPart, isSearch: boolean): string {
     const input = parseDocsSearchInput(part.input);
     return input?.query ?? stringifyToolValue(part.input);
   }
-  const input = parseDocsGetPageInput(part.input);
-  return input?.page ?? stringifyToolValue(part.input);
+  const input = parseDocsFileSystemQueryInput(part.input);
+  return input?.command ?? stringifyToolValue(part.input);
 }
 
 function getOutputText(part: ToolInvocationPart): string {
