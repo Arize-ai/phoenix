@@ -28,10 +28,3 @@ Then:
 2. **Create a configuration.** In **Sandbox Configurations**, click **New Sandbox**, pick **Vercel Sandbox**, choose the language (Python or TypeScript), set the timeout and any environment variables or dependencies, and save.
 
 For Vercel's full authentication walkthrough, see [Vercel Sandbox authentication](https://vercel.com/docs/vercel-sandbox/concepts/authentication).
-
-## Troubleshooting
-
-- **The row says "Missing credentials"** — at least one of the three values is missing. Re-open the gear icon and check each field.
-- **The row says "Not installed"** — the Vercel Sandbox integration isn't installed. On a non-container Phoenix install, run `pip install 'arize-phoenix[vercel]'` and restart Phoenix. The official `arizephoenix/phoenix` container already has it.
-- **The row says "Disabled"** — an administrator has excluded Vercel via the [`PHOENIX_ALLOWED_SANDBOX_PROVIDERS`](/docs/phoenix/self-hosting/features/sandbox-runtimes#restricting-which-providers-are-allowed) allowlist. Either add `VERCEL` to the allowlist or remove the variable.
-- **Evaluations fail with an authentication or permission error** — the token may not have access to the configured team/project. Confirm the token, team ID, and project ID belong together, then update them in Phoenix.

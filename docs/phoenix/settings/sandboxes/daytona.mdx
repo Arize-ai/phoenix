@@ -18,10 +18,3 @@ description: "Run code evaluators in Daytona's managed development sandboxes."
 2. **Generate an API key** in the Daytona dashboard.
 3. **Add the key to Phoenix.** Open [Settings → Sandboxes](/docs/phoenix/settings/sandboxes), find the **Daytona** row, click the gear icon, and paste the key as `DAYTONA_API_KEY`. You can also set it as an environment variable on the Phoenix server instead.
 4. **Create a configuration.** In **Sandbox Configurations**, click **New Sandbox**, pick **Daytona**, choose the language (Python or TypeScript), set the timeout and any environment variables or dependencies, and save.
-
-## Troubleshooting
-
-- **The row says "Missing credentials"** — Phoenix hasn't received your API key. Open the gear icon on the Daytona row and paste it in.
-- **The row says "Not installed"** — the Daytona integration isn't installed. On a non-container Phoenix install, run `pip install 'arize-phoenix[daytona]'` and restart Phoenix. The official `arizephoenix/phoenix` container already has it.
-- **The row says "Disabled"** — an administrator has excluded Daytona via the [`PHOENIX_ALLOWED_SANDBOX_PROVIDERS`](/docs/phoenix/self-hosting/features/sandbox-runtimes#restricting-which-providers-are-allowed) allowlist. Either add `DAYTONA` to the allowlist or remove the variable.
-- **Evaluations fail with an authentication error** — your API key is wrong, expired, or revoked. Regenerate it in the Daytona dashboard and update it in Phoenix.

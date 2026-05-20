@@ -20,10 +20,3 @@ description: "Run code evaluators in E2B's hosted micro-VM sandboxes."
 4. **Create a configuration.** In the **Sandbox Configurations** card, click **New Sandbox**, pick **E2B**, set the timeout and any environment variables or dependencies the evaluator needs, and save.
 
 Once the configuration exists, code evaluators can select it from their settings.
-
-## Troubleshooting
-
-- **The row says "Missing credentials"** — Phoenix hasn't received your API key. Open the gear icon on the E2B row and paste it in.
-- **The row says "Not installed"** — the E2B integration isn't installed. On a non-container Phoenix install, run `pip install 'arize-phoenix[e2b]'` and restart Phoenix. The official `arizephoenix/phoenix` container already has it.
-- **The row says "Disabled"** — an administrator has excluded E2B via the [`PHOENIX_ALLOWED_SANDBOX_PROVIDERS`](/docs/phoenix/self-hosting/features/sandbox-runtimes#restricting-which-providers-are-allowed) allowlist. Either add `E2B` to the allowlist or remove the variable.
-- **Evaluations fail with an authentication error** — your API key is likely wrong or revoked. Regenerate it in the E2B dashboard and update the credential in Phoenix.

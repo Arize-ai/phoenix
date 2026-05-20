@@ -18,10 +18,3 @@ description: "Run code evaluators in Modal's serverless container platform."
 2. **Create a token pair** in the Modal dashboard. Modal authenticates with two values — a token ID and a token secret — and gives you both when you create the pair.
 3. **Add the credentials to Phoenix.** Open [Settings → Sandboxes](/docs/phoenix/settings/sandboxes), find the **Modal** row, click the gear icon, and paste the values as `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`. You can also set them as environment variables on the Phoenix server instead.
 4. **Create a configuration.** In **Sandbox Configurations**, click **New Sandbox**, pick **Modal**, set the timeout and any environment variables or dependencies, and save.
-
-## Troubleshooting
-
-- **The row says "Missing credentials"** — at least one of `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET` is unset. Re-open the gear icon and confirm both fields are filled in.
-- **The row says "Not installed"** — the Modal integration isn't installed. On a non-container Phoenix install, run `pip install 'arize-phoenix[modal]'` and restart Phoenix. The official `arizephoenix/phoenix` container already has it.
-- **The row says "Disabled"** — an administrator has excluded Modal via the [`PHOENIX_ALLOWED_SANDBOX_PROVIDERS`](/docs/phoenix/self-hosting/features/sandbox-runtimes#restricting-which-providers-are-allowed) allowlist. Either add `MODAL` to the allowlist or remove the variable.
-- **Evaluations fail with an authentication error** — your token pair is wrong, expired, or has been revoked. Regenerate it in the Modal dashboard and update both values in Phoenix.
