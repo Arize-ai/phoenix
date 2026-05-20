@@ -9,7 +9,7 @@ from typing import Any, TypeAlias
 import yaml
 from pydantic_ai import _function_schema
 
-ResourceFunctionType: TypeAlias = Callable[..., object | Awaitable[object]]
+ResourceFunction: TypeAlias = Callable[..., object | Awaitable[object]]
 """A resource function: any callable, sync or async, returning anything."""
 
 
@@ -30,7 +30,7 @@ class SkillResource:
     name: str
     description: str | None = None
     content: str | None = None
-    function: ResourceFunctionType | None = None
+    function: ResourceFunction | None = None
     takes_ctx: bool = False
     function_schema: _function_schema.FunctionSchema | None = None
     uri: str | None = None

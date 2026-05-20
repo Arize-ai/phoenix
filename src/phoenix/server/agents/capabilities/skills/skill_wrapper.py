@@ -10,14 +10,14 @@ from pydantic_ai.tools import DocstringFormat, GenerateToolJsonSchema
 
 from phoenix.server.agents.capabilities.skills.skill import Skill
 from phoenix.server.agents.capabilities.skills.skill_resource import (
-    ResourceFunctionType,
+    ResourceFunction,
     SkillResource,
 )
 
 # Generic type variable for dependencies
 DepsT = TypeVar("DepsT")
 
-ResourceFuncT = TypeVar("ResourceFuncT", bound=ResourceFunctionType)
+ResourceFunctionType = TypeVar("ResourceFunctionType", bound=ResourceFunction)
 
 
 class SkillWrapper(Generic[DepsT]):
@@ -47,26 +47,26 @@ class SkillWrapper(Generic[DepsT]):
         self.resources = list(resources)
 
     @overload
-    def resource(self, func: ResourceFuncT) -> ResourceFuncT: ...
+    def resource(self, decorated_fn: ResourceFunctionType) -> ResourceFunctionType: ...
 
     @overload
     def resource(
         self,
-        func: None = None,
+        decorated_fn: None = None,
         *,
         name: str | None = None,
         description: str | None = None,
         docstring_format: DocstringFormat = "auto",
-    ) -> Callable[[ResourceFuncT], ResourceFuncT]: ...
+    ) -> Callable[[ResourceFunctionType], ResourceFunctionType]: ...
 
     def resource(
         self,
-        func: ResourceFuncT | None = None,
+        decorated_fn: ResourceFunctionType | None = None,
         *,
         name: str | None = None,
         description: str | None = None,
         docstring_format: DocstringFormat = "auto",
-    ) -> ResourceFuncT | Callable[[ResourceFuncT], ResourceFuncT]:
+    ) -> ResourceFunctionType | Callable[[ResourceFunctionType], ResourceFunctionType]:
         """Decorator to attach a callable resource to the skill.
 
         The decorated function can optionally take RunContext as its first argument
@@ -97,10 +97,10 @@ class SkillWrapper(Generic[DepsT]):
             The original function (allows use as decorator).
         """
 
-        def decorator(f: ResourceFuncT) -> ResourceFuncT:
-            resource_name = name or f.__name__
-            func_schema = _function_schema.function_schema(
-                f,
+        def decorator(resource_fn: ResourceFunctionType) -> ResourceFunctionType:
+            resource_name = name or resource_fn.__name__
+            fn_schema = _function_schema.function_schema(
+                resource_fn,
                 schema_generator=GenerateToolJsonSchema,
                 takes_ctx=None,
                 docstring_format=docstring_format,
@@ -108,20 +108,20 @@ class SkillWrapper(Generic[DepsT]):
             )
             resource = SkillResource(
                 name=resource_name,
-                description=description or func_schema.description,
-                function=f,
-                takes_ctx=func_schema.takes_ctx,
-                function_schema=func_schema,
+                description=description or fn_schema.description,
+                function=resource_fn,
+                takes_ctx=fn_schema.takes_ctx,
+                function_schema=fn_schema,
             )
             self.resources.append(resource)
-            return f
+            return resource_fn
 
-        if func is None:
+        if decorated_fn is None:
             # Called with arguments: @my_skill.resource(name="custom")
             return decorator
         else:
             # Called without arguments: @my_skill.resource
-            return decorator(func)
+            return decorator(decorated_fn)
 
     def to_skill(self) -> Skill:
         """Convert the wrapper to a Skill dataclass.

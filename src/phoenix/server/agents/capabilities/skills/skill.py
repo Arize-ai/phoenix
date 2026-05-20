@@ -10,11 +10,11 @@ from pydantic_ai.tools import DocstringFormat, GenerateToolJsonSchema
 
 from phoenix.server.agents.capabilities.skills.parsing import parse_skill_md
 from phoenix.server.agents.capabilities.skills.skill_resource import (
-    ResourceFunctionType,
+    ResourceFunction,
     SkillResource,
 )
 
-ResourceFuncT = TypeVar("ResourceFuncT", bound=ResourceFunctionType)
+ResourceFunctionType = TypeVar("ResourceFunctionType", bound=ResourceFunction)
 
 
 @dataclass
@@ -65,26 +65,26 @@ class Skill:
         )
 
     @overload
-    def resource(self, func: ResourceFuncT) -> ResourceFuncT: ...
+    def resource(self, decorated_fn: ResourceFunctionType) -> ResourceFunctionType: ...
 
     @overload
     def resource(
         self,
-        func: None = None,
+        decorated_fn: None = None,
         *,
         name: str | None = None,
         description: str | None = None,
         docstring_format: DocstringFormat = "auto",
-    ) -> Callable[[ResourceFuncT], ResourceFuncT]: ...
+    ) -> Callable[[ResourceFunctionType], ResourceFunctionType]: ...
 
     def resource(
         self,
-        func: ResourceFuncT | None = None,
+        decorated_fn: ResourceFunctionType | None = None,
         *,
         name: str | None = None,
         description: str | None = None,
         docstring_format: DocstringFormat = "auto",
-    ) -> ResourceFuncT | Callable[[ResourceFuncT], ResourceFuncT]:
+    ) -> ResourceFunctionType | Callable[[ResourceFunctionType], ResourceFunctionType]:
         """Decorator to register a callable as a skill resource.
 
         The decorated function can optionally take RunContext as its first argument
@@ -100,21 +100,12 @@ class Skill:
             async def get_data(ctx: RunContext[MyDeps]) -> str:
                 return await ctx.deps.fetch_data()
             ```
-
-        Args:
-            func: The function to register as a resource.
-            name: Resource name (defaults to function name).
-            description: Resource description (inferred from docstring if not provided).
-            docstring_format: Format of the docstring ('auto', 'google', 'numpy', 'sphinx').
-
-        Returns:
-            The original function (allows use as decorator).
         """
 
-        def decorator(f: ResourceFuncT) -> ResourceFuncT:
-            resource_name = name or f.__name__
-            func_schema = _function_schema.function_schema(
-                f,
+        def decorator(resource_fn: ResourceFunctionType) -> ResourceFunctionType:
+            resource_name = name or resource_fn.__name__
+            fn_schema = _function_schema.function_schema(
+                resource_fn,
                 schema_generator=GenerateToolJsonSchema,
                 takes_ctx=None,
                 docstring_format=docstring_format,
@@ -122,17 +113,15 @@ class Skill:
             )
             resource = SkillResource(
                 name=resource_name,
-                description=description or func_schema.description,
-                function=f,
-                takes_ctx=func_schema.takes_ctx,
-                function_schema=func_schema,
+                description=description or fn_schema.description,
+                function=resource_fn,
+                takes_ctx=fn_schema.takes_ctx,
+                function_schema=fn_schema,
             )
             self.resources.append(resource)
-            return f
+            return resource_fn
 
-        if func is None:
-            # Called with arguments: @my_skill.resource(name="custom")
-            return decorator
+        if decorated_fn is None:
+            return decorator  # called with arguments: @my_skill.resource(name="custom")
         else:
-            # Called without arguments: @my_skill.resource
-            return decorator(func)
+            return decorator(decorated_fn)  # called without arguments: @my_skill.resource
