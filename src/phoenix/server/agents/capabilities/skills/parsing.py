@@ -1,9 +1,3 @@
-"""Pure parsing and validation helpers for SKILL.md files.
-
-These functions have no dependency on types.py or local.py, making them safe
-to import from types.py without creating circular imports.
-"""
-
 from __future__ import annotations
 
 from typing import Any
