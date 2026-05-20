@@ -16,6 +16,7 @@ from anthropic.types.beta import (
     BetaUsage,
 )
 from anthropic.types.beta.message_create_params import MessageCreateParams
+from jinja2 import Template
 from pydantic_ai import RunContext
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.providers.anthropic import AnthropicProvider
@@ -37,18 +38,18 @@ _DEFAULT_INSTRUCTIONS = AgentInstructions()
 
 STATIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
     {
-        _DEFAULT_INSTRUCTIONS.bash_tool,
-        _DEFAULT_INSTRUCTIONS.ask_user_tool,
-        _DEFAULT_INSTRUCTIONS.set_time_range_tool,
+        _DEFAULT_INSTRUCTIONS.bash_tool.render(),
+        _DEFAULT_INSTRUCTIONS.ask_user_tool.render(),
+        _DEFAULT_INSTRUCTIONS.set_time_range_tool.render(),
     }
 )
 
 DYNAMIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
     {
-        _DEFAULT_INSTRUCTIONS.set_spans_filter_tool,
-        _DEFAULT_INSTRUCTIONS.read_prompt_instance_tool,
-        _DEFAULT_INSTRUCTIONS.clone_prompt_instance_tool,
-        _DEFAULT_INSTRUCTIONS.edit_prompt_instance_tool,
+        _DEFAULT_INSTRUCTIONS.set_spans_filter_tool.render(),
+        _DEFAULT_INSTRUCTIONS.read_prompt_instance_tool.render(),
+        _DEFAULT_INSTRUCTIONS.clone_prompt_instance_tool.render(),
+        _DEFAULT_INSTRUCTIONS.edit_prompt_instance_tool.render(),
     }
 )
 
@@ -205,7 +206,7 @@ class TestSystemBlockCacheBoundary:
         await agent.run("hello", deps=deps)
 
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
-        assert _DEFAULT_INSTRUCTIONS.base in _get_concatenated_text(cached_blocks)
+        assert _DEFAULT_INSTRUCTIONS.base.render() in _get_concatenated_text(cached_blocks)
 
     async def test_static_tool_instructions_are_inside_cache_boundary(
         self,
@@ -275,7 +276,7 @@ class TestSystemBlockCacheBoundary:
         cached_text = _get_concatenated_text(cached_blocks)
         uncached_text = _get_concatenated_text(uncached_blocks)
 
-        assert _DEFAULT_INSTRUCTIONS.base in cached_text
+        assert _DEFAULT_INSTRUCTIONS.base.render() in cached_text
         for static_prompt in STATIC_TOOL_INSTRUCTIONS:
             assert static_prompt in cached_text
             assert static_prompt not in uncached_text
@@ -391,7 +392,7 @@ class TestDocsMCPToolset:
         await agent.run("hello", deps=deps)
 
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
-        assert _DEFAULT_INSTRUCTIONS.docs_tool in _get_concatenated_text(cached_blocks)
+        assert _DEFAULT_INSTRUCTIONS.docs_tool.render() in _get_concatenated_text(cached_blocks)
 
     async def test_docs_tool_instructions_are_absent_when_docs_mcp_server_is_omitted(
         self,
@@ -403,7 +404,7 @@ class TestDocsMCPToolset:
 
         await agent.run("hello", deps=deps)
 
-        assert _DEFAULT_INSTRUCTIONS.docs_tool not in "\n".join(
+        assert _DEFAULT_INSTRUCTIONS.docs_tool.render() not in "\n".join(
             _get_system_texts(captured_request.body)
         )
 
@@ -414,7 +415,7 @@ class TestCapabilityInstructionsOverride:
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
     ) -> None:
-        custom = AgentInstructions(base="CUSTOM_STATIC_SENTINEL")
+        custom = AgentInstructions(base=Template("CUSTOM_STATIC_SENTINEL"))
         agent = build_agent(model=anthropic_model, instructions=custom)
         deps = AgentDependencies(contexts=ResolvedContexts())
 
@@ -423,14 +424,14 @@ class TestCapabilityInstructionsOverride:
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
         cached_text = _get_concatenated_text(cached_blocks)
         assert "CUSTOM_STATIC_SENTINEL" in cached_text
-        assert _DEFAULT_INSTRUCTIONS.base not in cached_text
+        assert _DEFAULT_INSTRUCTIONS.base.render() not in cached_text
 
     async def test_overridden_tool_instruction_replaces_default_in_system_blocks(
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
     ) -> None:
-        custom = AgentInstructions(bash_tool="CUSTOM_BASH_SENTINEL")
+        custom = AgentInstructions(bash_tool=Template("CUSTOM_BASH_SENTINEL"))
         agent = build_agent(model=anthropic_model, instructions=custom)
         deps = AgentDependencies(contexts=ResolvedContexts())
 
@@ -438,4 +439,4 @@ class TestCapabilityInstructionsOverride:
 
         joined_system = "\n".join(_get_system_texts(captured_request.body))
         assert "CUSTOM_BASH_SENTINEL" in joined_system
-        assert _DEFAULT_INSTRUCTIONS.bash_tool not in joined_system
+        assert _DEFAULT_INSTRUCTIONS.bash_tool.render() not in joined_system

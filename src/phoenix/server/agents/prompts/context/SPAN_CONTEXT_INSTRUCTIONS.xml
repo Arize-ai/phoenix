@@ -1,4 +1,0 @@
-<phoenix_span_context>
-  <description>The span the user has selected.</description>{project_node_id_element}
-  {span_id_element}
-</phoenix_span_context>

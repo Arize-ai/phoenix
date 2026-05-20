@@ -4,6 +4,7 @@ import json
 from dataclasses import dataclass
 from typing import Any, cast
 
+from jinja2 import Template
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
 from pydantic_ai.toolsets.external import ExternalToolset
@@ -89,10 +90,10 @@ RENDER_GENERATIVE_UI_TOOL_DEFINITION = ToolDefinition(
 
 @dataclass
 class RenderGenerativeUICapability(AbstractStaticCapability[AgentDependencies]):
-    instructions: str
+    instructions: Template
 
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return ExternalToolset[AgentDependencies]([RENDER_GENERATIVE_UI_TOOL_DEFINITION])
 
     def get_static_instructions(self) -> str:
-        return self.instructions
+        return self.instructions.render()

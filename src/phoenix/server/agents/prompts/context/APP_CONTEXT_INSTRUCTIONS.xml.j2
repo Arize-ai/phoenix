@@ -1,0 +1,5 @@
+<phoenix_app_context>
+  <description>The user's current browser clock. Use these values to resolve any relative time references in the user's requests.</description>
+  <current_browser_datetime>{{ app.current_date_time | sanitize(enclosing_tag="phoenix_app_context", max_chars=128) }}</current_browser_datetime>
+  <time_zone>{{ app.time_zone | sanitize(enclosing_tag="phoenix_app_context", max_chars=128) }}</time_zone>
+</phoenix_app_context>

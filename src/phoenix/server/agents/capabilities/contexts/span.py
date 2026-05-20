@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from jinja2 import Template
 from pydantic_ai import RunContext
 from pydantic_ai.tools import SystemPromptFunc
 
@@ -11,7 +12,7 @@ from phoenix.server.agents.types import AgentDependencies
 
 @dataclass
 class SpanContextCapability(AbstractDynamicCapability[AgentDependencies]):
-    instructions: str
+    instructions: Template
 
     def get_dynamic_instructions(self) -> SystemPromptFunc[AgentDependencies]:
         instructions = self.instructions
@@ -20,24 +21,7 @@ class SpanContextCapability(AbstractDynamicCapability[AgentDependencies]):
             span = ctx.deps.contexts.span
             if span is None:
                 return None
-            if span.span_node_id is not None:
-                element = (
-                    f'<span_node_id format="phoenix_node_id">{span.span_node_id}</span_node_id>'
-                )
-            else:
-                assert span.otel_span_id is not None
-                element = f'<otel_span_id format="otel_hex">{span.otel_span_id}</otel_span_id>'
-            if span.project_node_id is not None:
-                project_node_id_element = (
-                    f'\n  <project_node_id format="phoenix_node_id">'
-                    f"{span.project_node_id}</project_node_id>"
-                )
-            else:
-                project_node_id_element = ""
-            return instructions.format(
-                project_node_id_element=project_node_id_element,
-                span_id_element=element,
-            )
+            return instructions.render(span=span)
 
         return _instructions
 

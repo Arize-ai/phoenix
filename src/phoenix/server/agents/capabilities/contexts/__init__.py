@@ -33,10 +33,7 @@ def get_context_capability_function(
         TraceContextCapability(instructions=instructions.trace_context),
         SpanContextCapability(instructions=instructions.span_context),
         PlaygroundContextCapability(instructions=instructions.playground_context),
-        GraphQLMutationsCapability(
-            enabled_instructions=instructions.graphql_mutations_enabled,
-            disabled_instructions=instructions.graphql_mutations_disabled,
-        ),
+        GraphQLMutationsCapability(instructions=instructions.graphql_mutations),
     ]
 
     def _build(ctx: RunContext[AgentDependencies]) -> AbstractCapability[AgentDependencies]:

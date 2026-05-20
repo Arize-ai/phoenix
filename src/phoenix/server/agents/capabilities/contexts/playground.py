@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from string import ascii_uppercase
 
+from jinja2 import Template
 from pydantic_ai import RunContext
 from pydantic_ai.tools import SystemPromptFunc
 
@@ -11,7 +13,7 @@ from phoenix.server.agents.types import AgentDependencies
 
 @dataclass
 class PlaygroundContextCapability(AbstractDynamicCapability[AgentDependencies]):
-    instructions: str
+    instructions: Template
 
     def get_dynamic_instructions(self) -> SystemPromptFunc[AgentDependencies]:
         instructions = self.instructions
@@ -20,15 +22,10 @@ class PlaygroundContextCapability(AbstractDynamicCapability[AgentDependencies]):
             playground = ctx.deps.contexts.playground
             if playground is None:
                 return None
-            if playground.instance_ids:
-                lines = [
-                    f'    <instance label="{chr(65 + index)}" instance_id="{instance_id}"/>'
-                    for index, instance_id in enumerate(playground.instance_ids)
-                ]
-                instance_elements = "\n" + "\n".join(lines) + "\n  "
-            else:
-                instance_elements = ""
-            return instructions.format(instance_elements=instance_elements)
+            return instructions.render(
+                playground=playground,
+                instance_labels=ascii_uppercase,
+            )
 
         return _instructions
 

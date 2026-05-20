@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from jinja2 import Template
 from pydantic_ai import RunContext
 from pydantic_ai.tools import SystemPromptFunc, ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
@@ -108,7 +109,7 @@ TOOL_DEFINITION = ToolDefinition(
 
 @dataclass
 class SetSpansFilterCapability(AbstractDynamicCapability[AgentDependencies]):
-    instructions: str
+    instructions: Template
 
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
@@ -117,7 +118,7 @@ class SetSpansFilterCapability(AbstractDynamicCapability[AgentDependencies]):
         instructions = self.instructions
 
         def _instructions(ctx: RunContext[AgentDependencies]) -> str:
-            return instructions
+            return instructions.render()
 
         return _instructions
 
