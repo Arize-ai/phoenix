@@ -1,14 +1,3 @@
-"""Type definitions for skills toolset.
-
-This module contains dataclass-based type definitions for skills
-and their resources.
-
-Data classes:
-- `Skill`: A skill instance with metadata, content, and resources
-- `SkillResource`: A resource file or callable within a skill
-- `SkillWrapper`: Generic wrapper for decorator-based skill creation
-"""
-
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
