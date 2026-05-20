@@ -1224,7 +1224,7 @@ class TestSandboxAndCodeEvaluatorPermissions:
     """
 
     _SOURCE = "def evaluate(output):\n    return {'score': 1.0}"
-    _INPUT_MAPPING = {"literalMapping": {}, "pathMapping": {}}
+    _INPUT_MAPPING: dict[str, dict[str, Any]] = {"literalMapping": {}, "pathMapping": {}}
 
     @pytest.mark.parametrize(
         "role_or_user",
@@ -1244,7 +1244,8 @@ class TestSandboxAndCodeEvaluatorPermissions:
             response, _ = _DEFAULT_ADMIN.gql(
                 _app, query=self.QUERY, operation_name=operation, variables=variables
             )
-            return response["data"]
+            data: dict[str, Any] = response["data"]
+            return data
 
         sandbox_config_id = admin_gql(
             "CreateSandboxConfig",
