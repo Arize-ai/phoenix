@@ -729,8 +729,6 @@ class TestRunWasmTimeout:
     def test_reports_timeout_when_trap_fires_after_deadline(self) -> None:
         import wasmtime
 
-        from phoenix.server.sandbox import wasm_backend
-
         class _TrappingStart:
             def __call__(self, store: object) -> None:
                 del store
@@ -751,9 +749,7 @@ class TestRunWasmTimeout:
                 with patch("wasmtime.Store", return_value=fake_store):
                     with patch.object(wasmtime, "Func", _TrappingStart):
                         # started_at, then the except branch reads 30s later.
-                        with patch.object(
-                            wasm_backend.time, "monotonic", side_effect=[100.0, 130.0]
-                        ):
+                        with patch("time.monotonic", side_effect=[100.0, 130.0]):
                             result = _run_wasm(
                                 Path("/fake/cpython.wasm"), "while True: pass", timeout=30
                             )
@@ -764,8 +760,6 @@ class TestRunWasmTimeout:
 
     def test_preserves_generic_error_raised_before_timeout(self) -> None:
         import wasmtime
-
-        from phoenix.server.sandbox import wasm_backend
 
         class _FailingStart:
             def __call__(self, store: object) -> None:
@@ -787,9 +781,7 @@ class TestRunWasmTimeout:
                     with patch.object(wasmtime, "Func", _FailingStart):
                         # Only 0.5s elapsed — far under the 30s timeout, so the
                         # error is a genuine guest fault, not a deadline trap.
-                        with patch.object(
-                            wasm_backend.time, "monotonic", side_effect=[100.0, 100.5]
-                        ):
+                        with patch("time.monotonic", side_effect=[100.0, 100.5]):
                             result = _run_wasm(Path("/fake/cpython.wasm"), "1/0", timeout=30)
 
         assert result.error == "integer division by zero"
