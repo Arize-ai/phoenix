@@ -19,11 +19,11 @@ class _StubProcess:
         *,
         stdout: bytes = b"",
         stderr: bytes = b"",
-        returncode: int = 0,
+        returncode: int | None = 0,
     ) -> None:
         self._stdout = stdout
         self._stderr = stderr
-        self.returncode = returncode
+        self.returncode: int | None = returncode
         self.communicate = AsyncMock(return_value=(stdout, stderr))
         self.kill = MagicMock()
         self.wait = AsyncMock()
@@ -249,3 +249,37 @@ class TestDenoSandboxBackend:
 
         assert len(results) == cap * 3
         assert all(r.stdout == "ok\n" and r.error is None for r in results)
+
+    @pytest.mark.asyncio
+    async def test_execute_kills_subprocess_on_outer_cancellation(self) -> None:
+        """An outer cancellation (e.g. CodeEvaluatorRunner's asyncio.wait_for
+        firing while proc.communicate() is in flight) must still kill the Deno
+        child. CancelledError is a BaseException, so it bypasses the
+        asyncio.TimeoutError cleanup path — the finally block is what prevents
+        the subprocess from outliving its execute() call."""
+        backend = DenoSandboxBackend(deno_executable="/usr/local/bin/deno")
+        proc = _StubProcess()
+        # None = still running, so the finally's returncode guard fires.
+        proc.returncode = None
+        in_communicate = asyncio.Event()
+
+        async def _hang(_input: bytes) -> tuple[bytes, bytes]:
+            in_communicate.set()
+            await asyncio.Event().wait()  # never resolves
+            return (b"", b"")
+
+        proc.communicate = _hang  # type: ignore[assignment]
+
+        with patch(
+            "phoenix.server.sandbox.deno_backend.asyncio.create_subprocess_exec",
+            AsyncMock(return_value=proc),
+        ):
+            task = asyncio.create_task(
+                backend.execute("console.log('x')", session_key="test", timeout=30)
+            )
+            await asyncio.wait_for(in_communicate.wait(), timeout=2)
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+
+        proc.kill.assert_called_once_with()

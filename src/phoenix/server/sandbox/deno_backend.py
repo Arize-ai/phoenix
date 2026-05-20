@@ -135,6 +135,21 @@ class DenoSandboxBackend(BaseNoSessionBackend):
                 return ExecutionResult(stdout="", stderr=message, error=message)
             except Exception as exc:
                 return ExecutionResult(stdout="", stderr=str(exc), error=str(exc))
+            finally:
+                # Terminate the child on ANY exit from this block. An outer
+                # asyncio.wait_for (CodeEvaluatorRunner wraps execute()) can
+                # fire while proc.communicate() is in flight — its
+                # CancelledError is a BaseException, so it is NOT caught by
+                # the handlers above and the asyncio.TimeoutError cleanup is
+                # skipped. Without this finally the Deno child would outlive
+                # its execute() call, and stop_session() is a no-op for this
+                # stateless backend. proc.kill() is a synchronous SIGKILL;
+                # asyncio's child watcher reaps the process once it exits.
+                # The returncode guard makes this a no-op on the success and
+                # asyncio.TimeoutError paths, where the process is already
+                # reaped.
+                if proc is not None and proc.returncode is None:
+                    proc.kill()
 
     async def close(self) -> None:
         pass
