@@ -12,27 +12,12 @@ description: "Run code evaluators in Daytona's managed development sandboxes."
 </div>
 </div>
 
-## When to choose Daytona
-
-Pick Daytona when you want a single hosted provider that handles both **Python and TypeScript** evaluators, or when you need any of the following:
-
-- **Stronger isolation than the local sandboxes.** Every run gets its own sandbox with no access to your Phoenix server.
-- **Third-party packages at runtime.** Install Python or npm packages on the configuration and Daytona has them ready before each run.
-- **Outbound network access** for evaluators that call out to APIs.
-- **Longer timeouts** for slower evaluators.
-
-If your team writes only one language, a single-language hosted provider (E2B for Python, Vercel for TypeScript) may be a closer fit. If you don't need packages or network access, the local [WebAssembly](/docs/phoenix/settings/sandboxes/wasm) or [Deno](/docs/phoenix/settings/sandboxes/deno) sandboxes will be cheaper and faster.
-
 ## Setup
 
 1. **Create a Daytona account** at [daytona.io](https://www.daytona.io/) if you don't already have one.
 2. **Generate an API key** in the Daytona dashboard.
 3. **Add the key to Phoenix.** Open [Settings → Sandboxes](/docs/phoenix/settings/sandboxes), find the **Daytona** row, click the gear icon, and paste the key as `DAYTONA_API_KEY`. You can also set it as an environment variable on the Phoenix server instead.
 4. **Create a configuration.** In **Sandbox Configurations**, click **New Sandbox**, pick **Daytona**, choose the language (Python or TypeScript), set the timeout and any environment variables or dependencies, and save.
-
-## Pricing and quotas
-
-See [daytona.io/pricing](https://www.daytona.io/pricing) for current rates and free-tier limits. Phoenix doesn't add a markup.
 
 ## Troubleshooting
 

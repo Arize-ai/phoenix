@@ -12,17 +12,6 @@ description: "Run code evaluators in E2B's hosted micro-VM sandboxes."
 </div>
 </div>
 
-## When to choose E2B
-
-Pick E2B when you need any of the following from your Python evaluators:
-
-- **Stronger isolation than the local WebAssembly sandbox.** Every run gets its own micro-VM, so an evaluator can't see anything from your Phoenix server or from other runs.
-- **Third-party Python packages at runtime.** Add packages like `pandas`, `requests`, or anything else to the sandbox configuration and E2B installs them before each run.
-- **Outbound network access.** Enable internet on the configuration if your evaluator needs to call an API.
-- **Longer timeouts** for evaluators that need more than a few seconds to run.
-
-If your evaluators are quick, pure-logic Python (regex, JSON parsing, scoring functions) and don't need third-party packages or network access, the local [WebAssembly sandbox](/docs/phoenix/settings/sandboxes/wasm) will be faster and free.
-
 ## Setup
 
 1. **Create an E2B account** at [e2b.dev](https://e2b.dev/) if you don't already have one.
@@ -31,10 +20,6 @@ If your evaluators are quick, pure-logic Python (regex, JSON parsing, scoring fu
 4. **Create a configuration.** In the **Sandbox Configurations** card, click **New Sandbox**, pick **E2B**, set the timeout and any environment variables or dependencies the evaluator needs, and save.
 
 Once the configuration exists, code evaluators can select it from their settings.
-
-## Pricing and quotas
-
-E2B charges per second of sandbox runtime. See [e2b.dev/pricing](https://e2b.dev/pricing) for current rates and free-tier limits. Phoenix doesn't add any markup — you pay E2B directly.
 
 ## Troubleshooting
 

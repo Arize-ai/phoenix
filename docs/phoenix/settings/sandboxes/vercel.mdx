@@ -12,16 +12,6 @@ description: "Run code evaluators in ephemeral compute on Vercel's infrastructur
 </div>
 </div>
 
-## When to choose Vercel Sandbox
-
-Pick Vercel Sandbox when:
-
-- **Your team is already on Vercel.** Sandbox usage rolls up under the same Vercel billing, access controls, and team boundaries you already manage. No new vendor relationship needed.
-- **You want both Python and TypeScript** evaluators under one provider.
-- **You need stronger isolation than the local sandboxes** plus optional outbound internet access and runtime package installation.
-
-If you're not already a Vercel customer, E2B (Python) or Daytona (Python + TypeScript) are usually simpler starting points.
-
 ## Setup
 
 Vercel Sandbox needs three values:
@@ -38,10 +28,6 @@ Then:
 2. **Create a configuration.** In **Sandbox Configurations**, click **New Sandbox**, pick **Vercel Sandbox**, choose the language (Python or TypeScript), set the timeout and any environment variables or dependencies, and save.
 
 For Vercel's full authentication walkthrough, see [Vercel Sandbox authentication](https://vercel.com/docs/vercel-sandbox/concepts/authentication).
-
-## Pricing and quotas
-
-Sandbox usage is billed to the Vercel team that owns the project. See [vercel.com/pricing](https://vercel.com/pricing) and the [Vercel Sandbox docs](https://vercel.com/docs/vercel-sandbox) for current rates. Phoenix doesn't add a markup.
 
 ## Troubleshooting
 
