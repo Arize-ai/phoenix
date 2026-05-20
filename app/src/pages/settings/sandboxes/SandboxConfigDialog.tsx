@@ -863,7 +863,13 @@ function SecretKeyComboBox({
         }
       }
     `,
-    {}
+    {},
+    // This query is not part of a managed Relay connection, so secrets added
+    // elsewhere (e.g. the Secrets settings page mutation) don't get appended to
+    // this list in the store. Revalidate against the network on every mount so
+    // the combobox always reflects the current set of secrets, while still
+    // rendering cached data immediately.
+    { fetchPolicy: "store-and-network" }
   );
 
   const secretKeys = data.secrets.edges.map((e) => ({
