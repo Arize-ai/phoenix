@@ -2,7 +2,15 @@ You have access to a collection of skills containing domain-specific knowledge a
 Each skill provides specialized instructions and resources for specific tasks.
 
 <available_skills>
-{{ skills_list }}
+  {% for skill in skills | sort(attribute='name') %}
+  <skill>
+    <name>{{ skill.name }}</name>
+    <description>{{ skill.description }}</description>
+    {% if skill.uri %}
+    <uri>{{ skill.uri }}</uri>
+    {% endif %}
+  </skill>
+  {% endfor %}
 </available_skills>
 
 When a task falls within a skill's domain:

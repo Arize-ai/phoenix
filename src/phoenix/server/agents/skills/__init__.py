@@ -1,19 +1,7 @@
-"""Bundled skills shipped with the PXI agent.
-
-The SKILL.md files themselves live under
-``phoenix.server.agents.prompts.skills``; this module imports them and
-constructs the corresponding ``Skill`` objects.
-"""
-
 from __future__ import annotations
 
-from pathlib import Path
-
 from phoenix.server.agents.capabilities.skills import Skill
-
-_PROMPTS_SKILLS_DIR = Path(__file__).resolve().parent.parent / "prompts" / "skills"
-
-_TRACE_DEBUGGING_SKILL = Skill.from_file(_PROMPTS_SKILLS_DIR / "trace-debugging" / "SKILL.md")
+from phoenix.server.agents.skills.trace_debugging import SKILL as _TRACE_DEBUGGING_SKILL
 
 
 def build_skills() -> list[Skill]:
