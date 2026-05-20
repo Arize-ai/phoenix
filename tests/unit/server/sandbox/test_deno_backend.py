@@ -198,3 +198,54 @@ class TestDenoSandboxBackend:
         assert "Deno executable not found" in result.stderr
         assert result.error is not None
         assert "Deno executable not found" in result.error
+
+    @pytest.mark.asyncio
+    async def test_execute_caps_concurrent_subprocesses(self) -> None:
+        """No more than _MAX_CONCURRENT_DENO_EXECUTIONS Deno subprocesses run
+        at once, so a large fan-out cannot exhaust the Phoenix host."""
+        from phoenix.server.sandbox import deno_backend
+
+        cap = deno_backend._MAX_CONCURRENT_DENO_EXECUTIONS
+        live = 0
+        peak = 0
+        gate = asyncio.Event()
+        reached_cap = asyncio.Event()
+
+        async def _communicate(_input: bytes) -> tuple[bytes, bytes]:
+            nonlocal live, peak
+            live += 1
+            peak = max(peak, live)
+            if live >= cap:
+                reached_cap.set()
+            try:
+                await gate.wait()
+            finally:
+                live -= 1
+            return (b"ok\n", b"")
+
+        def _make_proc(*_args: object, **_kwargs: object) -> _StubProcess:
+            proc = _StubProcess(stdout=b"ok\n")
+            proc.communicate = _communicate  # type: ignore[assignment]
+            return proc
+
+        backend = DenoSandboxBackend(deno_executable="/usr/local/bin/deno")
+        with patch(
+            "phoenix.server.sandbox.deno_backend.asyncio.create_subprocess_exec",
+            AsyncMock(side_effect=_make_proc),
+        ):
+            tasks = [
+                asyncio.create_task(backend.execute("x", session_key="s", timeout=5))
+                for _ in range(cap * 3)
+            ]
+            # Once `cap` tasks are in-flight, give any tasks that a broken cap
+            # would let through a window to start before asserting.
+            await asyncio.wait_for(reached_cap.wait(), timeout=2)
+            await asyncio.sleep(0.05)
+            assert live == cap
+            assert peak == cap
+
+            gate.set()
+            results = await asyncio.gather(*tasks)
+
+        assert len(results) == cap * 3
+        assert all(r.stdout == "ok\n" and r.error is None for r in results)
