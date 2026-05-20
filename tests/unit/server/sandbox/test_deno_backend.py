@@ -283,3 +283,85 @@ class TestDenoSandboxBackend:
                 await task
 
         proc.kill.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_execute_kills_subprocess_cancelled_after_queueing(self) -> None:
+        """The real trigger from CodeEvaluatorRunner: an execution waits for a
+        semaphore slot, then spawns its subprocess, then is externally
+        cancelled before its own internal timeout. The queued-then-started
+        path must still kill the Deno child.
+
+        Only proc.kill() is asserted: the cancellation-path finally issues a
+        synchronous SIGKILL and does not await proc.wait() — awaiting inside a
+        finally that runs during CancelledError unwinding gains no determinism,
+        and asyncio's child watcher reaps the killed process anyway."""
+        from phoenix.server.sandbox import deno_backend
+
+        cap = deno_backend._MAX_CONCURRENT_DENO_EXECUTIONS
+        backend = DenoSandboxBackend(deno_executable="/usr/local/bin/deno")
+
+        blocker_gate = asyncio.Event()
+        all_blockers_running = asyncio.Event()
+        victim_in_communicate = asyncio.Event()
+        blockers_started = 0
+
+        async def _blocker_communicate(_input: bytes) -> tuple[bytes, bytes]:
+            nonlocal blockers_started
+            blockers_started += 1
+            if blockers_started >= cap:
+                all_blockers_running.set()
+            await blocker_gate.wait()
+            return (b"", b"")
+
+        async def _victim_communicate(_input: bytes) -> tuple[bytes, bytes]:
+            victim_in_communicate.set()
+            await asyncio.Event().wait()  # hang until cancelled
+            return (b"", b"")
+
+        victim_proc = _StubProcess()
+        victim_proc.returncode = None  # still running when the finally runs
+        victim_proc.communicate = _victim_communicate  # type: ignore[assignment]
+        made = 0
+
+        def _make_proc(*_a: object, **_kw: object) -> _StubProcess:
+            # The first `cap` spawns saturate the semaphore; the next is the
+            # victim, which can only spawn once it dequeues a freed slot.
+            nonlocal made
+            made += 1
+            if made <= cap:
+                blocker = _StubProcess()
+                blocker.communicate = _blocker_communicate  # type: ignore[assignment]
+                return blocker
+            return victim_proc
+
+        with patch(
+            "phoenix.server.sandbox.deno_backend.asyncio.create_subprocess_exec",
+            AsyncMock(side_effect=_make_proc),
+        ):
+            blockers = [
+                asyncio.create_task(backend.execute("x", session_key="b", timeout=30))
+                for _ in range(cap)
+            ]
+            await asyncio.wait_for(all_blockers_running.wait(), timeout=2)
+
+            victim = asyncio.create_task(
+                backend.execute("console.log('x')", session_key="v", timeout=30)
+            )
+            # All slots are held, so the victim is parked on the semaphore and
+            # has not spawned its subprocess yet.
+            await asyncio.sleep(0.05)
+            assert not victim_in_communicate.is_set()
+
+            # Free the slots; the victim dequeues, spawns, reaches communicate().
+            blocker_gate.set()
+            await asyncio.wait_for(victim_in_communicate.wait(), timeout=2)
+
+            # External cancellation while the victim subprocess is in flight,
+            # well before its internal 30s timeout.
+            victim.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await victim
+
+            await asyncio.gather(*blockers)
+
+        victim_proc.kill.assert_called_once_with()
