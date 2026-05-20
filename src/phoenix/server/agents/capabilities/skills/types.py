@@ -1,12 +1,11 @@
 """Type definitions for skills toolset.
 
-This module contains dataclass-based type definitions for skills,
-their resources, and scripts.
+This module contains dataclass-based type definitions for skills
+and their resources.
 
 Data classes:
-- `Skill`: A skill instance with metadata, content, resources, and scripts
+- `Skill`: A skill instance with metadata, content, and resources
 - `SkillResource`: A resource file or callable within a skill
-- `SkillScript`: An executable script within a skill
 - `SkillWrapper`: Generic wrapper for decorator-based skill creation
 """
 
@@ -15,16 +14,13 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from pydantic.json_schema import GenerateJsonSchema
 from pydantic_ai import _function_schema
 from pydantic_ai.tools import DocstringFormat, GenerateToolJsonSchema
 
-from ._parsing import SKILL_NAME_PATTERN, parse_skill_md, validate_skill_metadata
-
-if TYPE_CHECKING:
-    from .local import CallableSkillScriptExecutor, LocalSkillScriptExecutor
+from phoenix.server.agents.capabilities.skills._parsing import parse_skill_md
 
 # Generic type variable for dependencies
 DepsT = TypeVar("DepsT")
@@ -33,7 +29,7 @@ DepsT = TypeVar("DepsT")
 def normalize_skill_name(func_name: str) -> str:
     """Normalize a function name to a valid skill name.
 
-    Converts underscores to hyphens and validates against the skill naming pattern.
+    Converts underscores to hyphens and lowercases.
 
     Args:
         func_name: The function name to normalize.
@@ -42,25 +38,16 @@ def normalize_skill_name(func_name: str) -> str:
         Normalized skill name (lowercase, underscores replaced with hyphens).
 
     Raises:
-        ValueError: If the name contains invalid characters after normalization.
+        ValueError: If the normalized name exceeds 64 characters.
 
     Example:
         ```python
         normalize_skill_name('data_analyzer')  # Returns 'data-analyzer'
         normalize_skill_name('my_cool_skill')  # Returns 'my-cool-skill'
-        normalize_skill_name('InvalidName')  # Raises ValueError
         ```
     """
     # Replace underscores with hyphens and convert to lowercase
     normalized = func_name.replace("_", "-").lower()
-
-    # Validate against pattern
-    if not SKILL_NAME_PATTERN.match(normalized):
-        raise ValueError(
-            f"Skill name '{normalized}' (derived from function '{func_name}') is invalid. "
-            "Skill names must contain only lowercase letters, numbers, and hyphens "
-            "(no consecutive hyphens)."
-        )
 
     # Check length
     if len(normalized) > 64:
@@ -128,64 +115,8 @@ class SkillResource:
 
 
 @dataclass
-class SkillScript:
-    """An executable script within a skill.
-
-    Can be programmatic (function) or file-based (executed via subprocess).
-
-    Attributes:
-        name: Script name (includes .py extension for file-based).
-        description: Description of what the script does.
-        function: Callable that implements the script (programmatic).
-        takes_ctx: Whether the function takes RunContext as first argument.
-        function_schema: Function schema for callable scripts (auto-generated).
-        uri: Optional URI for file-based scripts (internal use).
-        skill_name: Optional parent skill name (internal use).
-    """
-
-    name: str
-    description: str | None = None
-    function: Callable[..., Any] | None = None
-    takes_ctx: bool = False
-    function_schema: _function_schema.FunctionSchema | None = None
-    uri: str | None = None
-    skill_name: str | None = None
-
-    def __post_init__(self) -> None:
-        """Validate that script has either function or uri.
-
-        For programmatic scripts, function is required.
-        For file-based scripts (subclasses), uri is sufficient.
-        """
-        if self.function is None and self.uri is None:
-            raise ValueError(f"Script '{self.name}' must have either function or uri")
-        if self.function is not None and self.function_schema is None:
-            raise ValueError(f"Script '{self.name}' with function must have function_schema")
-
-    async def run(self, ctx: Any, args: dict[str, Any] | None = None) -> Any:
-        """Execute the script.
-
-        File-based subclasses override to execute via subprocess.
-
-        Args:
-            ctx: RunContext for accessing dependencies.
-            args: Named arguments for the script.
-
-        Returns:
-            Script output (any type).
-
-        Raises:
-            ValueError: If script has no function.
-        """
-        if self.function and self.function_schema:
-            return await self.function_schema.call(args or {}, ctx)
-        else:
-            raise ValueError(f"Script '{self.name}' has no function")
-
-
-@dataclass
 class Skill:
-    """A skill instance with metadata, content, resources, and scripts.
+    """A skill instance with metadata, content, and resources.
 
     Can be created programmatically or loaded from filesystem directories.
 
@@ -212,17 +143,6 @@ class Skill:
         @my_skill.resource
         async def get_samples(ctx: RunContext[MyDeps]) -> str:
             return await ctx.deps.get_samples()
-
-        # Add callable scripts
-        @my_skill.script
-        async def load_dataset(ctx: RunContext[MyDeps]) -> str:
-            await ctx.deps.load_data()
-            return 'Dataset loaded.'
-
-        @my_skill.script
-        async def run_query(ctx: RunContext[MyDeps], query: str) -> str:
-            result = await ctx.deps.db.execute(query)
-            return str(result)
         ```
 
     Attributes:
@@ -232,7 +152,6 @@ class Skill:
         license: Optional license information.
         compatibility: Optional environment requirements (max 500 chars).
         resources: List of resources (files or callables).
-        scripts: List of scripts (functions or file-based).
         uri: URI for the skill's base location. When not provided, a ``skill://{name}``
             (scheme-based URI) is automatically assigned for internal reference. For
             filesystem-based skills, this is explicitly set by the filesystem
@@ -247,7 +166,6 @@ class Skill:
     license: str | None = None
     compatibility: str | None = None
     resources: list[SkillResource] = field(default_factory=list)
-    scripts: list[SkillScript] = field(default_factory=list)
     uri: str | None = None
     metadata: dict[str, Any] | None = None
 
@@ -267,19 +185,17 @@ class Skill:
     def from_file(
         cls,
         path: str | Path,
+        *,
+        resources: list[SkillResource] | None = None,
         validate: bool = True,
-        script_executor: LocalSkillScriptExecutor | CallableSkillScriptExecutor | None = None,
     ) -> Skill:
-        """Load a :class:`Skill` from a SKILL.md file or its parent directory.
+        """Load a :class:`Skill` from a SKILL.md file.
 
         Args:
-            path: Path to a ``SKILL.md`` file or to the directory that contains one.
-                When a file path is given it must be named exactly ``SKILL.md``.
+            path: Path to a ``SKILL.md`` file. Must be named exactly ``SKILL.md``.
+            resources: Optional pre-built resources to attach to the skill.
             validate: When ``True`` (default), raises :exc:`ValueError` for
-                structural problems (missing ``SKILL.md``, YAML errors, absent ``name``
-                field).  Metadata quality issues (bad name format, missing description,
-                overlong body) emit :class:`UserWarning` regardless of this flag.
-            script_executor: Optional custom script executor for file-based scripts.
+                structural problems (YAML errors, absent ``name`` field).
 
         Returns:
             A :class:`Skill` instance.
@@ -290,24 +206,11 @@ class Skill:
                 field.
             FileNotFoundError: When ``SKILL.md`` does not exist at the expected path.
             OSError: Propagated directly for unreadable files, permission errors, or
-                I/O failures.  :func:`discover_skills` catches this and re-raises it
-                as :exc:`ValueError`, so direct callers should handle both.
+                I/O failures.
         """
-        from .directory import (
-            _discover_resources,
-            _discover_scripts,
-        )  # lazy: transitive circular via local.py
-        from .local import LocalSkillScriptExecutor as _LocalExecutor
-
-        skill_path = Path(path).expanduser().resolve()
-        if skill_path.is_dir():
-            skill_file = skill_path / "SKILL.md"
-        else:
-            if skill_path.name != "SKILL.md":
-                raise ValueError(
-                    f"Expected a SKILL.md file or its parent directory, got '{skill_path.name}'"
-                )
-            skill_file = skill_path
+        skill_file = Path(path).expanduser().resolve()
+        if skill_file.name != "SKILL.md":
+            raise ValueError(f"Expected a SKILL.md file, got '{skill_file.name}'")
 
         if not skill_file.exists():
             raise FileNotFoundError(f"SKILL.md not found at {skill_file}")
@@ -337,13 +240,6 @@ class Skill:
             if k not in ("name", "description", "license", "compatibility")
         }
 
-        if validate:
-            validate_skill_metadata(frontmatter, instructions, uri=str(skill_folder))
-
-        executor = script_executor or _LocalExecutor()
-        resources = _discover_resources(skill_folder)
-        scripts = _discover_scripts(skill_folder, name, executor)
-
         return cls(
             name=name,
             description=description,
@@ -351,8 +247,7 @@ class Skill:
             license=license_field,
             compatibility=compatibility_field,
             uri=str(skill_folder),
-            resources=resources,
-            scripts=scripts,
+            resources=list(resources) if resources else [],
             metadata=metadata if metadata else None,
         )
 
@@ -421,76 +316,6 @@ class Skill:
             # Called without arguments: @my_skill.resource
             return decorator(func)
 
-    def script(
-        self,
-        func: Callable[..., Any] | None = None,
-        *,
-        name: str | None = None,
-        description: str | None = None,
-        takes_ctx: bool | None = None,
-        docstring_format: DocstringFormat = "auto",
-        schema_generator: type[GenerateJsonSchema] | None = None,
-    ) -> Callable[..., Any]:
-        """Decorator to register a callable as a skill script.
-
-        The decorated function can optionally take RunContext as its first argument
-        for accessing dependencies. This is auto-detected if not specified.
-
-        Scripts accept named arguments (kwargs) matching their function signature.
-
-        Example:
-            ```python
-            @my_skill.script
-            async def load_data(ctx: RunContext[MyDeps]) -> str:
-                await ctx.deps.load()
-                return 'Loaded'
-
-            @my_skill.script
-            async def run_query(ctx: RunContext[MyDeps], query: str, limit: int = 10) -> str:
-                result = await ctx.deps.db.execute(query, limit)
-                return str(result)
-            ```
-
-        Args:
-            func: The function to register as a script.
-            name: Script name (defaults to function name).
-            description: Script description (inferred from docstring if not provided).
-            takes_ctx: Whether function takes RunContext (auto-detected if None).
-            docstring_format: Format of the docstring ('auto', 'google', 'numpy', 'sphinx').
-            schema_generator: Custom JSON schema generator class.
-
-        Returns:
-            The original function (allows use as decorator).
-        """
-
-        def decorator(f: Callable[..., Any]) -> Callable[..., Any]:
-            script_name = name or f.__name__
-            gen = schema_generator or GenerateToolJsonSchema
-            func_schema = _function_schema.function_schema(
-                f,
-                schema_generator=gen,
-                takes_ctx=takes_ctx,
-                docstring_format=docstring_format,
-                require_parameter_descriptions=False,
-            )
-            script = SkillScript(
-                name=script_name,
-                description=description or func_schema.description,
-                function=f,
-                takes_ctx=func_schema.takes_ctx,
-                function_schema=func_schema,
-                skill_name=self.name,
-            )
-            self.scripts.append(script)
-            return f
-
-        if func is None:
-            # Called with arguments: @my_skill.script(name="custom")
-            return decorator
-        else:
-            # Called without arguments: @my_skill.script
-            return decorator(func)
-
 
 class SkillWrapper(Generic[DepsT]):
     """Generic wrapper for decorator-based skill creation with type-safe dependencies.
@@ -517,11 +342,6 @@ class SkillWrapper(Generic[DepsT]):
         @data_analyzer.resource
         async def get_schema(ctx: RunContext[MyDeps]) -> str:
             return await ctx.deps.database.get_schema()
-
-        @data_analyzer.script
-        async def run_analysis(ctx: RunContext[MyDeps], query: str) -> str:
-            result = await ctx.deps.database.execute(query)
-            return str(result)
         ```
 
     Attributes:
@@ -532,7 +352,6 @@ class SkillWrapper(Generic[DepsT]):
         compatibility: Optional environment requirements.
         metadata: Additional metadata fields.
         resources: List of resources attached to the skill.
-        scripts: List of scripts attached to the skill.
     """
 
     def __init__(
@@ -544,7 +363,6 @@ class SkillWrapper(Generic[DepsT]):
         compatibility: str | None,
         metadata: dict[str, Any] | None,
         resources: list[SkillResource],
-        scripts: list[SkillScript],
     ) -> None:
         """Initialize the skill wrapper.
 
@@ -556,7 +374,6 @@ class SkillWrapper(Generic[DepsT]):
             compatibility: Optional environment requirements.
             metadata: Additional metadata fields.
             resources: Initial list of resources.
-            scripts: Initial list of scripts.
         """
         self.function = function
         self.name = name
@@ -565,7 +382,6 @@ class SkillWrapper(Generic[DepsT]):
         self.compatibility = compatibility
         self.metadata = metadata
         self.resources = list(resources)
-        self.scripts = list(scripts)
 
     def resource(
         self,
@@ -636,81 +452,11 @@ class SkillWrapper(Generic[DepsT]):
             # Called without arguments: @my_skill.resource
             return decorator(func)
 
-    def script(
-        self,
-        func: Callable[..., Any] | None = None,
-        *,
-        name: str | None = None,
-        description: str | None = None,
-        takes_ctx: bool | None = None,
-        docstring_format: DocstringFormat = "auto",
-        schema_generator: type[GenerateJsonSchema] | None = None,
-    ) -> Callable[..., Any] | Callable[[Callable[..., Any]], Callable[..., Any]]:
-        """Decorator to attach a callable script to the skill.
-
-        The decorated function can optionally take RunContext as its first argument
-        for accessing dependencies. This is auto-detected if not specified.
-
-        Scripts accept named arguments (kwargs) matching their function signature.
-
-        Example:
-            ```python
-            @my_skill.script
-            async def load_data(ctx: RunContext[MyDeps]) -> str:
-                await ctx.deps.load()
-                return 'Loaded'
-
-            @my_skill.script
-            async def run_query(ctx: RunContext[MyDeps], query: str, limit: int = 10) -> str:
-                result = await ctx.deps.db.execute(query, limit)
-                return str(result)
-            ```
-
-        Args:
-            func: The function to register as a script.
-            name: Script name (defaults to function name).
-            description: Script description (inferred from docstring if not provided).
-            takes_ctx: Whether function takes RunContext (auto-detected if None).
-            docstring_format: Format of the docstring ('auto', 'google', 'numpy', 'sphinx').
-            schema_generator: Custom JSON schema generator class.
-
-        Returns:
-            The original function (allows use as decorator).
-        """
-
-        def decorator(f: Callable[..., Any]) -> Callable[..., Any]:
-            script_name = name or f.__name__
-            gen = schema_generator or GenerateToolJsonSchema
-            func_schema = _function_schema.function_schema(
-                f,
-                schema_generator=gen,
-                takes_ctx=takes_ctx,
-                docstring_format=docstring_format,
-                require_parameter_descriptions=False,
-            )
-            script = SkillScript(
-                name=script_name,
-                description=description or func_schema.description,
-                function=f,
-                takes_ctx=func_schema.takes_ctx,
-                function_schema=func_schema,
-                skill_name=self.name,
-            )
-            self.scripts.append(script)
-            return f
-
-        if func is None:
-            # Called with arguments: @my_skill.script(name="custom")
-            return decorator
-        else:
-            # Called without arguments: @my_skill.script
-            return decorator(func)
-
     def to_skill(self) -> Skill:
         """Convert the wrapper to a Skill dataclass.
 
         Returns:
-            Skill instance with all metadata and attached resources/scripts.
+            Skill instance with all metadata and attached resources.
         """
         content = self.function()
         return Skill(
@@ -720,7 +466,6 @@ class SkillWrapper(Generic[DepsT]):
             license=self.license,
             compatibility=self.compatibility,
             resources=self.resources,
-            scripts=self.scripts,
             uri=None,  # __post_init__ will assign skill://{name}
             metadata=self.metadata,
         )

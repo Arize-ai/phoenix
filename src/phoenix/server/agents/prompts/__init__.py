@@ -32,6 +32,7 @@ _TRACE_CONTEXT_TEMPLATE = get_template("context/TRACE_CONTEXT_INSTRUCTIONS.xml.j
 _SPAN_CONTEXT_TEMPLATE = get_template("context/SPAN_CONTEXT_INSTRUCTIONS.xml.j2")
 _PLAYGROUND_CONTEXT_TEMPLATE = get_template("context/PLAYGROUND_CONTEXT_INSTRUCTIONS.xml.j2")
 _GRAPHQL_MUTATIONS_TEMPLATE = get_template("context/GRAPHQL_MUTATIONS_INSTRUCTIONS.xml.j2")
+_SKILLS_TEMPLATE = get_template("skills/SKILLS_INSTRUCTIONS.xml.j2")
 
 SUMMARIZATION_SYSTEM_PROMPT = get_template(
     "summarization/SUMMARIZATION_PROMPT_INSTRUCTIONS.xml.j2"
@@ -58,6 +59,7 @@ class AgentInstructions:
     span_context: Template = _SPAN_CONTEXT_TEMPLATE
     playground_context: Template = _PLAYGROUND_CONTEXT_TEMPLATE
     graphql_mutations: Template = _GRAPHQL_MUTATIONS_TEMPLATE
+    skills: Template = _SKILLS_TEMPLATE
 
 
 __all__ = [
