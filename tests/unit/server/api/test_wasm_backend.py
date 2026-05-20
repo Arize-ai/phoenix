@@ -34,11 +34,11 @@ def _empty_secrets_context() -> SecretsContext:
 class TestWASMBackendSessionNoop:
     async def test_start_session_does_not_raise(self) -> None:
         backend = WASMBackend()
-        await backend.start_session("any-key")
+        await backend.find_or_create_session("any-key")
 
-    async def test_stop_session_does_not_raise(self) -> None:
+    async def test_close_session_does_not_raise(self) -> None:
         backend = WASMBackend()
-        await backend.stop_session("any-key")
+        await backend.close_session("any-key")
 
     async def test_close_does_not_raise(self) -> None:
         backend = WASMBackend()

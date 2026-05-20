@@ -66,6 +66,11 @@ from phoenix.server.sandbox import (  # noqa: E402
     SecretsContext,
     build_sandbox_backend,
 )
+from phoenix.server.sandbox.session_manager import (
+    SandboxSessionManager,
+    SessionInvalidated,
+    SessionLimitExceeded,
+)
 from phoenix.server.sandbox.types import ExecutionResult, SandboxBackend, UnsupportedOperation
 
 logger = logging.getLogger(__name__)
@@ -735,7 +740,9 @@ async def get_evaluators(
     dataset_evaluator_ids: Sequence[int],
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
+    experiment_id: int,
     credentials: Sequence[GenerativeCredentialInput] | None = None,
+    sandbox_session_manager: SandboxSessionManager,
 ) -> list[BaseEvaluator]:
     """
     Get all evaluators for the given DatasetEvaluator row IDs.
@@ -747,6 +754,11 @@ async def get_evaluators(
     Multiple DatasetEvaluators can reference the same underlying evaluator (e.g., two
     "Contains" evaluators with different names), and this function preserves that
     multiplicity by returning separate evaluator instances for each.
+
+    ``experiment_id`` partitions the sandbox session key for code evaluators
+    so two concurrent experiments using the same evaluator never converge on
+    the same provider sandbox. Intra-experiment reuse still amortizes the
+    sandbox warmup across all runs of the same experiment.
     """
     if not dataset_evaluator_ids:
         return []
@@ -894,6 +906,15 @@ async def get_evaluators(
                     evaluator_version_id=str(
                         GlobalID("CodeEvaluatorVersion", str(code_version.id))
                     ),
+                    # Partition by evaluator × experiment × replica so
+                    # concurrent runs never converge on the same provider
+                    # sandbox while intra-experiment reuse still amortizes.
+                    session_key=(
+                        f"evaluator:{code_row.id}"
+                        f":exp:{experiment_id}"
+                        f":{sandbox_session_manager.replica_id}"
+                    ),
+                    sandbox_session_manager=sandbox_session_manager,
                 )
                 code_evaluators_by_id[code_row.id] = runner
 
@@ -2549,15 +2570,6 @@ def _infer_typescript_evaluate_input_schema(
     return (_make_object_input_schema(parameter_names, required_names), None)
 
 
-async def _stop_session_quietly(
-    backend: SandboxBackend, session_key: str, log: logging.Logger
-) -> None:
-    try:
-        await backend.stop_session(session_key)
-    except Exception as exc:
-        log.warning("stop_session failed during timeout teardown: %s", exc)
-
-
 class CodeEvaluatorRunner(BaseEvaluator):
     """Evaluator that executes user-provided source code in a sandbox."""
 
@@ -2569,8 +2581,10 @@ class CodeEvaluatorRunner(BaseEvaluator):
         stored_output_configs: Sequence[OutputConfigType],
         sandbox_backend: "SandboxBackend",
         language: str,
+        sandbox_session_manager: Optional[SandboxSessionManager],
         timeout: Optional[int] = None,
         evaluator_version_id: Optional[str] = None,
+        session_key: Optional[str] = None,
     ) -> None:
         self._name = name
         self._description = description
@@ -2580,6 +2594,15 @@ class CodeEvaluatorRunner(BaseEvaluator):
         self._language = language.upper()
         self._timeout = timeout
         self._evaluator_version_id = evaluator_version_id
+        # ``session_key`` is required on the managed path; the ephemeral
+        # path does not consult it.
+        if sandbox_session_manager is not None and session_key is None:
+            raise ValueError(
+                "CodeEvaluatorRunner: session_key is required when "
+                "sandbox_session_manager is supplied."
+            )
+        self._session_key = session_key
+        self._sandbox_session_manager = sandbox_session_manager
 
     @property
     def name(self) -> str:
@@ -2736,10 +2759,11 @@ class CodeEvaluatorRunner(BaseEvaluator):
             else:
                 code = self._build_typescript_harness(mapped_inputs)
 
+            session_key = self._session_key or ""
+
             sandbox_metadata: dict[str, Any] = {
                 "backend_type": type(self._sandbox_backend).__name__,
                 "language": self._language,
-                "session_key": self._name,
             }
             if self._timeout is not None:
                 sandbox_metadata["timeout"] = int(self._timeout)
@@ -2764,18 +2788,70 @@ class CodeEvaluatorRunner(BaseEvaluator):
                 set_status_on_exception=False,
             ) as sandbox_span:
                 try:
-                    execution = await asyncio.wait_for(
-                        self._sandbox_backend.execute(
-                            code,
-                            session_key=self._name,
+                    if self._sandbox_session_manager is None:
+                        # Ephemeral path: backend.execute owns the sandbox
+                        # lifecycle (created and torn down inside the call).
+                        execution = await asyncio.wait_for(
+                            self._sandbox_backend.execute(
+                                code,
+                                session_key=session_key,
+                                timeout=self._timeout,
+                            ),
                             timeout=self._timeout,
-                        ),
-                        timeout=self._timeout,
-                    )
+                        )
+                    else:
+                        # Managed path: ``wait_for`` brackets acquire+execute
+                        # so the slow ``find_or_create_session`` leg also
+                        # respects the evaluator timeout. ``SessionInvalidated``
+                        # is transient (entry mid-drain) — wait once and retry.
+                        async def _managed_execute() -> ExecutionResult:
+                            assert self._sandbox_session_manager is not None
+                            manager = self._sandbox_session_manager
+                            try:
+                                async with manager.acquire(
+                                    self._sandbox_backend, session_key
+                                ) as session:
+                                    return await session.execute(code, timeout=self._timeout)
+                            except SessionInvalidated:
+                                await manager.wait_for_drain(session_key, self._sandbox_backend)
+                                async with manager.acquire(
+                                    self._sandbox_backend, session_key
+                                ) as session:
+                                    return await session.execute(code, timeout=self._timeout)
+
+                        execution = await asyncio.wait_for(
+                            _managed_execute(), timeout=self._timeout
+                        )
+                except SessionLimitExceeded as exc:
+                    err = SessionLimitExceeded.MESSAGE
+                    _record_masked_exception(sandbox_span, exc, masker)
+                    _set_masked_status(sandbox_span, StatusCode.ERROR, err, masker)
+                    _record_masked_exception(evaluator_span, exc, masker)
+                    _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
+                    return [
+                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        for _ in (output_configs or [None])  # type: ignore[list-item]
+                    ]
+                except SessionInvalidated as exc:
+                    err = SessionInvalidated.MESSAGE
+                    _record_masked_exception(sandbox_span, exc, masker)
+                    _set_masked_status(sandbox_span, StatusCode.ERROR, err, masker)
+                    _record_masked_exception(evaluator_span, exc, masker)
+                    _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
+                    return [
+                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        for _ in (output_configs or [None])  # type: ignore[list-item]
+                    ]
                 except asyncio.TimeoutError as exc:
-                    asyncio.create_task(
-                        _stop_session_quietly(self._sandbox_backend, self._name, logger)
-                    )
+                    # Managed path: route teardown through the manager so
+                    # the tracked entry is dropped (acquire's finally only
+                    # decrements in_flight) and the task is awaited at
+                    # shutdown. Ephemeral path: backend.execute's async-with
+                    # already kills the sandbox on cancellation.
+                    if self._sandbox_session_manager is not None:
+                        self._sandbox_session_manager.schedule_eviction(
+                            session_key, self._sandbox_backend
+                        )
                     execution = ExecutionResult(stdout="", stderr="", error="timeout")
                     sandbox_span.set_attributes(
                         _mask_attrs(

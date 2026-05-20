@@ -212,7 +212,7 @@ class TestNetworkBlockAll:
             backend = DaytonaSandboxBackend(
                 api_key=_ALT_KEY, network_block_all=True, language="PYTHON"
             )
-            await backend.start_session("sess")
+            await backend.find_or_create_session("sess")
 
         create_call = daytona_mod.AsyncDaytona.return_value.create.call_args
         params = create_call.args[0] if create_call.args else create_call.kwargs.get("params")
@@ -350,7 +350,7 @@ class TestTypescriptRouting:
                 packages=["is-odd"],
                 language="TYPESCRIPT",
             )
-            await backend.start_session("sess-ts")
+            await backend.find_or_create_session("sess-ts")
 
         workspace = daytona_mod.AsyncDaytona.return_value.create.return_value
         assert workspace.process.code_run.call_count >= 1, (
@@ -449,3 +449,88 @@ def test_build_backend_wires_packages_to_backend() -> None:
     creds = DaytonaCredentials(DAYTONA_API_KEY=SecretStr("k"))
     backend = adapter.build_backend(config, credentials=creds, deployment=DaytonaDeployment())
     assert backend._packages == packages  # type: ignore[attr-defined]
+
+
+class TestIsSessionGoneClassifier:
+    """``DaytonaSandboxBackend.is_session_gone`` classifies SDK exceptions that
+    indicate the remote sandbox is gone. The narrowed ``execute_in_session``
+    handler re-raises classified exceptions; everything else still wraps into
+    ``ExecutionResult(error=...)``.
+    """
+
+    def test_classifies_daytona_not_found_error(self) -> None:
+        pytest.importorskip("daytona_sdk")
+        from daytona_sdk import DaytonaNotFoundError
+
+        from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
+
+        backend = DaytonaSandboxBackend(api_key=_API_KEY, language="PYTHON")
+        assert backend.is_session_gone(DaytonaNotFoundError("gone", status_code=404)) is True
+
+    def test_classifies_toolbox_not_found_exception(self) -> None:
+        pytest.importorskip("daytona_toolbox_api_client_async")
+        from daytona_toolbox_api_client_async.exceptions import NotFoundException
+
+        from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
+
+        backend = DaytonaSandboxBackend(api_key=_API_KEY, language="PYTHON")
+        assert backend.is_session_gone(NotFoundException(status=404, reason="not found")) is True
+
+    def test_does_not_classify_plain_runtime_error(self) -> None:
+        from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
+
+        backend = DaytonaSandboxBackend(api_key=_API_KEY, language="PYTHON")
+        assert backend.is_session_gone(RuntimeError("boom")) is False
+
+    def test_does_not_classify_other_daytona_errors(self) -> None:
+        """Validation, conflict, and timeout shapes must NOT be classified —
+        the classifier under-classifies to avoid spurious rebinds on user
+        code that legitimately failed validation or hit a transient
+        network issue."""
+        pytest.importorskip("daytona_sdk")
+        from daytona_sdk import (
+            DaytonaConflictError,
+            DaytonaTimeoutError,
+            DaytonaValidationError,
+        )
+
+        from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
+
+        backend = DaytonaSandboxBackend(api_key=_API_KEY, language="PYTHON")
+        assert backend.is_session_gone(DaytonaValidationError("bad input")) is False
+        assert backend.is_session_gone(DaytonaConflictError("conflict")) is False
+        assert backend.is_session_gone(DaytonaTimeoutError("timeout")) is False
+
+    @pytest.mark.asyncio
+    async def test_execute_in_session_propagates_classified_exception(self) -> None:
+        """A classified session-gone exception from ``code_run`` must propagate
+        out of ``execute_in_session`` instead of wrapping into
+        ``ExecutionResult(error=...)``."""
+        pytest.importorskip("daytona_sdk")
+        from daytona_sdk import DaytonaNotFoundError
+
+        from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
+
+        sandbox = MagicMock()
+        sandbox.process.code_run = AsyncMock(
+            side_effect=DaytonaNotFoundError("sandbox gone", status_code=404)
+        )
+        backend = DaytonaSandboxBackend(api_key=_API_KEY, language="PYTHON")
+        with pytest.raises(DaytonaNotFoundError):
+            await backend.execute_in_session(sandbox, "1+1")
+
+    @pytest.mark.asyncio
+    async def test_execute_in_session_wraps_unclassified_exception(self) -> None:
+        """A non-session-gone exception (e.g. plain ``RuntimeError``) still
+        produces an ``ExecutionResult`` — the wrap path is preserved for
+        everything the classifier rejects."""
+        pytest.importorskip("daytona_sdk")
+        from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
+
+        sandbox = MagicMock()
+        sandbox.process.code_run = AsyncMock(side_effect=RuntimeError("boom"))
+        backend = DaytonaSandboxBackend(api_key=_API_KEY, language="PYTHON")
+        result = await backend.execute_in_session(sandbox, "1+1")
+
+        assert result.error == "boom"
+        assert result.stderr == "boom"

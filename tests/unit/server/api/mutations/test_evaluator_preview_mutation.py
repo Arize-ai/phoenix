@@ -300,11 +300,17 @@ class TestInlineCodeEvaluatorPreviewMutation:
         gql_client: AsyncGraphQLClient,
         sandbox_config: models.SandboxConfig,
     ) -> None:
+        # The test mutation bypasses ``SandboxSessionManager`` and calls
+        # ``backend.execute`` directly — each click spins up an ephemeral
+        # sandbox via the backend's own ``async with`` lifecycle. Mocking
+        # the managed API (``find_or_create_session`` / ``execute_in_session``)
+        # would no longer intercept the call path.
         backend = AsyncMock()
         fenced_stdout = f"{_PHOENIX_RESULT_BEGIN}\n1.0\n{_PHOENIX_RESULT_END}\n"
         backend.execute = AsyncMock(
             return_value=ExecutionResult(stdout=fenced_stdout, stderr="", error=None)
         )
+        backend.close = AsyncMock(return_value=None)
 
         with patch(
             "phoenix.server.api.mutations.chat_mutations.build_sandbox_backend",
@@ -321,6 +327,13 @@ class TestInlineCodeEvaluatorPreviewMutation:
         assert results[0]["evaluatorName"] == "inline_code_eval"
         assert results[0]["error"] is None
         assert results[0]["annotation"]["score"] == 1.0
+        # Test mutation must not touch the session manager — only
+        # ``backend.execute`` is exercised. Asserting the managed-path APIs
+        # were not called locks in the bypass invariant.
+        backend.execute.assert_awaited_once()
+        backend.find_or_create_session.assert_not_called()
+        backend.execute_in_session.assert_not_called()
+        backend.close_session.assert_not_called()
 
 
 class TestCodeEvaluatorPreviewNoSandbox:

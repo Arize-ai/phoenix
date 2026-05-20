@@ -1693,7 +1693,7 @@ async def test_span_search_filter_by_attribute_empty_key(
 async def test_span_search_filter_by_nested_attribute_path(
     httpx_client: httpx.AsyncClient, project_with_attributed_spans: None
 ) -> None:
-    """Verify filtering with a deeply nested attribute path (D6)."""
+    """Verify filtering with a deeply nested attribute path."""
     resp = await httpx_client.get(
         "v1/projects/attr-filter-test/spans",
         params={"attribute": "retrieval.source.document.id:doc-42"},

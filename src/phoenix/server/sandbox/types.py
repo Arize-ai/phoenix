@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from abc import ABC, abstractmethod
 from collections.abc import Callable
@@ -31,7 +33,7 @@ from pydantic import (
 )
 from typing_extensions import TypeAlias
 
-from phoenix.db.models import SandboxBackendType
+from phoenix.db.models import LanguageName, SandboxBackendType
 
 
 class UnsupportedOperation(Exception):
@@ -128,7 +130,7 @@ class SupportsEnvVars(_BaseModel):
 
 
 class SupportsInternetAccess(_BaseModel):
-    """Mixin: config carries an internet_access toggle."""
+    """Config carries an ``internet_access`` toggle."""
 
     internet_access: Optional[InternetAccessConfig] = Field(
         default=None,
@@ -502,6 +504,12 @@ def compose_secret_values(
     return frozenset(values)
 
 
+#: Sentinel handle returned by ``BaseNoSessionBackend.find_or_create_session``.
+#: Kept as an opaque object (not ``None``) so accidental dereferencing is
+#: visible in logs.
+_NO_SESSION_HANDLE: object = object()
+
+
 class SandboxBackend(ABC):
     """Protocol for sandbox backends."""
 
@@ -509,11 +517,43 @@ class SandboxBackend(ABC):
     # masks these from emitted span attributes and exception events.
     secret_values: frozenset[str] = frozenset()
 
-    @abstractmethod
-    async def start_session(self, session_key: str) -> None: ...
+    #: SandboxBackendType token ("MODAL", "E2B", ...) for per-provider
+    #: capacity accounting. Empty for stateless backends.
+    provider: ClassVar[str] = ""
 
     @abstractmethod
-    async def stop_session(self, session_key: str) -> None: ...
+    async def find_or_create_session(self, session_key: str) -> object:
+        """Return an opaque, live remote handle for ``session_key``.
+
+        Must return a usable session — either an existing live one or a
+        freshly-created one. Adapters MUST re-validate cached/listed handles
+        before returning; ``rebind_handle`` relies on that self-validation.
+
+        Two replicas with the same key converge on the same remote sandbox
+        where the provider supports it (Modal: by name; E2B/Daytona: by
+        metadata-list). Vercel does not; the manager partitions long-lived
+        keys by ``replica_id`` to compensate.
+
+        The returned value is passed back to ``execute_in_session`` unchanged.
+        """
+        ...
+
+    @abstractmethod
+    async def execute_in_session(
+        self,
+        handle: object,
+        code: str,
+        timeout: Optional[int] = None,
+    ) -> ExecutionResult:
+        """Execute ``code`` against the opaque ``handle`` returned by
+        ``find_or_create_session``. The handle is provider-specific and
+        opaque to the manager."""
+        ...
+
+    @abstractmethod
+    async def close_session(self, session_key: str) -> None:
+        """Tear down the remote session bound to ``session_key`` (idempotent)."""
+        ...
 
     @abstractmethod
     async def execute(
@@ -528,15 +568,82 @@ class SandboxBackend(ABC):
     @abstractmethod
     async def close(self) -> None: ...
 
+    @abstractmethod
+    def config_fingerprint(self) -> str:
+        """Stable short digest of the config fields that affect the remote runtime.
+
+        Same fingerprint across replicas/runs for structurally-equal configs.
+        Must NOT change on secret-value rotation (only on env-var key-set
+        changes). The manager composes ``f"{session_key}#{fingerprint}"`` so
+        a mid-iteration config change fragments into a fresh session.
+
+        Stateless adapters return ``""``.
+        """
+        ...
+
+    def provider_session_id(self, session_key: str) -> str:
+        """Map an opaque ``session_key`` to the provider-side identifier.
+
+        Deterministic across processes. Override only when the provider has
+        char-class or length restrictions (e.g. Modal sandbox names).
+        """
+        return session_key
+
+    def is_session_gone(self, exc: BaseException) -> bool:
+        """``True`` if ``exc`` means the remote session is gone and a rebind
+        would recover; ``False`` otherwise.
+
+        Default returns ``False``. Session-capable backends override with
+        per-SDK classification; classifiers should under-classify (a false
+        ``True`` triggers an unnecessary rebind).
+        """
+        del exc
+        return False
+
 
 class BaseNoSessionBackend(SandboxBackend):
-    """Stateless sandbox backends; no-op start_session / stop_session."""
+    """Stateless sandbox backends; no-op session lifecycle (the manager
+    treats every call as a fresh remote execution)."""
 
-    async def start_session(self, session_key: str) -> None:
-        pass
+    async def find_or_create_session(self, session_key: str) -> object:
+        return _NO_SESSION_HANDLE
 
-    async def stop_session(self, session_key: str) -> None:
-        pass
+    async def execute_in_session(
+        self,
+        handle: object,
+        code: str,
+        timeout: Optional[int] = None,
+    ) -> ExecutionResult:
+        return await self.execute(code, session_key="", timeout=timeout)
+
+    async def close_session(self, session_key: str) -> None:
+        return None
+
+    def config_fingerprint(self) -> str:
+        return ""
+
+
+def compute_config_fingerprint(
+    *,
+    backend_type: str,
+    packages: Sequence[str] = (),
+    internet_access_mode: Optional[str] = None,
+    language: Optional["LanguageName"] = None,
+) -> str:
+    """16-char sha256 prefix over the config subset that affects the remote runtime.
+
+    Env vars (keys and values) are intentionally excluded: every backend
+    injects user env per-call, so env changes don't invalidate the sandbox.
+    Including them would over-fragment sessions on benign edits.
+    """
+    payload = {
+        "backend_type": backend_type,
+        "packages": sorted(str(p) for p in packages),
+        "internet_access_mode": internet_access_mode,
+        "language": language,
+    }
+    serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()[:16]
 
 
 ConfigT = TypeVar("ConfigT", bound=_Config)

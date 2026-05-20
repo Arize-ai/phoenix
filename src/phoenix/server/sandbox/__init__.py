@@ -48,7 +48,6 @@ from phoenix.server.sandbox.wasm_backend import WASMAdapter
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
-
 logger = logging.getLogger(__name__)
 
 
