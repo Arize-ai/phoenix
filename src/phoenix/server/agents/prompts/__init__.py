@@ -34,9 +34,9 @@ _PLAYGROUND_CONTEXT_TEMPLATE = get_template("context/PLAYGROUND_CONTEXT_INSTRUCT
 _GRAPHQL_MUTATIONS_TEMPLATE = get_template("context/GRAPHQL_MUTATIONS_INSTRUCTIONS.xml.j2")
 _SKILLS_TEMPLATE = get_template("skills/SKILLS_INSTRUCTIONS.xml.j2")
 
-SUMMARIZATION_SYSTEM_PROMPT = get_template(
+SUMMARIZATION_INSTRUCTIONS_TEMPLATE = get_template(
     "summarization/SUMMARIZATION_PROMPT_INSTRUCTIONS.xml.j2"
-).render()
+)
 
 
 @dataclass(frozen=True)
@@ -64,5 +64,5 @@ class AgentInstructions:
 
 __all__ = [
     "AgentInstructions",
-    "SUMMARIZATION_SYSTEM_PROMPT",
+    "SUMMARIZATION_INSTRUCTIONS_TEMPLATE",
 ]
