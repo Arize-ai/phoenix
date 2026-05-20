@@ -9,7 +9,7 @@ from typing import Any, TypeAlias
 import yaml
 from pydantic_ai import _function_schema
 
-ResourceFunction: TypeAlias = Callable[..., object | Awaitable[object]]
+ResourceFunction: TypeAlias = Callable[..., Any | Awaitable[Any]]
 """A resource function: any callable, sync or async, returning anything."""
 
 

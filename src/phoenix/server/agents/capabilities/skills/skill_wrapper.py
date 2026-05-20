@@ -85,7 +85,7 @@ class SkillWrapper:
             ```
 
         Args:
-            func: The function to register as a resource.
+            decorated_fn: The function to register as a resource.
             name: Resource name (defaults to function name).
             description: Resource description (inferred from docstring if not provided).
             docstring_format: Format of the docstring ('auto', 'google', 'numpy', 'sphinx').
