@@ -40,7 +40,7 @@ examples:
     metadata:
       category: settings
   - id: dataset-resource-link
-    splits: [regression]
+    splits: [dev]
     input:
       query: Link me to where I can see experiments for my PXI link evals dataset.
       resource:

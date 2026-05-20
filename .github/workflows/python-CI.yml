@@ -397,6 +397,7 @@ jobs:
           sparse-checkout: |
             requirements/
             src/phoenix/
+            evals/
             packages/phoenix-evals/
             tests/unit/
             tests/conftest.py
