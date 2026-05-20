@@ -1,27 +1,25 @@
 ---
 title: "Deno"
-description: "Run TypeScript code evaluators inside the Phoenix server using a sandboxed Deno subprocess."
+description: "Run TypeScript code evaluators inside the Phoenix server using a sandboxed Deno process."
 ---
 
 <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginTop: '1.5rem', marginBottom: '1.5rem' }}>
 <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/deno.svg" alt="Deno" className="invert-on-dark" style={{ height: '112px', flexShrink: 0 }} />
 <div>
 
-The **Deno** sandbox runs TypeScript code in a `deno run` subprocess locked down with `--no-prompt --no-config --no-remote --no-npm` and no `--allow-*` flags beyond a scoped `--allow-env` for declared environment variables. The script can't read files, open sockets, spawn processes, fetch remote modules, or import `npm:` packages — these flags aren't user-configurable. Like the WebAssembly sandbox, it runs locally inside the Phoenix server, starts in milliseconds, and requires no credentials, making it the default choice for TypeScript code evaluators that don't need outbound network access or third-party packages.
+The **Deno** sandbox runs TypeScript code evaluators inside a locked-down Deno process on the Phoenix server. Scripts cannot read your files, open network connections, run other programs, or pull in third-party packages — the only things they can read are the environment variables you explicitly add to the sandbox configuration. Because Deno runs locally inside Phoenix, it starts in milliseconds and needs no credentials, which makes it the default choice for TypeScript evaluators that don't need outbound network access or third-party libraries.
 
 </div>
 </div>
 
-Configure it from [Settings → Sandboxes](/docs/phoenix/settings/sandboxes). Learn more about Deno's permission model at [deno.land](https://deno.land/).
+Configure it from [Settings → Sandboxes](/docs/phoenix/settings/sandboxes). For background on how Deno enforces these restrictions, see [deno.land](https://deno.land/).
 
 ## Risks of running untrusted code
 
-Phoenix runs evaluator scripts through `deno run` with no `--allow-*` flags beyond a scoped `--allow-env` for the environment variables declared on the sandbox configuration. That removes filesystem, network, subprocess, and remote-module access — but it does **not** make running untrusted code safe in general. Deno itself calls this out in [Executing untrusted code](https://docs.deno.com/runtime/fundamentals/security/#executing-untrusted-code): permission flags reduce blast radius, they don't eliminate it.
+The Deno sandbox is tightly restricted, but it is **not a substitute for running untrusted code on isolated infrastructure**. Deno itself makes this point in [Executing untrusted code](https://docs.deno.com/runtime/fundamentals/security/#executing-untrusted-code): restricting permissions limits what an attacker can do, but it does not eliminate the risk. Before using the Deno sandbox for code you do not control, understand the three caveats below.
 
-Specifically:
+- **Anything you put in the sandbox's environment variables is visible to the script.** This includes values pulled from secret references in your configuration. A malicious script can read these and pass them back out through its return value or an error message. Only expose the credentials the evaluator actually needs.
+- **The script shares CPU and memory with the Phoenix server.** A script that runs an infinite loop or allocates too much memory will keep doing so until the configured timeout expires. Keep timeouts short for evaluators that handle untrusted input.
+- **The security boundary depends on Deno itself.** Phoenix relies on Deno to enforce the restrictions. A bug in Deno would weaken the protection.
 
-- **Declared environment variables are readable by the script.** Anything you expose through the configuration's env vars (including values resolved from secret references) can be read by `Deno.env.get` and exfiltrated through whatever side channels the script has — including its return value or thrown errors. Only put credentials in the sandbox env that the evaluator legitimately needs.
-- **The sandbox shares the Phoenix host's CPU and memory.** A pathological script can still consume resources up to the configured timeout. Keep timeouts tight for evaluators that run on untrusted inputs.
-- **Deno's permission model is the security boundary.** Phoenix relies on the upstream `deno` binary enforcing `--no-prompt --no-config --no-remote --no-npm` and the absence of `--allow-read`, `--allow-write`, `--allow-net`, `--allow-run`, etc. A bug or misconfiguration in `deno` itself would weaken that boundary.
-
-If you are not comfortable with this trust model — for example, you need to run code from sources you don't control and cannot accept the residual risks above — **do not use the Deno sandbox**. Use a [hosted sandbox](/docs/phoenix/settings/sandboxes#hosted-sandboxes) (E2B, Daytona, Vercel, Modal) instead, which executes the code on a remote VM or micro-VM isolated from the Phoenix host.
+If these trade-offs are not acceptable for your use case — for example, you need to evaluate code from sources you cannot verify — **use a hosted sandbox instead**. [E2B, Daytona, Vercel, and Modal](/docs/phoenix/settings/sandboxes#hosted-sandboxes) run each evaluation on a remote virtual machine isolated from your Phoenix server.

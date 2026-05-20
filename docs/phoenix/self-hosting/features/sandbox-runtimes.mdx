@@ -1,29 +1,29 @@
 ---
 title: "Sandbox Backends"
-description: How Phoenix's code-execution sandbox backends are wired in self-hosted deployments
+description: Set up the sandbox providers that run code evaluators on your self-hosted Phoenix.
 ---
 
-Phoenix supports multiple code-execution sandbox providers for evaluators and other LLM-driven workflows. This page describes which providers are ready to use in the official `arizephoenix/phoenix` container and what extra setup the others need.
+Phoenix runs code evaluators (and other LLM-driven workloads that need to execute code) inside sandboxes. This page tells you which sandbox providers are ready to use in the official `arizephoenix/phoenix` container, what extra setup the others need, and how to read the status badges shown on **Settings → Sandboxes**.
 
-## Provider status
+## Reading the status on Settings → Sandboxes
 
-Under **Settings → Sandboxes**, each provider shows a status that tells you whether it's ready to run code:
+Each provider on the **Settings → Sandboxes** page shows a status that tells you whether it's ready to run code:
 
 - **Available** — the provider is installed, configured, and ready to use.
-- **Not installed** — the provider's optional Python package isn't installed. Install the matching Phoenix extra to enable it.
-- **Missing credentials** — the provider is installed but its required credentials (API keys, service account, etc.) haven't been set.
-- **Unavailable** — a runtime prerequisite is missing on the host (for example, the Deno binary isn't on `PATH`, or the bundled CPython WebAssembly runtime can't be found). The status detail next to the provider tells you what's missing so you can fix it.
-- **Disabled** — the provider has been excluded by your allowlist (see [Restricting which providers are allowed](#restricting-which-providers-are-allowed)). This takes precedence: a fully installed and configured provider will still show as disabled if it's not on the list.
+- **Not installed** — the provider's optional Python package isn't installed. Install the matching Phoenix extra (e.g. `pip install 'arize-phoenix[e2b]'`) to enable it.
+- **Missing credentials** — the provider is installed but you still need to enter its credentials (API key, token, etc.) before it can be used.
+- **Unavailable** — something on the host is missing — for example, the Deno binary isn't installed, or the Python WebAssembly runtime can't be found. The text next to the status tells you exactly what's missing.
+- **Disabled** — an administrator has excluded this provider via the [allowlist](#restricting-which-providers-are-allowed). This overrides everything else: a fully working provider will still show as disabled if it isn't on the allowlist.
 
-## Overview
+## What works out of the box
 
-After deploying the official Phoenix container, the following sandbox providers are usable out of the box:
+If you deploy the official `arizephoenix/phoenix` container, these providers are usable immediately:
 
-- **Deno (local)** — TypeScript runtime, runs in-process. The Deno binary is bundled in the container.
-- **WebAssembly (local)** — Python via CPython compiled to WebAssembly, runs in-process. The CPython WASM binary is bundled in the container.
-- **External-API providers** (E2B, Modal, Daytona, Vercel) — the Python SDKs ship inside the container; they need only credentials to become available.
+- **Deno (local)** — runs TypeScript inside Phoenix. The Deno binary is bundled in the container.
+- **WebAssembly (local)** — runs Python inside Phoenix using a WebAssembly Python interpreter. The interpreter is bundled in the container.
+- **Hosted providers (E2B, Modal, Daytona, Vercel)** — the integration code ships inside the container, so you only need to add your credentials before each becomes **Available**.
 
-Outside the official container — for example, when running `pip install arize-phoenix` directly on a host or a custom image — local providers require runtime binaries on the host and external providers require their optional pip extras to be installed alongside their credentials.
+If you're not using the official container — for example, you installed Phoenix with `pip install arize-phoenix` on your own host, or you're building a custom image — you'll need to install the runtime tooling for local sandboxes and the relevant Phoenix extras for hosted ones. See [Non-container deployments](#non-container-deployments) below.
 
 ## Container-bundled backends
 
@@ -35,18 +35,18 @@ The `deno` binary is installed into the container image at `/usr/local/bin/deno`
 
 ### WebAssembly (CPython WASM)
 
-The CPython WebAssembly binary (`python-3.12.0.wasm`) is pre-downloaded at image-build time and copied into the container at `/opt/phoenix/wasm/python-3.12.0.wasm`. The container also presets the corresponding environment variable:
+The Python WebAssembly binary (`python-3.12.0.wasm`) is downloaded when the image is built and shipped inside the container at `/opt/phoenix/wasm/python-3.12.0.wasm`. The container also sets:
 
 ```
 PHOENIX_WASM_BINARY_PATH=/opt/phoenix/wasm/python-3.12.0.wasm
 ```
 
-When `PHOENIX_WASM_BINARY_PATH` is set:
+When `PHOENIX_WASM_BINARY_PATH` is set, Phoenix uses only the file at that path:
 
-- If the file exists, Phoenix uses it directly — no network egress, no cache write.
-- If the file is missing, the WASM provider reports **Unavailable** rather than silently falling back to a download.
+- If the file is present, the WebAssembly sandbox is ready to run immediately — no download, no first-run delay.
+- If the file is missing, the WebAssembly sandbox shows as **Unavailable** in **Settings → Sandboxes** rather than silently downloading a replacement.
 
-This makes the WASM provider work immediately in the distroless container — which has a read-only root filesystem and no shell — without any first-run penalty or operator-supplied cache volume.
+This means the WebAssembly sandbox works out of the box in the container — even in air-gapped environments — without needing a writable cache directory or network access.
 
 ## Non-container deployments
 
@@ -66,13 +66,15 @@ pip install 'arize-phoenix[wasm]'
 
 Without this extra, the WASM provider shows as **Not installed**.
 
-By default Phoenix lazy-downloads the CPython WASM binary on first use into a local cache (sha256-verified). To opt out of the download — for example, in air-gapped or read-only environments — pre-provision the binary and point Phoenix at it:
+By default, the first time you run a Python evaluator, Phoenix downloads the Python WebAssembly binary into a local cache and verifies its checksum. After that it's reused for every subsequent run.
+
+If you can't allow that download — for example, on an air-gapped server or a read-only filesystem — provide the binary yourself and tell Phoenix where to find it:
 
 ```bash
 export PHOENIX_WASM_BINARY_PATH=/path/to/python-3.12.0.wasm
 ```
 
-When `PHOENIX_WASM_BINARY_PATH` is set, Phoenix treats it as authoritative: the file at that path is used, and if it does not exist Phoenix surfaces an error rather than falling back to a network download.
+Once `PHOENIX_WASM_BINARY_PATH` is set, Phoenix will only use that file. If the file is missing, the sandbox reports an error instead of falling back to the download.
 
 <Tip>
 You can copy `python-3.12.0.wasm` out of an `arizephoenix/phoenix` container (`/opt/phoenix/wasm/python-3.12.0.wasm`) to seed an air-gapped host without re-fetching from upstream.
@@ -93,14 +95,18 @@ Provider credentials are configured under **Settings → Sandboxes** or via the 
 
 ## Restricting which providers are allowed
 
-Set `PHOENIX_ALLOWED_SANDBOX_PROVIDERS` to a comma-separated allowlist (case-insensitive). Unset means all providers are allowed; `NONE` disables every provider. Unknown names fail at startup.
+To restrict which sandbox providers your deployment can use, set the `PHOENIX_ALLOWED_SANDBOX_PROVIDERS` environment variable to a comma-separated list of the providers you want to allow. The variable is case-insensitive.
+
+- **Leave it unset** to allow every supported provider (the default).
+- **Set it to `NONE`** to disable every sandbox provider.
+- **Set it to one or more provider names** to allow only those. Valid names are `WASM`, `DENO`, `E2B`, `DAYTONA`, `VERCEL`, and `MODAL`. An unknown name will stop Phoenix from starting.
 
 ```bash
-export PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO   # local only
-export PHOENIX_ALLOWED_SANDBOX_PROVIDERS=NONE        # disable all
+export PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO   # allow local sandboxes only
+export PHOENIX_ALLOWED_SANDBOX_PROVIDERS=NONE        # disable every sandbox
 ```
 
-Disallowed providers show as **Disabled** under **Settings → Sandboxes** with the tooltip "Disabled on the server.", and the startup banner prints a per-provider summary:
+Providers that aren't on the allowlist appear under **Settings → Sandboxes** with the status **Disabled** and the tooltip "Disabled on the server." When Phoenix starts, you'll also see a per-provider summary in the startup logs:
 
 ```
 |  📦 Code Sandbox Providers 📦
@@ -109,7 +115,7 @@ Disallowed providers show as **Disabled** under **Settings → Sandboxes** with 
 |  - WASM: ✅ Allowed
 ```
 
-The allowlist gates execution only; existing sandbox configurations for disallowed providers are preserved and reactivate when the provider is re-allowed.
+The allowlist controls only whether sandboxes can run code — it doesn't delete anything. Any sandbox configurations you've already saved for a disallowed provider are kept and become usable again the moment you allow that provider.
 
 ## Compatibility matrix
 
@@ -125,7 +131,7 @@ The container-ready column reflects the post-install state of the `arizephoenix/
 | **Modal** (`MODAL`) | Python | Ready with credentials — SDK in container | `pip install 'arize-phoenix[modal]'` | `MODAL_TOKEN_ID` + `MODAL_TOKEN_SECRET` | External API |
 
 <Info>
-"Container-ready" means the SDK or binary is present in `arizephoenix/phoenix`. External providers still need their credentials configured before they move from **Missing credentials** to **Available**. Local providers (Deno, WASM) become **Available** immediately after the container starts.
+"Container-ready" means the necessary code or binary is already inside the official `arizephoenix/phoenix` image. For hosted providers you still need to enter credentials before the status changes from **Missing credentials** to **Available**. The two local providers (Deno and WebAssembly) become **Available** the moment the container starts.
 </Info>
 
 <Info>
@@ -134,36 +140,35 @@ The container-ready column reflects the post-install state of the `arizephoenix/
 
 ## Troubleshooting
 
-The **Settings → Sandboxes** page shows a status and an optional status detail for each provider. Map the detail strings below to the recommended remediation.
+Each provider on **Settings → Sandboxes** shows a status and, when something's wrong, a short message explaining what's missing. The three most common messages are below.
 
-### `PHOENIX_WASM_BINARY_PATH=<path> is set but the file does not exist.`
+### "WebAssembly binary not found at the configured path"
 
-The `PHOENIX_WASM_BINARY_PATH` environment variable is set, but no file lives at the path it points to. Phoenix treats the env var as authoritative, so it does not fall back to a download.
+You'll see this when `PHOENIX_WASM_BINARY_PATH` is set but the file at that path doesn't exist. Phoenix uses the configured path exclusively — it won't fall back to a download.
 
-**Remediation:**
+How to fix it:
 
-- Verify the path: `ls "$PHOENIX_WASM_BINARY_PATH"`. If you mounted the binary into the container, confirm the volume mount is correct.
-- If you intend to use the bundled binary in `arizephoenix/phoenix`, leave `PHOENIX_WASM_BINARY_PATH` unchanged — it is preset to `/opt/phoenix/wasm/python-3.12.0.wasm`.
-- If you want lazy download instead, unset `PHOENIX_WASM_BINARY_PATH` so Phoenix falls back to its sha256-verified cache + download path.
+- Check the file is where you expect it. If you're mounting it into a container, confirm the volume mount is correct.
+- If you're using the official `arizephoenix/phoenix` image, leave `PHOENIX_WASM_BINARY_PATH` unset (or at its default value of `/opt/phoenix/wasm/python-3.12.0.wasm`) — the binary is already in the right place.
+- If you'd rather let Phoenix download the binary, unset `PHOENIX_WASM_BINARY_PATH` and Phoenix will fetch and cache it on first use.
 
-### `WASM binary not present locally; will download on first use.`
+### "WebAssembly binary will be downloaded on first use"
 
-`PHOENIX_WASM_BINARY_PATH` is unset and the local cache directory has no resolved binary. The provider will function on first request, but the first execution will block on a download (and requires network egress to GitHub).
+You'll see this on a non-container install before the WebAssembly sandbox has been used. The first Python evaluation will pause briefly to download the binary, after which it's cached locally. The download requires outbound network access to GitHub.
 
-**Remediation:**
+How to fix it (if you can't allow the download):
 
-- Expected on non-container installs that have not yet exercised the WASM provider. Confirm the host has network egress to `github.com`.
-- For air-gapped or read-only-rootfs environments, pre-provision the binary and set `PHOENIX_WASM_BINARY_PATH` (see [Non-container deployments](#non-container-deployments) above).
+- Pre-provision the binary and set `PHOENIX_WASM_BINARY_PATH` to point at it. See [Non-container deployments](#non-container-deployments) above for the full steps.
 
-### `Deno executable not found. Install Deno and ensure the `deno` binary is on PATH.`
+### "Deno not found"
 
-Phoenix tried to run `deno` and the operating system could not find it on `PATH`.
+You'll see this when Phoenix tries to run the Deno binary but can't find it on your system's `PATH`.
 
-**Remediation:**
+How to fix it:
 
-- On non-container hosts: install Deno (see [`https://deno.land/install`](https://deno.land/install)) and confirm `which deno` resolves under the same user/PATH that runs the Phoenix process.
-- In the official `arizephoenix/phoenix` container the binary is pre-installed at `/usr/local/bin/deno`. If you see this error inside the official container, check that you have not overridden `PATH` to exclude `/usr/local/bin` or replaced the entrypoint in a way that strips it.
+- **Non-container hosts:** install Deno (see the [Deno install guide](https://deno.land/install)) and make sure the user running Phoenix can find it on their `PATH`.
+- **Official `arizephoenix/phoenix` container:** Deno is pre-installed at `/usr/local/bin/deno`. If you're still seeing this error inside the container, your deployment is overriding `PATH` or replacing the entrypoint in a way that hides the bundled binary — restore the defaults or add `/usr/local/bin` back to `PATH`.
 
 <Info>
-The local Deno provider also surfaces a one-time trust warning in the UI on self-hosted deployments when the provider is available. The warning does not appear on managed deployments or when the provider is in any non-available state, because it cannot be selected in those cases.
+The first time you select the local Deno sandbox on a self-hosted deployment, Phoenix shows a one-time warning about the trust model for running code locally. This warning only appears when Deno is ready to use — if Deno is unavailable or disabled, you can't pick it anyway, so the warning is suppressed.
 </Info>

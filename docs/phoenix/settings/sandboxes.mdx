@@ -51,10 +51,10 @@ flowchart LR
 
     <CardGroup cols={2}>
       <Card title="WebAssembly" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/wasm.svg" href="/docs/phoenix/settings/sandboxes/wasm">
-        Python in CPython-on-Wasm via `wasmtime`. Isolation at the Wasm boundary.
+        Runs Python in an isolated WebAssembly runtime with no access to your filesystem or network.
       </Card>
       <Card title="Deno" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/deno.svg" href="/docs/phoenix/settings/sandboxes/deno">
-        TypeScript in a `deno run` subprocess with no `--allow-*` permissions.
+        Runs TypeScript in a locked-down Deno process — no filesystem, network, or third-party package access.
       </Card>
     </CardGroup>
   </Accordion>
@@ -106,7 +106,7 @@ Environment-variable values — including the values resolved from secret refere
 
 ### Creating a configuration
 
-Click **New Sandbox** in the Sandbox Configurations card. Only providers whose backend is `AVAILABLE` *and* whose admin toggle is enabled appear in the picker.
+Click **New Sandbox** in the Sandbox Configurations card. Only providers that are currently available *and* enabled by an administrator appear in the picker.
 
 The dialog exposes the following fields. Fields that aren't supported by the selected backend are shown as **Not supported by the selected backend**.
 
