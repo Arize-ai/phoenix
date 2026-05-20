@@ -1185,6 +1185,33 @@
       ]
     },
     {
+      "name": "gemini-3.5-flash",
+      "name_pattern": "gemini-3\\.5-flash",
+      "source": "litellm",
+      "token_prices": [
+        {
+          "base_rate": 1.5e-6,
+          "is_prompt": true,
+          "token_type": "input"
+        },
+        {
+          "base_rate": 9e-6,
+          "is_prompt": false,
+          "token_type": "output"
+        },
+        {
+          "base_rate": 1.5e-7,
+          "is_prompt": true,
+          "token_type": "cache_read"
+        },
+        {
+          "base_rate": 1e-6,
+          "is_prompt": true,
+          "token_type": "audio"
+        }
+      ]
+    },
+    {
       "name": "gemini-exp-1206",
       "name_pattern": "gemini-exp-1206",
       "source": "litellm",
