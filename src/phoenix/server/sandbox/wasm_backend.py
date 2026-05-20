@@ -1,4 +1,21 @@
-"""WASM sandbox backend executing Python via CPython-WASM under wasmtime."""
+"""
+WASM sandbox backend.
+
+Executes Python code locally via a CPython 3.12 WebAssembly binary using the
+``wasmtime`` runtime. Stateless — inherits BaseNoSessionBackend.
+
+The WASM binary is downloaded on first use via _download.ensure_wasm_binary().
+Execution runs in a thread pool to avoid blocking the event loop. Each store
+caps the guest's WebAssembly linear memory (_MAX_WASM_MEMORY_BYTES) so a single
+execution cannot exhaust host RAM.
+
+Requires the ``wasmtime`` package (optional extra). Runtime imports are lazy
+inside ``_run_wasm`` and ``_get_engine_and_module`` so the module remains
+importable when the extra is absent (test environments mock or skip). Adapter
+availability is gated by ``WASMAdapter.probe_dependencies`` at registration
+time, which surfaces a missing extra as ``status=NOT_INSTALLED`` instead of a
+runtime error during evaluation.
+"""
 
 from __future__ import annotations
 
@@ -36,6 +53,13 @@ _EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="wasm-sandbox")
 
 # 1s tick: store epoch deadline (a tick count) maps directly to seconds.
 _EPOCH_INTERVAL_SECONDS = 1.0
+
+# Upper bound on a single guest's WebAssembly linear memory. memory.grow past
+# this fails inside the guest (a MemoryError in CPython-WASM) instead of
+# OOM-killing the Phoenix process. With _EXECUTOR's 4 workers the worst-case
+# host footprint is bounded at 4 × this. Generous enough for normal evaluator
+# code; bump this constant if a legitimate workload needs more.
+_MAX_WASM_MEMORY_BYTES = 256 * 1024 * 1024
 
 
 # Engine and module must be paired: a module compiled with one engine cannot
@@ -147,6 +171,11 @@ def _run_wasm(binary_path: Path, code: str, timeout: int) -> ExecutionResult:
         store.set_wasi(wasi)
         # Deadline in engine ticks; with a 1s tick this is `timeout` seconds.
         store.set_epoch_deadline(timeout)
+        # Cap the guest's linear memory so one execution cannot exhaust host
+        # RAM. Must be set before instantiate(), when the guest memory is
+        # created; an over-cap memory.grow then fails inside the guest rather
+        # than OOM-killing the Phoenix process.
+        store.set_limits(memory_size=_MAX_WASM_MEMORY_BYTES)
 
         with _engine_epoch_ticker(engine):
             instance = linker.instantiate(store, module)

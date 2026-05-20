@@ -710,3 +710,44 @@ class TestSandboxBackendsResolverWASMStatus:
                         secrets=_empty_secrets_context(),
                     )
         mock_retrieve.assert_not_called()
+
+
+class TestRunWasmMemoryLimit:
+    """_run_wasm caps the guest's linear memory so one execution cannot
+    exhaust host RAM."""
+
+    def test_sets_store_memory_limit_before_instantiate(self) -> None:
+        import wasmtime
+
+        from phoenix.server.sandbox.wasm_backend import _MAX_WASM_MEMORY_BYTES
+
+        class _NoopStart:
+            def __call__(self, store: object) -> None:
+                del store
+
+        mock_exports = MagicMock()
+        mock_exports.get.return_value = _NoopStart()
+        mock_instance = MagicMock()
+        mock_instance.exports.return_value = mock_exports
+        fake_store = MagicMock()
+
+        # The cap must be installed before instantiate() creates the guest
+        # memory — assert that ordering from inside the instantiate stub.
+        def _instantiate(*_args: object, **_kwargs: object) -> object:
+            assert fake_store.set_limits.called, (
+                "memory limit must be set before linker.instantiate()"
+            )
+            return mock_instance
+
+        with patch(
+            "phoenix.server.sandbox.wasm_backend._get_engine_and_module",
+            return_value=(MagicMock(), MagicMock()),
+        ):
+            with patch("wasmtime.Linker") as mock_linker_cls:
+                mock_linker_cls.return_value.instantiate.side_effect = _instantiate
+                with patch("wasmtime.Store", return_value=fake_store):
+                    with patch.object(wasmtime, "Func", _NoopStart):
+                        result = _run_wasm(Path("/fake/cpython.wasm"), "x=1", timeout=5)
+
+        fake_store.set_limits.assert_called_once_with(memory_size=_MAX_WASM_MEMORY_BYTES)
+        assert result.error is None
