@@ -694,6 +694,9 @@
 - [05.01.2026 TanStack AI Tracing](https://arize.com/docs/phoenix/release-notes/05-2026/05-01-2026-tanstack-ai-tracing): Instrument TanStack AI chat, tool-calling, and agent loops with the new @arizeai/openinference-tanstack-ai
 - [05.05.2026 Provider Tools in Playground and Prompts](https://arize.com/docs/phoenix/release-notes/05-2026/05-05-2026-provider-tools): Paste vendor-native tools (web search, code execution, computer use) directly into Playground and Prompts alongside function tools
 - [05.05.2026 REST API Updates](https://arize.com/docs/phoenix/release-notes/05-2026/05-05-2026-rest-api-updates): Bulk-delete annotations by filter; token counts in trace and session REST payloads; experiment CSV includes dataset metadata; OpenAI evaluator detects model capabilities at runtime
+- [05.08.2026 OTLP Project Routing via HTTP Header](https://arize.com/docs/phoenix/release-notes/05-2026/05-08-2026-otlp-project-header): Route OTLP traces to a named Phoenix project by setting the x-project-name HTTP header — no resource attribute required
+- [05.10.2026 Playground Preferences](https://arize.com/docs/phoenix/release-notes/05-2026/05-10-2026-playground-preferences): Save a default provider and model for the Playground; span metrics aside is now always visible on the project page
+- [05.13.2026 Session Enhancements and Annotation Identifiers](https://arize.com/docs/phoenix/release-notes/05-2026/05-13-2026-session-and-annotations): Expandable session turn messages; note endpoints accept an identifier field for upsert semantics; CLI annotation bulk-delete commands
 
 ### 2025
 
