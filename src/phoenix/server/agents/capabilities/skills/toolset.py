@@ -1,14 +1,3 @@
-"""Skills toolset implementation.
-
-This module provides the main [`SkillsToolset`][pydantic_ai_skills.SkillsToolset]
-class that integrates skill discovery and management with Pydantic AI agents.
-
-The toolset provides three tools for agents:
-- list_skills: List all available skills
-- load_skill: Load full instructions for a specific skill
-- read_skill_resource: Read skill resource files or invoke callable resources
-"""
-
 from __future__ import annotations
 
 import json
