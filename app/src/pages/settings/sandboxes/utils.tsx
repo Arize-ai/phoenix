@@ -44,11 +44,16 @@ export function StatusText({
     return <span style={{ color }}>{label}</span>;
   }
 
+  const textColor =
+    status === "NOT_INSTALLED" || status === "DISABLED"
+      ? "text-700"
+      : "warning";
+
   return (
     <TooltipTrigger delay={100}>
       <TriggerWrap>
         <Text
-          color={status === "NOT_INSTALLED" ? "text-700" : "warning"}
+          color={textColor}
           css={css`
             text-decoration: underline dotted;
             text-underline-offset: 2px;
@@ -130,6 +135,8 @@ export function statusLabel(status: BackendInfo["status"]) {
       return "Unavailable";
     case "NOT_INSTALLED":
       return "Not installed";
+    case "DISABLED":
+      return "Disabled";
     default:
       assertUnreachable(status);
   }

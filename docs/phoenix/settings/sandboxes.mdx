@@ -5,12 +5,12 @@ description: "Configure the sandbox backends that execute code evaluators and ot
 
 ![Sandboxes](https://storage.googleapis.com/arize-phoenix-assets/assets/images/sandboxes_banner.png)
 
-A **sandbox** is an isolated runtime that executes a snippet of code on demand. It's fast enough to run on every evaluation, but locked down enough that the code can't read the host filesystem, exfiltrate secrets, or make arbitrary network calls. Phoenix uses sandboxes to run [code evaluators](/docs/phoenix/evaluation/server-evals/code-evaluators) — an author writes a Python or TypeScript function and Phoenix runs it server-side without exposing the rest of your deployment.
+A **sandbox** is an isolated runtime that executes a snippet of code on demand. It's fast enough to run on every evaluation, but locked down enough that the code can't read the host filesystem, exfiltrate secrets, or make arbitrary network calls. Phoenix uses sandboxes to run [code evaluators](/docs/phoenix/evaluation/server-evals/code-evaluators) — short Python or TypeScript functions that you write to score or judge your LLM outputs server-side, without exposing the rest of your deployment.
 
-The **Settings → Sandboxes** page is where an administrator picks which sandbox backends are available and bundles them into reusable configurations that evaluator authors choose from. It has two cards:
+The **Settings → Sandboxes** page is where administrators pick which sandbox providers are available and bundle them into named, reusable configurations that anyone writing a code evaluator can pick from. The page has two cards:
 
-- **Sandbox Providers** — One row per backend. Set credentials, enable a provider, see runtime status.
-- **Sandbox Configurations** — Reusable named configs (timeout, environment variables, internet access, dependencies) that evaluators select from.
+- **Sandbox Providers** — one row per provider. Each row lets you set the provider's credentials, enable or disable it for your deployment, and see whether it's currently ready to run code.
+- **Sandbox Configurations** — named runtime profiles you create once and re-use. Each one bundles a provider with a timeout, environment variables, optional internet access, and any dependencies that should be pre-installed.
 
 <Note>
 Only users with the **Admin** role can view or edit this page. Non-admin users are routed away from the tab.
@@ -18,7 +18,7 @@ Only users with the **Admin** role can view or edit this page. Non-admin users a
 
 ## Local vs. hosted sandboxes
 
-Phoenix supports two flavors of sandbox, distinguished by where the code actually runs. The **hosting type** badge on each provider row tells you which kind you're looking at.
+Phoenix supports two kinds of sandbox, distinguished by where the code actually runs. The badge on each row in **Sandbox Providers** (labeled either **Local** or **Hosted**) tells you which kind it is.
 
 ```mermaid
 flowchart LR
@@ -51,10 +51,10 @@ flowchart LR
 
     <CardGroup cols={2}>
       <Card title="WebAssembly" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/wasm.svg" href="/docs/phoenix/settings/sandboxes/wasm">
-        Python in CPython-on-Wasm via `wasmtime`. Isolation at the Wasm boundary.
+        Runs Python in an isolated WebAssembly runtime with no access to your filesystem or network.
       </Card>
       <Card title="Deno" icon="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/deno.svg" href="/docs/phoenix/settings/sandboxes/deno">
-        TypeScript in a `deno run` subprocess with no `--allow-*` permissions.
+        Runs TypeScript in a locked-down Deno process — no filesystem, network, or third-party package access.
       </Card>
     </CardGroup>
   </Accordion>
@@ -79,11 +79,11 @@ flowchart LR
   </Accordion>
 </AccordionGroup>
 
-A common pattern is to enable a local sandbox for the everyday case (pure-logic checks, regex, JSON diffs) and one hosted sandbox for the cases that need extra horsepower (dependencies, network calls, longer runtimes). See [Sandbox Backends](/docs/phoenix/self-hosting/features/sandbox-runtimes) for the full capability matrix and self-hosting setup.
+A common pattern is to enable a local sandbox for the everyday case (pure-logic checks, regex, JSON diffs) and one hosted sandbox for the cases that need extra horsepower (dependencies, network calls, longer runtimes). Each provider page above has the setup steps for that provider; if you're self-hosting and need the platform-level details (which providers are bundled in the container, how to install extras, how the allowlist works), see [Sandbox Backends](/docs/phoenix/self-hosting/features/sandbox-runtimes).
 
 ## Sandbox Providers
 
-A **provider** is a sandbox backend account/runtime — for example, *Vercel Sandbox* or *Daytona*. Each row shows the backend's display name, supported languages, current runtime status, and a gear icon to configure credentials. The **Enabled** switch appears once the runtime is reachable; flipping it off hides the provider's configurations from evaluator authors without deleting them.
+A **provider** is a sandbox runtime that Phoenix can run code on — for example, *Vercel Sandbox* or *Daytona*. Each row in this card shows the provider's name, the languages it supports, its current status, and a gear icon for entering credentials. Once the provider is ready to run code, an **Enabled** switch appears. Turning it off hides every configuration tied to that provider from the people writing evaluators, but doesn't delete anything — flip it back on and the configurations reappear.
 
 ### Configuring credentials
 
@@ -98,7 +98,7 @@ Values are stored encrypted at rest using the server's `PHOENIX_SECRET`. The dia
 
 ## Sandbox Configurations
 
-A **sandbox configuration** is a named, reusable bundle of runtime settings — timeout, environment variables, internet access, and any pre-installed dependencies — bound to a specific provider. Code evaluators don't pick a provider directly; they pick a configuration. This lets you maintain a small set of curated runtimes (for example, a "default Python with `requests` and `numpy`" config and an "internet-enabled Node.js" config) that evaluator authors choose from.
+A **sandbox configuration** is a named, reusable runtime profile — a provider plus its timeout, environment variables, internet-access setting, and any pre-installed dependencies. Code evaluators don't pick a provider directly; they pick a configuration. This means administrators can set up a small set of vetted profiles — for example, "Python with `requests` and `numpy`" or "Node.js with internet access" — and the people writing evaluators just pick the profile that fits their script.
 
 <Warning>
 Environment-variable values — including the values resolved from secret references — are visible to any code that runs in the sandbox (for example, `os.environ` in Python). Treat them as readable by anyone authorized to author or run an evaluator against the config.
@@ -106,7 +106,7 @@ Environment-variable values — including the values resolved from secret refere
 
 ### Creating a configuration
 
-Click **New Sandbox** in the Sandbox Configurations card. Only providers whose backend is `AVAILABLE` *and* whose admin toggle is enabled appear in the picker.
+Click **New Sandbox** in the Sandbox Configurations card. Only providers that are currently available *and* enabled by an administrator appear in the picker.
 
 The dialog exposes the following fields. Fields that aren't supported by the selected backend are shown as **Not supported by the selected backend**.
 

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2d727a8bfc9a2bc3037491d5b67a8a27>>
+ * @generated SignedSource<<eeec0b8456a4a78c6cb8a9e391946f2b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type Language = "PYTHON" | "TYPESCRIPT";
-export type SandboxBackendStatus = "AVAILABLE" | "MISSING_CREDENTIALS" | "NOT_INSTALLED" | "UNAVAILABLE";
+export type SandboxBackendStatus = "AVAILABLE" | "DISABLED" | "MISSING_CREDENTIALS" | "NOT_INSTALLED" | "UNAVAILABLE";
 export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "VERCEL" | "WASM";
 export type SandboxHostingType = "HOSTED" | "LOCAL";
 export type SandboxProviderSelectQuery$variables = Record<PropertyKey, never>;

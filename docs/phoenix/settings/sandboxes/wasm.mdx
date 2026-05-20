@@ -1,21 +1,21 @@
 ---
 title: "WebAssembly"
-description: "Run Python code evaluators inside the Phoenix server using a CPython-on-Wasm interpreter."
+description: "Run Python code evaluators inside the Phoenix server using a sandboxed Python interpreter."
 ---
 
 <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginTop: '1.5rem', marginBottom: '1.5rem' }}>
 <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/wasm.svg" alt="WebAssembly" style={{ height: '112px', flexShrink: 0 }} />
 <div>
 
-The **WebAssembly** sandbox runs Python code in a CPython interpreter compiled to WebAssembly and executed via [`wasmtime`](https://wasmtime.dev/), in-process inside the Phoenix server. Isolation is enforced at the Wasm boundary: the guest has no filesystem, no network, and no syscalls except those Phoenix explicitly grants. It starts in milliseconds and requires no credentials, which makes it the default choice for fast, pure-logic Python evaluators.
+The **WebAssembly** sandbox runs Python code evaluators inside an isolated [WebAssembly](https://webassembly.org/) runtime on the Phoenix server. Scripts cannot read your files, open network connections, or access anything else on the host — Phoenix controls exactly which operations the Python code is allowed to perform. It runs locally inside Phoenix, starts in milliseconds, and needs no credentials, which makes it the default choice for fast Python evaluators that handle pure logic (regex, JSON parsing, scoring functions, etc.).
 
 </div>
 </div>
 
-Configure it from [Settings → Sandboxes](/docs/phoenix/settings/sandboxes). Learn more about WebAssembly at [webassembly.org](https://webassembly.org/).
+Configure it from [Settings → Sandboxes](/docs/phoenix/settings/sandboxes). For background on the underlying technology, see [webassembly.org](https://webassembly.org/).
 
 ## Security model
 
-WebAssembly enforces isolation through **memory-safe, sandboxed execution**: the guest can only read and write inside its own linear memory, cannot forge pointers into the host's address space, and has no ambient access to syscalls, the filesystem, or the network. Phoenix relies on this boundary plus `wasmtime`'s capability-based host interface to keep evaluator code contained inside the Phoenix process.
+WebAssembly runs the Python interpreter inside a strictly isolated environment. Memory is partitioned so the script can only touch its own data, and the script has no built-in access to the filesystem, network, or operating system. Phoenix decides explicitly which operations to allow, and everything else is denied by default.
 
-For the full threat model — including memory-safety guarantees, control-flow integrity, and the side-channel caveats that apply to any in-process sandbox — see WebAssembly's [Security](https://webassembly.org/docs/security/) documentation.
+For the full security model — including memory safety, control-flow integrity, and the side-channel limitations that apply to any in-process sandbox — see WebAssembly's [Security](https://webassembly.org/docs/security/) documentation.

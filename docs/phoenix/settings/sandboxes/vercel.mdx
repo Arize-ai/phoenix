@@ -7,9 +7,24 @@ description: "Run code evaluators in ephemeral compute on Vercel's infrastructur
 <img src="https://storage.googleapis.com/arize-phoenix-assets/assets/svgs/vercel.svg" alt="Vercel Sandbox" className="invert-on-dark" style={{ height: '112px', flexShrink: 0 }} />
 <div>
 
-[**Vercel Sandbox**](https://vercel.com/docs/vercel-sandbox) runs code in ephemeral compute on Vercel's infrastructure, scoped to a Vercel team and project. It's a good fit when your team is already on Vercel and you'd like sandbox usage to roll up under the same billing and access controls.
+[**Vercel Sandbox**](https://vercel.com/docs/vercel-sandbox) runs each evaluation in ephemeral compute on Vercel's infrastructure, scoped to a specific Vercel team and project. It supports both Python and TypeScript evaluators.
 
 </div>
 </div>
 
-To use Vercel Sandbox, create a token and note your team and project IDs in the Vercel dashboard, then add `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, and `VERCEL_TEAM_ID` from [Settings → Sandboxes](/docs/phoenix/settings/sandboxes).
+## Setup
+
+Vercel Sandbox needs three values:
+
+| Value | What it is | Where to find it |
+| :-- | :-- | :-- |
+| `VERCEL_TOKEN` | A personal access token | [Account Settings → Tokens](https://vercel.com/account/tokens) |
+| `VERCEL_PROJECT_ID` | The project's resource ID | Project Settings → General |
+| `VERCEL_TEAM_ID` | The team's resource ID | `https://vercel.com/teams/<your-team>/settings#team-id` |
+
+Then:
+
+1. **Add the credentials to Phoenix.** Open [Settings → Sandboxes](/docs/phoenix/settings/sandboxes), find the **Vercel Sandbox** row, click the gear icon, and paste each value into the matching field. You can also set them as environment variables on the Phoenix server.
+2. **Create a configuration.** In **Sandbox Configurations**, click **New Sandbox**, pick **Vercel Sandbox**, choose the language (Python or TypeScript), set the timeout and any environment variables or dependencies, and save.
+
+For Vercel's full authentication walkthrough, see [Vercel Sandbox authentication](https://vercel.com/docs/vercel-sandbox/concepts/authentication).
