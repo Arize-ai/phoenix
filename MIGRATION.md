@@ -2,13 +2,21 @@
 
 ## v15.x to v16.0.0
 
-### Sandbox provider allowlist (`PHOENIX_ALLOWED_SANDBOX_PROVIDERS`)
+v16.0.0 introduces **code sandboxes** and **code evaluators** — author Python or TypeScript evaluators in the Phoenix UI and run them server-side in a managed sandbox. The upgrade adds new database tables via Alembic migration `0ff41b5b118f` and a new **Settings → Sandboxes** admin page. The migration only creates new tables (and adds columns to `code_evaluators`) and is quick; no action is required to upgrade.
 
-A new optional environment variable, `PHOENIX_ALLOWED_SANDBOX_PROVIDERS`, restricts which sandbox provider families are available for code-evaluator execution. 
+Local runtimes (WebAssembly for Python, Deno for TypeScript) ship with the official `arizephoenix/phoenix` container and need no configuration. Hosted providers (E2B, Daytona, Vercel, Modal) require credentials and the matching Phoenix extra.
 
-*When unset, all providers remain available. Set to `NONE` to disable all sandbox providers.*
+### Disabling or restricting sandboxes (`PHOENIX_ALLOWED_SANDBOX_PROVIDERS`)
 
-To restrict the set of usable sandboxes, set the variable to a comma-separated list of family names:
+A new optional environment variable, `PHOENIX_ALLOWED_SANDBOX_PROVIDERS`, controls which sandbox provider families are available for code-evaluator execution. When unset, all providers remain available.
+
+To disable sandboxes entirely:
+
+```shell
+PHOENIX_ALLOWED_SANDBOX_PROVIDERS=NONE
+```
+
+To restrict to specific providers, set a comma-separated list of family names:
 
 ```shell
 PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO
