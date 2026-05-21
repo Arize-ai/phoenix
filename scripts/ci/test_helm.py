@@ -3067,6 +3067,16 @@ def get_test_suite() -> list[TestCase | ErrorTestCase]:
                 ServerConfigValidators.max_spans_queue_size(20000),
             ),
         ),
+        TestCase(
+            "Sandbox provider allowlist sets PHOENIX_ALLOWED_SANDBOX_PROVIDERS",
+            "--set sandbox.allowedProviders=WASM",
+            ConfigMapValidators.configmap_has_key("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "WASM"),
+        ),
+        TestCase(
+            "Sandbox provider allowlist omitted by default",
+            "",
+            ConfigMapValidators.configmap_lacks_key("PHOENIX_ALLOWED_SANDBOX_PROVIDERS"),
+        ),
         # Extra Volumes and Mounts
         TestCase(
             "Extra ConfigMap volume",

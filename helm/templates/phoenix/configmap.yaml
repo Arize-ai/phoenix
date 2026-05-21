@@ -184,3 +184,8 @@ data:
   # Instrumentation
   PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT: {{ .Values.instrumentation.otlpTraceCollectorHttpEndpoint | quote }}
   PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_GRPC_ENDPOINT: {{ .Values.instrumentation.otlpTraceCollectorGrpcEndpoint | quote }}
+
+  # Code evaluator sandboxing
+  {{- if .Values.sandbox.allowedProviders }}
+  PHOENIX_ALLOWED_SANDBOX_PROVIDERS: {{ .Values.sandbox.allowedProviders | quote }}
+  {{- end }}
