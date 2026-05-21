@@ -73,7 +73,7 @@ export function SettingsPage() {
     <main css={settingsPageCSS}>
       <div css={settingsPageInnerCSS}>
         <Tabs selectedKey={tab} onSelectionChange={onChangeTab}>
-          {/* TODO: post-rebase, filter sandboxes tab for non-admins */}
+          {/* TODO: filter sandboxes tab for non-admins */}
           <TabList items={tabs}>
             {(item) => <Tab id={item.id}>{item.label}</Tab>}
           </TabList>
