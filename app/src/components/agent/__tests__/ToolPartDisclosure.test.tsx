@@ -168,6 +168,31 @@ describe("tool disclosure controls", () => {
     expect(details?.hasAttribute("open")).toBe(true);
   });
 
+  it("keeps an auto-open solo tool collapsed after streaming updates", () => {
+    renderToolPart(createAutoOpenToolPart());
+    const summary = container.querySelector("summary");
+
+    expect(
+      container.querySelector("details.tool-part")?.hasAttribute("open")
+    ).toBe(true);
+
+    click(summary);
+    expect(
+      container.querySelector("details.tool-part")?.hasAttribute("open")
+    ).toBe(false);
+
+    renderToolPart(
+      createAutoOpenToolPart({
+        state: "output-available",
+        output: { ok: true },
+      })
+    );
+
+    expect(
+      container.querySelector("details.tool-part")?.hasAttribute("open")
+    ).toBe(false);
+  });
+
   it("allows manually collapsing and expanding an auto-open tool group", () => {
     renderToolPartGroup([
       createToolPart({ toolCallId: "tool-call-1" }),
@@ -183,5 +208,31 @@ describe("tool disclosure controls", () => {
 
     click(header);
     expect(container.querySelector(".tool-pool__body")).not.toBeNull();
+  });
+
+  it("keeps an auto-open tool group collapsed after streaming updates", () => {
+    const initialParts = [
+      createToolPart({ toolCallId: "tool-call-1" }),
+      createToolPart({ toolCallId: "tool-call-2" }),
+      createAutoOpenToolPart({ toolCallId: "tool-call-3" }),
+    ];
+    renderToolPartGroup(initialParts);
+    const header = container.querySelector(".tool-pool__header");
+
+    expect(container.querySelector(".tool-pool__body")).not.toBeNull();
+
+    click(header);
+    expect(container.querySelector(".tool-pool__body")).toBeNull();
+
+    renderToolPartGroup([
+      ...initialParts.slice(0, 2),
+      createAutoOpenToolPart({
+        toolCallId: "tool-call-3",
+        state: "output-available",
+        output: { ok: true },
+      }),
+    ]);
+
+    expect(container.querySelector(".tool-pool__body")).toBeNull();
   });
 });
