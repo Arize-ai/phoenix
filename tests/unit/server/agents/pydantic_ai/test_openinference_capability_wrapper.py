@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any, Callable
 
 import pytest
@@ -18,7 +19,13 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.trace import StatusCode, Tracer
 from pydantic_ai._run_context import RunContext
 from pydantic_ai.capabilities import AbstractCapability
-from pydantic_ai.messages import ToolCallPart
+from pydantic_ai.messages import (
+    ModelResponse,
+    NativeToolCallPart,
+    NativeToolReturnPart,
+    ToolCallPart,
+)
+from pydantic_ai.models import ModelRequestContext, ModelRequestParameters
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai.usage import RunUsage
@@ -216,6 +223,166 @@ async def test_wrap_tool_execute_records_exception_when_handler_raises(
     assert not attributes
 
 
+async def test_after_model_request_emits_native_tool_span_for_call_and_return(
+    in_memory_span_exporter: InMemorySpanExporter,
+    tracer: Tracer,
+    make_ctx: Callable[..., RunContext[None]],
+) -> None:
+    wrapper = OpenInferenceCapabilityWrapper[None](
+        wrapped=_NoOpCapability(),
+        tracer=tracer,
+    )
+    return_timestamp = datetime(2026, 5, 21, 12, 0, 0, tzinfo=timezone.utc)
+    response = ModelResponse(
+        parts=[
+            NativeToolCallPart(
+                tool_name="web_search",
+                args={"query": "phoenix tracing"},
+                tool_call_id="native-call-1",
+                provider_name="anthropic",
+                provider_details={"latency_ms": 123},
+            ),
+            NativeToolReturnPart(
+                tool_name="web_search",
+                content="search results",
+                tool_call_id="native-call-1",
+                timestamp=return_timestamp,
+            ),
+        ],
+    )
+    ctx = make_ctx(tool_call_id=None, tool_name=None)
+    request_context = ModelRequestContext(
+        model=TestModel(),
+        messages=[],
+        model_settings=None,
+        model_request_parameters=ModelRequestParameters(
+            function_tools=[], native_tools=[], output_tools=[]
+        ),
+    )
+
+    returned = await wrapper.after_model_request(
+        ctx, request_context=request_context, response=response
+    )
+    assert returned is response
+
+    (span,) = in_memory_span_exporter.get_finished_spans()
+    assert span.name == "web_search"
+    assert span.status.status_code == StatusCode.OK
+
+    attributes = dict(span.attributes or {})
+    assert attributes.pop(OPENINFERENCE_SPAN_KIND) == TOOL
+    assert attributes.pop(TOOL_NAME) == "web_search"
+    assert attributes.pop(TOOL_CALL_ID) == "native-call-1"
+
+    input_value = attributes.pop(INPUT_VALUE)
+    assert isinstance(input_value, str)
+    assert json.loads(input_value) == {"query": "phoenix tracing"}
+    assert attributes.pop(INPUT_MIME_TYPE) == JSON
+
+    assert attributes.pop(OUTPUT_VALUE) == "search results"
+    assert attributes.pop(OUTPUT_MIME_TYPE) == TEXT
+
+    metadata_value = attributes.pop(METADATA)
+    assert isinstance(metadata_value, str)
+    metadata = json.loads(metadata_value)
+    assert metadata == {
+        "native_tool": {
+            "provider_name": "anthropic",
+            "provider_details": {"latency_ms": 123},
+            "tool_kind": None,
+        }
+    }
+    assert not attributes
+
+
+async def test_after_model_request_emits_native_tool_span_without_return_part(
+    in_memory_span_exporter: InMemorySpanExporter,
+    tracer: Tracer,
+    make_ctx: Callable[..., RunContext[None]],
+) -> None:
+    wrapper = OpenInferenceCapabilityWrapper[None](
+        wrapped=_NoOpCapability(),
+        tracer=tracer,
+    )
+    response = ModelResponse(
+        parts=[
+            NativeToolCallPart(
+                tool_name="web_search",
+                args={"query": "phoenix tracing"},
+                tool_call_id="native-call-1",
+            ),
+        ],
+    )
+    ctx = make_ctx(tool_call_id=None, tool_name=None)
+    request_context = ModelRequestContext(
+        model=TestModel(),
+        messages=[],
+        model_settings=None,
+        model_request_parameters=ModelRequestParameters(
+            function_tools=[], native_tools=[], output_tools=[]
+        ),
+    )
+
+    await wrapper.after_model_request(ctx, request_context=request_context, response=response)
+
+    (span,) = in_memory_span_exporter.get_finished_spans()
+    assert span.name == "web_search"
+    assert span.status.status_code == StatusCode.OK
+
+    attributes = dict(span.attributes or {})
+    assert attributes.pop(TOOL_NAME) == "web_search"
+    assert OUTPUT_VALUE not in attributes
+
+
+async def test_after_model_request_records_error_for_failed_native_tool_return(
+    in_memory_span_exporter: InMemorySpanExporter,
+    tracer: Tracer,
+    make_ctx: Callable[..., RunContext[None]],
+) -> None:
+    wrapper = OpenInferenceCapabilityWrapper[None](
+        wrapped=_NoOpCapability(),
+        tracer=tracer,
+    )
+    return_timestamp = datetime(2026, 5, 21, 12, 0, 0, tzinfo=timezone.utc)
+    response = ModelResponse(
+        parts=[
+            NativeToolCallPart(
+                tool_name="web_search",
+                args={"query": "phoenix tracing"},
+                tool_call_id="native-call-1",
+            ),
+            NativeToolReturnPart(
+                tool_name="web_search",
+                content="rate limit exceeded",
+                tool_call_id="native-call-1",
+                timestamp=return_timestamp,
+                outcome="failed",
+            ),
+        ],
+    )
+    ctx = make_ctx(tool_call_id=None, tool_name=None)
+    request_context = ModelRequestContext(
+        model=TestModel(),
+        messages=[],
+        model_settings=None,
+        model_request_parameters=ModelRequestParameters(
+            function_tools=[], native_tools=[], output_tools=[]
+        ),
+    )
+
+    await wrapper.after_model_request(ctx, request_context=request_context, response=response)
+
+    (span,) = in_memory_span_exporter.get_finished_spans()
+    assert span.status.status_code == StatusCode.ERROR
+    assert span.status.description == "native tool failed: rate limit exceeded"
+
+    (exception_event,) = span.events
+    assert exception_event.name == "exception"
+    exception_attributes = dict(exception_event.attributes or {})
+    assert exception_attributes["exception.type"] == "Exception"
+    assert exception_attributes["exception.message"] == "rate limit exceeded"
+
+
 # OpenInference attribute keys
 OPENINFERENCE_SPAN_KIND = SpanAttributes.OPENINFERENCE_SPAN_KIND
 TOOL_NAME = SpanAttributes.TOOL_NAME
@@ -226,6 +393,7 @@ INPUT_VALUE = SpanAttributes.INPUT_VALUE
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
+METADATA = SpanAttributes.METADATA
 
 TOOL = OpenInferenceSpanKindValues.TOOL.value
 JSON = OpenInferenceMimeTypeValues.JSON.value

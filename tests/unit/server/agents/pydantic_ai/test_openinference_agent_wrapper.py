@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from typing import Any
 
 import pytest
@@ -18,6 +19,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode, Tracer
 from pydantic_ai import Agent
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.messages import (
     ModelMessage,
     ModelRequest,
@@ -38,8 +40,14 @@ from pydantic_ai.tools import ToolDefinition
 from phoenix.server.agents.capabilities import get_external_tool_definition
 from phoenix.server.agents.pydantic_ai import (
     OpenInferenceAgentWrapper,
+    OpenInferenceCapabilityWrapper,
     OpenInferenceModelWrapper,
 )
+
+
+@dataclass
+class _NoOpCapability(AbstractCapability[Any]):
+    """Bare capability used as the wrapped target — every default hook applies."""
 
 
 def _require_tool_definition(name: str) -> ToolDefinition:
@@ -161,6 +169,9 @@ def native_tool_agent(tracer: Tracer) -> OpenInferenceAgentWrapper:
         OpenInferenceModelWrapper(_NativeToolModel(TestModel()), tracer=tracer),
         name="NativeToolAgent",
         deps_type=type(None),
+        capabilities=[
+            OpenInferenceCapabilityWrapper[None](wrapped=_NoOpCapability(), tracer=tracer)
+        ],
     )
     return OpenInferenceAgentWrapper(inner, tracer=tracer)
 

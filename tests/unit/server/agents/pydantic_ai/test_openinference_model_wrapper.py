@@ -389,9 +389,7 @@ async def test_request_emits_llm_span_for_native_tool_call_response(
     tool_spans = [
         span for span in spans if (span.attributes or {}).get(OPENINFERENCE_SPAN_KIND) == TOOL
     ]
-    assert len(tool_spans) == 1
-    tool_attributes = dict(tool_spans[0].attributes or {})
-    assert tool_attributes.pop(TOOL_NAME) == "web_search"
+    assert tool_spans == []
 
 
 async def test_request_stream_emits_llm_span(
@@ -738,7 +736,6 @@ LLM_INPUT_MESSAGES = SpanAttributes.LLM_INPUT_MESSAGES
 LLM_OUTPUT_MESSAGES = SpanAttributes.LLM_OUTPUT_MESSAGES
 LLM_TOOLS = SpanAttributes.LLM_TOOLS
 TOOL_JSON_SCHEMA = ToolAttributes.TOOL_JSON_SCHEMA
-TOOL_NAME = SpanAttributes.TOOL_NAME
 MESSAGE_ROLE = MessageAttributes.MESSAGE_ROLE
 MESSAGE_CONTENT = MessageAttributes.MESSAGE_CONTENT
 MESSAGE_TOOL_CALLS = MessageAttributes.MESSAGE_TOOL_CALLS
