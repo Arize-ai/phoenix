@@ -251,12 +251,12 @@ examples:
         dataset = load_dataset(path)
         assert dataset.examples[0]["splits"] == [split]
 
-    @pytest.mark.parametrize("splits", (["regression", "val"], ["dev", "val"]))
-    def test_forbidden_split_combinations_raise(self, tmp_path: Path, splits: list[str]) -> None:
+    @pytest.mark.parametrize("splits", (["regression", "val"], ["dev", "val"], ["regression", "dev"]))
+    def test_multiple_splits_raise(self, tmp_path: Path, splits: list[str]) -> None:
         path = _write(
-            tmp_path / "forbidden_splits.yaml",
+            tmp_path / "multiple_splits.yaml",
             f"""\
-dataset_name: forbidden_splits
+dataset_name: multiple_splits
 evaluators: [correct_tools_called]
 examples:
   - id: ex-1
@@ -267,40 +267,7 @@ examples:
         )
         with pytest.raises(DatasetValidationError) as exc_info:
             load_dataset(path)
-        assert "cannot combine split tags" in str(exc_info.value)
-
-    def test_regression_holdout_warns(self, tmp_path: Path) -> None:
-        path = _write(
-            tmp_path / "regression_holdout.yaml",
-            """\
-dataset_name: regression_holdout
-evaluators: [correct_tools_called]
-examples:
-  - id: ex-1
-    splits: [regression, holdout]
-    input: {query: x}
-    expected: {tools: {required: []}}
-""",
-        )
-        with pytest.warns(UserWarning, match="both regression and holdout"):
-            dataset = load_dataset(path)
-        assert set(dataset.examples[0]["splits"]) == {"regression", "holdout"}
-
-    def test_multi_split_tags_parse(self, tmp_path: Path) -> None:
-        path = _write(
-            tmp_path / "multi_splits.yaml",
-            """\
-dataset_name: multi_splits
-evaluators: [correct_tools_called]
-examples:
-  - id: ex-1
-    splits: [regression, dev]
-    input: {query: x}
-    expected: {tools: {required: []}}
-""",
-        )
-        dataset = load_dataset(path)
-        assert set(dataset.examples[0]["splits"]) == {"regression", "dev"}
+        assert "must belong to exactly one split" in str(exc_info.value)
 
     def test_load_by_stem_uses_repo_datasets_dir(self) -> None:
         # The shipped ``set_spans_filter`` dataset must round-trip cleanly so

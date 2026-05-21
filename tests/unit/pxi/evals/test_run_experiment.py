@@ -182,15 +182,15 @@ def test_phoenix_examples_include_splits() -> None:
     assert examples[0]["splits"] == ["regression"]
 
 
-def test_phoenix_examples_include_multi_split_tags() -> None:
+def test_phoenix_examples_include_holdout_split() -> None:
     dataset = EvalDataset.model_validate(
         {
             "dataset_name": "example_suite",
             "evaluators": ["correct_tools_called"],
             "examples": [
                 {
-                    "id": "multi-split-example",
-                    "splits": ["regression", "dev"],
+                    "id": "holdout-example",
+                    "splits": ["holdout"],
                     "input": {"query": "x"},
                     "expected": {"tools": {"required": []}},
                 },
@@ -200,7 +200,7 @@ def test_phoenix_examples_include_multi_split_tags() -> None:
 
     examples = _phoenix_examples(dataset)
 
-    assert examples[0]["splits"] == ["regression", "dev"]
+    assert examples[0]["splits"] == ["holdout"]
 
 
 @pytest.mark.asyncio
