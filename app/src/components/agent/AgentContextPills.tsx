@@ -27,6 +27,7 @@ function contextLabel(context: AgentContext): string {
   switch (context.type) {
     case "app":
     case "graphql":
+    case "web_access":
       // Request-only runtime metadata, not user-visible page context, so it
       // should never render as a pill.
       return "";
@@ -92,7 +93,11 @@ export function AgentContextPills() {
   }
 
   const items = contexts.flatMap((context) => {
-    if (context.type === "app" || context.type === "graphql") {
+    if (
+      context.type === "app" ||
+      context.type === "graphql" ||
+      context.type === "web_access"
+    ) {
       return [];
     }
     const filterPill = spanFilterAttachmentData(context);

@@ -17,3 +17,10 @@ class AgentsConfig:
             "Resolved from the PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME environment variable."
         ),
     )
+    web_access_enabled: bool = strawberry.field(
+        description=(
+            "Whether PXI can expose native web search and web fetch capabilities. "
+            "False when external resources are disabled or PHOENIX_AGENTS_DISABLE_WEB_ACCESS "
+            "is true."
+        ),
+    )

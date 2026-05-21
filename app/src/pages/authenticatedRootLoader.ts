@@ -12,6 +12,7 @@ export const authenticatedRootLoaderQueryNode = graphql`
     agentsConfig {
       collectorEndpoint
       assistantProjectName
+      webAccessEnabled
     }
     viewer {
       id

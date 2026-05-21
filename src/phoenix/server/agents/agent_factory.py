@@ -26,6 +26,10 @@ from phoenix.server.agents.pydantic_ai import (
     OpenInferenceCapabilityWrapper,
 )
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
+from phoenix.server.agents.web_access import (
+    build_web_fetch_capability,
+    build_web_search_capability,
+)
 
 
 def build_agent(
@@ -33,6 +37,7 @@ def build_agent(
     model: Model,
     instructions: AgentInstructions | None = None,
     docs_mcp_server: MCPServerStreamableHTTP | None = None,
+    enable_web_access: bool = False,
     tracer_provider: TracerProvider | None = None,
 ) -> OpenInferenceAgentWrapper[AgentDependencies, AgentOutput]:
     resolved_instructions = instructions or AgentInstructions()
@@ -60,6 +65,11 @@ def build_agent(
                 instructions=resolved_instructions.docs_tool,
             )
         )
+    if enable_web_access:
+        if (web_search := build_web_search_capability(model)) is not None:
+            capabilities.append(web_search)
+        if (web_fetch := build_web_fetch_capability(model)) is not None:
+            capabilities.append(web_fetch)
 
     traced_capability = OpenInferenceCapabilityWrapper(
         wrapped=CombinedCapability(capabilities=capabilities),

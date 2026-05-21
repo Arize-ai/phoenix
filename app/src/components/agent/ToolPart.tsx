@@ -423,6 +423,117 @@ function getStatusVariant(
   }
 }
 
+/**
+ * Returns a string field from arbitrary tool input records, or an empty string
+ * when the field is absent or not textual.
+ */
+function getStringField(
+  record: Record<string, unknown>,
+  field: string
+): string {
+  const value = record[field];
+  return typeof value === "string" ? value : "";
+}
+
+/**
+ * Returns the first non-empty string from a list of possible field names.
+ */
+function getFirstStringField(
+  record: Record<string, unknown>,
+  fields: string[]
+): string {
+  for (const field of fields) {
+    const value = getStringField(record, field);
+    if (value) {
+      return value;
+    }
+  }
+  return "";
+}
+
+/**
+ * Provider-native web tools use different input field names for target URLs.
+ * Check the known URL aliases in priority order when building collapsed previews.
+ */
+const NATIVE_WEB_URL_FIELDS = ["url", "uri", "href"];
+
+/**
+ * Provider-native web search tools use different input field names for search
+ * text. Check the known query aliases in priority order for preview text.
+ */
+const NATIVE_WEB_SEARCH_QUERY_FIELDS = ["query", "q", "search_query"];
+
+/**
+ * Pydantic AI's provider-native web search tool name as it appears in AI SDK
+ * tool invocation parts.
+ */
+const NATIVE_WEB_SEARCH_TOOL_NAME = "web_search";
+
+/**
+ * Pydantic AI's provider-native web fetch tool name as it appears in AI SDK
+ * tool invocation parts.
+ */
+const NATIVE_WEB_FETCH_TOOL_NAME = "web_fetch";
+
+/**
+ * Formats native web-search action types for display in the collapsed tool row.
+ */
+function formatNativeWebSearchType(type: string): string {
+  return type
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+/**
+ * Derives a compact preview for native web-search and web-fetch tool calls from
+ * provider-specific input shapes.
+ */
+function getNativeWebToolPreview(
+  toolName: string,
+  part: ToolInvocationPart
+): string {
+  const input = part.input;
+  if (typeof input === "string") {
+    return input;
+  }
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    return "";
+  }
+  const inputRecord = input as Record<string, unknown>;
+  if (toolName === NATIVE_WEB_SEARCH_TOOL_NAME) {
+    const type = getStringField(inputRecord, "type");
+    if (type && type !== "search") {
+      const value =
+        getFirstStringField(inputRecord, NATIVE_WEB_URL_FIELDS) ||
+        getFirstStringField(inputRecord, NATIVE_WEB_SEARCH_QUERY_FIELDS);
+      const label = formatNativeWebSearchType(type);
+      return value ? `${label}: ${value}` : label;
+    }
+    const query = getFirstStringField(
+      inputRecord,
+      NATIVE_WEB_SEARCH_QUERY_FIELDS
+    );
+    if (query) {
+      return query;
+    }
+    const queries = inputRecord.queries;
+    if (Array.isArray(queries)) {
+      return (
+        queries.find(
+          (value): value is string =>
+            typeof value === "string" && value.length > 0
+        ) ?? ""
+      );
+    }
+  }
+  if (toolName === NATIVE_WEB_FETCH_TOOL_NAME) {
+    return getFirstStringField(inputRecord, NATIVE_WEB_URL_FIELDS);
+  }
+  return "";
+}
+
 function getToolPresentation(
   toolName: string,
   part: ToolInvocationPart
@@ -458,6 +569,37 @@ function getToolPresentation(
         statusVariant,
         details: <EditPromptToolDetails part={part} />,
       };
+    case NATIVE_WEB_SEARCH_TOOL_NAME:
+    case NATIVE_WEB_FETCH_TOOL_NAME: {
+      const inputStr = JSON.stringify(part.input, null, 2);
+      const outputStr =
+        part.state === "output-available"
+          ? JSON.stringify(part.output, null, 2)
+          : "";
+      return {
+        preview: getNativeWebToolPreview(toolName, part),
+        stateLabel: formatToolState(part.state),
+        statusVariant,
+        details: (
+          <div className="tool-part__body">
+            <ToolPartLabel>Input</ToolPartLabel>
+            <ToolPartCodeBlock>{inputStr}</ToolPartCodeBlock>
+            {part.state === "output-available" ? (
+              <>
+                <ToolPartLabel>Output</ToolPartLabel>
+                <ToolPartCodeBlock>{outputStr}</ToolPartCodeBlock>
+              </>
+            ) : null}
+            {part.state === "output-error" ? (
+              <>
+                <ToolPartLabel variant="danger">Error</ToolPartLabel>
+                <ToolPartCodeBlock>{part.errorText ?? ""}</ToolPartCodeBlock>
+              </>
+            ) : null}
+          </div>
+        ),
+      };
+    }
     default: {
       if (isDocsToolName(toolName)) {
         return {

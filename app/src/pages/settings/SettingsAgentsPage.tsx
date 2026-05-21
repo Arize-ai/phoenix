@@ -15,6 +15,7 @@ import {
   AgentExperimentalSettings,
   AgentObservabilitySettings,
   AgentSettingsForm,
+  AgentWebAccessSettings,
 } from "@phoenix/components/agent";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
@@ -128,8 +129,10 @@ export function SettingsAgentsPage() {
           `}
         >
           <AssistantTraceCollectionInfo />
-          <AgentSettingsForm />
-          <AgentExperimentalSettings />
+          <AgentSettingsForm>
+            <AgentWebAccessSettings />
+            <AgentExperimentalSettings />
+          </AgentSettingsForm>
         </Flex>
       </View>
     </Card>

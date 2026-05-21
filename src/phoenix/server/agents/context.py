@@ -97,6 +97,13 @@ class GraphQLContext(_ChatContextBase):
     mutations_enabled: bool = Field(alias="mutationsEnabled")
 
 
+class WebAccessContext(_ChatContextBase):
+    """User's per-turn request to expose web search / fetch tools."""
+
+    type: Literal["web_access"]
+    enabled: bool
+
+
 class ChatContext(
     RootModel[
         Annotated[
@@ -105,7 +112,8 @@ class ChatContext(
             | TraceContext
             | AgentSpanContext
             | PlaygroundContext
-            | GraphQLContext,
+            | GraphQLContext
+            | WebAccessContext,
             Field(discriminator="type"),
         ]
     ]
@@ -121,6 +129,7 @@ class ResolvedContexts:
     span: AgentSpanContext | None = None
     playground: PlaygroundContext | None = None
     graphql: GraphQLContext | None = None
+    web_access: WebAccessContext | None = None
 
 
 def resolve_contexts(contexts: list[ChatContext]) -> ResolvedContexts:
@@ -139,6 +148,8 @@ def resolve_contexts(contexts: list[ChatContext]) -> ResolvedContexts:
             resolved.span = context_value
         elif isinstance(context_value, GraphQLContext):
             resolved.graphql = context_value
+        elif isinstance(context_value, WebAccessContext):
+            resolved.web_access = context_value
         else:
             assert_never(context_value)
     return resolved

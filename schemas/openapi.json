@@ -7306,6 +7306,9 @@
           },
           {
             "$ref": "#/components/schemas/GraphQLContext"
+          },
+          {
+            "$ref": "#/components/schemas/WebAccessContext"
           }
         ],
         "title": "ChatContext",
@@ -7318,7 +7321,8 @@
             "playground": "#/components/schemas/PlaygroundContext",
             "project": "#/components/schemas/ProjectContext",
             "span": "#/components/schemas/AgentSpanContext",
-            "trace": "#/components/schemas/TraceContext"
+            "trace": "#/components/schemas/TraceContext",
+            "web_access": "#/components/schemas/WebAccessContext"
           }
         }
       },
@@ -15377,6 +15381,26 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "WebAccessContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "web_access",
+            "title": "Type"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "enabled"
+        ],
+        "title": "WebAccessContext",
+        "description": "User's per-turn request to expose web search / fetch tools."
       },
       "_SummarizeRequest": {
         "properties": {

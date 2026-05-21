@@ -44,4 +44,35 @@ describe("buildAgentChatRequestBody", () => {
     });
     expect(body).not.toHaveProperty("system");
   });
+
+  it("forwards the user's web access toggle as a context entry", () => {
+    const capabilities = createDefaultAgentCapabilities();
+    capabilities["web.access"] = true;
+
+    const body = buildAgentChatRequestBody({
+      body: undefined,
+      id: "session-1",
+      messages: [] as AgentUIMessage[],
+      trigger: "submit-message",
+      messageId: undefined,
+      capabilities,
+      observability: {
+        storeLocalTraces: false,
+        exportRemoteTraces: false,
+        hasAcknowledgedConsent: false,
+      },
+      hasRemoteCollector: false,
+      contexts: [],
+      modelSelection: {
+        providerType: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-4o-mini",
+      },
+    });
+
+    expect(body.contexts).toContainEqual({
+      type: "web_access",
+      enabled: true,
+    });
+  });
 });

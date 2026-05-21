@@ -44,6 +44,8 @@ export type AgentServerConfig = {
   collectorEndpoint: string | null;
   /** Local Phoenix project used for PXI trace persistence. */
   assistantProjectName: string;
+  /** Whether this Phoenix instance allows PXI web search/fetch. */
+  webAccessEnabled: boolean;
 };
 
 /**
@@ -108,6 +110,7 @@ const DEFAULT_MODEL_CONFIG: ModelConfig = {
 const DEFAULT_AGENT_SERVER_CONFIG: AgentServerConfig = {
   collectorEndpoint: null,
   assistantProjectName: "assistant_agent",
+  webAccessEnabled: false,
 };
 
 const DEFAULT_AGENT_OBSERVABILITY_SETTINGS: AgentObservabilitySettings = {

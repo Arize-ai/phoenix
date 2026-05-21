@@ -63,6 +63,18 @@ function buildGraphQLContext(capabilities: AgentCapabilities): AgentContext {
 }
 
 /**
+ * Build web access context from the current capability snapshot.
+ *
+ * Forwards the user's web access toggle to the backend as a typed context.
+ */
+function buildWebAccessContext(capabilities: AgentCapabilities): AgentContext {
+  return {
+    type: "web_access",
+    enabled: capabilities["web.access"],
+  };
+}
+
+/**
  * Merges the AI SDK transport payload with PXI chat metadata. Tool definitions
  * are intentionally omitted because the server is the model-facing authority.
  */
@@ -81,6 +93,7 @@ export function buildAgentChatRequestBody({
   const requestContexts = [
     buildCurrentAppContext(),
     buildGraphQLContext(capabilities),
+    buildWebAccessContext(capabilities),
     ...contexts,
   ];
   return {

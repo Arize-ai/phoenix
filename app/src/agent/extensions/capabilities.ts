@@ -8,7 +8,8 @@
 export type AgentCapabilityKey =
   | "bash.retainInactiveSessions"
   | "graphql.mutations"
-  | "session.storeSessions";
+  | "session.storeSessions"
+  | "web.access";
 
 /** Describes one capability and how it should appear across the app. */
 export type AgentCapabilityDefinition = {
@@ -17,7 +18,7 @@ export type AgentCapabilityDefinition = {
   description: string;
   defaultValue: boolean;
   scope: "global" | "session";
-  controlSurface?: "experimental-settings";
+  controlSurface?: "agent-settings" | "experimental-settings";
 };
 
 /** Boolean runtime snapshot keyed by capability name. */
@@ -27,6 +28,7 @@ const DEFAULT_AGENT_CAPABILITIES: AgentCapabilities = {
   "bash.retainInactiveSessions": false,
   "graphql.mutations": false,
   "session.storeSessions": false,
+  "web.access": false,
 };
 
 /** Ordered capability catalog used by the UI and runtime. */
@@ -57,6 +59,15 @@ export const AGENT_CAPABILITY_DEFINITIONS: AgentCapabilityDefinition[] = [
     defaultValue: false,
     scope: "global",
     controlSurface: "experimental-settings",
+  },
+  {
+    key: "web.access",
+    label: "Allow web access",
+    description:
+      "Lets PXI use provider-native web search and URL fetching when the selected model supports it.",
+    defaultValue: false,
+    scope: "global",
+    controlSurface: "agent-settings",
   },
 ];
 
