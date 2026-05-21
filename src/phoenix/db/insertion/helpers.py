@@ -39,9 +39,15 @@ def insert_on_conflict(
     on_conflict: OnConflict = OnConflict.DO_UPDATE,
     set_: Optional[Mapping[str, Any]] = None,
     constraint_name: Optional[str] = None,
+    exclude_from_update: tuple[str, ...] = (),
 ) -> Insert:
     """
     Dialect specific insertion statement using ON CONFLICT DO syntax.
+
+    ``exclude_from_update`` lists additional column names that should be omitted from the SET
+    clause when ``on_conflict`` is :class:`OnConflict.DO_UPDATE`. Primary key columns and
+    ``created_at`` are always excluded; this parameter lets callers also protect cumulative or
+    otherwise non-overwritable fields. Ignored when ``set_`` is provided explicitly.
     """
     if on_conflict is OnConflict.DO_UPDATE:
         # postegresql rejects duplicate updates for the same record
@@ -61,7 +67,9 @@ def insert_on_conflict(
         if on_conflict is OnConflict.DO_UPDATE:
             return stmt_postgresql.on_conflict_do_update(
                 constraint=constraint,
-                set_=set_ if set_ else dict(_clean(stmt_postgresql.excluded.items())),
+                set_=set_
+                if set_
+                else dict(_clean(stmt_postgresql.excluded.items(), exclude_from_update)),
             )
         assert_never(on_conflict)
     if dialect is SupportedSQLDialect.SQLITE:
@@ -71,7 +79,9 @@ def insert_on_conflict(
         if on_conflict is OnConflict.DO_UPDATE:
             return stmt_sqlite.on_conflict_do_update(
                 unique_by,
-                set_=set_ if set_ else dict(_clean(stmt_sqlite.excluded.items())),
+                set_=set_
+                if set_
+                else dict(_clean(stmt_sqlite.excluded.items(), exclude_from_update)),
             )
         assert_never(on_conflict)
     assert_never(dialect)
@@ -79,9 +89,10 @@ def insert_on_conflict(
 
 def _clean(
     kv: Iterable[tuple[str, KeyedColumnElement[Any]]],
+    exclude: tuple[str, ...] = (),
 ) -> Iterator[tuple[str, KeyedColumnElement[Any]]]:
     for k, v in kv:
-        if v.primary_key or k == "created_at":
+        if v.primary_key or k == "created_at" or k in exclude:
             continue
         if k == "metadata_":
             yield "metadata", v
