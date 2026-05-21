@@ -263,7 +263,9 @@ class DaytonaSandboxBackend(SandboxBackend):
 
             sandbox: AsyncSandbox = handle  # type: ignore[assignment]
             result = await sandbox.process.code_run(
-                code, params=CodeRunParams(env=self._user_env or None)
+                code,
+                params=CodeRunParams(env=self._user_env or None),
+                timeout=timeout,
             )
             return _to_execution_result(result)
         except Exception as exc:
@@ -292,7 +294,9 @@ class DaytonaSandboxBackend(SandboxBackend):
             try:
                 await self._install_packages(workspace)
                 result = await workspace.process.code_run(
-                    code, params=CodeRunParams(env=self._user_env or None)
+                    code,
+                    params=CodeRunParams(env=self._user_env or None),
+                    timeout=timeout,
                 )
                 return _to_execution_result(result)
             finally:

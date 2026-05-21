@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import sys
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -423,6 +424,96 @@ async def test_execute_strips_ansi_in_raised_exception_path(
 
     assert result.error == "provider error"
     assert result.stderr == "provider error"
+
+
+# ---------------------------------------------------------------------------
+# Per-execute timeout
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_exec_code_with_timeout_uses_detached_command() -> None:
+    """Happy path: with a timeout, ``_exec_code`` uses
+    ``run_command_detached`` (the only Vercel primitive that supports
+    bounded waits) and returns the command's output on completion."""
+    command_result = MagicMock()
+    command_result.exit_code = 0
+    command_result.stdout = AsyncMock(return_value="done\n")
+    command_result.stderr = AsyncMock(return_value="")
+
+    command = MagicMock()
+    command.wait = AsyncMock(return_value=command_result)
+    command.kill = AsyncMock()
+
+    sandbox = MagicMock()
+    sandbox.run_command_detached = AsyncMock(return_value=command)
+
+    backend = VercelSandboxBackend(
+        token=_TOKEN, project_id=_PROJECT, team_id=_TEAM, language="PYTHON"
+    )
+    result = await backend._exec_code(sandbox, "print('done')", env=None, timeout=5)
+
+    sandbox.run_command_detached.assert_awaited_once()
+    command.kill.assert_not_awaited()
+    assert result.stdout == "done\n"
+    assert result.error is None
+
+
+@pytest.mark.asyncio
+async def test_exec_code_kills_detached_command_on_outer_cancellation() -> None:
+    """Regression guard for PR #13378's missed cancellation: when the
+    outer ``asyncio.wait_for`` cancels this coroutine, the inner
+    ``command.wait()`` raises ``CancelledError`` — which is NOT
+    ``TimeoutError``. ``command.kill()`` must still run via the
+    ``finally``-with-sentinel pattern, otherwise the detached subprocess
+    survives until the whole sandbox is stopped.
+    """
+
+    async def _hang() -> Any:
+        await asyncio.sleep(10)
+
+    command = MagicMock()
+    command.wait = AsyncMock(side_effect=_hang)
+    command.kill = AsyncMock()
+
+    sandbox = MagicMock()
+    sandbox.run_command_detached = AsyncMock(return_value=command)
+
+    backend = VercelSandboxBackend(
+        token=_TOKEN, project_id=_PROJECT, team_id=_TEAM, language="PYTHON"
+    )
+
+    async def _drive() -> Any:
+        return await backend._exec_code(sandbox, "while True: pass", env=None, timeout=100)
+
+    task = asyncio.create_task(_drive())
+    await asyncio.sleep(0.05)  # let the task enter ``command.wait()``
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    command.kill.assert_awaited_once()
+
+
+def test_run_command_has_no_timeout_kwarg() -> None:
+    """SDK shape guard: bounding a Vercel command requires
+    ``run_command_detached`` + explicit ``kill``. If the SDK ever adds
+    ``timeout`` directly to ``run_command`` we should simplify.
+
+    Catches the failure mode in PR #13321 — ``run_command(..., timeout=...)``
+    raises TypeError because the real SDK accepts only ``cwd``, ``env``,
+    ``sudo``.
+    """
+    import inspect
+
+    pytest.importorskip("vercel")
+    from vercel.sandbox.sandbox import AsyncSandbox
+
+    sig = inspect.signature(AsyncSandbox.run_command)
+    assert "timeout" not in sig.parameters, (
+        f"Vercel SDK now accepts ``timeout`` on ``run_command`` ({list(sig.parameters)}). "
+        "Consider simplifying the backend to use it directly instead of detached + kill."
+    )
 
 
 @pytest.mark.parametrize("language", _LANGUAGES)

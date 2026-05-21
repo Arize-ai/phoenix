@@ -329,6 +329,126 @@ class TestRunWasmStdoutCapture:
         assert stdin_path_holder[0].endswith(".py")
 
 
+class TestEpochTicker:
+    """The store's epoch deadline is inert unless the engine epoch is
+    actively incremented; the ref-counted ticker is what makes
+    ``set_epoch_deadline`` enforce the per-execute timeout. These tests
+    pin the contract so a future "simplification" can't silently regress
+    back to a wedged-thread bug.
+    """
+
+    def test_run_wasm_enters_and_exits_engine_ticker(self) -> None:
+        """``_run_wasm`` must wrap execution in ``_engine_epoch_ticker``."""
+        from contextlib import contextmanager
+
+        import wasmtime
+
+        ticker_events: list[tuple[str, object]] = []
+
+        @contextmanager
+        def _fake_ticker(engine: object) -> Any:
+            ticker_events.append(("enter", engine))
+            try:
+                yield
+            finally:
+                ticker_events.append(("exit", engine))
+
+        class _CapturingWasiConfig:
+            @property
+            def stdout_custom(self) -> None:
+                raise AttributeError("unreadable attribute")
+
+            @stdout_custom.setter
+            def stdout_custom(self, cb: object) -> None:
+                del cb
+
+            @property
+            def stderr_custom(self) -> None:
+                raise AttributeError("unreadable attribute")
+
+            @stderr_custom.setter
+            def stderr_custom(self, cb: object) -> None:
+                del cb
+
+            @property
+            def stdin_file(self) -> None:
+                raise AttributeError("unreadable attribute")
+
+            @stdin_file.setter
+            def stdin_file(self, path: object) -> None:
+                del path
+
+        class _StartFunc:
+            def __call__(self, store: object) -> None:
+                del store
+
+        engine = MagicMock(name="engine")
+        module = MagicMock(name="module")
+        fake_store = MagicMock()
+        mock_exports = MagicMock()
+        mock_exports.get.return_value = _StartFunc()
+        mock_instance = MagicMock()
+        mock_instance.exports.return_value = mock_exports
+
+        with patch(
+            "phoenix.server.sandbox.wasm_backend._get_engine_and_module",
+            return_value=(engine, module),
+        ):
+            with patch(
+                "phoenix.server.sandbox.wasm_backend._engine_epoch_ticker",
+                _fake_ticker,
+            ):
+                with patch("wasmtime.WasiConfig", _CapturingWasiConfig):
+                    with patch("wasmtime.Linker") as mock_linker_cls:
+                        mock_linker = MagicMock()
+                        mock_linker_cls.return_value = mock_linker
+                        mock_linker.instantiate.return_value = mock_instance
+                        with patch("wasmtime.Store", return_value=fake_store):
+                            with patch.object(wasmtime, "Func", _StartFunc):
+                                result = _run_wasm(Path("/fake/cpython.wasm"), "x=1", timeout=7)
+
+        assert result.error is None
+        fake_store.set_epoch_deadline.assert_called_once_with(7)
+        assert ticker_events == [("enter", engine), ("exit", engine)]
+
+    def test_run_wasm_classifies_late_trap_as_timeout(self) -> None:
+        """A wasmtime trap after >= timeout seconds reports as a timeout
+        message rather than the raw trap string."""
+        import wasmtime
+
+        elapsed = [0.0]
+
+        class _MonotonicStub:
+            def __call__(self) -> float:
+                return elapsed[0]
+
+        monotonic_stub = _MonotonicStub()
+
+        class _Linker:
+            def __init__(self, engine: object) -> None:
+                del engine
+
+            def define_wasi(self) -> None:
+                return None
+
+            def instantiate(self, store: object, module: object) -> object:
+                # Advance the clock past the timeout, then trap.
+                elapsed[0] = 10.0
+                raise RuntimeError("wasm trap: interrupt")
+
+        with patch(
+            "phoenix.server.sandbox.wasm_backend._get_engine_and_module",
+            return_value=(MagicMock(), MagicMock()),
+        ):
+            with patch("phoenix.server.sandbox.wasm_backend.time.monotonic", monotonic_stub):
+                with patch.object(wasmtime, "WasiConfig", return_value=MagicMock()):
+                    with patch.object(wasmtime, "Store", return_value=MagicMock()):
+                        with patch.object(wasmtime, "Linker", _Linker):
+                            result = _run_wasm(Path("/fake.wasm"), "x=1", timeout=5)
+
+        assert result.error == "Execution timed out after 5s"
+
+
 class TestTempFileCleanup:
     def test_stdin_temp_file_is_deleted_after_run(self, tmp_path: Path) -> None:
         import wasmtime
