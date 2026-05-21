@@ -710,3 +710,111 @@ class TestSandboxBackendsResolverWASMStatus:
                         secrets=_empty_secrets_context(),
                     )
         mock_retrieve.assert_not_called()
+
+
+class TestRunWasmMemoryLimit:
+    """_run_wasm caps the guest's linear memory so one execution cannot
+    exhaust host RAM."""
+
+    def test_sets_store_memory_limit_before_instantiate(self) -> None:
+        import wasmtime
+
+        from phoenix.server.sandbox.wasm_backend import _MAX_WASM_MEMORY_BYTES
+
+        class _NoopStart:
+            def __call__(self, store: object) -> None:
+                del store
+
+        mock_exports = MagicMock()
+        mock_exports.get.return_value = _NoopStart()
+        mock_instance = MagicMock()
+        mock_instance.exports.return_value = mock_exports
+        fake_store = MagicMock()
+
+        # The cap must be installed before instantiate() creates the guest
+        # memory — assert that ordering from inside the instantiate stub.
+        def _instantiate(*_args: object, **_kwargs: object) -> object:
+            assert fake_store.set_limits.called, (
+                "memory limit must be set before linker.instantiate()"
+            )
+            return mock_instance
+
+        with patch(
+            "phoenix.server.sandbox.wasm_backend._get_engine_and_module",
+            return_value=(MagicMock(), MagicMock()),
+        ):
+            with patch("wasmtime.Linker") as mock_linker_cls:
+                mock_linker_cls.return_value.instantiate.side_effect = _instantiate
+                with patch("wasmtime.Store", return_value=fake_store):
+                    with patch.object(wasmtime, "Func", _NoopStart):
+                        result = _run_wasm(Path("/fake/cpython.wasm"), "x=1", timeout=5)
+
+        fake_store.set_limits.assert_called_once_with(memory_size=_MAX_WASM_MEMORY_BYTES)
+        assert result.error is None
+
+
+class TestBoundedOutputSink:
+    """_BoundedOutputSink caps host-side stdout/stderr capture so a guest that
+    prints in a loop cannot grow host RAM without bound — a vector the WASM
+    linear-memory limit does not cover."""
+
+    def test_passes_through_output_under_limit(self) -> None:
+        from phoenix.server.sandbox.wasm_backend import _BoundedOutputSink
+
+        sink = _BoundedOutputSink(limit=1024)
+        sink.write(b"hello ")
+        sink.write(b"world")
+
+        assert sink.getvalue() == "hello world"
+
+    def test_output_exactly_at_limit_is_not_truncated(self) -> None:
+        from phoenix.server.sandbox.wasm_backend import _BoundedOutputSink
+
+        sink = _BoundedOutputSink(limit=5)
+        sink.write(b"abcde")
+
+        assert sink.getvalue() == "abcde"
+
+    def test_keeps_tail_so_trailing_result_markers_survive(self) -> None:
+        """The window must retain the tail: the code-evaluator harness prints
+        its fenced result markers last, so dropping the tail would break result
+        parsing for any evaluator that prints a lot before emitting them."""
+        from phoenix.server.sandbox.wasm_backend import _BoundedOutputSink
+
+        sink = _BoundedOutputSink(limit=64)
+        sink.write(b"NOISE" * 1000)  # chatty user code, far past the cap
+        sink.write(b"===PHOENIX_RESULT_BEGIN===\n{}\n===PHOENIX_RESULT_END===")
+
+        value = sink.getvalue()
+        assert value.endswith("===PHOENIX_RESULT_END===")
+        assert "===PHOENIX_RESULT_BEGIN===" in value
+        assert "[output truncated" in value
+
+    def test_retained_output_stays_bounded(self) -> None:
+        from phoenix.server.sandbox.wasm_backend import _BoundedOutputSink
+
+        sink = _BoundedOutputSink(limit=100)
+        for _ in range(100_000):  # 5 MB written in 50-byte chunks
+            sink.write(b"x" * 50)
+
+        notice, _, retained = sink.getvalue().partition("\n")
+        # A truncation notice plus at most `limit` bytes of retained output —
+        # the host buffer never grows with total bytes written.
+        assert notice.startswith("[output truncated")
+        assert len(retained.encode("utf-8")) <= 100
+
+    def test_single_oversized_write_is_not_fully_buffered(self) -> None:
+        """A single callback payload larger than the window must be sliced
+        down on arrival — not appended whole — so the sink's footprint tracks
+        the window, not the largest payload a guest can hand it in one write."""
+        from phoenix.server.sandbox.wasm_backend import _BoundedOutputSink
+
+        sink = _BoundedOutputSink(limit=100)
+        sink.write(b"H" * 10_000 + b"T" * 100)  # one 10100-byte payload
+
+        # The buffer holds only the window immediately — the 10 KB head was
+        # never retained, not merely trimmed away afterwards.
+        assert len(sink._buf) == 100
+        value = sink.getvalue()
+        assert value.endswith("T" * 100)
+        assert "H" not in value.partition("\n")[2]
