@@ -5,7 +5,7 @@ import { Collection } from "react-aria-components";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
 
 import { Loading, Tab, TabList, TabPanel, Tabs } from "@phoenix/components";
-import { useViewer } from "@phoenix/contexts";
+import { useViewerCanManageSandboxes } from "@phoenix/contexts";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 const settingsPageCSS = css`
@@ -26,6 +26,7 @@ const settingsPageInnerCSS = css`
 const TABS: { id: string; label: string }[] = [
   { id: "general", label: "General" },
   { id: "providers", label: "AI Providers" },
+  { id: "sandboxes", label: "Sandboxes" },
   { id: "models", label: "Models" },
   { id: "secrets", label: "Secrets" },
   { id: "datasets", label: "Datasets" },
@@ -38,7 +39,6 @@ const TABS: { id: string; label: string }[] = [
 export function SettingsPage() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { viewer } = useViewer();
   const tab = pathname.split("/settings")[1].replace("/", "");
   const onChangeTab = useCallback(
     (tab: Key) => {
@@ -49,12 +49,16 @@ export function SettingsPage() {
     [navigate]
   );
   const isAgentsEnabled = useFeatureFlag("agents");
-  const canManageSecrets = !viewer || viewer.role.name === "ADMIN";
+  const canManageSecrets = useViewerCanManageSandboxes();
+  const canManageSandboxes = useViewerCanManageSandboxes();
   const tabs = TABS.filter((tab) => {
     if (tab.id === "agents" && !isAgentsEnabled) {
       return false;
     }
     if (tab.id === "secrets" && !canManageSecrets) {
+      return false;
+    }
+    if (tab.id === "sandboxes" && !canManageSandboxes) {
       return false;
     }
     return true;
@@ -69,6 +73,7 @@ export function SettingsPage() {
     <main css={settingsPageCSS}>
       <div css={settingsPageInnerCSS}>
         <Tabs selectedKey={tab} onSelectionChange={onChangeTab}>
+          {/* TODO: filter sandboxes tab for non-admins */}
           <TabList items={tabs}>
             {(item) => <Tab id={item.id}>{item.label}</Tab>}
           </TabList>

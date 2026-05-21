@@ -52,6 +52,9 @@ const useAnnotationSummaryGroup = (span: AnnotationSummaryGroup$key) => {
           }
         }
         spanAnnotationSummaries {
+          count
+          scoreCount
+          labelCount
           labelFractions {
             fraction
             label
@@ -218,6 +221,9 @@ export const AnnotationSummaryGroupStacks = ({
               name={latestAnnotation.name}
               meanScore={summary.meanScore}
               labelFractions={summary.labelFractions}
+              count={summary.count}
+              scoreCount={summary.scoreCount}
+              labelCount={summary.labelCount}
               annotationConfig={
                 categoricalAnnotationConfigsByName[latestAnnotation.name]
               }

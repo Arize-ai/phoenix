@@ -347,15 +347,15 @@ type BuiltInEvaluator implements Evaluator & Node {
   kind: EvaluatorKind!
   createdAt: DateTime!
   updatedAt: DateTime!
-  inputSchema: JSON
   isBuiltin: Boolean!
   datasets(first: Int = 50, after: String): DatasetConnection!
   datasetEvaluators: [DatasetEvaluator!]!
+  inputSchema: JSON
   user: User
   outputConfigs: [BuiltInEvaluatorOutputConfig!]!
 }
 
-union BuiltInEvaluatorOutputConfig = CategoricalAnnotationConfig | ContinuousAnnotationConfig
+union BuiltInEvaluatorOutputConfig = CategoricalAnnotationConfig | ContinuousAnnotationConfig | FreeformAnnotationConfig
 
 type CategoricalAnnotationConfig implements Node & AnnotationConfigBase {
   """The Globally Unique ID of this object"""
@@ -365,6 +365,7 @@ type CategoricalAnnotationConfig implements Node & AnnotationConfigBase {
   annotationType: AnnotationType!
   optimizationDirection: OptimizationDirection!
   values: [CategoricalAnnotationValue!]!
+  shapeExamples(language: ShapeExamplesLanguage! = PYTHON, mode: ShapeExamplesMode! = FULL): [String!]!
 }
 
 input CategoricalAnnotationConfigInput {
@@ -496,11 +497,54 @@ type CodeEvaluator implements Evaluator & Node {
   kind: EvaluatorKind!
   createdAt: DateTime!
   updatedAt: DateTime!
-  inputSchema: JSON
   isBuiltin: Boolean!
   datasets(first: Int = 50, after: String): DatasetConnection!
   datasetEvaluators: [DatasetEvaluator!]!
+  sandboxConfig: SandboxConfig
+  inputMapping: EvaluatorInputMapping!
+  outputConfigs: [BuiltInEvaluatorOutputConfig!]!
+  currentVersion: CodeEvaluatorVersion
+  version(versionId: ID!): CodeEvaluatorVersion
+  versionCount: Int!
+  versions(first: Int = 50, last: Int, after: String, before: String): CodeEvaluatorVersionConnection!
+  inputSchema: JSON
+  sourceCode: String!
+  language: Language!
   user: User
+}
+
+type CodeEvaluatorMutationPayload {
+  evaluator: CodeEvaluator!
+  query: Query!
+}
+
+type CodeEvaluatorVersion implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  sourceCode: String!
+  createdAt: DateTime!
+  inputSchema: JSON!
+  previousVersion: CodeEvaluatorVersion
+  sequenceNumber: Int!
+  user: User
+}
+
+"""A connection to a list of items."""
+type CodeEvaluatorVersionConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [CodeEvaluatorVersionEdge!]!
+}
+
+"""An edge in a connection."""
+type CodeEvaluatorVersionEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: CodeEvaluatorVersion!
 }
 
 union ConnectionConfig = OpenAIConnectionConfig | AzureOpenAIConnectionConfig | AnthropicConnectionConfig | AWSBedrockConnectionConfig | GoogleGenAIConnectionConfig
@@ -532,6 +576,7 @@ type ContinuousAnnotationConfig implements Node & AnnotationConfigBase {
   optimizationDirection: OptimizationDirection!
   lowerBound: Float
   upperBound: Float
+  shapeExamples(language: ShapeExamplesLanguage! = PYTHON, mode: ShapeExamplesMode! = FULL): [String!]!
 }
 
 input ContinuousAnnotationConfigInput {
@@ -579,7 +624,41 @@ input CreateChatPromptVersionInput {
   tags: [CreatePromptVersionTagInput!] = null
 }
 
+input CreateCodeEvaluatorInput {
+  name: Identifier!
+  sourceCode: String!
+  language: Language!
+  description: String = null
+  sandboxConfigId: ID = null
+  outputConfigs: [AnnotationConfigInput!] = null
+  inputMapping: EvaluatorInputMappingInput = null
+}
+
+input CreateCodeEvaluatorVersionInput {
+  codeEvaluatorId: ID!
+  sourceCode: String!
+}
+
+type CreateCodeEvaluatorVersionPayload {
+  evaluator: CodeEvaluator!
+
+  """
+  True when a new CodeEvaluatorVersion row was appended. False when the call dedup'd against the existing tip because source_code was unchanged.
+  """
+  wasCreated: Boolean!
+  query: Query!
+}
+
 input CreateDatasetBuiltinEvaluatorInput {
+  datasetId: ID!
+  evaluatorId: ID!
+  name: Identifier!
+  inputMapping: EvaluatorInputMappingInput = null
+  outputConfigs: [AnnotationConfigInput!] = null
+  description: String = null
+}
+
+input CreateDatasetCodeEvaluatorInput {
   datasetId: ID!
   evaluatorId: ID!
   name: Identifier!
@@ -704,6 +783,19 @@ input CreatePromptLabelInput {
 input CreatePromptVersionTagInput {
   name: Identifier!
   description: String = null
+}
+
+input CreateSandboxConfigInput {
+  config: SandboxConfigVariantInput!
+  name: Identifier!
+  description: String = null
+  timeout: Int = null
+  enabled: Boolean! = true
+}
+
+type CreateSandboxConfigPayload {
+  sandboxConfig: SandboxConfig!
+  query: Query!
 }
 
 input CreateSpanAnnotationInput {
@@ -1067,6 +1159,23 @@ input DatasetVersionSort {
 """Date with time (isoformat)"""
 scalar DateTime
 
+input DaytonaConfigInput {
+  language: Language!
+  envVars: [EnvVarInput!]! = []
+  internetAccess: InternetAccessInput = null
+  dependencies: DependenciesInput = null
+}
+
+type DaytonaDeploymentData {
+  apiUrl: String
+  target: String
+}
+
+input DaytonaDeploymentInput {
+  apiUrl: String = null
+  target: String = null
+}
+
 type DbTableStats {
   tableName: String!
   numBytes: Float!
@@ -1177,12 +1286,29 @@ input DeletePromptVersionTagInput {
   promptVersionTagId: ID!
 }
 
+input DeleteSandboxConfigInput {
+  id: ID!
+}
+
+type DeleteSandboxConfigPayload {
+  deletedId: ID!
+  query: Query!
+}
+
 input DeleteUsersInput {
   userIds: [ID!]!
 }
 
 type DeleteUsersPayload {
   userIds: [ID!]!
+}
+
+input DenoConfigInput {
+  language: Language!
+}
+
+input DependenciesInput {
+  packages: [String!]! = []
 }
 
 type DismissExperimentPayload {
@@ -1284,6 +1410,28 @@ type DocumentRetrievalMetrics {
   hit: Float
 }
 
+input E2BConfigInput {
+  language: Language!
+  envVars: [EnvVarInput!]! = []
+  internetAccess: InternetAccessInput = null
+  dependencies: DependenciesInput = null
+}
+
+type E2BDeploymentData {
+  domain: String
+  apiUrl: String
+}
+
+input E2BDeploymentInput {
+  domain: String = null
+  apiUrl: String = null
+}
+
+input EnvVarInput {
+  name: String!
+  secretKey: String!
+}
+
 enum EvalAttr {
   score
   label
@@ -1324,7 +1472,6 @@ interface Evaluator implements Node {
   kind: EvaluatorKind!
   createdAt: DateTime!
   updatedAt: DateTime!
-  inputSchema: JSON
   isBuiltin: Boolean!
   datasets(first: Int = 50, after: String): DatasetConnection!
   datasetEvaluators: [DatasetEvaluator!]!
@@ -1384,6 +1531,8 @@ enum EvaluatorKind {
 input EvaluatorPreviewInput @oneOf {
   builtInEvaluatorId: ID
   inlineLlmEvaluator: InlineLLMEvaluatorInput
+  codeEvaluatorId: ID
+  inlineCodeEvaluator: InlineCodeEvaluatorInput
 }
 
 input EvaluatorPreviewItemInput {
@@ -1461,6 +1610,8 @@ type ExperimentAnnotationSummary {
   meanScore: Float
   count: Int!
   errorCount: Int!
+  scoreCount: Int!
+  labelCount: Int!
 }
 
 type ExperimentComparison implements Node {
@@ -1778,11 +1929,19 @@ type FreeformAnnotationConfig implements Node & AnnotationConfigBase {
   name: String!
   description: String
   annotationType: AnnotationType!
+  optimizationDirection: OptimizationDirection!
+  threshold: Float
+  lowerBound: Float
+  upperBound: Float
 }
 
 input FreeformAnnotationConfigInput {
   name: String!
   description: String = null
+  optimizationDirection: OptimizationDirection = null
+  threshold: Float = null
+  lowerBound: Float = null
+  upperBound: Float = null
 }
 
 type FunctionCallChunk implements ChatCompletionSubscriptionPayload {
@@ -1987,11 +2146,35 @@ enum GoogleThinkingLevel {
 
 scalar Identifier
 
+input InlineCodeEvaluatorInput {
+  name: String!
+  language: Language!
+  sourceCode: String!
+  outputConfigs: [AnnotationConfigInput!]!
+  sandboxConfigId: ID = null
+  description: String = null
+}
+
 input InlineLLMEvaluatorInput {
   name: String!
   promptVersion: ChatPromptVersionInput!
   outputConfigs: [AnnotationConfigInput!]!
   description: String = null
+}
+
+enum InternetAccessChoice {
+  ALLOW
+  DENY
+}
+
+input InternetAccessInput {
+  mode: InternetAccessChoice!
+}
+
+enum InternetAccessMode {
+  NONE
+  BOOLEAN
+  ALLOWLIST
 }
 
 """
@@ -2008,13 +2191,13 @@ type LLMEvaluator implements Evaluator & Node {
   kind: EvaluatorKind!
   createdAt: DateTime!
   updatedAt: DateTime!
-  inputSchema: JSON
   isBuiltin: Boolean!
   datasets(first: Int = 50, after: String): DatasetConnection!
   datasetEvaluators: [DatasetEvaluator!]!
   outputConfigs: [BuiltInEvaluatorOutputConfig!]!
   prompt: Prompt!
   promptVersionTag: PromptVersionTag
+  inputSchema: JSON
   user: User
   promptVersion: PromptVersion!
 }
@@ -2024,9 +2207,21 @@ type LabelFraction {
   fraction: Float!
 }
 
+enum Language {
+  PYTHON
+  TYPESCRIPT
+}
+
 enum MimeType {
   text
   json
+}
+
+input ModalConfigInput {
+  language: Language! = PYTHON
+  envVars: [EnvVarInput!]! = []
+  internetAccess: InternetAccessInput = null
+  dependencies: DependenciesInput = null
 }
 
 interface ModelInterface {
@@ -2091,6 +2286,15 @@ type Mutation {
   deleteDatasetEvaluators(input: DeleteDatasetEvaluatorsInput!): DeleteDatasetEvaluatorsPayload!
   createDatasetBuiltinEvaluator(input: CreateDatasetBuiltinEvaluatorInput!): DatasetEvaluatorMutationPayload!
   updateDatasetBuiltinEvaluator(input: UpdateDatasetBuiltinEvaluatorInput!): DatasetEvaluatorMutationPayload!
+  createDatasetCodeEvaluator(input: CreateDatasetCodeEvaluatorInput!): DatasetEvaluatorMutationPayload!
+  updateDatasetCodeEvaluator(input: UpdateDatasetCodeEvaluatorInput!): DatasetEvaluatorMutationPayload!
+  createCodeEvaluator(input: CreateCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
+  patchCodeEvaluator(input: PatchCodeEvaluatorInput!): CodeEvaluatorMutationPayload!
+
+  """
+  Append a new immutable CodeEvaluatorVersion. If source_code matches the current tip, no row is appended and was_created=false.
+  """
+  createCodeEvaluatorVersion(input: CreateCodeEvaluatorVersionInput!): CreateCodeEvaluatorVersionPayload!
   stopExperiment(experimentId: ID!): StopExperimentPayload!
   resumeExperiment(experimentId: ID!, credentials: [GenerativeCredentialInput!]): ResumeExperimentPayload!
   dismissExperiment(experimentId: ID!): DismissExperimentPayload!
@@ -2122,6 +2326,10 @@ type Mutation {
   deletePromptLabels(input: DeletePromptLabelsInput!): PromptLabelDeleteMutationPayload!
   setPromptLabels(input: SetPromptLabelsInput!): PromptLabelAssociationMutationPayload!
   unsetPromptLabels(input: UnsetPromptLabelsInput!): PromptLabelAssociationMutationPayload!
+  createSandboxConfig(input: CreateSandboxConfigInput!): CreateSandboxConfigPayload!
+  updateSandboxConfig(input: UpdateSandboxConfigInput!): UpdateSandboxConfigPayload!
+  deleteSandboxConfig(input: DeleteSandboxConfigInput!): DeleteSandboxConfigPayload!
+  updateSandboxProvider(input: UpdateSandboxProviderInput!): UpdateSandboxProviderPayload!
   upsertOrDeleteSecrets(input: UpsertOrDeleteSecretsMutationInput!): UpsertOrDeleteSecretsMutationPayload!
   createSpanAnnotations(input: [CreateSpanAnnotationInput!]!): SpanAnnotationMutationPayload!
   createSpanNote(annotationInput: CreateSpanNoteInput!): SpanAnnotationMutationPayload!
@@ -2240,6 +2448,15 @@ input PatchAnnotationInput {
   metadata: JSON
   identifier: String
   source: AnnotationSource
+}
+
+input PatchCodeEvaluatorInput {
+  id: ID!
+  name: Identifier
+  description: String
+  sandboxConfigId: ID
+  inputMapping: EvaluatorInputMappingInput
+  outputConfigs: [AnnotationConfigInput!]
 }
 
 input PatchDatasetExamplesInput {
@@ -3103,6 +3320,8 @@ type Query {
   datasetCount: Int!
   promptCount: Int!
   evaluatorCount: Int!
+  sandboxBackends: [SandboxBackendInfo!]!
+  sandboxProviders: [SandboxProvider!]!
 }
 
 """
@@ -3140,6 +3359,122 @@ enum RevisionKind {
   CREATE
   PATCH
   DELETE
+}
+
+type SandboxBackendInfo {
+  backendType: SandboxBackendType!
+  displayName: String!
+  hostingType: SandboxHostingType!
+  supportedLanguages: [Language!]!
+  status: SandboxBackendStatus!
+  statusDetail: String
+  dependencyHints: [String!]!
+  supportsEnvVars: Boolean!
+  internetAccess: InternetAccessMode!
+  supportsDependencies: Boolean!
+  credentialSpecs: [SandboxProviderCredentialSpec!]!
+}
+
+enum SandboxBackendStatus {
+  AVAILABLE
+  MISSING_CREDENTIALS
+  UNAVAILABLE
+  NOT_INSTALLED
+  DISABLED
+}
+
+enum SandboxBackendType {
+  WASM
+  E2B
+  DAYTONA
+  VERCEL
+  DENO
+  MODAL
+}
+
+type SandboxConfig implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  name: Identifier!
+  description: String
+  language: Language!
+  config: SandboxConfigData!
+
+  """
+  Execution timeout in seconds (includes package install on ephemeral calls).
+  """
+  timeout: Int!
+  enabled: Boolean!
+  provider: SandboxProvider!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  user: User
+}
+
+type SandboxConfigData {
+  envVars: [SandboxConfigEnvVar!]!
+  internetAccess: SandboxConfigInternetAccess
+  dependencies: SandboxConfigDependencies
+}
+
+type SandboxConfigDependencies {
+  packages: [String!]!
+}
+
+type SandboxConfigEnvVar {
+  name: String!
+  secretKey: String!
+}
+
+type SandboxConfigInternetAccess {
+  mode: InternetAccessChoice!
+}
+
+input SandboxConfigVariantInput @oneOf {
+  e2b: E2BConfigInput
+  daytona: DaytonaConfigInput
+  deno: DenoConfigInput
+  vercel: VercelConfigInput
+  wasm: WASMConfigInput
+  modal: ModalConfigInput
+}
+
+"""
+Admin-scoped deployment routing for a sandbox provider. Only providers that expose routing kwargs on their SDK ``create()`` appear in this union; others (WASM, Deno, Vercel, Modal) expose ``deployment: null``.
+"""
+union SandboxDeployment = DaytonaDeploymentData | E2BDeploymentData
+
+input SandboxDeploymentVariantInput @oneOf {
+  daytona: DaytonaDeploymentInput
+  e2b: E2BDeploymentInput
+}
+
+enum SandboxHostingType {
+  LOCAL
+  HOSTED
+}
+
+type SandboxProvider implements Node {
+  """The Globally Unique ID of this object"""
+  id: ID!
+  backendType: SandboxBackendType!
+  supportedLanguages: [Language!]!
+  enabled: Boolean!
+
+  """
+  Admin-scoped deployment routing parsed from the stored ``SandboxProvider.config`` JSON. Returns ``null`` for providers whose SDK has no routing kwargs (WASM, Deno, Vercel, Modal) or when the stored blob is empty.
+  """
+  deployment: SandboxDeployment
+  configs: [SandboxConfig!]!
+  updatedAt: DateTime!
+  user: User
+}
+
+type SandboxProviderCredentialSpec {
+  key: String!
+  displayName: String!
+  description: String!
+  isRequired: Boolean!
 }
 
 type Secret implements Node {
@@ -3212,6 +3547,16 @@ input SetPromptVersionTagInput {
   promptVersionId: ID!
   name: Identifier!
   description: String = null
+}
+
+enum ShapeExamplesLanguage {
+  PYTHON
+  TYPESCRIPT
+}
+
+enum ShapeExamplesMode {
+  FULL
+  CURATED
 }
 
 enum SortDir {
@@ -3905,6 +4250,14 @@ input UpdateDatasetBuiltinEvaluatorInput {
   description: String
 }
 
+input UpdateDatasetCodeEvaluatorInput {
+  datasetEvaluatorId: ID!
+  name: Identifier!
+  inputMapping: EvaluatorInputMappingInput = null
+  outputConfigs: [AnnotationConfigInput!]
+  description: String
+}
+
 input UpdateDatasetLLMEvaluatorInput {
   datasetEvaluatorId: ID!
   datasetId: ID!
@@ -3927,6 +4280,31 @@ input UpdateModelMutationInput {
 
 type UpdateModelMutationPayload {
   model: GenerativeModel!
+  query: Query!
+}
+
+input UpdateSandboxConfigInput {
+  id: ID!
+  name: Identifier
+  description: String
+  config: SandboxConfigVariantInput
+  timeout: Int
+  enabled: Boolean
+}
+
+type UpdateSandboxConfigPayload {
+  sandboxConfig: SandboxConfig!
+  query: Query!
+}
+
+input UpdateSandboxProviderInput {
+  id: ID!
+  enabled: Boolean
+  deployment: SandboxDeploymentVariantInput
+}
+
+type UpdateSandboxProviderPayload {
+  sandboxProvider: SandboxProvider!
   query: Query!
 }
 
@@ -4015,4 +4393,15 @@ enum UserRoleInput {
 type ValidationResult {
   isValid: Boolean!
   errorMessage: String
+}
+
+input VercelConfigInput {
+  language: Language!
+  envVars: [EnvVarInput!]! = []
+  internetAccess: InternetAccessInput = null
+  dependencies: DependenciesInput = null
+}
+
+input WASMConfigInput {
+  language: Language! = PYTHON
 }

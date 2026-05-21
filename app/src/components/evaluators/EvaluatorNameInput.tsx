@@ -77,7 +77,7 @@ const useEvaluatorNameInputForm = () => {
 };
 
 export const EvaluatorNameInput = ({
-  placeholder = "e.g. correctness_evaluator",
+  placeholder = "e.g. code_eval",
   ...props
 }: Partial<TextFieldProps> & { placeholder?: string }) => {
   const form = useEvaluatorNameInputForm();

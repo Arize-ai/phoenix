@@ -1,5 +1,45 @@
 # Migrations
 
+## v15.x to v16.0.0
+
+### Sandbox provider allowlist (`PHOENIX_ALLOWED_SANDBOX_PROVIDERS`)
+
+A new optional environment variable, `PHOENIX_ALLOWED_SANDBOX_PROVIDERS`, restricts which sandbox provider families are available for code-evaluator execution. 
+
+*When unset, all providers remain available. Set to `NONE` to disable all sandbox providers.*
+
+To restrict the set of usable sandboxes, set the variable to a comma-separated list of family names:
+
+```shell
+PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO
+```
+
+Accepted values: `WASM`, `E2B`, `DAYTONA`, `VERCEL`, `DENO`, `MODAL` (case-insensitive). Listing a family covers all of its language variants — for example, `VERCEL` covers both `VERCEL_PYTHON` and `VERCEL_TYPESCRIPT`.
+
+### Sandbox and code-evaluator permissions
+
+v16.0.0 introduces sandbox configuration and code evaluators as new API surfaces. When authentication is enabled, access to these surfaces is governed by user role:
+
+| API Surface | Operation | Admin | Member | Viewer |
+| --- | --- | --- | --- | --- |
+| View code evaluator source | Read | ✅ | ✅ | ✅ |
+| View code evaluator identity | Read | ✅ | ✅ | ✅ |
+| View safe sandbox identity | Read | ✅ | ✅ | ✅ |
+| View backend capability metadata | Read | ✅ | ✅ | ✅ |
+| View sandbox config values | Read | ✅ | ✅ | ✅ |
+| View provider config values | Read | ✅ | ✅ | ✅ |
+| Create sandbox config | Write | ✅ | ❌ | ❌ |
+| Update sandbox config | Write | ✅ | ❌ | ❌ |
+| Delete sandbox config | Write | ✅ | ❌ | ❌ |
+| Update sandbox provider | Write | ✅ | ❌ | ❌ |
+| Create code evaluator | Write | ✅ | ✅ | ❌ |
+| Patch code evaluator / rebind sandbox | Write | ✅ | ✅ | ❌ |
+| Append code evaluator version | Write | ✅ | ✅ | ❌ |
+| Create / update dataset code evaluator | Write | ✅ | ✅ | ❌ |
+| Preview sandbox-backed code evaluator | Write | ✅ | ✅ | ❌ |
+
+Sandbox configuration is admin-only. Code-evaluator authoring and preview are available to members and admins but not viewers. All read surfaces are unrestricted. When authentication is disabled, no role checks apply.
+
 ## v14.x to v15.0.0
 
 No action is required to upgrade from v14.x to v15.0.0.

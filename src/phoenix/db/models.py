@@ -172,6 +172,8 @@ def render_values_w_union(
 UserRoleName: TypeAlias = Literal["SYSTEM", "ADMIN", "MEMBER", "VIEWER"]
 AuthMethod: TypeAlias = Literal["LOCAL", "OAUTH2", "LDAP"]
 EvaluatorKind: TypeAlias = Literal["LLM", "CODE", "BUILTIN"]
+SandboxBackendType: TypeAlias = Literal["WASM", "E2B", "DAYTONA", "VERCEL", "DENO", "MODAL"]
+LanguageName: TypeAlias = Literal["PYTHON", "TYPESCRIPT"]
 GenerativeModelSDK: TypeAlias = Literal[
     "openai",
     "azure_openai",
@@ -436,6 +438,26 @@ class _AnnotationConfig(TypeDecorator[AnnotationConfigType]):
         return AnnotationConfigModel.model_validate(value).root if value is not None else None
 
 
+class _AnnotationConfigList(TypeDecorator[list[AnnotationConfigType]]):
+    # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
+    cache_ok = True
+    impl = JSON_
+
+    def process_bind_param(
+        self, value: Optional[list[AnnotationConfigType]], _: Dialect
+    ) -> Optional[list[dict[str, Any]]]:
+        if value is None:
+            return None
+        return [AnnotationConfigModel(root=config).model_dump() for config in value]
+
+    def process_result_value(
+        self, value: Optional[list[dict[str, Any]]], _: Dialect
+    ) -> Optional[list[AnnotationConfigType]]:
+        if value is None:
+            return None
+        return [AnnotationConfigModel.model_validate(config).root for config in value]
+
+
 class _OutputConfigList(TypeDecorator[list[OutputConfigType]]):
     # See https://docs.sqlalchemy.org/en/20/core/custom_types.html
     cache_ok = True
@@ -556,11 +578,9 @@ class _InputMapping(TypeDecorator[InputMapping]):
             raise ValueError("Input mapping cannot be None")
         return value.model_dump()
 
-    def process_result_value(
-        self, value: Optional[dict[str, Any]], _: Dialect
-    ) -> Optional[InputMapping]:
+    def process_result_value(self, value: Optional[dict[str, Any]], _: Dialect) -> InputMapping:
         if value is None:
-            raise ValueError("Input mapping cannot be None")
+            return InputMapping(literal_mapping={}, path_mapping={})
         return InputMapping.model_validate(value)
 
 
@@ -2723,6 +2743,59 @@ class LLMEvaluator(Evaluator):
     )
 
 
+class Language(Base):
+    __tablename__ = "languages"
+    name: Mapped[LanguageName] = mapped_column(String, primary_key=True)
+
+
+class SandboxProvider(Base):
+    """Admin-scoped provider config; user-level config lives on SandboxConfig."""
+
+    __tablename__ = "sandbox_providers"
+
+    backend_type: Mapped[SandboxBackendType] = mapped_column(String, primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, server_default="{}")
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    user: Mapped[Optional["User"]] = relationship("User")
+
+
+class SandboxConfig(HasId):
+    __tablename__ = "sandbox_configs"
+    backend_type: Mapped[SandboxBackendType] = mapped_column(
+        ForeignKey("sandbox_providers.backend_type", ondelete="RESTRICT"), nullable=False
+    )
+    language: Mapped[LanguageName] = mapped_column(
+        ForeignKey("languages.name", ondelete="RESTRICT"), nullable=False
+    )
+    name: Mapped[Identifier] = mapped_column(_Identifier, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(nullable=True)
+    config: Mapped[dict[str, Any]] = mapped_column(JSON_, nullable=False, server_default="{}")
+    timeout: Mapped[int] = mapped_column(Integer, nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        UtcTimeStamp, server_default=func.now(), onupdate=func.now()
+    )
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    user: Mapped[Optional["User"]] = relationship("User")
+    __table_args__ = (
+        UniqueConstraint("backend_type", "name"),
+        UniqueConstraint("language", "id"),
+    )
+
+
 class CodeEvaluator(Evaluator):
     __tablename__ = "code_evaluators"
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -2731,9 +2804,37 @@ class CodeEvaluator(Evaluator):
         server_default="CODE",
         nullable=False,
     )
+    language: Mapped[LanguageName] = mapped_column(
+        ForeignKey("languages.name", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+    sandbox_config_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("sandbox_configs.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    input_mapping: Mapped[InputMapping] = mapped_column(
+        _InputMapping, nullable=False, server_default='{"literal_mapping": {}, "path_mapping": {}}'
+    )
+    output_configs: Mapped[list[AnnotationConfigType]] = mapped_column(
+        _AnnotationConfigList, nullable=False, server_default="[]"
+    )
     updated_at: Mapped[datetime] = mapped_column(
         UtcTimeStamp, server_default=func.now(), onupdate=func.now()
     )
+
+    sandbox_config: Mapped[Optional["SandboxConfig"]] = relationship(
+        "SandboxConfig", foreign_keys="[CodeEvaluator.sandbox_config_id]"
+    )
+    versions: Mapped[list["CodeEvaluatorVersion"]] = relationship(
+        "CodeEvaluatorVersion",
+        back_populates="code_evaluator",
+        cascade="all, delete-orphan",
+        foreign_keys="CodeEvaluatorVersion.code_evaluator_id",
+        uselist=True,
+    )
+
     __mapper_args__ = {
         "polymorphic_identity": "CODE",
     }
@@ -2743,7 +2844,43 @@ class CodeEvaluator(Evaluator):
             ["evaluators.kind", "evaluators.id"],
             ondelete="CASCADE",
         ),
+        ForeignKeyConstraint(
+            ["sandbox_config_id", "language"],
+            ["sandbox_configs.id", "sandbox_configs.language"],
+            name="fk_code_evaluators_sandbox_config_language",
+        ),
     )
+
+
+class CodeEvaluatorVersion(HasId):
+    __tablename__ = "code_evaluator_code_versions"
+
+    code_evaluator_id: Mapped[int] = mapped_column(
+        ForeignKey("code_evaluators.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    source_code: Mapped[str] = mapped_column(nullable=False, server_default="")
+    created_at: Mapped[datetime] = mapped_column(UtcTimeStamp, server_default=func.now())
+
+    code_evaluator: Mapped["CodeEvaluator"] = relationship(
+        "CodeEvaluator",
+        back_populates="versions",
+        foreign_keys=[code_evaluator_id],
+    )
+    user: Mapped[Optional["User"]] = relationship("User")
+
+    __table_args__ = (
+        Index("ix_code_evaluator_code_versions_code_evaluator_id_id", "code_evaluator_id", "id"),
+        {"sqlite_autoincrement": True},
+    )
+
+    def has_identical_content(self, other: Self) -> bool:
+        return self.source_code == other.source_code
 
 
 class BuiltinEvaluator(Evaluator):

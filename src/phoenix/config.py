@@ -27,13 +27,15 @@ import wrapt
 from email_validator import EmailNotValidError, validate_email
 from ldap3.core.exceptions import LDAPInvalidDnError
 from ldap3.utils.dn import parse_dn
-from starlette.datastructures import URL, Secret
+from pydantic import SecretStr
+from starlette.datastructures import URL
 from typing_extensions import TypeAlias, get_args
 
 from phoenix.utilities.logging import log_a_list
 from phoenix.utilities.re import parse_env_headers
 
 if TYPE_CHECKING:
+    from phoenix.db.models import SandboxBackendType
     from phoenix.server.oauth2 import OAuth2Clients
 
 # Assignable roles (SYSTEM is internal-only and not included)
@@ -777,6 +779,20 @@ ENV_PHOENIX_DEFAULT_RETENTION_POLICY_DAYS = "PHOENIX_DEFAULT_RETENTION_POLICY_DA
 The default retention policy for traces in days.
 """
 
+ENV_PHOENIX_SANDBOX_PROVIDER = "PHOENIX_SANDBOX_PROVIDER"
+"""
+The default sandbox backend type to use for code evaluator execution.
+Accepted values: WASM, E2B, DAYTONA, VERCEL, DENO, MODAL.
+When not set, the WASM (local WebAssembly) backend is used.
+"""
+ENV_PHOENIX_ALLOWED_SANDBOX_PROVIDERS = "PHOENIX_ALLOWED_SANDBOX_PROVIDERS"
+"""
+A comma-separated list of sandbox providers to allow.
+Accepted values: WASM, E2B, DAYTONA, VERCEL, DENO, MODAL. Case-insensitive.
+When not set, all providers are allowed. To disable all sandbox providers, set to NONE.
+Example: PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO
+"""
+
 
 @dataclass(frozen=True)
 class TLSConfig:
@@ -1197,6 +1213,36 @@ def validate_env_allowed_providers() -> None:
         )
 
 
+def get_env_allowed_sandbox_providers() -> frozenset[SandboxBackendType]:
+    """Effective set of allowed sandbox provider kind names.
+
+    - Unset → ``SANDBOX_BACKEND_TYPES`` (all kinds allowed).
+    - Token ``NONE`` → empty frozenset (kill switch; other tokens ignored).
+    - Otherwise → frozenset of stripped, uppercased comma-separated tokens.
+    """
+    from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
+
+    raw = getenv(ENV_PHOENIX_ALLOWED_SANDBOX_PROVIDERS)
+    if not raw:
+        return SANDBOX_BACKEND_TYPES
+    names = frozenset(name.strip().upper() for name in raw.split(",") if name.strip())
+    if "NONE" in names:
+        return frozenset()
+    return cast("frozenset[SandboxBackendType]", names)
+
+
+def validate_env_allowed_sandbox_providers() -> None:
+    """Raise ValueError if PHOENIX_ALLOWED_SANDBOX_PROVIDERS contains unknown provider kinds."""
+    from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
+
+    if names := get_env_allowed_sandbox_providers() - SANDBOX_BACKEND_TYPES:
+        raise ValueError(
+            f"PHOENIX_ALLOWED_SANDBOX_PROVIDERS contains unrecognized kind names: "
+            f"{', '.join(sorted(names))}. "
+            f"Valid names are: {', '.join(sorted(SANDBOX_BACKEND_TYPES))}"
+        )
+
+
 def get_env_disable_brute_force_login_protection() -> bool:
     """
     Gets the value of the PHOENIX_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION environment variable.
@@ -1212,28 +1258,28 @@ def get_env_brute_force_login_protection_max_attempts() -> int:
     return _int_val(ENV_PHOENIX_BRUTE_FORCE_LOGIN_PROTECTION_MAX_ATTEMPTS, 5)
 
 
-def get_env_phoenix_secret() -> Secret:
+def get_env_phoenix_secret() -> SecretStr:
     """
     Gets the value of the PHOENIX_SECRET environment variable
     and performs validation.
     """
     phoenix_secret = getenv(ENV_PHOENIX_SECRET)
     if phoenix_secret is None:
-        return Secret("")
+        return SecretStr("")
     from phoenix.auth import REQUIREMENTS_FOR_PHOENIX_SECRET
 
     REQUIREMENTS_FOR_PHOENIX_SECRET.validate(phoenix_secret, "Phoenix secret")
-    return Secret(phoenix_secret)
+    return SecretStr(phoenix_secret)
 
 
-def get_env_phoenix_admin_secret() -> Secret:
+def get_env_phoenix_admin_secret() -> SecretStr:
     """
     Gets the value of the PHOENIX_ADMIN_SECRET environment variable
     and performs validation.
     """
     phoenix_admin_secret = getenv(ENV_PHOENIX_ADMIN_SECRET)
     if phoenix_admin_secret is None:
-        return Secret("")
+        return SecretStr("")
     if not (phoenix_secret := get_env_phoenix_secret()):
         raise ValueError(
             f"`{ENV_PHOENIX_ADMIN_SECRET}` must be not be set without "
@@ -1242,17 +1288,17 @@ def get_env_phoenix_admin_secret() -> Secret:
     from phoenix.auth import REQUIREMENTS_FOR_PHOENIX_SECRET
 
     REQUIREMENTS_FOR_PHOENIX_SECRET.validate(phoenix_admin_secret, "Phoenix secret")
-    if phoenix_admin_secret == str(phoenix_secret):
+    if phoenix_admin_secret == phoenix_secret.get_secret_value():
         raise ValueError(
             f"`{ENV_PHOENIX_ADMIN_SECRET}` must be different from `{ENV_PHOENIX_SECRET}`"
         )
-    return Secret(phoenix_admin_secret)
+    return SecretStr(phoenix_admin_secret)
 
 
-def get_env_default_admin_initial_password() -> Secret:
+def get_env_default_admin_initial_password() -> SecretStr:
     from phoenix.auth import DEFAULT_ADMIN_PASSWORD
 
-    return Secret(getenv(ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD) or DEFAULT_ADMIN_PASSWORD)
+    return SecretStr(getenv(ENV_PHOENIX_DEFAULT_ADMIN_INITIAL_PASSWORD) or DEFAULT_ADMIN_PASSWORD)
 
 
 def get_env_cookies_path() -> str:
@@ -1293,8 +1339,8 @@ def get_env_phoenix_agents_web_access_enabled() -> bool:
 class AuthSettings(NamedTuple):
     enable_auth: bool
     disable_basic_auth: bool
-    phoenix_secret: Secret
-    phoenix_admin_secret: Secret
+    phoenix_secret: SecretStr
+    phoenix_admin_secret: SecretStr
     oauth2_clients: OAuth2Clients
     ldap_config: Optional[LDAPConfig]
 
@@ -2859,6 +2905,7 @@ class RestrictedPath(wrapt.ObjectProxy):  # type: ignore[misc]
 ROOT_DIR = RestrictedPath(WORKING_DIR)
 INFERENCES_DIR = RestrictedPath(WORKING_DIR / "inferences")
 TRACE_DATASETS_DIR = RestrictedPath(WORKING_DIR / "trace_datasets")
+WASM_DIR = RestrictedPath(WORKING_DIR / "wasm")
 
 
 def ensure_working_dir_if_needed() -> None:
@@ -2877,6 +2924,7 @@ def ensure_working_dir_if_needed() -> None:
             ROOT_DIR,
             INFERENCES_DIR,
             TRACE_DATASETS_DIR,
+            WASM_DIR,
         ):
             path.mkdir(parents=True, exist_ok=True)
     except Exception as e:
@@ -3347,6 +3395,7 @@ def verify_server_environment_variables() -> None:
     get_env_max_spans_queue_size()
     validate_env_support_email()
     validate_env_allowed_providers()
+    validate_env_allowed_sandbox_providers()
 
     # Notify users about deprecated environment variables if they are being used.
     if os.getenv("PHOENIX_ENABLE_WEBSOCKETS") is not None:

@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Annotated, Optional, Union
 
 import strawberry
@@ -13,11 +14,32 @@ from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationConfig as CategoricalAnnotationConfigModel,
 )
 from phoenix.db.types.annotation_configs import (
+    CategoricalAnnotationValue as CategoricalAnnotationValueModel,
+)
+from phoenix.db.types.annotation_configs import (
+    CategoricalOutputConfig as CategoricalOutputConfigModel,
+)
+from phoenix.db.types.annotation_configs import (
     ContinuousAnnotationConfig as ContinuousAnnotationConfigModel,
+)
+from phoenix.db.types.annotation_configs import (
+    ContinuousOutputConfig as ContinuousOutputConfigModel,
 )
 from phoenix.db.types.annotation_configs import (
     FreeformAnnotationConfig as FreeformAnnotationConfigModel,
 )
+
+
+@strawberry.enum
+class ShapeExamplesLanguage(Enum):
+    PYTHON = "PYTHON"
+    TYPESCRIPT = "TYPESCRIPT"
+
+
+@strawberry.enum
+class ShapeExamplesMode(Enum):
+    FULL = "full"
+    CURATED = "curated"
 
 
 @strawberry.interface
@@ -39,6 +61,22 @@ class CategoricalAnnotationConfig(Node, AnnotationConfigBase):
     optimization_direction: OptimizationDirection
     values: list[CategoricalAnnotationValue]
 
+    @strawberry.field
+    def shape_examples(
+        self,
+        language: ShapeExamplesLanguage = ShapeExamplesLanguage.PYTHON,
+        mode: ShapeExamplesMode = ShapeExamplesMode.FULL,
+    ) -> list[str]:
+        config = CategoricalOutputConfigModel(
+            type="CATEGORICAL",
+            name=self.name,
+            optimization_direction=self.optimization_direction,
+            values=[
+                CategoricalAnnotationValueModel(label=v.label, score=v.score) for v in self.values
+            ],
+        )
+        return config.shape_examples(language=language.value, mode=mode.value)
+
 
 @strawberry.type
 class ContinuousAnnotationConfig(Node, AnnotationConfigBase):
@@ -47,10 +85,29 @@ class ContinuousAnnotationConfig(Node, AnnotationConfigBase):
     lower_bound: Optional[float]
     upper_bound: Optional[float]
 
+    @strawberry.field
+    def shape_examples(
+        self,
+        language: ShapeExamplesLanguage = ShapeExamplesLanguage.PYTHON,
+        mode: ShapeExamplesMode = ShapeExamplesMode.FULL,
+    ) -> list[str]:
+        config = ContinuousOutputConfigModel(
+            type="CONTINUOUS",
+            name=self.name,
+            optimization_direction=self.optimization_direction,
+            lower_bound=self.lower_bound,
+            upper_bound=self.upper_bound,
+        )
+        return config.shape_examples(language=language.value, mode=mode.value)
+
 
 @strawberry.type
 class FreeformAnnotationConfig(Node, AnnotationConfigBase):
     id_attr: NodeID[int]
+    optimization_direction: OptimizationDirection
+    threshold: Optional[float]
+    lower_bound: Optional[float]
+    upper_bound: Optional[float]
 
 
 AnnotationConfig: TypeAlias = Annotated[
@@ -107,6 +164,10 @@ def _to_gql_freeform_annotation_config(
         name=annotation_config.name,
         annotation_type=config.type,
         description=config.description,
+        optimization_direction=config.optimization_direction or OptimizationDirection.NONE,
+        threshold=(config.thresholds[0] if config.thresholds else None),
+        lower_bound=config.lower_bound,
+        upper_bound=config.upper_bound,
     )
 
 

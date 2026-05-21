@@ -1,10 +1,13 @@
 from typing import Any
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from sqlalchemy import select
 from strawberry.relay.types import GlobalID
 
 from phoenix.db import models
+from phoenix.server.api.evaluators import _PHOENIX_RESULT_BEGIN, _PHOENIX_RESULT_END
+from phoenix.server.sandbox.types import ExecutionResult
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
@@ -150,3 +153,235 @@ class TestEvaluatorPreviewMutation:
         )
 
         assert result.errors is not None
+
+
+class TestInlineCodeEvaluatorPreviewMutation:
+    async def _preview_inline_code_evaluator(
+        self,
+        gql_client: AsyncGraphQLClient,
+        *,
+        sandbox_config_id: str | None,
+        language: str = "PYTHON",
+        source_code: str = "def evaluate(output):\n    return 1.0",
+    ) -> Any:
+        return await gql_client.execute(
+            TestEvaluatorPreviewMutation._MUTATION,
+            {
+                "input": {
+                    "previews": [
+                        {
+                            "evaluator": {
+                                "inlineCodeEvaluator": {
+                                    "name": "inline_code_eval",
+                                    "description": "preview",
+                                    "language": language,
+                                    "sourceCode": source_code,
+                                    "sandboxConfigId": sandbox_config_id,
+                                    "outputConfigs": [
+                                        {
+                                            "continuous": {
+                                                "name": "score",
+                                                "optimizationDirection": "NONE",
+                                                "lowerBound": 0,
+                                                "upperBound": 1,
+                                            }
+                                        }
+                                    ],
+                                }
+                            },
+                            "context": {"output": {"answer": "4"}},
+                            "inputMapping": {
+                                "literalMapping": {},
+                                "pathMapping": {},
+                            },
+                        }
+                    ]
+                }
+            },
+        )
+
+    async def test_requires_sandbox_config_selection(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        result = await self._preview_inline_code_evaluator(
+            gql_client,
+            sandbox_config_id=None,
+        )
+
+        assert result.errors is not None
+        assert "No sandbox configuration selected" in result.errors[0].message
+
+    async def test_rejects_wrong_global_id_type(
+        self,
+        gql_client: AsyncGraphQLClient,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        wrong_type_id = str(GlobalID("SandboxProvider", sandbox_config.backend_type))
+
+        result = await self._preview_inline_code_evaluator(
+            gql_client,
+            sandbox_config_id=wrong_type_id,
+        )
+
+        assert result.errors is not None
+        assert "SandboxConfig" in result.errors[0].message
+
+    async def test_rejects_missing_sandbox_config(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        result = await self._preview_inline_code_evaluator(
+            gql_client,
+            sandbox_config_id=str(GlobalID("SandboxConfig", "999999")),
+        )
+
+        assert result.errors is not None
+        assert "was not found" in result.errors[0].message
+
+    async def test_rejects_disabled_sandbox_config(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        async with db() as session:
+            row = await session.get(models.SandboxConfig, sandbox_config.id)
+            assert row is not None
+            row.enabled = False
+            await session.commit()
+
+        result = await self._preview_inline_code_evaluator(
+            gql_client,
+            sandbox_config_id=str(GlobalID("SandboxConfig", str(sandbox_config.id))),
+        )
+
+        assert result.errors is not None
+        assert "is disabled" in result.errors[0].message
+
+    async def test_rejects_disabled_sandbox_provider(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        async with db() as session:
+            provider = await session.get(models.SandboxProvider, sandbox_config.backend_type)
+            assert provider is not None
+            provider.enabled = False
+            await session.commit()
+
+        result = await self._preview_inline_code_evaluator(
+            gql_client,
+            sandbox_config_id=str(GlobalID("SandboxConfig", str(sandbox_config.id))),
+        )
+
+        assert result.errors is not None
+        assert "Sandbox provider" in result.errors[0].message
+        assert "is disabled" in result.errors[0].message
+
+    async def test_rejects_language_mismatch(
+        self,
+        gql_client: AsyncGraphQLClient,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        result = await self._preview_inline_code_evaluator(
+            gql_client,
+            sandbox_config_id=str(GlobalID("SandboxConfig", str(sandbox_config.id))),
+            language="TYPESCRIPT",
+            source_code="function evaluate({ output }: EvaluatorParams) { return 1; }",
+        )
+
+        assert result.errors is not None
+        assert "language does not match" in result.errors[0].message
+
+    async def test_returns_preview_result_for_valid_inline_code_evaluator(
+        self,
+        gql_client: AsyncGraphQLClient,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        # The test mutation bypasses ``SandboxSessionManager`` and calls
+        # ``backend.execute`` directly — each click spins up an ephemeral
+        # sandbox via the backend's own ``async with`` lifecycle. Mocking
+        # the managed API (``find_or_create_session`` / ``execute_in_session``)
+        # would no longer intercept the call path.
+        backend = AsyncMock()
+        fenced_stdout = f"{_PHOENIX_RESULT_BEGIN}\n1.0\n{_PHOENIX_RESULT_END}\n"
+        backend.execute = AsyncMock(
+            return_value=ExecutionResult(stdout=fenced_stdout, stderr="", error=None)
+        )
+        backend.close = AsyncMock(return_value=None)
+
+        with patch(
+            "phoenix.server.api.mutations.chat_mutations.build_sandbox_backend",
+            return_value=backend,
+        ):
+            result = await self._preview_inline_code_evaluator(
+                gql_client,
+                sandbox_config_id=str(GlobalID("SandboxConfig", str(sandbox_config.id))),
+            )
+
+        assert result.data and not result.errors
+        results = result.data["evaluatorPreviews"]["results"]
+        assert len(results) == 1
+        assert results[0]["evaluatorName"] == "inline_code_eval"
+        assert results[0]["error"] is None
+        assert results[0]["annotation"]["score"] == 1.0
+        # Test mutation must not touch the session manager — only
+        # ``backend.execute`` is exercised. Asserting the managed-path APIs
+        # were not called locks in the bypass invariant.
+        backend.execute.assert_awaited_once()
+        backend.find_or_create_session.assert_not_called()
+        backend.execute_in_session.assert_not_called()
+        backend.close_session.assert_not_called()
+
+
+class TestCodeEvaluatorPreviewNoSandbox:
+    _MUTATION = TestEvaluatorPreviewMutation._MUTATION
+
+    async def test_bad_request_message_contains_name_and_settings_hint(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_languages: None,
+    ) -> None:
+        from phoenix.db.types.evaluators import InputMapping
+        from phoenix.db.types.identifier import Identifier
+
+        async with db() as session:
+            code_eval = models.CodeEvaluator(
+                name=Identifier("no-sandbox-eval"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=[],
+                language="PYTHON",
+                sandbox_config_id=None,
+            )
+            session.add(code_eval)
+            await session.flush()
+            version = models.CodeEvaluatorVersion(
+                code_evaluator_id=code_eval.id,
+                source_code="def evaluate(output): return 1.0",
+            )
+            session.add(version)
+            await session.flush()
+            code_eval_id = code_eval.id
+
+        gid = str(GlobalID("CodeEvaluator", str(code_eval_id)))
+        result = await gql_client.execute(
+            self._MUTATION,
+            {
+                "input": {
+                    "previews": [
+                        {
+                            "evaluator": {"codeEvaluatorId": gid},
+                            "context": {"output": "test"},
+                            "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                        }
+                    ]
+                }
+            },
+        )
+
+        assert result.errors is not None
+        assert "no-sandbox-eval" in result.errors[0].message
+        assert "/settings/sandboxes" in result.errors[0].message

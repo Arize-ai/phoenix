@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<18a7f196ebbc7afbe595e63677ebda79>>
+ * @generated SignedSource<<f265274a9bc155843a993a38a3cd3f1b>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -13,6 +13,7 @@ export type AnthropicOutputConfigEffort = "HIGH" | "LOW" | "MAX" | "MEDIUM" | "X
 export type AnthropicThinkingDisplay = "OMITTED" | "SUMMARIZED";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
 export type GoogleThinkingLevel = "HIGH" | "LOW" | "MEDIUM" | "MINIMAL";
+export type Language = "PYTHON" | "TYPESCRIPT";
 export type OpenAIReasoningEffort = "HIGH" | "LOW" | "MEDIUM" | "MINIMAL" | "NONE" | "XHIGH";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type PromptMessageRole = "AI" | "SYSTEM" | "TOOL" | "USER";
@@ -28,6 +29,8 @@ export type EvaluatorPreviewItemInput = {
 };
 export type EvaluatorPreviewInput = {
   builtInEvaluatorId?: string | null;
+  codeEvaluatorId?: string | null;
+  inlineCodeEvaluator?: InlineCodeEvaluatorInput | null;
   inlineLlmEvaluator?: InlineLLMEvaluatorInput | null;
 };
 export type InlineLLMEvaluatorInput = {
@@ -196,7 +199,19 @@ export type ContinuousAnnotationConfigInput = {
 };
 export type FreeformAnnotationConfigInput = {
   description?: string | null;
+  lowerBound?: number | null;
   name: string;
+  optimizationDirection?: OptimizationDirection | null;
+  threshold?: number | null;
+  upperBound?: number | null;
+};
+export type InlineCodeEvaluatorInput = {
+  description?: string | null;
+  language: Language;
+  name: string;
+  outputConfigs: ReadonlyArray<AnnotationConfigInput>;
+  sandboxConfigId?: string | null;
+  sourceCode: string;
 };
 export type EvaluatorInputMappingInput = {
   literalMapping: any;

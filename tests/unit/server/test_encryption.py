@@ -3,7 +3,7 @@
 import base64
 
 import pytest
-from starlette.datastructures import Secret
+from pydantic import SecretStr
 
 from phoenix.server.encryption import EncryptionService, is_encrypted
 
@@ -13,7 +13,7 @@ class TestEncryptionService:
 
     def test_encrypt_decrypt_roundtrip(self) -> None:
         """Test encryption and decryption round trip."""
-        service = EncryptionService(secret=Secret("test-secret-12345"))
+        service = EncryptionService(secret=SecretStr("test-secret-12345"))
 
         data = b"sensitive-api-key-12345"
         ciphertext = service.encrypt(data)
@@ -26,22 +26,22 @@ class TestEncryptionService:
 
     def test_encrypt_empty_bytes_raises(self) -> None:
         """Test that encrypting empty bytes raises error."""
-        service = EncryptionService(secret=Secret("test-secret"))
+        service = EncryptionService(secret=SecretStr("test-secret"))
 
         with pytest.raises(ValueError, match="Cannot encrypt empty bytes"):
             service.encrypt(b"")
 
     def test_decrypt_empty_bytes_raises(self) -> None:
         """Test that decrypting empty bytes raises error."""
-        service = EncryptionService(secret=Secret("test-secret"))
+        service = EncryptionService(secret=SecretStr("test-secret"))
 
         with pytest.raises(ValueError, match="Cannot decrypt empty bytes"):
             service.decrypt(b"")
 
     def test_decrypt_with_wrong_secret_raises(self) -> None:
         """Test that decrypting with wrong secret raises error."""
-        service1 = EncryptionService(secret=Secret("secret-one"))
-        service2 = EncryptionService(secret=Secret("secret-two"))
+        service1 = EncryptionService(secret=SecretStr("secret-one"))
+        service2 = EncryptionService(secret=SecretStr("secret-two"))
 
         data = b"secret"
         ciphertext = service1.encrypt(data)
@@ -51,14 +51,14 @@ class TestEncryptionService:
 
     def test_decrypt_corrupted_data_raises(self) -> None:
         """Test that decrypting corrupted data raises error."""
-        service = EncryptionService(secret=Secret("test-secret"))
+        service = EncryptionService(secret=SecretStr("test-secret"))
 
         with pytest.raises(ValueError, match="Decryption failed"):
             service.decrypt(b"corrupted-data")
 
     def test_encrypt_unicode_characters(self) -> None:
         """Test encryption handles unicode characters."""
-        service = EncryptionService(secret=Secret("test-secret"))
+        service = EncryptionService(secret=SecretStr("test-secret"))
 
         data = "Hello 世界 🔐 émojis".encode("utf-8")
         ciphertext = service.encrypt(data)
@@ -68,7 +68,7 @@ class TestEncryptionService:
 
     def test_encrypt_long_data(self) -> None:
         """Test encryption handles long data."""
-        service = EncryptionService(secret=Secret("test-secret"))
+        service = EncryptionService(secret=SecretStr("test-secret"))
 
         data = b"a" * 10000
         ciphertext = service.encrypt(data)
@@ -78,7 +78,7 @@ class TestEncryptionService:
 
     def test_key_derivation_is_deterministic(self) -> None:
         """Test that the same secret always produces the same encryption key."""
-        secret = Secret("test-secret-12345")
+        secret = SecretStr("test-secret-12345")
 
         service1 = EncryptionService(secret=secret)
         service2 = EncryptionService(secret=secret)
@@ -93,7 +93,7 @@ class TestEncryptionService:
 
     def test_encrypting_same_data_twice_produces_different_ciphertexts(self) -> None:
         """Test that encrypting the same data twice produces different ciphertexts."""
-        service = EncryptionService(secret=Secret("test-secret"))
+        service = EncryptionService(secret=SecretStr("test-secret"))
 
         data = b"sensitive-api-key-12345"
         ciphertext1 = service.encrypt(data)
@@ -108,7 +108,7 @@ class TestEncryptionService:
 
     def test_encrypt_very_short_data(self) -> None:
         """Test encryption handles very short data (1 byte)."""
-        service = EncryptionService(secret=Secret("test-secret"))
+        service = EncryptionService(secret=SecretStr("test-secret"))
         data = b"a"
         ciphertext = service.encrypt(data)
         assert service.decrypt(ciphertext) == data
@@ -119,7 +119,7 @@ class TestIsEncrypted:
 
     def test_returns_true_for_valid_fernet_token(self) -> None:
         """Test that is_encrypted returns True for valid Fernet tokens."""
-        service = EncryptionService(secret=Secret("test-secret"))
+        service = EncryptionService(secret=SecretStr("test-secret"))
         ciphertext = service.encrypt(b"sensitive-data")
 
         assert is_encrypted(ciphertext) is True
@@ -168,7 +168,7 @@ class TestIsEncrypted:
 
     def test_handles_very_long_fernet_tokens(self) -> None:
         """Test that is_encrypted works with very long Fernet tokens."""
-        service = EncryptionService(secret=Secret("test-secret"))
+        service = EncryptionService(secret=SecretStr("test-secret"))
         # Very long data
         long_data = b"x" * 100000
         ciphertext = service.encrypt(long_data)

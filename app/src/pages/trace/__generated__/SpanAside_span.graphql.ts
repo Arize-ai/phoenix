@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<1f838200fb3ec31af35259ee9057113d>>
+ * @generated SignedSource<<b81254593eb3518e6a20ea29571c36ec>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -27,6 +27,7 @@ export type SpanAside_span$data = {
           readonly lowerBound?: number | null;
           readonly name?: string;
           readonly optimizationDirection?: OptimizationDirection;
+          readonly threshold?: number | null;
           readonly upperBound?: number | null;
           readonly values?: ReadonlyArray<{
             readonly label: string;
@@ -61,6 +62,13 @@ v1 = {
   "args": null,
   "kind": "ScalarField",
   "name": "name",
+  "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "optimizationDirection",
   "storageKey": null
 };
 return {
@@ -187,13 +195,7 @@ return {
                           "name": "upperBound",
                           "storageKey": null
                         },
-                        {
-                          "alias": null,
-                          "args": null,
-                          "kind": "ScalarField",
-                          "name": "optimizationDirection",
-                          "storageKey": null
-                        }
+                        (v2/*: any*/)
                       ],
                       "type": "ContinuousAnnotationConfig",
                       "abstractKey": null
@@ -201,7 +203,15 @@ return {
                     {
                       "kind": "InlineFragment",
                       "selections": [
-                        (v1/*: any*/)
+                        (v1/*: any*/),
+                        (v2/*: any*/),
+                        {
+                          "alias": null,
+                          "args": null,
+                          "kind": "ScalarField",
+                          "name": "threshold",
+                          "storageKey": null
+                        }
                       ],
                       "type": "FreeformAnnotationConfig",
                       "abstractKey": null
@@ -267,6 +277,6 @@ return {
 };
 })();
 
-(node as any).hash = "eddd0b1c2288899c1d97948a29207944";
+(node as any).hash = "87690ad6c936ad1bf3581fd411e71b68";
 
 export default node;

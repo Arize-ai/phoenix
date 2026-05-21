@@ -120,10 +120,28 @@ export type ContinuousEvaluatorAnnotationConfig = {
   upperBound?: number | null;
 };
 
+export type FreeformEvaluatorAnnotationConfig = {
+  name: string;
+  optimizationDirection: EvaluatorOptimizationDirection;
+  threshold?: number | null;
+  lowerBound?: number | null;
+  upperBound?: number | null;
+};
+
 /**
  * The kind of evaluator
  */
 export type EvaluatorKind = "LLM" | "CODE" | "BUILTIN";
+
+export type CodeEvaluatorLanguage = "PYTHON" | "TYPESCRIPT";
+
+export type SandboxBackendType =
+  | "WASM"
+  | "E2B"
+  | "DAYTONA"
+  | "VERCEL"
+  | "DENO"
+  | "MODAL";
 
 /**
  * The source data for evaluator input mappings.

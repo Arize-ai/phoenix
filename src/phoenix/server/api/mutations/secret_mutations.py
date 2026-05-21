@@ -182,7 +182,6 @@ class SecretMutationMixin:
                     )
                 )
 
-        # Execute database operations in a single transaction
         async with info.context.db() as session:
             if keys_to_delete:
                 await session.execute(

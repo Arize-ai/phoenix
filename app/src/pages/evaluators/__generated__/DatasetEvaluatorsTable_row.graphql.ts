@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d06a015ed1e5186d87a90742d172258c>>
+ * @generated SignedSource<<fe1a63f48f72ebdf099c9c317f0b0150>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,9 @@
 
 import { ReaderInlineDataFragment } from 'relay-runtime';
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
+export type Language = "PYTHON" | "TYPESCRIPT";
 export type ModelProvider = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
+export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "VERCEL" | "WASM";
 import { FragmentRefs } from "relay-runtime";
 export type DatasetEvaluatorsTable_row$data = {
   readonly description: string | null;
@@ -18,6 +20,7 @@ export type DatasetEvaluatorsTable_row$data = {
     readonly createdAt: string;
     readonly id: string;
     readonly kind: EvaluatorKind;
+    readonly language?: Language;
     readonly name: string;
     readonly prompt?: {
       readonly id: string;
@@ -29,6 +32,13 @@ export type DatasetEvaluatorsTable_row$data = {
     };
     readonly promptVersionTag?: {
       readonly name: string;
+    } | null;
+    readonly sandboxConfig?: {
+      readonly id: string;
+      readonly name: string;
+      readonly provider: {
+        readonly backendType: SandboxBackendType;
+      };
     } | null;
     readonly updatedAt: string;
   };
@@ -51,6 +61,6 @@ const node: ReaderInlineDataFragment = {
   "name": "DatasetEvaluatorsTable_row"
 };
 
-(node as any).hash = "0bb1bdbbc49136a8f7918569e461a576";
+(node as any).hash = "9293ad736f30aa525b9fc37dc9a49802";
 
 export default node;

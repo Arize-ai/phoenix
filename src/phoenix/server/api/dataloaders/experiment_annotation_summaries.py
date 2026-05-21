@@ -18,6 +18,8 @@ class ExperimentAnnotationSummary:
     mean_score: float
     count: int
     error_count: int
+    score_count: int
+    label_count: int
 
 
 ExperimentID: TypeAlias = int
@@ -83,6 +85,8 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                 func.max(models.ExperimentRunAnnotation.score).label("max_score"),
                 func.count().label("count"),
                 func.count(models.ExperimentRunAnnotation.error).label("error_count"),
+                func.count(models.ExperimentRunAnnotation.score).label("score_count"),
+                func.count(models.ExperimentRunAnnotation.label).label("label_count"),
             )
             .select_from(models.ExperimentRunAnnotation)
             .join(
@@ -102,6 +106,8 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                 repetitions_subquery.c.max_score.label("max_score"),
                 repetitions_subquery.c.count.label("count_"),
                 repetitions_subquery.c.error_count.label("error_count"),
+                repetitions_subquery.c.score_count.label("score_count"),
+                repetitions_subquery.c.label_count.label("label_count"),
             )
             .select_from(repetition_mean_scores_subquery)
             .join(
@@ -125,6 +131,8 @@ class ExperimentAnnotationSummaryDataLoader(DataLoader[Key, Result]):
                         mean_score=scores_tuple.mean_score,
                         count=scores_tuple.count_,
                         error_count=scores_tuple.error_count,
+                        score_count=scores_tuple.score_count,
+                        label_count=scores_tuple.label_count,
                     )
                 )
         return [

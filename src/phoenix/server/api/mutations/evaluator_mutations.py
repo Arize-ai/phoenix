@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Optional
+from typing import Optional, cast
 
 import strawberry
 from fastapi import Request
@@ -12,22 +12,27 @@ from sqlalchemy.orm import aliased
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
 from strawberry import UNSET
 from strawberry.relay import GlobalID
-from strawberry.scalars import JSON
 from strawberry.types import Info
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.helpers import SupportedSQLDialect, code_evaluator_with_latest_version_for_update
 from phoenix.db.models import EvaluatorKind
 from phoenix.db.types.annotation_configs import (
+    AnnotationConfigType,
     CategoricalOutputConfig,
     ContinuousOutputConfig,
+    FreeformOutputConfig,
     OutputConfigType,
 )
-from phoenix.db.types.evaluators import InputMapping
+from phoenix.db.types.identifier import Identifier
 from phoenix.db.types.identifier import Identifier as IdentifierModel
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
-from phoenix.server.api.evaluators import get_builtin_evaluator_by_key
+from phoenix.server.api.evaluators import (
+    _infer_python_evaluate_input_schema,
+    _infer_typescript_evaluate_input_schema,
+    get_builtin_evaluator_by_key,
+)
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
 from phoenix.server.api.helpers.evaluators import (
     LLMEvaluatorOutputConfigs,
@@ -47,9 +52,9 @@ from phoenix.server.api.types.Evaluator import (
     DatasetEvaluator,
     LLMEvaluator,
 )
-from phoenix.server.api.types.Identifier import Identifier
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.PromptVersion import PromptVersion
+from phoenix.server.api.types.SandboxConfig import Language, SandboxConfig
 from phoenix.server.bearer_auth import PhoenixUser
 
 
@@ -82,6 +87,17 @@ def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> OutputConf
             lower_bound=cont.lower_bound,
             upper_bound=cont.upper_bound,
         )
+    elif input.freeform is not None and input.freeform is not UNSET:
+        free = input.freeform
+        return FreeformOutputConfig(
+            type=AnnotationType.FREEFORM.value,
+            name=free.name,
+            description=free.description,
+            optimization_direction=free.optimization_direction,
+            thresholds=[free.threshold] if free.threshold is not None else None,
+            lower_bound=free.lower_bound,
+            upper_bound=free.upper_bound,
+        )
     raise BadRequest("Invalid output config input")
 
 
@@ -92,26 +108,36 @@ def _convert_output_config_inputs_to_pydantic(
     return [_output_config_input_to_pydantic(c) for c in configs]
 
 
+def _raise_on_uninferable_evaluate_signature(source_code: str, language: Language) -> None:
+    if language is Language.PYTHON:
+        _, error_message = _infer_python_evaluate_input_schema(source_code)
+    elif language is Language.TYPESCRIPT:
+        _, error_message = _infer_typescript_evaluate_input_schema(source_code)
+    else:
+        error_message = f"Unsupported code evaluator language: {language.value}"
+    if error_message is not None:
+        raise BadRequest(error_message)
+
+
 async def _generate_unique_evaluator_name(
     session: AsyncSession,
-    base_name: str,
+    base_name: Identifier,
     max_attempts: int = 5,
-) -> IdentifierModel:
+) -> Identifier:
     """
     Generate a unique evaluator name by appending a suffix if needed.
     Returns the original name if unique, otherwise appends a random suffix.
     Retries up to max_attempts times if random collisions occur.
     """
-    name = IdentifierModel.model_validate(base_name)
     exists = await session.scalar(
-        select(models.Evaluator.id).where(models.Evaluator.name == name).limit(1)
+        select(models.Evaluator.id).where(models.Evaluator.name == base_name).limit(1)
     )
     if exists is None:
-        return name
+        return base_name
 
     for _ in range(max_attempts):
         candidate = f"{base_name}-{token_hex(4)}"
-        candidate_name = IdentifierModel.model_validate(candidate)
+        candidate_name = Identifier.model_validate(candidate)
         exists = await session.scalar(
             select(models.Evaluator.id).where(models.Evaluator.name == candidate_name).limit(1)
         )
@@ -254,6 +280,36 @@ class UpdateDatasetBuiltinEvaluatorInput:
 
 
 @strawberry.input
+class CreateDatasetCodeEvaluatorInput:
+    dataset_id: GlobalID
+    evaluator_id: GlobalID
+    name: Identifier
+    input_mapping: Optional[EvaluatorInputMappingInput] = None
+    output_configs: Optional[list[AnnotationConfigInput]] = None
+    description: Optional[str] = None
+
+
+@strawberry.input
+class UpdateDatasetCodeEvaluatorInput:
+    dataset_evaluator_id: GlobalID
+    name: Identifier
+    input_mapping: Optional[EvaluatorInputMappingInput] = None
+    output_configs: Optional[list[AnnotationConfigInput]] = UNSET
+    description: Optional[str] = UNSET
+
+
+@strawberry.input
+class DeleteEvaluatorsInput:
+    evaluator_ids: list[GlobalID]
+
+
+@strawberry.type
+class DeleteEvaluatorsPayload:
+    evaluator_ids: list[GlobalID]
+    query: Query
+
+
+@strawberry.input
 class DeleteDatasetEvaluatorsInput:
     dataset_evaluator_ids: list[GlobalID]
     delete_associated_prompt: bool = True
@@ -265,12 +321,59 @@ class DeleteDatasetEvaluatorsPayload:
     query: Query
 
 
+@strawberry.input
+class CreateCodeEvaluatorInput:
+    name: Identifier
+    source_code: str
+    language: Language
+    description: Optional[str] = None
+    sandbox_config_id: Optional[GlobalID] = None
+    output_configs: Optional[list[AnnotationConfigInput]] = None
+    input_mapping: Optional[EvaluatorInputMappingInput] = None
+
+
+@strawberry.input
+class PatchCodeEvaluatorInput:
+    id: GlobalID
+    name: Optional[Identifier] = UNSET
+    description: Optional[str] = UNSET
+    sandbox_config_id: Optional[GlobalID] = UNSET
+    input_mapping: Optional[EvaluatorInputMappingInput] = UNSET
+    output_configs: Optional[list[AnnotationConfigInput]] = UNSET
+
+
+@strawberry.input
+class CreateCodeEvaluatorVersionInput:
+    code_evaluator_id: GlobalID
+    source_code: str
+
+
+@strawberry.type
+class CodeEvaluatorMutationPayload:
+    evaluator: CodeEvaluator
+    query: Query
+
+
+@strawberry.type
+class CreateCodeEvaluatorVersionPayload:
+    evaluator: CodeEvaluator
+    was_created: bool = strawberry.field(
+        description=(
+            "True when a new CodeEvaluatorVersion row was appended. False when the call"
+            " dedup'd against the existing tip because source_code was unchanged."
+        )
+    )
+    query: Query
+
+
 @strawberry.type
 class EvaluatorMutationMixin:
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     async def create_dataset_llm_evaluator(
         self, info: Info[Context, None], input: CreateDatasetLLMEvaluatorInput
     ) -> DatasetEvaluatorMutationPayload:
+        if input.input_mapping is None:
+            raise BadRequest("input_mapping is required")
         dataset_id = from_global_id_with_expected_type(
             global_id=input.dataset_id, expected_type_name=Dataset.__name__
         )
@@ -296,7 +399,7 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
-                evaluator_name = await _generate_unique_evaluator_name(session, input.name)
+                evaluator_name = await _generate_unique_evaluator_name(session, validated_name)
 
                 dataset_name = await session.scalar(
                     select(models.Dataset.name).where(models.Dataset.id == dataset_id)
@@ -309,9 +412,7 @@ class EvaluatorMutationMixin:
                     name=validated_name,
                     description=input.description if input.description is not UNSET else None,
                     output_configs=output_configs,
-                    input_mapping=input.input_mapping.to_orm()
-                    if input.input_mapping is not None
-                    else InputMapping(literal_mapping={}, path_mapping={}),
+                    input_mapping=input.input_mapping.to_orm(),
                     user_id=user_id,
                     project=_get_project_for_dataset_evaluator(
                         dataset_name=dataset_name,
@@ -452,26 +553,34 @@ class EvaluatorMutationMixin:
             raise BadRequest(f"Invalid DatasetEvaluator id: {input.dataset_evaluator_id}")
 
         async with info.context.db() as session:
-            dataset_evaluator = await session.get(models.DatasetEvaluators, dataset_evaluator_rowid)
-            if dataset_evaluator is None:
-                raise NotFound(f"DatasetEvaluator with id {input.dataset_evaluator_id} not found")
-
-            # Check if this is a builtin evaluator by looking up the evaluator kind
-            if dataset_evaluator.evaluator_id is not None:
-                evaluator = await session.get(models.Evaluator, dataset_evaluator.evaluator_id)
+            dataset_evaluator_row = await session.execute(
+                select(models.DatasetEvaluators, models.LLMEvaluator)
+                .join(
+                    models.LLMEvaluator,
+                    models.DatasetEvaluators.evaluator_id == models.LLMEvaluator.id,
+                )
+                .where(models.DatasetEvaluators.id == dataset_evaluator_rowid)
+            )
+            dataset_evaluator_pair = dataset_evaluator_row.one_or_none()
+            if dataset_evaluator_pair is None:
+                dataset_evaluator = await session.get(
+                    models.DatasetEvaluators, dataset_evaluator_rowid
+                )
+                if dataset_evaluator is None:
+                    raise NotFound(
+                        f"DatasetEvaluator with id {input.dataset_evaluator_id} not found"
+                    )
+                evaluator = (
+                    await session.get(models.Evaluator, dataset_evaluator.evaluator_id)
+                    if dataset_evaluator.evaluator_id is not None
+                    else None
+                )
                 if evaluator is not None and evaluator.kind == "BUILTIN":
                     raise BadRequest("Cannot update a built-in evaluator")
-
-            # Use select instead of session.get to ensure all columns are properly loaded
-            llm_stmt = select(models.LLMEvaluator).where(
-                models.LLMEvaluator.id == dataset_evaluator.evaluator_id
-            )
-            llm_result = await session.execute(llm_stmt)
-            llm_evaluator = llm_result.scalar_one_or_none()
-            if llm_evaluator is None:
                 raise NotFound(
                     f"LLM evaluator not found for DatasetEvaluator {input.dataset_evaluator_id}"
                 )
+            dataset_evaluator, llm_evaluator = dataset_evaluator_pair
 
             # Handle prompt_version_id if provided
             target_prompt_id = llm_evaluator.prompt_id
@@ -538,11 +647,9 @@ class EvaluatorMutationMixin:
                 input.description if isinstance(input.description, str) else None
             )
             dataset_evaluator.output_configs = list(output_configs)
-            dataset_evaluator.input_mapping = (
-                input.input_mapping.to_orm()
-                if input.input_mapping is not None
-                else InputMapping(literal_mapping={}, path_mapping={})
-            )
+            if input.input_mapping is None:
+                raise BadRequest("input_mapping is required")
+            dataset_evaluator.input_mapping = input.input_mapping.to_orm()
             dataset_evaluator.user_id = user_id
 
             llm_evaluator.description = (
@@ -789,11 +896,9 @@ class EvaluatorMutationMixin:
             assert isinstance(user := request.user, PhoenixUser)
             user_id = int(user.identity)
 
-        input_mapping: EvaluatorInputMappingInput = (
-            input.input_mapping
-            if input.input_mapping is not None
-            else EvaluatorInputMappingInput(literal_mapping=JSON({}), path_mapping=JSON({}))
-        )
+        if input.input_mapping is None:
+            raise BadRequest("input_mapping is required")
+        input_mapping: EvaluatorInputMappingInput = input.input_mapping
 
         try:
             name = IdentifierModel.model_validate(input.name)
@@ -850,7 +955,7 @@ class EvaluatorMutationMixin:
             if "foreign" in str(e).lower():
                 raise NotFound(f"Dataset with id {input.dataset_id} not found")
             raise BadRequest(
-                f"DatasetEvaluator with name {input.name} already exists"
+                f"DatasetEvaluator with name {input.name} already exists "
                 f"for dataset {input.dataset_id}"
             )
 
@@ -877,11 +982,9 @@ class EvaluatorMutationMixin:
         except ValueError:
             raise BadRequest(f"Invalid dataset evaluator id: {input.dataset_evaluator_id}")
 
-        input_mapping: EvaluatorInputMappingInput = (
-            input.input_mapping
-            if input.input_mapping is not None
-            else EvaluatorInputMappingInput(literal_mapping=JSON({}), path_mapping=JSON({}))
-        )
+        if input.input_mapping is None:
+            raise BadRequest("input_mapping is required")
+        input_mapping: EvaluatorInputMappingInput = input.input_mapping
 
         user_id: Optional[int] = None
         assert isinstance(request := info.context.request, Request)
@@ -898,23 +1001,25 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
-                dataset_evaluator = await session.get(
-                    models.DatasetEvaluators, dataset_evaluator_rowid
-                )
-                if dataset_evaluator is None:
-                    raise NotFound(
-                        f"DatasetEvaluator with id {input.dataset_evaluator_id} not found"
+                dataset_evaluator_row = await session.execute(
+                    select(models.DatasetEvaluators, models.BuiltinEvaluator)
+                    .join(
+                        models.BuiltinEvaluator,
+                        models.DatasetEvaluators.evaluator_id == models.BuiltinEvaluator.id,
                     )
-
-                # Check if this is a builtin evaluator by looking up the evaluator kind
-                if dataset_evaluator.evaluator_id is None:
-                    raise BadRequest("Cannot update a non-built-in evaluator")
-
-                builtin_db = await session.get(
-                    models.BuiltinEvaluator, dataset_evaluator.evaluator_id
+                    .where(models.DatasetEvaluators.id == dataset_evaluator_rowid)
                 )
-                if builtin_db is None:
+                dataset_evaluator_pair = dataset_evaluator_row.one_or_none()
+                if dataset_evaluator_pair is None:
+                    dataset_evaluator = await session.get(
+                        models.DatasetEvaluators, dataset_evaluator_rowid
+                    )
+                    if dataset_evaluator is None:
+                        raise NotFound(
+                            f"DatasetEvaluator with id {input.dataset_evaluator_id} not found"
+                        )
                     raise BadRequest("Cannot update a non-built-in evaluator")
+                dataset_evaluator, builtin_db = dataset_evaluator_pair
 
                 builtin_evaluator = get_builtin_evaluator_by_key(builtin_db.key)
                 if builtin_evaluator is None:
@@ -952,5 +1057,364 @@ class EvaluatorMutationMixin:
 
         return DatasetEvaluatorMutationPayload(
             evaluator=DatasetEvaluator(id=dataset_evaluator.id, db_record=dataset_evaluator),
+            query=Query(),
+        )
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def create_dataset_code_evaluator(
+        self, info: Info[Context, None], input: CreateDatasetCodeEvaluatorInput
+    ) -> DatasetEvaluatorMutationPayload:
+        try:
+            dataset_rowid = from_global_id_with_expected_type(
+                global_id=input.dataset_id,
+                expected_type_name=Dataset.__name__,
+            )
+        except ValueError:
+            raise BadRequest(f"Invalid dataset id: {input.dataset_id}")
+
+        try:
+            evaluator_id, evaluator_kind = _parse_evaluator_id(input.evaluator_id)
+        except ValueError as e:
+            raise BadRequest(f"Invalid evaluator id: {input.evaluator_id}. {e}")
+        if evaluator_kind != "CODE":
+            raise BadRequest("Evaluator must be a code evaluator")
+
+        if input.input_mapping is None:
+            raise BadRequest("input_mapping is required")
+        input_mapping: EvaluatorInputMappingInput = input.input_mapping
+
+        user_id: Optional[int] = None
+        assert isinstance(request := info.context.request, Request)
+        if "user" in request.scope:
+            assert isinstance(user := request.user, PhoenixUser)
+            user_id = int(user.identity)
+
+        try:
+            name = IdentifierModel.model_validate(input.name)
+        except ValidationError as error:
+            raise BadRequest(f"Invalid evaluator name: {error}")
+
+        output_configs: Optional[list[OutputConfigType]] = None
+        if input.output_configs is not None:
+            try:
+                validate_unique_config_names(input.output_configs)
+            except ValueError as e:
+                raise BadRequest(str(e))
+            output_configs = _convert_output_config_inputs_to_pydantic(input.output_configs)
+
+        try:
+            async with info.context.db() as session:
+                code_evaluator = await session.get(models.CodeEvaluator, evaluator_id)
+                if code_evaluator is None:
+                    raise NotFound(f"Code evaluator with id {input.evaluator_id} not found")
+
+                dataset_name = await session.scalar(
+                    select(models.Dataset.name).where(models.Dataset.id == dataset_rowid)
+                )
+                if dataset_name is None:
+                    raise NotFound(f"Dataset with id {dataset_rowid} not found")
+
+                dataset_evaluator = models.DatasetEvaluators(
+                    dataset_id=dataset_rowid,
+                    name=name,
+                    input_mapping=input_mapping.to_orm(),
+                    evaluator_id=evaluator_id,
+                    output_configs=output_configs,
+                    description=input.description,
+                    user_id=user_id,
+                    project=_get_project_for_dataset_evaluator(
+                        dataset_name=dataset_name,
+                        dataset_evaluator_name=str(name),
+                    ),
+                )
+
+                session.add(dataset_evaluator)
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
+            if "foreign" in str(e).lower():
+                raise NotFound(f"Dataset with id {input.dataset_id} not found")
+            raise BadRequest(
+                f"DatasetEvaluator with name {input.name} already exists "
+                f"for dataset {input.dataset_id}"
+            )
+
+        if output_configs is None:
+            dataset_evaluator.output_configs = [
+                config
+                for config in code_evaluator.output_configs
+                if isinstance(
+                    config,
+                    (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig),
+                )
+            ]
+
+        return DatasetEvaluatorMutationPayload(
+            evaluator=DatasetEvaluator(id=dataset_evaluator.id, db_record=dataset_evaluator),
+            query=Query(),
+        )
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def update_dataset_code_evaluator(
+        self, info: Info[Context, None], input: UpdateDatasetCodeEvaluatorInput
+    ) -> DatasetEvaluatorMutationPayload:
+        try:
+            dataset_evaluator_rowid = from_global_id_with_expected_type(
+                global_id=input.dataset_evaluator_id,
+                expected_type_name=DatasetEvaluator.__name__,
+            )
+        except ValueError:
+            raise BadRequest(f"Invalid dataset evaluator id: {input.dataset_evaluator_id}")
+
+        if input.input_mapping is None:
+            raise BadRequest("input_mapping is required")
+        input_mapping: EvaluatorInputMappingInput = input.input_mapping
+
+        user_id: Optional[int] = None
+        assert isinstance(request := info.context.request, Request)
+        if "user" in request.scope:
+            assert isinstance(user := request.user, PhoenixUser)
+            user_id = int(user.identity)
+
+        if input.output_configs is not UNSET and input.output_configs is not None:
+            try:
+                validate_unique_config_names(input.output_configs)
+            except ValueError as e:
+                raise BadRequest(str(e))
+
+        try:
+            async with info.context.db() as session:
+                dataset_evaluator_row = await session.execute(
+                    select(models.DatasetEvaluators, models.CodeEvaluator)
+                    .join(
+                        models.CodeEvaluator,
+                        models.DatasetEvaluators.evaluator_id == models.CodeEvaluator.id,
+                    )
+                    .where(models.DatasetEvaluators.id == dataset_evaluator_rowid)
+                )
+                dataset_evaluator_pair = dataset_evaluator_row.one_or_none()
+                if dataset_evaluator_pair is None:
+                    dataset_evaluator = await session.get(
+                        models.DatasetEvaluators, dataset_evaluator_rowid
+                    )
+                    if dataset_evaluator is None:
+                        raise NotFound(
+                            f"DatasetEvaluator with id {input.dataset_evaluator_id} not found"
+                        )
+                    raise BadRequest("Cannot update a non-code dataset evaluator")
+                dataset_evaluator, evaluator = dataset_evaluator_pair
+
+                try:
+                    name = IdentifierModel.model_validate(input.name)
+                except ValidationError as error:
+                    raise BadRequest(f"Invalid evaluator name: {error}")
+                dataset_evaluator.name = name
+                dataset_evaluator.input_mapping = input_mapping.to_orm()
+                dataset_evaluator.updated_at = datetime.now(timezone.utc)
+                dataset_evaluator.user_id = user_id
+
+                if input.output_configs is not UNSET:
+                    if input.output_configs is not None:
+                        dataset_evaluator.output_configs = (
+                            _convert_output_config_inputs_to_pydantic(input.output_configs)
+                        )
+                    else:
+                        dataset_evaluator.output_configs = None
+
+                if input.description is not UNSET:
+                    dataset_evaluator.description = input.description
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
+            if "foreign" in str(e).lower():
+                raise NotFound(f"Dataset evaluator with id {input.dataset_evaluator_id} not found")
+            raise BadRequest(f"DatasetEvaluator with name {input.name} already exists")
+
+        if dataset_evaluator.output_configs is None:
+            dataset_evaluator.output_configs = [
+                config
+                for config in evaluator.output_configs
+                if isinstance(
+                    config,
+                    (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig),
+                )
+            ]
+
+        return DatasetEvaluatorMutationPayload(
+            evaluator=DatasetEvaluator(id=dataset_evaluator.id, db_record=dataset_evaluator),
+            query=Query(),
+        )
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def create_code_evaluator(
+        self,
+        info: Info[Context, None],
+        input: CreateCodeEvaluatorInput,
+    ) -> CodeEvaluatorMutationPayload:
+        user_id: Optional[int] = None
+        assert isinstance(request := info.context.request, Request)
+        if "user" in request.scope:
+            assert isinstance(user := request.user, PhoenixUser)
+            user_id = int(user.identity)
+
+        try:
+            validated_name = IdentifierModel.model_validate(input.name)
+        except ValidationError as error:
+            raise BadRequest(f"Invalid evaluator name: {error}")
+
+        output_configs: list[OutputConfigType] = (
+            _convert_output_config_inputs_to_pydantic(input.output_configs)
+            if input.output_configs
+            else []
+        )
+        if input.input_mapping is None:
+            raise BadRequest("input_mapping is required")
+        input_mapping_orm = input.input_mapping.to_orm()
+        _raise_on_uninferable_evaluate_signature(input.source_code, input.language)
+
+        try:
+            async with info.context.db() as session:
+                sandbox_config_id = None
+                if input.sandbox_config_id is not None:
+                    sandbox_config_id = from_global_id_with_expected_type(
+                        input.sandbox_config_id, SandboxConfig.__name__
+                    )
+
+                row = models.CodeEvaluator(
+                    name=validated_name,
+                    description=input.description,
+                    language=input.language.value,
+                    user_id=user_id,
+                    sandbox_config_id=sandbox_config_id,
+                    input_mapping=input_mapping_orm,
+                    output_configs=output_configs,
+                )
+                session.add(row)
+                await session.flush()
+
+                version = models.CodeEvaluatorVersion(
+                    code_evaluator_id=row.id,
+                    source_code=input.source_code,
+                    user_id=user_id,
+                )
+                session.add(version)
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
+            raise BadRequest(f"Could not create code evaluator: {e}")
+
+        return CodeEvaluatorMutationPayload(
+            evaluator=CodeEvaluator(id=row.id, db_record=row),
+            query=Query(),
+        )
+
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def patch_code_evaluator(
+        self,
+        info: Info[Context, None],
+        input: PatchCodeEvaluatorInput,
+    ) -> CodeEvaluatorMutationPayload:
+        evaluator_id = from_global_id_with_expected_type(
+            global_id=input.id, expected_type_name=CodeEvaluator.__name__
+        )
+
+        if input.input_mapping is not UNSET and input.input_mapping is None:
+            raise BadRequest("input_mapping cannot be set to null")
+        if input.output_configs is not UNSET and input.output_configs is None:
+            raise BadRequest("output_configs cannot be set to null")
+
+        try:
+            async with info.context.db() as session:
+                row = await session.get(models.CodeEvaluator, evaluator_id)
+                if row is None:
+                    raise NotFound(f"CodeEvaluator not found: {evaluator_id}")
+
+                if input.name is not UNSET and input.name is not None:
+                    try:
+                        row.name = IdentifierModel.model_validate(input.name)
+                    except ValidationError as error:
+                        raise BadRequest(f"Invalid evaluator name: {error}")
+
+                if input.description is not UNSET:
+                    row.description = input.description
+
+                if input.sandbox_config_id is not UNSET:
+                    if input.sandbox_config_id is None:
+                        row.sandbox_config_id = None
+                    else:
+                        sandbox_config_id = from_global_id_with_expected_type(
+                            input.sandbox_config_id, SandboxConfig.__name__
+                        )
+                        target_cfg = await session.get(models.SandboxConfig, sandbox_config_id)
+                        if target_cfg is not None and target_cfg.language != row.language:
+                            raise BadRequest(
+                                "Evaluator language does not match sandbox config language"
+                            )
+                        row.sandbox_config_id = sandbox_config_id
+
+                if input.input_mapping is not UNSET and input.input_mapping is not None:
+                    row.input_mapping = input.input_mapping.to_orm()
+
+                if input.output_configs is not UNSET and input.output_configs is not None:
+                    try:
+                        validate_unique_config_names(input.output_configs)
+                    except ValueError as e:
+                        raise BadRequest(str(e))
+                    row.output_configs = cast(
+                        list[AnnotationConfigType],
+                        _convert_output_config_inputs_to_pydantic(input.output_configs),
+                    )
+
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
+            raise BadRequest(f"Could not patch code evaluator: {e}")
+
+        return CodeEvaluatorMutationPayload(
+            evaluator=CodeEvaluator(id=row.id, db_record=row),
+            query=Query(),
+        )
+
+    @strawberry.mutation(  # type: ignore
+        permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked],
+        description=(
+            "Append a new immutable CodeEvaluatorVersion. If source_code matches the"
+            " current tip, no row is appended and was_created=false."
+        ),
+    )
+    async def create_code_evaluator_version(
+        self,
+        info: Info[Context, None],
+        input: CreateCodeEvaluatorVersionInput,
+    ) -> CreateCodeEvaluatorVersionPayload:
+        evaluator_id = from_global_id_with_expected_type(
+            global_id=input.code_evaluator_id, expected_type_name=CodeEvaluator.__name__
+        )
+
+        user_id: Optional[int] = None
+        assert isinstance(request := info.context.request, Request)
+        if "user" in request.scope:
+            assert isinstance(user := request.user, PhoenixUser)
+            user_id = int(user.identity)
+
+        try:
+            async with info.context.db() as session:
+                code_evaluator_with_version = await code_evaluator_with_latest_version_for_update(
+                    session, evaluator_id
+                )
+                if code_evaluator_with_version is None:
+                    raise NotFound(f"CodeEvaluator not found: {evaluator_id}")
+                row, current_version = code_evaluator_with_version
+                _raise_on_uninferable_evaluate_signature(input.source_code, Language(row.language))
+
+                candidate = models.CodeEvaluatorVersion(
+                    code_evaluator_id=row.id,
+                    source_code=input.source_code,
+                    user_id=user_id,
+                )
+
+                was_created = current_version is None or not current_version.has_identical_content(
+                    candidate
+                )
+                if was_created:
+                    session.add(candidate)
+        except (PostgreSQLIntegrityError, SQLiteIntegrityError) as e:
+            raise BadRequest(f"Could not create code evaluator version: {e}")
+
+        return CreateCodeEvaluatorVersionPayload(
+            evaluator=CodeEvaluator(id=row.id, db_record=row),
+            was_created=was_created,
             query=Query(),
         )

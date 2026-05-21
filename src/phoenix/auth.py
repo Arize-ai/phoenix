@@ -7,7 +7,7 @@ from enum import Enum, auto
 from hashlib import pbkdf2_hmac
 from typing import Any, Literal, Optional, Protocol
 
-from starlette.datastructures import Secret
+from pydantic import SecretStr
 from starlette.responses import Response
 from typing_extensions import TypeVar
 
@@ -19,22 +19,22 @@ from phoenix.config import (
 ResponseType = TypeVar("ResponseType", bound=Response)
 
 
-def compute_password_hash(*, password: Secret, salt: bytes) -> bytes:
+def compute_password_hash(*, password: SecretStr, salt: bytes) -> bytes:
     """
     Salts and hashes a password using PBKDF2, HMAC and SHA256.
 
     Args:
-        password (str): the password to hash
+        password: the password to hash, wrapped in pydantic ``SecretStr``
         salt (bytes): the salt to use, must not be zero-length
     Returns:
         bytes: the hashed password
     """
     assert salt
-    password_bytes = str(password).encode("utf-8")
+    password_bytes = password.get_secret_value().encode("utf-8")
     return pbkdf2_hmac("sha256", password_bytes, salt, NUM_ITERATIONS)
 
 
-def is_valid_password(*, password: Secret, salt: bytes, password_hash: bytes) -> bool:
+def is_valid_password(*, password: SecretStr, salt: bytes, password_hash: bytes) -> bool:
     """
     Determines whether the password is valid by salting and hashing the password
     and comparing against the existing hash value.

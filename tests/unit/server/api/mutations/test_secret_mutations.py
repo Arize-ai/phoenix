@@ -1,7 +1,7 @@
 from secrets import token_hex
 from typing import Any
 
-from starlette.datastructures import Secret
+from pydantic import SecretStr
 from strawberry.relay.types import GlobalID
 
 from phoenix.db import models
@@ -10,8 +10,8 @@ from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
 # The in-process test app is constructed with no PHOENIX_SECRET, so the
-# server-side Redactor is keyed off Secret("").
-_REDACTOR = Redactor(secret=Secret(""))
+# server-side Redactor is keyed off SecretStr("").
+_REDACTOR = Redactor(secret=SecretStr(""))
 
 
 async def _fetch_secret_via_node_query(

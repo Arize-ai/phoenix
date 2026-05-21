@@ -36,10 +36,11 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.utils import is_body_allowed_for_status_code
 from grpc.aio import ServerInterceptor
 from grpc_interceptor import AsyncServerInterceptor
+from pydantic import SecretStr
 from pydantic_ai.mcp import MCPServerStreamableHTTP
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
-from starlette.datastructures import URL, Secret
+from starlette.datastructures import URL
 from starlette.datastructures import State as StarletteState
 from starlette.exceptions import HTTPException
 from starlette.middleware import Middleware
@@ -90,6 +91,8 @@ from phoenix.server.api.dataloaders import (
     AverageExperimentRepeatedRunGroupLatencyDataLoader,
     AverageExperimentRunLatencyDataLoader,
     CacheForDataLoaders,
+    CodeEvaluatorVersionCountDataLoader,
+    CodeEvaluatorVersionSequenceNumberDataLoader,
     DatasetDatasetSplitsDataLoader,
     DatasetEvaluatorsByEvaluatorDataLoader,
     DatasetEvaluatorsByIdDataLoader,
@@ -102,6 +105,7 @@ from phoenix.server.api.dataloaders import (
     DocumentEvaluationsDataLoader,
     DocumentEvaluationSummaryDataLoader,
     DocumentRetrievalMetricsDataLoader,
+    EvaluatorByIdDataLoader,
     ExperimentAnnotationSummaryDataLoader,
     ExperimentDatasetSplitsDataLoader,
     ExperimentErrorRatesDataLoader,
@@ -116,6 +120,7 @@ from phoenix.server.api.dataloaders import (
     LastExperimentErrorsDataLoader,
     LastUsedTimesByGenerativeModelIdDataLoader,
     LatencyMsQuantileDataLoader,
+    LatestCodeEvaluatorVersionDataLoader,
     LatestPromptVersionIdDataLoader,
     MinStartOrMaxEndTimeDataLoader,
     NumChildSpansDataLoader,
@@ -126,6 +131,8 @@ from phoenix.server.api.dataloaders import (
     PromptVersionDataLoader,
     PromptVersionSequenceNumberDataLoader,
     RecordCountDataLoader,
+    SandboxConfigsByProviderDataLoader,
+    SandboxProviderDataLoader,
     SecretsDataLoader,
     SessionAnnotationsBySessionDataLoader,
     SessionIODataLoader,
@@ -190,6 +197,8 @@ from phoenix.server.oauth2 import OAuth2Clients
 from phoenix.server.prometheus import SPAN_QUEUE_REJECTIONS
 from phoenix.server.redaction import Redactor, current_redactor
 from phoenix.server.retention import TraceDataSweeper
+from phoenix.server.sandbox._download import prefetch_wasm_binary_if_needed
+from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.telemetry import initialize_opentelemetry_tracer_provider
 from phoenix.server.types import (
     CanGetLastUpdatedAt,
@@ -643,6 +652,7 @@ def _lifespan(
     generative_model_store: GenerativeModelStore,
     db_disk_usage_monitor: DbDiskUsageMonitor,
     experiment_runner: ExperimentRunner,
+    sandbox_session_manager: SandboxSessionManager,
     token_store: Optional[TokenStore] = None,
     tracer_provider: Optional["TracerProvider"] = None,
     enable_prometheus: bool = False,
@@ -693,6 +703,12 @@ def _lifespan(
             await stack.enter_async_context(span_cost_calculator)
             await stack.enter_async_context(generative_model_store)
             await stack.enter_async_context(db_disk_usage_monitor)
+            # ``sandbox_session_manager`` must enter before ``experiment_runner``
+            # so ``AsyncExitStack`` tears them down in reverse and the runner
+            # (which consumes the manager) stops first. If the runner outlived
+            # its manager, any ``acquire`` it issued after the manager's
+            # shutdown snapshot would leak a provider session past the daemon.
+            await stack.enter_async_context(sandbox_session_manager)
             await stack.enter_async_context(experiment_runner)
             if docs_mcp_server is not None:
                 await stack.enter_async_context(docs_mcp_server)
@@ -746,12 +762,13 @@ def create_graphql_router(
     authentication_enabled: bool,
     span_cost_calculator: SpanCostCalculator,
     experiment_runner: ExperimentRunner,
+    sandbox_session_manager: SandboxSessionManager,
     encrypt: Callable[[bytes], bytes],
     decrypt: Callable[[bytes], bytes],
     cache_for_dataloaders: Optional[CacheForDataLoaders] = None,
     event_queue: CanPutItem[DmlEvent],
     read_only: bool = False,
-    secret: Optional[Secret] = None,
+    secret: Optional[SecretStr] = None,
     token_store: Optional[TokenStore] = None,
     email_sender: Optional[EmailSender] = None,
 ) -> GraphQLRouter[Context, None]:
@@ -789,6 +806,10 @@ def create_graphql_router(
                 ),
                 average_experiment_run_latency=AverageExperimentRunLatencyDataLoader(db),
                 code_evaluator_fields=TableFieldsDataLoader(db, models.CodeEvaluator),
+                code_evaluator_version_count=CodeEvaluatorVersionCountDataLoader(db),
+                code_evaluator_version_sequence_number=CodeEvaluatorVersionSequenceNumberDataLoader(
+                    db
+                ),
                 dataset_evaluator_fields=TableFieldsDataLoader(db, models.DatasetEvaluators),
                 dataset_evaluators_by_evaluator=DatasetEvaluatorsByEvaluatorDataLoader(db),
                 dataset_evaluators_by_id=DatasetEvaluatorsByIdDataLoader(db),
@@ -818,6 +839,7 @@ def create_graphql_router(
                 document_annotation_fields=TableFieldsDataLoader(db, models.DocumentAnnotation),
                 document_evaluations=DocumentEvaluationsDataLoader(db),
                 document_retrieval_metrics=DocumentRetrievalMetricsDataLoader(db),
+                evaluator_by_id=EvaluatorByIdDataLoader(db),
                 annotation_summaries=AnnotationSummaryDataLoader(
                     db,
                     cache_map=(
@@ -880,6 +902,7 @@ def create_graphql_router(
                 prompt_version_sequence_number=PromptVersionSequenceNumberDataLoader(db),
                 prompt_version_tag_fields=TableFieldsDataLoader(db, models.PromptVersionTag),
                 latest_prompt_version_ids=LatestPromptVersionIdDataLoader(db),
+                latest_code_evaluator_versions=LatestCodeEvaluatorVersionDataLoader(db),
                 project_session_annotation_fields=TableFieldsDataLoader(
                     db, models.ProjectSessionAnnotation
                 ),
@@ -888,6 +911,8 @@ def create_graphql_router(
                     db,
                     cache_map=cache_for_dataloaders.record_count if cache_for_dataloaders else None,
                 ),
+                sandbox_configs_by_provider=SandboxConfigsByProviderDataLoader(db),
+                sandbox_provider=SandboxProviderDataLoader(db),
                 secret_fields=TableFieldsDataLoader(db, models.Secret),
                 secrets=SecretsDataLoader(db),
                 session_annotations_by_session=SessionAnnotationsBySessionDataLoader(db),
@@ -968,6 +993,7 @@ def create_graphql_router(
             email_sender=email_sender,
             span_cost_calculator=span_cost_calculator,
             experiment_runner=experiment_runner,
+            sandbox_session_manager=sandbox_session_manager,
             encrypt=encrypt,
             decrypt=decrypt,
         )
@@ -1054,7 +1080,7 @@ def create_app(
     serve_ui: bool = True,
     startup_callbacks: Iterable[_Callback] = (),
     shutdown_callbacks: Iterable[_Callback] = (),
-    secret: Optional[Secret] = None,
+    secret: Optional[SecretStr] = None,
     password_reset_token_expiry: Optional[timedelta] = None,
     access_token_expiry: Optional[timedelta] = None,
     refresh_token_expiry: Optional[timedelta] = None,
@@ -1073,6 +1099,7 @@ def create_app(
     startup_callbacks_list: list[_Callback] = list(startup_callbacks)
     shutdown_callbacks_list: list[_Callback] = list(shutdown_callbacks)
     startup_callbacks_list.append(Facilitator(db=db))
+    startup_callbacks_list.append(prefetch_wasm_binary_if_needed)
     initial_batch_of_spans: Iterable[tuple[Span, str]] = (
         ()
         if initial_spans is None
@@ -1160,11 +1187,13 @@ def create_app(
 
         graphql_schema_extensions.append(_OpenTelemetryExtension)
     encryption_service = EncryptionService(secret=secret)
-    redactor = Redactor(secret=secret or Secret(""))
+    redactor = Redactor(secret=secret or SecretStr(""))
+    sandbox_session_manager = SandboxSessionManager()
     experiment_runner = ExperimentRunner(
         db,
         decrypt=encryption_service.decrypt,
         tracer_factory=lambda: Tracer(span_cost_calculator=span_cost_calculator),
+        sandbox_session_manager=sandbox_session_manager,
     )
     graphql_router = create_graphql_router(
         db=db,
@@ -1179,6 +1208,7 @@ def create_app(
         email_sender=email_sender,
         span_cost_calculator=span_cost_calculator,
         experiment_runner=experiment_runner,
+        sandbox_session_manager=sandbox_session_manager,
         encrypt=encryption_service.encrypt,
         decrypt=encryption_service.decrypt,
     )
@@ -1209,6 +1239,7 @@ def create_app(
             generative_model_store=generative_model_store,
             db_disk_usage_monitor=DbDiskUsageMonitor(db, email_sender),
             experiment_runner=experiment_runner,
+            sandbox_session_manager=sandbox_session_manager,
             grpc_interceptors=grpc_interceptors,
             token_store=token_store,
             tracer_provider=tracer_provider,
@@ -1327,6 +1358,7 @@ def create_app(
     app.state.redactor = redactor
     app.state.span_queue_is_full = lambda: bulk_inserter.is_full
     app.state.docs_mcp_server = docs_mcp_server
+    app.state.sandbox_session_manager = sandbox_session_manager
     app = _add_get_secret_method(app=app, secret=secret)
     app = _add_get_token_store_method(app=app, token_store=token_store)
     if tracer_provider:
@@ -1346,16 +1378,16 @@ def create_app(
     return app
 
 
-def _add_get_secret_method(*, app: FastAPI, secret: Optional[Secret]) -> FastAPI:
+def _add_get_secret_method(*, app: FastAPI, secret: Optional[SecretStr]) -> FastAPI:
     """
     Dynamically adds a `get_secret` method to the app's `state`.
     """
     app.state._secret = secret
 
-    def get_secret(self: StarletteState) -> Secret:
+    def get_secret(self: StarletteState) -> SecretStr:
         if (secret := self._secret) is None:
             raise ValueError("app secret is not set")
-        assert isinstance(secret, Secret)
+        assert isinstance(secret, SecretStr)
         return secret
 
     app.state.get_secret = MethodType(get_secret, app.state)

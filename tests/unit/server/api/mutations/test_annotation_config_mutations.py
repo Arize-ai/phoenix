@@ -186,6 +186,10 @@ class TestAnnotationConfigMutations:
         name
         annotationType
         description
+        optimizationDirection
+        threshold
+        lowerBound
+        upperBound
     }
     """
 
@@ -236,10 +240,18 @@ class TestAnnotationConfigMutations:
                 {
                     "name": "Test Freeform Config",
                     "description": "Test description",
+                    "optimizationDirection": "MAXIMIZE",
+                    "threshold": 0.5,
+                    "lowerBound": 0.0,
+                    "upperBound": 1.0,
                 },
                 {
                     "name": "Updated Freeform Config",
                     "description": "Updated description",
+                    "optimizationDirection": "MINIMIZE",
+                    "threshold": 0.25,
+                    "lowerBound": -1.0,
+                    "upperBound": 2.0,
                 },
                 AnnotationType.FREEFORM.value,
                 id="freeform",
@@ -737,6 +749,32 @@ class TestAnnotationConfigMutations:
         assert len(response.errors) == 1
         error = response.errors[0]
         assert "Annotation config not found" in error.message
+
+    async def test_create_freeform_annotation_config_with_invalid_bounds_returns_expected_error(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        response = await gql_client.execute(
+            query=self.QUERY,
+            variables={
+                "input": {
+                    "annotationConfig": {
+                        "freeform": {
+                            "name": "test-config",
+                            "description": "test description",
+                            "lowerBound": 1.0,
+                            "upperBound": 0.0,
+                        }
+                    }
+                }
+            },
+            operation_name="CreateAnnotationConfig",
+        )
+        assert response.data is None
+        assert response.errors
+        assert len(response.errors) == 1
+        error = response.errors[0]
+        assert "Lower bound must be strictly less than upper bound" in error.message
 
     async def test_update_continuous_annotation_config_with_invalid_bounds_returns_expected_error(
         self,

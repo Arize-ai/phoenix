@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from functools import cached_property, partial
 from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
-from starlette.datastructures import Secret
+from pydantic import SecretStr
 from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response as StarletteResponse
 from strawberry.fastapi import BaseContext
@@ -22,6 +22,8 @@ if TYPE_CHECKING:
         AverageExperimentRepeatedRunGroupLatencyDataLoader,
         AverageExperimentRunLatencyDataLoader,
         CacheForDataLoaders,
+        CodeEvaluatorVersionCountDataLoader,
+        CodeEvaluatorVersionSequenceNumberDataLoader,
         DatasetDatasetSplitsDataLoader,
         DatasetEvaluatorsByEvaluatorDataLoader,
         DatasetEvaluatorsByIdDataLoader,
@@ -34,6 +36,7 @@ if TYPE_CHECKING:
         DocumentEvaluationsDataLoader,
         DocumentEvaluationSummaryDataLoader,
         DocumentRetrievalMetricsDataLoader,
+        EvaluatorByIdDataLoader,
         ExperimentAnnotationSummaryDataLoader,
         ExperimentDatasetSplitsDataLoader,
         ExperimentErrorRatesDataLoader,
@@ -48,6 +51,7 @@ if TYPE_CHECKING:
         LastExperimentErrorsDataLoader,
         LastUsedTimesByGenerativeModelIdDataLoader,
         LatencyMsQuantileDataLoader,
+        LatestCodeEvaluatorVersionDataLoader,
         LatestPromptVersionIdDataLoader,
         MinStartOrMaxEndTimeDataLoader,
         NumChildSpansDataLoader,
@@ -58,6 +62,8 @@ if TYPE_CHECKING:
         PromptVersionDataLoader,
         PromptVersionSequenceNumberDataLoader,
         RecordCountDataLoader,
+        SandboxConfigsByProviderDataLoader,
+        SandboxProviderDataLoader,
         SecretsDataLoader,
         SessionAnnotationsBySessionDataLoader,
         SessionIODataLoader,
@@ -101,6 +107,7 @@ if TYPE_CHECKING:
     from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
     from phoenix.server.dml_event import DmlEvent
     from phoenix.server.email.types import EmailSender
+    from phoenix.server.sandbox.session_manager import SandboxSessionManager
     from phoenix.server.types import (
         CanGetLastUpdatedAt,
         CanPutItem,
@@ -118,6 +125,8 @@ class DataLoaders:
     )
     average_experiment_run_latency: AverageExperimentRunLatencyDataLoader
     code_evaluator_fields: TableFieldsDataLoader
+    code_evaluator_version_count: CodeEvaluatorVersionCountDataLoader
+    code_evaluator_version_sequence_number: CodeEvaluatorVersionSequenceNumberDataLoader
     dataset_evaluator_fields: TableFieldsDataLoader
     dataset_evaluators_by_evaluator: DatasetEvaluatorsByEvaluatorDataLoader
     dataset_evaluators_by_id: DatasetEvaluatorsByIdDataLoader
@@ -140,6 +149,7 @@ class DataLoaders:
     document_evaluation_summaries: DocumentEvaluationSummaryDataLoader
     document_evaluations: DocumentEvaluationsDataLoader
     document_retrieval_metrics: DocumentRetrievalMetricsDataLoader
+    evaluator_by_id: EvaluatorByIdDataLoader
     experiment_annotation_summaries: ExperimentAnnotationSummaryDataLoader
     experiment_dataset_splits: ExperimentDatasetSplitsDataLoader
     experiment_error_rates: ExperimentErrorRatesDataLoader
@@ -177,9 +187,12 @@ class DataLoaders:
     prompt_version_sequence_number: PromptVersionSequenceNumberDataLoader
     prompt_version_tag_fields: TableFieldsDataLoader
     latest_prompt_version_ids: LatestPromptVersionIdDataLoader
+    latest_code_evaluator_versions: LatestCodeEvaluatorVersionDataLoader
     project_session_annotation_fields: TableFieldsDataLoader
     project_session_fields: TableFieldsDataLoader
     record_counts: RecordCountDataLoader
+    sandbox_configs_by_provider: SandboxConfigsByProviderDataLoader
+    sandbox_provider: SandboxProviderDataLoader
     secret_fields: TableFieldsDataLoader
     secrets: SecretsDataLoader
     session_annotations_by_session: SessionAnnotationsBySessionDataLoader
@@ -246,6 +259,7 @@ class Context(BaseContext):
     cache_for_dataloaders: Optional[CacheForDataLoaders]
     span_cost_calculator: SpanCostCalculator
     experiment_runner: ExperimentRunner
+    sandbox_session_manager: SandboxSessionManager
     encrypt: Callable[[bytes], bytes]
     decrypt: Callable[[bytes], bytes]
     last_updated_at: CanGetLastUpdatedAt = _NoOp()
@@ -254,11 +268,11 @@ class Context(BaseContext):
     read_only: bool = False
     locked: bool = False
     auth_enabled: bool = False
-    secret: Optional[Secret] = None
+    secret: Optional[SecretStr] = None
     token_store: Optional[TokenStore] = None
     email_sender: Optional[EmailSender] = None
 
-    def get_secret(self) -> Secret:
+    def get_secret(self) -> SecretStr:
         """A type-safe way to get the application secret. Throws an error if the secret is not set.
 
         Returns:
@@ -287,7 +301,7 @@ class Context(BaseContext):
             raise ValueError("no response is set")
         return response
 
-    async def is_valid_password(self, password: Secret, user: models.User) -> bool:
+    async def is_valid_password(self, password: SecretStr, user: models.User) -> bool:
         return (
             (hash_ := user.password_hash) is not None
             and (salt := user.password_salt) is not None
@@ -295,7 +309,7 @@ class Context(BaseContext):
         )
 
     @staticmethod
-    async def hash_password(password: Secret, salt: bytes) -> bytes:
+    async def hash_password(password: SecretStr, salt: bytes) -> bytes:
         compute = partial(compute_password_hash, password=password, salt=salt)
         return await get_running_loop().run_in_executor(None, compute)
 

@@ -25,9 +25,9 @@ export class ErrorBoundary extends Component<
     return { hasError: true, error };
   }
 
-  componentDidCatch(_error: unknown, _errorInfo: unknown) {
-    // You can also log the error to an error reporting service
-    //   logErrorToMyService(error, errorInfo);
+  componentDidCatch(error: unknown, errorInfo: unknown) {
+    // eslint-disable-next-line no-console
+    console.error("ErrorBoundary caught error:", error, errorInfo);
   }
 
   render() {

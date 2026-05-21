@@ -344,6 +344,24 @@ class TestTracer:
 
         assert len(tracer._self_exporter.get_finished_spans()) == 1  # buffer should not be cleared
 
+    def test_get_db_traces_decodes_json_string_attributes(self, tracer: Tracer) -> None:
+        # `metadata` is a JSON string per OpenInference convention; get_db_traces decodes it.
+        with tracer.start_as_current_span(
+            "span",
+            attributes={
+                OPENINFERENCE_SPAN_KIND: "TOOL",
+                SpanAttributes.METADATA: '{"backend_type": "DenoSandboxBackend", "timeout": 300}',
+            },
+        ):
+            pass
+
+        db_traces = tracer.get_db_traces(project_id=1)
+        (db_span,) = db_traces[0].spans
+        assert db_span.attributes["metadata"] == {
+            "backend_type": "DenoSandboxBackend",
+            "timeout": 300,
+        }
+
     def test_clear_removes_captured_spans(self, tracer: Tracer) -> None:
         with tracer.start_as_current_span(
             "span1",

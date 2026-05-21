@@ -39,6 +39,14 @@ CREATE UNIQUE INDEX ix_generative_models_name_is_built_in ON public.generative_m
     USING btree (name, is_built_in) WHERE (deleted_at IS NULL);
 
 
+-- Table: languages
+-- ----------------
+CREATE TABLE public.languages (
+    name VARCHAR NOT NULL,
+    CONSTRAINT pk_languages PRIMARY KEY (name)
+);
+
+
 -- Table: project_trace_retention_policies
 -- ---------------------------------------
 CREATE TABLE public.project_trace_retention_policies (
@@ -715,21 +723,6 @@ CREATE TABLE public.builtin_evaluators (
 );
 
 
--- Table: code_evaluators
--- ----------------------
-CREATE TABLE public.code_evaluators (
-    id BIGINT NOT NULL,
-    kind VARCHAR NOT NULL DEFAULT 'CODE'::character varying,
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-    CONSTRAINT pk_code_evaluators PRIMARY KEY (id),
-    CHECK (((kind)::text = 'CODE'::text)),
-    CONSTRAINT fk_code_evaluators_kind_evaluators FOREIGN KEY
-        (kind, id)
-        REFERENCES public.evaluators (kind, id)
-        ON DELETE CASCADE
-);
-
-
 -- Table: dataset_evaluators
 -- -------------------------
 CREATE TABLE public.dataset_evaluators (
@@ -1384,6 +1377,125 @@ CREATE INDEX ix_access_tokens_expires_at ON public.access_tokens
 CREATE UNIQUE INDEX ix_access_tokens_refresh_token_id ON public.access_tokens
     USING btree (refresh_token_id);
 CREATE INDEX ix_access_tokens_user_id ON public.access_tokens
+    USING btree (user_id);
+
+
+-- Table: sandbox_providers
+-- ------------------------
+CREATE TABLE public.sandbox_providers (
+    backend_type VARCHAR NOT NULL,
+    enabled BOOLEAN NOT NULL,
+    config JSONB NOT NULL DEFAULT '{}'::jsonb,
+    user_id BIGINT,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_sandbox_providers PRIMARY KEY (backend_type),
+    CONSTRAINT fk_sandbox_providers_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE SET NULL
+);
+
+CREATE INDEX ix_sandbox_providers_user_id ON public.sandbox_providers
+    USING btree (user_id);
+
+
+-- Table: sandbox_configs
+-- ----------------------
+CREATE TABLE public.sandbox_configs (
+    id bigserial NOT NULL,
+    backend_type VARCHAR NOT NULL,
+    language VARCHAR NOT NULL,
+    name VARCHAR NOT NULL,
+    description VARCHAR,
+    config JSONB NOT NULL DEFAULT '{}'::jsonb,
+    timeout INTEGER NOT NULL,
+    enabled BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    user_id BIGINT,
+    CONSTRAINT pk_sandbox_configs PRIMARY KEY (id),
+    CONSTRAINT uq_sandbox_configs_backend_type_name
+        UNIQUE (backend_type, name),
+    CONSTRAINT uq_sandbox_configs_language_id
+        UNIQUE (language, id),
+    CONSTRAINT fk_sandbox_configs_backend_type_sandbox_providers
+        FOREIGN KEY
+        (backend_type)
+        REFERENCES public.sandbox_providers (backend_type)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_sandbox_configs_language_languages FOREIGN KEY
+        (language)
+        REFERENCES public.languages (name)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_sandbox_configs_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE SET NULL
+);
+
+CREATE INDEX ix_sandbox_configs_user_id ON public.sandbox_configs
+    USING btree (user_id);
+
+
+-- Table: code_evaluators
+-- ----------------------
+CREATE TABLE public.code_evaluators (
+    id BIGINT NOT NULL,
+    kind VARCHAR NOT NULL DEFAULT 'CODE'::character varying,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    language VARCHAR NOT NULL,
+    input_mapping JSONB NOT NULL DEFAULT '{"path_mapping": {}, "literal_mapping": {}}',
+    output_configs JSONB NOT NULL DEFAULT '[]'::jsonb,
+    sandbox_config_id BIGINT,
+    CONSTRAINT pk_code_evaluators PRIMARY KEY (id),
+    CHECK (((kind)::text = 'CODE'::text)),
+    CONSTRAINT fk_code_evaluators_kind_evaluators FOREIGN KEY
+        (kind, id)
+        REFERENCES public.evaluators (kind, id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_code_evaluators_language_languages FOREIGN KEY
+        (language)
+        REFERENCES public.languages (name)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_code_evaluators_sandbox_config_id_sandbox_configs
+        FOREIGN KEY
+        (sandbox_config_id)
+        REFERENCES public.sandbox_configs (id)
+        ON DELETE SET NULL,
+    CONSTRAINT fk_code_evaluators_sandbox_config_language FOREIGN KEY
+        (sandbox_config_id, language)
+        REFERENCES public.sandbox_configs (id, language)
+);
+
+CREATE INDEX ix_code_evaluators_language ON public.code_evaluators
+    USING btree (language);
+CREATE INDEX ix_code_evaluators_sandbox_config_id ON public.code_evaluators
+    USING btree (sandbox_config_id);
+
+
+-- Table: code_evaluator_code_versions
+-- -----------------------------------
+CREATE TABLE public.code_evaluator_code_versions (
+    id bigserial NOT NULL,
+    code_evaluator_id BIGINT NOT NULL,
+    user_id BIGINT,
+    source_code VARCHAR NOT NULL DEFAULT ''::character varying,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+    CONSTRAINT pk_code_evaluator_code_versions PRIMARY KEY (id),
+    CONSTRAINT fk_code_evaluator_code_versions_code_evaluator_id_code__3f57
+        FOREIGN KEY
+        (code_evaluator_id)
+        REFERENCES public.code_evaluators (id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_code_evaluator_code_versions_user_id_users FOREIGN KEY
+        (user_id)
+        REFERENCES public.users (id)
+        ON DELETE SET NULL
+);
+
+CREATE INDEX ix_code_evaluator_code_versions_code_evaluator_id_id ON public.code_evaluator_code_versions
+    USING btree (code_evaluator_id, id);
+CREATE INDEX ix_code_evaluator_code_versions_user_id ON public.code_evaluator_code_versions
     USING btree (user_id);
 
 

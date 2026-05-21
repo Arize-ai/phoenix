@@ -1,6 +1,9 @@
+import ast
+import asyncio
 import json
 import logging
 import re
+import traceback as _traceback
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -14,16 +17,20 @@ from openinference.semconv.trace import (
 )
 from opentelemetry.context import Context
 from opentelemetry.trace import NoOpTracer, Status, StatusCode, Tracer, format_trace_id
+from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import with_polymorphic
+from strawberry.relay import GlobalID
 from typing_extensions import NotRequired, TypedDict, assert_never
 
 from phoenix.db import models
+from phoenix.db.helpers import latest_code_evaluator_versions_by_evaluator_id
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
     ContinuousOutputConfig,
+    FreeformOutputConfig,
     OptimizationDirection,
     OutputConfigType,
 )
@@ -44,6 +51,7 @@ from phoenix.server.api.helpers.playground_clients import (
     get_playground_client,
 )
 from phoenix.server.api.helpers.prompts.template_helpers import get_template_formatter
+from phoenix.server.api.helpers.sandbox_redaction import SandboxSecretMasker
 from phoenix.server.api.input_types.GenerativeCredentialInput import (
     GenerativeCredentialInput,
 )
@@ -53,8 +61,50 @@ from phoenix.server.api.input_types.PromptVersionInput import (
 )
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import ToolCallChunk
+from phoenix.server.sandbox import (  # noqa: E402
+    MissingSecretError,
+    SecretsContext,
+    build_sandbox_backend,
+)
+from phoenix.server.sandbox.session_manager import (
+    SandboxSessionManager,
+    SessionInvalidated,
+    SessionLimitExceeded,
+)
+from phoenix.server.sandbox.types import ExecutionResult, SandboxBackend, UnsupportedOperation
 
 logger = logging.getLogger(__name__)
+
+
+def _mask_attrs(
+    attrs: dict[str, Any],
+    masker: SandboxSecretMasker,
+) -> dict[str, Any]:
+    return {k: masker.mask(v) if isinstance(v, str) else v for k, v in attrs.items()}
+
+
+def _set_masked_status(
+    span: Any,
+    status_code: StatusCode,
+    description: str,
+    masker: SandboxSecretMasker,
+) -> None:
+    span.set_status(Status(status_code, masker.mask(description)))
+
+
+def _record_masked_exception(
+    span: Any,
+    exc: BaseException,
+    masker: SandboxSecretMasker,
+) -> None:
+    span.add_event(
+        "exception",
+        {
+            "exception.type": type(exc).__name__,
+            "exception.message": masker.mask(str(exc)),
+            "exception.stacktrace": masker.mask(_traceback.format_exc()),
+        },
+    )
 
 
 ToolCallId: TypeAlias = str
@@ -690,7 +740,9 @@ async def get_evaluators(
     dataset_evaluator_ids: Sequence[int],
     session: AsyncSession,
     decrypt: Callable[[bytes], bytes],
+    experiment_id: int,
     credentials: Sequence[GenerativeCredentialInput] | None = None,
+    sandbox_session_manager: SandboxSessionManager,
 ) -> list[BaseEvaluator]:
     """
     Get all evaluators for the given DatasetEvaluator row IDs.
@@ -702,6 +754,11 @@ async def get_evaluators(
     Multiple DatasetEvaluators can reference the same underlying evaluator (e.g., two
     "Contains" evaluators with different names), and this function preserves that
     multiplicity by returning separate evaluator instances for each.
+
+    ``experiment_id`` partitions the sandbox session key for code evaluators
+    so two concurrent experiments using the same evaluator never converge on
+    the same provider sandbox. Intra-experiment reuse still amortizes the
+    sandbox warmup across all runs of the same experiment.
     """
     if not dataset_evaluator_ids:
         return []
@@ -729,9 +786,12 @@ async def get_evaluators(
             raise NotFound(f"DatasetEvaluator with ID '{de_id}' not found")
 
     llm_orm_by_id: dict[int, models.LLMEvaluator] = {}
+    code_orm_by_id: dict[int, models.CodeEvaluator] = {}
     for _, ev in dataset_evaluators_result:
         if isinstance(ev, models.LLMEvaluator):
             llm_orm_by_id[ev.id] = ev
+        elif isinstance(ev, models.CodeEvaluator):
+            code_orm_by_id[ev.id] = ev
 
     llm_evaluators_by_id: dict[int, LLMEvaluator] = {}
     if llm_orm_by_id:
@@ -744,6 +804,119 @@ async def get_evaluators(
         )
         for llm_evaluator_orm, llm_evaluator in zip(llm_evaluator_orms, llm_evaluators_list):
             llm_evaluators_by_id[llm_evaluator_orm.id] = llm_evaluator
+
+    code_evaluators_by_id: dict[int, CodeEvaluatorRunner] = {}
+    code_evaluator_languages_by_id: dict[int, str] = {}
+    if code_orm_by_id:
+        code_rows = [code_orm_by_id[evaluator_id] for evaluator_id in sorted(code_orm_by_id)]
+        latest_versions = await latest_code_evaluator_versions_by_evaluator_id(
+            list(code_orm_by_id), session
+        )
+        tip_sandbox_config_ids = {
+            code_row.sandbox_config_id
+            for code_row in code_rows
+            if code_row.sandbox_config_id is not None
+        }
+        sandbox_by_config_id: dict[int, tuple[models.SandboxConfig, models.SandboxProvider]] = {}
+        if tip_sandbox_config_ids:
+            sandbox_rows = await session.execute(
+                select(models.SandboxConfig, models.SandboxProvider)
+                .join(
+                    models.SandboxProvider,
+                    models.SandboxProvider.backend_type == models.SandboxConfig.backend_type,
+                )
+                .where(models.SandboxConfig.id.in_(tip_sandbox_config_ids))
+            )
+            sandbox_by_config_id = {
+                sandbox_config.id: (sandbox_config, sandbox_provider)
+                for sandbox_config, sandbox_provider in sandbox_rows
+            }
+        backend_by_sandbox_key: dict[tuple[str, int], Optional[SandboxBackend]] = {}
+        evaluator_base_by_id = {
+            evaluator.id: evaluator for _, evaluator in dataset_evaluators_by_id.values()
+        }
+
+        for code_row in code_rows:
+            code_version = latest_versions.get(code_row.id)
+            if code_version is None:
+                continue
+            evaluator_language = code_row.language
+            code_evaluator_languages_by_id[code_row.id] = evaluator_language
+
+            backend = None
+            language = evaluator_language
+            sandbox_timeout: Optional[int] = None
+            tip_sandbox_config_id = code_row.sandbox_config_id
+            if tip_sandbox_config_id is not None:
+                sandbox_pair = sandbox_by_config_id.get(tip_sandbox_config_id)
+                if sandbox_pair is None:
+                    raise BadRequest(f"SandboxConfig not found: {tip_sandbox_config_id}")
+                live_sandbox_config, live_sandbox_provider = sandbox_pair
+                if not live_sandbox_config.enabled:
+                    raise BadRequest(
+                        (
+                            f"Sandbox configuration '{live_sandbox_config.name}' is disabled. "
+                            "Enable it before testing this evaluator."
+                        )
+                    )
+                if not live_sandbox_provider.enabled:
+                    raise BadRequest(
+                        (
+                            f"Sandbox provider '{live_sandbox_provider.backend_type}' is disabled. "
+                            "Enable it before testing this evaluator."
+                        )
+                    )
+                sandbox_timeout = live_sandbox_config.timeout
+                sandbox_key = (live_sandbox_provider.backend_type, live_sandbox_config.id)
+                if sandbox_key not in backend_by_sandbox_key:
+                    try:
+                        backend_by_sandbox_key[sandbox_key] = await build_sandbox_backend(
+                            live_sandbox_config,
+                            secrets=SecretsContext(session=session, decrypt=decrypt),
+                        )
+                    except (
+                        MissingSecretError,
+                        UnsupportedOperation,
+                        PydanticValidationError,
+                        ValueError,
+                    ) as exc:
+                        raise BadRequest(str(exc))
+                backend = backend_by_sandbox_key[sandbox_key]
+
+            evaluator_base = evaluator_base_by_id.get(code_row.id)
+            eval_name = evaluator_base.name.root if evaluator_base else str(code_row.id)
+            eval_description = evaluator_base.description if evaluator_base else None
+
+            if backend is not None:
+                output_cfgs: list[OutputConfigType] = [
+                    c
+                    for c in code_row.output_configs
+                    if isinstance(
+                        c, (CategoricalOutputConfig, ContinuousOutputConfig, FreeformOutputConfig)
+                    )
+                ]
+                runner = CodeEvaluatorRunner(
+                    name=eval_name,
+                    description=eval_description,
+                    source_code=code_version.source_code,
+                    stored_output_configs=output_cfgs,
+                    sandbox_backend=backend,
+                    language=language,
+                    timeout=sandbox_timeout,
+                    evaluator_version_id=str(
+                        GlobalID("CodeEvaluatorVersion", str(code_version.id))
+                    ),
+                    # Partition by evaluator × experiment × replica so
+                    # concurrent runs never converge on the same provider
+                    # sandbox while intra-experiment reuse still amortizes.
+                    session_key=(
+                        f"evaluator:{code_row.id}"
+                        f":exp:{experiment_id}"
+                        f":{sandbox_session_manager.replica_id}"
+                    ),
+                    sandbox_session_manager=sandbox_session_manager,
+                )
+                code_evaluators_by_id[code_row.id] = runner
 
     evaluators: list[BaseEvaluator] = []
     for de_id in dataset_evaluator_ids:
@@ -758,6 +931,17 @@ async def get_evaluators(
             if builtin_evaluator_cls is None:
                 raise NotFound(f"Built-in evaluator with key '{ev.key}' not found in registry")
             evaluators.append(builtin_evaluator_cls())
+        elif isinstance(ev, models.CodeEvaluator):
+            code_runner = code_evaluators_by_id.get(ev.id)
+            if code_runner is None:
+                ev_name = ev.name.root if ev.name else str(ev.id)
+                evaluator_lang = code_evaluator_languages_by_id.get(ev.id, "")
+                lang_hint = f" for language '{evaluator_lang}'" if evaluator_lang else ""
+                raise NotFound(
+                    f"Code evaluator '{ev_name}' could not be resolved{lang_hint}. "
+                    "Please configure a sandbox provider at /settings/sandboxes."
+                )
+            evaluators.append(code_runner)
         else:
             raise BadRequest(
                 f"DatasetEvaluator '{de_id}' references evaluator with unsupported kind: {ev.kind}"
@@ -2192,3 +2376,706 @@ def _get_template_literal_mapping_attributes(*, literal_mapping: dict[str, str])
 
 def _get_template_variables_attributes(*, variables: dict[str, Any]) -> dict[str, Any]:
     return {TEMPLATE_VARIABLES: json.dumps(variables)}
+
+
+def _make_object_input_schema(
+    parameter_names: Sequence[str],
+    required_names: Sequence[str],
+) -> dict[str, Any]:
+    return {
+        "type": "object",
+        "properties": {name: {} for name in parameter_names},
+        "required": list(required_names),
+    }
+
+
+_SUPPORTED_CODE_EVALUATOR_INPUT_NAMES = ("output", "reference", "input", "metadata")
+
+
+def _validate_code_evaluator_input_names(
+    parameter_names: Sequence[str],
+    *,
+    language: str,
+) -> Optional[str]:
+    unsupported_names = [
+        name for name in parameter_names if name not in _SUPPORTED_CODE_EVALUATOR_INPUT_NAMES
+    ]
+    if not unsupported_names:
+        return None
+    supported_names = ", ".join(f"`{name}`" for name in _SUPPORTED_CODE_EVALUATOR_INPUT_NAMES)
+    invalid_names = ", ".join(f"`{name}`" for name in unsupported_names)
+    return (
+        f"Could not infer the {language} evaluator inputs because the `evaluate(...)` signature "
+        f"uses unsupported parameter names: {invalid_names}. Supported parameter names are "
+        f"{supported_names}."
+    )
+
+
+def _infer_python_evaluate_input_schema(source_code: str) -> tuple[dict[str, Any], Optional[str]]:
+    try:
+        module = ast.parse(source_code)
+    except SyntaxError as exc:
+        return (
+            {},
+            (
+                "Could not parse the Python evaluator signature. "
+                "Define a top-level function like "
+                "`def evaluate(output, reference=None, input=None, metadata=None):`. "
+                f"Parser error: {exc.msg}"
+            ),
+        )
+
+    evaluate_function = next(
+        (
+            node
+            for node in module.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "evaluate"
+        ),
+        None,
+    )
+    if evaluate_function is None:
+        return (
+            {},
+            (
+                "Could not infer the Python evaluator inputs because no top-level "
+                "`evaluate(...)` function was found. Define a function like "
+                "`def evaluate(output, reference=None, input=None, metadata=None):`."
+            ),
+        )
+
+    args = evaluate_function.args
+    positional_args = [*args.posonlyargs, *args.args]
+    positional_required_count = len(positional_args) - len(args.defaults)
+    required_names = [arg.arg for arg in positional_args[:positional_required_count]]
+    required_names.extend(
+        arg.arg for arg, default in zip(args.kwonlyargs, args.kw_defaults) if default is None
+    )
+
+    parameter_names = [arg.arg for arg in positional_args]
+    parameter_names.extend(arg.arg for arg in args.kwonlyargs)
+
+    invalid_name_error = _validate_code_evaluator_input_names(
+        parameter_names,
+        language="Python",
+    )
+    if invalid_name_error is not None:
+        return ({}, invalid_name_error)
+
+    return (_make_object_input_schema(parameter_names, required_names), None)
+
+
+_TYPESCRIPT_FUNCTION_SIGNATURE_RE = re.compile(r"function\s+evaluate\s*\(([^)]*)\)")
+_TYPESCRIPT_ARROW_SIGNATURE_RE = re.compile(r"(?:const|let|var)\s+evaluate\s*=\s*\(([^)]*)\)\s*=>")
+
+_PHOENIX_RESULT_BEGIN = "===PHOENIX_RESULT_BEGIN==="
+_PHOENIX_RESULT_END = "===PHOENIX_RESULT_END==="
+_PHOENIX_RESULT_BEGIN_RE = re.compile(
+    r"^" + re.escape(_PHOENIX_RESULT_BEGIN) + r"\s*$", re.MULTILINE
+)
+_PHOENIX_RESULT_END_RE = re.compile(r"^" + re.escape(_PHOENIX_RESULT_END) + r"\s*$", re.MULTILINE)
+
+_TYPESCRIPT_RESULT_BEGIN = _PHOENIX_RESULT_BEGIN
+_TYPESCRIPT_RESULT_END = _PHOENIX_RESULT_END
+
+
+def _extract_fenced_result(stdout: str) -> tuple[Optional[str], str]:
+    """Extract the last complete fenced region from ``stdout``.
+
+    Returns ``(fenced_text, non_fenced_text)`` where ``fenced_text`` is the
+    content between the last complete BEGIN/END pair (or ``None``).
+    """
+    begin_matches = list(_PHOENIX_RESULT_BEGIN_RE.finditer(stdout))
+    end_matches = list(_PHOENIX_RESULT_END_RE.finditer(stdout))
+    if not begin_matches or not end_matches:
+        return None, stdout
+
+    pairs: list[tuple[re.Match[str], re.Match[str]]] = []
+    end_idx = 0
+    for begin in begin_matches:
+        while end_idx < len(end_matches) and end_matches[end_idx].start() <= begin.end():
+            end_idx += 1
+        if end_idx >= len(end_matches):
+            break
+        pairs.append((begin, end_matches[end_idx]))
+        end_idx += 1
+
+    if not pairs:
+        return None, stdout
+
+    last_begin, last_end = pairs[-1]
+    fenced = stdout[last_begin.end() : last_end.start()].strip("\r\n")
+    pre = stdout[: last_begin.start()].rstrip("\r\n")
+    post = stdout[last_end.end() :].lstrip("\r\n")
+    non_fenced = ("\n".join(p for p in (pre, post) if p)).rstrip()
+    return fenced, non_fenced
+
+
+def _extract_typescript_object_parameter_keys(params: str) -> tuple[list[str], list[str]]:
+    destructured = re.match(r"^\{([^}]*)\}", params.strip())
+    if destructured is None:
+        return ([], [])
+
+    parameter_names: list[str] = []
+    for raw_part in destructured.group(1).split(","):
+        part = raw_part.strip()
+        if not part:
+            continue
+        part = part.split(":", 1)[0].strip()
+        if not part:
+            continue
+        name = part.split("=", 1)[0].rstrip("?").strip()
+        if not name:
+            continue
+        parameter_names.append(name)
+    return (parameter_names, [])
+
+
+def _infer_typescript_evaluate_input_schema(
+    source_code: str,
+) -> tuple[dict[str, Any], Optional[str]]:
+    signature = _TYPESCRIPT_FUNCTION_SIGNATURE_RE.search(
+        source_code
+    ) or _TYPESCRIPT_ARROW_SIGNATURE_RE.search(source_code)
+    if signature is None:
+        return (
+            {},
+            (
+                "Could not infer the TypeScript evaluator inputs because no supported "
+                "`evaluate(...)` signature was found. Define `evaluate` as either "
+                "`function evaluate({ output, reference, input, metadata }: "
+                "EvaluatorParams) { ... }` or `const evaluate = ({ output, "
+                "reference, input, metadata }: EvaluatorParams) => { ... }`."
+            ),
+        )
+
+    parameter_names, required_names = _extract_typescript_object_parameter_keys(signature.group(1))
+    if not parameter_names:
+        return (
+            {},
+            (
+                "Could not infer the TypeScript evaluator inputs from the `evaluate(...)` "
+                "signature. Use a destructured object parameter like "
+                "`function evaluate({ output, reference, input, metadata }: "
+                "EvaluatorParams) { ... }`."
+            ),
+        )
+
+    invalid_name_error = _validate_code_evaluator_input_names(
+        parameter_names,
+        language="TypeScript",
+    )
+    if invalid_name_error is not None:
+        return ({}, invalid_name_error)
+
+    return (_make_object_input_schema(parameter_names, required_names), None)
+
+
+class CodeEvaluatorRunner(BaseEvaluator):
+    """Evaluator that executes user-provided source code in a sandbox."""
+
+    def __init__(
+        self,
+        name: str,
+        description: Optional[str],
+        source_code: str,
+        stored_output_configs: Sequence[OutputConfigType],
+        sandbox_backend: "SandboxBackend",
+        language: str,
+        sandbox_session_manager: Optional[SandboxSessionManager],
+        timeout: Optional[int] = None,
+        evaluator_version_id: Optional[str] = None,
+        session_key: Optional[str] = None,
+    ) -> None:
+        self._name = name
+        self._description = description
+        self._source_code = source_code
+        self._stored_output_configs = list(stored_output_configs)
+        self._sandbox_backend: SandboxBackend = sandbox_backend
+        self._language = language.upper()
+        self._timeout = timeout
+        self._evaluator_version_id = evaluator_version_id
+        # ``session_key`` is required on the managed path; the ephemeral
+        # path does not consult it.
+        if sandbox_session_manager is not None and session_key is None:
+            raise ValueError(
+                "CodeEvaluatorRunner: session_key is required when "
+                "sandbox_session_manager is supplied."
+            )
+        self._session_key = session_key
+        self._sandbox_session_manager = sandbox_session_manager
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def description(self) -> Optional[str]:
+        return self._description
+
+    @property
+    def output_configs(self) -> Sequence[OutputConfigType]:
+        return self._stored_output_configs
+
+    @property
+    def input_schema(self) -> dict[str, Any]:
+        schema, _ = self._infer_input_schema()
+        return schema
+
+    def _infer_input_schema(self) -> tuple[dict[str, Any], Optional[str]]:
+        if self._language == "PYTHON":
+            return _infer_python_evaluate_input_schema(self._source_code)
+        if self._language == "TYPESCRIPT":
+            return _infer_typescript_evaluate_input_schema(self._source_code)
+        return ({}, None)
+
+    def _build_python_harness(self, mapped_inputs: dict[str, Any]) -> str:
+        return (
+            f"{self._source_code}\n\n"
+            f"import json as _json\n"
+            f"_inputs = {mapped_inputs!r}\n"
+            f"_result = evaluate(**_inputs)\n"
+            f"print('{_PHOENIX_RESULT_BEGIN}')\n"
+            f"print(_json.dumps(_result))\n"
+            f"print('{_PHOENIX_RESULT_END}')\n"
+        )
+
+    def _build_typescript_harness(self, mapped_inputs: dict[str, Any]) -> str:
+        inputs_json = json.dumps(mapped_inputs)
+        return (
+            f"{self._source_code}\n\n"
+            f"const _inputs = {inputs_json};\n"
+            f"const _run = async () => {{\n"
+            f"  const _result = await evaluate(_inputs);\n"
+            f"  console.log('{_PHOENIX_RESULT_BEGIN}');\n"
+            f"  console.log(JSON.stringify(_result));\n"
+            f"  console.log('{_PHOENIX_RESULT_END}');\n"
+            f"}};\n"
+            f"await _run();\n"
+        )
+
+    def _make_error_result(
+        self,
+        name: str,
+        error: str,
+        start_time: datetime,
+        trace_id: Optional[str] = None,
+    ) -> EvaluationResult:
+        return EvaluationResult(
+            name=name,
+            annotator_kind="CODE",
+            label=None,
+            score=None,
+            explanation=None,
+            metadata={},
+            error=error,
+            trace_id=trace_id,
+            start_time=start_time,
+            end_time=datetime.now(timezone.utc),
+        )
+
+    async def evaluate(
+        self,
+        *,
+        context: dict[str, Any],
+        input_mapping: InputMapping,
+        name: str,
+        output_configs: Sequence[OutputConfigType],
+        tracer: Optional[Tracer] = None,
+    ) -> list[EvaluationResult]:
+        from phoenix.server.api.coerce_output import _coerce_output
+
+        start_time = datetime.now(timezone.utc)
+        tracer_ = tracer or NoOpTracer()
+        masker = SandboxSecretMasker(self._sandbox_backend.secret_values)
+
+        with tracer_.start_as_current_span(
+            f"Evaluator: {name}",
+            attributes=_mask_attrs(
+                {
+                    **oi.get_span_kind_attributes("evaluator"),
+                    **oi.get_input_attributes(context),
+                },
+                masker,
+            ),
+            context=Context(),
+        ) as evaluator_span:
+            trace_id = (
+                format_trace_id(evaluator_span.get_span_context().trace_id) if tracer else None
+            )
+
+            input_schema, inference_error = self._infer_input_schema()
+            if inference_error is not None:
+                evaluator_span.set_status(Status(StatusCode.ERROR, inference_error))
+                return [
+                    self._make_error_result(name, inference_error, start_time, trace_id=trace_id)
+                    for _ in (output_configs or [None])  # type: ignore[list-item]
+                ]
+
+            # OTel auto-record is disabled so explicit masked exception
+            # records below are the only thing persisted on these spans.
+            with tracer_.start_as_current_span(
+                "Input Mapping",
+                attributes=_mask_attrs(
+                    {
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(
+                            {
+                                "input_mapping": {
+                                    "path_mapping": input_mapping.path_mapping or {},
+                                    "literal_mapping": input_mapping.literal_mapping or {},
+                                },
+                                "template_variables": context,
+                            }
+                        ),
+                    },
+                    masker,
+                ),
+                record_exception=False,
+                set_status_on_exception=False,
+            ) as input_mapping_span:
+                try:
+                    mapped_inputs = apply_input_mapping(
+                        input_schema=input_schema,
+                        input_mapping=input_mapping,
+                        context=context,
+                    )
+                    input_mapping_span.set_attributes(
+                        _mask_attrs(oi.get_output_attributes(mapped_inputs), masker)
+                    )
+                    input_mapping_span.set_status(Status(StatusCode.OK))
+                except Exception as exc:
+                    err = f"Input mapping failed: {exc}"
+                    _record_masked_exception(input_mapping_span, exc, masker)
+                    _set_masked_status(input_mapping_span, StatusCode.ERROR, err, masker)
+                    _record_masked_exception(evaluator_span, exc, masker)
+                    _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
+                    return [
+                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        for _ in (output_configs or [None])  # type: ignore[list-item]
+                    ]
+
+            if self._language == "PYTHON":
+                code = self._build_python_harness(mapped_inputs)
+            else:
+                code = self._build_typescript_harness(mapped_inputs)
+
+            session_key = self._session_key or ""
+
+            sandbox_metadata: dict[str, Any] = {
+                "backend_type": type(self._sandbox_backend).__name__,
+                "language": self._language,
+            }
+            if self._timeout is not None:
+                sandbox_metadata["timeout"] = int(self._timeout)
+            if self._evaluator_version_id is not None:
+                sandbox_metadata["code_evaluator_version_id"] = self._evaluator_version_id
+
+            with tracer_.start_as_current_span(
+                f"Sandbox: {self._name}",
+                attributes=_mask_attrs(
+                    {
+                        **oi.get_span_kind_attributes("tool"),
+                        **oi.get_tool_attributes(
+                            name=self._name,
+                            description=self._description,
+                            parameters=input_schema,
+                        ),
+                        **oi.get_input_attributes(mapped_inputs),
+                    },
+                    masker,
+                ),
+                record_exception=False,
+                set_status_on_exception=False,
+            ) as sandbox_span:
+                try:
+                    if self._sandbox_session_manager is None:
+                        # Ephemeral path: backend.execute owns the sandbox
+                        # lifecycle (created and torn down inside the call).
+                        execution = await asyncio.wait_for(
+                            self._sandbox_backend.execute(
+                                code,
+                                session_key=session_key,
+                                timeout=self._timeout,
+                            ),
+                            timeout=self._timeout,
+                        )
+                    else:
+                        # Managed path: ``wait_for`` brackets acquire+execute
+                        # so the slow ``find_or_create_session`` leg also
+                        # respects the evaluator timeout. ``SessionInvalidated``
+                        # is transient (entry mid-drain) — wait once and retry.
+                        async def _managed_execute() -> ExecutionResult:
+                            assert self._sandbox_session_manager is not None
+                            manager = self._sandbox_session_manager
+                            try:
+                                async with manager.acquire(
+                                    self._sandbox_backend, session_key
+                                ) as session:
+                                    return await session.execute(code, timeout=self._timeout)
+                            except SessionInvalidated:
+                                await manager.wait_for_drain(session_key, self._sandbox_backend)
+                                async with manager.acquire(
+                                    self._sandbox_backend, session_key
+                                ) as session:
+                                    return await session.execute(code, timeout=self._timeout)
+
+                        execution = await asyncio.wait_for(
+                            _managed_execute(), timeout=self._timeout
+                        )
+                except SessionLimitExceeded as exc:
+                    err = SessionLimitExceeded.MESSAGE
+                    _record_masked_exception(sandbox_span, exc, masker)
+                    _set_masked_status(sandbox_span, StatusCode.ERROR, err, masker)
+                    _record_masked_exception(evaluator_span, exc, masker)
+                    _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
+                    return [
+                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        for _ in (output_configs or [None])  # type: ignore[list-item]
+                    ]
+                except SessionInvalidated as exc:
+                    err = SessionInvalidated.MESSAGE
+                    _record_masked_exception(sandbox_span, exc, masker)
+                    _set_masked_status(sandbox_span, StatusCode.ERROR, err, masker)
+                    _record_masked_exception(evaluator_span, exc, masker)
+                    _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
+                    return [
+                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        for _ in (output_configs or [None])  # type: ignore[list-item]
+                    ]
+                except asyncio.TimeoutError as exc:
+                    # Managed path: route teardown through the manager so
+                    # the tracked entry is dropped (acquire's finally only
+                    # decrements in_flight) and the task is awaited at
+                    # shutdown. Ephemeral path: backend.execute's async-with
+                    # already kills the sandbox on cancellation.
+                    if self._sandbox_session_manager is not None:
+                        self._sandbox_session_manager.schedule_eviction(
+                            session_key, self._sandbox_backend
+                        )
+                    execution = ExecutionResult(stdout="", stderr="", error="timeout")
+                    sandbox_span.set_attributes(
+                        _mask_attrs(
+                            oi.get_metadata_attributes(
+                                metadata={**sandbox_metadata, "error": "timeout"}
+                            ),
+                            masker,
+                        )
+                    )
+                    _record_masked_exception(sandbox_span, exc, masker)
+                    sandbox_span.set_status(Status(StatusCode.ERROR, "timeout"))
+                    _record_masked_exception(evaluator_span, exc, masker)
+                    evaluator_span.set_status(Status(StatusCode.ERROR, "timeout"))
+                    return [
+                        self._make_error_result(
+                            name, execution.error or "timeout", start_time, trace_id=trace_id
+                        )
+                        for _ in (output_configs or [None])  # type: ignore[list-item]
+                    ]
+                except UnsupportedOperation as exc:
+                    err = f"Sandbox backend does not support this operation: {exc}"
+                    sandbox_span.set_attributes(
+                        _mask_attrs(
+                            oi.get_metadata_attributes(metadata={**sandbox_metadata, "error": err}),
+                            masker,
+                        )
+                    )
+                    _record_masked_exception(sandbox_span, exc, masker)
+                    _set_masked_status(sandbox_span, StatusCode.ERROR, err, masker)
+                    _record_masked_exception(evaluator_span, exc, masker)
+                    _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
+                    return [
+                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        for _ in (output_configs or [None])  # type: ignore[list-item]
+                    ]
+                except Exception as exc:
+                    err = f"Sandbox execution failed: {exc}"
+                    sandbox_span.set_attributes(
+                        _mask_attrs(
+                            oi.get_metadata_attributes(metadata={**sandbox_metadata, "error": err}),
+                            masker,
+                        )
+                    )
+                    _record_masked_exception(sandbox_span, exc, masker)
+                    _set_masked_status(sandbox_span, StatusCode.ERROR, err, masker)
+                    _record_masked_exception(evaluator_span, exc, masker)
+                    _set_masked_status(evaluator_span, StatusCode.ERROR, err, masker)
+                    return [
+                        self._make_error_result(name, err, start_time, trace_id=trace_id)
+                        for _ in (output_configs or [None])  # type: ignore[list-item]
+                    ]
+
+                fenced_text, non_fenced_stdout = _extract_fenced_result(execution.stdout)
+
+                raw_value: Any = None
+                parse_error: Optional[str] = None
+                if not execution.error:
+                    if fenced_text is None:
+                        parse_error = "no result markers found"
+                    else:
+                        try:
+                            raw_value = json.loads(fenced_text)
+                        except json.JSONDecodeError as exc:
+                            parse_error = f"result JSON parse failed: {exc.msg}"
+
+                # Single OI metadata write — repeated writes overwrite, not merge.
+                merged_metadata = dict(sandbox_metadata)
+                if non_fenced_stdout:
+                    merged_metadata["stdout"] = non_fenced_stdout
+                if execution.stderr:
+                    merged_metadata["stderr"] = execution.stderr
+                if parse_error is not None:
+                    merged_metadata["parse_error"] = parse_error
+                if execution.error and not parse_error:
+                    merged_metadata["error"] = execution.error
+                sandbox_span.set_attributes(
+                    _mask_attrs(
+                        oi.get_metadata_attributes(metadata=merged_metadata),
+                        masker,
+                    )
+                )
+
+                if execution.error:
+                    _set_masked_status(sandbox_span, StatusCode.ERROR, execution.error, masker)
+                elif parse_error is not None:
+                    if fenced_text is not None:
+                        sandbox_span.set_attributes(
+                            _mask_attrs(
+                                oi.get_output_attributes(fenced_text, mime_type="text/plain"),
+                                masker,
+                            )
+                        )
+                    _set_masked_status(sandbox_span, StatusCode.ERROR, parse_error, masker)
+                else:
+                    sandbox_span.set_attributes(
+                        _mask_attrs(oi.get_output_attributes(raw_value), masker)
+                    )
+                    sandbox_span.set_status(Status(StatusCode.OK))
+
+            if execution.error:
+                _set_masked_status(evaluator_span, StatusCode.ERROR, execution.error, masker)
+                return [
+                    self._make_error_result(name, execution.error, start_time, trace_id=trace_id)
+                    for _ in (output_configs or [None])  # type: ignore[list-item]
+                ]
+
+            multi_output = len(output_configs) > 1
+
+            # Route per-config when raw_value is a dict covering every config.name.
+            routed = (
+                parse_error is None
+                and multi_output
+                and isinstance(raw_value, dict)
+                and all(c.name in raw_value for c in output_configs)
+            )
+            shared_explanation: Optional[str] = None
+            if routed and isinstance(raw_value, dict):
+                top_level_explanation = raw_value.get("explanation")
+                if isinstance(top_level_explanation, str):
+                    shared_explanation = top_level_explanation
+
+            results: list[EvaluationResult] = []
+            any_coerce_error = False
+            last_coerce_error: Optional[str] = None
+            parse_input: Any
+            if parse_error is None:
+                parse_input = raw_value
+            else:
+                parse_input = fenced_text if fenced_text is not None else ""
+            with tracer_.start_as_current_span(
+                "Parse Eval Result",
+                attributes=_mask_attrs(
+                    {
+                        **oi.get_span_kind_attributes("chain"),
+                        **oi.get_input_attributes(parse_input),
+                    },
+                    masker,
+                ),
+                record_exception=False,
+                set_status_on_exception=False,
+            ) as parse_span:
+                for config in output_configs:
+                    annotation_name = f"{name}.{config.name}" if multi_output else name
+                    if parse_error is not None:
+                        any_coerce_error = True
+                        last_coerce_error = parse_error
+                        results.append(
+                            self._make_error_result(
+                                annotation_name, parse_error, start_time, trace_id=trace_id
+                            )
+                        )
+                        continue
+                    coerce_value = (
+                        raw_value[config.name]
+                        if routed and isinstance(raw_value, dict)
+                        else raw_value
+                    )
+                    try:
+                        label, score, explanation = _coerce_output(
+                            coerce_value, config, language=self._language
+                        )
+                    except ValueError as exc:
+                        any_coerce_error = True
+                        last_coerce_error = str(exc)
+                        results.append(
+                            self._make_error_result(
+                                annotation_name, str(exc), start_time, trace_id=trace_id
+                            )
+                        )
+                        continue
+                    if explanation is None:
+                        explanation = shared_explanation
+                    results.append(
+                        EvaluationResult(
+                            name=annotation_name,
+                            annotator_kind="CODE",
+                            label=label,
+                            score=score,
+                            explanation=explanation,
+                            metadata={},
+                            error=None,
+                            trace_id=trace_id,
+                            start_time=start_time,
+                            end_time=datetime.now(timezone.utc),
+                        )
+                    )
+
+                parse_span.set_attributes(
+                    _mask_attrs(
+                        oi.get_output_attributes(
+                            {
+                                "results": [
+                                    {
+                                        "name": r["name"],
+                                        "label": r["label"],
+                                        "score": r["score"],
+                                        "explanation": r["explanation"],
+                                        "error": r["error"],
+                                    }
+                                    for r in results
+                                ]
+                            }
+                        ),
+                        masker,
+                    )
+                )
+                if any_coerce_error:
+                    _set_masked_status(
+                        parse_span, StatusCode.ERROR, last_coerce_error or "coerce failed", masker
+                    )
+                else:
+                    parse_span.set_status(Status(StatusCode.OK))
+
+            evaluator_span.set_attributes(
+                _mask_attrs(
+                    dict(oi.get_output_attributes(raw_value)),
+                    masker,
+                )
+            )
+            if any_coerce_error:
+                _set_masked_status(
+                    evaluator_span, StatusCode.ERROR, last_coerce_error or "coerce failed", masker
+                )
+            else:
+                evaluator_span.set_status(Status(StatusCode.OK))
+
+        return results

@@ -92,8 +92,10 @@ dev = [
   "azure-identity>=1.18.0",  # MSAL-backed in-memory token cache for ManagedIdentityCredential
   "beautifulsoup4",
   "boto3",
+  "daytona-sdk>=0.140.0",  # type-checking only; runtime is gated by the [daytona] extra
   "debugpy",
   "deepdiff==8.6.2",
+  "e2b-code-interpreter>=0.0.12",  # type-checking only; runtime is gated by the [e2b] extra
   "Faker>=30.1.0",
   "freezegun",
   "google-genai>=1.0.0",
@@ -103,6 +105,8 @@ dev = [
   "jsonpath-ng",
   "ldap3",
   "litellm>=1.83.14,<1.84",  # >=1.83.14 fixes CVE-2026-42208 (SQLi), MCP stdio RCE, SSTI, OIDC bypass, password hash exposure, privilege escalation; excludes 1.82.7-1.82.8 supply chain compromise; <1.84 caps the minor
+  "modal>=1.2.0",  # type-checking only; runtime is gated by the [modal] extra
+  "vercel>=0.5.8",  # type-checking only; runtime is gated by the [vercel] extra. 0.5.8 exposes `network_policy` on AsyncSandbox.create.
   "mypy==1.19.1",
   "mypy-boto3-bedrock-runtime",
   "nest-asyncio",  # for executor testing
@@ -175,6 +179,22 @@ dev = [
 [project.optional-dependencies]
 evals = []
 experimental = []
+wasm = [
+  "wasmtime>=15.0",
+]
+e2b = [
+  "e2b-code-interpreter>=0.0.12",
+]
+daytona = [
+  "daytona-sdk>=0.140.0",
+]
+vercel = [
+  "vercel>=0.5.8",  # 0.5.8 exposes `network_policy` on AsyncSandbox.create
+  "websockets>=14.0",
+]
+modal = [
+  "modal>=1.2.0",
+]
 pg = [
   "asyncpg",
 ]
@@ -208,6 +228,15 @@ container = [
   "uvloop; platform_system != 'Windows'",
   "aioboto3",
   "types-aiobotocore-bedrock-runtime>=3.6.0",
+  # Sandbox provider SDKs — bundled so the shipped container can use any
+  # configured provider without a rebuild. Each pin matches the matching
+  # single-provider extra above ([wasm], [e2b], [daytona], [vercel], [modal]).
+  "wasmtime>=15.0",
+  "e2b-code-interpreter>=0.0.12",
+  "daytona-sdk>=0.140.0",
+  "vercel>=0.5.8",
+  "websockets>=14.0",
+  "modal>=1.2.0",
 ]
 
 [project.urls]
@@ -316,8 +345,19 @@ module = [
   "google.*",
   "mistralai.*",
   "jsonpath_ng",
+  "wasmtime",
 ]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# e2b_code_interpreter and its e2b base ship without a top-level py.typed marker,
+# so opt mypy into following the untyped sources directly — preserves real
+# type-checking of SDK call sites in src/phoenix/server/sandbox/e2b_backend.py.
+module = [
+  "e2b_code_interpreter.*",
+  "e2b.*",
+]
+follow_untyped_imports = true
 
 [tool.basedpyright]
 # Resolve imports against the uv-managed environment and src-layout package root.

@@ -2,11 +2,12 @@ from itertools import chain
 from typing import Any, Iterable, Iterator, Optional, Union
 
 import strawberry
-from starlette.datastructures import Secret
+from pydantic import SecretStr
 from strawberry.extensions import SchemaExtension
 from strawberry.schema.config import StrawberryConfig
 from strawberry.types.base import StrawberryObjectDefinition, StrawberryType
 
+from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.exceptions import get_mask_errors_extension
 from phoenix.server.api.mutations import Mutation
 from phoenix.server.api.queries import Query
@@ -21,7 +22,7 @@ from phoenix.server.api.types.CronExpression import (
 from phoenix.server.api.types.Evaluator import (
     Evaluator,
 )
-from phoenix.server.api.types.Identifier import Identifier, identifier_scalar_definition
+from phoenix.server.api.types.Identifier import identifier_scalar_definition
 from phoenix.server.api.types.RedactedString import (
     RedactedString,
     redacted_string_scalar_definition,
@@ -44,7 +45,7 @@ def build_graphql_schema(
             scalar_map={
                 Identifier: identifier_scalar_definition,
                 CronExpression: cron_expression_scalar_definition,
-                Secret: secret_string_scalar_definition,
+                SecretStr: secret_string_scalar_definition,
                 RedactedString: redacted_string_scalar_definition,
             },
         ),

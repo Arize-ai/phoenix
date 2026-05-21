@@ -15,6 +15,7 @@ from openinference.semconv.trace import (
     ToolCallAttributes,
 )
 from opentelemetry.semconv.attributes.url_attributes import URL_FULL, URL_PATH
+from sqlalchemy import select
 from strawberry.scalars import JSON
 
 from phoenix.db import models
@@ -71,6 +72,7 @@ from phoenix.server.api.helpers.playground_clients import OpenAIStreamingClient
 from phoenix.server.api.input_types.PlaygroundEvaluatorInput import EvaluatorInputMappingInput
 from phoenix.server.daemons.generative_model_store import GenerativeModelStore
 from phoenix.server.daemons.span_cost_calculator import SpanCostCalculator
+from phoenix.server.sandbox.session_manager import SandboxSessionManager
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.attributes import flatten
 from phoenix.tracers import Tracer
@@ -3628,7 +3630,9 @@ class TestGetEvaluators:
                 dataset_evaluator_ids=input_ids,
                 session=session,
                 decrypt=lambda x: x,
+                experiment_id=0,
                 credentials=None,
+                sandbox_session_manager=SandboxSessionManager(),
             )
 
         assert len(evaluators) == 4
@@ -3654,7 +3658,9 @@ class TestGetEvaluators:
                     dataset_evaluator_ids=input_ids,
                     session=session,
                     decrypt=lambda x: x,
+                    experiment_id=0,
                     credentials=None,
+                    sandbox_session_manager=SandboxSessionManager(),
                 )
 
     async def test_returns_empty_list_for_empty_input(
@@ -3666,10 +3672,204 @@ class TestGetEvaluators:
                 dataset_evaluator_ids=[],
                 session=session,
                 decrypt=lambda x: x,
+                experiment_id=0,
                 credentials=None,
+                sandbox_session_manager=SandboxSessionManager(),
             )
 
         assert evaluators == []
+
+    async def test_code_evaluator_not_found_message_contains_name_and_settings_hint(
+        self,
+        db: Any,
+        seed_languages: None,
+    ) -> None:
+        async with db() as session:
+            dataset = models.Dataset(name="test-dataset-code-no-sandbox", metadata_={})
+            session.add(dataset)
+            await session.flush()
+
+            code_eval = models.CodeEvaluator(
+                name=Identifier("my-code-eval"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=[],
+                language="PYTHON",
+                sandbox_config_id=None,
+            )
+            session.add(code_eval)
+            await session.flush()
+            python_lang = await session.scalar(
+                select(models.Language).where(models.Language.name == "PYTHON")
+            )
+            if python_lang is None:
+                python_lang = models.Language(name="PYTHON")
+                session.add(python_lang)
+                await session.flush()
+            version = models.CodeEvaluatorVersion(
+                code_evaluator_id=code_eval.id,
+                source_code="def evaluate(output): return 1.0",
+            )
+            session.add(version)
+            await session.flush()
+
+            de_code = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=code_eval.id,
+                name=Identifier("my-code-eval"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                project=models.Project(name="code-eval-no-sandbox-project", description=""),
+            )
+            session.add(de_code)
+            await session.flush()
+
+            with pytest.raises(NotFound) as exc_info:
+                await get_evaluators(
+                    dataset_evaluator_ids=[de_code.id],
+                    session=session,
+                    decrypt=lambda x: x,
+                    experiment_id=0,
+                    credentials=None,
+                    sandbox_session_manager=SandboxSessionManager(),
+                )
+
+        assert "my-code-eval" in str(exc_info.value)
+        assert "/settings/sandboxes" in str(exc_info.value)
+
+    async def test_code_evaluator_disabled_sandbox_config_raises_bad_request(
+        self,
+        db: Any,
+        seed_sandbox_providers: None,
+    ) -> None:
+        async with db() as session:
+            provider = await session.scalar(
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
+            )
+            assert provider is not None
+            sandbox_config = models.SandboxConfig(
+                backend_type=provider.backend_type,
+                language="PYTHON",
+                name=Identifier("disabled-runtime-config"),
+                config={},
+                timeout=30,
+                enabled=False,
+            )
+            dataset = models.Dataset(name="test-disabled-runtime-config", metadata_={})
+            session.add_all([sandbox_config, dataset])
+            await session.flush()
+            code_eval = models.CodeEvaluator(
+                name=Identifier("disabled-runtime-eval"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=[],
+                language="PYTHON",
+                sandbox_config_id=sandbox_config.id,
+            )
+            session.add(code_eval)
+            await session.flush()
+            session.add(
+                models.CodeEvaluatorVersion(
+                    code_evaluator_id=code_eval.id,
+                    source_code="def evaluate(input): return {'score': 1.0}",
+                )
+            )
+            dataset_evaluator = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=code_eval.id,
+                name=Identifier("disabled-runtime-eval"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                project=models.Project(name="disabled-runtime-project", description=""),
+            )
+            session.add(dataset_evaluator)
+            await session.flush()
+
+            with pytest.raises(
+                BadRequest,
+                match="Sandbox configuration 'disabled-runtime-config' is disabled",
+            ):
+                await get_evaluators(
+                    dataset_evaluator_ids=[dataset_evaluator.id],
+                    session=session,
+                    decrypt=lambda x: x,
+                    experiment_id=0,
+                    credentials=None,
+                    sandbox_session_manager=SandboxSessionManager(),
+                )
+
+    async def test_code_evaluator_reuses_backend_for_shared_sandbox_config(
+        self,
+        db: Any,
+        seed_sandbox_providers: None,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        calls = 0
+
+        async def fake_build_sandbox_backend(*args: Any, **kwargs: Any) -> object:
+            nonlocal calls
+            calls += 1
+            return object()
+
+        monkeypatch.setattr(
+            "phoenix.server.api.evaluators.build_sandbox_backend",
+            fake_build_sandbox_backend,
+        )
+
+        async with db() as session:
+            provider = await session.scalar(
+                select(models.SandboxProvider).where(models.SandboxProvider.backend_type == "WASM")
+            )
+            assert provider is not None
+            sandbox_config = models.SandboxConfig(
+                backend_type=provider.backend_type,
+                language="PYTHON",
+                name=Identifier("shared-runtime-config"),
+                config={},
+                timeout=30,
+            )
+            dataset = models.Dataset(name="test-shared-runtime-config", metadata_={})
+            session.add_all([sandbox_config, dataset])
+            await session.flush()
+
+            dataset_evaluator_ids = []
+            for index in range(2):
+                code_eval = models.CodeEvaluator(
+                    name=Identifier(f"shared-runtime-eval-{index}"),
+                    input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                    output_configs=[],
+                    language="PYTHON",
+                    sandbox_config_id=sandbox_config.id,
+                )
+                session.add(code_eval)
+                await session.flush()
+                session.add(
+                    models.CodeEvaluatorVersion(
+                        code_evaluator_id=code_eval.id,
+                        source_code="def evaluate(input): return {'score': 1.0}",
+                    )
+                )
+                dataset_evaluator = models.DatasetEvaluators(
+                    dataset_id=dataset.id,
+                    evaluator_id=code_eval.id,
+                    name=Identifier(f"shared-runtime-eval-{index}"),
+                    input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                    project=models.Project(
+                        name=f"shared-runtime-project-{index}",
+                        description="",
+                    ),
+                )
+                session.add(dataset_evaluator)
+                await session.flush()
+                dataset_evaluator_ids.append(dataset_evaluator.id)
+
+            evaluators = await get_evaluators(
+                dataset_evaluator_ids=dataset_evaluator_ids,
+                session=session,
+                decrypt=lambda x: x,
+                experiment_id=0,
+                credentials=None,
+                sandbox_session_manager=SandboxSessionManager(),
+            )
+
+        assert len(evaluators) == 2
+        assert calls == 1
 
     async def test_preserves_order_with_only_builtin_evaluators(
         self,
@@ -3732,7 +3932,9 @@ class TestGetEvaluators:
                 dataset_evaluator_ids=input_ids,
                 session=session,
                 decrypt=lambda x: x,
+                experiment_id=0,
                 credentials=None,
+                sandbox_session_manager=SandboxSessionManager(),
             )
 
         assert len(evaluators) == 3

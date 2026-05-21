@@ -30,6 +30,8 @@ import { SettingsDataPage } from "@phoenix/pages/settings/SettingsDataPage";
 import { SettingsGeneralPage } from "@phoenix/pages/settings/SettingsGeneralPage";
 import { settingsModelsLoader } from "@phoenix/pages/settings/settingsModelsLoader";
 import { SettingsModelsPage } from "@phoenix/pages/settings/SettingsModelsPage";
+import { SettingsSandboxesPage } from "@phoenix/pages/settings/SettingsSandboxesPage";
+import { settingsSandboxesPageLoader } from "@phoenix/pages/settings/settingsSandboxesPageLoader";
 
 import type {
   DatasetLoaderData,
@@ -259,17 +261,19 @@ const router = createBrowserRouter(
                   }}
                 />
               </Route>
-              <Route
-                id={EVALUATOR_DETAILS_ROUTE_ID}
-                path="evaluators/:evaluatorId"
-                element={<DatasetEvaluatorDetailsPage />}
-                loader={datasetEvaluatorDetailsLoader}
-                handle={{
-                  crumb: (data: DatasetEvaluatorDetailsLoaderData) =>
-                    data?.evaluatorDisplayName || "evaluator",
-                }}
-              >
-                <Route path=":traceId" element={<EvaluatorTracePage />} />
+              <Route path="evaluators" handle={{ crumb: () => "evaluators" }}>
+                <Route
+                  id={EVALUATOR_DETAILS_ROUTE_ID}
+                  path=":evaluatorId"
+                  element={<DatasetEvaluatorDetailsPage />}
+                  loader={datasetEvaluatorDetailsLoader}
+                  handle={{
+                    crumb: (data: DatasetEvaluatorDetailsLoaderData) =>
+                      data?.evaluatorDisplayName || "evaluator",
+                  }}
+                >
+                  <Route path=":traceId" element={<EvaluatorTracePage />} />
+                </Route>
               </Route>
               <Route
                 path="compare"
@@ -420,6 +424,14 @@ const router = createBrowserRouter(
               element={<SettingsAIProvidersPage />}
               handle={{
                 crumb: () => "AI Providers",
+              }}
+            />
+            <Route
+              path="sandboxes"
+              loader={settingsSandboxesPageLoader}
+              element={<SettingsSandboxesPage />}
+              handle={{
+                crumb: () => "Sandboxes",
               }}
             />
             <Route

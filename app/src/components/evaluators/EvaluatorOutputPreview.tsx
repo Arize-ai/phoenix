@@ -84,9 +84,9 @@ function computePositiveOptimization({
 
   let lowerBound: number | undefined;
   let upperBound: number | undefined;
+  let threshold: number | undefined;
 
   if ("values" in matchedConfig) {
-    // Categorical: compute bounds from values scores
     const scores = matchedConfig.values
       .map((v) => v.score)
       .filter((s): s is number => s != null);
@@ -94,8 +94,11 @@ function computePositiveOptimization({
       lowerBound = Math.min(...scores);
       upperBound = Math.max(...scores);
     }
-  } else {
-    // Continuous: use bounds directly
+  } else if ("threshold" in matchedConfig) {
+    threshold = matchedConfig.threshold ?? undefined;
+    lowerBound = matchedConfig.lowerBound ?? undefined;
+    upperBound = matchedConfig.upperBound ?? undefined;
+  } else if ("lowerBound" in matchedConfig) {
     lowerBound = matchedConfig.lowerBound ?? undefined;
     upperBound = matchedConfig.upperBound ?? undefined;
   }
@@ -104,6 +107,7 @@ function computePositiveOptimization({
     score,
     lowerBound,
     upperBound,
+    threshold,
     optimizationDirection,
   });
 }

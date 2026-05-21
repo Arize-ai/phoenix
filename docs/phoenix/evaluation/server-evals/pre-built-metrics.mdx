@@ -8,12 +8,12 @@ Server-side evaluators run entirely in the Phoenix UI — no local code or API k
 
 There are two types of pre-built server-side evaluators:
 
-- **Code evaluators** are deterministic. They apply a rule or algorithm to your data and return a result without calling any model.
+- **Pre-built code evaluators** are deterministic. They apply a rule or algorithm to your data and return a result without calling any model. For custom logic you author yourself, see [Code Evaluators](/docs/phoenix/evaluation/server-evals/code-evaluators).
 - **LLM evaluators** use a judge model via a managed prompt template. Phoenix handles model configuration and API access — you only need to configure the input column mappings.
 
 ---
 
-## Code Evaluators
+## Pre-built Code Evaluators
 
 <CardGroup cols={2}>
   <Card title="Contains" href="/docs/phoenix/evaluation/server-evals/pre-built-metrics/contains">

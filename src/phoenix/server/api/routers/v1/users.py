@@ -6,12 +6,11 @@ from functools import partial
 from typing import Annotated, Literal, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
-from pydantic import Field
+from pydantic import Field, SecretStr
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
 from sqlalchemy.orm import joinedload
 from sqlean.dbapi2 import IntegrityError as SQLiteIntegrityError  # type: ignore[import-untyped]
-from starlette.datastructures import Secret
 from strawberry.relay import GlobalID
 from typing_extensions import TypeAlias, assert_never
 
@@ -290,7 +289,7 @@ async def create_user(
 
         # Generate salt and hash password using the same method as in context.py
         salt = secrets.token_bytes(DEFAULT_SECRET_LENGTH)
-        compute = partial(compute_password_hash, password=Secret(password), salt=salt)
+        compute = partial(compute_password_hash, password=SecretStr(password), salt=salt)
         password_hash = await asyncio.get_running_loop().run_in_executor(None, compute)
 
         user = models.LocalUser(

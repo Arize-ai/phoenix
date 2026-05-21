@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<10eb585dad8c62eaf22103c8e7ccbb30>>
+ * @generated SignedSource<<a623d1632c9c3b7542c4b949bd6838c1>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -264,6 +264,27 @@ return {
                   {
                     "alias": null,
                     "args": null,
+                    "kind": "ScalarField",
+                    "name": "count",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "scoreCount",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
+                    "kind": "ScalarField",
+                    "name": "labelCount",
+                    "storageKey": null
+                  },
+                  {
+                    "alias": null,
+                    "args": null,
                     "concreteType": "LabelFraction",
                     "kind": "LinkedField",
                     "name": "labelFractions",
@@ -300,16 +321,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "03fffbbd0caa295be23ae974ccfa704d",
+    "cacheID": "4091fc482a6ccf243c52714c3ffd9b8d",
     "id": null,
     "metadata": {},
     "name": "AnnotationSummaryValueQuery",
     "operationKind": "query",
-    "text": "query AnnotationSummaryValueQuery(\n  $annotationName: String!\n  $filterCondition: String = null\n  $timeRange: TimeRange!\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...AnnotationSummaryValueFragment_3esv1j\n    id\n  }\n}\n\nfragment AnnotationSummaryValueFragment_3esv1j on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          annotationType\n          id\n          optimizationDirection\n          name\n          values {\n            label\n            score\n          }\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  spanAnnotationSummary(annotationName: $annotationName, timeRange: $timeRange, filterCondition: $filterCondition) {\n    name\n    labelFractions {\n      label\n      fraction\n    }\n    meanScore\n  }\n  id\n}\n"
+    "text": "query AnnotationSummaryValueQuery(\n  $annotationName: String!\n  $filterCondition: String = null\n  $timeRange: TimeRange!\n  $id: ID!\n) {\n  node(id: $id) {\n    __typename\n    ...AnnotationSummaryValueFragment_3esv1j\n    id\n  }\n}\n\nfragment AnnotationSummaryValueFragment_3esv1j on Project {\n  annotationConfigs {\n    edges {\n      node {\n        __typename\n        ... on AnnotationConfigBase {\n          __isAnnotationConfigBase: __typename\n          annotationType\n        }\n        ... on CategoricalAnnotationConfig {\n          annotationType\n          id\n          optimizationDirection\n          name\n          values {\n            label\n            score\n          }\n        }\n        ... on Node {\n          __isNode: __typename\n          id\n        }\n      }\n    }\n  }\n  spanAnnotationSummary(annotationName: $annotationName, timeRange: $timeRange, filterCondition: $filterCondition) {\n    name\n    count\n    scoreCount\n    labelCount\n    labelFractions {\n      label\n      fraction\n    }\n    meanScore\n  }\n  id\n}\n"
   }
 };
 })();
 
-(node as any).hash = "aa59ac59f1e8626db047b2e546df43f4";
+(node as any).hash = "75c9ee77316944d83f16c7853c47f535";
 
 export default node;

@@ -45,6 +45,17 @@ const getAnnotationDisplayValue = ({
         annotation.label ||
         "n/a"
       );
+    case "score-and-label": {
+      const scoreText =
+        typeof annotation.score === "number"
+          ? formatFloat(annotation.score)
+          : null;
+      const labelText = annotation.label || null;
+      if (scoreText && labelText) {
+        return `${labelText} (${scoreText})`;
+      }
+      return scoreText || labelText || "n/a";
+    }
     case "none":
       return "";
     default:

@@ -75,7 +75,7 @@ from .._helpers import (
 )
 
 NOW = datetime.now(timezone.utc)
-_decode_jwt = partial(jwt.decode, options=dict(verify_signature=False))
+_decode_jwt = partial(jwt.decode, options={"verify_signature": False})
 _TokenT = TypeVar("_TokenT", _AccessToken, _RefreshToken)
 
 
@@ -1107,6 +1107,317 @@ class TestGraphQLQuery:
             logged_in_user.gql(_app, query)
 
 
+class TestSandboxAndCodeEvaluatorPermissions:
+    # Tier 1 (admin-only): sandbox-config mutations + updateSandboxProvider.
+    # Tier 2 (IsNotViewer): code-evaluator mutations + evaluatorPreviews.
+    # Tier 3 (unrestricted): sandbox/provider/config reads + code-evaluator source.
+
+    QUERY = """
+      mutation CreateSandboxConfig($input: CreateSandboxConfigInput!) {
+        createSandboxConfig(input: $input) {
+          sandboxConfig { id }
+        }
+      }
+
+      mutation UpdateSandboxConfig($input: UpdateSandboxConfigInput!) {
+        updateSandboxConfig(input: $input) {
+          sandboxConfig { id }
+        }
+      }
+
+      mutation DeleteSandboxConfig($input: DeleteSandboxConfigInput!) {
+        deleteSandboxConfig(input: $input) { deletedId }
+      }
+
+      mutation UpdateSandboxProvider($input: UpdateSandboxProviderInput!) {
+        updateSandboxProvider(input: $input) {
+          sandboxProvider { id }
+        }
+      }
+
+      mutation CreateCodeEvaluator($input: CreateCodeEvaluatorInput!) {
+        createCodeEvaluator(input: $input) {
+          evaluator { id }
+        }
+      }
+
+      mutation PatchCodeEvaluator($input: PatchCodeEvaluatorInput!) {
+        patchCodeEvaluator(input: $input) {
+          evaluator { id }
+        }
+      }
+
+      mutation CreateCodeEvaluatorVersion($input: CreateCodeEvaluatorVersionInput!) {
+        createCodeEvaluatorVersion(input: $input) { wasCreated }
+      }
+
+      mutation EvaluatorPreviews($input: EvaluatorPreviewsInput!) {
+        evaluatorPreviews(input: $input) {
+          results { evaluatorName }
+        }
+      }
+
+      mutation CreateDataset($input: CreateDatasetInput!) {
+        createDataset(input: $input) {
+          dataset { id }
+        }
+      }
+
+      mutation CreateDatasetCodeEvaluator($input: CreateDatasetCodeEvaluatorInput!) {
+        createDatasetCodeEvaluator(input: $input) {
+          evaluator { id }
+        }
+      }
+
+      mutation UpdateDatasetCodeEvaluator($input: UpdateDatasetCodeEvaluatorInput!) {
+        updateDatasetCodeEvaluator(input: $input) {
+          evaluator { id }
+        }
+      }
+
+      query SandboxReadAccess {
+        sandboxBackends { backendType }
+        sandboxProviders {
+          backendType
+          deployment { __typename }
+          configs {
+            id
+            config {
+              envVars { name }
+              internetAccess { mode }
+              dependencies { packages }
+            }
+          }
+        }
+      }
+
+      query CodeEvaluatorReadAccess {
+        evaluators(first: 50) {
+          edges {
+            node {
+              id
+              ... on CodeEvaluator {
+                currentVersion { sourceCode }
+              }
+            }
+          }
+        }
+      }
+    """
+
+    _SOURCE = "def evaluate(output):\n    return {'score': 1.0}"
+    _INPUT_MAPPING: dict[str, dict[str, Any]] = {"literalMapping": {}, "pathMapping": {}}
+
+    @pytest.mark.parametrize(
+        "role_or_user",
+        [_VIEWER, _MEMBER, _ADMIN, _DEFAULT_ADMIN],
+        ids=["viewer", "member", "admin", "default_admin"],
+    )
+    def test_role_based_access(
+        self,
+        role_or_user: _RoleOrUser,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        is_admin = role_or_user in (_ADMIN, _DEFAULT_ADMIN)
+        is_viewer = role_or_user is _VIEWER
+
+        def admin_gql(operation: str, variables: dict[str, Any]) -> dict[str, Any]:
+            response, _ = _DEFAULT_ADMIN.gql(
+                _app, query=self.QUERY, operation_name=operation, variables=variables
+            )
+            data: dict[str, Any] = response["data"]
+            return data
+
+        sandbox_config_id = admin_gql(
+            "CreateSandboxConfig",
+            {
+                "input": {
+                    "config": {"wasm": {"language": "PYTHON"}},
+                    "name": f"auth-sandbox-{token_hex(8)}",
+                }
+            },
+        )["createSandboxConfig"]["sandboxConfig"]["id"]
+        provider_id = str(GlobalID("SandboxProvider", "WASM"))
+
+        code_evaluator_id = admin_gql(
+            "CreateCodeEvaluator",
+            {
+                "input": {
+                    "name": f"auth_code_evaluator_{token_hex(8)}",
+                    "language": "PYTHON",
+                    "sourceCode": self._SOURCE,
+                    "inputMapping": self._INPUT_MAPPING,
+                }
+            },
+        )["createCodeEvaluator"]["evaluator"]["id"]
+
+        dataset_id = admin_gql("CreateDataset", {"input": {"name": f"auth_ds_{token_hex(8)}"}})[
+            "createDataset"
+        ]["dataset"]["id"]
+
+        dataset_evaluator_id = admin_gql(
+            "CreateDatasetCodeEvaluator",
+            {
+                "input": {
+                    "datasetId": dataset_id,
+                    "evaluatorId": code_evaluator_id,
+                    "name": f"auth_dataset_eval_{token_hex(8)}",
+                    "inputMapping": self._INPUT_MAPPING,
+                }
+            },
+        )["createDatasetCodeEvaluator"]["evaluator"]["id"]
+
+        user = _get_user(_app, role_or_user).log_in(_app)
+
+        def check(allowed: bool, operation: str, variables: dict[str, Any]) -> None:
+            if allowed:
+                user.gql(_app, query=self.QUERY, operation_name=operation, variables=variables)
+            else:
+                with pytest.raises(Unauthorized):
+                    user.gql(_app, query=self.QUERY, operation_name=operation, variables=variables)
+
+        # Tier 1 — admin-only sandbox-config writes
+        check(
+            is_admin,
+            "CreateSandboxConfig",
+            {
+                "input": {
+                    "config": {"wasm": {"language": "PYTHON"}},
+                    "name": f"auth-sandbox-{token_hex(8)}",
+                }
+            },
+        )
+        check(
+            is_admin,
+            "UpdateSandboxConfig",
+            {"input": {"id": sandbox_config_id, "description": "updated"}},
+        )
+        check(
+            is_admin,
+            "UpdateSandboxProvider",
+            {"input": {"id": provider_id, "enabled": True}},
+        )
+        # Delete runs last so admins remove the already-exercised setup config.
+        check(is_admin, "DeleteSandboxConfig", {"input": {"id": sandbox_config_id}})
+
+        # Tier 2 — member-allowed code-evaluator writes & previews
+        members_allowed = not is_viewer
+        check(
+            members_allowed,
+            "CreateCodeEvaluator",
+            {
+                "input": {
+                    "name": f"auth_code_evaluator_{token_hex(8)}",
+                    "language": "PYTHON",
+                    "sourceCode": self._SOURCE,
+                    "inputMapping": self._INPUT_MAPPING,
+                }
+            },
+        )
+        check(
+            members_allowed,
+            "PatchCodeEvaluator",
+            {"input": {"id": code_evaluator_id, "description": "patched"}},
+        )
+        check(
+            members_allowed,
+            "CreateCodeEvaluatorVersion",
+            {
+                "input": {
+                    "codeEvaluatorId": code_evaluator_id,
+                    "sourceCode": "def evaluate(output):\n    return {'score': 0.5}",
+                }
+            },
+        )
+        check(
+            members_allowed,
+            "CreateDatasetCodeEvaluator",
+            {
+                "input": {
+                    "datasetId": dataset_id,
+                    "evaluatorId": code_evaluator_id,
+                    "name": f"auth_dataset_eval_{token_hex(8)}",
+                    "inputMapping": self._INPUT_MAPPING,
+                }
+            },
+        )
+        check(
+            members_allowed,
+            "UpdateDatasetCodeEvaluator",
+            {
+                "input": {
+                    "datasetEvaluatorId": dataset_evaluator_id,
+                    "name": f"auth_dataset_eval_{token_hex(8)}",
+                    "inputMapping": self._INPUT_MAPPING,
+                }
+            },
+        )
+        # Empty previews list exercises the IsNotViewer gate without a live backend.
+        check(members_allowed, "EvaluatorPreviews", {"input": {"previews": []}})
+
+        # Tier 3 — unrestricted reads (succeed for every role, viewers included)
+        sandbox_read, _ = user.gql(_app, query=self.QUERY, operation_name="SandboxReadAccess")
+        sandbox_data = sandbox_read["data"]
+        assert sandbox_data["sandboxBackends"]
+        wasm = [p for p in sandbox_data["sandboxProviders"] if p["backendType"] == "WASM"]
+        assert wasm and wasm[0]["configs"] and wasm[0]["configs"][0]["config"] is not None
+
+        evaluator_read, _ = user.gql(
+            _app, query=self.QUERY, operation_name="CodeEvaluatorReadAccess"
+        )
+        code_nodes = [
+            edge["node"]
+            for edge in evaluator_read["data"]["evaluators"]["edges"]
+            if edge["node"].get("currentVersion")
+        ]
+        assert code_nodes and code_nodes[0]["currentVersion"]["sourceCode"]
+
+
+class TestGenerativeModelCustomProviderMutations:
+    QUERY = """
+      mutation TestGenerativeModelCustomProviderCredentials(
+        $input: GenerativeModelCustomerProviderConfigInput!
+      ) {
+        testGenerativeModelCustomProviderCredentials(input: $input) {
+          error
+        }
+      }
+    """
+
+    @pytest.mark.parametrize(
+        "role_or_user,expectation",
+        [
+            (_VIEWER, _DENIED),
+            (_MEMBER, _DENIED),
+            (_ADMIN, _OK),
+            (_DEFAULT_ADMIN, _OK),
+        ],
+    )
+    def test_only_admin_can_test_custom_provider_credentials(
+        self,
+        role_or_user: _RoleOrUser,
+        expectation: _OK_OR_DENIED,
+        _get_user: _GetUser,
+        _app: _AppInfo,
+    ) -> None:
+        logged_in_user = _get_user(_app, role_or_user).log_in(_app)
+        with expectation:
+            logged_in_user.gql(
+                _app,
+                query=self.QUERY,
+                operation_name="TestGenerativeModelCustomProviderCredentials",
+                variables={
+                    "input": {
+                        "openai": {
+                            "openaiAuthenticationMethod": {"apiKey": "sk-test"},
+                            "openaiClientKwargs": {"baseUrl": "http://127.0.0.1:9/v1"},
+                        }
+                    }
+                },
+            )
+
+
 class TestSpanExporters:
     @pytest.mark.parametrize(
         "use_api_key,expires_at,expected",
@@ -1418,7 +1729,7 @@ class TestSpanAnnotations:
         )
 
         # Check that the annotation remains unchanged
-        response, _ = user.gql(
+        response, _ = logged_in_member.gql(
             _app,
             query=self.QUERY,
             operation_name="GetSpanAnnotation",
@@ -1589,7 +1900,7 @@ class TestTraceAnnotations:
         )
 
         # Check that the annotation remains unchanged
-        response, _ = user.gql(
+        response, _ = logged_in_member.gql(
             _app,
             query=self.QUERY,
             operation_name="GetTraceAnnotation",
@@ -1705,11 +2016,11 @@ class TestSecretsCRUDAndValueVisibility:
         assert secret["value"]["__typename"] == "DecryptedSecret"
         # Server emits the value as a RedactedString token — un-redact before
         # comparing against the original plaintext.
-        from starlette.datastructures import Secret
+        from pydantic import SecretStr
 
         from phoenix.server.redaction import Redactor
 
-        _redactor = Redactor(secret=Secret(_app.env["PHOENIX_SECRET"]))
+        _redactor = Redactor(secret=SecretStr(_app.env["PHOENIX_SECRET"]))
         assert _redactor.unredact(secret["value"]["value"]) == secret_value
 
         # Member and Viewer should get Unauthorized when accessing secret value field

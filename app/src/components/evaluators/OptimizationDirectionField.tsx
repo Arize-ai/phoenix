@@ -16,6 +16,9 @@ import {
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
 import type { EvaluatorOptimizationDirection } from "@phoenix/types";
 
+export const DEFAULT_OPTIMIZATION_DIRECTION: EvaluatorOptimizationDirection =
+  "MAXIMIZE";
+
 export const optimizationDirectionOptions: {
   value: EvaluatorOptimizationDirection;
   label: string;
@@ -37,6 +40,11 @@ const getOptimizationDirectionLabel = (
 export type OptimizationDirectionFieldProps = {
   isReadOnly?: boolean;
   isDisabled?: boolean;
+  /**
+   * Optional helper text rendered via React Aria's `description` slot,
+   * shown beneath the field when editable.
+   */
+  description?: string;
 };
 
 /**
@@ -48,6 +56,7 @@ export type OptimizationDirectionFieldProps = {
 export const OptimizationDirectionField = ({
   isReadOnly,
   isDisabled,
+  description,
 }: OptimizationDirectionFieldProps) => {
   const { optimizationDirection, setOutputConfigOptimizationDirectionAtIndex } =
     useEvaluatorStore(
@@ -81,7 +90,7 @@ export const OptimizationDirectionField = ({
       aria-label="Optimization direction"
       data-testid="optimization-direction-picker"
       css={css`
-        width: fit-content;
+        width: 100%;
       `}
     >
       <Label>Optimization direction</Label>
@@ -98,6 +107,7 @@ export const OptimizationDirectionField = ({
           ))}
         </ListBox>
       </Popover>
+      {description ? <Text slot="description">{description}</Text> : null}
     </Select>
   );
 };

@@ -2,6 +2,13 @@
 # This Dockerfile is used when vite-dev service is enabled (default mode)
 ARG PYTHON_VERSION=3.13
 
+# Bundle the Deno runtime so the local DENO sandbox provider works inside
+# this dev image. denoland/deno:bin-<version> is a scratch-based image
+# that contains a single statically-linked /deno binary, safe to COPY
+# into the runtime stage. Pinning the version (NOT :latest) matches the
+# pin used by the production Dockerfile and the no-vite devops Dockerfile.
+FROM denoland/deno:bin-2.1.4 AS deno-binary
+
 FROM python:${PYTHON_VERSION}-slim-bullseye
 WORKDIR /phoenix
 
@@ -21,6 +28,29 @@ COPY ./src/phoenix/__init__.py ./src/phoenix/version.py ./src/phoenix/
 
 # Install dependencies into /phoenix/env (changes when requirements change)
 RUN uv pip install --compile-bytecode --target ./env ".[container, pg]" debugpy
+
+# Pre-download the CPython WASM binary so the WASM sandbox provider works
+# without network egress at runtime. URL/filename/sha256 MUST stay in
+# sync with src/phoenix/server/sandbox/_download.py (_WASM_URL /
+# _WASM_FILENAME / _WASM_SHA256); PHOENIX_WASM_BINARY_PATH (set below)
+# is the authoritative resolver hook consumed by ensure_wasm_binary().
+# The sha256 assertion guards against upstream release-asset tampering
+# — TLS alone is not enough for a binary that executes user code in the
+# sandbox.
+RUN mkdir -p /opt/phoenix/wasm \
+  && python -c "import hashlib, sys, urllib.request; \
+url = 'https://github.com/vmware-labs/webassembly-language-runtimes/releases/download/python%2F3.12.0%2B20231211-040d5a6/python-3.12.0.wasm'; \
+dest = '/opt/phoenix/wasm/python-3.12.0.wasm'; \
+expected = 'e5dc5a398b07b54ea8fdb503bf68fb583d533f10ec3f930963e02b9505f7a763'; \
+urllib.request.urlretrieve(url, dest); \
+actual = hashlib.sha256(open(dest, 'rb').read()).hexdigest(); \
+(actual == expected) or sys.exit(f'SHA-256 mismatch for {dest}: expected {expected}, got {actual}')"
+
+# Bundled local sandbox runtimes — Deno binary copied from the scratch
+# stage above. /usr/local/bin is already on PATH for python:slim-bullseye,
+# so shutil.which("deno") in deno_backend.py resolves the bundled binary.
+COPY --chmod=755 --from=deno-binary /deno /usr/local/bin/deno
+ENV PHOENIX_WASM_BINARY_PATH=/opt/phoenix/wasm/python-3.12.0.wasm
 
 # Copy startup script (rarely changes)
 COPY --chmod=755 scripts/docker/devops/scripts/start-phoenix.sh /usr/local/bin/start-phoenix.sh

@@ -92,6 +92,7 @@
 - [Configuring the LLM](https://arize.com/docs/phoenix/evaluation/how-to-evals/configuring-the-llm): Set up LLM providers for evaluations
 - [Prompt Formats](https://arize.com/docs/phoenix/evaluation/how-to-evals/prompt-formats): Customize evaluator prompt structures
 - [Code Evaluators](https://arize.com/docs/phoenix/evaluation/how-to-evals/code-evaluators): Deterministic evaluation with Python or TypeScript
+- [Code Evaluator Output Shapes](https://arize.com/docs/phoenix/evaluation/how-to-evals/code-evaluator-output-shapes): All accepted return shapes, multi-output routing, and explanation field semantics
 - [Batch Evaluations](https://arize.com/docs/phoenix/evaluation/how-to-evals/batch-evaluations): Run evaluations at scale with automatic concurrency
 - [Using Evals with Phoenix](https://arize.com/docs/phoenix/evaluation/how-to-evals/using-evals-with-phoenix): Run evals on traces, datasets, or custom data sources
 
@@ -109,6 +110,7 @@
 
 - [Server Evals Overview](https://arize.com/docs/phoenix/evaluation/server-evals/overview): Attach evaluators to datasets so they run server-side on every Playground experiment
 - [LLM Evaluators](https://arize.com/docs/phoenix/evaluation/server-evals/llm-evaluators): Configure LLM-as-judge evaluators server-side
+- [Code Evaluators](https://arize.com/docs/phoenix/evaluation/server-evals/code-evaluators): Write custom Python or TypeScript evaluators that Phoenix runs in a managed sandbox
 - [Server Eval Input Mapping](https://arize.com/docs/phoenix/evaluation/server-evals/input-mapping): Map span attributes to server-side evaluator input variables
 - [Server Pre-Built Metrics](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics): All server-side code metrics — contains, exact match, regex, JSON distance, Levenshtein, tool
 
@@ -352,6 +354,7 @@
 - [Secrets](https://arize.com/docs/phoenix/settings/secrets): Store and manage encrypted API keys and credentials
 - [Data Retention](https://arize.com/docs/phoenix/settings/data-retention): Configure data retention policies
 - [Custom AI Providers](https://arize.com/docs/phoenix/settings/custom-ai-providers): Server-managed AI provider credentials for Playground and evals
+- [Sandboxes](https://arize.com/docs/phoenix/settings/sandboxes): Configure sandbox backends and reusable configurations for code evaluators
 
 ## Concepts
 

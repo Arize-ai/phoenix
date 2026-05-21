@@ -17,6 +17,7 @@ from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode, Tracer
+from pydantic import SecretStr
 
 from phoenix.db import models
 from phoenix.db.types.experiment_config import OpenAIConnectionConfig
@@ -52,7 +53,6 @@ from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import TextChunk
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
-from phoenix.server.api.types.SecretString import SecretString
 from phoenix.server.types import DbSessionFactory
 from tests.unit.vcr import CustomVCR
 
@@ -732,7 +732,7 @@ class TestResolveProviderApiKey:
         monkeypatch.setenv("OPENAI_API_KEY", "sk-from-env")
         credentials = [
             GenerativeCredentialInput(
-                env_var_name="OPENAI_API_KEY", value=SecretString("sk-from-input")
+                env_var_name="OPENAI_API_KEY", value=SecretStr("sk-from-input")
             )
         ]
         async with db() as session:
@@ -847,7 +847,7 @@ class TestResolveProviderApiKey:
         )
         credentials = [
             GenerativeCredentialInput(
-                env_var_name="OPENAI_API_KEY", value=SecretString("sk-from-request")
+                env_var_name="OPENAI_API_KEY", value=SecretStr("sk-from-request")
             )
         ]
         async with db() as session:

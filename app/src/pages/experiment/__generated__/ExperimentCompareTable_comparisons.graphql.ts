@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<523bde92b62f2b8ef7833e55fea56d6f>>
+ * @generated SignedSource<<634f4d6768003a793c1077fb8f3d8f7e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -77,6 +77,7 @@ export type ExperimentCompareTable_comparisons$data = {
             readonly lowerBound?: number | null;
             readonly name?: string;
             readonly optimizationDirection?: OptimizationDirection;
+            readonly threshold?: number | null;
             readonly upperBound?: number | null;
             readonly values?: ReadonlyArray<{
               readonly label: string;
@@ -228,6 +229,20 @@ v11 = {
   "args": null,
   "kind": "ScalarField",
   "name": "optimizationDirection",
+  "storageKey": null
+},
+v12 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "lowerBound",
+  "storageKey": null
+},
+v13 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "upperBound",
   "storageKey": null
 };
 return {
@@ -793,22 +808,28 @@ return {
                               "selections": [
                                 (v6/*: any*/),
                                 (v11/*: any*/),
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "lowerBound",
-                                  "storageKey": null
-                                },
-                                {
-                                  "alias": null,
-                                  "args": null,
-                                  "kind": "ScalarField",
-                                  "name": "upperBound",
-                                  "storageKey": null
-                                }
+                                (v12/*: any*/),
+                                (v13/*: any*/)
                               ],
                               "type": "ContinuousAnnotationConfig",
+                              "abstractKey": null
+                            },
+                            {
+                              "kind": "InlineFragment",
+                              "selections": [
+                                (v6/*: any*/),
+                                (v11/*: any*/),
+                                {
+                                  "alias": null,
+                                  "args": null,
+                                  "kind": "ScalarField",
+                                  "name": "threshold",
+                                  "storageKey": null
+                                },
+                                (v12/*: any*/),
+                                (v13/*: any*/)
+                              ],
+                              "type": "FreeformAnnotationConfig",
                               "abstractKey": null
                             }
                           ],
@@ -836,6 +857,6 @@ return {
 };
 })();
 
-(node as any).hash = "bf8a6a23c11a199c8bd4da62f57014be";
+(node as any).hash = "e39cde7e29d3e6099f6e5bbea3a0d875";
 
 export default node;

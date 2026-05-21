@@ -4,11 +4,12 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 import pytest
+from pydantic import SecretStr
 from sqlalchemy import insert
-from starlette.datastructures import Secret
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
+from phoenix.db.models import SandboxBackendType
 from phoenix.db.types.annotation_configs import (
     CategoricalAnnotationValue,
     CategoricalOutputConfig,
@@ -26,12 +27,13 @@ from phoenix.db.types.prompts import (
 )
 from phoenix.server.encryption import EncryptionService
 from phoenix.server.redaction import Redactor
+from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
 from phoenix.server.types import DbSessionFactory
 from tests.unit.graphql import AsyncGraphQLClient
 
 # The in-process test app is constructed with no PHOENIX_SECRET, so the
-# server-side Redactor is keyed off Secret("").
-_REDACTOR = Redactor(secret=Secret(""))
+# server-side Redactor is keyed off SecretStr("").
+_REDACTOR = Redactor(secret=SecretStr(""))
 
 
 async def test_projects_omits_experiment_projects(
@@ -698,6 +700,7 @@ async def projects_with_and_without_experiments(
 @pytest.fixture
 async def projects_with_and_without_dataset_evaluators(
     db: DbSessionFactory,
+    seed_languages: None,
 ) -> None:
     """
     Insert two projects, one that is associated with a dataset evaluator and the other that is not.
@@ -726,6 +729,7 @@ async def projects_with_and_without_dataset_evaluators(
             name=Identifier(root="test-evaluator"),
             description="Test evaluator",
             metadata_={},
+            language="PYTHON",
         )
         session.add(code_evaluator)
         await session.flush()
@@ -2738,3 +2742,34 @@ class TestEvaluatorsQuery:
         response = await gql_client.execute(query=self._EVALUATORS_QUERY)
         assert not response.errors
         assert response.data == {"evaluators": {"edges": []}}
+
+
+@pytest.mark.parametrize("backend_type", list(SANDBOX_ADAPTER_METADATA.keys()))
+async def test_sandbox_backends_capability_flags(
+    backend_type: SandboxBackendType,
+    gql_client: AsyncGraphQLClient,
+    seed_sandbox_providers: None,
+) -> None:
+    query = """
+      query {
+        sandboxBackends {
+          backendType
+          supportedLanguages
+          supportsEnvVars
+          internetAccess
+          supportsDependencies
+        }
+      }
+    """
+    meta = SANDBOX_ADAPTER_METADATA[backend_type]
+    response = await gql_client.execute(query=query)
+    assert not response.errors
+    assert response.data is not None
+    backends = {b["backendType"]: b for b in response.data["sandboxBackends"]}
+    assert backend_type in backends, f"{backend_type} not found in sandboxBackends response"
+    backend = backends[backend_type]
+
+    assert backend["supportedLanguages"] == sorted(meta.supported_languages)
+    assert backend["supportsEnvVars"] is meta.supports_env_vars, backend_type
+    assert backend["internetAccess"] == meta.internet_access_capability.upper(), backend_type
+    assert backend["supportsDependencies"] is meta.supports_dependencies, backend_type

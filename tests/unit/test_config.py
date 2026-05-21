@@ -446,7 +446,7 @@ class TestGetEnvPhoenixAdminSecret:
                 monkeypatch.delenv(key, raising=False)
             else:
                 monkeypatch.setenv(key, value)
-        assert str(get_env_phoenix_admin_secret()) == expected_result
+        assert get_env_phoenix_admin_secret().get_secret_value() == expected_result
 
     @pytest.mark.parametrize(
         "env_vars",
@@ -751,8 +751,11 @@ class TestGetEnvAuthSettings:
         result = get_env_auth_settings()
         assert result.enable_auth == expected_result["enable_auth"]
         assert result.disable_basic_auth == expected_result["disable_basic_auth"]
-        assert str(result.phoenix_secret) == expected_result["phoenix_secret"]
-        assert str(result.phoenix_admin_secret) == expected_result["phoenix_admin_secret"]
+        assert result.phoenix_secret.get_secret_value() == expected_result["phoenix_secret"]
+        assert (
+            result.phoenix_admin_secret.get_secret_value()
+            == expected_result["phoenix_admin_secret"]
+        )
 
         # Compare OAuth2 clients
         assert len(result.oauth2_clients) == len(expected_result["oauth2_clients"])
@@ -2227,6 +2230,81 @@ class TestValidateEnvAllowedProviders:
 
         with pytest.raises(ValueError, match="INVALID_PROVIDER"):
             validate_env_allowed_providers()
+
+
+class TestGetEnvAllowedSandboxProviders:
+    def test_unset_returns_all_known_kinds(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", raising=False)
+        from phoenix.config import get_env_allowed_sandbox_providers
+        from phoenix.server.sandbox.types import SANDBOX_BACKEND_TYPES
+
+        assert get_env_allowed_sandbox_providers() == SANDBOX_BACKEND_TYPES
+
+    def test_none_returns_empty_set(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "NONE")
+        from phoenix.config import get_env_allowed_sandbox_providers
+
+        assert get_env_allowed_sandbox_providers() == frozenset()
+
+    def test_basic_parsing(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "WASM,DENO")
+        from phoenix.config import get_env_allowed_sandbox_providers
+
+        assert get_env_allowed_sandbox_providers() == frozenset({"WASM", "DENO"})
+
+    def test_case_insensitive(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "vercel,Wasm")
+        from phoenix.config import get_env_allowed_sandbox_providers
+
+        assert get_env_allowed_sandbox_providers() == frozenset({"VERCEL", "WASM"})
+
+    def test_whitespace_handling(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", " WASM , DENO ")
+        from phoenix.config import get_env_allowed_sandbox_providers
+
+        assert get_env_allowed_sandbox_providers() == frozenset({"WASM", "DENO"})
+
+    def test_empty_entries_ignored(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "WASM,,DENO,")
+        from phoenix.config import get_env_allowed_sandbox_providers
+
+        assert get_env_allowed_sandbox_providers() == frozenset({"WASM", "DENO"})
+
+
+class TestValidateEnvAllowedSandboxProviders:
+    def test_unset_does_not_raise(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", raising=False)
+        from phoenix.config import validate_env_allowed_sandbox_providers
+
+        validate_env_allowed_sandbox_providers()
+
+    def test_none_does_not_raise(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "NONE")
+        from phoenix.config import validate_env_allowed_sandbox_providers
+
+        validate_env_allowed_sandbox_providers()
+
+    def test_valid_kinds_do_not_raise(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "WASM,VERCEL,DENO")
+        from phoenix.config import validate_env_allowed_sandbox_providers
+
+        validate_env_allowed_sandbox_providers()
+
+    def test_invalid_kind_raises(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "WASM,VERCLE")
+        from phoenix.config import validate_env_allowed_sandbox_providers
+
+        with pytest.raises(ValueError, match="VERCLE"):
+            validate_env_allowed_sandbox_providers()
+
+    def test_legacy_per_language_key_rejected(self, monkeypatch: MonkeyPatch) -> None:
+        # Allowlist operates on provider kinds, not the old per-language keys —
+        # listing VERCEL_PYTHON instead of VERCEL is wrong-shape input.
+        monkeypatch.setenv("PHOENIX_ALLOWED_SANDBOX_PROVIDERS", "VERCEL_PYTHON")
+        from phoenix.config import validate_env_allowed_sandbox_providers
+
+        with pytest.raises(ValueError, match="VERCEL_PYTHON"):
+            validate_env_allowed_sandbox_providers()
 
 
 class TestPostgresConnectionStringManagedIdentity:
