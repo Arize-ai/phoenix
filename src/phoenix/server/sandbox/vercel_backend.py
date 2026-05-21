@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import functools
 import logging
 from datetime import timedelta
@@ -246,7 +247,7 @@ class VercelSandboxBackend(SandboxBackend):
         sandbox: AsyncSandbox = handle  # type: ignore[assignment]
         try:
             session_env: Optional[dict[str, str]] = self._user_env or None
-            return await self._exec_code(sandbox, code, env=session_env)
+            return await self._exec_code(sandbox, code, env=session_env, timeout=timeout)
         except Exception as exc:
             if self.is_session_gone(exc):
                 raise
@@ -311,11 +312,31 @@ class VercelSandboxBackend(SandboxBackend):
         sandbox: AsyncSandbox,
         code: str,
         env: Optional[dict[str, str]] = None,
+        timeout: Optional[int] = None,
     ) -> ExecutionResult:
         lang_cfg = self._lang_cfg()
         cmd: str = lang_cfg["cmd"]
         args: list[str] = lang_cfg["args_prefix"] + [code]
-        result = await sandbox.run_command(cmd, args, env=env)
+
+        if timeout is None:
+            result = await sandbox.run_command(cmd, args, env=env)
+        else:
+            # run_command has no timeout kwarg; detached + finally-kill so
+            # cleanup runs on inner timeout AND outer cancellation.
+            command = await sandbox.run_command_detached(cmd, args, env=env)
+            completed = False
+            try:
+                try:
+                    result = await asyncio.wait_for(command.wait(), timeout=timeout)
+                    completed = True
+                except (TimeoutError, asyncio.TimeoutError):
+                    message = f"Execution timed out after {timeout}s"
+                    return ExecutionResult(stdout="", stderr=message, error=message)
+            finally:
+                if not completed:
+                    with contextlib.suppress(Exception):
+                        await command.kill()
+
         stdout, stderr = await asyncio.gather(result.stdout(), result.stderr())
         exit_code = result.exit_code
         error: Optional[str] = stderr if exit_code != 0 else None
@@ -338,7 +359,7 @@ class VercelSandboxBackend(SandboxBackend):
             sandbox = await self._create_sandbox()
             try:
                 await self._install_packages(sandbox)
-                return await self._exec_code(sandbox, code, env=session_env)
+                return await self._exec_code(sandbox, code, env=session_env, timeout=timeout)
             finally:
                 try:
                     await sandbox.stop()

@@ -145,6 +145,78 @@ class TestCodeRunParamsKwarg:
         )
 
 
+class TestPerExecuteTimeout:
+    """Per-execute timeout is plumbed through to Daytona's ``code_run``.
+
+    Regression guard: the SDK accepts ``timeout`` as a top-level kwarg on
+    ``process.code_run``, NOT as a ``CodeRunParams`` field. Passing it via
+    ``CodeRunParams(timeout=...)`` would silently drop the value (and raise
+    TypeError against a real strict-dataclass ``CodeRunParams``).
+    """
+
+    @pytest.mark.asyncio
+    async def test_ephemeral_execute_passes_timeout_to_code_run_kwarg(self) -> None:
+        daytona_mod, process_mod = _make_daytona_mocks()
+
+        modules = {
+            "daytona_sdk": daytona_mod,
+            "daytona_sdk.common": MagicMock(),
+            "daytona_sdk.common.process": process_mod,
+        }
+        with patch.dict(sys.modules, modules):
+            from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
+
+            backend = DaytonaSandboxBackend(api_key=_API_KEY, user_env={}, language="PYTHON")
+            await backend.execute("1+1", session_key="s1", timeout=7)
+
+        workspace = daytona_mod.AsyncDaytona.return_value.create.return_value
+        call_args = workspace.process.code_run.call_args
+        assert call_args.kwargs.get("timeout") == 7, (
+            f"code_run kwargs should include timeout=7 as top-level kwarg; got: {call_args.kwargs}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_session_execute_passes_timeout_to_code_run_kwarg(self) -> None:
+        daytona_mod, process_mod = _make_daytona_mocks()
+
+        modules = {
+            "daytona_sdk": daytona_mod,
+            "daytona_sdk.common": MagicMock(),
+            "daytona_sdk.common.process": process_mod,
+        }
+        with patch.dict(sys.modules, modules):
+            from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
+
+            sandbox = MagicMock()
+            sandbox.process.code_run = AsyncMock(return_value=MagicMock(result="ok", exit_code=0))
+            backend = DaytonaSandboxBackend(api_key=_API_KEY, user_env={}, language="PYTHON")
+            await backend.execute_in_session(sandbox, "1+1", timeout=11)
+
+        call_args = sandbox.process.code_run.call_args
+        assert call_args.kwargs.get("timeout") == 11, (
+            f"execute_in_session should forward timeout=11 to code_run; got: {call_args.kwargs}"
+        )
+
+
+def test_code_run_accepts_top_level_timeout_kwarg() -> None:
+    """SDK shape guard: ``code_run(..., timeout=N)`` is the supported surface.
+
+    Catches the failure mode in PR #13321 — passing ``timeout`` via
+    ``CodeRunParams(timeout=...)`` raises TypeError against the real
+    strict-dataclass ``CodeRunParams``.
+    """
+    import inspect
+
+    pytest.importorskip("daytona_sdk")
+    from daytona_sdk._async.process import AsyncProcess
+
+    sig = inspect.signature(AsyncProcess.code_run)
+    assert "timeout" in sig.parameters, (
+        "daytona_sdk's AsyncProcess.code_run no longer accepts a top-level "
+        f"`timeout` kwarg; got params: {list(sig.parameters)}"
+    )
+
+
 class TestNetworkBlockAll:
     @pytest.mark.asyncio
     async def test_deny_mode_passes_network_block_all_true(self) -> None:
