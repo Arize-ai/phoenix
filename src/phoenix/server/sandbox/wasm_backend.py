@@ -58,9 +58,10 @@ _EPOCH_INTERVAL_SECONDS = 1.0
 
 # Cap on a single guest's WebAssembly linear memory. An over-cap memory.grow
 # fails inside the guest (MemoryError in CPython-WASM) rather than OOM-killing
-# the Phoenix process. Worst-case host footprint is 4 × this — _EXECUTOR runs
-# 4 workers.
-_MAX_WASM_MEMORY_BYTES = 256 * 1024 * 1024
+# the Phoenix process. 128 MiB is well above the interpreter's baseline and
+# leaves room for evaluator code, while keeping the aggregate a single user
+# can pin modest: _EXECUTOR runs 4 workers, so worst case is 4 × this.
+_MAX_WASM_MEMORY_BYTES = 128 * 1024 * 1024
 
 # Per-stream cap on guest stdout/stderr retained in host memory. Distinct from
 # _MAX_WASM_MEMORY_BYTES: that bounds the guest's own memory, not what the host
