@@ -315,10 +315,6 @@ class OtlpStatus(TypedDict):
     message: NotRequired[str]
 
 
-class PhoenixToolCallProviderMetadata(TypedDict):
-    tool_execution_environment: Literal["client", "server"]
-
-
 class PlaygroundContext(TypedDict):
     type: Literal["playground"]
     instanceIds: Sequence[int]
@@ -900,12 +896,17 @@ class ValidationError(TypedDict):
     ctx: NotRequired[Mapping[str, Any]]
 
 
-class FieldAgentRequestCapabilities(TypedDict):
-    webAccess: NotRequired[bool]
+class WebAccessContext(TypedDict):
+    type: Literal["web_access"]
+    enabled: bool
 
 
 class FieldSummarizeResponse(TypedDict):
     summary: str
+
+
+class ToolCallProviderMetadata(TypedDict):
+    tool_execution_environment: Literal["client", "server"]
 
 
 class AnnotateSessionsRequestBody(TypedDict):
@@ -1456,10 +1457,10 @@ class ChatRegenerateMessage(TypedDict):
                 AgentSpanContext,
                 PlaygroundContext,
                 GraphQLContext,
+                WebAccessContext,
             ]
         ]
     ]
-    capabilities: NotRequired[FieldAgentRequestCapabilities]
 
 
 class ChatSubmitMessage(TypedDict):
@@ -1478,10 +1479,10 @@ class ChatSubmitMessage(TypedDict):
                 AgentSpanContext,
                 PlaygroundContext,
                 GraphQLContext,
+                WebAccessContext,
             ]
         ]
     ]
-    capabilities: NotRequired[FieldAgentRequestCapabilities]
 
 
 class CreateSpansRequestBody(TypedDict):

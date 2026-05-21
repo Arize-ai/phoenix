@@ -153,12 +153,6 @@ class _ObservabilityMixin(BaseModel):
     export_remote_traces: bool = Field(default=False, alias="exportRemoteTraces")
 
 
-class _AgentRequestCapabilities(_CamelModel):
-    """Per-request PXI capabilities requested by the browser."""
-
-    web_access: bool = False
-
-
 class _ChatMessageMixin(_ObservabilityMixin):
     """Phoenix-specific extensions added to Vercel AI request messages."""
 
@@ -169,7 +163,6 @@ class _ChatMessageMixin(_ObservabilityMixin):
     contexts: list[ChatContext] = Field(default_factory=list)
     messages: list[AssistantMetadataUIMessage]
     model: AgentModelSelection
-    capabilities: _AgentRequestCapabilities = Field(default_factory=_AgentRequestCapabilities)
 
 
 class ChatSubmitMessage(_ChatMessageMixin, SubmitMessage):
@@ -471,11 +464,16 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             getattr(model, "settings", None),
         )
 
+        resolved_contexts = resolve_contexts(body.contexts)
+        web_access_enabled = (
+            resolved_contexts.web_access is not None
+            and resolved_contexts.web_access.enabled
+            and get_env_phoenix_agents_web_access_enabled()
+        )
         agent = build_agent(
             model=model,
             docs_mcp_server=request.app.state.docs_mcp_server,
-            enable_web_access=body.capabilities.web_access
-            and get_env_phoenix_agents_web_access_enabled(),
+            enable_web_access=web_access_enabled,
             tracer_provider=tracer_provider,
         )
         adapter: VercelAIAdapter[AgentDependencies, AgentOutput] = VercelAIAdapter(
@@ -483,9 +481,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             run_input=body,
             accept=request.headers.get("accept"),
         )
-        deps = AgentDependencies(
-            contexts=resolve_contexts(body.contexts),
-        )
+        deps = AgentDependencies(contexts=resolved_contexts)
 
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
             yield _build_message_metadata_chunk(

@@ -1610,7 +1610,7 @@ export interface components {
          * ChatContext
          * @description Discriminated union of every UI-state context the agent understands.
          */
-        ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"] | components["schemas"]["GraphQLContext"];
+        ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"] | components["schemas"]["GraphQLContext"] | components["schemas"]["WebAccessContext"];
         /**
          * ChatRegenerateMessage
          * @description Regenerate message extended with Phoenix-specific fields.
@@ -1641,7 +1641,6 @@ export interface components {
             contexts?: components["schemas"]["ChatContext"][];
             /** Model */
             model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
-            capabilities?: components["schemas"]["_AgentRequestCapabilities"];
         } & {
             [key: string]: unknown;
         };
@@ -1678,7 +1677,6 @@ export interface components {
             contexts?: components["schemas"]["ChatContext"][];
             /** Model */
             model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
-            capabilities?: components["schemas"]["_AgentRequestCapabilities"];
         } & {
             [key: string]: unknown;
         };
@@ -5021,15 +5019,17 @@ export interface components {
             ctx?: Record<string, unknown>;
         };
         /**
-         * _AgentRequestCapabilities
-         * @description Per-request PXI capabilities requested by the browser.
+         * WebAccessContext
+         * @description User's per-turn request to expose web search / fetch tools.
          */
-        _AgentRequestCapabilities: {
+        WebAccessContext: {
             /**
-             * Webaccess
-             * @default false
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
-            webAccess?: boolean;
+            type: "web_access";
+            /** Enabled */
+            enabled: boolean;
         };
         /**
          * _SummarizeRequest

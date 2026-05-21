@@ -17,16 +17,15 @@ from anthropic.types.beta import (
 )
 from anthropic.types.beta.message_create_params import MessageCreateParams
 from jinja2 import Template
-from pydantic_ai import RunContext
-from pydantic_ai.capabilities import WebFetch, WebSearch
+from pydantic_ai import RunContext, UserError
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.test import TestModel
-from pydantic_ai.native_tools import WebSearchTool
+from pydantic_ai.native_tools import WebFetchTool, WebSearchTool
 from pydantic_ai.profiles import ModelProfile
 from pydantic_ai.providers.anthropic import AnthropicProvider
 from typing_extensions import TypeIs, assert_never
 
-from phoenix.server.agents.agent_factory import _get_native_web_access_capabilities, build_agent
+from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.capabilities import (
     MintlifyDocsMCPServer,
 )
@@ -133,6 +132,22 @@ class _OfflineDocsMCPToolset(MintlifyDocsMCPServer):
 @pytest.fixture
 def docs_mcp_server() -> _OfflineDocsMCPToolset:
     return _OfflineDocsMCPToolset()
+
+
+@pytest.fixture
+def model_with_web_access() -> TestModel:
+    """Model whose profile advertises both native web tools."""
+    return TestModel(
+        profile=ModelProfile(
+            supported_native_tools=frozenset({WebSearchTool, WebFetchTool}),
+        )
+    )
+
+
+@pytest.fixture
+def model_without_web_access() -> TestModel:
+    """Model whose profile advertises no native web tools."""
+    return TestModel(profile=ModelProfile(supported_native_tools=frozenset()))
 
 
 def _get_system_text_blocks(body: MessageCreateParams) -> list[BetaTextBlockParam]:
@@ -446,30 +461,53 @@ class TestCapabilityInstructionsOverride:
         assert _DEFAULT_INSTRUCTIONS.bash_tool.render() not in joined_system
 
 
-class TestNativeWebAccessCapabilities:
-    def test_only_adds_supported_native_web_tools(self) -> None:
-        model = TestModel(
-            profile=ModelProfile(
-                supported_native_tools=frozenset({WebSearchTool}),
-            )
-        )
+class TestWebAccessCapabilities:
+    async def test_web_tools_advertised_when_enabled(
+        self,
+        model_with_web_access: TestModel,
+    ) -> None:
+        agent = build_agent(model=model_with_web_access, enable_web_access=True)
+        deps = AgentDependencies(contexts=ResolvedContexts())
 
-        capabilities = _get_native_web_access_capabilities(model)
+        # ``TestModel`` refuses to respond when native tools are advertised on
+        # the request, but ``last_model_request_parameters`` is recorded before
+        # the error is raised — sufficient to verify ``build_agent``'s wiring.
+        with pytest.raises(UserError):
+            await agent.run("hello", deps=deps)
 
-        assert [type(capability) for capability in capabilities] == [WebSearch]
+        native_tool_types = _get_native_tool_types(model_with_web_access)
+        assert WebSearchTool in native_tool_types
+        assert WebFetchTool in native_tool_types
 
-    def test_adds_no_web_tools_when_model_supports_none(self) -> None:
-        model = TestModel(
-            profile=ModelProfile(
-                supported_native_tools=frozenset(),
-            )
-        )
+    async def test_web_tools_absent_when_disabled(
+        self,
+        model_with_web_access: TestModel,
+    ) -> None:
+        agent = build_agent(model=model_with_web_access, enable_web_access=False)
+        deps = AgentDependencies(contexts=ResolvedContexts())
 
-        assert _get_native_web_access_capabilities(model) == []
+        await agent.run("hello", deps=deps)
 
-    def test_adds_fetch_when_supported(self) -> None:
-        model = TestModel()
+        native_tool_types = _get_native_tool_types(model_with_web_access)
+        assert WebSearchTool not in native_tool_types
+        assert WebFetchTool not in native_tool_types
 
-        capabilities = _get_native_web_access_capabilities(model)
+    async def test_web_tools_absent_when_model_does_not_support_them(
+        self,
+        model_without_web_access: TestModel,
+    ) -> None:
+        agent = build_agent(model=model_without_web_access, enable_web_access=True)
+        deps = AgentDependencies(contexts=ResolvedContexts())
 
-        assert WebFetch in [type(capability) for capability in capabilities]
+        await agent.run("hello", deps=deps)
+
+        native_tool_types = _get_native_tool_types(model_without_web_access)
+        assert WebSearchTool not in native_tool_types
+        assert WebFetchTool not in native_tool_types
+
+
+def _get_native_tool_types(model: TestModel) -> set[type]:
+    """Native tool types the agent advertised on the last ``TestModel`` request."""
+    params = model.last_model_request_parameters
+    assert params is not None
+    return {type(tool) for tool in params.native_tools}

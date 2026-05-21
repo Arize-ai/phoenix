@@ -7306,6 +7306,9 @@
           },
           {
             "$ref": "#/components/schemas/GraphQLContext"
+          },
+          {
+            "$ref": "#/components/schemas/WebAccessContext"
           }
         ],
         "title": "ChatContext",
@@ -7318,7 +7321,8 @@
             "playground": "#/components/schemas/PlaygroundContext",
             "project": "#/components/schemas/ProjectContext",
             "span": "#/components/schemas/AgentSpanContext",
-            "trace": "#/components/schemas/TraceContext"
+            "trace": "#/components/schemas/TraceContext",
+            "web_access": "#/components/schemas/WebAccessContext"
           }
         }
       },
@@ -7385,9 +7389,6 @@
                 "custom": "#/components/schemas/CustomProviderModelSelection"
               }
             }
-          },
-          "capabilities": {
-            "$ref": "#/components/schemas/_AgentRequestCapabilities"
           }
         },
         "additionalProperties": true,
@@ -7473,9 +7474,6 @@
                 "custom": "#/components/schemas/CustomProviderModelSelection"
               }
             }
-          },
-          "capabilities": {
-            "$ref": "#/components/schemas/_AgentRequestCapabilities"
           }
         },
         "additionalProperties": true,
@@ -15384,17 +15382,25 @@
         ],
         "title": "ValidationError"
       },
-      "_AgentRequestCapabilities": {
+      "WebAccessContext": {
         "properties": {
-          "webAccess": {
+          "type": {
+            "type": "string",
+            "const": "web_access",
+            "title": "Type"
+          },
+          "enabled": {
             "type": "boolean",
-            "title": "Webaccess",
-            "default": false
+            "title": "Enabled"
           }
         },
         "type": "object",
-        "title": "_AgentRequestCapabilities",
-        "description": "Per-request PXI capabilities requested by the browser."
+        "required": [
+          "type",
+          "enabled"
+        ],
+        "title": "WebAccessContext",
+        "description": "User's per-turn request to expose web search / fetch tools."
       },
       "_SummarizeRequest": {
         "properties": {

@@ -7,13 +7,10 @@ from pydantic_ai.capabilities import (
     AbstractCapability,
     CombinedCapability,
     DynamicCapability,
-    WebFetch,
-    WebSearch,
 )
 from pydantic_ai.mcp import MCPServerStreamableHTTP
 from pydantic_ai.models import Model
 from pydantic_ai.models.anthropic import AnthropicModel
-from pydantic_ai.native_tools import WebFetchTool, WebSearchTool
 
 from phoenix.server.agents.capabilities import (
     AnthropicPromptCacheCapability,
@@ -29,6 +26,10 @@ from phoenix.server.agents.pydantic_ai import (
     OpenInferenceCapabilityWrapper,
 )
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
+from phoenix.server.agents.web_access import (
+    build_web_fetch_capability,
+    build_web_search_capability,
+)
 
 
 def build_agent(
@@ -65,7 +66,10 @@ def build_agent(
             )
         )
     if enable_web_access:
-        capabilities.extend(_get_native_web_access_capabilities(model))
+        if (web_search := build_web_search_capability(model)) is not None:
+            capabilities.append(web_search)
+        if (web_fetch := build_web_fetch_capability(model)) is not None:
+            capabilities.append(web_fetch)
 
     traced_capability = OpenInferenceCapabilityWrapper(
         wrapped=CombinedCapability(capabilities=capabilities),
@@ -81,20 +85,3 @@ def build_agent(
         capabilities=[traced_capability],
     )
     return OpenInferenceAgentWrapper(agent, tracer=tracer)
-
-
-def _get_native_web_access_capabilities(
-    model: Model,
-) -> list[AbstractCapability[AgentDependencies]]:
-    """Return native web capabilities supported by the selected model.
-
-    Provider-native web search and fetch are only registered when the model's
-    profile advertises support for the corresponding Pydantic AI native tool.
-    """
-    supported_native_tools = model.profile.supported_native_tools
-    capabilities: list[AbstractCapability[AgentDependencies]] = []
-    if WebSearchTool in supported_native_tools:
-        capabilities.append(WebSearch(native=True, local=False))
-    if WebFetchTool in supported_native_tools:
-        capabilities.append(WebFetch(native=True, local=False))
-    return capabilities

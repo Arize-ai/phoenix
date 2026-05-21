@@ -24,8 +24,6 @@ type BuildAgentChatRequestBodyOptions = {
   observability: AgentObservabilitySettings;
   /** Whether a remote collector is configured for this Phoenix instance. */
   hasRemoteCollector: boolean;
-  /** Whether this Phoenix instance allows PXI web search/fetch. */
-  isWebAccessEnabled: boolean;
   /** Typed page and mounted UI contexts for the current turn. */
   contexts: AgentContext[];
   /** Provider + model selection for this turn. */
@@ -65,6 +63,18 @@ function buildGraphQLContext(capabilities: AgentCapabilities): AgentContext {
 }
 
 /**
+ * Build web access context from the current capability snapshot.
+ *
+ * Forwards the user's web access toggle to the backend as a typed context.
+ */
+function buildWebAccessContext(capabilities: AgentCapabilities): AgentContext {
+  return {
+    type: "web_access",
+    enabled: capabilities["web.access"],
+  };
+}
+
+/**
  * Merges the AI SDK transport payload with PXI chat metadata. Tool definitions
  * are intentionally omitted because the server is the model-facing authority.
  */
@@ -77,13 +87,13 @@ export function buildAgentChatRequestBody({
   capabilities,
   observability,
   hasRemoteCollector,
-  isWebAccessEnabled,
   contexts,
   modelSelection,
 }: BuildAgentChatRequestBodyOptions): BuildAgentChatRequestBodyResult {
   const requestContexts = [
     buildCurrentAppContext(),
     buildGraphQLContext(capabilities),
+    buildWebAccessContext(capabilities),
     ...contexts,
   ];
   return {
@@ -94,9 +104,6 @@ export function buildAgentChatRequestBody({
     messageId,
     ingestTraces: observability.storeLocalTraces,
     exportRemoteTraces: observability.exportRemoteTraces && hasRemoteCollector,
-    capabilities: {
-      webAccess: capabilities["web.access"] && isWebAccessEnabled,
-    },
     contexts: requestContexts,
     model: modelSelection,
   };

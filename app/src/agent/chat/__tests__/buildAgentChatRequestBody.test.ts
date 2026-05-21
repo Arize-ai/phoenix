@@ -20,7 +20,6 @@ describe("buildAgentChatRequestBody", () => {
         hasAcknowledgedConsent: false,
       },
       hasRemoteCollector: false,
-      isWebAccessEnabled: true,
       contexts: [],
       modelSelection: {
         providerType: "builtin",
@@ -46,7 +45,7 @@ describe("buildAgentChatRequestBody", () => {
     expect(body).not.toHaveProperty("system");
   });
 
-  it("only requests web access when both the user and server allow it", () => {
+  it("forwards the user's web access toggle as a context entry", () => {
     const capabilities = createDefaultAgentCapabilities();
     capabilities["web.access"] = true;
 
@@ -63,7 +62,6 @@ describe("buildAgentChatRequestBody", () => {
         hasAcknowledgedConsent: false,
       },
       hasRemoteCollector: false,
-      isWebAccessEnabled: false,
       contexts: [],
       modelSelection: {
         providerType: "builtin",
@@ -72,6 +70,9 @@ describe("buildAgentChatRequestBody", () => {
       },
     });
 
-    expect(body.capabilities).toEqual({ webAccess: false });
+    expect(body.contexts).toContainEqual({
+      type: "web_access",
+      enabled: true,
+    });
   });
 });

@@ -105,8 +105,6 @@ export function useAgentChat({
                     hasRemoteCollector: Boolean(
                       store.getState().agentsConfig.collectorEndpoint
                     ),
-                    isWebAccessEnabled:
-                      store.getState().agentsConfig.webAccessEnabled,
                     contexts: selectActiveContexts(store.getState()),
                     modelSelection: modelSelectionRef.current,
                   }),
