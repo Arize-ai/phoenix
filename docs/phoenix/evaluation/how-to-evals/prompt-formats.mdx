@@ -156,7 +156,7 @@ A successful judge prompt template has four elements:
 
 ## Define the judge's role
 
-In the first part of your prompt, define the judge's role. Avoid framing like "you are an expert evaluator": it rarely helps and can sometimes make results worse. Instead, focus on giving the judge context — what type of system it is evaluating, what industry or domain that system operates in, and what the judge's task is. For example, telling the judge "you are identifying issues with the relevance of an agent's responses so we can improve the experience for our users" establishes the system under evaluation, the quality dimension you care about, and the goal of the evaluation.
+In the first part of your prompt, define the judge's role. Avoid framing like "you are an expert evaluator": it rarely helps and can sometimes make results worse. Instead, focus on giving the judge context: what type of system it is evaluating, what industry or domain that system operates in, and what the judge's task is. For example, telling the judge "you are identifying issues with the relevance of an agent's responses so we can improve the experience for our users" establishes the system under evaluation, the quality dimension you care about, and the goal of the evaluation.
 
 ## Explicit criteria
 
@@ -182,7 +182,7 @@ Include variable names that will be expanded at runtime, e.g. `{input}` and `{ou
 
 ## Don't specify the output format
 
-You don't need to tell the LLM what labels to output or describe a response format in your prompt. You define the possible responses externally, as the evaluator's `choices` (see above), and Phoenix builds an output schema from those choices so that responses are easy to parse. Phoenix uses the model's structured output mode where it is available (not all models have one), or otherwise defines a single tool and requires the model to call it. Even without either mechanism, an LLM given one tool with a clear description will use it consistently without extra instruction. In all cases Phoenix ensures the LLM responds with one of your `choices`, so your prompt can focus on the evaluation criteria rather than the output format.
+You don't need to tell the LLM what labels to output or describe a response format in your prompt. You define the possible responses externally, as the evaluator's `choices` (see above), and Phoenix builds an output schema from those choices so that responses are easy to parse. Phoenix uses the model's structured output mode where it is available, or otherwise defines a single tool and requires the model to call it. In all cases Phoenix ensures the LLM responds with one of your `choices`, so your prompt can focus on the evaluation criteria rather than the output format.
 
 # Using Phoenix Prompt Versions as Eval Templates (Python)
 
