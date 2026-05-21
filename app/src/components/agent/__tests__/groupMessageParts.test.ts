@@ -5,6 +5,16 @@ import { JSON_RENDER_DATA_PART_TYPE } from "@phoenix/components/agent/generative
 
 import { groupMessageParts } from "../groupMessageParts";
 
+function createToolPart(toolCallId: string): UIMessage["parts"][number] {
+  return {
+    type: "tool-read_prompt_instance",
+    toolCallId,
+    state: "output-available",
+    input: {},
+    output: "done",
+  } as UIMessage["parts"][number];
+}
+
 function createGenerativeUIPart({
   title,
 }: {
@@ -87,6 +97,55 @@ describe("groupMessageParts", () => {
 
     expect(grouped).toEqual([
       { kind: "tool-solo", part: failedToolPart, index: 0 },
+    ]);
+  });
+
+  it("groups tool calls separated by hidden assistant parts", () => {
+    const firstTool = createToolPart("tool-call-1");
+    const secondTool = createToolPart("tool-call-2");
+    const thirdTool = createToolPart("tool-call-3");
+    const reasoningPart = {
+      type: "reasoning",
+      text: "Thinking about the next tool.",
+      state: "done",
+    } as UIMessage["parts"][number];
+    const sourcePart = {
+      type: "source-url",
+      sourceId: "source-1",
+      url: "https://example.com",
+    } as UIMessage["parts"][number];
+
+    const grouped = groupMessageParts([
+      firstTool,
+      reasoningPart,
+      secondTool,
+      sourcePart,
+      thirdTool,
+    ]);
+
+    expect(grouped).toEqual([
+      {
+        kind: "tool-group",
+        parts: [firstTool, secondTool, thirdTool],
+        startIndex: 0,
+      },
+    ]);
+  });
+
+  it("preserves original indexes for solo tool calls separated by hidden parts", () => {
+    const firstTool = createToolPart("tool-call-1");
+    const secondTool = createToolPart("tool-call-2");
+    const reasoningPart = {
+      type: "reasoning",
+      text: "Thinking about the next tool.",
+      state: "done",
+    } as UIMessage["parts"][number];
+
+    const grouped = groupMessageParts([firstTool, reasoningPart, secondTool]);
+
+    expect(grouped).toEqual([
+      { kind: "tool-solo", part: firstTool, index: 0 },
+      { kind: "tool-solo", part: secondTool, index: 2 },
     ]);
   });
 
