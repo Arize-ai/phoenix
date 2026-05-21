@@ -3177,6 +3177,41 @@ def _get_credential_from_input(
     )
 
 
+async def _resolve_provider_api_key(
+    *,
+    credentials: Sequence[GenerativeCredentialInput] | None,
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+    env_var_name: str,
+    client_base_url: str | None,
+    provider_label: str,
+) -> str | None:
+    """Resolve a provider API key and enforce the custom-base-URL guard.
+
+    Resolution priority: client-supplied credential -> DB-encrypted secret ->
+    process environment variable.
+
+    Security: a server-configured (environment variable) API key must never be
+    sent to a client-supplied base URL — doing so would leak that credential to
+    the client-controlled host (SSRF / credential exfiltration). When the key
+    would fall through to an environment variable and the caller also supplied a
+    custom ``base_url``, the request is rejected. A key from the request itself or
+    from a DB secret is allowed with a custom base URL.
+    """
+    if from_input := _get_credential_from_input(credentials, env_var_name):
+        return from_input
+    if from_secret := (await _resolve_secrets(session, decrypt, env_var_name)).get(env_var_name):
+        return from_secret
+    from_env = getenv(env_var_name)
+    if from_env and client_base_url:
+        raise BadRequest(
+            f"A custom base URL cannot be used with the server-configured "
+            f"{provider_label} API key. Provide an API key with the request, "
+            f"or store one as a Phoenix secret, to use a custom base URL."
+        )
+    return from_env
+
+
 def get_openai_client_class(
     provider_key: "GenerativeProviderKey",
     model_name: str,
@@ -3284,6 +3319,9 @@ async def _get_builtin_provider_client(
 
     sdk = _builtin_sdk_fields_from_connection(model_provider, connection)
     base_url = sdk.base_url
+    # The client-supplied base URL, captured before any environment-variable fallback.
+    # Used to reject pairing a server-owned env-var API key with a client-controlled URL.
+    client_base_url = sdk.base_url or None
     endpoint = sdk.endpoint
     region = sdk.region
     openai_api_type = sdk.openai_api_type
@@ -3294,10 +3332,13 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = (
-            _get_credential_from_input(credentials, "OPENAI_API_KEY")
-            or (await _resolve_secrets(session, decrypt, "OPENAI_API_KEY")).get("OPENAI_API_KEY")
-            or getenv("OPENAI_API_KEY")
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="OPENAI_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="OpenAI",
         )
         base_url = base_url or getenv("OPENAI_BASE_URL")
 
@@ -3544,12 +3585,13 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = (
-            _get_credential_from_input(credentials, "DEEPSEEK_API_KEY")
-            or (await _resolve_secrets(session, decrypt, "DEEPSEEK_API_KEY")).get(
-                "DEEPSEEK_API_KEY"
-            )
-            or getenv("DEEPSEEK_API_KEY")
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="DEEPSEEK_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="DeepSeek",
         )
         base_url = base_url or getenv("DEEPSEEK_BASE_URL") or "https://api.deepseek.com"
 
@@ -3584,10 +3626,13 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = (
-            _get_credential_from_input(credentials, "XAI_API_KEY")
-            or (await _resolve_secrets(session, decrypt, "XAI_API_KEY")).get("XAI_API_KEY")
-            or getenv("XAI_API_KEY")
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="XAI_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="xAI",
         )
         base_url = base_url or getenv("XAI_BASE_URL") or "https://api.x.ai/v1"
 
@@ -3653,12 +3698,13 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = (
-            _get_credential_from_input(credentials, "CEREBRAS_API_KEY")
-            or (await _resolve_secrets(session, decrypt, "CEREBRAS_API_KEY")).get(
-                "CEREBRAS_API_KEY"
-            )
-            or getenv("CEREBRAS_API_KEY")
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="CEREBRAS_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="Cerebras",
         )
         base_url = base_url or getenv("CEREBRAS_BASE_URL") or "https://api.cerebras.ai/v1"
 
@@ -3692,12 +3738,13 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = (
-            _get_credential_from_input(credentials, "FIREWORKS_API_KEY")
-            or (await _resolve_secrets(session, decrypt, "FIREWORKS_API_KEY")).get(
-                "FIREWORKS_API_KEY"
-            )
-            or getenv("FIREWORKS_API_KEY")
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="FIREWORKS_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="Fireworks",
         )
         base_url = (
             base_url or getenv("FIREWORKS_BASE_URL") or "https://api.fireworks.ai/inference/v1"
@@ -3733,10 +3780,13 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = (
-            _get_credential_from_input(credentials, "GROQ_API_KEY")
-            or (await _resolve_secrets(session, decrypt, "GROQ_API_KEY")).get("GROQ_API_KEY")
-            or getenv("GROQ_API_KEY")
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="GROQ_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="Groq",
         )
         base_url = base_url or getenv("GROQ_BASE_URL") or "https://api.groq.com/openai/v1"
 
@@ -3770,12 +3820,13 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = (
-            _get_credential_from_input(credentials, "MOONSHOT_API_KEY")
-            or (await _resolve_secrets(session, decrypt, "MOONSHOT_API_KEY")).get(
-                "MOONSHOT_API_KEY"
-            )
-            or getenv("MOONSHOT_API_KEY")
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="MOONSHOT_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="Moonshot",
         )
         base_url = base_url or getenv("MOONSHOT_BASE_URL") or "https://api.moonshot.ai/v1"
 
@@ -3809,12 +3860,13 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = (
-            _get_credential_from_input(credentials, "PERPLEXITY_API_KEY")
-            or (await _resolve_secrets(session, decrypt, "PERPLEXITY_API_KEY")).get(
-                "PERPLEXITY_API_KEY"
-            )
-            or getenv("PERPLEXITY_API_KEY")
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="PERPLEXITY_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="Perplexity",
         )
         base_url = base_url or getenv("PERPLEXITY_BASE_URL") or "https://api.perplexity.ai"
 
@@ -3848,12 +3900,13 @@ async def _get_builtin_provider_client(
         except ImportError:
             raise BadRequest("OpenAI package not installed. Run: pip install openai")
 
-        api_key = (
-            _get_credential_from_input(credentials, "TOGETHER_API_KEY")
-            or (await _resolve_secrets(session, decrypt, "TOGETHER_API_KEY")).get(
-                "TOGETHER_API_KEY"
-            )
-            or getenv("TOGETHER_API_KEY")
+        api_key = await _resolve_provider_api_key(
+            credentials=credentials,
+            session=session,
+            decrypt=decrypt,
+            env_var_name="TOGETHER_API_KEY",
+            client_base_url=client_base_url,
+            provider_label="Together",
         )
         base_url = base_url or getenv("TOGETHER_BASE_URL") or "https://api.together.xyz/v1"
 

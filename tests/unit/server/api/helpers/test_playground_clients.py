@@ -18,7 +18,9 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import StatusCode, Tracer
 
-from phoenix.db.types.model_provider import LLMClientFactory
+from phoenix.db import models
+from phoenix.db.types.experiment_config import OpenAIConnectionConfig
+from phoenix.db.types.model_provider import LLMClientFactory, ModelProvider
 from phoenix.db.types.prompts import (
     PromptAnthropicInvocationParameters,
     PromptAnthropicInvocationParametersContent,
@@ -30,6 +32,7 @@ from phoenix.db.types.prompts import (
     PromptToolFunctionDefinition,
     PromptTools,
 )
+from phoenix.server.api.exceptions import BadRequest
 from phoenix.server.api.helpers.message_helpers import PlaygroundMessage, create_playground_message
 from phoenix.server.api.helpers.playground_clients import (
     AnthropicStreamingClient,
@@ -40,12 +43,17 @@ from phoenix.server.api.helpers.playground_clients import (
     OpenAIReasoningNonStreamingClient,
     OpenAIResponsesAPIStreamingClient,
     OpenAIStreamingClient,
+    _get_builtin_provider_client,
+    _resolve_provider_api_key,
     get_openai_client_class,
 )
+from phoenix.server.api.input_types.GenerativeCredentialInput import GenerativeCredentialInput
 from phoenix.server.api.input_types.ModelClientOptionsInput import OpenAIApiType
 from phoenix.server.api.types.ChatCompletionMessageRole import ChatCompletionMessageRole
 from phoenix.server.api.types.ChatCompletionSubscriptionPayload import TextChunk
 from phoenix.server.api.types.GenerativeProvider import GenerativeProviderKey
+from phoenix.server.api.types.SecretString import SecretString
+from phoenix.server.types import DbSessionFactory
 from tests.unit.vcr import CustomVCR
 
 
@@ -703,3 +711,153 @@ class TestGetOpenAIClientClass:
             None,
         )
         assert client_class is None
+
+
+def _identity_decrypt(value: bytes) -> bytes:
+    return value
+
+
+class TestResolveProviderApiKey:
+    """The custom-base-URL guard in ``_resolve_provider_api_key``.
+
+    A server-configured (environment variable) API key must never be sent to a
+    client-supplied base URL — that would leak the credential to the
+    client-controlled host. A key from the request itself or from a DB secret is
+    allowed with a custom base URL.
+    """
+
+    async def test_input_credential_with_base_url_is_allowed(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-from-env")
+        credentials = [
+            GenerativeCredentialInput(
+                env_var_name="OPENAI_API_KEY", value=SecretString("sk-from-input")
+            )
+        ]
+        async with db() as session:
+            api_key = await _resolve_provider_api_key(
+                credentials=credentials,
+                session=session,
+                decrypt=_identity_decrypt,
+                env_var_name="OPENAI_API_KEY",
+                client_base_url="https://attacker.example",
+                provider_label="OpenAI",
+            )
+        assert api_key == "sk-from-input"
+
+    async def test_db_secret_with_base_url_is_allowed(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from phoenix.server.encryption import EncryptionService
+
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-from-env")
+        encryption = EncryptionService()
+        async with db() as session:
+            session.add(
+                models.Secret(key="OPENAI_API_KEY", value=encryption.encrypt(b"sk-from-secret"))
+            )
+            await session.commit()
+        async with db() as session:
+            api_key = await _resolve_provider_api_key(
+                credentials=None,
+                session=session,
+                decrypt=encryption.decrypt,
+                env_var_name="OPENAI_API_KEY",
+                client_base_url="https://my-proxy.example",
+                provider_label="OpenAI",
+            )
+        assert api_key == "sk-from-secret"
+
+    async def test_env_var_key_with_base_url_is_rejected(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-from-env")
+        async with db() as session:
+            with pytest.raises(BadRequest):
+                await _resolve_provider_api_key(
+                    credentials=None,
+                    session=session,
+                    decrypt=_identity_decrypt,
+                    env_var_name="OPENAI_API_KEY",
+                    client_base_url="https://attacker.example",
+                    provider_label="OpenAI",
+                )
+
+    async def test_env_var_key_without_base_url_is_allowed(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-from-env")
+        async with db() as session:
+            api_key = await _resolve_provider_api_key(
+                credentials=None,
+                session=session,
+                decrypt=_identity_decrypt,
+                env_var_name="OPENAI_API_KEY",
+                client_base_url=None,
+                provider_label="OpenAI",
+            )
+        assert api_key == "sk-from-env"
+
+    async def test_no_key_with_base_url_returns_none(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        async with db() as session:
+            api_key = await _resolve_provider_api_key(
+                credentials=None,
+                session=session,
+                decrypt=_identity_decrypt,
+                env_var_name="OPENAI_API_KEY",
+                client_base_url="https://my-endpoint.example",
+                provider_label="OpenAI",
+            )
+        assert api_key is None
+
+    async def test_builtin_openai_client_rejects_base_url_with_env_key(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """End-to-end: a custom base URL paired with an env-var-only key is rejected."""
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-from-env")
+        connection = OpenAIConnectionConfig(
+            type="openai",
+            base_url="https://attacker.example",
+            openai_api_type="chat_completions",
+        )
+        async with db() as session:
+            with pytest.raises(BadRequest):
+                await _get_builtin_provider_client(
+                    ModelProvider.OPENAI,
+                    "gpt-4o",
+                    connection,
+                    None,
+                    session,
+                    _identity_decrypt,
+                )
+
+    async def test_builtin_openai_client_allows_base_url_with_request_key(
+        self, db: DbSessionFactory, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A custom base URL is allowed when the caller supplies their own key."""
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-from-env")
+        connection = OpenAIConnectionConfig(
+            type="openai",
+            base_url="https://my-proxy.example",
+            openai_api_type="chat_completions",
+        )
+        credentials = [
+            GenerativeCredentialInput(
+                env_var_name="OPENAI_API_KEY", value=SecretString("sk-from-request")
+            )
+        ]
+        async with db() as session:
+            client = await _get_builtin_provider_client(
+                ModelProvider.OPENAI,
+                "gpt-4o",
+                connection,
+                None,
+                session,
+                _identity_decrypt,
+                credentials,
+            )
+        assert isinstance(client, OpenAIStreamingClient)
