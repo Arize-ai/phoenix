@@ -349,6 +349,42 @@ async def test_execute_in_session_wraps_non_session_gone_exception() -> None:
     assert result.stderr == "user oops"
 
 
+@pytest.mark.asyncio
+async def test_exec_code_does_not_pass_timeout_to_sdk_exec() -> None:
+    """``sandbox.exec(timeout=N)`` is client-side polling only — there is
+    no per-process kill RPC (``ContainerProcess`` has no ``terminate``).
+    A timeout kwarg here would suppress the outer ``asyncio.wait_for``
+    without delivering server-side cleanup, growing the leaked-subprocess
+    window from "immediate eviction" to "idle-TTL eviction" (~300s).
+
+    Cleanup is intentionally routed through the outer wait_for +
+    ``schedule_eviction`` -> ``close_session`` -> ``sandbox.terminate``.
+    This test pins that decision so a future contributor can't quietly
+    re-add the kwarg.
+    """
+    modal_mock = _make_modal_mock()
+    with patch.dict(sys.modules, {"modal": modal_mock}):
+        from phoenix.server.sandbox.modal_backend import ModalSandboxBackend
+
+        backend = ModalSandboxBackend(token_id=_TOKEN_ID, token_secret=_TOKEN_SECRET)
+        sandbox = MagicMock()
+        proc = MagicMock()
+        proc.stdout.read.aio = AsyncMock(return_value="")
+        proc.stderr.read.aio = AsyncMock(return_value="")
+        proc.wait.aio = AsyncMock(return_value=0)
+        sandbox.exec.aio = AsyncMock(return_value=proc)
+
+        await backend._exec_code(sandbox, "noop")
+
+    call_args = sandbox.exec.aio.call_args
+    assert "timeout" not in call_args.kwargs, (
+        "Modal exec must NOT receive a timeout kwarg from Phoenix — "
+        "ContainerProcess has no per-process kill, so a timeout here is "
+        "a no-op for cleanup and suppresses the outer wait_for path. "
+        f"Got kwargs: {call_args.kwargs}"
+    )
+
+
 def test_adapter_build_backend_wires_packages_to_image() -> None:
     from phoenix.server.sandbox.types import ModalConfig, ModalCredentials, ModalDeployment
 

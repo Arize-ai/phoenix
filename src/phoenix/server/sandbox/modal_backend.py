@@ -223,6 +223,8 @@ class ModalSandboxBackend(SandboxBackend):
             return
 
     async def _exec_code(self, sandbox: Sandbox, code: str) -> ExecutionResult:
+        # No timeout= kwarg: ContainerProcess has no kill; cleanup is via
+        # outer wait_for + schedule_eviction -> sandbox.terminate.
         proc = await sandbox.exec.aio("python", "-c", code)
         stdout, stderr = await asyncio.gather(
             proc.stdout.read.aio(),
