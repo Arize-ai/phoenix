@@ -462,6 +462,13 @@ class TestCapabilityInstructionsOverride:
 
 
 class TestWebAccessCapabilities:
+    @staticmethod
+    def _get_native_tool_types(model: TestModel) -> set[type]:
+        """Native tool types the agent advertised on the last ``TestModel`` request."""
+        params = model.last_model_request_parameters
+        assert params is not None
+        return {type(tool) for tool in params.native_tools}
+
     async def test_web_tools_advertised_when_enabled(
         self,
         model_with_web_access: TestModel,
@@ -475,7 +482,7 @@ class TestWebAccessCapabilities:
         with pytest.raises(UserError):
             await agent.run("hello", deps=deps)
 
-        native_tool_types = _get_native_tool_types(model_with_web_access)
+        native_tool_types = self._get_native_tool_types(model_with_web_access)
         assert WebSearchTool in native_tool_types
         assert WebFetchTool in native_tool_types
 
@@ -488,7 +495,7 @@ class TestWebAccessCapabilities:
 
         await agent.run("hello", deps=deps)
 
-        native_tool_types = _get_native_tool_types(model_with_web_access)
+        native_tool_types = self._get_native_tool_types(model_with_web_access)
         assert WebSearchTool not in native_tool_types
         assert WebFetchTool not in native_tool_types
 
@@ -501,13 +508,6 @@ class TestWebAccessCapabilities:
 
         await agent.run("hello", deps=deps)
 
-        native_tool_types = _get_native_tool_types(model_without_web_access)
+        native_tool_types = self._get_native_tool_types(model_without_web_access)
         assert WebSearchTool not in native_tool_types
         assert WebFetchTool not in native_tool_types
-
-
-def _get_native_tool_types(model: TestModel) -> set[type]:
-    """Native tool types the agent advertised on the last ``TestModel`` request."""
-    params = model.last_model_request_parameters
-    assert params is not None
-    return {type(tool) for tool in params.native_tools}
