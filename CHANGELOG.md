@@ -1,5 +1,22 @@
 # Changelog
 
+## [16.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.12.0...arize-phoenix-v16.0.0) (2026-05-21)
+
+
+### ⚠ BREAKING CHANGES
+
+* Sandboxing and Code Evaluators ([#13290](https://github.com/Arize-ai/phoenix/issues/13290))
+
+### Features
+
+* **agents:** Enable provider native web search / fetch when available ([#13333](https://github.com/Arize-ai/phoenix/issues/13333)) ([41eb4fc](https://github.com/Arize-ai/phoenix/commit/41eb4fcb0721107bf22f19ff5c7121a5e7620f67))
+* Sandboxing and Code Evaluators ([#13290](https://github.com/Arize-ai/phoenix/issues/13290)) ([e294d93](https://github.com/Arize-ai/phoenix/commit/e294d939fb6c5fbbcca0c3460334dd08f1b3b43e))
+
+
+### Bug Fixes
+
+* **agents:** Prevent broken tool groups ([#13387](https://github.com/Arize-ai/phoenix/issues/13387)) ([78d1e96](https://github.com/Arize-ai/phoenix/commit/78d1e96ee088c311d161d90088170f24bf5aa933))
+
 ## [15.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.11.1...arize-phoenix-v15.12.0) (2026-05-21)
 
 
