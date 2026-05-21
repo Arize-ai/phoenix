@@ -251,7 +251,9 @@ examples:
         dataset = load_dataset(path)
         assert dataset.examples[0]["splits"] == [split]
 
-    @pytest.mark.parametrize("splits", (["regression", "val"], ["dev", "val"], ["regression", "dev"]))
+    @pytest.mark.parametrize(
+        "splits", (["regression", "val"], ["dev", "val"], ["regression", "dev"])
+    )
     def test_multiple_splits_raise(self, tmp_path: Path, splits: list[str]) -> None:
         path = _write(
             tmp_path / "multiple_splits.yaml",
