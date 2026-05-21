@@ -1,5 +1,28 @@
 # Changelog
 
+## [15.12.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.11.1...arize-phoenix-v15.12.0) (2026-05-21)
+
+
+### Features
+
+* **agents:** stamp tool execution environment on tool-call provider metadata ([#13277](https://github.com/Arize-ai/phoenix/issues/13277)) ([ef421e5](https://github.com/Arize-ai/phoenix/commit/ef421e5af20289214b9e77b30d4c45709e0b3da6))
+* **ui:** submit elicitation responses with Enter key ([#13288](https://github.com/Arize-ai/phoenix/issues/13288)) ([c74574d](https://github.com/Arize-ai/phoenix/commit/c74574d39212be497d67106026d1261ab14ffe7f))
+
+
+### Bug Fixes
+
+* **app:** prevent nested spans table scrolling ([#13320](https://github.com/Arize-ai/phoenix/issues/13320)) ([af751b6](https://github.com/Arize-ai/phoenix/commit/af751b6bace50f84fc36f0b1160c50059884df4f))
+* **app:** route PXI markdown links through router ([#13345](https://github.com/Arize-ai/phoenix/issues/13345)) ([7490254](https://github.com/Arize-ai/phoenix/commit/749025406c53c1b0cd5764ad0283f6a65f67c65c))
+* **cost:** update built-in model token prices ([#13346](https://github.com/Arize-ai/phoenix/issues/13346)) ([eceff55](https://github.com/Arize-ai/phoenix/commit/eceff5589ef4c07bd6a78537cd7eeef7e3ef39fe))
+* **playground:** block custom base URL paired with env-var provider key ([#13377](https://github.com/Arize-ai/phoenix/issues/13377)) ([bb31a52](https://github.com/Arize-ai/phoenix/commit/bb31a522d5300d32f9fe1949f11805e61f3ce88f))
+* **playground:** drop dated model deployments from picker lists ([#13362](https://github.com/Arize-ai/phoenix/issues/13362)) ([0068159](https://github.com/Arize-ai/phoenix/commit/0068159524d1a57b823490ba7d99c5e49bd86883))
+* **playground:** show View Trace link on errored runs when span exists ([#13355](https://github.com/Arize-ai/phoenix/issues/13355)) ([80ced9f](https://github.com/Arize-ai/phoenix/commit/80ced9f4c37d7077afd1e7552fa86bfb8f33c615)), closes [#13130](https://github.com/Arize-ai/phoenix/issues/13130)
+
+
+### Documentation
+
+* Add Phoenix release notes for 05-13-2026 through 05-15-2026 ([#13350](https://github.com/Arize-ai/phoenix/issues/13350)) ([c0b00d8](https://github.com/Arize-ai/phoenix/commit/c0b00d87344a23ff2e32376664e257a2ca053bff))
+
 ## [15.11.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.11.0...arize-phoenix-v15.11.1) (2026-05-19)
 
 
