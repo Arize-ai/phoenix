@@ -21,28 +21,38 @@ This page covers code evaluators authored **in the Phoenix UI** and run by Phoen
 ## How It Works
 
 ```mermaid
+%%{init: {'theme': 'base'}}%%
 flowchart LR
-    subgraph dataset [Dataset]
-        Example[Example]
-        Evaluator[Code Evaluator]
+    Example("Dataset Example")
+    Task("Playground / UI Task")
+    Evaluator("Code Evaluator")
+
+    subgraph sandbox ["Sandbox Backend"]
+        Evaluate("evaluate(...)")
     end
 
-    Task[Playground/UI Task]
-
-    subgraph sandbox [Sandbox Backend]
-        Evaluate["evaluate(...)"]
-    end
-
-    subgraph results [Results]
-        Annotation[Label / Score]
-        Trace[Evaluator Trace]
+    subgraph results ["Results"]
+        direction TB
+        Annotation("Label / Score")
+        Trace("Evaluator Trace")
     end
 
     Example --> Task
-    Task -- "input, output, reference, metadata" --> Evaluator
+    Task -- "input · output · reference · metadata" --> Evaluator
     Evaluator -- "mapped inputs" --> Evaluate
     Evaluate --> Annotation
     Evaluate --> Trace
+
+    classDef node fill:#FFFFFF,stroke:#64748B,stroke-width:2px,color:#1E293B
+    classDef active fill:#2563EB,stroke:#1E3A8A,stroke-width:2px,color:#FFFFFF
+
+    class Example,Task,Evaluator,Annotation,Trace node
+    class Evaluate active
+
+    style sandbox fill:#F1F5F9,stroke:#94A3B8,stroke-width:1px,color:#334155
+    style results fill:#F1F5F9,stroke:#94A3B8,stroke-width:1px,color:#334155
+
+    linkStyle default stroke:#94A3B8,stroke-width:2px
 ```
 
 From authoring to results, you'll work through five steps:
@@ -125,23 +135,38 @@ The available backends are:
 Backends fall into two groups based on where the code actually runs:
 
 ```mermaid
-flowchart LR
+%%{init: {'theme': 'base'}}%%
+flowchart TB
     subgraph phoenixHost ["Phoenix Machine"]
-        Server[Phoenix Server]
+        direction TB
+        Server("Phoenix Server")
         subgraph localBox ["Local Sandbox"]
-            WASM[WebAssembly<br/>Python]
-            Deno[Deno<br/>TypeScript]
+            direction LR
+            WASM("WebAssembly · Python")
+            Deno("Deno · TypeScript")
         end
         Server --> localBox
     end
 
-    subgraph provider ["Hosted Provider — E2B / Daytona / Vercel / Modal"]
-        subgraph hostedBox ["Sandbox"]
-            Code[Evaluator code]
-        end
+    subgraph provider ["Hosted Sandbox — E2B / Daytona / Vercel / Modal"]
+        Code("Evaluator code")
     end
 
-    Server -. HTTPS .-> hostedBox
+    Server -. "HTTPS" .-> provider
+
+    classDef host fill:#FFFFFF,stroke:#475569,stroke-width:2px,color:#1E293B
+    classDef localNode fill:#FFFFFF,stroke:#2563EB,stroke-width:2px,color:#1E3A8A
+    classDef hostedNode fill:#FFFFFF,stroke:#7C3AED,stroke-width:2px,color:#4C1D95
+
+    class Server host
+    class WASM,Deno localNode
+    class Code hostedNode
+
+    style phoenixHost fill:#F1F5F9,stroke:#94A3B8,stroke-width:1px,color:#334155
+    style localBox fill:#DBEAFE,stroke:#2563EB,stroke-width:1px,color:#1E3A8A
+    style provider fill:#EDE9FE,stroke:#7C3AED,stroke-width:1px,color:#4C1D95
+
+    linkStyle default stroke:#94A3B8,stroke-width:2px
 ```
 
 **Local** backends (WebAssembly, Deno) ship with Phoenix and need no credentials, so they're available immediately on self-hosted deployments — but they only run **simple, self-contained code**: no environment variables, no network access, no installed packages. **Hosted** backends (E2B, Daytona, Vercel, Modal) run each invocation on a third-party provider's infrastructure, and are the only backends that support environment variables, outbound network access, and third-party dependencies. See [Sandbox Backends](/docs/phoenix/self-hosting/features/sandbox-runtimes) for the full capability matrix.
