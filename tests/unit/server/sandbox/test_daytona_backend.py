@@ -144,6 +144,49 @@ class TestCodeRunParamsKwarg:
             f"Expected params.env=None for empty user_env, got {params.env!r}"
         )
 
+    @pytest.mark.asyncio
+    async def test_execute_forwards_timeout_to_code_run(self) -> None:
+        daytona_mod, process_mod = _make_daytona_mocks()
+
+        modules = {
+            "daytona_sdk": daytona_mod,
+            "daytona_sdk.common": MagicMock(),
+            "daytona_sdk.common.process": process_mod,
+        }
+        with patch.dict(sys.modules, modules):
+            from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
+
+            backend = DaytonaSandboxBackend(api_key=_API_KEY, language="PYTHON")
+            await backend.execute("1+1", session_key="s1", timeout=12)
+
+        workspace = daytona_mod.AsyncDaytona.return_value.create.return_value
+        call_kwargs = workspace.process.code_run.call_args.kwargs
+        params = call_kwargs["params"]
+        assert isinstance(params, _CodeRunParams)
+        assert call_kwargs["timeout"] == 12
+
+    @pytest.mark.asyncio
+    async def test_execute_in_session_forwards_timeout_to_code_run(self) -> None:
+        daytona_mod, process_mod = _make_daytona_mocks()
+
+        modules = {
+            "daytona_sdk": daytona_mod,
+            "daytona_sdk.common": MagicMock(),
+            "daytona_sdk.common.process": process_mod,
+        }
+        with patch.dict(sys.modules, modules):
+            from phoenix.server.sandbox.daytona_backend import DaytonaSandboxBackend
+
+            sandbox = MagicMock()
+            sandbox.process.code_run = AsyncMock(return_value=MagicMock(result="ok", exit_code=0))
+            backend = DaytonaSandboxBackend(api_key=_API_KEY, language="PYTHON")
+            await backend.execute_in_session(sandbox, "1+1", timeout=9)
+
+        call_kwargs = sandbox.process.code_run.call_args.kwargs
+        params = call_kwargs["params"]
+        assert isinstance(params, _CodeRunParams)
+        assert call_kwargs["timeout"] == 9
+
 
 class TestNetworkBlockAll:
     @pytest.mark.asyncio

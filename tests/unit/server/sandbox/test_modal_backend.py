@@ -264,6 +264,27 @@ async def test_exec_code_strips_ansi_from_all_three_fields() -> None:
 
 
 @pytest.mark.asyncio
+async def test_exec_code_forwards_per_execute_timeout() -> None:
+    modal_mock = _make_modal_mock()
+    with patch.dict(sys.modules, {"modal": modal_mock}):
+        from phoenix.server.sandbox.modal_backend import ModalSandboxBackend
+
+        backend = ModalSandboxBackend(token_id=_TOKEN_ID, token_secret=_TOKEN_SECRET)
+
+        sandbox = MagicMock()
+        proc = MagicMock()
+        proc.stdout.read.aio = AsyncMock(return_value="")
+        proc.stderr.read.aio = AsyncMock(return_value="")
+        proc.wait.aio = AsyncMock(return_value=0)
+        sandbox.exec.aio = AsyncMock(return_value=proc)
+
+        result = await backend._exec_code(sandbox, "noop", timeout=11)
+
+    sandbox.exec.aio.assert_awaited_once_with("python", "-c", "noop", timeout=11)
+    assert result.error is None
+
+
+@pytest.mark.asyncio
 async def test_execute_strips_ansi_in_raised_exception_path() -> None:
     modal_mock = _make_modal_mock()
     modal_mock.Sandbox.create.aio = AsyncMock(

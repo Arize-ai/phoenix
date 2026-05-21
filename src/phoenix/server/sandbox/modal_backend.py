@@ -199,7 +199,7 @@ class ModalSandboxBackend(SandboxBackend):
     ) -> ExecutionResult:
         sandbox: Sandbox = handle  # type: ignore[assignment]
         try:
-            return await self._exec_code(sandbox, code)
+            return await self._exec_code(sandbox, code, timeout=timeout)
         except Exception as exc:
             if self.is_session_gone(exc):
                 raise
@@ -222,8 +222,13 @@ class ModalSandboxBackend(SandboxBackend):
         except NotFoundError:
             return
 
-    async def _exec_code(self, sandbox: Sandbox, code: str) -> ExecutionResult:
-        proc = await sandbox.exec.aio("python", "-c", code)
+    async def _exec_code(
+        self,
+        sandbox: Sandbox,
+        code: str,
+        timeout: Optional[int] = None,
+    ) -> ExecutionResult:
+        proc = await sandbox.exec.aio("python", "-c", code, timeout=timeout)
         stdout, stderr = await asyncio.gather(
             proc.stdout.read.aio(),
             proc.stderr.read.aio(),
@@ -243,7 +248,7 @@ class ModalSandboxBackend(SandboxBackend):
         try:
             sandbox = await self._create_sandbox()
             try:
-                return await self._exec_code(sandbox, code)
+                return await self._exec_code(sandbox, code, timeout=timeout)
             finally:
                 await sandbox.terminate.aio()
         except Exception as exc:

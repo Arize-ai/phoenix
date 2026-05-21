@@ -6,6 +6,7 @@ import asyncio
 import logging
 import os
 import tempfile
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -58,6 +59,7 @@ def _run_wasm(binary_path: Path, code: str, timeout: int) -> ExecutionResult:
     stdout_chunks: list[bytes] = []
     stderr_chunks: list[bytes] = []
     stdin_path: str | None = None
+    timer: threading.Timer | None = None
 
     try:
         engine, module = _get_engine_and_module(binary_path)
@@ -77,7 +79,10 @@ def _run_wasm(binary_path: Path, code: str, timeout: int) -> ExecutionResult:
 
         store = _wasm.Store(engine)
         store.set_wasi(wasi)
-        store.set_epoch_deadline(timeout)
+        store.set_epoch_deadline(1)
+        timer = threading.Timer(timeout, engine.increment_epoch)
+        timer.daemon = True
+        timer.start()
 
         instance = linker.instantiate(store, module)
         exports = instance.exports(store)
@@ -96,6 +101,8 @@ def _run_wasm(binary_path: Path, code: str, timeout: int) -> ExecutionResult:
             error=str(exc),
         )
     finally:
+        if timer is not None:
+            timer.cancel()
         if stdin_path is not None:
             import os
 

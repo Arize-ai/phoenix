@@ -246,7 +246,7 @@ class VercelSandboxBackend(SandboxBackend):
         sandbox: AsyncSandbox = handle  # type: ignore[assignment]
         try:
             session_env: Optional[dict[str, str]] = self._user_env or None
-            return await self._exec_code(sandbox, code, env=session_env)
+            return await self._exec_code(sandbox, code, env=session_env, timeout=timeout)
         except Exception as exc:
             if self.is_session_gone(exc):
                 raise
@@ -311,11 +311,23 @@ class VercelSandboxBackend(SandboxBackend):
         sandbox: AsyncSandbox,
         code: str,
         env: Optional[dict[str, str]] = None,
+        timeout: Optional[int] = None,
     ) -> ExecutionResult:
         lang_cfg = self._lang_cfg()
         cmd: str = lang_cfg["cmd"]
         args: list[str] = lang_cfg["args_prefix"] + [code]
-        result = await sandbox.run_command(cmd, args, env=env)
+
+        if timeout is None:
+            result = await sandbox.run_command(cmd, args, env=env)
+        else:
+            command = await sandbox.run_command_detached(cmd, args, env=env)
+            try:
+                result = await asyncio.wait_for(command.wait(), timeout=timeout)
+            except (TimeoutError, asyncio.TimeoutError):
+                await command.kill()
+                message = f"Execution timed out after {timeout}s"
+                return ExecutionResult(stdout="", stderr=message, error=message)
+
         stdout, stderr = await asyncio.gather(result.stdout(), result.stderr())
         exit_code = result.exit_code
         error: Optional[str] = stderr if exit_code != 0 else None
@@ -338,7 +350,7 @@ class VercelSandboxBackend(SandboxBackend):
             sandbox = await self._create_sandbox()
             try:
                 await self._install_packages(sandbox)
-                return await self._exec_code(sandbox, code, env=session_env)
+                return await self._exec_code(sandbox, code, env=session_env, timeout=timeout)
             finally:
                 try:
                     await sandbox.stop()

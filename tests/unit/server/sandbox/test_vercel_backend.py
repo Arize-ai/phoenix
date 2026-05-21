@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import sys
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -405,6 +406,56 @@ async def test_execute_strips_ansi_from_all_three_fields(
     assert result.stdout == "ok\n"
     assert result.stderr == "boom: failed\n"
     assert result.error == "boom: failed\n"
+
+
+@pytest.mark.asyncio
+async def test_exec_code_uses_detached_command_when_timeout_is_set() -> None:
+    command_result = MagicMock()
+    command_result.exit_code = 0
+    command_result.stdout = AsyncMock(return_value="done\n")
+    command_result.stderr = AsyncMock(return_value="")
+
+    command = MagicMock()
+    command.wait = AsyncMock(return_value=command_result)
+    command.kill = AsyncMock()
+
+    sandbox = MagicMock()
+    sandbox.run_command = AsyncMock(side_effect=AssertionError("should use detached command"))
+    sandbox.run_command_detached = AsyncMock(return_value=command)
+
+    backend = VercelSandboxBackend(
+        token=_TOKEN, project_id=_PROJECT, team_id=_TEAM, language="PYTHON"
+    )
+    result = await backend._exec_code(sandbox, "print('done')", timeout=5)
+
+    sandbox.run_command_detached.assert_awaited_once()
+    command.kill.assert_not_awaited()
+    assert result.stdout == "done\n"
+    assert result.error is None
+
+
+@pytest.mark.asyncio
+async def test_exec_code_kills_detached_command_on_timeout() -> None:
+    async def _hang() -> Any:
+        await asyncio.sleep(10)
+
+    command = MagicMock()
+    command.wait = AsyncMock(side_effect=_hang)
+    command.kill = AsyncMock()
+
+    sandbox = MagicMock()
+    sandbox.run_command = AsyncMock(side_effect=AssertionError("should use detached command"))
+    sandbox.run_command_detached = AsyncMock(return_value=command)
+
+    backend = VercelSandboxBackend(
+        token=_TOKEN, project_id=_PROJECT, team_id=_TEAM, language="PYTHON"
+    )
+    result = await backend._exec_code(sandbox, "while True: pass", timeout=1)
+
+    command.kill.assert_awaited_once()
+    assert result.stdout == ""
+    assert result.stderr == "Execution timed out after 1s"
+    assert result.error == "Execution timed out after 1s"
 
 
 @pytest.mark.asyncio

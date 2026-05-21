@@ -328,6 +328,94 @@ class TestRunWasmStdoutCapture:
         assert len(stdin_path_holder) == 1
         assert stdin_path_holder[0].endswith(".py")
 
+    def test_epoch_timer_is_started_and_cancelled(self) -> None:
+        import wasmtime
+
+        class _CapturingWasiConfig:
+            @property
+            def stdout_custom(self) -> None:
+                raise AttributeError("unreadable attribute")
+
+            @stdout_custom.setter
+            def stdout_custom(self, cb: object) -> None:
+                del cb
+
+            @property
+            def stderr_custom(self) -> None:
+                raise AttributeError("unreadable attribute")
+
+            @stderr_custom.setter
+            def stderr_custom(self, cb: object) -> None:
+                del cb
+
+            @property
+            def stdin_file(self) -> None:
+                raise AttributeError("unreadable attribute")
+
+            @stdin_file.setter
+            def stdin_file(self, path: object) -> None:
+                del path
+
+        class _StartFunc:
+            def __call__(self, store: object) -> None:
+                del store
+
+        class _FakeTimer:
+            def __init__(self, interval: float, function: object) -> None:
+                self.interval = interval
+                self.function = function
+                self.daemon = False
+                self.started = False
+                self.cancelled = False
+
+            def start(self) -> None:
+                self.started = True
+
+            def cancel(self) -> None:
+                self.cancelled = True
+
+        timers: list[_FakeTimer] = []
+
+        def _make_timer(interval: float, function: object) -> _FakeTimer:
+            timer = _FakeTimer(interval, function)
+            timers.append(timer)
+            return timer
+
+        engine = MagicMock()
+        fake_store = MagicMock()
+        mock_exports = MagicMock()
+        mock_exports.get.return_value = _StartFunc()
+        mock_instance = MagicMock()
+        mock_instance.exports.return_value = mock_exports
+
+        with patch(
+            "phoenix.server.sandbox.wasm_backend._get_engine_and_module",
+            return_value=(engine, MagicMock()),
+        ):
+            with patch("wasmtime.WasiConfig", _CapturingWasiConfig):
+                with patch("wasmtime.Linker") as mock_linker_cls:
+                    mock_linker = MagicMock()
+                    mock_linker_cls.return_value = mock_linker
+                    mock_linker.instantiate.return_value = mock_instance
+                    with patch("wasmtime.Store", return_value=fake_store):
+                        with patch.object(wasmtime, "Func", _StartFunc):
+                            with patch(
+                                "phoenix.server.sandbox.wasm_backend.threading.Timer",
+                                side_effect=_make_timer,
+                            ):
+                                result = _run_wasm(
+                                    Path("/fake/cpython.wasm"), "print(1)", timeout=5
+                                )
+
+        assert result.error is None
+        fake_store.set_epoch_deadline.assert_called_once_with(1)
+        assert len(timers) == 1
+        assert timers[0].interval == 5
+        assert timers[0].function is engine.increment_epoch
+        assert timers[0].daemon is True
+        assert timers[0].started is True
+        assert timers[0].cancelled is True
+
 
 class TestTempFileCleanup:
     def test_stdin_temp_file_is_deleted_after_run(self, tmp_path: Path) -> None:
