@@ -683,6 +683,15 @@ instrumentation:
   # -- OpenTelemetry collector HTTP endpoint for sending traces (PHOENIX_SERVER_INSTRUMENTATION_OTLP_TRACE_COLLECTOR_HTTP_ENDPOINT)
   otlpTraceCollectorHttpEndpoint: ""
 
+# Code evaluator sandboxing
+sandbox:
+  # -- Comma-separated allowlist of sandbox providers (PHOENIX_ALLOWED_SANDBOX_PROVIDERS)
+  # Accepted values: WASM, E2B, DAYTONA, VERCEL, DENO, MODAL (case-insensitive)
+  # When empty, the chart omits the env var and all providers are allowed.
+  # Set to "NONE" to disable all sandbox providers.
+  # Example: "WASM,DENO"
+  allowedProviders: ""
+
 image:
   # -- Image pull policy for Phoenix container (Always, IfNotPresent, or Never)
   pullPolicy: "IfNotPresent"
@@ -694,7 +703,7 @@ image:
   repository: "arizephoenix/phoenix"
 
   # -- Docker image tag/version to deploy
-  tag: version-15.12.0-nonroot
+  tag: version-16.0.0-nonroot
 
 # -- Resource configuration
 resources:
