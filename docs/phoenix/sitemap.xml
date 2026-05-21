@@ -241,6 +241,10 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/evaluation/how-to-evals/code-evaluator-output-shapes</loc>
+    <lastmod>2026-05-21T22:10:36+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/evaluation/how-to-evals/batch-evaluations</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -331,6 +335,38 @@
   <url>
     <loc>https://arize.com/docs/phoenix/evaluation/server-evals/llm-evaluators</loc>
     <lastmod>2026-02-20T20:30:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/evaluation/server-evals/code-evaluators</loc>
+    <lastmod>2026-05-21T22:10:36+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/evaluation/server-evals/code-evaluators/json-distance</loc>
+    <lastmod>2026-05-21T22:10:36+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/evaluation/server-evals/code-evaluators/regex-match</loc>
+    <lastmod>2026-05-21T22:10:36+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/evaluation/server-evals/code-evaluators/embedding-distance</loc>
+    <lastmod>2026-05-21T22:10:36+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/evaluation/server-evals/code-evaluators/scikit-learn</loc>
+    <lastmod>2026-05-21T22:10:36+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/evaluation/server-evals/code-evaluators/pairwise</loc>
+    <lastmod>2026-05-21T22:10:36+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/evaluation/server-evals/code-evaluators/composite</loc>
+    <lastmod>2026-05-21T22:10:36+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/evaluation/server-evals/code-evaluators/llm-jury</loc>
+    <lastmod>2026-05-21T22:10:36+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/evaluation/server-evals/input-mapping</loc>
@@ -527,6 +563,34 @@
   <url>
     <loc>https://arize.com/docs/phoenix/settings/custom-ai-providers</loc>
     <lastmod>2026-02-21T00:26:33+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/settings/sandboxes</loc>
+    <lastmod>2026-05-21T22:10:36+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/settings/sandboxes/wasm</loc>
+    <lastmod>2026-05-21T22:10:36+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/settings/sandboxes/deno</loc>
+    <lastmod>2026-05-21T22:10:36+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/settings/sandboxes/e2b</loc>
+    <lastmod>2026-05-21T22:10:36+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/settings/sandboxes/daytona</loc>
+    <lastmod>2026-05-21T22:10:36+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/settings/sandboxes/vercel</loc>
+    <lastmod>2026-05-21T22:10:36+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/settings/sandboxes/modal</loc>
+    <lastmod>2026-05-21T22:10:36+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/user-guide</loc>
@@ -1057,6 +1121,22 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/integrations/sandboxes/e2b</loc>
+    <lastmod>2026-05-21T22:10:36+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/sandboxes/daytona</loc>
+    <lastmod>2026-05-21T22:10:36+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/sandboxes/vercel</loc>
+    <lastmod>2026-05-21T22:10:36+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/integrations/sandboxes/modal</loc>
+    <lastmod>2026-05-21T22:10:36+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/integrations/evaluation-integrations/cleanlab</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
@@ -1559,6 +1639,10 @@
   <url>
     <loc>https://arize.com/docs/phoenix/self-hosting/features/management</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/self-hosting/features/sandbox-runtimes</loc>
+    <lastmod>2026-05-21T22:10:36+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/self-hosting/upgrade/migrations</loc>
