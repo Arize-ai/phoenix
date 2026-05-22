@@ -1,5 +1,3 @@
-"""Tests for pydantic-ai-skills types."""
-
 from pathlib import Path
 
 import pytest
@@ -11,8 +9,7 @@ from phoenix.server.agents.capabilities.skills.skill_resource import (
 )
 
 
-def test_skill_creation() -> None:
-    """Test creating Skill with required fields."""
+def test_skill_with_required_fields_defaults_resources_and_metadata() -> None:
     skill = Skill(
         name="test-skill",
         description="A test skill",
@@ -28,8 +25,7 @@ def test_skill_creation() -> None:
     assert skill.metadata is None
 
 
-def test_skill_with_metadata() -> None:
-    """Test Skill with additional metadata."""
+def test_skill_with_metadata_stores_metadata_fields() -> None:
     skill = Skill(
         name="test-skill",
         description="A test skill",
@@ -43,8 +39,7 @@ def test_skill_with_metadata() -> None:
     assert skill.metadata["author"] == "Test Author"
 
 
-def test_content_skill_resource_creation() -> None:
-    """Test creating ContentSkillResource with static content."""
+def test_content_skill_resource_holds_static_content_without_function_schema() -> None:
     resource = ContentSkillResource(name="reference", content="Reference documentation here")
 
     assert resource.name == "reference"
@@ -52,8 +47,7 @@ def test_content_skill_resource_creation() -> None:
     assert not hasattr(resource, "function_schema")
 
 
-def test_skill_resource_is_abstract() -> None:
-    """SkillResource is an ABC and cannot be instantiated directly."""
+def test_skill_resource_direct_instantiation_raises_type_error() -> None:
     with pytest.raises(TypeError, match="abstract"):
         SkillResource(name="reference")  # type: ignore[abstract]
 
@@ -66,8 +60,7 @@ def _write_skill_md(directory: Path, content: str) -> Path:
     return skill_file
 
 
-def test_from_file_skill_md_path(tmp_path: Path) -> None:
-    """Load a skill by passing the SKILL.md file path directly."""
+def test_from_file_with_skill_md_path_loads_skill_with_resolved_directory(tmp_path: Path) -> None:
     skill_dir = tmp_path / "my-skill"
     skill_file = _write_skill_md(
         skill_dir, "---\nname: my-skill\ndescription: A skill\n---\n\nInstructions.\n"
@@ -82,14 +75,12 @@ def test_from_file_skill_md_path(tmp_path: Path) -> None:
     assert skill.resources == []
 
 
-def test_from_file_missing_skill_md(tmp_path: Path) -> None:
-    """A SKILL.md path that does not exist raises FileNotFoundError."""
+def test_from_file_with_missing_skill_md_path_raises_file_not_found_error(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError, match="SKILL.md not found"):
         Skill.from_file(tmp_path / "nonexistent" / "SKILL.md")
 
 
-def test_from_file_missing_name_raises(tmp_path: Path) -> None:
-    """Missing name raises ValueError."""
+def test_from_file_with_missing_name_field_raises_value_error(tmp_path: Path) -> None:
     skill_file = _write_skill_md(
         tmp_path / "no-name", "---\ndescription: No name\n---\n\nContent.\n"
     )
@@ -98,8 +89,7 @@ def test_from_file_missing_name_raises(tmp_path: Path) -> None:
         Skill.from_file(skill_file)
 
 
-def test_from_file_attaches_explicit_resources(tmp_path: Path) -> None:
-    """Caller-supplied resources are attached to the loaded Skill."""
+def test_from_file_with_explicit_resources_attaches_them_to_loaded_skill(tmp_path: Path) -> None:
     skill_file = _write_skill_md(
         tmp_path / "my-skill", "---\nname: my-skill\ndescription: A skill\n---\n\nInstructions.\n"
     )
@@ -113,8 +103,7 @@ def test_from_file_attaches_explicit_resources(tmp_path: Path) -> None:
     assert skill.resources[0].name == "schema.json"
 
 
-def test_from_file_wrong_filename_raises(tmp_path: Path) -> None:
-    """Passing a file that is not named SKILL.md raises ValueError."""
+def test_from_file_with_wrong_filename_raises_value_error(tmp_path: Path) -> None:
     other_file = tmp_path / "README.md"
     other_file.write_text("# not a skill")
 
@@ -122,8 +111,7 @@ def test_from_file_wrong_filename_raises(tmp_path: Path) -> None:
         Skill.from_file(other_file)
 
 
-def test_from_file_non_dict_frontmatter_raises(tmp_path: Path) -> None:
-    """YAML frontmatter that is a list (not a mapping) raises ValueError."""
+def test_from_file_with_non_mapping_frontmatter_raises_value_error(tmp_path: Path) -> None:
     skill_file = _write_skill_md(tmp_path / "bad-skill", "---\n- item1\n- item2\n---\n\nContent.\n")
 
     with pytest.raises(ValueError, match="mapping"):
