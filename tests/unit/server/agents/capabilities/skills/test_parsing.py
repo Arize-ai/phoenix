@@ -1,12 +1,9 @@
-"""Tests for SKILL.md parsing."""
-
 import pytest
 
 from phoenix.server.agents.capabilities.skills import parse_skill_md
 
 
-def test_parse_skill_md_with_frontmatter() -> None:
-    """Test parsing SKILL.md with valid frontmatter."""
+def test_parse_skill_md_with_valid_frontmatter_returns_parsed_fields_and_instructions() -> None:
     content = """---
 name: test-skill
 description: A test skill for testing
@@ -26,8 +23,7 @@ This is the main content.
     assert instructions.startswith("# Test Skill")
 
 
-def test_parse_skill_md_without_frontmatter() -> None:
-    """SKILL.md without a frontmatter fence should raise."""
+def test_parse_skill_md_without_frontmatter_fence_raises_value_error() -> None:
     content = """# Test Skill
 
 This skill has no frontmatter.
@@ -37,8 +33,7 @@ This skill has no frontmatter.
         parse_skill_md(content)
 
 
-def test_parse_skill_md_empty_frontmatter() -> None:
-    """Test parsing SKILL.md with empty frontmatter."""
+def test_parse_skill_md_with_empty_frontmatter_returns_empty_dict_and_instructions() -> None:
     content = """---
 ---
 
@@ -53,8 +48,7 @@ Content here.
     assert instructions.startswith("# Test Skill")
 
 
-def test_parse_skill_md_invalid_yaml() -> None:
-    """Test parsing SKILL.md with invalid YAML."""
+def test_parse_skill_md_with_invalid_yaml_raises_value_error() -> None:
     content = """---
 name: test-skill
 description: [unclosed array
@@ -67,8 +61,7 @@ Content.
         parse_skill_md(content)
 
 
-def test_parse_skill_md_multiline_description() -> None:
-    """Test parsing SKILL.md with multiline description."""
+def test_parse_skill_md_with_multiline_description_preserves_all_lines() -> None:
     content = """---
 name: test-skill
 description: |
@@ -85,8 +78,7 @@ description: |
     assert "description for testing" in frontmatter["description"]
 
 
-def test_parse_skill_md_complex_frontmatter() -> None:
-    """Test parsing SKILL.md with complex frontmatter."""
+def test_parse_skill_md_with_complex_frontmatter_returns_nested_structures() -> None:
     content = """---
 name: complex-skill
 description: Complex skill with metadata
