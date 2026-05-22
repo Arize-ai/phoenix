@@ -1,5 +1,3 @@
-"""Tests for SkillsCapability."""
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -26,8 +24,7 @@ _TEMPLATE = Template(
 )
 
 
-def test_skills_capability_get_toolset() -> None:
-    """SkillsCapability should expose the toolset it was constructed with."""
+def test_skills_capability_get_toolset_returns_constructed_toolset() -> None:
     skill = Skill(name="only-skill", description="x", content="...", path=Path("/tmp/x"))
     toolset = SkillsToolset(
         skills=[skill],
@@ -40,8 +37,7 @@ def test_skills_capability_get_toolset() -> None:
     assert capability.get_toolset() is toolset
 
 
-def test_get_static_instructions_renders_skills_xml() -> None:
-    """Each skill should appear in the rendered output as a <skill> block, sorted by name."""
+def test_get_static_instructions_renders_skills_as_xml_blocks_sorted_by_name() -> None:
     s1 = Skill(name="b-skill", description="second", content="...", path=Path("/tmp/b"))
     s2 = Skill(name="a-skill", description="first", content="...", path=Path("/tmp/a"))
     toolset = SkillsToolset(
