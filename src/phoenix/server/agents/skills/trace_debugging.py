@@ -8,4 +8,4 @@ _SKILL_PATH = (
     Path(__file__).resolve().parent.parent / "prompts" / "skills" / "trace-debugging" / "SKILL.md"
 )
 
-SKILL = Skill.from_file(_SKILL_PATH)
+TRACE_DEBUGGING_SKILL = Skill.from_file(_SKILL_PATH)
