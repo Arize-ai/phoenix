@@ -651,45 +651,48 @@ examples:
       query: hey, what's up?
     expected:
       tools:
+        required: []
         forbidden:
           - set_spans_filter
+        exact_match: true
     metadata:
       category: negative_chitchat
       annotation:
         agreement: high
         n_opinions: 3
-        notes: Existing expected kept. Orchestrator recommended a different shape (Pure-negative case; schema convention is required [] with exact_match true.) but the existing form passes the harness
-          and is more permissive/targeted for this tool-specific dataset.
+        notes: Tightened after review to require no tool calls for this pure-negative chitchat case.
   - id: negative-capabilities-question
     splits: [regression]
     input:
       query: what can you do?
     expected:
       tools:
+        required: []
         forbidden:
           - set_spans_filter
+        exact_match: true
     metadata:
       category: negative_chitchat
       annotation:
         agreement: high
         n_opinions: 3
-        notes: Existing expected kept. Orchestrator recommended a different shape (Pure-negative chitchat; required [] with exact_match true per convention.) but the existing form passes the harness 
-          and is more permissive/targeted for this tool-specific dataset.
+        notes: Tightened after review to require no tool calls for this pure-negative chitchat case.
   - id: negative-thanks
     splits: [regression]
     input:
       query: thanks!
     expected:
       tools:
+        required: []
         forbidden:
           - set_spans_filter
+        exact_match: true
     metadata:
       category: negative_chitchat
       annotation:
         agreement: high
         n_opinions: 3
-        notes: Existing expected kept. Orchestrator recommended a different shape (Pure-negative chitchat.) but the existing form passes the harness and is more permissive/targeted for this 
-          tool-specific dataset.
+        notes: Tightened after review to require no tool calls for this pure-negative chitchat case.
   - id: negative-time-range-intent
     splits: [regression]
     input:
@@ -711,117 +714,125 @@ examples:
       query: Clone the current prompt please.
     expected:
       tools:
+        required: []
         forbidden:
           - set_spans_filter
+        exact_match: true
     metadata:
       category: negative_wrong_tool
       annotation:
         agreement: high
         n_opinions: 3
-        notes: Existing expected kept. Orchestrator recommended a different shape (Clone-prompt is a playground action with no tool available in this PXI context (no playground context); pure-negative
-          for set_spans_filter dataset. Required [] + exact_match true.) but the existing form passes the harness and is more permissive/targeted for this tool-specific dataset.
+        notes: Tightened after review to require no tool calls because no clone-prompt tool is available in this PXI context.
   - id: negative-how-to-question
     splits: [regression]
     input:
       query: How do I create a new dataset?
     expected:
       tools:
+        required: []
         forbidden:
           - set_spans_filter
+        exact_match: true
     metadata:
       category: negative_docs_query
       annotation:
         agreement: high
         n_opinions: 3
-        notes: Existing expected kept. Orchestrator recommended a different shape (Docs query — in eval runs without the docs MCP toolset, the agent should answer from training knowledge with no tool 
-          call. Pure-negative.) but the existing form passes the harness and is more permissive/targeted for this tool-specific dataset.
+        notes: Tightened after review to require no tool calls for this docs-style question in eval runs without docs MCP tools.
   - id: negative-summarize-ask
     splits: [regression]
     input:
       query: Summarize what we see in the spans table right now.
     expected:
       tools:
+        required: []
         forbidden:
           - set_spans_filter
+        exact_match: true
     metadata:
       category: negative_analysis
       annotation:
         agreement: medium
         n_opinions: 3
-        notes: Existing expected kept. Orchestrator recommended a different shape (Summarization of current state should not re-issue filter or time-range tools. Pure-negative; required [] + 
-          exact_match true matches schema convention.) but the existing form passes the harness and is more permissive/targeted for this tool-specific dataset.
+        notes: Tightened after review to require no tool calls because summarizing current state should not re-issue tools.
   - id: negative-diagnosis-question
     splits: [regression]
     input:
       query: Is there a problem with my project?
     expected:
       tools:
+        required: []
         forbidden:
           - set_spans_filter
+        exact_match: true
     metadata:
       category: negative_analysis
       annotation:
         agreement: medium
         n_opinions: 3
-        notes: Existing expected kept. Orchestrator recommended a different shape (Open-ended diagnosis question; agent should answer narratively rather than call set_spans_filter. Pure-negative 
-          convention.) but the existing form passes the harness and is more permissive/targeted for this tool-specific dataset.
+        notes: Tightened after review to require no tool calls for this open-ended diagnosis question.
   - id: negative-definitional-question
     splits: [regression]
     input:
       query: Explain what span kinds mean.
     expected:
       tools:
+        required: []
         forbidden:
           - set_spans_filter
+        exact_match: true
     metadata:
       category: negative_definitional
       annotation:
         agreement: high
         n_opinions: 3
-        notes: Existing expected kept. Orchestrator recommended a different shape (Definitional question; no tool call expected.) but the existing form passes the harness and is more 
-          permissive/targeted for this tool-specific dataset.
+        notes: Tightened after review to require no tool calls for this definitional question.
   - id: negative-debug-advice
     splits: [regression]
     input:
       query: I think my agent is too slow, what should I do?
     expected:
       tools:
+        required: []
         forbidden:
           - set_spans_filter
+        exact_match: true
     metadata:
       category: negative_analysis
       annotation:
         agreement: high
         n_opinions: 3
-        notes: Existing expected kept. Orchestrator recommended a different shape (Advice-style question; pure-negative.) but the existing form passes the harness and is more permissive/targeted for 
-          this tool-specific dataset.
+        notes: Tightened after review to require no tool calls for this advice-style question.
   - id: negative-average-latency
     splits: [regression]
     input:
       query: what's the average latency?
     expected:
       tools:
+        required: []
         forbidden:
           - set_spans_filter
+        exact_match: true
     metadata:
       category: negative_analysis
       annotation:
         agreement: medium
         n_opinions: 3
-        notes: Existing expected kept. Orchestrator recommended a different shape (Analytical question — set_spans_filter doesn't aggregate, agent should answer narratively or use bash/phoenix-gql. 
-          Pure-negative for this dataset's focal tool.) but the existing form passes the harness and is more permissive/targeted for this tool-specific dataset.
+        notes: Tightened after review to require no tool calls because this analytical question should not be handled by set_spans_filter.
   - id: negative-delete-trace
     splits: [regression]
     input:
       query: delete this trace
     expected:
       tools:
+        required: []
         forbidden:
           - set_spans_filter
+        exact_match: true
     metadata:
       category: negative_destructive
       annotation:
         agreement: high
         n_opinions: 3
-        notes: Existing expected kept. Orchestrator recommended a different shape (Destructive intent with no matching tool exposed; pure-negative.) but the existing form passes the harness and is 
-          more permissive/targeted for this tool-specific dataset.
+        notes: Tightened after review to require no tool calls for this destructive intent with no matching tool exposed.
