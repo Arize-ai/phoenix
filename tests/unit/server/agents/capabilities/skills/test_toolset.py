@@ -1,5 +1,3 @@
-"""Tests for SkillsToolset."""
-
 from collections.abc import Callable
 from pathlib import Path
 from unittest.mock import Mock
@@ -27,7 +25,6 @@ def make_toolset() -> Callable[[list[Skill]], SkillsToolset]:
 
 @pytest.fixture
 def sample_skills(tmp_path: Path) -> list[Skill]:
-    """Build two sample skills, including resources for skill-two."""
     skill1_dir = tmp_path / "skill-one"
     skill1_dir.mkdir()
     (skill1_dir / "SKILL.md").write_text("""---
@@ -79,11 +76,10 @@ def _by_name(toolset: SkillsToolset) -> dict[str, Skill]:
     return {s.name: s for s in toolset.skills}
 
 
-def test_toolset_initialization(
+def test_skills_toolset_skills_attribute_contains_constructed_skill_names(
     sample_skills: list[Skill],
     make_toolset: Callable[[list[Skill]], SkillsToolset],
 ) -> None:
-    """Test SkillsToolset initialization."""
     toolset = make_toolset(sample_skills)
 
     names = {s.name for s in toolset.skills}
@@ -91,11 +87,10 @@ def test_toolset_initialization(
 
 
 @pytest.mark.asyncio
-async def test_skills_registered(
+async def test_skills_passed_at_construction_are_exposed_with_their_descriptions(
     sample_skills: list[Skill],
     make_toolset: Callable[[list[Skill]], SkillsToolset],
 ) -> None:
-    """Skills passed in at construction are registered and exposed via .skills."""
     toolset = make_toolset(sample_skills)
     by_name = _by_name(toolset)
 
@@ -105,11 +100,10 @@ async def test_skills_registered(
 
 
 @pytest.mark.asyncio
-async def test_load_skill_tool(
+async def test_skill_loaded_from_file_preserves_name_description_and_content(
     sample_skills: list[Skill],
     make_toolset: Callable[[list[Skill]], SkillsToolset],
 ) -> None:
-    """Test the load_skill tool."""
     toolset = make_toolset(sample_skills)
 
     skill = _by_name(toolset)["skill-one"]
@@ -119,11 +113,10 @@ async def test_load_skill_tool(
 
 
 @pytest.mark.asyncio
-async def test_read_skill_resource_tool(
+async def test_skill_loaded_with_resources_exposes_them_via_resources_attribute(
     sample_skills: list[Skill],
     make_toolset: Callable[[list[Skill]], SkillsToolset],
 ) -> None:
-    """Test the read_skill_resource tool."""
     toolset = make_toolset(sample_skills)
 
     skill = _by_name(toolset)["skill-two"]
@@ -140,11 +133,10 @@ async def test_read_skill_resource_tool(
 
 
 @pytest.mark.asyncio
-async def test_read_skill_resource_not_found(
+async def test_skill_loaded_without_resources_has_no_resources_and_omits_unknown_names(
     sample_skills: list[Skill],
     make_toolset: Callable[[list[Skill]], SkillsToolset],
 ) -> None:
-    """Test reading a non-existent resource."""
     toolset = make_toolset(sample_skills)
     by_name = _by_name(toolset)
 
@@ -158,23 +150,16 @@ async def test_read_skill_resource_not_found(
 
 
 def test_skills_toolset_is_subclass_of_abstract_toolset() -> None:
-    """SkillsToolset must be a subclass of AbstractToolset."""
     from pydantic_ai.toolsets import AbstractToolset
 
     assert issubclass(SkillsToolset, AbstractToolset)
 
 
-# ============================================================================
-# ModelRetry behavior — tools raise ModelRetry for unknown skill/resource
-# ============================================================================
-
-
 @pytest.mark.asyncio
-async def test_load_skill_unknown_raises_model_retry(
+async def test_load_skill_with_unknown_name_raises_model_retry_listing_available_skills(
     sample_skills: list[Skill],
     make_toolset: Callable[[list[Skill]], SkillsToolset],
 ) -> None:
-    """load_skill raises ModelRetry with the available skill list when the name is wrong."""
     from pydantic_ai import ModelRetry
 
     toolset = make_toolset(sample_skills)
@@ -189,11 +174,10 @@ async def test_load_skill_unknown_raises_model_retry(
 
 
 @pytest.mark.asyncio
-async def test_read_skill_resource_unknown_skill_raises_model_retry(
+async def test_read_skill_resource_with_unknown_skill_raises_model_retry(
     sample_skills: list[Skill],
     make_toolset: Callable[[list[Skill]], SkillsToolset],
 ) -> None:
-    """read_skill_resource raises ModelRetry when the skill name is unknown."""
     from pydantic_ai import ModelRetry
 
     toolset = make_toolset(sample_skills)
@@ -204,11 +188,10 @@ async def test_read_skill_resource_unknown_skill_raises_model_retry(
 
 
 @pytest.mark.asyncio
-async def test_read_skill_resource_unknown_resource_raises_model_retry(
+async def test_read_skill_resource_with_unknown_resource_raises_model_retry_listing_available_resources(
     sample_skills: list[Skill],
     make_toolset: Callable[[list[Skill]], SkillsToolset],
 ) -> None:
-    """read_skill_resource raises ModelRetry when the resource name is unknown."""
     from pydantic_ai import ModelRetry
 
     toolset = make_toolset(sample_skills)
@@ -219,4 +202,4 @@ async def test_read_skill_resource_unknown_resource_raises_model_retry(
 
     msg = str(exc_info.value)
     assert "NONEXISTENT.md" in msg
-    assert "FORMS.md" in msg  # available list
+    assert "FORMS.md" in msg
