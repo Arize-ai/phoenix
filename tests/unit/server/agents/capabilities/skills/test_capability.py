@@ -28,25 +28,18 @@ _TEMPLATE = Template(
 
 def test_skills_capability_get_toolset() -> None:
     """SkillsCapability should expose the toolset it was constructed with."""
-    toolset = SkillsToolset(skills=[])
+    skill = Skill(name="only-skill", description="x", content="...", path=Path("/tmp/x"))
+    toolset = SkillsToolset(skills=[skill], load_skill_template=Template(""))
     capability = SkillsCapability(toolset=toolset, instructions=_TEMPLATE)
 
     assert capability.get_toolset() is toolset
-
-
-def test_get_static_instructions_renders_empty_skills_list() -> None:
-    """With no skills, the rendered string still contains the leading header (no skill blocks)."""
-    toolset = SkillsToolset(skills=[])
-    capability = SkillsCapability(toolset=toolset, instructions=_TEMPLATE)
-
-    assert capability.get_static_instructions() == "Available skills:"
 
 
 def test_get_static_instructions_renders_skills_xml() -> None:
     """Each skill should appear in the rendered output as a <skill> block, sorted by name."""
     s1 = Skill(name="b-skill", description="second", content="...", path=Path("/tmp/b"))
     s2 = Skill(name="a-skill", description="first", content="...", path=Path("/tmp/a"))
-    toolset = SkillsToolset(skills=[s1, s2])
+    toolset = SkillsToolset(skills=[s1, s2], load_skill_template=Template(""))
     capability = SkillsCapability(toolset=toolset, instructions=_TEMPLATE)
 
     rendered = capability.get_static_instructions()

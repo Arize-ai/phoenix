@@ -21,4 +21,4 @@ class SkillsCapability(AbstractStaticCapability[AgentDependencies]):
         return self.toolset
 
     def get_static_instructions(self) -> str:
-        return self.instructions.render(skills=list(self.toolset.skills.values()))
+        return self.instructions.render(skills=self.toolset.skills)
