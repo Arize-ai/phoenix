@@ -62,6 +62,8 @@ def build_agent(
             toolset=SkillsToolset(
                 skills=build_skills(),
                 load_skill_template=resolved_prompts.load_skill,
+                load_skill_tool_template=resolved_prompts.load_skill_tool,
+                read_skill_resource_tool_template=resolved_prompts.read_skill_resource_tool,
             ),
             instructions=resolved_prompts.skills,
         ),
