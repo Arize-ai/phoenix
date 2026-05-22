@@ -1,332 +1,139 @@
 dataset_name: set_time_range
-description: PXI eval suite for the deferred set_time_range tool. Covers preset
-  enum values, custom bounded and open-ended ranges, ambiguous relative time
-  requests, and negative cases where another tool or no tool should be used.
+description: PXI server-side eval suite for deferred set_time_range tool calls.
 evaluators:
   - correct_tools_called
   - tool_call_args_match
-
+  - tool_call_count_within_limit
 examples:
-  - id: preset-15m
+  - id: last-hour
     splits: [regression]
     input:
-      query: Show me just the last 15 minutes.
+      contexts:
+        - type: app
+          currentDateTime: "2026-05-18T14:30:00-07:00"
+          timeZone: America/Los_Angeles
+        - type: graphql
+          mutationsEnabled: false
+        - type: project
+          projectNodeId: UHJvamVjdDoxMg==
+          spanFilter: ""
+          rootSpansOnly: true
+      messages:
+        - role: user
+          content: Show traces from the last hour.
     expected:
       tools:
         required: [set_time_range]
+        forbidden: [bash, ask_user, query_docs_filesystem_phoenix, search_phoenix]
       tool_call_args:
         set_time_range:
-          timeRangeKey: "15m"
+          timeRangeKey: 1h
+      budgets:
+        max_tool_calls: 1
     metadata:
-      category: preset
-      difficulty: obvious
-      polarity: positive
-
-  - id: preset-1h
+      category: relative_time
+      page: project_traces_table
+  - id: last-seven-days
     splits: [regression]
     input:
-      query: Filter this view to the last hour.
+      contexts:
+        - type: app
+          currentDateTime: "2026-05-18T14:30:00-07:00"
+          timeZone: America/Los_Angeles
+        - type: graphql
+          mutationsEnabled: false
+        - type: project
+          projectNodeId: UHJvamVjdDoxMg==
+          spanFilter: ""
+          rootSpansOnly: true
+      messages:
+        - role: user
+          content: Show me traces from the last 7 days.
     expected:
       tools:
         required: [set_time_range]
+        forbidden: [bash, ask_user, query_docs_filesystem_phoenix, search_phoenix]
       tool_call_args:
         set_time_range:
-          timeRangeKey: "1h"
+          timeRangeKey: 7d
+      budgets:
+        max_tool_calls: 1
     metadata:
-      category: preset
-      difficulty: obvious
-      polarity: positive
-
-  - id: preset-12h
-    splits: [regression]
+      category: relative_time
+      page: project_traces_table
+  - id: current-year
+    # "This year" pins the calendar boundaries (Jan 1 2026 -> Jan 1 2027)
+    # but the timestamp offset is genuinely ambiguous -- Jan 1 in LA is
+    # PST (-08:00), but the model could legitimately emit PDT (-07:00,
+    # the active offset on the currentDateTime), UTC (Z), or no offset
+    # at all. Score the dates; leave the offset/format unconstrained.
+    splits: [dev]
     input:
-      query: past 12 hrs only
+      contexts:
+        - type: app
+          currentDateTime: "2026-05-18T14:30:00-07:00"
+          timeZone: America/Los_Angeles
+        - type: graphql
+          mutationsEnabled: false
+        - type: project
+          projectNodeId: UHJvamVjdDoxMg==
+          spanFilter: ""
+          rootSpansOnly: true
+      messages:
+        - role: user
+          content: Set the time range to this year.
     expected:
       tools:
         required: [set_time_range]
-      tool_call_args:
-        set_time_range:
-          timeRangeKey: "12h"
-    metadata:
-      category: preset
-      difficulty: obvious
-      polarity: positive
-
-  - id: preset-1d
-    splits: [regression]
-    input:
-      query: I want the last 24 hours of traces.
-    expected:
-      tools:
-        required: [set_time_range]
-      tool_call_args:
-        set_time_range:
-          timeRangeKey: "1d"
-    metadata:
-      category: preset
-      difficulty: obvious
-      polarity: positive
-
-  - id: preset-7d
-    splits: [regression]
-    input:
-      query: Can you set the range to the past week?
-    expected:
-      tools:
-        required: [set_time_range]
-      tool_call_args:
-        set_time_range:
-          timeRangeKey: "7d"
-    metadata:
-      category: preset
-      difficulty: obvious
-      polarity: positive
-
-  - id: preset-30d
-    splits: [regression]
-    input:
-      query: zoom out to the last month
-    expected:
-      tools:
-        required: [set_time_range]
-      tool_call_args:
-        set_time_range:
-          timeRangeKey: "30d"
-    metadata:
-      category: preset
-      difficulty: obvious
-      polarity: positive
-
-  - id: custom-explicit-utc-range
-    splits: [regression]
-    input:
-      query: Set the range from 2025-01-01T00:00:00Z to 2025-01-31T23:59:59Z.
-    expected:
-      tools:
-        required: [set_time_range]
+        forbidden: [bash, ask_user, query_docs_filesystem_phoenix, search_phoenix]
       tool_call_args:
         set_time_range:
           timeRangeKey: custom
-          startTime: "2025-01-01T00:00:00Z"
-          endTime: "2025-01-31T23:59:59Z"
+          startTime:
+            contains_all: ["2026-01-01"]
+          # End-exclusive (2027-01-01) and end-inclusive (2026-12-31) are both
+          # valid "end of 2026" representations; the model may pick either.
+          endTime:
+            contains_any: ["2027-01-01", "2026-12-31"]
+      budgets:
+        max_tool_calls: 1
     metadata:
-      category: custom_range
-      difficulty: obvious
-      polarity: positive
-
-  - id: custom-explicit-offset-range
-    splits: [regression]
+      category: calendar_time
+      page: project_traces_table
+  - id: contextual-old-traces-date
+    splits: [dev]
     input:
-      query: Show traces between 2025-03-10T08:30:00-07:00 and 2025-03-10T11:00:00-07:00.
+      contexts:
+        - type: app
+          currentDateTime: "2026-05-18T14:44:02-07:00"
+          timeZone: America/Los_Angeles
+        - type: graphql
+          mutationsEnabled: false
+        - type: project
+          projectNodeId: UHJvamVjdDoxMg==
+          spanFilter: ""
+          rootSpansOnly: true
+      messages:
+        - role: user
+          content: Show me the latest traces.
+        - role: assistant
+          content: The newest traces I found in this dataset were all run on April 3, 2026.
+        - role: user
+          content: The time filter is wrong because those traces are older. Show the traces from that day.
     expected:
       tools:
         required: [set_time_range]
+        forbidden: [bash, ask_user, query_docs_filesystem_phoenix, search_phoenix]
       tool_call_args:
         set_time_range:
           timeRangeKey: custom
-          startTime: "2025-03-10T08:30:00-07:00"
-          endTime: "2025-03-10T11:00:00-07:00"
+          startTime:
+            contains_all: ["2026-04-03"]
+          endTime:
+            contains_all: ["2026-04-04"]
+      budgets:
+        max_tool_calls: 1
     metadata:
-      category: custom_range
-      difficulty: moderate
-      polarity: positive
-
-  - id: custom-open-start
-    splits: [regression]
-    input:
-      query: Everything until 2025-04-01T00:00:00Z.
-    expected:
-      tools:
-        required: [set_time_range]
-      tool_call_args:
-        set_time_range:
-          timeRangeKey: custom
-          endTime: "2025-04-01T00:00:00Z"
-    metadata:
-      category: custom_range
-      difficulty: moderate
-      polarity: positive
-      notes: custom range may omit startTime for an open-start interval
-
-  - id: custom-open-end
-    splits: [regression]
-    input:
-      query: Show traces since 2025-04-01T09:00:00Z.
-    expected:
-      tools:
-        required: [set_time_range]
-      tool_call_args:
-        set_time_range:
-          timeRangeKey: custom
-          startTime: "2025-04-01T09:00:00Z"
-    metadata:
-      category: custom_range
-      difficulty: moderate
-      polarity: positive
-      notes: custom range may omit endTime for an open-ended interval
-
-  - id: custom-specific-day
-    splits: [regression]
-    input:
-      query: I need traces from January 15, 2025.
-    expected:
-      tools:
-        required: [set_time_range]
-      tool_call_args:
-        set_time_range:
-          - timeRangeKey: custom
-            startTime: "2025-01-15T00:00:00Z"
-            endTime: "2025-01-15T23:59:59Z"
-          - timeRangeKey: custom
-            startTime: "2025-01-15T00:00:00Z"
-            endTime: "2025-01-16T00:00:00Z"
-          - timeRangeKey: custom
-            startTime: "2025-01-15T00:00:00"
-            endTime: "2025-01-16T00:00:00"
-    metadata:
-      category: custom_range
-      difficulty: moderate
-      polarity: positive
-      notes: calendar-day bounds have valid inclusive, exclusive, and local-time forms
-
-  - id: ambiguous-today
-    splits: [regression]
-    input:
-      query: just show today
-    expected:
-      tools:
-        required: [set_time_range]
-      tool_call_args:
-        set_time_range:
-          - { timeRangeKey: "1d" }
-          - { timeRangeKey: custom }
-    metadata:
-      category: ambiguity
-      difficulty: tricky
-      polarity: positive
-      notes: today can mean rolling last day or the current calendar day
-
-  - id: ambiguous-recent
-    splits: [regression]
-    input:
-      query: focus on recent traces
-    expected:
-      tools:
-        required: [set_time_range]
-      tool_call_args:
-        set_time_range:
-          - { timeRangeKey: "15m" }
-          - { timeRangeKey: "1h" }
-          - { timeRangeKey: "12h" }
-    metadata:
-      category: ambiguity
-      difficulty: tricky
-      polarity: positive
-      notes: recent has no canonical window, so accept short preset choices only
-
-  - id: negative-span-kind-filter
-    splits: [regression]
-    input:
-      query: Show me only LLM spans.
-    expected:
-      tools:
-        required: [set_spans_filter]
-        forbidden: [set_time_range]
-    metadata:
-      category: negative_wrong_tool
-      difficulty: obvious
-      polarity: negative
-
-  - id: negative-latency-filter
-    splits: [regression]
-    input:
-      query: only spans that took more than five seconds
-    expected:
-      tools:
-        required: [set_spans_filter]
-        forbidden: [set_time_range]
-    metadata:
-      category: negative_wrong_tool
-      difficulty: moderate
-      polarity: negative
-      notes: latency is a span filter, not the global time range
-
-  - id: negative-prompt-clone
-    splits: [regression]
-    input:
-      query: Clone the current prompt so I can compare a shorter version.
-    expected:
-      tools:
-        forbidden: [set_time_range]
-    metadata:
-      category: negative_wrong_tool
-      difficulty: obvious
-      polarity: negative
-      notes: playground prompt tools are not exposed in the project-only eval context
-
-  - id: negative-read-current-prompt
-    splits: [regression]
-    input:
-      query: What's in prompt A right now?
-    expected:
-      tools:
-        forbidden: [set_time_range]
-    metadata:
-      category: negative_wrong_tool
-      difficulty: moderate
-      polarity: negative
-      notes: playground prompt tools are not exposed in the project-only eval context
-
-  - id: negative-longest-span
-    splits: [regression]
-    input:
-      query: Which span took the longest time to complete?
-    expected:
-      tools:
-        forbidden: [set_time_range]
-    metadata:
-      category: negative_analysis
-      difficulty: tricky
-      polarity: negative
-      notes: asks for analysis of span latency, not the time range selector
-
-  - id: negative-explain-time-range
-    splits: [regression]
-    input:
-      query: What does the time range selector do?
-    expected:
-      tools:
-        forbidden: [set_time_range]
-    metadata:
-      category: negative_definitional
-      difficulty: obvious
-      polarity: negative
-      notes: definitional docs lookups are valid, but the selector should not be changed
-
-  - id: negative-greeting
-    splits: [regression]
-    input:
-      query: hey, what can you help me with?
-    expected:
-      tools:
-        required: []
-        forbidden: [set_time_range]
-        exact_match: true
-    metadata:
-      category: negative_chitchat
-      difficulty: obvious
-      polarity: negative
-
-  - id: negative-thanks
-    splits: [regression]
-    input:
-      query: thanks!
-    expected:
-      tools:
-        required: []
-        forbidden: [set_time_range]
-        exact_match: true
-    metadata:
-      category: negative_chitchat
-      difficulty: obvious
-      polarity: negative
+      category: contextual_followup
+      source: curated_from_pxi_trace_review
+      page: project_traces_table

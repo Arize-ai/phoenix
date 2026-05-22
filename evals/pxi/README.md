@@ -122,6 +122,112 @@ Split meanings:
 Each example belongs to exactly one split. The runner passes the YAML `splits`
 list through to the Phoenix client upload payload.
 
+## Inputs
+
+Every example declares `input.messages` as a single ordered conversation
+prefix. The trailing entry decides which step of the agent loop the harness
+scores:
+
+- **Last entry is `role: user`.** That turn becomes the user prompt; everything
+  before it is replayed as message history. The default case -- "user asks,
+  what does the agent do?"
+- **Last entry is `role: tool`.** The harness runs the agent with `user_prompt
+  = None` and the full list as message history, so the agent picks up
+  mid-loop from a primed tool return. Lets a dataset isolate one step of
+  behavior ("given the bash output below, what does the agent emit next?")
+  without a synthetic user follow-up.
+- **Last entry is `role: assistant`.** Rejected -- nothing remains to score.
+
+Examples may also include `input.contexts`, which uses the same camelCase
+shape as the browser agent API (`app`, `project`, `graphql`, etc.) so
+server-side evals can exercise realistic page state without launching
+Playwright.
+
+A plain example -- user asks, agent decides:
+
+```yaml
+input:
+  contexts:
+    - type: project
+      projectNodeId: UHJvamVjdDoxMg==
+      spanFilter: "status_code == 'ERROR'"
+      rootSpansOnly: false
+  messages:
+    - role: user
+      content: Keep the error filter, but only show root spans.
+```
+
+A primed-tool-history example -- the agent has already issued a `bash` call
+to inspect recent traces, and the harness scores whatever action it emits
+next (typically a `set_spans_filter` call referencing the dates that came
+back in the tool return):
+
+```yaml
+input:
+  contexts:
+    - type: project
+      projectNodeId: UHJvamVjdDoxMg==
+      spanFilter: "span_kind == 'LLM'"
+      rootSpansOnly: false
+  messages:
+    - role: user
+      content: Show me only the latest traces in this project.
+    - role: assistant
+      tool_calls:
+        - id: t1
+          name: bash
+          args:
+            command: "phoenix-gql --query '...recent spans by startTime desc...'"
+    - role: tool
+      tool_call_id: t1
+      name: bash
+      content: |
+        {"data":{"node":{"spans":{"edges":[
+          {"node":{"startTime":"2026-04-03T18:42:11Z"}},
+          {"node":{"startTime":"2026-04-03T18:41:58Z"}}
+        ]}}}}
+```
+
+Schema notes:
+
+- An assistant turn may carry `content`, `tool_calls`, or both. Real PXI
+  traces show no assistant text between tool calls, so primed-tool examples
+  should omit narration unless you're deliberately testing narration
+  behavior.
+- Each tool call needs a local string `id` (any value; not interpreted by
+  the agent) plus `name` and `args`. Every assistant `tool_calls` entry
+  MUST be followed later by a `role: tool` entry whose `tool_call_id` and
+  `name` match. `tool_call_id` values must be unique across the whole list.
+- Primed messages are fed to the model verbatim via pydantic_ai's message
+  types; the model cannot distinguish a primed tool call from one that
+  was actually executed.
+
+## Matcher Vocabulary
+
+The `tool_call_args_match` evaluator compares expected args to observed args
+with subset semantics (extra observed keys are ignored). Each expected value
+is either a literal (compared by `==`) or a **matcher object** -- a dict
+whose top-level keys are all in this vocabulary:
+
+| Matcher | Meaning |
+|---|---|
+| `equals: <value>` | Explicit equality (same as a bare literal). |
+| `contains_all: [<str>, ...]` | Observed must be a string containing every substring. Use this for clause-order-invariant DSL matching (`["span_kind == 'LLM'", "latency_ms >= 5000"]` matches either ordering). |
+| `contains_any: [<str>, ...]` | Observed must be a string containing at least one substring. |
+| `not_contains: [<str>, ...]` | Observed must be a string containing none of the substrings. |
+| `any: true` | The key must be present in observed args; value is unconstrained. |
+
+To leave an arg entirely unconstrained, just omit it from `expected` --
+subset matching ignores observed keys you don't mention. Use `any: true`
+only when presence itself matters.
+
+For efficiency-focused examples, add `expected.budgets.max_tool_calls` and
+enable the `tool_call_count_within_limit` evaluator. Bash-first examples can
+use `bash_command_substrings_match` to check command intent without requiring
+exact shell syntax.
+
+## Manual CI
+
 `expected.tools` may also include `exact_match: true`, which switches
 `correct_tools_called` from "all required tools must be called" to "the
 observed tool sequence must equal the required sequence" (no extras, no
@@ -159,17 +265,3 @@ Use Python server evals for model-facing PXI behavior that can be measured from
 the server-owned agent output, including tool selection and deferred tool
 arguments. Use Playwright when the behavior depends on browser rendering,
 frontend dispatch, page state transitions, or visual/UI assertions.
-
-## CI
-
-The `PXI Evals` GitHub Actions workflow runs live regression evals against
-Phoenix Cloud. It runs on PRs that change `evals/**` or
-`src/phoenix/server/agents/**`, and maintainers can also run it manually from
-the Actions tab.
-
-The workflow invokes the runner for every YAML file in
-`evals/pxi/datasets/*.yaml` with `--splits regression` and
-`--fail-on-regression`. The runner skips datasets when the requested split has
-no regression examples. Each dataset run is printed as its own log group with
-the dataset file and CI experiment name. The workflow keeps going after
-individual dataset failures, and the final status is red if any dataset fails.
