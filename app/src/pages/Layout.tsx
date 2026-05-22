@@ -1,10 +1,10 @@
 import { css } from "@emotion/react";
-import { Suspense, useCallback } from "react";
+import { Suspense, useCallback, useRef } from "react";
 import { Group, Panel, useDefaultLayout } from "react-resizable-panels";
 import { Outlet, useLoaderData } from "react-router";
 
 import { Counter, Flex, Icon, Icons, Loading } from "@phoenix/components";
-import { AgentChatPanel } from "@phoenix/components/agent";
+import { AgentChatPanel, AgentChatWidget } from "@phoenix/components/agent";
 import {
   Brand,
   DocsLink,
@@ -73,6 +73,7 @@ const sideLinksCSS = css`
 `;
 
 export function Layout() {
+  const contentRef = useRef<HTMLDivElement>(null);
   const isAgentsEnabled = useFeatureFlag("agents");
   const isAgentPanelOpen = useAgentContext((state) => state.isOpen);
   const activePanelLocation = useAgentContext(
@@ -107,7 +108,8 @@ export function Layout() {
             onLayoutChanged={onLayoutChanged}
           >
             <Panel id="layout-content">
-              <div data-testid="content" css={contentCSS}>
+              <div data-testid="content" css={contentCSS} ref={contentRef}>
+                <AgentChatWidget boundaryRef={contentRef} />
                 <Suspense fallback={<Loading />}>
                   <Outlet />
                 </Suspense>

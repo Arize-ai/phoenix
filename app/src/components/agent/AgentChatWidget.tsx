@@ -1,11 +1,17 @@
 import { css, keyframes } from "@emotion/react";
 import { AnimatePresence, motion } from "motion/react";
+import type { RefObject } from "react";
 import { createPortal } from "react-dom";
 
 import { useTheme } from "@phoenix/contexts";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useHasOpenModal } from "@phoenix/hooks/useHasOpenModal";
 
+import { AgentFabPositioner } from "./AgentFabPositioner";
+import {
+  AGENT_FAB_RESTING_SIZE,
+  AGENT_FAB_STREAMING_SIZE,
+} from "./agentFabPositioning";
 import { PxiGlyph, type PxiGlyphAnimation } from "./PxiGlyph";
 import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 
@@ -85,6 +91,11 @@ const floatingButtonCSS = css`
 
 const inlineButtonCSS = css`
   position: relative;
+`;
+
+const draggableButtonCSS = css`
+  cursor: inherit;
+  touch-action: none;
 `;
 
 const darkThemeGlyphThemeCSS = css`
@@ -307,6 +318,7 @@ export interface AgentChatWidgetButtonProps {
   onClick?: () => void;
   ariaLabel?: string;
   isFloating?: boolean;
+  isDragHandle?: boolean;
   glyphAnimation?: PxiGlyphAnimation;
 }
 
@@ -315,6 +327,7 @@ export function AgentChatWidgetButton({
   onClick,
   ariaLabel = "Open agent chat",
   isFloating = false,
+  isDragHandle = false,
   glyphAnimation = "wave-reveal",
 }: AgentChatWidgetButtonProps) {
   const { theme } = useTheme();
@@ -323,8 +336,16 @@ export function AgentChatWidgetButton({
       type="button"
       css={
         isFloating
-          ? [buttonCSS, floatingButtonCSS]
-          : [buttonCSS, inlineButtonCSS]
+          ? [
+              buttonCSS,
+              floatingButtonCSS,
+              isDragHandle ? draggableButtonCSS : undefined,
+            ]
+          : [
+              buttonCSS,
+              inlineButtonCSS,
+              isDragHandle ? draggableButtonCSS : undefined,
+            ]
       }
       onClick={onClick}
       aria-label={ariaLabel}
@@ -396,10 +417,16 @@ export function AgentChatWidgetButton({
   );
 }
 
-export function AgentChatWidget() {
+export type AgentChatWidgetProps = {
+  boundaryRef?: RefObject<HTMLElement | null>;
+};
+
+export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
   const isAssistantAgentEnabled = useAssistantAgentEnabled();
   const isOpen = useAgentContext((state) => state.isOpen);
   const toggleOpen = useAgentContext((state) => state.toggleOpen);
+  const fabPlacement = useAgentContext((state) => state.fabPlacement);
+  const setFabPlacement = useAgentContext((state) => state.setFabPlacement);
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
   const hasOpenModal = useHasOpenModal();
   const isStreaming = useAgentContext((state) =>
@@ -415,11 +442,19 @@ export function AgentChatWidget() {
   }
 
   return createPortal(
-    <AgentChatWidgetButton
-      isStreaming={isStreaming}
-      onClick={toggleOpen}
-      isFloating
-    />,
+    <AgentFabPositioner
+      boundaryRef={boundaryRef}
+      placement={fabPlacement}
+      size={isStreaming ? AGENT_FAB_STREAMING_SIZE : AGENT_FAB_RESTING_SIZE}
+      onPlacementChange={setFabPlacement}
+    >
+      <AgentChatWidgetButton
+        ariaLabel="Open PXI chat"
+        isDragHandle
+        isStreaming={isStreaming}
+        onClick={toggleOpen}
+      />
+    </AgentFabPositioner>,
     document.body
   );
 }

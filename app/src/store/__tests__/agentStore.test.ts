@@ -155,6 +155,16 @@ describe("agentStore", () => {
     });
   });
 
+  describe("setFabPlacement", () => {
+    it("updates the pinned FAB corner", () => {
+      const store = createAgentStore();
+
+      store.getState().setFabPlacement("top-start");
+
+      expect(store.getState().fabPlacement).toBe("top-start");
+    });
+  });
+
   describe("observability", () => {
     it("updates observability settings without clobbering other fields", () => {
       const store = createAgentStore();
@@ -168,6 +178,7 @@ describe("agentStore", () => {
         exportRemoteTraces: false,
         hasAcknowledgedConsent: false,
       });
+      expect(store.getState().fabPlacement).toBe("bottom-end");
     });
 
     it("acknowledges consent without changing trace toggles", () => {
