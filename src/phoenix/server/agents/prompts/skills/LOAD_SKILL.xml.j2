@@ -1,19 +1,19 @@
 <skill>
-<name>{{ skill.name }}</name>
-<description>{{ skill.description }}</description>
-<path>{{ skill.path }}</path>
+  <name>{{ skill.name }}</name>
+  <description>{{ skill.description }}</description>
+  <path>{{ skill.path }}</path>
 
-<resources>
-{% if skill.resources %}
-{% for r in skill.resources %}
-<resource name="{{ r.name }}"{% if r.description %} description="{{ r.description }}"{% endif %}{% if r.function_schema is defined %} parameters={{ r.function_schema.json_schema | tojson | tojson }}{% endif %} />
-{% endfor %}
-{% else %}
-<!-- No resources -->
-{% endif %}
-</resources>
+  <resources>
+    {% if skill.resources %}
+      {% for r in skill.resources %}
+    <resource name="{{ r.name }}"{% if r.description %} description="{{ r.description }}"{% endif %}{% if r.function_schema is defined %} parameters={{ r.function_schema.json_schema | tojson | tojson }}{% endif %} />
+      {% endfor %}
+    {% else %}
+    <!-- No resources -->
+    {% endif %}
+  </resources>
 
-<instructions>
+  <instructions>
 {{ skill.content }}
-</instructions>
+  </instructions>
 </skill>
