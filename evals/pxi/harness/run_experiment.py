@@ -21,7 +21,8 @@ from phoenix.client import AsyncClient
 from phoenix.client.resources.experiments.types import ExperimentEvaluationRun, RanExperiment
 from phoenix.client.utils.config import get_base_url, get_env_phoenix_api_key
 
-from tests.pxi.evals.agent_task import (
+from evals.pxi.evaluators import EVALUATORS_BY_NAME
+from evals.pxi.harness.agent_task import (
     DEFAULT_ASSISTANT_MODEL,
     DEFAULT_ASSISTANT_PROVIDER,
     ENV_ASSISTANT_MODEL,
@@ -29,11 +30,10 @@ from tests.pxi.evals.agent_task import (
     build_shared_docs_mcp_server,
     make_task,
 )
-from tests.pxi.evals.datasets import (
+from evals.pxi.harness.datasets import (
     EvalDataset,
     load_dataset,
 )
-from tests.pxi.evals.evaluators import EVALUATORS_BY_NAME
 
 DEFAULT_BASE_URL = "http://localhost:6006"
 PASSING_SCORE = 1.0
@@ -50,6 +50,7 @@ class ExperimentConfig:
     experiment_name: str | None
     experiment_name_suffix: str | None
     fail_on_regression: bool
+    splits: tuple[str, ...]
     evaluator_override: tuple[str, ...] | None
 
 
@@ -197,11 +198,22 @@ def _score(evaluation_run: ExperimentEvaluationRun) -> float | None:
     return float(value) if isinstance(value, (int, float)) else None
 
 
-def _print_score_summary(dataset: EvalDataset, experiment: RanExperiment) -> bool:
-    evaluation_runs = list(experiment.get("evaluation_runs") or [])
-    by_evaluator: dict[str, dict[str, Any]] = {}
-    has_regressions = False
+def _example_splits_by_id(dataset: EvalDataset) -> dict[str, set[str]]:
+    return {
+        str(example["id"]): {str(split) for split in example["splits"]}
+        for example in dataset.examples
+    }
 
+
+def _is_failed_evaluation(evaluation_run: ExperimentEvaluationRun) -> bool:
+    score = _score(evaluation_run)
+    return evaluation_run.error is not None or score is None or score < PASSING_SCORE
+
+
+def _evaluator_summary_rows(
+    evaluation_runs: Sequence[ExperimentEvaluationRun],
+) -> list[tuple[str, dict[str, int]]]:
+    by_evaluator: dict[str, dict[str, int]] = {}
     for evaluation_run in evaluation_runs:
         name = str(evaluation_run.name or "unknown")
         summary = by_evaluator.setdefault(
@@ -213,25 +225,68 @@ def _print_score_summary(dataset: EvalDataset, experiment: RanExperiment) -> boo
         if evaluation_run.error is not None:
             summary["errors"] += 1
             summary["failing"] += 1
-            has_regressions = True
         elif score is None:
             summary["missing_score"] += 1
             summary["failing"] += 1
-            has_regressions = True
         elif score >= PASSING_SCORE:
             summary["passing"] += 1
         else:
             summary["failing"] += 1
-            has_regressions = True
+    return sorted(by_evaluator.items())
 
-    print(f"Dataset: {dataset.dataset_name} ({len(dataset.examples)} examples)")
+
+def _has_regression_evaluator_failure(
+    dataset: EvalDataset,
+    experiment: RanExperiment,
+    evaluation_runs: Sequence[ExperimentEvaluationRun],
+) -> bool:
+    splits_by_id = _example_splits_by_id(dataset)
+    task_runs_by_id = {
+        str(task_run["id"]): task_run
+        for task_run in experiment.get("task_runs", [])
+        if "id" in task_run
+    }
+    for evaluation_run in evaluation_runs:
+        if not _is_failed_evaluation(evaluation_run):
+            continue
+        task_run = task_runs_by_id.get(str(evaluation_run.experiment_run_id))
+        if task_run is None:
+            continue
+        example_id = str(task_run["dataset_example_id"])
+        if "regression" in splits_by_id.get(example_id, set()):
+            return True
+    return False
+
+
+def _empty_experiment(phoenix_dataset: Any) -> RanExperiment:
+    return {
+        "experiment_id": "",
+        "dataset_id": str(getattr(phoenix_dataset, "id", "")),
+        "dataset_version_id": str(getattr(phoenix_dataset, "version_id", "")),
+        "task_runs": [],
+        "evaluation_runs": [],
+        "experiment_metadata": {},
+        "project_name": None,
+    }
+
+
+def _print_score_summary(dataset: EvalDataset, experiment: RanExperiment, *, base_url: str) -> bool:
+    if experiment["experiment_id"]:
+        experiment_url = urljoin(
+            base_url.rstrip("/") + "/", f"experiments/{experiment['experiment_id']}"
+        )
+        print(f"Experiment: {experiment_url}")
+    evaluation_runs = list(experiment.get("evaluation_runs") or [])
+    evaluator_summaries = _evaluator_summary_rows(evaluation_runs)
+
+    print(f"Dataset: {dataset.dataset_name} ({len(experiment.get('task_runs', []))} examples run)")
     task_error_rows = _task_error_rows(experiment)
     if task_error_rows:
         print(f"Task errors: {len(task_error_rows)}/{len(experiment.get('task_runs', []))}")
         print(_format_table(("Example", "Error"), task_error_rows))
-    if by_evaluator:
+    if evaluator_summaries:
         rows = []
-        for name, summary in sorted(by_evaluator.items()):
+        for name, summary in evaluator_summaries:
             total = int(summary["total"])
             passing = int(summary["passing"])
             pass_rate = f"{passing / total:.0%}" if total else "n/a"
@@ -257,7 +312,7 @@ def _print_score_summary(dataset: EvalDataset, experiment: RanExperiment) -> boo
         if failed_rows:
             print("Failed evaluations:")
             print(_format_table(("Example", "Evaluator", "Score", "Label", "Details"), failed_rows))
-    return has_regressions
+    return _has_regression_evaluator_failure(dataset, experiment, evaluation_runs)
 
 
 def _phoenix_examples(dataset: EvalDataset) -> list[dict[str, Any]]:
@@ -267,9 +322,29 @@ def _phoenix_examples(dataset: EvalDataset) -> list[dict[str, Any]]:
             "input": example["input"],
             "output": example["expected"],
             "metadata": example.get("metadata") or {},
+            "splits": list(example["splits"]),
         }
         for example in dataset.examples
     ]
+
+
+def _warn_if_split_smoke_check_fails(phoenix_dataset: Any, expected_splits: set[str]) -> None:
+    observed = set(getattr(phoenix_dataset, "_filtered_split_names", []))
+    if observed != expected_splits:
+        print(
+            "warning: dataset split smoke check mismatch: "
+            f"expected {sorted(expected_splits)}, observed {sorted(observed)}",
+            file=sys.stderr,
+        )
+
+
+async def _get_split_filtered_dataset(
+    client: AsyncClient, phoenix_dataset: Any, splits: Sequence[str]
+) -> Any:
+    return await client.datasets.get_dataset(
+        dataset=phoenix_dataset,
+        splits=list(splits),
+    )
 
 
 async def _run_async(config: ExperimentConfig) -> int:
@@ -293,6 +368,25 @@ async def _run_async(config: ExperimentConfig) -> int:
                 examples=_phoenix_examples(dataset),
                 dataset_description=dataset.description,
             )
+            uploaded_splits = {
+                str(split) for example in dataset.examples for split in example["splits"]
+            }
+            _warn_if_split_smoke_check_fails(
+                await client.datasets.get_dataset(
+                    dataset=phoenix_dataset,
+                    splits=sorted(uploaded_splits),
+                ),
+                uploaded_splits,
+            )
+            experiment_dataset = await _get_split_filtered_dataset(
+                client,
+                phoenix_dataset,
+                config.splits,
+            )
+            if not experiment_dataset.examples:
+                print(f"No examples matched requested splits: {', '.join(config.splits)}")
+                experiment = _empty_experiment(experiment_dataset)
+                return 0
             name = _experiment_name(dataset, config)
             metadata = {
                 "git_sha": _git_value("rev-parse", "HEAD"),
@@ -306,7 +400,7 @@ async def _run_async(config: ExperimentConfig) -> int:
             # relay dataset example ID with the stable YAML example ID expected
             # by the client-side evaluator lookup.
             experiment = await client.experiments.run_experiment(
-                dataset=phoenix_dataset,
+                dataset=experiment_dataset,
                 task=make_task(docs_mcp_server=docs_mcp_server),
                 experiment_name=name,
                 experiment_description=dataset.description,
@@ -342,7 +436,7 @@ async def _run_async(config: ExperimentConfig) -> int:
                         f"warning: AsyncClient cleanup failed: {cleanup_exc}",
                         file=sys.stderr,
                     )
-    has_regressions = _print_score_summary(dataset, experiment)
+    has_regressions = _print_score_summary(dataset, experiment, base_url=config.base_url)
     return 1 if has_regressions and config.fail_on_regression else 0
 
 
@@ -359,7 +453,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--dataset",
         required=True,
-        help="YAML file stem under tests/pxi/evals/datasets (e.g. set_spans_filter)",
+        help="YAML file stem under evals/pxi/datasets (e.g. set_spans_filter)",
     )
     parser.add_argument(
         "--experiment-name",
@@ -372,7 +466,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--fail-on-regression",
         action="store_true",
-        help="Exit non-zero if any evaluator fails (use in CI gating)",
+        help="Exit non-zero if any regression-split evaluator fails (use in CI gating)",
+    )
+    parser.add_argument(
+        "--splits",
+        nargs="+",
+        default=["regression"],
+        help="Dataset split names to run (default: regression)",
     )
     # The dataset YAML's ``evaluators:`` field is the source of truth for
     # what gets scored in normal use. This flag is a transient per-run
@@ -406,6 +506,7 @@ def main(argv: list[str] | None = None) -> int:
         experiment_name=args.experiment_name,
         experiment_name_suffix=args.experiment_name_suffix,
         fail_on_regression=args.fail_on_regression,
+        splits=tuple(args.splits),
         evaluator_override=tuple(args.evaluators) if args.evaluators else None,
     )
     try:

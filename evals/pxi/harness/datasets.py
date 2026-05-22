@@ -6,7 +6,8 @@ from typing import Any
 import yaml
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
-DATASETS_DIR = Path(__file__).parent / "datasets"
+DATASETS_DIR = Path(__file__).resolve().parents[1] / "datasets"
+ALLOWED_SPLITS: frozenset[str] = frozenset({"dev", "holdout", "regression", "val"})
 
 
 class EvalDataset(BaseModel):
@@ -30,7 +31,7 @@ class EvalDataset(BaseModel):
         if not value:
             raise ValueError(
                 "evaluators must be a non-empty list of evaluator names "
-                "(see tests/pxi/evals/evaluators/__init__.py for valid names)"
+                "(see evals/pxi/evaluators/__init__.py for valid names)"
             )
         for name in value:
             if not isinstance(name, str) or not name.strip():
@@ -53,14 +54,14 @@ class EvalDataset(BaseModel):
                 raise ValueError(f"example {index} id cannot be empty")
             ids.append(example_id)
             input_value = example.get("input")
-            if not isinstance(input_value, dict) or not isinstance(input_value.get("query"), str):
-                raise ValueError(f"example {example_id} must define input.query")
+            if not isinstance(input_value, dict):
+                raise ValueError(f"example {example_id} input must be an object")
+            if "split" in example:
+                raise ValueError(f"example {example_id} must use splits, not split")
+            example["splits"] = _validate_splits(example_id, example.get("splits"))
             expected = example.get("expected")
             if not isinstance(expected, dict):
-                raise ValueError(f"example {example_id} must define expected")
-            tools = expected.get("tools")
-            if not isinstance(tools, dict):
-                raise ValueError(f"example {example_id} must define expected.tools")
+                raise ValueError(f"example {example_id} expected must be an object")
             metadata = example.setdefault("metadata", {})
             if not isinstance(metadata, dict):
                 raise ValueError(f"example {example_id} metadata must be an object")
@@ -68,6 +69,23 @@ class EvalDataset(BaseModel):
         if duplicates:
             raise ValueError(f"duplicate example ids: {', '.join(duplicates)}")
         return self
+
+
+def _validate_splits(example_id: str, value: Any) -> list[str]:
+    if not isinstance(value, list) or not value:
+        raise ValueError(f"example {example_id} must define non-empty splits")
+    if not all(isinstance(split, str) and split.strip() for split in value):
+        raise ValueError(f"example {example_id} splits entries must be non-empty strings")
+    splits = [split.strip() for split in value]
+    if len(splits) != 1:
+        raise ValueError(f"example {example_id} must belong to exactly one split")
+    unknown = sorted(set(splits) - ALLOWED_SPLITS)
+    if unknown:
+        raise ValueError(
+            f"example {example_id} has unknown split name(s): {', '.join(unknown)}. "
+            f"Allowed: {', '.join(sorted(ALLOWED_SPLITS))}"
+        )
+    return splits
 
 
 class DatasetValidationError(ValueError):

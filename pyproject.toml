@@ -308,6 +308,7 @@ testpaths = [
 plugins = ["strawberry.ext.mypy_plugin", "pydantic.mypy"]
 strict = true
 files = [
+  "evals/",
   "src/",
   "tests/",
 ]
@@ -384,6 +385,7 @@ target-version = "py310"
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = ["E402", "E501"]
 "examples/**/*.py" = ["E501"]
+"evals/**/*.py" = ["E501"]
 "tests/**/*.py" = ["E501"]
 
 [tool.ruff.lint]
