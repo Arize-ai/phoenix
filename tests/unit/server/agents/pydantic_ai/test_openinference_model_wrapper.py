@@ -122,17 +122,6 @@ def native_tool_model(tracer: Tracer) -> OpenInferenceModelWrapper:
                 ]
             )
 
-        @asynccontextmanager
-        async def request_stream(
-            self,
-            messages: list[ModelMessage],
-            model_settings: ModelSettings | None,
-            model_request_parameters: ModelRequestParameters,
-            run_context: Any = None,
-        ) -> AsyncIterator[StreamedResponse]:
-            raise RuntimeError("streaming is not used")
-            yield  # pragma: no cover
-
     return OpenInferenceModelWrapper(_NativeToolModel(TestModel()), tracer=tracer)
 
 
@@ -362,11 +351,19 @@ async def test_request_emits_llm_span_for_native_tool_call_response(
     )
 
     spans = in_memory_span_exporter.get_finished_spans()
-    llm_spans = [
-        span for span in spans if (span.attributes or {}).get(OPENINFERENCE_SPAN_KIND) == LLM
-    ]
-    assert len(llm_spans) == 1
-    attributes = dict(llm_spans[0].attributes or {})
+    assert len(spans) == 1
+    span = spans[0]
+    assert span.name == "test"
+    assert span.status.status_code == StatusCode.OK
+    attributes = dict(span.attributes or {})
+
+    assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
+    assert attributes.pop(LLM_PROVIDER) == "test"
+    assert attributes.pop(LLM_SYSTEM) == "test"
+    assert attributes.pop(LLM_MODEL_NAME) == "test"
+
+    assert attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_ROLE}") == "user"
+    assert attributes.pop(f"{LLM_INPUT_MESSAGES}.0.{MESSAGE_CONTENT}") == "search the web"
 
     assert attributes.pop(f"{LLM_OUTPUT_MESSAGES}.0.{MESSAGE_ROLE}") == "assistant"
     assert (
@@ -383,10 +380,36 @@ async def test_request_emits_llm_span_for_native_tool_call_response(
     assert isinstance(args_attr, str)
     assert json.loads(args_attr) == {"query": "phoenix tracing"}
 
-    tool_spans = [
-        span for span in spans if (span.attributes or {}).get(OPENINFERENCE_SPAN_KIND) == TOOL
-    ]
-    assert tool_spans == []
+    assert attributes.pop(LLM_TOKEN_COUNT_PROMPT) == 0
+    assert attributes.pop(LLM_TOKEN_COUNT_COMPLETION) == 0
+    assert attributes.pop(LLM_TOKEN_COUNT_TOTAL) == 0
+
+    input_value = attributes.pop(INPUT_VALUE)
+    assert isinstance(input_value, str)
+    parsed_input = json.loads(input_value)
+    assert parsed_input["model_settings"] is None
+    assert parsed_input["model_request_parameters"]["function_tools"] == []
+    assert parsed_input["model_request_parameters"]["native_tools"] == []
+    assert parsed_input["model_request_parameters"]["output_tools"] == []
+    (input_msg,) = parsed_input["messages"]
+    assert input_msg["kind"] == "request"
+    (input_part,) = input_msg["parts"]
+    assert input_part["part_kind"] == "user-prompt"
+    assert input_part["content"] == "search the web"
+    assert attributes.pop(INPUT_MIME_TYPE) == JSON
+
+    output_value = attributes.pop(OUTPUT_VALUE)
+    assert isinstance(output_value, str)
+    parsed_output = json.loads(output_value)
+    assert parsed_output["kind"] == "response"
+    (output_part,) = parsed_output["parts"]
+    assert output_part["part_kind"] == "builtin-tool-call"
+    assert output_part["tool_name"] == "web_search"
+    assert output_part["args"] == {"query": "phoenix tracing"}
+    assert output_part["tool_call_id"] == "native-call-1"
+    assert attributes.pop(OUTPUT_MIME_TYPE) == JSON
+
+    assert not attributes
 
 
 async def test_request_stream_emits_llm_span(
