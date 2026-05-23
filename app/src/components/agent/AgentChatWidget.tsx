@@ -9,8 +9,8 @@ import { useHasOpenModal } from "@phoenix/hooks/useHasOpenModal";
 
 import { AgentFabPositioner } from "./AgentFabPositioner";
 import {
-  AGENT_FAB_RESTING_SIZE,
-  AGENT_FAB_STREAMING_SIZE,
+  FAB_RESTING_SIZE,
+  FAB_STREAMING_SIZE,
 } from "./agentFabPositioning";
 import { PxiGlyph, type PxiGlyphAnimation } from "./PxiGlyph";
 import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
@@ -82,17 +82,13 @@ const buttonCSS = css`
   justify-content: flex-end;
 `;
 
-const floatingButtonCSS = css`
-  position: fixed;
-  bottom: 24px;
-  right: 36px;
-  z-index: 1000;
-`;
-
 const inlineButtonCSS = css`
   position: relative;
 `;
 
+// Applied when the button is used as a drag handle inside the FAB positioner.
+// The positioner owns the cursor (pointer / grabbing) and consumes touch
+// gestures itself, so the button only needs to opt out of both.
 const draggableButtonCSS = css`
   cursor: inherit;
   touch-action: none;
@@ -317,7 +313,6 @@ export interface AgentChatWidgetButtonProps {
   isStreaming?: boolean;
   onClick?: () => void;
   ariaLabel?: string;
-  isFloating?: boolean;
   isDragHandle?: boolean;
   glyphAnimation?: PxiGlyphAnimation;
 }
@@ -326,7 +321,6 @@ export function AgentChatWidgetButton({
   isStreaming = false,
   onClick,
   ariaLabel = "Open agent chat",
-  isFloating = false,
   isDragHandle = false,
   glyphAnimation = "wave-reveal",
 }: AgentChatWidgetButtonProps) {
@@ -334,19 +328,11 @@ export function AgentChatWidgetButton({
   return (
     <button
       type="button"
-      css={
-        isFloating
-          ? [
-              buttonCSS,
-              floatingButtonCSS,
-              isDragHandle ? draggableButtonCSS : undefined,
-            ]
-          : [
-              buttonCSS,
-              inlineButtonCSS,
-              isDragHandle ? draggableButtonCSS : undefined,
-            ]
-      }
+      css={[
+        buttonCSS,
+        inlineButtonCSS,
+        isDragHandle ? draggableButtonCSS : undefined,
+      ]}
       onClick={onClick}
       aria-label={ariaLabel}
     >
@@ -445,11 +431,10 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
     <AgentFabPositioner
       boundaryRef={boundaryRef}
       placement={fabPlacement}
-      size={isStreaming ? AGENT_FAB_STREAMING_SIZE : AGENT_FAB_RESTING_SIZE}
+      size={isStreaming ? FAB_STREAMING_SIZE : FAB_RESTING_SIZE}
       onPlacementChange={setFabPlacement}
     >
       <AgentChatWidgetButton
-        ariaLabel="Open PXI chat"
         isDragHandle
         isStreaming={isStreaming}
         onClick={toggleOpen}

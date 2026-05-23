@@ -108,7 +108,6 @@ const meta = {
   },
   args: {
     ariaLabel: "Open agent chat",
-    isFloating: false,
     glyphAnimation: "wave-reveal",
   },
   argTypes: {
@@ -174,7 +173,6 @@ function ClickToCycleRender(args: AgentChatWidgetButtonProps) {
               glyphAnimation={args.glyphAnimation ?? glyphAnimations[0]}
               ariaLabel={isStreaming ? "PXI is thinking" : "Open agent chat"}
               onClick={() => setIsStreaming((value) => !value)}
-              isFloating={false}
             />
           </div>
         </div>

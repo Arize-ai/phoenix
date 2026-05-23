@@ -1,21 +1,21 @@
 import { describe, expect, it } from "vitest";
 
+import type { Bounds, Size } from "@phoenix/types/geometry";
+
 import {
-  clampAgentFabPosition,
-  getAgentFabPinnedPosition,
-  getNearestAgentFabPlacement,
-  type AgentFabBounds,
-  type AgentFabSize,
+  clampFabPosition,
+  getFabPinnedPosition,
+  getNearestFabPlacement,
 } from "../agentFabPositioning";
 
-const bounds: AgentFabBounds = {
+const bounds: Bounds = {
   left: 100,
   top: 80,
   width: 900,
   height: 600,
 };
 
-const size: AgentFabSize = {
+const size: Size = {
   width: 58,
   height: 36,
 };
@@ -23,25 +23,25 @@ const size: AgentFabSize = {
 describe("agent FAB positioning", () => {
   it("pins the FAB to the requested corner within the visible bounds", () => {
     expect(
-      getAgentFabPinnedPosition({ placement: "top-start", bounds, size })
+      getFabPinnedPosition({ placement: "top-start", bounds, size })
     ).toEqual({
       x: 136,
       y: 104,
     });
     expect(
-      getAgentFabPinnedPosition({ placement: "top-end", bounds, size })
+      getFabPinnedPosition({ placement: "top-end", bounds, size })
     ).toEqual({
       x: 906,
       y: 104,
     });
     expect(
-      getAgentFabPinnedPosition({ placement: "bottom-start", bounds, size })
+      getFabPinnedPosition({ placement: "bottom-start", bounds, size })
     ).toEqual({
       x: 136,
       y: 620,
     });
     expect(
-      getAgentFabPinnedPosition({ placement: "bottom-end", bounds, size })
+      getFabPinnedPosition({ placement: "bottom-end", bounds, size })
     ).toEqual({
       x: 906,
       y: 620,
@@ -50,28 +50,28 @@ describe("agent FAB positioning", () => {
 
   it("chooses the nearest pinned corner for dropped positions", () => {
     expect(
-      getNearestAgentFabPlacement({
+      getNearestFabPlacement({
         point: { x: 130, y: 120 },
         bounds,
         size,
       })
     ).toBe("top-start");
     expect(
-      getNearestAgentFabPlacement({
+      getNearestFabPlacement({
         point: { x: 900, y: 120 },
         bounds,
         size,
       })
     ).toBe("top-end");
     expect(
-      getNearestAgentFabPlacement({
+      getNearestFabPlacement({
         point: { x: 130, y: 610 },
         bounds,
         size,
       })
     ).toBe("bottom-start");
     expect(
-      getNearestAgentFabPlacement({
+      getNearestFabPlacement({
         point: { x: 900, y: 610 },
         bounds,
         size,
@@ -81,7 +81,7 @@ describe("agent FAB positioning", () => {
 
   it("clamps transient drag positions to the visible bounds", () => {
     expect(
-      clampAgentFabPosition({
+      clampFabPosition({
         point: { x: -100, y: 1000 },
         bounds,
         size,

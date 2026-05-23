@@ -1,43 +1,39 @@
 import type { AgentFabPlacement } from "@phoenix/store/agentStore";
+import type { Bounds, Inset, Point, Size } from "@phoenix/types/geometry";
 
-export type AgentFabBounds = {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
+// FAB dimensions derived from the animated motion.div in AgentChatWidget's
+// `AgentChatWidgetButton`. Both axes are content-box width plus horizontal
+// padding (CSS `box-sizing: content-box` is the default).
+//
+// Resting: content 58 + paddingLeft 8 + paddingRight 8 = 74 wide, 36 tall.
+// Streaming: content 40 + paddingLeft 0 + paddingRight 0 = 40 square.
+//
+// If you change those values in AgentChatWidget, update these in lockstep —
+// snap math reads from here when the live element hasn't been measured yet
+// (first paint), and AgentChatWidget passes these as the explicit size prop
+// to keep the snap math stable across the streaming-state transition.
+const FAB_CONTENT_WIDTH_RESTING = 58;
+const FAB_CONTENT_HEIGHT_RESTING = 36;
+const FAB_HORIZONTAL_PADDING_RESTING = 8;
+const FAB_CONTENT_WIDTH_STREAMING = 40;
+const FAB_CONTENT_HEIGHT_STREAMING = 40;
+
+export const FAB_RESTING_SIZE: Size = {
+  width: FAB_CONTENT_WIDTH_RESTING + 2 * FAB_HORIZONTAL_PADDING_RESTING,
+  height: FAB_CONTENT_HEIGHT_RESTING,
+};
+export const FAB_STREAMING_SIZE: Size = {
+  width: FAB_CONTENT_WIDTH_STREAMING,
+  height: FAB_CONTENT_HEIGHT_STREAMING,
 };
 
-export type AgentFabPoint = {
-  x: number;
-  y: number;
-};
+// Distance from each edge of the positioning boundary to the corresponding
+// edge of the FAB when pinned. Mirrors the original `floatingButtonCSS`
+// `bottom: 24px; right: 36px` values so the corner placement matches the
+// pre-drag location pixel-for-pixel.
+export const FAB_INSET: Inset = { horizontal: 36, vertical: 24 };
 
-export type AgentFabSize = {
-  width: number;
-  height: number;
-};
-
-export type AgentFabInset = {
-  horizontal: number;
-  vertical: number;
-};
-
-export const AGENT_FAB_RESTING_SIZE: AgentFabSize = {
-  width: 74,
-  height: 36,
-};
-
-export const AGENT_FAB_STREAMING_SIZE: AgentFabSize = {
-  width: 40,
-  height: 40,
-};
-
-export const AGENT_FAB_INSET: AgentFabInset = {
-  horizontal: 36,
-  vertical: 24,
-};
-
-const AGENT_FAB_PLACEMENTS: AgentFabPlacement[] = [
+const FAB_PLACEMENTS: AgentFabPlacement[] = [
   "top-start",
   "top-end",
   "bottom-start",
@@ -48,7 +44,7 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
-function getAxisPosition({
+function resolveAxisPosition({
   min,
   max,
   value,
@@ -57,45 +53,48 @@ function getAxisPosition({
   max: number;
   value: number;
 }): number {
+  // The boundary may be narrower/shorter than the FAB plus both insets — in
+  // that case `max < min` and `clamp` would collapse to `min`, jamming the
+  // FAB against one edge. Center it within the available space instead.
   if (max < min) {
     return min + (max - min) / 2;
   }
   return clamp(value, min, max);
 }
 
-export function clampAgentFabPosition({
+export function clampFabPosition({
   point,
   bounds,
   size,
-  inset = AGENT_FAB_INSET,
+  inset = FAB_INSET,
 }: {
-  point: AgentFabPoint;
-  bounds: AgentFabBounds;
-  size: AgentFabSize;
-  inset?: AgentFabInset;
-}): AgentFabPoint {
+  point: Point;
+  bounds: Bounds;
+  size: Size;
+  inset?: Inset;
+}): Point {
   const minX = bounds.left + inset.horizontal;
   const maxX = bounds.left + bounds.width - size.width - inset.horizontal;
   const minY = bounds.top + inset.vertical;
   const maxY = bounds.top + bounds.height - size.height - inset.vertical;
 
   return {
-    x: getAxisPosition({ min: minX, max: maxX, value: point.x }),
-    y: getAxisPosition({ min: minY, max: maxY, value: point.y }),
+    x: resolveAxisPosition({ min: minX, max: maxX, value: point.x }),
+    y: resolveAxisPosition({ min: minY, max: maxY, value: point.y }),
   };
 }
 
-export function getAgentFabPinnedPosition({
+export function getFabPinnedPosition({
   placement,
   bounds,
   size,
-  inset = AGENT_FAB_INSET,
+  inset = FAB_INSET,
 }: {
   placement: AgentFabPlacement;
-  bounds: AgentFabBounds;
-  size: AgentFabSize;
-  inset?: AgentFabInset;
-}): AgentFabPoint {
+  bounds: Bounds;
+  size: Size;
+  inset?: Inset;
+}): Point {
   const x = placement.endsWith("end")
     ? bounds.left + bounds.width - size.width - inset.horizontal
     : bounds.left + inset.horizontal;
@@ -103,44 +102,46 @@ export function getAgentFabPinnedPosition({
     ? bounds.top + bounds.height - size.height - inset.vertical
     : bounds.top + inset.vertical;
 
-  return clampAgentFabPosition({ point: { x, y }, bounds, size, inset });
+  return clampFabPosition({ point: { x, y }, bounds, size, inset });
 }
 
-export function getNearestAgentFabPlacement({
+export function getNearestFabPlacement({
   point,
   bounds,
   size,
-  inset = AGENT_FAB_INSET,
+  inset = FAB_INSET,
 }: {
-  point: AgentFabPoint;
-  bounds: AgentFabBounds;
-  size: AgentFabSize;
-  inset?: AgentFabInset;
+  point: Point;
+  bounds: Bounds;
+  size: Size;
+  inset?: Inset;
 }): AgentFabPlacement {
-  const center = {
+  const pointCenter = {
     x: point.x + size.width / 2,
     y: point.y + size.height / 2,
   };
 
-  let nearestPlacement = AGENT_FAB_PLACEMENTS[0];
-  let nearestDistance = Number.POSITIVE_INFINITY;
+  let nearestPlacement = FAB_PLACEMENTS[0];
+  let nearestSquaredDistance = Number.POSITIVE_INFINITY;
 
-  for (const placement of AGENT_FAB_PLACEMENTS) {
-    const target = getAgentFabPinnedPosition({
+  for (const placement of FAB_PLACEMENTS) {
+    const pinnedPosition = getFabPinnedPosition({
       placement,
       bounds,
       size,
       inset,
     });
-    const targetCenter = {
-      x: target.x + size.width / 2,
-      y: target.y + size.height / 2,
+    const pinnedCenter = {
+      x: pinnedPosition.x + size.width / 2,
+      y: pinnedPosition.y + size.height / 2,
     };
-    const distance =
-      (center.x - targetCenter.x) ** 2 + (center.y - targetCenter.y) ** 2;
+    // Squared distance — we only need to compare, not measure, so skip sqrt.
+    const squaredDistance =
+      (pointCenter.x - pinnedCenter.x) ** 2 +
+      (pointCenter.y - pinnedCenter.y) ** 2;
 
-    if (distance < nearestDistance) {
-      nearestDistance = distance;
+    if (squaredDistance < nearestSquaredDistance) {
+      nearestSquaredDistance = squaredDistance;
       nearestPlacement = placement;
     }
   }
