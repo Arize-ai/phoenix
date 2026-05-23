@@ -8,10 +8,7 @@ import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useHasOpenModal } from "@phoenix/hooks/useHasOpenModal";
 
 import { AgentFabPositioner } from "./AgentFabPositioner";
-import {
-  FAB_RESTING_SIZE,
-  FAB_STREAMING_SIZE,
-} from "./agentFabPositioning";
+import { FAB_RESTING_SIZE, FAB_STREAMING_SIZE } from "./agentFabPositioning";
 import { PxiGlyph, type PxiGlyphAnimation } from "./PxiGlyph";
 import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 
