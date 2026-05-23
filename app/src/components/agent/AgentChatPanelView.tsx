@@ -22,9 +22,16 @@ import type {
 import { PxiGlyph } from "./PxiGlyph";
 import { SessionListMenu } from "./SessionListMenu";
 
+const PANEL_HEADER_Z_INDEX = 3;
+const FLOATING_PANEL_WIDTH_PX = 420;
+const FLOATING_PANEL_HEIGHT_PX = 720;
+const FLOATING_PANEL_MIN_HEIGHT_PX = 520;
+const FLOATING_PANEL_FULLSCREEN_BREAKPOINT_PX = 600;
+const FLOATING_PANEL_VIEWPORT_MARGIN = "var(--global-dimension-size-400)";
+
 const panelHeaderCSS = css`
   ${fadedDividerBottomCSS}
-  z-index: 3;
+  z-index: ${PANEL_HEADER_Z_INDEX};
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -204,9 +211,18 @@ const floatingPanelContentCSS = css`
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  width: min(420px, calc(100% - 32px));
-  height: min(720px, calc(100% - 32px));
-  min-height: min(520px, calc(100% - 32px));
+  width: min(
+    ${FLOATING_PANEL_WIDTH_PX}px,
+    calc(100% - ${FLOATING_PANEL_VIEWPORT_MARGIN})
+  );
+  height: min(
+    ${FLOATING_PANEL_HEIGHT_PX}px,
+    calc(100% - ${FLOATING_PANEL_VIEWPORT_MARGIN})
+  );
+  min-height: min(
+    ${FLOATING_PANEL_MIN_HEIGHT_PX}px,
+    calc(100% - ${FLOATING_PANEL_VIEWPORT_MARGIN})
+  );
   overflow: hidden;
   border: 1px solid var(--global-border-color-default);
   border-radius: var(--global-rounding-medium);
@@ -231,7 +247,7 @@ const floatingPanelContentCSS = css`
     right: var(--global-dimension-size-200);
   }
 
-  @media (max-width: 600px), (max-height: 600px) {
+  @media (max-width: ${FLOATING_PANEL_FULLSCREEN_BREAKPOINT_PX}px), (max-height: ${FLOATING_PANEL_FULLSCREEN_BREAKPOINT_PX}px) {
     inset: var(--global-dimension-size-100);
     width: auto;
     height: auto;

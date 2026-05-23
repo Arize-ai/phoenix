@@ -23,6 +23,10 @@ const HIDE_HERO_HEIGHT_BREAKPOINT = 570;
 const NARROW_WIDTH_BREAKPOINT = 479;
 const MEDIUM_WIDTH_BREAKPOINT = 560;
 const NARROW_GLYPH_SIZE = 220;
+const COMPACT_HERO_PADDING_TOP = 176;
+const SMALL_HERO_PADDING_TOP = COMPACT_GLYPH_SIZE;
+const MEDIUM_HERO_PADDING_TOP = 288;
+const LARGE_HERO_PADDING_TOP = 320;
 const COMPACT_GLYPH_TOP_OFFSET = -40;
 const SMALL_GLYPH_TOP_OFFSET = -48;
 const DEFAULT_GLYPH_TOP_OFFSET = -56;
@@ -56,22 +60,18 @@ function getHeroGlyphSize({ height, width }: HeroContainerSize) {
 
 function getHeroPaddingTop(glyphSize: number) {
   if (glyphSize <= COMPACT_GLYPH_SIZE) {
-    return 176;
-  }
-
-  if (glyphSize <= NARROW_GLYPH_SIZE) {
-    return 160;
+    return COMPACT_HERO_PADDING_TOP;
   }
 
   if (glyphSize <= SMALL_GLYPH_SIZE) {
-    return COMPACT_GLYPH_SIZE;
+    return SMALL_HERO_PADDING_TOP;
   }
 
   if (glyphSize <= MEDIUM_GLYPH_SIZE) {
-    return 288;
+    return MEDIUM_HERO_PADDING_TOP;
   }
 
-  return 320;
+  return LARGE_HERO_PADDING_TOP;
 }
 
 function getHeroGlyphTopOffset(glyphSize: number) {
