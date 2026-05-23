@@ -50,7 +50,7 @@ function getHeroGlyphSize({ height, width }: HeroContainerSize) {
 
 function getHeroPaddingTop(glyphSize: number) {
   if (glyphSize <= COMPACT_GLYPH_SIZE) {
-    return 128;
+    return 176;
   }
 
   if (glyphSize <= NARROW_GLYPH_SIZE) {
