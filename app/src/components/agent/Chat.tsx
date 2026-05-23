@@ -155,6 +155,7 @@ const chatCSS = css`
   }
 
   .chat__messages {
+    box-sizing: border-box;
     max-width: 780px;
     margin: 0 auto;
     position: relative;
@@ -166,6 +167,17 @@ const chatCSS = css`
       var(--chat-sidebar-inset);
     font-size: var(--global-font-size-s);
     line-height: var(--global-line-height-s);
+  }
+
+  &.chat--empty {
+    .chat__messages {
+      min-height: 100%;
+      width: 100%;
+    }
+
+    .chat__empty {
+      margin-block: auto;
+    }
   }
 
   .chat__input {
