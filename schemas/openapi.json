@@ -7532,7 +7532,7 @@
           "type"
         ],
         "title": "CodeEvaluatorContext",
-        "description": "Code-evaluator create/edit form mounted in the current browser route.\n\n``evaluator_node_id`` is set when the form is editing an existing\nevaluator and ``None`` when the form is creating a new one \u2014 the sole\nfield the draft-read/edit tools need to distinguish the two modes."
+        "description": "Code-evaluator create/edit form mounted in the current browser route."
       },
       "ContinuousAnnotationConfig": {
         "properties": {
