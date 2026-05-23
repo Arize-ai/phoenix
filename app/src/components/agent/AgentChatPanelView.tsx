@@ -11,6 +11,7 @@ import {
   Text,
 } from "@phoenix/components";
 import { fadedDividerBottomCSS } from "@phoenix/components/core/layout";
+import { NON_MODAL_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
 import { compactResizeHandleCSS } from "@phoenix/components/resize/styles";
 import type {
   AgentFabPlacement,
@@ -199,7 +200,7 @@ export function DockedAgentChatFrame({ children }: { children: ReactNode }) {
 
 const floatingPanelContentCSS = css`
   position: absolute;
-  z-index: 100001;
+  z-index: ${NON_MODAL_FLOATING_Z_INDEX};
   display: flex;
   flex-direction: column;
   box-sizing: border-box;

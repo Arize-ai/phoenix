@@ -13,13 +13,19 @@ const LARGE_GLYPH_SIZE = 420;
 const MEDIUM_GLYPH_SIZE = 380;
 const SMALL_GLYPH_SIZE = 300;
 const COMPACT_GLYPH_SIZE = 220;
+const COMPACT_ROW_GLYPH_SIZE = COMPACT_GLYPH_SIZE / 2;
+const COMPACT_ROW_HERO_WIDTH = 450;
 
 const MEDIUM_HEIGHT_BREAKPOINT = 960;
 const SMALL_HEIGHT_BREAKPOINT = 840;
 const COMPACT_HEIGHT_BREAKPOINT = 720;
+const HIDE_HERO_HEIGHT_BREAKPOINT = 570;
 const NARROW_WIDTH_BREAKPOINT = 479;
 const MEDIUM_WIDTH_BREAKPOINT = 560;
 const NARROW_GLYPH_SIZE = 220;
+const COMPACT_GLYPH_TOP_OFFSET = -40;
+const SMALL_GLYPH_TOP_OFFSET = -48;
+const DEFAULT_GLYPH_TOP_OFFSET = -56;
 
 type HeroContainerSize = {
   width: number;
@@ -70,14 +76,14 @@ function getHeroPaddingTop(glyphSize: number) {
 
 function getHeroGlyphTopOffset(glyphSize: number) {
   if (glyphSize <= COMPACT_GLYPH_SIZE) {
-    return -40;
+    return COMPACT_GLYPH_TOP_OFFSET;
   }
 
   if (glyphSize <= SMALL_GLYPH_SIZE) {
-    return -48;
+    return SMALL_GLYPH_TOP_OFFSET;
   }
 
-  return -56;
+  return DEFAULT_GLYPH_TOP_OFFSET;
 }
 
 const heroCSS = css`
@@ -101,15 +107,14 @@ const heroCSS = css`
   }
 
   @media (max-height: ${COMPACT_HEIGHT_BREAKPOINT}px) {
-    --hero-padding-top: 0px;
-    --hero-glyph-top-offset: 0px;
-    width: 450px;
+    padding-top: 0;
+    width: ${COMPACT_ROW_HERO_WIDTH}px;
     flex-direction: row;
     justify-content: space-evenly;
     gap: var(--global-dimension-size-200);
   }
 
-  @media (max-height: 570px) {
+  @media (max-height: ${HIDE_HERO_HEIGHT_BREAKPOINT}px) {
     display: none;
   }
 
@@ -135,8 +140,8 @@ const glyphCSS = css`
   @media (max-height: ${COMPACT_HEIGHT_BREAKPOINT}px) {
     position: static;
     transform: none;
-    width: ${COMPACT_GLYPH_SIZE / 2}px;
-    height: ${COMPACT_GLYPH_SIZE / 2}px;
+    width: ${COMPACT_ROW_GLYPH_SIZE}px;
+    height: ${COMPACT_ROW_GLYPH_SIZE}px;
   }
 
   @media (max-height: ${COMPACT_HEIGHT_BREAKPOINT}px) {
