@@ -42,6 +42,8 @@ function contextLabel(context: AgentContext): string {
       return "Trace";
     case "span":
       return "Span";
+    case "code_evaluator":
+      return "Code Evaluator";
   }
 }
 
@@ -57,6 +59,10 @@ function contextDetail(context: AgentContext): string | undefined {
       }
       return truncateId(spanId);
     }
+    case "code_evaluator":
+      return context.evaluatorNodeId
+        ? truncateId(context.evaluatorNodeId)
+        : "new";
     default:
       return undefined;
   }
