@@ -1695,10 +1695,6 @@ export interface components {
         /**
          * CodeEvaluatorContext
          * @description Code-evaluator create/edit form mounted in the current browser route.
-         *
-         *     ``evaluator_node_id`` is set when the form is editing an existing
-         *     evaluator and ``None`` when the form is creating a new one — the sole
-         *     field the draft-read/edit tools need to distinguish the two modes.
          */
         CodeEvaluatorContext: {
             /**
