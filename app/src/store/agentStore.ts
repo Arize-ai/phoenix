@@ -38,6 +38,13 @@ export type AgentPosition = "detached" | "pinned";
  */
 export type AgentPanelLocation = "docked" | "trace";
 
+/** Pinned corner for the global PXI floating action button. */
+export type AgentFabPlacement =
+  | "top-start"
+  | "top-end"
+  | "bottom-start"
+  | "bottom-end";
+
 /** Server-provided PXI configuration exposed to the frontend. */
 export type AgentServerConfig = {
   /** Remote collector used for optional agent trace export. */
@@ -130,6 +137,8 @@ export interface AgentProps {
   isOpen: boolean;
   /** Current layout position of the agent panel. */
   position: AgentPosition;
+  /** Pinned corner for the global PXI floating action button. */
+  fabPlacement: AgentFabPlacement;
   /**
    * Which surface currently hosts the agent chat panel.
    * Defaults to "docked". Set to "trace" when a trace slideover mounts its
@@ -161,6 +170,7 @@ export interface AgentState extends AgentProps {
   setIsOpen: (isOpen: boolean) => void;
   toggleOpen: () => void;
   setPosition: (position: AgentPosition) => void;
+  setFabPlacement: (placement: AgentFabPlacement) => void;
   setActivePanelLocation: (location: AgentPanelLocation) => void;
   createSession: () => string;
   deleteSession: (sessionId: string) => void;
@@ -333,6 +343,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
   > = (set) => ({
     isOpen: false,
     position: "detached",
+    fabPlacement: "bottom-end",
     activePanelLocation: "docked",
     sessions: [],
     activeSessionId: null,
@@ -354,6 +365,9 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     },
     setPosition: (position) => {
       set({ position }, false, { type: "setPosition" });
+    },
+    setFabPlacement: (fabPlacement) => {
+      set({ fabPlacement }, false, { type: "setFabPlacement" });
     },
     setActivePanelLocation: (location) => {
       set({ activePanelLocation: location }, false, {
@@ -751,7 +765,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
   return create<AgentState>()(
     persist(devtools(agentStore, { name: "agentStore" }), {
       name: "arize-phoenix-agent",
-      version: 6,
+      version: 7,
       migrate: (persisted, version) => {
         const state = persisted as Partial<AgentProps> & {
           capabilities?: Partial<AgentCapabilities>;
@@ -791,6 +805,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
 
         return {
           ...state,
+          fabPlacement: state.fabPlacement ?? "bottom-end",
           sessionMap: migratedSessionMap,
           observability: {
             ...DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
@@ -803,6 +818,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       partialize: (state) => ({
         isOpen: state.isOpen,
         position: state.position,
+        fabPlacement: state.fabPlacement,
         sessions: state.sessions,
         activeSessionId: state.activeSessionId,
         sessionMap: state.sessionMap,

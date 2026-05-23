@@ -1,11 +1,14 @@
 import { css, keyframes } from "@emotion/react";
 import { AnimatePresence, motion } from "motion/react";
+import type { RefObject } from "react";
 import { createPortal } from "react-dom";
 
 import { useTheme } from "@phoenix/contexts";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useHasOpenModal } from "@phoenix/hooks/useHasOpenModal";
 
+import { AgentFabPositioner } from "./AgentFabPositioner";
+import { FAB_RESTING_SIZE, FAB_STREAMING_SIZE } from "./agentFabPositioning";
 import { PxiGlyph, type PxiGlyphAnimation } from "./PxiGlyph";
 import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 
@@ -76,15 +79,16 @@ const buttonCSS = css`
   justify-content: flex-end;
 `;
 
-const floatingButtonCSS = css`
-  position: fixed;
-  bottom: 24px;
-  right: 36px;
-  z-index: 1000;
-`;
-
 const inlineButtonCSS = css`
   position: relative;
+`;
+
+// Applied when the button is used as a drag handle inside the FAB positioner.
+// The positioner owns the cursor (pointer / grabbing) and consumes touch
+// gestures itself, so the button only needs to opt out of both.
+const draggableButtonCSS = css`
+  cursor: inherit;
+  touch-action: none;
 `;
 
 const darkThemeGlyphThemeCSS = css`
@@ -306,7 +310,7 @@ export interface AgentChatWidgetButtonProps {
   isStreaming?: boolean;
   onClick?: () => void;
   ariaLabel?: string;
-  isFloating?: boolean;
+  isDragHandle?: boolean;
   glyphAnimation?: PxiGlyphAnimation;
 }
 
@@ -314,18 +318,18 @@ export function AgentChatWidgetButton({
   isStreaming = false,
   onClick,
   ariaLabel = "Open agent chat",
-  isFloating = false,
+  isDragHandle = false,
   glyphAnimation = "wave-reveal",
 }: AgentChatWidgetButtonProps) {
   const { theme } = useTheme();
   return (
     <button
       type="button"
-      css={
-        isFloating
-          ? [buttonCSS, floatingButtonCSS]
-          : [buttonCSS, inlineButtonCSS]
-      }
+      css={[
+        buttonCSS,
+        inlineButtonCSS,
+        isDragHandle ? draggableButtonCSS : undefined,
+      ]}
       onClick={onClick}
       aria-label={ariaLabel}
     >
@@ -396,10 +400,16 @@ export function AgentChatWidgetButton({
   );
 }
 
-export function AgentChatWidget() {
+export type AgentChatWidgetProps = {
+  boundaryRef?: RefObject<HTMLElement | null>;
+};
+
+export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
   const isAssistantAgentEnabled = useAssistantAgentEnabled();
   const isOpen = useAgentContext((state) => state.isOpen);
   const toggleOpen = useAgentContext((state) => state.toggleOpen);
+  const fabPlacement = useAgentContext((state) => state.fabPlacement);
+  const setFabPlacement = useAgentContext((state) => state.setFabPlacement);
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
   const hasOpenModal = useHasOpenModal();
   const isStreaming = useAgentContext((state) =>
@@ -415,11 +425,18 @@ export function AgentChatWidget() {
   }
 
   return createPortal(
-    <AgentChatWidgetButton
-      isStreaming={isStreaming}
-      onClick={toggleOpen}
-      isFloating
-    />,
+    <AgentFabPositioner
+      boundaryRef={boundaryRef}
+      placement={fabPlacement}
+      size={isStreaming ? FAB_STREAMING_SIZE : FAB_RESTING_SIZE}
+      onPlacementChange={setFabPlacement}
+    >
+      <AgentChatWidgetButton
+        isDragHandle
+        isStreaming={isStreaming}
+        onClick={toggleOpen}
+      />
+    </AgentFabPositioner>,
     document.body
   );
 }
