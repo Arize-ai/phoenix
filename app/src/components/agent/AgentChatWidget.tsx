@@ -1,16 +1,30 @@
 import { css, keyframes } from "@emotion/react";
 import { AnimatePresence, motion } from "motion/react";
-import type { RefObject } from "react";
+import type { Ref, RefObject } from "react";
+import type { ButtonProps as AriaButtonProps } from "react-aria-components";
+import { Button as AriaButton } from "react-aria-components";
 import { createPortal } from "react-dom";
+import { useHotkeys } from "react-hotkeys-hook";
 
+import {
+  Flex,
+  Keyboard,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+  VisuallyHidden,
+} from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useHasOpenModal } from "@phoenix/hooks/useHasOpenModal";
+import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 
 import { AgentFabPositioner } from "./AgentFabPositioner";
 import { FAB_RESTING_SIZE, FAB_STREAMING_SIZE } from "./agentFabPositioning";
 import { PxiGlyph, type PxiGlyphAnimation } from "./PxiGlyph";
 import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
+
+const OPEN_AGENT_HOTKEY = "mod+i";
 
 const thinkingBorderWipe = keyframes`
   0% {
@@ -306,31 +320,36 @@ const thinkingGlyphPulseCSS = css`
 
 export type { PxiGlyphAnimation } from "./PxiGlyph";
 
-export interface AgentChatWidgetButtonProps {
+export interface AgentChatWidgetButtonProps extends Omit<
+  AriaButtonProps,
+  "aria-label" | "children" | "type"
+> {
+  ref?: Ref<HTMLButtonElement>;
   isStreaming?: boolean;
-  onClick?: () => void;
   ariaLabel?: string;
   isDragHandle?: boolean;
   glyphAnimation?: PxiGlyphAnimation;
 }
 
 export function AgentChatWidgetButton({
+  ref,
   isStreaming = false,
-  onClick,
   ariaLabel = "Open agent chat",
   isDragHandle = false,
   glyphAnimation = "wave-reveal",
+  ...buttonProps
 }: AgentChatWidgetButtonProps) {
   const { theme } = useTheme();
   return (
-    <button
+    <AriaButton
+      ref={ref}
       type="button"
       css={[
         buttonCSS,
         inlineButtonCSS,
         isDragHandle ? draggableButtonCSS : undefined,
       ]}
-      onClick={onClick}
+      {...buttonProps}
       aria-label={ariaLabel}
     >
       <motion.div
@@ -396,7 +415,7 @@ export function AgentChatWidgetButton({
           </AnimatePresence>
         </div>
       </motion.div>
-    </button>
+    </AriaButton>
   );
 }
 
@@ -418,6 +437,20 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
       : false
   );
 
+  useHotkeys(
+    OPEN_AGENT_HOTKEY,
+    (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleOpen();
+    },
+    {
+      enabled: isAssistantAgentEnabled && !hasOpenModal,
+      preventDefault: true,
+    },
+    [isAssistantAgentEnabled, hasOpenModal, toggleOpen]
+  );
+
   // Use contextual entrypoints inside modals (e.g. trace slideover header)
   // instead of letting the global FAB compete with overlay hit-testing.
   if (!isAssistantAgentEnabled || isOpen || hasOpenModal) {
@@ -429,14 +462,46 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
       boundaryRef={boundaryRef}
       placement={fabPlacement}
       size={isStreaming ? FAB_STREAMING_SIZE : FAB_RESTING_SIZE}
+      onActivate={toggleOpen}
       onPlacementChange={setFabPlacement}
     >
-      <AgentChatWidgetButton
-        isDragHandle
-        isStreaming={isStreaming}
-        onClick={toggleOpen}
-      />
+      <TooltipTrigger delay={1000} closeDelay={0}>
+        <AgentChatWidgetButton
+          ariaLabel="Open assistant"
+          isDragHandle
+          isStreaming={isStreaming}
+          onPress={(event) => {
+            if (
+              event.pointerType === "keyboard" ||
+              event.pointerType === "virtual"
+            ) {
+              toggleOpen();
+            }
+          }}
+        />
+        <AgentChatWidgetTooltip />
+      </TooltipTrigger>
     </AgentFabPositioner>,
     document.body
+  );
+}
+
+function AgentChatWidgetTooltip() {
+  const modifierKey = useModifierKey();
+  const modifierGlyph = modifierKey === "Cmd" ? "⌘" : "Ctrl";
+
+  return (
+    <Tooltip placement="top" offset={6}>
+      <TooltipArrow />
+      <Flex direction="row" gap="size-100" alignItems="center">
+        <span>Open assistant</span>
+        <Keyboard>
+          <VisuallyHidden>{modifierKey}</VisuallyHidden>
+          <span aria-hidden="true">{modifierGlyph}</span>
+          <VisuallyHidden>i</VisuallyHidden>
+          <span aria-hidden="true">I</span>
+        </Keyboard>
+      </Flex>
+    </Tooltip>
   );
 }
