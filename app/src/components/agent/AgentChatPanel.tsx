@@ -1,10 +1,15 @@
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 
 import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
 import { Loading } from "@phoenix/components/core";
+import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
-import { AgentChatHeader, DockedAgentChatFrame } from "./AgentChatPanelView";
+import {
+  AgentChatHeader,
+  DockedAgentChatFrame,
+  FloatingAgentChatFrame,
+} from "./AgentChatPanelView";
 import { ChatView } from "./Chat";
 import {
   EMPTY_SESSION_DISPLAY_NAME,
@@ -15,14 +20,41 @@ import { useAgentChatPanelState } from "./useAgentChatPanelState";
 import type { AgentModelSelection } from "./useGenerateSessionSummary";
 
 /**
- * Always-mounted controller for the agent chat. The panel UI is conditional,
- * but the underlying chat hook stays mounted so in-flight streams survive
- * when the panel is closed.
+ * Controller for the pinned side-panel agent chat.
  */
 export function AgentChatPanel() {
+  return (
+    <AgentChatSurface
+      renderFrame={(children) => (
+        <DockedAgentChatFrame>{children}</DockedAgentChatFrame>
+      )}
+    />
+  );
+}
+
+export function FloatingAgentChatPanel() {
+  const fabPlacement = useAgentContext((state) => state.fabPlacement);
+
+  return (
+    <AgentChatSurface
+      renderFrame={(children) => (
+        <FloatingAgentChatFrame placement={fabPlacement}>
+          {children}
+        </FloatingAgentChatFrame>
+      )}
+    />
+  );
+}
+
+function AgentChatSurface({
+  renderFrame,
+}: {
+  renderFrame: (children: ReactNode) => ReactNode;
+}) {
   const isAgentsEnabled = useFeatureFlag("agents");
   const {
     isOpen,
+    position,
     activeSessionId,
     orderedSessions,
     showSessionHistory,
@@ -33,6 +65,7 @@ export function AgentChatPanel() {
     setActiveSession,
     deleteSession,
     closePanel,
+    setPosition,
     handleModelChange,
   } = useAgentChatPanelState();
 
@@ -62,7 +95,10 @@ export function AgentChatPanel() {
       setActiveSession={setActiveSession}
       deleteSession={deleteSession}
       closePanel={closePanel}
+      position={position}
+      setPosition={setPosition}
       handleModelChange={handleModelChange}
+      renderFrame={renderFrame}
     />
   );
 }
@@ -80,7 +116,10 @@ function AgentChatController({
   setActiveSession,
   deleteSession,
   closePanel,
+  position,
+  setPosition,
   handleModelChange,
+  renderFrame,
 }: {
   isOpen: boolean;
   activeSessionId: string | null;
@@ -98,9 +137,12 @@ function AgentChatController({
   >["setActiveSession"];
   deleteSession: ReturnType<typeof useAgentChatPanelState>["deleteSession"];
   closePanel: ReturnType<typeof useAgentChatPanelState>["closePanel"];
+  position: ReturnType<typeof useAgentChatPanelState>["position"];
+  setPosition: ReturnType<typeof useAgentChatPanelState>["setPosition"];
   handleModelChange: ReturnType<
     typeof useAgentChatPanelState
   >["handleModelChange"];
+  renderFrame: (children: ReactNode) => ReactNode;
 }) {
   const {
     messages,
@@ -121,16 +163,18 @@ function AgentChatController({
     return null;
   }
 
-  return (
-    <DockedAgentChatFrame>
+  return renderFrame(
+    <>
       <AgentChatHeader
         sessionDisplayName={sessionDisplayName}
         orderedSessions={orderedSessions}
         activeSessionId={activeSessionId}
         showSessionHistory={showSessionHistory}
+        position={position}
         onSelectSession={setActiveSession}
         onDeleteSession={deleteSession}
         onCreateSession={createSession}
+        onPositionChange={setPosition}
         onClose={closePanel}
       />
       {/* Catch runaway suspense triggers that aren't handled locally */}
@@ -152,6 +196,6 @@ function AgentChatController({
           ) : null}
         </ChatView>
       </Suspense>
-    </DockedAgentChatFrame>
+    </>
   );
 }

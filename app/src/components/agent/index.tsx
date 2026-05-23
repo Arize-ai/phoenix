@@ -5,7 +5,7 @@ export {
   AgentExperimentalSettings,
   AgentWebAccessSettings,
 } from "./AgentExperimentalSettings";
-export { AgentChatPanel } from "./AgentChatPanel";
+export { AgentChatPanel, FloatingAgentChatPanel } from "./AgentChatPanel";
 export { AgentChatWidget } from "./AgentChatWidget";
 export { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
 export { Chat } from "./Chat";

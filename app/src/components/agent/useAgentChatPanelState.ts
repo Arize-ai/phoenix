@@ -89,6 +89,8 @@ export function useAgentChatPanelState() {
   const store = useAgentStore();
   const isOpen = useAgentContext((state) => state.isOpen);
   const setIsOpen = useAgentContext((state) => state.setIsOpen);
+  const position = useAgentContext((state) => state.position);
+  const setPosition = useAgentContext((state) => state.setPosition);
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
   const createSession = useAgentContext((state) => state.createSession);
   const setActiveSession = useAgentContext((state) => state.setActiveSession);
@@ -265,6 +267,7 @@ export function useAgentChatPanelState() {
 
   return {
     isOpen,
+    position,
     activeSessionId,
     orderedSessions,
     showSessionHistory,
@@ -275,6 +278,7 @@ export function useAgentChatPanelState() {
     setActiveSession,
     deleteSession,
     closePanel,
+    setPosition,
     handleModelChange,
   };
 }

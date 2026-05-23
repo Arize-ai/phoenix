@@ -155,6 +155,22 @@ describe("agentStore", () => {
     });
   });
 
+  describe("setPosition", () => {
+    it("defaults to the pinned side panel", () => {
+      const store = createAgentStore();
+
+      expect(store.getState().position).toBe("pinned");
+    });
+
+    it("updates the panel display mode", () => {
+      const store = createAgentStore();
+
+      store.getState().setPosition("detached");
+
+      expect(store.getState().position).toBe("detached");
+    });
+  });
+
   describe("setFabPlacement", () => {
     it("updates the pinned FAB corner", () => {
       const store = createAgentStore();
@@ -295,6 +311,25 @@ describe("agentStore", () => {
       await store.persist.rehydrate();
 
       expect(store.getState().pendingPromptEditsByToolCallId).toEqual({});
+    });
+
+    it("migrates legacy detached position to pinned", async () => {
+      localStorage.setItem(
+        "arize-phoenix-agent",
+        JSON.stringify({
+          state: {
+            position: "detached",
+            sessions: [],
+            sessionMap: {},
+          },
+          version: 7,
+        })
+      );
+
+      const store = createAgentStore();
+      await store.persist.rehydrate();
+
+      expect(store.getState().position).toBe("pinned");
     });
   });
 });
