@@ -22,7 +22,7 @@ import type { ModelConfig } from "./playground/types";
 
 /**
  * Layout position of the agent panel.
- * - "detached": floating overlay window
+ * - "detached": floating overlay panel
  * - "pinned": docked to the side of the viewport
  */
 export type AgentPosition = "detached" | "pinned";
@@ -342,7 +342,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     [["zustand/devtools", unknown]]
   > = (set) => ({
     isOpen: false,
-    position: "detached",
+    position: "pinned",
     fabPlacement: "bottom-end",
     activePanelLocation: "docked",
     sessions: [],
@@ -765,7 +765,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
   return create<AgentState>()(
     persist(devtools(agentStore, { name: "agentStore" }), {
       name: "arize-phoenix-agent",
-      version: 7,
+      version: 8,
       migrate: (persisted, version) => {
         const state = persisted as Partial<AgentProps> & {
           capabilities?: Partial<AgentCapabilities>;
@@ -805,6 +805,15 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
 
         return {
           ...state,
+          // `position` existed before it was wired into the UI, but the
+          // visible behavior was always the pinned side panel. Treat pre-v8
+          // persisted values as pinned so the new floating mode is opt-in.
+          position:
+            version <= 7
+              ? "pinned"
+              : state.position === "detached"
+                ? "detached"
+                : "pinned",
           fabPlacement: state.fabPlacement ?? "bottom-end",
           sessionMap: migratedSessionMap,
           observability: {

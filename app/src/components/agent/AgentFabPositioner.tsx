@@ -9,6 +9,7 @@ import type {
 import { useLayoutEffect, useRef, useState } from "react";
 import invariant from "tiny-invariant";
 
+import { NON_MODAL_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
 import type { AgentFabPlacement } from "@phoenix/store/agentStore";
 import type { Bounds, Point, Size } from "@phoenix/types/geometry";
 
@@ -33,15 +34,11 @@ const SNAP_TRANSITION = `transform ${SNAP_DURATION_MS}ms ${SNAP_EASING}`;
 // button. The FAB only responds to primary-button gestures.
 const PRIMARY_POINTER_BUTTON = 0;
 
-// Sits above app chrome but below modal overlays. Matches the value the
-// floating button used in its previous fixed-position incarnation.
-const FAB_Z_INDEX = 1000;
-
 const positionerCSS = css`
   position: fixed;
   top: 0;
   left: 0;
-  z-index: ${FAB_Z_INDEX};
+  z-index: ${NON_MODAL_FLOATING_Z_INDEX};
   cursor: pointer;
   touch-action: none;
   transform: translate3d(0, 0, 0);

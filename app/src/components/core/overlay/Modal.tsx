@@ -6,6 +6,10 @@ import {
   ModalOverlay as AriaModalOverlay,
 } from "react-aria-components";
 
+import {
+  MODAL_DIALOG_Z_INDEX,
+  MODAL_OVERLAY_Z_INDEX,
+} from "@phoenix/components/core/zIndex";
 import { classNames } from "@phoenix/utils/classNames";
 
 const modalSlideover = keyframes`
@@ -96,7 +100,7 @@ const modalCSS = css`
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      z-index: 1001;
+      z-index: ${MODAL_DIALOG_Z_INDEX};
       // 90% gives a decent amount of padding around the dialog when it would
       // otherwise be cut off by the edges of the screen
       max-height: calc(100% - var(--global-dimension-size-800));
@@ -152,7 +156,7 @@ const modalOverlayCSS = css`
   position: fixed;
   inset: 0;
   background: var(--global-overlay-backdrop-color);
-  z-index: 1000;
+  z-index: ${MODAL_OVERLAY_Z_INDEX};
 
   &[data-entering] {
     // ensure overlay animation is longer than child animations

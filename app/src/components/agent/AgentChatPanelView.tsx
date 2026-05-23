@@ -11,19 +11,32 @@ import {
   Text,
 } from "@phoenix/components";
 import { fadedDividerBottomCSS } from "@phoenix/components/core/layout";
+import { NON_MODAL_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
 import { compactResizeHandleCSS } from "@phoenix/components/resize/styles";
-import type { AgentSession } from "@phoenix/store/agentStore";
+import type {
+  AgentFabPlacement,
+  AgentPosition,
+  AgentSession,
+} from "@phoenix/store/agentStore";
 
 import { PxiGlyph } from "./PxiGlyph";
 import { SessionListMenu } from "./SessionListMenu";
 
+const PANEL_HEADER_Z_INDEX = 3;
+const FLOATING_PANEL_WIDTH_PX = 420;
+const FLOATING_PANEL_HEIGHT_PX = 720;
+const FLOATING_PANEL_MIN_HEIGHT_PX = 520;
+const FLOATING_PANEL_FULLSCREEN_BREAKPOINT_PX = 600;
+const FLOATING_PANEL_VIEWPORT_MARGIN = "var(--global-dimension-size-400)";
+
 const panelHeaderCSS = css`
   ${fadedDividerBottomCSS}
-  z-index: 2;
+  z-index: ${PANEL_HEADER_Z_INDEX};
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
+  background: var(--global-background-color-default);
 `;
 
 const panelHeaderActionsCSS = css`
@@ -56,20 +69,30 @@ export function AgentChatHeader({
   orderedSessions,
   activeSessionId,
   showSessionHistory,
+  position,
   onSelectSession,
   onDeleteSession,
   onCreateSession,
+  onPositionChange,
   onClose,
 }: {
   sessionDisplayName: string;
   orderedSessions: AgentSession[];
   activeSessionId: string | null;
   showSessionHistory: boolean;
+  position?: AgentPosition;
   onSelectSession: (sessionId: string | null) => void;
   onDeleteSession: (sessionId: string) => void;
   onCreateSession: () => void;
+  onPositionChange?: (position: AgentPosition) => void;
   onClose: () => void;
 }) {
+  const nextPosition = position === "pinned" ? "detached" : "pinned";
+  const positionToggleLabel =
+    position === "pinned"
+      ? "Switch assistant to floating panel"
+      : "Pin assistant to side";
+
   return (
     <div css={panelHeaderCSS}>
       <Flex direction="row" alignItems="center" gap="size-50" minWidth={0}>
@@ -104,6 +127,21 @@ export function AgentChatHeader({
           onPress={onCreateSession}
           leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
         />
+        {position != null && onPositionChange != null ? (
+          <Button
+            variant="quiet"
+            size="S"
+            aria-label={positionToggleLabel}
+            onPress={() => onPositionChange(nextPosition)}
+            leadingVisual={
+              <Icon
+                svg={
+                  position === "pinned" ? <Icons.SlideOut /> : <Icons.SlideIn />
+                }
+              />
+            }
+          />
+        ) : null}
         <LinkButton
           variant="quiet"
           size="S"
@@ -164,6 +202,73 @@ export function DockedAgentChatFrame({ children }: { children: ReactNode }) {
     >
       {children}
     </AgentChatFrame>
+  );
+}
+
+const floatingPanelContentCSS = css`
+  position: absolute;
+  z-index: ${NON_MODAL_FLOATING_Z_INDEX};
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: min(
+    ${FLOATING_PANEL_WIDTH_PX}px,
+    calc(100% - ${FLOATING_PANEL_VIEWPORT_MARGIN})
+  );
+  height: min(
+    ${FLOATING_PANEL_HEIGHT_PX}px,
+    calc(100% - ${FLOATING_PANEL_VIEWPORT_MARGIN})
+  );
+  min-height: min(
+    ${FLOATING_PANEL_MIN_HEIGHT_PX}px,
+    calc(100% - ${FLOATING_PANEL_VIEWPORT_MARGIN})
+  );
+  overflow: hidden;
+  border: 1px solid var(--global-border-color-default);
+  border-radius: var(--global-rounding-medium);
+  background: var(--global-background-color-default);
+  box-shadow:
+    0 12px 32px rgba(var(--global-color-gray-900-rgb), 0.2),
+    0 2px 8px rgba(var(--global-color-gray-900-rgb), 0.12);
+
+  &[data-placement^="top"] {
+    top: var(--global-dimension-size-200);
+  }
+
+  &[data-placement^="bottom"] {
+    bottom: var(--global-dimension-size-200);
+  }
+
+  &[data-placement$="start"] {
+    left: var(--global-dimension-size-200);
+  }
+
+  &[data-placement$="end"] {
+    right: var(--global-dimension-size-200);
+  }
+
+  @media (max-width: ${FLOATING_PANEL_FULLSCREEN_BREAKPOINT_PX}px), (max-height: ${FLOATING_PANEL_FULLSCREEN_BREAKPOINT_PX}px) {
+    inset: var(--global-dimension-size-100);
+    width: auto;
+    height: auto;
+    min-height: 0;
+  }
+`;
+
+/**
+ * Presentational shell for the floating PXI panel.
+ */
+export function FloatingAgentChatFrame({
+  children,
+  placement,
+}: {
+  children: ReactNode;
+  placement: AgentFabPlacement;
+}) {
+  return (
+    <div css={floatingPanelContentCSS} data-placement={placement}>
+      {children}
+    </div>
   );
 }
 

@@ -3,6 +3,7 @@ import type { Ref } from "react";
 import type { PopoverProps } from "react-aria-components";
 import { Popover as AriaPopover } from "react-aria-components";
 
+import { PORTALED_OVERLAY_Z_INDEX } from "@phoenix/components/core/zIndex";
 import { classNames } from "@phoenix/utils/classNames";
 
 const popoverSlideKeyframes = keyframes`
@@ -31,6 +32,7 @@ const popoverCSS = css`
   background: var(--background-color);
   color: var(--global-text-color-900);
   outline: none;
+  z-index: ${PORTALED_OVERLAY_Z_INDEX};
 
   &[data-entering],
   &[data-exiting] {

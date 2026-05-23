@@ -4,7 +4,11 @@ import { Group, Panel, useDefaultLayout } from "react-resizable-panels";
 import { Outlet, useLoaderData } from "react-router";
 
 import { Counter, Flex, Icon, Icons, Loading } from "@phoenix/components";
-import { AgentChatPanel, AgentChatWidget } from "@phoenix/components/agent";
+import {
+  AgentChatPanel,
+  AgentChatWidget,
+  FloatingAgentChatPanel,
+} from "@phoenix/components/agent";
 import {
   Brand,
   DocsLink,
@@ -44,6 +48,7 @@ const mainViewCSS = css`
   overflow: hidden;
 `;
 const contentCSS = css`
+  position: relative;
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
@@ -79,8 +84,17 @@ export function Layout() {
   const activePanelLocation = useAgentContext(
     (state) => state.activePanelLocation
   );
+  const agentPosition = useAgentContext((state) => state.position);
   const shouldShowDockedAgentPanel =
-    isAgentsEnabled && isAgentPanelOpen && activePanelLocation === "docked";
+    isAgentsEnabled &&
+    isAgentPanelOpen &&
+    activePanelLocation === "docked" &&
+    agentPosition === "pinned";
+  const shouldShowFloatingAgentPanel =
+    isAgentsEnabled &&
+    isAgentPanelOpen &&
+    activePanelLocation === "docked" &&
+    agentPosition === "detached";
   const panelIds = shouldShowDockedAgentPanel
     ? ["layout-content", "agent-chat"]
     : ["layout-content"];
@@ -110,6 +124,9 @@ export function Layout() {
             <Panel id="layout-content">
               <div data-testid="content" css={contentCSS} ref={contentRef}>
                 <AgentChatWidget boundaryRef={contentRef} />
+                {shouldShowFloatingAgentPanel ? (
+                  <FloatingAgentChatPanel />
+                ) : null}
                 <Suspense fallback={<Loading />}>
                   <Outlet />
                 </Suspense>
