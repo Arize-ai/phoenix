@@ -56,6 +56,51 @@ tracer_provider = register(project_name="my-app")  # No auto_instrument
 OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
 ```
 
+## OTel GenAI Native Instrumentation
+
+Phoenix automatically converts [OTel GenAI semantic convention](https://opentelemetry.io/docs/specs/semconv/gen-ai/) attributes (`gen_ai.*`) to OpenInference when receiving OTLP spans. This means you can use **OTel-native AI instrumentation** — any library that emits `gen_ai.*` attributes — without installing OpenInference instrumentors, and Phoenix will display spans with proper LLM span kind, model names, token counts, and message content.
+
+If a span already has OpenInference attributes set (e.g. from a dual-emitting instrumentor), those values take precedence over the synthesized ones.
+
+No client-side changes required. Send OTLP to Phoenix as usual:
+
+```python
+from phoenix.otel import register
+
+# Works with any OTel-native AI instrumentor that emits gen_ai.* attributes
+register(project_name="my-app")
+```
+
+**OTel GenAI packages** (from [opentelemetry-python-genai](https://github.com/open-telemetry/opentelemetry-python-genai/tree/main/instrumentation)):
+
+- `opentelemetry-instrumentation-anthropic`
+- `opentelemetry-instrumentation-openai`
+
+```bash
+pip install opentelemetry-instrumentation-anthropic
+```
+
+```python
+from phoenix.otel import register
+from opentelemetry.instrumentation.anthropic import AnthropicInstrumentor
+import anthropic
+
+register(project_name="my-app")
+
+# Instrument Anthropic
+AnthropicInstrumentor().instrument()
+
+# Use Anthropic client as normal — spans are created automatically
+client = anthropic.Anthropic()
+response = client.messages.create(
+    model="claude-3-5-sonnet-20241022",
+    max_tokens=1024,
+    messages=[
+        {"role": "user", "content": "Hello, Claude!"}
+    ]
+)
+```
+
 ## Limitations
 
 Auto-instrumentation does NOT capture:
