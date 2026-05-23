@@ -7305,6 +7305,9 @@
             "$ref": "#/components/schemas/PlaygroundContext"
           },
           {
+            "$ref": "#/components/schemas/CodeEvaluatorContext"
+          },
+          {
             "$ref": "#/components/schemas/GraphQLContext"
           },
           {
@@ -7317,6 +7320,7 @@
           "propertyName": "type",
           "mapping": {
             "app": "#/components/schemas/AppContext",
+            "code_evaluator": "#/components/schemas/CodeEvaluatorContext",
             "graphql": "#/components/schemas/GraphQLContext",
             "playground": "#/components/schemas/PlaygroundContext",
             "project": "#/components/schemas/ProjectContext",
@@ -7503,6 +7507,32 @@
         ],
         "title": "ChatSubmitMessage",
         "description": "Submit message extended with Phoenix-specific fields."
+      },
+      "CodeEvaluatorContext": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "code_evaluator",
+            "title": "Type"
+          },
+          "evaluatorNodeId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluatornodeid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "CodeEvaluatorContext",
+        "description": "Code-evaluator create/edit form mounted in the current browser route.\n\n``evaluator_node_id`` is set when the form is editing an existing\nevaluator and ``None`` when the form is creating a new one \u2014 the sole\nfield the draft-read/edit tools need to distinguish the two modes."
       },
       "ContinuousAnnotationConfig": {
         "properties": {

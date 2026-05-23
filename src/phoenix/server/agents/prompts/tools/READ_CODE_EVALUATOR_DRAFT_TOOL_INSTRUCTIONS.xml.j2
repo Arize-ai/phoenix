@@ -1,0 +1,12 @@
+<tool name="read_code_evaluator_draft">
+  <description>Read the current state of the open code-evaluator draft, including its source code, language, sandbox selection, input mapping, output annotation config, and a `revision` token required to safely propose edits.</description>
+  <when_to_use>
+    - Before calling `edit_code_evaluator_draft` — you need the latest `revision` to pass as `expectedRevision`.
+    - Whenever the user asks what the draft currently contains or wants a review of the in-progress evaluator.
+  </when_to_use>
+  <guidelines>
+    - The `mode` field is either `create` (a new evaluator is being authored) or `edit` (an existing evaluator is being modified). In `edit` mode, `language` is immutable and a `set_language` op will be rejected.
+    - Treat the returned `revision` as opaque. Pass it back unchanged as `expectedRevision` when calling `edit_code_evaluator_draft`. If the form changes between read and edit, the edit will be rejected and you should re-read before retrying.
+    - The draft's `sourceCode` defines a function called `evaluate`. Preserve that name and the supported parameter set (`input`, `output`, `reference`, `metadata`) when proposing edits.
+  </guidelines>
+</tool>

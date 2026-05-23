@@ -14,6 +14,7 @@ import {
   type AgentCapabilityKey,
 } from "@phoenix/agent/extensions/capabilities";
 import type { PendingBatchSpanAnnotate } from "@phoenix/agent/tools/batchSpanAnnotate";
+import type { PendingCodeEvaluatorEdit } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
 import type { PendingPromptEdit } from "@phoenix/agent/tools/playgroundPrompt";
 import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePrompt";
@@ -314,6 +315,15 @@ export interface AgentState extends AgentProps {
     toolCallId: string,
     pendingSave: PendingSavePrompt | null
   ) => void;
+
+  // -- Code-evaluator draft edit approvals advertised by edit_code_evaluator_draft tool calls --
+  pendingCodeEvaluatorEditsByToolCallId: Partial<
+    Record<string, PendingCodeEvaluatorEdit>
+  >;
+  setPendingCodeEvaluatorEdit: (
+    toolCallId: string,
+    edit: PendingCodeEvaluatorEdit | null
+  ) => void;
 }
 
 /**
@@ -422,6 +432,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     pendingPromptEditsByToolCallId: {},
     pendingBatchSpanAnnotatesByToolCallId: {},
     pendingSavePromptsByToolCallId: {},
+    pendingCodeEvaluatorEditsByToolCallId: {},
     setIsOpen: (isOpen) => {
       set({ isOpen }, false, { type: "setIsOpen" });
     },
@@ -944,6 +955,22 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "setPendingSavePrompt" }
+      );
+    },
+
+    setPendingCodeEvaluatorEdit: (toolCallId, edit) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingCodeEvaluatorEditsByToolCallId };
+          if (edit) {
+            next[toolCallId] = edit;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingCodeEvaluatorEditsByToolCallId: next };
+        },
+        false,
+        { type: "setPendingCodeEvaluatorEdit" }
       );
     },
 

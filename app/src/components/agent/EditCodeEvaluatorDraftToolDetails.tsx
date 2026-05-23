@@ -1,0 +1,212 @@
+import { css } from "@emotion/react";
+import { parseDiffFromFile } from "@pierre/diffs";
+import { FileDiff } from "@pierre/diffs/react";
+import { useMemo } from "react";
+
+import {
+  type CodeEvaluatorDraftSnapshot,
+  EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+  parseEditCodeEvaluatorDraftInput,
+  type PendingCodeEvaluatorEdit,
+} from "@phoenix/agent/tools/codeEvaluatorDraft";
+import { Button, Flex, View } from "@phoenix/components";
+import { useTheme } from "@phoenix/contexts";
+import { useAgentContext } from "@phoenix/contexts/AgentContext";
+
+import { ToolPartCodeBlock, ToolPartLabel } from "./ToolPartPrimitives";
+import type { ToolInvocationPart } from "./toolPartTypes";
+import { formatToolState, stringifyToolValue } from "./toolPartTypes";
+
+const editCodeEvaluatorToolDetailsCSS = css`
+  .edit-code-evaluator__header {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    gap: var(--global-dimension-size-100);
+    padding: var(--global-dimension-size-100) var(--global-dimension-size-250)
+      var(--global-dimension-size-50);
+  }
+
+  .edit-code-evaluator__header-label {
+    min-width: 0;
+    color: var(--tool-call-secondary-color);
+    text-transform: uppercase;
+    font-size: var(--global-font-size-xs);
+    letter-spacing: 0.05em;
+    user-select: none;
+  }
+
+  .edit-code-evaluator__diff {
+    font-family: var(--ac-global-font-family-sans);
+    white-space: normal;
+  }
+`;
+
+export function getEditCodeEvaluatorDraftToolPreview(
+  part: ToolInvocationPart
+): string {
+  const input = parseEditCodeEvaluatorDraftInput(part.input);
+  if (!input) return "";
+  return `${input.operations.length} proposed edit${input.operations.length === 1 ? "" : "s"}`;
+}
+
+export function formatEditCodeEvaluatorDraftState(
+  part: ToolInvocationPart
+): string {
+  switch (part.state) {
+    case "input-available":
+      return "Awaiting approval";
+    case "output-available": {
+      const status = getOutputStatus(part.output);
+      return status === "rejected" ? "Rejected" : "Accepted";
+    }
+    default:
+      return formatToolState(part.state);
+  }
+}
+
+export function EditCodeEvaluatorDraftToolDetails({
+  part,
+}: {
+  part: ToolInvocationPart;
+}) {
+  const pendingEdit = useAgentContext(
+    (state) =>
+      state.pendingCodeEvaluatorEditsByToolCallId[part.toolCallId] ?? null
+  );
+  const input = parseEditCodeEvaluatorDraftInput(part.input);
+
+  return (
+    <div className="tool-part__body" css={editCodeEvaluatorToolDetailsCSS}>
+      {pendingEdit ? (
+        <PendingEditCodeEvaluatorDraftDiff pendingEdit={pendingEdit} />
+      ) : null}
+      {part.state === "output-available" ? (
+        <>
+          <ToolPartLabel>Result</ToolPartLabel>
+          <ToolPartCodeBlock>
+            {stringifyToolValue(part.output)}
+          </ToolPartCodeBlock>
+        </>
+      ) : null}
+      {part.state === "output-error" ? (
+        <>
+          <ToolPartLabel variant="danger">Error</ToolPartLabel>
+          <ToolPartCodeBlock>{part.errorText ?? ""}</ToolPartCodeBlock>
+        </>
+      ) : null}
+      {!pendingEdit && input && part.state === "input-available" ? (
+        <>
+          <ToolPartLabel>{EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME}</ToolPartLabel>
+          <ToolPartCodeBlock>
+            Preparing code-evaluator draft diff...
+          </ToolPartCodeBlock>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function PendingEditCodeEvaluatorDraftDiff({
+  pendingEdit,
+}: {
+  pendingEdit: PendingCodeEvaluatorEdit;
+}) {
+  const { theme } = useTheme();
+  const canRespond = Boolean(pendingEdit.accept && pendingEdit.reject);
+  const fileName =
+    pendingEdit.before.mode === "edit"
+      ? `code-evaluator-${pendingEdit.before.evaluatorNodeId ?? "draft"}.txt`
+      : "code-evaluator-draft.txt";
+  const fileDiff = useMemo(() => {
+    return parseDiffFromFile(
+      { name: fileName, contents: draftSnapshotToText(pendingEdit.before) },
+      { name: fileName, contents: draftSnapshotToText(pendingEdit.after) }
+    );
+  }, [pendingEdit, fileName]);
+
+  return (
+    <Flex direction="column" gap="size-100">
+      <div className="edit-code-evaluator__header">
+        <span className="edit-code-evaluator__header-label">
+          Proposed diff for code-evaluator draft ({pendingEdit.before.mode}{" "}
+          mode)
+        </span>
+      </div>
+      <div className="edit-code-evaluator__diff">
+        <FileDiff
+          fileDiff={fileDiff}
+          data-background="transparent"
+          options={{
+            diffStyle: "unified",
+            disableFileHeader: true,
+            theme: { light: "pierre-light", dark: "pierre-dark" },
+            themeType: theme,
+            unsafeCSS: `
+            pre, pre code, [data-line-type=context], [data-gutter], svg {
+              background: var(--tool-call-body-background-color);
+              stroke: unset;
+              fill: unset;
+            }
+
+            [data-line-type] {
+              border-right: none;
+            }
+
+            [data-code] {
+              padding: 0;
+              padding-bottom: var(--global-dimension-static-size-100)
+            }
+
+            [data-column-number] {
+              padding-left: 1.5ch;
+            }
+            `,
+          }}
+        />
+      </div>
+      <View paddingX="size-200">
+        <Flex direction="row-reverse" gap="size-100">
+          <Button
+            size="S"
+            variant="primary"
+            isDisabled={!canRespond}
+            onPress={() => void pendingEdit.accept?.()}
+          >
+            Accept
+          </Button>
+          <Button
+            size="S"
+            isDisabled={!canRespond}
+            onPress={() => void pendingEdit.reject?.()}
+          >
+            Reject
+          </Button>
+        </Flex>
+        {!canRespond ? (
+          <ToolPartCodeBlock>
+            This edit was proposed in an earlier session and can&apos;t be
+            applied here. Re-run your request to have PXI propose it again.
+          </ToolPartCodeBlock>
+        ) : null}
+      </View>
+    </Flex>
+  );
+}
+
+function draftSnapshotToText(snapshot: CodeEvaluatorDraftSnapshot): string {
+  return [
+    `name: ${snapshot.name}`,
+    `description: ${snapshot.description}`,
+    `language: ${snapshot.language}`,
+    `sandboxConfigId: ${snapshot.sandboxConfigId ?? "null"}`,
+    `inputMapping: ${JSON.stringify(snapshot.inputMapping, null, 2)}`,
+    `sourceCode:\n${snapshot.sourceCode}`,
+  ].join("\n\n");
+}
+
+function getOutputStatus(output: unknown): string | null {
+  if (typeof output !== "object" || output === null) return null;
+  const candidate = output as { status?: unknown };
+  return typeof candidate.status === "string" ? candidate.status : null;
+}

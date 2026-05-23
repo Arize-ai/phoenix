@@ -72,6 +72,96 @@ export const PXI_EXPERIMENT_EXAMPLES = {
     experimentDescription:
       "PXI ingest-traces smoke test: confirms chat + summary traces persist locally.",
   },
+  codeEvaluatorDraftEditSmoke: {
+    id: "pxi-code-evaluator-draft-smoke:edit-source-v1",
+    prompt:
+      "I'm on the Create Code Evaluator dialog. Read the current draft, then edit it to replace the body of the evaluate function so it returns 1.0 instead of whatever placeholder is there. Wait for me to accept or reject the change.",
+    expectedOutput:
+      "PXI reads the code-evaluator draft, proposes an edit with a diff preview, and waits for user approval before the source editor is updated.",
+    experimentNamePrefix: "pxi-e2e-code-evaluator-draft-edit-smoke",
+    experimentDescription:
+      "PXI code-evaluator draft tools smoke test: read_code_evaluator_draft + edit_code_evaluator_draft with accept flow.",
+  },
+  codeEvaluatorDraftRejectSmoke: {
+    id: "pxi-code-evaluator-draft-smoke:reject-leaves-form-v1",
+    prompt:
+      "Edit the code-evaluator draft to replace the evaluate function body with a comment that says '# PXI REJECT MARKER'. Wait for me to review the diff before applying.",
+    expectedOutput:
+      "PXI proposes an edit that the user rejects; the source editor is unchanged after rejection.",
+    experimentNamePrefix: "pxi-e2e-code-evaluator-draft-reject-smoke",
+    experimentDescription:
+      "PXI code-evaluator draft tools smoke test: edit_code_evaluator_draft with reject flow leaves source editor unchanged.",
+  },
+  codeEvaluatorDraftStaleProposeSmoke: {
+    id: "pxi-code-evaluator-draft-smoke:stale-propose-v1",
+    prompt:
+      "Read the current code-evaluator draft, then edit it to add a comment '# stale propose marker' at the top of the evaluate function body. Wait for me to accept or reject.",
+    expectedOutput:
+      "PXI's proposed edit is rejected at propose-time because the draft revision changed between read and propose; the propose-time error string is surfaced to the user.",
+    experimentNamePrefix: "pxi-e2e-code-evaluator-draft-stale-propose-smoke",
+    experimentDescription:
+      "PXI code-evaluator draft tools smoke test: propose-time stale-revision guard surfaces the canonical error string.",
+  },
+  codeEvaluatorDraftStaleAcceptSmoke: {
+    id: "pxi-code-evaluator-draft-smoke:stale-accept-v1",
+    prompt:
+      "Read the current code-evaluator draft, then edit it to add a comment '# stale accept marker' at the top of the evaluate function body. Wait for me to accept or reject the change.",
+    expectedOutput:
+      "PXI proposes the edit; when the user bumps the draft revision before clicking Accept, the accept-time guard surfaces the canonical error string and the source editor is not updated to the proposed text.",
+    experimentNamePrefix: "pxi-e2e-code-evaluator-draft-stale-accept-smoke",
+    experimentDescription:
+      "PXI code-evaluator draft tools smoke test: accept-time stale-revision guard surfaces the canonical error string.",
+  },
+  codeEvaluatorDraftToolsAbsentSmoke: {
+    id: "pxi-code-evaluator-draft-smoke:tools-absent-v1",
+    prompt:
+      "Read the current code-evaluator draft and tell me what its evaluate function does.",
+    expectedOutput:
+      "With no code-evaluator form open, PXI does not invoke read_code_evaluator_draft or edit_code_evaluator_draft and explains it cannot read a draft because none is open.",
+    experimentNamePrefix: "pxi-e2e-code-evaluator-draft-tools-absent-smoke",
+    experimentDescription:
+      "PXI code-evaluator draft tools smoke test: draft tools are absent when no code-evaluator form is mounted.",
+  },
+  createCodeEvaluatorHappySmoke: {
+    id: "pxi-create-code-evaluator-smoke:happy-path-v1",
+    prompt:
+      "Create a new Python code evaluator named ${name} that scores how well an agent's output matches a reference answer. Define `evaluate(output, reference)` that returns 1.0 when `output` and `reference` are equal (case-insensitive, trimmed) and 0.0 otherwise. Do not configure a sandbox.",
+    expectedOutput:
+      "PXI calls create_code_evaluator with sandbox_config_id: null; the new evaluator is persisted and retrievable by id via the GraphQL node query.",
+    experimentNamePrefix: "pxi-e2e-create-code-evaluator-happy",
+    experimentDescription:
+      "PXI direct-authoring tool: create_code_evaluator happy-path with graphql.mutations capability disabled.",
+  },
+  createCodeEvaluatorBadRequestSmoke: {
+    id: "pxi-create-code-evaluator-smoke:bad-request-v1",
+    prompt:
+      "Create a Python code evaluator named ${name} with this exact source code (do not change the function name or parameters): `def score(output, reference):\\n    return 1.0 if output == reference else 0.0`. Do not configure a sandbox.",
+    expectedOutput:
+      "PXI's create_code_evaluator call returns a BadRequest with the server's signature-validation message surfaced verbatim; no evaluator is created.",
+    experimentNamePrefix: "pxi-e2e-create-code-evaluator-bad-request",
+    experimentDescription:
+      "PXI direct-authoring tool: server BadRequest on unparseable evaluate() signature surfaces verbatim.",
+  },
+  createCodeEvaluatorToolAbsentSmoke: {
+    id: "pxi-create-code-evaluator-smoke:tool-absent-v1",
+    prompt:
+      "Create a new Python code evaluator named pxi-tool-absent-marker that returns 1.0 for every input.",
+    expectedOutput:
+      "create_code_evaluator is absent from the tool list while a code-evaluator form is open; PXI uses edit_code_evaluator_draft instead.",
+    experimentNamePrefix: "pxi-e2e-create-code-evaluator-tool-absent",
+    experimentDescription:
+      "PXI direct-authoring tool: create_code_evaluator absence when the code-evaluator form is mounted (dual side of context include_for_run).",
+  },
+  createCodeEvaluatorWithOutputConfigSmoke: {
+    id: "pxi-create-code-evaluator-smoke:with-output-config-v1",
+    prompt:
+      "Create a new Python code evaluator named ${name} that scores how similar an agent's output is to a reference answer on a scale from 0 to 1. Define `evaluate(output, reference)` that returns 1.0 when `output` and `reference` are equal (case-insensitive, trimmed) and 0.0 otherwise. Configure the evaluator's annotation surface so higher scores are better (optimization_direction MAXIMIZE) and the good/bad cutoff is 0.7. Do not configure a sandbox.",
+    expectedOutput:
+      "PXI calls create_code_evaluator with an output_config carrying optimization_direction=MAXIMIZE and threshold=0.7; the persisted CodeEvaluator's output_configs round-trip a single freeform entry whose name equals the evaluator's name.",
+    experimentNamePrefix: "pxi-e2e-create-code-evaluator-with-output-config",
+    experimentDescription:
+      "PXI direct-authoring tool: create_code_evaluator authors a single freeform output config at creation time and the persisted output_configs round-trip via GraphQL.",
+  },
 } as const;
 
 type PxiExperimentExample =

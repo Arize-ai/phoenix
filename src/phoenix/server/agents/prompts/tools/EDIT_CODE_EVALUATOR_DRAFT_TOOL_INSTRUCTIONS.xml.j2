@@ -1,0 +1,32 @@
+<tool name="edit_code_evaluator_draft">
+  <description>Propose edits to the open code-evaluator draft. The browser renders an inline diff and the user accepts or rejects it — this tool does not change the form immediately.</description>
+  <when_to_use>
+    - The user asks to modify the draft's source code, name, description, language, sandbox selection, or input mapping.
+    - You want to suggest a concrete change rather than describing it in chat.
+  </when_to_use>
+  <preflight>
+    - Always call `read_code_evaluator_draft` first to obtain the latest `revision`.
+    - Pass that `revision` back as `expectedRevision`. If the draft changed since the read, the edit is rejected; re-read and retry.
+  </preflight>
+  <operations>
+    - `operations` must always be an array, even for a single edit. Operations apply in order.
+    - Use camelCase field names exactly as shown.
+    - Common shapes:
+      - `{"type":"set_source_code","sourceCode":"def evaluate(output):\n    return 1.0"}`
+      - `{"type":"set_language","language":"PYTHON"}` — only valid in `create` mode.
+      - `{"type":"set_sandbox_config","sandboxConfigId":"U2FuZGJveENvbmZpZzox"}` — pass `null` to clear. The sandbox config's language must match the draft language.
+      - `{"type":"set_input_mapping","inputMapping":{"pathMapping":{"input":"attributes.input.value"},"literalMapping":{}}}`
+      - `{"type":"set_description","description":"Scores hallucination risk"}`
+      - `{"type":"set_name","name":"hallucination-v2"}`
+  </operations>
+  <invariants>
+    - Never rename or remove the `evaluate` function. The runtime calls it by name.
+    - Only declare parameters from `{input, output, reference, metadata}` on `evaluate` — additional parameters will fail at execution.
+    - In `edit` mode, `set_language` is rejected (language is immutable post-create).
+    - In `create` mode, switching `set_language` may clear an incompatible `sandbox_config_id`; suggest a compatible one in a follow-up turn if needed.
+  </invariants>
+  <guidelines>
+    - Keep edits small and focused so the user can read the diff. Group related field changes together when they form one logical intent.
+    - After proposing the edit, briefly summarize what the diff will show so the user knows what they are accepting or rejecting.
+  </guidelines>
+</tool>

@@ -6,6 +6,19 @@ import CodeMirror from "@uiw/react-codemirror";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 
+import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
+import {
+  applyDraftOperations,
+  buildDraftRevision,
+  type CodeEvaluatorDraftHost,
+  type CodeEvaluatorDraftSnapshot,
+  createEditCodeEvaluatorDraftClientAction,
+  createReadCodeEvaluatorDraftClientAction,
+  EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+  type EditCodeEvaluatorDraftOperation,
+  READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+  type SandboxConfigIndex,
+} from "@phoenix/agent/tools/codeEvaluatorDraft";
 import {
   Alert,
   Button,
@@ -61,6 +74,7 @@ import { EvaluatorNameInput } from "@phoenix/components/evaluators/EvaluatorName
 import { OptimizationDirectionField } from "@phoenix/components/evaluators/OptimizationDirectionField";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { useTheme } from "@phoenix/contexts";
+import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import {
   useEvaluatorStore,
   useEvaluatorStoreInstance,
@@ -92,6 +106,7 @@ export const EditCodeEvaluatorDialogContent = ({
   initialSourceCode,
   sandboxConfigs,
   initialSandboxConfigId,
+  evaluatorNodeId,
 }: {
   onSubmit: (payload: {
     language: CodeEvaluatorLanguage;
@@ -114,6 +129,8 @@ export const EditCodeEvaluatorDialogContent = ({
   initialSourceCode: string;
   sandboxConfigs: SandboxConfigOption[];
   initialSandboxConfigId?: string | null;
+  /** Relay node ID of the evaluator being edited; null in `create` mode. */
+  evaluatorNodeId?: string | null;
 }) => {
   const store = useEvaluatorStoreInstance();
   const [showValidationError, setShowValidationError] = useState(false);
@@ -192,6 +209,148 @@ export const EditCodeEvaluatorDialogContent = ({
       checkForDirtyChanges();
     });
   }, [store]);
+
+  const agentStore = useAgentStore();
+
+  const advertisedCodeEvaluatorContext = useMemo(
+    () => ({
+      type: "code_evaluator" as const,
+      evaluatorNodeId: evaluatorNodeId ?? null,
+    }),
+    [evaluatorNodeId]
+  );
+  useAdvertiseAgentContext(advertisedCodeEvaluatorContext);
+
+  const localFieldsRef = useRef({ sourceCode, language, sandboxConfigId });
+  useEffect(() => {
+    localFieldsRef.current = { sourceCode, language, sandboxConfigId };
+  }, [sourceCode, language, sandboxConfigId]);
+
+  const sandboxConfigIndex: SandboxConfigIndex = useMemo(() => {
+    const index: SandboxConfigIndex = {};
+    for (const config of sandboxConfigs) {
+      index[config.id] = { language: config.language };
+    }
+    return index;
+  }, [sandboxConfigs]);
+  const sandboxConfigIndexRef = useRef(sandboxConfigIndex);
+  useEffect(() => {
+    sandboxConfigIndexRef.current = sandboxConfigIndex;
+  }, [sandboxConfigIndex]);
+
+  const draftHostRef = useRef<CodeEvaluatorDraftHost | null>(null);
+
+  useEffect(() => {
+    const buildSnapshot = (): CodeEvaluatorDraftSnapshot => {
+      const local = localFieldsRef.current;
+      const state = store.getState();
+      const firstOutputConfigName = state.outputConfigs[0]?.name ?? "";
+      const draftName =
+        state.evaluator.name ||
+        state.evaluator.globalName ||
+        firstOutputConfigName;
+      const snapshotWithoutRevision: Omit<
+        CodeEvaluatorDraftSnapshot,
+        "revision"
+      > = {
+        mode: mode === "create" ? "create" : "edit",
+        evaluatorNodeId: evaluatorNodeId ?? null,
+        name: draftName,
+        description: state.evaluator.description,
+        language: local.language,
+        sourceCode: local.sourceCode,
+        sandboxConfigId: local.sandboxConfigId,
+        inputMapping: state.evaluator.inputMapping,
+      };
+      return {
+        ...snapshotWithoutRevision,
+        revision: buildDraftRevision(snapshotWithoutRevision),
+      };
+    };
+
+    const previewOperations = (
+      snapshot: CodeEvaluatorDraftSnapshot,
+      operations: EditCodeEvaluatorDraftOperation[]
+    ) =>
+      applyDraftOperations({
+        snapshot,
+        operations,
+        sandboxConfigs: sandboxConfigIndexRef.current,
+      });
+
+    const applyOperations = (operations: EditCodeEvaluatorDraftOperation[]) => {
+      const current = buildSnapshot();
+      const proposed = previewOperations(current, operations);
+      if (!proposed.ok) return proposed;
+      const next = proposed.output;
+      if (next.sourceCode !== current.sourceCode) {
+        setSourceCode(next.sourceCode);
+      }
+      if (next.language !== current.language) {
+        setLanguage(next.language);
+      }
+      if (next.sandboxConfigId !== current.sandboxConfigId) {
+        setSandboxConfigId(next.sandboxConfigId);
+      }
+      const state = store.getState();
+      if (next.name !== current.name) {
+        state.setEvaluatorName(next.name);
+      }
+      if (next.description !== current.description) {
+        state.setEvaluatorDescription(next.description);
+      }
+      if (
+        JSON.stringify(next.inputMapping.pathMapping) !==
+        JSON.stringify(current.inputMapping.pathMapping)
+      ) {
+        state.setPathMapping(next.inputMapping.pathMapping);
+      }
+      if (
+        JSON.stringify(next.inputMapping.literalMapping) !==
+        JSON.stringify(current.inputMapping.literalMapping)
+      ) {
+        state.setLiteralMapping(next.inputMapping.literalMapping);
+      }
+      return { ok: true as const, output: next };
+    };
+
+    const host: CodeEvaluatorDraftHost = {
+      getSnapshot: buildSnapshot,
+      previewOperations,
+      applyOperations,
+    };
+    draftHostRef.current = host;
+
+    const {
+      registerClientAction,
+      unregisterClientAction,
+      setPendingCodeEvaluatorEdit,
+    } = agentStore.getState();
+    const getDraftHost = () => draftHostRef.current;
+    registerClientAction(
+      READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+      createReadCodeEvaluatorDraftClientAction({ getDraftHost })
+    );
+    registerClientAction(
+      EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+      createEditCodeEvaluatorDraftClientAction({
+        getDraftHost,
+        setPendingCodeEvaluatorEdit,
+      })
+    );
+    return () => {
+      draftHostRef.current = null;
+      unregisterClientAction(READ_CODE_EVALUATOR_DRAFT_TOOL_NAME);
+      unregisterClientAction(EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME);
+      for (const pendingEdit of Object.values(
+        agentStore.getState().pendingCodeEvaluatorEditsByToolCallId
+      )) {
+        if (pendingEdit) {
+          void pendingEdit.cancel?.();
+        }
+      }
+    };
+  }, [agentStore, store, mode, evaluatorNodeId]);
 
   const handleCancel = () => {
     onCancel?.();

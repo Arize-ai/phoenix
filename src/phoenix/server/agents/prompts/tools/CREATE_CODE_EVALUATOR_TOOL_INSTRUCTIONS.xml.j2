@@ -1,0 +1,45 @@
+<tool name="create_code_evaluator">
+  <description>Author and persist a new standalone code evaluator. This dispatches the `createCodeEvaluator` GraphQL mutation directly and the new evaluator becomes immediately queryable. Use it when no code-evaluator form is open and the user asks you to create an evaluator end-to-end.</description>
+  <when_to_use>
+    - The user asks to create, write, or scaffold a new code evaluator and there is no code-evaluator form open in the browser.
+    - The user describes a metric or scoring rule they want persisted as a reusable evaluator.
+  </when_to_use>
+  <evaluate_contract>
+    - The authored `source_code` MUST define a function literally named `evaluate`. The runtime calls it by name; renaming it will break execution.
+    - Only declare parameters drawn from `{output, reference, input, metadata}`. Any other parameter name will fail at execution.
+    - Python — positional parameters:
+      `def evaluate(output, reference, input, metadata):`
+      Any subset is valid, e.g. `def evaluate(output):` or `def evaluate(output, reference):`.
+    - TypeScript — a single destructured object:
+      `function evaluate({ output, reference, input, metadata }) { ... }`
+      Any subset of the destructured keys is valid, e.g. `function evaluate({ output })`.
+    - Return either a `{label, score, explanation}` subset (any one, two, or three of those keys) or a bare scalar (string label, numeric score, or boolean). Both shapes are valid in both languages.
+  </evaluate_contract>
+  <name>
+    - `name` must match `^[a-z0-9]([_a-z0-9-]*[a-z0-9])?$` — lowercase letters, digits, hyphens, or underscores; cannot start or end with a hyphen or underscore.
+    - Prefer concise, action-oriented names (e.g. `hallucination-check`, `json-validity`).
+  </name>
+  <input_mapping>
+    - Always send `input_mapping` as a non-null object. The safe default is `{"literalMapping": {}, "pathMapping": {}}`.
+    - `pathMapping` keys are evaluator parameter names; values are field-path expressions resolved against upstream data.
+    - `literalMapping` keys are evaluator parameter names; values are literal scalars passed straight through.
+  </input_mapping>
+  <sandbox_config>
+    - `sandbox_config_id` is optional. When the user wants a specific sandbox, discover candidates by querying `sandboxProviders { configs { id name language } }` — there is no top-level `sandboxConfigs` query.
+    - The sandbox config's `language` must match the evaluator `language`. If unsure, omit `sandbox_config_id` and let the platform default apply.
+  </sandbox_config>
+  <output_config>
+    - `output_config` is optional. Include it when the user describes the annotation surface (optimization direction, score threshold, expected score range); omit it otherwise so the user can finish the surface in the form.
+    - The block has up to four fields. `optimization_direction` is `MAXIMIZE` when higher scores are better, `MINIMIZE` when lower scores are better, or `NONE` when the score is unranked. `threshold` is a numeric cutoff combined with the direction to mark good vs bad scores; it has no effect when `optimization_direction` is `NONE`. `lower_bound` and `upper_bound` describe the expected score range.
+    - Do NOT supply a `name` for the output config — the evaluator's own `name` is reused automatically.
+  </output_config>
+  <error_handling>
+    - The server validates the `evaluate()` signature and the `name` identifier before persisting and raises `BadRequest` on failure. Surface the server's error message to the user verbatim — do not rephrase or guess at the cause.
+    - On a `BadRequest`, no evaluator is created. Fix the source or name and retry; do not call the tool again with the same invalid input.
+  </error_handling>
+  <guidelines>
+    - Prefer real agentic use-cases (e.g. checking JSON validity of a tool-call argument, asserting that an answer cites a retrieved document) over textbook examples.
+    - Keep the evaluator focused on one signal. If the user describes several scoring concerns, ask whether they want one evaluator per signal.
+    - After creating the evaluator, briefly summarize what it scores and how to attach it to a dataset.
+  </guidelines>
+</tool>

@@ -104,6 +104,13 @@ class PlaygroundContext(_ChatContextBase):
     instance_ids: list[int] = Field(alias="instanceIds")
 
 
+class CodeEvaluatorContext(_ChatContextBase):
+    """Code-evaluator create/edit form mounted in the current browser route."""
+
+    type: Literal["code_evaluator"]
+    evaluator_node_id: str | None = Field(default=None, alias="evaluatorNodeId")
+
+
 class GraphQLContext(_ChatContextBase):
     """GraphQL runtime state."""
 
@@ -126,6 +133,7 @@ class ChatContext(
             | TraceContext
             | AgentSpanContext
             | PlaygroundContext
+            | CodeEvaluatorContext
             | GraphQLContext
             | WebAccessContext,
             Field(discriminator="type"),
@@ -142,6 +150,7 @@ class ResolvedContexts:
     trace: TraceContext | None = None
     span: AgentSpanContext | None = None
     playground: PlaygroundContext | None = None
+    code_evaluator: CodeEvaluatorContext | None = None
     graphql: GraphQLContext | None = None
     web_access: WebAccessContext | None = None
 
@@ -154,6 +163,8 @@ def resolve_contexts(contexts: list[ChatContext]) -> ResolvedContexts:
             resolved.app = context_value
         elif isinstance(context_value, PlaygroundContext):
             resolved.playground = context_value
+        elif isinstance(context_value, CodeEvaluatorContext):
+            resolved.code_evaluator = context_value
         elif isinstance(context_value, ProjectContext):
             resolved.project = context_value
         elif isinstance(context_value, TraceContext):
