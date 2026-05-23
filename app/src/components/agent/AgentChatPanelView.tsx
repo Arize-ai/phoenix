@@ -23,25 +23,15 @@ import { SessionListMenu } from "./SessionListMenu";
 
 const panelHeaderCSS = css`
   ${fadedDividerBottomCSS}
-  --agent-chat-header-glyph-size: var(--global-dimension-size-200);
-
   z-index: 3;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
   background: var(--global-background-color-default);
-
-  &[data-position="detached"] {
-    --agent-chat-header-glyph-size: var(--global-dimension-size-150);
-  }
 `;
 
 const panelHeaderActionsCSS = css`
-  flex-shrink: 0;
-`;
-
-const panelHeaderGlyphCSS = css`
   flex-shrink: 0;
 `;
 
@@ -96,12 +86,13 @@ export function AgentChatHeader({
       : "Pin assistant to side";
 
   return (
-    <div css={panelHeaderCSS} data-position={position}>
+    <div css={panelHeaderCSS}>
       <Flex direction="row" alignItems="center" gap="size-50" minWidth={0}>
         <PxiGlyph
           fill="var(--global-text-color-900)"
-          size="var(--agent-chat-header-glyph-size)"
-          css={panelHeaderGlyphCSS}
+          css={css`
+            transform: scale(0.7);
+          `}
         />
         <Text weight="heavy" css={sessionHeadingCSS} title={sessionDisplayName}>
           {sessionDisplayName}

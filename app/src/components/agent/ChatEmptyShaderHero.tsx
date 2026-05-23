@@ -1,5 +1,11 @@
 import { css } from "@emotion/react";
-import { useEffect, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 
 import { PxiShaderGlyph } from "./PxiShaderGlyph";
 
@@ -11,21 +17,55 @@ const COMPACT_GLYPH_SIZE = 200;
 const MEDIUM_HEIGHT_BREAKPOINT = 960;
 const SMALL_HEIGHT_BREAKPOINT = 840;
 const COMPACT_HEIGHT_BREAKPOINT = 720;
+const NARROW_WIDTH_BREAKPOINT = 479;
+const MEDIUM_WIDTH_BREAKPOINT = 560;
+const NARROW_GLYPH_SIZE = 220;
 
-function getHeroGlyphSize(viewportHeight: number) {
-  if (viewportHeight <= COMPACT_HEIGHT_BREAKPOINT) {
+type HeroContainerSize = {
+  width: number;
+  height: number;
+};
+
+function getHeroGlyphSize({ height, width }: HeroContainerSize) {
+  let glyphSize = LARGE_GLYPH_SIZE;
+
+  if (height <= COMPACT_HEIGHT_BREAKPOINT) {
+    glyphSize = COMPACT_GLYPH_SIZE;
+  } else if (height <= SMALL_HEIGHT_BREAKPOINT) {
+    glyphSize = SMALL_GLYPH_SIZE;
+  } else if (height <= MEDIUM_HEIGHT_BREAKPOINT) {
+    glyphSize = MEDIUM_GLYPH_SIZE;
+  }
+
+  if (width <= NARROW_WIDTH_BREAKPOINT) {
+    return Math.min(glyphSize, NARROW_GLYPH_SIZE);
+  }
+
+  if (width <= MEDIUM_WIDTH_BREAKPOINT) {
+    return Math.min(glyphSize, SMALL_GLYPH_SIZE);
+  }
+
+  return glyphSize;
+}
+
+function getHeroPaddingTop(glyphSize: number) {
+  if (glyphSize <= COMPACT_GLYPH_SIZE) {
+    return 128;
+  }
+
+  if (glyphSize <= NARROW_GLYPH_SIZE) {
+    return 160;
+  }
+
+  if (glyphSize <= SMALL_GLYPH_SIZE) {
     return COMPACT_GLYPH_SIZE;
   }
 
-  if (viewportHeight <= SMALL_HEIGHT_BREAKPOINT) {
-    return SMALL_GLYPH_SIZE;
+  if (glyphSize <= MEDIUM_GLYPH_SIZE) {
+    return 288;
   }
 
-  if (viewportHeight <= MEDIUM_HEIGHT_BREAKPOINT) {
-    return MEDIUM_GLYPH_SIZE;
-  }
-
-  return LARGE_GLYPH_SIZE;
+  return 320;
 }
 
 const heroCSS = css`
@@ -140,12 +180,19 @@ export function ChatEmptyShaderHero({
 }: {
   subtext?: ReactNode;
 }) {
-  const [viewportHeight, setViewportHeight] = useState(() => {
+  const heroRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState<HeroContainerSize>(() => {
     if (typeof window === "undefined") {
-      return Number.POSITIVE_INFINITY;
+      return {
+        width: Number.POSITIVE_INFINITY,
+        height: Number.POSITIVE_INFINITY,
+      };
     }
 
-    return window.innerHeight;
+    return {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    };
   });
 
   useEffect(() => {
@@ -153,22 +200,52 @@ export function ChatEmptyShaderHero({
       return;
     }
 
-    const updateViewportHeight = () => {
-      setViewportHeight(window.innerHeight);
+    const updateContainerSize = () => {
+      const measuredElement =
+        heroRef.current?.closest(".chat__scroll") ?? heroRef.current;
+      const rect = measuredElement?.getBoundingClientRect();
+
+      setContainerSize({
+        width: rect?.width || window.innerWidth,
+        height: rect?.height || window.innerHeight,
+      });
     };
 
-    updateViewportHeight();
-    window.addEventListener("resize", updateViewportHeight);
+    updateContainerSize();
+
+    const measuredElement =
+      heroRef.current?.closest(".chat__scroll") ?? heroRef.current;
+    const observer =
+      measuredElement && typeof ResizeObserver === "function"
+        ? new ResizeObserver(updateContainerSize)
+        : null;
+
+    if (observer && measuredElement) {
+      observer.observe(measuredElement);
+    }
+    window.addEventListener("resize", updateContainerSize);
 
     return () => {
-      window.removeEventListener("resize", updateViewportHeight);
+      observer?.disconnect();
+      window.removeEventListener("resize", updateContainerSize);
     };
   }, []);
 
-  const glyphSize = getHeroGlyphSize(viewportHeight);
+  const glyphSize = getHeroGlyphSize(containerSize);
+  const paddingTop = getHeroPaddingTop(glyphSize);
 
   return (
-    <div css={heroCSS} className="chat__empty-hero">
+    <div
+      ref={heroRef}
+      css={heroCSS}
+      className="chat__empty-hero"
+      style={
+        {
+          "--hero-glyph-size": `${glyphSize}px`,
+          "--hero-padding-top": `${paddingTop}px`,
+        } as CSSProperties
+      }
+    >
       <div css={glyphCSS} className="chat__empty-glyph">
         <PxiShaderGlyph size={glyphSize} />
       </div>
