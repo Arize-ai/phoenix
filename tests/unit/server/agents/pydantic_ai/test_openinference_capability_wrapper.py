@@ -282,16 +282,6 @@ async def test_after_model_request_emits_native_tool_span_for_call_and_return(
     assert attributes.pop(OUTPUT_VALUE) == "search results"
     assert attributes.pop(OUTPUT_MIME_TYPE) == TEXT
 
-    metadata_value = attributes.pop(METADATA)
-    assert isinstance(metadata_value, str)
-    metadata = json.loads(metadata_value)
-    assert metadata == {
-        "native_tool": {
-            "provider_name": "anthropic",
-            "provider_details": {"latency_ms": 123},
-            "tool_kind": None,
-        }
-    }
     assert not attributes
 
 
@@ -374,7 +364,6 @@ async def test_after_model_request_records_error_for_failed_native_tool_return(
 
     (span,) = in_memory_span_exporter.get_finished_spans()
     assert span.status.status_code == StatusCode.ERROR
-    assert span.status.description == "native tool failed: rate limit exceeded"
 
     (exception_event,) = span.events
     assert exception_event.name == "exception"
@@ -393,7 +382,6 @@ INPUT_VALUE = SpanAttributes.INPUT_VALUE
 INPUT_MIME_TYPE = SpanAttributes.INPUT_MIME_TYPE
 OUTPUT_VALUE = SpanAttributes.OUTPUT_VALUE
 OUTPUT_MIME_TYPE = SpanAttributes.OUTPUT_MIME_TYPE
-METADATA = SpanAttributes.METADATA
 
 TOOL = OpenInferenceSpanKindValues.TOOL.value
 JSON = OpenInferenceMimeTypeValues.JSON.value

@@ -290,11 +290,8 @@ async def test_request_emits_llm_span_for_tool_call_response(
     assert tool_call_part.tool_call_id
 
     spans = in_memory_span_exporter.get_finished_spans()
-    llm_spans = [
-        span for span in spans if (span.attributes or {}).get(OPENINFERENCE_SPAN_KIND) == LLM
-    ]
-    assert len(llm_spans) == 1
-    attributes = dict(llm_spans[0].attributes or {})
+    assert len(spans) == 1
+    attributes = dict(spans[0].attributes or {})
 
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == LLM
     assert attributes.pop(LLM_PROVIDER) == PROVIDER_ANTHROPIC
