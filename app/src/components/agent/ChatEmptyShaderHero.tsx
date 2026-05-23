@@ -12,7 +12,7 @@ import { PxiShaderGlyph } from "./PxiShaderGlyph";
 const LARGE_GLYPH_SIZE = 420;
 const MEDIUM_GLYPH_SIZE = 380;
 const SMALL_GLYPH_SIZE = 300;
-const COMPACT_GLYPH_SIZE = 200;
+const COMPACT_GLYPH_SIZE = 220;
 
 const MEDIUM_HEIGHT_BREAKPOINT = 960;
 const SMALL_HEIGHT_BREAKPOINT = 840;
