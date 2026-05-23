@@ -68,6 +68,18 @@ function getHeroPaddingTop(glyphSize: number) {
   return 320;
 }
 
+function getHeroGlyphTopOffset(glyphSize: number) {
+  if (glyphSize <= COMPACT_GLYPH_SIZE) {
+    return -40;
+  }
+
+  if (glyphSize <= SMALL_GLYPH_SIZE) {
+    return -48;
+  }
+
+  return -56;
+}
+
 const heroCSS = css`
   position: relative;
   box-sizing: border-box;
@@ -233,6 +245,7 @@ export function ChatEmptyShaderHero({
 
   const glyphSize = getHeroGlyphSize(containerSize);
   const paddingTop = getHeroPaddingTop(glyphSize);
+  const glyphTopOffset = getHeroGlyphTopOffset(glyphSize);
 
   return (
     <div
@@ -243,6 +256,7 @@ export function ChatEmptyShaderHero({
         {
           "--hero-glyph-size": `${glyphSize}px`,
           "--hero-padding-top": `${paddingTop}px`,
+          "--hero-glyph-top-offset": `${glyphTopOffset}px`,
         } as CSSProperties
       }
     >
