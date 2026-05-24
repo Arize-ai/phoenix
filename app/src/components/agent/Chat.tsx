@@ -40,6 +40,7 @@ import {
   ElicitationDraftProvider,
   type PendingElicitationDraft,
 } from "./ElicitationDraftContext";
+import { PxiGlyph } from "./PxiGlyph";
 import { useAgentChat } from "./useAgentChat";
 import type { AgentModelSelection } from "./useGenerateSessionSummary";
 
@@ -433,9 +434,23 @@ export function ChatView({
   );
 }
 
+const loadingCSS = css`
+  display: inline-flex;
+  align-items: center;
+  gap: var(--global-dimension-size-100);
+  color: var(--global-text-color-700);
+`;
+
 /** Loading affordance shown while the assistant response is pending. */
 function Loading() {
-  return <Shimmer size="M">Thinking...</Shimmer>;
+  return (
+    <div css={loadingCSS}>
+      <PxiGlyph animation="wave-hold" size={12} />
+      <Shimmer size="S" weight="heavy">
+        Thinking...
+      </Shimmer>
+    </div>
+  );
 }
 
 /** Inline request error banner for the active chat turn. */
