@@ -44,7 +44,7 @@ export function getAttachmentLabel(data: AttachmentData): string {
 function getContextCategoryIcon(category: string | undefined): ReactNode {
   switch (category) {
     case "project":
-      return <Icon svg={<Icons.GridOutline />} />;
+      return <Icon svg={<Icons.Trace />} />;
     case "trace":
       return <Icon svg={<Icons.Trace />} />;
     case "span":
