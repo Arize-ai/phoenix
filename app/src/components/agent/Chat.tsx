@@ -36,11 +36,11 @@ import { AgentModelMenu } from "./AgentModelMenu";
 import { ChatEmptyState, type EmptyStateQuickAction } from "./ChatEmptyState";
 import { ChatLantern } from "./ChatLantern";
 import { AssistantMessage, UserMessage } from "./ChatMessage";
-import { PxiGlyph } from "./PxiGlyph";
 import {
   ElicitationDraftProvider,
   type PendingElicitationDraft,
 } from "./ElicitationDraftContext";
+import { PxiGlyph } from "./PxiGlyph";
 import { useAgentChat } from "./useAgentChat";
 import type { AgentModelSelection } from "./useGenerateSessionSummary";
 

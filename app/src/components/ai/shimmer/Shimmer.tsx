@@ -1,5 +1,5 @@
-import React, { type JSX } from "react";
 import { motion, type MotionProps, useReducedMotion } from "motion/react";
+import React, { type JSX } from "react";
 
 import { classNames } from "@phoenix/utils/classNames";
 
