@@ -11,15 +11,15 @@ type MotionTagComponent = React.ComponentType<
   MotionProps & Record<string, unknown>
 >;
 
-// Cache motion components at module level so we don't recreate them per render.
+// motion.create(tag) is pure per tag — cache so we don't rebuild the component
+// on every render of Shimmer.
 const motionComponentCache = new Map<IntrinsicTag, MotionTagComponent>();
 
 const getMotionComponent = (element: IntrinsicTag): MotionTagComponent => {
-  let component = motionComponentCache.get(element);
-  if (!component) {
-    component = motion.create(element) as MotionTagComponent;
-    motionComponentCache.set(element, component);
-  }
+  const cached = motionComponentCache.get(element);
+  if (cached) return cached;
+  const component = motion.create(element) as MotionTagComponent;
+  motionComponentCache.set(element, component);
   return component;
 };
 
@@ -36,8 +36,22 @@ export function Shimmer({
   ...restProps
 }: ShimmerProps & { ref?: React.Ref<HTMLElement> }) {
   const shouldReduceMotion = useReducedMotion();
-  const dynamicSpread = (children?.length ?? 0) * spread;
   const MotionComponent = getMotionComponent(elementType as IntrinsicTag);
+  const dynamicSpread = (children?.length ?? 0) * spread;
+
+  // When the user prefers reduced motion, skip Motion entirely; the @media
+  // block in styles.ts then renders solid text.
+  const animationProps: MotionProps = shouldReduceMotion
+    ? {}
+    : {
+        initial: { backgroundPosition: "100% center" },
+        animate: { backgroundPosition: "0% center" },
+        transition: {
+          duration,
+          ease: "linear",
+          repeat: Number.POSITIVE_INFINITY,
+        },
+      };
 
   return (
     <MotionComponent
@@ -52,21 +66,9 @@ export function Shimmer({
           ...style,
         } as React.CSSProperties
       }
-      initial={
-        shouldReduceMotion ? undefined : { backgroundPosition: "100% center" }
-      }
-      animate={
-        shouldReduceMotion ? undefined : { backgroundPosition: "0% center" }
-      }
-      transition={
-        shouldReduceMotion
-          ? undefined
-          : {
-              duration,
-              ease: "linear",
-              repeat: Number.POSITIVE_INFINITY,
-            }
-      }
+      {...animationProps}
+      // HTMLAttributes.onAnimationStart collides with MotionProps' — cast so
+      // consumer HTML props pass through.
       {...(restProps as Record<string, unknown>)}
     >
       {children}
