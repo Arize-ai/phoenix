@@ -1,4 +1,4 @@
-import { Suspense, type ReactNode } from "react";
+import { Suspense, useState, type ReactNode } from "react";
 
 import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
 import { Loading } from "@phoenix/components/core";
@@ -7,6 +7,7 @@ import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
 import {
   AgentChatHeader,
+  DEFAULT_FLOATING_AGENT_CHAT_SIZE,
   DockedAgentChatFrame,
   FloatingAgentChatFrame,
 } from "./AgentChatPanelView";
@@ -34,11 +35,16 @@ export function AgentChatPanel() {
 
 export function FloatingAgentChatPanel() {
   const fabPlacement = useAgentContext((state) => state.fabPlacement);
+  const [panelSize, setPanelSize] = useState(DEFAULT_FLOATING_AGENT_CHAT_SIZE);
 
   return (
     <AgentChatSurface
       renderFrame={(children) => (
-        <FloatingAgentChatFrame placement={fabPlacement}>
+        <FloatingAgentChatFrame
+          placement={fabPlacement}
+          size={panelSize}
+          onSizeChange={setPanelSize}
+        >
           {children}
         </FloatingAgentChatFrame>
       )}
