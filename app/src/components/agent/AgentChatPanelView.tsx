@@ -11,23 +11,33 @@ import {
   Text,
 } from "@phoenix/components";
 import { fadedDividerBottomCSS } from "@phoenix/components/core/layout";
-import { NON_MODAL_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
 import { compactResizeHandleCSS } from "@phoenix/components/resize/styles";
 import type {
   AgentFabPlacement,
   AgentPosition,
   AgentSession,
 } from "@phoenix/store/agentStore";
+import type { Size } from "@phoenix/types/geometry";
 
 import { PxiGlyph } from "./PxiGlyph";
+import { ResizableFloatingPanel } from "./ResizableFloatingPanel";
 import { SessionListMenu } from "./SessionListMenu";
 
 const PANEL_HEADER_Z_INDEX = 3;
 const FLOATING_PANEL_WIDTH_PX = 420;
 const FLOATING_PANEL_HEIGHT_PX = 720;
+const FLOATING_PANEL_MIN_WIDTH_PX = 360;
 const FLOATING_PANEL_MIN_HEIGHT_PX = 520;
-const FLOATING_PANEL_FULLSCREEN_BREAKPOINT_PX = 600;
-const FLOATING_PANEL_VIEWPORT_MARGIN = "var(--global-dimension-size-400)";
+
+export const DEFAULT_FLOATING_AGENT_CHAT_SIZE: Size = {
+  width: FLOATING_PANEL_WIDTH_PX,
+  height: FLOATING_PANEL_HEIGHT_PX,
+};
+
+const MIN_FLOATING_AGENT_CHAT_SIZE: Size = {
+  width: FLOATING_PANEL_MIN_WIDTH_PX,
+  height: FLOATING_PANEL_MIN_HEIGHT_PX,
+};
 
 const panelHeaderCSS = css`
   ${fadedDividerBottomCSS}
@@ -205,70 +215,29 @@ export function DockedAgentChatFrame({ children }: { children: ReactNode }) {
   );
 }
 
-const floatingPanelContentCSS = css`
-  position: absolute;
-  z-index: ${NON_MODAL_FLOATING_Z_INDEX};
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-  width: min(
-    ${FLOATING_PANEL_WIDTH_PX}px,
-    calc(100% - ${FLOATING_PANEL_VIEWPORT_MARGIN})
-  );
-  height: min(
-    ${FLOATING_PANEL_HEIGHT_PX}px,
-    calc(100% - ${FLOATING_PANEL_VIEWPORT_MARGIN})
-  );
-  min-height: min(
-    ${FLOATING_PANEL_MIN_HEIGHT_PX}px,
-    calc(100% - ${FLOATING_PANEL_VIEWPORT_MARGIN})
-  );
-  overflow: hidden;
-  border: 1px solid var(--global-border-color-default);
-  border-radius: var(--global-rounding-medium);
-  background: var(--global-background-color-default);
-  box-shadow:
-    0 12px 32px rgba(var(--global-color-gray-900-rgb), 0.2),
-    0 2px 8px rgba(var(--global-color-gray-900-rgb), 0.12);
-
-  &[data-placement^="top"] {
-    top: var(--global-dimension-size-200);
-  }
-
-  &[data-placement^="bottom"] {
-    bottom: var(--global-dimension-size-200);
-  }
-
-  &[data-placement$="start"] {
-    left: var(--global-dimension-size-200);
-  }
-
-  &[data-placement$="end"] {
-    right: var(--global-dimension-size-200);
-  }
-
-  @media (max-width: ${FLOATING_PANEL_FULLSCREEN_BREAKPOINT_PX}px), (max-height: ${FLOATING_PANEL_FULLSCREEN_BREAKPOINT_PX}px) {
-    inset: var(--global-dimension-size-100);
-    width: auto;
-    height: auto;
-    min-height: 0;
-  }
-`;
-
 /**
  * Presentational shell for the floating PXI panel.
  */
 export function FloatingAgentChatFrame({
   children,
   placement,
+  size = DEFAULT_FLOATING_AGENT_CHAT_SIZE,
+  onSizeChange,
 }: {
   children: ReactNode;
   placement: AgentFabPlacement;
+  size?: Size;
+  onSizeChange?: (size: Size) => void;
 }) {
   return (
-    <div css={floatingPanelContentCSS} data-placement={placement}>
+    <ResizableFloatingPanel
+      minSize={MIN_FLOATING_AGENT_CHAT_SIZE}
+      placement={placement}
+      size={size}
+      onSizeChange={onSizeChange}
+    >
       {children}
-    </div>
+    </ResizableFloatingPanel>
   );
 }
 
