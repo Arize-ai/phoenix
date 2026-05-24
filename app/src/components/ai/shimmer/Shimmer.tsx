@@ -1,14 +1,32 @@
-import React from "react";
+import React, { type JSX } from "react";
+import { motion, type MotionProps, useReducedMotion } from "motion/react";
 
 import { classNames } from "@phoenix/utils/classNames";
 
-import { getShimmerAnimationCSS, shimmerBaseCSS } from "./styles";
+import { shimmerBaseCSS } from "./styles";
 import type { ShimmerProps } from "./types";
+
+type IntrinsicTag = keyof JSX.IntrinsicElements;
+type MotionTagComponent = React.ComponentType<
+  MotionProps & Record<string, unknown>
+>;
+
+// Cache motion components at module level so we don't recreate them per render.
+const motionComponentCache = new Map<IntrinsicTag, MotionTagComponent>();
+
+const getMotionComponent = (element: IntrinsicTag): MotionTagComponent => {
+  let component = motionComponentCache.get(element);
+  if (!component) {
+    component = motion.create(element) as MotionTagComponent;
+    motionComponentCache.set(element, component);
+  }
+  return component;
+};
 
 export function Shimmer({
   ref,
   children,
-  elementType: Element = "p",
+  elementType = "p",
   size = "S",
   weight = "normal",
   duration = 2,
@@ -17,25 +35,42 @@ export function Shimmer({
   style,
   ...restProps
 }: ShimmerProps & { ref?: React.Ref<HTMLElement> }) {
+  const shouldReduceMotion = useReducedMotion();
   const dynamicSpread = (children?.length ?? 0) * spread;
+  const MotionComponent = getMotionComponent(elementType as IntrinsicTag);
 
   return (
-    <Element
+    <MotionComponent
       ref={ref as React.Ref<never>}
       className={classNames("shimmer", className)}
       data-size={size}
       data-weight={weight}
-      css={[shimmerBaseCSS, getShimmerAnimationCSS(duration)]}
+      css={shimmerBaseCSS}
       style={
         {
           "--shimmer-spread": `${dynamicSpread}px`,
           ...style,
         } as React.CSSProperties
       }
-      {...restProps}
+      initial={
+        shouldReduceMotion ? undefined : { backgroundPosition: "100% center" }
+      }
+      animate={
+        shouldReduceMotion ? undefined : { backgroundPosition: "0% center" }
+      }
+      transition={
+        shouldReduceMotion
+          ? undefined
+          : {
+              duration,
+              ease: "linear",
+              repeat: Number.POSITIVE_INFINITY,
+            }
+      }
+      {...(restProps as Record<string, unknown>)}
     >
       {children}
-    </Element>
+    </MotionComponent>
   );
 }
 
