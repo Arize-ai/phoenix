@@ -9,7 +9,7 @@ import type { dashboardsLoaderQuery as DashboardsLoaderQuery } from "./__generat
  */
 export const dashboardsLoaderQuery = graphql`
   query dashboardsLoaderQuery {
-    ...ProjectDashboardsTable_projects
+    ...ProjectSelector_projects
   }
 `;
 

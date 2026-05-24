@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<170b0ae01df983830e7f33b3f5fe8e63>>
+ * @generated SignedSource<<a8f3b9c4607ab81e64778db5d503277e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -12,7 +12,7 @@ import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type dashboardsLoaderQuery$variables = Record<PropertyKey, never>;
 export type dashboardsLoaderQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"ProjectDashboardsTable_projects">;
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectSelector_projects">;
 };
 export type dashboardsLoaderQuery = {
   response: dashboardsLoaderQuery$data;
@@ -44,7 +44,7 @@ return {
       {
         "args": null,
         "kind": "FragmentSpread",
-        "name": "ProjectDashboardsTable_projects"
+        "name": "ProjectSelector_projects"
       }
     ],
     "type": "Query",
@@ -153,23 +153,23 @@ return {
         "args": (v0/*: any*/),
         "filters": null,
         "handle": "connection",
-        "key": "ProjectDashboardsTable_projects",
+        "key": "ProjectSelector_projects",
         "kind": "LinkedHandle",
         "name": "projects"
       }
     ]
   },
   "params": {
-    "cacheID": "4644a4f13fed205537d5cc9e1b4f1df8",
+    "cacheID": "be0ccf2b8534ab0dffd7a47c6712ca74",
     "id": null,
     "metadata": {},
     "name": "dashboardsLoaderQuery",
     "operationKind": "query",
-    "text": "query dashboardsLoaderQuery {\n  ...ProjectDashboardsTable_projects\n}\n\nfragment ProjectDashboardsTable_projects on Query {\n  projects(first: 50) {\n    edges {\n      project: node {\n        id\n        name\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query dashboardsLoaderQuery {\n  ...ProjectSelector_projects\n}\n\nfragment ProjectSelector_projects on Query {\n  projects(first: 50) {\n    edges {\n      project: node {\n        id\n        name\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "93dabaadd9674b38d8c9c7051a25a8b1";
+(node as any).hash = "4f4ec898cfabac919c6ad7427ed7d73b";
 
 export default node;

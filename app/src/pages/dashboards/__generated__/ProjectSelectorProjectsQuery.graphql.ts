@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<5afafd18d74075a1686c8a4c423aa27b>>
+ * @generated SignedSource<<f28ed714a8d5485b6bbbabe99a4b89ae>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,16 +10,16 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type ProjectDashboardsTableProjectsQuery$variables = {
+export type ProjectSelectorProjectsQuery$variables = {
   after?: string | null;
   first?: number | null;
 };
-export type ProjectDashboardsTableProjectsQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"ProjectDashboardsTable_projects">;
+export type ProjectSelectorProjectsQuery$data = {
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectSelector_projects">;
 };
-export type ProjectDashboardsTableProjectsQuery = {
-  response: ProjectDashboardsTableProjectsQuery$data;
-  variables: ProjectDashboardsTableProjectsQuery$variables;
+export type ProjectSelectorProjectsQuery = {
+  response: ProjectSelectorProjectsQuery$data;
+  variables: ProjectSelectorProjectsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -59,12 +59,12 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "ProjectDashboardsTableProjectsQuery",
+    "name": "ProjectSelectorProjectsQuery",
     "selections": [
       {
         "args": (v1/*: any*/),
         "kind": "FragmentSpread",
-        "name": "ProjectDashboardsTable_projects"
+        "name": "ProjectSelector_projects"
       }
     ],
     "type": "Query",
@@ -74,7 +74,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "ProjectDashboardsTableProjectsQuery",
+    "name": "ProjectSelectorProjectsQuery",
     "selections": [
       {
         "alias": null,
@@ -173,23 +173,23 @@ return {
         "args": (v1/*: any*/),
         "filters": null,
         "handle": "connection",
-        "key": "ProjectDashboardsTable_projects",
+        "key": "ProjectSelector_projects",
         "kind": "LinkedHandle",
         "name": "projects"
       }
     ]
   },
   "params": {
-    "cacheID": "b1c0d4dac4422f3e6fa1eefe59401c76",
+    "cacheID": "6884d2bba6adf0bc2f5944b9e84f3c10",
     "id": null,
     "metadata": {},
-    "name": "ProjectDashboardsTableProjectsQuery",
+    "name": "ProjectSelectorProjectsQuery",
     "operationKind": "query",
-    "text": "query ProjectDashboardsTableProjectsQuery(\n  $after: String = null\n  $first: Int = 50\n) {\n  ...ProjectDashboardsTable_projects_2HEEH6\n}\n\nfragment ProjectDashboardsTable_projects_2HEEH6 on Query {\n  projects(first: $first, after: $after) {\n    edges {\n      project: node {\n        id\n        name\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ProjectSelectorProjectsQuery(\n  $after: String = null\n  $first: Int = 50\n) {\n  ...ProjectSelector_projects_2HEEH6\n}\n\nfragment ProjectSelector_projects_2HEEH6 on Query {\n  projects(first: $first, after: $after) {\n    edges {\n      project: node {\n        id\n        name\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "7230783e4ba2832dc8133869d816638c";
+(node as any).hash = "5c9ce3b44074aed9da79e9ec48cf0676";
 
 export default node;

@@ -167,6 +167,14 @@ function SideNav() {
               isExpanded={isSideNavExpanded}
             />
           </li>
+          <li key="dashboards">
+            <NavLink
+              to="/dashboards"
+              text="Dashboards"
+              leadingVisual={<Icon svg={<Icons.GridOutline />} />}
+              isExpanded={isSideNavExpanded}
+            />
+          </li>
           <li key="datasets">
             <NavLink
               to="/datasets"
