@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<d7637489a9cc0cbfb14a0c7bb2497b44>>
+ * @generated SignedSource<<5fcac99a45d154a5f2dac8bb5e5c60c7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ReaderFragment } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type ProjectSelector_projects$data = {
+export type ProjectMenu_projects$data = {
   readonly projects: {
     readonly edges: ReadonlyArray<{
       readonly project: {
@@ -24,14 +24,14 @@ export type ProjectSelector_projects$data = {
     readonly id: string;
     readonly name?: string;
   };
-  readonly " $fragmentType": "ProjectSelector_projects";
+  readonly " $fragmentType": "ProjectMenu_projects";
 };
-export type ProjectSelector_projects$key = {
-  readonly " $data"?: ProjectSelector_projects$data;
-  readonly " $fragmentSpreads": FragmentRefs<"ProjectSelector_projects">;
+export type ProjectMenu_projects$key = {
+  readonly " $data"?: ProjectMenu_projects$data;
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectMenu_projects">;
 };
 
-import ProjectSelectorProjectsQuery_graphql from './ProjectSelectorProjectsQuery.graphql';
+import ProjectMenuProjectsQuery_graphql from './ProjectMenuProjectsQuery.graphql';
 
 const node: ReaderFragment = (function(){
 var v0 = [
@@ -106,10 +106,10 @@ return {
         "path": (v0/*: any*/)
       },
       "fragmentPathInResult": [],
-      "operation": ProjectSelectorProjectsQuery_graphql
+      "operation": ProjectMenuProjectsQuery_graphql
     }
   },
-  "name": "ProjectSelector_projects",
+  "name": "ProjectMenu_projects",
   "selections": [
     {
       "condition": "hasSelectedProject",
@@ -156,7 +156,7 @@ return {
       ],
       "concreteType": "ProjectConnection",
       "kind": "LinkedField",
-      "name": "__ProjectSelector_projects_connection",
+      "name": "__ProjectMenu_projects_connection",
       "plural": false,
       "selections": [
         {
@@ -236,6 +236,6 @@ return {
 };
 })();
 
-(node as any).hash = "4776e5b282b1261f7817bdfe491a3db2";
+(node as any).hash = "866a8551e0e16d25b8216cdddac490ff";
 
 export default node;

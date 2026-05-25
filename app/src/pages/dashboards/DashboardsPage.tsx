@@ -1,17 +1,23 @@
 import { css } from "@emotion/react";
 import { Suspense } from "react";
-import { Navigate, Outlet, useLoaderData } from "react-router";
+import {
+  Navigate,
+  Outlet,
+  useLoaderData,
+  useNavigate,
+  useParams,
+} from "react-router";
 import invariant from "tiny-invariant";
 
 import { Empty, Flex, Loading } from "@phoenix/components";
 import { ConnectedTimeRangeSelector } from "@phoenix/components/datetime";
+import { ProjectMenu } from "@phoenix/components/project";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 
 import type { dashboardsLoaderQuery as DashboardsLoaderQuery } from "./__generated__/dashboardsLoaderQuery.graphql";
 import type { DashboardsLoaderData } from "./dashboardsLoader";
 import { dashboardsLoaderQuery } from "./dashboardsLoader";
-import { ProjectSelector } from "./ProjectSelector";
 
 const dashboardsPageCSS = css`
   display: flex;
@@ -32,6 +38,13 @@ const toolbarCSS = css`
   background-color: var(--global-color-gray-50);
 `;
 
+const projectMenuCSS = css`
+  flex: 0 1 320px;
+  min-width: 220px;
+  max-width: 360px;
+  width: 100%;
+`;
+
 const contentCSS = css`
   flex: 1 1 auto;
   min-height: 0;
@@ -41,6 +54,11 @@ const contentCSS = css`
 export function DashboardsPage() {
   const loaderData = useLoaderData<DashboardsLoaderData>();
   invariant(loaderData, "loaderData is required");
+  const navigate = useNavigate();
+  const { projectId } = useParams();
+  const setLastSelectedDashboardProjectId = usePreferencesContext(
+    (state) => state.setLastSelectedDashboardProjectId
+  );
   const data = useOwnedPreloadedQuery<DashboardsLoaderQuery>({
     query: dashboardsLoaderQuery,
     queryRef: loaderData.queryRef,
@@ -49,7 +67,16 @@ export function DashboardsPage() {
   return (
     <div css={dashboardsPageCSS}>
       <div css={toolbarCSS}>
-        <ProjectSelector query={data} />
+        <ProjectMenu
+          css={projectMenuCSS}
+          query={data}
+          selectedProjectId={projectId}
+          size="S"
+          onProjectChange={(projectId) => {
+            setLastSelectedDashboardProjectId(projectId);
+            navigate(`/dashboards/projects/${projectId}`);
+          }}
+        />
         <ConnectedTimeRangeSelector size="S" />
       </div>
       <div css={contentCSS}>

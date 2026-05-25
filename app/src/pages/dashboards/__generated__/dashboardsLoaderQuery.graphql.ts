@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<67f9d943664688f92cea5551e04ebb65>>
+ * @generated SignedSource<<020d227ba0037644c53fbf1f7292123e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -15,7 +15,7 @@ export type dashboardsLoaderQuery$variables = {
   projectId: string;
 };
 export type dashboardsLoaderQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"ProjectSelector_projects">;
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectMenu_projects">;
 };
 export type dashboardsLoaderQuery = {
   response: dashboardsLoaderQuery$data;
@@ -84,7 +84,7 @@ return {
           }
         ],
         "kind": "FragmentSpread",
-        "name": "ProjectSelector_projects"
+        "name": "ProjectMenu_projects"
       }
     ],
     "type": "Query",
@@ -217,23 +217,23 @@ return {
           "filter"
         ],
         "handle": "connection",
-        "key": "ProjectSelector_projects",
+        "key": "ProjectMenu_projects",
         "kind": "LinkedHandle",
         "name": "projects"
       }
     ]
   },
   "params": {
-    "cacheID": "3739049ea569e27db99d434cd25e91c3",
+    "cacheID": "89e19deac736ecf151ba7fa5227f7b69",
     "id": null,
     "metadata": {},
     "name": "dashboardsLoaderQuery",
     "operationKind": "query",
-    "text": "query dashboardsLoaderQuery(\n  $hasSelectedProject: Boolean!\n  $projectId: ID!\n) {\n  ...ProjectSelector_projects_4wy0JP\n}\n\nfragment ProjectSelector_projects_4wy0JP on Query {\n  selectedProject: node(id: $projectId) @include(if: $hasSelectedProject) {\n    __typename\n    id\n    ... on Project {\n      name\n    }\n  }\n  projects(first: 50) {\n    edges {\n      project: node {\n        id\n        name\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query dashboardsLoaderQuery(\n  $hasSelectedProject: Boolean!\n  $projectId: ID!\n) {\n  ...ProjectMenu_projects_4wy0JP\n}\n\nfragment ProjectMenu_projects_4wy0JP on Query {\n  selectedProject: node(id: $projectId) @include(if: $hasSelectedProject) {\n    __typename\n    id\n    ... on Project {\n      name\n    }\n  }\n  projects(first: 50) {\n    edges {\n      project: node {\n        id\n        name\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "fe2d25ddeb2e15beeaf5d35942fa5adf";
+(node as any).hash = "6fe56c8cb343694b5f9427aa7eadacc7";
 
 export default node;

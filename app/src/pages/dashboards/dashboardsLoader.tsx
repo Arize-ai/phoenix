@@ -10,7 +10,7 @@ import type { dashboardsLoaderQuery as DashboardsLoaderQuery } from "./__generat
  */
 export const dashboardsLoaderQuery = graphql`
   query dashboardsLoaderQuery($hasSelectedProject: Boolean!, $projectId: ID!) {
-    ...ProjectSelector_projects
+    ...ProjectMenu_projects
       @arguments(
         hasSelectedProject: $hasSelectedProject
         selectedProjectId: $projectId
