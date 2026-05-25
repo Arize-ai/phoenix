@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f28ed714a8d5485b6bbbabe99a4b89ae>>
+ * @generated SignedSource<<dbd04c00c52b8a16ea54a3cc7cd23228>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,9 +10,17 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
+export type ProjectFilterColumn = "name";
+export type ProjectFilter = {
+  col: ProjectFilterColumn;
+  value: string;
+};
 export type ProjectSelectorProjectsQuery$variables = {
   after?: string | null;
+  filter?: ProjectFilter | null;
   first?: number | null;
+  hasSelectedProject: boolean;
+  selectedProjectId: string;
 };
 export type ProjectSelectorProjectsQuery$data = {
   readonly " $fragmentSpreads": FragmentRefs<"ProjectSelector_projects">;
@@ -30,30 +38,67 @@ var v0 = [
     "name": "after"
   },
   {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "filter"
+  },
+  {
     "defaultValue": 50,
     "kind": "LocalArgument",
     "name": "first"
-  }
-],
-v1 = [
-  {
-    "kind": "Variable",
-    "name": "after",
-    "variableName": "after"
   },
   {
-    "kind": "Variable",
-    "name": "first",
-    "variableName": "first"
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "hasSelectedProject"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "selectedProjectId"
   }
 ],
+v1 = {
+  "kind": "Variable",
+  "name": "after",
+  "variableName": "after"
+},
 v2 = {
+  "kind": "Variable",
+  "name": "filter",
+  "variableName": "filter"
+},
+v3 = {
+  "kind": "Variable",
+  "name": "first",
+  "variableName": "first"
+},
+v4 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
-};
+},
+v6 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v7 = [
+  (v1/*: any*/),
+  (v2/*: any*/),
+  (v3/*: any*/)
+];
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
@@ -62,7 +107,21 @@ return {
     "name": "ProjectSelectorProjectsQuery",
     "selections": [
       {
-        "args": (v1/*: any*/),
+        "args": [
+          (v1/*: any*/),
+          (v2/*: any*/),
+          (v3/*: any*/),
+          {
+            "kind": "Variable",
+            "name": "hasSelectedProject",
+            "variableName": "hasSelectedProject"
+          },
+          {
+            "kind": "Variable",
+            "name": "selectedProjectId",
+            "variableName": "selectedProjectId"
+          }
+        ],
         "kind": "FragmentSpread",
         "name": "ProjectSelector_projects"
       }
@@ -77,8 +136,42 @@ return {
     "name": "ProjectSelectorProjectsQuery",
     "selections": [
       {
+        "condition": "hasSelectedProject",
+        "kind": "Condition",
+        "passingValue": true,
+        "selections": [
+          {
+            "alias": "selectedProject",
+            "args": [
+              {
+                "kind": "Variable",
+                "name": "id",
+                "variableName": "selectedProjectId"
+              }
+            ],
+            "concreteType": null,
+            "kind": "LinkedField",
+            "name": "node",
+            "plural": false,
+            "selections": [
+              (v4/*: any*/),
+              (v5/*: any*/),
+              {
+                "kind": "InlineFragment",
+                "selections": [
+                  (v6/*: any*/)
+                ],
+                "type": "Project",
+                "abstractKey": null
+              }
+            ],
+            "storageKey": null
+          }
+        ]
+      },
+      {
         "alias": null,
-        "args": (v1/*: any*/),
+        "args": (v7/*: any*/),
         "concreteType": "ProjectConnection",
         "kind": "LinkedField",
         "name": "projects",
@@ -100,14 +193,8 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v2/*: any*/),
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "name",
-                    "storageKey": null
-                  }
+                  (v5/*: any*/),
+                  (v6/*: any*/)
                 ],
                 "storageKey": null
               },
@@ -126,14 +213,8 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "__typename",
-                    "storageKey": null
-                  },
-                  (v2/*: any*/)
+                  (v4/*: any*/),
+                  (v5/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -170,8 +251,10 @@ return {
       },
       {
         "alias": null,
-        "args": (v1/*: any*/),
-        "filters": null,
+        "args": (v7/*: any*/),
+        "filters": [
+          "filter"
+        ],
         "handle": "connection",
         "key": "ProjectSelector_projects",
         "kind": "LinkedHandle",
@@ -180,16 +263,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "6884d2bba6adf0bc2f5944b9e84f3c10",
+    "cacheID": "e627cb258fcd136d1bac266d80b4a564",
     "id": null,
     "metadata": {},
     "name": "ProjectSelectorProjectsQuery",
     "operationKind": "query",
-    "text": "query ProjectSelectorProjectsQuery(\n  $after: String = null\n  $first: Int = 50\n) {\n  ...ProjectSelector_projects_2HEEH6\n}\n\nfragment ProjectSelector_projects_2HEEH6 on Query {\n  projects(first: $first, after: $after) {\n    edges {\n      project: node {\n        id\n        name\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query ProjectSelectorProjectsQuery(\n  $after: String = null\n  $filter: ProjectFilter = null\n  $first: Int = 50\n  $hasSelectedProject: Boolean!\n  $selectedProjectId: ID!\n) {\n  ...ProjectSelector_projects_27hoVN\n}\n\nfragment ProjectSelector_projects_27hoVN on Query {\n  selectedProject: node(id: $selectedProjectId) @include(if: $hasSelectedProject) {\n    __typename\n    id\n    ... on Project {\n      name\n    }\n  }\n  projects(first: $first, after: $after, filter: $filter) {\n    edges {\n      project: node {\n        id\n        name\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "5c9ce3b44074aed9da79e9ec48cf0676";
+(node as any).hash = "4776e5b282b1261f7817bdfe491a3db2";
 
 export default node;

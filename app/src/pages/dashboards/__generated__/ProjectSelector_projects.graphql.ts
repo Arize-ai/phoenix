@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f09775660667016b89325083e31a0cde>>
+ * @generated SignedSource<<d7637489a9cc0cbfb14a0c7bb2497b44>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -19,6 +19,11 @@ export type ProjectSelector_projects$data = {
       };
     }>;
   };
+  readonly selectedProject?: {
+    readonly __typename: string;
+    readonly id: string;
+    readonly name?: string;
+  };
   readonly " $fragmentType": "ProjectSelector_projects";
 };
 export type ProjectSelector_projects$key = {
@@ -31,7 +36,28 @@ import ProjectSelectorProjectsQuery_graphql from './ProjectSelectorProjectsQuery
 const node: ReaderFragment = (function(){
 var v0 = [
   "projects"
-];
+],
+v1 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "id",
+  "storageKey": null
+},
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+};
 return {
   "argumentDefinitions": [
     {
@@ -40,9 +66,24 @@ return {
       "name": "after"
     },
     {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "filter"
+    },
+    {
       "defaultValue": 50,
       "kind": "LocalArgument",
       "name": "first"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "hasSelectedProject"
+    },
+    {
+      "defaultValue": null,
+      "kind": "LocalArgument",
+      "name": "selectedProjectId"
     }
   ],
   "kind": "Fragment",
@@ -71,8 +112,48 @@ return {
   "name": "ProjectSelector_projects",
   "selections": [
     {
+      "condition": "hasSelectedProject",
+      "kind": "Condition",
+      "passingValue": true,
+      "selections": [
+        {
+          "alias": "selectedProject",
+          "args": [
+            {
+              "kind": "Variable",
+              "name": "id",
+              "variableName": "selectedProjectId"
+            }
+          ],
+          "concreteType": null,
+          "kind": "LinkedField",
+          "name": "node",
+          "plural": false,
+          "selections": [
+            (v1/*: any*/),
+            (v2/*: any*/),
+            {
+              "kind": "InlineFragment",
+              "selections": [
+                (v3/*: any*/)
+              ],
+              "type": "Project",
+              "abstractKey": null
+            }
+          ],
+          "storageKey": null
+        }
+      ]
+    },
+    {
       "alias": "projects",
-      "args": null,
+      "args": [
+        {
+          "kind": "Variable",
+          "name": "filter",
+          "variableName": "filter"
+        }
+      ],
       "concreteType": "ProjectConnection",
       "kind": "LinkedField",
       "name": "__ProjectSelector_projects_connection",
@@ -94,20 +175,8 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "id",
-                  "storageKey": null
-                },
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "name",
-                  "storageKey": null
-                }
+                (v2/*: any*/),
+                (v3/*: any*/)
               ],
               "storageKey": null
             },
@@ -126,13 +195,7 @@ return {
               "name": "node",
               "plural": false,
               "selections": [
-                {
-                  "alias": null,
-                  "args": null,
-                  "kind": "ScalarField",
-                  "name": "__typename",
-                  "storageKey": null
-                }
+                (v1/*: any*/)
               ],
               "storageKey": null
             }
@@ -173,6 +236,6 @@ return {
 };
 })();
 
-(node as any).hash = "5c9ce3b44074aed9da79e9ec48cf0676";
+(node as any).hash = "4776e5b282b1261f7817bdfe491a3db2";
 
 export default node;
