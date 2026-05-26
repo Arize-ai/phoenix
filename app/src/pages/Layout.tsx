@@ -44,15 +44,24 @@ const mainViewCSS = css`
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
+  min-width: 0;
   height: 100%;
   overflow: hidden;
 `;
+
+const layoutContentPanelCSS = css`
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+`;
+
 const contentCSS = css`
   position: relative;
   flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  height: 100%;
   overflow: hidden;
   box-sizing: border-box;
   border-left: 1px solid var(--global-border-color-default);
@@ -110,18 +119,18 @@ export function Layout() {
         <NavTitle />
         <SideNav />
         <div css={mainViewCSS}>
-          <TopNavbar>
-            <SideNavToggleButton />
-            <NavBreadcrumb />
-            <TopNavActionsSlot />
-          </TopNavbar>
           <Group
             id="layout-panels"
             orientation="horizontal"
             defaultLayout={defaultLayout}
             onLayoutChanged={onLayoutChanged}
           >
-            <Panel id="layout-content">
+            <Panel id="layout-content" css={layoutContentPanelCSS}>
+              <TopNavbar>
+                <SideNavToggleButton />
+                <NavBreadcrumb />
+                <TopNavActionsSlot />
+              </TopNavbar>
               <div data-testid="content" css={contentCSS} ref={contentRef}>
                 <AgentChatWidget boundaryRef={contentRef} />
                 {shouldShowFloatingAgentPanel ? (
