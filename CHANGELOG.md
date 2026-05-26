@@ -1,5 +1,30 @@
 # Changelog
 
+## [16.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v16.0.0...arize-phoenix-v16.1.0) (2026-05-26)
+
+
+### Features
+
+* **agents:** adds skill for creating a new eval dataset, a new dat... ([#13249](https://github.com/Arize-ai/phoenix/issues/13249)) ([1989790](https://github.com/Arize-ai/phoenix/commit/19897909a33e46b22db5fa9c6a9a7fd347d7a018))
+* **agents:** Resize detached PXI assistant panel ([#13401](https://github.com/Arize-ai/phoenix/issues/13401)) ([1a387a3](https://github.com/Arize-ai/phoenix/commit/1a387a3f70714fcbf14ff4ced3405118a8876143))
+* dashboards route ([#13404](https://github.com/Arize-ai/phoenix/issues/13404)) ([b43ddb4](https://github.com/Arize-ai/phoenix/commit/b43ddb49a90b6e642a06ea919ec62becfccf2129))
+* **pxi:** add assistant hotkey tooltip ([#13399](https://github.com/Arize-ai/phoenix/issues/13399)) ([6ebb79f](https://github.com/Arize-ai/phoenix/commit/6ebb79f27d70f884c400f66c45aec1322b04de1c))
+* **pxi:** add floating assistant panel ([#13400](https://github.com/Arize-ai/phoenix/issues/13400)) ([d3a34c0](https://github.com/Arize-ai/phoenix/commit/d3a34c0a513b182daed9396c81bbd3daf79973ac))
+* **pxi:** smoother shimmer + glyph in chat loading ([#13402](https://github.com/Arize-ai/phoenix/issues/13402)) ([6295e18](https://github.com/Arize-ai/phoenix/commit/6295e18765ab1900a8965a0f9cab5ccd476deb5a))
+* **ui:** use trace icon for project everywhere ([#13403](https://github.com/Arize-ai/phoenix/issues/13403)) ([4458cdc](https://github.com/Arize-ai/phoenix/commit/4458cdc75237b96263a47984fa43fae2caeacf32))
+
+
+### Bug Fixes
+
+* aggregate token counts from LLM spans only ([#12775](https://github.com/Arize-ai/phoenix/issues/12775)) ([bfee395](https://github.com/Arize-ai/phoenix/commit/bfee395796f249297412a166eeada19c6e534b44))
+* **app:** constrain agent layout panels ([#13410](https://github.com/Arize-ai/phoenix/issues/13410)) ([150a83d](https://github.com/Arize-ai/phoenix/commit/150a83d9e43818938618978ed5f8cc224e08f3a5))
+* **cost:** update built-in model token prices ([#13406](https://github.com/Arize-ai/phoenix/issues/13406)) ([6a9c588](https://github.com/Arize-ai/phoenix/commit/6a9c588590430d67118f0d2b34fefc6bdb7fa6a1))
+
+
+### Documentation
+
+* **skills:** weekly audit — 2026-05-20 ([#13363](https://github.com/Arize-ai/phoenix/issues/13363)) ([1de6821](https://github.com/Arize-ai/phoenix/commit/1de682108b6267e64a358d5f41b53070ebc377c9))
+
 ## [16.0.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v15.12.0...arize-phoenix-v16.0.0) (2026-05-21)
 
 
