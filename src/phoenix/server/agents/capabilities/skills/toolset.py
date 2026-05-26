@@ -47,7 +47,7 @@ class SkillsToolset(FunctionToolset[AgentDependencies]):
             skill_name: str,
             resource_name: str,
             args: dict[str, Any] | None = None,
-        ) -> str:
+        ) -> Any:
             if skill_name not in self._skills:
                 available = ", ".join(sorted(self._skills.keys())) or "none"
                 raise ModelRetry(
