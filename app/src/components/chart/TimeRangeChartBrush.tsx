@@ -50,6 +50,11 @@ type BrushPlotArea = {
   height: number;
 };
 
+/**
+ * Coerce a recharts `activeLabel` (number, Date, ISO string, or numeric string)
+ * to an epoch milliseconds timestamp. Returns null for any value that can't be
+ * interpreted as a finite instant.
+ */
 function getTimestampFromChartValue(value: unknown): number | null {
   if (value instanceof Date) {
     const timestamp = value.getTime();
@@ -81,6 +86,11 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
+/**
+ * Compute the chart's plot area (the cartesian grid) relative to the brush
+ * container. Falls back to the full container rect when the grid hasn't been
+ * laid out yet so the overlay still has a valid bounding box on first paint.
+ */
 function getPlotArea(container: HTMLDivElement): BrushPlotArea {
   const containerRect = container.getBoundingClientRect();
   const gridElement = container.querySelector<SVGGElement>(
@@ -108,6 +118,11 @@ function getPlotArea(container: HTMLDivElement): BrushPlotArea {
   };
 }
 
+/**
+ * Convert an in-progress brush selection into a normalized TimeRange with
+ * start <= end. Returns null for zero-width selections (e.g. a click without
+ * a drag) so callers can ignore non-gestures.
+ */
 function getOrderedSelectionRange(selection: BrushSelection): TimeRange | null {
   const start = Math.min(selection.start, selection.end);
   const end = Math.max(selection.start, selection.end);
@@ -120,6 +135,17 @@ function getOrderedSelectionRange(selection: BrushSelection): TimeRange | null {
   };
 }
 
+/**
+ * Wraps a recharts time-series chart with a click-and-drag brush that emits a
+ * `TimeRange` for the selected window. The chart is rendered via a render prop
+ * so the brush stays agnostic to the chart's data shape and axis configuration;
+ * spread the supplied `chartProps` onto the chart element to wire up the mouse
+ * handlers.
+ *
+ * When `onTimeRangeSelected` is omitted the brush is a transparent passthrough
+ * with no overlay, mouse handlers, or extra DOM, so it is safe to use even for
+ * read-only charts.
+ */
 export function TimeRangeChartBrush({
   children,
   onTimeRangeSelected,
