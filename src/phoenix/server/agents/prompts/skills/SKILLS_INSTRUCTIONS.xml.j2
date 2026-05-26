@@ -6,9 +6,6 @@ Each skill provides specialized instructions and resources for specific tasks.
   <skill>
     <name>{{ skill.name }}</name>
     <description>{{ skill.description }}</description>
-    {% if skill.path %}
-    <path>{{ skill.path }}</path>
-    {% endif %}
   </skill>
   {% endfor %}
 </available_skills>
