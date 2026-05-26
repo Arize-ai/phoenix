@@ -1,5 +1,17 @@
 # Changelog
 
+## [16.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v16.1.0...arize-phoenix-v16.2.0) (2026-05-26)
+
+
+### Features
+
+* **agents:** Make assistant accessible over modal overlays ([#13417](https://github.com/Arize-ai/phoenix/issues/13417)) ([7b6af22](https://github.com/Arize-ai/phoenix/commit/7b6af221f315a573199e4e58c65f46fb28d33d6c))
+
+
+### Bug Fixes
+
+* confine token counts to LLM spans at ingestion ([#13433](https://github.com/Arize-ai/phoenix/issues/13433)) ([5d4f34f](https://github.com/Arize-ai/phoenix/commit/5d4f34f540a78acf70664899caf018393bc8cc81))
+
 ## [16.1.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v16.0.0...arize-phoenix-v16.1.0) (2026-05-26)
 
 
