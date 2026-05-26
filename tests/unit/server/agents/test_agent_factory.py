@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Any, cast
+from typing import Any
 
 import httpx
 import pytest
@@ -216,7 +216,7 @@ def _get_tool_names(body: MessageCreateParams) -> set[str]:
     tools = body.get("tools") or []
     names: set[str] = set()
     for tool in tools:
-        raw_name = cast(dict[str, Any], tool).get("name") if isinstance(tool, dict) else None
+        raw_name = tool.get("name")
         if isinstance(raw_name, str):
             names.add(raw_name)
     return names

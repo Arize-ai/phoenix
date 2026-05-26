@@ -4,8 +4,8 @@ Each skill provides specialized instructions and resources for specific tasks.
 <available_skills>
   {% for skill in skills | sort(attribute='name') %}
   <skill>
-    <name>{{ skill.name }}</name>
-    <description>{{ skill.description }}</description>
+    <name>{{ skill.name | sanitize(enclosing_tag="skill", max_chars=128) }}</name>
+    <description>{{ skill.description | sanitize(enclosing_tag="skill", max_chars=512, preserve_newlines=True) }}</description>
   </skill>
   {% endfor %}
 </available_skills>
