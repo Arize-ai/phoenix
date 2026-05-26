@@ -20,12 +20,9 @@ from strawberry.relay import GlobalID
 
 from phoenix.datetime_utils import normalize_datetime
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.helpers import SupportedSQLDialect, token_counts_by_trace
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.server.api.helpers.annotations import get_note_identifier
-from phoenix.server.api.helpers.cumulative_token_count_queries import (
-    cumulative_token_counts_by_trace,
-)
 from phoenix.server.api.routers.v1.annotations import TraceAnnotationData
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Project import Project as ProjectNodeType
@@ -233,10 +230,10 @@ async def list_project_traces(
 
         trace_rowids = [t.id for t in traces]
 
-        # Batch-fetch cumulative token counts (one query per page, not per row)
-        token_counts_by_trace: dict[int, tuple[int, int]] = {}
-        for row in (await session.execute(cumulative_token_counts_by_trace(trace_rowids))).all():
-            token_counts_by_trace[row.id_] = (row.prompt, row.completion)
+        # Batch-fetch leaf-LLM token counts (one query per page, not per row)
+        tokens_by_trace: dict[int, tuple[int, int]] = {}
+        for row in (await session.execute(token_counts_by_trace(trace_rowids))).all():
+            tokens_by_trace[row.id_] = (row.prompt, row.completion)
 
         # Optionally batch-fetch full span details (column projection to avoid
         # loading heavy attributes/events JSON blobs that aren't in the response)
@@ -276,7 +273,7 @@ async def list_project_traces(
             _to_trace_data(
                 t,
                 project_rowid,
-                token_counts=token_counts_by_trace.get(t.id),
+                token_counts=tokens_by_trace.get(t.id),
                 spans=spans_by_trace.get(t.id, []) if spans_by_trace is not None else None,
             )
             for t in traces
