@@ -76,14 +76,19 @@ export function AgentSettingsForm({ children }: { children?: ReactNode }) {
             />
           )}
         />
+        {!isRecommendedModel && (
+          <Alert
+            variant="warning"
+            css={css`
+              margin-top: var(--global-dimension-size-100);
+            `}
+          >
+            This model has not been verified with PXI and may fail or behave
+            poorly.
+          </Alert>
+        )}
       </div>
       {children}
-      {!isRecommendedModel && (
-        <Alert variant="warning">
-          This model has not been verified with PXI and may fail or behave
-          poorly.
-        </Alert>
-      )}
       <Flex direction="row" gap="size-100" justifyContent="end" width="100%">
         <Button type="submit" variant="primary" isDisabled={!formState.isDirty}>
           Save
