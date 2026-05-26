@@ -13,7 +13,7 @@ import {
 } from "@phoenix/components";
 import { fadedDividerBottomCSS } from "@phoenix/components/core/layout";
 import { compactResizeHandleCSS } from "@phoenix/components/resize/styles";
-import { useOpenModalFloatingLayerElement } from "@phoenix/hooks/useHasOpenModal";
+import { useActiveModalPortalContainerElement } from "@phoenix/hooks/useHasOpenModal";
 import type {
   AgentFabPlacement,
   AgentPosition,
@@ -233,7 +233,7 @@ export function FloatingAgentChatFrame({
   size?: Size;
   onSizeChange?: (size: Size) => void;
 }) {
-  const modalFloatingLayerElement = useOpenModalFloatingLayerElement();
+  const activeModalPortalContainer = useActiveModalPortalContainerElement();
   const panel = (
     <ResizableFloatingPanel
       layer={layer}
@@ -250,7 +250,7 @@ export function FloatingAgentChatFrame({
     return panel;
   }
 
-  return createPortal(panel, modalFloatingLayerElement ?? document.body);
+  return createPortal(panel, activeModalPortalContainer ?? document.body);
 }
 
 const tracePanelContentCSS = css`

@@ -29,3 +29,17 @@ export const DRAWER_DEFAULT_MAX_SIZE: SizeValue = "95%";
  * of `minSize`.
  */
 export const DRAWER_HARD_MIN_SIZE_PX = 320;
+
+/**
+ * Stable class added to every Phoenix modal overlay so app-level code can
+ * observe the topmost modal without depending on React Aria internals.
+ */
+export const MODAL_OVERLAY_CLASS_NAME = "react-aria-ModalOverlay";
+
+/**
+ * Marks the element inside a modal overlay that same-modal portals should use
+ * as their container. Portaling into this element keeps those portals inside
+ * React Aria's modal scope instead of making them overlay-dismiss targets.
+ */
+export const MODAL_PORTAL_CONTAINER_ATTR = "data-modal-portal-container";
+export const MODAL_PORTAL_CONTAINER_SELECTOR = `[${MODAL_PORTAL_CONTAINER_ATTR}]`;

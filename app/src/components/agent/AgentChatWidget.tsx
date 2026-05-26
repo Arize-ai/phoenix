@@ -16,7 +16,7 @@ import {
 } from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
-import { useOpenModalFloatingLayerElement } from "@phoenix/hooks/useHasOpenModal";
+import { useActiveModalPortalContainerElement } from "@phoenix/hooks/useHasOpenModal";
 import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 
 import { AgentFabPositioner } from "./AgentFabPositioner";
@@ -430,8 +430,8 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
   const fabPlacement = useAgentContext((state) => state.fabPlacement);
   const setFabPlacement = useAgentContext((state) => state.setFabPlacement);
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
-  const modalFloatingLayerElement = useOpenModalFloatingLayerElement();
-  const hasOpenModal = modalFloatingLayerElement !== null;
+  const activeModalPortalContainer = useActiveModalPortalContainerElement();
+  const hasOpenModal = activeModalPortalContainer !== null;
   const isStreaming = useAgentContext((state) =>
     activeSessionId
       ? state.chatStatusBySessionId[activeSessionId] === "streaming"
@@ -456,7 +456,7 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
     return null;
   }
 
-  const portalContainer = modalFloatingLayerElement ?? document.body;
+  const portalContainer = activeModalPortalContainer ?? document.body;
 
   return createPortal(
     <AgentFabPositioner

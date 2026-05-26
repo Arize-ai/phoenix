@@ -2,6 +2,10 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  MODAL_OVERLAY_CLASS_NAME,
+  MODAL_PORTAL_CONTAINER_ATTR,
+} from "@phoenix/components/core/overlay/constants";
 import { AgentProvider, useAgentContext } from "@phoenix/contexts/AgentContext";
 import { FeatureFlagsContext } from "@phoenix/contexts/FeatureFlagsContext";
 import { PreferencesProvider } from "@phoenix/contexts/PreferencesContext";
@@ -31,10 +35,8 @@ function dispatchCommandI() {
 function appendModalOverlay() {
   const overlay = document.createElement("div");
   const modalRoot = document.createElement("div");
-  overlay.className = "react-aria-ModalOverlay";
-  modalRoot.dataset.rac = "";
-  modalRoot.dataset.size = "S";
-  modalRoot.dataset.variant = "default";
+  overlay.className = MODAL_OVERLAY_CLASS_NAME;
+  modalRoot.setAttribute(MODAL_PORTAL_CONTAINER_ATTR, "");
   overlay.appendChild(modalRoot);
   document.body.appendChild(overlay);
   return overlay;
@@ -96,7 +98,7 @@ describe("AgentChatWidget", () => {
     });
     container.remove();
     document
-      .querySelectorAll(".react-aria-ModalOverlay")
+      .querySelectorAll(`.${MODAL_OVERLAY_CLASS_NAME}`)
       .forEach((element) => element.remove());
     localStorage.clear();
     vi.useRealTimers();
@@ -205,7 +207,7 @@ describe("AgentChatWidget", () => {
     ).toBe("true");
   });
 
-  it("keeps the FAB available in the modal floating layer", () => {
+  it("keeps the FAB available in the modal portal container", () => {
     const overlay = appendModalOverlay();
     const modalRoot = overlay.firstElementChild;
     renderWidget();
@@ -232,10 +234,8 @@ describe("AgentChatWidget", () => {
 
     const secondOverlay = document.createElement("div");
     const secondModalRoot = document.createElement("div");
-    secondOverlay.className = "react-aria-ModalOverlay";
-    secondModalRoot.dataset.rac = "";
-    secondModalRoot.dataset.size = "S";
-    secondModalRoot.dataset.variant = "default";
+    secondOverlay.className = MODAL_OVERLAY_CLASS_NAME;
+    secondModalRoot.setAttribute(MODAL_PORTAL_CONTAINER_ATTR, "");
     secondOverlay.appendChild(secondModalRoot);
     await act(async () => {
       document.body.appendChild(secondOverlay);

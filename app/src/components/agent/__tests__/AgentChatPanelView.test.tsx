@@ -3,6 +3,11 @@ import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  MODAL_OVERLAY_CLASS_NAME,
+  MODAL_PORTAL_CONTAINER_ATTR,
+} from "@phoenix/components/core/overlay/constants";
+
 import { AgentChatHeader, FloatingAgentChatFrame } from "../AgentChatPanelView";
 
 describe("AgentChatHeader", () => {
@@ -22,7 +27,7 @@ describe("AgentChatHeader", () => {
     });
     container.remove();
     document
-      .querySelectorAll(".react-aria-ModalOverlay")
+      .querySelectorAll(`.${MODAL_OVERLAY_CLASS_NAME}`)
       .forEach((element) => element.remove());
     vi.restoreAllMocks();
   });
@@ -97,13 +102,11 @@ describe("AgentChatHeader", () => {
     expect(onPositionChange).toHaveBeenCalledWith("pinned");
   });
 
-  it("portals the floating panel into the modal overlay layer", () => {
+  it("portals the floating panel into the modal portal container", () => {
     const overlay = document.createElement("div");
     const modalRoot = document.createElement("div");
-    overlay.className = "react-aria-ModalOverlay";
-    modalRoot.dataset.rac = "";
-    modalRoot.dataset.size = "S";
-    modalRoot.dataset.variant = "default";
+    overlay.className = MODAL_OVERLAY_CLASS_NAME;
+    modalRoot.setAttribute(MODAL_PORTAL_CONTAINER_ATTR, "");
     overlay.appendChild(modalRoot);
     document.body.appendChild(overlay);
 
