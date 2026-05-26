@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { MenuSection } from "react-aria-components";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
@@ -25,6 +25,7 @@ import {
   getModelsByProvider,
   ProviderModelMenuItems,
 } from "@phoenix/components/generative/ModelMenu";
+import { usePreferencesContext } from "@phoenix/contexts";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
@@ -41,6 +42,13 @@ const menuWidthCSS = css`
     outline: none;
   }
 `;
+
+function applyBedrockPrefix(modelName: string, prefix: string): string {
+  const prefixDot = `${prefix}.`;
+  return modelName.startsWith(prefixDot)
+    ? modelName
+    : `${prefixDot}${modelName}`;
+}
 
 function AgentModelItem({
   model,
@@ -132,6 +140,23 @@ export function AgentModelMenu({
   const triggerAriaLabel = value
     ? `Select model: ${value.modelName}`
     : "Select model";
+  const awsBedrockModelPrefix = usePreferencesContext(
+    (state) => state.awsBedrockModelPrefix
+  );
+
+  const handleModelChange = useCallback(
+    (model: ModelMenuValue) => {
+      if (model.provider === "AWS" && awsBedrockModelPrefix) {
+        onChange?.({
+          ...model,
+          modelName: applyBedrockPrefix(model.modelName, awsBedrockModelPrefix),
+        });
+      } else {
+        onChange?.(model);
+      }
+    },
+    [onChange, awsBedrockModelPrefix]
+  );
 
   const data = useLazyLoadQuery<AgentModelMenuQuery>(
     graphql`
@@ -226,7 +251,7 @@ export function AgentModelMenu({
               <AgentModelItem
                 key={`${model.provider}:${model.modelName}`}
                 model={model}
-                onChange={onChange}
+                onChange={handleModelChange}
               />
             ))
           ) : (
@@ -235,7 +260,7 @@ export function AgentModelMenu({
               modelsByProvider={modelsByProvider}
               customProviders={customProviders}
               modelProviders={data.modelProviders}
-              onChange={onChange}
+              onChange={handleModelChange}
             />
           )}
         </Menu>

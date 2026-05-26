@@ -253,6 +253,7 @@ export function ModelMenu({
     { fetchPolicy: "store-and-network" }
   );
 
+  // Group models by provider
   const modelsByProvider = useMemo(
     () => getModelsByProvider(data.playgroundModels),
     [data.playgroundModels]
@@ -601,6 +602,7 @@ export function ProviderModelMenuItems({
 }: ProviderMenuProps) {
   return (
     <>
+      {/* Custom providers */}
       {customProviders.map((customProvider) => {
         const providerKey = SDK_TO_PROVIDER_KEY[customProvider.sdk];
         return (
@@ -626,6 +628,7 @@ export function ProviderModelMenuItems({
           </SubmenuTrigger>
         );
       })}
+      {/* Built-in providers */}
       {providers.map((provider) => {
         const providerKey = provider.key;
         const isValidProvider = isModelProvider(providerKey);
