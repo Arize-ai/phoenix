@@ -249,6 +249,12 @@ The session key used in production (see [Session Manager](#session-manager) belo
 
 A cold E2B / Daytona / Vercel / Modal sandbox takes seconds to spin up. An experiment with 1,000 runs × 3 evaluators = 3,000 invocations. Without pooling, a 5-second cold start times out the entire evaluator budget. The manager keeps a sandbox warm between invocations of the same logical session, so all runs of the same evaluator on the same experiment (on the same replica) hit the same warm sandbox.
 
+### What the Manager Owns (and Doesn't)
+
+The manager is the sole owner of pooled hosted-backend sessions and the sole shutdown authority for them: `SandboxSessionManager.stop()` overrides `DaemonTask.stop` to drain in-flight tasks and tear down every tracked entry via `close_session`. There is no separate init-layer cache holding bound backends — the manager's `_tracked` dict (keyed on `composite_key`) is the single source of truth for live sessions.
+
+Stateless backends are explicitly out of scope. `acquire`, `evict_for_backend`, `evict_for_session_key`, and `evict_for_provider_family` all `isinstance(backend, BaseNoSessionBackend)` short-circuit, so WASM and Deno traffic bypasses the manager entirely. Adding pooling-like behavior to a future stateless backend requires moving it off `BaseNoSessionBackend` first.
+
 ### Session Key Reference
 
 The runner builds the **logical** session key — what counts as "the same sandbox" from the system's point of view — at [evaluators.py:912](https://github.com/Arize-ai/phoenix/blob/150a83d9e43818938618978ed5f8cc224e08f3a5/src/phoenix/server/api/evaluators.py#L912):
@@ -280,7 +286,7 @@ The fingerprint is a 16-char sha256 prefix over the **subset of config that affe
 - `dependencies.packages` (sorted)
 - `internet_access.mode`
 
-Env-var **values** are deliberately excluded — every backend injects user env per-call, so rotating an API key doesn't invalidate the warm sandbox. Env-var **keys** are also excluded; the harness picks them up on the next call. The composite key means a mid-iteration config change (user adds a package, toggles internet access) fragments into a fresh remote session naturally — no explicit invalidation logic.
+Env-var **values** are deliberately excluded from the fingerprint — rotating an API key doesn't invalidate the warm sandbox. Note that env-var **injection lifecycle differs across backends**: E2B, Daytona, and Deno inject per-execute (so rotation takes effect on the next call), while Vercel and Modal inject at session-creation time (so a warm session holds the value it was created with until the session is dropped for an unrelated reason). WASM raises `UnsupportedOperation` — it doesn't accept env vars at all. Env-var **keys** are also excluded from the fingerprint. The composite key means a mid-iteration config change (user adds a package, toggles internet access) fragments into a fresh remote session naturally — no explicit invalidation logic.
 
 This `composite_key` is what the manager passes to backends via `find_or_create_session` and what it uses to look up tracked entries internally.
 
@@ -309,11 +315,15 @@ This `composite_key` is what the manager passes to backends via `find_or_create_
 
 The sweeper is a `DaemonTask` started with the server. Sessions in-flight (refcount > 0) are never evicted; idle ones past TTL are torn down via `close_session`.
 
+> **Backend-implementer note:** `close_session` implementations MUST pop the session from any backend-local sessions dict *synchronously, before the first `await`*. The manager releases its per-key lock before awaiting `backend.close_session()`, so a backend that awaits before popping creates a race window where a concurrent `acquire` can hand out a doomed session.
+
 ### Rebind
 
 When `SandboxSession.execute()` raises, it asks the backend to classify the exception via `is_session_gone(exc)`. If `True`, the manager calls `find_or_create_session` again (rebind), updates the handle, and retries **exactly once**. The second-attempt failure is wrapped into an `ExecutionResult` (not re-raised) — backends re-raise classified session-gone exceptions rather than wrapping them, so this distinguishes "remote sandbox died and recreate failed" from a legitimate evaluator runtime error.
 
 Backends are expected to **under-classify**: a false-`True` triggers an unnecessary rebind, but a false-`False` surfaces a stale-session error to the user.
+
+The rebind path reuses the existing lock-ordering discipline: `acquire` takes the per-key lock first and `_state_lock` only inside `_get_or_reserve` for short, snapshot-only critical sections; the sweeper (`_evict_matching`, `_sweep_idle`) takes `_state_lock` to snapshot the set of tracked entries and *releases it before* acquiring any per-key lock. The asymmetry is deliberate — it prevents the sweeper from waiting on a long-running `find_or_create_session` call — and any new lifecycle-mutating primitive (swap, refresh, hot-replace) should follow the same shape rather than invent a new ordering.
 
 ### Refusal Modes
 
@@ -553,7 +563,7 @@ All sandbox provider and config mutations are gated by `IsAdminIfAuthEnabled` (p
 
 ### Known Limitations
 
-- **No allowlist internet access yet.** Hosted backends advertise `internet_access_capability="boolean"` — the only modes are "allow all" or "deny all." Per-host allowlists are wired through the type system (`InternetAccessMode.ALLOWLIST`) but not implemented in any adapter.
+- **No allowlist internet access yet.** Hosted backends advertise `internet_access_capability="boolean"` — the only modes are "allow all" or "deny all." `InternetAccessMode.ALLOWLIST` is reserved in the GraphQL enum (`server/api/types/SandboxConfig.py`) but is not present in the backend config schema (`InternetAccessConfig.mode: Literal["deny", "allow"]`), so no adapter accepts it.
 - **No streaming output.** The runner reads stdout *after* execution completes. A long-running evaluator that prints progress doesn't surface progress to the UI.
 - **No cross-experiment or cross-replica sandbox sharing.** The session key partitions on experiment and replica, so a separate experiment using the same evaluator pays its own cold start, and replicas never share remote sandboxes (even when the provider could support it). The win is isolation; the cost is some duplicated cold-start work in scaled-out deployments.
 - **`SessionLimitExceeded` is a hard failure.** When the per-provider cap is hit, additional evals fail immediately rather than queueing. The 32-session cap is conservative; we'll raise it once we have customer data.
@@ -581,7 +591,7 @@ All sandbox provider and config mutations are gated by `IsAdminIfAuthEnabled` (p
 
 **Bring-your-own sandbox.** Customers with their own internal sandbox infrastructure (compliance, air-gap, etc.) could implement a `SandboxAdapter` out-of-tree. The `register_sandbox_adapter()` function is already exposed; what's missing is metadata discovery — `_build_sandbox_adapter_metadata` hardcodes the six built-in adapters — and a plugin-loading hook to call `register_sandbox_adapter()` at startup from third-party code.
 
-**Relaxing replica isolation.** Today the session key includes `replica_id` for every hosted backend, so replicas never share remote sandboxes. Some providers (E2B, Daytona, Modal) *could* support cross-replica reuse via metadata-based discovery; Vercel currently couldn't because `AsyncSandbox.create` has no stable-id parameter. A future change would have to pick which backends to opt in and accept the additional cross-replica coordination complexity.
+**Relaxing replica isolation.** Today the session key includes `replica_id` for every hosted backend, so replicas never share remote sandboxes. An earlier investigation looked at deterministic cross-replica reuse via metadata discovery on E2B / Daytona / Modal; we deferred because the coordination cost outweighed the marginal capacity win at current scale. Vercel can't participate either way because `AsyncSandbox.create` has no stable-id parameter. A future change would have to pick which backends to opt in and accept the additional cross-replica coordination complexity.
 
 **SDK / CLI / REST parity.** Code evaluators and sandbox management are GraphQL-only today. The Python client doesn't have a `create_code_evaluator(...)` helper, the TypeScript client has no sandbox surface, and there are no REST endpoints under `routers/v1/`. Adding any of these is straightforward; we held off until the GraphQL surface stabilized.
 
