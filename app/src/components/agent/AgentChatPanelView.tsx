@@ -74,7 +74,7 @@ const panelContentCSS = css`
 `;
 
 /**
- * Shared header for PXI chat surfaces.
+ * Shared header for assistant chat surfaces.
  */
 export function AgentChatHeader({
   sessionDisplayName,
@@ -174,7 +174,7 @@ export function AgentChatHeader({
 }
 
 /**
- * Shared content frame for the docked and embedded PXI surfaces.
+ * Shared content frame for the docked and embedded assistant surfaces.
  */
 function AgentChatFrame({
   panelId,
@@ -218,7 +218,7 @@ export function DockedAgentChatFrame({ children }: { children: ReactNode }) {
 }
 
 /**
- * Presentational shell for the floating PXI panel.
+ * Presentational shell for the floating assistant panel.
  */
 export function FloatingAgentChatFrame({
   children,
@@ -265,7 +265,7 @@ const tracePanelContentCSS = css`
 `;
 
 /**
- * Presentational shell for the trace slideover's embedded PXI panel.
+ * Presentational shell for the trace slideover's embedded assistant panel.
  */
 export function TraceAgentChatFrame({ children }: { children: ReactNode }) {
   return (

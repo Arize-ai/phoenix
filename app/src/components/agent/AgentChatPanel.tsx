@@ -45,8 +45,8 @@ type AgentChatSurfaceProps = {
    * Modal-layer panels intentionally hide these controls because that layer is
    * forced by the currently active modal, not by the user's saved layout
    * preference. Showing the pin/detach toggle there would imply the user can
-   * dock PXI behind the modal, which would move it out of the active modal
-   * scope and make it unavailable again.
+   * dock the assistant behind the modal, which would move it out of the active
+   * modal scope and make it unavailable again.
    */
   showPositionControls?: boolean;
 };
@@ -65,11 +65,12 @@ export function AgentChatPanel() {
 }
 
 /**
- * Controller for PXI's floating chat surface.
+ * Controller for the assistant's floating chat surface.
  *
  * The `modal` layer is used only as an accessibility escape hatch while an
- * overlay is active. It keeps PXI above the modal mask and inside the modal's
- * interaction scope without mutating the user's normal pinned/detached setting.
+ * overlay is active. It keeps the assistant above the modal mask and inside the
+ * modal's interaction scope without mutating the user's normal pinned/detached
+ * setting.
  */
 export function FloatingAgentChatPanel({
   layer = "content",
