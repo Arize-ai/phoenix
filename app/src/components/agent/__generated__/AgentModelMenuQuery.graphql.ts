@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<91eba8a955085524ada0eb19d6d4917c>>
+ * @generated SignedSource<<4013e9c3d3148e6587d5fc9eb332e2d6>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -23,6 +23,11 @@ export type AgentModelMenuQuery$data = {
       };
     }>;
   };
+  readonly modelProviders: ReadonlyArray<{
+    readonly dependenciesInstalled: boolean;
+    readonly key: GenerativeProviderKey;
+    readonly name: string;
+  }>;
   readonly playgroundModels: ReadonlyArray<{
     readonly name: string;
     readonly providerKey: GenerativeProviderKey;
@@ -115,6 +120,32 @@ v1 = [
       }
     ],
     "storageKey": null
+  },
+  {
+    "alias": null,
+    "args": null,
+    "concreteType": "GenerativeProvider",
+    "kind": "LinkedField",
+    "name": "modelProviders",
+    "plural": true,
+    "selections": [
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "key",
+        "storageKey": null
+      },
+      (v0/*: any*/),
+      {
+        "alias": null,
+        "args": null,
+        "kind": "ScalarField",
+        "name": "dependenciesInstalled",
+        "storageKey": null
+      }
+    ],
+    "storageKey": null
   }
 ];
 return {
@@ -135,16 +166,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "d95bdc09b8191b17a60440d9b9517169",
+    "cacheID": "273032c2a50e39e96c4755a76fc22616",
     "id": null,
     "metadata": {},
     "name": "AgentModelMenuQuery",
     "operationKind": "query",
-    "text": "query AgentModelMenuQuery {\n  generativeModelCustomProviders {\n    edges {\n      node {\n        id\n        name\n        sdk\n        modelNames\n      }\n    }\n  }\n  playgroundModels {\n    name\n    providerKey\n  }\n}\n"
+    "text": "query AgentModelMenuQuery {\n  generativeModelCustomProviders {\n    edges {\n      node {\n        id\n        name\n        sdk\n        modelNames\n      }\n    }\n  }\n  playgroundModels {\n    name\n    providerKey\n  }\n  modelProviders {\n    key\n    name\n    dependenciesInstalled\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "981bfadedf83daea686273839657bea6";
+(node as any).hash = "d3ee4bc859438d8d1d4f8c6a931c34f9";
 
 export default node;

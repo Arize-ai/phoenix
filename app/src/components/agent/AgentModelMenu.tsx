@@ -1,12 +1,6 @@
 import { css } from "@emotion/react";
 import { useMemo } from "react";
-import {
-  Autocomplete,
-  Input,
-  MenuSection,
-  SubmenuTrigger,
-  useFilter,
-} from "react-aria-components";
+import { MenuSection } from "react-aria-components";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
 import {
@@ -14,30 +8,31 @@ import {
   Flex,
   Menu,
   MenuContainer,
-  MenuHeader,
   MenuItem,
   MenuSectionTitle,
   MenuTrigger,
-  SearchField,
-  SearchIcon,
   SelectChevronUpDownIcon,
+  Separator,
   Text,
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import type {
-  CustomProviderRef,
+  CustomProviderInfo,
   ModelMenuProps,
   ModelMenuValue,
 } from "@phoenix/components/generative/ModelMenu";
-import { usePreferencesContext } from "@phoenix/contexts";
+import {
+  getModelsByProvider,
+  ProviderModelMenuItems,
+} from "@phoenix/components/generative/ModelMenu";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
-import type {
-  AgentModelMenuQuery,
-  GenerativeModelSDK,
-  GenerativeProviderKey,
-} from "./__generated__/AgentModelMenuQuery.graphql";
+import type { AgentModelMenuQuery } from "./__generated__/AgentModelMenuQuery.graphql";
+import {
+  getCuratedBuiltInModels,
+  isAgentCuratedBuiltInModel,
+} from "./agentCuratedModels";
 
 const menuWidthCSS = css`
   min-width: 350px;
@@ -47,77 +42,19 @@ const menuWidthCSS = css`
   }
 `;
 
-type AgentBuiltInModelSelection = {
-  provider: GenerativeProviderKey;
-  modelName: string;
-};
-
-const AGENT_CURATED_BUILT_IN_MODELS: readonly AgentBuiltInModelSelection[] = [
-  { provider: "ANTHROPIC", modelName: "claude-opus-4-6" },
-  { provider: "ANTHROPIC", modelName: "claude-sonnet-4-6" },
-  { provider: "OPENAI", modelName: "gpt-5.4" },
-  { provider: "OPENAI", modelName: "gpt-5.4-mini" },
-  { provider: "OPENAI", modelName: "gpt-5.5" },
-  { provider: "GOOGLE", modelName: "gemini-3.1-pro-preview" },
-  { provider: "GOOGLE", modelName: "gemini-3.5-flash" },
-];
-
-type CustomProviderInfo = {
-  id: string;
-  name: string;
-  sdk: GenerativeModelSDK;
-  modelNames: readonly string[];
-};
-
-const SDK_TO_PROVIDER_KEY: Record<GenerativeModelSDK, GenerativeProviderKey> = {
-  OPENAI: "OPENAI",
-  AZURE_OPENAI: "AZURE_OPENAI",
-  ANTHROPIC: "ANTHROPIC",
-  AWS_BEDROCK: "AWS",
-  GOOGLE_GENAI: "GOOGLE",
-};
-
-function applyBedrockPrefix(modelName: string, prefix: string): string {
-  const prefixDot = `${prefix}.`;
-  return modelName.startsWith(prefixDot)
-    ? modelName
-    : `${prefixDot}${modelName}`;
-}
-
-function getCuratedBuiltInModels(
-  playgroundModels: AgentModelMenuQuery["response"]["playgroundModels"]
-): AgentBuiltInModelSelection[] {
-  const curatedModelKeys = new Set(
-    AGENT_CURATED_BUILT_IN_MODELS.map(
-      ({ provider, modelName }) => `${provider}:${modelName}`
-    )
-  );
-
-  return AGENT_CURATED_BUILT_IN_MODELS.filter(({ provider, modelName }) =>
-    playgroundModels.some(
-      (
-        playgroundModel: AgentModelMenuQuery["response"]["playgroundModels"][number]
-      ) =>
-        curatedModelKeys.has(`${provider}:${modelName}`) &&
-        playgroundModel.providerKey === provider &&
-        playgroundModel.name === modelName
-    )
-  );
-}
-
-function BuiltInModelItem({
+function AgentModelItem({
   model,
   onChange,
 }: {
-  model: AgentBuiltInModelSelection;
+  model: ModelMenuValue;
   onChange?: (model: ModelMenuValue) => void;
 }) {
   return (
     <MenuItem
-      id={`${model.provider}:${model.modelName}`}
+      id={`${model.customProvider?.id ?? model.provider}:${model.modelName}`}
       textValue={model.modelName}
       onAction={() => {
-        onChange?.({ provider: model.provider, modelName: model.modelName });
+        onChange?.(model);
       }}
     >
       <Flex direction="row" gap="size-100" alignItems="center">
@@ -128,76 +65,51 @@ function BuiltInModelItem({
   );
 }
 
-function CustomProviderModelsSubmenu({
-  providerKey,
-  modelNames,
-  customProvider,
+function CuratedAndOtherModelMenuSections({
+  curatedBuiltInModels,
+  modelsByProvider,
+  customProviders,
+  modelProviders,
   onChange,
 }: {
-  providerKey: GenerativeProviderKey;
-  modelNames: readonly string[];
-  customProvider: CustomProviderRef;
+  curatedBuiltInModels: ModelMenuValue[];
+  modelsByProvider: Map<string, string[]>;
+  customProviders: CustomProviderInfo[];
+  modelProviders: AgentModelMenuQuery["response"]["modelProviders"];
   onChange?: (model: ModelMenuValue) => void;
 }) {
-  const awsBedrockModelPrefix = usePreferencesContext(
-    (state) => state.awsBedrockModelPrefix
-  );
-  const displayModelName = (name: string) =>
-    providerKey === "AWS" && awsBedrockModelPrefix
-      ? applyBedrockPrefix(name, awsBedrockModelPrefix)
-      : name;
-  const items = modelNames.map((modelName) => ({
-    id: `${customProvider.id}:${modelName}`,
-    textValue: displayModelName(modelName),
-  }));
-  const { contains } = useFilter();
-
   return (
-    <MenuContainer placement="end top" shouldFlip>
-      <Autocomplete filter={contains}>
-        <MenuHeader>
-          <SearchField
-            aria-label="Search models"
-            variant="quiet"
-            size="L"
-            autoFocus
-          >
-            <SearchIcon />
-            <Input placeholder="Search models..." />
-          </SearchField>
-        </MenuHeader>
-        <Menu items={items}>
-          {(item) => (
-            <MenuItem
-              key={item.id}
-              id={item.id}
-              textValue={item.textValue}
-              onAction={() => {
-                onChange?.({
-                  provider: providerKey,
-                  modelName: item.textValue,
-                  customProvider,
-                });
-              }}
-            >
-              <Flex direction="row" gap="size-100" alignItems="center">
-                <GenerativeProviderIcon provider={providerKey} height={16} />
-                <Text>{item.textValue}</Text>
-              </Flex>
-            </MenuItem>
-          )}
-        </Menu>
-      </Autocomplete>
-    </MenuContainer>
+    <>
+      <MenuSection>
+        <MenuSectionTitle title="Recommended" />
+        {curatedBuiltInModels.map((model) => (
+          <AgentModelItem
+            key={`${model.provider}:${model.modelName}`}
+            model={model}
+            onChange={onChange}
+          />
+        ))}
+      </MenuSection>
+      <Separator />
+      <MenuSection>
+        <MenuSectionTitle title="Other models" />
+        <ProviderModelMenuItems
+          providers={modelProviders}
+          modelsByProvider={modelsByProvider}
+          customProviders={customProviders}
+          onChange={onChange}
+        />
+      </MenuSection>
+    </>
   );
 }
 
 /**
  * Assistant-specific model picker.
  *
- * Unlike the global model picker, this menu is intentionally opinionated:
- * curated built-in models are shown as a flat list, and custom providers are
- * grouped under a trailing section with provider-specific submenus.
+ * Unlike the global model picker, this menu is intentionally opinionated.
+ * By default it stays flat and limited to curated built-in models. Settings
+ * can opt out to expose the broader provider/model universe in sections.
  */
 export function AgentModelMenu({
   value,
@@ -205,7 +117,10 @@ export function AgentModelMenu({
   placement,
   shouldFlip,
   variant = "default",
-}: Omit<ModelMenuProps, "isDisabled">) {
+  limitToCuratedModels = true,
+}: Omit<ModelMenuProps, "isDisabled"> & {
+  limitToCuratedModels?: boolean;
+}) {
   const isDisabled = useAgentContext((state) =>
     Object.values(state.chatStatusBySessionId).some(
       (status) => status === "submitted" || status === "streaming"
@@ -235,6 +150,11 @@ export function AgentModelMenu({
           name
           providerKey
         }
+        modelProviders {
+          key
+          name
+          dependenciesInstalled
+        }
       }
     `,
     {},
@@ -259,6 +179,20 @@ export function AgentModelMenu({
         })
       ),
     [data.generativeModelCustomProviders]
+  );
+
+  const modelsByProvider = useMemo(
+    () =>
+      getModelsByProvider(
+        data.playgroundModels.filter(
+          (model) =>
+            !isAgentCuratedBuiltInModel({
+              provider: model.providerKey,
+              modelName: model.name,
+            })
+        )
+      ),
+    [data.playgroundModels]
   );
 
   return (
@@ -287,58 +221,22 @@ export function AgentModelMenu({
         shouldFlip={shouldFlip}
       >
         <Menu css={menuWidthCSS}>
-          {curatedBuiltInModels.length > 0 ? (
-            <>
-              {curatedBuiltInModels.map((model) => (
-                <BuiltInModelItem
-                  key={`${model.provider}:${model.modelName}`}
-                  model={model}
-                  onChange={onChange}
-                />
-              ))}
-            </>
+          {limitToCuratedModels ? (
+            curatedBuiltInModels.map((model) => (
+              <AgentModelItem
+                key={`${model.provider}:${model.modelName}`}
+                model={model}
+                onChange={onChange}
+              />
+            ))
           ) : (
-            <MenuItem
-              id="no-curated-models"
-              textValue="No curated models"
-              isDisabled
-            >
-              <Text color="text-700">No curated models available</Text>
-            </MenuItem>
-          )}
-
-          {customProviders.length > 0 && (
-            <MenuSection>
-              <MenuSectionTitle title="Custom Providers" />
-              {customProviders.map((customProvider) => {
-                const providerKey = SDK_TO_PROVIDER_KEY[customProvider.sdk];
-                return (
-                  <SubmenuTrigger key={customProvider.id}>
-                    <MenuItem
-                      id={`custom-provider:${customProvider.id}`}
-                      textValue={customProvider.name}
-                    >
-                      <Flex direction="row" gap="size-100" alignItems="center">
-                        <GenerativeProviderIcon
-                          provider={providerKey}
-                          height={16}
-                        />
-                        <Text>{customProvider.name}</Text>
-                      </Flex>
-                    </MenuItem>
-                    <CustomProviderModelsSubmenu
-                      providerKey={providerKey}
-                      modelNames={customProvider.modelNames}
-                      customProvider={{
-                        id: customProvider.id,
-                        name: customProvider.name,
-                      }}
-                      onChange={onChange}
-                    />
-                  </SubmenuTrigger>
-                );
-              })}
-            </MenuSection>
+            <CuratedAndOtherModelMenuSections
+              curatedBuiltInModels={curatedBuiltInModels}
+              modelsByProvider={modelsByProvider}
+              customProviders={customProviders}
+              modelProviders={data.modelProviders}
+              onChange={onChange}
+            />
           )}
         </Menu>
       </MenuContainer>

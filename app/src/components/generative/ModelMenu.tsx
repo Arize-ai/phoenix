@@ -60,12 +60,33 @@ export type ModelMenuValue = {
   customProvider?: CustomProviderRef;
 };
 
-type CustomProviderInfo = {
+export type CustomProviderInfo = {
   id: string;
   name: string;
   sdk: GenerativeModelSDK;
   modelNames: readonly string[];
 };
+
+export type ModelProviderInfo = {
+  readonly key: GenerativeProviderKey;
+  readonly name: string;
+  readonly dependenciesInstalled: boolean;
+};
+
+export function getModelsByProvider(
+  playgroundModels: readonly {
+    readonly name: string;
+    readonly providerKey: string;
+  }[]
+): Map<string, string[]> {
+  const grouped = new Map<string, string[]>();
+  for (const model of playgroundModels) {
+    const existing = grouped.get(model.providerKey) ?? [];
+    existing.push(model.name);
+    grouped.set(model.providerKey, existing);
+  }
+  return grouped;
+}
 
 /**
  * Maps GenerativeModelSDK to GenerativeProviderKey for icon display
@@ -232,16 +253,10 @@ export function ModelMenu({
     { fetchPolicy: "store-and-network" }
   );
 
-  // Group models by provider
-  const modelsByProvider = useMemo(() => {
-    const grouped = new Map<string, string[]>();
-    for (const model of data.playgroundModels) {
-      const existing = grouped.get(model.providerKey) ?? [];
-      existing.push(model.name);
-      grouped.set(model.providerKey, existing);
-    }
-    return grouped;
-  }, [data.playgroundModels]);
+  const modelsByProvider = useMemo(
+    () => getModelsByProvider(data.playgroundModels),
+    [data.playgroundModels]
+  );
 
   // Create a map of provider key to provider info for quick lookup
   const providerInfoMap = useMemo(() => {
@@ -550,11 +565,7 @@ function ModelsByProviderMenu({
 }
 
 type ProviderMenuProps = {
-  providers: readonly {
-    readonly key: GenerativeProviderKey;
-    readonly name: string;
-    readonly dependenciesInstalled: boolean;
-  }[];
+  providers: readonly ModelProviderInfo[];
   modelsByProvider: Map<string, string[]>;
   customProviders: CustomProviderInfo[];
   onChange?: (model: ModelMenuValue) => void;
@@ -572,7 +583,24 @@ function ProviderMenu({
 }: ProviderMenuProps) {
   return (
     <Menu css={menuWidthCSS}>
-      {/* Custom providers */}
+      <ProviderModelMenuItems
+        providers={providers}
+        modelsByProvider={modelsByProvider}
+        customProviders={customProviders}
+        onChange={onChange}
+      />
+    </Menu>
+  );
+}
+
+export function ProviderModelMenuItems({
+  providers,
+  modelsByProvider,
+  customProviders,
+  onChange,
+}: ProviderMenuProps) {
+  return (
+    <>
       {customProviders.map((customProvider) => {
         const providerKey = SDK_TO_PROVIDER_KEY[customProvider.sdk];
         return (
@@ -598,7 +626,6 @@ function ProviderMenu({
           </SubmenuTrigger>
         );
       })}
-      {/* Built-in providers */}
       {providers.map((provider) => {
         const providerKey = provider.key;
         const isValidProvider = isModelProvider(providerKey);
@@ -626,7 +653,7 @@ function ProviderMenu({
           </SubmenuTrigger>
         );
       })}
-    </Menu>
+    </>
   );
 }
 
