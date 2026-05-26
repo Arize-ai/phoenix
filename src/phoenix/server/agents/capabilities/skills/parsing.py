@@ -24,7 +24,10 @@ def parse_skill_md(content: str) -> tuple[Frontmatter, SkillContent]:
             break
 
     if closing_idx is None:
-        return {}, content.strip()
+        raise ValueError(
+            "SKILL.md frontmatter is missing a closing fence ('---'); "
+            "expected '---' on its own line after the opening fence"
+        )
 
     frontmatter_yaml = "\n".join(lines[1:closing_idx]).strip()
     instructions = "\n".join(lines[closing_idx + 1 :]).strip()

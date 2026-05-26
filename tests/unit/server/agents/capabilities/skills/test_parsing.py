@@ -33,6 +33,20 @@ This skill has no frontmatter.
         parse_skill_md(content)
 
 
+def test_parse_skill_md_without_closing_fence_raises_value_error() -> None:
+    content = """---
+name: test-skill
+description: A test skill
+
+# Test Skill
+
+Content here, but the frontmatter was never closed.
+"""
+
+    with pytest.raises(ValueError, match="closing fence"):
+        parse_skill_md(content)
+
+
 def test_parse_skill_md_with_empty_frontmatter_returns_empty_dict_and_instructions() -> None:
     content = """---
 ---
