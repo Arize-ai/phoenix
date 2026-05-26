@@ -179,7 +179,7 @@ const thinkingGlyphAnimationCSS: Record<
 };
 
 /**
- * PXI brand glyph. When `animation` is set, renders an animated 3x3 grid;
+ * Assistant brand glyph. When `animation` is set, renders an animated 3x3 grid;
  * otherwise renders the static rounded-square 5-cell brand mark.
  */
 export function PxiGlyph({

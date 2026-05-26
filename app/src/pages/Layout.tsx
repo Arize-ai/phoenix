@@ -29,6 +29,7 @@ import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import { useHasOpenModal } from "@phoenix/hooks/useHasOpenModal";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { LayoutLoaderData } from "./layoutLoader";
@@ -94,16 +95,18 @@ export function Layout() {
     (state) => state.activePanelLocation
   );
   const agentPosition = useAgentContext((state) => state.position);
+  const hasOpenModal = useHasOpenModal();
   const shouldShowDockedAgentPanel =
     isAgentsEnabled &&
     isAgentPanelOpen &&
     activePanelLocation === "docked" &&
-    agentPosition === "pinned";
+    agentPosition === "pinned" &&
+    !hasOpenModal;
   const shouldShowFloatingAgentPanel =
     isAgentsEnabled &&
     isAgentPanelOpen &&
     activePanelLocation === "docked" &&
-    agentPosition === "detached";
+    (agentPosition === "detached" || hasOpenModal);
   const panelIds = shouldShowDockedAgentPanel
     ? ["layout-content", "agent-chat"]
     : ["layout-content"];
@@ -134,7 +137,9 @@ export function Layout() {
               <div data-testid="content" css={contentCSS} ref={contentRef}>
                 <AgentChatWidget boundaryRef={contentRef} />
                 {shouldShowFloatingAgentPanel ? (
-                  <FloatingAgentChatPanel />
+                  <FloatingAgentChatPanel
+                    layer={hasOpenModal ? "modal" : "content"}
+                  />
                 ) : null}
                 <Suspense fallback={<Loading />}>
                   <Outlet />
