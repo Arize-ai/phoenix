@@ -43,12 +43,14 @@ const MIN_FLOATING_AGENT_CHAT_SIZE: Size = {
 
 const panelHeaderCSS = css`
   ${fadedDividerBottomCSS}
+  box-sizing: border-box;
   flex: none;
   z-index: ${PANEL_HEADER_Z_INDEX};
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   column-gap: var(--global-dimension-size-100);
+  min-height: var(--global-dimension-size-600);
   padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
   background: var(--global-background-color-default);
 `;
