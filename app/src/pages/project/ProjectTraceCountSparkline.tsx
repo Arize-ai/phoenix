@@ -13,10 +13,11 @@ import {
   YAxis,
 } from "recharts";
 
-import { Skeleton, Text } from "@phoenix/components";
+import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  SparklineSkeleton,
   TimeRangeChartBrush,
   defaultCartesianGridProps,
   defaultTimeXAxisProps,
@@ -38,18 +39,6 @@ const SPARKLINE_AXIS_STYLE = {
   fill: "var(--chart-axis-text-color)",
   fontSize: 10,
 };
-
-const SPARKLINE_SKELETON_BARS = [
-  { id: "start", height: 8 },
-  { id: "low-1", height: 10 },
-  { id: "low-2", height: 12 },
-  { id: "low-3", height: 9 },
-  { id: "peak-1", height: 46 },
-  { id: "low-4", height: 11 },
-  { id: "peak-2", height: 44 },
-  { id: "low-5", height: 12 },
-  { id: "peak-3", height: 50 },
-];
 
 function getTooltipLabelDate(label: unknown) {
   if (label instanceof Date) {
@@ -209,25 +198,8 @@ export function ProjectTraceCountSparkline() {
 
 export function ProjectTraceCountSparklineSkeleton() {
   return (
-    <div css={sparklineCSS} aria-hidden="true">
-      <div css={sparklineSkeletonCSS}>
-        <div css={sparklineSkeletonGridCSS}>
-          <span />
-          <span />
-          <span />
-        </div>
-        <div css={sparklineSkeletonBarsCSS}>
-          {SPARKLINE_SKELETON_BARS.map((bar) => (
-            <Skeleton
-              key={bar.id}
-              width={10}
-              height={bar.height}
-              borderRadius="XS"
-              animation="wave"
-            />
-          ))}
-        </div>
-      </div>
+    <div css={sparklineCSS}>
+      <SparklineSkeleton />
     </div>
   );
 }
@@ -241,36 +213,4 @@ const sparklineCSS = css`
   .recharts-wrapper {
     overflow: visible !important;
   }
-`;
-
-const sparklineSkeletonCSS = css`
-  position: relative;
-  height: 100%;
-  width: 100%;
-`;
-
-const sparklineSkeletonGridCSS = css`
-  position: absolute;
-  inset: var(--global-dimension-static-size-50)
-    var(--global-dimension-static-size-50)
-    var(--global-dimension-static-size-200) 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-
-  span {
-    height: 1px;
-    border-top: 1px dashed var(--chart-cartesian-grid-stroke-color);
-  }
-`;
-
-const sparklineSkeletonBarsCSS = css`
-  position: absolute;
-  inset: var(--global-dimension-static-size-50)
-    var(--global-dimension-static-size-50)
-    var(--global-dimension-static-size-200)
-    var(--global-dimension-static-size-300);
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
 `;

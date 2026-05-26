@@ -3,6 +3,8 @@ import type { MouseEvent, ReactNode } from "react";
 import { useRef, useState } from "react";
 import type { MouseHandlerDataParam } from "recharts";
 
+import { clampNumber } from "@phoenix/utils/numberUtils";
+
 const timeRangeChartBrushCSS = css`
   .recharts-wrapper,
   .recharts-surface {
@@ -80,10 +82,6 @@ function getTimestampFromChartValue(value: unknown): number | null {
 
 function getTimestampFromChartState(state: MouseHandlerDataParam) {
   return getTimestampFromChartValue(state.activeLabel);
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
 }
 
 /**
@@ -166,11 +164,11 @@ export function TimeRangeChartBrush({
       return null;
     }
     const rect = container.getBoundingClientRect();
-    return clamp(
-      event.clientX - rect.left,
-      plotArea.left,
-      plotArea.left + plotArea.width
-    );
+    return clampNumber({
+      value: event.clientX - rect.left,
+      min: plotArea.left,
+      max: plotArea.left + plotArea.width,
+    });
   };
 
   if (!onTimeRangeSelected) {

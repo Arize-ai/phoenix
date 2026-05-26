@@ -1,4 +1,5 @@
 export * from "./ChartTooltip";
+export * from "./SparklineSkeleton";
 export * from "./TimeRangeChartBrush";
 export * from "./defaults";
 export * from "./formatters";
