@@ -28,6 +28,18 @@ function dispatchCommandI() {
   });
 }
 
+function appendModalOverlay() {
+  const overlay = document.createElement("div");
+  const modalRoot = document.createElement("div");
+  overlay.className = "react-aria-ModalOverlay";
+  modalRoot.dataset.rac = "";
+  modalRoot.dataset.size = "S";
+  modalRoot.dataset.variant = "default";
+  overlay.appendChild(modalRoot);
+  document.body.appendChild(overlay);
+  return overlay;
+}
+
 function dispatchPointerEvent(
   element: Element,
   type: string,
@@ -83,6 +95,9 @@ describe("AgentChatWidget", () => {
       root.unmount();
     });
     container.remove();
+    document
+      .querySelectorAll(".react-aria-ModalOverlay")
+      .forEach((element) => element.remove());
     localStorage.clear();
     vi.useRealTimers();
     vi.restoreAllMocks();
@@ -136,6 +151,17 @@ describe("AgentChatWidget", () => {
     ).toBe("false");
   });
 
+  it("toggles PXI with Command+I while a modal overlay is open", () => {
+    appendModalOverlay();
+    renderWidget();
+
+    dispatchCommandI();
+
+    expect(
+      container.querySelector('[data-testid="agent-open"]')?.textContent
+    ).toBe("true");
+  });
+
   it("ignores Command+I when PXI is disabled", () => {
     renderWidget({ isAssistantAgentEnabled: false });
 
@@ -147,6 +173,83 @@ describe("AgentChatWidget", () => {
   });
 
   it("toggles PXI when the FAB is clicked", () => {
+    renderWidget();
+
+    const fabButton = document.body.querySelector(
+      'button[aria-label="Open assistant"]'
+    );
+    const positioner = document.body.querySelector(
+      ".agent-chat-widget-positioner"
+    );
+    expect(fabButton).not.toBeNull();
+    expect(positioner).not.toBeNull();
+    Object.assign(positioner!, {
+      setPointerCapture: vi.fn(),
+      releasePointerCapture: vi.fn(),
+      hasPointerCapture: vi.fn(() => true),
+    });
+
+    act(() => {
+      dispatchPointerEvent(fabButton!, "pointerdown", {
+        clientX: 935,
+        clientY: 758,
+      });
+      dispatchPointerEvent(fabButton!, "pointerup", {
+        clientX: 935,
+        clientY: 758,
+      });
+    });
+
+    expect(
+      container.querySelector('[data-testid="agent-open"]')?.textContent
+    ).toBe("true");
+  });
+
+  it("keeps the FAB available in the modal floating layer", () => {
+    const overlay = appendModalOverlay();
+    const modalRoot = overlay.firstElementChild;
+    renderWidget();
+
+    const positioner = document.body.querySelector(
+      ".agent-chat-widget-positioner"
+    );
+
+    expect(positioner).not.toBeNull();
+    expect(positioner?.getAttribute("data-layer")).toBe("modal");
+    expect(modalRoot?.contains(positioner)).toBe(true);
+  });
+
+  it("moves the modal-layer FAB when a newer modal becomes active", async () => {
+    const firstOverlay = appendModalOverlay();
+    const firstModalRoot = firstOverlay.firstElementChild;
+    renderWidget();
+
+    const positioner = document.body.querySelector(
+      ".agent-chat-widget-positioner"
+    );
+    expect(positioner).not.toBeNull();
+    expect(firstModalRoot?.contains(positioner)).toBe(true);
+
+    const secondOverlay = document.createElement("div");
+    const secondModalRoot = document.createElement("div");
+    secondOverlay.className = "react-aria-ModalOverlay";
+    secondModalRoot.dataset.rac = "";
+    secondModalRoot.dataset.size = "S";
+    secondModalRoot.dataset.variant = "default";
+    secondOverlay.appendChild(secondModalRoot);
+    await act(async () => {
+      document.body.appendChild(secondOverlay);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    const movedPositioner = document.body.querySelector(
+      ".agent-chat-widget-positioner"
+    );
+    expect(secondModalRoot.contains(movedPositioner)).toBe(true);
+  });
+
+  it("toggles PXI when the modal-layer FAB is clicked", () => {
+    appendModalOverlay();
     renderWidget();
 
     const fabButton = document.body.querySelector(

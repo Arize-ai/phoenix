@@ -3,7 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AgentChatHeader } from "../AgentChatPanelView";
+import { AgentChatHeader, FloatingAgentChatFrame } from "../AgentChatPanelView";
 
 describe("AgentChatHeader", () => {
   let container: HTMLDivElement;
@@ -21,6 +21,9 @@ describe("AgentChatHeader", () => {
       root.unmount();
     });
     container.remove();
+    document
+      .querySelectorAll(".react-aria-ModalOverlay")
+      .forEach((element) => element.remove());
     vi.restoreAllMocks();
   });
 
@@ -92,5 +95,28 @@ describe("AgentChatHeader", () => {
     });
 
     expect(onPositionChange).toHaveBeenCalledWith("pinned");
+  });
+
+  it("portals the floating panel into the modal overlay layer", () => {
+    const overlay = document.createElement("div");
+    const modalRoot = document.createElement("div");
+    overlay.className = "react-aria-ModalOverlay";
+    modalRoot.dataset.rac = "";
+    modalRoot.dataset.size = "S";
+    modalRoot.dataset.variant = "default";
+    overlay.appendChild(modalRoot);
+    document.body.appendChild(overlay);
+
+    act(() => {
+      root.render(
+        <FloatingAgentChatFrame layer="modal" placement="bottom-end">
+          <span>PXI content</span>
+        </FloatingAgentChatFrame>
+      );
+    });
+
+    const panel = modalRoot.querySelector(".resizable-floating-panel");
+    expect(panel).not.toBeNull();
+    expect(panel?.getAttribute("data-layer")).toBe("modal");
   });
 });

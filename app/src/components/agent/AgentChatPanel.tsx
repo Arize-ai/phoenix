@@ -33,14 +33,20 @@ export function AgentChatPanel() {
   );
 }
 
-export function FloatingAgentChatPanel() {
+export function FloatingAgentChatPanel({
+  layer = "content",
+}: {
+  layer?: "content" | "modal";
+}) {
   const fabPlacement = useAgentContext((state) => state.fabPlacement);
   const [panelSize, setPanelSize] = useState(DEFAULT_FLOATING_AGENT_CHAT_SIZE);
 
   return (
     <AgentChatSurface
+      showPositionControls={layer !== "modal"}
       renderFrame={(children) => (
         <FloatingAgentChatFrame
+          layer={layer}
           placement={fabPlacement}
           size={panelSize}
           onSizeChange={setPanelSize}
@@ -54,8 +60,10 @@ export function FloatingAgentChatPanel() {
 
 function AgentChatSurface({
   renderFrame,
+  showPositionControls = true,
 }: {
   renderFrame: (children: ReactNode) => ReactNode;
+  showPositionControls?: boolean;
 }) {
   const isAgentsEnabled = useFeatureFlag("agents");
   const {
@@ -101,8 +109,8 @@ function AgentChatSurface({
       setActiveSession={setActiveSession}
       deleteSession={deleteSession}
       closePanel={closePanel}
-      position={position}
-      setPosition={setPosition}
+      position={showPositionControls ? position : undefined}
+      setPosition={showPositionControls ? setPosition : undefined}
       handleModelChange={handleModelChange}
       renderFrame={renderFrame}
     />
@@ -143,8 +151,8 @@ function AgentChatController({
   >["setActiveSession"];
   deleteSession: ReturnType<typeof useAgentChatPanelState>["deleteSession"];
   closePanel: ReturnType<typeof useAgentChatPanelState>["closePanel"];
-  position: ReturnType<typeof useAgentChatPanelState>["position"];
-  setPosition: ReturnType<typeof useAgentChatPanelState>["setPosition"];
+  position?: ReturnType<typeof useAgentChatPanelState>["position"];
+  setPosition?: ReturnType<typeof useAgentChatPanelState>["setPosition"];
   handleModelChange: ReturnType<
     typeof useAgentChatPanelState
   >["handleModelChange"];

@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Panel, Separator } from "react-resizable-panels";
 
 import {
@@ -12,6 +13,7 @@ import {
 } from "@phoenix/components";
 import { fadedDividerBottomCSS } from "@phoenix/components/core/layout";
 import { compactResizeHandleCSS } from "@phoenix/components/resize/styles";
+import { useOpenModalFloatingLayerElement } from "@phoenix/hooks/useHasOpenModal";
 import type {
   AgentFabPlacement,
   AgentPosition,
@@ -220,17 +222,21 @@ export function DockedAgentChatFrame({ children }: { children: ReactNode }) {
  */
 export function FloatingAgentChatFrame({
   children,
+  layer = "content",
   placement,
   size = DEFAULT_FLOATING_AGENT_CHAT_SIZE,
   onSizeChange,
 }: {
   children: ReactNode;
+  layer?: "content" | "modal";
   placement: AgentFabPlacement;
   size?: Size;
   onSizeChange?: (size: Size) => void;
 }) {
-  return (
+  const modalFloatingLayerElement = useOpenModalFloatingLayerElement();
+  const panel = (
     <ResizableFloatingPanel
+      layer={layer}
       minSize={MIN_FLOATING_AGENT_CHAT_SIZE}
       placement={placement}
       size={size}
@@ -239,6 +245,12 @@ export function FloatingAgentChatFrame({
       {children}
     </ResizableFloatingPanel>
   );
+
+  if (layer !== "modal") {
+    return panel;
+  }
+
+  return createPortal(panel, modalFloatingLayerElement ?? document.body);
 }
 
 const tracePanelContentCSS = css`

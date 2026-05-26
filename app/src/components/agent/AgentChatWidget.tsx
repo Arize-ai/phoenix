@@ -16,7 +16,7 @@ import {
 } from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
-import { useHasOpenModal } from "@phoenix/hooks/useHasOpenModal";
+import { useOpenModalFloatingLayerElement } from "@phoenix/hooks/useHasOpenModal";
 import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 
 import { AgentFabPositioner } from "./AgentFabPositioner";
@@ -430,7 +430,8 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
   const fabPlacement = useAgentContext((state) => state.fabPlacement);
   const setFabPlacement = useAgentContext((state) => state.setFabPlacement);
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
-  const hasOpenModal = useHasOpenModal();
+  const modalFloatingLayerElement = useOpenModalFloatingLayerElement();
+  const hasOpenModal = modalFloatingLayerElement !== null;
   const isStreaming = useAgentContext((state) =>
     activeSessionId
       ? state.chatStatusBySessionId[activeSessionId] === "streaming"
@@ -445,21 +446,22 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
       toggleOpen();
     },
     {
-      enabled: isAssistantAgentEnabled && !hasOpenModal,
+      enabled: isAssistantAgentEnabled,
       preventDefault: true,
     },
-    [isAssistantAgentEnabled, hasOpenModal, toggleOpen]
+    [isAssistantAgentEnabled, toggleOpen]
   );
 
-  // Use contextual entrypoints inside modals (e.g. trace slideover header)
-  // instead of letting the global FAB compete with overlay hit-testing.
-  if (!isAssistantAgentEnabled || isOpen || hasOpenModal) {
+  if (!isAssistantAgentEnabled || isOpen) {
     return null;
   }
 
+  const portalContainer = modalFloatingLayerElement ?? document.body;
+
   return createPortal(
     <AgentFabPositioner
-      boundaryRef={boundaryRef}
+      boundaryRef={hasOpenModal ? undefined : boundaryRef}
+      layer={hasOpenModal ? "modal" : "content"}
       placement={fabPlacement}
       size={isStreaming ? FAB_STREAMING_SIZE : FAB_RESTING_SIZE}
       onActivate={toggleOpen}
@@ -482,7 +484,7 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
         <AgentChatWidgetTooltip />
       </TooltipTrigger>
     </AgentFabPositioner>,
-    document.body
+    portalContainer ?? document.body
   );
 }
 

@@ -76,8 +76,10 @@ describe("ResizableFloatingPanel", () => {
 
   function renderResizablePanel({
     onSizeChange = vi.fn(),
+    layer = "content",
     placement = "bottom-end",
   }: {
+    layer?: "content" | "modal";
     onSizeChange?: (size: Size) => void;
     placement?: AgentFabPlacement;
   } = {}) {
@@ -85,6 +87,7 @@ describe("ResizableFloatingPanel", () => {
       const [size, setSize] = useState(() => ({ ...DEFAULT_SIZE }));
       return (
         <ResizableFloatingPanel
+          layer={layer}
           minSize={MIN_SIZE}
           placement={placement}
           size={size}
@@ -137,6 +140,13 @@ describe("ResizableFloatingPanel", () => {
 
     expect(widthHandle.getAttribute("data-edge")).toBe("right");
     expect(heightHandle.getAttribute("data-edge")).toBe("bottom");
+  });
+
+  it("uses fixed positioning in the modal layer", () => {
+    const { panel } = renderResizablePanel({ layer: "modal" });
+
+    expect(panel.getAttribute("data-layer")).toBe("modal");
+    expect(getComputedStyle(panel).position).toBe("fixed");
   });
 
   it("resizes horizontally from the bottom-end panel's left edge", () => {
