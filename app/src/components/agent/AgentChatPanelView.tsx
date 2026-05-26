@@ -43,6 +43,7 @@ const MIN_FLOATING_AGENT_CHAT_SIZE: Size = {
 
 const panelHeaderCSS = css`
   ${fadedDividerBottomCSS}
+  flex: none;
   z-index: ${PANEL_HEADER_Z_INDEX};
   display: flex;
   align-items: center;
