@@ -1,11 +1,11 @@
-import { Outlet } from "react-router";
-
 import { TimeRangeProvider } from "@phoenix/components/datetime";
+
+import { DashboardsPage } from "./DashboardsPage";
 
 export function DashboardsRoot() {
   return (
     <TimeRangeProvider>
-      <Outlet />
+      <DashboardsPage />
     </TimeRangeProvider>
   );
 }

@@ -16,6 +16,8 @@ import {
   IconButton,
   Icons,
   Menu,
+  MenuButton,
+  MenuButtonValue,
   MenuContainer,
   MenuEmpty,
   MenuFooter,
@@ -25,6 +27,7 @@ import {
   MenuSectionTitle,
   MenuTrigger,
   Popover,
+  SelectChevronUpDownIcon,
   SearchField,
   Separator,
   Text,
@@ -115,6 +118,33 @@ export const Template = {
   },
 
   args: {},
+};
+
+export const MenuButtonTrigger = {
+  render: () => (
+    <Flex direction="column" gap="size-100">
+      <View width="300px">
+        <MenuButton
+          aria-label="Project: Long project name"
+          leadingVisual={<Icon svg={<Icons.Trace />} />}
+          trailingVisual={<SelectChevronUpDownIcon />}
+        >
+          <MenuButtonValue>
+            Long project name that should truncate inside the menu button
+          </MenuButtonValue>
+        </MenuButton>
+      </View>
+      <View width="300px">
+        <MenuButton
+          aria-label="Project"
+          leadingVisual={<Icon svg={<Icons.Trace />} />}
+          trailingVisual={<SelectChevronUpDownIcon />}
+        >
+          <MenuButtonValue isPlaceholder>Select project</MenuButtonValue>
+        </MenuButton>
+      </View>
+    </Flex>
+  ),
 };
 
 export const DynamicSearchableMenu = () => {

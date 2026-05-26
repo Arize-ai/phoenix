@@ -13,6 +13,8 @@ export {
   TypeScriptPlatformIntegrations,
 } from "./Integrations";
 export * from "./IntegrationIcons";
+export { ProjectMenu } from "./ProjectMenu";
+export type { ProjectMenuProps } from "./ProjectMenu";
 export { PythonProjectGuide } from "./PythonProjectGuide";
 export { TypeScriptProjectGuide } from "./TypeScriptProjectGuide";
 export * from "./hosting";
