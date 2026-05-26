@@ -18,9 +18,8 @@ import {
   TimeRangeChartBrush,
   defaultCartesianGridProps,
   defaultLegendProps,
-  defaultXAxisProps,
+  defaultTimeXAxisProps,
   defaultYAxisProps,
-  useBinInterval,
   useBinTimeTickFormatter,
   useSemanticChartColors,
   useSequentialChartColors,
@@ -141,7 +140,6 @@ export function LLMSpanCountTimeSeries({
 
   const colors = useSequentialChartColors();
   const SemanticChartColors = useSemanticChartColors();
-  const interval = useBinInterval({ scale, binCount: chartData.length });
   return (
     <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
       {({ chartProps }) => (
@@ -154,12 +152,8 @@ export function LLMSpanCountTimeSeries({
             {...chartProps}
           >
             <XAxis
-              {...defaultXAxisProps}
-              dataKey="timestamp"
-              type="number"
-              scale="time"
+              {...defaultTimeXAxisProps}
               domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
-              interval={interval}
               tickFormatter={(x) => timeTickFormatter(new Date(x))}
             />
             <YAxis

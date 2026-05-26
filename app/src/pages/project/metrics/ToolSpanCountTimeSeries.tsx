@@ -18,9 +18,8 @@ import {
   TimeRangeChartBrush,
   defaultCartesianGridProps,
   defaultLegendProps,
-  defaultXAxisProps,
+  defaultTimeXAxisProps,
   defaultYAxisProps,
-  useBinInterval,
   useBinTimeTickFormatter,
   useSemanticChartColors,
   useSequentialChartColors,
@@ -138,7 +137,6 @@ export function ToolSpanCountTimeSeries({
   );
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
-  const interval = useBinInterval({ scale, binCount: chartData.length });
   const colors = useSequentialChartColors();
   const SemanticChartColors = useSemanticChartColors();
   return (
@@ -153,13 +151,9 @@ export function ToolSpanCountTimeSeries({
             {...chartProps}
           >
             <XAxis
-              {...defaultXAxisProps}
-              dataKey="timestamp"
-              type="number"
-              scale="time"
+              {...defaultTimeXAxisProps}
               domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
               tickFormatter={(x) => timeTickFormatter(new Date(x))}
-              interval={interval}
             />
             <YAxis
               {...defaultYAxisProps}

@@ -18,9 +18,8 @@ import {
   TimeRangeChartBrush,
   defaultCartesianGridProps,
   defaultLegendProps,
-  defaultXAxisProps,
+  defaultTimeXAxisProps,
   defaultYAxisProps,
-  useBinInterval,
   useBinTimeTickFormatter,
   useCategoryChartColors,
 } from "@phoenix/components/chart";
@@ -127,7 +126,6 @@ export function TraceTokenCostTimeSeries({
   );
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
-  const interval = useBinInterval({ scale, binCount: chartData.length });
 
   const colors = useCategoryChartColors();
   return (
@@ -143,12 +141,8 @@ export function TraceTokenCostTimeSeries({
           >
             <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
             <XAxis
-              {...defaultXAxisProps}
-              dataKey="timestamp"
-              type="number"
-              scale="time"
+              {...defaultTimeXAxisProps}
               domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
-              interval={interval}
               tickFormatter={(x) => timeTickFormatter(new Date(x))}
             />
             <YAxis

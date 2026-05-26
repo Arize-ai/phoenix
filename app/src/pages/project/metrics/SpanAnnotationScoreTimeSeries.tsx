@@ -16,13 +16,12 @@ import {
   ChartTooltip,
   ChartTooltipItem,
   TimeRangeChartBrush,
-  useBinInterval,
   useBinTimeTickFormatter,
 } from "@phoenix/components/chart";
 import {
   defaultCartesianGridProps,
   defaultLegendProps,
-  defaultXAxisProps,
+  defaultTimeXAxisProps,
   defaultYAxisProps,
 } from "@phoenix/components/chart/defaults";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
@@ -143,7 +142,6 @@ export function SpanAnnotationScoreTimeSeries({
   });
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
-  const interval = useBinInterval({ scale, binCount: chartData.length });
 
   return (
     <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
@@ -156,13 +154,9 @@ export function SpanAnnotationScoreTimeSeries({
             {...chartProps}
           >
             <XAxis
-              {...defaultXAxisProps}
-              dataKey="timestamp"
-              type="number"
-              scale="time"
+              {...defaultTimeXAxisProps}
               domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
               tickFormatter={(x) => timeTickFormatter(new Date(x))}
-              interval={interval}
             />
             <YAxis
               width={55}

@@ -18,12 +18,11 @@ import {
   TimeRangeChartBrush,
   defaultCartesianGridProps,
   defaultLegendProps,
-  defaultXAxisProps,
+  defaultTimeXAxisProps,
   defaultYAxisProps,
   useBinTimeTickFormatter,
   useSemanticChartColors,
 } from "@phoenix/components/chart";
-import { useBinInterval } from "@phoenix/components/chart/useBinInterval";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
@@ -116,7 +115,6 @@ export function TraceErrorsTimeSeries({
   );
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
-  const interval = useBinInterval({ scale, binCount: chartData.length });
 
   const SemanticChartColors = useSemanticChartColors();
   return (
@@ -131,12 +129,8 @@ export function TraceErrorsTimeSeries({
             {...chartProps}
           >
             <XAxis
-              {...defaultXAxisProps}
-              dataKey="timestamp"
-              type="number"
-              scale="time"
+              {...defaultTimeXAxisProps}
               domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
-              interval={interval}
               tickFormatter={(x) => timeTickFormatter(new Date(x))}
             />
             <YAxis

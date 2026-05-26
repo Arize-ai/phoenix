@@ -19,13 +19,12 @@ import {
   ChartTooltipItem,
   TimeRangeChartBrush,
   defaultCartesianGridProps,
-  defaultXAxisProps,
+  defaultTimeXAxisProps,
   defaultYAxisProps,
   useBinTimeTickFormatter,
   useSemanticChartColors,
   useSequentialChartColors,
 } from "@phoenix/components/chart";
-import { useBinInterval } from "@phoenix/components/chart/useBinInterval";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
@@ -151,7 +150,6 @@ export function ProjectTraceCountSparkline() {
   );
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
-  const interval = useBinInterval({ scale, binCount: chartData.length });
   const colors = useSequentialChartColors();
   const semanticColors = useSemanticChartColors();
 
@@ -168,15 +166,11 @@ export function ProjectTraceCountSparkline() {
             >
               <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
               <XAxis
-                {...defaultXAxisProps}
-                dataKey="timestamp"
-                type="number"
-                scale="time"
+                {...defaultTimeXAxisProps}
                 domain={[
                   timeRange.start?.getTime() ?? "dataMin",
                   timeRange.end?.getTime() ?? "dataMax",
                 ]}
-                interval={interval}
                 tickFormatter={(x) => timeTickFormatter(new Date(x))}
                 tickSize={3}
                 tickMargin={2}

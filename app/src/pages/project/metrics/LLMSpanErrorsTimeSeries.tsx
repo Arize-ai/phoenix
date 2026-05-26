@@ -18,9 +18,8 @@ import {
   TimeRangeChartBrush,
   defaultCartesianGridProps,
   defaultLegendProps,
-  defaultXAxisProps,
+  defaultTimeXAxisProps,
   defaultYAxisProps,
-  useBinInterval,
   useBinTimeTickFormatter,
   useSemanticChartColors,
 } from "@phoenix/components/chart";
@@ -115,7 +114,6 @@ export function LLMSpanErrorsTimeSeries({
   );
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
-  const interval = useBinInterval({ scale, binCount: chartData.length });
 
   const SemanticChartColors = useSemanticChartColors();
   return (
@@ -130,12 +128,8 @@ export function LLMSpanErrorsTimeSeries({
             {...chartProps}
           >
             <XAxis
-              {...defaultXAxisProps}
-              dataKey="timestamp"
-              type="number"
-              scale="time"
+              {...defaultTimeXAxisProps}
               domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
-              interval={interval}
               tickFormatter={(x) => timeTickFormatter(new Date(x))}
             />
             <YAxis
