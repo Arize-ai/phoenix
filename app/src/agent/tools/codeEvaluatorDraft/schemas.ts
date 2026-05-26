@@ -9,6 +9,43 @@ export type CodeEvaluatorEditToolOutputSender =
 
 const codeEvaluatorLanguageSchema = z.enum(["PYTHON", "TYPESCRIPT"]);
 
+const optimizationDirectionSchema = z.enum(["MINIMIZE", "MAXIMIZE", "NONE"]);
+
+const classificationValueSchema = z.object({
+  label: z.string(),
+  score: z.number().nullish(),
+});
+
+const classificationOutputConfigDraftSchema = z.object({
+  kind: z.literal("classification"),
+  name: z.string(),
+  optimizationDirection: optimizationDirectionSchema,
+  values: z.array(classificationValueSchema),
+});
+
+const continuousOutputConfigDraftSchema = z.object({
+  kind: z.literal("continuous"),
+  name: z.string(),
+  optimizationDirection: optimizationDirectionSchema,
+  lowerBound: z.number().nullish(),
+  upperBound: z.number().nullish(),
+});
+
+const freeformOutputConfigDraftSchema = z.object({
+  kind: z.literal("freeform"),
+  name: z.string(),
+  optimizationDirection: optimizationDirectionSchema,
+  threshold: z.number().nullish(),
+  lowerBound: z.number().nullish(),
+  upperBound: z.number().nullish(),
+});
+
+export const outputConfigDraftSchema = z.discriminatedUnion("kind", [
+  classificationOutputConfigDraftSchema,
+  continuousOutputConfigDraftSchema,
+  freeformOutputConfigDraftSchema,
+]);
+
 const inputMappingSchema = z
   .object({
     pathMapping: z.record(z.string(), z.string()).optional(),
@@ -56,12 +93,18 @@ const setNameOperationSchema = z.object({
   name: z.string(),
 });
 
+const setOutputConfigsOperationSchema = z.object({
+  type: z.literal("set_output_configs"),
+  outputConfigs: z.array(outputConfigDraftSchema),
+});
+
 export const editCodeEvaluatorDraftOperationSchema = z.preprocess(
   (input) =>
     normalizeAliases(input, {
       sourceCode: ["source_code"],
       sandboxConfigId: ["sandbox_config_id"],
       inputMapping: ["input_mapping"],
+      outputConfigs: ["output_configs"],
     }),
   z.discriminatedUnion("type", [
     setSourceCodeOperationSchema,
@@ -70,6 +113,7 @@ export const editCodeEvaluatorDraftOperationSchema = z.preprocess(
     setInputMappingOperationSchema,
     setDescriptionOperationSchema,
     setNameOperationSchema,
+    setOutputConfigsOperationSchema,
   ])
 );
 
@@ -101,3 +145,6 @@ export const editCodeEvaluatorDraftActionContextSchema = z
     ),
   })
   .transform((context) => context);
+
+export const createCodeEvaluatorActionContextSchema =
+  editCodeEvaluatorDraftActionContextSchema;

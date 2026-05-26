@@ -155,12 +155,52 @@ export const PXI_EXPERIMENT_EXAMPLES = {
   createCodeEvaluatorWithOutputConfigSmoke: {
     id: "pxi-create-code-evaluator-smoke:with-output-config-v1",
     prompt:
-      "Create a new Python code evaluator named ${name} that scores how similar an agent's output is to a reference answer on a scale from 0 to 1. Define `evaluate(output, reference)` that returns 1.0 when `output` and `reference` are equal (case-insensitive, trimmed) and 0.0 otherwise. Configure the evaluator's annotation surface so higher scores are better (optimization_direction MAXIMIZE) and the good/bad cutoff is 0.7. Do not configure a sandbox.",
+      "Create a new Python code evaluator named ${name} that scores how similar an agent's output is to a reference answer on a scale from 0 to 1. Define `evaluate(output, reference)` that returns 1.0 when `output` and `reference` are equal (case-insensitive, trimmed) and 0.0 otherwise. Configure the evaluator's annotation surface so higher scores are better (optimization_direction MAXIMIZE) and the good/bad cutoff is 0.7. Pick a Python sandbox config.",
     expectedOutput:
       "PXI calls create_code_evaluator with an output_config carrying optimization_direction=MAXIMIZE and threshold=0.7; the persisted CodeEvaluator's output_configs round-trip a single freeform entry whose name equals the evaluator's name.",
     experimentNamePrefix: "pxi-e2e-create-code-evaluator-with-output-config",
     experimentDescription:
       "PXI direct-authoring tool: create_code_evaluator authors a single freeform output config at creation time and the persisted output_configs round-trip via GraphQL.",
+  },
+  createCodeEvaluatorProposalDatasetSmoke: {
+    id: "pxi-create-code-evaluator-proposal:dataset-surface-v1",
+    prompt:
+      "Create a Python code evaluator named ${name} for this dataset. Define `evaluate(output, reference)` that returns 1.0 when output equals reference (case-insensitive, trimmed) and 0.0 otherwise. Pick a Python sandbox config.",
+    expectedOutput:
+      "On a dataset surface, PXI proposes a PendingCodeEvaluatorCreate; clicking Accept persists a global CodeEvaluator AND attaches it to the active dataset via createDatasetCodeEvaluator. The dataset's evaluators tab shows the new row.",
+    experimentNamePrefix: "pxi-e2e-create-code-evaluator-proposal-dataset",
+    experimentDescription:
+      "PXI create_code_evaluator chassis flow: on a dataset surface the proposal accept fires the chained createCodeEvaluator -> createDatasetCodeEvaluator path.",
+  },
+  createCodeEvaluatorProposalStandaloneSmoke: {
+    id: "pxi-create-code-evaluator-proposal:standalone-surface-v1",
+    prompt:
+      "Create a Python code evaluator named ${name}. Define `evaluate(output)` that returns 1.0 if output is non-empty and 0.0 otherwise. Pick a Python sandbox config.",
+    expectedOutput:
+      "On a non-dataset surface, PXI proposes a PendingCodeEvaluatorCreate; clicking Accept persists only the global CodeEvaluator. No DatasetEvaluator binding is created.",
+    experimentNamePrefix: "pxi-e2e-create-code-evaluator-proposal-standalone",
+    experimentDescription:
+      "PXI create_code_evaluator chassis flow: on a non-dataset surface the proposal accept fires the standalone createCodeEvaluator only.",
+  },
+  createCodeEvaluatorViewerGateSmoke: {
+    id: "pxi-create-code-evaluator-gate:viewer-v1",
+    prompt:
+      "Create a Python code evaluator named ${name} that returns 1.0 for non-empty output. Pick any Python sandbox config.",
+    expectedOutput:
+      "Signed in as a viewer, PXI does not advertise create_code_evaluator. The assistant explains it does not have the affordance; no proposal renders and no mutation fires.",
+    experimentNamePrefix: "pxi-e2e-create-code-evaluator-viewer-gate",
+    experimentDescription:
+      "PXI capability gate: viewer role silently strips create_code_evaluator from the advertised toolset (D7 viewer denial path).",
+  },
+  createCodeEvaluatorNoSandboxGateSmoke: {
+    id: "pxi-create-code-evaluator-gate:no-sandbox-v1",
+    prompt:
+      "Create a Python code evaluator named ${name} on this dataset. Define `evaluate(output)` that returns 1.0 for non-empty output.",
+    expectedOutput:
+      "With no usable sandbox config enabled, PXI does not advertise create_code_evaluator. The dataset context instruction template tells the assistant to direct the user to /settings/sandboxes.",
+    experimentNamePrefix: "pxi-e2e-create-code-evaluator-no-sandbox-gate",
+    experimentDescription:
+      "PXI capability gate: with no enabled sandbox config the create tool is hidden and the dataset context advises /settings/sandboxes.",
   },
 } as const;
 

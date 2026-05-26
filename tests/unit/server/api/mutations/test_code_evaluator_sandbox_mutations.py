@@ -1114,3 +1114,84 @@ class TestFreeformOutputConfigRoundTrip:
         cfg = result.data["createCodeEvaluator"]["evaluator"]["outputConfigs"][0]
         assert cfg["__typename"] == "FreeformAnnotationConfig"
         assert cfg["threshold"] is None
+
+
+class TestCreateCodeEvaluatorSandboxStrictness:
+    """`CreateCodeEvaluatorInput.sandbox_config_id` is required (no Optional)
+    at the schema layer, and the resolver mirrors `patch_code_evaluator`'s
+    language-match check + raises BadRequest when the target row is missing.
+    """
+
+    async def test_missing_sandbox_config_id_fails_at_schema_layer(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        # Omitting `sandboxConfigId` is now a schema-level violation; GraphQL
+        # rejects before the resolver runs. No language seeding needed because
+        # validation fails before any row lookup.
+        result = await gql_client.execute(
+            _CREATE_CODE_EVALUATOR,
+            variables={
+                "input": {
+                    "name": "missing-sandbox",
+                    "language": "PYTHON",
+                    "sourceCode": "def evaluate(output):\n    return {'score': 1.0}",
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                }
+            },
+        )
+        # Schema-level rejection: Strawberry raises
+        # `Field 'sandboxConfigId' of required type 'ID!' was not provided.`
+        # before the resolver runs. The test client sanitizes the surface
+        # message to "an unexpected error occurred" but the presence of
+        # errors with data=None proves the schema-layer gate fired.
+        assert result.errors, "Expected schema-level error when sandboxConfigId is omitted"
+        assert result.data is None
+
+    async def test_language_mismatch_returns_bad_request_verbatim(
+        self,
+        gql_client: AsyncGraphQLClient,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        # The fixture sandbox_config is language=PYTHON; pass TYPESCRIPT to
+        # trigger the new mirror of patch's language-match check.
+        result = await gql_client.execute(
+            _CREATE_CODE_EVALUATOR,
+            variables={
+                "input": {
+                    "name": "lang-mismatch",
+                    "language": "TYPESCRIPT",
+                    "sourceCode": ("function evaluate({ output }) { return { score: 1.0 }; }"),
+                    "sandboxConfigId": _config_global_id(sandbox_config.id),
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                }
+            },
+        )
+        assert result.errors, "Expected BadRequest on language mismatch"
+        joined = "\n".join(err.message for err in result.errors)
+        assert "Evaluator language does not match sandbox config language" in joined
+
+    async def test_missing_sandbox_config_row_returns_bad_request_with_id(
+        self,
+        gql_client: AsyncGraphQLClient,
+        seed_sandbox_providers: None,
+    ) -> None:
+        # Reference an id that no row exists for; the resolver raises
+        # BadRequest("Sandbox config not found: <id>") — stricter than patch's
+        # silent no-op, matching evaluators.py:853 runtime semantics.
+        absent_id = str(GlobalID("SandboxConfig", "999999"))
+        result = await gql_client.execute(
+            _CREATE_CODE_EVALUATOR,
+            variables={
+                "input": {
+                    "name": "missing-sandbox-row",
+                    "language": "PYTHON",
+                    "sourceCode": "def evaluate(output):\n    return {'score': 1.0}",
+                    "sandboxConfigId": absent_id,
+                    "inputMapping": {"literalMapping": {}, "pathMapping": {}},
+                }
+            },
+        )
+        assert result.errors, "Expected BadRequest when sandbox config row is missing"
+        joined = "\n".join(err.message for err in result.errors)
+        assert "Sandbox config not found" in joined

@@ -111,6 +111,21 @@ class CodeEvaluatorContext(_ChatContextBase):
     evaluator_node_id: str | None = Field(default=None, alias="evaluatorNodeId")
 
 
+class DatasetContext(_ChatContextBase):
+    """Dataset the user is currently viewing or has bound to a workflow.
+
+    Carries the dataset's relay node id and, when known, the active version
+    node id. The agent uses these IDs as a persistence/routing signal — when
+    creating a code evaluator the dataset binding is chained onto the create
+    mutation; the dataset schema itself is open and is discovered by the agent
+    on demand via the GraphQL surface.
+    """
+
+    type: Literal["dataset"]
+    dataset_node_id: str = Field(alias="datasetNodeId")
+    dataset_version_node_id: str | None = Field(default=None, alias="datasetVersionNodeId")
+
+
 class GraphQLContext(_ChatContextBase):
     """GraphQL runtime state."""
 
@@ -134,6 +149,7 @@ class ChatContext(
             | AgentSpanContext
             | PlaygroundContext
             | CodeEvaluatorContext
+            | DatasetContext
             | GraphQLContext
             | WebAccessContext,
             Field(discriminator="type"),
@@ -151,6 +167,7 @@ class ResolvedContexts:
     span: AgentSpanContext | None = None
     playground: PlaygroundContext | None = None
     code_evaluator: CodeEvaluatorContext | None = None
+    dataset: DatasetContext | None = None
     graphql: GraphQLContext | None = None
     web_access: WebAccessContext | None = None
 
@@ -165,6 +182,8 @@ def resolve_contexts(contexts: list[ChatContext]) -> ResolvedContexts:
             resolved.playground = context_value
         elif isinstance(context_value, CodeEvaluatorContext):
             resolved.code_evaluator = context_value
+        elif isinstance(context_value, DatasetContext):
+            resolved.dataset = context_value
         elif isinstance(context_value, ProjectContext):
             resolved.project = context_value
         elif isinstance(context_value, TraceContext):

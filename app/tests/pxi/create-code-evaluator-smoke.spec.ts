@@ -244,16 +244,22 @@ async function readCreatedEvaluatorIdFromToolPart(
 /**
  * PXI direct-authoring smoke test.
  *
- * Exercises create_code_evaluator — the browser-executed external tool that
- * dispatches the `createCodeEvaluator` GraphQL mutation directly via authFetch
- * (no `graphql.mutations` capability needed). Covers (1) the happy path with
- * the fixture's default `capabilities.graphql.mutations: false`, (2) the
- * verbatim BadRequest surface for an unparseable `evaluate()` signature, and
- * (3) the inverse-context case where the create tool is suppressed because a
- * code-evaluator form is mounted (dual side of the draft-tools gating).
+ * Originally exercised the pre-rework one-shot `create_code_evaluator` flow
+ * where the tool dispatched `createCodeEvaluator` directly via authFetch.
+ * After the chassis collapse, `create_code_evaluator` produces a
+ * `PendingCodeEvaluatorCreate` proposal that the user must accept before any
+ * mutation runs. The post-chassis equivalents of tests 1-3 live in
+ * `code-evaluator-create-proposal.spec.ts`; tests 1-3 here are gated with
+ * `test.fixme()` pending the harness fix tracked at
+ * https://github.com/Arize-ai/phoenix/issues/TBD because their assertion
+ * surfaces (e.g. checking the one-shot Result chip, `sandbox_config_id: null`
+ * happy path) reference a contract that no longer exists. Test 4
+ * (create_code_evaluator absent when a code-evaluator form is mounted) still
+ * asserts a live contract — the EditCodeEvaluatorDraftCapability dual side —
+ * and remains executable.
  */
 test.describe("PXI create code-evaluator smoke", () => {
-  test("happy-path creates evaluator without graphql.mutations capability", async ({
+  test.fixme("happy-path creates evaluator without graphql.mutations capability", async ({
     browserName,
     page,
     pxi,
@@ -354,7 +360,7 @@ test.describe("PXI create code-evaluator smoke", () => {
     assertPxiOutcome(outcome);
   });
 
-  test("BadRequest surfaces unparseable evaluate() signature verbatim", async ({
+  test.fixme("BadRequest surfaces unparseable evaluate() signature verbatim", async ({
     browserName,
     page,
     pxi,
@@ -450,7 +456,7 @@ test.describe("PXI create code-evaluator smoke", () => {
     assertPxiOutcome(outcome);
   });
 
-  test("authors a single freeform output_config that round-trips via GraphQL", async ({
+  test.fixme("authors a single freeform output_config that round-trips via GraphQL", async ({
     browserName,
     page,
     pxi,

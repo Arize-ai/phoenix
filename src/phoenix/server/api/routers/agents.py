@@ -51,9 +51,9 @@ from phoenix.server.agents.exceptions import AgentError, SummarizationError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.summarization import summarize_messages
-from phoenix.server.agents.types import AgentDependencies, AgentOutput
+from phoenix.server.agents.types import AgentDependencies, AgentOutput, SandboxAvailability
 from phoenix.server.api.openapi.registry import register_openapi_schema
-from phoenix.server.bearer_auth import is_authenticated
+from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer, detached_otel_context
 
@@ -334,6 +334,22 @@ async def _persist_db_traces(
     session.add_all(db_traces)
 
 
+async def _has_usable_sandbox(session: AsyncSession) -> bool:
+    """Return True when at least one enabled sandbox config sits under an
+    enabled sandbox provider."""
+    stmt = (
+        select(models.SandboxConfig.id)
+        .join(
+            models.SandboxProvider,
+            models.SandboxProvider.backend_type == models.SandboxConfig.backend_type,
+        )
+        .where(models.SandboxConfig.enabled.is_(True))
+        .where(models.SandboxProvider.enabled.is_(True))
+        .limit(1)
+    )
+    return (await session.scalar(stmt)) is not None
+
+
 async def _ensure_project_exists(db: DbSessionFactory, project_name: str) -> int:
     """Resolve project_id by name, creating the project row if missing."""
     async with db() as session:
@@ -458,6 +474,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     decrypt=request.app.state.decrypt,
                     tracer_provider=tracer_provider,
                 )
+                has_usable_sandbox = await _has_usable_sandbox(session)
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
@@ -485,9 +502,16 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             run_input=body,
             accept=request.headers.get("accept"),
         )
+        is_viewer = False
+        if "user" in request.scope:
+            user = request.user
+            if isinstance(user, PhoenixUser):
+                is_viewer = user.is_viewer
         deps = AgentDependencies(
             contexts=resolved_contexts,
             edit_permission=body.edit_permission,
+            is_viewer=is_viewer,
+            sandbox_availability=SandboxAvailability(has_usable=has_usable_sandbox),
         )
 
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:

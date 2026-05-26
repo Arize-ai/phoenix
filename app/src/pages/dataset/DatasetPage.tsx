@@ -4,6 +4,7 @@ import { graphql, usePreloadedQuery } from "react-relay";
 import { Outlet, useLoaderData, useLocation, useNavigate } from "react-router";
 import invariant from "tiny-invariant";
 
+import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import {
   Counter,
   Flex,
@@ -151,6 +152,22 @@ function DatasetPageContent({
   dataset: DatasetPageQuery$data["dataset"];
 }) {
   const datasetId = dataset.id;
+  const latestVersionId = useMemo(() => {
+    const versions = dataset.latestVersions;
+    if (versions?.edges && versions.edges.length > 0) {
+      return versions.edges[0].version.id ?? null;
+    }
+    return null;
+  }, [dataset]);
+  const advertisedDatasetContext = useMemo(
+    () => ({
+      type: "dataset" as const,
+      datasetNodeId: datasetId,
+      datasetVersionNodeId: latestVersionId,
+    }),
+    [datasetId, latestVersionId]
+  );
+  useAdvertiseAgentContext(advertisedDatasetContext);
 
   const navigate = useNavigate();
   const onTabChange = useCallback(

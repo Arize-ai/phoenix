@@ -81,6 +81,10 @@ export function applyDraftOperations({
         next = { ...next, name: operation.name };
         break;
       }
+      case "set_output_configs": {
+        next = { ...next, outputConfigs: operation.outputConfigs };
+        break;
+      }
     }
   }
   next = { ...next, revision: buildDraftRevision(next) };

@@ -9,17 +9,19 @@ describe("parseCreateCodeEvaluatorInput", () => {
       name: "hallucination-check",
       source_code: "def evaluate(output):\n    return 1.0",
       language: "PYTHON",
+      sandbox_config_id: "U2FuZGJveENvbmZpZzox",
     });
     expect(parsed).not.toBeNull();
     const input = parsed as CreateCodeEvaluatorInput;
     expect(input.name).toBe("hallucination-check");
     expect(input.sourceCode).toBe("def evaluate(output):\n    return 1.0");
     expect(input.language).toBe("PYTHON");
+    expect(input.sandboxConfigId).toBe("U2FuZGJveENvbmZpZzox");
     expect(input.inputMapping).toEqual({
       pathMapping: {},
       literalMapping: {},
     });
-    expect(input.sandboxConfigId).toBeNull();
+    expect(input.outputConfigs).toEqual([]);
   });
 
   it("preserves camelCase keys and a provided input_mapping", () => {
@@ -49,6 +51,16 @@ describe("parseCreateCodeEvaluatorInput", () => {
       name: "foo",
       sourceCode: "def evaluate(output): return 1",
       language: "RUBY",
+      sandboxConfigId: "U2FuZGJveENvbmZpZzox",
+    });
+    expect(parsed).toBeNull();
+  });
+
+  it("rejects missing sandbox_config_id", () => {
+    const parsed = parseCreateCodeEvaluatorInput({
+      name: "foo",
+      sourceCode: "def evaluate(output): return 1",
+      language: "PYTHON",
     });
     expect(parsed).toBeNull();
   });
@@ -57,36 +69,46 @@ describe("parseCreateCodeEvaluatorInput", () => {
     const parsed = parseCreateCodeEvaluatorInput({
       name: "foo",
       language: "PYTHON",
+      sandbox_config_id: "U2FuZGJveENvbmZpZzox",
     });
     expect(parsed).toBeNull();
   });
 
-  it("defaults outputConfig to null when omitted", () => {
+  it("defaults outputConfigs to an empty array when omitted", () => {
     const parsed = parseCreateCodeEvaluatorInput({
       name: "no-output-config",
       source_code: "def evaluate(output):\n    return 1.0",
       language: "PYTHON",
+      sandbox_config_id: "U2FuZGJveENvbmZpZzox",
     });
     expect(parsed).not.toBeNull();
     const input = parsed as CreateCodeEvaluatorInput;
-    expect(input.outputConfig).toBeNull();
+    expect(input.outputConfigs).toEqual([]);
   });
 
-  it("parses a fully specified freeform output_config with snake_case aliases", () => {
+  it("parses a fully specified freeform output_config draft", () => {
     const parsed = parseCreateCodeEvaluatorInput({
       name: "score-quality",
       source_code: "def evaluate(output):\n    return 0.5",
       language: "PYTHON",
-      output_config: {
-        optimization_direction: "MAXIMIZE",
-        threshold: 0.7,
-        lower_bound: 0,
-        upper_bound: 1,
-      },
+      sandbox_config_id: "U2FuZGJveENvbmZpZzox",
+      output_configs: [
+        {
+          kind: "freeform",
+          name: "score-quality",
+          optimizationDirection: "MAXIMIZE",
+          threshold: 0.7,
+          lowerBound: 0,
+          upperBound: 1,
+        },
+      ],
     });
     expect(parsed).not.toBeNull();
     const input = parsed as CreateCodeEvaluatorInput;
-    expect(input.outputConfig).toEqual({
+    expect(input.outputConfigs).toHaveLength(1);
+    expect(input.outputConfigs[0]).toEqual({
+      kind: "freeform",
+      name: "score-quality",
       optimizationDirection: "MAXIMIZE",
       threshold: 0.7,
       lowerBound: 0,
@@ -94,33 +116,48 @@ describe("parseCreateCodeEvaluatorInput", () => {
     });
   });
 
-  it("parses a partial freeform output_config with camelCase keys", () => {
+  it("parses a classification output_config draft with values", () => {
     const parsed = parseCreateCodeEvaluatorInput({
-      name: "score-partial",
-      sourceCode: "def evaluate(output):\n    return 0.0",
+      name: "label",
+      sourceCode: "def evaluate(output): return 'a'",
       language: "PYTHON",
-      outputConfig: {
-        optimizationDirection: "NONE",
-      },
+      sandboxConfigId: "U2FuZGJveENvbmZpZzox",
+      outputConfigs: [
+        {
+          kind: "classification",
+          name: "label",
+          optimizationDirection: "NONE",
+          values: [
+            { label: "good", score: 1 },
+            { label: "bad" },
+          ],
+        },
+      ],
     });
     expect(parsed).not.toBeNull();
     const input = parsed as CreateCodeEvaluatorInput;
-    expect(input.outputConfig).not.toBeNull();
-    expect(input.outputConfig?.optimizationDirection).toBe("NONE");
-    // Unset numeric fields normalize to null (no defaults injected).
-    expect(input.outputConfig?.threshold ?? null).toBeNull();
-    expect(input.outputConfig?.lowerBound ?? null).toBeNull();
-    expect(input.outputConfig?.upperBound ?? null).toBeNull();
+    expect(input.outputConfigs[0]).toMatchObject({
+      kind: "classification",
+      values: [
+        { label: "good", score: 1 },
+        { label: "bad" },
+      ],
+    });
   });
 
-  it("rejects an invalid optimization_direction inside output_config", () => {
+  it("rejects an invalid optimization direction in an output_configs entry", () => {
     const parsed = parseCreateCodeEvaluatorInput({
       name: "score-bad-direction",
       source_code: "def evaluate(output):\n    return 0.0",
       language: "PYTHON",
-      output_config: {
-        optimization_direction: "SIDEWAYS",
-      },
+      sandbox_config_id: "U2FuZGJveENvbmZpZzox",
+      output_configs: [
+        {
+          kind: "freeform",
+          name: "score-bad-direction",
+          optimization_direction: "SIDEWAYS",
+        },
+      ],
     });
     expect(parsed).toBeNull();
   });

@@ -1,3 +1,7 @@
+import type {
+  OutputConfigDraft,
+  PendingCodeEvaluatorCreateDatasetSnapshot,
+} from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { authFetch } from "@phoenix/authFetch";
 import { BASE_URL } from "@phoenix/config";
 
@@ -14,6 +18,16 @@ export const CREATE_CODE_EVALUATOR_MUTATION = `mutation createCodeEvaluator(
   }
 }`;
 
+export const CREATE_DATASET_CODE_EVALUATOR_MUTATION = `mutation createDatasetCodeEvaluator(
+  $input: CreateDatasetCodeEvaluatorInput!
+) {
+  createDatasetCodeEvaluator(input: $input) {
+    evaluator {
+      id
+    }
+  }
+}`;
+
 type GraphQLError = { message?: unknown };
 
 type CreateCodeEvaluatorResponse = {
@@ -25,10 +39,20 @@ type CreateCodeEvaluatorResponse = {
   errors?: GraphQLError[];
 };
 
+type CreateDatasetCodeEvaluatorResponse = {
+  data?: {
+    createDatasetCodeEvaluator?: {
+      evaluator?: { id: string };
+    };
+  } | null;
+  errors?: GraphQLError[];
+};
+
 export type CreateCodeEvaluatorDispatchResult =
   | {
       ok: true;
       evaluator: { id: string; name: string };
+      datasetEvaluatorId: string | null;
     }
   | {
       ok: false;
@@ -45,58 +69,64 @@ function formatGraphqlErrors(errors: GraphQLError[]): string {
     .join("\n");
 }
 
-/** Posts `createCodeEvaluator` and surfaces GraphQL errors verbatim. */
-export async function dispatchCreateCodeEvaluator(
-  input: CreateCodeEvaluatorInput
-): Promise<CreateCodeEvaluatorDispatchResult> {
-  // Mirror the code-evaluator form: when the model supplied a freeform output
-  // config, persist it as a one-element `output_configs` array whose
-  // freeform-variant `name` reuses the evaluator's own name. Omitted entirely
-  // when the model left `outputConfig` null so today's no-config callers see
-  // unchanged GraphQL traffic.
-  const outputConfigsVariable =
-    input.outputConfig !== null
-      ? {
-          outputConfigs: [
-            {
-              freeform: {
-                name: input.name,
-                optimizationDirection:
-                  input.outputConfig.optimizationDirection ?? null,
-                threshold: input.outputConfig.threshold ?? null,
-                lowerBound: input.outputConfig.lowerBound ?? null,
-                upperBound: input.outputConfig.upperBound ?? null,
-              },
-            },
-          ],
-        }
-      : {};
+function outputConfigDraftToGraphQL(
+  draft: OutputConfigDraft,
+  evaluatorName: string
+): Record<string, unknown> {
+  const name = draft.name && draft.name.length > 0 ? draft.name : evaluatorName;
+  switch (draft.kind) {
+    case "classification":
+      return {
+        categorical: {
+          name,
+          optimizationDirection: draft.optimizationDirection,
+          values: draft.values.map((value) => ({
+            label: value.label,
+            score: value.score ?? null,
+          })),
+        },
+      };
+    case "continuous":
+      return {
+        continuous: {
+          name,
+          optimizationDirection: draft.optimizationDirection,
+          lowerBound: draft.lowerBound ?? null,
+          upperBound: draft.upperBound ?? null,
+        },
+      };
+    case "freeform":
+      return {
+        freeform: {
+          name,
+          optimizationDirection: draft.optimizationDirection,
+          threshold: draft.threshold ?? null,
+          lowerBound: draft.lowerBound ?? null,
+          upperBound: draft.upperBound ?? null,
+        },
+      };
+  }
+}
 
-  const variables = {
-    input: {
-      name: input.name,
-      sourceCode: input.sourceCode,
-      language: input.language,
-      ...(input.description !== undefined
-        ? { description: input.description }
-        : {}),
-      ...(input.sandboxConfigId !== null
-        ? { sandboxConfigId: input.sandboxConfigId }
-        : {}),
-      inputMapping: input.inputMapping,
-      ...outputConfigsVariable,
-    },
-  };
+function buildOutputConfigsVariable(
+  drafts: OutputConfigDraft[],
+  evaluatorName: string
+): Record<string, unknown>[] {
+  return drafts.map((draft) =>
+    outputConfigDraftToGraphQL(draft, evaluatorName)
+  );
+}
 
+async function postGraphQL(
+  query: string,
+  variables: Record<string, unknown>
+): Promise<{ ok: true; payload: unknown } | { ok: false; error: string }> {
   let response: Response;
   try {
     response = await authFetch(`${BASE_URL}/graphql`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        query: CREATE_CODE_EVALUATOR_MUTATION,
-        variables,
-      }),
+      body: JSON.stringify({ query, variables }),
     });
   } catch (error) {
     return {
@@ -112,18 +142,60 @@ export async function dispatchCreateCodeEvaluator(
     };
   }
 
-  let payload: CreateCodeEvaluatorResponse;
   try {
-    payload = (await response.json()) as CreateCodeEvaluatorResponse;
+    return { ok: true, payload: await response.json() };
   } catch {
     return { ok: false, error: "Failed to parse GraphQL response as JSON" };
   }
+}
 
-  if (payload.errors && payload.errors.length > 0) {
-    return { ok: false, error: formatGraphqlErrors(payload.errors) };
+/**
+ * Dispatch `createCodeEvaluator` and, when `datasetContext` is non-null,
+ * chain `createDatasetCodeEvaluator`. The commit handler is the single owner
+ * of dataset-context snapshot semantics — dispatch never reads live state.
+ */
+export async function dispatchCreateCodeEvaluator(
+  input: CreateCodeEvaluatorInput,
+  options: {
+    datasetContext: PendingCodeEvaluatorCreateDatasetSnapshot | null;
+    connectionIds: string[];
   }
+): Promise<CreateCodeEvaluatorDispatchResult> {
+  const outputConfigsVariable = buildOutputConfigsVariable(
+    input.outputConfigs,
+    input.name
+  );
 
-  const evaluator = payload.data?.createCodeEvaluator?.evaluator;
+  const standaloneVariables = {
+    input: {
+      name: input.name,
+      sourceCode: input.sourceCode,
+      language: input.language,
+      ...(input.description !== undefined
+        ? { description: input.description }
+        : {}),
+      sandboxConfigId: input.sandboxConfigId,
+      inputMapping: input.inputMapping,
+      ...(outputConfigsVariable.length > 0
+        ? { outputConfigs: outputConfigsVariable }
+        : {}),
+    },
+  };
+
+  const standaloneResult = await postGraphQL(
+    CREATE_CODE_EVALUATOR_MUTATION,
+    standaloneVariables
+  );
+  if (!standaloneResult.ok) return standaloneResult;
+  const standalonePayload =
+    standaloneResult.payload as CreateCodeEvaluatorResponse;
+  if (standalonePayload.errors && standalonePayload.errors.length > 0) {
+    return {
+      ok: false,
+      error: formatGraphqlErrors(standalonePayload.errors),
+    };
+  }
+  const evaluator = standalonePayload.data?.createCodeEvaluator?.evaluator;
   if (!evaluator) {
     return {
       ok: false,
@@ -131,5 +203,51 @@ export async function dispatchCreateCodeEvaluator(
     };
   }
 
-  return { ok: true, evaluator };
+  if (options.datasetContext === null) {
+    return { ok: true, evaluator, datasetEvaluatorId: null };
+  }
+
+  const datasetVariables = {
+    input: {
+      datasetId: options.datasetContext.datasetNodeId,
+      evaluatorId: evaluator.id,
+      name: input.name,
+      inputMapping: input.inputMapping,
+      ...(outputConfigsVariable.length > 0
+        ? { outputConfigs: outputConfigsVariable }
+        : {}),
+      ...(input.description !== undefined
+        ? { description: input.description }
+        : {}),
+    },
+    ...(options.connectionIds.length > 0
+      ? { connections: options.connectionIds }
+      : {}),
+  };
+
+  const datasetResult = await postGraphQL(
+    CREATE_DATASET_CODE_EVALUATOR_MUTATION,
+    datasetVariables
+  );
+  if (!datasetResult.ok) return datasetResult;
+  const datasetPayload =
+    datasetResult.payload as CreateDatasetCodeEvaluatorResponse;
+  if (datasetPayload.errors && datasetPayload.errors.length > 0) {
+    return { ok: false, error: formatGraphqlErrors(datasetPayload.errors) };
+  }
+  const datasetEvaluator =
+    datasetPayload.data?.createDatasetCodeEvaluator?.evaluator;
+  if (!datasetEvaluator) {
+    return {
+      ok: false,
+      error:
+        "createDatasetCodeEvaluator response missing dataset evaluator payload",
+    };
+  }
+
+  return {
+    ok: true,
+    evaluator,
+    datasetEvaluatorId: datasetEvaluator.id,
+  };
 }

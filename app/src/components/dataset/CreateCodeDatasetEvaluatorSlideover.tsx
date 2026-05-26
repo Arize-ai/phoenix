@@ -212,6 +212,10 @@ const CreateCodeEvaluatorDialog = ({
     const normalizedName = (globalName || name).trim();
     const normalizedDescription = description.trim() || undefined;
     invariant(normalizedName, "evaluator name is required");
+    invariant(
+      payload.sandboxConfigId,
+      "sandbox config is required to create a code evaluator"
+    );
 
     createCodeEvaluator({
       variables: {

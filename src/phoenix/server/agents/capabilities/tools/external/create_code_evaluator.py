@@ -50,44 +50,41 @@ INPUT_MAPPING_SCHEMA: dict[str, Any] = {
     "additionalProperties": False,
 }
 
-OUTPUT_CONFIG_SCHEMA: dict[str, Any] = {
-    "type": ["object", "null"],
+OUTPUT_CONFIG_DRAFT_SCHEMA: dict[str, Any] = {
+    "type": "object",
     "description": (
-        "Optional freeform output config describing the evaluator's "
-        "annotation surface. Mirrors the code-evaluator form, which exposes "
-        "exactly one freeform config and reuses the evaluator's `name` as "
-        "the annotation config name. Do NOT include a `name` field here — "
-        "the evaluator's `name` is used automatically. Omit this block when "
-        "the user has not described the annotation surface; the form can "
-        "finish it later."
+        "One output config the evaluator produces. Discriminated by `kind`: "
+        "`classification` uses `values`; `continuous` uses `lowerBound`/`upperBound`; "
+        "`freeform` uses `threshold` and optional bounds. The evaluator's "
+        "`name` is used as the annotation surface name unless overridden."
     ),
     "properties": {
-        "optimization_direction": {
-            "type": ["string", "null"],
-            "enum": ["MINIMIZE", "MAXIMIZE", "NONE", None],
-            "description": (
-                "Direction to optimize the numeric score. MAXIMIZE means "
-                "higher scores are better; MINIMIZE means lower scores are "
-                "better; NONE leaves the score unranked."
-            ),
+        "kind": {
+            "type": "string",
+            "enum": ["classification", "continuous", "freeform"],
         },
-        "threshold": {
-            "type": ["number", "null"],
-            "description": (
-                "Optional score cutoff combined with `optimization_direction` "
-                "to visually distinguish good from bad scores. Has no effect "
-                "when `optimization_direction` is NONE."
-            ),
+        "name": {"type": "string"},
+        "optimizationDirection": {
+            "type": "string",
+            "enum": ["MINIMIZE", "MAXIMIZE", "NONE"],
         },
-        "lower_bound": {
-            "type": ["number", "null"],
-            "description": "Optional lowest score the evaluator is expected to produce.",
+        "values": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "label": {"type": "string"},
+                    "score": {"type": ["number", "null"]},
+                },
+                "required": ["label"],
+                "additionalProperties": False,
+            },
         },
-        "upper_bound": {
-            "type": ["number", "null"],
-            "description": "Optional highest score the evaluator is expected to produce.",
-        },
+        "threshold": {"type": ["number", "null"]},
+        "lowerBound": {"type": ["number", "null"]},
+        "upperBound": {"type": ["number", "null"]},
     },
+    "required": ["kind", "name", "optimizationDirection"],
     "additionalProperties": False,
 }
 
@@ -122,21 +119,32 @@ PARAMETERS: dict[str, Any] = {
             "description": "Optional human-readable evaluator description.",
         },
         "sandbox_config_id": {
-            "type": ["string", "null"],
+            "type": "string",
             "description": (
-                "Optional Relay node ID of a sandbox configuration whose "
-                "language matches `language`. Discover candidates via "
+                "Required Relay node ID of a sandbox configuration whose "
+                "`language` matches `language`. Discover candidates via "
                 "`query { sandboxProviders { configs { id name language } } }`; "
-                "there is no top-level `sandboxConfigs` query."
+                "there is no top-level `sandboxConfigs` query. If no "
+                "compatible sandbox config exists, tell the user to configure "
+                "one at /settings/sandboxes instead of guessing an ID."
             ),
         },
         "input_mapping": {
             **INPUT_MAPPING_SCHEMA,
             "default": {"literalMapping": {}, "pathMapping": {}},
         },
-        "output_config": OUTPUT_CONFIG_SCHEMA,
+        "output_configs": {
+            "type": "array",
+            "description": (
+                "Optional list of output configs the evaluator produces. Each "
+                "entry follows the kind-discriminated OutputConfigDraft shape. "
+                "Omit when the user has not described the annotation surface."
+            ),
+            "items": OUTPUT_CONFIG_DRAFT_SCHEMA,
+            "default": [],
+        },
     },
-    "required": ["name", "source_code", "language"],
+    "required": ["name", "source_code", "language", "sandbox_config_id"],
     "additionalProperties": False,
 }
 
@@ -164,4 +172,8 @@ class CreateCodeEvaluatorCapability(AbstractDynamicCapability[AgentDependencies]
         return _instructions
 
     def include_for_run(self, ctx: RunContext[AgentDependencies]) -> bool:
-        return ctx.deps.contexts.code_evaluator is None
+        return (
+            ctx.deps.contexts.code_evaluator is None
+            and not ctx.deps.is_viewer
+            and ctx.deps.sandbox_availability.has_usable
+        )

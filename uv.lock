@@ -669,6 +669,7 @@ dev = [
     { name = "uvloop", marker = "sys_platform != 'win32'" },
     { name = "vcrpy" },
     { name = "vercel" },
+    { name = "wasmtime" },
 ]
 
 [package.metadata]
@@ -858,6 +859,7 @@ dev = [
     { name = "uvloop", marker = "sys_platform != 'win32'" },
     { name = "vcrpy" },
     { name = "vercel", specifier = ">=0.5.8" },
+    { name = "wasmtime", specifier = ">=15.0" },
 ]
 
 [[package]]

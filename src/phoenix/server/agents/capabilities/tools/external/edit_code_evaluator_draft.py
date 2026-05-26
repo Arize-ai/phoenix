@@ -29,6 +29,43 @@ DESCRIPTION = (
     '{"type":"set_input_mapping","inputMapping":{"pathMapping":{},"literalMapping":{}}}.'
 )
 
+OUTPUT_CONFIG_DRAFT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "description": (
+        "One output config the evaluator produces. Discriminated by `kind`: "
+        "`classification` uses `values`; `continuous` uses `lowerBound`/`upperBound`; "
+        "`freeform` uses `threshold` and optional bounds."
+    ),
+    "properties": {
+        "kind": {
+            "type": "string",
+            "enum": ["classification", "continuous", "freeform"],
+        },
+        "name": {"type": "string"},
+        "optimizationDirection": {
+            "type": "string",
+            "enum": ["MINIMIZE", "MAXIMIZE", "NONE"],
+        },
+        "values": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "label": {"type": "string"},
+                    "score": {"type": ["number", "null"]},
+                },
+                "required": ["label"],
+                "additionalProperties": False,
+            },
+        },
+        "threshold": {"type": ["number", "null"]},
+        "lowerBound": {"type": ["number", "null"]},
+        "upperBound": {"type": ["number", "null"]},
+    },
+    "required": ["kind", "name", "optimizationDirection"],
+    "additionalProperties": False,
+}
+
 OPERATION_SCHEMA: dict[str, Any] = {
     "type": "object",
     "description": (
@@ -36,7 +73,8 @@ OPERATION_SCHEMA: dict[str, Any] = {
         "set_source_code requires sourceCode; set_language requires language "
         "(rejected in edit mode); set_sandbox_config requires sandboxConfigId "
         "(may be null to clear); set_input_mapping requires inputMapping; "
-        "set_description requires description; set_name requires name."
+        "set_description requires description; set_name requires name; "
+        "set_output_configs requires outputConfigs (whole-list replace)."
     ),
     "properties": {
         "type": {
@@ -48,6 +86,7 @@ OPERATION_SCHEMA: dict[str, Any] = {
                 "set_input_mapping",
                 "set_description",
                 "set_name",
+                "set_output_configs",
             ],
             "description": "The operation kind.",
         },
@@ -101,6 +140,14 @@ OPERATION_SCHEMA: dict[str, Any] = {
             "type": "string",
             "description": "Replacement user-facing evaluator name.",
         },
+        "outputConfigs": {
+            "type": "array",
+            "description": (
+                "Whole-list replacement of the evaluator's output configs. "
+                "Each entry follows the kind-discriminated OutputConfigDraft."
+            ),
+            "items": OUTPUT_CONFIG_DRAFT_SCHEMA,
+        },
     },
     "required": ["type"],
     "additionalProperties": False,
@@ -150,4 +197,4 @@ class EditCodeEvaluatorDraftCapability(AbstractDynamicCapability[AgentDependenci
         return _instructions
 
     def include_for_run(self, ctx: RunContext[AgentDependencies]) -> bool:
-        return ctx.deps.contexts.code_evaluator is not None
+        return ctx.deps.contexts.code_evaluator is not None and not ctx.deps.is_viewer

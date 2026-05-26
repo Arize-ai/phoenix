@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { getAgentToolUIBehavior } from "@phoenix/agent/extensions/toolRegistry";
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
+import { CREATE_CODE_EVALUATOR_TOOL_NAME } from "@phoenix/agent/tools/createCodeEvaluator";
 import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
 import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { Icon, Icons } from "@phoenix/components";
@@ -652,6 +653,13 @@ function getToolPresentation(
         details: <BatchSpanAnnotateToolDetails part={part} />,
       };
     case EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME:
+      return {
+        preview: getEditCodeEvaluatorDraftToolPreview(part),
+        stateLabel: formatEditCodeEvaluatorDraftState(part),
+        statusVariant,
+        details: <EditCodeEvaluatorDraftToolDetails part={part} />,
+      };
+    case CREATE_CODE_EVALUATOR_TOOL_NAME:
       return {
         preview: getEditCodeEvaluatorDraftToolPreview(part),
         stateLabel: formatEditCodeEvaluatorDraftState(part),

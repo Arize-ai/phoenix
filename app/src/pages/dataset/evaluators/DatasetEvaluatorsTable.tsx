@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router";
 import { graphql } from "relay-runtime";
 import invariant from "tiny-invariant";
 
+import { useAdvertiseAgentEvaluatorConnections } from "@phoenix/agent/context/useAdvertiseAgentEvaluatorConnections";
 import type { DatasetEvaluatorsPage_builtInEvaluators$data } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsPage_builtInEvaluators.graphql";
 import type { DatasetEvaluatorsTable_evaluators$key } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsTable_evaluators.graphql";
 import { useDatasetEvaluatorsFilterContext } from "@phoenix/pages/evaluators/DatasetEvaluatorsFilterProvider";
@@ -111,6 +112,12 @@ export const DatasetEvaluatorsTable = ({
     }
     return EMPTY_CONNECTION_IDS;
   }, [data]);
+  const datasetEvaluatorConnectionId = data.datasetEvaluators.__id ?? null;
+  useAdvertiseAgentEvaluatorConnections(
+    datasetEvaluatorConnectionId
+      ? { datasetEvaluatorConnectionId }
+      : null
+  );
   return (
     <BaseDatasetEvaluatorsTable
       rowReferences={data.datasetEvaluators.edges.map((edge) => edge.node)}

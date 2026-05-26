@@ -290,6 +290,19 @@ function PlaygroundContent() {
   );
   useAdvertiseAgentContext(advertisedPlaygroundContext);
 
+  const advertisedDatasetContext = useMemo(
+    () =>
+      datasetId
+        ? {
+            type: "dataset" as const,
+            datasetNodeId: datasetId,
+            datasetVersionNodeId: null,
+          }
+        : null,
+    [datasetId]
+  );
+  useAdvertiseAgentContext(advertisedDatasetContext);
+
   useEffect(() => {
     const {
       registerClientAction,

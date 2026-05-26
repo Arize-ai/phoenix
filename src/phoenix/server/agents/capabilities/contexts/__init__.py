@@ -8,6 +8,7 @@ from phoenix.server.agents.capabilities.contexts.app import AppContextCapability
 from phoenix.server.agents.capabilities.contexts.code_evaluator import (
     CodeEvaluatorContextCapability,
 )
+from phoenix.server.agents.capabilities.contexts.dataset import DatasetContextCapability
 from phoenix.server.agents.capabilities.contexts.graphql_mutations import (
     GraphQLMutationsCapability,
 )
@@ -37,6 +38,7 @@ def get_context_capability_function(
         SpanContextCapability(instructions=prompts.span_context),
         PlaygroundContextCapability(instructions=prompts.playground_context),
         CodeEvaluatorContextCapability(instructions=prompts.code_evaluator_context),
+        DatasetContextCapability(instructions=prompts.dataset_context),
         GraphQLMutationsCapability(instructions=prompts.graphql_mutations),
     ]
 
@@ -50,6 +52,7 @@ def get_context_capability_function(
 __all__ = [
     "AppContextCapability",
     "CodeEvaluatorContextCapability",
+    "DatasetContextCapability",
     "GraphQLMutationsCapability",
     "PlaygroundContextCapability",
     "ProjectContextCapability",

@@ -7,8 +7,10 @@ import {
   type CodeEvaluatorDraftSnapshot,
   EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   parseEditCodeEvaluatorDraftInput,
+  type PendingCodeEvaluatorCreate,
   type PendingCodeEvaluatorEdit,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
+import { CREATE_CODE_EVALUATOR_TOOL_NAME } from "@phoenix/agent/tools/createCodeEvaluator";
 import { Button, Flex, View } from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
@@ -42,9 +44,16 @@ const editCodeEvaluatorToolDetailsCSS = css`
   }
 `;
 
+type PendingCodeEvaluatorChassis =
+  | PendingCodeEvaluatorEdit
+  | PendingCodeEvaluatorCreate;
+
 export function getEditCodeEvaluatorDraftToolPreview(
   part: ToolInvocationPart
 ): string {
+  if (part.type.endsWith(CREATE_CODE_EVALUATOR_TOOL_NAME)) {
+    return "1 proposed evaluator";
+  }
   const input = parseEditCodeEvaluatorDraftInput(part.input);
   if (!input) return "";
   return `${input.operations.length} proposed edit${input.operations.length === 1 ? "" : "s"}`;
@@ -70,17 +79,17 @@ export function EditCodeEvaluatorDraftToolDetails({
 }: {
   part: ToolInvocationPart;
 }) {
-  const pendingEdit = useAgentContext(
-    (state) =>
-      state.pendingCodeEvaluatorEditsByToolCallId[part.toolCallId] ?? null
-  );
-  const input = parseEditCodeEvaluatorDraftInput(part.input);
+  const pending = useAgentContext((state) => {
+    return (
+      state.pendingCodeEvaluatorEditsByToolCallId[part.toolCallId] ??
+      state.pendingCodeEvaluatorCreatesByToolCallId[part.toolCallId] ??
+      null
+    );
+  });
 
   return (
     <div className="tool-part__body" css={editCodeEvaluatorToolDetailsCSS}>
-      {pendingEdit ? (
-        <PendingEditCodeEvaluatorDraftDiff pendingEdit={pendingEdit} />
-      ) : null}
+      {pending ? <PendingCodeEvaluatorDraftDiff pending={pending} /> : null}
       {part.state === "output-available" ? (
         <>
           <ToolPartLabel>Result</ToolPartLabel>
@@ -95,7 +104,7 @@ export function EditCodeEvaluatorDraftToolDetails({
           <ToolPartCodeBlock>{part.errorText ?? ""}</ToolPartCodeBlock>
         </>
       ) : null}
-      {!pendingEdit && input && part.state === "input-available" ? (
+      {!pending && part.state === "input-available" ? (
         <>
           <ToolPartLabel>{EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME}</ToolPartLabel>
           <ToolPartCodeBlock>
@@ -107,30 +116,29 @@ export function EditCodeEvaluatorDraftToolDetails({
   );
 }
 
-function PendingEditCodeEvaluatorDraftDiff({
-  pendingEdit,
+function PendingCodeEvaluatorDraftDiff({
+  pending,
 }: {
-  pendingEdit: PendingCodeEvaluatorEdit;
+  pending: PendingCodeEvaluatorChassis;
 }) {
   const { theme } = useTheme();
-  const canRespond = Boolean(pendingEdit.accept && pendingEdit.reject);
+  const canRespond = Boolean(pending.accept && pending.reject);
   const fileName =
-    pendingEdit.before.mode === "edit"
-      ? `code-evaluator-${pendingEdit.before.evaluatorNodeId ?? "draft"}.txt`
+    pending.before.mode === "edit"
+      ? `code-evaluator-${pending.before.evaluatorNodeId ?? "draft"}.txt`
       : "code-evaluator-draft.txt";
   const fileDiff = useMemo(() => {
     return parseDiffFromFile(
-      { name: fileName, contents: draftSnapshotToText(pendingEdit.before) },
-      { name: fileName, contents: draftSnapshotToText(pendingEdit.after) }
+      { name: fileName, contents: draftSnapshotToText(pending.before) },
+      { name: fileName, contents: draftSnapshotToText(pending.after) }
     );
-  }, [pendingEdit, fileName]);
+  }, [pending, fileName]);
 
   return (
     <Flex direction="column" gap="size-100">
       <div className="edit-code-evaluator__header">
         <span className="edit-code-evaluator__header-label">
-          Proposed diff for code-evaluator draft ({pendingEdit.before.mode}{" "}
-          mode)
+          Proposed diff for code-evaluator draft ({pending.before.mode} mode)
         </span>
       </div>
       <div className="edit-code-evaluator__diff">
@@ -171,21 +179,21 @@ function PendingEditCodeEvaluatorDraftDiff({
             size="S"
             variant="primary"
             isDisabled={!canRespond}
-            onPress={() => void pendingEdit.accept?.()}
+            onPress={() => void pending.accept?.()}
           >
             Accept
           </Button>
           <Button
             size="S"
             isDisabled={!canRespond}
-            onPress={() => void pendingEdit.reject?.()}
+            onPress={() => void pending.reject?.()}
           >
             Reject
           </Button>
         </Flex>
         {!canRespond ? (
           <ToolPartCodeBlock>
-            This edit was proposed in an earlier session and can&apos;t be
+            This proposal was made in an earlier session and can&apos;t be
             applied here. Re-run your request to have PXI propose it again.
           </ToolPartCodeBlock>
         ) : null}
@@ -201,6 +209,7 @@ function draftSnapshotToText(snapshot: CodeEvaluatorDraftSnapshot): string {
     `language: ${snapshot.language}`,
     `sandboxConfigId: ${snapshot.sandboxConfigId ?? "null"}`,
     `inputMapping: ${JSON.stringify(snapshot.inputMapping, null, 2)}`,
+    `outputConfigs: ${JSON.stringify(snapshot.outputConfigs, null, 2)}`,
     `sourceCode:\n${snapshot.sourceCode}`,
   ].join("\n\n");
 }

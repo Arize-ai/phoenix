@@ -326,8 +326,8 @@ class CreateCodeEvaluatorInput:
     name: Identifier
     source_code: str
     language: Language
+    sandbox_config_id: GlobalID
     description: Optional[str] = None
-    sandbox_config_id: Optional[GlobalID] = None
     output_configs: Optional[list[AnnotationConfigInput]] = None
     input_mapping: Optional[EvaluatorInputMappingInput] = None
 
@@ -1270,11 +1270,14 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
-                sandbox_config_id = None
-                if input.sandbox_config_id is not None:
-                    sandbox_config_id = from_global_id_with_expected_type(
-                        input.sandbox_config_id, SandboxConfig.__name__
-                    )
+                sandbox_config_id = from_global_id_with_expected_type(
+                    input.sandbox_config_id, SandboxConfig.__name__
+                )
+                target_cfg = await session.get(models.SandboxConfig, sandbox_config_id)
+                if target_cfg is None:
+                    raise BadRequest(f"Sandbox config not found: {input.sandbox_config_id}")
+                if target_cfg.language != input.language.value:
+                    raise BadRequest("Evaluator language does not match sandbox config language")
 
                 row = models.CodeEvaluator(
                     name=validated_name,

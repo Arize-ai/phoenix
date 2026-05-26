@@ -18,6 +18,7 @@ import {
   type EditCodeEvaluatorDraftOperation,
   READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   type SandboxConfigIndex,
+  toOutputConfigDrafts,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import {
   Alert,
@@ -261,6 +262,7 @@ export const EditCodeEvaluatorDialogContent = ({
         sourceCode: local.sourceCode,
         sandboxConfigId: local.sandboxConfigId,
         inputMapping: state.evaluator.inputMapping,
+        outputConfigs: toOutputConfigDrafts(state.outputConfigs),
       };
       return {
         ...snapshotWithoutRevision,

@@ -25,8 +25,9 @@
     - `literalMapping` keys are evaluator parameter names; values are literal scalars passed straight through.
   </input_mapping>
   <sandbox_config>
-    - `sandbox_config_id` is optional. When the user wants a specific sandbox, discover candidates by querying `sandboxProviders { configs { id name language } }` — there is no top-level `sandboxConfigs` query.
-    - The sandbox config's `language` must match the evaluator `language`. If unsure, omit `sandbox_config_id` and let the platform default apply.
+    - `sandbox_config_id` is REQUIRED. A code evaluator without a sandbox cannot run at experiment time and will be rejected at create time.
+    - Discover candidates by querying `sandboxProviders { configs { id name language } }` — there is no top-level `sandboxConfigs` query. Pick a config whose `language` matches the evaluator `language`.
+    - If no compatible sandbox config exists, do NOT invent or reuse an unrelated ID. Tell the user to set one up at `/settings/sandboxes` and stop the create.
   </sandbox_config>
   <output_config>
     - `output_config` is optional. Include it when the user describes the annotation surface (optimization direction, score threshold, expected score range); omit it otherwise so the user can finish the surface in the form.

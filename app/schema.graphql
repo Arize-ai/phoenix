@@ -628,8 +628,8 @@ input CreateCodeEvaluatorInput {
   name: Identifier!
   sourceCode: String!
   language: Language!
+  sandboxConfigId: ID!
   description: String = null
-  sandboxConfigId: ID = null
   outputConfigs: [AnnotationConfigInput!] = null
   inputMapping: EvaluatorInputMappingInput = null
 }

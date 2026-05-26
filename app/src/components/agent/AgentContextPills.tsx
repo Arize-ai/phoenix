@@ -44,6 +44,8 @@ function contextLabel(context: AgentContext): string {
       return "Span";
     case "code_evaluator":
       return "Code Evaluator";
+    case "dataset":
+      return "Dataset";
   }
 }
 
@@ -63,6 +65,8 @@ function contextDetail(context: AgentContext): string | undefined {
       return context.evaluatorNodeId
         ? truncateId(context.evaluatorNodeId)
         : "new";
+    case "dataset":
+      return truncateId(context.datasetNodeId);
     default:
       return undefined;
   }

@@ -1,0 +1,13 @@
+<phoenix_dataset_context>
+  <description>A Phoenix dataset is currently in view. The user may ask you to author an evaluator, sample examples, or otherwise reason about this dataset.</description>
+  <dataset_node_id format="phoenix_node_id">{{ dataset.dataset_node_id }}</dataset_node_id>
+{% if dataset.dataset_version_node_id %}
+  <dataset_version_node_id format="phoenix_node_id">{{ dataset.dataset_version_node_id }}</dataset_version_node_id>
+{% endif %}
+  <schema_discovery>Datasets are open-schema: each example carries arbitrary `input`, `output`, and `metadata` JSON. When you need example shape to ground a draft, query the dataset's examples via the GraphQL `node(id: $datasetNodeId)` surface rather than assuming a fixed schema.</schema_discovery>
+{% if not has_usable_sandbox %}
+  <sandbox_unavailable>
+    No usable sandbox configuration is currently enabled for this Phoenix instance, so creating a code evaluator on this dataset is not possible right now. If the user asks to create one, direct them to visit `/settings/sandboxes` to enable a sandbox provider first.
+  </sandbox_unavailable>
+{% endif %}
+</phoenix_dataset_context>

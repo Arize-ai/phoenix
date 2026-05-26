@@ -22,6 +22,7 @@ function makeSnapshot(
     sourceCode: "def evaluate(output):\n    return 1.0",
     sandboxConfigId: null,
     inputMapping: { pathMapping: {}, literalMapping: {} },
+    outputConfigs: [],
     ...overrides,
   };
   return { ...base, revision: buildDraftRevision(base) };
