@@ -561,6 +561,8 @@ class TestListProjectTraces:
                     cumulative_error_count=0,
                     cumulative_llm_token_count_prompt=100,
                     cumulative_llm_token_count_completion=50,
+                    llm_token_count_prompt=100,
+                    llm_token_count_completion=50,
                 )
                 .returning(models.Span.id)
             )
