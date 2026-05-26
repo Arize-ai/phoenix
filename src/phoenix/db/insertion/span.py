@@ -9,7 +9,7 @@ from phoenix.db import models
 from phoenix.db.helpers import SupportedSQLDialect
 from phoenix.db.insertion.helpers import OnConflict, insert_on_conflict
 from phoenix.trace.attributes import get_attribute_value
-from phoenix.trace.schemas import Span, SpanStatusCode
+from phoenix.trace.schemas import Span, SpanKind, SpanStatusCode
 
 
 class SpanInsertionEvent(NamedTuple):
@@ -104,30 +104,23 @@ async def insert_span(
     )
 
     cumulative_error_count = int(span.status_code is SpanStatusCode.ERROR)
-    try:
-        cumulative_llm_token_count_prompt = int(
-            get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_PROMPT) or 0
-        )
-    except BaseException:
-        cumulative_llm_token_count_prompt = 0
-    try:
-        cumulative_llm_token_count_completion = int(
-            get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_COMPLETION) or 0
-        )
-    except BaseException:
-        cumulative_llm_token_count_completion = 0
-    try:
-        llm_token_count_prompt = int(
-            get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_PROMPT) or 0
-        )
-    except BaseException:
-        llm_token_count_prompt = 0
-    try:
-        llm_token_count_completion = int(
-            get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_COMPLETION) or 0
-        )
-    except BaseException:
-        llm_token_count_completion = 0
+    llm_token_count_prompt: Optional[int] = None
+    llm_token_count_completion: Optional[int] = None
+    if span.span_kind is SpanKind.LLM:
+        try:
+            llm_token_count_prompt = int(
+                get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_PROMPT) or 0
+            )
+        except BaseException:
+            llm_token_count_prompt = 0
+        try:
+            llm_token_count_completion = int(
+                get_attribute_value(span.attributes, SpanAttributes.LLM_TOKEN_COUNT_COMPLETION) or 0
+            )
+        except BaseException:
+            llm_token_count_completion = 0
+    cumulative_llm_token_count_prompt = llm_token_count_prompt or 0
+    cumulative_llm_token_count_completion = llm_token_count_completion or 0
     if accumulation := (
         await session.execute(
             select(
