@@ -15,6 +15,7 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  TimeRangeChartScrubber,
   useBinInterval,
   useBinTimeTickFormatter,
 } from "@phoenix/components/chart";
@@ -40,7 +41,7 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
       <ChartTooltip>
         {label && (
           <Text weight="heavy" size="S">{`${fullTimeFormatter(
-            new Date(String(label))
+            new Date(Number(label))
           )}`}</Text>
         )}
         {payload.map((entry, index) => {
@@ -80,6 +81,7 @@ function AnnotationLine({ name }: { name: string }) {
 export function SpanAnnotationScoreTimeSeries({
   projectId,
   timeRange,
+  onTimeRangeSelected,
 }: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
@@ -129,8 +131,8 @@ export function SpanAnnotationScoreTimeSeries({
 
   // Transform the data to have one property per annotation label
   const chartData = timeSeriesData.map((datum) => {
-    const transformed: Record<string, string | number | Date> = {
-      timestamp: new Date(datum.timestamp),
+    const transformed: Record<string, string | number> = {
+      timestamp: new Date(datum.timestamp).getTime(),
     };
 
     datum.scoresWithLabels.forEach((scoreWithLabel) => {
@@ -144,44 +146,52 @@ export function SpanAnnotationScoreTimeSeries({
   const interval = useBinInterval({ scale });
 
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart
-        data={chartData}
-        margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
-        syncId={"projectMetrics"}
-      >
-        <XAxis
-          {...defaultXAxisProps}
-          dataKey="timestamp"
-          tickFormatter={(x) => timeTickFormatter(x)}
-          interval={interval}
-        />
-        <YAxis
-          width={55}
-          tickFormatter={(x) => formatFloat(x)}
-          label={{
-            value: "Score",
-            angle: -90,
-            dx: -28,
-            style: {
-              textAnchor: "middle",
-              fill: "var(--chart-axis-label-color)",
-            },
-          }}
-          {...defaultYAxisProps}
-        />
-        <CartesianGrid vertical={false} {...defaultCartesianGridProps} />
-        <Tooltip
-          content={TooltipContent}
-          cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
-        />
+    <TimeRangeChartScrubber onTimeRangeSelected={onTimeRangeSelected}>
+      {({ chartProps }) => (
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={chartData}
+            margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
+            syncId={"projectMetrics"}
+            {...chartProps}
+          >
+            <XAxis
+              {...defaultXAxisProps}
+              dataKey="timestamp"
+              type="number"
+              scale="time"
+              domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
+              tickFormatter={(x) => timeTickFormatter(new Date(x))}
+              interval={interval}
+            />
+            <YAxis
+              width={55}
+              tickFormatter={(x) => formatFloat(x)}
+              label={{
+                value: "Score",
+                angle: -90,
+                dx: -28,
+                style: {
+                  textAnchor: "middle",
+                  fill: "var(--chart-axis-label-color)",
+                },
+              }}
+              {...defaultYAxisProps}
+            />
+            <CartesianGrid vertical={false} {...defaultCartesianGridProps} />
+            <Tooltip
+              content={TooltipContent}
+              cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+            />
 
-        {annotationNames.map((name) => {
-          return <AnnotationLine key={name} name={name} />;
-        })}
+            {annotationNames.map((name) => {
+              return <AnnotationLine key={name} name={name} />;
+            })}
 
-        <Legend {...defaultLegendProps} iconType="line" iconSize={8} />
-      </LineChart>
-    </ResponsiveContainer>
+            <Legend {...defaultLegendProps} iconType="line" iconSize={8} />
+          </LineChart>
+        </ResponsiveContainer>
+      )}
+    </TimeRangeChartScrubber>
   );
 }

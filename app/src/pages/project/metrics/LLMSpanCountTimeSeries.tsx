@@ -15,6 +15,7 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  TimeRangeChartScrubber,
   defaultCartesianGridProps,
   defaultLegendProps,
   defaultXAxisProps,
@@ -51,7 +52,7 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
       <ChartTooltip>
         {label && (
           <Text weight="heavy" size="S">{`${fullTimeFormatter(
-            new Date(String(label))
+            new Date(Number(label))
           )}`}</Text>
         )}
         <ChartTooltipItem
@@ -82,6 +83,7 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
 export function LLMSpanCountTimeSeries({
   projectId,
   timeRange,
+  onTimeRangeSelected,
 }: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
@@ -128,7 +130,7 @@ export function LLMSpanCountTimeSeries({
 
   const chartData = (data.project.spanCountTimeSeries?.data ?? []).map(
     (datum) => ({
-      timestamp: datum.timestamp,
+      timestamp: new Date(datum.timestamp).getTime(),
       error: datum.errorCount,
       unset: datum.unsetCount,
       ok: datum.okCount,
@@ -141,49 +143,61 @@ export function LLMSpanCountTimeSeries({
   const SemanticChartColors = useSemanticChartColors();
   const interval = useBinInterval({ scale });
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <BarChart
-        data={chartData}
-        margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
-        barSize={10}
-        syncId={"projectMetrics"}
-      >
-        <XAxis
-          {...defaultXAxisProps}
-          dataKey="timestamp"
-          interval={interval}
-          tickFormatter={(x) => timeTickFormatter(new Date(x))}
-        />
-        <YAxis
-          {...defaultYAxisProps}
-          width={55}
-          tickFormatter={(x) => intShortFormatter(x)}
-          label={{
-            value: "Count",
-            angle: -90,
-            dx: -28,
-            style: {
-              textAnchor: "middle",
-              fill: "var(--chart-axis-label-color)",
-            },
-          }}
-        />
-        <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
-        <Tooltip
-          content={TooltipContent}
-          // TODO formalize this
-          cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
-        />
-        <Bar dataKey="error" stackId="a" fill={SemanticChartColors.danger} />
-        <Bar dataKey="unset" stackId="a" fill={colors.gray500} />
-        <Bar
-          dataKey="ok"
-          stackId="a"
-          fill={colors.gray300}
-          radius={[2, 2, 0, 0]}
-        />
-        <Legend {...defaultLegendProps} iconType="circle" iconSize={8} />
-      </BarChart>
-    </ResponsiveContainer>
+    <TimeRangeChartScrubber onTimeRangeSelected={onTimeRangeSelected}>
+      {({ chartProps }) => (
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={chartData}
+            margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
+            barSize={10}
+            syncId={"projectMetrics"}
+            {...chartProps}
+          >
+            <XAxis
+              {...defaultXAxisProps}
+              dataKey="timestamp"
+              type="number"
+              scale="time"
+              domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
+              interval={interval}
+              tickFormatter={(x) => timeTickFormatter(new Date(x))}
+            />
+            <YAxis
+              {...defaultYAxisProps}
+              width={55}
+              tickFormatter={(x) => intShortFormatter(x)}
+              label={{
+                value: "Count",
+                angle: -90,
+                dx: -28,
+                style: {
+                  textAnchor: "middle",
+                  fill: "var(--chart-axis-label-color)",
+                },
+              }}
+            />
+            <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
+            <Tooltip
+              content={TooltipContent}
+              // TODO formalize this
+              cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+            />
+            <Bar
+              dataKey="error"
+              stackId="a"
+              fill={SemanticChartColors.danger}
+            />
+            <Bar dataKey="unset" stackId="a" fill={colors.gray500} />
+            <Bar
+              dataKey="ok"
+              stackId="a"
+              fill={colors.gray300}
+              radius={[2, 2, 0, 0]}
+            />
+            <Legend {...defaultLegendProps} iconType="circle" iconSize={8} />
+          </BarChart>
+        </ResponsiveContainer>
+      )}
+    </TimeRangeChartScrubber>
   );
 }

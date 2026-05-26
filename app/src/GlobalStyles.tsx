@@ -1389,12 +1389,24 @@ const chartCSS = css`
     --chart-axis-text-color: var(--global-text-color-700);
     --chart-axis-label-color: var(--global-text-color-700);
     --chart-legend-text-color: var(--global-text-color-900);
+    --chart-time-range-scrubber-fill-color: rgba(
+      var(--global-color-blue-700-rgb),
+      0.2
+    );
+    --chart-time-range-scrubber-stroke-color: var(--global-color-blue-900);
   }
   .theme--dark {
     --chart-tooltip-cursor-fill-color: rgba(255, 255, 255, 0.2);
   }
   .theme--light {
     --chart-tooltip-cursor-fill-color: rgba(0, 0, 0, 0.05);
+  }
+  .recharts-surface:focus:not(:focus-visible) {
+    outline: none;
+  }
+  .recharts-surface:focus-visible {
+    outline: 2px solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
   }
 `;
 

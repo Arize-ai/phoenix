@@ -16,6 +16,7 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  TimeRangeChartScrubber,
   useBinInterval,
   useBinTimeTickFormatter,
   useSequentialChartColors,
@@ -41,7 +42,7 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
       <ChartTooltip>
         {label && (
           <Text weight="heavy" size="S">{`${fullTimeFormatter(
-            new Date(String(label))
+            new Date(Number(label))
           )}`}</Text>
         )}
         {payload.map((entry, index) => {
@@ -66,6 +67,7 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
 export function TraceLatencyPercentilesTimeSeries({
   projectId,
   timeRange,
+  onTimeRangeSelected,
 }: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
@@ -114,7 +116,7 @@ export function TraceLatencyPercentilesTimeSeries({
   const chartData = (
     data.project.traceLatencyMsPercentileTimeSeries?.data ?? []
   ).map((datum) => ({
-    timestamp: new Date(datum.timestamp),
+    timestamp: new Date(datum.timestamp).getTime(),
     p50: typeof datum.p50 === "number" ? datum.p50 / 1000 : null,
     p75: typeof datum.p75 === "number" ? datum.p75 / 1000 : null,
     p90: typeof datum.p90 === "number" ? datum.p90 / 1000 : null,
@@ -147,114 +149,122 @@ export function TraceLatencyPercentilesTimeSeries({
   };
 
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <ComposedChart
-        data={chartData}
-        margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
-        syncId={"projectMetrics"}
-      >
-        <CartesianGrid vertical={false} {...defaultCartesianGridProps} />
-        <XAxis
-          {...defaultXAxisProps}
-          dataKey="timestamp"
-          interval={interval}
-          tickFormatter={(x) => timeTickFormatter(x)}
-        />
-        <YAxis
-          width={70}
-          tickFormatter={(x) => intFormatter(x)}
-          label={{
-            value: "Latency (s)",
-            angle: -90,
-            dx: -28,
-            style: {
-              textAnchor: "middle",
-              fill: "var(--chart-axis-label-color)",
-            },
-          }}
-          {...defaultYAxisProps}
-        />
-        <Line
-          type="monotone"
-          dataKey="p50"
-          stroke={colors.blue400}
-          strokeWidth={1}
-          activeDot={{ r: 4 }}
-          name="P50"
-          hide={chartState["p50"]}
-        />
-        <Line
-          type="monotone"
-          dataKey="p75"
-          stroke={colors.blue400}
-          strokeWidth={1}
-          dot={{ r: 2 }}
-          activeDot={{ r: 4 }}
-          name="P75"
-          hide={chartState["p75"]}
-        />
-        <Line
-          type="monotone"
-          dataKey="p90"
-          stroke={colors.blue500}
-          strokeWidth={2}
-          dot={{ r: 2 }}
-          activeDot={{ r: 4 }}
-          name="P90"
-          hide={chartState["p90"]}
-        />
-        <Line
-          type="monotone"
-          dataKey="p95"
-          stroke={colors.blue600}
-          strokeWidth={2}
-          dot={{ r: 2 }}
-          activeDot={{ r: 4 }}
-          name="P95"
-          hide={chartState["p95"]}
-        />
-        <Line
-          type="monotone"
-          dataKey="p99"
-          stroke={colors.blue700}
-          strokeWidth={2}
-          dot={{ r: 2 }}
-          activeDot={{ r: 4 }}
-          name="P99"
-          hide={chartState["p99"]}
-        />
-        <Line
-          type="monotone"
-          dataKey="p999"
-          stroke={colors.blue800}
-          strokeWidth={2}
-          dot={{ r: 2 }}
-          activeDot={{ r: 4 }}
-          name="P99.9"
-          hide={chartState["p999"]}
-        />
-        <Line
-          type="monotone"
-          dataKey="max"
-          stroke={colors.blue900}
-          strokeWidth={2}
-          strokeDasharray={"5 5"}
-          dot={{ r: 2 }}
-          activeDot={{ r: 4 }}
-          name="Max"
-          hide={chartState["max"]}
-        />
-        <Legend
-          {...defaultLegendProps}
-          iconType="line"
-          iconSize={8}
-          onClick={selectChartItem}
-        />
-        <Tooltip
-          content={TooltipContent}
-          cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
-        />
-      </ComposedChart>
-    </ResponsiveContainer>
+    <TimeRangeChartScrubber onTimeRangeSelected={onTimeRangeSelected}>
+      {({ chartProps }) => (
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart
+            data={chartData}
+            margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
+            syncId={"projectMetrics"}
+            {...chartProps}
+          >
+            <CartesianGrid vertical={false} {...defaultCartesianGridProps} />
+            <XAxis
+              {...defaultXAxisProps}
+              dataKey="timestamp"
+              type="number"
+              scale="time"
+              domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
+              interval={interval}
+              tickFormatter={(x) => timeTickFormatter(new Date(x))}
+            />
+            <YAxis
+              width={70}
+              tickFormatter={(x) => intFormatter(x)}
+              label={{
+                value: "Latency (s)",
+                angle: -90,
+                dx: -28,
+                style: {
+                  textAnchor: "middle",
+                  fill: "var(--chart-axis-label-color)",
+                },
+              }}
+              {...defaultYAxisProps}
+            />
+            <Line
+              type="monotone"
+              dataKey="p50"
+              stroke={colors.blue400}
+              strokeWidth={1}
+              activeDot={{ r: 4 }}
+              name="P50"
+              hide={chartState["p50"]}
+            />
+            <Line
+              type="monotone"
+              dataKey="p75"
+              stroke={colors.blue400}
+              strokeWidth={1}
+              dot={{ r: 2 }}
+              activeDot={{ r: 4 }}
+              name="P75"
+              hide={chartState["p75"]}
+            />
+            <Line
+              type="monotone"
+              dataKey="p90"
+              stroke={colors.blue500}
+              strokeWidth={2}
+              dot={{ r: 2 }}
+              activeDot={{ r: 4 }}
+              name="P90"
+              hide={chartState["p90"]}
+            />
+            <Line
+              type="monotone"
+              dataKey="p95"
+              stroke={colors.blue600}
+              strokeWidth={2}
+              dot={{ r: 2 }}
+              activeDot={{ r: 4 }}
+              name="P95"
+              hide={chartState["p95"]}
+            />
+            <Line
+              type="monotone"
+              dataKey="p99"
+              stroke={colors.blue700}
+              strokeWidth={2}
+              dot={{ r: 2 }}
+              activeDot={{ r: 4 }}
+              name="P99"
+              hide={chartState["p99"]}
+            />
+            <Line
+              type="monotone"
+              dataKey="p999"
+              stroke={colors.blue800}
+              strokeWidth={2}
+              dot={{ r: 2 }}
+              activeDot={{ r: 4 }}
+              name="P99.9"
+              hide={chartState["p999"]}
+            />
+            <Line
+              type="monotone"
+              dataKey="max"
+              stroke={colors.blue900}
+              strokeWidth={2}
+              strokeDasharray={"5 5"}
+              dot={{ r: 2 }}
+              activeDot={{ r: 4 }}
+              name="Max"
+              hide={chartState["max"]}
+            />
+            <Legend
+              {...defaultLegendProps}
+              iconType="line"
+              iconSize={8}
+              onClick={selectChartItem}
+            />
+            <Tooltip
+              content={TooltipContent}
+              cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      )}
+    </TimeRangeChartScrubber>
   );
 }
