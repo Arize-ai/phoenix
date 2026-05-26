@@ -34,15 +34,16 @@ function SpansTabContent({
 
 export const ProjectSpansPage = () => {
   const { spansQueryReference } = useProjectPageQueryReferenceContext();
-  if (!spansQueryReference) {
-    return null;
-  }
   return (
     <TracingRoot>
       <TracePaginationProvider>
         <SpanFiltersProvider>
           <Suspense fallback={<Loading />}>
-            <SpansTabContent queryReference={spansQueryReference} />
+            {spansQueryReference ? (
+              <SpansTabContent queryReference={spansQueryReference} />
+            ) : (
+              <Loading />
+            )}
           </Suspense>
         </SpanFiltersProvider>
         <Suspense>

@@ -1389,14 +1389,13 @@ const chartCSS = css`
     --chart-axis-text-color: var(--global-text-color-700);
     --chart-axis-label-color: var(--global-text-color-700);
     --chart-legend-text-color: var(--global-text-color-900);
-    --chart-time-range-scrubber-fill-color: var(--global-color-primary-100);
-    --chart-time-range-scrubber-stroke-color: var(--global-color-primary-300);
+    --chart-time-range-brush-fill-color: var(--global-color-primary-100);
   }
   .theme--dark {
-    --chart-tooltip-cursor-fill-color: rgba(255, 255, 255, 0.2);
+    --chart-tooltip-cursor-fill-color: rgba(255, 255, 255, 0.05);
   }
   .theme--light {
-    --chart-tooltip-cursor-fill-color: rgba(0, 0, 0, 0.05);
+    --chart-tooltip-cursor-fill-color: rgba(0, 0, 0, 0.02);
   }
   .recharts-surface:focus:not(:focus-visible) {
     outline: none;

@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import React, { memo, startTransition, Suspense, useMemo, useRef } from "react";
+import React, { memo, Suspense, useMemo, useRef } from "react";
 import { useParams } from "react-router";
 
 import {
@@ -175,16 +175,7 @@ export function ProjectMetricsPage() {
   }
 
   const epochTimeRange = useClosedTimeRange();
-  const { setTimeRange } = useTimeRange();
-  const onTimeRangeSelected = (timeRange: TimeRange) => {
-    startTransition(() => {
-      setTimeRange({
-        timeRangeKey: "custom",
-        start: timeRange.start,
-        end: timeRange.end,
-      });
-    });
-  };
+  const { setCustomTimeRange } = useTimeRange();
 
   return (
     <main
@@ -198,7 +189,7 @@ export function ProjectMetricsPage() {
       <MetricPanels
         projectId={projectId}
         epochTimeRange={epochTimeRange}
-        onTimeRangeSelected={onTimeRangeSelected}
+        onTimeRangeSelected={setCustomTimeRange}
       />
     </main>
   );

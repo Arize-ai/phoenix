@@ -15,7 +15,7 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
-  TimeRangeChartScrubber,
+  TimeRangeChartBrush,
   defaultCartesianGridProps,
   defaultLegendProps,
   defaultXAxisProps,
@@ -67,7 +67,6 @@ export function LLMSpanErrorsTimeSeries({
   onTimeRangeSelected,
 }: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
-  const interval = useBinInterval({ scale });
   const utcOffsetMinutes = useUTCOffsetMinutes();
 
   const data = useLazyLoadQuery<LLMSpanErrorsTimeSeriesQuery>(
@@ -116,10 +115,11 @@ export function LLMSpanErrorsTimeSeries({
   );
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
+  const interval = useBinInterval({ scale, binCount: chartData.length });
 
   const SemanticChartColors = useSemanticChartColors();
   return (
-    <TimeRangeChartScrubber onTimeRangeSelected={onTimeRangeSelected}>
+    <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
       {({ chartProps }) => (
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
@@ -169,6 +169,6 @@ export function LLMSpanErrorsTimeSeries({
           </BarChart>
         </ResponsiveContainer>
       )}
-    </TimeRangeChartScrubber>
+    </TimeRangeChartBrush>
   );
 }

@@ -15,7 +15,7 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
-  TimeRangeChartScrubber,
+  TimeRangeChartBrush,
   defaultCartesianGridProps,
   defaultLegendProps,
   defaultXAxisProps,
@@ -116,11 +116,11 @@ export function TraceErrorsTimeSeries({
   );
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
-  const interval = useBinInterval({ scale });
+  const interval = useBinInterval({ scale, binCount: chartData.length });
 
   const SemanticChartColors = useSemanticChartColors();
   return (
-    <TimeRangeChartScrubber onTimeRangeSelected={onTimeRangeSelected}>
+    <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
       {({ chartProps }) => (
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
@@ -170,6 +170,6 @@ export function TraceErrorsTimeSeries({
           </BarChart>
         </ResponsiveContainer>
       )}
-    </TimeRangeChartScrubber>
+    </TimeRangeChartBrush>
   );
 }

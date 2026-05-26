@@ -1,5 +1,6 @@
 import React, {
   createContext,
+  startTransition,
   useCallback,
   useEffect,
   useEffectEvent,
@@ -23,6 +24,11 @@ import {
 export type TimeRangeContextType = {
   timeRange: OpenTimeRangeWithKey;
   setTimeRange: (timeRange: OpenTimeRangeWithKey) => void;
+  /**
+   * Apply a closed time range as a custom selection. Wraps the state write in
+   * a transition so brush-driven updates do not block the input event.
+   */
+  setCustomTimeRange: (timeRange: TimeRange) => void;
 };
 
 export const TimeRangeContext = createContext<TimeRangeContextType | null>(
@@ -83,6 +89,19 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
     [setStoredLastNTimeRangeKey]
   );
 
+  const setCustomTimeRange = useCallback(
+    (timeRange: TimeRange) => {
+      startTransition(() => {
+        setTimeRange({
+          timeRangeKey: "custom",
+          start: timeRange.start,
+          end: timeRange.end,
+        });
+      });
+    },
+    [setTimeRange]
+  );
+
   useRegisterSetTimeRangeClientAction({ setTimeRange });
 
   return (
@@ -90,6 +109,7 @@ export function TimeRangeProvider({ children }: { children: React.ReactNode }) {
       value={{
         timeRange,
         setTimeRange,
+        setCustomTimeRange,
       }}
     >
       {children}

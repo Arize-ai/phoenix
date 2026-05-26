@@ -13,10 +13,11 @@ import {
   YAxis,
 } from "recharts";
 
-import { Text } from "@phoenix/components";
+import { Skeleton, Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  TimeRangeChartBrush,
   defaultCartesianGridProps,
   defaultXAxisProps,
   defaultYAxisProps,
@@ -39,6 +40,32 @@ const SPARKLINE_AXIS_STYLE = {
   fontSize: 10,
 };
 
+const SPARKLINE_SKELETON_BARS = [
+  { id: "start", height: 8 },
+  { id: "low-1", height: 10 },
+  { id: "low-2", height: 12 },
+  { id: "low-3", height: 9 },
+  { id: "peak-1", height: 46 },
+  { id: "low-4", height: 11 },
+  { id: "peak-2", height: 44 },
+  { id: "low-5", height: 12 },
+  { id: "peak-3", height: 50 },
+];
+
+function getTooltipLabelDate(label: unknown) {
+  if (label instanceof Date) {
+    return label;
+  }
+  if (typeof label === "number") {
+    return new Date(label);
+  }
+  const numericLabel = Number(label);
+  if (Number.isFinite(numericLabel)) {
+    return new Date(numericLabel);
+  }
+  return new Date(String(label));
+}
+
 function TooltipContent({ active, payload, label }: TooltipContentProps) {
   const { fullTimeFormatter } = useTimeFormatters();
   if (!active || !payload || !payload.length) return null;
@@ -50,7 +77,7 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
     <ChartTooltip>
       {label != null && (
         <Text weight="heavy" size="S">
-          {fullTimeFormatter(new Date(String(label)))}
+          {fullTimeFormatter(getTooltipLabelDate(label))}
         </Text>
       )}
       <ChartTooltipItem
@@ -71,7 +98,7 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
 
 export function ProjectTraceCountSparkline() {
   const { projectId } = useParams();
-  const { timeRange } = useTimeRange();
+  const { timeRange, setCustomTimeRange } = useTimeRange();
   const { fetchKey } = useStreamState();
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
@@ -116,7 +143,7 @@ export function ProjectTraceCountSparkline() {
   const chartData = useMemo(
     () =>
       (data.project.traceCountByStatusTimeSeries?.data ?? []).map((datum) => ({
-        timestamp: new Date(datum.timestamp),
+        timestamp: new Date(datum.timestamp).getTime(),
         ok: datum.okCount,
         error: datum.errorCount,
       })),
@@ -124,53 +151,89 @@ export function ProjectTraceCountSparkline() {
   );
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
-  const interval = useBinInterval({ scale });
+  const interval = useBinInterval({ scale, binCount: chartData.length });
   const colors = useSequentialChartColors();
   const semanticColors = useSemanticChartColors();
 
   return (
     <div css={sparklineCSS}>
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={chartData}
-          margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
-          barSize={6}
-        >
-          <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
-          <XAxis
-            {...defaultXAxisProps}
-            dataKey="timestamp"
-            interval={interval}
-            tickFormatter={(x) => timeTickFormatter(new Date(x))}
-            tickSize={3}
-            tickMargin={2}
-            height={16}
-            style={SPARKLINE_AXIS_STYLE}
-          />
-          <YAxis
-            {...defaultYAxisProps}
-            tickFormatter={(x) => intFormatter(x)}
-            axisLine={false}
-            tickSize={3}
-            width={24}
-            tickCount={3}
-            style={SPARKLINE_AXIS_STYLE}
-          />
-          <Tooltip
-            content={TooltipContent}
-            cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
-            allowEscapeViewBox={{ x: true, y: true }}
-            wrapperStyle={{ zIndex: 100 }}
-          />
-          <Bar dataKey="error" stackId="a" fill={semanticColors.danger} />
-          <Bar
-            dataKey="ok"
-            stackId="a"
-            fill={colors.gray300}
-            radius={[2, 2, 0, 0]}
-          />
-        </BarChart>
-      </ResponsiveContainer>
+      <TimeRangeChartBrush onTimeRangeSelected={setCustomTimeRange}>
+        {({ chartProps }) => (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={chartData}
+              margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
+              barSize={10}
+              {...chartProps}
+            >
+              <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
+              <XAxis
+                {...defaultXAxisProps}
+                dataKey="timestamp"
+                type="number"
+                scale="time"
+                domain={[
+                  timeRange.start?.getTime() ?? "dataMin",
+                  timeRange.end?.getTime() ?? "dataMax",
+                ]}
+                interval={interval}
+                tickFormatter={(x) => timeTickFormatter(new Date(x))}
+                tickSize={3}
+                tickMargin={2}
+                height={16}
+                style={SPARKLINE_AXIS_STYLE}
+              />
+              <YAxis
+                {...defaultYAxisProps}
+                tickFormatter={(x) => intFormatter(x)}
+                axisLine={false}
+                tickSize={3}
+                width={24}
+                tickCount={3}
+                style={SPARKLINE_AXIS_STYLE}
+              />
+              <Tooltip
+                content={TooltipContent}
+                cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+                allowEscapeViewBox={{ x: true, y: true }}
+                wrapperStyle={{ zIndex: 100 }}
+              />
+              <Bar dataKey="error" stackId="a" fill={semanticColors.danger} />
+              <Bar
+                dataKey="ok"
+                stackId="a"
+                fill={colors.gray300}
+                radius={[2, 2, 0, 0]}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </TimeRangeChartBrush>
+    </div>
+  );
+}
+
+export function ProjectTraceCountSparklineSkeleton() {
+  return (
+    <div css={sparklineCSS} aria-hidden="true">
+      <div css={sparklineSkeletonCSS}>
+        <div css={sparklineSkeletonGridCSS}>
+          <span />
+          <span />
+          <span />
+        </div>
+        <div css={sparklineSkeletonBarsCSS}>
+          {SPARKLINE_SKELETON_BARS.map((bar) => (
+            <Skeleton
+              key={bar.id}
+              width={10}
+              height={bar.height}
+              borderRadius="XS"
+              animation="wave"
+            />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -184,4 +247,36 @@ const sparklineCSS = css`
   .recharts-wrapper {
     overflow: visible !important;
   }
+`;
+
+const sparklineSkeletonCSS = css`
+  position: relative;
+  height: 100%;
+  width: 100%;
+`;
+
+const sparklineSkeletonGridCSS = css`
+  position: absolute;
+  inset: var(--global-dimension-static-size-50)
+    var(--global-dimension-static-size-50)
+    var(--global-dimension-static-size-200) 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+
+  span {
+    height: 1px;
+    border-top: 1px dashed var(--chart-cartesian-grid-stroke-color);
+  }
+`;
+
+const sparklineSkeletonBarsCSS = css`
+  position: absolute;
+  inset: var(--global-dimension-static-size-50)
+    var(--global-dimension-static-size-50)
+    var(--global-dimension-static-size-200)
+    var(--global-dimension-static-size-300);
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
 `;

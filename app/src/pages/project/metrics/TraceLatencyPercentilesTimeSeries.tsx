@@ -16,7 +16,7 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
-  TimeRangeChartScrubber,
+  TimeRangeChartBrush,
   useBinInterval,
   useBinTimeTickFormatter,
   useSequentialChartColors,
@@ -127,7 +127,7 @@ export function TraceLatencyPercentilesTimeSeries({
   }));
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
-  const interval = useBinInterval({ scale });
+  const interval = useBinInterval({ scale, binCount: chartData.length });
 
   const colors = useSequentialChartColors();
 
@@ -149,7 +149,7 @@ export function TraceLatencyPercentilesTimeSeries({
   };
 
   return (
-    <TimeRangeChartScrubber onTimeRangeSelected={onTimeRangeSelected}>
+    <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
       {({ chartProps }) => (
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
@@ -265,6 +265,6 @@ export function TraceLatencyPercentilesTimeSeries({
           </ComposedChart>
         </ResponsiveContainer>
       )}
-    </TimeRangeChartScrubber>
+    </TimeRangeChartBrush>
   );
 }

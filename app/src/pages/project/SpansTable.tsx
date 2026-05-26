@@ -35,7 +35,7 @@ import {
   Icon,
   Icons,
   Link,
-  Loading,
+  Skeleton,
   Text,
   TextErrorBoundaryFallback,
   ToggleButton,
@@ -61,6 +61,7 @@ import { SpanStatusCodeIcon } from "@phoenix/components/trace/SpanStatusCodeIcon
 import { SpanTokenCosts } from "@phoenix/components/trace/SpanTokenCosts";
 import { SpanTokenCount } from "@phoenix/components/trace/SpanTokenCount";
 import { SELECTED_SPAN_NODE_ID_PARAM } from "@phoenix/constants/searchParams";
+import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useProjectContext } from "@phoenix/contexts/ProjectContext";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTracingContext } from "@phoenix/contexts/TracingContext";
@@ -76,6 +77,10 @@ import type { SpansTableSpansQuery } from "./__generated__/SpansTableSpansQuery.
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import { ProjectFilterConfigButton } from "./ProjectFilterConfigButton";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
+import {
+  ProjectTraceCountSparkline,
+  ProjectTraceCountSparklineSkeleton,
+} from "./ProjectTraceCountSparkline";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { getVisibleSpanAnnotationColumnNames } from "./spanAnnotationUtils";
 import { SpanColumnSelector } from "./SpanColumnSelector";
@@ -180,6 +185,23 @@ export const MemoizedTableBody = React.memo(
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
 
+function SpansTableAsideSkeleton() {
+  return (
+    <View padding="size-200" overflow="hidden" height="100%" aria-hidden="true">
+      <Flex direction="column" gap="size-200" minWidth="size-3400">
+        <Skeleton width={96} height={20} animation="wave" />
+        <Skeleton width="100%" height={32} animation="wave" />
+        <Skeleton width={72} height={20} animation="wave" />
+        <Skeleton width={96} height={24} animation="wave" />
+        <Skeleton width={84} height={20} animation="wave" />
+        <Skeleton width={72} height={24} animation="wave" />
+        <Skeleton width={84} height={20} animation="wave" />
+        <Skeleton width={80} height={24} animation="wave" />
+      </Flex>
+    </View>
+  );
+}
+
 export function SpansTable(props: SpansTableProps) {
   const { fetchKey } = useStreamState();
   //we need a reference to the scrolling element for logic down below
@@ -190,6 +212,7 @@ export function SpansTable(props: SpansTableProps) {
   const [filterCondition, setFilterCondition] = useState<string>("");
   const { rootSpansOnly, setRootSpansOnly } = useSpanFilters();
   const projectId = useTracingContext((state) => state.projectId);
+  const isTracingUxEnabled = useFeatureFlag("tracing_ux");
 
   // Advertise the current rootSpansOnly state so the agent's context message
   // reflects whether the toggle is mounted on this tab.
@@ -847,6 +870,20 @@ export function SpansTable(props: SpansTableProps) {
     <Group orientation="horizontal" id="spans-table-layout">
       <Panel>
         <div css={spansTableCSS}>
+          {isTracingUxEnabled ? (
+            <View
+              paddingStart="size-200"
+              paddingEnd="size-200"
+              paddingTop="size-200"
+              paddingBottom="size-50"
+              flex="none"
+              overflow="visible"
+            >
+              <Suspense fallback={<ProjectTraceCountSparklineSkeleton />}>
+                <ProjectTraceCountSparkline />
+              </Suspense>
+            </View>
+          ) : null}
           <View
             paddingTop="size-100"
             paddingBottom="size-100"
@@ -1041,7 +1078,7 @@ export function SpansTable(props: SpansTableProps) {
       >
         {showTableAside ? (
           <ErrorBoundary fallback={TextErrorBoundaryFallback}>
-            <Suspense fallback={<Loading size="S" />}>
+            <Suspense fallback={<SpansTableAsideSkeleton />}>
               <SpansTableAside filterCondition={filterCondition} />
             </Suspense>
           </ErrorBoundary>

@@ -15,7 +15,7 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
-  TimeRangeChartScrubber,
+  TimeRangeChartBrush,
   useBinInterval,
   useBinTimeTickFormatter,
 } from "@phoenix/components/chart";
@@ -143,10 +143,10 @@ export function SpanAnnotationScoreTimeSeries({
   });
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
-  const interval = useBinInterval({ scale });
+  const interval = useBinInterval({ scale, binCount: chartData.length });
 
   return (
-    <TimeRangeChartScrubber onTimeRangeSelected={onTimeRangeSelected}>
+    <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
       {({ chartProps }) => (
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
@@ -192,6 +192,6 @@ export function SpanAnnotationScoreTimeSeries({
           </LineChart>
         </ResponsiveContainer>
       )}
-    </TimeRangeChartScrubber>
+    </TimeRangeChartBrush>
   );
 }

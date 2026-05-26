@@ -3,7 +3,12 @@ import type { MouseEvent, ReactNode } from "react";
 import { useRef, useState } from "react";
 import type { MouseHandlerDataParam } from "recharts";
 
-const timeRangeChartScrubberCSS = css`
+const timeRangeChartBrushCSS = css`
+  .recharts-wrapper,
+  .recharts-surface {
+    cursor: crosshair !important;
+  }
+
   &[data-selecting="true"] {
     .recharts-tooltip-cursor {
       display: none;
@@ -16,7 +21,7 @@ type ChartMouseHandler = (
   event: MouseEvent<SVGGraphicsElement>
 ) => void;
 
-type TimeRangeChartScrubberRenderProps = {
+type TimeRangeChartBrushRenderProps = {
   chartProps: {
     onMouseDown?: ChartMouseHandler;
     onMouseLeave?: ChartMouseHandler;
@@ -25,20 +30,20 @@ type TimeRangeChartScrubberRenderProps = {
   };
 };
 
-type TimeRangeChartScrubberProps = {
-  children: (props: TimeRangeChartScrubberRenderProps) => ReactNode;
+type TimeRangeChartBrushProps = {
+  children: (props: TimeRangeChartBrushRenderProps) => ReactNode;
   onTimeRangeSelected?: (timeRange: TimeRange) => void;
 };
 
-type ScrubberSelection = {
+type BrushSelection = {
   start: number;
   end: number;
   startX: number;
   endX: number;
-  plotArea: ScrubberPlotArea;
+  plotArea: BrushPlotArea;
 };
 
-type ScrubberPlotArea = {
+type BrushPlotArea = {
   left: number;
   top: number;
   width: number;
@@ -54,11 +59,15 @@ function getTimestampFromChartValue(value: unknown): number | null {
     return Number.isFinite(value) ? value : null;
   }
   if (typeof value === "string") {
-    const numericValue = Number(value);
+    const trimmed = value.trim();
+    if (trimmed === "") {
+      return null;
+    }
+    const numericValue = Number(trimmed);
     if (Number.isFinite(numericValue)) {
       return numericValue;
     }
-    const timestamp = new Date(value).getTime();
+    const timestamp = new Date(trimmed).getTime();
     return Number.isNaN(timestamp) ? null : timestamp;
   }
   return null;
@@ -72,7 +81,7 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
-function getPlotArea(container: HTMLDivElement): ScrubberPlotArea {
+function getPlotArea(container: HTMLDivElement): BrushPlotArea {
   const containerRect = container.getBoundingClientRect();
   const gridElement = container.querySelector<SVGGElement>(
     ".recharts-cartesian-grid"
@@ -99,9 +108,7 @@ function getPlotArea(container: HTMLDivElement): ScrubberPlotArea {
   };
 }
 
-function getOrderedSelectionRange(
-  selection: ScrubberSelection
-): TimeRange | null {
+function getOrderedSelectionRange(selection: BrushSelection): TimeRange | null {
   const start = Math.min(selection.start, selection.end);
   const end = Math.max(selection.start, selection.end);
   if (start === end) {
@@ -113,20 +120,20 @@ function getOrderedSelectionRange(
   };
 }
 
-export function TimeRangeChartScrubber({
+export function TimeRangeChartBrush({
   children,
   onTimeRangeSelected,
-}: TimeRangeChartScrubberProps) {
-  const [selection, setSelection] = useState<ScrubberSelection | null>(null);
+}: TimeRangeChartBrushProps) {
+  const [selection, setSelection] = useState<BrushSelection | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const selectionRef = useRef<ScrubberSelection | null>(null);
-  const setScrubberSelection = (selection: ScrubberSelection | null) => {
+  const selectionRef = useRef<BrushSelection | null>(null);
+  const setBrushSelection = (selection: BrushSelection | null) => {
     selectionRef.current = selection;
     setSelection(selection);
   };
   const getCursorX = (
     event: MouseEvent<SVGGraphicsElement>,
-    plotArea: ScrubberPlotArea
+    plotArea: BrushPlotArea
   ) => {
     const container = containerRef.current;
     if (container == null) {
@@ -141,21 +148,10 @@ export function TimeRangeChartScrubber({
   };
 
   if (!onTimeRangeSelected) {
-    return (
-      <div
-        ref={containerRef}
-        style={{ position: "relative", width: "100%", height: "100%" }}
-      >
-        <div style={{ position: "relative", width: "100%", height: "100%" }}>
-          {children({
-            chartProps: {},
-          })}
-        </div>
-      </div>
-    );
+    return <>{children({ chartProps: {} })}</>;
   }
 
-  const chartProps: TimeRangeChartScrubberRenderProps["chartProps"] = {
+  const chartProps: TimeRangeChartBrushRenderProps["chartProps"] = {
     onMouseDown: (state, event) => {
       if (event.button !== 0) {
         return;
@@ -173,7 +169,7 @@ export function TimeRangeChartScrubber({
       if (cursorX == null) {
         return;
       }
-      setScrubberSelection({
+      setBrushSelection({
         start: timestamp,
         end: timestamp,
         startX: cursorX,
@@ -194,7 +190,7 @@ export function TimeRangeChartScrubber({
       if (cursorX == null) {
         return;
       }
-      setScrubberSelection({
+      setBrushSelection({
         start: currentSelection.start,
         end: timestamp,
         startX: currentSelection.startX,
@@ -218,13 +214,13 @@ export function TimeRangeChartScrubber({
               endX: cursorX ?? currentSelection.endX,
             };
       const timeRange = getOrderedSelectionRange(nextSelection);
-      setScrubberSelection(null);
+      setBrushSelection(null);
       if (timeRange) {
         onTimeRangeSelected(timeRange);
       }
     },
     onMouseLeave: () => {
-      setScrubberSelection(null);
+      setBrushSelection(null);
     },
   };
 
@@ -237,7 +233,7 @@ export function TimeRangeChartScrubber({
 
   return (
     <div
-      css={timeRangeChartScrubberCSS}
+      css={timeRangeChartBrushCSS}
       data-selecting={selection != null ? "true" : undefined}
       ref={containerRef}
       style={{ position: "relative", width: "100%", height: "100%" }}
@@ -251,9 +247,7 @@ export function TimeRangeChartScrubber({
             height: overlayHeight,
             left: overlayLeft,
             width: overlayWidth,
-            background: "var(--chart-time-range-scrubber-fill-color)",
-            borderInline:
-              "1px solid var(--chart-time-range-scrubber-stroke-color)",
+            background: "var(--chart-time-range-brush-fill-color)",
             pointerEvents: "none",
             zIndex: 0,
           }}
@@ -264,6 +258,7 @@ export function TimeRangeChartScrubber({
           position: "relative",
           width: "100%",
           height: "100%",
+          cursor: "crosshair",
           zIndex: 1,
         }}
       >

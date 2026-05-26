@@ -15,7 +15,7 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
-  TimeRangeChartScrubber,
+  TimeRangeChartBrush,
   defaultCartesianGridProps,
   defaultLegendProps,
   defaultXAxisProps,
@@ -141,9 +141,9 @@ export function LLMSpanCountTimeSeries({
 
   const colors = useSequentialChartColors();
   const SemanticChartColors = useSemanticChartColors();
-  const interval = useBinInterval({ scale });
+  const interval = useBinInterval({ scale, binCount: chartData.length });
   return (
-    <TimeRangeChartScrubber onTimeRangeSelected={onTimeRangeSelected}>
+    <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
       {({ chartProps }) => (
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
@@ -198,6 +198,6 @@ export function LLMSpanCountTimeSeries({
           </BarChart>
         </ResponsiveContainer>
       )}
-    </TimeRangeChartScrubber>
+    </TimeRangeChartBrush>
   );
 }

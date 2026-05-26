@@ -1,5 +1,5 @@
 export * from "./ChartTooltip";
-export * from "./TimeRangeChartScrubber";
+export * from "./TimeRangeChartBrush";
 export * from "./defaults";
 export * from "./formatters";
 export * from "./useTimeTickFormatter";
