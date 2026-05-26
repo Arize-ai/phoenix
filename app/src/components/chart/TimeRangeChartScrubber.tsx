@@ -1,6 +1,15 @@
+import { css } from "@emotion/react";
 import type { MouseEvent, ReactNode } from "react";
 import { useRef, useState } from "react";
 import type { MouseHandlerDataParam } from "recharts";
+
+const timeRangeChartScrubberCSS = css`
+  &[data-selecting="true"] {
+    .recharts-tooltip-cursor {
+      display: none;
+    }
+  }
+`;
 
 type ChartMouseHandler = (
   nextState: MouseHandlerDataParam,
@@ -228,6 +237,8 @@ export function TimeRangeChartScrubber({
 
   return (
     <div
+      css={timeRangeChartScrubberCSS}
+      data-selecting={selection != null ? "true" : undefined}
       ref={containerRef}
       style={{ position: "relative", width: "100%", height: "100%" }}
     >

@@ -1389,11 +1389,8 @@ const chartCSS = css`
     --chart-axis-text-color: var(--global-text-color-700);
     --chart-axis-label-color: var(--global-text-color-700);
     --chart-legend-text-color: var(--global-text-color-900);
-    --chart-time-range-scrubber-fill-color: rgba(
-      var(--global-color-blue-700-rgb),
-      0.2
-    );
-    --chart-time-range-scrubber-stroke-color: var(--global-color-blue-900);
+    --chart-time-range-scrubber-fill-color: var(--global-color-primary-100);
+    --chart-time-range-scrubber-stroke-color: var(--global-color-primary-300);
   }
   .theme--dark {
     --chart-tooltip-cursor-fill-color: rgba(255, 255, 255, 0.2);
