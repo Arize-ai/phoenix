@@ -4,11 +4,12 @@ import { graphql, usePaginationFragment } from "react-relay";
 
 import {
   Autocomplete,
-  Button,
   Icon,
   Icons,
   Input,
   Menu,
+  MenuButton,
+  MenuButtonValue,
   MenuContainer,
   MenuEmpty,
   MenuHeader,
@@ -18,7 +19,7 @@ import {
   SelectChevronUpDownIcon,
   useFilter,
 } from "@phoenix/components";
-import type { ButtonProps } from "@phoenix/components";
+import type { MenuButtonProps } from "@phoenix/components";
 import { SearchIcon } from "@phoenix/components/core/field";
 import type { StylableProps } from "@phoenix/components/core/types";
 
@@ -26,37 +27,6 @@ import type { ProjectMenu_projects$key } from "./__generated__/ProjectMenu_proje
 import type { ProjectMenuProjectsQuery } from "./__generated__/ProjectMenuProjectsQuery.graphql";
 
 const PAGE_SIZE = 50;
-
-const projectMenuButtonCSS = css`
-  justify-content: flex-start;
-  min-width: 0;
-
-  &:not([data-disabled="true"]) {
-    &[data-pressed],
-    &:hover {
-      --button-border-color: var(--global-input-field-border-color-active);
-    }
-  }
-
-  .project-menu__value {
-    flex: 1 1 auto;
-    min-width: 0;
-    overflow: hidden;
-    text-align: start;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .project-menu__value--placeholder {
-    color: var(--text-color-placeholder);
-    font-style: italic;
-  }
-
-  & > .icon-wrap:last-child {
-    flex: none;
-    margin-left: auto;
-  }
-`;
 
 const projectMenuItemNameCSS = css`
   min-width: 0;
@@ -76,7 +46,7 @@ export type ProjectMenuProps = StylableProps & {
   onProjectChange: (projectId: string) => void;
   placeholder?: string;
   searchPlaceholder?: string;
-  size?: ButtonProps["size"];
+  size?: MenuButtonProps["size"];
 };
 
 export function ProjectMenu({
@@ -204,23 +174,21 @@ export function ProjectMenu({
         }
       }}
     >
-      <Button
+      <MenuButton
         aria-label={
           displayProjectName ? `Project: ${displayProjectName}` : "Project"
         }
-        css={css(projectMenuButtonCSS, propCSS)}
+        css={propCSS}
         leadingVisual={<Icon svg={<Icons.Trace />} />}
         size={size}
         trailingVisual={<SelectChevronUpDownIcon />}
       >
         {displayProjectName ? (
-          <span className="project-menu__value">{displayProjectName}</span>
+          <MenuButtonValue>{displayProjectName}</MenuButtonValue>
         ) : (
-          <span className="project-menu__value project-menu__value--placeholder">
-            {placeholder}
-          </span>
+          <MenuButtonValue isPlaceholder>{placeholder}</MenuButtonValue>
         )}
-      </Button>
+      </MenuButton>
       <MenuContainer placement="bottom start">
         <Autocomplete filter={contains}>
           <MenuHeader>
