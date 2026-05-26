@@ -20,6 +20,37 @@ import { useAgentChat } from "./useAgentChat";
 import { useAgentChatPanelState } from "./useAgentChatPanelState";
 import type { AgentModelSelection } from "./useGenerateSessionSummary";
 
+type AgentChatPanelLayer = "content" | "modal";
+
+type FloatingAgentChatPanelProps = {
+  /**
+   * Controls which stacking and interaction layer owns the floating panel.
+   *
+   * - `content` is the normal floating assistant surface rendered over page
+   *   content. It reflects the user's persisted pinned/detached preference and
+   *   may expose controls that change that preference.
+   * - `modal` is a temporary modal-scoped surface used while a modal or
+   *   slideover is active. It portals into the active modal's portal container
+   *   so React Aria keeps the assistant interactive instead of marking it inert.
+   */
+  layer?: AgentChatPanelLayer;
+};
+
+type AgentChatSurfaceProps = {
+  renderFrame: (children: ReactNode) => ReactNode;
+  /**
+   * Whether the header should expose controls for switching between pinned and
+   * detached assistant layouts.
+   *
+   * Modal-layer panels intentionally hide these controls because that layer is
+   * forced by the currently active modal, not by the user's saved layout
+   * preference. Showing the pin/detach toggle there would imply the user can
+   * dock PXI behind the modal, which would move it out of the active modal
+   * scope and make it unavailable again.
+   */
+  showPositionControls?: boolean;
+};
+
 /**
  * Controller for the pinned side-panel agent chat.
  */
@@ -33,11 +64,16 @@ export function AgentChatPanel() {
   );
 }
 
+/**
+ * Controller for PXI's floating chat surface.
+ *
+ * The `modal` layer is used only as an accessibility escape hatch while an
+ * overlay is active. It keeps PXI above the modal mask and inside the modal's
+ * interaction scope without mutating the user's normal pinned/detached setting.
+ */
 export function FloatingAgentChatPanel({
   layer = "content",
-}: {
-  layer?: "content" | "modal";
-}) {
+}: FloatingAgentChatPanelProps) {
   const fabPlacement = useAgentContext((state) => state.fabPlacement);
   const [panelSize, setPanelSize] = useState(DEFAULT_FLOATING_AGENT_CHAT_SIZE);
 
@@ -61,10 +97,7 @@ export function FloatingAgentChatPanel({
 function AgentChatSurface({
   renderFrame,
   showPositionControls = true,
-}: {
-  renderFrame: (children: ReactNode) => ReactNode;
-  showPositionControls?: boolean;
-}) {
+}: AgentChatSurfaceProps) {
   const isAgentsEnabled = useFeatureFlag("agents");
   const {
     isOpen,
