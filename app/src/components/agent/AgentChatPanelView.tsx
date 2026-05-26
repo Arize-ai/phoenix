@@ -45,15 +45,17 @@ const panelHeaderCSS = css`
   ${fadedDividerBottomCSS}
   flex: none;
   z-index: ${PANEL_HEADER_Z_INDEX};
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
+  column-gap: var(--global-dimension-size-100);
   padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
   background: var(--global-background-color-default);
 `;
 
 const panelHeaderActionsCSS = css`
-  flex-shrink: 0;
+  justify-self: end;
+  min-width: max-content;
 `;
 
 const sessionHeadingCSS = css`
