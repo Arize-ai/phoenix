@@ -211,6 +211,12 @@ def _get_concatenated_text(blocks: list[BetaTextBlockParam]) -> str:
     return "\n".join(block["text"] for block in blocks if block.get("type") == "text")
 
 
+def _get_tool_names(body: MessageCreateParams) -> set[str]:
+    """Return the set of tool names advertised on the Anthropic request."""
+    tools = body.get("tools") or []
+    return {tool["name"] for tool in tools if isinstance(tool, dict) and "name" in tool}
+
+
 class TestSystemBlockCacheBoundary:
     """Every system block lands on the correct side of the cache breakpoint."""
 
@@ -426,6 +432,37 @@ class TestDocsMCPToolset:
         assert _DEFAULT_PROMPTS.docs_tool.render() not in "\n".join(
             _get_system_texts(captured_request.body)
         )
+
+
+class TestSkillsCapability:
+    async def test_bundled_trace_debugging_skill_advertised_inside_cache_boundary(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
+        cached_text = _get_concatenated_text(cached_blocks)
+        assert "<available_skills>" in cached_text
+        assert "<name>trace-debugging</name>" in cached_text
+
+    async def test_skill_tools_are_advertised(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "load_skill" in tool_names
+        assert "read_skill_resource" in tool_names
 
 
 class TestCapabilityInstructionsOverride:
