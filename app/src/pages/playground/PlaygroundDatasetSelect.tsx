@@ -69,21 +69,26 @@ export function PlaygroundDatasetSelect({
         onSelectionChange={({ datasetId, splitIds }) => {
           setDatasetId(datasetId);
           setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            const hasDatasetChanged = datasetId !== next.get("datasetId");
             if (datasetId) {
-              prev.set("datasetId", datasetId);
+              next.set("datasetId", datasetId);
               // Remove all existing splitId params
-              prev.delete("splitId");
+              next.delete("splitId");
               // Add each split ID as a separate param
               if (splitIds.length > 0) {
                 splitIds.forEach((splitId) => {
-                  prev.append("splitId", splitId);
+                  next.append("splitId", splitId);
                 });
               }
             } else {
-              prev.delete("datasetId");
-              prev.delete("splitId");
+              next.delete("datasetId");
+              next.delete("splitId");
             }
-            return prev;
+            if (hasDatasetChanged) {
+              next.delete("exampleId");
+            }
+            return next;
           });
         }}
       />
@@ -96,9 +101,11 @@ export function PlaygroundDatasetSelect({
           onPress={() => {
             setDatasetId(null);
             setSearchParams((prev) => {
-              prev.delete("datasetId");
-              prev.delete("splitId");
-              return prev;
+              const next = new URLSearchParams(prev);
+              next.delete("datasetId");
+              next.delete("splitId");
+              next.delete("exampleId");
+              return next;
             });
           }}
         />
