@@ -117,13 +117,18 @@ describe("ResizableFloatingPanel", () => {
     };
   }
 
-  it("places a resize handle on the panel's top-left corner", () => {
-    const { resizeHandle } = renderResizablePanel({
-      placement: "bottom-end",
-    });
-
-    expect(resizeHandle.getAttribute("data-edge")).toBe("top-left");
-  });
+  it.each([
+    ["bottom-end", "top-left"],
+    ["bottom-start", "top-right"],
+    ["top-end", "bottom-left"],
+    ["top-start", "bottom-right"],
+  ] as const)(
+    "places the resize handle at the corner opposite the FAB for %s placement",
+    (placement, expectedEdge) => {
+      const { resizeHandle } = renderResizablePanel({ placement });
+      expect(resizeHandle.getAttribute("data-edge")).toBe(expectedEdge);
+    }
+  );
 
   it("uses fixed positioning in the modal layer", () => {
     const { panel } = renderResizablePanel({ layer: "modal" });

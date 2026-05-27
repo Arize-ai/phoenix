@@ -54,7 +54,7 @@ type FloatingPanelGeometry = {
   height: number;
 };
 
-type ResizeEdge = "top-left";
+type ResizeEdge = "bottom-left" | "bottom-right" | "top-left" | "top-right";
 
 type ResizeLimits = {
   maxHeight: number;
@@ -64,6 +64,7 @@ type ResizeLimits = {
 };
 
 type ResizeSession = {
+  edge: ResizeEdge;
   pointerId: number;
   startGeometry: FloatingPanelGeometry;
 };
@@ -356,17 +357,29 @@ function getResizedGeometry({
 }): FloatingPanelGeometry {
   const start = session.startGeometry;
   const limits = getGeometryLimits({ bounds, hasFloatingAction, minSize });
-  const widthDelta = start.x - pointer.x;
-  const heightDelta = start.y - pointer.y;
+  const isLeftEdge = session.edge.endsWith("left");
+  const isTopEdge = session.edge.startsWith("top");
+  const widthDelta = isLeftEdge
+    ? start.x - pointer.x
+    : pointer.x - (start.x + start.width);
+  const heightDelta = isTopEdge
+    ? start.y - pointer.y
+    : pointer.y - (start.y + start.height);
   const maxWidth = Math.min(
     limits.maxWidth,
-    start.x + start.width - getMinPanelX(bounds)
+    isLeftEdge
+      ? start.x + start.width - getMinPanelX(bounds)
+      : bounds.left + bounds.width - VIEWPORT_MARGIN_PX - start.x
   );
   const maxHeight = Math.min(
     limits.maxHeight,
-    start.y +
-      start.height -
-      getMinPanelY({ bounds, hasFloatingAction, placement })
+    isTopEdge
+      ? start.y + start.height - getMinPanelY({ bounds, hasFloatingAction, placement })
+      : bounds.top + bounds.height - VIEWPORT_VERTICAL_MARGIN_PX -
+        (hasFloatingAction && placement.startsWith("bottom")
+          ? getAttachmentHeight(true)
+          : 0) -
+        start.y
   );
   const width = clamp(start.width + widthDelta, limits.minWidth, maxWidth);
   const height = clamp(start.height + heightDelta, limits.minHeight, maxHeight);
@@ -377,8 +390,8 @@ function getResizedGeometry({
       ...start,
       height,
       width,
-      x: start.x + start.width - width,
-      y: start.y + start.height - height,
+      x: isLeftEdge ? start.x + start.width - width : start.x,
+      y: isTopEdge ? start.y + start.height - height : start.y,
     },
     hasFloatingAction,
     minSize,
@@ -387,22 +400,44 @@ function getResizedGeometry({
 }
 
 function getKeyboardResizeDelta({
+  edge,
   key,
 }: {
+  edge: ResizeEdge;
   key: string;
 }): { height: number; width: number } | null {
+  const isLeftEdge = edge.endsWith("left");
+  const isTopEdge = edge.startsWith("top");
   switch (key) {
     case "ArrowLeft":
-      return { height: 0, width: KEYBOARD_RESIZE_STEP_PX };
+      return {
+        height: 0,
+        width: isLeftEdge ? KEYBOARD_RESIZE_STEP_PX : -KEYBOARD_RESIZE_STEP_PX,
+      };
     case "ArrowRight":
-      return { height: 0, width: -KEYBOARD_RESIZE_STEP_PX };
+      return {
+        height: 0,
+        width: isLeftEdge ? -KEYBOARD_RESIZE_STEP_PX : KEYBOARD_RESIZE_STEP_PX,
+      };
     case "ArrowDown":
-      return { height: -KEYBOARD_RESIZE_STEP_PX, width: 0 };
+      return {
+        height: isTopEdge ? -KEYBOARD_RESIZE_STEP_PX : KEYBOARD_RESIZE_STEP_PX,
+        width: 0,
+      };
     case "ArrowUp":
-      return { height: KEYBOARD_RESIZE_STEP_PX, width: 0 };
+      return {
+        height: isTopEdge ? KEYBOARD_RESIZE_STEP_PX : -KEYBOARD_RESIZE_STEP_PX,
+        width: 0,
+      };
     default:
       return null;
   }
+}
+
+function getResizeEdge(placement: AgentFabPlacement): ResizeEdge {
+  const vertical = placement.startsWith("bottom") ? "top" : "bottom";
+  const horizontal = placement.endsWith("end") ? "left" : "right";
+  return `${vertical}-${horizontal}` as ResizeEdge;
 }
 
 function isHeaderDragTarget(target: EventTarget | null) {
@@ -538,12 +573,55 @@ const resizeHandleCSS = css`
     z-index: ${MODAL_FLOATING_UI_Z_INDEX + 1};
   }
 
+  &[data-edge="top-left"],
+  &[data-edge="top-right"],
+  &[data-edge="bottom-left"],
+  &[data-edge="bottom-right"] {
+    width: ${RESIZE_HANDLE_SIZE_PX + 6}px;
+    height: ${RESIZE_HANDLE_SIZE_PX + 6}px;
+  }
+
   &[data-edge="top-left"] {
     top: var(--resizable-floating-panel-y);
     left: var(--resizable-floating-panel-x);
-    width: ${RESIZE_HANDLE_SIZE_PX + 6}px;
-    height: ${RESIZE_HANDLE_SIZE_PX + 6}px;
     cursor: nwse-resize;
+  }
+
+  &[data-edge="top-right"] {
+    top: var(--resizable-floating-panel-y);
+    left: calc(
+      var(--resizable-floating-panel-x) +
+      var(--resizable-floating-panel-width) -
+      ${RESIZE_HANDLE_SIZE_PX + 6}px
+    );
+    cursor: nesw-resize;
+    transform: scaleX(-1);
+  }
+
+  &[data-edge="bottom-left"] {
+    top: calc(
+      var(--resizable-floating-panel-y) +
+      var(--resizable-floating-panel-height) -
+      ${RESIZE_HANDLE_SIZE_PX + 6}px
+    );
+    left: var(--resizable-floating-panel-x);
+    cursor: nesw-resize;
+    transform: scaleY(-1);
+  }
+
+  &[data-edge="bottom-right"] {
+    top: calc(
+      var(--resizable-floating-panel-y) +
+      var(--resizable-floating-panel-height) -
+      ${RESIZE_HANDLE_SIZE_PX + 6}px
+    );
+    left: calc(
+      var(--resizable-floating-panel-x) +
+      var(--resizable-floating-panel-width) -
+      ${RESIZE_HANDLE_SIZE_PX + 6}px
+    );
+    cursor: nwse-resize;
+    transform: scale(-1, -1);
   }
 
   &:hover,
@@ -671,7 +749,7 @@ export function ResizableFloatingPanel({
     hasFloatingAction,
     minSize,
   });
-  const resizeHandles: ResizeEdge[] = ["top-left"];
+  const resizeHandles: ResizeEdge[] = [getResizeEdge(placement)];
   const displayedGeometry = clampGeometry({
     bounds: getBounds(),
     geometry: currentGeometry,
@@ -757,6 +835,7 @@ export function ResizableFloatingPanel({
     event.currentTarget.focus();
     event.currentTarget.setPointerCapture(event.pointerId);
     resizeSessionRef.current = {
+      edge,
       pointerId: event.pointerId,
       startGeometry: displayedGeometry,
     };
@@ -984,20 +1063,28 @@ export function ResizableFloatingPanel({
     event.stopPropagation();
   };
   const handleResizeKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const edge = getResizeEdge(placement);
+    const isLeftEdge = edge.endsWith("left");
+    const isTopEdge = edge.startsWith("top");
     const delta =
       event.key === "Home" || event.key === "End"
         ? null
-        : getKeyboardResizeDelta({ key: event.key });
+        : getKeyboardResizeDelta({ edge, key: event.key });
     if (delta == null && event.key !== "Home" && event.key !== "End") return;
 
     event.preventDefault();
 
-    const maxWidth =
-      displayedGeometry.x + displayedGeometry.width - VIEWPORT_MARGIN_PX;
-    const maxHeight =
-      displayedGeometry.y +
-      displayedGeometry.height -
-      VIEWPORT_VERTICAL_MARGIN_PX;
+    const bounds = getBounds();
+    const maxWidth = isLeftEdge
+      ? displayedGeometry.x + displayedGeometry.width - VIEWPORT_MARGIN_PX
+      : bounds.left + bounds.width - VIEWPORT_MARGIN_PX - displayedGeometry.x;
+    const maxHeight = isTopEdge
+      ? displayedGeometry.y + displayedGeometry.height - VIEWPORT_VERTICAL_MARGIN_PX
+      : bounds.top + bounds.height - VIEWPORT_VERTICAL_MARGIN_PX -
+        (hasFloatingAction && placement.startsWith("bottom")
+          ? getAttachmentHeight(true)
+          : 0) -
+        displayedGeometry.y;
     const width =
       event.key === "Home"
         ? resizeLimits.minWidth
@@ -1026,8 +1113,12 @@ export function ResizableFloatingPanel({
         ...displayedGeometry,
         height: nextHeight,
         width: nextWidth,
-        x: displayedGeometry.x + displayedGeometry.width - nextWidth,
-        y: displayedGeometry.y + displayedGeometry.height - nextHeight,
+        x: isLeftEdge
+          ? displayedGeometry.x + displayedGeometry.width - nextWidth
+          : displayedGeometry.x,
+        y: isTopEdge
+          ? displayedGeometry.y + displayedGeometry.height - nextHeight
+          : displayedGeometry.y,
       },
       shouldCommitSize: true,
     });
