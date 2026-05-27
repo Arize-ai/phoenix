@@ -1312,6 +1312,7 @@ class TestSandboxAndCodeEvaluatorPermissions:
                     "name": f"auth_code_evaluator_{token_hex(8)}",
                     "language": "PYTHON",
                     "sourceCode": self._SOURCE,
+                    "sandboxConfigId": sandbox_config_id,
                     "inputMapping": self._INPUT_MAPPING,
                 }
             },
