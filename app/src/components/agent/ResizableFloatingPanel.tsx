@@ -22,7 +22,6 @@ const FULLSCREEN_BREAKPOINT_PX = 600;
 const KEYBOARD_RESIZE_STEP_PX = 24;
 const PRIMARY_POINTER_BUTTON = 0;
 const RESIZE_HANDLE_SIZE_PX = 14;
-const RESIZE_HANDLE_Z_INDEX = 4;
 const FLOATING_ACTION_WIDTH_PX = FAB_RESTING_SIZE.width;
 const FLOATING_ACTION_HEIGHT_PX = FAB_RESTING_SIZE.height;
 const FLOATING_ACTION_GAP_PX = 8;
@@ -314,7 +313,7 @@ const resizableFloatingPanelCSS = css`
 
 const resizeHandleCSS = css`
   position: fixed;
-  z-index: ${RESIZE_HANDLE_Z_INDEX};
+  z-index: ${NON_MODAL_FLOATING_Z_INDEX + 1};
   border: none;
   outline: none;
   padding: 0;
@@ -333,6 +332,10 @@ const resizeHandleCSS = css`
     outline-offset: -2px;
   }
 
+  &[data-layer="modal"] {
+    z-index: ${MODAL_FLOATING_UI_Z_INDEX + 1};
+  }
+
   &[data-edge="top-left"] {
     top: calc(var(--resizable-floating-panel-y) - 4px);
     left: calc(var(--resizable-floating-panel-x) - 4px);
@@ -346,9 +349,9 @@ const resizeHandleCSS = css`
     left: 0;
     width: 14px;
     height: 14px;
-    border-top: 2px solid var(--global-text-color-500);
-    border-left: 2px solid var(--global-text-color-500);
-    border-top-left-radius: var(--global-rounding-medium);
+    border-top: 1.5px solid var(--global-color-gray-400);
+    border-left: 1.5px solid var(--global-color-gray-400);
+    border-top-left-radius: 11px;
     background-color: transparent;
     opacity: 0.35;
   }
@@ -729,6 +732,7 @@ export function ResizableFloatingPanel({
           )}
           className="resizable-floating-panel__resize-handle"
           css={resizeHandleCSS}
+          data-layer={layer}
           data-edge={edge}
           data-resizing={resizingEdge === edge ? "true" : undefined}
           style={floatingPanelStyle}
