@@ -11,6 +11,27 @@ GitHub
 **We want to hear from you!** The DevRel team wants to hear from the Phoenix community. If you're building with Phoenix and want to tell us what's working, what's painful, or what you wish existed, [grab 25 minutes with us](https://cal.com/team/arize-devrel/user-interview).
 </Info>
 
+<Update label="05.27.2026">
+## [05.27.2026: Drag-to-Zoom on Project Metric Charts](/docs/phoenix/release-notes/05-2026/05-27-2026-drag-to-zoom)
+**Available in arize-phoenix 16.3.0+**
+
+Click and drag across any project metric chart or the spans sparkline to zoom into a custom time window. All metric panels share the same time-range context, so one brush selection updates latency, error rate, token usage, and trace-count charts simultaneously.
+
+- **All charts covered** — latency, error rate, token usage, and the trace-count sparkline all support brush selection
+- **Adaptive tick density** — x-axis labels scale with rendered pixel width, staying readable at any zoom level
+</Update>
+
+<Update label="05.21.2026">
+## [05.21.2026: Code Evaluators](/docs/phoenix/release-notes/05-2026/05-21-2026-code-evaluators)
+**Available in arize-phoenix 16.0.0+**
+
+Write Python or TypeScript `evaluate()` functions directly in the Phoenix UI and attach them to a dataset. Phoenix runs each function in an isolated sandbox and records the output as an annotation on every experiment run — no SDK, local runtime, or deploy step required.
+
+- **Local or hosted sandboxes** — WebAssembly and Deno ship with Phoenix; E2B, Daytona, Vercel, and Modal add network and package support
+- **Versioned and traced** — every save creates a new version, and each execution appears as a span
+- **Dry-run before saving** — test the evaluator against a real dataset example from the UI
+</Update>
+
 <Update label="05.15.2026">
 ## [05.15.2026: OTel GenAI Semantic Convention Auto-Conversion](/docs/phoenix/release-notes/05-2026/05-15-2026-otel-semconv-conversion)
 **Available in arize-phoenix 15.10.0+**
