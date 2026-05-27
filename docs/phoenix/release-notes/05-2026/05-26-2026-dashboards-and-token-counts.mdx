@@ -1,0 +1,25 @@
+---
+title: "05.26.2026: Dashboards Navigation and Token Count Fix"
+---
+
+# Dedicated Dashboards Page
+
+May 26, 2026
+
+**Available in arize-phoenix 16.1.0+**
+
+Project metric charts are now available from a top-level **Dashboards** navigation item. Previously, dashboards were accessible only from within a project. The new route lets you jump straight to any project's metrics from anywhere in Phoenix, with a searchable project menu and a shared time-range selector.
+
+- **Persistent selection**: Phoenix remembers the last project you viewed and returns to it on the next visit.
+- **Shareable links**: `/dashboards/projects/:projectId` links resolve to the correct project, including projects outside the first paginated page.
+- **Searchable project menu**: filter projects by name directly from the selector.
+
+# Token Count Fix for Agent Traces
+
+May 26, 2026
+
+**Available in arize-phoenix 16.1.0+ and 16.2.0+**
+
+Token counts in the project overview were previously over-reported for traces produced by agent frameworks (such as smolagents) that propagate token usage up through wrapper spans. Because the same LLM-call tokens appeared at every level of the span tree — model span, tool span, agent span — the dashboard total could be three or more times the actual usage.
+
+Phoenix now counts tokens only from `LLM`-kind spans, matching the per-trace detail view and framework-reported counts. Existing traces are not retroactively corrected, but all new ingestion uses the corrected aggregation.

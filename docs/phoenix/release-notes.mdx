@@ -11,6 +11,43 @@ GitHub
 **We want to hear from you!** The DevRel team wants to hear from the Phoenix community. If you're building with Phoenix and want to tell us what's working, what's painful, or what you wish existed, [grab 25 minutes with us](https://cal.com/team/arize-devrel/user-interview).
 </Info>
 
+<Update label="05.27.2026">
+## [05.27.2026: Drag-to-Zoom on Project Metric Charts](/docs/phoenix/release-notes/05-2026/05-27-2026-drag-to-zoom)
+**Available in arize-phoenix 16.3.0+**
+
+Click and drag across any project metric chart or the spans sparkline to zoom into a custom time window. All metric panels share the same time-range context, so one brush selection updates latency, error rate, token usage, and trace-count charts simultaneously.
+
+- **All charts covered** — latency, error rate, token usage, and the trace-count sparkline all support brush selection
+- **Adaptive tick density** — x-axis labels scale with rendered pixel width, staying readable at any zoom level
+</Update>
+
+<Update label="05.26.2026">
+## [05.26.2026: Dedicated Dashboards Page](/docs/phoenix/release-notes/05-2026/05-26-2026-dashboards-and-token-counts)
+**Available in arize-phoenix 16.1.0+**
+
+Project metric charts are now accessible from a top-level **Dashboards** navigation item. The new route includes a searchable project menu, a shared time-range selector, and persistent project selection — plus shareable `/dashboards/projects/:projectId` links that resolve correctly even for projects outside the first paginated page.
+</Update>
+
+<Update label="05.26.2026">
+## [05.26.2026: Token Count Fix for Agent Traces](/docs/phoenix/release-notes/05-2026/05-26-2026-dashboards-and-token-counts)
+**Available in arize-phoenix 16.1.0+**
+
+Token counts in the project overview were over-reported for agent framework traces that propagate usage up through wrapper spans — the same tokens appeared at multiple levels, inflating totals by 3× or more. Phoenix now aggregates token counts only from `LLM`-kind spans, matching the per-trace detail view and framework-reported usage.
+</Update>
+
+<Update label="05.21.2026">
+## [05.21.2026: Code Evaluators](/docs/phoenix/release-notes/05-2026/05-21-2026-code-evaluators)
+**Available in arize-phoenix 16.0.0+**
+
+Write Python or TypeScript `evaluate()` functions directly in the Phoenix UI and attach them to a dataset. Phoenix runs each function in an isolated sandbox and records the output as an annotation on every experiment run — no SDK, local runtime, or deploy step required.
+
+- **Two sandbox families** — Local (WebAssembly/Deno, ships with Phoenix, no credentials) and Hosted (E2B, Daytona, Vercel, Modal — supports env vars, network, and packages)
+- **Versioned and traced** — every save creates a new version; evaluator executions appear as spans
+- **Dry-run** — test against a real dataset example before saving
+- **Role-based access** — sandbox configuration is admin-only; code evaluator authoring is available to members and admins
+- **Allowlist env var** — `PHOENIX_ALLOWED_SANDBOX_PROVIDERS` restricts available providers (`WASM`, `DENO`, `E2B`, `DAYTONA`, `VERCEL`, `MODAL`, or `NONE`)
+</Update>
+
 <Update label="05.15.2026">
 ## [05.15.2026: OTel GenAI Semantic Convention Auto-Conversion](/docs/phoenix/release-notes/05-2026/05-15-2026-otel-semconv-conversion)
 **Available in arize-phoenix 15.10.0+**
