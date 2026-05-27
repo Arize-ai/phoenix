@@ -10,6 +10,7 @@ import {
   type PendingCodeEvaluatorCreate,
   type PendingCodeEvaluatorCreateDatasetSnapshot,
   type PendingCodeEvaluatorEdit,
+  parseEditCodeEvaluatorDraftInput,
   type SandboxConfigIndex,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
 
@@ -112,6 +113,28 @@ describe("code evaluator draft agent tools", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error).toMatch(/does not match the draft language/i);
+  });
+
+  it("rejects set_output_configs operations with blank output config names", () => {
+    const parsed = parseEditCodeEvaluatorDraftInput({
+      expectedRevision: "code-evaluator-draft-abc",
+      operations: [
+        {
+          type: "set_output_configs",
+          output_configs: [
+            {
+              kind: "freeform",
+              name: "",
+              optimizationDirection: "MAXIMIZE",
+              threshold: 0.5,
+              lowerBound: 0,
+              upperBound: 1,
+            },
+          ],
+        },
+      ],
+    });
+    expect(parsed).toBeNull();
   });
 
   it("rejects the propose-time edit when expectedRevision is stale", async () => {
@@ -262,7 +285,7 @@ describe("code evaluator draft agent tools", () => {
   });
 });
 
-describe("pending create two-phase chassis", () => {
+describe("pending create two-phase proposal lifecycle", () => {
   type Output = Record<string, unknown>;
 
   const datasetContext: PendingCodeEvaluatorCreateDatasetSnapshot = {
@@ -382,7 +405,7 @@ describe("pending create two-phase chassis", () => {
       createdEvaluator: { id: "ev-1", name: "from agent" },
     });
     // The dialog's onOpenChange(false) commonly fires after Save success;
-    // its resolveAsRejected MUST be ignored or the chassis would emit a
+    // its resolveAsRejected MUST be ignored or the proposal would emit a
     // second terminal output and drift the agent's view of the tool call.
     await bound.resolveAsRejected!();
     await bound.resolveAsFailed!("ignored");

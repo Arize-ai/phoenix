@@ -16,8 +16,8 @@ import { deriveRouteContexts } from "./deriveRouteContexts";
  * {@link ./useAdvertiseAgentContext.useAdvertiseAgentContext} for
  * feature-level contexts that cannot be derived from the route alone.
  *
- * Also registers the `create_code_evaluator` chassis client action here so
- * the create proposal flow works on any surface — including dataset surfaces
+ * Also registers the `create_code_evaluator` client action here so the
+ * create-proposal flow works on any surface — including dataset surfaces
  * where no code-evaluator form is mounted.
  */
 export function AgentContextSync() {
@@ -35,8 +35,11 @@ export function AgentContextSync() {
   }, [next, store]);
 
   useEffect(() => {
-    const { registerClientAction, unregisterClientAction, setPendingCodeEvaluatorCreate } =
-      store.getState();
+    const {
+      registerClientAction,
+      unregisterClientAction,
+      setPendingCodeEvaluatorCreate,
+    } = store.getState();
     registerClientAction(
       CREATE_CODE_EVALUATOR_TOOL_NAME,
       createCreateCodeEvaluatorClientAction({

@@ -986,7 +986,7 @@ const createCodeEvaluatorAgentTool =
           tool: CREATE_CODE_EVALUATOR_TOOL_NAME,
           toolCallId: toolCall.toolCallId,
           errorText:
-            "The code-evaluator create chassis is not mounted; cannot propose creation.",
+            "The code-evaluator create client action is not mounted; cannot propose creation.",
         });
         return;
       }

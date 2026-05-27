@@ -10,6 +10,7 @@ export type CodeEvaluatorEditToolOutputSender =
 const codeEvaluatorLanguageSchema = z.enum(["PYTHON", "TYPESCRIPT"]);
 
 const optimizationDirectionSchema = z.enum(["MINIMIZE", "MAXIMIZE", "NONE"]);
+const outputConfigNameSchema = z.string().trim().min(1);
 
 const classificationValueSchema = z.object({
   label: z.string(),
@@ -18,14 +19,14 @@ const classificationValueSchema = z.object({
 
 const classificationOutputConfigDraftSchema = z.object({
   kind: z.literal("classification"),
-  name: z.string(),
+  name: outputConfigNameSchema,
   optimizationDirection: optimizationDirectionSchema,
   values: z.array(classificationValueSchema),
 });
 
 const continuousOutputConfigDraftSchema = z.object({
   kind: z.literal("continuous"),
-  name: z.string(),
+  name: outputConfigNameSchema,
   optimizationDirection: optimizationDirectionSchema,
   lowerBound: z.number().nullish(),
   upperBound: z.number().nullish(),
@@ -33,7 +34,7 @@ const continuousOutputConfigDraftSchema = z.object({
 
 const freeformOutputConfigDraftSchema = z.object({
   kind: z.literal("freeform"),
-  name: z.string(),
+  name: outputConfigNameSchema,
   optimizationDirection: optimizationDirectionSchema,
   threshold: z.number().nullish(),
   lowerBound: z.number().nullish(),

@@ -116,6 +116,26 @@ describe("parseCreateCodeEvaluatorInput", () => {
     });
   });
 
+  it("rejects an output_config draft without a non-empty name", () => {
+    const parsed = parseCreateCodeEvaluatorInput({
+      name: "score-quality",
+      source_code: "def evaluate(output):\n    return 0.5",
+      language: "PYTHON",
+      sandbox_config_id: "U2FuZGJveENvbmZpZzox",
+      output_configs: [
+        {
+          kind: "freeform",
+          name: "",
+          optimizationDirection: "MAXIMIZE",
+          threshold: 0.7,
+          lowerBound: 0,
+          upperBound: 1,
+        },
+      ],
+    });
+    expect(parsed).toBeNull();
+  });
+
   it("parses a classification output_config draft with values", () => {
     const parsed = parseCreateCodeEvaluatorInput({
       name: "label",
@@ -127,10 +147,7 @@ describe("parseCreateCodeEvaluatorInput", () => {
           kind: "classification",
           name: "label",
           optimizationDirection: "NONE",
-          values: [
-            { label: "good", score: 1 },
-            { label: "bad" },
-          ],
+          values: [{ label: "good", score: 1 }, { label: "bad" }],
         },
       ],
     });
@@ -138,10 +155,7 @@ describe("parseCreateCodeEvaluatorInput", () => {
     const input = parsed as CreateCodeEvaluatorInput;
     expect(input.outputConfigs[0]).toMatchObject({
       kind: "classification",
-      values: [
-        { label: "good", score: 1 },
-        { label: "bad" },
-      ],
+      values: [{ label: "good", score: 1 }, { label: "bad" }],
     });
   });
 

@@ -134,7 +134,7 @@ export type PendingCodeEvaluatorCreateDatasetSnapshot = {
 };
 
 /**
- * Two-phase chassis state for the create flow.
+ * Two-phase state for the create-proposal flow.
  *
  * - `"preview"` — the chat preview card is mounted with Confirm/Reject. Confirm
  *   flips to `"awaiting-slideover"` without resolving the tool call.
@@ -161,7 +161,7 @@ export type PendingCodeEvaluatorCreate = {
   after: CodeEvaluatorDraftSnapshot;
   /** Dataset surface active when the proposal was made. Required for create. */
   datasetContext: PendingCodeEvaluatorCreateDatasetSnapshot;
-  /** Two-phase chassis state — flipped from "preview" by `accept`. */
+  /** Two-phase create-proposal state — flipped from "preview" by `accept`. */
   phase: PendingCodeEvaluatorCreatePhase;
   /** Idempotency latch — set true by the first terminal resolver to fire. */
   resolved: boolean;

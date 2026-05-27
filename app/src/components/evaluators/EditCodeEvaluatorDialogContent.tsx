@@ -16,6 +16,7 @@ import {
   createReadCodeEvaluatorDraftClientAction,
   EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   type EditCodeEvaluatorDraftOperation,
+  fromOutputConfigDraft,
   READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   type SandboxConfigIndex,
   toOutputConfigDrafts,
@@ -296,10 +297,19 @@ export const EditCodeEvaluatorDialogContent = ({
       }
       const state = store.getState();
       if (next.name !== current.name) {
+        if (mode === "create") {
+          state.setEvaluatorGlobalName(next.name);
+        }
         state.setEvaluatorName(next.name);
       }
       if (next.description !== current.description) {
         state.setEvaluatorDescription(next.description);
+      }
+      if (
+        JSON.stringify(next.outputConfigs) !==
+        JSON.stringify(current.outputConfigs)
+      ) {
+        state.setOutputConfigs(next.outputConfigs.map(fromOutputConfigDraft));
       }
       if (
         JSON.stringify(next.inputMapping.pathMapping) !==

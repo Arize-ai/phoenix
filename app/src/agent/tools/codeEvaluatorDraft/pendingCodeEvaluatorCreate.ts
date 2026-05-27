@@ -12,7 +12,7 @@ const SLIDEOVER_CANCELLED_MESSAGE =
   "User cancelled the code-evaluator create slideover without saving.";
 
 /**
- * Bind the chassis lifecycle actions to a fresh pending create entry.
+ * Bind the proposal lifecycle actions to a fresh pending create entry.
  *
  * The pending entry starts in `phase: "preview"`. The chat-side preview card
  * calls `accept` (flip to `"awaiting-slideover"`, no tool output) or `reject`

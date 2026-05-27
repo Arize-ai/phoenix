@@ -220,8 +220,8 @@ export function DatasetEvaluatorsPageContent() {
       <CreateCodeDatasetEvaluatorSlideover
         isOpen={pendingAgentCreate != null}
         // The slideover's open state is read from the agent store; closing
-        // it just drives the chassis resolver. The component invokes
-        // onCancel for user-driven close paths only.
+        // it just drives the proposal's terminal resolver. The component
+        // invokes onCancel for user-driven close paths only.
         onOpenChange={() => undefined}
         datasetId={datasetId}
         updateConnectionIds={connectionsToUpdate}

@@ -44,7 +44,10 @@ class TestLoadSandboxAvailability:
             cfg = availability.configs[0]
             assert cfg.language == sandbox_config.language
             assert cfg.name == str(sandbox_config.name)
-            assert cfg.sandbox_config_id.startswith("U2FuZGJveENvbmZpZzo") or "SandboxConfig" in cfg.sandbox_config_id  # GlobalID is base64-encoded "SandboxConfig:<id>"
+            assert (
+                cfg.sandbox_config_id.startswith("U2FuZGJveENvbmZpZzo")
+                or "SandboxConfig" in cfg.sandbox_config_id
+            )  # GlobalID is base64-encoded "SandboxConfig:<id>"
 
     async def test_returns_empty_when_config_is_disabled(
         self,
@@ -158,7 +161,8 @@ class TestLoadSandboxAvailability:
             assert "well-formed" in surviving_names
             assert "malformed" not in surviving_names
             assert any(
-                "malformed" in record.getMessage() or "Skipping sandbox config" in record.getMessage()
+                "malformed" in record.getMessage()
+                or "Skipping sandbox config" in record.getMessage()
                 for record in caplog.records  # type: ignore[attr-defined]
             )
 
@@ -222,9 +226,10 @@ class TestAgentDependenciesShape:
 
 
 class TestCreateCodeEvaluatorCapabilityGate:
-    """``CreateCodeEvaluatorCapability.include_for_run`` ANDs three predicates:
-    code_evaluator context absent, not viewer, sandbox_availability.has_usable.
-    The capability is hidden unless all three hold."""
+    """``CreateCodeEvaluatorCapability.include_for_run`` ANDs the page,
+    permission, and sandbox predicates. The capability is hidden unless the
+    dataset evaluators surface is active, no code-evaluator form is mounted,
+    the user can write, and at least one sandbox config is usable."""
 
     def _make_availability(self, *, has_usable: bool) -> SandboxAvailability:
         if not has_usable:
@@ -240,18 +245,32 @@ class TestCreateCodeEvaluatorCapabilityGate:
             ]
         )
 
+    def _dataset_evaluators_contexts(self):
+        from phoenix.server.agents.context import (
+            DatasetContext,
+            DatasetEvaluatorsContext,
+            ResolvedContexts,
+        )
+
+        return ResolvedContexts(
+            dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            dataset_evaluators=DatasetEvaluatorsContext(
+                type="dataset_evaluators",
+                dataset_node_id="RGF0YXNldDox",
+            ),
+        )
+
     def test_advertised_when_all_conditions_met(self) -> None:
         from unittest.mock import MagicMock
 
         from phoenix.server.agents.capabilities.tools.external.create_code_evaluator import (
             CreateCodeEvaluatorCapability,
         )
-        from phoenix.server.agents.context import ResolvedContexts
         from phoenix.server.agents.types import AgentDependencies
 
         capability = CreateCodeEvaluatorCapability(instructions=MagicMock())
         deps = AgentDependencies(
-            contexts=ResolvedContexts(),
+            contexts=self._dataset_evaluators_contexts(),
             is_viewer=False,
             sandbox_availability=self._make_availability(has_usable=True),
         )
@@ -265,12 +284,11 @@ class TestCreateCodeEvaluatorCapabilityGate:
         from phoenix.server.agents.capabilities.tools.external.create_code_evaluator import (
             CreateCodeEvaluatorCapability,
         )
-        from phoenix.server.agents.context import ResolvedContexts
         from phoenix.server.agents.types import AgentDependencies
 
         capability = CreateCodeEvaluatorCapability(instructions=MagicMock())
         deps = AgentDependencies(
-            contexts=ResolvedContexts(),
+            contexts=self._dataset_evaluators_contexts(),
             is_viewer=True,
             sandbox_availability=self._make_availability(has_usable=True),
         )
@@ -284,12 +302,11 @@ class TestCreateCodeEvaluatorCapabilityGate:
         from phoenix.server.agents.capabilities.tools.external.create_code_evaluator import (
             CreateCodeEvaluatorCapability,
         )
-        from phoenix.server.agents.context import ResolvedContexts
         from phoenix.server.agents.types import AgentDependencies
 
         capability = CreateCodeEvaluatorCapability(instructions=MagicMock())
         deps = AgentDependencies(
-            contexts=ResolvedContexts(),
+            contexts=self._dataset_evaluators_contexts(),
             is_viewer=False,
             sandbox_availability=self._make_availability(has_usable=False),
         )
@@ -305,12 +322,11 @@ class TestCreateCodeEvaluatorCapabilityGate:
         )
         from phoenix.server.agents.context import (
             CodeEvaluatorContext,
-            ResolvedContexts,
         )
         from phoenix.server.agents.types import AgentDependencies
 
         capability = CreateCodeEvaluatorCapability(instructions=MagicMock())
-        contexts = ResolvedContexts()
+        contexts = self._dataset_evaluators_contexts()
         contexts.code_evaluator = CodeEvaluatorContext(type="code_evaluator", evaluatorNodeId=None)
         deps = AgentDependencies(
             contexts=contexts,

@@ -60,10 +60,10 @@
     - `output_configs` is an array. ALWAYS propose at least one entry — you authored the `evaluate()` body, so you know what it returns and can pick a sensible default. Do not leave the array empty just because the user did not articulate the annotation surface; the user reviews and adjusts the proposal in the chat preview.
     - Each entry is discriminated by `kind`. Pick the kind from what `evaluate()` returns:
       - `classification` — `evaluate` returns a bool, an enum-like label, or a `{label, score}` pair. Provide `values` as a list of `{label, score?}`. Use `MAXIMIZE`/`MINIMIZE` when scores are ordered (e.g. `[{label:"good", score:1}, {label:"bad", score:0}]` with `MAXIMIZE`), `NONE` when labels are unordered.
-      - `continuous` — `evaluate` returns an open-ended numeric score. Provide `lower_bound`/`upper_bound` when the range is known (omit otherwise). Pick `MAXIMIZE` when higher is better, `MINIMIZE` when lower is better.
-      - `freeform` — `evaluate` returns a bounded numeric score with a meaningful cutoff (e.g. `0.0`–`1.0` quality scores). Provide `threshold` (the good/bad cutoff combined with the direction), and `lower_bound`/`upper_bound` to describe the range. Default to `MAXIMIZE` with `threshold: 0.5`, `lower_bound: 0`, `upper_bound: 1` for `[0, 1]` quality scores unless the source suggests otherwise.
-    - `optimization_direction` is REQUIRED on every entry. `MAXIMIZE` = higher is better, `MINIMIZE` = lower is better, `NONE` = unranked. `threshold` has no effect when direction is `NONE`.
-    - Supply `name: ""` on each entry — the evaluator's own `name` is reused automatically. Do not invent a separate annotation name.
+      - `continuous` — `evaluate` returns an open-ended numeric score. Provide `lowerBound`/`upperBound` when the range is known (omit otherwise). Pick `MAXIMIZE` when higher is better, `MINIMIZE` when lower is better.
+      - `freeform` — `evaluate` returns a bounded numeric score with a meaningful cutoff (e.g. `0.0`–`1.0` quality scores). Provide `threshold` (the good/bad cutoff combined with the direction), and `lowerBound`/`upperBound` to describe the range. Default to `MAXIMIZE` with `threshold: 0.5`, `lowerBound: 0`, `upperBound: 1` for `[0, 1]` quality scores unless the source suggests otherwise.
+    - `optimizationDirection` is REQUIRED on every entry. `MAXIMIZE` = higher is better, `MINIMIZE` = lower is better, `NONE` = unranked. `threshold` has no effect when direction is `NONE`.
+    - Supply the evaluator's non-empty `name` on each entry. Do not leave it blank, and do not invent a separate annotation name unless `evaluate()` clearly returns multiple independent signals.
     - Most evaluators have exactly one output config. Only emit multiple entries when `evaluate()` clearly returns several independent signals.
   </output_configs>
   <error_handling>

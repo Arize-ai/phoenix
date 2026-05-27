@@ -1,4 +1,11 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { ModalOverlayProps } from "react-aria-components";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
@@ -38,7 +45,7 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
  * - `DatasetEvaluatorsPage` mounts a second instance driven by a pending
  *   `create_code_evaluator` proposal — `initialSnapshot` seeds the form from
  *   the agent's proposal and `onSubmitSuccess` / `onSubmitError` / `onCancel`
- *   drive the chassis terminal resolvers so the chat-side tool call resolves.
+ *   drive the proposal's terminal resolvers so the chat-side tool call resolves.
  */
 export const CreateCodeDatasetEvaluatorSlideover = ({
   datasetId,

@@ -58,15 +58,16 @@ OUTPUT_CONFIG_DRAFT_SCHEMA: dict[str, Any] = {
     "description": (
         "One output config the evaluator produces. Discriminated by `kind`: "
         "`classification` uses `values`; `continuous` uses `lowerBound`/`upperBound`; "
-        "`freeform` uses `threshold` and optional bounds. The evaluator's "
-        "`name` is used as the annotation surface name unless overridden."
+        "`freeform` uses `threshold` and optional bounds. Use the evaluator "
+        "`name` as the annotation surface name unless the evaluator clearly "
+        "returns multiple independent outputs."
     ),
     "properties": {
         "kind": {
             "type": "string",
             "enum": ["classification", "continuous", "freeform"],
         },
-        "name": {"type": "string"},
+        "name": {"type": "string", "minLength": 1},
         "optimizationDirection": {
             "type": "string",
             "enum": ["MINIMIZE", "MAXIMIZE", "NONE"],
@@ -140,9 +141,10 @@ PARAMETERS: dict[str, Any] = {
         "output_configs": {
             "type": "array",
             "description": (
-                "Optional list of output configs the evaluator produces. Each "
-                "entry follows the kind-discriminated OutputConfigDraft shape. "
-                "Omit when the user has not described the annotation surface."
+                "List of output configs the evaluator produces. Each entry "
+                "follows the kind-discriminated OutputConfigDraft shape and "
+                "uses camelCase field names such as `optimizationDirection`, "
+                "`lowerBound`, and `upperBound`."
             ),
             "items": OUTPUT_CONFIG_DRAFT_SCHEMA,
             "default": [],
