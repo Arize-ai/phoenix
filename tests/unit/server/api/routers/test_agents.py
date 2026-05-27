@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 from xml.etree import ElementTree
 
 from jinja2 import Template
@@ -11,6 +12,9 @@ from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.types import SandboxAvailability, SandboxConfigCapabilities
 from phoenix.server.api.routers.agents import _load_sandbox_availability
 from phoenix.server.types import DbSessionFactory
+
+if TYPE_CHECKING:
+    from phoenix.server.agents.context import ResolvedContexts
 
 
 class TestLoadSandboxAvailability:
@@ -245,7 +249,7 @@ class TestCreateCodeEvaluatorCapabilityGate:
             ]
         )
 
-    def _dataset_evaluators_contexts(self):
+    def _dataset_evaluators_contexts(self) -> "ResolvedContexts":
         from phoenix.server.agents.context import (
             DatasetContext,
             DatasetEvaluatorsContext,

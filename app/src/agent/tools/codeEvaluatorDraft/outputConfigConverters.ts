@@ -13,7 +13,9 @@ import type { OutputConfigDraft } from "./types";
  * Downstream consumers (tool JSON schemas, revision hash, diff serializer,
  * mutation conversion) read the explicit `kind` discriminator.
  */
-export function toOutputConfigDraft(config: AnnotationConfig): OutputConfigDraft {
+export function toOutputConfigDraft(
+  config: AnnotationConfig
+): OutputConfigDraft {
   if ("values" in config) {
     return {
       kind: "classification",

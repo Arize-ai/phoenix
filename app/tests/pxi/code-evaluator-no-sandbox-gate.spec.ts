@@ -46,98 +46,100 @@ async function seedDataset(
  * of the test environment — no per-test disable fixture is required.
  */
 test.describe("PXI create code-evaluator no-sandbox gate smoke", () => {
-  test(
-    "no usable sandbox + dataset context: tool absent and assistant redirects to /settings/sandboxes",
-    async ({ browserName, page, pxi, request }, testInfo) => {
-      test.skip(
-        browserName !== "chromium",
-        "PXI real-LLM smoke runs once in chromium."
-      );
-      test.skip(
-        process.env.PXI_E2E !== "true",
-        "Set PXI_E2E=true to run PXI E2E tests."
-      );
-      const judgeApiKeyEnv = getRequiredJudgeApiKeyEnv();
-      test.skip(
-        !process.env.OPENAI_API_KEY,
-        "OPENAI_API_KEY is required for the PXI assistant."
-      );
-      test.skip(
-        !process.env[judgeApiKeyEnv],
-        `${judgeApiKeyEnv} is required for the PXI E2E judge.`
-      );
+  test("no usable sandbox + dataset context: tool absent and assistant redirects to /settings/sandboxes", async ({
+    browserName,
+    page,
+    pxi,
+    request,
+  }, testInfo) => {
+    test.skip(
+      browserName !== "chromium",
+      "PXI real-LLM smoke runs once in chromium."
+    );
+    test.skip(
+      process.env.PXI_E2E !== "true",
+      "Set PXI_E2E=true to run PXI E2E tests."
+    );
+    const judgeApiKeyEnv = getRequiredJudgeApiKeyEnv();
+    test.skip(
+      !process.env.OPENAI_API_KEY,
+      "OPENAI_API_KEY is required for the PXI assistant."
+    );
+    test.skip(
+      !process.env[judgeApiKeyEnv],
+      `${judgeApiKeyEnv} is required for the PXI E2E judge.`
+    );
 
-      const { datasetId } = await seedDataset(request);
+    const { datasetId } = await seedDataset(request);
 
-      await pxi.open();
-      await pxi.acknowledgeConsent();
+    await pxi.open();
+    await pxi.acknowledgeConsent();
 
-      // Land on the dataset detail page so DatasetContextCapability fires.
-      await page.goto(`/datasets/${datasetId}`);
-      await page.waitForURL(new RegExp(`/datasets/${datasetId}`));
-      await page.waitForTimeout(500);
+    // Land on the dataset detail page so DatasetContextCapability fires.
+    await page.goto(`/datasets/${datasetId}`);
+    await page.waitForURL(new RegExp(`/datasets/${datasetId}`));
+    await page.waitForTimeout(500);
 
-      await page.getByRole("button", { name: "Open agent chat" }).click();
-      const messageInput = page.getByLabel("Message input");
-      const acknowledgeButton = page.getByRole("button", {
-        name: "Acknowledge",
-      });
-      await expect(messageInput.or(acknowledgeButton)).toBeVisible();
-      if (await acknowledgeButton.isVisible()) {
-        await acknowledgeButton.click();
-        await expect(messageInput).toBeVisible();
-      }
-
-      const evaluatorName = `pxi-no-sandbox-${testInfo.workerIndex}-${Date.now()}`;
-      const example =
-        PXI_EXPERIMENT_EXAMPLES.createCodeEvaluatorNoSandboxGateSmoke;
-      const renderedPrompt = example.prompt.replace("${name}", evaluatorName);
-
-      const turn = await pxi.askAndWait(renderedPrompt);
-
-      const rubric = [
-        "The assistant did NOT call create_code_evaluator (the tool is hidden because no sandbox is usable).",
-        "The assistant directed the user to /settings/sandboxes (the dataset context instruction template's sandbox-unavailable branch).",
-        "The assistant did not invent a workaround or claim to have created the evaluator despite the gate.",
-      ];
-
-      const outcome = await evaluatePxiOutcome({
-        assertions: async () => {
-          await pxi.expectNoAgentError();
-
-          // Tool absent from the trace.
-          expect(turn.calledTools).not.toContain("create_code_evaluator");
-          await expect(page.getByText("create_code_evaluator")).toHaveCount(0);
-
-          // Assistant text should mention /settings/sandboxes — the explicit
-          // path the dataset context template recommends.
-          expect(turn.assistantText.toLowerCase()).toContain(
-            "/settings/sandboxes"
-          );
-        },
-        judgeInput: {
-          system: JUDGE_SYSTEM,
-          prompt: renderedPrompt,
-          assistantText: turn.assistantText,
-          rubric,
-        },
-      });
-
-      await persistPxiExperiment({
-        request,
-        record: {
-          example,
-          assistantText: turn.assistantText,
-          calledTools: turn.calledTools,
-          url: page.url(),
-          durationMs: turn.durationMs,
-          judgeResult: outcome.judgeResult,
-          playwrightProject: testInfo.project.name,
-          ...pxi.getMetadata(),
-        },
-      });
-
-      assertPxiOutcome(outcome);
+    await page.getByRole("button", { name: "Open agent chat" }).click();
+    const messageInput = page.getByLabel("Message input");
+    const acknowledgeButton = page.getByRole("button", {
+      name: "Acknowledge",
+    });
+    await expect(messageInput.or(acknowledgeButton)).toBeVisible();
+    if (await acknowledgeButton.isVisible()) {
+      await acknowledgeButton.click();
+      await expect(messageInput).toBeVisible();
     }
-  );
+
+    const evaluatorName = `pxi-no-sandbox-${testInfo.workerIndex}-${Date.now()}`;
+    const example =
+      PXI_EXPERIMENT_EXAMPLES.createCodeEvaluatorNoSandboxGateSmoke;
+    const renderedPrompt = example.prompt.replace("${name}", evaluatorName);
+
+    const turn = await pxi.askAndWait(renderedPrompt);
+
+    const rubric = [
+      "The assistant did NOT call create_code_evaluator (the tool is hidden because no sandbox is usable).",
+      "The assistant directed the user to /settings/sandboxes (the dataset context instruction template's sandbox-unavailable branch).",
+      "The assistant did not invent a workaround or claim to have created the evaluator despite the gate.",
+    ];
+
+    const outcome = await evaluatePxiOutcome({
+      assertions: async () => {
+        await pxi.expectNoAgentError();
+
+        // Tool absent from the trace.
+        expect(turn.calledTools).not.toContain("create_code_evaluator");
+        await expect(page.getByText("create_code_evaluator")).toHaveCount(0);
+
+        // Assistant text should mention /settings/sandboxes — the explicit
+        // path the dataset context template recommends.
+        expect(turn.assistantText.toLowerCase()).toContain(
+          "/settings/sandboxes"
+        );
+      },
+      judgeInput: {
+        system: JUDGE_SYSTEM,
+        prompt: renderedPrompt,
+        assistantText: turn.assistantText,
+        rubric,
+      },
+    });
+
+    await persistPxiExperiment({
+      request,
+      record: {
+        example,
+        assistantText: turn.assistantText,
+        calledTools: turn.calledTools,
+        url: page.url(),
+        durationMs: turn.durationMs,
+        judgeResult: outcome.judgeResult,
+        playwrightProject: testInfo.project.name,
+        ...pxi.getMetadata(),
+      },
+    });
+
+    assertPxiOutcome(outcome);
+  });
 });

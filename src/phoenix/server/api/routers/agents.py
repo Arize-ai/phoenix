@@ -397,10 +397,7 @@ async def _load_sandbox_availability(session: AsyncSession) -> SandboxAvailabili
         if isinstance(parsed, SupportsInternetAccess) and parsed.internet_access is not None:
             internet_access = parsed.internet_access.mode
         dependencies: list[str] = []
-        if (
-            isinstance(parsed, SupportsDependencies)
-            and parsed.dependencies is not None
-        ):
+        if isinstance(parsed, SupportsDependencies) and parsed.dependencies is not None:
             dependencies = list(parsed.dependencies.packages)
         env_var_names: list[str] = []
         if isinstance(parsed, SupportsEnvVars):

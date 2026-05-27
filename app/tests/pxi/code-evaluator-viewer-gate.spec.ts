@@ -27,73 +27,75 @@ test.use({ storageState: "playwright/.auth/viewer.json" });
  * `request.user.is_viewer`.
  */
 test.describe("PXI create code-evaluator viewer gate smoke", () => {
-  test(
-    "viewer role does not see create_code_evaluator advertised",
-    async ({ browserName, page, pxi, request }, testInfo) => {
-      test.skip(
-        browserName !== "chromium",
-        "PXI real-LLM smoke runs once in chromium."
-      );
-      test.skip(
-        process.env.PXI_E2E !== "true",
-        "Set PXI_E2E=true to run PXI E2E tests."
-      );
-      const judgeApiKeyEnv = getRequiredJudgeApiKeyEnv();
-      test.skip(
-        !process.env.OPENAI_API_KEY,
-        "OPENAI_API_KEY is required for the PXI assistant."
-      );
-      test.skip(
-        !process.env[judgeApiKeyEnv],
-        `${judgeApiKeyEnv} is required for the PXI E2E judge.`
-      );
+  test("viewer role does not see create_code_evaluator advertised", async ({
+    browserName,
+    page,
+    pxi,
+    request,
+  }, testInfo) => {
+    test.skip(
+      browserName !== "chromium",
+      "PXI real-LLM smoke runs once in chromium."
+    );
+    test.skip(
+      process.env.PXI_E2E !== "true",
+      "Set PXI_E2E=true to run PXI E2E tests."
+    );
+    const judgeApiKeyEnv = getRequiredJudgeApiKeyEnv();
+    test.skip(
+      !process.env.OPENAI_API_KEY,
+      "OPENAI_API_KEY is required for the PXI assistant."
+    );
+    test.skip(
+      !process.env[judgeApiKeyEnv],
+      `${judgeApiKeyEnv} is required for the PXI E2E judge.`
+    );
 
-      await pxi.open();
-      await pxi.acknowledgeConsent();
+    await pxi.open();
+    await pxi.acknowledgeConsent();
 
-      const evaluatorName = `pxi-viewer-gate-${testInfo.workerIndex}-${Date.now()}`;
-      const example = PXI_EXPERIMENT_EXAMPLES.createCodeEvaluatorViewerGateSmoke;
-      const renderedPrompt = example.prompt.replace("${name}", evaluatorName);
+    const evaluatorName = `pxi-viewer-gate-${testInfo.workerIndex}-${Date.now()}`;
+    const example = PXI_EXPERIMENT_EXAMPLES.createCodeEvaluatorViewerGateSmoke;
+    const renderedPrompt = example.prompt.replace("${name}", evaluatorName);
 
-      const turn = await pxi.askAndWait(renderedPrompt);
+    const turn = await pxi.askAndWait(renderedPrompt);
 
-      const rubric = [
-        "The assistant did NOT call create_code_evaluator.",
-        "The assistant did not surface a viewer-specific apology that looks like it came from a dedicated instruction template — silent omission is the contract.",
-        "If the assistant explained the limitation, the explanation came from the chat surface's generic 'I cannot do that' shape rather than agent-side scripted apology.",
-      ];
+    const rubric = [
+      "The assistant did NOT call create_code_evaluator.",
+      "The assistant did not surface a viewer-specific apology that looks like it came from a dedicated instruction template — silent omission is the contract.",
+      "If the assistant explained the limitation, the explanation came from the chat surface's generic 'I cannot do that' shape rather than agent-side scripted apology.",
+    ];
 
-      const outcome = await evaluatePxiOutcome({
-        assertions: async () => {
-          await pxi.expectNoAgentError();
+    const outcome = await evaluatePxiOutcome({
+      assertions: async () => {
+        await pxi.expectNoAgentError();
 
-          // Tool must NOT have fired anywhere in the trace.
-          expect(turn.calledTools).not.toContain("create_code_evaluator");
-          await expect(page.getByText("create_code_evaluator")).toHaveCount(0);
-        },
-        judgeInput: {
-          system: JUDGE_SYSTEM,
-          prompt: renderedPrompt,
-          assistantText: turn.assistantText,
-          rubric,
-        },
-      });
+        // Tool must NOT have fired anywhere in the trace.
+        expect(turn.calledTools).not.toContain("create_code_evaluator");
+        await expect(page.getByText("create_code_evaluator")).toHaveCount(0);
+      },
+      judgeInput: {
+        system: JUDGE_SYSTEM,
+        prompt: renderedPrompt,
+        assistantText: turn.assistantText,
+        rubric,
+      },
+    });
 
-      await persistPxiExperiment({
-        request,
-        record: {
-          example,
-          assistantText: turn.assistantText,
-          calledTools: turn.calledTools,
-          url: page.url(),
-          durationMs: turn.durationMs,
-          judgeResult: outcome.judgeResult,
-          playwrightProject: testInfo.project.name,
-          ...pxi.getMetadata(),
-        },
-      });
+    await persistPxiExperiment({
+      request,
+      record: {
+        example,
+        assistantText: turn.assistantText,
+        calledTools: turn.calledTools,
+        url: page.url(),
+        durationMs: turn.durationMs,
+        judgeResult: outcome.judgeResult,
+        playwrightProject: testInfo.project.name,
+        ...pxi.getMetadata(),
+      },
+    });
 
-      assertPxiOutcome(outcome);
-    }
-  );
+    assertPxiOutcome(outcome);
+  });
 });
