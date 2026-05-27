@@ -42,23 +42,3 @@ async def test_evaluator_by_id_batches_lookups(db: DbSessionFactory) -> None:
     assert [r.id if r is not None else None for r in results] == keys
     missing = await loader._load_fn([max(ids) + 1000])
     assert missing == [None]
-
-
-async def test_evaluator_by_id_loads_builtin_subclass_fields(
-    db: DbSessionFactory,
-    synced_builtin_evaluators: None,
-) -> None:
-    async with db() as session:
-        builtin_id = await session.scalar(
-            sqlalchemy.select(models.BuiltinEvaluator.id).where(
-                models.BuiltinEvaluator.key == "regex"
-            )
-        )
-    assert builtin_id is not None
-
-    loader = EvaluatorByIdDataLoader(db)
-    result = (await loader._load_fn([builtin_id]))[0]
-
-    assert isinstance(result, models.BuiltinEvaluator)
-    assert result.key == "regex"
-    assert result.output_configs

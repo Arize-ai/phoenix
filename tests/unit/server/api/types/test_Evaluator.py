@@ -2,6 +2,7 @@ from secrets import token_hex
 from typing import Any, AsyncIterator
 
 import pytest
+from sqlalchemy import select
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
@@ -1085,8 +1086,6 @@ class TestBuiltInEvaluatorMultiOutput:
         synced_builtin_evaluators: None,
     ) -> None:
         """Verify that null output_configs falls back to the builtin evaluator's configs."""
-        from sqlalchemy import select
-
         async with db() as session:
             dataset = models.Dataset(
                 name=f"test-dataset-null-output-configs-{token_hex(4)}",
