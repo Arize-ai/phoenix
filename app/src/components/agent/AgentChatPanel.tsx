@@ -1,4 +1,4 @@
-import { Suspense, useState, type ReactNode } from "react";
+import { Suspense, useState, type ReactNode, type RefObject } from "react";
 
 import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
 import { Loading } from "@phoenix/components/core";
@@ -24,6 +24,7 @@ import type { AgentModelSelection } from "./useGenerateSessionSummary";
 type AgentChatPanelLayer = "content" | "modal";
 
 type FloatingAgentChatPanelProps = {
+  boundaryRef?: RefObject<HTMLElement | null>;
   /**
    * Controls which stacking and interaction layer owns the floating panel.
    *
@@ -79,10 +80,12 @@ export function AgentChatPanel() {
  * setting.
  */
 export function FloatingAgentChatPanel({
+  boundaryRef,
   layer = "content",
   isForcedFloatingMode = layer === "modal",
 }: FloatingAgentChatPanelProps) {
   const fabPlacement = useAgentContext((state) => state.fabPlacement);
+  const setFabPlacement = useAgentContext((state) => state.setFabPlacement);
   const [panelSize, setPanelSize] = useState(DEFAULT_FLOATING_AGENT_CHAT_SIZE);
 
   return (
@@ -90,8 +93,10 @@ export function FloatingAgentChatPanel({
       isForcedFloatingMode={isForcedFloatingMode}
       renderFrame={(children, { floatingAction }) => (
         <FloatingAgentChatFrame
+          boundaryRef={layer === "content" ? boundaryRef : undefined}
           floatingAction={floatingAction}
           layer={layer}
+          onPlacementChange={setFabPlacement}
           placement={fabPlacement}
           size={panelSize}
           onSizeChange={setPanelSize}
@@ -267,6 +272,7 @@ function AgentChatController({
       floatingAction: showFloatingCloseAction ? (
         <AgentChatWidgetButton
           ariaLabel="Close assistant"
+          isDragHandle
           onPress={closePanel}
         />
       ) : undefined,

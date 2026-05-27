@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { ReactNode } from "react";
+import type { ReactNode, RefObject } from "react";
 import { createPortal } from "react-dom";
 import { Panel, Separator } from "react-resizable-panels";
 
@@ -245,16 +245,20 @@ export function DockedAgentChatFrame({ children }: { children: ReactNode }) {
  * Presentational shell for the floating assistant panel.
  */
 export function FloatingAgentChatFrame({
+  boundaryRef,
   children,
   floatingAction,
   layer = "content",
+  onPlacementChange,
   placement,
   size = DEFAULT_FLOATING_AGENT_CHAT_SIZE,
   onSizeChange,
 }: {
+  boundaryRef?: RefObject<HTMLElement | null>;
   children: ReactNode;
   floatingAction?: ReactNode;
   layer?: "content" | "modal";
+  onPlacementChange?: (placement: AgentFabPlacement) => void;
   placement: AgentFabPlacement;
   size?: Size;
   onSizeChange?: (size: Size) => void;
@@ -262,9 +266,11 @@ export function FloatingAgentChatFrame({
   const activeModalPortalContainer = useActiveModalPortalContainerElement();
   const panel = (
     <ResizableFloatingPanel
+      boundaryRef={boundaryRef}
       floatingAction={floatingAction}
       layer={layer}
       minSize={MIN_FLOATING_AGENT_CHAT_SIZE}
+      onPlacementChange={onPlacementChange}
       placement={placement}
       size={size}
       onSizeChange={onSizeChange}
