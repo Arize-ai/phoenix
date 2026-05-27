@@ -9,6 +9,8 @@ from phoenix.server.agents.capabilities.contexts.app import AppContextCapability
 from phoenix.server.agents.capabilities.contexts.code_evaluator import (
     CodeEvaluatorContextCapability,
 )
+from phoenix.server.agents.capabilities.contexts.dataset import DatasetContextCapability
+from phoenix.server.agents.capabilities.contexts.playground import PlaygroundContextCapability
 from phoenix.server.agents.capabilities.contexts.project import ProjectContextCapability
 from phoenix.server.agents.capabilities.tools.external.create_code_evaluator import (
     NAME as CREATE_CODE_EVALUATOR_NAME,
@@ -24,6 +26,7 @@ from phoenix.server.agents.context import (
     CodeEvaluatorContext,
     DatasetContext,
     DatasetEvaluatorsContext,
+    PlaygroundContext,
     ProjectContext,
     ResolvedContexts,
 )
@@ -154,6 +157,44 @@ class TestProjectContextCapabilityRender:
         content = _render(capability, ctx)
         assert "… [truncated]" in content
         assert long_condition not in content
+
+
+class TestDatasetContextCapabilityRender:
+    def test_evaluator_authoring_handoff_stops_after_navigation_prompt(self) -> None:
+        capability = DatasetContextCapability(
+            instructions=_DEFAULT_PROMPTS.dataset_context,
+        )
+        ctx = _get_run_context(
+            ResolvedContexts(
+                dataset=DatasetContext(
+                    type="dataset",
+                    dataset_node_id="RGF0YXNldDox",
+                ),
+            )
+        )
+        content = _render(capability, ctx)
+        assert "[Evaluators tab](/datasets/RGF0YXNldDox/evaluators)" in content
+        assert "Stop. Do NOT continue with manual UI instructions" in content
+        assert "reply once they are there" in content
+
+
+class TestPlaygroundContextCapabilityRender:
+    def test_dataset_evaluator_authoring_defers_to_dataset_handoff(self) -> None:
+        capability = PlaygroundContextCapability(
+            instructions=_DEFAULT_PROMPTS.playground_context,
+        )
+        ctx = _get_run_context(
+            ResolvedContexts(
+                playground=PlaygroundContext(
+                    type="playground",
+                    instance_ids=[0],
+                ),
+            )
+        )
+        content = _render(capability, ctx)
+        assert "<dataset_evaluator_authoring>" in content
+        assert "do not give a manual form walkthrough" in content
+        assert "stop until they do" in content
 
 
 class TestCodeEvaluatorContextCapabilityGate:
