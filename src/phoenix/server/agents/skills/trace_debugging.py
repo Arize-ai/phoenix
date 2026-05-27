@@ -5,7 +5,7 @@ from pathlib import Path
 from phoenix.server.agents.capabilities.skills import Skill
 
 _SKILL_PATH = (
-    Path(__file__).resolve().parent.parent / "prompts" / "skills" / "trace-debugging" / "SKILL.md"
+    Path(__file__).resolve().parent.parent / "prompts" / "skills" / "debug-trace" / "SKILL.md"
 )
 
 TRACE_DEBUGGING_SKILL = Skill.from_file(_SKILL_PATH)

@@ -1,12 +1,12 @@
 ---
-name: trace-debugging
+name: debug-trace
 description: >
   Use when the user wants to know what is going wrong with their LLM application or how to improve it — e.g., "what's wrong?", "were there errors?", "where is my agent struggling?", "is retrieval working?", "debug this". Do NOT trigger for general project understanding or trace filtering requests like "show me traces with errors", "describe the trace structure", or "tell me about this project" — those don't require cross-trace diagnosis. This is an expensive, multi-step operation (many GraphQL queries, trace sampling, open-coding, clustering) — only trigger it when the user is clearly asking for a diagnostic investigation, not on casual or ambiguous questions.
 ---
 
 ### Orientation
 
-Your goal is to identify common failure modes across multiple traces and provide prioritized, actionable recommendations. Build a representative, evidence-backed picture of what is going wrong and why. Do not exhaustively read every trace. Start broad, inspect selectively, and stop once the main issue categories are clear.
+Your goal is to identify common failure modes and provide prioritized, actionable recommendations. If you already have a specific trace in context, skip the Steps below — apply the failure mode checklist directly to that trace and report findings. Otherwise, build a representative picture across multiple traces: start broad, inspect selectively, and stop once the main issue categories are clear.
 
 ### Common Failure Modes to Watch For
 

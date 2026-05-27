@@ -453,7 +453,7 @@ class TestSkillsCapability:
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
         cached_text = _get_concatenated_text(cached_blocks)
         assert "<available_skills>" in cached_text
-        assert "<name>trace-debugging</name>" in cached_text
+        assert "<name>debug-trace</name>" in cached_text
 
     async def test_skill_tools_are_advertised(
         self,
