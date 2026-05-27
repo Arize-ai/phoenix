@@ -12,6 +12,45 @@ const codeEvaluatorLanguageSchema = z.enum(["PYTHON", "TYPESCRIPT"]);
 const optimizationDirectionSchema = z.enum(["MINIMIZE", "MAXIMIZE", "NONE"]);
 const outputConfigNameSchema = z.string().trim().min(1);
 
+function normalizeInputMappingAliases(input: unknown): unknown {
+  return normalizeAliases(input, {
+    pathMapping: ["path_mapping"],
+    literalMapping: ["literal_mapping"],
+  });
+}
+
+function normalizeOutputConfigAliases(input: unknown): unknown {
+  return normalizeAliases(input, {
+    optimizationDirection: ["optimization_direction"],
+    lowerBound: ["lower_bound"],
+    upperBound: ["upper_bound"],
+  });
+}
+
+function normalizeEditCodeEvaluatorDraftInput(input: unknown): unknown {
+  const normalized = normalizeAliases(input, {
+    expectedRevision: ["expected_revision", "revision"],
+    operations: ["operation"],
+  });
+  if (
+    typeof normalized !== "object" ||
+    normalized === null ||
+    Array.isArray(normalized)
+  ) {
+    return normalized;
+  }
+  const candidate = normalized as Record<string, unknown>;
+  if (
+    candidate.operations === undefined &&
+    typeof candidate.expectedRevision === "string" &&
+    typeof candidate.type === "string"
+  ) {
+    const { expectedRevision: _expectedRevision, ...operation } = candidate;
+    return { ...candidate, operations: [operation] };
+  }
+  return normalized;
+}
+
 const classificationValueSchema = z.object({
   label: z.string(),
   score: z.number().nullish(),
@@ -41,19 +80,27 @@ const freeformOutputConfigDraftSchema = z.object({
   upperBound: z.number().nullish(),
 });
 
-export const outputConfigDraftSchema = z.discriminatedUnion("kind", [
+const outputConfigDraftUnionSchema = z.discriminatedUnion("kind", [
   classificationOutputConfigDraftSchema,
   continuousOutputConfigDraftSchema,
   freeformOutputConfigDraftSchema,
 ]);
 
+export const outputConfigDraftSchema = z.preprocess(
+  normalizeOutputConfigAliases,
+  outputConfigDraftUnionSchema
+);
+
 const inputMappingSchema = z
-  .object({
-    pathMapping: z.record(z.string(), z.string()).optional(),
-    literalMapping: z
-      .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
-      .optional(),
-  })
+  .preprocess(
+    normalizeInputMappingAliases,
+    z.object({
+      pathMapping: z.record(z.string(), z.string()).optional(),
+      literalMapping: z
+        .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+        .optional(),
+    })
+  )
   .transform((value) => ({
     pathMapping: value.pathMapping ?? {},
     literalMapping: value.literalMapping ?? {},
@@ -125,11 +172,7 @@ const editCodeEvaluatorDraftOperationsSchema = z.preprocess((input) => {
 
 export const editCodeEvaluatorDraftInputSchema = z
   .preprocess(
-    (input) =>
-      normalizeAliases(input, {
-        expectedRevision: ["expected_revision"],
-        operations: ["operation"],
-      }),
+    normalizeEditCodeEvaluatorDraftInput,
     z.object({
       expectedRevision: z.string(),
       operations: editCodeEvaluatorDraftOperationsSchema,

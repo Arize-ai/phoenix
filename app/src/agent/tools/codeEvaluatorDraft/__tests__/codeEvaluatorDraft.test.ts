@@ -137,6 +137,94 @@ describe("code evaluator draft agent tools", () => {
     expect(parsed).toBeNull();
   });
 
+  it("normalizes snake_case aliases in draft edit operations", () => {
+    const parsed = parseEditCodeEvaluatorDraftInput({
+      expected_revision: "code-evaluator-draft-abc",
+      operations: [
+        {
+          type: "set_input_mapping",
+          input_mapping: {
+            path_mapping: { output: "attributes.output.value" },
+            literal_mapping: { threshold: 0.5 },
+          },
+        },
+        {
+          type: "set_output_configs",
+          output_configs: [
+            {
+              kind: "freeform",
+              name: "quality",
+              optimization_direction: "MAXIMIZE",
+              threshold: 0.5,
+              lower_bound: 0,
+              upper_bound: 1,
+            },
+          ],
+        },
+      ],
+    });
+    expect(parsed).not.toBeNull();
+    expect(parsed!.expectedRevision).toBe("code-evaluator-draft-abc");
+    expect(parsed!.operations[0]).toEqual({
+      type: "set_input_mapping",
+      inputMapping: {
+        pathMapping: { output: "attributes.output.value" },
+        literalMapping: { threshold: 0.5 },
+      },
+    });
+    expect(parsed!.operations[1]).toEqual({
+      type: "set_output_configs",
+      outputConfigs: [
+        {
+          kind: "freeform",
+          name: "quality",
+          optimizationDirection: "MAXIMIZE",
+          threshold: 0.5,
+          lowerBound: 0,
+          upperBound: 1,
+        },
+      ],
+    });
+  });
+
+  it("accepts a single top-level operation next to expectedRevision", () => {
+    const parsed = parseEditCodeEvaluatorDraftInput({
+      expectedRevision: "code-evaluator-draft-abc",
+      type: "set_description",
+      description: "Scores whether the output includes a tool call.",
+    });
+    expect(parsed).toEqual({
+      expectedRevision: "code-evaluator-draft-abc",
+      operations: [
+        {
+          type: "set_description",
+          description: "Scores whether the output includes a tool call.",
+        },
+      ],
+    });
+  });
+
+  it("accepts the read snapshot revision field as the expected revision", () => {
+    const parsed = parseEditCodeEvaluatorDraftInput({
+      revision: "code-evaluator-draft-abc",
+      operations: [
+        {
+          type: "set_description",
+          description: "Scores whether the output includes a tool call.",
+        },
+      ],
+    });
+    expect(parsed).toEqual({
+      expectedRevision: "code-evaluator-draft-abc",
+      operations: [
+        {
+          type: "set_description",
+          description: "Scores whether the output includes a tool call.",
+        },
+      ],
+    });
+  });
+
   it("rejects the propose-time edit when expectedRevision is stale", async () => {
     const initial = makeSnapshot();
     const { host, snapshotRef } = makeHost(initial);
@@ -187,6 +275,61 @@ describe("code evaluator draft agent tools", () => {
     expect(pending).not.toBeNull();
     expect(pending!.after.description).toBe("from model");
     expect(pending!.before.revision).toBe(initial.revision);
+  });
+
+  it("registers a pending edit from a read revision and model-ish aliases", async () => {
+    const initial = makeSnapshot();
+    const { host } = makeHost(initial);
+    const readAction = createReadCodeEvaluatorDraftClientAction({
+      getDraftHost: () => host,
+    });
+    const readResult = await readAction({});
+    expect(readResult.ok).toBe(true);
+    if (!readResult.ok) return;
+    const readSnapshot = JSON.parse(
+      readResult.output ?? ""
+    ) as CodeEvaluatorDraftSnapshot;
+
+    let pending: PendingCodeEvaluatorEdit | null = null;
+    const editAction = createEditCodeEvaluatorDraftClientAction({
+      getDraftHost: () => host,
+      setPendingCodeEvaluatorEdit: (_, edit) => {
+        pending = edit;
+      },
+    });
+    const editResult = await editAction(
+      {
+        revision: readSnapshot.revision,
+        type: "set_output_configs",
+        output_configs: [
+          {
+            kind: "freeform",
+            name: "quality",
+            optimization_direction: "MAXIMIZE",
+            threshold: 0.5,
+            lower_bound: 0,
+            upper_bound: 1,
+          },
+        ],
+      },
+      {
+        toolCallId: "tc",
+        sessionId: "s",
+        addToolOutput: async () => undefined,
+      }
+    );
+    expect(editResult.ok).toBe(true);
+    expect(pending).not.toBeNull();
+    expect(pending!.after.outputConfigs).toEqual([
+      {
+        kind: "freeform",
+        name: "quality",
+        optimizationDirection: "MAXIMIZE",
+        threshold: 0.5,
+        lowerBound: 0,
+        upperBound: 1,
+      },
+    ]);
   });
 
   it("rejects accept when the draft revision drifted after propose", async () => {
