@@ -289,51 +289,7 @@ const resizableFloatingPanelCSS = css`
   }
 
   .resizable-floating-panel__resize-handle {
-    position: absolute;
-    z-index: ${RESIZE_HANDLE_Z_INDEX};
-    border: none;
-    outline: none;
-    padding: 0;
-    background: transparent;
-    touch-action: none;
-  }
-
-  .resizable-floating-panel__resize-handle::after {
-    content: "";
-    position: absolute;
-    background-color: transparent;
-    transition: opacity 150ms ease-out;
-  }
-
-  .resizable-floating-panel__resize-handle:focus-visible {
-    outline: 2px solid var(--global-color-primary);
-    outline-offset: -2px;
-  }
-
-  .resizable-floating-panel__resize-handle[data-edge="top-left"] {
-    top: 0;
-    left: 0;
-    width: ${RESIZE_HANDLE_SIZE_PX}px;
-    height: ${RESIZE_HANDLE_SIZE_PX}px;
-    cursor: nwse-resize;
-  }
-
-  .resizable-floating-panel__resize-handle[data-edge="top-left"]::after {
-    top: 0;
-    left: 0;
-    width: 10px;
-    height: 10px;
-    border-top: 2px solid var(--global-text-color-500);
-    border-left: 2px solid var(--global-text-color-500);
-    background-color: transparent;
-    opacity: 0.35;
-  }
-
-  .resizable-floating-panel__resize-handle:hover::after,
-  .resizable-floating-panel__resize-handle[data-resizing="true"]::after,
-  .resizable-floating-panel__resize-handle:focus-visible::after {
-    border-color: var(--global-resize-handle-indicator-color-hover);
-    opacity: 1;
+    display: none;
   }
 
   @media (max-width: ${FULLSCREEN_BREAKPOINT_PX}px), (max-height: ${FULLSCREEN_BREAKPOINT_PX}px) {
@@ -353,6 +309,58 @@ const resizableFloatingPanelCSS = css`
     .resizable-floating-panel__resize-handle {
       display: none;
     }
+  }
+`;
+
+const resizeHandleCSS = css`
+  position: fixed;
+  z-index: ${RESIZE_HANDLE_Z_INDEX};
+  border: none;
+  outline: none;
+  padding: 0;
+  background: transparent;
+  touch-action: none;
+
+  &::after {
+    content: "";
+    position: absolute;
+    background-color: transparent;
+    transition: opacity 150ms ease-out;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--global-color-primary);
+    outline-offset: -2px;
+  }
+
+  &[data-edge="top-left"] {
+    top: calc(var(--resizable-floating-panel-y) - 4px);
+    left: calc(var(--resizable-floating-panel-x) - 4px);
+    width: ${RESIZE_HANDLE_SIZE_PX + 4}px;
+    height: ${RESIZE_HANDLE_SIZE_PX + 4}px;
+    cursor: nwse-resize;
+  }
+
+  &[data-edge="top-left"]::after {
+    top: 0;
+    left: 0;
+    width: 10px;
+    height: 10px;
+    border-top: 2px solid var(--global-text-color-500);
+    border-left: 2px solid var(--global-text-color-500);
+    background-color: transparent;
+    opacity: 0.35;
+  }
+
+  &:hover::after,
+  &[data-resizing="true"]::after,
+  &:focus-visible::after {
+    border-color: var(--global-resize-handle-indicator-color-hover);
+    opacity: 1;
+  }
+
+  @media (max-width: ${FULLSCREEN_BREAKPOINT_PX}px), (max-height: ${FULLSCREEN_BREAKPOINT_PX}px) {
+    display: none;
   }
 `;
 
@@ -702,6 +710,35 @@ export function ResizableFloatingPanel({
 
   return (
     <>
+      {resizeHandles.map((edge) => (
+        <div
+          key={edge}
+          role="separator"
+          tabIndex={0}
+          aria-controls={panelId}
+          aria-label="Resize assistant"
+          aria-valuemax={Math.round(
+            Math.min(resizeLimits.maxWidth, resizeLimits.maxHeight)
+          )}
+          aria-valuemin={Math.round(
+            Math.min(resizeLimits.minWidth, resizeLimits.minHeight)
+          )}
+          aria-valuenow={Math.round(
+            Math.min(displayedGeometry.width, displayedGeometry.height)
+          )}
+          className="resizable-floating-panel__resize-handle"
+          css={resizeHandleCSS}
+          data-edge={edge}
+          data-resizing={resizingEdge === edge ? "true" : undefined}
+          style={floatingPanelStyle}
+          onKeyDown={handleResizeKeyDown}
+          onLostPointerCapture={handleResizeLostPointerCapture}
+          onPointerCancel={finishResize}
+          onPointerDown={(event) => handleResizePointerDown(event, edge)}
+          onPointerMove={handleResizePointerMove}
+          onPointerUp={finishResize}
+        />
+      ))}
       <div
         id={panelId}
         className="resizable-floating-panel"
@@ -731,33 +768,6 @@ export function ResizableFloatingPanel({
         }}
         style={floatingPanelStyle}
       >
-        {resizeHandles.map((edge) => (
-          <div
-            key={edge}
-            role="separator"
-            tabIndex={0}
-            aria-controls={panelId}
-            aria-label="Resize assistant"
-            aria-valuemax={Math.round(
-              Math.min(resizeLimits.maxWidth, resizeLimits.maxHeight)
-            )}
-            aria-valuemin={Math.round(
-              Math.min(resizeLimits.minWidth, resizeLimits.minHeight)
-            )}
-            aria-valuenow={Math.round(
-              Math.min(displayedGeometry.width, displayedGeometry.height)
-            )}
-            className="resizable-floating-panel__resize-handle"
-            data-edge={edge}
-            data-resizing={resizingEdge === edge ? "true" : undefined}
-            onKeyDown={handleResizeKeyDown}
-            onLostPointerCapture={handleResizeLostPointerCapture}
-            onPointerCancel={finishResize}
-            onPointerDown={(event) => handleResizePointerDown(event, edge)}
-            onPointerMove={handleResizePointerMove}
-            onPointerUp={finishResize}
-          />
-        ))}
         {children}
       </div>
       {floatingAction ? (
