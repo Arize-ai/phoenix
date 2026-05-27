@@ -136,9 +136,7 @@ class _AllowlistGatedAdapterRegistry(
         return sum(1 for v in self._adapters.values() if v.backend_type in allowed)
 
     def __contains__(self, key: object) -> bool:
-        return key in self._adapters and self._allowed(
-            self._adapters[cast(SandboxBackendType, key)]
-        )
+        return key in self._adapters and self._allowed(self._adapters[key])
 
 
 _SANDBOX_ADAPTERS: MutableMapping[SandboxBackendType, SandboxAdapter[Any, Any, Any]] = (

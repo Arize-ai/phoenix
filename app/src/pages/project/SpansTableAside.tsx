@@ -48,7 +48,10 @@ export function SpansTableAside(props: { filterCondition?: string | null }) {
               timeRange: $timeRange
               filterCondition: $filterCondition
             )
-            costSummary(timeRange: $timeRange, filterCondition: $filterCondition) {
+            costSummary(
+              timeRange: $timeRange
+              filterCondition: $filterCondition
+            ) {
               total {
                 cost
               }

@@ -36,15 +36,13 @@ export function UserPicture({
 
       &[data-theme="light"] {
         background: lch(from var(--internal-avatar-color) l c h / 0.3);
-        border: 1px solid
-          lch(from var(--internal-avatar-color) l c h / 0.5);
+        border: 1px solid lch(from var(--internal-avatar-color) l c h / 0.5);
         color: var(--internal-avatar-color);
       }
 
       &[data-theme="dark"] {
         background: lch(from var(--internal-avatar-color) l c h / 0.2);
-        border: 1px solid
-          lch(from var(--internal-avatar-color) l c h / 0.4);
+        border: 1px solid lch(from var(--internal-avatar-color) l c h / 0.4);
         color: lch(
           from var(--internal-avatar-color) calc((l) * infinity) c h / 1
         );

@@ -69,7 +69,7 @@ export default defineConfig(() => {
       include: ["../__tests__/*.test.{ts,tsx}", "**/__tests__/*.test.{ts,tsx}"],
       exclude: ["../node_modules/**"],
       environment: "jsdom",
-      setupFiles: ["./vitest.setup.ts"],
+      setupFiles: [resolve(__dirname, "./vitest.setup.ts")],
       globals: true,
     },
     build: {

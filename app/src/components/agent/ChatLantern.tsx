@@ -106,7 +106,8 @@ const chatLanternCSS = css`
   transform: translate3d(0, 20px, 0) scale(0.985);
   filter: saturate(0.92);
   transition:
-    opacity var(--chat-lantern-opacity-duration) var(--chat-lantern-opacity-easing),
+    opacity var(--chat-lantern-opacity-duration)
+      var(--chat-lantern-opacity-easing),
     transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
     filter 420ms ease-out;
 
@@ -169,7 +170,8 @@ const chatLanternCSS = css`
 
     transform: none;
     filter: none;
-    transition: opacity var(--chat-lantern-opacity-duration) var(--chat-lantern-opacity-easing);
+    transition: opacity var(--chat-lantern-opacity-duration)
+      var(--chat-lantern-opacity-easing);
 
     &.chat-lantern--visible {
       transform: none;

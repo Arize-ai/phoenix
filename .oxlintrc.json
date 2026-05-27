@@ -16,7 +16,7 @@
     // "eslint/no-shadow": "warn",
     "eqeqeq": ["error", "smart"],
     "eslint/prefer-const": "error",
-    "eslint/no-implicit-conversion": [
+    "eslint/no-implicit-coercion": [
       "error",
       {
         "boolean": false,

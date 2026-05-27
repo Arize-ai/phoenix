@@ -239,9 +239,7 @@ function getKeyboardResizeDelta({
 }
 
 const resizableFloatingPanelCSS = css`
-  --resizable-floating-panel-viewport-margin: var(
-    --global-dimension-size-400
-  );
+  --resizable-floating-panel-viewport-margin: var(--global-dimension-size-400);
 
   position: absolute;
   z-index: ${NON_MODAL_FLOATING_Z_INDEX};
@@ -383,7 +381,8 @@ const resizableFloatingPanelCSS = css`
     bottom: 0;
   }
 
-  @media (max-width: ${FULLSCREEN_BREAKPOINT_PX}px), (max-height: ${FULLSCREEN_BREAKPOINT_PX}px) {
+  @media (max-width: ${FULLSCREEN_BREAKPOINT_PX}px),
+    (max-height: ${FULLSCREEN_BREAKPOINT_PX}px) {
     inset: var(--global-dimension-size-100);
     width: auto;
     height: auto;

@@ -148,8 +148,8 @@ const chatCSS = css`
 
   .chat__empty-action {
     opacity: 0;
-    animation: ${chatEmptyItemFadeUp} 500ms ease-out var(--chat-empty-action-delay, 700ms)
-      forwards;
+    animation: ${chatEmptyItemFadeUp} 500ms ease-out
+      var(--chat-empty-action-delay, 700ms) forwards;
   }
 
   .chat__messages {
@@ -161,8 +161,7 @@ const chatCSS = css`
     display: flex;
     flex-direction: column;
     gap: var(--global-dimension-size-100);
-    padding: var(--global-dimension-size-200)
-      var(--chat-sidebar-inset);
+    padding: var(--global-dimension-size-200) var(--chat-sidebar-inset);
     font-size: var(--global-font-size-s);
     line-height: var(--global-line-height-s);
   }

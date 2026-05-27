@@ -69,7 +69,10 @@ const actionCSS = css`
 
   &:hover {
     background: var(--global-color-gray-100);
-    border-color: var(--global-border-color-hover, var(--global-color-gray-300));
+    border-color: var(
+      --global-border-color-hover,
+      var(--global-color-gray-300)
+    );
     color: var(--global-text-color-900);
   }
 

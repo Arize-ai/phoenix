@@ -193,9 +193,11 @@ class DaytonaSandboxBackend(SandboxBackend):
 
     async def _list_sandboxes_for_key(self, session_key: str) -> list[AsyncSandbox]:
         """Return all Daytona sandboxes tagged with ``session_key`` (server-side filter)."""
+        from daytona_sdk import ListSandboxesQuery
+
         client = self._get_client()
-        response = await client.list(labels={_LABEL_SESSION_KEY: session_key})
-        return response.items
+        query = ListSandboxesQuery(labels={_LABEL_SESSION_KEY: session_key})
+        return [sandbox async for sandbox in client.list(query)]
 
     @override
     async def find_or_create_session(self, session_key: str) -> object:

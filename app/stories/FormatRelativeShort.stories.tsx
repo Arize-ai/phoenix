@@ -28,7 +28,7 @@ const SAMPLES: { label: string; offsetMs: number }[] = [
   { label: "30 seconds ago", offsetMs: 30 * 1000 },
   { label: "5 minutes ago", offsetMs: 5 * ONE_MINUTE_MS },
   { label: "30 minutes ago", offsetMs: 30 * ONE_MINUTE_MS },
-  { label: "1 hour ago", offsetMs: 1 * ONE_HOUR_MS },
+  { label: "1 hour ago", offsetMs: ONE_HOUR_MS },
   { label: "3 hours ago", offsetMs: 3 * ONE_HOUR_MS },
   { label: "5 hours 59 min ago", offsetMs: 6 * ONE_HOUR_MS - ONE_MINUTE_MS },
   // ── boundary: 6h ──
@@ -37,7 +37,7 @@ const SAMPLES: { label: string; offsetMs: number }[] = [
   { label: "12 hours ago", offsetMs: 12 * ONE_HOUR_MS },
   { label: "23 hours ago", offsetMs: 23 * ONE_HOUR_MS },
   // ── boundary: 24h ──
-  { label: "1 day ago", offsetMs: 1 * ONE_DAY_MS },
+  { label: "1 day ago", offsetMs: ONE_DAY_MS },
   { label: "2 days ago", offsetMs: 2 * ONE_DAY_MS },
   { label: "7 days ago", offsetMs: 7 * ONE_DAY_MS },
   { label: "30 days ago", offsetMs: 30 * ONE_DAY_MS },

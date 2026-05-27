@@ -36,7 +36,9 @@ export function ViewerAPIKeys({
 
   const [commit, isCommitting] =
     useMutation<ViewerAPIKeysCreateUserAPIKeyMutation>(graphql`
-      mutation ViewerAPIKeysCreateUserAPIKeyMutation($input: CreateUserApiKeyInput!) {
+      mutation ViewerAPIKeysCreateUserAPIKeyMutation(
+        $input: CreateUserApiKeyInput!
+      ) {
         createUserApiKey(input: $input) {
           jwt
           apiKey {
