@@ -32,6 +32,7 @@ import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import { AgentConsentGate } from "./AgentConsentGate";
 import { AgentContextPills } from "./AgentContextPills";
+import { AgentModelCredentialWarning } from "./AgentModelCredentialWarning";
 import { AgentModelMenu } from "./AgentModelMenu";
 import { ChatEmptyState, type EmptyStateQuickAction } from "./ChatEmptyState";
 import { ChatLantern } from "./ChatLantern";
@@ -415,6 +416,7 @@ export function ChatView({
                     shouldFlip
                     variant="quiet"
                   />
+                  <AgentModelCredentialWarning value={modelMenuValue} />
                 </PromptInputTools>
 
                 <PromptInputActions>
