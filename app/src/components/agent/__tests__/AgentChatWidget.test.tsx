@@ -125,7 +125,7 @@ describe("AgentChatWidget", () => {
         <ThemeProvider themeMode="light" disableBodyTheme>
           <FeatureFlagsContext.Provider
             value={{
-              featureFlags: { agents: true, tracing_ux: false },
+              featureFlags: { agents: true },
               setFeatureFlags: vi.fn(),
             }}
           >
@@ -385,7 +385,7 @@ describe("AgentChatWidget", () => {
         <ThemeProvider themeMode="light" disableBodyTheme>
           <FeatureFlagsContext.Provider
             value={{
-              featureFlags: { agents: true, tracing_ux: false },
+              featureFlags: { agents: true },
               setFeatureFlags: vi.fn(),
             }}
           >

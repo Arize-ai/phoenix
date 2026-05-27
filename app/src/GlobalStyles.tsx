@@ -1384,7 +1384,10 @@ const codeMirrorOverridesCSS = css`
 
 const chartCSS = css`
   .theme {
-    --chart-cartesian-grid-stroke-color: var(--global-color-gray-300);
+    --chart-cartesian-grid-stroke-color: rgba(
+      var(--global-color-gray-500-rgb),
+      0.24
+    );
     --chart-axis-stroke-color: var(--global-color-gray-300);
     --chart-axis-text-color: var(--global-text-color-700);
     --chart-axis-label-color: var(--global-text-color-700);

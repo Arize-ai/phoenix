@@ -19,16 +19,6 @@ const baseToggleButtonGroupCSS = css(`
   width: fit-content;
   & > button {
     border-radius: 0;
-    z-index: 1;
-
-    &[data-disabled] {
-      z-index: 0;
-    }
-
-    &[data-selected],
-    &[data-focus-visible] {
-      z-index: 2;
-    }
   }
 
   & > .toggle-button:not(:first-of-type):not([data-selected="true"]) {
