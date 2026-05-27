@@ -498,8 +498,10 @@ examples:
           - set_spans_filter
       tool_call_args:
         set_spans_filter:
-          condition: span_kind == 'LLM' or span_kind == 'TOOL'
-          rootSpansOnly: false
+          - condition: span_kind == 'LLM' or span_kind == 'TOOL'
+            rootSpansOnly: false
+          - condition: "span_kind in ('LLM', 'TOOL')"
+            rootSpansOnly: false
     metadata:
       category: combination
       annotation:
