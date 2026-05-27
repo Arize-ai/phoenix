@@ -18,7 +18,11 @@
     <none>No active examples were available to sample for this dataset context.</none>
 {% endif %}
   </dataset_example_samples>
-  <code_evaluator_argument_guidance>When authoring dataset-backed code evaluators, prefer direct `evaluate` parameters from `input`, `output`, `reference`, and `metadata`. Keep input mapping at its default unless the user explicitly asks for custom mapping; parse nested dicts, lists, or stringified JSON inside `evaluate` when necessary.</code_evaluator_argument_guidance>
+  <code_evaluator_argument_guidance>
+    When authoring dataset-backed code evaluators, prefer direct `evaluate` parameters from `input`, `output`, `reference`, and `metadata`. Keep input mapping at its default unless the user explicitly asks for custom mapping.
+    Treat the samples as shape evidence: identify the actual nested path used by the sampled `input`, `reference`, or `metadata`, then write small helper functions in `evaluate` that parse that structure. Runtime values may arrive as dicts/lists or stringified JSON, so normalize strings with JSON parsing before traversal.
+    For chat/agent datasets, do not assume a top-level `tool_calls`, `messages`, `final`, or `content` field. If the sample contains a message transcript, traverse the sampled shape (for example a `messages` array, assistant messages, content parts, `tool_calls`/`toolCalls`, or `function_call`) and make the evaluator robust to missing or alternate shapes.
+  </code_evaluator_argument_guidance>
   <evaluator_authoring>
 {% if is_code_evaluator_surface %}
     The create/edit code-evaluator form is mounted. Follow the `<phoenix_code_evaluator_context>` guidance and use the draft-read / draft-edit tools to populate the form.

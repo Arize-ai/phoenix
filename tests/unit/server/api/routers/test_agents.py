@@ -710,6 +710,11 @@ class TestAvailableSandboxConfigsRendering:
             assert "`output` is the experiment run output" in rendered
             assert "`reference` is the dataset example output" in rendered
             assert "parse nested" in rendered
+            assert "sample" in rendered
+            assert "examples" in rendered
+            assert "message" in rendered
+            assert "tool_calls`/`toolCalls" in rendered
+            assert "top-level" in rendered
         assert "Prefer the safe default mapping" in create_rendered
         assert "Keep `input_mapping` at the safe default" in edit_rendered
 

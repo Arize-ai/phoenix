@@ -21,6 +21,12 @@
     - Return either a `{label, score, explanation}` subset (any one, two, or three of those keys) or a bare scalar (string label, numeric score, or boolean). Both shapes are valid in both languages.
     - For dataset-backed experiment evaluators, `output` is the experiment run output and `reference` is the dataset example output. Use sampled dataset context only to infer shape; do not hard-code sample values.
   </evaluate_contract>
+  <sample_shape_parsing>
+    - Before writing `source_code`, inspect the sampled examples and name the exact shape you are targeting. Then encode that shape as helper functions inside `evaluate`.
+    - Normalize values that may be stringified JSON before traversing them. In Python, use `json.loads` guarded by `try`/`except`; in TypeScript, use `JSON.parse` guarded by `try`/`catch`.
+    - For chat or agent outputs, do not stop at `output.get("tool_calls")` unless the samples actually show that top-level shape. Common shapes include a top-level `messages` array, a bare list of messages, assistant messages with `tool_calls`/`toolCalls`, content parts whose type is `tool-call`, and OpenAI-style `function_call`.
+    - If comparing run output to dataset reference, apply equivalent normalization/traversal to both `output` and `reference` so the evaluator respects the dataset's actual message structure.
+  </sample_shape_parsing>
   <name>
     - `name` must match `^[a-z0-9]([_a-z0-9-]*[a-z0-9])?$` — lowercase letters, digits, hyphens, or underscores; cannot start or end with a hyphen or underscore.
     - Prefer concise, action-oriented names (e.g. `hallucination-check`, `json-validity`).
