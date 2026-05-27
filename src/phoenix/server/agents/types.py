@@ -61,7 +61,7 @@ class DatasetExampleSample:
 
     dataset_example_id: str
     input_json: str
-    reference_json: str
+    output_json: str
     metadata_json: str
 
 

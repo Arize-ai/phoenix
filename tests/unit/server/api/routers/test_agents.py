@@ -322,7 +322,7 @@ class TestLoadDatasetExampleSamples:
         assert samples.has_samples is True
         assert len(samples.samples) == 3
         rendered = "\n".join(
-            sample.input_json + sample.reference_json + sample.metadata_json
+            sample.input_json + sample.output_json + sample.metadata_json
             for sample in samples.samples
         )
         assert "tool_calls" in rendered
@@ -402,7 +402,7 @@ class TestLoadDatasetExampleSamples:
 
         assert len(samples.samples) == 1
         assert "old-version" in samples.samples[0].input_json
-        assert "old-reference" in samples.samples[0].reference_json
+        assert "old-reference" in samples.samples[0].output_json
         assert "latest-version" not in samples.samples[0].input_json
 
 
@@ -707,8 +707,10 @@ class TestAvailableSandboxConfigsRendering:
         create_rendered = self._create_template().render(available_sandbox_configs=[])
         edit_rendered = self._edit_template().render(available_sandbox_configs=[])
         for rendered in (create_rendered, edit_rendered):
-            assert "`output` is the experiment run output" in rendered
-            assert "`reference` is the dataset example output" in rendered
+            assert "`output` is the new experiment run output" in rendered
+            assert "add `reference` only when the user explicitly wants comparison" in (
+                rendered.lower()
+            )
             assert "parse nested" in rendered
             assert "sample" in rendered
             assert "examples" in rendered

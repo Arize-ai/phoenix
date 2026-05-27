@@ -72,7 +72,8 @@ OPERATION_SCHEMA: dict[str, Any] = {
         "One code-evaluator draft edit operation. Required fields by type: "
         "set_source_code requires sourceCode; set_language requires language "
         "(rejected in edit mode); set_sandbox_config requires sandboxConfigId "
-        "(may be null to clear); set_input_mapping requires inputMapping; "
+        "(must be non-null in create mode; may be null only in edit mode to clear); "
+        "set_input_mapping requires inputMapping; "
         "set_description requires description; set_name requires name; "
         "set_output_configs requires outputConfigs (whole-list replace)."
     ),
@@ -110,7 +111,8 @@ OPERATION_SCHEMA: dict[str, Any] = {
             "type": ["string", "null"],
             "description": (
                 "Relay node ID of the sandbox configuration. Must match the "
-                "draft language. Pass null to clear the selection."
+                "draft language. Create-mode drafts require a non-null value; "
+                "pass null only in edit mode to clear the selection."
             ),
         },
         "inputMapping": {

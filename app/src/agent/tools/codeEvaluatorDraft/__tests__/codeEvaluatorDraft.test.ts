@@ -24,7 +24,7 @@ function makeSnapshot(
     description: "",
     language: "PYTHON",
     sourceCode: "def evaluate(output):\n    return 1.0",
-    sandboxConfigId: null,
+    sandboxConfigId: "py-sandbox",
     inputMapping: { pathMapping: {}, literalMapping: {} },
     outputConfigs: [],
     ...overrides,
@@ -34,7 +34,10 @@ function makeSnapshot(
 
 function makeHost(
   initial: CodeEvaluatorDraftSnapshot,
-  sandboxConfigs: SandboxConfigIndex = {}
+  sandboxConfigs: SandboxConfigIndex = {
+    "py-sandbox": { language: "PYTHON" },
+    "ts-sandbox": { language: "TYPESCRIPT" },
+  }
 ): {
   host: CodeEvaluatorDraftHost;
   snapshotRef: { current: CodeEvaluatorDraftSnapshot };
@@ -84,7 +87,28 @@ describe("code evaluator draft agent tools", () => {
     expect(result.error).toMatch(/language is immutable/i);
   });
 
-  it("clears incompatible sandbox selection when set_language changes the language in create mode", () => {
+  it("accepts set_language when a compatible sandbox is selected in the same create-mode proposal", () => {
+    const result = applyDraftOperations({
+      snapshot: makeSnapshot({
+        language: "PYTHON",
+        sandboxConfigId: "py-sandbox",
+      }),
+      operations: [
+        { type: "set_language", language: "TYPESCRIPT" },
+        { type: "set_sandbox_config", sandboxConfigId: "ts-sandbox" },
+      ],
+      sandboxConfigs: {
+        "py-sandbox": { language: "PYTHON" },
+        "ts-sandbox": { language: "TYPESCRIPT" },
+      },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.output.language).toBe("TYPESCRIPT");
+    expect(result.output.sandboxConfigId).toBe("ts-sandbox");
+  });
+
+  it("rejects create-mode proposals that leave the sandbox selection empty", () => {
     const result = applyDraftOperations({
       snapshot: makeSnapshot({
         language: "PYTHON",
@@ -96,9 +120,52 @@ describe("code evaluator draft agent tools", () => {
         "ts-sandbox": { language: "TYPESCRIPT" },
       },
     });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toMatch(/requires a non-null sandboxConfigId/i);
+  });
+
+  it("rejects explicit null sandbox selections in create mode", () => {
+    const result = applyDraftOperations({
+      snapshot: makeSnapshot({ language: "PYTHON" }),
+      operations: [{ type: "set_sandbox_config", sandboxConfigId: null }],
+      sandboxConfigs: {
+        "py-sandbox": { language: "PYTHON" },
+      },
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toMatch(/requires a non-null sandboxConfigId/i);
+  });
+
+  it("rejects create-mode edits that omit a required sandbox on an empty draft", () => {
+    const result = applyDraftOperations({
+      snapshot: makeSnapshot({ language: "PYTHON", sandboxConfigId: null }),
+      operations: [{ type: "set_description", description: "from model" }],
+      sandboxConfigs: {
+        "py-sandbox": { language: "PYTHON" },
+      },
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toMatch(/requires a non-null sandboxConfigId/i);
+  });
+
+  it("allows clearing sandbox selection in edit mode", () => {
+    const result = applyDraftOperations({
+      snapshot: makeSnapshot({
+        mode: "edit",
+        evaluatorNodeId: "abc",
+        language: "PYTHON",
+        sandboxConfigId: "py-sandbox",
+      }),
+      operations: [{ type: "set_sandbox_config", sandboxConfigId: null }],
+      sandboxConfigs: {
+        "py-sandbox": { language: "PYTHON" },
+      },
+    });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.output.language).toBe("TYPESCRIPT");
     expect(result.output.sandboxConfigId).toBeNull();
   });
 

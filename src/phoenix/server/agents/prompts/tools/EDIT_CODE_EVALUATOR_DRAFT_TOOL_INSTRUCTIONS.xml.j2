@@ -14,7 +14,7 @@
     - Common shapes:
       - `{"type":"set_source_code","sourceCode":"def evaluate(output):\n    return 1.0"}`
       - `{"type":"set_language","language":"PYTHON"}` — only valid in `create` mode.
-      - `{"type":"set_sandbox_config","sandboxConfigId":"U2FuZGJveENvbmZpZzox"}` — pass `null` to clear. The sandbox config's language must match the draft language.
+      - `{"type":"set_sandbox_config","sandboxConfigId":"U2FuZGJveENvbmZpZzox"}` — pass `null` only in `edit` mode to clear. In `create` mode, the sandbox config ID must be non-null and its language must match the draft language.
       - `{"type":"set_input_mapping","inputMapping":{"pathMapping":{"input":"attributes.input.value"},"literalMapping":{}}}`
       - `{"type":"set_description","description":"Scores hallucination risk"}`
       - `{"type":"set_name","name":"hallucination-v2"}`
@@ -23,14 +23,15 @@
   <invariants>
     - Never rename or remove the `evaluate` function. The runtime calls it by name.
     - Only declare parameters from `{input, output, reference, metadata}` on `evaluate` — additional parameters will fail at execution.
-    - For dataset-backed evaluators, `output` is the experiment run output and `reference` is the dataset example output. Prefer direct `evaluate` arguments and parse nested dicts, lists, or stringified JSON inside the function rather than relying on custom input mapping.
+    - For dataset-backed evaluators, `output` is the new experiment run output at runtime. Sampled dataset `output` values are shape evidence for what future run outputs may look like, not the evaluator `reference` argument.
+    - Prefer direct `evaluate` arguments and parse nested dicts, lists, or stringified JSON inside the function rather than relying on custom input mapping. The simplest evaluator usually declares only `output`; use sampled dataset `output` as the representative value when testing, and add `reference` only when the user explicitly wants comparison against an expected/golden/subset signal.
     - Use sampled dataset examples as shape evidence. Write helper functions that normalize JSON strings and traverse the actual sampled structure, especially chat-style `messages` arrays, assistant content parts, `tool_calls`/`toolCalls`, or `function_call`; do not assume the signal is at a top-level key.
     - In `edit` mode, `set_language` is rejected (language is immutable post-create).
-    - In `create` mode, switching `set_language` may clear an incompatible `sandbox_config_id`; suggest a compatible one in a follow-up turn if needed.
+    - In `create` mode, switching `set_language` may clear an incompatible `sandbox_config_id`; include a compatible `set_sandbox_config` operation in the same proposal. Create-mode proposals that leave `sandboxConfigId` null are rejected.
   </invariants>
   <sample_shape_parsing>
     - If the dataset examples show a message transcript, propose `source_code` with explicit traversal of that transcript shape rather than a generic top-level field check.
-    - If comparing run output to dataset reference, apply equivalent normalization/traversal to both `output` and `reference` so the evaluator respects the dataset's actual message structure.
+    - If explicitly comparing run output to a reference signal, apply equivalent normalization/traversal to both `output` and `reference` so the evaluator respects the actual message structure. Otherwise, prefer deriving the score from `output`.
   </sample_shape_parsing>
   <input_mapping>
     - Keep `input_mapping` at the safe default (`{"literalMapping": {}, "pathMapping": {}}`) unless the user explicitly asks for custom mapping or the current draft already uses mapping intentionally.
@@ -39,6 +40,7 @@
   <sandbox_config>
     - When emitting `set_sandbox_config`, pick `sandboxConfigId` from `<available_sandbox_configs>` below. Do NOT invent or guess an ID, and do NOT issue a `sandboxProviders` GraphQL query — the inventory below is authoritative for this turn.
     - The chosen config's `language` must match the draft language; in `create` mode after `set_language`, re-check the inventory for a compatible entry.
+    - In `create` mode, never pass `sandboxConfigId: null` and never rely on an empty current selection. Choose a non-null compatible sandbox before proposing source code for that language.
 {% if available_sandbox_configs %}
     <available_sandbox_configs>
 {% for cfg in available_sandbox_configs %}

@@ -538,7 +538,7 @@ async def _load_dataset_example_samples(
                     GlobalID(models.DatasetExample.__name__, str(dataset_example_id))
                 ),
                 input_json=_dump_dataset_example_value(input_),
-                reference_json=_dump_dataset_example_value(output),
+                output_json=_dump_dataset_example_value(output),
                 metadata_json=_dump_dataset_example_value(metadata_),
             )
             for dataset_example_id, input_, output, metadata_ in rows

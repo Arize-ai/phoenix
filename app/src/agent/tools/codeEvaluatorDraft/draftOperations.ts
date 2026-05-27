@@ -9,6 +9,12 @@ export type SandboxConfigIndex = Record<
   { language: "PYTHON" | "TYPESCRIPT" } | undefined
 >;
 
+function getMissingCreateSandboxConfigError(
+  language: CodeEvaluatorDraftSnapshot["language"]
+): string {
+  return `Creating a code evaluator requires a non-null sandboxConfigId. Choose an available sandbox config whose language is ${language}.`;
+}
+
 /** Applies operations to a draft snapshot; rejects mode/language-incoherent ops. */
 export function applyDraftOperations({
   snapshot,
@@ -51,6 +57,12 @@ export function applyDraftOperations({
       }
       case "set_sandbox_config": {
         const nextSandboxConfigId = operation.sandboxConfigId;
+        if (next.mode === "create" && nextSandboxConfigId == null) {
+          return {
+            ok: false,
+            error: getMissingCreateSandboxConfigError(next.language),
+          };
+        }
         if (nextSandboxConfigId != null) {
           const config = sandboxConfigs[nextSandboxConfigId];
           if (!config) {
@@ -86,6 +98,12 @@ export function applyDraftOperations({
         break;
       }
     }
+  }
+  if (next.mode === "create" && next.sandboxConfigId == null) {
+    return {
+      ok: false,
+      error: getMissingCreateSandboxConfigError(next.language),
+    };
   }
   next = { ...next, revision: buildDraftRevision(next) };
   return { ok: true, output: next };
