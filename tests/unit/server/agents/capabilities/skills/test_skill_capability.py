@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Callable, cast
 
 from phoenix.server.agents.capabilities.skills import (
     ContentSkillResource,
@@ -45,9 +46,8 @@ def _make_skill(
 def _load_skill(capability: SkillsCapability, skill_name: str) -> str:
     toolset = capability.get_toolset()
     assert isinstance(toolset, SkillsToolset)
-    rendered = toolset.tools["load_skill"].function(skill_name)
-    assert isinstance(rendered, str)
-    return rendered
+    load_skill = cast(Callable[[str], str], toolset.tools["load_skill"].function)
+    return load_skill(skill_name)
 
 
 class TestGetStaticInstructions:
