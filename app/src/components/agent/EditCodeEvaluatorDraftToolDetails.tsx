@@ -48,6 +48,12 @@ type PendingCodeEvaluatorChassis =
   | PendingCodeEvaluatorEdit
   | PendingCodeEvaluatorCreate;
 
+function isCreateChassis(
+  pending: PendingCodeEvaluatorChassis
+): pending is PendingCodeEvaluatorCreate {
+  return "phase" in pending;
+}
+
 export function getEditCodeEvaluatorDraftToolPreview(
   part: ToolInvocationPart
 ): string {
@@ -87,9 +93,17 @@ export function EditCodeEvaluatorDraftToolDetails({
     );
   });
 
+  // The chat preview card is hidden once a create-mode entry has handed off to
+  // the slideover; the slideover owns the remaining UI until a terminal fires.
+  const shouldRenderPendingCard =
+    pending != null &&
+    !(isCreateChassis(pending) && pending.phase === "awaiting-slideover");
+
   return (
     <div className="tool-part__body" css={editCodeEvaluatorToolDetailsCSS}>
-      {pending ? <PendingCodeEvaluatorDraftDiff pending={pending} /> : null}
+      {shouldRenderPendingCard ? (
+        <PendingCodeEvaluatorDraftDiff pending={pending} />
+      ) : null}
       {part.state === "output-available" ? (
         <>
           <ToolPartLabel>Result</ToolPartLabel>
@@ -104,7 +118,7 @@ export function EditCodeEvaluatorDraftToolDetails({
           <ToolPartCodeBlock>{part.errorText ?? ""}</ToolPartCodeBlock>
         </>
       ) : null}
-      {!pending && part.state === "input-available" ? (
+      {!shouldRenderPendingCard && part.state === "input-available" ? (
         <>
           <ToolPartLabel>{EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME}</ToolPartLabel>
           <ToolPartCodeBlock>
@@ -123,6 +137,7 @@ function PendingCodeEvaluatorDraftDiff({
 }) {
   const { theme } = useTheme();
   const canRespond = Boolean(pending.accept && pending.reject);
+  const acceptLabel = isCreateChassis(pending) ? "Confirm" : "Accept";
   const fileName =
     pending.before.mode === "edit"
       ? `code-evaluator-${pending.before.evaluatorNodeId ?? "draft"}.txt`
@@ -181,7 +196,7 @@ function PendingCodeEvaluatorDraftDiff({
             isDisabled={!canRespond}
             onPress={() => void pending.accept?.()}
           >
-            Accept
+            {acceptLabel}
           </Button>
           <Button
             size="S"

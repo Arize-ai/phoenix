@@ -112,6 +112,18 @@ class Dataset(TypedDict):
     example_count: int
 
 
+class DatasetContext(TypedDict):
+    type: Literal["dataset"]
+    datasetNodeId: str
+    datasetVersionNodeId: NotRequired[str]
+
+
+class DatasetEvaluatorsContext(TypedDict):
+    type: Literal["dataset_evaluators"]
+    datasetNodeId: str
+    datasetVersionNodeId: NotRequired[str]
+
+
 class DatasetExample(TypedDict):
     id: str
     node_id: str
@@ -1483,6 +1495,8 @@ class ChatRegenerateMessage(TypedDict):
                 AgentSpanContext,
                 PlaygroundContext,
                 CodeEvaluatorContext,
+                DatasetContext,
+                DatasetEvaluatorsContext,
                 GraphQLContext,
                 WebAccessContext,
             ]
@@ -1507,6 +1521,8 @@ class ChatSubmitMessage(TypedDict):
                 AgentSpanContext,
                 PlaygroundContext,
                 CodeEvaluatorContext,
+                DatasetContext,
+                DatasetEvaluatorsContext,
                 GraphQLContext,
                 WebAccessContext,
             ]

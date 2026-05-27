@@ -22,6 +22,8 @@ from phoenix.server.agents.capabilities.tools.external.create_code_evaluator imp
 from phoenix.server.agents.context import (
     AppContext,
     CodeEvaluatorContext,
+    DatasetContext,
+    DatasetEvaluatorsContext,
     ProjectContext,
     ResolvedContexts,
 )
@@ -196,30 +198,60 @@ class TestCodeEvaluatorContextCapabilityGate:
         assert "<evaluator_node_id>" not in content
 
 
+def _dataset_evaluators_contexts() -> ResolvedContexts:
+    """Return a ResolvedContexts pre-populated with the dataset + dataset
+    evaluators contexts that the create_code_evaluator gate now requires."""
+    return ResolvedContexts(
+        dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+        dataset_evaluators=DatasetEvaluatorsContext(
+            type="dataset_evaluators",
+            dataset_node_id="RGF0YXNldDox",
+        ),
+    )
+
+
 class TestCreateCodeEvaluatorCapabilityGate:
-    """The `create_code_evaluator` tool is exposed only when no code-evaluator
-    form is open — exactly the inverse of the draft read/edit tools.
+    """The `create_code_evaluator` tool is exposed only on the dataset
+    evaluators tab — every gate condition must hold simultaneously.
     """
 
-    def test_included_when_no_code_evaluator_context(self) -> None:
+    def test_included_on_dataset_evaluators_tab(self) -> None:
+        capability = CreateCodeEvaluatorCapability(
+            instructions=_DEFAULT_INSTRUCTIONS.create_code_evaluator_tool,
+        )
+        ctx = _get_run_context(_dataset_evaluators_contexts())
+        assert capability.include_for_run(ctx) is True
+
+    def test_excluded_when_no_dataset_evaluators_context(self) -> None:
+        capability = CreateCodeEvaluatorCapability(
+            instructions=_DEFAULT_INSTRUCTIONS.create_code_evaluator_tool,
+        )
+        # Only the bare dataset context is present — the user is on a
+        # non-evaluators tab of a dataset; the slideover surface isn't mounted.
+        ctx = _get_run_context(
+            ResolvedContexts(
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            )
+        )
+        assert capability.include_for_run(ctx) is False
+
+    def test_excluded_when_no_dataset_context(self) -> None:
         capability = CreateCodeEvaluatorCapability(
             instructions=_DEFAULT_PROMPTS.create_code_evaluator_tool,
         )
         ctx = _get_run_context(ResolvedContexts())
-        assert capability.include_for_run(ctx) is True
+        assert capability.include_for_run(ctx) is False
 
     def test_excluded_when_code_evaluator_context_present(self) -> None:
         capability = CreateCodeEvaluatorCapability(
             instructions=_DEFAULT_PROMPTS.create_code_evaluator_tool,
         )
-        ctx = _get_run_context(
-            ResolvedContexts(
-                code_evaluator=CodeEvaluatorContext(
-                    type="code_evaluator",
-                    evaluator_node_id=None,
-                ),
-            )
+        contexts = _dataset_evaluators_contexts()
+        contexts.code_evaluator = CodeEvaluatorContext(
+            type="code_evaluator",
+            evaluator_node_id=None,
         )
+        ctx = _get_run_context(contexts)
         assert capability.include_for_run(ctx) is False
 
     def test_excluded_for_viewer(self) -> None:
@@ -228,7 +260,7 @@ class TestCreateCodeEvaluatorCapabilityGate:
         capability = CreateCodeEvaluatorCapability(
             instructions=_DEFAULT_PROMPTS.create_code_evaluator_tool,
         )
-        ctx = _get_run_context(ResolvedContexts(), is_viewer=True)
+        ctx = _get_run_context(_dataset_evaluators_contexts(), is_viewer=True)
         assert capability.include_for_run(ctx) is False
 
     def test_excluded_when_no_usable_sandbox(self) -> None:
@@ -239,7 +271,7 @@ class TestCreateCodeEvaluatorCapabilityGate:
             instructions=_DEFAULT_PROMPTS.create_code_evaluator_tool,
         )
         ctx = _get_run_context(
-            ResolvedContexts(),
+            _dataset_evaluators_contexts(),
             sandbox_availability=SandboxAvailability(configs=[]),
         )
         assert capability.include_for_run(ctx) is False

@@ -19,15 +19,18 @@ LANGUAGE_ENUM = ["PYTHON", "TYPESCRIPT"]
 IDENTIFIER_PATTERN = r"^[a-z0-9]([_a-z0-9-]*[a-z0-9])?$"
 
 DESCRIPTION = (
-    "Create a standalone code evaluator persisted via the `createCodeEvaluator` "
-    "GraphQL mutation. Use this when the user wants to author a new code "
-    "evaluator outside of an open code-evaluator form. The authored `source_code` "
-    "must define a function named `evaluate` whose parameters are drawn from "
-    "{output, reference, input, metadata}; Python uses positional parameters and "
-    "TypeScript uses a single destructured object. `input_mapping` is always "
-    "sent (default `{literalMapping:{}, pathMapping:{}}`). The server validates "
-    "the `evaluate()` signature and the `name` identifier and surfaces failures "
-    "as `BadRequest`; relay those messages back to the user verbatim."
+    "Propose a new code evaluator for the dataset currently in view. This tool "
+    "is advertised only on the dataset evaluators tab; calling it renders an "
+    "inline diff preview in chat that the user must Confirm before a prefilled "
+    "slideover opens, where the user Saves to persist the evaluator and bind "
+    "it to the dataset. This tool call does NOT itself persist anything. The "
+    "authored `source_code` must define a function named `evaluate` whose "
+    "parameters are drawn from {output, reference, input, metadata}; Python "
+    "uses positional parameters and TypeScript uses a single destructured "
+    "object. `input_mapping` is always sent (default "
+    "`{literalMapping:{}, pathMapping:{}}`). The server validates the "
+    "`evaluate()` signature and the `name` identifier and surfaces failures as "
+    "`BadRequest`; relay those messages back to the user verbatim."
 )
 
 INPUT_MAPPING_SCHEMA: dict[str, Any] = {
@@ -177,6 +180,8 @@ class CreateCodeEvaluatorCapability(AbstractDynamicCapability[AgentDependencies]
     def include_for_run(self, ctx: RunContext[AgentDependencies]) -> bool:
         return (
             ctx.deps.contexts.code_evaluator is None
+            and ctx.deps.contexts.dataset is not None
+            and ctx.deps.contexts.dataset_evaluators is not None
             and not ctx.deps.is_viewer
             and ctx.deps.sandbox_availability.has_usable
         )

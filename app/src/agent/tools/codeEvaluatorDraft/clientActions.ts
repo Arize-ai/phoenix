@@ -204,6 +204,12 @@ export function createCreateCodeEvaluatorClientAction({
     };
     const before = buildEmptyBeforeSnapshot(proposed);
     const datasetContext = readActiveDatasetContext(store);
+    if (datasetContext === null) {
+      return {
+        ok: false,
+        error: "create_code_evaluator requires a dataset context",
+      };
+    }
 
     const pendingCreate = bindPendingCodeEvaluatorCreateActions({
       pendingCreate: {

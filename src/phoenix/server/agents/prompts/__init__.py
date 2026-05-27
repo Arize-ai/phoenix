@@ -61,6 +61,9 @@ _CODE_EVALUATOR_CONTEXT_TEMPLATE = get_template(
     "context/CODE_EVALUATOR_CONTEXT_INSTRUCTIONS.xml.j2"
 )
 _DATASET_CONTEXT_TEMPLATE = get_template("context/DATASET_CONTEXT_INSTRUCTIONS.xml.j2")
+_DATASET_EVALUATORS_CONTEXT_TEMPLATE = get_template(
+    "context/DATASET_EVALUATORS_CONTEXT_INSTRUCTIONS.xml.j2"
+)
 _GRAPHQL_MUTATIONS_TEMPLATE = get_template("context/GRAPHQL_MUTATIONS_INSTRUCTIONS.xml.j2")
 _SKILLS_TEMPLATE = get_template("skills/SKILLS_INSTRUCTIONS.xml.j2")
 _LOAD_SKILL_TEMPLATE = get_template("skills/LOAD_SKILL.xml.j2")
@@ -103,6 +106,7 @@ class AgentPrompts:
     playground_context: Template = _PLAYGROUND_CONTEXT_TEMPLATE
     code_evaluator_context: Template = _CODE_EVALUATOR_CONTEXT_TEMPLATE
     dataset_context: Template = _DATASET_CONTEXT_TEMPLATE
+    dataset_evaluators_context: Template = _DATASET_EVALUATORS_CONTEXT_TEMPLATE
     graphql_mutations: Template = _GRAPHQL_MUTATIONS_TEMPLATE
     skills: Template = _SKILLS_TEMPLATE
     load_skill: Template = _LOAD_SKILL_TEMPLATE

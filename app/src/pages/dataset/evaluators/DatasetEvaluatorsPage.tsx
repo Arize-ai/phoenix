@@ -6,13 +6,16 @@ import { graphql } from "relay-runtime";
 import invariant from "tiny-invariant";
 import z from "zod";
 
+import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import { Loading } from "@phoenix/components";
 import { CreateBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateBuiltInDatasetEvaluatorSlideover";
+import { CreateCodeDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateCodeDatasetEvaluatorSlideover";
 import {
   type CreateLLMDatasetEvaluatorInitialState,
   CreateLLMDatasetEvaluatorSlideover,
 } from "@phoenix/components/dataset/CreateLLMDatasetEvaluatorSlideover";
 import { AddEvaluatorMenu } from "@phoenix/components/evaluators/AddEvaluatorMenu";
+import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { DatasetEvaluatorsPage_builtInEvaluators$key } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsPage_builtInEvaluators.graphql";
 import type { datasetEvaluatorsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorsLoader";
@@ -37,6 +40,16 @@ export function DatasetEvaluatorsPage() {
 export function DatasetEvaluatorsPageContent() {
   const { datasetId } = useParams();
   invariant(datasetId, "datasetId is required");
+
+  const advertisedDatasetEvaluatorsContext = useMemo(
+    () => ({
+      type: "dataset_evaluators" as const,
+      datasetNodeId: datasetId,
+      datasetVersionNodeId: null,
+    }),
+    [datasetId]
+  );
+  useAdvertiseAgentContext(advertisedDatasetEvaluatorsContext);
 
   const loaderData = useLoaderData<typeof datasetEvaluatorsLoader>();
   invariant(loaderData, "loaderData is required");
@@ -120,6 +133,26 @@ export function DatasetEvaluatorsPageContent() {
     return [];
   }, [evaluatorsTableData]);
 
+  // The page selects only the pending create whose chat-side Confirm has
+  // already flipped phase to "awaiting-slideover" AND whose snapshotted
+  // dataset matches the dataset currently in view; this drives the second
+  // (agent-handoff) slideover instance.
+  const pendingAgentCreate = useAgentContext((state) => {
+    const entries = Object.values(
+      state.pendingCodeEvaluatorCreatesByToolCallId
+    );
+    for (const entry of entries) {
+      if (
+        entry &&
+        entry.phase === "awaiting-slideover" &&
+        entry.datasetContext.datasetNodeId === datasetId
+      ) {
+        return entry;
+      }
+    }
+    return null;
+  });
+
   return (
     <>
       <main
@@ -182,6 +215,27 @@ export function DatasetEvaluatorsPageContent() {
         evaluatorId={builtinEvaluatorIdToAssociate}
         datasetId={datasetId}
         updateConnectionIds={connectionsToUpdate}
+      />
+
+      <CreateCodeDatasetEvaluatorSlideover
+        isOpen={pendingAgentCreate != null}
+        // The slideover's open state is read from the agent store; closing
+        // it just drives the chassis resolver. The component invokes
+        // onCancel for user-driven close paths only.
+        onOpenChange={() => undefined}
+        datasetId={datasetId}
+        updateConnectionIds={connectionsToUpdate}
+        initialSnapshot={pendingAgentCreate?.after ?? null}
+        onSubmitSuccess={(datasetEvaluatorId, createdEvaluator) =>
+          void pendingAgentCreate?.resolveAsAccepted?.({
+            datasetEvaluatorId,
+            createdEvaluator,
+          })
+        }
+        onSubmitError={(message) =>
+          void pendingAgentCreate?.resolveAsFailed?.(message)
+        }
+        onCancel={() => void pendingAgentCreate?.resolveAsRejected?.()}
       />
     </>
   );

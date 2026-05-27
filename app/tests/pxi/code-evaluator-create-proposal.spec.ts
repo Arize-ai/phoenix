@@ -10,7 +10,7 @@ import { getRequiredJudgeApiKeyEnv } from "./judge";
 import { assertPxiOutcome, evaluatePxiOutcome } from "./outcome";
 
 const JUDGE_SYSTEM =
-  "You are judging a Phoenix PXI E2E answer about the create_code_evaluator proposal flow. On both dataset and non-dataset surfaces the user expects an inline diff preview in the chat that they must accept before any mutation runs. On a dataset surface, Accept chains createCodeEvaluator and createDatasetCodeEvaluator; on a non-dataset surface, Accept persists only the standalone evaluator. Return a label, score, and brief explanation.";
+  "You are judging a Phoenix PXI E2E answer about the create_code_evaluator three-stage handoff flow on the dataset evaluators tab. PXI must (1) explain what evaluator it intends to author, (2) call create_code_evaluator exactly once to render an inline preview with Confirm and Reject buttons, and (3) — on Confirm — hand off to the dataset's CreateCodeDatasetEvaluatorSlideover where the user clicks Save to persist via Relay. No GraphQL mutation may run before the slideover Save. Return a label, score, and brief explanation.";
 
 async function seedDataset(
   request: APIRequestContext
@@ -96,103 +96,54 @@ async function fetchDatasetEvaluators(
     }));
 }
 
-type GraphQLEvaluatorListResponse = {
-  data?: {
-    evaluators?: {
-      edges?: Array<{
-        node?: { __typename?: string; id?: string; name?: string };
-      }>;
-    } | null;
-  } | null;
-};
-
-async function listEvaluatorsByName(
-  request: APIRequestContext,
-  name: string
-): Promise<Array<{ id: string; name: string }>> {
-  const response = await request.post("/graphql", {
-    headers: { "Content-Type": "application/json" },
-    data: {
-      query: `query VerifyEvaluator($filter: EvaluatorFilter) {
-        evaluators(filter: $filter, first: 50) {
-          edges { node { __typename ... on CodeEvaluator { id name } } }
-        }
-      }`,
-      variables: { filter: { col: "name", value: name } },
-    },
-  });
-  expect(response.ok()).toBeTruthy();
-  const payload = (await response.json()) as GraphQLEvaluatorListResponse;
-  const edges = payload.data?.evaluators?.edges ?? [];
-  return edges
-    .map((edge) => edge.node)
-    .filter(
-      (node): node is { __typename?: string; id: string; name: string } =>
-        typeof node?.id === "string" && typeof node?.name === "string"
-    )
-    .map((node) => ({ id: node.id, name: node.name }));
-}
-
-async function readCreatedEvaluatorIdFromToolPart(
+async function openDatasetEvaluatorsAndPxi(
   page: Page,
-  evaluatorName: string
-): Promise<string> {
-  const createChip = page
-    .locator(".tool-part", {
-      has: page.locator(".tool-part__title-text", {
-        hasText: "create_code_evaluator",
-      }),
-    })
-    .first();
-  await expect(createChip).toBeVisible({ timeout: 60000 });
-  const bodyText = (await createChip.textContent()) ?? "";
-  const namePattern = new RegExp(`"name"\\s*:\\s*"${evaluatorName}"`);
-  expect(bodyText).toMatch(namePattern);
-  const idMatch = bodyText.match(/"id"\s*:\s*"([^"]+)"/);
-  if (!idMatch) {
-    throw new Error(
-      `create_code_evaluator tool chip output did not include an evaluator id. Body: ${bodyText.slice(
-        0,
-        500
-      )}`
-    );
+  pxi: { open: () => Promise<void>; acknowledgeConsent: () => Promise<void> },
+  datasetId: string
+) {
+  await pxi.open();
+  await pxi.acknowledgeConsent();
+  await page.goto(`/datasets/${datasetId}/evaluators`);
+  await page.waitForURL("**/evaluators");
+  await page.waitForTimeout(500);
+  await page.getByRole("button", { name: "Open agent chat" }).click();
+  const messageInput = page.getByLabel("Message input");
+  const acknowledgeButton = page.getByRole("button", { name: "Acknowledge" });
+  await expect(messageInput.or(acknowledgeButton)).toBeVisible();
+  if (await acknowledgeButton.isVisible()) {
+    await acknowledgeButton.click();
+    await expect(messageInput).toBeVisible();
   }
-  return idMatch[1];
+  return messageInput;
 }
 
-async function acceptProposalAndWait(page: Page) {
-  const createChip = page
+async function waitForCreateChip(page: Page) {
+  const chip = page
     .locator(".tool-part", {
       has: page.locator(".tool-part__title-text", {
         hasText: "create_code_evaluator",
       }),
     })
     .first();
-  await expect(createChip).toBeVisible({ timeout: 60000 });
-  await expect(createChip.getByText(/Awaiting approval/i)).toBeVisible({
+  await expect(chip).toBeVisible({ timeout: 60000 });
+  await expect(chip.getByText(/Awaiting approval/i)).toBeVisible({
     timeout: 60000,
   });
-  await createChip.getByRole("button", { name: "Accept" }).click();
-  await expect(createChip.getByText(/Accepted/i)).toBeVisible({
-    timeout: 60000,
-  });
+  return chip;
 }
 
 /**
- * PXI create_code_evaluator chassis smoke test.
+ * PXI create_code_evaluator three-stage chassis smoke test.
  *
- * Both blocks drive Accept via the same chat-side `acceptProposalAndWait`
- * helper — the contract under test is preview-before-commit on every surface.
- * The dataset block additionally asserts `fetchDatasetEvaluators` returns a
- * binding for the newly created evaluator (chained dispatch); the standalone
- * block asserts the global evaluator exists with no dataset bindings.
- *
- * Both blocks are gated with `test.fixme()` pending a fix for the PXI E2E
- * harness's localStorage stub regression (storage.clear is not a function).
+ * Every block is on the dataset evaluators tab — the only surface where the
+ * tool is advertised. The three blocks exercise the three terminal edges
+ * (Save / Reject-before-Confirm / Cancel-after-Confirm) so the chassis state
+ * machine is covered end-to-end. All blocks are gated with `test.fixme()`
+ * pending a fix for the PXI E2E harness's localStorage stub regression.
  */
-test.describe("PXI create code-evaluator proposal smoke", () => {
+test.describe("PXI create code-evaluator three-stage smoke", () => {
   test.fixme(
-    "dataset surface: Accept in chat chains createDatasetCodeEvaluator and binds the evaluator to the dataset",
+    "Save: Confirm in chat opens the slideover, Save persists via Relay and binds the evaluator to the dataset",
     async ({ browserName, page, pxi, request }, testInfo) => {
       test.skip(
         browserName !== "chromium",
@@ -213,29 +164,11 @@ test.describe("PXI create code-evaluator proposal smoke", () => {
       );
 
       const { datasetId } = await seedDataset(request);
-
-      await pxi.open();
-      await pxi.acknowledgeConsent();
-
-      // Land on a dataset surface so DatasetPage mounts
-      // useAdvertiseAgentContext({type:"dataset", datasetNodeId}). The agent
-      // sees the dataset context, snapshots it onto the pending entry at
-      // propose time, and threads it through dispatch on Accept.
-      await page.goto(`/datasets/${datasetId}/examples`);
-      await page.waitForURL("**/examples");
-      await page.waitForTimeout(500);
-
-      // Reopen the PXI panel since the navigation may have closed it.
-      await page.getByRole("button", { name: "Open agent chat" }).click();
-      const messageInput = page.getByLabel("Message input");
-      const acknowledgeButton = page.getByRole("button", {
-        name: "Acknowledge",
-      });
-      await expect(messageInput.or(acknowledgeButton)).toBeVisible();
-      if (await acknowledgeButton.isVisible()) {
-        await acknowledgeButton.click();
-        await expect(messageInput).toBeVisible();
-      }
+      const messageInput = await openDatasetEvaluatorsAndPxi(
+        page,
+        pxi,
+        datasetId
+      );
 
       const evaluatorName = `pxi-dataset-eval-${testInfo.workerIndex}-${Date.now()}`;
       const example =
@@ -247,46 +180,45 @@ test.describe("PXI create code-evaluator proposal smoke", () => {
       await page.getByRole("button", { name: "Send message" }).click();
 
       const calledTools: string[] = [];
-      let createdEvaluatorId = "";
 
       const rubric = [
-        "The assistant called create_code_evaluator from the dataset surface and produced an inline diff preview the user could review.",
-        "The assistant did not immediately persist the evaluator — the proposal required a user accept before any mutation fired.",
-        "After Accept, the evaluator was both created globally AND attached to the active dataset (visible as a DatasetEvaluator binding).",
+        "The assistant first explained in chat what evaluator it intends to author, then called create_code_evaluator on the dataset evaluators tab and rendered an inline preview with a Confirm button.",
+        "The assistant did not fire any GraphQL mutation before the user confirmed: clicking Confirm in chat opened the dataset code-evaluator slideover prefilled with the proposal.",
+        "After the user clicked Save in the slideover, both createCodeEvaluator and createDatasetCodeEvaluator ran via Relay and the chassis tool output resolved as accepted with the dataset evaluator id.",
       ];
 
       const outcome = await evaluatePxiOutcome({
         assertions: async () => {
           await pxi.expectNoAgentError();
-          await expect(
-            page.getByText("create_code_evaluator").first()
-          ).toBeVisible({ timeout: 60000 });
           calledTools.push("create_code_evaluator");
+          const chip = await waitForCreateChip(page);
+          await chip.getByRole("button", { name: "Confirm" }).click();
 
-          await acceptProposalAndWait(page);
+          // Slideover Save persists via Relay and resolves the chassis.
+          const slideoverSave = page.getByRole("button", { name: "Save" });
+          await expect(slideoverSave).toBeVisible({ timeout: 60000 });
+          await slideoverSave.click();
 
-          createdEvaluatorId = await readCreatedEvaluatorIdFromToolPart(
-            page,
-            evaluatorName
-          );
+          await expect(chip.getByText(/Accepted/i)).toBeVisible({
+            timeout: 60000,
+          });
 
-          // Verify the chained dataset-evaluator binding was created.
           const datasetEvaluators = await fetchDatasetEvaluators(
             request,
             datasetId
           );
           const matching = datasetEvaluators.find(
-            (e) => e.evaluatorId === createdEvaluatorId
+            (e) => e.evaluatorName === evaluatorName
           );
           expect(
             matching,
-            "Expected the chat-side Accept to chain createDatasetCodeEvaluator and bind the new evaluator to the active dataset."
+            "Slideover Save must chain createDatasetCodeEvaluator and bind the new evaluator to the active dataset."
           ).toBeDefined();
         },
         judgeInput: {
           system: JUDGE_SYSTEM,
           prompt: renderedPrompt,
-          assistantText: `Proposed create_code_evaluator with name=${evaluatorName} on the dataset surface; user accepted in chat; chained createDatasetCodeEvaluator attached id=${createdEvaluatorId} to dataset ${datasetId}.`,
+          assistantText: `Explained intent; proposed create_code_evaluator with name=${evaluatorName}; user Confirmed in chat; user Saved in slideover; chained Relay mutations bound the evaluator to dataset ${datasetId}.`,
           rubric,
         },
       });
@@ -296,7 +228,7 @@ test.describe("PXI create code-evaluator proposal smoke", () => {
         request,
         record: {
           example,
-          assistantText: `Dataset-surface chat Accept chained both mutations for ${evaluatorName} (id=${createdEvaluatorId}).`,
+          assistantText: `Three-stage success: explain + create_code_evaluator preview + slideover Save bound ${evaluatorName} to ${datasetId}.`,
           calledTools: [...new Set(calledTools)],
           url: page.url(),
           durationMs,
@@ -311,7 +243,7 @@ test.describe("PXI create code-evaluator proposal smoke", () => {
   );
 
   test.fixme(
-    "non-dataset surface: Accept in chat persists only the standalone evaluator",
+    "Reject-before-Confirm: clicking Reject in chat resolves the chassis as rejected with no slideover and no mutation",
     async ({ browserName, page, pxi, request }, testInfo) => {
       test.skip(
         browserName !== "chromium",
@@ -331,52 +263,52 @@ test.describe("PXI create code-evaluator proposal smoke", () => {
         `${judgeApiKeyEnv} is required for the PXI E2E judge.`
       );
 
-      // pxi.open() lands on /projects — no dataset context active.
-      await pxi.open();
-      await pxi.acknowledgeConsent();
+      const { datasetId } = await seedDataset(request);
+      const messageInput = await openDatasetEvaluatorsAndPxi(
+        page,
+        pxi,
+        datasetId
+      );
 
-      const evaluatorName = `pxi-standalone-eval-${testInfo.workerIndex}-${Date.now()}`;
+      const evaluatorName = `pxi-reject-eval-${testInfo.workerIndex}-${Date.now()}`;
       const example =
-        PXI_EXPERIMENT_EXAMPLES.createCodeEvaluatorProposalStandaloneSmoke;
+        PXI_EXPERIMENT_EXAMPLES.createCodeEvaluatorProposalDatasetSmoke;
       const renderedPrompt = example.prompt.replace("${name}", evaluatorName);
 
       const startedAt = Date.now();
-      await page.getByLabel("Message input").fill(renderedPrompt);
+      await messageInput.fill(renderedPrompt);
       await page.getByRole("button", { name: "Send message" }).click();
 
       const calledTools: string[] = [];
-      let createdEvaluatorId = "";
 
       const rubric = [
-        "The assistant called create_code_evaluator and produced an inline diff preview the user could review.",
-        "The assistant did not immediately persist the evaluator — the proposal required a user accept before any mutation fired.",
-        "After Accept, exactly one CodeEvaluator was created globally with no DatasetEvaluator binding (standalone path).",
+        "The assistant called create_code_evaluator and rendered the inline preview card with Confirm/Reject buttons.",
+        "After the user clicked Reject in chat, no slideover opened and no GraphQL mutation ran — the chassis resolved as rejected.",
       ];
 
       const outcome = await evaluatePxiOutcome({
         assertions: async () => {
           await pxi.expectNoAgentError();
-          await expect(
-            page.getByText("create_code_evaluator").first()
-          ).toBeVisible({ timeout: 60000 });
           calledTools.push("create_code_evaluator");
+          const chip = await waitForCreateChip(page);
+          await chip.getByRole("button", { name: "Reject" }).click();
+          await expect(chip.getByText(/Rejected/i)).toBeVisible({
+            timeout: 60000,
+          });
 
-          await acceptProposalAndWait(page);
-
-          createdEvaluatorId = await readCreatedEvaluatorIdFromToolPart(
-            page,
-            evaluatorName
+          const datasetEvaluators = await fetchDatasetEvaluators(
+            request,
+            datasetId
           );
-
-          // Confirm the global evaluator exists with no dataset bindings.
-          const evaluators = await listEvaluatorsByName(request, evaluatorName);
-          const standalone = evaluators.find((e) => e.id === createdEvaluatorId);
-          expect(standalone?.name).toBe(evaluatorName);
+          expect(
+            datasetEvaluators.some((e) => e.evaluatorName === evaluatorName),
+            "Reject in chat must not run any mutation."
+          ).toBe(false);
         },
         judgeInput: {
           system: JUDGE_SYSTEM,
           prompt: renderedPrompt,
-          assistantText: `Proposed create_code_evaluator with name=${evaluatorName}; user accepted; standalone path persisted id=${createdEvaluatorId} only.`,
+          assistantText: `Proposed create_code_evaluator with name=${evaluatorName}; user clicked Reject in chat preview; no slideover opened; chassis resolved as rejected with no mutation.`,
           rubric,
         },
       });
@@ -386,7 +318,103 @@ test.describe("PXI create code-evaluator proposal smoke", () => {
         request,
         record: {
           example,
-          assistantText: `Non-dataset surface proposal Accept ran standalone createCodeEvaluator for ${evaluatorName} (id=${createdEvaluatorId}).`,
+          assistantText: `Reject-before-Confirm: chat preview rejected for ${evaluatorName}; no mutation on dataset ${datasetId}.`,
+          calledTools: [...new Set(calledTools)],
+          url: page.url(),
+          durationMs,
+          judgeResult: outcome.judgeResult,
+          playwrightProject: testInfo.project.name,
+          ...pxi.getMetadata(),
+        },
+      });
+
+      assertPxiOutcome(outcome);
+    }
+  );
+
+  test.fixme(
+    "Cancel-after-Confirm: clicking Confirm then Cancel in the slideover resolves the chassis as rejected with no mutation",
+    async ({ browserName, page, pxi, request }, testInfo) => {
+      test.skip(
+        browserName !== "chromium",
+        "PXI real-LLM smoke runs once in chromium."
+      );
+      test.skip(
+        process.env.PXI_E2E !== "true",
+        "Set PXI_E2E=true to run PXI E2E tests."
+      );
+      const judgeApiKeyEnv = getRequiredJudgeApiKeyEnv();
+      test.skip(
+        !process.env.OPENAI_API_KEY,
+        "OPENAI_API_KEY is required for the PXI assistant."
+      );
+      test.skip(
+        !process.env[judgeApiKeyEnv],
+        `${judgeApiKeyEnv} is required for the PXI E2E judge.`
+      );
+
+      const { datasetId } = await seedDataset(request);
+      const messageInput = await openDatasetEvaluatorsAndPxi(
+        page,
+        pxi,
+        datasetId
+      );
+
+      const evaluatorName = `pxi-cancel-eval-${testInfo.workerIndex}-${Date.now()}`;
+      const example =
+        PXI_EXPERIMENT_EXAMPLES.createCodeEvaluatorProposalDatasetSmoke;
+      const renderedPrompt = example.prompt.replace("${name}", evaluatorName);
+
+      const startedAt = Date.now();
+      await messageInput.fill(renderedPrompt);
+      await page.getByRole("button", { name: "Send message" }).click();
+
+      const calledTools: string[] = [];
+
+      const rubric = [
+        "The assistant called create_code_evaluator and rendered an inline preview the user could review.",
+        "After the user clicked Confirm in chat the slideover opened prefilled; clicking Cancel in the slideover closed it without persisting anything.",
+        "No GraphQL mutation ran across the whole flow; the chassis resolved as rejected.",
+      ];
+
+      const outcome = await evaluatePxiOutcome({
+        assertions: async () => {
+          await pxi.expectNoAgentError();
+          calledTools.push("create_code_evaluator");
+          const chip = await waitForCreateChip(page);
+          await chip.getByRole("button", { name: "Confirm" }).click();
+
+          const slideoverCancel = page.getByRole("button", { name: "Cancel" });
+          await expect(slideoverCancel).toBeVisible({ timeout: 60000 });
+          await slideoverCancel.click();
+
+          await expect(chip.getByText(/Rejected/i)).toBeVisible({
+            timeout: 60000,
+          });
+
+          const datasetEvaluators = await fetchDatasetEvaluators(
+            request,
+            datasetId
+          );
+          expect(
+            datasetEvaluators.some((e) => e.evaluatorName === evaluatorName),
+            "Cancel in slideover must not run any mutation."
+          ).toBe(false);
+        },
+        judgeInput: {
+          system: JUDGE_SYSTEM,
+          prompt: renderedPrompt,
+          assistantText: `Proposed create_code_evaluator with name=${evaluatorName}; user Confirmed in chat then Cancelled in slideover; no mutation; chassis resolved as rejected.`,
+          rubric,
+        },
+      });
+
+      const durationMs = Date.now() - startedAt;
+      await persistPxiExperiment({
+        request,
+        record: {
+          example,
+          assistantText: `Cancel-after-Confirm: slideover cancelled for ${evaluatorName}; no mutation on dataset ${datasetId}.`,
           calledTools: [...new Set(calledTools)],
           url: page.url(),
           durationMs,

@@ -12,13 +12,6 @@ import {
   type PendingCodeEvaluatorEdit,
   type SandboxConfigIndex,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
-import { dispatchCreateCodeEvaluator } from "@phoenix/agent/tools/createCodeEvaluator/dispatch";
-
-vi.mock("@phoenix/agent/tools/createCodeEvaluator/dispatch", () => ({
-  dispatchCreateCodeEvaluator: vi.fn(),
-}));
-
-const mockedDispatch = vi.mocked(dispatchCreateCodeEvaluator);
 
 function makeSnapshot(
   overrides: Partial<Omit<CodeEvaluatorDraftSnapshot, "revision">> = {}
@@ -124,8 +117,6 @@ describe("code evaluator draft agent tools", () => {
   it("rejects the propose-time edit when expectedRevision is stale", async () => {
     const initial = makeSnapshot();
     const { host, snapshotRef } = makeHost(initial);
-    // Mutate the host so the next read returns a different revision than the
-    // model holds in `expectedRevision`.
     snapshotRef.current = makeSnapshot({ description: "drifted" });
 
     const action = createEditCodeEvaluatorDraftClientAction({
@@ -200,14 +191,12 @@ describe("code evaluator draft agent tools", () => {
       }
     );
     expect(pending).not.toBeNull();
-    // User edits the form before accepting.
     snapshotRef.current = makeSnapshot({ description: "user edit" });
 
     await pending!.accept!();
     expect(outputs).toHaveLength(1);
     expect(outputs[0]).toMatchObject({ state: "output-error" });
     expect(String(outputs[0].errorText)).toMatch(/changed after this edit/i);
-    // Form must NOT have been mutated by the stale accept.
     expect(snapshotRef.current.description).toBe("user edit");
   });
 
@@ -273,12 +262,15 @@ describe("code evaluator draft agent tools", () => {
   });
 });
 
-describe("pending create accept routes dataset context through dispatch", () => {
+describe("pending create two-phase chassis", () => {
   type Output = Record<string, unknown>;
 
-  function makeBound(
-    datasetContext: PendingCodeEvaluatorCreateDatasetSnapshot | null
-  ) {
+  const datasetContext: PendingCodeEvaluatorCreateDatasetSnapshot = {
+    datasetNodeId: "ds-1",
+    datasetVersionNodeId: null,
+  };
+
+  function makeBound() {
     const proposed = makeSnapshot({
       description: "from agent",
       sandboxConfigId: "py-sandbox",
@@ -314,74 +306,102 @@ describe("pending create accept routes dataset context through dispatch", () => 
     return { bound, outputs, stored };
   }
 
-  beforeEach(() => {
-    mockedDispatch.mockReset();
+  it("starts in phase preview with resolved=false and no tool output", () => {
+    const { bound, outputs } = makeBound();
+    expect(bound.phase).toBe("preview");
+    expect(bound.resolved).toBe(false);
+    expect(outputs).toHaveLength(0);
   });
 
-  it("threads the snapshotted dataset context into dispatchCreateCodeEvaluator on accept", async () => {
-    const datasetContext: PendingCodeEvaluatorCreateDatasetSnapshot = {
-      datasetNodeId: "ds-1",
-      datasetVersionNodeId: null,
-    };
-    mockedDispatch.mockResolvedValueOnce({
-      ok: true,
-      evaluator: { id: "ev-1", name: "from agent" },
-      datasetEvaluatorId: "de-1",
-    });
-    const { bound, outputs, stored } = makeBound(datasetContext);
+  it("accept flips phase to awaiting-slideover without emitting a tool output", async () => {
+    const { bound, outputs, stored } = makeBound();
     await bound.accept!();
-    expect(mockedDispatch).toHaveBeenCalledTimes(1);
-    const [, options] = mockedDispatch.mock.calls[0];
-    expect(options).toEqual({ datasetContext, connectionIds: [] });
-    expect(outputs).toHaveLength(1);
-    expect(outputs[0]).toMatchObject({ state: "output-available" });
-    expect(JSON.parse(String(outputs[0].output))).toMatchObject({
-      status: "accepted",
-      createdEvaluator: { id: "ev-1", name: "from agent" },
-      datasetEvaluatorId: "de-1",
-    });
-    expect(stored["tc-1"]).toBeNull();
+    expect(outputs).toHaveLength(0);
+    const updated = stored["tc-1"];
+    expect(updated).not.toBeNull();
+    expect(updated!.phase).toBe("awaiting-slideover");
+    expect(updated!.resolved).toBe(false);
   });
 
-  it("passes datasetContext: null when the proposal was made off-dataset", async () => {
-    mockedDispatch.mockResolvedValueOnce({
-      ok: true,
-      evaluator: { id: "ev-2", name: "from agent" },
-      datasetEvaluatorId: null,
-    });
-    const { bound } = makeBound(null);
-    await bound.accept!();
-    expect(mockedDispatch).toHaveBeenCalledTimes(1);
-    const [, options] = mockedDispatch.mock.calls[0];
-    expect(options).toEqual({ datasetContext: null, connectionIds: [] });
-  });
-
-  it("emits output-error when dispatch fails and does not call addToolOutput with output-available", async () => {
-    mockedDispatch.mockResolvedValueOnce({
-      ok: false,
-      error: "the chained mutation failed",
-    });
-    const { bound, outputs } = makeBound({
-      datasetNodeId: "ds-1",
-      datasetVersionNodeId: null,
-    });
-    await bound.accept!();
-    expect(outputs).toHaveLength(1);
-    expect(outputs[0]).toMatchObject({
-      state: "output-error",
-      errorText: "the chained mutation failed",
-    });
-  });
-
-  it("rejects without invoking dispatch", async () => {
-    const { bound, outputs, stored } = makeBound(null);
+  it("reject from preview is terminal and emits a rejected output", async () => {
+    const { bound, outputs, stored } = makeBound();
     await bound.reject!();
-    expect(mockedDispatch).not.toHaveBeenCalled();
     expect(outputs).toHaveLength(1);
     expect(outputs[0]).toMatchObject({ state: "output-available" });
     expect(JSON.parse(String(outputs[0].output))).toMatchObject({
       status: "rejected",
     });
+    expect(stored["tc-1"]).toBeNull();
+  });
+
+  it("resolveAsAccepted emits accepted with the created evaluator and binding id", async () => {
+    const { bound, outputs, stored } = makeBound();
+    await bound.accept!();
+    await bound.resolveAsAccepted!({
+      datasetEvaluatorId: "de-1",
+      createdEvaluator: { id: "ev-1", name: "from agent" },
+    });
+    expect(outputs).toHaveLength(1);
+    expect(outputs[0]).toMatchObject({ state: "output-available" });
+    expect(JSON.parse(String(outputs[0].output))).toMatchObject({
+      status: "accepted",
+      datasetEvaluatorId: "de-1",
+      createdEvaluator: { id: "ev-1", name: "from agent" },
+    });
+    expect(stored["tc-1"]).toBeNull();
+  });
+
+  it("resolveAsRejected from the slideover emits a rejected output", async () => {
+    const { bound, outputs, stored } = makeBound();
+    await bound.accept!();
+    await bound.resolveAsRejected!();
+    expect(outputs).toHaveLength(1);
+    expect(outputs[0]).toMatchObject({ state: "output-available" });
+    expect(JSON.parse(String(outputs[0].output))).toMatchObject({
+      status: "rejected",
+    });
+    expect(stored["tc-1"]).toBeNull();
+  });
+
+  it("resolveAsFailed emits output-error with the surfaced message", async () => {
+    const { bound, outputs, stored } = makeBound();
+    await bound.accept!();
+    await bound.resolveAsFailed!("the mutation failed");
+    expect(outputs).toHaveLength(1);
+    expect(outputs[0]).toMatchObject({
+      state: "output-error",
+      errorText: "the mutation failed",
+    });
+    expect(stored["tc-1"]).toBeNull();
+  });
+
+  it("second terminal resolver after one has fired is a no-op (resolved latch)", async () => {
+    const { bound, outputs, stored } = makeBound();
+    await bound.accept!();
+    await bound.resolveAsAccepted!({
+      datasetEvaluatorId: "de-1",
+      createdEvaluator: { id: "ev-1", name: "from agent" },
+    });
+    // The dialog's onOpenChange(false) commonly fires after Save success;
+    // its resolveAsRejected MUST be ignored or the chassis would emit a
+    // second terminal output and drift the agent's view of the tool call.
+    await bound.resolveAsRejected!();
+    await bound.resolveAsFailed!("ignored");
+    expect(outputs).toHaveLength(1);
+    expect(outputs[0]).toMatchObject({ state: "output-available" });
+    expect(JSON.parse(String(outputs[0].output))).toMatchObject({
+      status: "accepted",
+    });
+    expect(stored["tc-1"]).toBeNull();
+  });
+
+  it("accept after a terminal is a no-op (resolved latch covers phase flips too)", async () => {
+    const { bound, outputs, stored } = makeBound();
+    await bound.reject!();
+    expect(outputs).toHaveLength(1);
+    // After reject, accept must not re-mutate phase or re-emit output.
+    await bound.accept!();
+    expect(outputs).toHaveLength(1);
     expect(stored["tc-1"]).toBeNull();
   });
 });

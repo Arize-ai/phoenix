@@ -125,10 +125,9 @@ export type BindPendingCodeEvaluatorEditOptions = {
 };
 
 /**
- * Dataset surface state captured at create-proposal-propose time. The Accept
- * handler reads it off the pending entry and threads it through dispatch so
- * the chained `createDatasetCodeEvaluator` targets the dataset that was active
- * when the proposal was made, not whatever surface is mounted at accept time.
+ * Dataset surface state captured at create-proposal-propose time. Snapshotted
+ * onto the pending entry so the page-mounted slideover knows which dataset
+ * the proposal targeted, even if the user navigates before clicking Confirm.
  */
 export type PendingCodeEvaluatorCreateDatasetSnapshot = {
   datasetNodeId: string;
@@ -136,10 +135,23 @@ export type PendingCodeEvaluatorCreateDatasetSnapshot = {
 };
 
 /**
- * Pending `create_code_evaluator` proposal — the chat-side inline diff card
- * owns accept/reject. On accept the bound handler dispatches
- * `createCodeEvaluator` and, when `datasetContext` is non-null, chains
- * `createDatasetCodeEvaluator` against the snapshotted dataset.
+ * Two-phase chassis state for the create flow.
+ *
+ * - `"preview"` — the chat preview card is mounted with Confirm/Reject. Confirm
+ *   flips to `"awaiting-slideover"` without resolving the tool call.
+ * - `"awaiting-slideover"` — the dataset evaluators page is responsible for
+ *   mounting a slideover prefilled from `after`; the slideover's Save / Cancel
+ *   resolves the tool call via the terminal resolvers.
+ */
+export type PendingCodeEvaluatorCreatePhase = "preview" | "awaiting-slideover";
+
+/**
+ * Pending `create_code_evaluator` proposal — the chat-side preview card flips
+ * the phase to "awaiting-slideover" on Confirm without committing; the page-
+ * mounted slideover is the only commit site. The three terminal resolvers
+ * (`resolveAsAccepted` / `resolveAsRejected` / `resolveAsFailed`) are
+ * idempotent and gated by the `resolved` latch so the dialog's close handler
+ * cannot race a successful Save's terminal as a second rejection.
  */
 export type PendingCodeEvaluatorCreate = {
   toolCallId: string;
@@ -148,17 +160,40 @@ export type PendingCodeEvaluatorCreate = {
   before: CodeEvaluatorDraftSnapshot;
   /** Proposed snapshot (always `mode: "create"`). */
   after: CodeEvaluatorDraftSnapshot;
-  /** Dataset surface active when the proposal was made; null off-dataset. */
-  datasetContext: PendingCodeEvaluatorCreateDatasetSnapshot | null;
+  /** Dataset surface active when the proposal was made. Required for create. */
+  datasetContext: PendingCodeEvaluatorCreateDatasetSnapshot;
+  /** Two-phase chassis state — flipped from "preview" by `accept`. */
+  phase: PendingCodeEvaluatorCreatePhase;
+  /** Idempotency latch — set true by the first terminal resolver to fire. */
+  resolved: boolean;
+  /** Chat preview Confirm — flips `phase` to `"awaiting-slideover"`. Does NOT resolve the tool call. */
   accept?: () => Promise<void>;
+  /** Chat preview Reject — terminal `rejected`. */
   reject?: () => Promise<void>;
+  /** Slideover Save success — terminal `accepted` with the new evaluator binding. */
+  resolveAsAccepted?: (result: {
+    datasetEvaluatorId: string;
+    createdEvaluator: { id: string; name: string };
+  }) => Promise<void>;
+  /** Slideover Cancel — terminal `rejected`. */
+  resolveAsRejected?: () => Promise<void>;
+  /** Slideover Save error — terminal `output-error`. */
+  resolveAsFailed?: (errorText: string) => Promise<void>;
+  /** Interrupt-cleanup terminal — used by useAgentChat when a session is interrupted. */
   cancel?: () => Promise<void>;
 };
 
 export type BindPendingCodeEvaluatorCreateOptions = {
   pendingCreate: Omit<
     PendingCodeEvaluatorCreate,
-    "accept" | "reject" | "cancel"
+    | "accept"
+    | "reject"
+    | "cancel"
+    | "resolveAsAccepted"
+    | "resolveAsRejected"
+    | "resolveAsFailed"
+    | "phase"
+    | "resolved"
   >;
   addToolOutput: CodeEvaluatorEditToolOutputSender;
   setPendingCodeEvaluatorCreate: (
