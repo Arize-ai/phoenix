@@ -19,6 +19,7 @@
       `function evaluate({ output, reference, input, metadata }) { ... }`
       Any subset of the destructured keys is valid, e.g. `function evaluate({ output })`.
     - Return either a `{label, score, explanation}` subset (any one, two, or three of those keys) or a bare scalar (string label, numeric score, or boolean). Both shapes are valid in both languages.
+    - For dataset-backed experiment evaluators, `output` is the experiment run output and `reference` is the dataset example output. Use sampled dataset context only to infer shape; do not hard-code sample values.
   </evaluate_contract>
   <name>
     - `name` must match `^[a-z0-9]([_a-z0-9-]*[a-z0-9])?$` — lowercase letters, digits, hyphens, or underscores; cannot start or end with a hyphen or underscore.
@@ -28,6 +29,7 @@
     - Always send `input_mapping` as a non-null object. The safe default is `{"literalMapping": {}, "pathMapping": {}}`.
     - `pathMapping` keys are evaluator parameter names; values are field-path expressions resolved against upstream data.
     - `literalMapping` keys are evaluator parameter names; values are literal scalars passed straight through.
+    - Prefer the safe default mapping for new dataset-backed evaluators. Do not create custom nested path mappings just to reach fields from the sampled examples; declare `input`, `output`, `reference`, or `metadata` and parse nested dicts, lists, or stringified JSON inside `evaluate` instead.
   </input_mapping>
   <sandbox_config>
     - `sandbox_config_id` is REQUIRED. A code evaluator without a sandbox cannot run at experiment time and will be rejected at create time.

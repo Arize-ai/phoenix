@@ -55,9 +55,31 @@ class SandboxAvailability:
         return bool(self.configs)
 
 
+@dataclass(frozen=True)
+class DatasetExampleSample:
+    """A small, prompt-ready snapshot of one active dataset example revision."""
+
+    dataset_example_id: str
+    input_json: str
+    reference_json: str
+    metadata_json: str
+
+
+@dataclass(frozen=True)
+class DatasetExampleSamples:
+    """Per-request sample of active examples for the mounted dataset context."""
+
+    samples: list[DatasetExampleSample] = field(default_factory=list)
+
+    @property
+    def has_samples(self) -> bool:
+        return bool(self.samples)
+
+
 @dataclass
 class AgentDependencies:
     contexts: ResolvedContexts
     edit_permission: Literal["manual", "bypass"] = "manual"
     is_viewer: bool = False
     sandbox_availability: SandboxAvailability = field(default_factory=SandboxAvailability)
+    dataset_example_samples: DatasetExampleSamples = field(default_factory=DatasetExampleSamples)

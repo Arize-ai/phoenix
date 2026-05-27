@@ -4,7 +4,21 @@
 {% if dataset.dataset_version_node_id %}
   <dataset_version_node_id format="phoenix_node_id">{{ dataset.dataset_version_node_id }}</dataset_version_node_id>
 {% endif %}
-  <schema_discovery>Datasets are open-schema: each example carries arbitrary `input`, `output`, and `metadata` JSON. When you need example shape to ground a draft, query the dataset's examples via the GraphQL `node(id: $datasetNodeId)` surface rather than assuming a fixed schema.</schema_discovery>
+  <schema_discovery>Datasets are open-schema: each example carries arbitrary `input`, `output`, and `metadata` JSON. Use the sampled examples below to ground evaluator drafts instead of assuming a fixed schema. The sampled dataset example `output` is labeled `reference` because code evaluators receive experiment run output separately as the `output` argument.</schema_discovery>
+  <dataset_example_samples max_count="3">
+{% if dataset_example_samples %}
+{% for example in dataset_example_samples %}
+    <example id="{{ example.dataset_example_id | sanitize(enclosing_tag="dataset_example_samples", max_chars=128) | e }}">
+      <input>{{ example.input_json | sanitize(enclosing_tag="dataset_example_samples", max_chars=2000) | e }}</input>
+      <reference>{{ example.reference_json | sanitize(enclosing_tag="dataset_example_samples", max_chars=2000) | e }}</reference>
+      <metadata>{{ example.metadata_json | sanitize(enclosing_tag="dataset_example_samples", max_chars=2000) | e }}</metadata>
+    </example>
+{% endfor %}
+{% else %}
+    <none>No active examples were available to sample for this dataset context.</none>
+{% endif %}
+  </dataset_example_samples>
+  <code_evaluator_argument_guidance>When authoring dataset-backed code evaluators, prefer direct `evaluate` parameters from `input`, `output`, `reference`, and `metadata`. Keep input mapping at its default unless the user explicitly asks for custom mapping; parse nested dicts, lists, or stringified JSON inside `evaluate` when necessary.</code_evaluator_argument_guidance>
   <evaluator_authoring>
 {% if is_code_evaluator_surface %}
     The create/edit code-evaluator form is mounted. Follow the `<phoenix_code_evaluator_context>` guidance and use the draft-read / draft-edit tools to populate the form.

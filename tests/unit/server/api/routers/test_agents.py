@@ -1,20 +1,25 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
 from xml.etree import ElementTree
 
 from jinja2 import Template
+from strawberry.relay import GlobalID
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
+from phoenix.server.agents.context import DatasetContext, ResolvedContexts
 from phoenix.server.agents.prompts import AgentPrompts
-from phoenix.server.agents.types import SandboxAvailability, SandboxConfigCapabilities
-from phoenix.server.api.routers.agents import _load_sandbox_availability
+from phoenix.server.agents.types import (
+    DatasetExampleSamples,
+    SandboxAvailability,
+    SandboxConfigCapabilities,
+)
+from phoenix.server.api.routers.agents import (
+    _load_dataset_example_samples,
+    _load_sandbox_availability,
+)
 from phoenix.server.types import DbSessionFactory
-
-if TYPE_CHECKING:
-    from phoenix.server.agents.context import ResolvedContexts
 
 
 class TestLoadSandboxAvailability:
@@ -171,6 +176,184 @@ class TestLoadSandboxAvailability:
             )
 
 
+class TestLoadDatasetExampleSamples:
+    async def test_returns_empty_without_dataset_context(self, db: DbSessionFactory) -> None:
+        async with db() as session:
+            samples = await _load_dataset_example_samples(session, ResolvedContexts())
+
+        assert samples.has_samples is False
+        assert samples.samples == []
+
+    async def test_samples_latest_active_examples_when_version_is_absent(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            dataset = models.Dataset(
+                name="sampled dataset",
+                description=None,
+                metadata_={},
+            )
+            session.add(dataset)
+            await session.flush()
+
+            old_version = models.DatasetVersion(
+                dataset_id=dataset.id,
+                description="old",
+                metadata_={},
+            )
+            latest_version = models.DatasetVersion(
+                dataset_id=dataset.id,
+                description="latest",
+                metadata_={},
+            )
+            session.add_all([old_version, latest_version])
+            await session.flush()
+
+            old_example = models.DatasetExample(dataset_id=dataset.id, external_id="old")
+            session.add(old_example)
+            await session.flush()
+            session.add(
+                models.DatasetExampleRevision(
+                    dataset_example_id=old_example.id,
+                    dataset_version_id=old_version.id,
+                    input={"question": "old"},
+                    output={"answer": "old"},
+                    metadata_={},
+                    revision_kind="CREATE",
+                )
+            )
+
+            for index in range(4):
+                example = models.DatasetExample(
+                    dataset_id=dataset.id,
+                    external_id=f"active-{index}",
+                )
+                session.add(example)
+                await session.flush()
+                session.add(
+                    models.DatasetExampleRevision(
+                        dataset_example_id=example.id,
+                        dataset_version_id=latest_version.id,
+                        input={"question": f"q{index}"},
+                        output={"tool_calls": [{"name": f"tool_{index}"}]},
+                        metadata_={"split": "eval"},
+                        revision_kind="CREATE",
+                    )
+                )
+
+            deleted_example = models.DatasetExample(dataset_id=dataset.id, external_id="deleted")
+            session.add(deleted_example)
+            await session.flush()
+            session.add(
+                models.DatasetExampleRevision(
+                    dataset_example_id=deleted_example.id,
+                    dataset_version_id=latest_version.id,
+                    input={"question": "deleted"},
+                    output={"answer": "deleted"},
+                    metadata_={},
+                    revision_kind="DELETE",
+                )
+            )
+            await session.flush()
+
+            contexts = ResolvedContexts(
+                dataset=DatasetContext(
+                    type="dataset",
+                    dataset_node_id=str(
+                        GlobalID(type_name=models.Dataset.__name__, node_id=str(dataset.id))
+                    ),
+                )
+            )
+            samples = await _load_dataset_example_samples(session, contexts)
+
+        assert samples.has_samples is True
+        assert len(samples.samples) == 3
+        rendered = "\n".join(
+            sample.input_json + sample.reference_json + sample.metadata_json
+            for sample in samples.samples
+        )
+        assert "tool_calls" in rendered
+        assert "eval" in rendered
+        assert "old" not in rendered
+        assert "deleted" not in rendered
+
+    async def test_uses_explicit_dataset_version_when_provided(
+        self,
+        db: DbSessionFactory,
+    ) -> None:
+        async with db() as session:
+            dataset = models.Dataset(
+                name="explicit version dataset",
+                description=None,
+                metadata_={},
+            )
+            session.add(dataset)
+            await session.flush()
+            old_version = models.DatasetVersion(
+                dataset_id=dataset.id,
+                description="old",
+                metadata_={},
+            )
+            latest_version = models.DatasetVersion(
+                dataset_id=dataset.id,
+                description="latest",
+                metadata_={},
+            )
+            session.add_all([old_version, latest_version])
+            await session.flush()
+
+            old_example = models.DatasetExample(dataset_id=dataset.id, external_id="old-version")
+            latest_example = models.DatasetExample(
+                dataset_id=dataset.id,
+                external_id="latest-version",
+            )
+            session.add_all([old_example, latest_example])
+            await session.flush()
+            session.add_all(
+                [
+                    models.DatasetExampleRevision(
+                        dataset_example_id=old_example.id,
+                        dataset_version_id=old_version.id,
+                        input={"question": "old-version"},
+                        output={"answer": "old-reference"},
+                        metadata_={},
+                        revision_kind="CREATE",
+                    ),
+                    models.DatasetExampleRevision(
+                        dataset_example_id=latest_example.id,
+                        dataset_version_id=latest_version.id,
+                        input={"question": "latest-version"},
+                        output={"answer": "latest-reference"},
+                        metadata_={},
+                        revision_kind="CREATE",
+                    ),
+                ]
+            )
+            await session.flush()
+
+            contexts = ResolvedContexts(
+                dataset=DatasetContext(
+                    type="dataset",
+                    dataset_node_id=str(
+                        GlobalID(type_name=models.Dataset.__name__, node_id=str(dataset.id))
+                    ),
+                    dataset_version_node_id=str(
+                        GlobalID(
+                            type_name=models.DatasetVersion.__name__,
+                            node_id=str(old_version.id),
+                        )
+                    ),
+                )
+            )
+            samples = await _load_dataset_example_samples(session, contexts)
+
+        assert len(samples.samples) == 1
+        assert "old-version" in samples.samples[0].input_json
+        assert "old-reference" in samples.samples[0].reference_json
+        assert "latest-version" not in samples.samples[0].input_json
+
+
 class TestAgentDependenciesShape:
     """``AgentDependencies`` carries an ``is_viewer`` flag and a
     ``SandboxAvailability`` snapshot. Both default to safe-fail values so any
@@ -188,8 +371,11 @@ class TestAgentDependenciesShape:
         deps = AgentDependencies(contexts=ResolvedContexts())
         assert deps.is_viewer is False
         assert isinstance(deps.sandbox_availability, SandboxAvailability)
+        assert isinstance(deps.dataset_example_samples, DatasetExampleSamples)
         assert deps.sandbox_availability.has_usable is False
         assert deps.sandbox_availability.configs == []
+        assert deps.dataset_example_samples.has_samples is False
+        assert deps.dataset_example_samples.samples == []
 
     def test_default_factory_does_not_share_mutable_list(self) -> None:
         # ``sandbox_availability`` uses ``field(default_factory=...)``; two
@@ -202,6 +388,8 @@ class TestAgentDependenciesShape:
         deps_b = AgentDependencies(contexts=ResolvedContexts())
         assert deps_a.sandbox_availability is not deps_b.sandbox_availability
         assert deps_a.sandbox_availability.configs is not deps_b.sandbox_availability.configs
+        assert deps_a.dataset_example_samples is not deps_b.dataset_example_samples
+        assert deps_a.dataset_example_samples.samples is not deps_b.dataset_example_samples.samples
 
     def test_explicit_values_override_defaults(self) -> None:
         from phoenix.server.agents.context import ResolvedContexts
@@ -462,6 +650,16 @@ class TestAvailableSandboxConfigsRendering:
     def test_edit_template_renders_empty_block_when_no_configs(self) -> None:
         rendered = self._edit_template().render(available_sandbox_configs=[])
         assert "<available_sandbox_configs/>" in rendered
+
+    def test_tool_prompts_prefer_direct_evaluator_arguments(self) -> None:
+        create_rendered = self._create_template().render(available_sandbox_configs=[])
+        edit_rendered = self._edit_template().render(available_sandbox_configs=[])
+        for rendered in (create_rendered, edit_rendered):
+            assert "`output` is the experiment run output" in rendered
+            assert "`reference` is the dataset example output" in rendered
+            assert "parse nested" in rendered
+        assert "Prefer the safe default mapping" in create_rendered
+        assert "Keep `input_mapping` at the safe default" in edit_rendered
 
     def test_dependency_with_xml_sensitive_characters_is_escaped(self) -> None:
         # PEP 440 version specifiers use ``<`` (e.g. ``httpx>=0.27,<1``).

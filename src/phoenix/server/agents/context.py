@@ -117,8 +117,8 @@ class DatasetContext(_ChatContextBase):
     Carries the dataset's relay node id and, when known, the active version
     node id. The agent uses these IDs as a persistence/routing signal — when
     creating a code evaluator the dataset binding is chained onto the create
-    mutation; the dataset schema itself is open and is discovered by the agent
-    on demand via the GraphQL surface.
+    mutation; the dataset schema itself is open and the router may add a small
+    sample of active examples as prompt context.
     """
 
     type: Literal["dataset"]

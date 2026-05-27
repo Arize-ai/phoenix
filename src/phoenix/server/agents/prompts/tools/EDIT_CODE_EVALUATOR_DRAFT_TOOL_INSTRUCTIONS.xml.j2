@@ -23,9 +23,14 @@
   <invariants>
     - Never rename or remove the `evaluate` function. The runtime calls it by name.
     - Only declare parameters from `{input, output, reference, metadata}` on `evaluate` — additional parameters will fail at execution.
+    - For dataset-backed evaluators, `output` is the experiment run output and `reference` is the dataset example output. Prefer direct `evaluate` arguments and parse nested dicts, lists, or stringified JSON inside the function rather than relying on custom input mapping.
     - In `edit` mode, `set_language` is rejected (language is immutable post-create).
     - In `create` mode, switching `set_language` may clear an incompatible `sandbox_config_id`; suggest a compatible one in a follow-up turn if needed.
   </invariants>
+  <input_mapping>
+    - Keep `input_mapping` at the safe default (`{"literalMapping": {}, "pathMapping": {}}`) unless the user explicitly asks for custom mapping or the current draft already uses mapping intentionally.
+    - If you need a nested value seen in dataset samples, read it from the direct argument in `source_code` instead of proposing a path-mapping edit.
+  </input_mapping>
   <sandbox_config>
     - When emitting `set_sandbox_config`, pick `sandboxConfigId` from `<available_sandbox_configs>` below. Do NOT invent or guess an ID, and do NOT issue a `sandboxProviders` GraphQL query — the inventory below is authoritative for this turn.
     - The chosen config's `language` must match the draft language; in `create` mode after `set_language`, re-check the inventory for a compatible entry.
