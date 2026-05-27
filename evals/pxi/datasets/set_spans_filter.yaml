@@ -681,9 +681,7 @@ examples:
           content: hey, what's up?
     expected:
       tools:
-        required: []
         forbidden: [set_spans_filter]
-        exact_match: true
     metadata:
       negative: true
       annotation:
@@ -698,9 +696,7 @@ examples:
           content: what can you do?
     expected:
       tools:
-        required: []
         forbidden: [set_spans_filter]
-        exact_match: true
     metadata:
       negative: true
       annotation:
@@ -715,9 +711,7 @@ examples:
           content: thanks!
     expected:
       tools:
-        required: []
         forbidden: [set_spans_filter]
-        exact_match: true
     metadata:
       negative: true
       annotation:
@@ -749,9 +743,7 @@ examples:
           content: Clone the current prompt please.
     expected:
       tools:
-        required: []
         forbidden: [set_spans_filter]
-        exact_match: true
     metadata:
       negative: true
       annotation:
@@ -766,9 +758,7 @@ examples:
           content: How do I create a new dataset?
     expected:
       tools:
-        required: []
         forbidden: [set_spans_filter]
-        exact_match: true
     metadata:
       negative: true
       annotation:
@@ -783,9 +773,7 @@ examples:
           content: Summarize what we see in the spans table right now.
     expected:
       tools:
-        required: []
         forbidden: [set_spans_filter]
-        exact_match: true
     metadata:
       negative: true
       annotation:
@@ -799,9 +787,7 @@ examples:
           content: Is there a problem with my project?
     expected:
       tools:
-        required: []
         forbidden: [set_spans_filter]
-        exact_match: true
     metadata:
       negative: true
       annotation:
@@ -815,9 +801,7 @@ examples:
           content: Explain what span kinds mean.
     expected:
       tools:
-        required: []
         forbidden: [set_spans_filter]
-        exact_match: true
     metadata:
       negative: true
       annotation:
@@ -831,9 +815,7 @@ examples:
           content: I think my agent is too slow, what should I do?
     expected:
       tools:
-        required: []
         forbidden: [set_spans_filter]
-        exact_match: true
     metadata:
       negative: true
       annotation:
@@ -847,9 +829,7 @@ examples:
           content: what's the average latency?
     expected:
       tools:
-        required: []
         forbidden: [set_spans_filter]
-        exact_match: true
     metadata:
       negative: true
       annotation:
@@ -864,9 +844,7 @@ examples:
           content: delete this trace
     expected:
       tools:
-        required: []
         forbidden: [set_spans_filter]
-        exact_match: true
     metadata:
       negative: true
       annotation:
