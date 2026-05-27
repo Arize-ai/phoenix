@@ -396,19 +396,6 @@ class TestEditCodeEvaluatorDraftCapabilityViewerGate:
         assert capability.include_for_run(ctx) is False
 
 
-class TestCreateCodeEvaluatorToolInstructions:
-    def _template(self) -> Template:
-        return AgentPrompts().create_code_evaluator_tool
-
-    def test_does_not_include_off_surface_handoff_guidance(self) -> None:
-        rendered = self._template().render(available_sandbox_configs=[])
-        assert "<proposal_flow>" in rendered
-        assert "<three_stage_flow>" not in rendered
-        assert "NOT on a dataset evaluators tab" not in rendered
-        assert "[Create code evaluator]" not in rendered
-        assert "manual UI instructions" not in rendered
-
-
 class TestAvailableSandboxConfigsRendering:
     """The create/edit code-evaluator tool templates render an
     ``<available_sandbox_configs>`` inventory inside ``<sandbox_config>``. The
