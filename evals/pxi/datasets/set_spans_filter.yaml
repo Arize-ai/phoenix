@@ -736,13 +736,16 @@ examples:
         required: []
         forbidden:
           - set_spans_filter
-        exact_match: true
     metadata:
       category: negative_docs_query
       annotation:
         agreement: high
         n_opinions: 3
-        notes: Tightened after review to require no tool calls for this docs-style question in eval runs without docs MCP tools.
+        notes: >-
+          set_spans_filter must not be called for this docs-style question.
+          exact_match removed: agent may call docs MCP tools (search_phoenix,
+          query_docs_file) to answer — that is out of scope for this evaluator,
+          which only guards set_spans_filter misuse.
   - id: negative-summarize-ask
     splits: [regression]
     input:
@@ -790,13 +793,16 @@ examples:
         required: []
         forbidden:
           - set_spans_filter
-        exact_match: true
     metadata:
       category: negative_definitional
       annotation:
         agreement: high
         n_opinions: 3
-        notes: Tightened after review to require no tool calls for this definitional question.
+        notes: >-
+          set_spans_filter must not be called for this definitional question.
+          exact_match removed: agent may call docs MCP tools (search_phoenix,
+          bash) to look up documentation — that is out of scope for this
+          evaluator, which only guards set_spans_filter misuse.
   - id: negative-debug-advice
     splits: [regression]
     input:
@@ -844,10 +850,13 @@ examples:
         required: []
         forbidden:
           - set_spans_filter
-        exact_match: true
     metadata:
       category: negative_destructive
       annotation:
         agreement: high
         n_opinions: 3
-        notes: Tightened after review to require no tool calls for this destructive intent with no matching tool exposed.
+        notes: >-
+          set_spans_filter must not be called for a destructive delete request.
+          exact_match removed: agent may call bash in an attempt to delete —
+          that is out of scope for this evaluator, which only guards
+          set_spans_filter misuse.

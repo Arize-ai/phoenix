@@ -52,8 +52,17 @@ jobs:
           fi
 
           failed=0
+          failed_datasets=()
           short_sha="${GITHUB_SHA::7}"
           branch_slug="${GITHUB_REF_NAME//\//-}"
+          step_summary="${GITHUB_STEP_SUMMARY:-/dev/null}"
+
+          {
+            echo "## PXI Regression Evals"
+            echo ""
+            echo "| Dataset | Result |"
+            echo "| --- | --- |"
+          } >> "${step_summary}"
 
           for dataset_file in "${dataset_files[@]}"; do
             dataset="$(basename "${dataset_file}" .yaml)"
@@ -61,14 +70,48 @@ jobs:
             echo "::group::PXI eval dataset: ${dataset}"
             echo "Dataset file: ${dataset_file}"
             echo "Running PXI regression eval: ${experiment_name}"
-            if ! uv run python -m evals.pxi.harness.run_experiment \
+            if uv run python -m evals.pxi.harness.run_experiment \
               --dataset "${dataset}" \
               --splits regression \
               --fail-on-regression \
               --experiment-name "${experiment_name}"; then
-              failed=1
+              dataset_result=0
+            else
+              dataset_result=1
             fi
             echo "::endgroup::"
+
+            if [[ "${dataset_result}" -ne 0 ]]; then
+              failed=1
+              failed_datasets+=("${dataset}")
+              echo "❌ ${dataset}: regression failures — expand above for details"
+              echo "::error title=PXI eval regression failure::Dataset '${dataset}' had regression failures. Expand the '${dataset}' group above for the full failure table."
+              echo "| \`${dataset}\` | ❌ FAILED |" >> "${step_summary}"
+            else
+              echo "✅ ${dataset}: all regressions passed"
+              echo "| \`${dataset}\` | ✅ passed |" >> "${step_summary}"
+            fi
           done
+
+          total="${#dataset_files[@]}"
+          n_failed="${#failed_datasets[@]}"
+
+          echo ""
+          echo "════════════════════════════════════════"
+          if [[ "${failed}" -ne 0 ]]; then
+            echo "RESULT: ${n_failed}/${total} dataset(s) failed — ${failed_datasets[*]}"
+            {
+              echo ""
+              echo "**Result: ❌ ${n_failed} of ${total} dataset(s) failed**"
+              echo ""
+              echo "Failed: $(IFS=', '; echo "${failed_datasets[*]}")"
+            } >> "${step_summary}"
+          else
+            echo "RESULT: all ${total} dataset(s) passed"
+            {
+              echo ""
+              echo "**Result: ✅ All ${total} dataset(s) passed**"
+            } >> "${step_summary}"
+          fi
 
           exit "${failed}"
