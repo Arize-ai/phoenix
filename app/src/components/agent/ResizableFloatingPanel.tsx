@@ -343,10 +343,11 @@ const resizeHandleCSS = css`
   &[data-edge="top-left"]::after {
     top: 0;
     left: 0;
-    width: 10px;
-    height: 10px;
+    width: 14px;
+    height: 14px;
     border-top: 2px solid var(--global-text-color-500);
     border-left: 2px solid var(--global-text-color-500);
+    border-top-left-radius: var(--global-rounding-medium);
     background-color: transparent;
     opacity: 0.35;
   }
