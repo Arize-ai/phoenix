@@ -1,59 +1,22 @@
 ---
 name: trace-debugging
-description: Systematically investigate failing or slow traces in a Phoenix project. Use when the user asks why a span errored, why latency is high, why a tool call produced the wrong result, or any variant of "what went wrong" / "where do I look" inside a project's traces. Walks through narrowing with set_time_range and set_spans_filter, then inspecting span attributes for the failure signature.
+description: analyze and debug traces in a project.
 ---
 
-# Trace Debugging
+A project contains a collection of traces from an llm powered application. This means every trace contains a call to an llm, which may or may not solve a problem. LLM calls are the main source of failure in any llm application.
 
-A repeatable loop for investigating failures inside a Phoenix project. The
-goal is to converge on a concrete failure signature — not just "it's slow" or
-"the LLM hallucinated" — so the user can decide what to fix or evaluate next.
+Your goal is to find common failure modes across multiple traces and to provide recommendations. Always link exaple traces so that the user can verify your findings.
 
-## When to Apply
+## Troubleshooting
 
-Trigger this workflow when the user is looking at a Phoenix project and asks
-any variant of:
+Focus on the cricial steps surrounding the LLM calls. This means looking at the steps immediately before and after the LLM call. Steps before an LLM call might pull in bad data that is injected into the LLM call and steps after might indicate that the LLM call is hallucinating or making a bad decision.
 
-- "Why did this trace fail?"
-- "What's making latency high?"
-- "Which spans are erroring?"
-- "Where do I focus?"
+The LLM calls contain the prompt that is sent to the LLM along with the parameters. This can affect the performance as it dictates the guidance.
 
-## Loop
+1. Gain an understanding of the topology of the traces. This will give you a sense of how the application runs.
+2. Look at the LLM calls under the traces. Identify what the LLM calls are trying to do and gain an understanding of the various prompts. Try to get a diverse set of examples with sufficient coverage.
+3. Looks at the steps or spans preceeding or following the LLM calls. These show how data flows into the context. If these steps fail, the LLM calls might be affected.
 
-1. **Frame the question.** Get one concrete thing to look for: an error
-   substring, a latency threshold, a tool name, a model name, an output shape.
-   Vague intent ("look at failures") becomes a vague filter and a vague answer.
+## Recommendations
 
-2. **Narrow the window.** Use `set_time_range` to clamp to the smallest window
-   that still contains the behavior. A 24-hour view hides patterns that a
-   1-hour view exposes.
-
-3. **Narrow the spans.** Use `set_spans_filter` to keep only spans that match
-   the frame. Start broad (`status_code == 'ERROR'`), then layer constraints
-   (`span_kind == 'LLM'`, attribute predicates) as you learn what the failure
-   class actually is.
-
-4. **Read a few end-to-end.** Pick 3–5 surviving traces and read them top to
-   bottom. Patterns at the trace level (e.g. retriever returned empty, tool
-   args malformed, model retried 4×) only show up when you see the sequence.
-
-5. **Name the failure.** Write down the signature in one sentence:
-   *"Retriever returns zero docs when the query contains a date range, so the
-   LLM fabricates an answer."* If you can't write that sentence, you haven't
-   narrowed enough — return to step 3.
-
-6. **Decide the next move.** A named failure points at exactly one of:
-   instrument the gap, fix the code, write an eval that catches the class, or
-   collect a dataset. Don't skip naming — undirected fixes are how regressions
-   come back.
-
-## Anti-patterns
-
-- **Scrolling without a frame.** Looking at the trace list with no filter is
-  triage, not debugging. Always commit to one question before looking.
-- **One trace, one conclusion.** A single failing trace tells you a failure
-  exists. It does not tell you the class. Inspect a handful before naming.
-- **Filtering on output text.** Output strings are noisy and vary per call.
-  Filter on structural attributes (status, span kind, tool name, model name)
-  first; use output substrings only to confirm a hypothesis.
+Provide a consise list of recommendations. Each recommendation should have a clear label of the problem, a simple description, and a set of links to traces or spans that highlight the problem. If the problem can be fixed, suggest the fixes to the prompt, model parameters, or to the surrounding code.
