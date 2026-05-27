@@ -44,8 +44,8 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
  *   keeping the original manual-add UX (notifySuccess + close on Save).
  * - `DatasetEvaluatorsPage` mounts a second instance driven by a pending
  *   `create_code_evaluator` proposal — `initialSnapshot` seeds the form from
- *   the agent's proposal and `onSubmitSuccess` / `onSubmitError` / `onCancel`
- *   drive the proposal's terminal resolvers so the chat-side tool call resolves.
+ *   the agent's proposal and `onSubmitSuccess` / `onCancel` drive the proposal's
+ *   terminal resolvers so the chat-side tool call resolves.
  */
 export const CreateCodeDatasetEvaluatorSlideover = ({
   datasetId,
@@ -55,7 +55,6 @@ export const CreateCodeDatasetEvaluatorSlideover = ({
   isOpen,
   initialSnapshot,
   onSubmitSuccess,
-  onSubmitError,
   onCancel,
   ...props
 }: {
@@ -72,8 +71,6 @@ export const CreateCodeDatasetEvaluatorSlideover = ({
     datasetEvaluatorId: string,
     createdEvaluator: { id: string; name: string }
   ) => void;
-  /** Fires when either mutation surfaces a server-side error (handoff path). */
-  onSubmitError?: (message: string) => void;
   /** Fires when the slideover closes without committing (handoff path). */
   onCancel?: () => void;
 } & ModalOverlayProps) => {
@@ -128,7 +125,6 @@ export const CreateCodeDatasetEvaluatorSlideover = ({
                 onEvaluatorCreated={onEvaluatorCreated}
                 initialSnapshot={initialSnapshot ?? null}
                 onSubmitSuccess={onSubmitSuccess}
-                onSubmitError={onSubmitError}
                 markSubmitted={() => {
                   submittedRef.current = true;
                 }}
@@ -149,7 +145,6 @@ const CreateCodeEvaluatorDialog = ({
   onEvaluatorCreated,
   initialSnapshot,
   onSubmitSuccess,
-  onSubmitError,
   markSubmitted,
 }: {
   onClose: () => void;
@@ -162,7 +157,6 @@ const CreateCodeEvaluatorDialog = ({
     datasetEvaluatorId: string,
     createdEvaluator: { id: string; name: string }
   ) => void;
-  onSubmitError?: (message: string) => void;
   markSubmitted: () => void;
 }) => {
   const notifySuccess = useNotifySuccess();
@@ -348,7 +342,6 @@ const CreateCodeEvaluatorDialog = ({
                 "\n"
               ) ?? mutationError.message;
             setError(flattened);
-            onSubmitError?.(flattened);
           },
         });
       },
@@ -357,7 +350,6 @@ const CreateCodeEvaluatorDialog = ({
           getErrorMessagesFromRelayMutationError(mutationError)?.join("\n") ??
           mutationError.message;
         setError(flattened);
-        onSubmitError?.(flattened);
       },
     });
   };

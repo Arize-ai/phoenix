@@ -958,13 +958,13 @@ const editCodeEvaluatorDraftAgentTool =
 /**
  * Produces a `PendingCodeEvaluatorCreate` proposal via the registered client
  * action and leaves the AI-SDK tool call unresolved until the user clicks
- * Accept or Reject in the inline diff render.
+ * Confirm or Reject in the inline diff render.
  */
 const createCodeEvaluatorAgentTool =
   createRegisteredAgentTool<CreateCodeEvaluatorInput>({
     name: CREATE_CODE_EVALUATOR_TOOL_NAME,
     parseInput: parseCreateCodeEvaluatorInput,
-    invalidInputErrorText: `Invalid ${CREATE_CODE_EVALUATOR_TOOL_NAME} input. Expected { name: string, source_code: string, language: "PYTHON" | "TYPESCRIPT", description?: string, sandbox_config_id: string, input_mapping?: { pathMapping?: object, literalMapping?: object }, output_configs?: OutputConfigDraft[] }.`,
+    invalidInputErrorText: `Invalid ${CREATE_CODE_EVALUATOR_TOOL_NAME} input. Expected { name: string, source_code: string, language: "PYTHON" | "TYPESCRIPT", description?: string, sandbox_config_id: string, input_mapping?: { pathMapping?: object, literalMapping?: object }, output_configs: OutputConfigDraft[] }.`,
     uiBehavior: {
       autoOpen: true,
       scrollIntoViewOnMount: true,

@@ -8,6 +8,7 @@ import {
 import { expect, testV2 as test } from "./fixtures";
 import { getRequiredJudgeApiKeyEnv } from "./judge";
 import { assertPxiOutcome, evaluatePxiOutcome } from "./outcome";
+import { disableAllSandboxConfigs } from "./utils";
 
 const JUDGE_SYSTEM =
   "You are judging a Phoenix PXI E2E answer about sandbox-availability gating on a dataset surface. When no usable sandbox is enabled, create_code_evaluator must not be advertised, and the assistant — guided by the dataset context instruction template — should direct the user to /settings/sandboxes rather than attempting to create. Return a label, score, and brief explanation.";
@@ -40,10 +41,8 @@ async function seedDataset(
  * template emits the `<sandbox_unavailable>` block which tells the agent to
  * direct the user to `/settings/sandboxes`. This spec asserts both halves.
  *
- * Precondition note: `pnpm run test:e2e:pxi` runs against a fresh in-memory
- * SQLite DB (see `app/tests/utils/testServer.mjs`) and no PXI spec creates a
- * `SandboxConfig` row, so the no-sandbox precondition is the natural state
- * of the test environment — no per-test disable fixture is required.
+ * Precondition note: PXI specs share a test Phoenix server, so this spec
+ * explicitly disables any sandbox configs that earlier specs may have seeded.
  */
 test.describe("PXI create code-evaluator no-sandbox gate smoke", () => {
   test("no usable sandbox + dataset context: tool absent and assistant redirects to /settings/sandboxes", async ({
@@ -70,6 +69,7 @@ test.describe("PXI create code-evaluator no-sandbox gate smoke", () => {
       `${judgeApiKeyEnv} is required for the PXI E2E judge.`
     );
 
+    await disableAllSandboxConfigs(request);
     const { datasetId } = await seedDataset(request);
 
     await pxi.open();

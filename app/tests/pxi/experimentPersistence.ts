@@ -130,7 +130,7 @@ export const PXI_EXPERIMENT_EXAMPLES = {
       "create_code_evaluator is absent from the tool list while a code-evaluator form is open; PXI uses edit_code_evaluator_draft instead.",
     experimentNamePrefix: "pxi-e2e-create-code-evaluator-tool-absent",
     experimentDescription:
-      "PXI direct-authoring tool: create_code_evaluator absence when the code-evaluator form is mounted (dual side of context include_for_run).",
+      "PXI create-code-evaluator tool gate: create_code_evaluator is absent when the code-evaluator form is mounted.",
   },
   createCodeEvaluatorProposalDatasetSmoke: {
     id: "pxi-create-code-evaluator-proposal:dataset-surface-v1",
@@ -141,16 +141,6 @@ export const PXI_EXPERIMENT_EXAMPLES = {
     experimentNamePrefix: "pxi-e2e-create-code-evaluator-proposal-dataset",
     experimentDescription:
       "PXI create_code_evaluator proposal flow: on a dataset surface the proposal accept fires the chained createCodeEvaluator -> createDatasetCodeEvaluator path.",
-  },
-  createCodeEvaluatorProposalStandaloneSmoke: {
-    id: "pxi-create-code-evaluator-proposal:standalone-surface-v1",
-    prompt:
-      "Create a Python code evaluator named ${name}. Define `evaluate(output)` that returns 1.0 if output is non-empty and 0.0 otherwise. Pick a Python sandbox config.",
-    expectedOutput:
-      "On a non-dataset surface, PXI proposes a PendingCodeEvaluatorCreate; clicking Accept persists only the global CodeEvaluator. No DatasetEvaluator binding is created.",
-    experimentNamePrefix: "pxi-e2e-create-code-evaluator-proposal-standalone",
-    experimentDescription:
-      "PXI create_code_evaluator proposal flow: on a non-dataset surface the proposal accept fires the standalone createCodeEvaluator only.",
   },
   createCodeEvaluatorViewerGateSmoke: {
     id: "pxi-create-code-evaluator-gate:viewer-v1",

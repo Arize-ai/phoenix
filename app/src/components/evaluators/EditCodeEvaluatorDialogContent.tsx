@@ -489,8 +489,8 @@ export const EditCodeEvaluatorDialogContent = ({
               </LinkButton>
             }
           >
-            No sandboxes configured. You can still draft and save this evaluator
-            now. Configure a sandbox later to test or execute it.
+            No sandboxes configured. Configure a sandbox before creating,
+            testing, or executing a code evaluator.
           </Alert>
         ) : null}
 

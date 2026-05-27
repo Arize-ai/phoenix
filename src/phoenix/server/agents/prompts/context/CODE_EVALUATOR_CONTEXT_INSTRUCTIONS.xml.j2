@@ -5,9 +5,9 @@
   <evaluator_node_id>{{ code_evaluator.evaluator_node_id }}</evaluator_node_id>
 {% endif %}
   <draft_contract>
-    - The evaluator function must be named exactly `evaluate`. Renaming it via `set_source_code` or `set_name` will break the evaluator.
+    - The evaluator function in `source_code` must be named exactly `evaluate`. Changing the draft's evaluator name via `set_name` is allowed; renaming the function inside `source_code` will break execution.
     - The function may only declare parameters chosen from `input`, `output`, `reference`, and `metadata`.
-    - The draft fields are: name, description, language (PYTHON or TYPESCRIPT), source_code, sandbox_config_id, input_mapping (literal + path), and output_configs (the freeform annotation config the evaluator produces).
+    - The draft fields are: name, description, language (PYTHON or TYPESCRIPT), source_code, sandbox_config_id, input_mapping (literal + path), and output_configs (the named classification, continuous, or freeform annotation configs the evaluator produces).
     - In edit mode, language is immutable — it was fixed when the evaluator was created and is tied to the sandbox configuration. Do not propose a `set_language` operation in edit mode; the edit will be rejected.
     - The selected sandbox_config_id must match the draft language. If language changes in create mode, any incompatible sandbox selection will be cleared automatically and you should suggest a compatible one.
   </draft_contract>

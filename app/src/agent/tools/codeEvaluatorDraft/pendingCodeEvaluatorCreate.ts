@@ -1,10 +1,10 @@
+import { CREATE_CODE_EVALUATOR_TOOL_NAME } from "@phoenix/agent/tools/createCodeEvaluator";
+
 import { CREATE_CODE_EVALUATOR_NAVIGATION_CANCEL_ERROR } from "./constants";
 import type {
   BindPendingCodeEvaluatorCreateOptions,
   PendingCodeEvaluatorCreate,
 } from "./types";
-
-export const CREATE_CODE_EVALUATOR_TOOL_NAME = "create_code_evaluator";
 
 const USER_REJECTED_MESSAGE =
   "User rejected the proposed code-evaluator creation.";
@@ -16,10 +16,9 @@ const SLIDEOVER_CANCELLED_MESSAGE =
  *
  * The pending entry starts in `phase: "preview"`. The chat-side preview card
  * calls `accept` (flip to `"awaiting-slideover"`, no tool output) or `reject`
- * (terminal). The page-mounted slideover then drives one of the three
- * idempotent terminal resolvers — each is guarded by the shared `resolved`
- * latch so a successful Save's `resolveAsAccepted` cannot be undone by the
- * dialog's subsequent close handler firing `resolveAsRejected`.
+ * (terminal). The page-mounted slideover then drives a Save or Cancel terminal
+ * resolver, guarded by the shared `resolved` latch so a successful Save cannot
+ * be undone by the dialog's subsequent close handler firing `resolveAsRejected`.
  */
 export function bindPendingCodeEvaluatorCreateActions({
   pendingCreate,
@@ -101,18 +100,6 @@ export function bindPendingCodeEvaluatorCreateActions({
     });
   };
 
-  const resolveAsFailed = async (errorText: string) => {
-    if (state.resolved) return;
-    state.resolved = true;
-    clear();
-    await addToolOutput({
-      state: "output-error",
-      tool: CREATE_CODE_EVALUATOR_TOOL_NAME,
-      toolCallId: pendingCreate.toolCallId,
-      errorText,
-    });
-  };
-
   const cancel = async () => {
     if (state.resolved) return;
     state.resolved = true;
@@ -133,7 +120,6 @@ export function bindPendingCodeEvaluatorCreateActions({
     reject,
     resolveAsAccepted,
     resolveAsRejected,
-    resolveAsFailed,
     cancel,
   };
   return bound;

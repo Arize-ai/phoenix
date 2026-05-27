@@ -8,6 +8,7 @@ import {
 import { expect, testV2 as test } from "./fixtures";
 import { getRequiredJudgeApiKeyEnv } from "./judge";
 import { assertPxiOutcome, evaluatePxiOutcome } from "./outcome";
+import { createWasmPythonSandboxConfig } from "./utils";
 
 const JUDGE_SYSTEM =
   "You are judging a Phoenix PXI E2E answer about the create_code_evaluator three-stage handoff flow on the dataset evaluators tab. PXI must (1) explain what evaluator it intends to author, (2) call create_code_evaluator exactly once to render an inline preview with Confirm and Reject buttons, and (3) — on Confirm — hand off to the dataset's CreateCodeDatasetEvaluatorSlideover where the user clicks Save to persist via Relay. No GraphQL mutation may run before the slideover Save. Return a label, score, and brief explanation.";
@@ -166,6 +167,10 @@ test.describe("PXI create code-evaluator three-stage smoke", () => {
       `${judgeApiKeyEnv} is required for the PXI E2E judge.`
     );
 
+    await createWasmPythonSandboxConfig({
+      request,
+      name: `pxi-create-proposal-python-${randomUUID().slice(0, 8)}`,
+    });
     const { datasetId } = await seedDataset(request);
     const messageInput = await openDatasetEvaluatorsAndPxi(
       page,
@@ -268,6 +273,10 @@ test.describe("PXI create code-evaluator three-stage smoke", () => {
       `${judgeApiKeyEnv} is required for the PXI E2E judge.`
     );
 
+    await createWasmPythonSandboxConfig({
+      request,
+      name: `pxi-create-reject-python-${randomUUID().slice(0, 8)}`,
+    });
     const { datasetId } = await seedDataset(request);
     const messageInput = await openDatasetEvaluatorsAndPxi(
       page,
@@ -360,6 +369,10 @@ test.describe("PXI create code-evaluator three-stage smoke", () => {
       `${judgeApiKeyEnv} is required for the PXI E2E judge.`
     );
 
+    await createWasmPythonSandboxConfig({
+      request,
+      name: `pxi-create-cancel-python-${randomUUID().slice(0, 8)}`,
+    });
     const { datasetId } = await seedDataset(request);
     const messageInput = await openDatasetEvaluatorsAndPxi(
       page,

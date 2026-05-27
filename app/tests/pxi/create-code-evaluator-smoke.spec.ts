@@ -10,7 +10,7 @@ import { getRequiredJudgeApiKeyEnv } from "./judge";
 import { assertPxiOutcome, evaluatePxiOutcome } from "./outcome";
 
 const JUDGE_SYSTEM =
-  "You are judging a Phoenix PXI E2E answer about direct code-evaluator authoring. Return a label, score, and brief explanation.";
+  "You are judging a Phoenix PXI E2E answer about code-evaluator authoring tool gates. Return a label, score, and brief explanation.";
 
 /**
  * Seed a minimal dataset so the tool-absent test can navigate to a dataset's
@@ -63,7 +63,7 @@ async function reopenPxiPanel(page: Page): Promise<void> {
 }
 
 /**
- * PXI direct-authoring tool-absent smoke test.
+ * PXI create-code-evaluator tool-absent smoke test.
  *
  * Asserts the dual side of the `code_evaluator` context capability gate:
  * when a code-evaluator form is mounted, `EditCodeEvaluatorDraftCapability`

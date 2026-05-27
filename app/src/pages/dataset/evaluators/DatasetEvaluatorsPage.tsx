@@ -232,9 +232,6 @@ export function DatasetEvaluatorsPageContent() {
             createdEvaluator,
           })
         }
-        onSubmitError={(message) =>
-          void pendingAgentCreate?.resolveAsFailed?.(message)
-        }
         onCancel={() => void pendingAgentCreate?.resolveAsRejected?.()}
       />
     </>

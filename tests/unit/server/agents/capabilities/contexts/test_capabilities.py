@@ -183,6 +183,34 @@ class TestDatasetContextCapabilityRender:
         assert "Stop. Do NOT continue with manual UI instructions" in content
         assert "reply once the create-code-evaluator slideover is open" in content
 
+    def test_evaluator_authoring_defers_to_dataset_evaluators_context_on_tab(self) -> None:
+        capability = DatasetContextCapability(
+            instructions=_DEFAULT_PROMPTS.dataset_context,
+        )
+        ctx = _get_run_context(_dataset_evaluators_contexts())
+        content = _render(capability, ctx)
+        assert "<phoenix_dataset_evaluators_context>" in content
+        assert "use `create_code_evaluator` for an inline proposal" in content
+        assert "[Create code evaluator]" not in content
+        assert "Stop. Do NOT continue with manual UI instructions" not in content
+
+    def test_evaluator_authoring_defers_to_code_evaluator_context_when_form_mounted(
+        self,
+    ) -> None:
+        capability = DatasetContextCapability(
+            instructions=_DEFAULT_PROMPTS.dataset_context,
+        )
+        contexts = _dataset_evaluators_contexts()
+        contexts.code_evaluator = CodeEvaluatorContext(
+            type="code_evaluator",
+            evaluator_node_id=None,
+        )
+        ctx = _get_run_context(contexts)
+        content = _render(capability, ctx)
+        assert "<phoenix_code_evaluator_context>" in content
+        assert "draft-read / draft-edit tools" in content
+        assert "[Create code evaluator]" not in content
+
 
 class TestPlaygroundContextCapabilityRender:
     def test_dataset_evaluator_authoring_links_to_loaded_dataset_create_slideover(self) -> None:
@@ -383,19 +411,17 @@ class TestCreateCodeEvaluatorCapabilityGate:
             "source_code",
             "language",
             "sandbox_config_id",
+            "output_configs",
         }
         assert schema["properties"]["language"]["enum"] == ["PYTHON", "TYPESCRIPT"]
         assert schema["properties"]["name"]["pattern"] == r"^[a-z0-9]([_a-z0-9-]*[a-z0-9])?$"
 
-        # output_configs is an optional array of discriminated-union entries
-        # mirroring the form's OutputConfigDraft. Absence is meaningful (the
-        # caller chose to leave the annotation surface unset), so it must NOT
-        # appear in `required`.
+        # output_configs is required so an agent proposal cannot silently open
+        # the slideover without the annotation surface the prompt asks it to infer.
         assert "output_configs" in schema["properties"]
-        assert "output_configs" not in schema["required"]
         output_configs_schema = schema["properties"]["output_configs"]
         assert output_configs_schema["type"] == "array"
-        assert output_configs_schema["default"] == []
+        assert output_configs_schema["minItems"] == 1
         item_schema = output_configs_schema["items"]
         assert item_schema["additionalProperties"] is False
         # Every entry must declare kind/name/optimizationDirection. Kind-specific

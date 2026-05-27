@@ -10,6 +10,15 @@ describe("parseCreateCodeEvaluatorInput", () => {
       source_code: "def evaluate(output):\n    return 1.0",
       language: "PYTHON",
       sandbox_config_id: "U2FuZGJveENvbmZpZzox",
+      output_configs: [
+        {
+          kind: "freeform",
+          name: "hallucination-check",
+          optimizationDirection: "MAXIMIZE",
+          lowerBound: 0,
+          upperBound: 1,
+        },
+      ],
     });
     expect(parsed).not.toBeNull();
     const input = parsed as CreateCodeEvaluatorInput;
@@ -21,7 +30,15 @@ describe("parseCreateCodeEvaluatorInput", () => {
       pathMapping: {},
       literalMapping: {},
     });
-    expect(input.outputConfigs).toEqual([]);
+    expect(input.outputConfigs).toEqual([
+      {
+        kind: "freeform",
+        name: "hallucination-check",
+        optimizationDirection: "MAXIMIZE",
+        lowerBound: 0,
+        upperBound: 1,
+      },
+    ]);
   });
 
   it("preserves camelCase keys and a provided input_mapping", () => {
@@ -35,6 +52,13 @@ describe("parseCreateCodeEvaluatorInput", () => {
         pathMapping: { output: "attributes.output.value" },
         literalMapping: { threshold: 0.5 },
       },
+      outputConfigs: [
+        {
+          kind: "freeform",
+          name: "json-validity",
+          optimizationDirection: "MAXIMIZE",
+        },
+      ],
     });
     expect(parsed).not.toBeNull();
     const input = parsed as CreateCodeEvaluatorInput;
@@ -52,6 +76,13 @@ describe("parseCreateCodeEvaluatorInput", () => {
       sourceCode: "def evaluate(output): return 1",
       language: "RUBY",
       sandboxConfigId: "U2FuZGJveENvbmZpZzox",
+      outputConfigs: [
+        {
+          kind: "freeform",
+          name: "foo",
+          optimizationDirection: "MAXIMIZE",
+        },
+      ],
     });
     expect(parsed).toBeNull();
   });
@@ -61,6 +92,13 @@ describe("parseCreateCodeEvaluatorInput", () => {
       name: "foo",
       sourceCode: "def evaluate(output): return 1",
       language: "PYTHON",
+      outputConfigs: [
+        {
+          kind: "freeform",
+          name: "foo",
+          optimizationDirection: "MAXIMIZE",
+        },
+      ],
     });
     expect(parsed).toBeNull();
   });
@@ -74,16 +112,25 @@ describe("parseCreateCodeEvaluatorInput", () => {
     expect(parsed).toBeNull();
   });
 
-  it("defaults outputConfigs to an empty array when omitted", () => {
+  it("rejects omitted outputConfigs", () => {
     const parsed = parseCreateCodeEvaluatorInput({
       name: "no-output-config",
       source_code: "def evaluate(output):\n    return 1.0",
       language: "PYTHON",
       sandbox_config_id: "U2FuZGJveENvbmZpZzox",
     });
-    expect(parsed).not.toBeNull();
-    const input = parsed as CreateCodeEvaluatorInput;
-    expect(input.outputConfigs).toEqual([]);
+    expect(parsed).toBeNull();
+  });
+
+  it("rejects empty outputConfigs", () => {
+    const parsed = parseCreateCodeEvaluatorInput({
+      name: "empty-output-config",
+      source_code: "def evaluate(output):\n    return 1.0",
+      language: "PYTHON",
+      sandbox_config_id: "U2FuZGJveENvbmZpZzox",
+      output_configs: [],
+    });
+    expect(parsed).toBeNull();
   });
 
   it("parses a fully specified freeform output_config draft", () => {

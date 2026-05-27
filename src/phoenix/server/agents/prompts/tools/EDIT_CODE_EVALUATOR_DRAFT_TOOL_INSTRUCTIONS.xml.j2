@@ -18,7 +18,7 @@
       - `{"type":"set_input_mapping","inputMapping":{"pathMapping":{"input":"attributes.input.value"},"literalMapping":{}}}`
       - `{"type":"set_description","description":"Scores hallucination risk"}`
       - `{"type":"set_name","name":"hallucination-v2"}`
-      - `{"type":"set_output_configs","outputConfigs":[{"kind":"freeform","name":"","optimizationDirection":"MAXIMIZE","threshold":0.5,"lowerBound":0,"upperBound":1}]}` — whole-list replace. Other valid `kind`s: `classification` (with a `values` list of `{label, score?}`) and `continuous` (with `lowerBound`/`upperBound`). Supply `name: ""` on each entry; the evaluator's own name is reused automatically. Propose output configs whenever you can infer them from the source rather than leaving the draft's defaults in place.
+      - `{"type":"set_output_configs","outputConfigs":[{"kind":"freeform","name":"hallucination-v2","optimizationDirection":"MAXIMIZE","threshold":0.5,"lowerBound":0,"upperBound":1}]}` — whole-list replace. Other valid `kind`s: `classification` (with a `values` list of `{label, score?}`) and `continuous` (with `lowerBound`/`upperBound`). Use the draft evaluator name on each entry unless the evaluator clearly returns multiple independent outputs. Propose output configs whenever you can infer them from the source rather than leaving the draft's defaults in place.
   </operations>
   <invariants>
     - Never rename or remove the `evaluate` function. The runtime calls it by name.

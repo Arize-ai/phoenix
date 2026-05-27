@@ -147,10 +147,10 @@ PARAMETERS: dict[str, Any] = {
                 "`lowerBound`, and `upperBound`."
             ),
             "items": OUTPUT_CONFIG_DRAFT_SCHEMA,
-            "default": [],
+            "minItems": 1,
         },
     },
-    "required": ["name", "source_code", "language", "sandbox_config_id"],
+    "required": ["name", "source_code", "language", "sandbox_config_id", "output_configs"],
     "additionalProperties": False,
 }
 

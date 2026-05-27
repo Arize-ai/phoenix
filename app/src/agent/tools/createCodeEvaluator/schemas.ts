@@ -33,7 +33,7 @@ export const createCodeEvaluatorInputSchema = z
       description: z.string().optional(),
       sandboxConfigId: z.string().min(1),
       inputMapping: inputMappingSchema.optional(),
-      outputConfigs: z.array(outputConfigDraftSchema).optional(),
+      outputConfigs: z.array(outputConfigDraftSchema).min(1),
     })
   )
   .transform((value) => ({
@@ -43,5 +43,5 @@ export const createCodeEvaluatorInputSchema = z
     description: value.description,
     sandboxConfigId: value.sandboxConfigId,
     inputMapping: value.inputMapping ?? { pathMapping: {}, literalMapping: {} },
-    outputConfigs: value.outputConfigs ?? [],
+    outputConfigs: value.outputConfigs,
   }));

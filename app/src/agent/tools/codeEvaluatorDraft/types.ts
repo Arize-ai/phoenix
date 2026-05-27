@@ -147,10 +147,10 @@ export type PendingCodeEvaluatorCreatePhase = "preview" | "awaiting-slideover";
 /**
  * Pending `create_code_evaluator` proposal — the chat-side preview card flips
  * the phase to "awaiting-slideover" on Confirm without committing; the page-
- * mounted slideover is the only commit site. The three terminal resolvers
- * (`resolveAsAccepted` / `resolveAsRejected` / `resolveAsFailed`) are
- * idempotent and gated by the `resolved` latch so the dialog's close handler
- * cannot race a successful Save's terminal as a second rejection.
+ * mounted slideover is the only commit site. The slideover terminal resolvers
+ * (`resolveAsAccepted` / `resolveAsRejected`) are idempotent and gated by the
+ * `resolved` latch so the dialog's close handler cannot race a successful
+ * Save's terminal as a second rejection.
  */
 export type PendingCodeEvaluatorCreate = {
   toolCallId: string;
@@ -176,8 +176,6 @@ export type PendingCodeEvaluatorCreate = {
   }) => Promise<void>;
   /** Slideover Cancel — terminal `rejected`. */
   resolveAsRejected?: () => Promise<void>;
-  /** Slideover Save error — terminal `output-error`. */
-  resolveAsFailed?: (errorText: string) => Promise<void>;
   /** Interrupt-cleanup terminal — used by useAgentChat when a session is interrupted. */
   cancel?: () => Promise<void>;
 };
@@ -190,7 +188,6 @@ export type BindPendingCodeEvaluatorCreateOptions = {
     | "cancel"
     | "resolveAsAccepted"
     | "resolveAsRejected"
-    | "resolveAsFailed"
     | "phase"
     | "resolved"
   >;

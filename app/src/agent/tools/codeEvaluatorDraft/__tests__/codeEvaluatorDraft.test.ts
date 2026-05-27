@@ -385,18 +385,6 @@ describe("pending create two-phase proposal lifecycle", () => {
     expect(stored["tc-1"]).toBeNull();
   });
 
-  it("resolveAsFailed emits output-error with the surfaced message", async () => {
-    const { bound, outputs, stored } = makeBound();
-    await bound.accept!();
-    await bound.resolveAsFailed!("the mutation failed");
-    expect(outputs).toHaveLength(1);
-    expect(outputs[0]).toMatchObject({
-      state: "output-error",
-      errorText: "the mutation failed",
-    });
-    expect(stored["tc-1"]).toBeNull();
-  });
-
   it("second terminal resolver after one has fired is a no-op (resolved latch)", async () => {
     const { bound, outputs, stored } = makeBound();
     await bound.accept!();
@@ -408,7 +396,6 @@ describe("pending create two-phase proposal lifecycle", () => {
     // its resolveAsRejected MUST be ignored or the proposal would emit a
     // second terminal output and drift the agent's view of the tool call.
     await bound.resolveAsRejected!();
-    await bound.resolveAsFailed!("ignored");
     expect(outputs).toHaveLength(1);
     expect(outputs[0]).toMatchObject({ state: "output-available" });
     expect(JSON.parse(String(outputs[0].output))).toMatchObject({
