@@ -35,13 +35,7 @@ from phoenix.server.agents.pydantic_ai.tool_spans import ToolSpanMixin
 
 @dataclass
 class OpenInferenceCapabilityWrapper(WrapperCapability[AgentDepsT], ToolSpanMixin):
-    """Pydantic-ai ``Capability`` wrapper that emits OpenInference ``TOOL`` spans.
-
-    Emits a TOOL span for each user-tool invocation via ``wrap_tool_execute`` and
-    synthesizes TOOL spans for provider-executed native tools (e.g. web search)
-    via ``after_model_request`` — native tools never flow through ``call_tool``,
-    so the model response is the only client-side seam where they appear.
-    """
+    """Pydantic-ai ``Capability`` wrapper that emits OpenInference ``TOOL`` spans."""
 
     _: KW_ONLY
     tracer: Tracer
