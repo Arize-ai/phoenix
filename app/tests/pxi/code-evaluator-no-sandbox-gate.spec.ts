@@ -33,21 +33,20 @@ async function seedDataset(
 /**
  * PXI no-sandbox-gate smoke test (on a dataset surface).
  *
- * With every sandbox config disabled, `_has_usable_sandbox(session)` returns
+ * With no usable sandbox config, `_has_usable_sandbox(session)` returns
  * False, the agents router populates `sandbox_availability.has_usable=False`,
  * and `CreateCodeEvaluatorCapability.include_for_run` returns False even when
  * the dataset context is mounted. The DatasetContextCapability's Jinja
  * template emits the `<sandbox_unavailable>` block which tells the agent to
  * direct the user to `/settings/sandboxes`. This spec asserts both halves.
  *
- * Gated with `test.fixme()` pending the harness fix tracked at
- * https://github.com/Arize-ai/phoenix/issues/TBD AND the sandbox-state setup
- * helper that disables every sandbox provider/config for the test database.
- * The body encodes the dataset-surface preconditions + judge rubric so the
- * contract ships with the rework.
+ * Precondition note: `pnpm run test:e2e:pxi` runs against a fresh in-memory
+ * SQLite DB (see `app/tests/utils/testServer.mjs`) and no PXI spec creates a
+ * `SandboxConfig` row, so the no-sandbox precondition is the natural state
+ * of the test environment — no per-test disable fixture is required.
  */
 test.describe("PXI create code-evaluator no-sandbox gate smoke", () => {
-  test.fixme(
+  test(
     "no usable sandbox + dataset context: tool absent and assistant redirects to /settings/sandboxes",
     async ({ browserName, page, pxi, request }, testInfo) => {
       test.skip(
@@ -66,10 +65,6 @@ test.describe("PXI create code-evaluator no-sandbox gate smoke", () => {
       test.skip(
         !process.env[judgeApiKeyEnv],
         `${judgeApiKeyEnv} is required for the PXI E2E judge.`
-      );
-      test.skip(
-        !process.env.PXI_E2E_DISABLE_SANDBOXES,
-        "PXI_E2E_DISABLE_SANDBOXES=true is required so the harness sets up a database with every SandboxConfig / SandboxProvider disabled."
       );
 
       const { datasetId } = await seedDataset(request);

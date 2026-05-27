@@ -122,26 +122,6 @@ export const PXI_EXPERIMENT_EXAMPLES = {
     experimentDescription:
       "PXI code-evaluator draft tools smoke test: draft tools are absent when no code-evaluator form is mounted.",
   },
-  createCodeEvaluatorHappySmoke: {
-    id: "pxi-create-code-evaluator-smoke:happy-path-v1",
-    prompt:
-      "Create a new Python code evaluator named ${name} that scores how well an agent's output matches a reference answer. Define `evaluate(output, reference)` that returns 1.0 when `output` and `reference` are equal (case-insensitive, trimmed) and 0.0 otherwise. Do not configure a sandbox.",
-    expectedOutput:
-      "PXI calls create_code_evaluator with sandbox_config_id: null; the new evaluator is persisted and retrievable by id via the GraphQL node query.",
-    experimentNamePrefix: "pxi-e2e-create-code-evaluator-happy",
-    experimentDescription:
-      "PXI direct-authoring tool: create_code_evaluator happy-path with graphql.mutations capability disabled.",
-  },
-  createCodeEvaluatorBadRequestSmoke: {
-    id: "pxi-create-code-evaluator-smoke:bad-request-v1",
-    prompt:
-      "Create a Python code evaluator named ${name} with this exact source code (do not change the function name or parameters): `def score(output, reference):\\n    return 1.0 if output == reference else 0.0`. Do not configure a sandbox.",
-    expectedOutput:
-      "PXI's create_code_evaluator call returns a BadRequest with the server's signature-validation message surfaced verbatim; no evaluator is created.",
-    experimentNamePrefix: "pxi-e2e-create-code-evaluator-bad-request",
-    experimentDescription:
-      "PXI direct-authoring tool: server BadRequest on unparseable evaluate() signature surfaces verbatim.",
-  },
   createCodeEvaluatorToolAbsentSmoke: {
     id: "pxi-create-code-evaluator-smoke:tool-absent-v1",
     prompt:
@@ -152,16 +132,6 @@ export const PXI_EXPERIMENT_EXAMPLES = {
     experimentDescription:
       "PXI direct-authoring tool: create_code_evaluator absence when the code-evaluator form is mounted (dual side of context include_for_run).",
   },
-  createCodeEvaluatorWithOutputConfigSmoke: {
-    id: "pxi-create-code-evaluator-smoke:with-output-config-v1",
-    prompt:
-      "Create a new Python code evaluator named ${name} that scores how similar an agent's output is to a reference answer on a scale from 0 to 1. Define `evaluate(output, reference)` that returns 1.0 when `output` and `reference` are equal (case-insensitive, trimmed) and 0.0 otherwise. Configure the evaluator's annotation surface so higher scores are better (optimization_direction MAXIMIZE) and the good/bad cutoff is 0.7. Pick a Python sandbox config.",
-    expectedOutput:
-      "PXI calls create_code_evaluator with an output_config carrying optimization_direction=MAXIMIZE and threshold=0.7; the persisted CodeEvaluator's output_configs round-trip a single freeform entry whose name equals the evaluator's name.",
-    experimentNamePrefix: "pxi-e2e-create-code-evaluator-with-output-config",
-    experimentDescription:
-      "PXI direct-authoring tool: create_code_evaluator authors a single freeform output config at creation time and the persisted output_configs round-trip via GraphQL.",
-  },
   createCodeEvaluatorProposalDatasetSmoke: {
     id: "pxi-create-code-evaluator-proposal:dataset-surface-v1",
     prompt:
@@ -170,7 +140,7 @@ export const PXI_EXPERIMENT_EXAMPLES = {
       "On a dataset surface, PXI proposes a PendingCodeEvaluatorCreate; clicking Accept persists a global CodeEvaluator AND attaches it to the active dataset via createDatasetCodeEvaluator. The dataset's evaluators tab shows the new row.",
     experimentNamePrefix: "pxi-e2e-create-code-evaluator-proposal-dataset",
     experimentDescription:
-      "PXI create_code_evaluator chassis flow: on a dataset surface the proposal accept fires the chained createCodeEvaluator -> createDatasetCodeEvaluator path.",
+      "PXI create_code_evaluator proposal flow: on a dataset surface the proposal accept fires the chained createCodeEvaluator -> createDatasetCodeEvaluator path.",
   },
   createCodeEvaluatorProposalStandaloneSmoke: {
     id: "pxi-create-code-evaluator-proposal:standalone-surface-v1",
@@ -180,7 +150,7 @@ export const PXI_EXPERIMENT_EXAMPLES = {
       "On a non-dataset surface, PXI proposes a PendingCodeEvaluatorCreate; clicking Accept persists only the global CodeEvaluator. No DatasetEvaluator binding is created.",
     experimentNamePrefix: "pxi-e2e-create-code-evaluator-proposal-standalone",
     experimentDescription:
-      "PXI create_code_evaluator chassis flow: on a non-dataset surface the proposal accept fires the standalone createCodeEvaluator only.",
+      "PXI create_code_evaluator proposal flow: on a non-dataset surface the proposal accept fires the standalone createCodeEvaluator only.",
   },
   createCodeEvaluatorViewerGateSmoke: {
     id: "pxi-create-code-evaluator-gate:viewer-v1",
@@ -190,7 +160,7 @@ export const PXI_EXPERIMENT_EXAMPLES = {
       "Signed in as a viewer, PXI does not advertise create_code_evaluator. The assistant explains it does not have the affordance; no proposal renders and no mutation fires.",
     experimentNamePrefix: "pxi-e2e-create-code-evaluator-viewer-gate",
     experimentDescription:
-      "PXI capability gate: viewer role silently strips create_code_evaluator from the advertised toolset (D7 viewer denial path).",
+      "PXI capability gate: viewer role silently strips create_code_evaluator from the advertised toolset.",
   },
   createCodeEvaluatorNoSandboxGateSmoke: {
     id: "pxi-create-code-evaluator-gate:no-sandbox-v1",

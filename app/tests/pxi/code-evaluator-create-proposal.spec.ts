@@ -133,16 +133,15 @@ async function waitForCreateChip(page: Page) {
 }
 
 /**
- * PXI create_code_evaluator three-stage chassis smoke test.
+ * PXI create_code_evaluator three-stage proposal smoke test.
  *
  * Every block is on the dataset evaluators tab — the only surface where the
  * tool is advertised. The three blocks exercise the three terminal edges
- * (Save / Reject-before-Confirm / Cancel-after-Confirm) so the chassis state
- * machine is covered end-to-end. All blocks are gated with `test.fixme()`
- * pending a fix for the PXI E2E harness's localStorage stub regression.
+ * (Save / Reject-before-Confirm / Cancel-after-Confirm) so the proposal
+ * lifecycle is covered end-to-end.
  */
 test.describe("PXI create code-evaluator three-stage smoke", () => {
-  test.fixme(
+  test(
     "Save: Confirm in chat opens the slideover, Save persists via Relay and binds the evaluator to the dataset",
     async ({ browserName, page, pxi, request }, testInfo) => {
       test.skip(
@@ -184,7 +183,7 @@ test.describe("PXI create code-evaluator three-stage smoke", () => {
       const rubric = [
         "The assistant first explained in chat what evaluator it intends to author, then called create_code_evaluator on the dataset evaluators tab and rendered an inline preview with a Confirm button.",
         "The assistant did not fire any GraphQL mutation before the user confirmed: clicking Confirm in chat opened the dataset code-evaluator slideover prefilled with the proposal.",
-        "After the user clicked Save in the slideover, both createCodeEvaluator and createDatasetCodeEvaluator ran via Relay and the chassis tool output resolved as accepted with the dataset evaluator id.",
+        "After the user clicked Save in the slideover, both createCodeEvaluator and createDatasetCodeEvaluator ran via Relay and the tool output resolved as accepted with the dataset evaluator id.",
       ];
 
       const outcome = await evaluatePxiOutcome({
@@ -194,7 +193,7 @@ test.describe("PXI create code-evaluator three-stage smoke", () => {
           const chip = await waitForCreateChip(page);
           await chip.getByRole("button", { name: "Confirm" }).click();
 
-          // Slideover Save persists via Relay and resolves the chassis.
+          // Slideover Save persists via Relay and resolves the proposal.
           const slideoverSave = page.getByRole("button", { name: "Save" });
           await expect(slideoverSave).toBeVisible({ timeout: 60000 });
           await slideoverSave.click();
@@ -242,8 +241,8 @@ test.describe("PXI create code-evaluator three-stage smoke", () => {
     }
   );
 
-  test.fixme(
-    "Reject-before-Confirm: clicking Reject in chat resolves the chassis as rejected with no slideover and no mutation",
+  test(
+    "Reject-before-Confirm: clicking Reject in chat resolves the proposal as rejected with no slideover and no mutation",
     async ({ browserName, page, pxi, request }, testInfo) => {
       test.skip(
         browserName !== "chromium",
@@ -283,7 +282,7 @@ test.describe("PXI create code-evaluator three-stage smoke", () => {
 
       const rubric = [
         "The assistant called create_code_evaluator and rendered the inline preview card with Confirm/Reject buttons.",
-        "After the user clicked Reject in chat, no slideover opened and no GraphQL mutation ran — the chassis resolved as rejected.",
+        "After the user clicked Reject in chat, no slideover opened and no GraphQL mutation ran — the proposal resolved as rejected.",
       ];
 
       const outcome = await evaluatePxiOutcome({
@@ -308,7 +307,7 @@ test.describe("PXI create code-evaluator three-stage smoke", () => {
         judgeInput: {
           system: JUDGE_SYSTEM,
           prompt: renderedPrompt,
-          assistantText: `Proposed create_code_evaluator with name=${evaluatorName}; user clicked Reject in chat preview; no slideover opened; chassis resolved as rejected with no mutation.`,
+          assistantText: `Proposed create_code_evaluator with name=${evaluatorName}; user clicked Reject in chat preview; no slideover opened; proposal resolved as rejected with no mutation.`,
           rubric,
         },
       });
@@ -332,8 +331,8 @@ test.describe("PXI create code-evaluator three-stage smoke", () => {
     }
   );
 
-  test.fixme(
-    "Cancel-after-Confirm: clicking Confirm then Cancel in the slideover resolves the chassis as rejected with no mutation",
+  test(
+    "Cancel-after-Confirm: clicking Confirm then Cancel in the slideover resolves the proposal as rejected with no mutation",
     async ({ browserName, page, pxi, request }, testInfo) => {
       test.skip(
         browserName !== "chromium",
@@ -374,7 +373,7 @@ test.describe("PXI create code-evaluator three-stage smoke", () => {
       const rubric = [
         "The assistant called create_code_evaluator and rendered an inline preview the user could review.",
         "After the user clicked Confirm in chat the slideover opened prefilled; clicking Cancel in the slideover closed it without persisting anything.",
-        "No GraphQL mutation ran across the whole flow; the chassis resolved as rejected.",
+        "No GraphQL mutation ran across the whole flow; the proposal resolved as rejected.",
       ];
 
       const outcome = await evaluatePxiOutcome({
@@ -404,7 +403,7 @@ test.describe("PXI create code-evaluator three-stage smoke", () => {
         judgeInput: {
           system: JUDGE_SYSTEM,
           prompt: renderedPrompt,
-          assistantText: `Proposed create_code_evaluator with name=${evaluatorName}; user Confirmed in chat then Cancelled in slideover; no mutation; chassis resolved as rejected.`,
+          assistantText: `Proposed create_code_evaluator with name=${evaluatorName}; user Confirmed in chat then Cancelled in slideover; no mutation; proposal resolved as rejected.`,
           rubric,
         },
       });

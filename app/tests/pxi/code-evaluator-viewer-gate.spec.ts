@@ -9,22 +9,25 @@ import { assertPxiOutcome, evaluatePxiOutcome } from "./outcome";
 const JUDGE_SYSTEM =
   "You are judging a Phoenix PXI E2E answer about role-based tool gating. Viewers must NOT see the create_code_evaluator tool advertised; the assistant should not invoke it under any phrasing. No new viewer-specific instruction template apologizes for the limitation — the affordance is silently absent. Return a label, score, and brief explanation.";
 
+// Run this spec as the viewer-role user. `app/tests/auth.setup.ts` is the
+// `setup` project dependency that creates `playwright/.auth/viewer.json` by
+// provisioning the viewer@localhost.com user and persisting their session
+// cookies. The chromium / firefox / webkit projects depend on `setup`, so
+// the storage state is guaranteed to exist when this spec runs.
+test.use({ storageState: "playwright/.auth/viewer.json" });
+
 /**
  * PXI viewer-gate smoke test.
  *
  * Asserts that a viewer-role session does NOT see create_code_evaluator
- * advertised (D7 viewer denial path — silent omission, no viewer-specific
- * instruction template apology). The capability gate lives on
- * `CreateCodeEvaluatorCapability.include_for_run`, which now ANDs
- * `not ctx.deps.is_viewer`. The agents router populates `is_viewer` from
- * `request.user.is_viewer` with an isinstance(PhoenixUser) guard.
- *
- * Gated with `test.fixme()` pending the harness fix tracked at
- * https://github.com/Arize-ai/phoenix/issues/TBD — the body encodes the
- * viewer-login plumbing + rubric so the contract ships with the rework.
+ * advertised — the tool is silently absent, with no viewer-specific
+ * apology emitted by an instruction template. The capability gate lives on
+ * `CreateCodeEvaluatorCapability.include_for_run`, which ANDs
+ * `not ctx.deps.is_viewer`; the agents router populates `is_viewer` from
+ * `request.user.is_viewer`.
  */
 test.describe("PXI create code-evaluator viewer gate smoke", () => {
-  test.fixme(
+  test(
     "viewer role does not see create_code_evaluator advertised",
     async ({ browserName, page, pxi, request }, testInfo) => {
       test.skip(
@@ -44,17 +47,6 @@ test.describe("PXI create code-evaluator viewer gate smoke", () => {
         !process.env[judgeApiKeyEnv],
         `${judgeApiKeyEnv} is required for the PXI E2E judge.`
       );
-      test.skip(
-        !process.env.PXI_E2E_VIEWER_BEARER_TOKEN,
-        "PXI_E2E_VIEWER_BEARER_TOKEN is required for the viewer-role gate test. Provision a viewer-role access token from the Phoenix auth backend before running."
-      );
-
-      // Authenticate as the viewer-role user. The bearer token must be issued
-      // by the Phoenix auth backend with a user_role=VIEWER claim — this is
-      // what PhoenixUser.is_viewer reads.
-      await page.context().setExtraHTTPHeaders({
-        Authorization: `Bearer ${process.env.PXI_E2E_VIEWER_BEARER_TOKEN}`,
-      });
 
       await pxi.open();
       await pxi.acknowledgeConsent();

@@ -47,12 +47,19 @@ async function installAgentDefaults({ page }: { page: Page }) {
         "arize-phoenix-feature-flags",
         JSON.stringify({ agents: true, tracing_ux: false })
       );
+      // Write the canonical v9 partialize shape directly so the fixture does
+      // not depend on the store's migrate path. The store's version is
+      // tracked in app/src/store/agentStore.ts (`persist({ version })`); keep
+      // this fixture in sync when bumping the schema version, otherwise the
+      // migrate-forced field values silently override what the fixture
+      // intends to set.
       localStorage.setItem(
         "arize-phoenix-assistant",
         JSON.stringify({
           state: {
             isOpen: false,
-            position: "detached",
+            position: "pinned",
+            fabPlacement: "bottom-end",
             sessions: [],
             activeSessionId: null,
             sessionMap: {},
@@ -62,7 +69,6 @@ async function installAgentDefaults({ page }: { page: Page }) {
               invocationParameters: [],
               supportedInvocationParameters: [],
             },
-            userInstructions: "",
             observability: {
               storeLocalTraces: true,
               exportRemoteTraces: false,
@@ -73,7 +79,7 @@ async function installAgentDefaults({ page }: { page: Page }) {
               "graphql.mutations": false,
             },
           },
-          version: 5,
+          version: 9,
         })
       );
     },
