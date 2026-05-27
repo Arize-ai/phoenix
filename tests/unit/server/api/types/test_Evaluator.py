@@ -1078,6 +1078,72 @@ class TestBuiltInEvaluatorMultiOutput:
         assert isinstance(output_configs, list)
         assert len(output_configs) == 0
 
+    async def test_builtin_null_output_configs_falls_back_to_base_evaluator(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        synced_builtin_evaluators: None,
+    ) -> None:
+        """Verify that null output_configs falls back to the builtin evaluator's configs."""
+        from sqlalchemy import select
+
+        async with db() as session:
+            dataset = models.Dataset(
+                name=f"test-dataset-null-output-configs-{token_hex(4)}",
+                metadata_={},
+            )
+            session.add(dataset)
+            await session.flush()
+
+            project = models.Project(name=f"test-null-output-configs-project-{token_hex(4)}")
+            session.add(project)
+            await session.flush()
+
+            contains_id = await session.scalar(
+                select(models.BuiltinEvaluator.id).where(models.BuiltinEvaluator.key == "contains")
+            )
+            assert contains_id is not None
+
+            dataset_eval = models.DatasetEvaluators(
+                dataset_id=dataset.id,
+                evaluator_id=contains_id,
+                name=Identifier("contains_null_output_configs"),
+                input_mapping=InputMapping(literal_mapping={}, path_mapping={}),
+                output_configs=None,
+                project_id=project.id,
+            )
+            session.add(dataset_eval)
+            await session.flush()
+            dataset_eval_id = dataset_eval.id
+
+        resp = await gql_client.execute(
+            """query ($id: ID!) {
+                node(id: $id) {
+                    ... on DatasetEvaluator {
+                        name
+                        outputConfigs {
+                            __typename
+                            ... on CategoricalAnnotationConfig {
+                                name
+                                optimizationDirection
+                                values { label score }
+                            }
+                        }
+                    }
+                }
+            }""",
+            variables={"id": str(GlobalID(DatasetEvaluator.__name__, str(dataset_eval_id)))},
+        )
+        assert not resp.errors and resp.data
+        node = resp.data["node"]
+        assert node["name"] == "contains_null_output_configs"
+        output_configs = node["outputConfigs"]
+        assert isinstance(output_configs, list)
+        assert len(output_configs) >= 1
+        output_config = output_configs[0]
+        assert output_config["__typename"] == "CategoricalAnnotationConfig"
+        assert output_config["name"] == "contains"
+
 
 class TestLLMEvaluatorOutputConfigs:
     """Tests for LLMEvaluator.outputConfigs GraphQL field resolution."""
