@@ -1220,7 +1220,6 @@
                 "group": "05.2026",
                 "pages": [
                   "docs/phoenix/release-notes/05-2026/05-27-2026-drag-to-zoom",
-                  "docs/phoenix/release-notes/05-2026/05-26-2026-dashboards-and-token-counts",
                   "docs/phoenix/release-notes/05-2026/05-21-2026-code-evaluators",
                   "docs/phoenix/release-notes/05-2026/05-15-2026-otel-semconv-conversion",
                   "docs/phoenix/release-notes/05-2026/05-15-2026-session-feedback-and-atif",

@@ -5,11 +5,11 @@ description: "Write Python or TypeScript evaluation functions directly in the Ph
 
 **Available in arize-phoenix 16.0.0+**
 
-Phoenix now lets you write custom evaluation logic in the UI and run it server-side on experiment results. Instead of choosing from a fixed menu of judge templates, you author a Python or TypeScript `evaluate()` function that returns a label, score, and explanation — then attach it to a dataset. Phoenix executes each function call in an isolated sandbox and records the output as an annotation on every experiment run.
+Write your own evaluation logic in the Phoenix UI and run it server-side on experiment results. Author a Python or TypeScript `evaluate()` function that returns a label, score, and explanation, attach it to a dataset, and Phoenix runs it in an isolated sandbox on every experiment run.
 
 ## Writing a code evaluator
 
-Open any dataset, go to the **Evaluators** tab, and click **Add evaluator → Code evaluator**. Choose Python or TypeScript, write your `evaluate()` function, map dataset fields to parameters, and click **Test** to dry-run against a real example before saving.
+Open a dataset, go to the **Evaluators** tab, and click **Add evaluator → Code evaluator**. Pick a language, write `evaluate()`, map dataset fields to its parameters, and click **Test** to dry-run against a real example before saving.
 
 ```python
 # Python — weighted composite score
@@ -39,39 +39,22 @@ function evaluate({ output, reference, input, metadata }: EvaluatorParams) {
 }
 ```
 
-- **Both languages supported**: Python runs in WebAssembly (local) or a hosted sandbox; TypeScript runs in Deno or a hosted sandbox.
-- **Field mapping**: bind `output`, `reference`, `input`, and `metadata` to dataset columns or literal values.
-- **Versioned**: every save creates a new version; historical runs keep a record of exactly which code produced each score.
-- **Traced**: evaluator executions appear as spans in Phoenix, so you can debug a code evaluator like any other LLM call.
+- **Field mapping** — bind `output`, `reference`, `input`, and `metadata` to dataset columns or literal values
+- **Versioned** — every save creates a new version, so historical runs always link back to the exact code that produced each score
+- **Traced** — each evaluator execution appears as a span, so you can debug it like any other LLM call
 
-## Sandbox configuration
+## Sandboxes
 
-Code evaluators run in sandboxes — isolated runtimes that execute the snippet on demand. Admins configure sandboxes under **Settings → Sandboxes**.
+Code evaluators run in isolated sandboxes, configured by admins under **Settings → Sandboxes**:
 
-Two families of sandbox are available:
+- **Local** (no credentials) — WebAssembly for Python, Deno for TypeScript. Ship with Phoenix and are suitable for self-contained, deterministic checks.
+- **Hosted** (credentials required) — E2B, Daytona, Vercel, and Modal. Support environment variables, outbound network access, and third-party packages.
 
-- **Local** (no credentials required): WebAssembly for Python, Deno for TypeScript. Ship with Phoenix and are suitable for self-contained, deterministic checks — no environment variables, outbound network, or third-party packages.
-- **Hosted** (credentials required): E2B, Daytona, Vercel, and Modal. Run each invocation on the provider's infrastructure and support environment variables, outbound network access, and installed dependencies.
-
-To restrict which sandbox providers are available on your deployment, set the `PHOENIX_ALLOWED_SANDBOX_PROVIDERS` environment variable:
+To restrict which providers are available on your deployment, set `PHOENIX_ALLOWED_SANDBOX_PROVIDERS` to a comma-separated list of `WASM`, `DENO`, `E2B`, `DAYTONA`, `VERCEL`, `MODAL`, or `NONE` to disable all. When unset, all providers are available.
 
 ```bash
-# Allow only local sandboxes
+# Local sandboxes only
 PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO
-
-# Disable all sandboxes
-PHOENIX_ALLOWED_SANDBOX_PROVIDERS=NONE
 ```
 
-Accepted values (case-insensitive): `WASM`, `DENO`, `E2B`, `DAYTONA`, `VERCEL`, `MODAL`. When unset, all providers are available.
-
-## Permissions (when authentication is enabled)
-
-| Action | Admin | Member | Viewer |
-|--------|-------|--------|--------|
-| View code evaluator source and identity | ✅ | ✅ | ✅ |
-| Create / edit code evaluators | ✅ | ✅ | ❌ |
-| Dry-run (preview) a code evaluator | ✅ | ✅ | ❌ |
-| Configure sandbox providers and credentials | ✅ | ❌ | ❌ |
-
-When authentication is disabled, no role checks apply.
+For role permissions, see [Access Control RBAC](/docs/phoenix/settings/access-control-rbac#sandbox-management). For provider setup details, see [Sandboxes](/docs/phoenix/settings/sandboxes).
