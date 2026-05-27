@@ -16,7 +16,6 @@ import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { selectActiveContexts } from "@phoenix/agent/context/selectors";
 import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME } from "@phoenix/agent/tools/codeEvaluatorDraft";
-import { CREATE_CODE_EVALUATOR_TOOL_NAME } from "@phoenix/agent/tools/createCodeEvaluator";
 import type {
   ElicitToolOutput,
   PendingElicitation,
@@ -201,11 +200,6 @@ export function useAgentChat({
       }
       if (toolCall.tool === EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME) {
         store.getState().setPendingCodeEvaluatorEdit(toolCall.toolCallId, null);
-      }
-      if (toolCall.tool === CREATE_CODE_EVALUATOR_TOOL_NAME) {
-        store
-          .getState()
-          .setPendingCodeEvaluatorCreate(toolCall.toolCallId, null);
       }
     });
 

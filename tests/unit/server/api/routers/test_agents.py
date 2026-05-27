@@ -25,8 +25,8 @@ from phoenix.server.types import DbSessionFactory
 class TestLoadSandboxAvailability:
     """``_load_sandbox_availability`` is the one-shot pre-flight the agents
     router runs to populate ``AgentDependencies.sandbox_availability``. The
-    capability gate on ``create_code_evaluator`` reads ``has_usable`` from
-    this, and the create/edit prompt templates enumerate ``configs`` — so
+    code-evaluator authoring prompts read ``has_usable`` from this, and the
+    draft-edit prompt template enumerates ``configs`` — so
     both the ``enabled AND provider.enabled`` AND semantics and the per-row
     inventory shape must hold."""
 
@@ -417,7 +417,6 @@ class TestAgentDependenciesShape:
         from phoenix.server.agents.context import ResolvedContexts
         from phoenix.server.agents.types import (
             AgentDependencies,
-            SandboxAvailability,
         )
 
         deps = AgentDependencies(contexts=ResolvedContexts())
@@ -447,7 +446,6 @@ class TestAgentDependenciesShape:
         from phoenix.server.agents.context import ResolvedContexts
         from phoenix.server.agents.types import (
             AgentDependencies,
-            SandboxAvailability,
         )
 
         deps = AgentDependencies(
@@ -469,119 +467,6 @@ class TestAgentDependenciesShape:
         assert len(deps.sandbox_availability.configs) == 1
 
 
-class TestCreateCodeEvaluatorCapabilityGate:
-    """``CreateCodeEvaluatorCapability.include_for_run`` ANDs the page,
-    permission, and sandbox predicates. The capability is hidden unless the
-    dataset evaluators surface is active, no code-evaluator form is mounted,
-    the user can write, and at least one sandbox config is usable."""
-
-    def _make_availability(self, *, has_usable: bool) -> SandboxAvailability:
-        if not has_usable:
-            return SandboxAvailability()
-        return SandboxAvailability(
-            configs=[
-                SandboxConfigCapabilities(
-                    sandbox_config_id="U2FuZGJveENvbmZpZzox",
-                    name="example",
-                    language="PYTHON",
-                    internet_access="allow",
-                )
-            ]
-        )
-
-    def _dataset_evaluators_contexts(self) -> "ResolvedContexts":
-        from phoenix.server.agents.context import (
-            DatasetContext,
-            DatasetEvaluatorsContext,
-            ResolvedContexts,
-        )
-
-        return ResolvedContexts(
-            dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
-            dataset_evaluators=DatasetEvaluatorsContext(
-                type="dataset_evaluators",
-                dataset_node_id="RGF0YXNldDox",
-            ),
-        )
-
-    def test_advertised_when_all_conditions_met(self) -> None:
-        from unittest.mock import MagicMock
-
-        from phoenix.server.agents.capabilities.tools.external.create_code_evaluator import (
-            CreateCodeEvaluatorCapability,
-        )
-        from phoenix.server.agents.types import AgentDependencies
-
-        capability = CreateCodeEvaluatorCapability(instructions=MagicMock())
-        deps = AgentDependencies(
-            contexts=self._dataset_evaluators_contexts(),
-            is_viewer=False,
-            sandbox_availability=self._make_availability(has_usable=True),
-        )
-        ctx = MagicMock()
-        ctx.deps = deps
-        assert capability.include_for_run(ctx) is True
-
-    def test_hidden_when_viewer(self) -> None:
-        from unittest.mock import MagicMock
-
-        from phoenix.server.agents.capabilities.tools.external.create_code_evaluator import (
-            CreateCodeEvaluatorCapability,
-        )
-        from phoenix.server.agents.types import AgentDependencies
-
-        capability = CreateCodeEvaluatorCapability(instructions=MagicMock())
-        deps = AgentDependencies(
-            contexts=self._dataset_evaluators_contexts(),
-            is_viewer=True,
-            sandbox_availability=self._make_availability(has_usable=True),
-        )
-        ctx = MagicMock()
-        ctx.deps = deps
-        assert capability.include_for_run(ctx) is False
-
-    def test_hidden_when_no_sandbox(self) -> None:
-        from unittest.mock import MagicMock
-
-        from phoenix.server.agents.capabilities.tools.external.create_code_evaluator import (
-            CreateCodeEvaluatorCapability,
-        )
-        from phoenix.server.agents.types import AgentDependencies
-
-        capability = CreateCodeEvaluatorCapability(instructions=MagicMock())
-        deps = AgentDependencies(
-            contexts=self._dataset_evaluators_contexts(),
-            is_viewer=False,
-            sandbox_availability=self._make_availability(has_usable=False),
-        )
-        ctx = MagicMock()
-        ctx.deps = deps
-        assert capability.include_for_run(ctx) is False
-
-    def test_hidden_when_code_evaluator_context_active(self) -> None:
-        from unittest.mock import MagicMock
-
-        from phoenix.server.agents.capabilities.tools.external.create_code_evaluator import (
-            CreateCodeEvaluatorCapability,
-        )
-        from phoenix.server.agents.context import (
-            CodeEvaluatorContext,
-        )
-        from phoenix.server.agents.types import AgentDependencies
-
-        capability = CreateCodeEvaluatorCapability(instructions=MagicMock())
-        contexts = self._dataset_evaluators_contexts()
-        contexts.code_evaluator = CodeEvaluatorContext(type="code_evaluator", evaluatorNodeId=None)
-        deps = AgentDependencies(
-            contexts=contexts,
-            is_viewer=False,
-            sandbox_availability=self._make_availability(has_usable=True),
-        )
-        ctx = MagicMock()
-        ctx.deps = deps
-        assert capability.include_for_run(ctx) is False
-
-
 class TestEditCodeEvaluatorDraftCapabilityViewerGate:
     """``EditCodeEvaluatorDraftCapability.include_for_run`` ANDs
     code_evaluator-context-present + not-viewer. Viewers must not get the
@@ -597,7 +482,7 @@ class TestEditCodeEvaluatorDraftCapabilityViewerGate:
             CodeEvaluatorContext,
             ResolvedContexts,
         )
-        from phoenix.server.agents.types import AgentDependencies, SandboxAvailability
+        from phoenix.server.agents.types import AgentDependencies
 
         capability = EditCodeEvaluatorDraftCapability(instructions=MagicMock())
         contexts = ResolvedContexts()
@@ -621,7 +506,7 @@ class TestEditCodeEvaluatorDraftCapabilityViewerGate:
             CodeEvaluatorContext,
             ResolvedContexts,
         )
-        from phoenix.server.agents.types import AgentDependencies, SandboxAvailability
+        from phoenix.server.agents.types import AgentDependencies
 
         capability = EditCodeEvaluatorDraftCapability(instructions=MagicMock())
         contexts = ResolvedContexts()
@@ -637,48 +522,15 @@ class TestEditCodeEvaluatorDraftCapabilityViewerGate:
 
 
 class TestAvailableSandboxConfigsRendering:
-    """The create/edit code-evaluator tool templates render an
+    """The code-evaluator draft-edit tool template renders an
     ``<available_sandbox_configs>`` inventory inside ``<sandbox_config>``. The
     block is empty (self-closing) when no configs are present, and dynamic
     values flow through both ``| sanitize`` and ``| e`` so XML-sensitive
     characters (e.g. ``<`` in ``httpx>=0.27,<1``) cannot corrupt the
     surrounding XML-like prompt."""
 
-    def _create_template(self) -> Template:
-        return AgentPrompts().create_code_evaluator_tool
-
     def _edit_template(self) -> Template:
         return AgentPrompts().edit_code_evaluator_draft_tool
-
-    def test_create_template_renders_block_when_configs_present(self) -> None:
-        configs = [
-            SandboxConfigCapabilities(
-                sandbox_config_id="U2FuZGJveENvbmZpZzox",
-                name="python-default",
-                language="PYTHON",
-                internet_access="allow",
-                dependencies=["requests"],
-                env_var_names=["OPENAI_API_KEY"],
-                internet_access_mode="boolean",
-                supports_env_vars=True,
-                supports_dependencies=True,
-            )
-        ]
-        rendered = self._create_template().render(available_sandbox_configs=configs)
-        assert "<available_sandbox_configs>" in rendered
-        assert "U2FuZGJveENvbmZpZzox" in rendered
-        assert "python-default" in rendered
-        assert "OPENAI_API_KEY" in rendered
-        assert "requests" in rendered
-
-    def test_create_template_renders_empty_block_when_no_configs(self) -> None:
-        rendered = self._create_template().render(available_sandbox_configs=[])
-        # The block should be present but empty (self-closing) so the model
-        # sees an explicit "nothing available" signal rather than an opening tag.
-        assert "<available_sandbox_configs/>" in rendered
-        # No opening/closing pair was rendered (only the self-closing variant
-        # plus inline guidance references in code spans).
-        assert "</available_sandbox_configs>" not in rendered
 
     def test_edit_template_renders_block_when_configs_present(self) -> None:
         configs = [
@@ -704,19 +556,16 @@ class TestAvailableSandboxConfigsRendering:
         assert "<available_sandbox_configs/>" in rendered
 
     def test_tool_prompts_prefer_direct_evaluator_arguments(self) -> None:
-        create_rendered = self._create_template().render(available_sandbox_configs=[])
         edit_rendered = self._edit_template().render(available_sandbox_configs=[])
-        for rendered in (create_rendered, edit_rendered):
-            assert "`output` is the new experiment run output" in rendered
-            assert "dataset example `output` as `reference`" in rendered
-            assert "add `reference` for relational checks" in rendered.lower()
-            assert "parse nested" in rendered
-            assert "sample" in rendered
-            assert "examples" in rendered
-            assert "message" in rendered
-            assert "tool_calls`/`toolCalls" in rendered
-            assert "top-level" in rendered
-        assert "Prefer the safe default mapping" in create_rendered
+        assert "`output` is the new experiment run output" in edit_rendered
+        assert "dataset example `output` as `reference`" in edit_rendered
+        assert "add `reference` for relational checks" in edit_rendered.lower()
+        assert "parse nested" in edit_rendered
+        assert "sample" in edit_rendered
+        assert "examples" in edit_rendered
+        assert "message" in edit_rendered
+        assert "tool_calls`/`toolCalls" in edit_rendered
+        assert "top-level" in edit_rendered
         assert "Keep `input_mapping` at the safe default" in edit_rendered
         assert "leave the sandbox untouched" in edit_rendered
         assert "Do NOT emit `set_sandbox_config`" in edit_rendered
@@ -741,17 +590,14 @@ class TestAvailableSandboxConfigsRendering:
                 supports_dependencies=True,
             )
         ]
-        for template in (self._create_template(), self._edit_template()):
-            rendered = template.render(available_sandbox_configs=configs)
-            # The escaped form must appear ...
-            assert "httpx&gt;=0.27,&lt;1" in rendered
-            # ... and the raw ``<1`` must not.
-            assert "<1" not in rendered
-            # The block must parse as well-formed XML. Skip past the prose
-            # references (in backticks) to the actual block opening tag,
-            # which is the only one followed by a newline.
-            start = rendered.index("<available_sandbox_configs>\n")
-            end = rendered.index("</available_sandbox_configs>") + len(
-                "</available_sandbox_configs>"
-            )
-            ElementTree.fromstring(rendered[start:end])
+        rendered = self._edit_template().render(available_sandbox_configs=configs)
+        # The escaped form must appear ...
+        assert "httpx&gt;=0.27,&lt;1" in rendered
+        # ... and the raw ``<1`` must not.
+        assert "<1" not in rendered
+        # The block must parse as well-formed XML. Skip past the prose
+        # references (in backticks) to the actual block opening tag,
+        # which is the only one followed by a newline.
+        start = rendered.index("<available_sandbox_configs>\n")
+        end = rendered.index("</available_sandbox_configs>") + len("</available_sandbox_configs>")
+        ElementTree.fromstring(rendered[start:end])

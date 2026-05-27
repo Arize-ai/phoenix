@@ -14,10 +14,7 @@ import {
   type AgentCapabilityKey,
 } from "@phoenix/agent/extensions/capabilities";
 import type { PendingBatchSpanAnnotate } from "@phoenix/agent/tools/batchSpanAnnotate";
-import type {
-  PendingCodeEvaluatorCreate,
-  PendingCodeEvaluatorEdit,
-} from "@phoenix/agent/tools/codeEvaluatorDraft";
+import type { PendingCodeEvaluatorEdit } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
 import type { PendingPromptEdit } from "@phoenix/agent/tools/playgroundPrompt";
 import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePrompt";
@@ -327,15 +324,6 @@ export interface AgentState extends AgentProps {
     toolCallId: string,
     edit: PendingCodeEvaluatorEdit | null
   ) => void;
-
-  // -- Code-evaluator create proposals advertised by create_code_evaluator tool calls --
-  pendingCodeEvaluatorCreatesByToolCallId: Partial<
-    Record<string, PendingCodeEvaluatorCreate>
-  >;
-  setPendingCodeEvaluatorCreate: (
-    toolCallId: string,
-    pending: PendingCodeEvaluatorCreate | null
-  ) => void;
 }
 
 /**
@@ -445,7 +433,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     pendingBatchSpanAnnotatesByToolCallId: {},
     pendingSavePromptsByToolCallId: {},
     pendingCodeEvaluatorEditsByToolCallId: {},
-    pendingCodeEvaluatorCreatesByToolCallId: {},
     setIsOpen: (isOpen) => {
       set({ isOpen }, false, { type: "setIsOpen" });
     },
@@ -984,22 +971,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "setPendingCodeEvaluatorEdit" }
-      );
-    },
-
-    setPendingCodeEvaluatorCreate: (toolCallId, pending) => {
-      set(
-        (state) => {
-          const next = { ...state.pendingCodeEvaluatorCreatesByToolCallId };
-          if (pending) {
-            next[toolCallId] = pending;
-          } else {
-            delete next[toolCallId];
-          }
-          return { pendingCodeEvaluatorCreatesByToolCallId: next };
-        },
-        false,
-        { type: "setPendingCodeEvaluatorCreate" }
       );
     },
 

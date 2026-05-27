@@ -1,14 +1,11 @@
 import {
   applyDraftOperations,
-  bindPendingCodeEvaluatorCreateActions,
   buildDraftRevision,
   type CodeEvaluatorDraftHost,
   type CodeEvaluatorDraftSnapshot,
   createEditCodeEvaluatorDraftClientAction,
   createReadCodeEvaluatorDraftClientAction,
   type EditCodeEvaluatorDraftOperation,
-  type PendingCodeEvaluatorCreate,
-  type PendingCodeEvaluatorCreateDatasetSnapshot,
   type PendingCodeEvaluatorEdit,
   parseEditCodeEvaluatorDraftInput,
   type SandboxConfigIndex,
@@ -513,135 +510,5 @@ describe("code evaluator draft agent tools", () => {
       state: "output-available",
       output: expect.objectContaining({ status: "rejected" }),
     });
-  });
-});
-
-describe("pending create two-phase proposal lifecycle", () => {
-  type Output = Record<string, unknown>;
-
-  const datasetContext: PendingCodeEvaluatorCreateDatasetSnapshot = {
-    datasetNodeId: "ds-1",
-  };
-
-  function makeBound() {
-    const proposed = makeSnapshot({
-      description: "from agent",
-      sandboxConfigId: "py-sandbox",
-    });
-    const before = makeSnapshot({
-      name: "",
-      description: "",
-      sourceCode: "",
-      sandboxConfigId: null,
-    });
-    const outputs: Output[] = [];
-    const stored: Record<string, PendingCodeEvaluatorCreate | null> = {};
-    const setPending = (
-      toolCallId: string,
-      pending: PendingCodeEvaluatorCreate | null
-    ) => {
-      stored[toolCallId] = pending;
-    };
-    const bound = bindPendingCodeEvaluatorCreateActions({
-      pendingCreate: {
-        toolCallId: "tc-1",
-        sessionId: "s-1",
-        before,
-        after: proposed,
-        datasetContext,
-      },
-      addToolOutput: async (payload: Output) => {
-        outputs.push(payload);
-      },
-      setPendingCodeEvaluatorCreate: setPending,
-    });
-    stored["tc-1"] = bound;
-    return { bound, outputs, stored };
-  }
-
-  it("starts in phase preview with resolved=false and no tool output", () => {
-    const { bound, outputs } = makeBound();
-    expect(bound.phase).toBe("preview");
-    expect(bound.resolved).toBe(false);
-    expect(outputs).toHaveLength(0);
-  });
-
-  it("accept flips phase to awaiting-slideover without emitting a tool output", async () => {
-    const { bound, outputs, stored } = makeBound();
-    await bound.accept!();
-    expect(outputs).toHaveLength(0);
-    const updated = stored["tc-1"];
-    expect(updated).not.toBeNull();
-    expect(updated!.phase).toBe("awaiting-slideover");
-    expect(updated!.resolved).toBe(false);
-  });
-
-  it("reject from preview is terminal and emits a rejected output", async () => {
-    const { bound, outputs, stored } = makeBound();
-    await bound.reject!();
-    expect(outputs).toHaveLength(1);
-    expect(outputs[0]).toMatchObject({ state: "output-available" });
-    expect(JSON.parse(String(outputs[0].output))).toMatchObject({
-      status: "rejected",
-    });
-    expect(stored["tc-1"]).toBeNull();
-  });
-
-  it("resolveAsAccepted emits accepted with the created evaluator and binding id", async () => {
-    const { bound, outputs, stored } = makeBound();
-    await bound.accept!();
-    await bound.resolveAsAccepted!({
-      datasetEvaluatorId: "de-1",
-      createdEvaluator: { id: "ev-1", name: "from agent" },
-    });
-    expect(outputs).toHaveLength(1);
-    expect(outputs[0]).toMatchObject({ state: "output-available" });
-    expect(JSON.parse(String(outputs[0].output))).toMatchObject({
-      status: "accepted",
-      datasetEvaluatorId: "de-1",
-      createdEvaluator: { id: "ev-1", name: "from agent" },
-    });
-    expect(stored["tc-1"]).toBeNull();
-  });
-
-  it("resolveAsRejected from the slideover emits a rejected output", async () => {
-    const { bound, outputs, stored } = makeBound();
-    await bound.accept!();
-    await bound.resolveAsRejected!();
-    expect(outputs).toHaveLength(1);
-    expect(outputs[0]).toMatchObject({ state: "output-available" });
-    expect(JSON.parse(String(outputs[0].output))).toMatchObject({
-      status: "rejected",
-    });
-    expect(stored["tc-1"]).toBeNull();
-  });
-
-  it("second terminal resolver after one has fired is a no-op (resolved latch)", async () => {
-    const { bound, outputs, stored } = makeBound();
-    await bound.accept!();
-    await bound.resolveAsAccepted!({
-      datasetEvaluatorId: "de-1",
-      createdEvaluator: { id: "ev-1", name: "from agent" },
-    });
-    // The dialog's onOpenChange(false) commonly fires after Save success;
-    // its resolveAsRejected MUST be ignored or the proposal would emit a
-    // second terminal output and drift the agent's view of the tool call.
-    await bound.resolveAsRejected!();
-    expect(outputs).toHaveLength(1);
-    expect(outputs[0]).toMatchObject({ state: "output-available" });
-    expect(JSON.parse(String(outputs[0].output))).toMatchObject({
-      status: "accepted",
-    });
-    expect(stored["tc-1"]).toBeNull();
-  });
-
-  it("accept after a terminal is a no-op (resolved latch covers phase flips too)", async () => {
-    const { bound, outputs, stored } = makeBound();
-    await bound.reject!();
-    expect(outputs).toHaveLength(1);
-    // After reject, accept must not re-mutate phase or re-emit output.
-    await bound.accept!();
-    expect(outputs).toHaveLength(1);
-    expect(stored["tc-1"]).toBeNull();
   });
 });

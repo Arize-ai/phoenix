@@ -7311,9 +7311,6 @@
             "$ref": "#/components/schemas/DatasetContext"
           },
           {
-            "$ref": "#/components/schemas/DatasetEvaluatorsContext"
-          },
-          {
             "$ref": "#/components/schemas/GraphQLContext"
           },
           {
@@ -7328,7 +7325,6 @@
             "app": "#/components/schemas/AppContext",
             "code_evaluator": "#/components/schemas/CodeEvaluatorContext",
             "dataset": "#/components/schemas/DatasetContext",
-            "dataset_evaluators": "#/components/schemas/DatasetEvaluatorsContext",
             "graphql": "#/components/schemas/GraphQLContext",
             "playground": "#/components/schemas/PlaygroundContext",
             "project": "#/components/schemas/ProjectContext",
@@ -8269,38 +8265,7 @@
           "datasetNodeId"
         ],
         "title": "DatasetContext",
-        "description": "Dataset the user is currently viewing or has bound to a workflow.\n\nCarries the dataset's relay node id and, when known, the active version\nnode id. The agent uses these IDs as a persistence/routing signal \u2014 when\ncreating a code evaluator the dataset binding is chained onto the create\nmutation; the dataset schema itself is open and is discovered by the agent\non demand via the GraphQL surface."
-      },
-      "DatasetEvaluatorsContext": {
-        "properties": {
-          "type": {
-            "type": "string",
-            "const": "dataset_evaluators",
-            "title": "Type"
-          },
-          "datasetNodeId": {
-            "type": "string",
-            "title": "Datasetnodeid"
-          },
-          "datasetVersionNodeId": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Datasetversionnodeid"
-          }
-        },
-        "type": "object",
-        "required": [
-          "type",
-          "datasetNodeId"
-        ],
-        "title": "DatasetEvaluatorsContext",
-        "description": "Dataset evaluators tab mounted in the current browser route.\n\nCarries the dataset relay node id and, when known, the active version\nnode id. Advertised by ``DatasetEvaluatorsPage`` so the agent knows the\nsurface that can mount the create-code-evaluator slideover is currently\nvisible \u2014 gating the ``create_code_evaluator`` tool to this page."
+        "description": "Dataset the user is currently viewing or has bound to a workflow.\n\nCarries the dataset's relay node id and, when known, the active version\nnode id. The agent uses these IDs as a persistence/routing signal \u2014 when\ncreating a code evaluator the dataset binding is chained onto the create\nmutation; the dataset schema itself is open and the router may add a small\nsample of active examples as prompt context."
       },
       "DatasetExample": {
         "properties": {

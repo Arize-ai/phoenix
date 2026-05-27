@@ -24,7 +24,6 @@ class DatasetContextCapability(AbstractDynamicCapability[AgentDependencies]):
             return instructions.render(
                 dataset=dataset,
                 is_code_evaluator_surface=ctx.deps.contexts.code_evaluator is not None,
-                is_dataset_evaluators_surface=ctx.deps.contexts.dataset_evaluators is not None,
                 has_usable_sandbox=ctx.deps.sandbox_availability.has_usable,
                 dataset_example_samples=ctx.deps.dataset_example_samples.samples,
             )

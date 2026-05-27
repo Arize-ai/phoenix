@@ -7,10 +7,8 @@ import {
   type CodeEvaluatorDraftSnapshot,
   EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   parseEditCodeEvaluatorDraftInput,
-  type PendingCodeEvaluatorCreate,
   type PendingCodeEvaluatorEdit,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
-import { CREATE_CODE_EVALUATOR_TOOL_NAME } from "@phoenix/agent/tools/createCodeEvaluator";
 import { Button, Flex, View } from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
@@ -44,22 +42,9 @@ const editCodeEvaluatorToolDetailsCSS = css`
   }
 `;
 
-type PendingCodeEvaluatorProposal =
-  | PendingCodeEvaluatorEdit
-  | PendingCodeEvaluatorCreate;
-
-function isCreateProposal(
-  pending: PendingCodeEvaluatorProposal
-): pending is PendingCodeEvaluatorCreate {
-  return "phase" in pending;
-}
-
 export function getEditCodeEvaluatorDraftToolPreview(
   part: ToolInvocationPart
 ): string {
-  if (part.type.endsWith(CREATE_CODE_EVALUATOR_TOOL_NAME)) {
-    return "1 proposed evaluator";
-  }
   const input = parseEditCodeEvaluatorDraftInput(part.input);
   if (!input) return "";
   return `${input.operations.length} proposed edit${input.operations.length === 1 ? "" : "s"}`;
@@ -86,22 +71,12 @@ export function EditCodeEvaluatorDraftToolDetails({
   part: ToolInvocationPart;
 }) {
   const pending = useAgentContext((state) => {
-    return (
-      state.pendingCodeEvaluatorEditsByToolCallId[part.toolCallId] ??
-      state.pendingCodeEvaluatorCreatesByToolCallId[part.toolCallId] ??
-      null
-    );
+    return state.pendingCodeEvaluatorEditsByToolCallId[part.toolCallId] ?? null;
   });
-
-  // The chat preview card is hidden once a create-mode entry has handed off to
-  // the slideover; the slideover owns the remaining UI until a terminal fires.
-  const shouldRenderPendingCard =
-    pending != null &&
-    !(isCreateProposal(pending) && pending.phase === "awaiting-slideover");
 
   return (
     <div className="tool-part__body" css={editCodeEvaluatorToolDetailsCSS}>
-      {shouldRenderPendingCard ? (
+      {pending != null ? (
         <PendingCodeEvaluatorDraftDiff pending={pending} />
       ) : null}
       {part.state === "output-available" ? (
@@ -118,7 +93,7 @@ export function EditCodeEvaluatorDraftToolDetails({
           <ToolPartCodeBlock>{part.errorText ?? ""}</ToolPartCodeBlock>
         </>
       ) : null}
-      {!shouldRenderPendingCard && part.state === "input-available" ? (
+      {pending == null && part.state === "input-available" ? (
         <>
           <ToolPartLabel>{EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME}</ToolPartLabel>
           <ToolPartCodeBlock>
@@ -133,11 +108,10 @@ export function EditCodeEvaluatorDraftToolDetails({
 function PendingCodeEvaluatorDraftDiff({
   pending,
 }: {
-  pending: PendingCodeEvaluatorProposal;
+  pending: PendingCodeEvaluatorEdit;
 }) {
   const { theme } = useTheme();
   const canRespond = Boolean(pending.accept && pending.reject);
-  const acceptLabel = isCreateProposal(pending) ? "Confirm" : "Accept";
   const fileName =
     pending.before.mode === "edit"
       ? `code-evaluator-${pending.before.evaluatorNodeId ?? "draft"}.txt`
@@ -196,7 +170,7 @@ function PendingCodeEvaluatorDraftDiff({
             isDisabled={!canRespond}
             onPress={() => void pending.accept?.()}
           >
-            {acceptLabel}
+            Accept
           </Button>
           <Button
             size="S"

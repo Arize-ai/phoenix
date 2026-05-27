@@ -25,11 +25,6 @@ import {
   type EditCodeEvaluatorDraftInput,
   type ReadCodeEvaluatorDraftInput,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
-import {
-  CREATE_CODE_EVALUATOR_TOOL_NAME,
-  parseCreateCodeEvaluatorInput,
-  type CreateCodeEvaluatorInput,
-} from "@phoenix/agent/tools/createCodeEvaluator";
 import { parseElicitToolInput } from "@phoenix/agent/tools/elicit";
 import type { ElicitToolInput } from "@phoenix/agent/tools/elicit";
 import {
@@ -955,67 +950,6 @@ const editCodeEvaluatorDraftAgentTool =
     },
   });
 
-/**
- * Produces a `PendingCodeEvaluatorCreate` proposal via the registered client
- * action and leaves the AI-SDK tool call unresolved until the user clicks
- * Confirm or Reject in the inline diff render.
- */
-const createCodeEvaluatorAgentTool =
-  createRegisteredAgentTool<CreateCodeEvaluatorInput>({
-    name: CREATE_CODE_EVALUATOR_TOOL_NAME,
-    parseInput: parseCreateCodeEvaluatorInput,
-    invalidInputErrorText: `Invalid ${CREATE_CODE_EVALUATOR_TOOL_NAME} input. Expected { name: string, source_code: string, language: "PYTHON" | "TYPESCRIPT", description?: string, sandbox_config_id: string, input_mapping?: { pathMapping?: object, literalMapping?: object }, output_configs: OutputConfigDraft[] }.`,
-    uiBehavior: {
-      autoOpen: true,
-      scrollIntoViewOnMount: true,
-    },
-    execute: async ({
-      toolCall,
-      input,
-      sessionId,
-      addToolOutput,
-      agentStore,
-    }) => {
-      const action =
-        agentStore.getState().registeredClientActions[
-          CREATE_CODE_EVALUATOR_TOOL_NAME
-        ];
-      if (!action) {
-        await addToolOutput({
-          state: "output-error",
-          tool: CREATE_CODE_EVALUATOR_TOOL_NAME,
-          toolCallId: toolCall.toolCallId,
-          errorText:
-            "The code-evaluator create client action is not mounted; cannot propose creation.",
-        });
-        return;
-      }
-      if (!sessionId) {
-        await addToolOutput({
-          state: "output-error",
-          tool: CREATE_CODE_EVALUATOR_TOOL_NAME,
-          toolCallId: toolCall.toolCallId,
-          errorText:
-            "Cannot propose code-evaluator creation without an active session.",
-        });
-        return;
-      }
-      const context: EditCodeEvaluatorDraftActionContext = {
-        toolCallId: toolCall.toolCallId,
-        sessionId,
-        addToolOutput,
-      };
-      const result = await action(input, context);
-      if (!result.ok) {
-        await addToolOutput({
-          state: "output-error",
-          tool: CREATE_CODE_EVALUATOR_TOOL_NAME,
-          toolCallId: toolCall.toolCallId,
-          errorText: result.error,
-        });
-      }
-    },
-  });
 /** Ordered registry of all frontend-executable tools. */
 const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   bashAgentTool as RegisteredAgentTool<unknown>,
@@ -1035,7 +969,6 @@ const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   batchSpanAnnotateAgentTool as RegisteredAgentTool<unknown>,
   readCodeEvaluatorDraftAgentTool as RegisteredAgentTool<unknown>,
   editCodeEvaluatorDraftAgentTool as RegisteredAgentTool<unknown>,
-  createCodeEvaluatorAgentTool as RegisteredAgentTool<unknown>,
 ];
 
 /** Fast lookup map for runtime tool dispatch by name. */

@@ -49,9 +49,6 @@ _READ_CODE_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS = get_template(
 _EDIT_CODE_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS = get_template(
     "tools/EDIT_CODE_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS.xml.j2"
 )
-_CREATE_CODE_EVALUATOR_TOOL_INSTRUCTIONS = get_template(
-    "tools/CREATE_CODE_EVALUATOR_TOOL_INSTRUCTIONS.xml.j2"
-)
 _APP_CONTEXT_TEMPLATE = get_template("context/APP_CONTEXT_INSTRUCTIONS.xml.j2")
 _PROJECT_CONTEXT_TEMPLATE = get_template("context/PROJECT_CONTEXT_INSTRUCTIONS.xml.j2")
 _TRACE_CONTEXT_TEMPLATE = get_template("context/TRACE_CONTEXT_INSTRUCTIONS.xml.j2")
@@ -61,9 +58,6 @@ _CODE_EVALUATOR_CONTEXT_TEMPLATE = get_template(
     "context/CODE_EVALUATOR_CONTEXT_INSTRUCTIONS.xml.j2"
 )
 _DATASET_CONTEXT_TEMPLATE = get_template("context/DATASET_CONTEXT_INSTRUCTIONS.xml.j2")
-_DATASET_EVALUATORS_CONTEXT_TEMPLATE = get_template(
-    "context/DATASET_EVALUATORS_CONTEXT_INSTRUCTIONS.xml.j2"
-)
 _GRAPHQL_MUTATIONS_TEMPLATE = get_template("context/GRAPHQL_MUTATIONS_INSTRUCTIONS.xml.j2")
 _SKILLS_TEMPLATE = get_template("skills/SKILLS_INSTRUCTIONS.xml.j2")
 _LOAD_SKILL_TEMPLATE = get_template("skills/LOAD_SKILL.xml.j2")
@@ -98,7 +92,6 @@ class AgentPrompts:
     batch_span_annotate_tool: Template = _BATCH_SPAN_ANNOTATE_TOOL_INSTRUCTIONS
     read_code_evaluator_draft_tool: Template = _READ_CODE_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS
     edit_code_evaluator_draft_tool: Template = _EDIT_CODE_EVALUATOR_DRAFT_TOOL_INSTRUCTIONS
-    create_code_evaluator_tool: Template = _CREATE_CODE_EVALUATOR_TOOL_INSTRUCTIONS
     app_context: Template = _APP_CONTEXT_TEMPLATE
     project_context: Template = _PROJECT_CONTEXT_TEMPLATE
     trace_context: Template = _TRACE_CONTEXT_TEMPLATE
@@ -106,7 +99,6 @@ class AgentPrompts:
     playground_context: Template = _PLAYGROUND_CONTEXT_TEMPLATE
     code_evaluator_context: Template = _CODE_EVALUATOR_CONTEXT_TEMPLATE
     dataset_context: Template = _DATASET_CONTEXT_TEMPLATE
-    dataset_evaluators_context: Template = _DATASET_EVALUATORS_CONTEXT_TEMPLATE
     graphql_mutations: Template = _GRAPHQL_MUTATIONS_TEMPLATE
     skills: Template = _SKILLS_TEMPLATE
     load_skill: Template = _LOAD_SKILL_TEMPLATE

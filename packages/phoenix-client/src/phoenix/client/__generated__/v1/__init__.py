@@ -118,12 +118,6 @@ class DatasetContext(TypedDict):
     datasetVersionNodeId: NotRequired[str]
 
 
-class DatasetEvaluatorsContext(TypedDict):
-    type: Literal["dataset_evaluators"]
-    datasetNodeId: str
-    datasetVersionNodeId: NotRequired[str]
-
-
 class DatasetExample(TypedDict):
     id: str
     node_id: str
@@ -1496,7 +1490,6 @@ class ChatRegenerateMessage(TypedDict):
                 PlaygroundContext,
                 CodeEvaluatorContext,
                 DatasetContext,
-                DatasetEvaluatorsContext,
                 GraphQLContext,
                 WebAccessContext,
             ]
@@ -1522,7 +1515,6 @@ class ChatSubmitMessage(TypedDict):
                 PlaygroundContext,
                 CodeEvaluatorContext,
                 DatasetContext,
-                DatasetEvaluatorsContext,
                 GraphQLContext,
                 WebAccessContext,
             ]

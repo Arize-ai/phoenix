@@ -1610,7 +1610,7 @@ export interface components {
          * ChatContext
          * @description Discriminated union of every UI-state context the agent understands.
          */
-        ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"] | components["schemas"]["CodeEvaluatorContext"] | components["schemas"]["DatasetContext"] | components["schemas"]["DatasetEvaluatorsContext"] | components["schemas"]["GraphQLContext"] | components["schemas"]["WebAccessContext"];
+        ChatContext: components["schemas"]["AppContext"] | components["schemas"]["ProjectContext"] | components["schemas"]["TraceContext"] | components["schemas"]["AgentSpanContext"] | components["schemas"]["PlaygroundContext"] | components["schemas"]["CodeEvaluatorContext"] | components["schemas"]["DatasetContext"] | components["schemas"]["GraphQLContext"] | components["schemas"]["WebAccessContext"];
         /**
          * ChatRegenerateMessage
          * @description Regenerate message extended with Phoenix-specific fields.
@@ -1979,8 +1979,8 @@ export interface components {
          *     Carries the dataset's relay node id and, when known, the active version
          *     node id. The agent uses these IDs as a persistence/routing signal — when
          *     creating a code evaluator the dataset binding is chained onto the create
-         *     mutation; the dataset schema itself is open and is discovered by the agent
-         *     on demand via the GraphQL surface.
+         *     mutation; the dataset schema itself is open and the router may add a small
+         *     sample of active examples as prompt context.
          */
         DatasetContext: {
             /**
@@ -1988,26 +1988,6 @@ export interface components {
              * @enum {string}
              */
             type: "dataset";
-            /** Datasetnodeid */
-            datasetNodeId: string;
-            /** Datasetversionnodeid */
-            datasetVersionNodeId?: string | null;
-        };
-        /**
-         * DatasetEvaluatorsContext
-         * @description Dataset evaluators tab mounted in the current browser route.
-         *
-         *     Carries the dataset relay node id and, when known, the active version
-         *     node id. Advertised by ``DatasetEvaluatorsPage`` so the agent knows the
-         *     surface that can mount the create-code-evaluator slideover is currently
-         *     visible — gating the ``create_code_evaluator`` tool to this page.
-         */
-        DatasetEvaluatorsContext: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "dataset_evaluators";
             /** Datasetnodeid */
             datasetNodeId: string;
             /** Datasetversionnodeid */

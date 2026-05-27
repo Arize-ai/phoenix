@@ -27,8 +27,6 @@
   <evaluator_authoring>
 {% if is_code_evaluator_surface %}
     The create/edit code-evaluator form is mounted. Follow the `<phoenix_code_evaluator_context>` guidance and use the draft-read / draft-edit tools to populate the form.
-{% elif is_dataset_evaluators_surface %}
-    The dataset Evaluators tab is mounted. Follow the `<phoenix_dataset_evaluators_context>` guidance and use `create_code_evaluator` for an inline proposal; do not emit the create-slideover navigation link from this dataset context.
 {% else %}
     To author a new code evaluator for this dataset, the user must be in the create-code-evaluator slideover on the dataset's Evaluators tab — that mounted form exposes the draft-edit tools that can populate the evaluator.
     If the user is currently on a different tab or in the playground and asks to add an evaluator:

@@ -477,11 +477,7 @@ def _dump_dataset_example_value(value: Any) -> str:
 
 
 def _contexts_need_sandbox_availability(contexts: ResolvedContexts) -> bool:
-    return (
-        contexts.dataset is not None
-        or contexts.dataset_evaluators is not None
-        or contexts.code_evaluator is not None
-    )
+    return contexts.dataset is not None or contexts.code_evaluator is not None
 
 
 async def _load_dataset_example_samples(

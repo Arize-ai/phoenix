@@ -10,25 +10,12 @@ from phoenix.server.agents.capabilities.contexts.code_evaluator import (
     CodeEvaluatorContextCapability,
 )
 from phoenix.server.agents.capabilities.contexts.dataset import DatasetContextCapability
-from phoenix.server.agents.capabilities.contexts.dataset_evaluators import (
-    DatasetEvaluatorsContextCapability,
-)
 from phoenix.server.agents.capabilities.contexts.playground import PlaygroundContextCapability
 from phoenix.server.agents.capabilities.contexts.project import ProjectContextCapability
-from phoenix.server.agents.capabilities.tools.external.create_code_evaluator import (
-    NAME as CREATE_CODE_EVALUATOR_NAME,
-)
-from phoenix.server.agents.capabilities.tools.external.create_code_evaluator import (
-    TOOL_DEFINITION as CREATE_CODE_EVALUATOR_TOOL_DEFINITION,
-)
-from phoenix.server.agents.capabilities.tools.external.create_code_evaluator import (
-    CreateCodeEvaluatorCapability,
-)
 from phoenix.server.agents.context import (
     AppContext,
     CodeEvaluatorContext,
     DatasetContext,
-    DatasetEvaluatorsContext,
     PlaygroundContext,
     ProjectContext,
     ResolvedContexts,
@@ -228,29 +215,21 @@ class TestDatasetContextCapabilityRender:
         assert "[/dataset_example_samples]" in content
         assert "&lt;attack/&gt;" in content
 
-    def test_evaluator_authoring_defers_to_dataset_evaluators_context_on_tab(self) -> None:
-        capability = DatasetContextCapability(
-            instructions=_DEFAULT_PROMPTS.dataset_context,
-        )
-        ctx = _get_run_context(_dataset_evaluators_contexts())
-        content = _render(capability, ctx)
-        assert "<phoenix_dataset_evaluators_context>" in content
-        assert "use `create_code_evaluator` for an inline proposal" in content
-        assert "[Create code evaluator]" not in content
-        assert "Stop. Do NOT continue with manual UI instructions" not in content
-
     def test_evaluator_authoring_defers_to_code_evaluator_context_when_form_mounted(
         self,
     ) -> None:
         capability = DatasetContextCapability(
             instructions=_DEFAULT_PROMPTS.dataset_context,
         )
-        contexts = _dataset_evaluators_contexts()
-        contexts.code_evaluator = CodeEvaluatorContext(
-            type="code_evaluator",
-            evaluator_node_id=None,
+        ctx = _get_run_context(
+            ResolvedContexts(
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+                code_evaluator=CodeEvaluatorContext(
+                    type="code_evaluator",
+                    evaluator_node_id=None,
+                ),
+            )
         )
-        ctx = _get_run_context(contexts)
         content = _render(capability, ctx)
         assert "<phoenix_code_evaluator_context>" in content
         assert "draft-read / draft-edit tools" in content
@@ -346,27 +325,6 @@ class TestPlaygroundContextCapabilityRender:
         assert "[Create code evaluator]" not in content
 
 
-class TestDatasetEvaluatorsContextCapabilityGate:
-    def test_included_on_dataset_evaluators_page(self) -> None:
-        capability = DatasetEvaluatorsContextCapability(
-            instructions=_DEFAULT_PROMPTS.dataset_evaluators_context,
-        )
-        ctx = _get_run_context(_dataset_evaluators_contexts())
-        assert capability.include_for_run(ctx) is True
-
-    def test_excluded_when_code_evaluator_form_is_mounted(self) -> None:
-        capability = DatasetEvaluatorsContextCapability(
-            instructions=_DEFAULT_PROMPTS.dataset_evaluators_context,
-        )
-        contexts = _dataset_evaluators_contexts()
-        contexts.code_evaluator = CodeEvaluatorContext(
-            type="code_evaluator",
-            evaluator_node_id=None,
-        )
-        ctx = _get_run_context(contexts)
-        assert capability.include_for_run(ctx) is False
-
-
 class TestCodeEvaluatorContextCapabilityGate:
     def test_excluded_when_no_code_evaluator_context(self) -> None:
         capability = CodeEvaluatorContextCapability(
@@ -407,138 +365,3 @@ class TestCodeEvaluatorContextCapabilityGate:
         content = _render(capability, ctx)
         assert "<mode>create</mode>" in content
         assert "<evaluator_node_id>" not in content
-
-
-def _dataset_evaluators_contexts() -> ResolvedContexts:
-    """Return a ResolvedContexts pre-populated with the dataset + dataset
-    evaluators contexts that the create_code_evaluator gate now requires."""
-    return ResolvedContexts(
-        dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
-        dataset_evaluators=DatasetEvaluatorsContext(
-            type="dataset_evaluators",
-            dataset_node_id="RGF0YXNldDox",
-        ),
-    )
-
-
-class TestCreateCodeEvaluatorCapabilityGate:
-    """The `create_code_evaluator` tool is exposed only on the dataset
-    evaluators tab — every gate condition must hold simultaneously.
-    """
-
-    def test_included_on_dataset_evaluators_tab(self) -> None:
-        capability = CreateCodeEvaluatorCapability(
-            instructions=_DEFAULT_PROMPTS.create_code_evaluator_tool,
-        )
-        ctx = _get_run_context(_dataset_evaluators_contexts())
-        assert capability.include_for_run(ctx) is True
-
-    def test_excluded_when_no_dataset_evaluators_context(self) -> None:
-        capability = CreateCodeEvaluatorCapability(
-            instructions=_DEFAULT_PROMPTS.create_code_evaluator_tool,
-        )
-        # Only the bare dataset context is present — the user is on a
-        # non-evaluators tab of a dataset; the slideover surface isn't mounted.
-        ctx = _get_run_context(
-            ResolvedContexts(
-                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
-            )
-        )
-        assert capability.include_for_run(ctx) is False
-
-    def test_excluded_when_no_dataset_context(self) -> None:
-        capability = CreateCodeEvaluatorCapability(
-            instructions=_DEFAULT_PROMPTS.create_code_evaluator_tool,
-        )
-        ctx = _get_run_context(ResolvedContexts())
-        assert capability.include_for_run(ctx) is False
-
-    def test_excluded_when_code_evaluator_context_present(self) -> None:
-        capability = CreateCodeEvaluatorCapability(
-            instructions=_DEFAULT_PROMPTS.create_code_evaluator_tool,
-        )
-        contexts = _dataset_evaluators_contexts()
-        contexts.code_evaluator = CodeEvaluatorContext(
-            type="code_evaluator",
-            evaluator_node_id=None,
-        )
-        ctx = _get_run_context(contexts)
-        assert capability.include_for_run(ctx) is False
-
-    def test_excluded_for_viewer(self) -> None:
-        """Viewers cannot create evaluators — the gate suppresses the tool to
-        avoid promising a capability the server-side mutation would reject."""
-        capability = CreateCodeEvaluatorCapability(
-            instructions=_DEFAULT_PROMPTS.create_code_evaluator_tool,
-        )
-        ctx = _get_run_context(_dataset_evaluators_contexts(), is_viewer=True)
-        assert capability.include_for_run(ctx) is False
-
-    def test_excluded_when_no_usable_sandbox(self) -> None:
-        """Code evaluators cannot run without a sandbox config, so the gate
-        hides the tool when no enabled sandbox config exists rather than
-        letting the agent author one that will fail at experiment time."""
-        capability = CreateCodeEvaluatorCapability(
-            instructions=_DEFAULT_PROMPTS.create_code_evaluator_tool,
-        )
-        ctx = _get_run_context(
-            _dataset_evaluators_contexts(),
-            sandbox_availability=SandboxAvailability(configs=[]),
-        )
-        assert capability.include_for_run(ctx) is False
-
-    def test_advertises_external_tool_with_expected_schema(self) -> None:
-        capability = CreateCodeEvaluatorCapability(
-            instructions=_DEFAULT_PROMPTS.create_code_evaluator_tool,
-        )
-        assert capability.get_toolset() is not None
-        tool_def = CREATE_CODE_EVALUATOR_TOOL_DEFINITION
-        assert tool_def.name == CREATE_CODE_EVALUATOR_NAME == "create_code_evaluator"
-        assert tool_def.kind == "external"
-        schema = tool_def.parameters_json_schema
-        assert set(schema["required"]) == {
-            "name",
-            "source_code",
-            "language",
-            "sandbox_config_id",
-            "output_configs",
-        }
-        assert schema["properties"]["language"]["enum"] == ["PYTHON", "TYPESCRIPT"]
-        assert schema["properties"]["name"]["pattern"] == r"^[a-z0-9]([_a-z0-9-]*[a-z0-9])?$"
-
-        # output_configs is required so an agent proposal cannot silently open
-        # the slideover without the annotation surface the prompt asks it to infer.
-        assert "output_configs" in schema["properties"]
-        output_configs_schema = schema["properties"]["output_configs"]
-        assert output_configs_schema["type"] == "array"
-        assert output_configs_schema["minItems"] == 1
-        item_schema = output_configs_schema["items"]
-        assert item_schema["additionalProperties"] is False
-        # Every entry must declare kind/name/optimizationDirection. Kind-specific
-        # fields (`values`, `threshold`, `lowerBound`, `upperBound`) are also
-        # declared but are not universally required — they're picked per kind.
-        assert set(item_schema["required"]) == {
-            "kind",
-            "name",
-            "optimizationDirection",
-        }
-        assert item_schema["properties"]["kind"]["enum"] == [
-            "classification",
-            "continuous",
-            "freeform",
-        ]
-        assert item_schema["properties"]["optimizationDirection"]["enum"] == [
-            "MINIMIZE",
-            "MAXIMIZE",
-            "NONE",
-        ]
-        # Bounds and threshold are nullable numbers; values is a list of
-        # {label, score?} pairs for the classification kind.
-        for numeric_field in ("threshold", "lowerBound", "upperBound"):
-            assert item_schema["properties"][numeric_field]["type"] == [
-                "number",
-                "null",
-            ]
-        values_schema = item_schema["properties"]["values"]
-        assert values_schema["type"] == "array"
-        assert values_schema["items"]["required"] == ["label"]

@@ -60,10 +60,6 @@ export function agentContextKey(context: AgentContext): string {
       return context.datasetVersionNodeId
         ? `dataset:${context.datasetNodeId}:${context.datasetVersionNodeId}`
         : `dataset:${context.datasetNodeId}`;
-    case "dataset_evaluators":
-      return context.datasetVersionNodeId
-        ? `dataset_evaluators:${context.datasetNodeId}:${context.datasetVersionNodeId}`
-        : `dataset_evaluators:${context.datasetNodeId}`;
     case "project":
       return `project:${context.projectNodeId}`;
     case "trace":

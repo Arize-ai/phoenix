@@ -1,25 +1,12 @@
-import { selectActiveContexts } from "@phoenix/agent/context/selectors";
-import { parseCreateCodeEvaluatorInput } from "@phoenix/agent/tools/createCodeEvaluator";
-import type {
-  AgentClientActionResult,
-  AgentStore,
-} from "@phoenix/store/agentStore";
+import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
-import { buildDraftRevision } from "./draftOperations";
 import {
   parseEditCodeEvaluatorDraftActionContext,
   parseEditCodeEvaluatorDraftInput,
   parseReadCodeEvaluatorDraftInput,
 } from "./parsers";
-import { bindPendingCodeEvaluatorCreateActions } from "./pendingCodeEvaluatorCreate";
 import { bindPendingCodeEvaluatorEditActions } from "./pendingCodeEvaluatorEdit";
-import type {
-  CodeEvaluatorDraftHost,
-  CodeEvaluatorDraftSnapshot,
-  PendingCodeEvaluatorCreate,
-  PendingCodeEvaluatorCreateDatasetSnapshot,
-  PendingCodeEvaluatorEdit,
-} from "./types";
+import type { CodeEvaluatorDraftHost, PendingCodeEvaluatorEdit } from "./types";
 
 /**
  * Returns the current draft snapshot as a JSON string for `read_code_evaluator_draft`.
@@ -113,115 +100,6 @@ export function createEditCodeEvaluatorDraftClientAction({
       setPendingCodeEvaluatorEdit,
     });
     setPendingCodeEvaluatorEdit(editContext.toolCallId, pendingEdit);
-    return { ok: true };
-  };
-}
-
-function buildEmptyBeforeSnapshot(
-  proposed: CodeEvaluatorDraftSnapshot
-): CodeEvaluatorDraftSnapshot {
-  const before: Omit<CodeEvaluatorDraftSnapshot, "revision"> = {
-    mode: "create",
-    evaluatorNodeId: null,
-    name: "",
-    description: "",
-    language: proposed.language,
-    sourceCode: "",
-    sandboxConfigId: null,
-    inputMapping: { pathMapping: {}, literalMapping: {} },
-    outputConfigs: [],
-  };
-  return { ...before, revision: buildDraftRevision(before) };
-}
-
-function readActiveDatasetContext(
-  store: AgentStore
-): PendingCodeEvaluatorCreateDatasetSnapshot | null {
-  const active = selectActiveContexts(store.getState());
-  const dataset = active.find((ctx) => ctx.type === "dataset");
-  if (!dataset || dataset.type !== "dataset") return null;
-  return {
-    datasetNodeId: dataset.datasetNodeId,
-  };
-}
-
-/**
- * Build a `PendingCodeEvaluatorCreate` from the proposed input.
- *
- * Writes a single pending entry that the chat-side `FileDiff` renders with
- * Accept/Reject. The active dataset context (if any) is snapshotted onto the
- * entry at propose time so the Accept handler can chain
- * `createDatasetCodeEvaluator` against the dataset that was active when the
- * proposal was made — not whatever surface is mounted at accept time.
- */
-export function createCreateCodeEvaluatorClientAction({
-  store,
-  setPendingCodeEvaluatorCreate,
-}: {
-  store: AgentStore;
-  setPendingCodeEvaluatorCreate: (
-    toolCallId: string,
-    pending: PendingCodeEvaluatorCreate | null
-  ) => void;
-}) {
-  return async (
-    input: unknown,
-    context?: unknown
-  ): Promise<AgentClientActionResult> => {
-    const createContext = parseEditCodeEvaluatorDraftActionContext(context);
-    if (!createContext) {
-      return {
-        ok: false,
-        error:
-          "Cannot propose code-evaluator create without tool call context.",
-      };
-    }
-    const parsed = parseCreateCodeEvaluatorInput(input);
-    if (!parsed) {
-      return {
-        ok: false,
-        error: "Invalid create_code_evaluator input.",
-      };
-    }
-    const proposedWithoutRevision: Omit<
-      CodeEvaluatorDraftSnapshot,
-      "revision"
-    > = {
-      mode: "create",
-      evaluatorNodeId: null,
-      name: parsed.name,
-      description: parsed.description ?? "",
-      language: parsed.language,
-      sourceCode: parsed.sourceCode,
-      sandboxConfigId: parsed.sandboxConfigId,
-      inputMapping: parsed.inputMapping,
-      outputConfigs: parsed.outputConfigs,
-    };
-    const proposed: CodeEvaluatorDraftSnapshot = {
-      ...proposedWithoutRevision,
-      revision: buildDraftRevision(proposedWithoutRevision),
-    };
-    const before = buildEmptyBeforeSnapshot(proposed);
-    const datasetContext = readActiveDatasetContext(store);
-    if (datasetContext === null) {
-      return {
-        ok: false,
-        error: "create_code_evaluator requires a dataset context",
-      };
-    }
-
-    const pendingCreate = bindPendingCodeEvaluatorCreateActions({
-      pendingCreate: {
-        toolCallId: createContext.toolCallId,
-        sessionId: createContext.sessionId,
-        before,
-        after: proposed,
-        datasetContext,
-      },
-      addToolOutput: createContext.addToolOutput,
-      setPendingCodeEvaluatorCreate,
-    });
-    setPendingCodeEvaluatorCreate(createContext.toolCallId, pendingCreate);
     return { ok: true };
   };
 }
