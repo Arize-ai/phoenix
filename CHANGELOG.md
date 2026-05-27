@@ -1,5 +1,14 @@
 # Changelog
 
+## [16.3.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v16.2.0...arize-phoenix-v16.3.0) (2026-05-27)
+
+
+### Features
+
+* Add drag-to-zoom for project metric charts ([#13434](https://github.com/Arize-ai/phoenix/issues/13434)) ([4fe68f8](https://github.com/Arize-ai/phoenix/commit/4fe68f8e060ea250ad56e065ba5acbd69854cba3))
+* **agents:** add skills capability to PXI agent ([#13349](https://github.com/Arize-ai/phoenix/issues/13349)) ([5ef9729](https://github.com/Arize-ai/phoenix/commit/5ef972923bc500081a064fb34a25108d212b6851))
+* expand PXI settings model selector ([#13418](https://github.com/Arize-ai/phoenix/issues/13418)) ([bbe5cb9](https://github.com/Arize-ai/phoenix/commit/bbe5cb9ee7956442e77f98bbc87d7d9e5118a13c))
+
 ## [16.2.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v16.1.0...arize-phoenix-v16.2.0) (2026-05-26)
 
 
