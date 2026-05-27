@@ -217,14 +217,14 @@ class TestCreateCodeEvaluatorCapabilityGate:
 
     def test_included_on_dataset_evaluators_tab(self) -> None:
         capability = CreateCodeEvaluatorCapability(
-            instructions=_DEFAULT_INSTRUCTIONS.create_code_evaluator_tool,
+            instructions=_DEFAULT_PROMPTS.create_code_evaluator_tool,
         )
         ctx = _get_run_context(_dataset_evaluators_contexts())
         assert capability.include_for_run(ctx) is True
 
     def test_excluded_when_no_dataset_evaluators_context(self) -> None:
         capability = CreateCodeEvaluatorCapability(
-            instructions=_DEFAULT_INSTRUCTIONS.create_code_evaluator_tool,
+            instructions=_DEFAULT_PROMPTS.create_code_evaluator_tool,
         )
         # Only the bare dataset context is present — the user is on a
         # non-evaluators tab of a dataset; the slideover surface isn't mounted.
