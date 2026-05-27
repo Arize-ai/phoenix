@@ -229,6 +229,7 @@ export type PlaygroundRepetition = {
   output: ChatMessage[] | string | null;
   toolCalls: Record<ToolCallId, PartialOutputToolCall>;
   spanId: string | null;
+  traceId?: string | null;
   error: PlaygroundError | null;
   status: PlaygroundRepetitionStatus;
 };
@@ -623,6 +624,10 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
    */
   setVariableValue: (key: string, value: string) => void;
   /**
+   * Set multiple variable values in the input
+   */
+  setVariableValues: (values: { key: string; value: string }[]) => void;
+  /**
    * set the streaming mode for the playground
    */
   setStreaming: (streaming: boolean) => void;
@@ -709,6 +714,14 @@ export interface PlaygroundState extends Omit<PlaygroundProps, "instances"> {
     instanceId: number,
     repetitionNumber: number,
     spanId: string
+  ) => void;
+  /**
+   * Set the trace id for a repetition
+   */
+  setRepetitionTraceId: (
+    instanceId: number,
+    repetitionNumber: number,
+    traceId: string
   ) => void;
   /**
    * Set the status for a repetition

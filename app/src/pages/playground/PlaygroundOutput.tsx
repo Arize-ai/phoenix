@@ -164,6 +164,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     appendRepetitionOutput,
     setSelectedRepetitionNumber,
     setRepetitionSpanId,
+    setRepetitionTraceId,
     setRepetitionError,
     setRepetitionStatus,
     addRepetitionPartialToolCall,
@@ -173,6 +174,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
     appendRepetitionOutput: state.appendRepetitionOutput,
     setSelectedRepetitionNumber: state.setSelectedRepetitionNumber,
     setRepetitionSpanId: state.setRepetitionSpanId,
+    setRepetitionTraceId: state.setRepetitionTraceId,
     setRepetitionError: state.setRepetitionError,
     setRepetitionStatus: state.setRepetitionStatus,
     addRepetitionPartialToolCall: state.addRepetitionPartialToolCall,
@@ -263,6 +265,13 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
             chatCompletion.repetitionNumber,
             chatCompletion.span.id
           );
+          if (chatCompletion.span.trace?.traceId != null) {
+            setRepetitionTraceId(
+              instanceId,
+              chatCompletion.repetitionNumber,
+              chatCompletion.span.trace.traceId
+            );
+          }
         }
         return;
       }
@@ -286,6 +295,7 @@ export function PlaygroundOutput(props: PlaygroundOutputProps) {
       instanceId,
       appendRepetitionOutput,
       setRepetitionSpanId,
+      setRepetitionTraceId,
       setRepetitionStatus,
       setRepetitionError,
     ]
@@ -472,6 +482,9 @@ graphql`
       ... on ChatCompletionSubscriptionResult {
         span {
           id
+          trace {
+            traceId
+          }
         }
       }
       ... on ChatCompletionSubscriptionError {

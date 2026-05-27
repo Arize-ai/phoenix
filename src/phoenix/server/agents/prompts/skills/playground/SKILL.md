@@ -26,9 +26,12 @@ dataset-backed evaluation loop is in scope.
 5. Use `clone_prompt_instance` when comparing alternatives would help the user choose between
    prompt variants. Discuss variants by their alphabetic labels, but pass numeric instance IDs to
    tools.
-6. Call `run_playground` only when the user asks to run, try, test, or compare the current prompt.
+6. Use `set_variable_values` when the user provides manual values for prompt template variables.
+7. Call `run_playground` only when the user asks to run, try, test, or compare the current prompt.
    Treat the output as qualitative feedback rather than dataset-backed evidence.
-7. Inspect the output with the user, identify the next concrete improvement, and repeat the edit or
+8. After the run finishes, call `read_playground_output` to inspect raw output and get the traceId
+   for trace analysis when needed.
+9. Inspect the output with the user, identify the next concrete improvement, and repeat the edit or
    comparison loop until the prompt is useful for the task.
 
 ## Workflow: Iterate Over A Dataset With Evaluators And Experiments

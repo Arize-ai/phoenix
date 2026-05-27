@@ -887,6 +887,25 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         { type: "setVariableValue" }
       );
     },
+    setVariableValues: (values: { key: string; value: string }[]) => {
+      const input = get().input;
+      const variableValues = Object.fromEntries(
+        values.map(({ key, value }) => [key, value])
+      );
+      set(
+        {
+          input: {
+            ...input,
+            variablesValueCache: {
+              ...input.variablesValueCache,
+              ...variableValues,
+            },
+          },
+        },
+        false,
+        { type: "setVariableValues" }
+      );
+    },
     setStreaming: (streaming: boolean) => {
       set({ streaming }, false, { type: "setStreaming" });
     },
@@ -1330,6 +1349,36 @@ export const createPlaygroundStore = (props: InitialPlaygroundState) => {
         },
         false,
         { type: "setRepetitionSpanId" }
+      );
+    },
+    setRepetitionTraceId: (
+      instanceId: number,
+      repetitionNumber: number,
+      traceId: string
+    ) => {
+      set(
+        {
+          instances: get().instances.map((instance) => {
+            if (instance.id !== instanceId) {
+              return instance;
+            }
+            const repetition = instance.repetitions[repetitionNumber];
+            return {
+              ...instance,
+              repetitions: {
+                ...instance.repetitions,
+                [repetitionNumber]: repetition
+                  ? {
+                      ...repetition,
+                      traceId,
+                    }
+                  : undefined,
+              },
+            };
+          }),
+        },
+        false,
+        { type: "setRepetitionTraceId" }
       );
     },
     initExperimentRunProgress: (instanceId, progress) => {

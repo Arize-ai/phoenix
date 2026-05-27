@@ -11,10 +11,10 @@ import { handleBashToolCall } from "@phoenix/agent/tools/bash/handleBashToolCall
 import { parseElicitToolInput } from "@phoenix/agent/tools/elicit";
 import type { ElicitToolInput } from "@phoenix/agent/tools/elicit";
 import {
-  parseRunPlaygroundInput,
-  RUN_PLAYGROUND_TOOL_NAME,
-  type RunPlaygroundInput,
-} from "@phoenix/agent/tools/playgroundRun";
+  parseReadPlaygroundOutputInput,
+  READ_PLAYGROUND_OUTPUT_TOOL_NAME,
+  type ReadPlaygroundOutputInput,
+} from "@phoenix/agent/tools/playgroundOutput";
 import {
   CLONE_PROMPT_INSTANCE_TOOL_NAME,
   EDIT_PROMPT_TOOL_NAME,
@@ -27,6 +27,16 @@ import {
   type EditPromptInput,
   type ReadPromptInput,
 } from "@phoenix/agent/tools/playgroundPrompt";
+import {
+  parseRunPlaygroundInput,
+  RUN_PLAYGROUND_TOOL_NAME,
+  type RunPlaygroundInput,
+} from "@phoenix/agent/tools/playgroundRun";
+import {
+  parseSetVariableValuesInput,
+  SET_VARIABLE_VALUES_TOOL_NAME,
+  type SetVariableValuesInput,
+} from "@phoenix/agent/tools/playgroundVariableValues";
 import type { components } from "@phoenix/api/__generated__/v1";
 import {
   GENERATIVE_UI_TOOL_NAME,
@@ -553,6 +563,84 @@ const runPlaygroundAgentTool = createRegisteredAgentTool<RunPlaygroundInput>({
   },
 });
 
+const readPlaygroundOutputAgentTool =
+  createRegisteredAgentTool<ReadPlaygroundOutputInput>({
+    name: READ_PLAYGROUND_OUTPUT_TOOL_NAME,
+    parseInput: parseReadPlaygroundOutputInput,
+    invalidInputErrorText: `Invalid ${READ_PLAYGROUND_OUTPUT_TOOL_NAME} input. Expected { instanceId?: number, repetitionNumber?: number }.`,
+    execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+      const action =
+        agentStore.getState().registeredClientActions[
+          READ_PLAYGROUND_OUTPUT_TOOL_NAME
+        ];
+      if (!action) {
+        await addToolOutput({
+          state: "output-error",
+          tool: READ_PLAYGROUND_OUTPUT_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText:
+            "The playground is not mounted; cannot read playground output.",
+        });
+        return;
+      }
+      const result = await action(input);
+      if (result.ok) {
+        await addToolOutput({
+          state: "output-available",
+          tool: READ_PLAYGROUND_OUTPUT_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          output: result.output ?? "Playground output read.",
+        });
+      } else {
+        await addToolOutput({
+          state: "output-error",
+          tool: READ_PLAYGROUND_OUTPUT_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText: result.error,
+        });
+      }
+    },
+  });
+
+const setVariableValuesAgentTool =
+  createRegisteredAgentTool<SetVariableValuesInput>({
+    name: SET_VARIABLE_VALUES_TOOL_NAME,
+    parseInput: parseSetVariableValuesInput,
+    invalidInputErrorText: `Invalid ${SET_VARIABLE_VALUES_TOOL_NAME} input. Expected { values: { key: string, value: string }[] }.`,
+    execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+      const action =
+        agentStore.getState().registeredClientActions[
+          SET_VARIABLE_VALUES_TOOL_NAME
+        ];
+      if (!action) {
+        await addToolOutput({
+          state: "output-error",
+          tool: SET_VARIABLE_VALUES_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText:
+            "The playground is not mounted; cannot set playground variable values.",
+        });
+        return;
+      }
+      const result = await action(input);
+      if (result.ok) {
+        await addToolOutput({
+          state: "output-available",
+          tool: SET_VARIABLE_VALUES_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          output: result.output ?? "Playground variable values updated.",
+        });
+      } else {
+        await addToolOutput({
+          state: "output-error",
+          tool: SET_VARIABLE_VALUES_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText: result.error,
+        });
+      }
+    },
+  });
+
 /** Ordered registry of all frontend-executable tools. */
 const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   bashAgentTool as RegisteredAgentTool<unknown>,
@@ -564,6 +652,8 @@ const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   clonePromptInstanceAgentTool as RegisteredAgentTool<unknown>,
   editPromptAgentTool as RegisteredAgentTool<unknown>,
   runPlaygroundAgentTool as RegisteredAgentTool<unknown>,
+  readPlaygroundOutputAgentTool as RegisteredAgentTool<unknown>,
+  setVariableValuesAgentTool as RegisteredAgentTool<unknown>,
 ];
 
 /** Fast lookup map for runtime tool dispatch by name. */

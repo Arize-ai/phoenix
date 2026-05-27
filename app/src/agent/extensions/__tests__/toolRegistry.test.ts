@@ -3,11 +3,13 @@ import {
   handleRegisteredAgentToolCall,
   SET_TIME_RANGE_TOOL_NAME,
 } from "@phoenix/agent/extensions/toolRegistry";
+import { READ_PLAYGROUND_OUTPUT_TOOL_NAME } from "@phoenix/agent/tools/playgroundOutput";
 import {
   CLONE_PROMPT_INSTANCE_TOOL_NAME,
   EDIT_PROMPT_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPrompt";
 import { RUN_PLAYGROUND_TOOL_NAME } from "@phoenix/agent/tools/playgroundRun";
+import { SET_VARIABLE_VALUES_TOOL_NAME } from "@phoenix/agent/tools/playgroundVariableValues";
 import { GENERATIVE_UI_TOOL_NAME } from "@phoenix/components/agent/generativeUICatalog";
 import { createAgentStore } from "@phoenix/store/agentStore";
 
@@ -251,6 +253,70 @@ describe("toolRegistry", () => {
         state: "output-available",
         tool: RUN_PLAYGROUND_TOOL_NAME,
         output: "started",
+      })
+    );
+  });
+
+  it("dispatches read_playground_output to the registered client action", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const action = vi
+      .fn()
+      .mockResolvedValue({ ok: true, output: "playground output" });
+    store
+      .getState()
+      .registerClientAction(READ_PLAYGROUND_OUTPUT_TOOL_NAME, action);
+
+    const input = { instanceId: 0, repetitionNumber: 1 };
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-read-playground-output",
+        toolName: READ_PLAYGROUND_OUTPUT_TOOL_NAME,
+        input,
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(action).toHaveBeenCalledWith(input);
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-available",
+        tool: READ_PLAYGROUND_OUTPUT_TOOL_NAME,
+        output: "playground output",
+      })
+    );
+  });
+
+  it("dispatches set_variable_values to the registered client action", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const action = vi.fn().mockResolvedValue({ ok: true, output: "updated" });
+    store
+      .getState()
+      .registerClientAction(SET_VARIABLE_VALUES_TOOL_NAME, action);
+
+    const input = { values: [{ key: "question", value: "What is Phoenix?" }] };
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-set-variable-values",
+        toolName: SET_VARIABLE_VALUES_TOOL_NAME,
+        input,
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(action).toHaveBeenCalledWith(input);
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-available",
+        tool: SET_VARIABLE_VALUES_TOOL_NAME,
+        output: "updated",
       })
     );
   });
