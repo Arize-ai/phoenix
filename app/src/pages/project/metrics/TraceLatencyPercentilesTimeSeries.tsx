@@ -12,6 +12,7 @@ import {
 
 import { Text } from "@phoenix/components";
 import {
+  ChartEmptyStateOverlay,
   ChartTooltip,
   ChartTooltipItem,
   InteractiveLegend,
@@ -124,6 +125,7 @@ export function TraceLatencyPercentilesTimeSeries({
     p999: typeof datum.p999 === "number" ? datum.p999 / 1000 : null,
     max: typeof datum.max === "number" ? datum.max / 1000 : null,
   }));
+  const hasData = chartData.some((datum) => datum.max != null);
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
 
@@ -134,116 +136,121 @@ export function TraceLatencyPercentilesTimeSeries({
   return (
     <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
       {({ chartProps }) => (
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart
-            data={chartData}
-            margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
-            syncId={"projectMetrics"}
-            {...chartProps}
-          >
-            <CartesianGrid vertical={false} {...defaultCartesianGridProps} />
-            <XAxis
-              {...defaultTimeXAxisProps}
-              domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
-              tickFormatter={(x) => timeTickFormatter(new Date(x))}
-            />
-            <YAxis
-              width={70}
-              tickFormatter={(x) => intFormatter(x)}
-              label={{
-                value: "Latency (s)",
-                angle: -90,
-                dx: -28,
-                style: {
-                  textAnchor: "middle",
-                  fill: "var(--chart-axis-label-color)",
-                },
-              }}
-              {...defaultYAxisProps}
-            />
-            <Line
-              type="monotone"
-              dataKey="p50"
-              stroke={colors.blue400}
-              strokeWidth={1}
-              activeDot={{ r: 4 }}
-              name="P50"
-              hide={isDataKeyHidden("p50")}
-            />
-            <Line
-              type="monotone"
-              dataKey="p75"
-              stroke={colors.blue400}
-              strokeWidth={1}
-              dot={{ r: 2 }}
-              activeDot={{ r: 4 }}
-              name="P75"
-              hide={isDataKeyHidden("p75")}
-            />
-            <Line
-              type="monotone"
-              dataKey="p90"
-              stroke={colors.blue500}
-              strokeWidth={2}
-              dot={{ r: 2 }}
-              activeDot={{ r: 4 }}
-              name="P90"
-              hide={isDataKeyHidden("p90")}
-            />
-            <Line
-              type="monotone"
-              dataKey="p95"
-              stroke={colors.blue600}
-              strokeWidth={2}
-              dot={{ r: 2 }}
-              activeDot={{ r: 4 }}
-              name="P95"
-              hide={isDataKeyHidden("p95")}
-            />
-            <Line
-              type="monotone"
-              dataKey="p99"
-              stroke={colors.blue700}
-              strokeWidth={2}
-              dot={{ r: 2 }}
-              activeDot={{ r: 4 }}
-              name="P99"
-              hide={isDataKeyHidden("p99")}
-            />
-            <Line
-              type="monotone"
-              dataKey="p999"
-              stroke={colors.blue800}
-              strokeWidth={2}
-              dot={{ r: 2 }}
-              activeDot={{ r: 4 }}
-              name="P99.9"
-              hide={isDataKeyHidden("p999")}
-            />
-            <Line
-              type="monotone"
-              dataKey="max"
-              stroke={colors.blue900}
-              strokeWidth={2}
-              strokeDasharray={"5 5"}
-              dot={{ r: 2 }}
-              activeDot={{ r: 4 }}
-              name="Max"
-              hide={isDataKeyHidden("max")}
-            />
-            <InteractiveLegend
-              {...defaultLegendProps}
-              hiddenDataKeys={hiddenDataKeys}
-              iconType="line"
-              iconSize={8}
-              onToggleDataKey={toggleDataKey}
-            />
-            <Tooltip
-              content={TooltipContent}
-              cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
+        <ChartEmptyStateOverlay
+          isEmpty={!hasData}
+          message="No data in this time range"
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart
+              data={chartData}
+              margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
+              syncId={"projectMetrics"}
+              {...chartProps}
+            >
+              <CartesianGrid vertical={false} {...defaultCartesianGridProps} />
+              <XAxis
+                {...defaultTimeXAxisProps}
+                domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
+                tickFormatter={(x) => timeTickFormatter(new Date(x))}
+              />
+              <YAxis
+                width={70}
+                tickFormatter={(x) => intFormatter(x)}
+                label={{
+                  value: "Latency (s)",
+                  angle: -90,
+                  dx: -28,
+                  style: {
+                    textAnchor: "middle",
+                    fill: "var(--chart-axis-label-color)",
+                  },
+                }}
+                {...defaultYAxisProps}
+              />
+              <Line
+                type="monotone"
+                dataKey="p50"
+                stroke={colors.blue400}
+                strokeWidth={1}
+                activeDot={{ r: 4 }}
+                name="P50"
+                hide={isDataKeyHidden("p50")}
+              />
+              <Line
+                type="monotone"
+                dataKey="p75"
+                stroke={colors.blue400}
+                strokeWidth={1}
+                dot={{ r: 2 }}
+                activeDot={{ r: 4 }}
+                name="P75"
+                hide={isDataKeyHidden("p75")}
+              />
+              <Line
+                type="monotone"
+                dataKey="p90"
+                stroke={colors.blue500}
+                strokeWidth={2}
+                dot={{ r: 2 }}
+                activeDot={{ r: 4 }}
+                name="P90"
+                hide={isDataKeyHidden("p90")}
+              />
+              <Line
+                type="monotone"
+                dataKey="p95"
+                stroke={colors.blue600}
+                strokeWidth={2}
+                dot={{ r: 2 }}
+                activeDot={{ r: 4 }}
+                name="P95"
+                hide={isDataKeyHidden("p95")}
+              />
+              <Line
+                type="monotone"
+                dataKey="p99"
+                stroke={colors.blue700}
+                strokeWidth={2}
+                dot={{ r: 2 }}
+                activeDot={{ r: 4 }}
+                name="P99"
+                hide={isDataKeyHidden("p99")}
+              />
+              <Line
+                type="monotone"
+                dataKey="p999"
+                stroke={colors.blue800}
+                strokeWidth={2}
+                dot={{ r: 2 }}
+                activeDot={{ r: 4 }}
+                name="P99.9"
+                hide={isDataKeyHidden("p999")}
+              />
+              <Line
+                type="monotone"
+                dataKey="max"
+                stroke={colors.blue900}
+                strokeWidth={2}
+                strokeDasharray={"5 5"}
+                dot={{ r: 2 }}
+                activeDot={{ r: 4 }}
+                name="Max"
+                hide={isDataKeyHidden("max")}
+              />
+              <InteractiveLegend
+                {...defaultLegendProps}
+                hiddenDataKeys={hiddenDataKeys}
+                iconType="line"
+                iconSize={8}
+                onToggleDataKey={toggleDataKey}
+              />
+              <Tooltip
+                content={TooltipContent}
+                cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </ChartEmptyStateOverlay>
       )}
     </TimeRangeChartBrush>
   );
