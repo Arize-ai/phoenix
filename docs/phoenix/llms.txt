@@ -143,6 +143,17 @@
 - [Regex Match](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/regex): Check whether a text matches a regular expression pattern
 - [Tool Invocation](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/tool-invocation): Evaluate whether LLM tool calls have correct arguments and formatting using a Phoenix-managed judge model
 - [Tool Selection](https://arize.com/docs/phoenix/evaluation/server-evals/pre-built-metrics/tool-selection): Evaluate whether LLMs select the correct tools for given tasks using a Phoenix-managed judge model
+
+### Server-Side Code Evaluators — Examples
+
+- [JSON Distance Code Evaluator](https://arize.com/docs/phoenix/evaluation/server-evals/code-evaluators/json-distance): Count structural differences between output JSON and a reference to score structured output quality
+- [Regex Match Code Evaluator](https://arize.com/docs/phoenix/evaluation/server-evals/code-evaluators/regex-match): Pass/fail assertion when model output matches a regular expression pattern
+- [Embedding Distance Evaluator](https://arize.com/docs/phoenix/evaluation/server-evals/code-evaluators/embedding-distance): Score semantic similarity between output and reference using an embeddings API
+- [scikit-learn Text Similarity Evaluator](https://arize.com/docs/phoenix/evaluation/server-evals/code-evaluators/scikit-learn): Offline cosine similarity via HashingVectorizer — no API calls, no model download
+- [Pairwise Evaluator](https://arize.com/docs/phoenix/evaluation/server-evals/code-evaluators/pairwise): Blind LLM-judge head-to-head comparison of model output vs reference with position-bias mitigation
+- [Composite Evaluator](https://arize.com/docs/phoenix/evaluation/server-evals/code-evaluators/composite): Blend multiple sub-scores into a single weighted-average score with per-axis breakdown
+- [LLM Jury](https://arize.com/docs/phoenix/evaluation/server-evals/code-evaluators/llm-jury): Poll multiple LLMs as judges and combine weighted verdicts to reduce single-model bias
+
 ## Datasets & Experiments
 
 
@@ -291,6 +302,13 @@
 - [Ragas](https://arize.com/docs/phoenix/integrations/evaluation-integrations/ragas): Evaluate agents and RAG pipelines using Ragas metrics alongside Phoenix tracing
 - [UQLM Confidence & Hallucination Risk](https://arize.com/docs/phoenix/integrations/evaluation-integrations/uqlm): Score LLM response uncertainty with UQLM black-box and white-box signals in Phoenix
 
+### Sandboxes
+
+- [E2B](https://arize.com/docs/phoenix/integrations/sandboxes/e2b): Run Phoenix code evaluators in E2B's hosted micro-VM sandboxes with kernel-level isolation
+- [Daytona](https://arize.com/docs/phoenix/integrations/sandboxes/daytona): Run Phoenix code evaluators in Daytona's managed development sandboxes with snapshot-based startup
+- [Vercel Sandbox](https://arize.com/docs/phoenix/integrations/sandboxes/vercel): Run Phoenix code evaluators in ephemeral Vercel compute, scoped to a Vercel team and project
+- [Modal](https://arize.com/docs/phoenix/integrations/sandboxes/modal): Run Phoenix code evaluators in Modal's serverless Python containers with sub-second cold starts
+
 ### Platforms — Additional
 
 - [Dify](https://arize.com/docs/phoenix/integrations/platforms/dify): Dify lets you visually build, orchestrate, and deploy AI-native apps using LLMs, with low-code workflows and
@@ -355,6 +373,12 @@
 - [Data Retention](https://arize.com/docs/phoenix/settings/data-retention): Configure data retention policies
 - [Custom AI Providers](https://arize.com/docs/phoenix/settings/custom-ai-providers): Server-managed AI provider credentials for Playground and evals
 - [Sandboxes](https://arize.com/docs/phoenix/settings/sandboxes): Configure sandbox backends and reusable configurations for code evaluators
+- [WebAssembly Sandbox](https://arize.com/docs/phoenix/settings/sandboxes/wasm): Run simple Python evaluators locally inside Phoenix with no credentials needed
+- [Deno Sandbox](https://arize.com/docs/phoenix/settings/sandboxes/deno): Run simple TypeScript evaluators locally inside Phoenix with no credentials needed
+- [E2B Sandbox Settings](https://arize.com/docs/phoenix/settings/sandboxes/e2b): Configure E2B API key and options for hosted micro-VM code evaluation
+- [Daytona Sandbox Settings](https://arize.com/docs/phoenix/settings/sandboxes/daytona): Configure Daytona credentials and snapshot settings for hosted code evaluation
+- [Vercel Sandbox Settings](https://arize.com/docs/phoenix/settings/sandboxes/vercel): Configure Vercel team and project credentials for hosted code evaluation
+- [Modal Sandbox Settings](https://arize.com/docs/phoenix/settings/sandboxes/modal): Configure Modal token and workspace for hosted Python code evaluation
 
 ## Concepts
 
@@ -584,6 +608,7 @@
 - [Authentication](https://arize.com/docs/phoenix/self-hosting/features/authentication): User management, SSO, security
 - [Email](https://arize.com/docs/phoenix/self-hosting/features/email): Notification and alert configuration
 - [Management](https://arize.com/docs/phoenix/self-hosting/features/management): Monitoring, scaling, administration
+- [Sandbox Backends](https://arize.com/docs/phoenix/self-hosting/features/sandbox-runtimes): Which sandbox providers run in the official Phoenix container and how to configure hosted backends for self-hosted deployments
 
 ### Upgrade & Security
 
@@ -611,7 +636,7 @@
 - [LangGraph](https://arize.com/docs/phoenix/cookbook/agent-workflow-patterns/langgraph): Use Phoenix to trace and evaluate agent frameworks built using Langgraph
 - [OpenAI Agents](https://arize.com/docs/phoenix/cookbook/agent-workflow-patterns/openai-agents): [**OpenAI-Agents**](https://openai.github.io/openai-agents-python/) is a lightweight Python library for
 - [Smolagents](https://arize.com/docs/phoenix/cookbook/agent-workflow-patterns/smolagents): **SmolAgents** is a lightweight Python library for composing tool-using, task-oriented agents. This guide
-- [Analyzing Customer Review Evals with Repetition Experiments](https://arize.com/docs/phoenix/cookbook/ai-engineering-workflows/analyzing-customer-review-evals-with-repetition-experiments): Analyzing Customer Review Evals with Repetition Experiments
+- [Run Repetition Experiments on Customer Review Evals](https://arize.com/docs/phoenix/cookbook/ai-engineering-workflows/analyzing-customer-review-evals-with-repetition-experiments): Use repetitions to reduce variance and validate improvements in LLM eval experiments
 - [Iterative Evaluation & Experimentation Workflow (Python)](https://arize.com/docs/phoenix/cookbook/ai-engineering-workflows/iterative-evaluation-and-experimentation-workflow-python): Phoenix Tracing, Evaluating, and Experimentation Walkthrough
 - [Iterative Evaluation & Experimentation Workflow (TypeScript)](https://arize.com/docs/phoenix/cookbook/ai-engineering-workflows/iterative-evaluation-and-experimentation-workflow-typescript): Phoenix Tracing, Evaluating, and Experimentation Walkthrough
 - [Analyzing Customer Review Evals with Repetition Experiments](https://arize.com/docs/phoenix/cookbook/datasets-and-experiments/analyzing-customer-review-evals-with-repetition-experiments): Large Language Models (LLMs) are probabilistic; the same prompt can yield different outputs across runs. This
@@ -700,6 +725,9 @@
 - [05.08.2026 OTLP Project Routing via HTTP Header](https://arize.com/docs/phoenix/release-notes/05-2026/05-08-2026-otlp-project-header): Route OTLP traces to a named Phoenix project by setting the x-project-name HTTP header — no resource attribute required
 - [05.10.2026 Playground Preferences](https://arize.com/docs/phoenix/release-notes/05-2026/05-10-2026-playground-preferences): Save a default provider and model for the Playground; span metrics aside is now always visible on the project page
 - [05.13.2026 Session Enhancements and Annotation Identifiers](https://arize.com/docs/phoenix/release-notes/05-2026/05-13-2026-session-and-annotations): Expandable session turn messages; note endpoints accept an identifier field for upsert semantics; CLI annotation bulk-delete commands
+- [05.13.2026 Playground Thinking Controls for Anthropic and Google](https://arize.com/docs/phoenix/release-notes/05-2026/05-13-2026-playground-thinking-controls): Configure Anthropic extended thinking and Google thinking in the Playground — token budgets, effort levels, and display toggles
+- [05.15.2026 OTel GenAI Semantic Convention Auto-Conversion](https://arize.com/docs/phoenix/release-notes/05-2026/05-15-2026-otel-semconv-conversion): Phoenix auto-converts gen_ai.* OTel attributes to OpenInference at ingest — OTel-native traces render with full message I/O and token counts without code changes
+- [05.15.2026 Session Trace Feedback and ATIF v1.7](https://arize.com/docs/phoenix/release-notes/05-2026/05-15-2026-session-feedback-and-atif): Thumbs-up/down feedback toolbar on session turns; ATIF v1.7 trajectory upload with embedded subagents and deterministic dispatch steps
 
 ### 2025
 
