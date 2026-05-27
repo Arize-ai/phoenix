@@ -118,23 +118,23 @@ describe("FloatingAgentChatPanel", () => {
     });
   }
 
-  it("shows a floating close action when detached is the preferred position", () => {
+  it("does not show a floating FAB action when detached is the preferred position", () => {
     mockPanelState({ position: "detached" });
 
     renderPanel(false);
 
     expect(
       container.querySelector(".resizable-floating-panel__floating-action")
-    ).not.toBeNull();
+    ).toBeNull();
   });
 
-  it("shows a floating close action while floating mode is forced", () => {
+  it("does not show a floating FAB action while floating mode is forced", () => {
     mockPanelState({ position: "pinned" });
 
     renderPanel(true);
 
     expect(
       container.querySelector(".resizable-floating-panel__floating-action")
-    ).not.toBeNull();
+    ).toBeNull();
   });
 });

@@ -11,7 +11,6 @@ import {
   DockedAgentChatFrame,
   FloatingAgentChatFrame,
 } from "./AgentChatPanelView";
-import { AgentChatWidgetButton } from "./AgentChatWidget";
 import { ChatView } from "./Chat";
 import {
   EMPTY_SESSION_DISPLAY_NAME,
@@ -44,16 +43,13 @@ type FloatingAgentChatPanelProps = {
 };
 
 type AgentChatSurfaceProps = {
-  renderFrame: (
-    children: ReactNode,
-    options: { floatingAction?: ReactNode }
-  ) => ReactNode;
+  renderFrame: (children: ReactNode) => ReactNode;
   /**
    * Whether this surface is temporarily being forced into floating mode.
    *
-   * Forced-floating panels intentionally keep this control visible but
-   * disabled because the current surface is being driven by another overlay,
-   * not by the user's saved layout preference.
+   * Forced-floating panels keep the pin/detach affordance visible but disabled
+   * because the current surface is being driven by another overlay, not by the
+   * user's saved layout preference.
    */
   isForcedFloatingMode?: boolean;
 };
@@ -91,10 +87,9 @@ export function FloatingAgentChatPanel({
   return (
     <AgentChatSurface
       isForcedFloatingMode={isForcedFloatingMode}
-      renderFrame={(children, { floatingAction }) => (
+      renderFrame={(children) => (
         <FloatingAgentChatFrame
           boundaryRef={layer === "content" ? boundaryRef : undefined}
-          floatingAction={floatingAction}
           layer={layer}
           onPlacementChange={setFabPlacement}
           placement={fabPlacement}
@@ -206,10 +201,7 @@ function AgentChatController({
   handleModelChange: ReturnType<
     typeof useAgentChatPanelState
   >["handleModelChange"];
-  renderFrame: (
-    children: ReactNode,
-    options: { floatingAction?: ReactNode }
-  ) => ReactNode;
+  renderFrame: (children: ReactNode) => ReactNode;
 }) {
   const {
     messages,
@@ -229,9 +221,6 @@ function AgentChatController({
   if (!isOpen) {
     return null;
   }
-
-  const showFloatingCloseAction =
-    preferredPosition === "detached" || isForcedFloatingMode;
 
   return renderFrame(
     <>
@@ -267,15 +256,6 @@ function AgentChatController({
           ) : null}
         </ChatView>
       </Suspense>
-    </>,
-    {
-      floatingAction: showFloatingCloseAction ? (
-        <AgentChatWidgetButton
-          ariaLabel="Close assistant"
-          isDragHandle
-          onPress={closePanel}
-        />
-      ) : undefined,
-    }
+    </>
   );
 }
