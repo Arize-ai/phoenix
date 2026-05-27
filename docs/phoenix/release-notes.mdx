@@ -28,12 +28,6 @@ Click and drag across any project metric chart or the spans sparkline to zoom in
 Project metric charts are now accessible from a top-level **Dashboards** navigation item. The new route includes a searchable project menu, a shared time-range selector, and persistent project selection — plus shareable `/dashboards/projects/:projectId` links that resolve correctly even for projects outside the first paginated page.
 </Update>
 
-<Update label="05.26.2026">
-## [05.26.2026: Token Count Fix for Agent Traces](/docs/phoenix/release-notes/05-2026/05-26-2026-dashboards-and-token-counts)
-**Available in arize-phoenix 16.1.0+**
-
-Token counts in the project overview were over-reported for agent framework traces that propagate usage up through wrapper spans — the same tokens appeared at multiple levels, inflating totals by 3× or more. Phoenix now aggregates token counts only from `LLM`-kind spans, matching the per-trace detail view and framework-reported usage.
-</Update>
 
 <Update label="05.21.2026">
 ## [05.21.2026: Code Evaluators](/docs/phoenix/release-notes/05-2026/05-21-2026-code-evaluators)
