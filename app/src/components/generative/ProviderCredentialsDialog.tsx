@@ -77,17 +77,10 @@ export function ProviderCredentialsDialog({
         </DialogHeader>
         <View padding="size-200">
           {isServerOnly ? (
-            isAdmin ? (
-              <ServerCredentialsSection
-                provider={provider}
-                onCredentialsUpdated={onCredentialsUpdated}
-              />
-            ) : (
-              <Text>
-                PXI uses server-side credentials. Ask an administrator to
-                configure {provider.name} credentials in AI provider settings.
-              </Text>
-            )
+            <ProviderServerCredentialsPanel
+              provider={provider}
+              onCredentialsUpdated={onCredentialsUpdated}
+            />
           ) : isAdmin ? (
             <Flex direction="column" gap="size-200">
               <ToggleButtonGroup
@@ -148,6 +141,33 @@ export function ProviderCredentialsDialog({
         </View>
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function ProviderServerCredentialsPanel({
+  provider,
+  onCredentialsUpdated,
+}: {
+  provider: ProviderCredentialsDialogProvider;
+  onCredentialsUpdated?: () => void;
+}) {
+  const { viewer } = useViewer();
+  const isAdmin = !viewer || viewer.role?.name === "ADMIN";
+
+  if (!isAdmin) {
+    return (
+      <Text>
+        PXI uses server-side credentials. Ask an administrator to configure{" "}
+        {provider.name} credentials in AI provider settings.
+      </Text>
+    );
+  }
+
+  return (
+    <ServerCredentialsSection
+      provider={provider}
+      onCredentialsUpdated={onCredentialsUpdated}
+    />
   );
 }
 

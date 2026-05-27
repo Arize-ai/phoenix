@@ -32,9 +32,13 @@ import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import { AgentConsentGate } from "./AgentConsentGate";
 import { AgentContextPills } from "./AgentContextPills";
-import { AgentModelCredentialWarning } from "./AgentModelCredentialWarning";
+import { AgentModelCredentialInlineForm } from "./AgentModelCredentialInlineForm";
 import { AgentModelMenu } from "./AgentModelMenu";
-import { ChatEmptyState, type EmptyStateQuickAction } from "./ChatEmptyState";
+import {
+  ChatEmptyState,
+  ChatEmptyStateQuickActions,
+  type EmptyStateQuickAction,
+} from "./ChatEmptyState";
 import { ChatLantern } from "./ChatLantern";
 import { AssistantMessage, UserMessage } from "./ChatMessage";
 import {
@@ -332,7 +336,17 @@ export function ChatView({
                   subtext={emptyStateSubtext}
                   quickActions={emptyStateQuickActions}
                   onQuickAction={handleQuickAction}
-                />
+                >
+                  <AgentModelCredentialInlineForm
+                    value={modelMenuValue}
+                    fallback={
+                      <ChatEmptyStateQuickActions
+                        quickActions={emptyStateQuickActions}
+                        onQuickAction={handleQuickAction}
+                      />
+                    }
+                  />
+                </ChatEmptyState>
               )}
               {messages.map((message, index) => {
                 if (message.role === "user") {
@@ -416,7 +430,6 @@ export function ChatView({
                     shouldFlip
                     variant="quiet"
                   />
-                  <AgentModelCredentialWarning value={modelMenuValue} />
                 </PromptInputTools>
 
                 <PromptInputActions>

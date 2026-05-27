@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f28b8d2f726287e333a531b1c90a9dcc>>
+ * @generated SignedSource<<0b2d56ba70671238f5d94ef3b3cc58de>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,8 +10,8 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
-export type AgentModelCredentialWarningQuery$variables = Record<PropertyKey, never>;
-export type AgentModelCredentialWarningQuery$data = {
+export type AgentModelCredentialInlineFormQuery$variables = Record<PropertyKey, never>;
+export type AgentModelCredentialInlineFormQuery$data = {
   readonly modelProviders: ReadonlyArray<{
     readonly credentialRequirements: ReadonlyArray<{
       readonly envVarName: string;
@@ -22,9 +22,9 @@ export type AgentModelCredentialWarningQuery$data = {
     readonly name: string;
   }>;
 };
-export type AgentModelCredentialWarningQuery = {
-  response: AgentModelCredentialWarningQuery$data;
-  variables: AgentModelCredentialWarningQuery$variables;
+export type AgentModelCredentialInlineFormQuery = {
+  response: AgentModelCredentialInlineFormQuery$data;
+  variables: AgentModelCredentialInlineFormQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -92,7 +92,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
-    "name": "AgentModelCredentialWarningQuery",
+    "name": "AgentModelCredentialInlineFormQuery",
     "selections": (v0/*: any*/),
     "type": "Query",
     "abstractKey": null
@@ -101,20 +101,20 @@ return {
   "operation": {
     "argumentDefinitions": [],
     "kind": "Operation",
-    "name": "AgentModelCredentialWarningQuery",
+    "name": "AgentModelCredentialInlineFormQuery",
     "selections": (v0/*: any*/)
   },
   "params": {
-    "cacheID": "fccc5e399f511403f62ade68916f5122",
+    "cacheID": "424d98cc11df4c6c03320d4a76a60d8a",
     "id": null,
     "metadata": {},
-    "name": "AgentModelCredentialWarningQuery",
+    "name": "AgentModelCredentialInlineFormQuery",
     "operationKind": "query",
-    "text": "query AgentModelCredentialWarningQuery {\n  modelProviders {\n    key\n    name\n    credentialRequirements {\n      envVarName\n      isRequired\n    }\n    credentialsSet\n  }\n}\n"
+    "text": "query AgentModelCredentialInlineFormQuery {\n  modelProviders {\n    key\n    name\n    credentialRequirements {\n      envVarName\n      isRequired\n    }\n    credentialsSet\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "761acf44ed370bf070298748dd78265f";
+(node as any).hash = "8d4648f36227c4b590cd4a9535ce1fde";
 
 export default node;
