@@ -50,5 +50,13 @@ export function selectActiveContexts(state: AgentState): AgentContext[] {
     upsert(context);
   }
 
-  return order.map((key) => byKey.get(key) as AgentContext);
+  const contexts = order.map((key) => byKey.get(key) as AgentContext);
+  const hasCodeEvaluatorContext = contexts.some(
+    (context) => context.type === "code_evaluator"
+  );
+  if (!hasCodeEvaluatorContext) {
+    return contexts;
+  }
+
+  return contexts.filter((context) => context.type !== "dataset_evaluators");
 }
