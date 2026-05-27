@@ -77,7 +77,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "phoenix.fullname" . }}-configmap
-          {{- if or .Values.auth.secret (and .Values.auth.oauth2.enabled .Values.auth.oauth2.providers) (and .Values.auth.ldap.enabled .Values.auth.ldap.bindPassword) (and .Values.additionalEnv (gt (len .Values.additionalEnv) 0)) }}
+          {{- $sandboxCredentialEnv := include "phoenix.sandboxCredentialEnv" . }}
+          {{- if or .Values.auth.secret (and .Values.auth.oauth2.enabled .Values.auth.oauth2.providers) (and .Values.auth.ldap.enabled .Values.auth.ldap.bindPassword) $sandboxCredentialEnv (and .Values.additionalEnv (gt (len .Values.additionalEnv) 0)) }}
           env:
           {{- if .Values.auth.secret }}
           {{- range $authSecrets := .Values.auth.secret }}
@@ -110,6 +111,9 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.auth.name }}
                   key: PHOENIX_LDAP_BIND_PASSWORD
+          {{- end }}
+          {{- if $sandboxCredentialEnv }}
+          {{- $sandboxCredentialEnv | nindent 12 }}
           {{- end }}
           {{- if and .Values.additionalEnv (gt (len .Values.additionalEnv) 0) }}
           {{- .Values.additionalEnv | toYaml | nindent 12 }}

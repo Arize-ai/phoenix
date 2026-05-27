@@ -3077,6 +3077,68 @@ def get_test_suite() -> list[TestCase | ErrorTestCase]:
             "",
             ConfigMapValidators.configmap_lacks_key("PHOENIX_ALLOWED_SANDBOX_PROVIDERS"),
         ),
+        TestCase(
+            "Sandbox runtime config sets code evaluator provider env vars",
+            "--set sandbox.wasm.binaryPath=/opt/custom/python.wasm "
+            "--set sandbox.e2b.apiUrl=https://e2b.example.com "
+            "--set sandbox.daytona.apiUrl=https://daytona.example.com "
+            "--set sandbox.daytona.target=us "
+            "--set sandbox.modal.serverUrl=https://modal.example.com",
+            all_of(
+                ConfigMapValidators.configmap_has_key(
+                    "PHOENIX_WASM_BINARY_PATH", "/opt/custom/python.wasm"
+                ),
+                ConfigMapValidators.configmap_has_key("E2B_API_URL", "https://e2b.example.com"),
+                ConfigMapValidators.configmap_has_key(
+                    "DAYTONA_API_URL", "https://daytona.example.com"
+                ),
+                ConfigMapValidators.configmap_has_key("DAYTONA_TARGET", "us"),
+                ConfigMapValidators.configmap_has_key(
+                    "MODAL_SERVER_URL", "https://modal.example.com"
+                ),
+            ),
+        ),
+        TestCase(
+            "Sandbox E2B domain routing sets E2B_DOMAIN",
+            "--set sandbox.e2b.domain=e2b.example.com",
+            ConfigMapValidators.configmap_has_key("E2B_DOMAIN", "e2b.example.com"),
+        ),
+        TestCase(
+            "Sandbox hosted provider credentials render Secret data and env refs",
+            "--set sandbox.e2b.apiKey=e2b-key "
+            "--set sandbox.daytona.apiKey=daytona-key "
+            "--set sandbox.vercel.token=vercel-token "
+            "--set sandbox.vercel.projectId=vercel-project "
+            "--set sandbox.vercel.teamId=vercel-team "
+            "--set sandbox.modal.tokenId=modal-id "
+            "--set sandbox.modal.tokenSecret=modal-secret",
+            all_of(
+                SecretValidators.has_key("E2B_API_KEY"),
+                SecretValidators.has_key("DAYTONA_API_KEY"),
+                SecretValidators.has_key("VERCEL_TOKEN"),
+                SecretValidators.has_key("VERCEL_PROJECT_ID"),
+                SecretValidators.has_key("VERCEL_TEAM_ID"),
+                SecretValidators.has_key("MODAL_TOKEN_ID"),
+                SecretValidators.has_key("MODAL_TOKEN_SECRET"),
+                DeploymentValidators.env_from_secret("E2B_API_KEY", "phoenix-secret"),
+                DeploymentValidators.env_from_secret("DAYTONA_API_KEY", "phoenix-secret"),
+                DeploymentValidators.env_from_secret("VERCEL_TOKEN", "phoenix-secret"),
+                DeploymentValidators.env_from_secret("VERCEL_PROJECT_ID", "phoenix-secret"),
+                DeploymentValidators.env_from_secret("VERCEL_TEAM_ID", "phoenix-secret"),
+                DeploymentValidators.env_from_secret("MODAL_TOKEN_ID", "phoenix-secret"),
+                DeploymentValidators.env_from_secret("MODAL_TOKEN_SECRET", "phoenix-secret"),
+            ),
+        ),
+        TestCase(
+            "Sandbox hosted provider credentials support valueFrom",
+            "--set sandbox.e2b.apiKey=ignored-direct-value "
+            "--set sandbox.e2b.apiKeyValueFrom.secretKeyRef.name=e2b-secret "
+            "--set sandbox.e2b.apiKeyValueFrom.secretKeyRef.key=api-key",
+            all_of(
+                SecretValidators.not_has_key("E2B_API_KEY"),
+                DeploymentValidators.env_from_secret("E2B_API_KEY", "e2b-secret"),
+            ),
+        ),
         # Extra Volumes and Mounts
         TestCase(
             "Extra ConfigMap volume",

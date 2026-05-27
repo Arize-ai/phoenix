@@ -189,3 +189,21 @@ data:
   {{- if .Values.sandbox.allowedProviders }}
   PHOENIX_ALLOWED_SANDBOX_PROVIDERS: {{ .Values.sandbox.allowedProviders | quote }}
   {{- end }}
+  {{- if .Values.sandbox.wasm.binaryPath }}
+  PHOENIX_WASM_BINARY_PATH: {{ .Values.sandbox.wasm.binaryPath | quote }}
+  {{- end }}
+  {{- if .Values.sandbox.e2b.domain }}
+  E2B_DOMAIN: {{ .Values.sandbox.e2b.domain | quote }}
+  {{- end }}
+  {{- if .Values.sandbox.e2b.apiUrl }}
+  E2B_API_URL: {{ .Values.sandbox.e2b.apiUrl | quote }}
+  {{- end }}
+  {{- if .Values.sandbox.daytona.apiUrl }}
+  DAYTONA_API_URL: {{ .Values.sandbox.daytona.apiUrl | quote }}
+  {{- end }}
+  {{- if .Values.sandbox.daytona.target }}
+  DAYTONA_TARGET: {{ .Values.sandbox.daytona.target | quote }}
+  {{- end }}
+  {{- if .Values.sandbox.modal.serverUrl }}
+  MODAL_SERVER_URL: {{ .Values.sandbox.modal.serverUrl | quote }}
+  {{- end }}

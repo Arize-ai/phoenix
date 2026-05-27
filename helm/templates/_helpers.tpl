@@ -65,6 +65,93 @@ Truncate at 63 chars, kuberneteres DNS name limitation.
 {{- end -}}
 
 {{/*
+Environment variables for hosted code evaluator sandbox provider credentials.
+*/}}
+{{- define "phoenix.sandboxCredentialEnv" -}}
+{{- $secretName := .Values.auth.name -}}
+{{- $entries := list -}}
+{{- with .Values.sandbox.e2b }}
+{{- if or .apiKey .apiKeyValueFrom }}
+{{- $entries = append $entries (dict "name" "E2B_API_KEY" "valueFrom" .apiKeyValueFrom) -}}
+{{- end }}
+{{- end }}
+{{- with .Values.sandbox.daytona }}
+{{- if or .apiKey .apiKeyValueFrom }}
+{{- $entries = append $entries (dict "name" "DAYTONA_API_KEY" "valueFrom" .apiKeyValueFrom) -}}
+{{- end }}
+{{- end }}
+{{- with .Values.sandbox.vercel }}
+{{- if or .token .tokenValueFrom }}
+{{- $entries = append $entries (dict "name" "VERCEL_TOKEN" "valueFrom" .tokenValueFrom) -}}
+{{- end }}
+{{- if or .projectId .projectIdValueFrom }}
+{{- $entries = append $entries (dict "name" "VERCEL_PROJECT_ID" "valueFrom" .projectIdValueFrom) -}}
+{{- end }}
+{{- if or .teamId .teamIdValueFrom }}
+{{- $entries = append $entries (dict "name" "VERCEL_TEAM_ID" "valueFrom" .teamIdValueFrom) -}}
+{{- end }}
+{{- end }}
+{{- with .Values.sandbox.modal }}
+{{- if or .tokenId .tokenIdValueFrom }}
+{{- $entries = append $entries (dict "name" "MODAL_TOKEN_ID" "valueFrom" .tokenIdValueFrom) -}}
+{{- end }}
+{{- if or .tokenSecret .tokenSecretValueFrom }}
+{{- $entries = append $entries (dict "name" "MODAL_TOKEN_SECRET" "valueFrom" .tokenSecretValueFrom) -}}
+{{- end }}
+{{- end }}
+{{- range $entry := $entries }}
+- name: {{ $entry.name }}
+  valueFrom:
+{{- if $entry.valueFrom }}
+{{ $entry.valueFrom | toYaml | nindent 4 }}
+{{- else }}
+    secretKeyRef:
+      name: {{ $secretName }}
+      key: {{ $entry.name }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{/*
+Secret data entries for direct hosted sandbox provider credentials.
+*/}}
+{{- define "phoenix.sandboxCredentialSecretData" -}}
+{{- $entries := list -}}
+{{- with .Values.sandbox.e2b }}
+{{- if and .apiKey (not .apiKeyValueFrom) }}
+{{- $entries = append $entries (dict "name" "E2B_API_KEY" "value" .apiKey) -}}
+{{- end }}
+{{- end }}
+{{- with .Values.sandbox.daytona }}
+{{- if and .apiKey (not .apiKeyValueFrom) }}
+{{- $entries = append $entries (dict "name" "DAYTONA_API_KEY" "value" .apiKey) -}}
+{{- end }}
+{{- end }}
+{{- with .Values.sandbox.vercel }}
+{{- if and .token (not .tokenValueFrom) }}
+{{- $entries = append $entries (dict "name" "VERCEL_TOKEN" "value" .token) -}}
+{{- end }}
+{{- if and .projectId (not .projectIdValueFrom) }}
+{{- $entries = append $entries (dict "name" "VERCEL_PROJECT_ID" "value" .projectId) -}}
+{{- end }}
+{{- if and .teamId (not .teamIdValueFrom) }}
+{{- $entries = append $entries (dict "name" "VERCEL_TEAM_ID" "value" .teamId) -}}
+{{- end }}
+{{- end }}
+{{- with .Values.sandbox.modal }}
+{{- if and .tokenId (not .tokenIdValueFrom) }}
+{{- $entries = append $entries (dict "name" "MODAL_TOKEN_ID" "value" .tokenId) -}}
+{{- end }}
+{{- if and .tokenSecret (not .tokenSecretValueFrom) }}
+{{- $entries = append $entries (dict "name" "MODAL_TOKEN_SECRET" "value" .tokenSecret) -}}
+{{- end }}
+{{- end }}
+{{- range $entry := $entries }}
+{{ $entry.name }}: {{ $entry.value | b64enc }}
+{{- end }}
+{{- end -}}
+
+{{/*
 Common labels
 */}}
 {{- define "phoenix.labels" -}}

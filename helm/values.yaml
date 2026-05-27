@@ -685,12 +685,94 @@ instrumentation:
 
 # Code evaluator sandboxing
 sandbox:
+  # Direct hosted-provider credential values below are rendered into the Secret named by auth.name.
+  # Use the corresponding *ValueFrom field to reference externally managed Secrets or ConfigMaps.
+
   # -- Comma-separated allowlist of sandbox providers (PHOENIX_ALLOWED_SANDBOX_PROVIDERS)
   # Accepted values: WASM, E2B, DAYTONA, VERCEL, DENO, MODAL (case-insensitive)
   # When empty, the chart omits the env var and all providers are allowed.
   # Set to "NONE" to disable all sandbox providers.
   # Example: "WASM,DENO"
   allowedProviders: ""
+
+  wasm:
+    # -- Path to a pre-provisioned CPython WASM binary (PHOENIX_WASM_BINARY_PATH). Leave empty to use the image default.
+    binaryPath: ""
+
+  e2b:
+    # -- E2B API key for hosted code evaluator sandboxes (E2B_API_KEY)
+    # Can also be supplied through apiKeyValueFrom with a Kubernetes valueFrom reference.
+    apiKey: ""
+    # apiKeyValueFrom:
+    #   secretKeyRef:
+    #     name: e2b-secret
+    #     key: api-key
+
+    # -- E2B API domain for enterprise deployments (E2B_DOMAIN). Mutually exclusive with apiUrl.
+    domain: ""
+
+    # -- Full E2B API URL override for enterprise deployments (E2B_API_URL). Mutually exclusive with domain.
+    apiUrl: ""
+
+  daytona:
+    # -- Daytona API key for hosted code evaluator sandboxes (DAYTONA_API_KEY)
+    # Can also be supplied through apiKeyValueFrom with a Kubernetes valueFrom reference.
+    apiKey: ""
+    # apiKeyValueFrom:
+    #   secretKeyRef:
+    #     name: daytona-secret
+    #     key: api-key
+
+    # -- Daytona API endpoint URL for on-prem deployments (DAYTONA_API_URL)
+    apiUrl: ""
+
+    # -- Daytona runner target region (DAYTONA_TARGET)
+    target: ""
+
+  vercel:
+    # -- Vercel access token for Vercel Sandbox code evaluator sandboxes (VERCEL_TOKEN)
+    # Can also be supplied through tokenValueFrom with a Kubernetes valueFrom reference.
+    token: ""
+    # tokenValueFrom:
+    #   secretKeyRef:
+    #     name: vercel-secret
+    #     key: token
+
+    # -- Vercel project identifier for Vercel Sandbox (VERCEL_PROJECT_ID)
+    # Can also be supplied through projectIdValueFrom with a Kubernetes valueFrom reference.
+    projectId: ""
+    # projectIdValueFrom:
+    #   secretKeyRef:
+    #     name: vercel-secret
+    #     key: project-id
+
+    # -- Vercel team identifier for Vercel Sandbox (VERCEL_TEAM_ID)
+    # Can also be supplied through teamIdValueFrom with a Kubernetes valueFrom reference.
+    teamId: ""
+    # teamIdValueFrom:
+    #   secretKeyRef:
+    #     name: vercel-secret
+    #     key: team-id
+
+  modal:
+    # -- Modal token ID for hosted code evaluator sandboxes (MODAL_TOKEN_ID)
+    # Can also be supplied through tokenIdValueFrom with a Kubernetes valueFrom reference.
+    tokenId: ""
+    # tokenIdValueFrom:
+    #   secretKeyRef:
+    #     name: modal-secret
+    #     key: token-id
+
+    # -- Modal token secret for hosted code evaluator sandboxes (MODAL_TOKEN_SECRET)
+    # Can also be supplied through tokenSecretValueFrom with a Kubernetes valueFrom reference.
+    tokenSecret: ""
+    # tokenSecretValueFrom:
+    #   secretKeyRef:
+    #     name: modal-secret
+    #     key: token-secret
+
+    # -- Modal server URL for self-hosted Modal deployments (MODAL_SERVER_URL)
+    serverUrl: ""
 
 image:
   # -- Image pull policy for Phoenix container (Always, IfNotPresent, or Never)
