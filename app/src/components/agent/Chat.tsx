@@ -32,6 +32,10 @@ import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import { AgentConsentGate } from "./AgentConsentGate";
 import { AgentContextPills } from "./AgentContextPills";
+import {
+  AgentModelCredentialForm,
+  useAgentModelCredentialStatus,
+} from "./AgentModelCredentialForm";
 import { AgentModelMenu } from "./AgentModelMenu";
 import { ChatEmptyState, type EmptyStateQuickAction } from "./ChatEmptyState";
 import { ChatLantern } from "./ChatLantern";
@@ -113,13 +117,6 @@ const chatCSS = css`
     flex-direction: column;
     min-height: 0;
     overflow: hidden;
-  }
-
-  &.chat--empty-bleed {
-    .chat__scroll-frame,
-    .chat__scroll {
-      overflow: visible;
-    }
   }
 
   .chat__scroll {
@@ -298,7 +295,13 @@ export function ChatView({
     (state) => state.observability.hasAcknowledgedConsent
   );
   const showsEmptyState = messages.length === 0;
-  const chatClassName = showsEmptyState ? "chat--empty chat--empty-bleed" : "";
+  const chatClassName = showsEmptyState ? "chat--empty" : "";
+  const { missingCredentialsProvider, refreshCredentialStatus } =
+    useAgentModelCredentialStatus(modelMenuValue);
+  const isWaitingForAssistant =
+    status === "submitted" || status === "streaming";
+  const isSendDisabledForMissingCredentials =
+    !isWaitingForAssistant && Boolean(missingCredentialsProvider);
   const resolvedElicitationDraft =
     pendingElicitation &&
     elicitationDraft?.toolCallId !== pendingElicitation.toolCallId
@@ -331,7 +334,15 @@ export function ChatView({
                   subtext={emptyStateSubtext}
                   quickActions={emptyStateQuickActions}
                   onQuickAction={handleQuickAction}
-                />
+                >
+                  {missingCredentialsProvider ? (
+                    <AgentModelCredentialForm
+                      modelName={modelMenuValue.modelName}
+                      onCredentialsUpdated={refreshCredentialStatus}
+                      provider={missingCredentialsProvider}
+                    />
+                  ) : undefined}
+                </ChatEmptyState>
               )}
               {messages.map((message, index) => {
                 if (message.role === "user") {
@@ -419,6 +430,9 @@ export function ChatView({
 
                 <PromptInputActions>
                   <PromptInputSubmit
+                    isDisabled={
+                      isSendDisabledForMissingCredentials || undefined
+                    }
                     onPress={() => {
                       void stop();
                     }}
