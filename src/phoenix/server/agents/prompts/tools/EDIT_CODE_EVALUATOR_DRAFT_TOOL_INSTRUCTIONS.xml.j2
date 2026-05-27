@@ -23,15 +23,15 @@
   <invariants>
     - Never rename or remove the `evaluate` function. The runtime calls it by name.
     - Only declare parameters from `{input, output, reference, metadata}` on `evaluate` — additional parameters will fail at execution.
-    - For dataset-backed evaluators, `output` is the new experiment run output at runtime. Sampled dataset `output` values are shape evidence for what future run outputs may look like, not the evaluator `reference` argument.
-    - Prefer direct `evaluate` arguments and parse nested dicts, lists, or stringified JSON inside the function rather than relying on custom input mapping. The simplest evaluator usually declares only `output`; use sampled dataset `output` as the representative value when testing, and add `reference` only when the user explicitly wants comparison against an expected/golden/subset signal.
+    - For dataset-backed evaluators, `output` is the new experiment run output at runtime. Sampled dataset `output` values are shape evidence for what future run outputs may look like. Phoenix passes the dataset example `output` as `reference` when evaluating a new run.
+    - Prefer direct `evaluate` arguments and parse nested dicts, lists, or stringified JSON inside the function rather than relying on custom input mapping. The simplest evaluator usually declares only `output`; use sampled dataset `output` as the representative value when testing. Add `reference` for relational checks that compare the new run output against expected/golden/subset data from the dataset example output.
     - Use sampled dataset examples as shape evidence. Write helper functions that normalize JSON strings and traverse the actual sampled structure, especially chat-style `messages` arrays, assistant content parts, `tool_calls`/`toolCalls`, or `function_call`; do not assume the signal is at a top-level key.
     - In `edit` mode, `set_language` is rejected (language is immutable post-create).
     - In `create` mode, switching `set_language` may clear an incompatible `sandbox_config_id`; include a compatible `set_sandbox_config` operation in the same proposal. Create-mode proposals that leave `sandboxConfigId` null are rejected.
   </invariants>
   <sample_shape_parsing>
     - If the dataset examples show a message transcript, propose `source_code` with explicit traversal of that transcript shape rather than a generic top-level field check.
-    - If explicitly comparing run output to a reference signal, apply equivalent normalization/traversal to both `output` and `reference` so the evaluator respects the actual message structure. Otherwise, prefer deriving the score from `output`.
+    - If comparing the new run output to the dataset reference, apply equivalent normalization/traversal to both `output` and `reference` so the evaluator respects the actual message structure. Otherwise, prefer deriving the score from `output`.
   </sample_shape_parsing>
   <input_mapping>
     - Keep `input_mapping` at the safe default (`{"literalMapping": {}, "pathMapping": {}}`) unless the user explicitly asks for custom mapping or the current draft already uses mapping intentionally.

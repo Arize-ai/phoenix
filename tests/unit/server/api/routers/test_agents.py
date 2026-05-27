@@ -708,9 +708,8 @@ class TestAvailableSandboxConfigsRendering:
         edit_rendered = self._edit_template().render(available_sandbox_configs=[])
         for rendered in (create_rendered, edit_rendered):
             assert "`output` is the new experiment run output" in rendered
-            assert "add `reference` only when the user explicitly wants comparison" in (
-                rendered.lower()
-            )
+            assert "dataset example `output` as `reference`" in rendered
+            assert "add `reference` for relational checks" in rendered.lower()
             assert "parse nested" in rendered
             assert "sample" in rendered
             assert "examples" in rendered

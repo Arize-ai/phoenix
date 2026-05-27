@@ -20,13 +20,13 @@
       Any subset of the destructured keys is valid, e.g. `function evaluate({ output })`.
     - Return either a `{label, score, explanation}` subset (any one, two, or three of those keys) or a bare scalar (string label, numeric score, or boolean). Both shapes are valid in both languages.
     - For dataset-backed experiment evaluators, `output` is the new experiment run output at runtime. Sampled dataset `output` values are historical/example outputs and shape evidence for what future run outputs may look like; do not hard-code sample values.
-    - The simplest dataset-backed evaluator usually declares only `output`. Use sampled dataset `output` as the representative value when designing or testing the evaluator. Add `reference` only when the user explicitly wants comparison against an expected/golden/subset signal; do not assume `reference` is the sampled dataset `output`.
+    - Phoenix passes the dataset example `output` as `reference` when evaluating a new run. The simplest dataset-backed evaluator usually declares only `output`; add `reference` for relational checks that compare the new run output against expected/golden/subset data from the dataset example output.
   </evaluate_contract>
   <sample_shape_parsing>
     - Before writing `source_code`, inspect the sampled examples and name the exact shape you are targeting. Then encode that shape as helper functions inside `evaluate`.
     - Normalize values that may be stringified JSON before traversing them. In Python, use `json.loads` guarded by `try`/`except`; in TypeScript, use `JSON.parse` guarded by `try`/`catch`.
     - For chat or agent outputs, do not stop at `output.get("tool_calls")` unless the samples actually show that top-level shape. Common shapes include a top-level `messages` array, a bare list of messages, assistant messages with `tool_calls`/`toolCalls`, content parts whose type is `tool-call`, and OpenAI-style `function_call`.
-    - If explicitly comparing run output to a reference signal, apply equivalent normalization/traversal to both `output` and `reference` so the evaluator respects the actual message structure. Otherwise, prefer deriving the score from `output`.
+    - If comparing the new run output to the dataset reference, apply equivalent normalization/traversal to both `output` and `reference` so the evaluator respects the actual message structure. Otherwise, prefer deriving the score from `output`.
   </sample_shape_parsing>
   <name>
     - `name` must match `^[a-z0-9]([_a-z0-9-]*[a-z0-9])?$` — lowercase letters, digits, hyphens, or underscores; cannot start or end with a hyphen or underscore.

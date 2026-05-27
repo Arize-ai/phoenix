@@ -4,7 +4,7 @@
 {% if dataset.dataset_version_node_id %}
   <dataset_version_node_id format="phoenix_node_id">{{ dataset.dataset_version_node_id }}</dataset_version_node_id>
 {% endif %}
-  <schema_discovery>Datasets are open-schema: each example carries arbitrary `input`, `output`, and `metadata` JSON. Use the sampled examples below to ground evaluator drafts instead of assuming a fixed schema. Treat sampled dataset `output` as historical/example output and shape evidence for future experiment run outputs; do not assume it is the evaluator `reference` argument.</schema_discovery>
+  <schema_discovery>Datasets are open-schema: each example carries arbitrary `input`, `output`, and `metadata` JSON. Use the sampled examples below to ground evaluator drafts instead of assuming a fixed schema. Treat sampled dataset `output` as both shape evidence for future experiment run outputs and the value Phoenix passes as `reference` when evaluating a new run.</schema_discovery>
   <dataset_example_samples max_count="3">
 {% if dataset_example_samples %}
 {% for example in dataset_example_samples %}
@@ -21,7 +21,7 @@
   <code_evaluator_argument_guidance>
     When authoring dataset-backed code evaluators, prefer direct `evaluate` parameters from `input`, `output`, `reference`, and `metadata`. Keep input mapping at its default unless the user explicitly asks for custom mapping. The simplest evaluator usually declares only `output`: use sampled dataset `output` as the representative value when designing or testing the evaluator, and remember that at experiment time `output` is the new run output produced for the dataset example.
     Treat the samples as shape evidence: identify the actual nested path used by the sampled `input`, `output`, or `metadata`, then write small helper functions in `evaluate` that parse that structure. Runtime values may arrive as dicts/lists or stringified JSON, so normalize strings with JSON parsing before traversal.
-    Use `reference` only when the user explicitly wants comparison against an expected/golden/subset signal. A reference may be distilled metadata or a partial target; do not assume it is the sampled dataset `output`.
+    Use `reference` for relational evaluators that compare the new run `output` against the dataset example `output` as expected/golden/subset data. For non-relational checks, omit `reference` and score only the new run `output`.
     For chat/agent datasets, do not assume a top-level `tool_calls`, `messages`, `final`, or `content` field. If the sample contains a message transcript, traverse the sampled shape (for example a `messages` array, assistant messages, content parts, `tool_calls`/`toolCalls`, or `function_call`) and make the evaluator robust to missing or alternate shapes.
   </code_evaluator_argument_guidance>
   <evaluator_authoring>

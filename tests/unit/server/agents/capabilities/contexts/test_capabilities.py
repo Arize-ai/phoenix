@@ -218,8 +218,8 @@ class TestDatasetContextCapabilityRender:
         assert "RGF0YXNldEV4YW1wbGU6MQ==" in content
         assert "<output>" in content
         assert "tool_calls" in content
-        assert "sampled dataset `output` as historical/example output" in content
-        assert "do not assume it is the evaluator `reference` argument" in content
+        assert "sampled dataset `output` as both shape evidence" in content
+        assert "passes as `reference` when evaluating a new run" in content
         assert "Keep input mapping at its default" in content
         assert "samples as shape evidence" in content
         assert "message transcript" in content
@@ -273,7 +273,8 @@ class TestCodeEvaluatorContextCapabilityRender:
         content = _render(capability, ctx)
         assert "`output` is the new experiment run output" in content
         assert "Sampled dataset `output` values are shape evidence" in content
-        assert "add `reference` only when the user explicitly wants comparison" in content
+        assert "passed as `reference` when evaluating a new run" in content
+        assert "Add `reference` for relational checks" in content
         assert "rather than relying on a custom input mapping" in content
         assert "sampled dataset examples as shape evidence" in content
         assert "chat-style `messages` arrays" in content
