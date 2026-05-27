@@ -1,14 +1,17 @@
 import { useSyncExternalStore } from "react";
 
 import {
+  DRAWER_CLASS_NAME,
   MODAL_OVERLAY_CLASS_NAME,
   MODAL_PORTAL_CONTAINER_ATTR,
   MODAL_PORTAL_CONTAINER_SELECTOR,
 } from "@phoenix/components/core/overlay/constants";
 
+const DRAWER_SELECTOR = `.${DRAWER_CLASS_NAME}`;
 const MODAL_OVERLAY_SELECTOR = `.${MODAL_OVERLAY_CLASS_NAME}`;
 
 let activeModalPortalContainerSnapshot: HTMLElement | null = null;
+let activeDrawerSnapshot: HTMLElement | null = null;
 let observer: MutationObserver | null = null;
 const listeners = new Set<() => void>();
 
@@ -33,6 +36,15 @@ export function getActiveModalOverlayElement() {
   return overlays.item(overlays.length - 1) ?? null;
 }
 
+export function getActiveDrawerElement() {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  const drawers = document.querySelectorAll<HTMLElement>(DRAWER_SELECTOR);
+  return drawers.item(drawers.length - 1) ?? null;
+}
+
 export function getActiveModalPortalContainerElement() {
   const overlay = getActiveModalOverlayElement();
   if (!overlay) {
@@ -52,11 +64,16 @@ export function getActiveModalPortalContainerElement() {
  * subscribers only when the container identity changes.
  */
 function emitIfChanged() {
-  const nextSnapshot = getActiveModalPortalContainerSnapshot();
-  if (nextSnapshot === activeModalPortalContainerSnapshot) {
+  const nextModalSnapshot = getActiveModalPortalContainerSnapshot();
+  const nextDrawerSnapshot = getActiveDrawerElement();
+  if (
+    nextModalSnapshot === activeModalPortalContainerSnapshot &&
+    nextDrawerSnapshot === activeDrawerSnapshot
+  ) {
     return;
   }
-  activeModalPortalContainerSnapshot = nextSnapshot;
+  activeModalPortalContainerSnapshot = nextModalSnapshot;
+  activeDrawerSnapshot = nextDrawerSnapshot;
   listeners.forEach((listener) => listener());
 }
 
@@ -72,6 +89,7 @@ function ensureObserver() {
   }
 
   activeModalPortalContainerSnapshot = getActiveModalPortalContainerSnapshot();
+  activeDrawerSnapshot = getActiveDrawerElement();
   observer = new MutationObserver(emitIfChanged);
   observer.observe(document.body, {
     childList: true,
@@ -119,6 +137,17 @@ function subscribe(listener: () => void) {
  */
 export function useHasOpenModal() {
   return useActiveModalPortalContainerElement() !== null;
+}
+
+/**
+ * Returns `true` while any Phoenix non-modal drawer is mounted.
+ */
+export function useHasOpenDrawer() {
+  return useSyncExternalStore(
+    subscribe,
+    () => getActiveDrawerElement() !== null,
+    () => false
+  );
 }
 
 /**

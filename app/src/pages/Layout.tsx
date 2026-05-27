@@ -29,7 +29,10 @@ import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
-import { useHasOpenModal } from "@phoenix/hooks/useHasOpenModal";
+import {
+  useHasOpenDrawer,
+  useHasOpenModal,
+} from "@phoenix/hooks/useHasOpenModal";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { LayoutLoaderData } from "./layoutLoader";
@@ -91,22 +94,19 @@ export function Layout() {
   const contentRef = useRef<HTMLDivElement>(null);
   const isAgentsEnabled = useFeatureFlag("agents");
   const isAgentPanelOpen = useAgentContext((state) => state.isOpen);
-  const activePanelLocation = useAgentContext(
-    (state) => state.activePanelLocation
-  );
   const agentPosition = useAgentContext((state) => state.position);
   const hasOpenModal = useHasOpenModal();
+  const hasOpenDrawer = useHasOpenDrawer();
+  const shouldForceFloatingAgentPanel = hasOpenModal || hasOpenDrawer;
   const shouldShowDockedAgentPanel =
     isAgentsEnabled &&
     isAgentPanelOpen &&
-    activePanelLocation === "docked" &&
     agentPosition === "pinned" &&
-    !hasOpenModal;
+    !shouldForceFloatingAgentPanel;
   const shouldShowFloatingAgentPanel =
     isAgentsEnabled &&
     isAgentPanelOpen &&
-    activePanelLocation === "docked" &&
-    (agentPosition === "detached" || hasOpenModal);
+    (agentPosition === "detached" || shouldForceFloatingAgentPanel);
   const panelIds = shouldShowDockedAgentPanel
     ? ["layout-content", "agent-chat"]
     : ["layout-content"];

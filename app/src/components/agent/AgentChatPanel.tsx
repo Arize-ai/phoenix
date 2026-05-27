@@ -11,6 +11,7 @@ import {
   DockedAgentChatFrame,
   FloatingAgentChatFrame,
 } from "./AgentChatPanelView";
+import { AgentChatWidgetButton } from "./AgentChatWidget";
 import { ChatView } from "./Chat";
 import {
   EMPTY_SESSION_DISPLAY_NAME,
@@ -37,7 +38,10 @@ type FloatingAgentChatPanelProps = {
 };
 
 type AgentChatSurfaceProps = {
-  renderFrame: (children: ReactNode) => ReactNode;
+  renderFrame: (
+    children: ReactNode,
+    options: { floatingAction?: ReactNode }
+  ) => ReactNode;
   /**
    * Whether the header should expose controls for switching between pinned and
    * detached assistant layouts.
@@ -81,8 +85,9 @@ export function FloatingAgentChatPanel({
   return (
     <AgentChatSurface
       showPositionControls={layer !== "modal"}
-      renderFrame={(children) => (
+      renderFrame={(children, { floatingAction }) => (
         <FloatingAgentChatFrame
+          floatingAction={floatingAction}
           layer={layer}
           placement={fabPlacement}
           size={panelSize}
@@ -190,7 +195,10 @@ function AgentChatController({
   handleModelChange: ReturnType<
     typeof useAgentChatPanelState
   >["handleModelChange"];
-  renderFrame: (children: ReactNode) => ReactNode;
+  renderFrame: (
+    children: ReactNode,
+    options: { floatingAction?: ReactNode }
+  ) => ReactNode;
 }) {
   const {
     messages,
@@ -244,6 +252,15 @@ function AgentChatController({
           ) : null}
         </ChatView>
       </Suspense>
-    </>
+    </>,
+    {
+      floatingAction:
+        position === "detached" ? (
+          <AgentChatWidgetButton
+            ariaLabel="Close assistant"
+            onPress={closePanel}
+          />
+        ) : undefined,
+    }
   );
 }

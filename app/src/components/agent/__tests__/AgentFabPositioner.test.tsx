@@ -24,15 +24,20 @@ function dispatchPointerEvent(
 }
 
 describe("AgentFabPositioner", () => {
-  let boundary: HTMLDivElement;
   let container: HTMLDivElement;
   let root: Root;
 
   beforeEach(() => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-    boundary = document.createElement("div");
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1200,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: 1000,
+    });
     container = document.createElement("div");
-    document.body.appendChild(boundary);
     document.body.appendChild(container);
     root = createRoot(container);
     vi.spyOn(window, "requestAnimationFrame").mockImplementation(
@@ -42,24 +47,12 @@ describe("AgentFabPositioner", () => {
       }
     );
     vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
-    vi.spyOn(boundary, "getBoundingClientRect").mockReturnValue({
-      bottom: 800,
-      height: 700,
-      left: 100,
-      right: 1000,
-      top: 100,
-      width: 900,
-      x: 100,
-      y: 100,
-      toJSON: () => ({}),
-    } as DOMRect);
   });
 
   afterEach(() => {
     act(() => {
       root.unmount();
     });
-    boundary.remove();
     container.remove();
     vi.restoreAllMocks();
     vi.useRealTimers();
@@ -87,7 +80,6 @@ describe("AgentFabPositioner", () => {
     act(() => {
       root.render(
         <AgentFabPositioner
-          boundaryRef={{ current: boundary }}
           placement={placement}
           size={{ width: 58, height: 36 }}
           onActivate={onActivate}
@@ -118,14 +110,14 @@ describe("AgentFabPositioner", () => {
       hasPointerCapture: vi.fn(() => true),
     });
     vi.spyOn(positioner!, "getBoundingClientRect").mockReturnValue({
-      bottom: 800,
+      bottom: 976,
       height: 36,
-      left: 906,
-      right: 964,
-      top: 740,
+      left: 1106,
+      right: 1164,
+      top: 940,
       width: 58,
-      x: 906,
-      y: 740,
+      x: 1106,
+      y: 940,
       toJSON: () => ({}),
     } as DOMRect);
 
@@ -141,8 +133,8 @@ describe("AgentFabPositioner", () => {
 
     act(() => {
       dispatchPointerEvent(positioner, "pointerdown", {
-        clientX: 935,
-        clientY: 758,
+        clientX: 1135,
+        clientY: 958,
       });
       dispatchPointerEvent(positioner, "pointermove", {
         clientX: 150,
@@ -167,8 +159,8 @@ describe("AgentFabPositioner", () => {
 
     act(() => {
       dispatchPointerEvent(button, "pointerdown", {
-        clientX: 935,
-        clientY: 758,
+        clientX: 1135,
+        clientY: 958,
       });
       dispatchPointerEvent(button, "pointermove", {
         clientX: 150,
@@ -189,12 +181,12 @@ describe("AgentFabPositioner", () => {
 
     act(() => {
       dispatchPointerEvent(button, "pointerdown", {
-        clientX: 935,
-        clientY: 758,
+        clientX: 1135,
+        clientY: 958,
       });
       dispatchPointerEvent(button, "pointerup", {
-        clientX: 935,
-        clientY: 758,
+        clientX: 1135,
+        clientY: 958,
       });
     });
 
@@ -207,8 +199,8 @@ describe("AgentFabPositioner", () => {
 
     act(() => {
       dispatchPointerEvent(button, "pointerdown", {
-        clientX: 935,
-        clientY: 758,
+        clientX: 1135,
+        clientY: 958,
       });
       dispatchPointerEvent(button, "pointermove", {
         clientX: 150,
@@ -229,8 +221,8 @@ describe("AgentFabPositioner", () => {
 
     act(() => {
       dispatchPointerEvent(positioner, "pointerdown", {
-        clientX: 935,
-        clientY: 758,
+        clientX: 1135,
+        clientY: 958,
       });
       dispatchPointerEvent(positioner, "pointermove", {
         clientX: 150,
@@ -252,12 +244,12 @@ describe("AgentFabPositioner", () => {
 
     act(() => {
       dispatchPointerEvent(positioner, "pointerdown", {
-        clientX: 935,
-        clientY: 758,
+        clientX: 1135,
+        clientY: 958,
       });
       dispatchPointerEvent(positioner, "pointerup", {
-        clientX: 935,
-        clientY: 758,
+        clientX: 1135,
+        clientY: 958,
       });
       button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
@@ -271,12 +263,12 @@ describe("AgentFabPositioner", () => {
 
     act(() => {
       dispatchPointerEvent(button, "pointerdown", {
-        clientX: 935,
-        clientY: 758,
+        clientX: 1135,
+        clientY: 958,
       });
       dispatchPointerEvent(button, "pointerup", {
-        clientX: 935,
-        clientY: 758,
+        clientX: 1135,
+        clientY: 958,
       });
       button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
@@ -291,8 +283,8 @@ describe("AgentFabPositioner", () => {
 
     act(() => {
       dispatchPointerEvent(positioner, "pointerdown", {
-        clientX: 935,
-        clientY: 758,
+        clientX: 1135,
+        clientY: 958,
       });
       dispatchPointerEvent(positioner, "pointermove", {
         clientX: 900,
@@ -304,6 +296,29 @@ describe("AgentFabPositioner", () => {
     expect(positioner.setPointerCapture).toHaveBeenCalledTimes(1);
   });
 
+  it("finishes a drag when pointer capture is lost", () => {
+    const onPlacementChange = vi.fn();
+    const { positioner } = renderPositioner({ onPlacementChange });
+
+    act(() => {
+      dispatchPointerEvent(positioner, "pointerdown", {
+        clientX: 1135,
+        clientY: 958,
+      });
+      dispatchPointerEvent(positioner, "pointermove", {
+        clientX: 150,
+        clientY: 140,
+      });
+      dispatchPointerEvent(positioner, "lostpointercapture", {
+        clientX: 150,
+        clientY: 140,
+      });
+    });
+
+    expect(onPlacementChange).toHaveBeenCalledWith("top-start");
+    expect(positioner.getAttribute("data-dragging")).toBeNull();
+  });
+
   it("does not suppress a later click when the drag release click was not emitted", () => {
     vi.useFakeTimers();
     const onClick = vi.fn();
@@ -311,8 +326,8 @@ describe("AgentFabPositioner", () => {
 
     act(() => {
       dispatchPointerEvent(positioner, "pointerdown", {
-        clientX: 935,
-        clientY: 758,
+        clientX: 1135,
+        clientY: 958,
       });
       dispatchPointerEvent(positioner, "pointermove", {
         clientX: 150,

@@ -111,7 +111,7 @@ export function AgentChatHeader({
       : "Pin assistant to side";
 
   return (
-    <div css={panelHeaderCSS}>
+    <div className="agent-chat-panel__header" css={panelHeaderCSS}>
       <Flex direction="row" alignItems="center" gap="size-50" minWidth={0}>
         <PxiGlyph
           fill="var(--global-text-color-900)"
@@ -227,12 +227,14 @@ export function DockedAgentChatFrame({ children }: { children: ReactNode }) {
  */
 export function FloatingAgentChatFrame({
   children,
+  floatingAction,
   layer = "content",
   placement,
   size = DEFAULT_FLOATING_AGENT_CHAT_SIZE,
   onSizeChange,
 }: {
   children: ReactNode;
+  floatingAction?: ReactNode;
   layer?: "content" | "modal";
   placement: AgentFabPlacement;
   size?: Size;
@@ -241,6 +243,7 @@ export function FloatingAgentChatFrame({
   const activeModalPortalContainer = useActiveModalPortalContainerElement();
   const panel = (
     <ResizableFloatingPanel
+      floatingAction={floatingAction}
       layer={layer}
       minSize={MIN_FLOATING_AGENT_CHAT_SIZE}
       placement={placement}

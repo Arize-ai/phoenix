@@ -14,6 +14,7 @@ import { DrawerContext } from "@phoenix/components/core/overlay/DrawerContext";
 import type { SizeValue } from "@phoenix/types/sizing";
 
 import {
+  DRAWER_CLASS_NAME,
   DRAWER_DEFAULT_MAX_SIZE,
   DRAWER_DEFAULT_MIN_SIZE,
   DRAWER_DEFAULT_SIZE,
@@ -306,6 +307,7 @@ export function Drawer({
         <div
           role="complementary"
           id={drawerId}
+          className={DRAWER_CLASS_NAME}
           aria-label="Detail drawer"
           css={drawerCSS}
           data-dragging={isDragging ? "true" : undefined}

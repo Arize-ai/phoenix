@@ -31,6 +31,12 @@ export const DRAWER_DEFAULT_MAX_SIZE: SizeValue = "95%";
 export const DRAWER_HARD_MIN_SIZE_PX = 320;
 
 /**
+ * Stable class added to every Phoenix drawer so app-level code can observe
+ * drawer presence without depending on individual route state.
+ */
+export const DRAWER_CLASS_NAME = "phoenix-drawer";
+
+/**
  * Stable class added to every Phoenix modal overlay so app-level code can
  * observe the topmost modal without depending on React Aria internals.
  */

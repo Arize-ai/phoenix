@@ -27,17 +27,6 @@ import type { ModelConfig } from "./playground/types";
  */
 export type AgentPosition = "detached" | "pinned";
 
-/**
- * Which surface currently hosts the agent chat panel.
- * - "docked": the resizable panel in the main layout
- * - "trace": the embedded panel inside a trace slideover
- *
- * When a surface mounts it claims the active location; the Layout uses this
- * to decide whether to render the docked panel (only when no other surface
- * has claimed the location).
- */
-export type AgentPanelLocation = "docked" | "trace";
-
 /** Pinned corner for the global PXI floating action button. */
 export type AgentFabPlacement =
   | "top-start"
@@ -139,13 +128,6 @@ export interface AgentProps {
   position: AgentPosition;
   /** Pinned corner for the global PXI floating action button. */
   fabPlacement: AgentFabPlacement;
-  /**
-   * Which surface currently hosts the agent chat panel.
-   * Defaults to "docked". Set to "trace" when a trace slideover mounts its
-   * own embedded chat panel, which suppresses the docked panel in Layout.
-   * This field is ephemeral and not persisted.
-   */
-  activePanelLocation: AgentPanelLocation;
   /** Ordered list of session IDs. */
   sessions: string[];
   /** ID of the currently active session, or null if none. */
@@ -171,7 +153,6 @@ export interface AgentState extends AgentProps {
   toggleOpen: () => void;
   setPosition: (position: AgentPosition) => void;
   setFabPlacement: (placement: AgentFabPlacement) => void;
-  setActivePanelLocation: (location: AgentPanelLocation) => void;
   createSession: () => string;
   deleteSession: (sessionId: string) => void;
   setActiveSession: (sessionId: string | null) => void;
@@ -344,7 +325,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     isOpen: false,
     position: "pinned",
     fabPlacement: "bottom-end",
-    activePanelLocation: "docked",
     sessions: [],
     activeSessionId: null,
     sessionMap: {},
@@ -368,11 +348,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     },
     setFabPlacement: (fabPlacement) => {
       set({ fabPlacement }, false, { type: "setFabPlacement" });
-    },
-    setActivePanelLocation: (location) => {
-      set({ activePanelLocation: location }, false, {
-        type: "setActivePanelLocation",
-      });
     },
     createSession: () => {
       const sessionId = generateUUID();
