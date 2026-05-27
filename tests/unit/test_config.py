@@ -9,10 +9,6 @@ from _pytest.monkeypatch import MonkeyPatch
 from starlette.datastructures import URL
 
 from phoenix.config import (
-    ENV_PHOENIX_ADMINS,
-    ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES,
-    ENV_PHOENIX_SQL_DATABASE_SCHEMA,
-    ENV_PHOENIX_SQL_DATABASE_URL,
     AssignableUserRoleName,
     OAuth2ClientConfig,
     ensure_working_dir_if_needed,
@@ -123,8 +119,8 @@ class TestGetEnvDatabaseSchema:
 
     @staticmethod
     def _clear_db_env(monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.delenv(ENV_PHOENIX_SQL_DATABASE_URL, raising=False)
-        monkeypatch.delenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA, raising=False)
+        monkeypatch.delenv("PHOENIX_SQL_DATABASE_URL", raising=False)
+        monkeypatch.delenv("PHOENIX_SQL_DATABASE_SCHEMA", raising=False)
         for key in (
             "PHOENIX_POSTGRES_USER",
             "PHOENIX_POSTGRES_PASSWORD",
@@ -138,28 +134,28 @@ class TestGetEnvDatabaseSchema:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         self._clear_db_env(monkeypatch)
-        monkeypatch.setenv(ENV_PHOENIX_SQL_DATABASE_URL, "sqlite:////tmp/phoenix.db")
-        monkeypatch.setenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA, "custom")
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_URL", "sqlite:////tmp/phoenix.db")
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_SCHEMA", "custom")
         assert get_env_database_schema() is None
 
     def test_postgres_unset_schema_returns_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
         self._clear_db_env(monkeypatch)
-        monkeypatch.setenv(ENV_PHOENIX_SQL_DATABASE_URL, self._PG_URL)
-        monkeypatch.delenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA, raising=False)
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_URL", self._PG_URL)
+        monkeypatch.delenv("PHOENIX_SQL_DATABASE_SCHEMA", raising=False)
         assert get_env_database_schema() is None
 
     def test_postgres_empty_string_schema_returns_none(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         self._clear_db_env(monkeypatch)
-        monkeypatch.setenv(ENV_PHOENIX_SQL_DATABASE_URL, self._PG_URL)
-        monkeypatch.setenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA, "")
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_URL", self._PG_URL)
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_SCHEMA", "")
         assert get_env_database_schema() is None
 
     def test_postgres_non_empty_schema_returned(self, monkeypatch: pytest.MonkeyPatch) -> None:
         self._clear_db_env(monkeypatch)
-        monkeypatch.setenv(ENV_PHOENIX_SQL_DATABASE_URL, self._PG_URL)
-        monkeypatch.setenv(ENV_PHOENIX_SQL_DATABASE_SCHEMA, "phoenix_app")
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_URL", self._PG_URL)
+        monkeypatch.setenv("PHOENIX_SQL_DATABASE_SCHEMA", "phoenix_app")
         assert get_env_database_schema() == "phoenix_app"
 
 
@@ -246,9 +242,9 @@ class TestGetEnvStartupAdmins:
         expected_result: dict[str, str],
     ) -> None:
         if env_value:
-            monkeypatch.setenv(ENV_PHOENIX_ADMINS, env_value)
+            monkeypatch.setenv("PHOENIX_ADMINS", env_value)
         else:
-            monkeypatch.delenv(ENV_PHOENIX_ADMINS, raising=False)
+            monkeypatch.delenv("PHOENIX_ADMINS", raising=False)
         result = get_env_admins()
         assert result == expected_result
 
@@ -312,7 +308,7 @@ class TestGetEnvStartupAdmins:
         env_value: str,
         expected_error_msg: str,
     ) -> None:
-        monkeypatch.setenv(ENV_PHOENIX_ADMINS, env_value)
+        monkeypatch.setenv("PHOENIX_ADMINS", env_value)
         with pytest.raises(ValueError) as e:
             get_env_admins()
         assert expected_error_msg in str(e.value)
@@ -844,38 +840,33 @@ def test_ensure_working_dir_if_needed_skips_when_no_local_storage(
     mkdir_spy.assert_not_called()
 
 
-def test_allow_external_resources_env_var_exists() -> None:
-    """Test that the ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES constant is properly defined."""
-    assert ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES == "PHOENIX_ALLOW_EXTERNAL_RESOURCES"
-
-
 def test_allow_external_resources_env_parsing(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that the environment variable parsing logic works correctly."""
     import os
 
     # Test default (env var not set) - should be True
-    monkeypatch.delenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, raising=False)
-    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "true"
+    monkeypatch.delenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", raising=False)
+    assert os.getenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "True").lower() == "true"
 
     # Test explicit True
-    monkeypatch.setenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True")
-    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "true"
+    monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "True")
+    assert os.getenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "True").lower() == "true"
 
     # Test explicit true (lowercase)
-    monkeypatch.setenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "true")
-    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "true"
+    monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "true")
+    assert os.getenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "True").lower() == "true"
 
     # Test explicit False
-    monkeypatch.setenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "False")
-    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "false"
+    monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "False")
+    assert os.getenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "True").lower() == "false"
 
     # Test explicit false (lowercase)
-    monkeypatch.setenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "false")
-    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() == "false"
+    monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "false")
+    assert os.getenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "True").lower() == "false"
 
     # Test invalid value - should be false (not "true")
-    monkeypatch.setenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "invalid")
-    assert os.getenv(ENV_PHOENIX_ALLOW_EXTERNAL_RESOURCES, "True").lower() != "true"
+    monkeypatch.setenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "invalid")
+    assert os.getenv("PHOENIX_ALLOW_EXTERNAL_RESOURCES", "True").lower() != "true"
 
 
 class TestOAuth2ClientConfigFromEnv:
@@ -2305,6 +2296,48 @@ class TestValidateEnvAllowedSandboxProviders:
 
         with pytest.raises(ValueError, match="VERCEL_PYTHON"):
             validate_env_allowed_sandbox_providers()
+
+
+class TestValidateEnvWasmBinaryPath:
+    def test_unset_does_not_raise(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
+        from phoenix.config import validate_env_wasm_binary_path
+
+        validate_env_wasm_binary_path()
+
+    def test_set_to_existing_file_does_not_raise(
+        self, tmp_path: Path, monkeypatch: MonkeyPatch
+    ) -> None:
+        binary = tmp_path / "python-3.12.0.wasm"
+        binary.write_bytes(b"fake wasm")
+        monkeypatch.setenv("PHOENIX_WASM_BINARY_PATH", str(binary))
+        from phoenix.config import validate_env_wasm_binary_path
+
+        validate_env_wasm_binary_path()
+
+    def test_set_to_missing_file_raises(self, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+        missing = tmp_path / "does-not-exist.wasm"
+        monkeypatch.setenv("PHOENIX_WASM_BINARY_PATH", str(missing))
+        from phoenix.config import validate_env_wasm_binary_path
+
+        with pytest.raises(ValueError, match="PHOENIX_WASM_BINARY_PATH"):
+            validate_env_wasm_binary_path()
+
+    def test_set_to_directory_raises(self, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv("PHOENIX_WASM_BINARY_PATH", str(tmp_path))
+        from phoenix.config import validate_env_wasm_binary_path
+
+        with pytest.raises(ValueError, match="PHOENIX_WASM_BINARY_PATH"):
+            validate_env_wasm_binary_path()
+
+    def test_set_to_empty_file_raises(self, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+        empty = tmp_path / "empty.wasm"
+        empty.touch()
+        monkeypatch.setenv("PHOENIX_WASM_BINARY_PATH", str(empty))
+        from phoenix.config import validate_env_wasm_binary_path
+
+        with pytest.raises(ValueError, match="empty"):
+            validate_env_wasm_binary_path()
 
 
 class TestPostgresConnectionStringManagedIdentity:
