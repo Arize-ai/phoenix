@@ -7,3 +7,5 @@ export * from "./useTimeTickFormatter";
 export * from "./useBinTimeTickFormatter";
 export * from "./colors";
 export * from "./binning";
+export * from "./timeTicks";
+export * from "./useTimeAxisTicks";

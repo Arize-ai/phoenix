@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type {
   CartesianGridProps,
   LabelProps,
@@ -6,6 +7,8 @@ import type {
   XAxisProps,
   YAxisProps,
 } from "recharts";
+
+import { NON_MODAL_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
 
 export const defaultCartesianGridProps: CartesianGridProps = {
   strokeDasharray: "4 4",
@@ -61,9 +64,23 @@ export const defaultBarChartTooltipProps: TooltipProps<any, any> = {
   },
 };
 
+export const defaultChartTooltipWrapperStyle: CSSProperties = {
+  zIndex: NON_MODAL_FLOATING_Z_INDEX,
+};
+
 export const defaultLegendProps: LegendProps = {
   align: "right",
+  wrapperStyle: {
+    userSelect: "none",
+  },
   formatter: (value) => (
-    <span style={{ color: "var(--chart-legend-text-color)" }}>{value}</span>
+    <span
+      style={{
+        color: "var(--chart-legend-text-color)",
+        userSelect: "none",
+      }}
+    >
+      {value}
+    </span>
   ),
 };
