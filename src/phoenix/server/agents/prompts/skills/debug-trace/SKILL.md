@@ -1,7 +1,7 @@
 ---
 name: debug-trace
 description: >
-  Use when the user wants to know what is going wrong with their LLM application or how to improve it — e.g., "what's wrong?", "were there errors?", "where is my agent struggling?", "is retrieval working?", "debug this". Do NOT trigger for general project understanding or trace filtering requests like "show me traces with errors", "describe the trace structure", or "tell me about this project" — those don't require cross-trace diagnosis. This is an expensive, multi-step operation (many GraphQL queries, trace sampling, open-coding, clustering) — only trigger it when the user is clearly asking for a diagnostic investigation, not on casual or ambiguous questions.
+  Diagnose failure modes by systematically investigating traces. Trigger when the user explicitly asks for cross-trace diagnosis: "what's going wrong?", "were there errors?", "debug this", "where is my agent struggling?". Do NOT trigger on: (1) advice questions ("what should I do?"), (2) statistical questions ("what's the average latency?"), (3) summarize requests, (4) trace filtering ("show me traces with errors"), (5) vague questions ("is there a problem?"), (6) unrelated requests.
 ---
 
 ### Orientation
