@@ -144,6 +144,13 @@ export function AgentChatHeader({
           onPress={onCreateSession}
           leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
         />
+        <LinkButton
+          variant="quiet"
+          size="S"
+          to="/settings/agents"
+          aria-label="Agent settings"
+          leadingVisual={<Icon svg={<Icons.OptionsOutline />} />}
+        />
         {position != null && onPositionChange != null ? (
           <Button
             variant="quiet"
@@ -153,19 +160,16 @@ export function AgentChatHeader({
             leadingVisual={
               <Icon
                 svg={
-                  position === "pinned" ? <Icons.SlideOut /> : <Icons.SlideIn />
+                  position === "pinned" ? (
+                    <Icons.CollapseOutline />
+                  ) : (
+                    <Icons.SidebarAttachRight />
+                  )
                 }
               />
             }
           />
         ) : null}
-        <LinkButton
-          variant="quiet"
-          size="S"
-          to="/settings/agents"
-          aria-label="Agent settings"
-          leadingVisual={<Icon svg={<Icons.OptionsOutline />} />}
-        />
         <Button
           variant="quiet"
           size="S"
