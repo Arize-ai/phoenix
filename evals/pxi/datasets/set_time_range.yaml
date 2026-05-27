@@ -1,72 +1,316 @@
 dataset_name: set_time_range
-description: PXI server-side eval suite for deferred set_time_range tool calls.
+description: >-
+  PXI eval suite for the deferred set_time_range tool. Covers preset enum
+  values, custom bounded and open-ended ranges, ambiguous relative time
+  requests, and negative cases where another tool or no tool should be used.
 evaluators:
   - correct_tools_called
   - tool_call_args_match
   - tool_call_count_within_limit
 examples:
-  - id: last-hour
+  - id: preset-15m
     splits: [regression]
     input:
-      contexts:
-        - type: app
-          currentDateTime: "2026-05-18T14:30:00-07:00"
-          timeZone: America/Los_Angeles
-        - type: graphql
-          mutationsEnabled: false
-        - type: project
-          projectNodeId: UHJvamVjdDoxMg==
-          spanFilter: ""
-          rootSpansOnly: true
       messages:
         - role: user
-          content: Show traces from the last hour.
+          content: Show me just the last 15 minutes.
     expected:
       tools:
         required: [set_time_range]
-        forbidden: [bash, ask_user, query_docs_filesystem_phoenix, search_phoenix]
       tool_call_args:
         set_time_range:
-          timeRangeKey: 1h
-      budgets:
-        max_tool_calls: 1
-    metadata:
-      category: relative_time
-      page: project_traces_table
-  - id: last-seven-days
+          timeRangeKey: "15m"
+    metadata: {}
+  - id: preset-1h
     splits: [regression]
     input:
-      contexts:
-        - type: app
-          currentDateTime: "2026-05-18T14:30:00-07:00"
-          timeZone: America/Los_Angeles
-        - type: graphql
-          mutationsEnabled: false
-        - type: project
-          projectNodeId: UHJvamVjdDoxMg==
-          spanFilter: ""
-          rootSpansOnly: true
       messages:
         - role: user
-          content: Show me traces from the last 7 days.
+          content: Filter this view to the last hour.
     expected:
       tools:
         required: [set_time_range]
-        forbidden: [bash, ask_user, query_docs_filesystem_phoenix, search_phoenix]
       tool_call_args:
         set_time_range:
-          timeRangeKey: 7d
-      budgets:
-        max_tool_calls: 1
+          timeRangeKey: "1h"
+    metadata: {}
+  - id: preset-12h
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: past 12 hrs only
+    expected:
+      tools:
+        required: [set_time_range]
+      tool_call_args:
+        set_time_range:
+          timeRangeKey: "12h"
+    metadata: {}
+  - id: preset-1d
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: I want the last 24 hours of traces.
+    expected:
+      tools:
+        required: [set_time_range]
+      tool_call_args:
+        set_time_range:
+          timeRangeKey: "1d"
+    metadata: {}
+  - id: preset-7d
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Can you set the range to the past week?
+    expected:
+      tools:
+        required: [set_time_range]
+      tool_call_args:
+        set_time_range:
+          timeRangeKey: "7d"
+    metadata: {}
+  - id: preset-30d
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: zoom out to the last month
+    expected:
+      tools:
+        required: [set_time_range]
+      tool_call_args:
+        set_time_range:
+          timeRangeKey: "30d"
+    metadata: {}
+  - id: custom-explicit-utc-range
+    # Prompt names exact UTC timestamps with Z; expected pins the literal
+    # canonical form. The model can still drift on offset rendering, but
+    # this example is here to detect that drift.
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Set the range from 2025-01-01T00:00:00Z to 2025-01-31T23:59:59Z.
+    expected:
+      tools:
+        required: [set_time_range]
+      tool_call_args:
+        set_time_range:
+          timeRangeKey: custom
+          startTime: "2025-01-01T00:00:00Z"
+          endTime: "2025-01-31T23:59:59Z"
+    metadata: {}
+  - id: custom-explicit-offset-range
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Show traces between 2025-03-10T08:30:00-07:00 and 2025-03-10T11:00:00-07:00.
+    expected:
+      tools:
+        required: [set_time_range]
+      tool_call_args:
+        set_time_range:
+          timeRangeKey: custom
+          startTime: "2025-03-10T08:30:00-07:00"
+          endTime: "2025-03-10T11:00:00-07:00"
+    metadata: {}
+  - id: custom-open-start
+    # Open-start interval: only endTime is required. The model may emit a
+    # startTime or omit it. We match on endTime only, leaving startTime
+    # unconstrained via subset semantics.
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Everything until 2025-04-01T00:00:00Z.
+    expected:
+      tools:
+        required: [set_time_range]
+      tool_call_args:
+        set_time_range:
+          timeRangeKey: custom
+          endTime: "2025-04-01T00:00:00Z"
+    metadata: {}
+  - id: custom-open-end
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Show traces since 2025-04-01T09:00:00Z.
+    expected:
+      tools:
+        required: [set_time_range]
+      tool_call_args:
+        set_time_range:
+          timeRangeKey: custom
+          startTime: "2025-04-01T09:00:00Z"
+    metadata: {}
+  - id: custom-specific-day
+    # Calendar-day bounds have valid inclusive (23:59:59), exclusive (next-day
+    # 00:00:00), and local-time (no offset) forms. Matchers accept any of them
+    # by pinning the date(s) only.
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: I need traces from January 15, 2025.
+    expected:
+      tools:
+        required: [set_time_range]
+      tool_call_args:
+        set_time_range:
+          timeRangeKey: custom
+          startTime:
+            contains_all: ["2025-01-15"]
+          endTime:
+            contains_any: ["2025-01-15T23", "2025-01-16"]
+    metadata: {}
+  - id: ambiguous-today
+    # "Today" can mean a rolling last-day window or the current calendar day.
+    # Accept either via variants.
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: just show today
+    expected:
+      tools:
+        required: [set_time_range]
+      tool_call_args:
+        set_time_range:
+          - { timeRangeKey: "1d" }
+          - { timeRangeKey: custom }
+    metadata: {}
+  - id: ambiguous-recent
+    # "Recent" has no canonical window; accept any short preset.
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: focus on recent traces
+    expected:
+      tools:
+        required: [set_time_range]
+      tool_call_args:
+        set_time_range:
+          - { timeRangeKey: "15m" }
+          - { timeRangeKey: "1h" }
+          - { timeRangeKey: "12h" }
+    metadata: {}
+  - id: negative-span-kind-filter
+    # Wrong-tool: span-kind filter belongs to set_spans_filter, not the
+    # global time range.
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Show me only LLM spans.
+    expected:
+      tools:
+        required: [set_spans_filter]
+        forbidden: [set_time_range]
     metadata:
-      category: relative_time
-      page: project_traces_table
+      negative: true
+  - id: negative-latency-filter
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: only spans that took more than five seconds
+    expected:
+      tools:
+        required: [set_spans_filter]
+        forbidden: [set_time_range]
+    metadata:
+      negative: true
+  - id: negative-prompt-clone
+    # Playground prompt tools are not exposed in the project-only eval
+    # context; should not call set_time_range.
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Clone the current prompt so I can compare a shorter version.
+    expected:
+      tools:
+        forbidden: [set_time_range]
+    metadata:
+      negative: true
+  - id: negative-read-current-prompt
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: What's in prompt A right now?
+    expected:
+      tools:
+        forbidden: [set_time_range]
+    metadata:
+      negative: true
+  - id: negative-longest-span
+    # Asks for analysis of span latency, not the time range selector.
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: Which span took the longest time to complete?
+    expected:
+      tools:
+        forbidden: [set_time_range]
+    metadata:
+      negative: true
+  - id: negative-explain-time-range
+    # Definitional docs lookups are valid, but the selector should not be
+    # changed.
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: What does the time range selector do?
+    expected:
+      tools:
+        forbidden: [set_time_range]
+    metadata:
+      negative: true
+  - id: negative-greeting
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: hey, what can you help me with?
+    expected:
+      tools:
+        required: []
+        forbidden: [set_time_range]
+        exact_match: true
+    metadata:
+      negative: true
+  - id: negative-thanks
+    splits: [regression]
+    input:
+      messages:
+        - role: user
+          content: thanks!
+    expected:
+      tools:
+        required: []
+        forbidden: [set_time_range]
+        exact_match: true
+    metadata:
+      negative: true
+  # ----- dev examples (context-aware / ambiguous calendar-time) -----
   - id: current-year
-    # "This year" pins the calendar boundaries (Jan 1 2026 -> Jan 1 2027)
-    # but the timestamp offset is genuinely ambiguous -- Jan 1 in LA is
-    # PST (-08:00), but the model could legitimately emit PDT (-07:00,
-    # the active offset on the currentDateTime), UTC (Z), or no offset
-    # at all. Score the dates; leave the offset/format unconstrained.
+    # "This year" pins the calendar boundaries (Jan 1 2026 -> Jan 1 2027) but
+    # the timestamp offset is genuinely ambiguous -- Jan 1 in LA is PST
+    # (-08:00), but the model could legitimately emit PDT (-07:00), UTC (Z),
+    # or no offset. Score the dates; leave offset/format unconstrained. The
+    # endTime accepts either end-exclusive (Jan 1 next year) or end-inclusive
+    # (Dec 31).
     splits: [dev]
     input:
       contexts:
@@ -91,16 +335,14 @@ examples:
           timeRangeKey: custom
           startTime:
             contains_all: ["2026-01-01"]
-          # End-exclusive (2027-01-01) and end-inclusive (2026-12-31) are both
-          # valid "end of 2026" representations; the model may pick either.
           endTime:
             contains_any: ["2027-01-01", "2026-12-31"]
       budgets:
         max_tool_calls: 1
-    metadata:
-      category: calendar_time
-      page: project_traces_table
+    metadata: {}
   - id: contextual-old-traces-date
+    # The prior turn primes the agent with "latest traces were April 3, 2026"
+    # so the agent can pick that day's window without re-discovering it.
     splits: [dev]
     input:
       contexts:
@@ -130,10 +372,7 @@ examples:
           startTime:
             contains_all: ["2026-04-03"]
           endTime:
-            contains_all: ["2026-04-04"]
+            contains_any: ["2026-04-03T23", "2026-04-04"]
       budgets:
         max_tool_calls: 1
-    metadata:
-      category: contextual_followup
-      source: curated_from_pxi_trace_review
-      page: project_traces_table
+    metadata: {}

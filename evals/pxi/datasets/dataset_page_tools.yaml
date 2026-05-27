@@ -30,10 +30,7 @@ examples:
           not_contains: [docs search]
       budgets:
         max_tool_calls: 1
-    metadata:
-      category: dataset_context
-      source: curated_from_pxi_trace_review
-      page: dataset_details
+    metadata: {}
   - id: latest-experiment-current-dataset
     splits: [dev]
     input:
@@ -60,10 +57,7 @@ examples:
           not_contains: [docs search]
       budgets:
         max_tool_calls: 1
-    metadata:
-      category: dataset_context
-      source: curated_from_pxi_trace_review
-      page: dataset_details
+    metadata: {}
   - id: dataset-splits
     splits: [dev]
     input:
@@ -90,10 +84,7 @@ examples:
           not_contains: [docs search]
       budgets:
         max_tool_calls: 1
-    metadata:
-      category: dataset_context
-      source: curated_from_pxi_trace_review
-      page: dataset_details
+    metadata: {}
   - id: examples-per-split
     splits: [dev]
     input:
@@ -120,7 +111,4 @@ examples:
           not_contains: [docs search]
       budgets:
         max_tool_calls: 1
-    metadata:
-      category: dataset_context
-      source: curated_from_pxi_trace_review
-      page: dataset_details
+    metadata: {}

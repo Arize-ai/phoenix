@@ -265,3 +265,17 @@ Use Python server evals for model-facing PXI behavior that can be measured from
 the server-owned agent output, including tool selection and deferred tool
 arguments. Use Playwright when the behavior depends on browser rendering,
 frontend dispatch, page state transitions, or visual/UI assertions.
+
+## CI
+
+The `PXI Evals` GitHub Actions workflow runs live regression evals against
+Phoenix Cloud. It runs on PRs that change `evals/**` or
+`src/phoenix/server/agents/**`, and maintainers can also run it manually from
+the Actions tab.
+
+The workflow invokes the runner for every YAML file in
+`evals/pxi/datasets/*.yaml` with `--splits regression` and
+`--fail-on-regression`. The runner skips datasets when the requested split has
+no regression examples. Each dataset run is printed as its own log group with
+the dataset file and CI experiment name. The workflow keeps going after
+individual dataset failures, and the final status is red if any dataset fails.

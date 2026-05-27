@@ -16,8 +16,7 @@ examples:
       links:
         required_in_app:
           - /settings/agents
-    metadata:
-      category: settings
+    metadata: {}
   - id: ai-provider-settings-link
     # Currently fails because the agent dispatches `bash` (deferred) in
     # parallel with `search_phoenix`, which terminates the agent run on
@@ -37,8 +36,7 @@ examples:
       links:
         required_in_app:
           - /settings/providers
-    metadata:
-      category: settings
+    metadata: {}
   - id: general-settings-link
     splits: [regression]
     input:
@@ -51,8 +49,7 @@ examples:
       links:
         required_in_app:
           - /settings/general
-    metadata:
-      category: settings
+    metadata: {}
   - id: dataset-resource-link
     # Tests that the agent can compose a dataset-experiments URL from
     # primed page-context filesystem content. Production PXI populates
@@ -90,7 +87,4 @@ examples:
       links:
         required_in_app:
           - /datasets/RGF0YXNldDox/experiments
-    metadata:
-      category: dynamic-resource
-      page: dataset_details
-      primed_tool_history: bash
+    metadata: {}
