@@ -2,7 +2,6 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import type { TooltipContentProps } from "recharts";
 import {
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -15,8 +14,10 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  InteractiveLegend,
   TimeRangeChartBrush,
   useBinTimeTickFormatter,
+  useInteractiveLegend,
 } from "@phoenix/components/chart";
 import {
   defaultCartesianGridProps,
@@ -62,7 +63,13 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
   return null;
 }
 
-function AnnotationLine({ name }: { name: string }) {
+function AnnotationLine({
+  isHidden,
+  name,
+}: {
+  isHidden: boolean;
+  name: string;
+}) {
   const color = useWordColor(name);
   return (
     <Line
@@ -72,6 +79,7 @@ function AnnotationLine({ name }: { name: string }) {
       strokeWidth={2}
       dot={{ r: 2 }}
       activeDot={{ r: 4 }}
+      hide={isHidden}
       name={name}
     />
   );
@@ -142,6 +150,8 @@ export function SpanAnnotationScoreTimeSeries({
   });
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+    useInteractiveLegend();
 
   return (
     <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
@@ -179,10 +189,22 @@ export function SpanAnnotationScoreTimeSeries({
             />
 
             {annotationNames.map((name) => {
-              return <AnnotationLine key={name} name={name} />;
+              return (
+                <AnnotationLine
+                  isHidden={isDataKeyHidden(name)}
+                  key={name}
+                  name={name}
+                />
+              );
             })}
 
-            <Legend {...defaultLegendProps} iconType="line" iconSize={8} />
+            <InteractiveLegend
+              {...defaultLegendProps}
+              hiddenDataKeys={hiddenDataKeys}
+              iconType="line"
+              iconSize={8}
+              onToggleDataKey={toggleDataKey}
+            />
           </LineChart>
         </ResponsiveContainer>
       )}

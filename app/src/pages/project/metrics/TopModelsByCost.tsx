@@ -5,7 +5,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -16,12 +15,14 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  InteractiveLegend,
   defaultCartesianGridProps,
   defaultLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
   truncateModelName,
   useCategoryChartColors,
+  useInteractiveLegend,
 } from "@phoenix/components/chart";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import { costFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -29,12 +30,7 @@ import { costFormatter } from "@phoenix/utils/numberFormatUtils";
 import type { TopModelsByCostQuery } from "./__generated__/TopModelsByCostQuery.graphql";
 
 function TooltipContent({ active, payload, label }: TooltipContentProps) {
-  const colors = useCategoryChartColors();
-
   if (active && payload && payload.length) {
-    const promptCost = payload[0]?.value ?? null;
-    const completionCost = payload[1]?.value ?? null;
-
     return (
       <ChartTooltip>
         {label && (
@@ -42,18 +38,15 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
             {String(label)}
           </Text>
         )}
-        <ChartTooltipItem
-          color={colors.category1}
-          shape="circle"
-          name="Prompt cost"
-          value={costFormatter(Number(promptCost))}
-        />
-        <ChartTooltipItem
-          color={colors.category2}
-          shape="circle"
-          name="Completion cost"
-          value={costFormatter(Number(completionCost))}
-        />
+        {payload.map((entry) => (
+          <ChartTooltipItem
+            color={entry.color ?? "transparent"}
+            key={String(entry.dataKey ?? entry.name)}
+            shape="circle"
+            name={String(entry.name ?? entry.dataKey ?? "unknown")}
+            value={costFormatter(Number(entry.value))}
+          />
+        ))}
       </ChartTooltip>
     );
   }
@@ -66,6 +59,8 @@ export function TopModelsByCost({
   timeRange,
 }: ProjectMetricViewProps) {
   const colors = useCategoryChartColors();
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+    useInteractiveLegend();
 
   const data = useLazyLoadQuery<TopModelsByCostQuery>(
     graphql`
@@ -141,16 +136,26 @@ export function TopModelsByCost({
         <Bar
           dataKey="prompt_cost"
           fill={colors.category1}
+          hide={isDataKeyHidden("prompt_cost")}
+          name="Prompt cost"
           stackId="a"
           radius={[2, 0, 0, 2]}
         />
         <Bar
           dataKey="completion_cost"
           fill={colors.category2}
+          hide={isDataKeyHidden("completion_cost")}
+          name="Completion cost"
           stackId="a"
           radius={[0, 2, 2, 0]}
         />
-        <Legend {...defaultLegendProps} iconType="circle" iconSize={8} />
+        <InteractiveLegend
+          {...defaultLegendProps}
+          hiddenDataKeys={hiddenDataKeys}
+          iconType="circle"
+          iconSize={8}
+          onToggleDataKey={toggleDataKey}
+        />
       </BarChart>
     </ResponsiveContainer>
   );

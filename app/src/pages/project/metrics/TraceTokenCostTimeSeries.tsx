@@ -4,7 +4,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -15,6 +14,7 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  InteractiveLegend,
   TimeRangeChartBrush,
   defaultCartesianGridProps,
   defaultLegendProps,
@@ -22,6 +22,7 @@ import {
   defaultYAxisProps,
   useBinTimeTickFormatter,
   useCategoryChartColors,
+  useInteractiveLegend,
 } from "@phoenix/components/chart";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
@@ -35,13 +36,8 @@ import {
 import type { TraceTokenCostTimeSeriesQuery } from "./__generated__/TraceTokenCostTimeSeriesQuery.graphql";
 
 function TooltipContent({ active, payload, label }: TooltipContentProps) {
-  const chartColors = useCategoryChartColors();
   const { fullTimeFormatter } = useTimeFormatters();
   if (active && payload && payload.length) {
-    const promptValue = payload[0]?.value;
-    const completionValue = payload[1]?.value;
-    const promptString = costFormatter(Number(promptValue));
-    const completionString = costFormatter(Number(completionValue));
     return (
       <ChartTooltip>
         {label && (
@@ -49,18 +45,18 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
             new Date(Number(label))
           )}`}</Text>
         )}
-        <ChartTooltipItem
-          color={chartColors.category1}
-          shape="circle"
-          name="prompt"
-          value={promptString}
-        />
-        <ChartTooltipItem
-          color={chartColors.category2}
-          shape="circle"
-          name="completion"
-          value={completionString}
-        />
+        {payload.map((entry) => {
+          const name = String(entry.dataKey ?? entry.name ?? "unknown");
+          return (
+            <ChartTooltipItem
+              color={entry.color ?? "transparent"}
+              key={name}
+              shape="circle"
+              name={name}
+              value={costFormatter(Number(entry.value))}
+            />
+          );
+        })}
       </ChartTooltip>
     );
   }
@@ -128,6 +124,8 @@ export function TraceTokenCostTimeSeries({
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
 
   const colors = useCategoryChartColors();
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+    useInteractiveLegend();
   return (
     <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
       {({ chartProps }) => (
@@ -164,15 +162,27 @@ export function TraceTokenCostTimeSeries({
               // TODO formalize this
               cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
             />
-            <Bar dataKey="prompt" stackId="a" fill={colors.category1} />
+            <Bar
+              dataKey="prompt"
+              stackId="a"
+              fill={colors.category1}
+              hide={isDataKeyHidden("prompt")}
+            />
             <Bar
               dataKey="completion"
               stackId="a"
               fill={colors.category2}
+              hide={isDataKeyHidden("completion")}
               radius={[2, 2, 0, 0]}
             />
 
-            <Legend {...defaultLegendProps} iconType="circle" iconSize={8} />
+            <InteractiveLegend
+              {...defaultLegendProps}
+              hiddenDataKeys={hiddenDataKeys}
+              iconType="circle"
+              iconSize={8}
+              onToggleDataKey={toggleDataKey}
+            />
           </BarChart>
         </ResponsiveContainer>
       )}

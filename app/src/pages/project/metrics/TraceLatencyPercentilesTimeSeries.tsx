@@ -1,10 +1,8 @@
-import { useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
-import type { LegendProps, TooltipContentProps } from "recharts";
+import type { TooltipContentProps } from "recharts";
 import {
   CartesianGrid,
   ComposedChart,
-  Legend,
   Line,
   ResponsiveContainer,
   Tooltip,
@@ -16,7 +14,9 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  InteractiveLegend,
   TimeRangeChartBrush,
+  useInteractiveLegend,
   useBinTimeTickFormatter,
   useSequentialChartColors,
 } from "@phoenix/components/chart";
@@ -128,23 +128,8 @@ export function TraceLatencyPercentilesTimeSeries({
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
 
   const colors = useSequentialChartColors();
-
-  // Legend interactivity
-  const [chartState, setChartState] = useState<Record<string, boolean>>({
-    p50: false,
-    p75: false,
-    p90: false,
-    p95: false,
-    p99: false,
-    p999: false,
-    max: false,
-  });
-  const selectChartItem: LegendProps["onClick"] = (e) => {
-    setChartState({
-      ...chartState,
-      [String(e.dataKey)]: !chartState[e.dataKey as string],
-    });
-  };
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+    useInteractiveLegend();
 
   return (
     <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
@@ -183,7 +168,7 @@ export function TraceLatencyPercentilesTimeSeries({
               strokeWidth={1}
               activeDot={{ r: 4 }}
               name="P50"
-              hide={chartState["p50"]}
+              hide={isDataKeyHidden("p50")}
             />
             <Line
               type="monotone"
@@ -193,7 +178,7 @@ export function TraceLatencyPercentilesTimeSeries({
               dot={{ r: 2 }}
               activeDot={{ r: 4 }}
               name="P75"
-              hide={chartState["p75"]}
+              hide={isDataKeyHidden("p75")}
             />
             <Line
               type="monotone"
@@ -203,7 +188,7 @@ export function TraceLatencyPercentilesTimeSeries({
               dot={{ r: 2 }}
               activeDot={{ r: 4 }}
               name="P90"
-              hide={chartState["p90"]}
+              hide={isDataKeyHidden("p90")}
             />
             <Line
               type="monotone"
@@ -213,7 +198,7 @@ export function TraceLatencyPercentilesTimeSeries({
               dot={{ r: 2 }}
               activeDot={{ r: 4 }}
               name="P95"
-              hide={chartState["p95"]}
+              hide={isDataKeyHidden("p95")}
             />
             <Line
               type="monotone"
@@ -223,7 +208,7 @@ export function TraceLatencyPercentilesTimeSeries({
               dot={{ r: 2 }}
               activeDot={{ r: 4 }}
               name="P99"
-              hide={chartState["p99"]}
+              hide={isDataKeyHidden("p99")}
             />
             <Line
               type="monotone"
@@ -233,7 +218,7 @@ export function TraceLatencyPercentilesTimeSeries({
               dot={{ r: 2 }}
               activeDot={{ r: 4 }}
               name="P99.9"
-              hide={chartState["p999"]}
+              hide={isDataKeyHidden("p999")}
             />
             <Line
               type="monotone"
@@ -244,13 +229,14 @@ export function TraceLatencyPercentilesTimeSeries({
               dot={{ r: 2 }}
               activeDot={{ r: 4 }}
               name="Max"
-              hide={chartState["max"]}
+              hide={isDataKeyHidden("max")}
             />
-            <Legend
+            <InteractiveLegend
               {...defaultLegendProps}
+              hiddenDataKeys={hiddenDataKeys}
               iconType="line"
               iconSize={8}
-              onClick={selectChartItem}
+              onToggleDataKey={toggleDataKey}
             />
             <Tooltip
               content={TooltipContent}

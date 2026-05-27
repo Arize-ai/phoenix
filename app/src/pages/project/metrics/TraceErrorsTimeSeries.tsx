@@ -4,7 +4,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -15,12 +14,14 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  InteractiveLegend,
   TimeRangeChartBrush,
   defaultCartesianGridProps,
   defaultLegendProps,
   defaultTimeXAxisProps,
   defaultYAxisProps,
   useBinTimeTickFormatter,
+  useInteractiveLegend,
   useSemanticChartColors,
 } from "@phoenix/components/chart";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
@@ -117,6 +118,8 @@ export function TraceErrorsTimeSeries({
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
 
   const SemanticChartColors = useSemanticChartColors();
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+    useInteractiveLegend();
   return (
     <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
       {({ chartProps }) => (
@@ -157,10 +160,17 @@ export function TraceErrorsTimeSeries({
               dataKey="error"
               stackId="a"
               fill={SemanticChartColors.danger}
+              hide={isDataKeyHidden("error")}
               radius={[2, 2, 0, 0]}
             />
 
-            <Legend {...defaultLegendProps} iconType="circle" iconSize={8} />
+            <InteractiveLegend
+              {...defaultLegendProps}
+              hiddenDataKeys={hiddenDataKeys}
+              iconType="circle"
+              iconSize={8}
+              onToggleDataKey={toggleDataKey}
+            />
           </BarChart>
         </ResponsiveContainer>
       )}
