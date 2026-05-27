@@ -131,7 +131,6 @@ export type BindPendingCodeEvaluatorEditOptions = {
  */
 export type PendingCodeEvaluatorCreateDatasetSnapshot = {
   datasetNodeId: string;
-  datasetVersionNodeId: string | null;
 };
 
 /**

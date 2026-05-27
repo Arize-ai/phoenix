@@ -142,7 +142,6 @@ function readActiveDatasetContext(
   if (!dataset || dataset.type !== "dataset") return null;
   return {
     datasetNodeId: dataset.datasetNodeId,
-    datasetVersionNodeId: dataset.datasetVersionNodeId ?? null,
   };
 }
 

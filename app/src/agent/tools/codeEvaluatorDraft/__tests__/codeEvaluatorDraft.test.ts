@@ -267,7 +267,6 @@ describe("pending create two-phase chassis", () => {
 
   const datasetContext: PendingCodeEvaluatorCreateDatasetSnapshot = {
     datasetNodeId: "ds-1",
-    datasetVersionNodeId: null,
   };
 
   function makeBound() {
