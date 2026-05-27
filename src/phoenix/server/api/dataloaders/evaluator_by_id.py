@@ -1,6 +1,7 @@
 from typing import Optional
 
 from sqlalchemy import select
+from sqlalchemy.orm import with_polymorphic
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
@@ -22,8 +23,12 @@ class EvaluatorByIdDataLoader(DataLoader[Key, Result]):
         evaluators_by_id: dict[Key, models.Evaluator] = {}
 
         async with self._db() as session:
+            evaluator_model = with_polymorphic(
+                models.Evaluator,
+                [models.LLMEvaluator, models.CodeEvaluator, models.BuiltinEvaluator],
+            )
             data = await session.stream_scalars(
-                select(models.Evaluator).where(models.Evaluator.id.in_(evaluator_ids))
+                select(evaluator_model).where(evaluator_model.id.in_(evaluator_ids))
             )
             async for evaluator in data:
                 evaluators_by_id[evaluator.id] = evaluator
