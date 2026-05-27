@@ -14,6 +14,7 @@ import {
 } from "@phoenix/components/core/zIndex";
 import type { AgentFabPlacement } from "@phoenix/store/agentStore";
 import type { Point, Size } from "@phoenix/types/geometry";
+import { clampNumber } from "@phoenix/utils/numberUtils";
 
 import { useModalFloatingLayerInteractivity } from "./useModalFloatingLayerInteractivity";
 
@@ -58,10 +59,6 @@ export type ResizableFloatingPanelProps = {
   size: Size;
   onSizeChange?: (size: Size) => void;
 };
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
-}
 
 function getResizeHandles(placement: AgentFabPlacement): ResizeHandleConfig[] {
   return [
@@ -183,21 +180,21 @@ function getResizedPanelSize({
       session.edge === "left"
         ? session.startPointer.x - pointer.x
         : pointer.x - session.startPointer.x;
-    nextSize.width = clamp(
-      session.startSize.width + delta,
-      session.limits.minWidth,
-      session.limits.maxWidth
-    );
+    nextSize.width = clampNumber({
+      value: session.startSize.width + delta,
+      min: session.limits.minWidth,
+      max: session.limits.maxWidth,
+    });
   } else {
     const delta =
       session.edge === "top"
         ? session.startPointer.y - pointer.y
         : pointer.y - session.startPointer.y;
-    nextSize.height = clamp(
-      session.startSize.height + delta,
-      session.limits.minHeight,
-      session.limits.maxHeight
-    );
+    nextSize.height = clampNumber({
+      value: session.startSize.height + delta,
+      min: session.limits.minHeight,
+      max: session.limits.maxHeight,
+    });
   }
 
   return nextSize;
@@ -434,8 +431,16 @@ export function ResizableFloatingPanel({
     })
   ) => {
     onSizeChange?.({
-      height: clamp(nextSize.height, limits.minHeight, limits.maxHeight),
-      width: clamp(nextSize.width, limits.minWidth, limits.maxWidth),
+      height: clampNumber({
+        value: nextSize.height,
+        min: limits.minHeight,
+        max: limits.maxHeight,
+      }),
+      width: clampNumber({
+        value: nextSize.width,
+        min: limits.minWidth,
+        max: limits.maxWidth,
+      }),
     });
   };
   const flushPendingSize = () => {

@@ -175,6 +175,7 @@ export function ProjectMetricsPage() {
   }
 
   const epochTimeRange = useClosedTimeRange();
+  const { setCustomTimeRange } = useTimeRange();
 
   return (
     <main
@@ -185,16 +186,22 @@ export function ProjectMetricsPage() {
         overflow-y: auto;
       `}
     >
-      <MetricPanels projectId={projectId} epochTimeRange={epochTimeRange} />
+      <MetricPanels
+        projectId={projectId}
+        epochTimeRange={epochTimeRange}
+        onTimeRangeSelected={setCustomTimeRange}
+      />
     </main>
   );
 }
 const MetricPanels = memo(function MetricPanels({
   projectId,
   epochTimeRange,
+  onTimeRangeSelected,
 }: {
   projectId: string;
   epochTimeRange: EpochTimeRange;
+  onTimeRangeSelected: (timeRange: TimeRange) => void;
 }) {
   const timeRange = useMemo(
     () => ({
@@ -217,13 +224,21 @@ const MetricPanels = memo(function MetricPanels({
           title="Traces over time"
           subtitle="Overall volume of traces"
         >
-          <TraceCountTimeSeries projectId={projectId} timeRange={timeRange} />
+          <TraceCountTimeSeries
+            projectId={projectId}
+            timeRange={timeRange}
+            onTimeRangeSelected={onTimeRangeSelected}
+          />
         </MetricPanel>
         <MetricPanel
           title="Traces with errors"
           subtitle="Overall volume of traces with errors"
         >
-          <TraceErrorsTimeSeries projectId={projectId} timeRange={timeRange} />
+          <TraceErrorsTimeSeries
+            projectId={projectId}
+            timeRange={timeRange}
+            onTimeRangeSelected={onTimeRangeSelected}
+          />
         </MetricPanel>
       </Flex>
       <Flex direction="row" gap="size-200">
@@ -231,6 +246,7 @@ const MetricPanels = memo(function MetricPanels({
           <TraceLatencyPercentilesTimeSeries
             projectId={projectId}
             timeRange={timeRange}
+            onTimeRangeSelected={onTimeRangeSelected}
           />
         </MetricPanel>
         <MetricPanel
@@ -240,6 +256,7 @@ const MetricPanels = memo(function MetricPanels({
           <SpanAnnotationScoreTimeSeries
             projectId={projectId}
             timeRange={timeRange}
+            onTimeRangeSelected={onTimeRangeSelected}
           />
         </MetricPanel>
       </Flex>
@@ -248,6 +265,7 @@ const MetricPanels = memo(function MetricPanels({
           <TraceTokenCostTimeSeries
             projectId={projectId}
             timeRange={timeRange}
+            onTimeRangeSelected={onTimeRangeSelected}
           />
         </MetricPanel>
         <MetricPanel title="Top models by cost">
@@ -262,6 +280,7 @@ const MetricPanels = memo(function MetricPanels({
           <TraceTokenCountTimeSeries
             projectId={projectId}
             timeRange={timeRange}
+            onTimeRangeSelected={onTimeRangeSelected}
           />
         </MetricPanel>
         <MetricPanel title="Top models by tokens">
@@ -270,7 +289,11 @@ const MetricPanels = memo(function MetricPanels({
       </Flex>
       <Flex direction="row" gap="size-200">
         <MetricPanel title="LLM spans" subtitle="LLM span count over time">
-          <LLMSpanCountTimeSeries projectId={projectId} timeRange={timeRange} />
+          <LLMSpanCountTimeSeries
+            projectId={projectId}
+            timeRange={timeRange}
+            onTimeRangeSelected={onTimeRangeSelected}
+          />
         </MetricPanel>
         <MetricPanel
           title="LLM spans with errors"
@@ -279,6 +302,7 @@ const MetricPanels = memo(function MetricPanels({
           <LLMSpanErrorsTimeSeries
             projectId={projectId}
             timeRange={timeRange}
+            onTimeRangeSelected={onTimeRangeSelected}
           />
         </MetricPanel>
       </Flex>
@@ -287,6 +311,7 @@ const MetricPanels = memo(function MetricPanels({
           <ToolSpanCountTimeSeries
             projectId={projectId}
             timeRange={timeRange}
+            onTimeRangeSelected={onTimeRangeSelected}
           />
         </MetricPanel>
         <MetricPanel
@@ -296,6 +321,7 @@ const MetricPanels = memo(function MetricPanels({
           <ToolSpanErrorsTimeSeries
             projectId={projectId}
             timeRange={timeRange}
+            onTimeRangeSelected={onTimeRangeSelected}
           />
         </MetricPanel>
       </Flex>

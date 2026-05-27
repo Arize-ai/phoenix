@@ -17,14 +17,15 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  SparklineSkeleton,
+  TimeRangeChartBrush,
   defaultCartesianGridProps,
-  defaultXAxisProps,
+  defaultTimeXAxisProps,
   defaultYAxisProps,
   useBinTimeTickFormatter,
   useSemanticChartColors,
   useSequentialChartColors,
 } from "@phoenix/components/chart";
-import { useBinInterval } from "@phoenix/components/chart/useBinInterval";
 import { useTimeRange } from "@phoenix/components/datetime";
 import { useStreamState } from "@phoenix/contexts/StreamStateContext";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
@@ -39,6 +40,20 @@ const SPARKLINE_AXIS_STYLE = {
   fontSize: 10,
 };
 
+function getTooltipLabelDate(label: unknown) {
+  if (label instanceof Date) {
+    return label;
+  }
+  if (typeof label === "number") {
+    return new Date(label);
+  }
+  const numericLabel = Number(label);
+  if (Number.isFinite(numericLabel)) {
+    return new Date(numericLabel);
+  }
+  return new Date(String(label));
+}
+
 function TooltipContent({ active, payload, label }: TooltipContentProps) {
   const { fullTimeFormatter } = useTimeFormatters();
   if (!active || !payload || !payload.length) return null;
@@ -50,7 +65,7 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
     <ChartTooltip>
       {label != null && (
         <Text weight="heavy" size="S">
-          {fullTimeFormatter(new Date(String(label)))}
+          {fullTimeFormatter(getTooltipLabelDate(label))}
         </Text>
       )}
       <ChartTooltipItem
@@ -71,7 +86,7 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
 
 export function ProjectTraceCountSparkline() {
   const { projectId } = useParams();
-  const { timeRange } = useTimeRange();
+  const { timeRange, setCustomTimeRange } = useTimeRange();
   const { fetchKey } = useStreamState();
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
@@ -116,7 +131,7 @@ export function ProjectTraceCountSparkline() {
   const chartData = useMemo(
     () =>
       (data.project.traceCountByStatusTimeSeries?.data ?? []).map((datum) => ({
-        timestamp: new Date(datum.timestamp),
+        timestamp: new Date(datum.timestamp).getTime(),
         ok: datum.okCount,
         error: datum.errorCount,
       })),
@@ -124,53 +139,67 @@ export function ProjectTraceCountSparkline() {
   );
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
-  const interval = useBinInterval({ scale });
   const colors = useSequentialChartColors();
   const semanticColors = useSemanticChartColors();
 
   return (
     <div css={sparklineCSS}>
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={chartData}
-          margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
-          barSize={6}
-        >
-          <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
-          <XAxis
-            {...defaultXAxisProps}
-            dataKey="timestamp"
-            interval={interval}
-            tickFormatter={(x) => timeTickFormatter(new Date(x))}
-            tickSize={3}
-            tickMargin={2}
-            height={16}
-            style={SPARKLINE_AXIS_STYLE}
-          />
-          <YAxis
-            {...defaultYAxisProps}
-            tickFormatter={(x) => intFormatter(x)}
-            axisLine={false}
-            tickSize={3}
-            width={24}
-            tickCount={3}
-            style={SPARKLINE_AXIS_STYLE}
-          />
-          <Tooltip
-            content={TooltipContent}
-            cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
-            allowEscapeViewBox={{ x: true, y: true }}
-            wrapperStyle={{ zIndex: 100 }}
-          />
-          <Bar dataKey="error" stackId="a" fill={semanticColors.danger} />
-          <Bar
-            dataKey="ok"
-            stackId="a"
-            fill={colors.gray300}
-            radius={[2, 2, 0, 0]}
-          />
-        </BarChart>
-      </ResponsiveContainer>
+      <TimeRangeChartBrush onTimeRangeSelected={setCustomTimeRange}>
+        {({ chartProps }) => (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={chartData}
+              margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
+              barSize={10}
+              {...chartProps}
+            >
+              <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
+              <XAxis
+                {...defaultTimeXAxisProps}
+                domain={[
+                  timeRange.start?.getTime() ?? "dataMin",
+                  timeRange.end?.getTime() ?? "dataMax",
+                ]}
+                tickFormatter={(x) => timeTickFormatter(new Date(x))}
+                tickSize={3}
+                tickMargin={2}
+                height={16}
+                style={SPARKLINE_AXIS_STYLE}
+              />
+              <YAxis
+                {...defaultYAxisProps}
+                tickFormatter={(x) => intFormatter(x)}
+                axisLine={false}
+                tickSize={3}
+                width={24}
+                tickCount={3}
+                style={SPARKLINE_AXIS_STYLE}
+              />
+              <Tooltip
+                content={TooltipContent}
+                cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+                allowEscapeViewBox={{ x: true, y: true }}
+                wrapperStyle={{ zIndex: 100 }}
+              />
+              <Bar dataKey="error" stackId="a" fill={semanticColors.danger} />
+              <Bar
+                dataKey="ok"
+                stackId="a"
+                fill={colors.gray300}
+                radius={[2, 2, 0, 0]}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </TimeRangeChartBrush>
+    </div>
+  );
+}
+
+export function ProjectTraceCountSparklineSkeleton() {
+  return (
+    <div css={sparklineCSS}>
+      <SparklineSkeleton />
     </div>
   );
 }

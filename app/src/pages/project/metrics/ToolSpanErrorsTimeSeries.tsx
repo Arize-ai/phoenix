@@ -15,11 +15,11 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  TimeRangeChartBrush,
   defaultCartesianGridProps,
   defaultLegendProps,
-  defaultXAxisProps,
+  defaultTimeXAxisProps,
   defaultYAxisProps,
-  useBinInterval,
   useBinTimeTickFormatter,
   useSemanticChartColors,
 } from "@phoenix/components/chart";
@@ -44,7 +44,7 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
       <ChartTooltip>
         {label && (
           <Text weight="heavy" size="S">{`${fullTimeFormatter(
-            new Date(label)
+            new Date(Number(label))
           )}`}</Text>
         )}
         <ChartTooltipItem
@@ -63,6 +63,7 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
 export function ToolSpanErrorsTimeSeries({
   projectId,
   timeRange,
+  onTimeRangeSelected,
 }: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
@@ -107,57 +108,60 @@ export function ToolSpanErrorsTimeSeries({
 
   const chartData = (data.project.spanCountTimeSeries?.data ?? []).map(
     (datum) => ({
-      timestamp: datum.timestamp,
+      timestamp: new Date(datum.timestamp).getTime(),
       error: datum.errorCount,
     })
   );
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
-  const interval = useBinInterval({ scale });
   const SemanticChartColors = useSemanticChartColors();
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <BarChart
-        data={chartData}
-        margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
-        barSize={10}
-        syncId={"projectMetrics"}
-      >
-        <XAxis
-          {...defaultXAxisProps}
-          dataKey="timestamp"
-          interval={interval}
-          tickFormatter={(x) => timeTickFormatter(new Date(x))}
-        />
-        <YAxis
-          {...defaultYAxisProps}
-          width={55}
-          tickFormatter={(x) => intShortFormatter(x)}
-          label={{
-            value: "Count",
-            angle: -90,
-            dx: -28,
-            style: {
-              textAnchor: "middle",
-              fill: "var(--chart-axis-label-color)",
-            },
-          }}
-        />
-        <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
-        <Tooltip
-          content={TooltipContent}
-          // TODO formalize this
-          cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
-        />
-        <Bar
-          dataKey="error"
-          stackId="a"
-          fill={SemanticChartColors.danger}
-          radius={[2, 2, 0, 0]}
-        />
+    <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
+      {({ chartProps }) => (
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={chartData}
+            margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
+            barSize={10}
+            syncId={"projectMetrics"}
+            {...chartProps}
+          >
+            <XAxis
+              {...defaultTimeXAxisProps}
+              domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
+              tickFormatter={(x) => timeTickFormatter(new Date(x))}
+            />
+            <YAxis
+              {...defaultYAxisProps}
+              width={55}
+              tickFormatter={(x) => intShortFormatter(x)}
+              label={{
+                value: "Count",
+                angle: -90,
+                dx: -28,
+                style: {
+                  textAnchor: "middle",
+                  fill: "var(--chart-axis-label-color)",
+                },
+              }}
+            />
+            <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
+            <Tooltip
+              content={TooltipContent}
+              // TODO formalize this
+              cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+            />
+            <Bar
+              dataKey="error"
+              stackId="a"
+              fill={SemanticChartColors.danger}
+              radius={[2, 2, 0, 0]}
+            />
 
-        <Legend {...defaultLegendProps} iconType="circle" iconSize={8} />
-      </BarChart>
-    </ResponsiveContainer>
+            <Legend {...defaultLegendProps} iconType="circle" iconSize={8} />
+          </BarChart>
+        </ResponsiveContainer>
+      )}
+    </TimeRangeChartBrush>
   );
 }
