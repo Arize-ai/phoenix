@@ -125,9 +125,10 @@ export type BindPendingCodeEvaluatorEditOptions = {
 };
 
 /**
- * Dataset surface state captured at create-proposal-propose time. Carried on
- * the handoff variant so the dataset evaluators page can route the slideover
- * to the correct dataset on mount.
+ * Dataset surface state captured at create-proposal-propose time. The Accept
+ * handler reads it off the pending entry and threads it through dispatch so
+ * the chained `createDatasetCodeEvaluator` targets the dataset that was active
+ * when the proposal was made, not whatever surface is mounted at accept time.
  */
 export type PendingCodeEvaluatorCreateDatasetSnapshot = {
   datasetNodeId: string;
@@ -135,71 +136,29 @@ export type PendingCodeEvaluatorCreateDatasetSnapshot = {
 };
 
 /**
- * Non-dataset create proposal — the chat-side inline diff card owns the
- * accept/reject and the action dispatches the standalone `createCodeEvaluator`
- * mutation directly.
+ * Pending `create_code_evaluator` proposal — the chat-side inline diff card
+ * owns accept/reject. On accept the bound handler dispatches
+ * `createCodeEvaluator` and, when `datasetContext` is non-null, chains
+ * `createDatasetCodeEvaluator` against the snapshotted dataset.
  */
-export type PendingCodeEvaluatorCreateInline = {
-  kind: "inline";
+export type PendingCodeEvaluatorCreate = {
   toolCallId: string;
   sessionId: string;
   /** Empty-shaped baseline snapshot driving the create-mode diff render. */
   before: CodeEvaluatorDraftSnapshot;
   /** Proposed snapshot (always `mode: "create"`). */
   after: CodeEvaluatorDraftSnapshot;
+  /** Dataset surface active when the proposal was made; null off-dataset. */
+  datasetContext: PendingCodeEvaluatorCreateDatasetSnapshot | null;
   accept?: () => Promise<void>;
   reject?: () => Promise<void>;
   cancel?: () => Promise<void>;
 };
 
-/**
- * Dataset create proposal — the agent navigates to the dataset evaluators
- * page where the slideover hydrates from the snapshot and owns dispatch.
- * Resolution flows through three terminal resolvers (accepted/rejected/failed)
- * gated by an idempotency flag so the slideover's close-after-save path does
- * not double-emit.
- */
-export type PendingCodeEvaluatorCreateHandoff = {
-  kind: "handoff";
-  toolCallId: string;
-  sessionId: string;
-  /** Empty-shaped baseline snapshot driving the create-mode diff render. */
-  before: CodeEvaluatorDraftSnapshot;
-  /** Proposed snapshot (always `mode: "create"`). */
-  after: CodeEvaluatorDraftSnapshot;
-  /** Dataset surface the agent navigated to. */
-  datasetContext: PendingCodeEvaluatorCreateDatasetSnapshot;
-  /** Idempotency latch; flipped to `true` by the first terminal resolver. */
-  resolved: boolean;
-  resolveAsAccepted?: (result: {
-    createdEvaluator: { id: string; name: string };
-    datasetEvaluatorId: string;
-  }) => Promise<void>;
-  resolveAsRejected?: (message?: string) => Promise<void>;
-  resolveAsFailed?: (errorMessage: string) => Promise<void>;
-  cancel?: () => Promise<void>;
-};
-
-export type PendingCodeEvaluatorCreate =
-  | PendingCodeEvaluatorCreateInline
-  | PendingCodeEvaluatorCreateHandoff;
-
-export type BindPendingCodeEvaluatorCreateInlineOptions = {
+export type BindPendingCodeEvaluatorCreateOptions = {
   pendingCreate: Omit<
-    PendingCodeEvaluatorCreateInline,
+    PendingCodeEvaluatorCreate,
     "accept" | "reject" | "cancel"
-  >;
-  addToolOutput: CodeEvaluatorEditToolOutputSender;
-  setPendingCodeEvaluatorCreate: (
-    toolCallId: string,
-    pending: PendingCodeEvaluatorCreate | null
-  ) => void;
-};
-
-export type BindPendingCodeEvaluatorCreateHandoffOptions = {
-  pendingCreate: Omit<
-    PendingCodeEvaluatorCreateHandoff,
-    "resolveAsAccepted" | "resolveAsRejected" | "resolveAsFailed" | "cancel"
   >;
   addToolOutput: CodeEvaluatorEditToolOutputSender;
   setPendingCodeEvaluatorCreate: (

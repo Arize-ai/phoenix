@@ -3,10 +3,6 @@ import type { ModalOverlayProps } from "react-aria-components";
 import { graphql, useLazyLoadQuery, useMutation } from "react-relay";
 import invariant from "tiny-invariant";
 
-import {
-  type CodeEvaluatorDraftSnapshot,
-  fromOutputConfigDraft,
-} from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { Dialog } from "@phoenix/components/core/dialog";
 import { Loading } from "@phoenix/components/core/loading";
 import { Modal, ModalOverlay } from "@phoenix/components/core/overlay/Modal";
@@ -24,39 +20,22 @@ import { EvaluatorStoreProvider } from "@phoenix/contexts/EvaluatorContext";
 import { useNotifySuccess } from "@phoenix/contexts/NotificationContext";
 import {
   EVALUATOR_MAPPING_SOURCE_DEFAULT,
-  type AnnotationConfig,
   type EvaluatorStoreInstance,
   type EvaluatorStoreProps,
 } from "@phoenix/store/evaluatorStore";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
 
-export type CreateCodeDatasetEvaluatorSlideoverSubmitResult = {
-  createdEvaluator: { id: string; name: string };
-  datasetEvaluatorId: string;
-};
-
 export const CreateCodeDatasetEvaluatorSlideover = ({
   datasetId,
   updateConnectionIds,
   onEvaluatorCreated,
-  onSubmitSuccess,
-  onSubmitError,
   onOpenChange,
   isOpen,
-  initialSnapshot,
   ...props
 }: {
   datasetId: string;
   updateConnectionIds?: string[];
   onEvaluatorCreated?: (datasetEvaluatorId: string) => void;
-  /** Called after the chained mutation succeeds, with the created IDs. */
-  onSubmitSuccess?: (
-    result: CreateCodeDatasetEvaluatorSlideoverSubmitResult
-  ) => void;
-  /** Called when the chained mutation fails, with a flattened error message. */
-  onSubmitError?: (errorMessage: string) => void;
-  /** Optional snapshot used to prefill the form on mount. */
-  initialSnapshot?: CodeEvaluatorDraftSnapshot | null;
 } & ModalOverlayProps) => {
   const isDirtyRef = useRef(false);
 
@@ -96,9 +75,6 @@ export const CreateCodeDatasetEvaluatorSlideover = ({
                 datasetId={datasetId}
                 updateConnectionIds={updateConnectionIds}
                 onEvaluatorCreated={onEvaluatorCreated}
-                onSubmitSuccess={onSubmitSuccess}
-                onSubmitError={onSubmitError}
-                initialSnapshot={initialSnapshot ?? null}
               />
             </Suspense>
           )}
@@ -114,20 +90,12 @@ const CreateCodeEvaluatorDialog = ({
   datasetId,
   updateConnectionIds,
   onEvaluatorCreated,
-  onSubmitSuccess,
-  onSubmitError,
-  initialSnapshot,
 }: {
   onClose: () => void;
   onDirtyChange?: (isDirty: boolean) => void;
   datasetId: string;
   updateConnectionIds?: string[];
   onEvaluatorCreated?: (datasetEvaluatorId: string) => void;
-  onSubmitSuccess?: (
-    result: CreateCodeDatasetEvaluatorSlideoverSubmitResult
-  ) => void;
-  onSubmitError?: (errorMessage: string) => void;
-  initialSnapshot: CodeEvaluatorDraftSnapshot | null;
 }) => {
   const notifySuccess = useNotifySuccess();
   const [error, setError] = useState<string | undefined>();
@@ -206,27 +174,12 @@ const CreateCodeEvaluatorDialog = ({
       }
     `);
   const initialState: EvaluatorStoreProps = useMemo(() => {
-    const seededOutputConfigs: AnnotationConfig[] | null = initialSnapshot
-      ? initialSnapshot.outputConfigs.length > 0
-        ? initialSnapshot.outputConfigs.map((draft) =>
-            fromOutputConfigDraft(draft)
-          )
-        : null
-      : null;
-    // `EvaluatorNameInput` binds to `globalName` whenever both
-    // `datasetEvaluator.id` and `evaluator.isBuiltin` are absent (see
-    // `shouldUseSpecificName` in EvaluatorNameInput.tsx) — which is exactly
-    // the create-a-fresh-evaluator state we're in here. If we only seed
-    // `evaluator.name` from the snapshot, the visible Name input is bound
-    // to an empty `globalName` and looks blank to the user even though
-    // submit falls back via `(globalName || name)`. Seed both so the agent's
-    // proposed name renders in the field.
     return {
       evaluator: {
-        globalName: initialSnapshot?.name ?? "",
-        name: initialSnapshot?.name ?? "",
-        description: initialSnapshot?.description ?? "",
-        inputMapping: initialSnapshot?.inputMapping ?? {
+        globalName: "",
+        name: "",
+        description: "",
+        inputMapping: {
           literalMapping: {},
           pathMapping: {},
         },
@@ -234,9 +187,7 @@ const CreateCodeEvaluatorDialog = ({
         isBuiltin: false,
         includeExplanation: false,
       },
-      outputConfigs: seededOutputConfigs ?? [
-        createDefaultFreeformOutputConfig(""),
-      ],
+      outputConfigs: [createDefaultFreeformOutputConfig("")],
       dataset: {
         readonly: true,
         id: datasetId,
@@ -246,12 +197,11 @@ const CreateCodeEvaluatorDialog = ({
       evaluatorMappingSource: EVALUATOR_MAPPING_SOURCE_DEFAULT,
       showPromptPreview: false,
     };
-  }, [datasetId, initialSnapshot]);
+  }, [datasetId]);
 
-  const initialLanguage = initialSnapshot?.language ?? "PYTHON";
-  const initialSourceCode =
-    initialSnapshot?.sourceCode ?? getDefaultCodeEvaluatorSource("PYTHON");
-  const initialSandboxConfigId = initialSnapshot?.sandboxConfigId ?? null;
+  const initialLanguage = "PYTHON" as const;
+  const initialSourceCode = getDefaultCodeEvaluatorSource("PYTHON");
+  const initialSandboxConfigId: string | null = null;
 
   const onSubmit = (
     store: EvaluatorStoreInstance,
@@ -304,13 +254,6 @@ const CreateCodeEvaluatorDialog = ({
             const createdId =
               datasetResponse.createDatasetCodeEvaluator.evaluator.id;
             onEvaluatorCreated?.(createdId);
-            onSubmitSuccess?.({
-              createdEvaluator: {
-                id: createdEvaluator.id,
-                name: createdEvaluator.name,
-              },
-              datasetEvaluatorId: createdId,
-            });
             notifySuccess({
               title: "Evaluator created",
               message: "The code evaluator has been added to the dataset.",
@@ -324,7 +267,6 @@ const CreateCodeEvaluatorDialog = ({
                 "\n"
               ) ?? mutationError.message;
             setError(flattened);
-            onSubmitError?.(flattened);
           },
         });
       },
@@ -333,7 +275,6 @@ const CreateCodeEvaluatorDialog = ({
           getErrorMessagesFromRelayMutationError(mutationError)?.join("\n") ??
           mutationError.message;
         setError(flattened);
-        onSubmitError?.(flattened);
       },
     });
   };

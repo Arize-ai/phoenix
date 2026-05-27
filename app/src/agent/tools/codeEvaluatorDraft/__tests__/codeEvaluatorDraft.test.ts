@@ -1,17 +1,24 @@
 import {
   applyDraftOperations,
-  bindPendingCodeEvaluatorCreateHandoffActions,
+  bindPendingCodeEvaluatorCreateActions,
   buildDraftRevision,
-  CREATE_CODE_EVALUATOR_NAVIGATION_CANCEL_ERROR,
   type CodeEvaluatorDraftHost,
   type CodeEvaluatorDraftSnapshot,
   createEditCodeEvaluatorDraftClientAction,
   createReadCodeEvaluatorDraftClientAction,
   type EditCodeEvaluatorDraftOperation,
   type PendingCodeEvaluatorCreate,
+  type PendingCodeEvaluatorCreateDatasetSnapshot,
   type PendingCodeEvaluatorEdit,
   type SandboxConfigIndex,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
+import { dispatchCreateCodeEvaluator } from "@phoenix/agent/tools/createCodeEvaluator/dispatch";
+
+vi.mock("@phoenix/agent/tools/createCodeEvaluator/dispatch", () => ({
+  dispatchCreateCodeEvaluator: vi.fn(),
+}));
+
+const mockedDispatch = vi.mocked(dispatchCreateCodeEvaluator);
 
 function makeSnapshot(
   overrides: Partial<Omit<CodeEvaluatorDraftSnapshot, "revision">> = {}
@@ -266,11 +273,16 @@ describe("code evaluator draft agent tools", () => {
   });
 });
 
-describe("pending create handoff terminal-state contract", () => {
+describe("pending create accept routes dataset context through dispatch", () => {
   type Output = Record<string, unknown>;
 
-  function makeHandoff() {
-    const proposed = makeSnapshot({ description: "from agent" });
+  function makeBound(
+    datasetContext: PendingCodeEvaluatorCreateDatasetSnapshot | null
+  ) {
+    const proposed = makeSnapshot({
+      description: "from agent",
+      sandboxConfigId: "py-sandbox",
+    });
     const before = makeSnapshot({
       name: "",
       description: "",
@@ -285,18 +297,13 @@ describe("pending create handoff terminal-state contract", () => {
     ) => {
       stored[toolCallId] = pending;
     };
-    const bound = bindPendingCodeEvaluatorCreateHandoffActions({
+    const bound = bindPendingCodeEvaluatorCreateActions({
       pendingCreate: {
-        kind: "handoff",
         toolCallId: "tc-1",
         sessionId: "s-1",
         before,
         after: proposed,
-        datasetContext: {
-          datasetNodeId: "ds-1",
-          datasetVersionNodeId: null,
-        },
-        resolved: false,
+        datasetContext,
       },
       addToolOutput: async (payload: Output) => {
         outputs.push(payload);
@@ -307,12 +314,25 @@ describe("pending create handoff terminal-state contract", () => {
     return { bound, outputs, stored };
   }
 
-  it("emits a single accepted output on resolveAsAccepted", async () => {
-    const { bound, outputs, stored } = makeHandoff();
-    await bound.resolveAsAccepted!({
-      createdEvaluator: { id: "ev-1", name: "from agent" },
+  beforeEach(() => {
+    mockedDispatch.mockReset();
+  });
+
+  it("threads the snapshotted dataset context into dispatchCreateCodeEvaluator on accept", async () => {
+    const datasetContext: PendingCodeEvaluatorCreateDatasetSnapshot = {
+      datasetNodeId: "ds-1",
+      datasetVersionNodeId: null,
+    };
+    mockedDispatch.mockResolvedValueOnce({
+      ok: true,
+      evaluator: { id: "ev-1", name: "from agent" },
       datasetEvaluatorId: "de-1",
     });
+    const { bound, outputs, stored } = makeBound(datasetContext);
+    await bound.accept!();
+    expect(mockedDispatch).toHaveBeenCalledTimes(1);
+    const [, options] = mockedDispatch.mock.calls[0];
+    expect(options).toEqual({ datasetContext, connectionIds: [] });
     expect(outputs).toHaveLength(1);
     expect(outputs[0]).toMatchObject({ state: "output-available" });
     expect(JSON.parse(String(outputs[0].output))).toMatchObject({
@@ -321,63 +341,47 @@ describe("pending create handoff terminal-state contract", () => {
       datasetEvaluatorId: "de-1",
     });
     expect(stored["tc-1"]).toBeNull();
-    expect(bound.resolved).toBe(true);
   });
 
-  it("emits a single rejected output on resolveAsRejected", async () => {
-    const { bound, outputs, stored } = makeHandoff();
-    await bound.resolveAsRejected!();
+  it("passes datasetContext: null when the proposal was made off-dataset", async () => {
+    mockedDispatch.mockResolvedValueOnce({
+      ok: true,
+      evaluator: { id: "ev-2", name: "from agent" },
+      datasetEvaluatorId: null,
+    });
+    const { bound } = makeBound(null);
+    await bound.accept!();
+    expect(mockedDispatch).toHaveBeenCalledTimes(1);
+    const [, options] = mockedDispatch.mock.calls[0];
+    expect(options).toEqual({ datasetContext: null, connectionIds: [] });
+  });
+
+  it("emits output-error when dispatch fails and does not call addToolOutput with output-available", async () => {
+    mockedDispatch.mockResolvedValueOnce({
+      ok: false,
+      error: "the chained mutation failed",
+    });
+    const { bound, outputs } = makeBound({
+      datasetNodeId: "ds-1",
+      datasetVersionNodeId: null,
+    });
+    await bound.accept!();
+    expect(outputs).toHaveLength(1);
+    expect(outputs[0]).toMatchObject({
+      state: "output-error",
+      errorText: "the chained mutation failed",
+    });
+  });
+
+  it("rejects without invoking dispatch", async () => {
+    const { bound, outputs, stored } = makeBound(null);
+    await bound.reject!();
+    expect(mockedDispatch).not.toHaveBeenCalled();
     expect(outputs).toHaveLength(1);
     expect(outputs[0]).toMatchObject({ state: "output-available" });
     expect(JSON.parse(String(outputs[0].output))).toMatchObject({
       status: "rejected",
     });
     expect(stored["tc-1"]).toBeNull();
-  });
-
-  it("emits output-error on resolveAsFailed carrying the error message", async () => {
-    const { bound, outputs } = makeHandoff();
-    await bound.resolveAsFailed!("mutation went wrong");
-    expect(outputs).toHaveLength(1);
-    expect(outputs[0]).toMatchObject({
-      state: "output-error",
-      errorText: "mutation went wrong",
-    });
-  });
-
-  it("emits CREATE_CODE_EVALUATOR_NAVIGATION_CANCEL_ERROR on cancel before resolution", async () => {
-    const { bound, outputs } = makeHandoff();
-    await bound.cancel!();
-    expect(outputs).toHaveLength(1);
-    expect(outputs[0]).toMatchObject({
-      state: "output-error",
-      errorText: CREATE_CODE_EVALUATOR_NAVIGATION_CANCEL_ERROR,
-    });
-  });
-
-  it("is idempotent — close-after-save does not re-emit a rejected output", async () => {
-    const { bound, outputs } = makeHandoff();
-    await bound.resolveAsAccepted!({
-      createdEvaluator: { id: "ev-1", name: "from agent" },
-      datasetEvaluatorId: "de-1",
-    });
-    // Slideover's onOpenChange(false) fires after Save closes the modal.
-    await bound.resolveAsRejected!();
-    await bound.cancel!();
-    expect(outputs).toHaveLength(1);
-    expect(JSON.parse(String(outputs[0].output))).toMatchObject({
-      status: "accepted",
-    });
-  });
-
-  it("ignores cancel after a terminal resolver fires", async () => {
-    const { bound, outputs } = makeHandoff();
-    await bound.resolveAsFailed!("the chained mutation failed");
-    await bound.cancel!();
-    expect(outputs).toHaveLength(1);
-    expect(outputs[0]).toMatchObject({
-      state: "output-error",
-      errorText: "the chained mutation failed",
-    });
   });
 });

@@ -1,21 +1,18 @@
 import { css } from "@emotion/react";
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useFragment } from "react-relay";
-import { useLoaderData, useParams, useSearchParams } from "react-router";
+import { useLoaderData, useParams } from "react-router";
 import { graphql } from "relay-runtime";
 import invariant from "tiny-invariant";
 import z from "zod";
 
 import { Loading } from "@phoenix/components";
 import { CreateBuiltInDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateBuiltInDatasetEvaluatorSlideover";
-import { CreateCodeDatasetEvaluatorSlideover } from "@phoenix/components/dataset/CreateCodeDatasetEvaluatorSlideover";
 import {
   type CreateLLMDatasetEvaluatorInitialState,
   CreateLLMDatasetEvaluatorSlideover,
 } from "@phoenix/components/dataset/CreateLLMDatasetEvaluatorSlideover";
 import { AddEvaluatorMenu } from "@phoenix/components/evaluators/AddEvaluatorMenu";
-import { useAgentStore } from "@phoenix/contexts/AgentContext";
-import { useNotify } from "@phoenix/contexts/NotificationContext";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 import type { DatasetEvaluatorsPage_builtInEvaluators$key } from "@phoenix/pages/dataset/evaluators/__generated__/DatasetEvaluatorsPage_builtInEvaluators.graphql";
 import type { datasetEvaluatorsLoader } from "@phoenix/pages/dataset/evaluators/datasetEvaluatorsLoader";
@@ -26,8 +23,6 @@ import {
 } from "@phoenix/pages/dataset/evaluators/DatasetEvaluatorsTable";
 import { DatasetEvaluatorsFilterBar } from "@phoenix/pages/evaluators/DatasetEvaluatorsFilterBar";
 import { DatasetEvaluatorsFilterProvider } from "@phoenix/pages/evaluators/DatasetEvaluatorsFilterProvider";
-
-const FROM_AGENT_PROPOSAL_PARAM = "fromAgentProposal";
 
 export function DatasetEvaluatorsPage() {
   return (
@@ -125,140 +120,6 @@ export function DatasetEvaluatorsPageContent() {
     return [];
   }, [evaluatorsTableData]);
 
-  const [searchParams, setSearchParams] = useSearchParams();
-  const fromAgentProposal = searchParams.get(FROM_AGENT_PROPOSAL_PARAM);
-  const agentStore = useAgentStore();
-  const notify = useNotify();
-
-  // Lock in the active handoff at first render only. The URL param is the
-  // navigation primitive; the agent client action writes the snapshot to the
-  // store before calling navigate(), so the store entry is guaranteed to be
-  // present here when the param is. Once captured, we clear the param so
-  // reloads don't replay the handoff. The store entry is the snapshot carrier.
-  const claimedToolCallIdRef = useRef<string | null>(null);
-  const missingSnapshotRef = useRef(false);
-  const [agentHandoffToolCallId, setAgentHandoffToolCallId] = useState<
-    string | null
-  >(() => {
-    if (typeof window === "undefined") return null;
-    const initialParam = new URLSearchParams(window.location.search).get(
-      FROM_AGENT_PROPOSAL_PARAM
-    );
-    if (!initialParam) return null;
-    const entry =
-      agentStore.getState().pendingCodeEvaluatorCreatesByToolCallId[
-        initialParam
-      ];
-    if (!entry || entry.kind !== "handoff") {
-      missingSnapshotRef.current = true;
-      return null;
-    }
-    claimedToolCallIdRef.current = initialParam;
-    return initialParam;
-  });
-
-  const clearFromAgentParam = useCallback(() => {
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete(FROM_AGENT_PROPOSAL_PARAM);
-        return next;
-      },
-      { replace: true }
-    );
-  }, [setSearchParams]);
-
-  useEffect(() => {
-    if (!fromAgentProposal) return;
-    if (missingSnapshotRef.current) {
-      missingSnapshotRef.current = false;
-      notify({
-        title: "Editor handoff unavailable",
-        message:
-          "The proposed code-evaluator snapshot is no longer available. Re-issue the create from PXI.",
-      });
-    }
-    clearFromAgentParam();
-  }, [fromAgentProposal, notify, clearFromAgentParam]);
-
-  const agentHandoffEntry = useMemo(() => {
-    if (!agentHandoffToolCallId) return null;
-    const entry =
-      agentStore.getState().pendingCodeEvaluatorCreatesByToolCallId[
-        agentHandoffToolCallId
-      ];
-    if (!entry || entry.kind !== "handoff") return null;
-    return entry;
-  }, [agentHandoffToolCallId, agentStore]);
-
-  useEffect(() => {
-    return () => {
-      const toolCallId = claimedToolCallIdRef.current;
-      if (!toolCallId) return;
-      const entry =
-        agentStore.getState().pendingCodeEvaluatorCreatesByToolCallId[
-          toolCallId
-        ];
-      if (entry && entry.kind === "handoff" && !entry.resolved) {
-        void entry.cancel?.();
-      }
-    };
-  }, [agentStore]);
-
-  const handleAgentHandoffOpenChange = useCallback(
-    (nextIsOpen: boolean) => {
-      if (nextIsOpen) return;
-      const toolCallId = claimedToolCallIdRef.current;
-      if (!toolCallId) return;
-      const entry =
-        agentStore.getState().pendingCodeEvaluatorCreatesByToolCallId[
-          toolCallId
-        ];
-      if (entry && entry.kind === "handoff") {
-        void entry.resolveAsRejected?.();
-      }
-      setAgentHandoffToolCallId(null);
-    },
-    [agentStore]
-  );
-
-  const handleAgentHandoffSuccess = useCallback(
-    (result: {
-      createdEvaluator: { id: string; name: string };
-      datasetEvaluatorId: string;
-    }) => {
-      const toolCallId = claimedToolCallIdRef.current;
-      if (!toolCallId) return;
-      const entry =
-        agentStore.getState().pendingCodeEvaluatorCreatesByToolCallId[
-          toolCallId
-        ];
-      if (entry && entry.kind === "handoff") {
-        void entry.resolveAsAccepted?.(result);
-      }
-      setAgentHandoffToolCallId(null);
-    },
-    [agentStore]
-  );
-
-  const handleAgentHandoffError = useCallback(
-    (errorMessage: string) => {
-      const toolCallId = claimedToolCallIdRef.current;
-      if (!toolCallId) return;
-      const entry =
-        agentStore.getState().pendingCodeEvaluatorCreatesByToolCallId[
-          toolCallId
-        ];
-      if (entry && entry.kind === "handoff") {
-        void entry.resolveAsFailed?.(errorMessage);
-      }
-      setAgentHandoffToolCallId(null);
-    },
-    [agentStore]
-  );
-
-  const agentHandoffSnapshot = agentHandoffEntry?.after ?? null;
-
   return (
     <>
       <main
@@ -321,16 +182,6 @@ export function DatasetEvaluatorsPageContent() {
         evaluatorId={builtinEvaluatorIdToAssociate}
         datasetId={datasetId}
         updateConnectionIds={connectionsToUpdate}
-      />
-
-      <CreateCodeDatasetEvaluatorSlideover
-        isOpen={agentHandoffToolCallId !== null && agentHandoffEntry !== null}
-        onOpenChange={handleAgentHandoffOpenChange}
-        datasetId={datasetId}
-        updateConnectionIds={connectionsToUpdate}
-        initialSnapshot={agentHandoffSnapshot}
-        onSubmitSuccess={handleAgentHandoffSuccess}
-        onSubmitError={handleAgentHandoffError}
       />
     </>
   );

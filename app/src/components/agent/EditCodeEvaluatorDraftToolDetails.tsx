@@ -8,7 +8,6 @@ import {
   EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   parseEditCodeEvaluatorDraftInput,
   type PendingCodeEvaluatorCreate,
-  type PendingCodeEvaluatorCreateInline,
   type PendingCodeEvaluatorEdit,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { CREATE_CODE_EVALUATOR_TOOL_NAME } from "@phoenix/agent/tools/createCodeEvaluator";
@@ -49,19 +48,6 @@ type PendingCodeEvaluatorChassis =
   | PendingCodeEvaluatorEdit
   | PendingCodeEvaluatorCreate;
 
-type PendingCodeEvaluatorInlineChassis =
-  | PendingCodeEvaluatorEdit
-  | PendingCodeEvaluatorCreateInline;
-
-const HANDOFF_STATUS_MESSAGE =
-  "Editor opened on the dataset evaluators page.";
-
-function isInlineChassis(
-  pending: PendingCodeEvaluatorChassis
-): pending is PendingCodeEvaluatorInlineChassis {
-  return !("kind" in pending) || pending.kind === "inline";
-}
-
 export function getEditCodeEvaluatorDraftToolPreview(
   part: ToolInvocationPart
 ): string {
@@ -101,20 +87,9 @@ export function EditCodeEvaluatorDraftToolDetails({
     );
   });
 
-  const isHandoffPending =
-    pending !== null && "kind" in pending && pending.kind === "handoff";
-
   return (
     <div className="tool-part__body" css={editCodeEvaluatorToolDetailsCSS}>
-      {pending && isInlineChassis(pending) ? (
-        <PendingCodeEvaluatorDraftDiff pending={pending} />
-      ) : null}
-      {isHandoffPending && part.state === "input-available" ? (
-        <>
-          <ToolPartLabel>{CREATE_CODE_EVALUATOR_TOOL_NAME}</ToolPartLabel>
-          <ToolPartCodeBlock>{HANDOFF_STATUS_MESSAGE}</ToolPartCodeBlock>
-        </>
-      ) : null}
+      {pending ? <PendingCodeEvaluatorDraftDiff pending={pending} /> : null}
       {part.state === "output-available" ? (
         <>
           <ToolPartLabel>Result</ToolPartLabel>
@@ -144,7 +119,7 @@ export function EditCodeEvaluatorDraftToolDetails({
 function PendingCodeEvaluatorDraftDiff({
   pending,
 }: {
-  pending: PendingCodeEvaluatorInlineChassis;
+  pending: PendingCodeEvaluatorChassis;
 }) {
   const { theme } = useTheme();
   const canRespond = Boolean(pending.accept && pending.reject);

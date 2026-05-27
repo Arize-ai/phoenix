@@ -11,10 +11,7 @@ import {
   parseEditCodeEvaluatorDraftInput,
   parseReadCodeEvaluatorDraftInput,
 } from "./parsers";
-import {
-  bindPendingCodeEvaluatorCreateHandoffActions,
-  bindPendingCodeEvaluatorCreateInlineActions,
-} from "./pendingCodeEvaluatorCreate";
+import { bindPendingCodeEvaluatorCreateActions } from "./pendingCodeEvaluatorCreate";
 import { bindPendingCodeEvaluatorEditActions } from "./pendingCodeEvaluatorEdit";
 import type {
   CodeEvaluatorDraftHost,
@@ -152,27 +149,21 @@ function readActiveDatasetContext(
 /**
  * Build a `PendingCodeEvaluatorCreate` from the proposed input.
  *
- * On dataset surfaces, the action writes a `kind: "handoff"` entry, navigates
- * to the dataset evaluators page (carrying the tool-call id in the URL), and
- * resolves `ok: true`. The slideover hosted on that page hydrates from the
- * snapshot, owns dispatch, and resolves the pending entry via its three
- * terminal resolvers (accepted/rejected/failed).
- *
- * On non-dataset surfaces, the action writes a `kind: "inline"` entry and the
- * chat-side diff card owns accept/reject; the standalone create mutation
- * dispatches from the bound accept handler.
+ * Writes a single pending entry that the chat-side `FileDiff` renders with
+ * Accept/Reject. The active dataset context (if any) is snapshotted onto the
+ * entry at propose time so the Accept handler can chain
+ * `createDatasetCodeEvaluator` against the dataset that was active when the
+ * proposal was made — not whatever surface is mounted at accept time.
  */
 export function createCreateCodeEvaluatorClientAction({
   store,
   setPendingCodeEvaluatorCreate,
-  navigate,
 }: {
   store: AgentStore;
   setPendingCodeEvaluatorCreate: (
     toolCallId: string,
     pending: PendingCodeEvaluatorCreate | null
   ) => void;
-  navigate?: (to: string) => void;
 }) {
   return async (
     input: unknown,
@@ -214,39 +205,13 @@ export function createCreateCodeEvaluatorClientAction({
     const before = buildEmptyBeforeSnapshot(proposed);
     const datasetContext = readActiveDatasetContext(store);
 
-    if (datasetContext !== null) {
-      const pendingCreate = bindPendingCodeEvaluatorCreateHandoffActions({
-        pendingCreate: {
-          kind: "handoff",
-          toolCallId: createContext.toolCallId,
-          sessionId: createContext.sessionId,
-          before,
-          after: proposed,
-          datasetContext,
-          resolved: false,
-        },
-        addToolOutput: createContext.addToolOutput,
-        setPendingCodeEvaluatorCreate,
-      });
-      setPendingCodeEvaluatorCreate(createContext.toolCallId, pendingCreate);
-      if (navigate) {
-        const target = `/datasets/${encodeURIComponent(
-          datasetContext.datasetNodeId
-        )}/evaluators?fromAgentProposal=${encodeURIComponent(
-          createContext.toolCallId
-        )}`;
-        navigate(target);
-      }
-      return { ok: true };
-    }
-
-    const pendingCreate = bindPendingCodeEvaluatorCreateInlineActions({
+    const pendingCreate = bindPendingCodeEvaluatorCreateActions({
       pendingCreate: {
-        kind: "inline",
         toolCallId: createContext.toolCallId,
         sessionId: createContext.sessionId,
         before,
         after: proposed,
+        datasetContext,
       },
       addToolOutput: createContext.addToolOutput,
       setPendingCodeEvaluatorCreate,
