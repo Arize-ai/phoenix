@@ -7,7 +7,7 @@ from jinja2 import Template
 
 from phoenix.db import models
 from phoenix.db.types.identifier import Identifier
-from phoenix.server.agents.prompts import AgentInstructions
+from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.types import SandboxAvailability, SandboxConfigCapabilities
 from phoenix.server.api.routers.agents import _load_sandbox_availability
 from phoenix.server.types import DbSessionFactory
@@ -401,10 +401,10 @@ class TestAvailableSandboxConfigsRendering:
     surrounding XML-like prompt."""
 
     def _create_template(self) -> Template:
-        return AgentInstructions().create_code_evaluator_tool
+        return AgentPrompts().create_code_evaluator_tool
 
     def _edit_template(self) -> Template:
-        return AgentInstructions().edit_code_evaluator_draft_tool
+        return AgentPrompts().edit_code_evaluator_draft_tool
 
     def test_create_template_renders_block_when_configs_present(self) -> None:
         configs = [
