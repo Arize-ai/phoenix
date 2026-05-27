@@ -188,6 +188,40 @@ describe("ResizableFloatingPanel", () => {
     });
   });
 
+  it("focuses the resize handle on pointer resize so keyboard resize can follow", () => {
+    const onSizeChange = vi.fn();
+    const { resizeHandle } = renderResizablePanel({ onSizeChange });
+    Object.assign(resizeHandle, {
+      hasPointerCapture: vi.fn(() => true),
+      releasePointerCapture: vi.fn(),
+      setPointerCapture: vi.fn(),
+    });
+
+    act(() => {
+      dispatchPointerEvent(resizeHandle, "pointerdown", {
+        clientX: 744,
+        clientY: 256,
+      });
+      dispatchPointerEvent(resizeHandle, "pointerup", {
+        clientX: 744,
+        clientY: 256,
+      });
+    });
+
+    expect(document.activeElement).toBe(resizeHandle);
+
+    act(() => {
+      resizeHandle.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "ArrowLeft" })
+      );
+    });
+
+    expect(onSizeChange).toHaveBeenLastCalledWith({
+      height: 720,
+      width: 444,
+    });
+  });
+
   it("moves the panel by dragging the header without persisting size", () => {
     const onSizeChange = vi.fn();
     const { panel } = renderResizablePanel({ onSizeChange });
