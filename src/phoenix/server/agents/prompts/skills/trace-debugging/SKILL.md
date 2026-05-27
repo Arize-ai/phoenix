@@ -1,12 +1,12 @@
 ---
 name: trace-debugging
 description: >
-  Use when the user wants to know what is going wrong with their LLM application or how to improve it — e.g., "what's wrong?", "were there errors?", "where is my agent struggling?", "is retrieval working?", "debug this". Do NOT trigger for general project understanding or trace filtering requests like "show me traces with errors", "describe the trace structure", or "tell me about this project" — those don't require cross-trace diagnosis. This skill samples traces, journals observations (open-coding), clusters them into failure categories (axial coding), and produces a findings report with recommendations.
+  Use when the user wants to know what is going wrong with their LLM application or how to improve it — e.g., "what's wrong?", "were there errors?", "where is my agent struggling?", "is retrieval working?", "debug this". Do NOT trigger for general project understanding or trace filtering requests like "show me traces with errors", "describe the trace structure", or "tell me about this project" — those don't require cross-trace diagnosis. This is an expensive, multi-step operation (many GraphQL queries, trace sampling, open-coding, clustering) — only trigger it when the user is clearly asking for a diagnostic investigation, not on casual or ambiguous questions.
 ---
 
 ### Orientation
 
-Your goal is to identify common failure modes across multiple traces and provide prioritized, actionable recommendations. You are not trying to exhaustively read every trace — you are trying to build a representative picture of what is going wrong and why.
+Your goal is to identify common failure modes across multiple traces and provide prioritized, actionable recommendations. Build a representative, evidence-backed picture of what is going wrong and why. Do not exhaustively read every trace. Start broad, inspect selectively, and stop once the main issue categories are clear.
 
 ### Common Failure Modes to Watch For
 
@@ -22,11 +22,28 @@ This list is non-exhaustive. Use it as a starting checklist, not a complete taxo
 
 ### Steps
 
-1. **Orient** — Use the `phoenix-gql` CLI to pull a sample of traces and understand the project structure (span types present, typical trace shapes, time range).
-2. **Select** — Determine which traces and spans to examine. Aim for a representative sample rather than exhaustive coverage. Be mindful of your context window.
-3. **Open-code** — Write open-ended notes about individual traces, flagging problems, surprises, and incorrect behaviors. Focus on the first failure in each trace, since upstream errors often cause downstream issues. Tag independent downstream failures if feasible.
-4. **Axial-code** — Cluster your notes. Let failure categories emerge naturally. Count occurrences per category.
-5. **Summarize** — Report findings to the user using the output format below.
+Default query budget: 1–3 orientation queries, 3–5 aggregate or sampling queries, 3–7 targeted drilldowns. Avoid more than 20 GraphQL calls without summarizing progress. Avoid reading more than 5–10 full span inputs or outputs. Prefer fewer, richer queries — use GraphQL aliases to batch independent lookups. Use available GraphQL recipes before writing new queries.
+
+1. **Orient** — Read `/phoenix/agent-start.md`. Use the `phoenix-gql` CLI to get a compact project overview in one aliased query: trace count, span count, latency quantiles, token totals, annotation names, slow traces, high-token traces, error spans.
+
+2. **Select** — Choose a representative sample. Prioritize slow traces, high-token traces, and errored traces; include a few normal traces for comparison. Prefer diversity over volume.
+
+3. **Open-code** — For each trace, write free-form notes on problems, surprises, and incorrect behaviors. Focus on the first failure in a trace, since upstream errors often cause downstream issues. Note independent downstream failures only when they reveal a separate root cause.
+
+4. **Axial-code** — Cluster your notes into named failure categories. Let categories emerge from the data. Distinguish exact counts from sampled or estimated counts.
+
+5. **Summarize** — Report findings using the output format below.
+
+### Observation Journal
+
+Output this table inline in the conversation as you work — it stays compact by design and needs to be visible for axial-coding. Only write it to a file if the user asks for exhaustive analysis across a large number of traces.
+
+For each inspected trace, add a row. Keep `observations` free-form. Fill in `tentative_category` only when the pattern is clear — leave it blank otherwise.
+
+| trace_id | observations | tentative_category |
+| -------- | ------------ | ------------------ |
+
+Use this journal as the input to axial-coding.
 
 ### Output Format
 
