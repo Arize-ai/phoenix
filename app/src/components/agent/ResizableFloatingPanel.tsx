@@ -268,6 +268,11 @@ const resizableFloatingPanelCSS = css`
   box-shadow:
     0 8px 20px rgba(0, 0, 0, 0.14),
     0 1px 3px rgba(0, 0, 0, 0.12);
+  transition: border-color 150ms ease-out;
+
+  &[data-resize-handle-highlighted="true"] {
+    border-color: var(--global-color-gray-300);
+  }
 
   &[data-moving="true"],
   &[data-resizing="true"] {
@@ -318,13 +323,33 @@ const resizeHandleCSS = css`
   outline: none;
   padding: 0;
   background: transparent;
+  color: var(--global-color-gray-300);
   touch-action: none;
+  transition: color 150ms ease-out;
 
+  &::before,
   &::after {
     content: "";
     position: absolute;
-    background-color: transparent;
+    left: 4px;
+    height: 1.5px;
+    border-radius: 999px;
+    background-color: currentColor;
+    
+    pointer-events: none;
+    transform: rotate(-45deg);
+    transform-origin: left center;
     transition: opacity 150ms ease-out;
+  }
+
+  &::before {
+    top: 9px;
+    width: 7px;
+  }
+
+  &::after {
+    top: 12px;
+    width: 11px;
   }
 
   &:focus-visible {
@@ -337,29 +362,25 @@ const resizeHandleCSS = css`
   }
 
   &[data-edge="top-left"] {
-    top: calc(var(--resizable-floating-panel-y) - 4px);
-    left: calc(var(--resizable-floating-panel-x) - 4px);
-    width: ${RESIZE_HANDLE_SIZE_PX + 4}px;
-    height: ${RESIZE_HANDLE_SIZE_PX + 4}px;
+    top: var(--resizable-floating-panel-y);
+    left: var(--resizable-floating-panel-x);
+    width: ${RESIZE_HANDLE_SIZE_PX + 6}px;
+    height: ${RESIZE_HANDLE_SIZE_PX + 6}px;
     cursor: nwse-resize;
   }
 
-  &[data-edge="top-left"]::after {
-    top: 0;
-    left: 0;
-    width: 14px;
-    height: 14px;
-    border-top: 1.5px solid var(--global-color-gray-400);
-    border-left: 1.5px solid var(--global-color-gray-400);
-    border-top-left-radius: 11px;
-    background-color: transparent;
-    opacity: 0.35;
+  &:hover,
+  &[data-resizing="true"],
+  &:focus-visible {
+    color: var(--global-resize-handle-indicator-color-hover);
   }
 
+  &:hover::before,
   &:hover::after,
+  &[data-resizing="true"]::before,
   &[data-resizing="true"]::after,
+  &:focus-visible::before,
   &:focus-visible::after {
-    border-color: var(--global-resize-handle-indicator-color-hover);
     opacity: 1;
   }
 
@@ -411,6 +432,7 @@ export function ResizableFloatingPanel({
   const animationFrameIdRef = useRef<number | null>(null);
   const [resizingEdge, setResizingEdge] = useState<ResizeEdge | null>(null);
   const [isMoving, setIsMoving] = useState(false);
+  const [isResizeHandleHovered, setIsResizeHandleHovered] = useState(false);
   const hasFloatingAction = Boolean(floatingAction);
   const [currentGeometry, setCurrentGeometry] = useState(() =>
     getDefaultGeometry({ hasFloatingAction, minSize, placement, size })
@@ -425,6 +447,8 @@ export function ResizableFloatingPanel({
     hasFloatingAction,
     minSize,
   });
+  const isResizeHandleHighlighted =
+    isResizeHandleHovered || resizingEdge != null;
   latestGeometryRef.current = displayedGeometry;
 
   const commitSize = (nextGeometry: FloatingPanelGeometry) => {
@@ -482,7 +506,6 @@ export function ResizableFloatingPanel({
   ) => {
     if (event.button !== PRIMARY_POINTER_BUTTON) return;
 
-    event.currentTarget.focus();
     event.currentTarget.setPointerCapture(event.pointerId);
     resizeSessionRef.current = {
       pointerId: event.pointerId,
@@ -739,6 +762,8 @@ export function ResizableFloatingPanel({
           style={floatingPanelStyle}
           onKeyDown={handleResizeKeyDown}
           onLostPointerCapture={handleResizeLostPointerCapture}
+          onPointerEnter={() => setIsResizeHandleHovered(true)}
+          onPointerLeave={() => setIsResizeHandleHovered(false)}
           onPointerCancel={finishResize}
           onPointerDown={(event) => handleResizePointerDown(event, edge)}
           onPointerMove={handleResizePointerMove}
@@ -752,6 +777,9 @@ export function ResizableFloatingPanel({
         data-layer={layer}
         data-moving={isMoving ? "true" : undefined}
         data-placement={placement}
+        data-resize-handle-highlighted={
+          isResizeHandleHighlighted ? "true" : undefined
+        }
         data-resizing={resizingEdge == null ? undefined : "true"}
         ref={panelRef}
         onClick={stopModalLayerPropagation}
