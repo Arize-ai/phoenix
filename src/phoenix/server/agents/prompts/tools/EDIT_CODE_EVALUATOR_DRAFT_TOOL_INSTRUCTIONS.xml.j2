@@ -39,8 +39,10 @@
   </input_mapping>
   <sandbox_config>
     - When emitting `set_sandbox_config`, pick `sandboxConfigId` from `<available_sandbox_configs>` below. Do NOT invent or guess an ID, and do NOT issue a `sandboxProviders` GraphQL query — the inventory below is authoritative for this turn.
-    - The chosen config's `language` must match the draft language; in `create` mode after `set_language`, re-check the inventory for a compatible entry.
-    - In `create` mode, never pass `sandboxConfigId: null` and never rely on an empty current selection. Choose a non-null compatible sandbox before proposing source code for that language.
+    - The chosen config's `language` must match the draft language.
+    - If the latest `read_code_evaluator_draft` snapshot already has a non-null `sandboxConfigId`, you are not changing `language`, and the user did not ask to change sandboxes, leave the sandbox untouched. Do NOT emit `set_sandbox_config` just to restate an existing compatible draft selection.
+    - Emit `set_sandbox_config` only when the current `sandboxConfigId` is null, the user asks to change the sandbox, or you are changing `language`.
+    - In `create` mode, never pass `sandboxConfigId: null`. If you emit `set_language`, include a compatible non-null `set_sandbox_config` operation in the same proposal.
 {% if available_sandbox_configs %}
     <available_sandbox_configs>
 {% for cfg in available_sandbox_configs %}

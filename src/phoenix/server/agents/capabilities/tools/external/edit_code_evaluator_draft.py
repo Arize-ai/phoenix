@@ -26,7 +26,9 @@ DESCRIPTION = (
     '{"type":"set_source_code","sourceCode":"def evaluate(output):\\n    return 1.0"}; '
     '{"type":"set_language","language":"PYTHON"}; '
     '{"type":"set_sandbox_config","sandboxConfigId":"U2FuZGJveENvbmZpZzox"}; '
-    '{"type":"set_input_mapping","inputMapping":{"pathMapping":{},"literalMapping":{}}}.'
+    '{"type":"set_input_mapping","inputMapping":{"pathMapping":{},"literalMapping":{}}}. '
+    "Do not emit `set_sandbox_config` when the read draft already has a compatible "
+    "sandbox and the user did not ask to change it."
 )
 
 OUTPUT_CONFIG_DRAFT_SCHEMA: dict[str, Any] = {

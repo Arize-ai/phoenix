@@ -278,6 +278,7 @@ class TestCodeEvaluatorContextCapabilityRender:
         assert "sampled dataset examples as shape evidence" in content
         assert "chat-style `messages` arrays" in content
         assert "do not assume the signal is at a top-level key" in content
+        assert "preserve it and do not emit a sandbox edit" in content
         assert "<available_sandbox_configs>" in content
         assert 'id="U2FuZGJveENvbmZpZzox"' in content
         assert 'language="PYTHON"' in content

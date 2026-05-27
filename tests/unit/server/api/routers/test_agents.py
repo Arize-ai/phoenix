@@ -719,6 +719,8 @@ class TestAvailableSandboxConfigsRendering:
             assert "top-level" in rendered
         assert "Prefer the safe default mapping" in create_rendered
         assert "Keep `input_mapping` at the safe default" in edit_rendered
+        assert "leave the sandbox untouched" in edit_rendered
+        assert "Do NOT emit `set_sandbox_config`" in edit_rendered
 
     def test_dependency_with_xml_sensitive_characters_is_escaped(self) -> None:
         # PEP 440 version specifiers use ``<`` (e.g. ``httpx>=0.27,<1``).

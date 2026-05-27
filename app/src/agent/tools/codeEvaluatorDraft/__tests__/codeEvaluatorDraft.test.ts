@@ -125,6 +125,27 @@ describe("code evaluator draft agent tools", () => {
     expect(result.error).toMatch(/requires a non-null sandboxConfigId/i);
   });
 
+  it("preserves an existing sandbox when create-mode edits do not touch sandbox or language", () => {
+    const result = applyDraftOperations({
+      snapshot: makeSnapshot({
+        language: "PYTHON",
+        sandboxConfigId: "py-sandbox",
+      }),
+      operations: [
+        {
+          type: "set_source_code",
+          sourceCode: 'def evaluate(output):\n    return {"score": 1.0}',
+        },
+      ],
+      sandboxConfigs: {
+        "py-sandbox": { language: "PYTHON" },
+      },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.output.sandboxConfigId).toBe("py-sandbox");
+  });
+
   it("rejects explicit null sandbox selections in create mode", () => {
     const result = applyDraftOperations({
       snapshot: makeSnapshot({ language: "PYTHON" }),

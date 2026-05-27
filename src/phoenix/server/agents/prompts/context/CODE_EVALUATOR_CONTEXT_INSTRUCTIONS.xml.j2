@@ -12,7 +12,7 @@
     - Use sampled dataset examples as shape evidence. Write helper functions that normalize JSON strings and traverse the actual sampled structure, especially chat-style `messages` arrays, assistant content parts, `tool_calls`/`toolCalls`, or `function_call`; do not assume the signal is at a top-level key.
     - The draft fields are: name, description, language (PYTHON or TYPESCRIPT), source_code, sandbox_config_id, input_mapping (literal + path), and output_configs (the named classification, continuous, or freeform annotation configs the evaluator produces).
     - In edit mode, language is immutable — it was fixed when the evaluator was created and is tied to the sandbox configuration. Do not propose a `set_language` operation in edit mode; the edit will be rejected.
-    - The selected sandbox_config_id must match the draft language. In create mode, the draft must keep a non-null sandbox_config_id; if you change language, include a compatible sandbox_config_id in the same proposal.
+    - The selected sandbox_config_id must match the draft language. In create mode, the draft must keep a non-null sandbox_config_id. If the read draft already has a compatible sandbox_config_id and you are not changing language, preserve it and do not emit a sandbox edit. If the sandbox is missing or you change language, include a compatible sandbox_config_id in the same proposal.
   </draft_contract>
   <available_sandbox_configs>
 {% if available_sandbox_configs %}
