@@ -22,7 +22,6 @@ import {
   TooltipTrigger,
   View,
 } from "@phoenix/components";
-import { TraceAgentChatPanel } from "@phoenix/components/agent/TraceAgentChatPanel";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { LatencyText } from "@phoenix/components/trace/LatencyText";
 import { SpanStatusBadge } from "@phoenix/components/trace/SpanStatusBadge";
@@ -177,7 +176,6 @@ export function TraceDetails(props: TraceDetailsProps) {
             ) : null}
           </ScrollingTabsWrapper>
         </Panel>
-        <TraceAgentChatPanel />
       </Group>
     </main>
   );
