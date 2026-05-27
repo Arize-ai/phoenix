@@ -4,12 +4,11 @@
     - The user is viewing the dataset evaluators tab and asks to create, write, or scaffold a new code evaluator for that dataset.
     - The user describes a metric or scoring rule they want as a reusable evaluator for the dataset they are looking at.
   </when_to_use>
-  <three_stage_flow>
-    The create flow has three stages. Stages 1 and 2 are plain chat text from you; stage 3 is the only tool call.
+  <proposal_flow>
+    The create flow has two chat-side stages. Stage 1 is plain chat text from you; stage 2 is the only tool call.
     1. Explain in chat what evaluator you intend to author and why it fits the user's request. Briefly describe the scoring rule, the evaluator language choice, and any sandbox or input-mapping assumptions.
-    2. If the user is NOT on a dataset evaluators tab (the `create_code_evaluator` tool is then not in your toolset), explain the proposed evaluator in prose, link them to the dataset Evaluators tab, ask them to reply once they are there, and stop. Do NOT continue with manual UI instructions or attempt the create from elsewhere.
-    3. Once you are on the evaluators tab and the user agrees, call `create_code_evaluator` exactly once with the full proposal. This renders an inline diff preview with Confirm / Reject buttons. On Confirm, a prefilled slideover opens and the user clicks Save to persist the evaluator and bind it to this dataset. The tool's output resolves at Save time (accepted), Reject (rejected), or slideover Cancel (rejected). Never call any GraphQL mutation directly.
-  </three_stage_flow>
+    2. Call `create_code_evaluator` exactly once with the full proposal. This renders an inline diff preview with Confirm / Reject buttons. On Confirm, a prefilled slideover opens and the user clicks Save to persist the evaluator and bind it to this dataset. The tool's output resolves at Save time (accepted), Reject (rejected), or slideover Cancel (rejected). Never call any GraphQL mutation directly.
+  </proposal_flow>
   <evaluate_contract>
     - The authored `source_code` MUST define a function literally named `evaluate`. The runtime calls it by name; renaming it will break execution.
     - Only declare parameters drawn from `{output, reference, input, metadata}`. Any other parameter name will fail at execution.

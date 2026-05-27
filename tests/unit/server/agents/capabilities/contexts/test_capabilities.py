@@ -163,7 +163,7 @@ class TestProjectContextCapabilityRender:
 
 
 class TestDatasetContextCapabilityRender:
-    def test_evaluator_authoring_handoff_stops_after_navigation_prompt(self) -> None:
+    def test_evaluator_authoring_handoff_links_to_create_slideover(self) -> None:
         capability = DatasetContextCapability(
             instructions=_DEFAULT_PROMPTS.dataset_context,
         )
@@ -185,7 +185,7 @@ class TestDatasetContextCapabilityRender:
 
 
 class TestPlaygroundContextCapabilityRender:
-    def test_dataset_evaluator_authoring_links_to_loaded_dataset_handoff(self) -> None:
+    def test_dataset_evaluator_authoring_links_to_loaded_dataset_create_slideover(self) -> None:
         capability = PlaygroundContextCapability(
             instructions=_DEFAULT_PROMPTS.playground_context,
         )
