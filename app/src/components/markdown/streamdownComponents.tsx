@@ -44,48 +44,36 @@ const headingCSS = (level: 1 | 2 | 3 | 4 | 5 | 6) => css`
   color: var(--global-text-color-900);
   font-weight: var(--global-font-weight-semibold);
 
-  ${
-    level === 1 &&
-    css`
-      font-size: var(--global-font-size-xl);
-      line-height: var(--global-line-height-xl);
-    `
-  }
-  ${
-    level === 2 &&
-    css`
-      font-size: var(--global-font-size-l);
-      line-height: var(--global-line-height-l);
-    `
-  }
-  ${
-    level === 3 &&
-    css`
-      font-size: var(--global-font-size-m);
-      line-height: var(--global-line-height-m);
-    `
-  }
-  ${
-    level === 4 &&
-    css`
-      font-size: var(--global-font-size-s);
-      line-height: var(--global-line-height-s);
-    `
-  }
-  ${
-    level === 5 &&
-    css`
-      font-size: var(--global-font-size-xs);
-      line-height: var(--global-line-height-xs);
-    `
-  }
-  ${
-    level === 6 &&
-    css`
-      font-size: var(--global-font-size-xxs);
-      line-height: var(--global-line-height-xxs);
-    `
-  }
+  ${level === 1 &&
+  css`
+    font-size: var(--global-font-size-xl);
+    line-height: var(--global-line-height-xl);
+  `}
+  ${level === 2 &&
+  css`
+    font-size: var(--global-font-size-l);
+    line-height: var(--global-line-height-l);
+  `}
+  ${level === 3 &&
+  css`
+    font-size: var(--global-font-size-m);
+    line-height: var(--global-line-height-m);
+  `}
+  ${level === 4 &&
+  css`
+    font-size: var(--global-font-size-s);
+    line-height: var(--global-line-height-s);
+  `}
+  ${level === 5 &&
+  css`
+    font-size: var(--global-font-size-xs);
+    line-height: var(--global-line-height-xs);
+  `}
+  ${level === 6 &&
+  css`
+    font-size: var(--global-font-size-xxs);
+    line-height: var(--global-line-height-xxs);
+  `}
 `;
 
 const paragraphCSS = css`

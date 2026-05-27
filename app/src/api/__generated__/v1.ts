@@ -2040,6 +2040,8 @@ export interface components {
             toolName: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default approval-requested
@@ -2048,6 +2050,8 @@ export interface components {
             state?: "approval-requested";
             /** Input */
             input: unknown;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
             /** Callprovidermetadata */
             callProviderMetadata?: {
                 [key: string]: {
@@ -2072,6 +2076,8 @@ export interface components {
             toolName: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default approval-responded
@@ -2080,6 +2086,8 @@ export interface components {
             state?: "approval-responded";
             /** Input */
             input: unknown;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
             /** Callprovidermetadata */
             callProviderMetadata?: {
                 [key: string]: {
@@ -2104,6 +2112,8 @@ export interface components {
             toolName: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default input-available
@@ -2112,6 +2122,8 @@ export interface components {
             state?: "input-available";
             /** Input */
             input: unknown;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
             /** Callprovidermetadata */
             callProviderMetadata?: {
                 [key: string]: {
@@ -2136,6 +2148,8 @@ export interface components {
             toolName: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default input-streaming
@@ -2144,6 +2158,8 @@ export interface components {
             state?: "input-streaming";
             /** Input */
             input?: unknown | null;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
             /** Callprovidermetadata */
             callProviderMetadata?: {
                 [key: string]: {
@@ -2168,6 +2184,8 @@ export interface components {
             toolName: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default output-available
@@ -2178,6 +2196,8 @@ export interface components {
             input: unknown;
             /** Output */
             output: unknown;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
             /** Callprovidermetadata */
             callProviderMetadata?: {
                 [key: string]: {
@@ -2204,6 +2224,8 @@ export interface components {
             toolName: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default output-denied
@@ -2212,6 +2234,8 @@ export interface components {
             state?: "output-denied";
             /** Input */
             input: unknown;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
             /** Callprovidermetadata */
             callProviderMetadata?: {
                 [key: string]: {
@@ -2236,6 +2260,8 @@ export interface components {
             toolName: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default output-error
@@ -2246,6 +2272,8 @@ export interface components {
             input: unknown;
             /** Errortext */
             errorText: string;
+            /** Providerexecuted */
+            providerExecuted?: boolean | null;
             /** Callprovidermetadata */
             callProviderMetadata?: {
                 [key: string]: {
@@ -4457,6 +4485,8 @@ export interface components {
             type: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default approval-requested
@@ -4497,6 +4527,8 @@ export interface components {
             type: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default approval-responded
@@ -4549,6 +4581,8 @@ export interface components {
             type: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default input-available
@@ -4577,6 +4611,8 @@ export interface components {
             type: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default input-streaming
@@ -4605,6 +4641,8 @@ export interface components {
             type: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default output-available
@@ -4637,6 +4675,8 @@ export interface components {
             type: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default output-denied
@@ -4665,6 +4705,8 @@ export interface components {
             type: string;
             /** Toolcallid */
             toolCallId: string;
+            /** Title */
+            title?: string | null;
             /**
              * State
              * @default output-error

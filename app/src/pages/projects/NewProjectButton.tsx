@@ -84,7 +84,9 @@ function NewProjectDialog({
 
   const [commit, isCommitting] =
     useMutation<NewProjectButtonCreateProjectMutation>(graphql`
-      mutation NewProjectButtonCreateProjectMutation($input: CreateProjectInput!) {
+      mutation NewProjectButtonCreateProjectMutation(
+        $input: CreateProjectInput!
+      ) {
         createProject(input: $input) {
           project {
             id

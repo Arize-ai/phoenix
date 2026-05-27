@@ -116,7 +116,8 @@ export const elicitationOptionButtonCSS = css`
   gap: var(--global-dimension-size-125);
   width: 100%;
   padding: var(--global-dimension-size-125) var(--global-dimension-size-150);
-  border: var(--global-border-size-thin) solid var(--global-border-color-default);
+  border: var(--global-border-size-thin) solid
+    var(--global-border-color-default);
   border-radius: var(--global-rounding-medium);
   cursor: pointer;
   font-size: var(--global-font-size-s);

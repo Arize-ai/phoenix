@@ -25,7 +25,8 @@ export function CellTop({
 const cellTopCSS = css`
   padding: 0 var(--global-dimension-static-size-100) 0
     var(--global-dimension-static-size-200);
-  border-bottom: var(--global-border-size-thin) solid var(--global-color-gray-100);
+  border-bottom: var(--global-border-size-thin) solid
+    var(--global-color-gray-100);
   background-color: var(--global-color-gray-50);
   min-height: 39px;
   display: flex;

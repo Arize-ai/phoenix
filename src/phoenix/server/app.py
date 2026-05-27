@@ -51,7 +51,7 @@ from starlette.responses import JSONResponse, PlainTextResponse, RedirectRespons
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 from starlette.types import Scope, StatefulLifespan
-from strawberry.extensions import SchemaExtension
+from strawberry.extensions import MaxAliasesLimiter, QueryDepthLimiter, SchemaExtension
 from strawberry.fastapi import GraphQLRouter
 from typing_extensions import TypeAlias, override
 
@@ -439,7 +439,7 @@ def user_fastapi_middlewares() -> list[Middleware]:
     return middlewares
 
 
-def user_gql_extensions() -> list[Union[type[SchemaExtension], SchemaExtension]]:
+def user_gql_extensions() -> list[type[SchemaExtension]]:
     paths = get_env_gql_extension_paths()
     extensions = []
     for file_path, object_name in paths:
@@ -1165,7 +1165,10 @@ def create_app(
         max_spans_queue_size=get_env_max_spans_queue_size(),
     )
     tracer_provider = None
-    graphql_schema_extensions: list[Union[type[SchemaExtension], SchemaExtension]] = []
+    graphql_schema_extensions: list[Union[type[SchemaExtension], Callable[[], SchemaExtension]]] = [
+        lambda: QueryDepthLimiter(max_depth=20),
+        lambda: MaxAliasesLimiter(max_alias_count=50),
+    ]
     graphql_schema_extensions.extend(user_gql_extensions())
 
     if server_instrumentation_is_enabled():

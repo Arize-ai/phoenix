@@ -61,7 +61,9 @@ export function AddExampleFromScratchForm(
   const modifierKey = useModifierKey();
   const [commit, isCommitting] = useMutation<AddExampleFromScratchFormMutation>(
     graphql`
-      mutation AddExampleFromScratchFormMutation($input: AddExamplesToDatasetInput!) {
+      mutation AddExampleFromScratchFormMutation(
+        $input: AddExamplesToDatasetInput!
+      ) {
         addExamplesToDataset(input: $input) {
           __typename
         }

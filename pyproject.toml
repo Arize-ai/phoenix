@@ -33,7 +33,7 @@ dependencies = [
   "starlette>=0.37.0",
   "uvicorn",
   "psutil",
-  "strawberry-graphql==0.314.3",
+  "strawberry-graphql==0.316.0",
   "pyarrow",
   "typing-extensions>=4.6",
   "scipy",
@@ -107,7 +107,7 @@ dev = [
   "litellm>=1.83.14,<1.84",  # >=1.83.14 fixes CVE-2026-42208 (SQLi), MCP stdio RCE, SSTI, OIDC bypass, password hash exposure, privilege escalation; excludes 1.82.7-1.82.8 supply chain compromise; <1.84 caps the minor
   "modal>=1.2.0",  # type-checking only; runtime is gated by the [modal] extra
   "vercel>=0.5.8",  # type-checking only; runtime is gated by the [vercel] extra. 0.5.8 exposes `network_policy` on AsyncSandbox.create.
-  "mypy==1.19.1",
+  "mypy==2.1.0",
   "mypy-boto3-bedrock-runtime",
   "nest-asyncio",  # for executor testing
   "numpy",
@@ -145,7 +145,7 @@ dev = [
   "requests",  # this is needed to type-check third-party packages
   "responses",
   "respx>=0.22.0",
-  "strawberry-graphql[opentelemetry]==0.314.3",
+  "strawberry-graphql[opentelemetry]==0.316.0",
   "syrupy",
   "tenacity",
   "tiktoken",
@@ -225,7 +225,7 @@ container = [
   "opentelemetry-instrumentation-sqlalchemy==0.62b1",
   "opentelemetry-instrumentation-grpc==0.62b1",
   "py-grpc-prometheus",
-  "strawberry-graphql[opentelemetry]==0.314.3",
+  "strawberry-graphql[opentelemetry]==0.316.0",
   "uvloop; platform_system != 'Windows'",
   "aioboto3",
   "types-aiobotocore-bedrock-runtime>=3.6.0",

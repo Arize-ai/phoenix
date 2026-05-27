@@ -141,7 +141,9 @@ export const CodeEvaluatorTestSection = ({
 
   const [testEvaluator, isLoading] =
     useMutation<CodeEvaluatorTestSectionMutation>(graphql`
-      mutation CodeEvaluatorTestSectionMutation($input: EvaluatorPreviewsInput!) {
+      mutation CodeEvaluatorTestSectionMutation(
+        $input: EvaluatorPreviewsInput!
+      ) {
         evaluatorPreviews(input: $input) {
           results {
             evaluatorName

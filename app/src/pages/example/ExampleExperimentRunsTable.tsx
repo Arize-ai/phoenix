@@ -32,7 +32,8 @@ export function ExampleExperimentsTableEmpty() {
           colSpan={100}
           css={css`
             text-align: center;
-            padding: var(--global-dimension-size-300) var(--global-dimension-size-300) !important;
+            padding: var(--global-dimension-size-300)
+              var(--global-dimension-size-300) !important;
           `}
         >
           No experiments have been run for this example.

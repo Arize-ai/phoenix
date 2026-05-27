@@ -60,23 +60,23 @@ export function TitledPanel({
           css={css(
             compactResizeHandleCSS,
             css`
-                border-radius: var(--global-rounding-small);
-                opacity: 1;
-                background-color: unset;
-                &[data-bordered="true"] {
-                  background-color: var(--global-border-color-default);
-                }
-                &[aria-orientation="horizontal"] {
-                  height: 1px;
-                }
-                &:hover,
-                &:focus,
-                &:active,
-                &:focus-visible {
-                  // Make hover target bigger
-                  background-color: var(--global-color-primary);
-                }
-              `
+              border-radius: var(--global-rounding-small);
+              opacity: 1;
+              background-color: unset;
+              &[data-bordered="true"] {
+                background-color: var(--global-border-color-default);
+              }
+              &[aria-orientation="horizontal"] {
+                height: 1px;
+              }
+              &:hover,
+              &:focus,
+              &:active,
+              &:focus-visible {
+                // Make hover target bigger
+                background-color: var(--global-color-primary);
+              }
+            `
           )}
         />
       )}

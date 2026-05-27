@@ -58,7 +58,8 @@ export function PlaygroundDatasetSection({
         const evaluator =
           readInlineData<PlaygroundDatasetSection_evaluator$key>(
             graphql`
-              fragment PlaygroundDatasetSection_evaluator on DatasetEvaluator @inline {
+              fragment PlaygroundDatasetSection_evaluator on DatasetEvaluator
+              @inline {
                 id
                 name
                 inputMapping {

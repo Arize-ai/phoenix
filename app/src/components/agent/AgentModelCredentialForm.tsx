@@ -12,7 +12,8 @@ import type { AgentModelCredentialFormQuery } from "./__generated__/AgentModelCr
 const credentialFormCSS = css`
   box-sizing: border-box;
   width: 100%;
-  border: var(--global-border-size-thin) solid var(--global-border-color-default);
+  border: var(--global-border-size-thin) solid
+    var(--global-border-color-default);
   border-radius: var(--global-rounding-medium);
   background: var(--global-background-color-default);
   padding: var(--global-dimension-size-200);

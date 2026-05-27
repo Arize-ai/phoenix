@@ -99,7 +99,7 @@ export const toolPartCSS = css`
     align-items: flex-start;
     gap: var(--global-dimension-size-100);
     padding: var(--global-dimension-size-50) var(--global-dimension-size-250) 0;
-  
+
     // Adds perimeter spacing when the last element isn't a copyable output,
     // such as the EXIT CODE summary line.
     &:last-child {
