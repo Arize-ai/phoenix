@@ -289,7 +289,9 @@ export function ChatView({
   emptyStateQuickActions?: EmptyStateQuickAction[];
 }>) {
   const { theme } = useTheme();
-  const { contentRef, scrollRef, scrollToBottom } = useStickToBottom();
+  const { contentRef, scrollRef, scrollToBottom } = useStickToBottom({
+    initial: "instant",
+  });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [inputValue, setInputValue] = useState("");
   const [elicitationDraft, setElicitationDraft] =
