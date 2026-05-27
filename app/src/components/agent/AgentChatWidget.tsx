@@ -71,6 +71,18 @@ const hoverWipe = keyframes`
   }
 `;
 
+const hoverRingOpacity = keyframes`
+  0%, 100% {
+    opacity: 0;
+  }
+  8%, 40% {
+    opacity: 0.95;
+  }
+  55% {
+    opacity: 0;
+  }
+`;
+
 const glyphBreathe = keyframes`
   0%, 100% {
     color: var(--agent-chat-widget-glyph-rest-color);
@@ -312,6 +324,34 @@ const restingHoverWipeCSS = css`
   }
 `;
 
+const entranceHoverWipeCSS = css`
+  @media (prefers-reduced-motion: no-preference) {
+    &[data-entrance-animation="true"] .agent-chat-widget__hover-shimmer {
+      animation: ${hoverWipe} 2400ms linear 1;
+    }
+
+    &[data-entrance-animation="true"] .agent-chat-widget__hover-shimmer::before {
+      animation:
+        ${ringBreathe} 2400ms ease-in-out 1,
+        ${hoverRingOpacity} 2400ms linear 1;
+    }
+
+    &[data-entrance-animation="true"] .agent-chat-widget__content {
+      opacity: 1;
+    }
+
+    &[data-entrance-animation="true"]:hover .agent-chat-widget__hover-shimmer {
+      animation: ${hoverWipe} 2400ms linear infinite;
+    }
+
+    &[data-entrance-animation="true"]:hover
+      .agent-chat-widget__hover-shimmer::before {
+      opacity: 0.95;
+      animation: ${ringBreathe} 2400ms ease-in-out 1 both;
+    }
+  }
+`;
+
 const thinkingGlyphPulseCSS = css`
   .agent-chat-widget__content {
     animation: ${glyphBreathe} 2400ms ease-in-out infinite;
@@ -340,6 +380,7 @@ export function AgentChatWidgetButton({
   ...buttonProps
 }: AgentChatWidgetButtonProps) {
   const { theme } = useTheme();
+  const shouldShowEntranceAnimation = !isStreaming;
   return (
     <AriaButton
       ref={ref}
@@ -360,10 +401,14 @@ export function AgentChatWidgetButton({
           darkThemeThinkingGlowCSS,
           lightThemeThinkingGlowCSS,
           !isStreaming ? [thinkingBorderCSS, restingHoverWipeCSS] : undefined,
+          shouldShowEntranceAnimation ? entranceHoverWipeCSS : undefined,
           isStreaming ? thinkingBorderCSS : undefined,
           isStreaming ? thinkingGlyphPulseCSS : undefined,
         ]}
         data-theme={theme}
+        data-entrance-animation={
+          shouldShowEntranceAnimation ? "true" : undefined
+        }
         initial={false}
         animate={{
           width: isStreaming ? 40 : 58,
@@ -452,7 +497,7 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
     [isAssistantAgentEnabled, toggleOpen]
   );
 
-  if (!isAssistantAgentEnabled || isOpen) {
+  if (!isAssistantAgentEnabled) {
     return null;
   }
 
@@ -461,6 +506,7 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
   return createPortal(
     <AgentFabPositioner
       boundaryRef={hasOpenModal ? undefined : boundaryRef}
+      isHidden={isOpen}
       layer={hasOpenModal ? "modal" : "content"}
       placement={fabPlacement}
       size={isStreaming ? FAB_STREAMING_SIZE : FAB_RESTING_SIZE}
