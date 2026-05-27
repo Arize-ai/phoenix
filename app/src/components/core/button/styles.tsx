@@ -21,7 +21,8 @@ export const buttonCSS = css`
 
   /* Disable outline since there are other mechanisms to show focus */
   outline: none;
-  &[data-focus-visible] {
+  &[data-focus-visible],
+  &:focus-visible {
     // Only show outline on focus-visible, aka only when tabbed but not clicked
     outline: 1px solid var(--global-input-field-border-color-active);
     outline-offset: 1px;
