@@ -225,6 +225,9 @@ function AgentChatController({
     return null;
   }
 
+  const showFloatingCloseAction =
+    preferredPosition === "detached" || isForcedFloatingMode;
+
   return renderFrame(
     <>
       <AgentChatHeader
@@ -261,13 +264,12 @@ function AgentChatController({
       </Suspense>
     </>,
     {
-      floatingAction:
-        preferredPosition === "detached" ? (
-          <AgentChatWidgetButton
-            ariaLabel="Close assistant"
-            onPress={closePanel}
-          />
-        ) : undefined,
+      floatingAction: showFloatingCloseAction ? (
+        <AgentChatWidgetButton
+          ariaLabel="Close assistant"
+          onPress={closePanel}
+        />
+      ) : undefined,
     }
   );
 }
