@@ -8,6 +8,7 @@ import { useSize } from "@phoenix/components/core/contexts/SizeContext";
 import { classNames } from "@phoenix/utils/classNames";
 
 import { buttonCSS } from "./styles";
+import { Tooltip, TooltipArrow, TooltipTrigger } from "../tooltip";
 import type { ButtonProps } from "./types";
 
 function Button({
@@ -22,6 +23,14 @@ function Button({
     children,
     css: propCSS,
     className,
+    disabledReason,
+    disabledReasonPlacement = "top",
+    disabledReasonOffset = 8,
+    isDisabled,
+    onPress,
+    onPressStart,
+    onPressEnd,
+    onPressChange,
     ...otherProps
   } = props;
   // If the toggle button is nested under a button group, use the size of the button group
@@ -40,10 +49,18 @@ function Button({
     },
     [leadingVisual, trailingVisual, children]
   );
-  return (
+  const shouldShowDisabledReason = Boolean(isDisabled && disabledReason);
+
+  const button = (
     <AriaButton
       {...otherProps}
       ref={ref}
+      isDisabled={shouldShowDisabledReason ? false : isDisabled}
+      aria-disabled={shouldShowDisabledReason ? true : undefined}
+      onPress={shouldShowDisabledReason ? undefined : onPress}
+      onPressStart={shouldShowDisabledReason ? undefined : onPressStart}
+      onPressEnd={shouldShowDisabledReason ? undefined : onPressEnd}
+      onPressChange={shouldShowDisabledReason ? undefined : onPressChange}
       data-size={size}
       data-variant={variant}
       data-childless={!children}
@@ -52,6 +69,20 @@ function Button({
     >
       {renderContent}
     </AriaButton>
+  );
+
+  if (!shouldShowDisabledReason) {
+    return button;
+  }
+
+  return (
+    <TooltipTrigger delay={700} closeDelay={0}>
+      {button}
+      <Tooltip placement={disabledReasonPlacement} offset={disabledReasonOffset}>
+        <TooltipArrow />
+        {disabledReason}
+      </Tooltip>
+    </TooltipTrigger>
   );
 }
 

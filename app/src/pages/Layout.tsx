@@ -139,6 +139,7 @@ export function Layout() {
                 {shouldShowFloatingAgentPanel ? (
                   <FloatingAgentChatPanel
                     layer={hasOpenModal ? "modal" : "content"}
+                    isForcedFloatingMode={shouldForceFloatingAgentPanel}
                   />
                 ) : null}
                 <Suspense fallback={<Loading />}>

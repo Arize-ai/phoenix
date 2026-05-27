@@ -35,6 +35,11 @@ type FloatingAgentChatPanelProps = {
    *   so React Aria keeps the assistant interactive instead of marking it inert.
    */
   layer?: AgentChatPanelLayer;
+  /**
+   * Whether this surface is being shown in a temporary forced-floating mode
+   * instead of reflecting the user's saved layout preference.
+   */
+  isForcedFloatingMode?: boolean;
 };
 
 type AgentChatSurfaceProps = {
@@ -43,16 +48,13 @@ type AgentChatSurfaceProps = {
     options: { floatingAction?: ReactNode }
   ) => ReactNode;
   /**
-   * Whether the header should expose controls for switching between pinned and
-   * detached assistant layouts.
+   * Whether this surface is temporarily being forced into floating mode.
    *
-   * Modal-layer panels intentionally hide these controls because that layer is
-   * forced by the currently active modal, not by the user's saved layout
-   * preference. Showing the pin/detach toggle there would imply the user can
-   * dock the assistant behind the modal, which would move it out of the active
-   * modal scope and make it unavailable again.
+   * Forced-floating panels intentionally keep this control visible but
+   * disabled because the current surface is being driven by another overlay,
+   * not by the user's saved layout preference.
    */
-  showPositionControls?: boolean;
+  isForcedFloatingMode?: boolean;
 };
 
 /**
@@ -78,13 +80,14 @@ export function AgentChatPanel() {
  */
 export function FloatingAgentChatPanel({
   layer = "content",
+  isForcedFloatingMode = layer === "modal",
 }: FloatingAgentChatPanelProps) {
   const fabPlacement = useAgentContext((state) => state.fabPlacement);
   const [panelSize, setPanelSize] = useState(DEFAULT_FLOATING_AGENT_CHAT_SIZE);
 
   return (
     <AgentChatSurface
-      showPositionControls={layer !== "modal"}
+      isForcedFloatingMode={isForcedFloatingMode}
       renderFrame={(children, { floatingAction }) => (
         <FloatingAgentChatFrame
           floatingAction={floatingAction}
@@ -102,12 +105,12 @@ export function FloatingAgentChatPanel({
 
 function AgentChatSurface({
   renderFrame,
-  showPositionControls = true,
+  isForcedFloatingMode = false,
 }: AgentChatSurfaceProps) {
   const isAgentsEnabled = useFeatureFlag("agents");
   const {
     isOpen,
-    position,
+    position: preferredPosition,
     activeSessionId,
     orderedSessions,
     showSessionHistory,
@@ -148,8 +151,9 @@ function AgentChatSurface({
       setActiveSession={setActiveSession}
       deleteSession={deleteSession}
       closePanel={closePanel}
-      position={showPositionControls ? position : undefined}
-      setPosition={showPositionControls ? setPosition : undefined}
+      preferredPosition={preferredPosition}
+      setPreferredPosition={setPosition}
+      isForcedFloatingMode={isForcedFloatingMode}
       handleModelChange={handleModelChange}
       renderFrame={renderFrame}
     />
@@ -169,8 +173,9 @@ function AgentChatController({
   setActiveSession,
   deleteSession,
   closePanel,
-  position,
-  setPosition,
+  preferredPosition,
+  setPreferredPosition,
+  isForcedFloatingMode,
   handleModelChange,
   renderFrame,
 }: {
@@ -190,8 +195,9 @@ function AgentChatController({
   >["setActiveSession"];
   deleteSession: ReturnType<typeof useAgentChatPanelState>["deleteSession"];
   closePanel: ReturnType<typeof useAgentChatPanelState>["closePanel"];
-  position?: ReturnType<typeof useAgentChatPanelState>["position"];
-  setPosition?: ReturnType<typeof useAgentChatPanelState>["setPosition"];
+  preferredPosition?: ReturnType<typeof useAgentChatPanelState>["position"];
+  setPreferredPosition?: ReturnType<typeof useAgentChatPanelState>["setPosition"];
+  isForcedFloatingMode?: boolean;
   handleModelChange: ReturnType<
     typeof useAgentChatPanelState
   >["handleModelChange"];
@@ -226,11 +232,12 @@ function AgentChatController({
         orderedSessions={orderedSessions}
         activeSessionId={activeSessionId}
         showSessionHistory={showSessionHistory}
-        position={position}
+        preferredPosition={preferredPosition}
         onSelectSession={setActiveSession}
         onDeleteSession={deleteSession}
         onCreateSession={createSession}
-        onPositionChange={setPosition}
+        onPreferredPositionChange={setPreferredPosition}
+        isForcedFloatingMode={isForcedFloatingMode}
         onClose={closePanel}
       />
       {/* Catch runaway suspense triggers that aren't handled locally */}
@@ -255,7 +262,7 @@ function AgentChatController({
     </>,
     {
       floatingAction:
-        position === "detached" ? (
+        preferredPosition === "detached" ? (
           <AgentChatWidgetButton
             ariaLabel="Close assistant"
             onPress={closePanel}

@@ -86,29 +86,34 @@ export function AgentChatHeader({
   orderedSessions,
   activeSessionId,
   showSessionHistory,
-  position,
+  preferredPosition,
   onSelectSession,
   onDeleteSession,
   onCreateSession,
-  onPositionChange,
+  onPreferredPositionChange,
+  isForcedFloatingMode = false,
   onClose,
 }: {
   sessionDisplayName: string;
   orderedSessions: AgentSession[];
   activeSessionId: string | null;
   showSessionHistory: boolean;
-  position?: AgentPosition;
+  preferredPosition?: AgentPosition;
   onSelectSession: (sessionId: string | null) => void;
   onDeleteSession: (sessionId: string) => void;
   onCreateSession: () => void;
-  onPositionChange?: (position: AgentPosition) => void;
+  onPreferredPositionChange?: (position: AgentPosition) => void;
+  isForcedFloatingMode?: boolean;
   onClose: () => void;
 }) {
-  const nextPosition = position === "pinned" ? "detached" : "pinned";
+  const nextPreferredPosition =
+    preferredPosition === "pinned" ? "detached" : "pinned";
   const positionToggleLabel =
-    position === "pinned"
+    preferredPosition === "pinned"
       ? "Switch assistant to floating panel"
       : "Pin assistant to side";
+  const isPositionToggleDisabled =
+    isForcedFloatingMode || onPreferredPositionChange == null;
 
   return (
     <div className="agent-chat-panel__header" css={panelHeaderCSS}>
@@ -151,16 +156,26 @@ export function AgentChatHeader({
           aria-label="Agent settings"
           leadingVisual={<Icon svg={<Icons.OptionsOutline />} />}
         />
-        {position != null && onPositionChange != null ? (
+        {preferredPosition != null ? (
           <Button
             variant="quiet"
             size="S"
             aria-label={positionToggleLabel}
-            onPress={() => onPositionChange(nextPosition)}
+            isDisabled={isPositionToggleDisabled}
+            disabledReason={
+              isForcedFloatingMode
+                ? "Unavailable due to open panel"
+                : undefined
+            }
+            disabledReasonPlacement="bottom"
+            disabledReasonOffset={8}
+            onPress={() =>
+              onPreferredPositionChange?.(nextPreferredPosition)
+            }
             leadingVisual={
               <Icon
                 svg={
-                  position === "pinned" ? (
+                  preferredPosition === "pinned" ? (
                     <Icons.CollapseOutline />
                   ) : (
                     <Icons.SidebarAttachRight />

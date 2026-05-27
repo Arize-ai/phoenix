@@ -27,7 +27,8 @@ export const buttonCSS = css`
     outline: 1px solid var(--global-input-field-border-color-active);
     outline-offset: 1px;
   }
-  &[disabled] {
+  &[disabled],
+  &[aria-disabled="true"] {
     cursor: default;
     opacity: var(--global-opacity-disabled);
   }
@@ -57,7 +58,7 @@ export const buttonCSS = css`
 
   background-color: var(--global-input-field-background-color);
   border-color: var(--button-border-color);
-  &:hover:not([disabled]) {
+  &:hover:not([disabled]):not([aria-disabled="true"]) {
     background-color: var(--global-input-field-background-color-hover);
   }
 
@@ -65,7 +66,7 @@ export const buttonCSS = css`
     background-color: var(--global-button-primary-background-color);
     --button-border-color: var(--global-button-primary-border-color);
     color: var(--global-button-primary-foreground-color);
-    &:hover:not([disabled]) {
+    &:hover:not([disabled]):not([aria-disabled="true"]) {
       background-color: var(--global-button-primary-background-color-hover);
     }
   }
@@ -73,7 +74,7 @@ export const buttonCSS = css`
     background-color: var(--global-button-danger-background-color);
     --button-border-color: var(--global-button-danger-border-color);
     color: var(--global-static-color-white-900);
-    &:hover:not([disabled]) {
+    &:hover:not([disabled]):not([aria-disabled="true"]) {
       background-color: var(--global-button-danger-background-color-hover);
     }
   }
@@ -81,14 +82,14 @@ export const buttonCSS = css`
     background-color: var(--global-button-success-background-color);
     --button-border-color: var(--global-button-success-border-color);
     color: var(--global-static-color-white-900);
-    &:hover:not([disabled]) {
+    &:hover:not([disabled]):not([aria-disabled="true"]) {
       background-color: var(--global-button-success-background-color-hover);
     }
   }
   &[data-variant="quiet"] {
     background-color: transparent;
     --button-border-color: transparent;
-    &:hover:not([disabled]) {
+    &:hover:not([disabled]):not([aria-disabled="true"]) {
       border-color: transparent;
       background-color: var(--global-input-field-background-color-active);
     }

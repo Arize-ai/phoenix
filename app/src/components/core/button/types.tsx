@@ -24,4 +24,20 @@ export interface ButtonProps
    * @default: 'default'
    */
   variant?: ButtonVariant;
+  /**
+   * Optional explanation shown in a tooltip when the button is disabled.
+   * When provided alongside `isDisabled`, the button remains focusable and
+   * hoverable so the tooltip can be reached, while press handlers stay inert.
+   */
+  disabledReason?: ReactNode;
+  /**
+   * Tooltip placement for `disabledReason`.
+   * @default: 'top'
+   */
+  disabledReasonPlacement?: "top" | "bottom" | "left" | "right";
+  /**
+   * Tooltip offset for `disabledReason`.
+   * @default: 8
+   */
+  disabledReasonOffset?: number;
 }
