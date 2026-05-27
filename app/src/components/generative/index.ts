@@ -1,4 +1,4 @@
 export * from "./ToolChoiceSelector";
 export * from "./GenerativeProviderIcon";
 export * from "./ModelMenu";
-export * from "./ProviderCredentialsDialog";
+export * from "./ProviderServerCredentialsPanel";

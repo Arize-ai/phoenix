@@ -33,15 +33,11 @@ import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { AgentConsentGate } from "./AgentConsentGate";
 import { AgentContextPills } from "./AgentContextPills";
 import {
-  AgentModelCredentialInlineForm,
+  AgentModelCredentialForm,
   useAgentModelCredentialStatus,
-} from "./AgentModelCredentialInlineForm";
+} from "./AgentModelCredentialForm";
 import { AgentModelMenu } from "./AgentModelMenu";
-import {
-  ChatEmptyState,
-  ChatEmptyStateQuickActions,
-  type EmptyStateQuickAction,
-} from "./ChatEmptyState";
+import { ChatEmptyState, type EmptyStateQuickAction } from "./ChatEmptyState";
 import { ChatLantern } from "./ChatLantern";
 import { AssistantMessage, UserMessage } from "./ChatMessage";
 import {
@@ -346,17 +342,13 @@ export function ChatView({
                   quickActions={emptyStateQuickActions}
                   onQuickAction={handleQuickAction}
                 >
-                  <AgentModelCredentialInlineForm
-                    fallback={
-                      <ChatEmptyStateQuickActions
-                        quickActions={emptyStateQuickActions}
-                        onQuickAction={handleQuickAction}
-                      />
-                    }
-                    modelName={modelMenuValue.modelName}
-                    onCredentialsUpdated={refreshCredentialStatus}
-                    provider={missingCredentialsProvider}
-                  />
+                  {missingCredentialsProvider ? (
+                    <AgentModelCredentialForm
+                      modelName={modelMenuValue.modelName}
+                      onCredentialsUpdated={refreshCredentialStatus}
+                      provider={missingCredentialsProvider}
+                    />
+                  ) : undefined}
                 </ChatEmptyState>
               )}
               {messages.map((message, index) => {

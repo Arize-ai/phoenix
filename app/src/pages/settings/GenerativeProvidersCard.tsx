@@ -1,3 +1,4 @@
+import { css } from "@emotion/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   flexRender,
@@ -5,25 +6,39 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { graphql, useFragment } from "react-relay";
 
 import {
   Button,
   Card,
+  CredentialField,
+  CredentialInput,
+  Dialog,
+  DialogCloseButton,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTitleExtra,
   DialogTrigger,
   Flex,
+  Form,
   Icon,
   Icons,
+  Label,
   Modal,
   ModalOverlay,
   Text,
+  ToggleButton,
+  ToggleButtonGroup,
+  View,
 } from "@phoenix/components";
 import {
   GenerativeProviderIcon,
-  ProviderCredentialsDialog,
+  ProviderServerCredentialsPanel,
 } from "@phoenix/components/generative";
 import { tableCSS } from "@phoenix/components/table/styles";
+import { useViewer } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
@@ -221,4 +236,154 @@ function ProviderCredentialsStatus({
     return <Text color="success">configured on the server</Text>;
   }
   return <Text color="text-700">not configured</Text>;
+}
+
+type CredentialViewType = "browser" | "secrets";
+
+function ProviderCredentialsDialog({
+  provider,
+}: {
+  provider: GenerativeProvidersCard_data$data["modelProviders"][number];
+}) {
+  const { viewer } = useViewer();
+  const isAdmin = !viewer || viewer.role?.name === "ADMIN";
+  const [credentialView, setCredentialView] =
+    useState<CredentialViewType>("browser");
+
+  return (
+    <Dialog>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            Configure {isAdmin ? "" : "Local "}
+            {provider.name} Credentials
+          </DialogTitle>
+          <DialogTitleExtra>
+            <DialogCloseButton slot="close" />
+          </DialogTitleExtra>
+        </DialogHeader>
+        <View padding="size-200">
+          {isAdmin ? (
+            <Flex direction="column" gap="size-200">
+              <ToggleButtonGroup
+                selectedKeys={[credentialView]}
+                size="S"
+                aria-label="Credential Source"
+                onSelectionChange={(v) => {
+                  if (v.size === 0) {
+                    return;
+                  }
+                  const view = v.keys().next().value as CredentialViewType;
+                  if (view === "browser" || view === "secrets") {
+                    setCredentialView(view);
+                  }
+                }}
+              >
+                <ToggleButton aria-label="Browser" id="browser">
+                  Browser
+                </ToggleButton>
+                <ToggleButton aria-label="Secrets" id="secrets">
+                  Secrets
+                </ToggleButton>
+              </ToggleButtonGroup>
+              {credentialView === "browser" && (
+                <>
+                  <View paddingBottom="size-100">
+                    <Text size="XS" color="text-700">
+                      Credentials stored in your browser. Only you can see
+                      these, and they are sent with each API request.
+                    </Text>
+                  </View>
+                  <Form>
+                    <BrowserCredentials provider={provider} />
+                  </Form>
+                </>
+              )}
+              {credentialView === "secrets" && (
+                <ProviderServerCredentialsPanel provider={provider} />
+              )}
+            </Flex>
+          ) : (
+            <>
+              <View paddingBottom="size-100">
+                <Text size="XS">
+                  Set the credentials for the {provider.name} API. These
+                  credentials will be stored entirely in your browser and will
+                  only be sent to the server during API requests.
+                </Text>
+              </View>
+              <Form>
+                <BrowserCredentials provider={provider} />
+              </Form>
+            </>
+          )}
+        </View>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function BrowserCredentials({
+  provider,
+}: {
+  provider: GenerativeProvidersCard_data$data["modelProviders"][number];
+}) {
+  const providerKey = provider.key;
+  const isValidProvider = isModelProvider(providerKey);
+
+  const { setCredential, credentials } = useCredentialsContext((state) => ({
+    setCredential: state.setCredential,
+    credentials: isValidProvider ? state[providerKey] : undefined,
+  }));
+  const credentialRequirements = provider.credentialRequirements;
+
+  const clearLocalCredentials = useCallback(() => {
+    if (!isValidProvider) return;
+    provider.credentialRequirements.forEach(({ envVarName }) => {
+      setCredential({
+        provider: providerKey,
+        envVarName,
+        value: "",
+      });
+    });
+  }, [provider, providerKey, isValidProvider, setCredential]);
+
+  if (!isValidProvider) {
+    return <Text color="warning">Unknown provider type: {providerKey}</Text>;
+  }
+
+  if (provider.credentialRequirements.length === 0) {
+    return <Text color="text-700">Browser credentials are not required.</Text>;
+  }
+
+  return (
+    <Flex direction="column" gap="size-100">
+      {credentialRequirements.map(({ envVarName, isRequired }) => (
+        <CredentialField
+          key={envVarName}
+          isRequired={isRequired}
+          onChange={(value) => {
+            setCredential({
+              provider: providerKey,
+              envVarName,
+              value,
+            });
+          }}
+          value={credentials?.[envVarName] ?? ""}
+        >
+          <Label>{envVarName}</Label>
+          <CredentialInput />
+        </CredentialField>
+      ))}
+      <Button
+        onPress={clearLocalCredentials}
+        css={css`
+          align-self: flex-start;
+          margin-top: var(--global-dimension-size-100);
+        `}
+      >
+        Clear Local Credentials
+      </Button>
+    </Flex>
+  );
 }

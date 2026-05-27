@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<dfdc564e43635569a43558fc6c0aff1c>>
+ * @generated SignedSource<<d53585e4c1eccb66c7467e3977c943c9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -16,17 +16,17 @@ export type SecretKeyValueInput = {
   key: string;
   value?: string | null;
 };
-export type ProviderCredentialsDialogUpsertOrDeleteSecretsMutation$variables = {
+export type ProviderServerCredentialsPanelUpsertOrDeleteSecretsMutation$variables = {
   input: UpsertOrDeleteSecretsMutationInput;
 };
-export type ProviderCredentialsDialogUpsertOrDeleteSecretsMutation$data = {
+export type ProviderServerCredentialsPanelUpsertOrDeleteSecretsMutation$data = {
   readonly upsertOrDeleteSecrets: {
     readonly __typename: "UpsertOrDeleteSecretsMutationPayload";
   };
 };
-export type ProviderCredentialsDialogUpsertOrDeleteSecretsMutation = {
-  response: ProviderCredentialsDialogUpsertOrDeleteSecretsMutation$data;
-  variables: ProviderCredentialsDialogUpsertOrDeleteSecretsMutation$variables;
+export type ProviderServerCredentialsPanelUpsertOrDeleteSecretsMutation = {
+  response: ProviderServerCredentialsPanelUpsertOrDeleteSecretsMutation$data;
+  variables: ProviderServerCredentialsPanelUpsertOrDeleteSecretsMutation$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -68,7 +68,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "ProviderCredentialsDialogUpsertOrDeleteSecretsMutation",
+    "name": "ProviderServerCredentialsPanelUpsertOrDeleteSecretsMutation",
     "selections": (v1/*: any*/),
     "type": "Mutation",
     "abstractKey": null
@@ -77,20 +77,20 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "ProviderCredentialsDialogUpsertOrDeleteSecretsMutation",
+    "name": "ProviderServerCredentialsPanelUpsertOrDeleteSecretsMutation",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "52b7a4fd1d622790adebc0a9a6d83e28",
+    "cacheID": "2dcd2226f5f3b64c1a02030b8dd7816d",
     "id": null,
     "metadata": {},
-    "name": "ProviderCredentialsDialogUpsertOrDeleteSecretsMutation",
+    "name": "ProviderServerCredentialsPanelUpsertOrDeleteSecretsMutation",
     "operationKind": "mutation",
-    "text": "mutation ProviderCredentialsDialogUpsertOrDeleteSecretsMutation(\n  $input: UpsertOrDeleteSecretsMutationInput!\n) {\n  upsertOrDeleteSecrets(input: $input) {\n    __typename\n  }\n}\n"
+    "text": "mutation ProviderServerCredentialsPanelUpsertOrDeleteSecretsMutation(\n  $input: UpsertOrDeleteSecretsMutationInput!\n) {\n  upsertOrDeleteSecrets(input: $input) {\n    __typename\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "cdfc1d25e2619b8d75ba7ad3708a7330";
+(node as any).hash = "e861b44bbb1922da4b17ca12d6b304c9";
 
 export default node;

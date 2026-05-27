@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<3be9252779afbf720058d630e38c0b9b>>
+ * @generated SignedSource<<8b29008d744f30ea49ebfd691cb96d84>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,10 +9,10 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type ProviderCredentialsDialogSecretsQuery$variables = {
+export type ProviderServerCredentialsPanelSecretsQuery$variables = {
   secretKeys: ReadonlyArray<string>;
 };
-export type ProviderCredentialsDialogSecretsQuery$data = {
+export type ProviderServerCredentialsPanelSecretsQuery$data = {
   readonly secrets: {
     readonly edges: ReadonlyArray<{
       readonly node: {
@@ -32,9 +32,9 @@ export type ProviderCredentialsDialogSecretsQuery$data = {
     }>;
   };
 };
-export type ProviderCredentialsDialogSecretsQuery = {
-  response: ProviderCredentialsDialogSecretsQuery$data;
-  variables: ProviderCredentialsDialogSecretsQuery$variables;
+export type ProviderServerCredentialsPanelSecretsQuery = {
+  response: ProviderServerCredentialsPanelSecretsQuery$data;
+  variables: ProviderServerCredentialsPanelSecretsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -110,7 +110,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "ProviderCredentialsDialogSecretsQuery",
+    "name": "ProviderServerCredentialsPanelSecretsQuery",
     "selections": [
       {
         "alias": null,
@@ -155,7 +155,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "ProviderCredentialsDialogSecretsQuery",
+    "name": "ProviderServerCredentialsPanelSecretsQuery",
     "selections": [
       {
         "alias": null,
@@ -202,16 +202,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "5d54976f0b72d75925587a31a77fe770",
+    "cacheID": "8ad50d7bc3e7cc20678d5cfc8b7584b4",
     "id": null,
     "metadata": {},
-    "name": "ProviderCredentialsDialogSecretsQuery",
+    "name": "ProviderServerCredentialsPanelSecretsQuery",
     "operationKind": "query",
-    "text": "query ProviderCredentialsDialogSecretsQuery(\n  $secretKeys: [String!]!\n) {\n  secrets(keys: $secretKeys) {\n    edges {\n      node {\n        key\n        value {\n          __typename\n          ... on DecryptedSecret {\n            value\n          }\n          ... on UnparsableSecret {\n            parseError\n          }\n        }\n        id\n      }\n    }\n  }\n}\n"
+    "text": "query ProviderServerCredentialsPanelSecretsQuery(\n  $secretKeys: [String!]!\n) {\n  secrets(keys: $secretKeys) {\n    edges {\n      node {\n        key\n        value {\n          __typename\n          ... on DecryptedSecret {\n            value\n          }\n          ... on UnparsableSecret {\n            parseError\n          }\n        }\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "80b0b8dc111d5ba3f437e5ce2166e4c7";
+(node as any).hash = "76249629a41742e8efbd25a0370219b7";
 
 export default node;

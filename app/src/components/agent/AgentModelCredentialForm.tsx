@@ -1,5 +1,4 @@
 import { css } from "@emotion/react";
-import type { ReactNode } from "react";
 import { useState } from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 
@@ -8,7 +7,7 @@ import type { ModelMenuValue } from "@phoenix/components/generative";
 import { ProviderServerCredentialsPanel } from "@phoenix/components/generative";
 import { useViewer } from "@phoenix/contexts";
 
-import type { AgentModelCredentialInlineFormQuery } from "./__generated__/AgentModelCredentialInlineFormQuery.graphql";
+import type { AgentModelCredentialFormQuery } from "./__generated__/AgentModelCredentialFormQuery.graphql";
 
 const credentialFormCSS = css`
   box-sizing: border-box;
@@ -21,13 +20,13 @@ const credentialFormCSS = css`
 `;
 
 type AgentModelCredentialProvider =
-  AgentModelCredentialInlineFormQuery["response"]["modelProviders"][number];
+  AgentModelCredentialFormQuery["response"]["modelProviders"][number];
 
 export function useAgentModelCredentialStatus(value: ModelMenuValue | null) {
   const [fetchKey, setFetchKey] = useState(0);
-  const data = useLazyLoadQuery<AgentModelCredentialInlineFormQuery>(
+  const data = useLazyLoadQuery<AgentModelCredentialFormQuery>(
     graphql`
-      query AgentModelCredentialInlineFormQuery {
+      query AgentModelCredentialFormQuery {
         modelProviders {
           key
           name
@@ -70,23 +69,17 @@ export function useAgentModelCredentialStatus(value: ModelMenuValue | null) {
   };
 }
 
-export function AgentModelCredentialInlineForm({
-  fallback,
+export function AgentModelCredentialForm({
   modelName,
   onCredentialsUpdated,
   provider,
 }: {
-  fallback: ReactNode;
   modelName: string;
   onCredentialsUpdated: () => void;
-  provider: AgentModelCredentialProvider | null;
+  provider: AgentModelCredentialProvider;
 }) {
   const { viewer } = useViewer();
   const isAdmin = !viewer || viewer.role?.name === "ADMIN";
-
-  if (!provider) {
-    return fallback;
-  }
 
   return (
     <section
