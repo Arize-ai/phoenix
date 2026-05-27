@@ -110,8 +110,12 @@ export function Layout() {
   const panelIds = shouldShowDockedAgentPanel
     ? ["layout-content", "agent-chat"]
     : ["layout-content"];
+  // Use different storage keys based on panel count to avoid layout data mismatch
+  const layoutId = shouldShowDockedAgentPanel
+    ? "layout-panels-with-agent"
+    : "layout-panels";
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
-    id: "layout-panels",
+    id: layoutId,
     panelIds,
     storage: localStorage,
   });
@@ -123,7 +127,7 @@ export function Layout() {
         <SideNav />
         <div css={mainViewCSS}>
           <Group
-            id="layout-panels"
+            id={layoutId}
             orientation="horizontal"
             defaultLayout={defaultLayout}
             onLayoutChanged={onLayoutChanged}
