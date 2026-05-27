@@ -179,7 +179,29 @@ class TestDatasetContextCapabilityRender:
 
 
 class TestPlaygroundContextCapabilityRender:
-    def test_dataset_evaluator_authoring_defers_to_dataset_handoff(self) -> None:
+    def test_dataset_evaluator_authoring_links_to_loaded_dataset_handoff(self) -> None:
+        capability = PlaygroundContextCapability(
+            instructions=_DEFAULT_PROMPTS.playground_context,
+        )
+        ctx = _get_run_context(
+            ResolvedContexts(
+                playground=PlaygroundContext(
+                    type="playground",
+                    instance_ids=[0],
+                ),
+                dataset=DatasetContext(
+                    type="dataset",
+                    dataset_node_id="RGF0YXNldDox",
+                ),
+            )
+        )
+        content = _render(capability, ctx)
+        assert "<dataset_evaluator_authoring>" in content
+        assert "[Evaluators tab](/datasets/RGF0YXNldDox/evaluators)" in content
+        assert "do not give a manual form walkthrough" in content
+        assert "Do NOT include evaluator source code" in content
+
+    def test_dataset_evaluator_authoring_without_dataset_asks_to_load_dataset(self) -> None:
         capability = PlaygroundContextCapability(
             instructions=_DEFAULT_PROMPTS.playground_context,
         )
@@ -193,8 +215,8 @@ class TestPlaygroundContextCapabilityRender:
         )
         content = _render(capability, ctx)
         assert "<dataset_evaluator_authoring>" in content
-        assert "do not give a manual form walkthrough" in content
-        assert "stop until they do" in content
+        assert "ask them to load a dataset first" in content
+        assert "[Evaluators tab]" not in content
 
 
 class TestCodeEvaluatorContextCapabilityGate:

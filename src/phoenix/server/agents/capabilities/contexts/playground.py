@@ -24,6 +24,7 @@ class PlaygroundContextCapability(AbstractDynamicCapability[AgentDependencies]):
                 return None
             return instructions.render(
                 playground=playground,
+                dataset=ctx.deps.contexts.dataset,
                 instance_labels=ascii_uppercase,
             )
 

@@ -7,6 +7,14 @@
   </instances>
   <guidance>Call `read_prompt_instance` before proposing edits, `clone_prompt_instance` to create comparison variants, `edit_prompt_instance` to show the user an approval diff before changing prompt messages, `set_variable_values` when the user wants to populate manual playground variable inputs, `run_playground` when the user wants to run the mounted playground, `read_playground_output` after a manual run finishes when you need the raw output or traceId, and `save_prompt` only when the user explicitly asks to save the current prompt state. For dataset-backed experiment results, use `bash` with `phoenix-gql` instead of `read_playground_output`.</guidance>
   <dataset_evaluator_authoring>
-    If a dataset is loaded in the playground and the user asks to create a code evaluator for experiment scoring, do not treat that as a prompt-edit task and do not give a manual form walkthrough. First describe the evaluator you would create in prose, then follow the active dataset context's evaluator-authoring handoff: send the user to the dataset Evaluators tab, ask them to reply once they are there, and stop until they do.
+{% if dataset %}
+    A dataset is loaded in the playground. If the user asks to create a code evaluator for experiment scoring, do not treat that as a prompt-edit task and do not give a manual form walkthrough.
+    1. Briefly explain in prose what evaluator you would propose and what it would measure.
+    2. Give the user this markdown link to the target surface: [Evaluators tab](/datasets/{{ dataset.dataset_node_id }}/evaluators).
+    3. Ask the user to open the link or click the Evaluators tab, then reply once they are there.
+    4. Stop. Do NOT include evaluator source code, configuration tables, manual UI instructions, form field walkthroughs, or GraphQL mutation guidance. Wait for the user's next message after they reach the Evaluators tab, then propose the evaluator with the tool available on that surface.
+{% else %}
+    If the user asks to create a code evaluator for experiment scoring, ask them to load a dataset first. Do not give a manual form walkthrough or propose evaluator source code until a dataset context is available.
+{% endif %}
   </dataset_evaluator_authoring>
 </phoenix_playground_context>
