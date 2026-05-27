@@ -26,18 +26,45 @@ from phoenix.server.agents.context import (
     ResolvedContexts,
 )
 from phoenix.server.agents.prompts import AgentPrompts
-from phoenix.server.agents.types import AgentDependencies
+from phoenix.server.agents.types import (
+    AgentDependencies,
+    SandboxAvailability,
+    SandboxConfigCapabilities,
+)
 
 _DEFAULT_PROMPTS = AgentPrompts()
+
+
+def _usable_sandbox_availability() -> SandboxAvailability:
+    """A single-config availability snapshot used by the create-code-evaluator
+    gate tests. The gate predicate only inspects `has_usable`, so the exact
+    field values don't matter — they just have to satisfy the dataclass."""
+    return SandboxAvailability(
+        configs=[
+            SandboxConfigCapabilities(
+                sandbox_config_id="U2FuZGJveENvbmZpZzox",
+                name="default-python",
+                language="PYTHON",
+                internet_access="unset",
+            )
+        ]
+    )
 
 
 def _get_run_context(
     contexts: ResolvedContexts,
     *,
     edit_permission: Literal["manual", "bypass"] = "manual",
+    is_viewer: bool = False,
+    sandbox_availability: SandboxAvailability | None = None,
 ) -> RunContext[AgentDependencies]:
     return RunContext(
-        deps=AgentDependencies(contexts=contexts, edit_permission=edit_permission),
+        deps=AgentDependencies(
+            contexts=contexts,
+            edit_permission=edit_permission,
+            is_viewer=is_viewer,
+            sandbox_availability=sandbox_availability or _usable_sandbox_availability(),
+        ),
         model=TestModel(),
         usage=RunUsage(),
     )
@@ -130,14 +157,14 @@ class TestProjectContextCapabilityRender:
 class TestCodeEvaluatorContextCapabilityGate:
     def test_excluded_when_no_code_evaluator_context(self) -> None:
         capability = CodeEvaluatorContextCapability(
-            instructions=_DEFAULT_INSTRUCTIONS.code_evaluator_context,
+            instructions=_DEFAULT_PROMPTS.code_evaluator_context,
         )
         ctx = _get_run_context(ResolvedContexts())
         assert capability.include_for_run(ctx) is False
 
     def test_included_and_renders_edit_mode_when_evaluator_node_id_present(self) -> None:
         capability = CodeEvaluatorContextCapability(
-            instructions=_DEFAULT_INSTRUCTIONS.code_evaluator_context,
+            instructions=_DEFAULT_PROMPTS.code_evaluator_context,
         )
         ctx = _get_run_context(
             ResolvedContexts(
@@ -154,7 +181,7 @@ class TestCodeEvaluatorContextCapabilityGate:
 
     def test_renders_create_mode_when_evaluator_node_id_absent(self) -> None:
         capability = CodeEvaluatorContextCapability(
-            instructions=_DEFAULT_INSTRUCTIONS.code_evaluator_context,
+            instructions=_DEFAULT_PROMPTS.code_evaluator_context,
         )
         ctx = _get_run_context(
             ResolvedContexts(
@@ -176,14 +203,14 @@ class TestCreateCodeEvaluatorCapabilityGate:
 
     def test_included_when_no_code_evaluator_context(self) -> None:
         capability = CreateCodeEvaluatorCapability(
-            instructions=_DEFAULT_INSTRUCTIONS.create_code_evaluator_tool,
+            instructions=_DEFAULT_PROMPTS.create_code_evaluator_tool,
         )
         ctx = _get_run_context(ResolvedContexts())
         assert capability.include_for_run(ctx) is True
 
     def test_excluded_when_code_evaluator_context_present(self) -> None:
         capability = CreateCodeEvaluatorCapability(
-            instructions=_DEFAULT_INSTRUCTIONS.create_code_evaluator_tool,
+            instructions=_DEFAULT_PROMPTS.create_code_evaluator_tool,
         )
         ctx = _get_run_context(
             ResolvedContexts(
@@ -195,45 +222,82 @@ class TestCreateCodeEvaluatorCapabilityGate:
         )
         assert capability.include_for_run(ctx) is False
 
+    def test_excluded_for_viewer(self) -> None:
+        """Viewers cannot create evaluators — the gate suppresses the tool to
+        avoid promising a capability the server-side mutation would reject."""
+        capability = CreateCodeEvaluatorCapability(
+            instructions=_DEFAULT_PROMPTS.create_code_evaluator_tool,
+        )
+        ctx = _get_run_context(ResolvedContexts(), is_viewer=True)
+        assert capability.include_for_run(ctx) is False
+
+    def test_excluded_when_no_usable_sandbox(self) -> None:
+        """Code evaluators cannot run without a sandbox config, so the gate
+        hides the tool when no enabled sandbox config exists rather than
+        letting the agent author one that will fail at experiment time."""
+        capability = CreateCodeEvaluatorCapability(
+            instructions=_DEFAULT_PROMPTS.create_code_evaluator_tool,
+        )
+        ctx = _get_run_context(
+            ResolvedContexts(),
+            sandbox_availability=SandboxAvailability(configs=[]),
+        )
+        assert capability.include_for_run(ctx) is False
+
     def test_advertises_external_tool_with_expected_schema(self) -> None:
         capability = CreateCodeEvaluatorCapability(
-            instructions=_DEFAULT_INSTRUCTIONS.create_code_evaluator_tool,
+            instructions=_DEFAULT_PROMPTS.create_code_evaluator_tool,
         )
         assert capability.get_toolset() is not None
         tool_def = CREATE_CODE_EVALUATOR_TOOL_DEFINITION
         assert tool_def.name == CREATE_CODE_EVALUATOR_NAME == "create_code_evaluator"
         assert tool_def.kind == "external"
         schema = tool_def.parameters_json_schema
-        assert set(schema["required"]) == {"name", "source_code", "language"}
+        assert set(schema["required"]) == {
+            "name",
+            "source_code",
+            "language",
+            "sandbox_config_id",
+        }
         assert schema["properties"]["language"]["enum"] == ["PYTHON", "TYPESCRIPT"]
         assert schema["properties"]["name"]["pattern"] == r"^[a-z0-9]([_a-z0-9-]*[a-z0-9])?$"
 
-        # output_config is a single optional freeform-only block mirroring the
-        # code-evaluator form. Absence is meaningful (no annotation surface
-        # written at creation), so it must NOT appear in `required`.
-        assert "output_config" in schema["properties"]
-        assert "output_config" not in schema["required"]
-        output_config_schema = schema["properties"]["output_config"]
-        assert output_config_schema["type"] == ["object", "null"]
-        assert output_config_schema["additionalProperties"] is False
-        output_config_props = output_config_schema["properties"]
-        assert set(output_config_props) == {
-            "optimization_direction",
-            "threshold",
-            "lower_bound",
-            "upper_bound",
+        # output_configs is an optional array of discriminated-union entries
+        # mirroring the form's OutputConfigDraft. Absence is meaningful (the
+        # caller chose to leave the annotation surface unset), so it must NOT
+        # appear in `required`.
+        assert "output_configs" in schema["properties"]
+        assert "output_configs" not in schema["required"]
+        output_configs_schema = schema["properties"]["output_configs"]
+        assert output_configs_schema["type"] == "array"
+        assert output_configs_schema["default"] == []
+        item_schema = output_configs_schema["items"]
+        assert item_schema["additionalProperties"] is False
+        # Every entry must declare kind/name/optimizationDirection. Kind-specific
+        # fields (`values`, `threshold`, `lowerBound`, `upperBound`) are also
+        # declared but are not universally required — they're picked per kind.
+        assert set(item_schema["required"]) == {
+            "kind",
+            "name",
+            "optimizationDirection",
         }
-        # optimization_direction allows the three enum values plus null.
-        assert output_config_props["optimization_direction"]["type"] == ["string", "null"]
-        assert output_config_props["optimization_direction"]["enum"] == [
+        assert item_schema["properties"]["kind"]["enum"] == [
+            "classification",
+            "continuous",
+            "freeform",
+        ]
+        assert item_schema["properties"]["optimizationDirection"]["enum"] == [
             "MINIMIZE",
             "MAXIMIZE",
             "NONE",
-            None,
         ]
-        # threshold and bounds are nullable numbers.
-        for numeric_field in ("threshold", "lower_bound", "upper_bound"):
-            assert output_config_props[numeric_field]["type"] == ["number", "null"]
-        # No `name` field on the config — the evaluator's name is reused at
-        # dispatch time, matching the form's createDefaultFreeformOutputConfig.
-        assert "name" not in output_config_props
+        # Bounds and threshold are nullable numbers; values is a list of
+        # {label, score?} pairs for the classification kind.
+        for numeric_field in ("threshold", "lowerBound", "upperBound"):
+            assert item_schema["properties"][numeric_field]["type"] == [
+                "number",
+                "null",
+            ]
+        values_schema = item_schema["properties"]["values"]
+        assert values_schema["type"] == "array"
+        assert values_schema["items"]["required"] == ["label"]

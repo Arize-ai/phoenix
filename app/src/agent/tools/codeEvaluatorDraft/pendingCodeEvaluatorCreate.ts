@@ -3,24 +3,17 @@ import type { CreateCodeEvaluatorInput } from "@phoenix/agent/tools/createCodeEv
 
 import { CREATE_CODE_EVALUATOR_NAVIGATION_CANCEL_ERROR } from "./constants";
 import type {
-  BindPendingCodeEvaluatorCreateOptions,
-  PendingCodeEvaluatorCreate,
-  PendingCodeEvaluatorCreateDatasetSnapshot,
+  BindPendingCodeEvaluatorCreateHandoffOptions,
+  BindPendingCodeEvaluatorCreateInlineOptions,
+  PendingCodeEvaluatorCreateHandoff,
+  PendingCodeEvaluatorCreateInline,
 } from "./types";
 
 export const CREATE_CODE_EVALUATOR_TOOL_NAME = "create_code_evaluator";
 
-function datasetContextMatches(
-  snapshot: PendingCodeEvaluatorCreateDatasetSnapshot,
-  current: PendingCodeEvaluatorCreateDatasetSnapshot | null
-): boolean {
-  if (current === null) return false;
-  if (current.datasetNodeId !== snapshot.datasetNodeId) return false;
-  if (snapshot.datasetVersionNodeId === null) {
-    return current.datasetVersionNodeId === null;
-  }
-  return current.datasetVersionNodeId === snapshot.datasetVersionNodeId;
-}
+const USER_REJECTED_MESSAGE =
+  "User rejected the proposed code-evaluator creation.";
+const USER_DISMISSED_EDITOR_MESSAGE = "User dismissed the editor.";
 
 /**
  * Build a `CreateCodeEvaluatorInput` from the proposed snapshot. The snapshot
@@ -28,7 +21,7 @@ function datasetContextMatches(
  * adapter so the dispatch layer stays decoupled from the snapshot type.
  */
 function inputFromPendingCreate(
-  pendingCreate: PendingCodeEvaluatorCreate
+  pendingCreate: Pick<PendingCodeEvaluatorCreateInline, "after">
 ): CreateCodeEvaluatorInput {
   const after = pendingCreate.after;
   if (after.sandboxConfigId === null) {
@@ -47,30 +40,16 @@ function inputFromPendingCreate(
   };
 }
 
-export function bindPendingCodeEvaluatorCreateActions({
+export function bindPendingCodeEvaluatorCreateInlineActions({
   pendingCreate,
   addToolOutput,
   setPendingCodeEvaluatorCreate,
-  getActiveDatasetContext,
-}: BindPendingCodeEvaluatorCreateOptions): PendingCodeEvaluatorCreate {
+}: BindPendingCodeEvaluatorCreateInlineOptions): PendingCodeEvaluatorCreateInline {
   return {
     ...pendingCreate,
+    kind: "inline",
     accept: async () => {
       setPendingCodeEvaluatorCreate(pendingCreate.toolCallId, null);
-
-      if (pendingCreate.datasetContext !== null) {
-        const live = getActiveDatasetContext();
-        if (!datasetContextMatches(pendingCreate.datasetContext, live)) {
-          await addToolOutput({
-            state: "output-error",
-            tool: CREATE_CODE_EVALUATOR_TOOL_NAME,
-            toolCallId: pendingCreate.toolCallId,
-            errorText:
-              "The active dataset changed after this evaluator was proposed, so it can no longer be created against the original dataset.",
-          });
-          return;
-        }
-      }
 
       let input: CreateCodeEvaluatorInput;
       try {
@@ -89,8 +68,8 @@ export function bindPendingCodeEvaluatorCreateActions({
       }
 
       const result = await dispatchCreateCodeEvaluator(input, {
-        datasetContext: pendingCreate.datasetContext,
-        connectionIds: pendingCreate.connectionIds,
+        datasetContext: null,
+        connectionIds: [],
       });
       if (!result.ok) {
         await addToolOutput({
@@ -120,7 +99,7 @@ export function bindPendingCodeEvaluatorCreateActions({
         toolCallId: pendingCreate.toolCallId,
         output: JSON.stringify({
           status: "rejected",
-          message: "User rejected the proposed code-evaluator creation.",
+          message: USER_REJECTED_MESSAGE,
         }),
       });
     },
@@ -134,4 +113,81 @@ export function bindPendingCodeEvaluatorCreateActions({
       });
     },
   };
+}
+
+/**
+ * Bind the three terminal resolvers + cancel for a dataset-handoff proposal.
+ *
+ * Each resolver flips the `resolved` flag on the live store entry before
+ * calling `addToolOutput`, and short-circuits when the entry is already
+ * resolved. This is load-bearing: the slideover's `onOpenChange(false)` fires
+ * after a successful Save (close-after-save), so the close handler must skip
+ * `resolveAsRejected` once `resolved === true`.
+ */
+export function bindPendingCodeEvaluatorCreateHandoffActions({
+  pendingCreate,
+  addToolOutput,
+  setPendingCodeEvaluatorCreate,
+}: BindPendingCodeEvaluatorCreateHandoffOptions): PendingCodeEvaluatorCreateHandoff {
+  const toolCallId = pendingCreate.toolCallId;
+  const bound: PendingCodeEvaluatorCreateHandoff = {
+    ...pendingCreate,
+    kind: "handoff",
+  };
+
+  const tryClaim = (): boolean => {
+    if (bound.resolved) return false;
+    bound.resolved = true;
+    return true;
+  };
+
+  bound.resolveAsAccepted = async (result) => {
+    if (!tryClaim()) return;
+    setPendingCodeEvaluatorCreate(toolCallId, null);
+    await addToolOutput({
+      state: "output-available",
+      tool: CREATE_CODE_EVALUATOR_TOOL_NAME,
+      toolCallId,
+      output: JSON.stringify({
+        status: "accepted",
+        createdEvaluator: result.createdEvaluator,
+        datasetEvaluatorId: result.datasetEvaluatorId,
+      }),
+    });
+  };
+  bound.resolveAsRejected = async (message) => {
+    if (!tryClaim()) return;
+    setPendingCodeEvaluatorCreate(toolCallId, null);
+    await addToolOutput({
+      state: "output-available",
+      tool: CREATE_CODE_EVALUATOR_TOOL_NAME,
+      toolCallId,
+      output: JSON.stringify({
+        status: "rejected",
+        message: message ?? USER_DISMISSED_EDITOR_MESSAGE,
+      }),
+    });
+  };
+  bound.resolveAsFailed = async (errorMessage) => {
+    if (!tryClaim()) return;
+    setPendingCodeEvaluatorCreate(toolCallId, null);
+    await addToolOutput({
+      state: "output-error",
+      tool: CREATE_CODE_EVALUATOR_TOOL_NAME,
+      toolCallId,
+      errorText: errorMessage,
+    });
+  };
+  bound.cancel = async () => {
+    if (!tryClaim()) return;
+    setPendingCodeEvaluatorCreate(toolCallId, null);
+    await addToolOutput({
+      state: "output-error",
+      tool: CREATE_CODE_EVALUATOR_TOOL_NAME,
+      toolCallId,
+      errorText: CREATE_CODE_EVALUATOR_NAVIGATION_CANCEL_ERROR,
+    });
+  };
+
+  return bound;
 }

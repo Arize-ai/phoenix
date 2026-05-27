@@ -26,14 +26,40 @@
   </input_mapping>
   <sandbox_config>
     - `sandbox_config_id` is REQUIRED. A code evaluator without a sandbox cannot run at experiment time and will be rejected at create time.
-    - Discover candidates by querying `sandboxProviders { configs { id name language } }` — there is no top-level `sandboxConfigs` query. Pick a config whose `language` matches the evaluator `language`.
-    - If no compatible sandbox config exists, do NOT invent or reuse an unrelated ID. Tell the user to set one up at `/settings/sandboxes` and stop the create.
+    - Pick a config from `<available_sandbox_configs>` below whose `language` matches the evaluator `language`. Do NOT invent or reuse an unrelated ID, and do NOT issue a `sandboxProviders` GraphQL query — the inventory below is authoritative for this turn.
+    - If `<available_sandbox_configs>` contains no compatible entry for the requested language, stop the create and tell the user to set one up at `/settings/sandboxes`.
+{% if available_sandbox_configs %}
+    <available_sandbox_configs>
+{% for cfg in available_sandbox_configs %}
+      <config id="{{ cfg.sandbox_config_id | sanitize(enclosing_tag="available_sandbox_configs", max_chars=128) | e }}" name="{{ cfg.name | sanitize(enclosing_tag="available_sandbox_configs", max_chars=128) | e }}" language="{{ cfg.language | e }}">
+        <internet_access setting="{{ cfg.internet_access | e }}" backend_capability="{{ cfg.internet_access_mode | e }}"/>
+        <dependencies supported="{{ 'true' if cfg.supports_dependencies else 'false' }}">
+{% for pkg in cfg.dependencies %}
+          <package>{{ pkg | sanitize(enclosing_tag="package", max_chars=256) | e }}</package>
+{% endfor %}
+        </dependencies>
+        <env_vars supported="{{ 'true' if cfg.supports_env_vars else 'false' }}">
+{% for name in cfg.env_var_names %}
+          <name>{{ name | sanitize(enclosing_tag="name", max_chars=128) | e }}</name>
+{% endfor %}
+        </env_vars>
+      </config>
+{% endfor %}
+    </available_sandbox_configs>
+{% else %}
+    <available_sandbox_configs/>
+{% endif %}
   </sandbox_config>
-  <output_config>
-    - `output_config` is optional. Include it when the user describes the annotation surface (optimization direction, score threshold, expected score range); omit it otherwise so the user can finish the surface in the form.
-    - The block has up to four fields. `optimization_direction` is `MAXIMIZE` when higher scores are better, `MINIMIZE` when lower scores are better, or `NONE` when the score is unranked. `threshold` is a numeric cutoff combined with the direction to mark good vs bad scores; it has no effect when `optimization_direction` is `NONE`. `lower_bound` and `upper_bound` describe the expected score range.
-    - Do NOT supply a `name` for the output config — the evaluator's own `name` is reused automatically.
-  </output_config>
+  <output_configs>
+    - `output_configs` is an array. ALWAYS propose at least one entry — you authored the `evaluate()` body, so you know what it returns and can pick a sensible default. Do not leave the array empty just because the user did not articulate the annotation surface; the user reviews and adjusts the proposal in the chat preview.
+    - Each entry is discriminated by `kind`. Pick the kind from what `evaluate()` returns:
+      - `classification` — `evaluate` returns a bool, an enum-like label, or a `{label, score}` pair. Provide `values` as a list of `{label, score?}`. Use `MAXIMIZE`/`MINIMIZE` when scores are ordered (e.g. `[{label:"good", score:1}, {label:"bad", score:0}]` with `MAXIMIZE`), `NONE` when labels are unordered.
+      - `continuous` — `evaluate` returns an open-ended numeric score. Provide `lower_bound`/`upper_bound` when the range is known (omit otherwise). Pick `MAXIMIZE` when higher is better, `MINIMIZE` when lower is better.
+      - `freeform` — `evaluate` returns a bounded numeric score with a meaningful cutoff (e.g. `0.0`–`1.0` quality scores). Provide `threshold` (the good/bad cutoff combined with the direction), and `lower_bound`/`upper_bound` to describe the range. Default to `MAXIMIZE` with `threshold: 0.5`, `lower_bound: 0`, `upper_bound: 1` for `[0, 1]` quality scores unless the source suggests otherwise.
+    - `optimization_direction` is REQUIRED on every entry. `MAXIMIZE` = higher is better, `MINIMIZE` = lower is better, `NONE` = unranked. `threshold` has no effect when direction is `NONE`.
+    - Supply `name: ""` on each entry — the evaluator's own `name` is reused automatically. Do not invent a separate annotation name.
+    - Most evaluators have exactly one output config. Only emit multiple entries when `evaluate()` clearly returns several independent signals.
+  </output_configs>
   <error_handling>
     - The server validates the `evaluate()` signature and the `name` identifier before persisting and raises `BadRequest` on failure. Surface the server's error message to the user verbatim — do not rephrase or guess at the cause.
     - On a `BadRequest`, no evaluator is created. Fix the source or name and retry; do not call the tool again with the same invalid input.

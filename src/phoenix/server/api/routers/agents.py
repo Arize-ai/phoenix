@@ -11,7 +11,7 @@ from opentelemetry.context import Context
 from opentelemetry.sdk.trace import Span as SDKSpan
 from opentelemetry.sdk.trace import SpanProcessor
 from opentelemetry.trace import SpanContext, format_span_id, format_trace_id
-from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator
+from pydantic import BaseModel, ConfigDict, Field, RootModel, ValidationError, field_validator
 from pydantic.alias_generators import to_camel
 from pydantic_ai import AgentRunResult, RunUsage
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
@@ -32,6 +32,7 @@ from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from starlette.responses import Response
+from strawberry.relay import GlobalID
 from typing_extensions import TypeIs, assert_never
 
 from phoenix.config import (
@@ -51,9 +52,21 @@ from phoenix.server.agents.exceptions import AgentError, SummarizationError
 from phoenix.server.agents.model_factory import build_model
 from phoenix.server.agents.model_selection import AgentModelSelection
 from phoenix.server.agents.summarization import summarize_messages
-from phoenix.server.agents.types import AgentDependencies, AgentOutput, SandboxAvailability
+from phoenix.server.agents.types import (
+    AgentDependencies,
+    AgentOutput,
+    SandboxAvailability,
+    SandboxConfigCapabilities,
+)
 from phoenix.server.api.openapi.registry import register_openapi_schema
 from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
+from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
+from phoenix.server.sandbox.types import (
+    SANDBOX_CONFIG_ADAPTER,
+    SupportsDependencies,
+    SupportsEnvVars,
+    SupportsInternetAccess,
+)
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer, detached_otel_context
 
@@ -334,20 +347,78 @@ async def _persist_db_traces(
     session.add_all(db_traces)
 
 
-async def _has_usable_sandbox(session: AsyncSession) -> bool:
-    """Return True when at least one enabled sandbox config sits under an
-    enabled sandbox provider."""
+async def _load_sandbox_availability(session: AsyncSession) -> SandboxAvailability:
+    """Load every enabled sandbox config sitting under an enabled provider
+    into a ``SandboxAvailability`` snapshot the agent uses to (a) gate the
+    create/edit code-evaluator capabilities and (b) render the available
+    inventory into the prompt.
+
+    Malformed rows are logged and skipped rather than failing the entire
+    agent request — same graceful-degradation contract used by
+    ``SandboxConfigData.from_stored``."""
     stmt = (
-        select(models.SandboxConfig.id)
+        select(models.SandboxConfig)
         .join(
             models.SandboxProvider,
             models.SandboxProvider.backend_type == models.SandboxConfig.backend_type,
         )
         .where(models.SandboxConfig.enabled.is_(True))
         .where(models.SandboxProvider.enabled.is_(True))
-        .limit(1)
     )
-    return (await session.scalar(stmt)) is not None
+    rows = (await session.scalars(stmt)).all()
+    configs: list[SandboxConfigCapabilities] = []
+    for row in rows:
+        adapter_metadata = SANDBOX_ADAPTER_METADATA.get(row.backend_type)
+        if adapter_metadata is None:
+            logger.warning(
+                "Skipping sandbox config %r: no adapter metadata for backend %r",
+                row.id,
+                row.backend_type,
+            )
+            continue
+        stored_blob: dict[str, Any] = dict(row.config or {})
+        # Stored ``config`` blobs do not necessarily carry the discriminator
+        # columns (``backend_type``, ``language``) — those live on the row.
+        # Merge them in so the discriminated-union validator can pick the
+        # right per-backend ``_Config`` model.
+        stored_blob.setdefault("backend_type", row.backend_type)
+        stored_blob.setdefault("language", row.language)
+        try:
+            parsed = SANDBOX_CONFIG_ADAPTER.validate_python(stored_blob)
+        except ValidationError as exc:
+            logger.warning(
+                "Skipping sandbox config %r (backend=%r): malformed config blob: %s",
+                row.id,
+                row.backend_type,
+                exc,
+            )
+            continue
+        internet_access: Literal["allow", "deny", "unset"] = "unset"
+        if isinstance(parsed, SupportsInternetAccess) and parsed.internet_access is not None:
+            internet_access = parsed.internet_access.mode
+        dependencies: list[str] = []
+        if (
+            isinstance(parsed, SupportsDependencies)
+            and parsed.dependencies is not None
+        ):
+            dependencies = list(parsed.dependencies.packages)
+        env_var_names: list[str] = []
+        if isinstance(parsed, SupportsEnvVars):
+            env_var_names = list(parsed.env_vars.keys())
+        configs.append(
+            SandboxConfigCapabilities(
+                sandbox_config_id=str(GlobalID("SandboxConfig", str(row.id))),
+                name=str(row.name),
+                language=row.language,
+                internet_access=internet_access,
+                dependencies=dependencies,
+                env_var_names=env_var_names,
+                internet_access_mode=adapter_metadata.internet_access_capability,
+                supports_env_vars=adapter_metadata.supports_env_vars,
+                supports_dependencies=adapter_metadata.supports_dependencies,
+            )
+        )
+    return SandboxAvailability(configs=configs)
 
 
 async def _ensure_project_exists(db: DbSessionFactory, project_name: str) -> int:
@@ -474,7 +545,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     decrypt=request.app.state.decrypt,
                     tracer_provider=tracer_provider,
                 )
-                has_usable_sandbox = await _has_usable_sandbox(session)
+                sandbox_availability = await _load_sandbox_availability(session)
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
@@ -511,7 +582,7 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             contexts=resolved_contexts,
             edit_permission=body.edit_permission,
             is_viewer=is_viewer,
-            sandbox_availability=SandboxAvailability(has_usable=has_usable_sandbox),
+            sandbox_availability=sandbox_availability,
         )
 
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:

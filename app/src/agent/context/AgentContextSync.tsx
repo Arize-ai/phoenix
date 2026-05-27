@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { useMatches, useSearchParams } from "react-router";
+import { useMatches, useNavigate, useSearchParams } from "react-router";
 
 import { createCreateCodeEvaluatorClientAction } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { CREATE_CODE_EVALUATOR_TOOL_NAME } from "@phoenix/agent/tools/createCodeEvaluator";
@@ -24,6 +24,7 @@ export function AgentContextSync() {
   const store = useAgentStore();
   const matches = useMatches();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   const next = useMemo(
     () => deriveRouteContexts(matches, searchParams),
@@ -42,6 +43,7 @@ export function AgentContextSync() {
       createCreateCodeEvaluatorClientAction({
         store,
         setPendingCodeEvaluatorCreate,
+        navigate: (to) => navigate(to),
       })
     );
     return () => {
@@ -54,7 +56,7 @@ export function AgentContextSync() {
         }
       }
     };
-  }, [store]);
+  }, [store, navigate]);
 
   return null;
 }

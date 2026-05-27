@@ -125,43 +125,85 @@ export type BindPendingCodeEvaluatorEditOptions = {
 };
 
 /**
- * Dataset surface state captured at create-proposal-propose time. The commit
- * handler uses this snapshot both to pick the standalone vs chained mutation
- * path AND to detect stale dataset context at accept time.
+ * Dataset surface state captured at create-proposal-propose time. Carried on
+ * the handoff variant so the dataset evaluators page can route the slideover
+ * to the correct dataset on mount.
  */
 export type PendingCodeEvaluatorCreateDatasetSnapshot = {
   datasetNodeId: string;
   datasetVersionNodeId: string | null;
 };
 
-export type PendingCodeEvaluatorCreate = {
+/**
+ * Non-dataset create proposal — the chat-side inline diff card owns the
+ * accept/reject and the action dispatches the standalone `createCodeEvaluator`
+ * mutation directly.
+ */
+export type PendingCodeEvaluatorCreateInline = {
+  kind: "inline";
   toolCallId: string;
   sessionId: string;
   /** Empty-shaped baseline snapshot driving the create-mode diff render. */
   before: CodeEvaluatorDraftSnapshot;
   /** Proposed snapshot (always `mode: "create"`). */
   after: CodeEvaluatorDraftSnapshot;
-  /** Active dataset surface at propose time, `null` => standalone create. */
-  datasetContext: PendingCodeEvaluatorCreateDatasetSnapshot | null;
-  /** Relay connection IDs to `@appendNode` on dataset-evaluator binds. */
-  connectionIds: string[];
   accept?: () => Promise<void>;
   reject?: () => Promise<void>;
   cancel?: () => Promise<void>;
 };
 
-export type BindPendingCodeEvaluatorCreateOptions = {
-  pendingCreate: PendingCodeEvaluatorCreate;
+/**
+ * Dataset create proposal — the agent navigates to the dataset evaluators
+ * page where the slideover hydrates from the snapshot and owns dispatch.
+ * Resolution flows through three terminal resolvers (accepted/rejected/failed)
+ * gated by an idempotency flag so the slideover's close-after-save path does
+ * not double-emit.
+ */
+export type PendingCodeEvaluatorCreateHandoff = {
+  kind: "handoff";
+  toolCallId: string;
+  sessionId: string;
+  /** Empty-shaped baseline snapshot driving the create-mode diff render. */
+  before: CodeEvaluatorDraftSnapshot;
+  /** Proposed snapshot (always `mode: "create"`). */
+  after: CodeEvaluatorDraftSnapshot;
+  /** Dataset surface the agent navigated to. */
+  datasetContext: PendingCodeEvaluatorCreateDatasetSnapshot;
+  /** Idempotency latch; flipped to `true` by the first terminal resolver. */
+  resolved: boolean;
+  resolveAsAccepted?: (result: {
+    createdEvaluator: { id: string; name: string };
+    datasetEvaluatorId: string;
+  }) => Promise<void>;
+  resolveAsRejected?: (message?: string) => Promise<void>;
+  resolveAsFailed?: (errorMessage: string) => Promise<void>;
+  cancel?: () => Promise<void>;
+};
+
+export type PendingCodeEvaluatorCreate =
+  | PendingCodeEvaluatorCreateInline
+  | PendingCodeEvaluatorCreateHandoff;
+
+export type BindPendingCodeEvaluatorCreateInlineOptions = {
+  pendingCreate: Omit<
+    PendingCodeEvaluatorCreateInline,
+    "accept" | "reject" | "cancel"
+  >;
   addToolOutput: CodeEvaluatorEditToolOutputSender;
   setPendingCodeEvaluatorCreate: (
     toolCallId: string,
     pending: PendingCodeEvaluatorCreate | null
   ) => void;
-  /**
-   * Live read of the agent store's active dataset context. The commit
-   * handler invokes this at accept time for the stale-recheck.
-   */
-  getActiveDatasetContext: () =>
-    | PendingCodeEvaluatorCreateDatasetSnapshot
-    | null;
+};
+
+export type BindPendingCodeEvaluatorCreateHandoffOptions = {
+  pendingCreate: Omit<
+    PendingCodeEvaluatorCreateHandoff,
+    "resolveAsAccepted" | "resolveAsRejected" | "resolveAsFailed" | "cancel"
+  >;
+  addToolOutput: CodeEvaluatorEditToolOutputSender;
+  setPendingCodeEvaluatorCreate: (
+    toolCallId: string,
+    pending: PendingCodeEvaluatorCreate | null
+  ) => void;
 };

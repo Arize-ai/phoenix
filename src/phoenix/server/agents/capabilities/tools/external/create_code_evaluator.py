@@ -122,11 +122,12 @@ PARAMETERS: dict[str, Any] = {
             "type": "string",
             "description": (
                 "Required Relay node ID of a sandbox configuration whose "
-                "`language` matches `language`. Discover candidates via "
-                "`query { sandboxProviders { configs { id name language } } }`; "
-                "there is no top-level `sandboxConfigs` query. If no "
-                "compatible sandbox config exists, tell the user to configure "
-                "one at /settings/sandboxes instead of guessing an ID."
+                "`language` matches `language`. Pick from the "
+                "`<available_sandbox_configs>` inventory rendered in this "
+                "tool's instructions — do NOT invent an ID or query for one. "
+                "If the inventory contains no compatible config for the "
+                "requested `language`, tell the user to configure one at "
+                "/settings/sandboxes instead."
             ),
         },
         "input_mapping": {
@@ -167,7 +168,9 @@ class CreateCodeEvaluatorCapability(AbstractDynamicCapability[AgentDependencies]
         instructions = self.instructions
 
         def _instructions(ctx: RunContext[AgentDependencies]) -> str:
-            return instructions.render()
+            return instructions.render(
+                available_sandbox_configs=ctx.deps.sandbox_availability.configs,
+            )
 
         return _instructions
 

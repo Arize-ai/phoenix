@@ -1,11 +1,14 @@
 import {
   applyDraftOperations,
+  bindPendingCodeEvaluatorCreateHandoffActions,
   buildDraftRevision,
+  CREATE_CODE_EVALUATOR_NAVIGATION_CANCEL_ERROR,
   type CodeEvaluatorDraftHost,
   type CodeEvaluatorDraftSnapshot,
   createEditCodeEvaluatorDraftClientAction,
   createReadCodeEvaluatorDraftClientAction,
   type EditCodeEvaluatorDraftOperation,
+  type PendingCodeEvaluatorCreate,
   type PendingCodeEvaluatorEdit,
   type SandboxConfigIndex,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
@@ -259,6 +262,122 @@ describe("code evaluator draft agent tools", () => {
     expect(outputs[0]).toMatchObject({
       state: "output-available",
       output: expect.objectContaining({ status: "rejected" }),
+    });
+  });
+});
+
+describe("pending create handoff terminal-state contract", () => {
+  type Output = Record<string, unknown>;
+
+  function makeHandoff() {
+    const proposed = makeSnapshot({ description: "from agent" });
+    const before = makeSnapshot({
+      name: "",
+      description: "",
+      sourceCode: "",
+      sandboxConfigId: null,
+    });
+    const outputs: Output[] = [];
+    const stored: Record<string, PendingCodeEvaluatorCreate | null> = {};
+    const setPending = (
+      toolCallId: string,
+      pending: PendingCodeEvaluatorCreate | null
+    ) => {
+      stored[toolCallId] = pending;
+    };
+    const bound = bindPendingCodeEvaluatorCreateHandoffActions({
+      pendingCreate: {
+        kind: "handoff",
+        toolCallId: "tc-1",
+        sessionId: "s-1",
+        before,
+        after: proposed,
+        datasetContext: {
+          datasetNodeId: "ds-1",
+          datasetVersionNodeId: null,
+        },
+        resolved: false,
+      },
+      addToolOutput: async (payload: Output) => {
+        outputs.push(payload);
+      },
+      setPendingCodeEvaluatorCreate: setPending,
+    });
+    stored["tc-1"] = bound;
+    return { bound, outputs, stored };
+  }
+
+  it("emits a single accepted output on resolveAsAccepted", async () => {
+    const { bound, outputs, stored } = makeHandoff();
+    await bound.resolveAsAccepted!({
+      createdEvaluator: { id: "ev-1", name: "from agent" },
+      datasetEvaluatorId: "de-1",
+    });
+    expect(outputs).toHaveLength(1);
+    expect(outputs[0]).toMatchObject({ state: "output-available" });
+    expect(JSON.parse(String(outputs[0].output))).toMatchObject({
+      status: "accepted",
+      createdEvaluator: { id: "ev-1", name: "from agent" },
+      datasetEvaluatorId: "de-1",
+    });
+    expect(stored["tc-1"]).toBeNull();
+    expect(bound.resolved).toBe(true);
+  });
+
+  it("emits a single rejected output on resolveAsRejected", async () => {
+    const { bound, outputs, stored } = makeHandoff();
+    await bound.resolveAsRejected!();
+    expect(outputs).toHaveLength(1);
+    expect(outputs[0]).toMatchObject({ state: "output-available" });
+    expect(JSON.parse(String(outputs[0].output))).toMatchObject({
+      status: "rejected",
+    });
+    expect(stored["tc-1"]).toBeNull();
+  });
+
+  it("emits output-error on resolveAsFailed carrying the error message", async () => {
+    const { bound, outputs } = makeHandoff();
+    await bound.resolveAsFailed!("mutation went wrong");
+    expect(outputs).toHaveLength(1);
+    expect(outputs[0]).toMatchObject({
+      state: "output-error",
+      errorText: "mutation went wrong",
+    });
+  });
+
+  it("emits CREATE_CODE_EVALUATOR_NAVIGATION_CANCEL_ERROR on cancel before resolution", async () => {
+    const { bound, outputs } = makeHandoff();
+    await bound.cancel!();
+    expect(outputs).toHaveLength(1);
+    expect(outputs[0]).toMatchObject({
+      state: "output-error",
+      errorText: CREATE_CODE_EVALUATOR_NAVIGATION_CANCEL_ERROR,
+    });
+  });
+
+  it("is idempotent — close-after-save does not re-emit a rejected output", async () => {
+    const { bound, outputs } = makeHandoff();
+    await bound.resolveAsAccepted!({
+      createdEvaluator: { id: "ev-1", name: "from agent" },
+      datasetEvaluatorId: "de-1",
+    });
+    // Slideover's onOpenChange(false) fires after Save closes the modal.
+    await bound.resolveAsRejected!();
+    await bound.cancel!();
+    expect(outputs).toHaveLength(1);
+    expect(JSON.parse(String(outputs[0].output))).toMatchObject({
+      status: "accepted",
+    });
+  });
+
+  it("ignores cancel after a terminal resolver fires", async () => {
+    const { bound, outputs } = makeHandoff();
+    await bound.resolveAsFailed!("the chained mutation failed");
+    await bound.cancel!();
+    expect(outputs).toHaveLength(1);
+    expect(outputs[0]).toMatchObject({
+      state: "output-error",
+      errorText: "the chained mutation failed",
     });
   });
 });

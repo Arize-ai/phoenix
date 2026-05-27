@@ -11,7 +11,10 @@ import {
   parseEditCodeEvaluatorDraftInput,
   parseReadCodeEvaluatorDraftInput,
 } from "./parsers";
-import { bindPendingCodeEvaluatorCreateActions } from "./pendingCodeEvaluatorCreate";
+import {
+  bindPendingCodeEvaluatorCreateHandoffActions,
+  bindPendingCodeEvaluatorCreateInlineActions,
+} from "./pendingCodeEvaluatorCreate";
 import { bindPendingCodeEvaluatorEditActions } from "./pendingCodeEvaluatorEdit";
 import type {
   CodeEvaluatorDraftHost,
@@ -146,29 +149,30 @@ function readActiveDatasetContext(
   };
 }
 
-function snapshotConnectionIds(store: AgentStore): string[] {
-  const entries = Object.values(store.getState().datasetEvaluatorConnectionIds);
-  const ids = entries
-    .map((entry) => entry?.datasetEvaluatorConnectionId)
-    .filter((id): id is string => typeof id === "string" && id.length > 0);
-  return Array.from(new Set(ids));
-}
-
 /**
- * Build a `PendingCodeEvaluatorCreate` from the proposed input, snapshotting
- * the active dataset context AND the registered Relay connection IDs at
- * propose time. The agent never reads those live — the snapshot is what the
- * commit handler dispatches against.
+ * Build a `PendingCodeEvaluatorCreate` from the proposed input.
+ *
+ * On dataset surfaces, the action writes a `kind: "handoff"` entry, navigates
+ * to the dataset evaluators page (carrying the tool-call id in the URL), and
+ * resolves `ok: true`. The slideover hosted on that page hydrates from the
+ * snapshot, owns dispatch, and resolves the pending entry via its three
+ * terminal resolvers (accepted/rejected/failed).
+ *
+ * On non-dataset surfaces, the action writes a `kind: "inline"` entry and the
+ * chat-side diff card owns accept/reject; the standalone create mutation
+ * dispatches from the bound accept handler.
  */
 export function createCreateCodeEvaluatorClientAction({
   store,
   setPendingCodeEvaluatorCreate,
+  navigate,
 }: {
   store: AgentStore;
   setPendingCodeEvaluatorCreate: (
     toolCallId: string,
     pending: PendingCodeEvaluatorCreate | null
   ) => void;
+  navigate?: (to: string) => void;
 }) {
   return async (
     input: unknown,
@@ -209,20 +213,43 @@ export function createCreateCodeEvaluatorClientAction({
     };
     const before = buildEmptyBeforeSnapshot(proposed);
     const datasetContext = readActiveDatasetContext(store);
-    const connectionIds = snapshotConnectionIds(store);
 
-    const pendingCreate = bindPendingCodeEvaluatorCreateActions({
+    if (datasetContext !== null) {
+      const pendingCreate = bindPendingCodeEvaluatorCreateHandoffActions({
+        pendingCreate: {
+          kind: "handoff",
+          toolCallId: createContext.toolCallId,
+          sessionId: createContext.sessionId,
+          before,
+          after: proposed,
+          datasetContext,
+          resolved: false,
+        },
+        addToolOutput: createContext.addToolOutput,
+        setPendingCodeEvaluatorCreate,
+      });
+      setPendingCodeEvaluatorCreate(createContext.toolCallId, pendingCreate);
+      if (navigate) {
+        const target = `/datasets/${encodeURIComponent(
+          datasetContext.datasetNodeId
+        )}/evaluators?fromAgentProposal=${encodeURIComponent(
+          createContext.toolCallId
+        )}`;
+        navigate(target);
+      }
+      return { ok: true };
+    }
+
+    const pendingCreate = bindPendingCodeEvaluatorCreateInlineActions({
       pendingCreate: {
+        kind: "inline",
         toolCallId: createContext.toolCallId,
         sessionId: createContext.sessionId,
         before,
         after: proposed,
-        datasetContext,
-        connectionIds,
       },
       addToolOutput: createContext.addToolOutput,
       setPendingCodeEvaluatorCreate,
-      getActiveDatasetContext: () => readActiveDatasetContext(store),
     });
     setPendingCodeEvaluatorCreate(createContext.toolCallId, pendingCreate);
     return { ok: true };

@@ -336,21 +336,6 @@ export interface AgentState extends AgentProps {
     toolCallId: string,
     pending: PendingCodeEvaluatorCreate | null
   ) => void;
-
-  // -- Relay connection IDs for dataset-evaluator @appendNode (ephemeral) --
-  // Dataset surfaces that own a `DatasetEvaluatorEdge` connection register
-  // their connection ID here under a per-mount UUID; the create commit
-  // handler snapshots the union of registered IDs at propose time so the
-  // chained `createDatasetCodeEvaluator` mutation can append-node uniformly
-  // across surfaces. Runtime-only — never persisted.
-  datasetEvaluatorConnectionIds: Record<
-    string,
-    { datasetEvaluatorConnectionId: string }
-  >;
-  setDatasetEvaluatorConnectionId: (
-    mountId: string,
-    value: { datasetEvaluatorConnectionId: string } | null
-  ) => void;
 }
 
 /**
@@ -461,7 +446,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     pendingSavePromptsByToolCallId: {},
     pendingCodeEvaluatorEditsByToolCallId: {},
     pendingCodeEvaluatorCreatesByToolCallId: {},
-    datasetEvaluatorConnectionIds: {},
     setIsOpen: (isOpen) => {
       set({ isOpen }, false, { type: "setIsOpen" });
     },
@@ -1016,22 +1000,6 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "setPendingCodeEvaluatorCreate" }
-      );
-    },
-
-    setDatasetEvaluatorConnectionId: (mountId, value) => {
-      set(
-        (state) => {
-          const next = { ...state.datasetEvaluatorConnectionIds };
-          if (value) {
-            next[mountId] = value;
-          } else {
-            delete next[mountId];
-          }
-          return { datasetEvaluatorConnectionIds: next };
-        },
-        false,
-        { type: "setDatasetEvaluatorConnectionId" }
       );
     },
 

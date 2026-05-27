@@ -18,6 +18,7 @@
       - `{"type":"set_input_mapping","inputMapping":{"pathMapping":{"input":"attributes.input.value"},"literalMapping":{}}}`
       - `{"type":"set_description","description":"Scores hallucination risk"}`
       - `{"type":"set_name","name":"hallucination-v2"}`
+      - `{"type":"set_output_configs","outputConfigs":[{"kind":"freeform","name":"","optimizationDirection":"MAXIMIZE","threshold":0.5,"lowerBound":0,"upperBound":1}]}` — whole-list replace. Other valid `kind`s: `classification` (with a `values` list of `{label, score?}`) and `continuous` (with `lowerBound`/`upperBound`). Supply `name: ""` on each entry; the evaluator's own name is reused automatically. Propose output configs whenever you can infer them from the source rather than leaving the draft's defaults in place.
   </operations>
   <invariants>
     - Never rename or remove the `evaluate` function. The runtime calls it by name.
@@ -25,6 +26,31 @@
     - In `edit` mode, `set_language` is rejected (language is immutable post-create).
     - In `create` mode, switching `set_language` may clear an incompatible `sandbox_config_id`; suggest a compatible one in a follow-up turn if needed.
   </invariants>
+  <sandbox_config>
+    - When emitting `set_sandbox_config`, pick `sandboxConfigId` from `<available_sandbox_configs>` below. Do NOT invent or guess an ID, and do NOT issue a `sandboxProviders` GraphQL query — the inventory below is authoritative for this turn.
+    - The chosen config's `language` must match the draft language; in `create` mode after `set_language`, re-check the inventory for a compatible entry.
+{% if available_sandbox_configs %}
+    <available_sandbox_configs>
+{% for cfg in available_sandbox_configs %}
+      <config id="{{ cfg.sandbox_config_id | sanitize(enclosing_tag="available_sandbox_configs", max_chars=128) | e }}" name="{{ cfg.name | sanitize(enclosing_tag="available_sandbox_configs", max_chars=128) | e }}" language="{{ cfg.language | e }}">
+        <internet_access setting="{{ cfg.internet_access | e }}" backend_capability="{{ cfg.internet_access_mode | e }}"/>
+        <dependencies supported="{{ 'true' if cfg.supports_dependencies else 'false' }}">
+{% for pkg in cfg.dependencies %}
+          <package>{{ pkg | sanitize(enclosing_tag="package", max_chars=256) | e }}</package>
+{% endfor %}
+        </dependencies>
+        <env_vars supported="{{ 'true' if cfg.supports_env_vars else 'false' }}">
+{% for name in cfg.env_var_names %}
+          <name>{{ name | sanitize(enclosing_tag="name", max_chars=128) | e }}</name>
+{% endfor %}
+        </env_vars>
+      </config>
+{% endfor %}
+    </available_sandbox_configs>
+{% else %}
+    <available_sandbox_configs/>
+{% endif %}
+  </sandbox_config>
   <guidelines>
     - Emit operations ONLY for fields you intend to change. If a field already has the value you want, do not include an op for it — redundant ops produce noisy diff previews and waste tokens.
     - Keep edits small and focused so the user can read the diff. Group related field changes together when they form one logical intent.

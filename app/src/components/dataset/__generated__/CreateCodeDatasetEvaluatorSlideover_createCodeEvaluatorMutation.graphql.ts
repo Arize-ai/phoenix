@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<042bf5723df0c2eafa352bd6902b1ec5>>
+ * @generated SignedSource<<548aa5a12dbc73f1e6461700a6d35193>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -61,6 +61,7 @@ export type CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation$data
   readonly createCodeEvaluator: {
     readonly evaluator: {
       readonly id: string;
+      readonly name: string;
     };
   };
 };
@@ -106,6 +107,13 @@ v1 = [
             "kind": "ScalarField",
             "name": "id",
             "storageKey": null
+          },
+          {
+            "alias": null,
+            "args": null,
+            "kind": "ScalarField",
+            "name": "name",
+            "storageKey": null
           }
         ],
         "storageKey": null
@@ -132,16 +140,16 @@ return {
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "3344e4f40c9bbd010009abd93b936435",
+    "cacheID": "b978b7f8c7265cde32cf9fc460a45b29",
     "id": null,
     "metadata": {},
     "name": "CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation",
     "operationKind": "mutation",
-    "text": "mutation CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation(\n  $input: CreateCodeEvaluatorInput!\n) {\n  createCodeEvaluator(input: $input) {\n    evaluator {\n      id\n    }\n  }\n}\n"
+    "text": "mutation CreateCodeDatasetEvaluatorSlideover_createCodeEvaluatorMutation(\n  $input: CreateCodeEvaluatorInput!\n) {\n  createCodeEvaluator(input: $input) {\n    evaluator {\n      id\n      name\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "b54683d7ab456feba514f26e75a90ec7";
+(node as any).hash = "cb2c233fbb5a381097025d466d3c798f";
 
 export default node;
