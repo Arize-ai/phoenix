@@ -5,6 +5,7 @@ import type {
 } from "react-aria-components";
 import { MenuSection, SubmenuTrigger } from "react-aria-components";
 import { graphql, useFragment } from "react-relay";
+import { useSearchParams } from "react-router";
 import z from "zod";
 
 import type { ButtonProps } from "@phoenix/components/core/button";
@@ -28,6 +29,7 @@ import {
 import type { AddEvaluatorMenu_codeEvaluatorTemplates$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_codeEvaluatorTemplates.graphql";
 import type { AddEvaluatorMenu_llmEvaluatorTemplates$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_llmEvaluatorTemplates.graphql";
 import type { AddEvaluatorMenu_query$key } from "@phoenix/components/evaluators/__generated__/AddEvaluatorMenu_query.graphql";
+import { CREATE_CODE_EVALUATOR_PARAM } from "@phoenix/constants/searchParams";
 
 export const AddEvaluatorMenu = ({
   size,
@@ -47,12 +49,30 @@ export const AddEvaluatorMenu = ({
   ] = useState<CreateLLMDatasetEvaluatorInitialState | boolean | null>(null);
   const [builtinEvaluatorIdToAssociate, setBuiltinEvaluatorIdToAssociate] =
     useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const shouldOpenCreateCodeEvaluator =
+    searchParams.get(CREATE_CODE_EVALUATOR_PARAM) === "true";
   const [isCreateCodeEvaluatorOpen, setIsCreateCodeEvaluatorOpen] =
     useState(false);
+  const isCreateCodeEvaluatorSlideoverOpen =
+    isCreateCodeEvaluatorOpen || shouldOpenCreateCodeEvaluator;
   const associateBuiltinEvaluatorDialogOpen =
     builtinEvaluatorIdToAssociate != null;
   const onCloseAssociateBuiltinEvaluatorDialog = () => {
     setBuiltinEvaluatorIdToAssociate(null);
+  };
+  const setCreateCodeEvaluatorOpen = (isOpen: boolean) => {
+    setIsCreateCodeEvaluatorOpen(isOpen);
+    if (!isOpen && shouldOpenCreateCodeEvaluator) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete(CREATE_CODE_EVALUATOR_PARAM);
+          return next;
+        },
+        { replace: true }
+      );
+    }
   };
   const data = useFragment<AddEvaluatorMenu_query$key>(
     graphql`
@@ -80,7 +100,7 @@ export const AddEvaluatorMenu = ({
             onCreateEvaluator={() =>
               setCreateLLMEvaluatorDialogInitialState(true)
             }
-            onCreateCodeEvaluator={() => setIsCreateCodeEvaluatorOpen(true)}
+            onCreateCodeEvaluator={() => setCreateCodeEvaluatorOpen(true)}
             onSelectBuiltInCodeEvaluator={setBuiltinEvaluatorIdToAssociate}
             onSelectBuiltInLLMEvaluator={
               setCreateLLMEvaluatorDialogInitialState
@@ -113,8 +133,8 @@ export const AddEvaluatorMenu = ({
         updateConnectionIds={updateConnectionIds}
       />
       <CreateCodeDatasetEvaluatorSlideover
-        isOpen={isCreateCodeEvaluatorOpen}
-        onOpenChange={setIsCreateCodeEvaluatorOpen}
+        isOpen={isCreateCodeEvaluatorSlideoverOpen}
+        onOpenChange={setCreateCodeEvaluatorOpen}
         datasetId={datasetId}
         updateConnectionIds={updateConnectionIds}
       />

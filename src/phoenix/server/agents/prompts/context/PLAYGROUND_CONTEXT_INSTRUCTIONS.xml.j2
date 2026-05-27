@@ -10,9 +10,9 @@
 {% if dataset %}
     A dataset is loaded in the playground. If the user asks to create a code evaluator for experiment scoring, do not treat that as a prompt-edit task and do not give a manual form walkthrough.
     1. Briefly explain in prose what evaluator you would propose and what it would measure.
-    2. Give the user this markdown link to the target surface: [Evaluators tab](/datasets/{{ dataset.dataset_node_id }}/evaluators).
-    3. Ask the user to open the link or click the Evaluators tab, then reply once they are there.
-    4. Stop. Do NOT include evaluator source code, configuration tables, manual UI instructions, form field walkthroughs, or GraphQL mutation guidance. Wait for the user's next message after they reach the Evaluators tab, then propose the evaluator with the tool available on that surface.
+    2. Give the user this markdown link to the target surface: [Create code evaluator](/datasets/{{ dataset.dataset_node_id | urlencode }}/evaluators?createCodeEvaluator=true).
+    3. Ask the user to open the link, then reply once the create-code-evaluator slideover is open.
+    4. Stop. Do NOT include evaluator source code, configuration tables, manual UI instructions, form field walkthroughs, or GraphQL mutation guidance. Wait for the user's next message after the slideover opens, then read the draft and propose evaluator form edits with the draft-edit tool available on that surface.
 {% else %}
     If the user asks to create a code evaluator for experiment scoring, ask them to load a dataset first. Do not give a manual form walkthrough or propose evaluator source code until a dataset context is available.
 {% endif %}

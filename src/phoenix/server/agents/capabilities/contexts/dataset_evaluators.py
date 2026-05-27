@@ -29,4 +29,7 @@ class DatasetEvaluatorsContextCapability(AbstractDynamicCapability[AgentDependen
         return _instructions
 
     def include_for_run(self, ctx: RunContext[AgentDependencies]) -> bool:
-        return ctx.deps.contexts.dataset_evaluators is not None
+        return (
+            ctx.deps.contexts.dataset_evaluators is not None
+            and ctx.deps.contexts.code_evaluator is None
+        )

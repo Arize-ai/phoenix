@@ -10,6 +10,9 @@ from phoenix.server.agents.capabilities.contexts.code_evaluator import (
     CodeEvaluatorContextCapability,
 )
 from phoenix.server.agents.capabilities.contexts.dataset import DatasetContextCapability
+from phoenix.server.agents.capabilities.contexts.dataset_evaluators import (
+    DatasetEvaluatorsContextCapability,
+)
 from phoenix.server.agents.capabilities.contexts.playground import PlaygroundContextCapability
 from phoenix.server.agents.capabilities.contexts.project import ProjectContextCapability
 from phoenix.server.agents.capabilities.tools.external.create_code_evaluator import (
@@ -168,14 +171,17 @@ class TestDatasetContextCapabilityRender:
             ResolvedContexts(
                 dataset=DatasetContext(
                     type="dataset",
-                    dataset_node_id="RGF0YXNldDox",
+                    dataset_node_id="RGF0YXNldDox==",
                 ),
             )
         )
         content = _render(capability, ctx)
-        assert "[Evaluators tab](/datasets/RGF0YXNldDox/evaluators)" in content
+        assert (
+            "[Create code evaluator](/datasets/RGF0YXNldDox%3D%3D/evaluators"
+            "?createCodeEvaluator=true)"
+        ) in content
         assert "Stop. Do NOT continue with manual UI instructions" in content
-        assert "reply once they are there" in content
+        assert "reply once the create-code-evaluator slideover is open" in content
 
 
 class TestPlaygroundContextCapabilityRender:
@@ -191,13 +197,16 @@ class TestPlaygroundContextCapabilityRender:
                 ),
                 dataset=DatasetContext(
                     type="dataset",
-                    dataset_node_id="RGF0YXNldDox",
+                    dataset_node_id="RGF0YXNldDox==",
                 ),
             )
         )
         content = _render(capability, ctx)
         assert "<dataset_evaluator_authoring>" in content
-        assert "[Evaluators tab](/datasets/RGF0YXNldDox/evaluators)" in content
+        assert (
+            "[Create code evaluator](/datasets/RGF0YXNldDox%3D%3D/evaluators"
+            "?createCodeEvaluator=true)"
+        ) in content
         assert "do not give a manual form walkthrough" in content
         assert "Do NOT include evaluator source code" in content
 
@@ -216,7 +225,28 @@ class TestPlaygroundContextCapabilityRender:
         content = _render(capability, ctx)
         assert "<dataset_evaluator_authoring>" in content
         assert "ask them to load a dataset first" in content
-        assert "[Evaluators tab]" not in content
+        assert "[Create code evaluator]" not in content
+
+
+class TestDatasetEvaluatorsContextCapabilityGate:
+    def test_included_on_dataset_evaluators_page(self) -> None:
+        capability = DatasetEvaluatorsContextCapability(
+            instructions=_DEFAULT_PROMPTS.dataset_evaluators_context,
+        )
+        ctx = _get_run_context(_dataset_evaluators_contexts())
+        assert capability.include_for_run(ctx) is True
+
+    def test_excluded_when_code_evaluator_form_is_mounted(self) -> None:
+        capability = DatasetEvaluatorsContextCapability(
+            instructions=_DEFAULT_PROMPTS.dataset_evaluators_context,
+        )
+        contexts = _dataset_evaluators_contexts()
+        contexts.code_evaluator = CodeEvaluatorContext(
+            type="code_evaluator",
+            evaluator_node_id=None,
+        )
+        ctx = _get_run_context(contexts)
+        assert capability.include_for_run(ctx) is False
 
 
 class TestCodeEvaluatorContextCapabilityGate:
