@@ -38,6 +38,7 @@ import {
   SectionHeading,
   Switch,
   Text,
+  TextField,
   View,
 } from "@phoenix/components";
 import { pierreDark, pierreLight } from "@phoenix/components/code";
@@ -296,11 +297,18 @@ export const EditCodeEvaluatorDialogContent = ({
         setSandboxConfigId(next.sandboxConfigId);
       }
       const state = store.getState();
-      if (next.name !== current.name) {
+      const currentStoredName =
+        state.evaluator.name || state.evaluator.globalName;
+      const proposedOutputConfigName = next.outputConfigs[0]?.name ?? "";
+      const nextStoredName =
+        mode === "create" && !currentStoredName
+          ? proposedOutputConfigName || next.name
+          : next.name;
+      if (nextStoredName && nextStoredName !== currentStoredName) {
         if (mode === "create") {
-          state.setEvaluatorGlobalName(next.name);
+          state.setEvaluatorGlobalName(nextStoredName);
         }
-        state.setEvaluatorName(next.name);
+        state.setEvaluatorName(nextStoredName);
       }
       if (next.description !== current.description) {
         state.setEvaluatorDescription(next.description);
@@ -1010,6 +1018,31 @@ const OutputConfigSection = () => {
     return null;
   }
 
+  if ("values" in outputConfig) {
+    return (
+      <Flex direction="column" gap="size-200">
+        <Flex direction="row" gap="size-200" alignItems="start">
+          <TextField isDisabled value={outputConfig.name}>
+            <Label>Name</Label>
+            <Input />
+          </TextField>
+          <OptimizationDirectionField description="Whether higher or lower scores are better." />
+        </Flex>
+        <Flex direction="column" gap="size-100">
+          <OutputConfigValuesHeader />
+          {outputConfig.values.map((value, index) => (
+            <OutputConfigValuesRow
+              key={`${value.label}-${index}`}
+              label={value.label}
+              score={value.score ?? null}
+              index={index}
+            />
+          ))}
+        </Flex>
+      </Flex>
+    );
+  }
+
   const threshold =
     "threshold" in outputConfig ? (outputConfig.threshold ?? null) : null;
   const lowerBound =
@@ -1029,6 +1062,10 @@ const OutputConfigSection = () => {
   return (
     <Flex direction="column" gap="size-200">
       <Flex direction="row" gap="size-200" alignItems="start">
+        <TextField isDisabled value={outputConfig.name}>
+          <Label>Name</Label>
+          <Input />
+        </TextField>
         <OptimizationDirectionField description="Whether higher or lower scores are better." />
         <NumberField
           value={threshold ?? undefined}
@@ -1078,6 +1115,40 @@ const OutputConfigSection = () => {
         </NumberField>
       </Flex>
     </Flex>
+  );
+};
+
+const OutputConfigValuesHeader = () => {
+  return (
+    <div css={outputConfigValuesGridCSS}>
+      <Text>Choice</Text>
+      <Text>Score</Text>
+    </div>
+  );
+};
+
+const OutputConfigValuesRow = ({
+  label,
+  score,
+  index,
+}: {
+  label: string;
+  score: number | null;
+  index: number;
+}) => {
+  return (
+    <div css={outputConfigValuesGridCSS}>
+      <TextField isDisabled value={label} aria-label={`Choice ${index + 1}`}>
+        <Input />
+      </TextField>
+      <TextField
+        isDisabled
+        value={score != null ? String(score) : ""}
+        aria-label={`Score ${index + 1}`}
+      >
+        <Input />
+      </TextField>
+    </div>
   );
 };
 
@@ -1152,6 +1223,14 @@ const sidebarPanelCSS = css`
   box-sizing: border-box;
   overflow: hidden;
   border-left: 1px solid var(--global-border-color-default);
+`;
+
+const outputConfigValuesGridCSS = css`
+  width: 100%;
+  display: grid;
+  grid-template-columns: 3fr 1fr;
+  gap: var(--global-dimension-static-size-100);
+  align-items: start;
 `;
 
 // The "Test Evaluator" region grows to fill the panel and scrolls on overflow.
