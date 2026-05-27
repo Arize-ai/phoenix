@@ -119,13 +119,6 @@ const chatCSS = css`
     overflow: hidden;
   }
 
-  &.chat--empty-bleed {
-    .chat__scroll-frame,
-    .chat__scroll {
-      overflow: visible;
-    }
-  }
-
   .chat__scroll {
     flex: 1;
     min-height: 0;
@@ -302,7 +295,7 @@ export function ChatView({
     (state) => state.observability.hasAcknowledgedConsent
   );
   const showsEmptyState = messages.length === 0;
-  const chatClassName = showsEmptyState ? "chat--empty chat--empty-bleed" : "";
+  const chatClassName = showsEmptyState ? "chat--empty" : "";
   const { missingCredentialsProvider, refreshCredentialStatus } =
     useAgentModelCredentialStatus(modelMenuValue);
   const isWaitingForAssistant =
