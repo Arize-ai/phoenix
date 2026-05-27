@@ -1,59 +1,41 @@
 ---
 name: trace-debugging
-description: Systematically investigate failing or slow traces in a Phoenix project. Use when the user asks why a span errored, why latency is high, why a tool call produced the wrong result, or any variant of "what went wrong" / "where do I look" inside a project's traces. Walks through narrowing with set_time_range and set_spans_filter, then inspecting span attributes for the failure signature.
+description: >
+  Use when the user wants to know what is going wrong with their LLM application or how to improve it — e.g., "what's wrong?", "were there errors?", "where is my agent struggling?", "is retrieval working?", "debug this". Do NOT trigger for general project understanding or trace filtering requests like "show me traces with errors", "describe the trace structure", or "tell me about this project" — those don't require cross-trace diagnosis. This skill samples traces, journals observations (open-coding), clusters them into failure categories (axial coding), and produces a findings report with recommendations.
 ---
 
-# Trace Debugging
+### Orientation
 
-A repeatable loop for investigating failures inside a Phoenix project. The
-goal is to converge on a concrete failure signature — not just "it's slow" or
-"the LLM hallucinated" — so the user can decide what to fix or evaluate next.
+Your goal is to identify common failure modes across multiple traces and provide prioritized, actionable recommendations. You are not trying to exhaustively read every trace — you are trying to build a representative picture of what is going wrong and why.
 
-## When to Apply
+### Common Failure Modes to Watch For
 
-Trigger this workflow when the user is looking at a Phoenix project and asks
-any variant of:
+This list is non-exhaustive. Use it as a starting checklist, not a complete taxonomy.
 
-- "Why did this trace fail?"
-- "What's making latency high?"
-- "Which spans are erroring?"
-- "Where do I focus?"
+- **Explicit errors** — exceptions, error status codes, or error messages in tool call spans, LLM spans, or retriever spans
+- **Cost and latency** — unusually high token counts or slow spans that suggest room for efficiency improvements
+- **Retrieval quality** — irrelevant, missing, or low-scoring chunks in RAG applications
+- **LLM response quality** — hallucination, factual incorrectness, wrong tone, inappropriate refusals
+- **Tool use problems** — wrong tool selected, malformed invocation, or poor handling of the tool response
+- **Trajectory problems** — the agent took an inefficient path, got stuck in a loop, or failed to complete its task
+- **Instrumentation gaps** — the application is poorly traced, leaving visibility gaps that make it difficult to understand behavior
 
-## Loop
+### Steps
 
-1. **Frame the question.** Get one concrete thing to look for: an error
-   substring, a latency threshold, a tool name, a model name, an output shape.
-   Vague intent ("look at failures") becomes a vague filter and a vague answer.
+1. **Orient** — Use the `phoenix-gql` CLI to pull a sample of traces and understand the project structure (span types present, typical trace shapes, time range).
+2. **Select** — Determine which traces and spans to examine. Aim for a representative sample rather than exhaustive coverage. Be mindful of your context window.
+3. **Open-code** — Write open-ended notes about individual traces, flagging problems, surprises, and incorrect behaviors. Focus on the first failure in each trace, since upstream errors often cause downstream issues. Tag independent downstream failures if feasible.
+4. **Axial-code** — Cluster your notes. Let failure categories emerge naturally. Count occurrences per category.
+5. **Summarize** — Report findings to the user using the output format below.
 
-2. **Narrow the window.** Use `set_time_range` to clamp to the smallest window
-   that still contains the behavior. A 24-hour view hides patterns that a
-   1-hour view exposes.
+### Output Format
 
-3. **Narrow the spans.** Use `set_spans_filter` to keep only spans that match
-   the frame. Start broad (`status_code == 'ERROR'`), then layer constraints
-   (`span_kind == 'LLM'`, attribute predicates) as you learn what the failure
-   class actually is.
+- **Analysis scope** — brief summary of what was analyzed: number of traces examined, time range if relevant, any filters applied
+- **Findings table** — one row per issue category with: label, short description, occurrence count, one or two representative trace links
+- **Recommendations** — for each issue, a concrete suggested fix (prompt change, parameter adjustment, tool fix, instrumentation improvement, etc.), if one can be identified
 
-4. **Read a few end-to-end.** Pick 3–5 surviving traces and read them top to
-   bottom. Patterns at the trace level (e.g. retriever returned empty, tool
-   args malformed, model retried 4×) only show up when you see the sequence.
+### Caveats and Pitfalls
 
-5. **Name the failure.** Write down the signature in one sentence:
-   *"Retriever returns zero docs when the query contains a date range, so the
-   LLM fabricates an answer."* If you can't write that sentence, you haven't
-   narrowed enough — return to step 3.
-
-6. **Decide the next move.** A named failure points at exactly one of:
-   instrument the gap, fix the code, write an eval that catches the class, or
-   collect a dataset. Don't skip naming — undirected fixes are how regressions
-   come back.
-
-## Anti-patterns
-
-- **Scrolling without a frame.** Looking at the trace list with no filter is
-  triage, not debugging. Always commit to one question before looking.
-- **One trace, one conclusion.** A single failing trace tells you a failure
-  exists. It does not tell you the class. Inspect a handful before naming.
-- **Filtering on output text.** Output strings are noisy and vary per call.
-  Filter on structural attributes (status, span kind, tool name, model name)
-  first; use output substrings only to confirm a hypothesis.
+- Existing evals and annotations are useful signal, but treat them as one input among many — they may be incomplete or incorrect.
+- Span status codes are not a reliable proxy for whether an error actually occurred. An exception in the output may be expected behavior; a success status code may mask an error message buried in the span attributes.
+- Do not overload your context by reading too many full spans. Read enough to support meaningful recommendations, then stop.
