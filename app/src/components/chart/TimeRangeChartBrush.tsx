@@ -25,6 +25,7 @@ type ChartMouseHandler = (
 
 type TimeRangeChartBrushRenderProps = {
   chartProps: {
+    accessibilityLayer: false;
     onMouseDown?: ChartMouseHandler;
     onMouseLeave?: ChartMouseHandler;
     onMouseMove?: ChartMouseHandler;
@@ -51,6 +52,10 @@ type BrushPlotArea = {
   width: number;
   height: number;
 };
+
+const nonFocusableChartProps = {
+  accessibilityLayer: false,
+} satisfies TimeRangeChartBrushRenderProps["chartProps"];
 
 /**
  * Coerce a recharts `activeLabel` (number, Date, ISO string, or numeric string)
@@ -172,10 +177,11 @@ export function TimeRangeChartBrush({
   };
 
   if (!onTimeRangeSelected) {
-    return <>{children({ chartProps: {} })}</>;
+    return <>{children({ chartProps: nonFocusableChartProps })}</>;
   }
 
   const chartProps: TimeRangeChartBrushRenderProps["chartProps"] = {
+    ...nonFocusableChartProps,
     onMouseDown: (state, event) => {
       if (event.button !== 0) {
         return;
