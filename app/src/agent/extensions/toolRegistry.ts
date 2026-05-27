@@ -956,9 +956,9 @@ const editCodeEvaluatorDraftAgentTool =
   });
 
 /**
- * Chassis tool: produces a `PendingCodeEvaluatorCreate` proposal via the
- * registered client action and leaves the AI-SDK tool call unresolved until
- * the user clicks Accept or Reject in the inline diff render.
+ * Produces a `PendingCodeEvaluatorCreate` proposal via the registered client
+ * action and leaves the AI-SDK tool call unresolved until the user clicks
+ * Accept or Reject in the inline diff render.
  */
 const createCodeEvaluatorAgentTool =
   createRegisteredAgentTool<CreateCodeEvaluatorInput>({

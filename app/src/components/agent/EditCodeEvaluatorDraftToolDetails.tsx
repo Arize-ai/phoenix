@@ -44,12 +44,12 @@ const editCodeEvaluatorToolDetailsCSS = css`
   }
 `;
 
-type PendingCodeEvaluatorChassis =
+type PendingCodeEvaluatorProposal =
   | PendingCodeEvaluatorEdit
   | PendingCodeEvaluatorCreate;
 
-function isCreateChassis(
-  pending: PendingCodeEvaluatorChassis
+function isCreateProposal(
+  pending: PendingCodeEvaluatorProposal
 ): pending is PendingCodeEvaluatorCreate {
   return "phase" in pending;
 }
@@ -97,7 +97,7 @@ export function EditCodeEvaluatorDraftToolDetails({
   // the slideover; the slideover owns the remaining UI until a terminal fires.
   const shouldRenderPendingCard =
     pending != null &&
-    !(isCreateChassis(pending) && pending.phase === "awaiting-slideover");
+    !(isCreateProposal(pending) && pending.phase === "awaiting-slideover");
 
   return (
     <div className="tool-part__body" css={editCodeEvaluatorToolDetailsCSS}>
@@ -133,11 +133,11 @@ export function EditCodeEvaluatorDraftToolDetails({
 function PendingCodeEvaluatorDraftDiff({
   pending,
 }: {
-  pending: PendingCodeEvaluatorChassis;
+  pending: PendingCodeEvaluatorProposal;
 }) {
   const { theme } = useTheme();
   const canRespond = Boolean(pending.accept && pending.reject);
-  const acceptLabel = isCreateChassis(pending) ? "Confirm" : "Accept";
+  const acceptLabel = isCreateProposal(pending) ? "Confirm" : "Accept";
   const fileName =
     pending.before.mode === "edit"
       ? `code-evaluator-${pending.before.evaluatorNodeId ?? "draft"}.txt`
