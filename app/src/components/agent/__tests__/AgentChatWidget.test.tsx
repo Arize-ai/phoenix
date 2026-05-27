@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -16,6 +16,16 @@ import { AgentChatWidget } from "../AgentChatWidget";
 function AgentOpenState() {
   const isOpen = useAgentContext((state) => state.isOpen);
   return <span data-testid="agent-open">{String(isOpen)}</span>;
+}
+
+function AgentWidgetWithBoundary() {
+  const boundaryRef = useRef<HTMLDivElement>(null);
+  return (
+    <div ref={boundaryRef}>
+      <AgentChatWidget boundaryRef={boundaryRef} />
+      <AgentOpenState />
+    </div>
+  );
 }
 
 function dispatchCommandI() {
@@ -151,6 +161,36 @@ describe("AgentChatWidget", () => {
     expect(
       container.querySelector('[data-testid="agent-open"]')?.textContent
     ).toBe("false");
+  });
+
+  it("hides the mounted FAB while PXI is open", () => {
+    renderWidget();
+
+    const positioner = document.body.querySelector(
+      ".agent-chat-widget-positioner"
+    );
+    expect(positioner).not.toBeNull();
+    expect(positioner?.getAttribute("data-hidden")).toBeNull();
+
+    dispatchCommandI();
+
+    expect(
+      container.querySelector('[data-testid="agent-open"]')?.textContent
+    ).toBe("true");
+    expect(document.body.querySelector(".agent-chat-widget-positioner")).toBe(
+      positioner
+    );
+    expect(positioner?.getAttribute("data-hidden")).toBe("true");
+
+    dispatchCommandI();
+
+    expect(
+      container.querySelector('[data-testid="agent-open"]')?.textContent
+    ).toBe("false");
+    expect(document.body.querySelector(".agent-chat-widget-positioner")).toBe(
+      positioner
+    );
+    expect(positioner?.getAttribute("data-hidden")).toBeNull();
   });
 
   it("toggles PXI with Command+I while a modal overlay is open", () => {
@@ -315,5 +355,59 @@ describe("AgentChatWidget", () => {
     });
 
     expect(document.body.textContent).toContain("Open assistant");
+  });
+
+  it("enables the one-shot hover wipe when the FAB appears", () => {
+    renderWidget();
+
+    expect(
+      document.body.querySelector('[data-entrance-animation="true"]')
+    ).not.toBeNull();
+  });
+
+  it("marks the FAB ready on first render when constrained to a boundary", async () => {
+    const getBoundingClientRect = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockReturnValue({
+        bottom: 800,
+        height: 700,
+        left: 100,
+        right: 1000,
+        top: 100,
+        width: 900,
+        x: 100,
+        y: 100,
+        toJSON: () => ({}),
+      } as DOMRect);
+
+    act(() => {
+      root.render(
+        <ThemeProvider themeMode="light" disableBodyTheme>
+          <FeatureFlagsContext.Provider
+            value={{
+              featureFlags: { agents: true, tracing_ux: false },
+              setFeatureFlags: vi.fn(),
+            }}
+          >
+            <PreferencesProvider isAssistantAgentEnabled>
+              <AgentProvider>
+                <AgentWidgetWithBoundary />
+              </AgentProvider>
+            </PreferencesProvider>
+          </FeatureFlagsContext.Provider>
+        </ThemeProvider>
+      );
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    });
+
+    expect(getBoundingClientRect).toHaveBeenCalled();
+    expect(
+      document.body
+        .querySelector(".agent-chat-widget-positioner")
+        ?.getAttribute("data-ready")
+    ).toBe("true");
   });
 });

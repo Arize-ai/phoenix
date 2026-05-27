@@ -54,6 +54,11 @@ const positionerCSS = css`
     visibility: visible;
   }
 
+  &[data-hidden="true"] {
+    pointer-events: none;
+    visibility: hidden;
+  }
+
   &[data-dragging="true"],
   &[data-dragging="true"] * {
     cursor: grabbing;
@@ -76,6 +81,7 @@ type DragSession = {
 export type AgentFabPositionerProps = {
   boundaryRef?: RefObject<HTMLElement | null>;
   children: ReactNode;
+  isHidden?: boolean;
   layer?: "content" | "modal";
   placement: AgentFabPlacement;
   size?: Size;
@@ -200,6 +206,7 @@ function applyElementPinnedPosition({
 export function AgentFabPositioner({
   boundaryRef,
   children,
+  isHidden = false,
   layer = "content",
   placement,
   size,
@@ -216,6 +223,9 @@ export function AgentFabPositioner({
   const suppressClickResetTimeoutIdRef = useRef<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const requiresBoundary = Boolean(boundaryRef);
+  const [resolvedBoundary, setResolvedBoundary] = useState<HTMLElement | null>(
+    () => boundaryRef?.current ?? null
+  );
   useModalFloatingLayerInteractivity(positionerRef, layer === "modal");
 
   // After a drag, an unwanted `click` event can still fire on pointerup. We
@@ -235,7 +245,7 @@ export function AgentFabPositioner({
   const getBounds = (): Bounds => {
     return (
       getPositioningBounds({
-        boundary: boundaryRef?.current,
+        boundary: resolvedBoundary,
         requiresBoundary,
       }) ?? getViewportBounds()
     );
@@ -453,10 +463,37 @@ export function AgentFabPositioner({
   };
 
   useLayoutEffect(() => {
+    if (!requiresBoundary) {
+      setResolvedBoundary(null);
+      return;
+    }
+
+    let animationFrameId: number | null = null;
+    const syncBoundaryElement = () => {
+      const nextBoundary = boundaryRef?.current ?? null;
+      setResolvedBoundary((currentBoundary) =>
+        currentBoundary === nextBoundary ? currentBoundary : nextBoundary
+      );
+
+      if (!nextBoundary) {
+        animationFrameId = window.requestAnimationFrame(syncBoundaryElement);
+      }
+    };
+
+    syncBoundaryElement();
+
+    return () => {
+      if (animationFrameId != null) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [boundaryRef, requiresBoundary]);
+
+  useLayoutEffect(() => {
     const syncPinnedPosition = () => {
       if (!dragSessionRef.current) {
         applyElementPinnedPosition({
-          boundary: boundaryRef?.current,
+          boundary: resolvedBoundary,
           element: positionerRef.current,
           placement,
           requiresBoundary,
@@ -467,18 +504,17 @@ export function AgentFabPositioner({
 
     syncPinnedPosition();
 
-    const boundary = boundaryRef?.current;
     // ResizeObserver covers boundary-driven changes (panel resize, sidebar
     // toggle). visualViewport.resize covers viewport-level changes that don't
     // resize the boundary (mobile URL bar collapse, virtual keyboard).
     // visualViewport.scroll covers pinch-zoom scrolling on mobile, which
     // shifts where the boundary appears on screen.
     const observer =
-      boundary && typeof ResizeObserver === "function"
+      resolvedBoundary && typeof ResizeObserver === "function"
         ? new ResizeObserver(syncPinnedPosition)
         : null;
-    if (boundary && observer) {
-      observer.observe(boundary);
+    if (resolvedBoundary && observer) {
+      observer.observe(resolvedBoundary);
     }
     window.visualViewport?.addEventListener("resize", syncPinnedPosition);
     window.visualViewport?.addEventListener("scroll", syncPinnedPosition);
@@ -497,13 +533,15 @@ export function AgentFabPositioner({
         suppressClickResetTimeoutIdRef.current = null;
       }
     };
-  }, [boundaryRef, placement, requiresBoundary, size]);
+  }, [placement, requiresBoundary, resolvedBoundary, size]);
 
   return (
     <div
       className="agent-chat-widget-positioner"
       css={positionerCSS}
+      aria-hidden={isHidden ? true : undefined}
       data-dragging={isDragging ? "true" : undefined}
+      data-hidden={isHidden ? "true" : undefined}
       data-layer={layer}
       data-placement={placement}
       ref={positionerRef}
