@@ -481,6 +481,7 @@ export function ResizableFloatingPanel({
   ) => {
     if (event.button !== PRIMARY_POINTER_BUTTON) return;
 
+    event.currentTarget.focus();
     event.currentTarget.setPointerCapture(event.pointerId);
     resizeSessionRef.current = {
       pointerId: event.pointerId,
