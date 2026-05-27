@@ -7,21 +7,35 @@ from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
 from typing_extensions import assert_never
 
 
-def sanitize_untrusted_value(value: str, *, enclosing_tag: str, max_chars: int) -> str:
+def sanitize_untrusted_value(
+    value: str,
+    *,
+    enclosing_tag: str,
+    max_chars: int | None = None,
+    preserve_newlines: bool = False,
+) -> str:
     """Prepare a client-supplied value for safe inclusion in an XML context block.
 
     Collapses whitespace to a single line (so a multi-line payload cannot
     visually mimic separate directives), neutralizes the closing tag of the
     enclosing block (so the value cannot break out of its wrapper element and
     inject a sibling XML block that the model would read as authoritative),
-    and truncates to ``max_chars`` with a visible ``… [truncated]`` marker.
+    and — when ``max_chars`` is provided — truncates with a visible
+    ``… [truncated]`` marker.
+
+    Set ``preserve_newlines=True`` for multi-line payloads (e.g. markdown skill
+    content) where structure matters. Closing-tag neutralization and length
+    capping still apply.
     """
-    collapsed = value.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
-    collapsed = collapsed.replace("\t", " ").strip()
-    collapsed = collapsed.replace(f"</{enclosing_tag}>", f"[/{enclosing_tag}]")
-    if len(collapsed) > max_chars:
-        collapsed = collapsed[:max_chars] + "… [truncated]"
-    return collapsed
+    if preserve_newlines:
+        cleaned = value.strip()
+    else:
+        cleaned = value.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+        cleaned = cleaned.replace("\t", " ").strip()
+    cleaned = cleaned.replace(f"</{enclosing_tag}>", f"[/{enclosing_tag}]")
+    if max_chars is not None and len(cleaned) > max_chars:
+        cleaned = cleaned[:max_chars] + "… [truncated]"
+    return cleaned
 
 
 class _ChatContextBase(BaseModel):

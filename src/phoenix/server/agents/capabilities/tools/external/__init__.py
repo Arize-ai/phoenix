@@ -38,7 +38,7 @@ from phoenix.server.agents.capabilities.tools.external.set_spans_filter import (
 from phoenix.server.agents.capabilities.tools.external.set_time_range import (
     SetTimeRangeCapability,
 )
-from phoenix.server.agents.prompts import AgentInstructions
+from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.types import AgentDependencies
 
 _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
@@ -63,23 +63,23 @@ def get_external_tool_definition(name: str) -> ToolDefinition | None:
 
 def get_external_tool_capability_function(
     *,
-    instructions: AgentInstructions,
+    prompts: AgentPrompts,
 ) -> CapabilityFunc[AgentDependencies]:
     """Return a ``CapabilityFunc`` that assembles the per-run external-tool
     capability bundle. Static capabilities are always included; dynamic
     capabilities self-gate via ``include_for_run``.
     """
     static_capabilities: list[AbstractStaticCapability[AgentDependencies]] = [
-        BashCapability(instructions=instructions.bash_tool),
-        AskUserCapability(instructions=instructions.ask_user_tool),
-        SetTimeRangeCapability(instructions=instructions.set_time_range_tool),
-        RenderGenerativeUICapability(instructions=instructions.render_generative_ui_tool),
+        BashCapability(instructions=prompts.bash_tool),
+        AskUserCapability(instructions=prompts.ask_user_tool),
+        SetTimeRangeCapability(instructions=prompts.set_time_range_tool),
+        RenderGenerativeUICapability(instructions=prompts.render_generative_ui_tool),
     ]
     dynamic_capabilities: list[AbstractDynamicCapability[AgentDependencies]] = [
-        SetSpansFilterCapability(instructions=instructions.set_spans_filter_tool),
-        ReadPromptInstanceCapability(instructions=instructions.read_prompt_instance_tool),
-        ClonePromptInstanceCapability(instructions=instructions.clone_prompt_instance_tool),
-        EditPromptInstanceCapability(instructions=instructions.edit_prompt_instance_tool),
+        SetSpansFilterCapability(instructions=prompts.set_spans_filter_tool),
+        ReadPromptInstanceCapability(instructions=prompts.read_prompt_instance_tool),
+        ClonePromptInstanceCapability(instructions=prompts.clone_prompt_instance_tool),
+        EditPromptInstanceCapability(instructions=prompts.edit_prompt_instance_tool),
     ]
 
     def _build(ctx: RunContext[AgentDependencies]) -> AbstractCapability[AgentDependencies]:
