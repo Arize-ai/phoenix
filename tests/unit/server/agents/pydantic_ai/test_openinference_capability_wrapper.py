@@ -268,6 +268,8 @@ async def test_after_model_request_emits_native_tool_span_for_call_and_return(
     (span,) = in_memory_span_exporter.get_finished_spans()
     assert span.name == "web_search"
     assert span.status.status_code == StatusCode.OK
+    assert span.status.description is None
+    assert span.events == ()
 
     attributes = dict(span.attributes or {})
     assert attributes.pop(OPENINFERENCE_SPAN_KIND) == TOOL
@@ -318,10 +320,22 @@ async def test_after_model_request_emits_native_tool_span_without_return_part(
     (span,) = in_memory_span_exporter.get_finished_spans()
     assert span.name == "web_search"
     assert span.status.status_code == StatusCode.OK
+    assert span.status.description is None
+    assert span.events == ()
 
     attributes = dict(span.attributes or {})
+    assert attributes.pop(OPENINFERENCE_SPAN_KIND) == TOOL
     assert attributes.pop(TOOL_NAME) == "web_search"
+    assert attributes.pop(TOOL_CALL_ID) == "native-call-1"
+
+    input_value = attributes.pop(INPUT_VALUE)
+    assert isinstance(input_value, str)
+    assert json.loads(input_value) == {"query": "phoenix tracing"}
+    assert attributes.pop(INPUT_MIME_TYPE) == JSON
+
     assert OUTPUT_VALUE not in attributes
+    assert OUTPUT_MIME_TYPE not in attributes
+    assert not attributes
 
 
 async def test_after_model_request_records_error_for_failed_native_tool_return(
@@ -363,13 +377,35 @@ async def test_after_model_request_records_error_for_failed_native_tool_return(
     await wrapper.after_model_request(ctx, request_context=request_context, response=response)
 
     (span,) = in_memory_span_exporter.get_finished_spans()
+    assert span.name == "web_search"
     assert span.status.status_code == StatusCode.ERROR
+    assert span.status.description is None
+
+    attributes = dict(span.attributes or {})
+    assert attributes.pop(OPENINFERENCE_SPAN_KIND) == TOOL
+    assert attributes.pop(TOOL_NAME) == "web_search"
+    assert attributes.pop(TOOL_CALL_ID) == "native-call-1"
+
+    input_value = attributes.pop(INPUT_VALUE)
+    assert isinstance(input_value, str)
+    assert json.loads(input_value) == {"query": "phoenix tracing"}
+    assert attributes.pop(INPUT_MIME_TYPE) == JSON
+
+    assert attributes.pop(OUTPUT_VALUE) == "rate limit exceeded"
+    assert attributes.pop(OUTPUT_MIME_TYPE) == TEXT
+
+    assert not attributes
 
     (exception_event,) = span.events
     assert exception_event.name == "exception"
     exception_attributes = dict(exception_event.attributes or {})
-    assert exception_attributes["exception.type"] == "Exception"
-    assert exception_attributes["exception.message"] == "rate limit exceeded"
+    assert exception_attributes.pop("exception.type") == "Exception"
+    assert exception_attributes.pop("exception.message") == "rate limit exceeded"
+    stacktrace = exception_attributes.pop("exception.stacktrace")
+    assert isinstance(stacktrace, str)
+    assert "Exception: rate limit exceeded" in stacktrace
+    assert exception_attributes.pop("exception.escaped") == "False"
+    assert not exception_attributes
 
 
 # OpenInference attribute keys
