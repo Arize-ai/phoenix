@@ -270,6 +270,26 @@ class TestCodeEvaluatorContextCapabilityRender:
         assert "`output` is the experiment run output" in content
         assert "`reference` is the dataset example output" in content
         assert "rather than relying on a custom input mapping" in content
+        assert "<available_sandbox_configs>" in content
+        assert 'id="U2FuZGJveENvbmZpZzox"' in content
+        assert 'language="PYTHON"' in content
+
+    def test_renders_no_sandbox_message_when_inventory_is_empty(self) -> None:
+        capability = CodeEvaluatorContextCapability(
+            instructions=_DEFAULT_PROMPTS.code_evaluator_context,
+        )
+        ctx = _get_run_context(
+            ResolvedContexts(
+                code_evaluator=CodeEvaluatorContext(
+                    type="code_evaluator",
+                    evaluator_node_id=None,
+                ),
+            ),
+            sandbox_availability=SandboxAvailability(),
+        )
+        content = _render(capability, ctx)
+        assert "<available_sandbox_configs>" in content
+        assert "No selectable sandbox configs are available" in content
 
 
 class TestPlaygroundContextCapabilityRender:

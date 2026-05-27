@@ -130,6 +130,58 @@ class TestLoadSandboxAvailability:
             assert len(availability.configs) == 1
             assert availability.configs[0].name == "enabled-e2b"
 
+    async def test_filters_configs_for_unavailable_backends_when_backend_inventory_is_supplied(
+        self,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        async with db() as session:
+            wasm_cfg = models.SandboxConfig(
+                backend_type="WASM",
+                language="PYTHON",
+                name=Identifier("enabled-wasm"),
+                description=None,
+                config={},
+                timeout=30,
+                enabled=True,
+            )
+            e2b_cfg = models.SandboxConfig(
+                backend_type="E2B",
+                language="PYTHON",
+                name=Identifier("enabled-e2b"),
+                description=None,
+                config={},
+                timeout=30,
+                enabled=True,
+            )
+            session.add_all([wasm_cfg, e2b_cfg])
+            e2b = await session.get(models.SandboxProvider, "E2B")
+            assert e2b is not None
+            e2b.enabled = True
+            await session.flush()
+
+            availability = await _load_sandbox_availability(
+                session,
+                available_backend_types=frozenset({"WASM"}),
+            )
+
+        assert availability.has_usable is True
+        assert {config.name for config in availability.configs} == {"enabled-wasm"}
+
+    async def test_empty_available_backend_inventory_returns_no_sandbox_rows(
+        self,
+        db: DbSessionFactory,
+        sandbox_config: models.SandboxConfig,
+    ) -> None:
+        async with db() as session:
+            availability = await _load_sandbox_availability(
+                session,
+                available_backend_types=frozenset(),
+            )
+
+        assert availability.has_usable is False
+        assert availability.configs == []
+
     async def test_malformed_row_is_logged_and_skipped(
         self,
         db: DbSessionFactory,

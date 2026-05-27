@@ -1,6 +1,6 @@
 import json
 import logging
-from collections.abc import AsyncGenerator, AsyncIterator, Iterable
+from collections.abc import AsyncGenerator, AsyncIterator, Callable, Iterable
 from contextlib import aclosing
 from copy import deepcopy
 from typing import Annotated, Any, Literal, TypeVar
@@ -64,8 +64,12 @@ from phoenix.server.agents.types import (
 )
 from phoenix.server.api.openapi.registry import register_openapi_schema
 from phoenix.server.api.types.node import from_global_id_with_expected_type
+from phoenix.server.api.types.SandboxConfig import (
+    SandboxBackendStatus,
+    get_sandbox_backend_info,
+)
 from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
-from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
+from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA, SecretsContext
 from phoenix.server.sandbox.types import (
     SANDBOX_CONFIG_ADAPTER,
     SupportsDependencies,
@@ -354,11 +358,32 @@ async def _persist_db_traces(
     session.add_all(db_traces)
 
 
-async def _load_sandbox_availability(session: AsyncSession) -> SandboxAvailability:
+async def _load_available_sandbox_backend_types(
+    *,
+    session: AsyncSession,
+    decrypt: Callable[[bytes], bytes],
+) -> frozenset[models.SandboxBackendType]:
+    backend_info = await get_sandbox_backend_info(
+        secrets=SecretsContext(session=session, decrypt=decrypt),
+    )
+    return frozenset(
+        info.backend_type.value
+        for info in backend_info
+        if info.status is SandboxBackendStatus.AVAILABLE
+    )
+
+
+async def _load_sandbox_availability(
+    session: AsyncSession,
+    *,
+    available_backend_types: frozenset[models.SandboxBackendType] | None = None,
+) -> SandboxAvailability:
     """Load every enabled sandbox config sitting under an enabled provider
     into a ``SandboxAvailability`` snapshot the agent uses to (a) gate the
     create/edit code-evaluator capabilities and (b) render the available
-    inventory into the prompt.
+    inventory into the prompt. When ``available_backend_types`` is supplied, it
+    mirrors the code-evaluator form's backend-status filter so the model only
+    sees sandbox configs the mounted form can select.
 
     Malformed rows are logged and skipped rather than failing the entire
     agent request — same graceful-degradation contract used by
@@ -372,6 +397,10 @@ async def _load_sandbox_availability(session: AsyncSession) -> SandboxAvailabili
         .where(models.SandboxConfig.enabled.is_(True))
         .where(models.SandboxProvider.enabled.is_(True))
     )
+    if available_backend_types is not None:
+        if not available_backend_types:
+            return SandboxAvailability()
+        stmt = stmt.where(models.SandboxConfig.backend_type.in_(available_backend_types))
     rows = (await session.scalars(stmt)).all()
     configs: list[SandboxConfigCapabilities] = []
     for row in rows:
@@ -445,6 +474,14 @@ def _dump_dataset_example_value(value: Any) -> str:
     if len(rendered) > _DATASET_EXAMPLE_SAMPLE_MAX_CHARS:
         return rendered[:_DATASET_EXAMPLE_SAMPLE_MAX_CHARS] + "... [truncated]"
     return rendered
+
+
+def _contexts_need_sandbox_availability(contexts: ResolvedContexts) -> bool:
+    return (
+        contexts.dataset is not None
+        or contexts.dataset_evaluators is not None
+        or contexts.code_evaluator is not None
+    )
 
 
 async def _load_dataset_example_samples(
@@ -634,7 +671,16 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                     decrypt=request.app.state.decrypt,
                     tracer_provider=tracer_provider,
                 )
-                sandbox_availability = await _load_sandbox_availability(session)
+                sandbox_availability = SandboxAvailability()
+                if _contexts_need_sandbox_availability(resolved_contexts):
+                    available_backend_types = await _load_available_sandbox_backend_types(
+                        session=session,
+                        decrypt=request.app.state.decrypt,
+                    )
+                    sandbox_availability = await _load_sandbox_availability(
+                        session,
+                        available_backend_types=available_backend_types,
+                    )
                 dataset_example_samples = await _load_dataset_example_samples(
                     session,
                     resolved_contexts,

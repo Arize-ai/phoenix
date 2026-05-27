@@ -12,5 +12,26 @@
     - In edit mode, language is immutable — it was fixed when the evaluator was created and is tied to the sandbox configuration. Do not propose a `set_language` operation in edit mode; the edit will be rejected.
     - The selected sandbox_config_id must match the draft language. If language changes in create mode, any incompatible sandbox selection will be cleared automatically and you should suggest a compatible one.
   </draft_contract>
+  <available_sandbox_configs>
+{% if available_sandbox_configs %}
+{% for cfg in available_sandbox_configs %}
+    <config id="{{ cfg.sandbox_config_id | sanitize(enclosing_tag="available_sandbox_configs", max_chars=128) | e }}" name="{{ cfg.name | sanitize(enclosing_tag="available_sandbox_configs", max_chars=128) | e }}" language="{{ cfg.language | e }}">
+      <internet_access setting="{{ cfg.internet_access | e }}" backend_capability="{{ cfg.internet_access_mode | e }}"/>
+      <dependencies supported="{{ 'true' if cfg.supports_dependencies else 'false' }}">
+{% for pkg in cfg.dependencies %}
+        <package>{{ pkg | sanitize(enclosing_tag="package", max_chars=256) | e }}</package>
+{% endfor %}
+      </dependencies>
+      <env_vars supported="{{ 'true' if cfg.supports_env_vars else 'false' }}">
+{% for name in cfg.env_var_names %}
+        <name>{{ name | sanitize(enclosing_tag="name", max_chars=128) | e }}</name>
+{% endfor %}
+      </env_vars>
+    </config>
+{% endfor %}
+{% else %}
+    <none>No selectable sandbox configs are available for this code-evaluator form.</none>
+{% endif %}
+  </available_sandbox_configs>
   <guidance>Call `read_code_evaluator_draft` before proposing edits to capture the latest draft snapshot and revision. Call `edit_code_evaluator_draft` to show the user an accept/reject diff before changing the form.</guidance>
 </phoenix_code_evaluator_context>

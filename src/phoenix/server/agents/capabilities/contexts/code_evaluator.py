@@ -21,7 +21,10 @@ class CodeEvaluatorContextCapability(AbstractDynamicCapability[AgentDependencies
             code_evaluator = ctx.deps.contexts.code_evaluator
             if code_evaluator is None:
                 return None
-            return instructions.render(code_evaluator=code_evaluator)
+            return instructions.render(
+                code_evaluator=code_evaluator,
+                available_sandbox_configs=ctx.deps.sandbox_availability.configs,
+            )
 
         return _instructions
 
