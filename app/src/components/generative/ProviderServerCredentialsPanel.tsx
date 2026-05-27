@@ -12,7 +12,7 @@ import {
   Text,
   View,
 } from "@phoenix/components";
-import { useNotifySuccess, useViewer } from "@phoenix/contexts";
+import { useNotifySuccess } from "@phoenix/contexts";
 
 import type { ProviderServerCredentialsPanelSecretsQuery } from "./__generated__/ProviderServerCredentialsPanelSecretsQuery.graphql";
 import type { ProviderServerCredentialsPanelUpsertOrDeleteSecretsMutation } from "./__generated__/ProviderServerCredentialsPanelUpsertOrDeleteSecretsMutation.graphql";
@@ -32,33 +32,6 @@ export type ProviderServerCredentialsPanelProvider = {
 type ServerCredentialsFormValues = Record<string, string>;
 
 export function ProviderServerCredentialsPanel({
-  provider,
-  onCredentialsUpdated,
-}: {
-  provider: ProviderServerCredentialsPanelProvider;
-  onCredentialsUpdated?: () => void;
-}) {
-  const { viewer } = useViewer();
-  const isAdmin = !viewer || viewer.role?.name === "ADMIN";
-
-  if (!isAdmin) {
-    return (
-      <Text>
-        PXI uses server-side credentials. Ask an administrator to configure{" "}
-        {provider.name} credentials in AI provider settings.
-      </Text>
-    );
-  }
-
-  return (
-    <ServerCredentialsSection
-      provider={provider}
-      onCredentialsUpdated={onCredentialsUpdated}
-    />
-  );
-}
-
-function ServerCredentialsSection({
   provider,
   onCredentialsUpdated,
 }: {
@@ -94,8 +67,12 @@ function ServerCredentials({
 }) {
   const notifySuccess = useNotifySuccess();
   const [error, setError] = useState<string | null>(null);
-  const [fetchKey, setFetchKey] = useState(0);
+
+  // Lazy load secrets only when this component mounts (admin opens secrets tab)
   const secretKeys = provider.credentialRequirements.map((c) => c.envVarName);
+
+  // Used to trigger refetch after mutations
+  const [fetchKey, setFetchKey] = useState(0);
 
   const secretsData =
     useLazyLoadQuery<ProviderServerCredentialsPanelSecretsQuery>(
@@ -123,6 +100,7 @@ function ServerCredentials({
       { fetchKey, fetchPolicy: "store-and-network" }
     );
 
+  // Process secrets from query
   const serverSecretMap = new Map<string, string>();
   const unparsableSecrets = new Map<string, string>();
   for (const { node } of secretsData.secrets.edges) {
@@ -140,6 +118,7 @@ function ServerCredentials({
       }
       case "%other":
       default:
+        // Unknown secret type from server - treat as inaccessible
         unparsableSecrets.set(
           node.key,
           "Secret type not supported by this client version"
@@ -148,6 +127,7 @@ function ServerCredentials({
     }
   }
 
+  // Current secret values saved on the server (only successfully decrypted ones)
   const savedServerValues: ServerCredentialsFormValues = {};
   provider.credentialRequirements.forEach(({ envVarName }) => {
     savedServerValues[envVarName] = serverSecretMap.get(envVarName) ?? "";
@@ -156,7 +136,7 @@ function ServerCredentials({
   const { control, handleSubmit, reset } = useForm<ServerCredentialsFormValues>(
     {
       defaultValues: savedServerValues,
-      values: savedServerValues,
+      values: savedServerValues, // Syncs form when server data changes after refetch
       mode: "onChange",
     }
   );
@@ -175,12 +155,12 @@ function ServerCredentials({
     );
 
   const onSubmit = (formValues: ServerCredentialsFormValues) => {
-    setError(null);
+    // Build list of secrets to upsert: value for save, null for delete
     const secretsToUpsert = provider.credentialRequirements
       .map((config) => {
         const newValue = formValues[config.envVarName]?.trim() || null;
         const savedValue = savedServerValues[config.envVarName]?.trim() || null;
-        if (newValue === savedValue) return null;
+        if (newValue === savedValue) return null; // No change
         return { key: config.envVarName, value: newValue };
       })
       .filter((s): s is { key: string; value: string | null } => s !== null);
@@ -203,6 +183,7 @@ function ServerCredentials({
     });
   };
 
+  // Get keys that have values on the server (including unparsable secrets)
   const existingSecretKeys = [
     ...Object.entries(savedServerValues)
       .filter(([, value]) => value.trim())
@@ -211,7 +192,6 @@ function ServerCredentials({
   ];
 
   const handleDelete = () => {
-    setError(null);
     if (existingSecretKeys.length === 0) return;
 
     const secretsToDelete = existingSecretKeys.map((key) => ({
