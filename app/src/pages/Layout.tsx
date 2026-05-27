@@ -98,20 +98,21 @@ export function Layout() {
   const hasOpenModal = useHasOpenModal();
   const hasOpenDrawer = useHasOpenDrawer();
   const shouldForceFloatingAgentPanel = hasOpenModal || hasOpenDrawer;
-  const shouldShowDockedAgentPanel =
-    isAgentsEnabled &&
-    isAgentPanelOpen &&
-    agentPosition === "pinned" &&
-    !shouldForceFloatingAgentPanel;
-  const shouldShowFloatingAgentPanel =
-    isAgentsEnabled &&
-    isAgentPanelOpen &&
-    (agentPosition === "detached" || shouldForceFloatingAgentPanel);
-  const panelIds = shouldShowDockedAgentPanel
+  let activeAgentSurface: "docked" | "floating" | null = null;
+  if (isAgentsEnabled && isAgentPanelOpen) {
+    if (shouldForceFloatingAgentPanel || agentPosition === "detached") {
+      activeAgentSurface = "floating";
+    } else {
+      activeAgentSurface = "docked";
+    }
+  }
+  const isDockedAgentSurface = activeAgentSurface === "docked";
+  const isFloatingAgentSurface = activeAgentSurface === "floating";
+  const panelIds = isDockedAgentSurface
     ? ["layout-content", "agent-chat"]
     : ["layout-content"];
   // Use different storage keys based on panel count to avoid layout data mismatch
-  const layoutId = shouldShowDockedAgentPanel
+  const layoutId = isDockedAgentSurface
     ? "layout-panels-with-agent"
     : "layout-panels";
   const { defaultLayout, onLayoutChanged } = useDefaultLayout({
@@ -140,7 +141,7 @@ export function Layout() {
               </TopNavbar>
               <div data-testid="content" css={contentCSS} ref={contentRef}>
                 <AgentChatWidget boundaryRef={contentRef} />
-                {shouldShowFloatingAgentPanel ? (
+                {isFloatingAgentSurface ? (
                   <FloatingAgentChatPanel
                     boundaryRef={hasOpenModal ? undefined : contentRef}
                     layer={hasOpenModal ? "modal" : "content"}
@@ -152,7 +153,7 @@ export function Layout() {
                 </Suspense>
               </div>
             </Panel>
-            {shouldShowDockedAgentPanel ? <AgentChatPanel /> : null}
+            {isDockedAgentSurface ? <AgentChatPanel /> : null}
           </Group>
         </div>
       </div>
