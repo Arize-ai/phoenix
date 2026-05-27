@@ -12,6 +12,10 @@ import { useBlocker, useSearchParams } from "react-router";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import {
+  createRunPlaygroundClientAction,
+  RUN_PLAYGROUND_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundRun";
+import {
   CLONE_PROMPT_INSTANCE_TOOL_NAME,
   createClonePromptInstanceClientAction,
   createEditPromptClientAction,
@@ -286,10 +290,15 @@ function PlaygroundContent() {
       EDIT_PROMPT_TOOL_NAME,
       createEditPromptClientAction({ playgroundStore, setPendingPromptEdit })
     );
+    registerClientAction(
+      RUN_PLAYGROUND_TOOL_NAME,
+      createRunPlaygroundClientAction({ playgroundStore })
+    );
     return () => {
       unregisterClientAction(READ_PROMPT_TOOL_NAME);
       unregisterClientAction(CLONE_PROMPT_INSTANCE_TOOL_NAME);
       unregisterClientAction(EDIT_PROMPT_TOOL_NAME);
+      unregisterClientAction(RUN_PLAYGROUND_TOOL_NAME);
       for (const pendingEdit of Object.values(
         agentStore.getState().pendingPromptEditsByToolCallId
       )) {

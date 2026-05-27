@@ -53,6 +53,7 @@ DYNAMIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
         _DEFAULT_PROMPTS.read_prompt_instance_tool.render(),
         _DEFAULT_PROMPTS.clone_prompt_instance_tool.render(),
         _DEFAULT_PROMPTS.edit_prompt_instance_tool.render(),
+        _DEFAULT_PROMPTS.run_playground_tool.render(),
     }
 )
 
@@ -404,6 +405,36 @@ class TestUIContextInstructions:
         )
         assert "<phoenix_gql_mutations_policy>" in uncached_texts
         assert "<phoenix_gql_mutations_policy>" not in cached_texts
+
+
+class TestPlaygroundTools:
+    async def test_run_playground_tool_is_absent_without_playground_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        assert "run_playground" not in _get_tool_names(captured_request.body)
+
+    async def test_run_playground_tool_is_advertised_with_playground_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=PlaygroundContext(type="playground", instance_ids=[1]),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        assert "run_playground" in _get_tool_names(captured_request.body)
 
 
 class TestDocsMCPToolset:

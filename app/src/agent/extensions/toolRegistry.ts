@@ -11,6 +11,11 @@ import { handleBashToolCall } from "@phoenix/agent/tools/bash/handleBashToolCall
 import { parseElicitToolInput } from "@phoenix/agent/tools/elicit";
 import type { ElicitToolInput } from "@phoenix/agent/tools/elicit";
 import {
+  parseRunPlaygroundInput,
+  RUN_PLAYGROUND_TOOL_NAME,
+  type RunPlaygroundInput,
+} from "@phoenix/agent/tools/playgroundRun";
+import {
   CLONE_PROMPT_INSTANCE_TOOL_NAME,
   EDIT_PROMPT_TOOL_NAME,
   parseClonePromptInstanceInput,
@@ -513,6 +518,41 @@ const editPromptAgentTool = createRegisteredAgentTool<EditPromptInput>({
   },
 });
 
+const runPlaygroundAgentTool = createRegisteredAgentTool<RunPlaygroundInput>({
+  name: RUN_PLAYGROUND_TOOL_NAME,
+  parseInput: parseRunPlaygroundInput,
+  invalidInputErrorText: `Invalid ${RUN_PLAYGROUND_TOOL_NAME} input. Expected {}.`,
+  execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+    const action =
+      agentStore.getState().registeredClientActions[RUN_PLAYGROUND_TOOL_NAME];
+    if (!action) {
+      await addToolOutput({
+        state: "output-error",
+        tool: RUN_PLAYGROUND_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        errorText: "The playground is not mounted; cannot run the playground.",
+      });
+      return;
+    }
+    const result = await action(input);
+    if (result.ok) {
+      await addToolOutput({
+        state: "output-available",
+        tool: RUN_PLAYGROUND_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        output: result.output ?? "Playground run started.",
+      });
+    } else {
+      await addToolOutput({
+        state: "output-error",
+        tool: RUN_PLAYGROUND_TOOL_NAME,
+        toolCallId: toolCall.toolCallId,
+        errorText: result.error,
+      });
+    }
+  },
+});
+
 /** Ordered registry of all frontend-executable tools. */
 const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   bashAgentTool as RegisteredAgentTool<unknown>,
@@ -523,6 +563,7 @@ const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   readPromptAgentTool as RegisteredAgentTool<unknown>,
   clonePromptInstanceAgentTool as RegisteredAgentTool<unknown>,
   editPromptAgentTool as RegisteredAgentTool<unknown>,
+  runPlaygroundAgentTool as RegisteredAgentTool<unknown>,
 ];
 
 /** Fast lookup map for runtime tool dispatch by name. */

@@ -7,6 +7,7 @@ import {
   CLONE_PROMPT_INSTANCE_TOOL_NAME,
   EDIT_PROMPT_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPrompt";
+import { RUN_PLAYGROUND_TOOL_NAME } from "@phoenix/agent/tools/playgroundRun";
 import { GENERATIVE_UI_TOOL_NAME } from "@phoenix/components/agent/generativeUICatalog";
 import { createAgentStore } from "@phoenix/store/agentStore";
 
@@ -223,6 +224,33 @@ describe("toolRegistry", () => {
         state: "output-available",
         tool: CLONE_PROMPT_INSTANCE_TOOL_NAME,
         output: "cloned",
+      })
+    );
+  });
+
+  it("dispatches run_playground to the registered client action", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const action = vi.fn().mockResolvedValue({ ok: true, output: "started" });
+    store.getState().registerClientAction(RUN_PLAYGROUND_TOOL_NAME, action);
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-run-playground",
+        toolName: RUN_PLAYGROUND_TOOL_NAME,
+        input: {},
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(action).toHaveBeenCalledWith({});
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-available",
+        tool: RUN_PLAYGROUND_TOOL_NAME,
+        output: "started",
       })
     );
   });

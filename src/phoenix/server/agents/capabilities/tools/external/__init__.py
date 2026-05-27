@@ -15,6 +15,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     edit_prompt_instance,
     read_prompt_instance,
     render_generative_ui,
+    run_playground,
     set_spans_filter,
     set_time_range,
 )
@@ -31,6 +32,9 @@ from phoenix.server.agents.capabilities.tools.external.read_prompt_instance impo
 )
 from phoenix.server.agents.capabilities.tools.external.render_generative_ui import (
     RenderGenerativeUICapability,
+)
+from phoenix.server.agents.capabilities.tools.external.run_playground import (
+    RunPlaygroundCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.set_spans_filter import (
     SetSpansFilterCapability,
@@ -50,6 +54,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         edit_prompt_instance.TOOL_DEFINITION,
         read_prompt_instance.TOOL_DEFINITION,
         render_generative_ui.RENDER_GENERATIVE_UI_TOOL_DEFINITION,
+        run_playground.TOOL_DEFINITION,
         set_spans_filter.TOOL_DEFINITION,
         set_time_range.TOOL_DEFINITION,
     )
@@ -80,6 +85,7 @@ def get_external_tool_capability_function(
         ReadPromptInstanceCapability(instructions=prompts.read_prompt_instance_tool),
         ClonePromptInstanceCapability(instructions=prompts.clone_prompt_instance_tool),
         EditPromptInstanceCapability(instructions=prompts.edit_prompt_instance_tool),
+        RunPlaygroundCapability(instructions=prompts.run_playground_tool),
     ]
 
     def _build(ctx: RunContext[AgentDependencies]) -> AbstractCapability[AgentDependencies]:
@@ -96,6 +102,7 @@ __all__ = [
     "EditPromptInstanceCapability",
     "ReadPromptInstanceCapability",
     "RenderGenerativeUICapability",
+    "RunPlaygroundCapability",
     "SetSpansFilterCapability",
     "SetTimeRangeCapability",
     "get_external_tool_capability_function",

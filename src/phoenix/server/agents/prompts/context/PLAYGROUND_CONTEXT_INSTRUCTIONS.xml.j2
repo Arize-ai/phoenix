@@ -5,5 +5,5 @@
     <instance label="{{ instance_labels[loop.index0] }}" instance_id="{{ instance_id }}"/>
 {% endfor %}
   </instances>
-  <guidance>Call `read_prompt_instance` before proposing edits, `clone_prompt_instance` to create comparison variants, and `edit_prompt_instance` to show the user an approval diff before changing prompt messages.</guidance>
+  <guidance>Call `read_prompt_instance` before proposing edits, `clone_prompt_instance` to create comparison variants, `edit_prompt_instance` to show the user an approval diff before changing prompt messages, and `run_playground` when the user wants to run the mounted playground.</guidance>
 </phoenix_playground_context>
