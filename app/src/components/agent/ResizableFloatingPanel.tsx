@@ -321,15 +321,16 @@ const resizableFloatingPanelCSS = css`
     left: 0;
     width: 10px;
     height: 10px;
-    border-top: 2px solid var(--global-resize-handle-indicator-color-hover);
-    border-left: 2px solid var(--global-resize-handle-indicator-color-hover);
+    border-top: 2px solid var(--global-text-color-500);
+    border-left: 2px solid var(--global-text-color-500);
     background-color: transparent;
-    opacity: 0;
+    opacity: 0.35;
   }
 
   .resizable-floating-panel__resize-handle:hover::after,
   .resizable-floating-panel__resize-handle[data-resizing="true"]::after,
   .resizable-floating-panel__resize-handle:focus-visible::after {
+    border-color: var(--global-resize-handle-indicator-color-hover);
     opacity: 1;
   }
 
