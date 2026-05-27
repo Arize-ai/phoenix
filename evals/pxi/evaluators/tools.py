@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from phoenix.evals import create_evaluator
@@ -139,31 +140,52 @@ def correct_tools_called(output: Any, expected: Any) -> dict[str, Any]:
     return evaluate_tools_called(output, expected)
 
 
+# Matches ``<field> IN('A', 'B', ...)`` or ``<field> in ('A', 'B', ...)``.
+# Used by _normalize_arg_value to fold the SQL membership form into the same
+# representation as an OR-chain so both forms compare equal.
+_IN_EXPR_RE = re.compile(r"^(\S+)\s+[Ii][Nn]\s*\(([^)]+)\)\s*$")
+
+
 def _normalize_arg_value(value: Any) -> Any:
-    """Make string values that look like SQL boolean conjunctions or
-    disjunctions invariant to clause ordering.
+    """Make string values that look like SQL boolean conjunctions,
+    disjunctions, or membership tests invariant to clause/member ordering.
 
     Phoenix tool arg values like ``"span_kind == 'LLM' and latency_ms >= 5000"``
     are semantically equivalent regardless of clause order; the same holds for
-    ``"span_kind == 'TOOL' or span_kind == 'CHAIN'"``. The evaluator compares
+    ``"span_kind == 'TOOL' or span_kind == 'CHAIN'"``. Models also sometimes
+    emit a SQL-style membership form such as ``"span_kind IN('LLM', 'TOOL')"``
+    which is semantically identical to the OR chain. The evaluator compares
     strings exactly otherwise, so without normalization a model that emits
-    clauses in a different order from the dataset (or, in OR's case, picks an
-    equivalent membership rewrite) would silently fail.
+    clauses in a different order from the dataset (or picks an equivalent
+    membership rewrite) would silently fail.
 
-    Normalization rules:
+    Normalization rules (applied in priority order):
 
-    - Pure ``and``-joined: split on `` and ``, return ``("AND", frozenset(...))``.
-    - Pure ``or``-joined: split on `` or ``, return ``("OR", frozenset(...))``.
-    - Mixed (both ``and`` and ``or`` appear): return the raw string. Splitting
-      naively would lose precedence; dataset authors who care about a specific
-      mixed-operator form should pin it exactly.
-    - Everything else: return the value unchanged.
+    1. ``X IN('A', 'B', ...)`` / ``X in ('A', 'B', ...)`` (2+ quoted values):
+       expand to ``("OR", frozenset({"X == 'A'", "X == 'B'", ...}))``.
+       This makes the membership form compare equal to the equivalent OR chain.
+    2. Pure ``and``-joined: split on `` and ``, return ``("AND", frozenset(...))``.
+    3. Pure ``or``-joined: split on `` or ``, return ``("OR", frozenset(...))``.
+    4. Mixed (both ``and`` and ``or`` appear): return the raw string. Splitting
+       naively would lose precedence; dataset authors who care about a specific
+       mixed-operator form should pin it exactly.
+    5. Everything else: return the value unchanged.
 
     The tagged tuples guarantee an AND-set never compares equal to an OR-set
     over the same clauses — those expressions are not semantically equivalent.
     """
     if not isinstance(value, str):
         return value
+
+    # Rule 1: SQL IN() membership form.
+    m = _IN_EXPR_RE.match(value)
+    if m:
+        field, raw_args = m.group(1), m.group(2)
+        quoted_values = re.findall(r"'([^']*)'", raw_args)
+        if len(quoted_values) >= 2:
+            clauses = frozenset(f"{field} == '{v}'" for v in quoted_values)
+            return ("OR", clauses)
+
     has_and = " and " in value
     has_or = " or " in value
     if has_and and has_or:

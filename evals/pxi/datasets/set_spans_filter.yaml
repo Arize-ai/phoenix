@@ -717,13 +717,16 @@ examples:
         required: []
         forbidden:
           - set_spans_filter
-        exact_match: true
     metadata:
       category: negative_wrong_tool
       annotation:
         agreement: high
         n_opinions: 3
-        notes: Tightened after review to require no tool calls because no clone-prompt tool is available in this PXI context.
+        notes: >-
+          set_spans_filter must not be called for a clone-prompt request (no
+          such tool exists). exact_match removed: agent may call bash or other
+          tools in an attempt to help — that is out of scope for this
+          evaluator, which only guards set_spans_filter misuse.
   - id: negative-how-to-question
     splits: [regression]
     input:
@@ -749,13 +752,16 @@ examples:
         required: []
         forbidden:
           - set_spans_filter
-        exact_match: true
     metadata:
       category: negative_analysis
       annotation:
         agreement: medium
         n_opinions: 3
-        notes: Tightened after review to require no tool calls because summarizing current state should not re-issue tools.
+        notes: >-
+          set_spans_filter must not be called for a summarization request.
+          exact_match removed: agent may call bash or phoenix-gql to read
+          current state — that is out of scope for this evaluator, which only
+          guards set_spans_filter misuse.
   - id: negative-diagnosis-question
     splits: [regression]
     input:
@@ -765,13 +771,16 @@ examples:
         required: []
         forbidden:
           - set_spans_filter
-        exact_match: true
     metadata:
       category: negative_analysis
       annotation:
         agreement: medium
         n_opinions: 3
-        notes: Tightened after review to require no tool calls for this open-ended diagnosis question.
+        notes: >-
+          set_spans_filter must not be called for this open-ended diagnosis
+          question. exact_match removed: agent may call phoenix-gql or other
+          diagnostic tools to investigate — that is out of scope for this
+          evaluator, which only guards set_spans_filter misuse.
   - id: negative-definitional-question
     splits: [regression]
     input:
@@ -797,13 +806,16 @@ examples:
         required: []
         forbidden:
           - set_spans_filter
-        exact_match: true
     metadata:
       category: negative_analysis
       annotation:
         agreement: high
         n_opinions: 3
-        notes: Tightened after review to require no tool calls for this advice-style question.
+        notes: >-
+          set_spans_filter must not be called for this advice-style question.
+          exact_match removed: agent may legitimately call other tools (e.g.
+          phoenix-gql / debug-trace skill) to investigate — that is out of
+          scope for this evaluator, which only guards set_spans_filter misuse.
   - id: negative-average-latency
     splits: [regression]
     input:
@@ -813,13 +825,16 @@ examples:
         required: []
         forbidden:
           - set_spans_filter
-        exact_match: true
     metadata:
       category: negative_analysis
       annotation:
         agreement: medium
         n_opinions: 3
-        notes: Tightened after review to require no tool calls because this analytical question should not be handled by set_spans_filter.
+        notes: >-
+          set_spans_filter must not be called for this analytical question.
+          exact_match removed: agent may call bash or phoenix-gql to compute
+          the average — that is out of scope for this evaluator, which only
+          guards set_spans_filter misuse.
   - id: negative-delete-trace
     splits: [regression]
     input:

@@ -273,6 +273,49 @@ class TestNormalizeArgValue:
         raw = "a == 1 and b == 2 or c == 3"
         assert _normalize_arg_value(raw) == raw
 
+    # ---------------- IN() membership form ----------------
+
+    def test_normalizes_uppercase_in_to_or_set(self) -> None:
+        result = _normalize_arg_value("span_kind IN('LLM','TOOL')")
+        assert result == ("OR", frozenset({"span_kind == 'LLM'", "span_kind == 'TOOL'"}))
+
+    def test_normalizes_lowercase_in_to_or_set(self) -> None:
+        result = _normalize_arg_value("span_kind in ('TOOL', 'RETRIEVER')")
+        assert result == ("OR", frozenset({"span_kind == 'TOOL'", "span_kind == 'RETRIEVER'"}))
+
+    def test_in_clause_order_does_not_matter(self) -> None:
+        a = _normalize_arg_value("span_kind IN('LLM','TOOL')")
+        b = _normalize_arg_value("span_kind IN('TOOL','LLM')")
+        assert a == b
+
+    def test_in_matches_equivalent_or_form(self) -> None:
+        # Core regression case: IN() form should compare equal to the OR chain
+        # that means the same thing, so dataset authors don't have to enumerate
+        # both equivalent spellings.
+        in_form = _normalize_arg_value("span_kind IN('LLM','TOOL')")
+        or_form = _normalize_arg_value("span_kind == 'LLM' or span_kind == 'TOOL'")
+        assert in_form == or_form
+
+    def test_in_uppercase_matches_lowercase_in_form(self) -> None:
+        # Uppercase IN (agent output) should match lowercase in (dataset entry).
+        upper = _normalize_arg_value("span_kind IN('TOOL','RETRIEVER')")
+        lower = _normalize_arg_value("span_kind in ('TOOL', 'RETRIEVER')")
+        assert upper == lower
+
+    def test_in_with_three_members_normalizes(self) -> None:
+        result = _normalize_arg_value("span_kind IN('LLM','TOOL','CHAIN')")
+        assert result == (
+            "OR",
+            frozenset({"span_kind == 'LLM'", "span_kind == 'TOOL'", "span_kind == 'CHAIN'"}),
+        )
+
+    def test_single_value_in_not_normalized(self) -> None:
+        # A single-member IN has no OR equivalent in the dataset; leave as-is
+        # to avoid creating a tagged-tuple that silently mismatches a bare
+        # equality string.
+        raw = "span_kind IN('LLM')"
+        assert _normalize_arg_value(raw) == raw
+
 
 class TestSetSpansFilterArgsMatch:
     """Tests for the specialized ``set_spans_filter`` arg evaluator.
@@ -584,6 +627,64 @@ class TestSetSpansFilterArgsMatch:
             ),
             expected=self._expected(
                 set_spans_filter={"condition": condition, "rootSpansOnly": False}
+            ),
+        )
+        assert result["label"] == "pass"
+
+    # ---------------- IN() membership form (llm-or-tool-spans regression) ----------------
+
+    def test_in_form_matches_or_dataset_entry(self) -> None:
+        # Regression: agent emits IN('LLM','TOOL'), dataset pins the OR chain.
+        # This is the llm-or-tool-spans failure mode.
+        result = evaluate_set_spans_filter_args(
+            output=_output_with_args(
+                "set_spans_filter",
+                {"condition": "span_kind IN('LLM','TOOL')", "rootSpansOnly": False},
+            ),
+            expected=self._expected(
+                set_spans_filter={
+                    "condition": "span_kind == 'LLM' or span_kind == 'TOOL'",
+                    "rootSpansOnly": False,
+                }
+            ),
+        )
+        assert result["label"] == "pass"
+
+    def test_uppercase_in_matches_lowercase_in_variant(self) -> None:
+        # Regression: ambiguous-tools-or-retrievers — agent emits uppercase IN,
+        # dataset variant uses lowercase in.
+        result = evaluate_set_spans_filter_args(
+            output=_output_with_args(
+                "set_spans_filter",
+                {"condition": "span_kind IN('TOOL','RETRIEVER')", "rootSpansOnly": False},
+            ),
+            expected=self._expected(
+                set_spans_filter=[
+                    {
+                        "condition": "span_kind == 'TOOL' or span_kind == 'RETRIEVER'",
+                        "rootSpansOnly": False,
+                    },
+                    {
+                        "condition": "span_kind in ('TOOL', 'RETRIEVER')",
+                        "rootSpansOnly": False,
+                    },
+                ],
+            ),
+        )
+        assert result["label"] == "pass"
+
+    def test_in_form_with_reversed_member_order_matches(self) -> None:
+        # Member order in IN() should not matter, same as OR clause order.
+        result = evaluate_set_spans_filter_args(
+            output=_output_with_args(
+                "set_spans_filter",
+                {"condition": "span_kind IN('TOOL','LLM')", "rootSpansOnly": False},
+            ),
+            expected=self._expected(
+                set_spans_filter={
+                    "condition": "span_kind == 'LLM' or span_kind == 'TOOL'",
+                    "rootSpansOnly": False,
+                }
             ),
         )
         assert result["label"] == "pass"
