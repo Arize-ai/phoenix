@@ -13,7 +13,6 @@ from unittest.mock import patch
 import pytest
 
 from phoenix.server.sandbox._download import (
-    PHOENIX_WASM_BINARY_PATH_ENV,
     WASMBinaryUnavailable,
     ensure_wasm_binary,
     no_local_storage_message,
@@ -30,7 +29,7 @@ class TestResolveWasmBinaryIfPresent:
     ) -> None:
         binary = tmp_path / "operator-binary.wasm"
         binary.write_bytes(b"fake wasm")
-        monkeypatch.setenv(PHOENIX_WASM_BINARY_PATH_ENV, str(binary))
+        monkeypatch.setenv("PHOENIX_WASM_BINARY_PATH", str(binary))
 
         # cache_dir intentionally points at an empty dir to prove the
         # env-var path takes precedence and no cache lookup happened.
@@ -44,7 +43,7 @@ class TestResolveWasmBinaryIfPresent:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         missing = tmp_path / "does-not-exist.wasm"
-        monkeypatch.setenv(PHOENIX_WASM_BINARY_PATH_ENV, str(missing))
+        monkeypatch.setenv("PHOENIX_WASM_BINARY_PATH", str(missing))
 
         # Even if a cache entry exists, the env-var-set-but-missing case
         # must NOT silently fall back to the cache; the operator path is
@@ -58,7 +57,7 @@ class TestResolveWasmBinaryIfPresent:
     def test_env_var_unset_and_cache_present_returns_cache_path(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.delenv(PHOENIX_WASM_BINARY_PATH_ENV, raising=False)
+        monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
         cache_dir = tmp_path / "cache"
         cache_dir.mkdir()
         cached = cache_dir / _FILENAME
@@ -71,7 +70,7 @@ class TestResolveWasmBinaryIfPresent:
     def test_env_var_unset_and_cache_absent_returns_none(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.delenv(PHOENIX_WASM_BINARY_PATH_ENV, raising=False)
+        monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
         cache_dir = tmp_path / "cache"
         # Note: cache_dir intentionally not created.
 
@@ -84,7 +83,7 @@ class TestResolveWasmBinaryIfPresent:
         """probe_binary() runs on every render of the sandbox-config UI; a
         network round-trip there would regress the resolver.
         """
-        monkeypatch.delenv(PHOENIX_WASM_BINARY_PATH_ENV, raising=False)
+        monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
         cache_dir = tmp_path / "cache"
 
         with patch("phoenix.server.sandbox._download.urllib.request.urlretrieve") as mock_retrieve:
@@ -101,7 +100,7 @@ class TestEnsureWasmBinaryEnvVarOverride:
     ) -> None:
         binary = tmp_path / "operator-binary.wasm"
         binary.write_bytes(b"fake wasm")
-        monkeypatch.setenv(PHOENIX_WASM_BINARY_PATH_ENV, str(binary))
+        monkeypatch.setenv("PHOENIX_WASM_BINARY_PATH", str(binary))
 
         with patch("phoenix.server.sandbox._download.urllib.request.urlretrieve") as mock_retrieve:
             result = ensure_wasm_binary(
@@ -116,7 +115,7 @@ class TestEnsureWasmBinaryEnvVarOverride:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         missing = tmp_path / "missing.wasm"
-        monkeypatch.setenv(PHOENIX_WASM_BINARY_PATH_ENV, str(missing))
+        monkeypatch.setenv("PHOENIX_WASM_BINARY_PATH", str(missing))
 
         with patch("phoenix.server.sandbox._download.urllib.request.urlretrieve") as mock_retrieve:
             with pytest.raises(WASMBinaryUnavailable, match=re.escape(str(missing))):
@@ -134,7 +133,7 @@ class TestEnsureWasmBinaryEnvVarUnset:
     def test_env_var_unset_and_cache_present_returns_cache_path(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.delenv(PHOENIX_WASM_BINARY_PATH_ENV, raising=False)
+        monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
         cache_dir = tmp_path / "cache"
         cache_dir.mkdir()
         cached = cache_dir / _FILENAME
@@ -153,7 +152,7 @@ class TestEnsureWasmBinaryEnvVarUnset:
     def test_env_var_unset_and_cache_absent_triggers_lazy_download(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.delenv(PHOENIX_WASM_BINARY_PATH_ENV, raising=False)
+        monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
         cache_dir = tmp_path / "cache"
 
         def _fake_retrieve(_url: str, dest: str) -> None:
@@ -180,7 +179,7 @@ class TestEnsureWasmBinaryEnvVarUnset:
         treating it as authoritative would surface a confusing
         WASMBinaryUnavailable on every probe.
         """
-        monkeypatch.setenv(PHOENIX_WASM_BINARY_PATH_ENV, "")
+        monkeypatch.setenv("PHOENIX_WASM_BINARY_PATH", "")
         cache_dir = tmp_path / "cache"
         cache_dir.mkdir()
         cached = cache_dir / _FILENAME
@@ -194,7 +193,7 @@ class TestEnsureWasmBinaryEnvVarUnset:
     ) -> None:
         import hashlib
 
-        monkeypatch.delenv(PHOENIX_WASM_BINARY_PATH_ENV, raising=False)
+        monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
         wasm_dir = tmp_path / "wasm"
         wasm_dir.mkdir()
         cached = wasm_dir / _FILENAME
@@ -214,7 +213,7 @@ class TestEnsureWasmBinaryEnvVarUnset:
     def test_no_local_storage_raises_unavailable(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.delenv(PHOENIX_WASM_BINARY_PATH_ENV, raising=False)
+        monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
         monkeypatch.setattr("phoenix.server.sandbox._download._no_local_storage", lambda: True)
         wasm_dir = tmp_path / "wasm"
 
@@ -240,7 +239,7 @@ class TestPrefetchWasmBinaryIfNeeded:
         # integrity check passes without the real 26MB upstream binary.
         import hashlib
 
-        monkeypatch.delenv(PHOENIX_WASM_BINARY_PATH_ENV, raising=False)
+        monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
         wasm_dir = tmp_path / "wasm"
         monkeypatch.setattr("phoenix.server.sandbox._download._default_wasm_dir", lambda: wasm_dir)
 
@@ -265,7 +264,7 @@ class TestPrefetchWasmBinaryIfNeeded:
     ) -> None:
         import hashlib
 
-        monkeypatch.delenv(PHOENIX_WASM_BINARY_PATH_ENV, raising=False)
+        monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
         wasm_dir = tmp_path / "wasm"
         monkeypatch.setattr("phoenix.server.sandbox._download._default_wasm_dir", lambda: wasm_dir)
 
@@ -291,7 +290,7 @@ class TestPrefetchWasmBinaryIfNeeded:
     async def test_prefetch_fails_soft_on_download_error(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
     ) -> None:
-        monkeypatch.delenv(PHOENIX_WASM_BINARY_PATH_ENV, raising=False)
+        monkeypatch.delenv("PHOENIX_WASM_BINARY_PATH", raising=False)
         wasm_dir = tmp_path / "wasm"
         monkeypatch.setattr("phoenix.server.sandbox._download._default_wasm_dir", lambda: wasm_dir)
 
