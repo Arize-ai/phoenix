@@ -13,23 +13,18 @@ import type { AgentModelCredentialInlineFormQuery } from "./__generated__/AgentM
 const credentialFormCSS = css`
   box-sizing: border-box;
   width: 100%;
-  border: var(--global-border-size-thin) solid var(--global-color-danger-500);
+  border: var(--global-border-size-thin) solid var(--global-border-color-default);
   border-radius: var(--global-rounding-medium);
   background: var(--global-background-color-default);
   padding: var(--global-dimension-size-200);
   color: var(--global-text-color-900);
 `;
 
-export function AgentModelCredentialInlineForm({
-  fallback,
-  value,
-}: {
-  fallback: ReactNode;
-  value: ModelMenuValue | null;
-}) {
+type AgentModelCredentialProvider =
+  AgentModelCredentialInlineFormQuery["response"]["modelProviders"][number];
+
+export function useAgentModelCredentialStatus(value: ModelMenuValue | null) {
   const [fetchKey, setFetchKey] = useState(0);
-  const { viewer } = useViewer();
-  const isAdmin = !viewer || viewer.role?.name === "ADMIN";
   const data = useLazyLoadQuery<AgentModelCredentialInlineFormQuery>(
     graphql`
       query AgentModelCredentialInlineFormQuery {
@@ -49,7 +44,10 @@ export function AgentModelCredentialInlineForm({
   );
 
   if (!value || value.customProvider) {
-    return fallback;
+    return {
+      missingCredentialsProvider: null,
+      refreshCredentialStatus: () => setFetchKey((key) => key + 1),
+    };
   }
 
   const provider = data.modelProviders.find(
@@ -60,6 +58,33 @@ export function AgentModelCredentialInlineForm({
     provider.credentialsSet ||
     provider.credentialRequirements.length === 0
   ) {
+    return {
+      missingCredentialsProvider: null,
+      refreshCredentialStatus: () => setFetchKey((key) => key + 1),
+    };
+  }
+
+  return {
+    missingCredentialsProvider: provider,
+    refreshCredentialStatus: () => setFetchKey((key) => key + 1),
+  };
+}
+
+export function AgentModelCredentialInlineForm({
+  fallback,
+  modelName,
+  onCredentialsUpdated,
+  provider,
+}: {
+  fallback: ReactNode;
+  modelName: string;
+  onCredentialsUpdated: () => void;
+  provider: AgentModelCredentialProvider | null;
+}) {
+  const { viewer } = useViewer();
+  const isAdmin = !viewer || viewer.role?.name === "ADMIN";
+
+  if (!provider) {
     return fallback;
   }
 
@@ -78,20 +103,18 @@ export function AgentModelCredentialInlineForm({
         {isAdmin ? (
           <>
             <Text size="XS" color="text-700">
-              Add server-side credentials for {value.modelName} to use this
-              model with PXI.
+              Add server-side credentials for {modelName} to use this model with
+              PXI.
             </Text>
             <ProviderServerCredentialsPanel
               provider={provider}
-              onCredentialsUpdated={() => {
-                setFetchKey((key) => key + 1);
-              }}
+              onCredentialsUpdated={onCredentialsUpdated}
             />
           </>
         ) : (
           <Text size="XS" color="text-700">
             Contact an administrator to configure {provider.name} credentials
-            before using {value.modelName} with PXI.
+            before using {modelName} with PXI.
           </Text>
         )}
       </Flex>

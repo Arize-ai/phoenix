@@ -32,7 +32,10 @@ import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import { AgentConsentGate } from "./AgentConsentGate";
 import { AgentContextPills } from "./AgentContextPills";
-import { AgentModelCredentialInlineForm } from "./AgentModelCredentialInlineForm";
+import {
+  AgentModelCredentialInlineForm,
+  useAgentModelCredentialStatus,
+} from "./AgentModelCredentialInlineForm";
 import { AgentModelMenu } from "./AgentModelMenu";
 import {
   ChatEmptyState,
@@ -304,6 +307,12 @@ export function ChatView({
   );
   const showsEmptyState = messages.length === 0;
   const chatClassName = showsEmptyState ? "chat--empty chat--empty-bleed" : "";
+  const { missingCredentialsProvider, refreshCredentialStatus } =
+    useAgentModelCredentialStatus(modelMenuValue);
+  const isWaitingForAssistant =
+    status === "submitted" || status === "streaming";
+  const isSendDisabledForMissingCredentials =
+    !isWaitingForAssistant && Boolean(missingCredentialsProvider);
   const resolvedElicitationDraft =
     pendingElicitation &&
     elicitationDraft?.toolCallId !== pendingElicitation.toolCallId
@@ -338,13 +347,15 @@ export function ChatView({
                   onQuickAction={handleQuickAction}
                 >
                   <AgentModelCredentialInlineForm
-                    value={modelMenuValue}
                     fallback={
                       <ChatEmptyStateQuickActions
                         quickActions={emptyStateQuickActions}
                         onQuickAction={handleQuickAction}
                       />
                     }
+                    modelName={modelMenuValue.modelName}
+                    onCredentialsUpdated={refreshCredentialStatus}
+                    provider={missingCredentialsProvider}
                   />
                 </ChatEmptyState>
               )}
@@ -434,6 +445,9 @@ export function ChatView({
 
                 <PromptInputActions>
                   <PromptInputSubmit
+                    isDisabled={
+                      isSendDisabledForMissingCredentials || undefined
+                    }
                     onPress={() => {
                       void stop();
                     }}

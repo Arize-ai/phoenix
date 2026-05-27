@@ -182,8 +182,8 @@ function ServerCredentialsSection({
     <>
       <View paddingBottom="size-100">
         <Text size="XS" color="text-700">
-          Credentials stored in the database. These are shared across all users
-          and override environment variables.
+          Credentials are encrypted and stored in the database. These are shared
+          across all users and override environment variables.
         </Text>
       </View>
       <Suspense fallback={<Text color="text-700">Loading...</Text>}>
@@ -470,19 +470,12 @@ function ServerCredentials({
       <Flex
         direction="row"
         gap="size-100"
+        justifyContent="end"
+        width="100%"
         css={css`
-          align-self: flex-start;
           margin-top: var(--global-dimension-size-100);
         `}
       >
-        <Button
-          variant="primary"
-          isDisabled={isCommitting}
-          isPending={isCommitting}
-          onPress={() => handleSubmit(onSubmit)()}
-        >
-          Save
-        </Button>
         {existingSecretKeys.length > 0 && (
           <Button
             variant="danger"
@@ -492,6 +485,14 @@ function ServerCredentials({
             Delete
           </Button>
         )}
+        <Button
+          variant="primary"
+          isDisabled={isCommitting}
+          isPending={isCommitting}
+          onPress={() => handleSubmit(onSubmit)()}
+        >
+          Save
+        </Button>
       </Flex>
     </Flex>
   );
