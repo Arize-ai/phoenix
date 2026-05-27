@@ -440,7 +440,7 @@ class TestDocsMCPToolset:
 
 
 class TestSkillsCapability:
-    async def test_bundled_trace_debugging_skill_advertised_inside_cache_boundary(
+    async def test_bundled_debug_trace_skill_advertised_inside_cache_boundary(
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
