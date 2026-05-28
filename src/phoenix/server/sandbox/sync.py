@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from phoenix.db import models
 from phoenix.db.models import Base, SandboxBackendType
+from phoenix.db.types.identifier import Identifier
 
 logger = logging.getLogger(__name__)
 
@@ -91,4 +92,53 @@ async def sync_sandbox_providers(
         )
         await session.execute(stmt)
 
+    await session.flush()
+
+
+async def sync_sandbox_default_configs(
+    session: AsyncSession,
+    adapter_metadata: Mapping[SandboxBackendType, Any],
+) -> None:
+    """Seed one default sandbox_configs row per (backend_type, language) where eligible.
+
+    A pair is eligible only when the adapter is auto-seedable (no env vars, no internet
+    access, no dependency installation, local hosting) and is present in the runtime
+    registry. Any pre-existing row for the pair — seeded or user-created — suppresses
+    insertion: the operator owns the pair on first touch.
+    """
+    from phoenix.server.api.mutations.sandbox_config_mutations import (  # noqa: PLC0415
+        DEFAULT_SANDBOX_TIMEOUT_SECONDS,
+    )
+    from phoenix.server.sandbox import SANDBOX_ADAPTERS  # noqa: PLC0415
+
+    for backend_type, meta in adapter_metadata.items():
+        if not getattr(meta, "auto_seedable", False):
+            continue
+        if SANDBOX_ADAPTERS.get(backend_type) is None:
+            continue
+        for language in meta.supported_languages:
+            existing = await session.scalar(
+                select(models.SandboxConfig.id)
+                .where(models.SandboxConfig.backend_type == backend_type)
+                .where(models.SandboxConfig.language == language)
+                .limit(1)
+            )
+            if existing is not None:
+                continue
+            session.add(
+                models.SandboxConfig(
+                    backend_type=backend_type,
+                    language=language,
+                    name=Identifier(f"default-{backend_type.lower()}-{language.lower()}"),
+                    description=f"Default {meta.display_name} ({language.title()})",
+                    config={"language": language},
+                    timeout=DEFAULT_SANDBOX_TIMEOUT_SECONDS,
+                    enabled=True,
+                    user_id=None,
+                )
+            )
+            logger.info(
+                f"Inserted default sandbox_configs row: backend_type={backend_type!r}, "
+                f"language={language!r}"
+            )
     await session.flush()

@@ -5,8 +5,13 @@ from sqlalchemy import select
 
 from phoenix.db import models
 from phoenix.db.models import SandboxBackendType
-from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
-from phoenix.server.sandbox.sync import sync_languages, sync_sandbox_providers
+from phoenix.db.types.identifier import Identifier
+from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA, SANDBOX_ADAPTERS
+from phoenix.server.sandbox.sync import (
+    sync_languages,
+    sync_sandbox_default_configs,
+    sync_sandbox_providers,
+)
 from phoenix.server.types import DbSessionFactory
 
 
@@ -117,6 +122,117 @@ class TestSyncSandboxProviders:
         async with db() as session:
             count = len(list(await session.scalars(select(models.SandboxProvider))))
         assert count == len(SANDBOX_ADAPTER_METADATA)
+
+
+class TestSyncSandboxDefaultConfigs:
+    async def test_seeds_rows_for_live_auto_seedable_adapters(
+        self,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        async with db() as session:
+            await sync_sandbox_default_configs(session, SANDBOX_ADAPTER_METADATA)
+
+        async with db() as session:
+            rows = list(await session.scalars(select(models.SandboxConfig)))
+
+        seeded_pairs = {(r.backend_type, r.language) for r in rows}
+        for backend_type, meta in SANDBOX_ADAPTER_METADATA.items():
+            if not meta.auto_seedable:
+                continue
+            if SANDBOX_ADAPTERS.get(backend_type) is None:
+                continue
+            for language in meta.supported_languages:
+                assert (backend_type, language) in seeded_pairs, (
+                    f"expected seeded row for {backend_type}/{language}"
+                )
+
+        for row in rows:
+            meta = SANDBOX_ADAPTER_METADATA[row.backend_type]
+            assert row.name == Identifier(
+                f"default-{row.backend_type.lower()}-{row.language.lower()}"
+            )
+            assert row.description == f"Default {meta.display_name} ({row.language.title()})"
+            assert row.config == {"language": row.language}
+            assert row.enabled is True
+            assert row.user_id is None
+            assert row.timeout == 300
+
+    async def test_idempotent(
+        self,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        async with db() as session:
+            await sync_sandbox_default_configs(session, SANDBOX_ADAPTER_METADATA)
+        async with db() as session:
+            await sync_sandbox_default_configs(session, SANDBOX_ADAPTER_METADATA)
+
+        async with db() as session:
+            rows = list(await session.scalars(select(models.SandboxConfig)))
+
+        pairs = [(r.backend_type, r.language) for r in rows]
+        assert len(pairs) == len(set(pairs)), "Duplicate (backend_type, language) rows seeded"
+
+    async def test_preexisting_row_suppresses_seeding(
+        self,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        candidates = [
+            (backend_type, language)
+            for backend_type, meta in SANDBOX_ADAPTER_METADATA.items()
+            if meta.auto_seedable and SANDBOX_ADAPTERS.get(backend_type) is not None
+            for language in meta.supported_languages
+        ]
+        if not candidates:
+            pytest.skip("No auto-seedable adapter is present in the live registry")
+        backend_type, language = candidates[0]
+
+        async with db() as session:
+            session.add(
+                models.SandboxConfig(
+                    backend_type=backend_type,
+                    language=language,
+                    name=Identifier("user-owned-config"),
+                    description=None,
+                    config={"language": language},
+                    timeout=42,
+                    enabled=False,
+                    user_id=None,
+                )
+            )
+
+        async with db() as session:
+            await sync_sandbox_default_configs(session, SANDBOX_ADAPTER_METADATA)
+
+        async with db() as session:
+            rows = list(
+                await session.scalars(
+                    select(models.SandboxConfig)
+                    .where(models.SandboxConfig.backend_type == backend_type)
+                    .where(models.SandboxConfig.language == language)
+                )
+            )
+        assert len(rows) == 1
+        assert rows[0].name == Identifier("user-owned-config")
+        assert rows[0].timeout == 42
+        assert rows[0].enabled is False
+
+    def test_auto_seedable_derivation_matches_live_adapters(self) -> None:
+        expected: dict[SandboxBackendType, bool] = {
+            "DENO": True,
+            "WASM": True,
+            "E2B": False,
+            "DAYTONA": False,
+            "VERCEL": False,
+            "MODAL": False,
+        }
+        for backend_type, want in expected.items():
+            meta = SANDBOX_ADAPTER_METADATA[backend_type]
+            assert meta.auto_seedable is want, (
+                f"{backend_type}: expected auto_seedable={want}, got {meta.auto_seedable}"
+            )
 
 
 class TestAdapterMetadataConsistency:
