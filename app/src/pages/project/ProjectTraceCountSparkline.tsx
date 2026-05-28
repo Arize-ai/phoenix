@@ -45,7 +45,7 @@ const SPARKLINE_AXIS_STYLE = {
 };
 const SPARKLINE_X_TICK_MIN_SPACING = 96;
 const SPARKLINE_DEFAULT_X_TICK_COUNT = 8;
-const SPARKLINE_X_AXIS_EDGE_PADDING = 28;
+const SPARKLINE_BAR_CATEGORY_GAP = "10%";
 
 type StartBoundedTimeRange = OpenTimeRange & { start: Date };
 type TraceCountSparklineDatum = {
@@ -206,7 +206,7 @@ export function ProjectTraceCountSparkline() {
               <BarChart
                 data={chartData}
                 margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
-                barSize={10}
+                barCategoryGap={SPARKLINE_BAR_CATEGORY_GAP}
                 {...chartProps}
               >
                 <CartesianGrid
@@ -224,10 +224,7 @@ export function ProjectTraceCountSparkline() {
                   tickMargin={2}
                   ticks={xAxisTicks}
                   interval={0}
-                  padding={{
-                    left: SPARKLINE_X_AXIS_EDGE_PADDING,
-                    right: SPARKLINE_X_AXIS_EDGE_PADDING,
-                  }}
+                  padding="no-gap"
                   height={16}
                   style={SPARKLINE_AXIS_STYLE}
                 />
