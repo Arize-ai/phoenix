@@ -8265,7 +8265,7 @@
           "datasetNodeId"
         ],
         "title": "DatasetContext",
-        "description": "Dataset the user is currently viewing or has bound to a workflow.\n\nCarries the dataset's relay node id and, when known, the active version\nnode id. The agent uses these IDs as a persistence/routing signal \u2014 when\ncreating a code evaluator the dataset binding is chained onto the create\nmutation; the dataset schema itself is open and the router may add a small\nsample of active examples as prompt context."
+        "description": "Dataset the user is currently viewing or has bound to a workflow.\n\nCarries the dataset's relay node id and, when known, the active version\nnode id. These IDs scope the create-form handoff link and the sampling of\nactive dataset examples used as prompt context; the dataset schema itself\nis open."
       },
       "DatasetExample": {
         "properties": {
