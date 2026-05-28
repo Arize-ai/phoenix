@@ -191,10 +191,16 @@ jobs:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          # Intentionally NO github_token: Claude only fixes files in the
-          # working tree. A separate shell step (gated on Claude's success)
-          # holds the PAT and does the commit/push/PR. Prompt injection from a
-          # malicious dep cannot reach the token from here.
+          # additional_permissions triggers an OIDC exchange that mints a
+          # short-lived app token with contents:write, exposed to subsequent
+          # steps as steps.claude_fix.outputs.github_token. Claude itself
+          # never sees the token — outputs are written after the step exits,
+          # and Claude's Bash allowlist excludes git remote/config, so prompt
+          # injection from a malicious dep cannot reach it from inside this
+          # step. The post-step commit/push uses the minted token instead of
+          # a long-lived PAT.
+          additional_permissions: |
+            contents: write
           prompt: |
             You're on branch `${{ steps.branch.outputs.branch }}`. The weekly dependency upgrade
             already ran (`uv lock --upgrade` for Python, `pnpm update -r --latest`
@@ -280,7 +286,12 @@ jobs:
       - name: Commit & open PR (after Claude fix)
         if: steps.changes.outputs.changed == 'true' && steps.verify.outcome == 'failure' && steps.claude_fix.outcome == 'success'
         env:
-          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          # OIDC-minted app token from the claude-code-action step above.
+          # Short-lived, auto-revoked at job end, and triggers downstream CI
+          # (unlike GITHUB_TOKEN). The claude-code-action step embedded this
+          # same token into the origin remote URL, so the git push below
+          # picks it up.
+          GH_TOKEN: ${{ steps.claude_fix.outputs.github_token }}
         run: |
           gh auth setup-git
           git config user.name "github-actions[bot]"
