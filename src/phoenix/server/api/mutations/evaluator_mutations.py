@@ -1,4 +1,3 @@
-from collections.abc import Callable
 from datetime import datetime, timezone
 from secrets import token_hex
 from typing import Optional, cast
@@ -57,12 +56,9 @@ from phoenix.server.api.types.node import from_global_id, from_global_id_with_ex
 from phoenix.server.api.types.PromptVersion import PromptVersion
 from phoenix.server.api.types.SandboxConfig import (
     Language,
-    SandboxBackendStatus,
     SandboxConfig,
-    get_sandbox_backend_info,
 )
 from phoenix.server.bearer_auth import PhoenixUser
-from phoenix.server.sandbox import SecretsContext
 
 
 def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> OutputConfigType:
@@ -131,7 +127,6 @@ async def _validate_code_evaluator_sandbox_config(
     *,
     sandbox_config_global_id: GlobalID,
     language: str,
-    decrypt: Callable[[bytes], bytes],
     action: str,
 ) -> int:
     sandbox_config_id = from_global_id_with_expected_type(
@@ -156,25 +151,8 @@ async def _validate_code_evaluator_sandbox_config(
     if target_cfg.language != language:
         raise BadRequest("Evaluator language does not match sandbox config language")
 
-    backend_infos = await get_sandbox_backend_info(
-        secrets=SecretsContext(session=session, decrypt=decrypt),
-    )
-    backend_info = next(
-        (info for info in backend_infos if info.backend_type.value == target_cfg.backend_type),
-        None,
-    )
-    if backend_info is None or backend_info.status is not SandboxBackendStatus.AVAILABLE:
-        status = backend_info.status.value if backend_info else "UNKNOWN"
-        detail = (
-            f" ({backend_info.status_detail})"
-            if backend_info and backend_info.status_detail
-            else ""
-        )
-        raise BadRequest(
-            f"Sandbox backend '{target_cfg.backend_type}' is unavailable ({status}){detail}. "
-            f"Enable it before {action}."
-        )
-
+    # Backend runtime availability (installed dependencies, downloaded binaries)
+    # is enforced at execution time, not authoring time.
     return sandbox_config_id
 
 
@@ -1333,7 +1311,6 @@ class EvaluatorMutationMixin:
                     session,
                     sandbox_config_global_id=input.sandbox_config_id,
                     language=input.language.value,
-                    decrypt=info.context.decrypt,
                     action="creating this evaluator",
                 )
 
@@ -1401,7 +1378,6 @@ class EvaluatorMutationMixin:
                             session,
                             sandbox_config_global_id=input.sandbox_config_id,
                             language=row.language,
-                            decrypt=info.context.decrypt,
                             action="patching this evaluator",
                         )
                         row.sandbox_config_id = sandbox_config_id
