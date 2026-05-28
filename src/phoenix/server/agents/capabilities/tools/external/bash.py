@@ -33,12 +33,21 @@ Run phoenix-gql --help for usage and current permissions.\
 PARAMETERS: dict[str, Any] = {
     "type": "object",
     "properties": {
+        "summary": {
+            "type": "string",
+            "description": (
+                "Short, user-facing description of what this command does, "
+                "shown as the collapsed preview in the UI. Use active voice "
+                'and 5-10 words. Examples: "List files in /phoenix", '
+                '"Search traces for tool errors", "Read agent-start.md".'
+            ),
+        },
         "command": {
             "type": "string",
             "description": "Shell command to execute",
         },
     },
-    "required": ["command"],
+    "required": ["summary", "command"],
     "additionalProperties": False,
 }
 
