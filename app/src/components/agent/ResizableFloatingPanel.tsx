@@ -334,7 +334,7 @@ const resizeHandleCSS = css`
     height: 1.5px;
     border-radius: 999px;
     background-color: currentColor;
-    
+
     pointer-events: none;
     transform: rotate(-45deg);
     transform-origin: left center;
@@ -383,7 +383,8 @@ const resizeHandleCSS = css`
     opacity: 1;
   }
 
-  @media (max-width: ${FULLSCREEN_BREAKPOINT_PX}px), (max-height: ${FULLSCREEN_BREAKPOINT_PX}px) {
+  @media (max-width: ${FULLSCREEN_BREAKPOINT_PX}px),
+    (max-height: ${FULLSCREEN_BREAKPOINT_PX}px) {
     display: none;
   }
 `;
@@ -404,7 +405,8 @@ const floatingActionCSS = css`
     z-index: ${MODAL_FLOATING_UI_Z_INDEX};
   }
 
-  @media (max-width: ${FULLSCREEN_BREAKPOINT_PX}px), (max-height: ${FULLSCREEN_BREAKPOINT_PX}px) {
+  @media (max-width: ${FULLSCREEN_BREAKPOINT_PX}px),
+    (max-height: ${FULLSCREEN_BREAKPOINT_PX}px) {
     right: var(--global-dimension-size-200);
     bottom: var(--global-dimension-size-200);
     top: auto;
