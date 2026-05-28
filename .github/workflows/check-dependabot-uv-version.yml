@@ -117,6 +117,32 @@ jobs:
           gh auth setup-git
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Allow .github/ (uv pins live in workflow files) but restore other
+          # agent-instruction paths from origin/main so an injected prompt can't
+          # widen its own permissions while pretending to bump a version.
+          blocked_files=$(git diff --name-only | awk '
+            /^\.cursor\// ||
+            /^\.claude\// ||
+            /^\.agents\// ||
+            /(^|\/)AGENTS\.md$/ ||
+            /(^|\/)CLAUDE\.md$/
+          ')
+          if [ -n "$blocked_files" ]; then
+            echo "::warning::uv version bump touched agent-instruction files; restoring them from origin/main."
+            printf '%s\n' "$blocked_files"
+            while IFS= read -r file; do
+              if git cat-file -e "origin/main:$file" 2>/dev/null; then
+                git restore --source=origin/main --worktree --staged -- "$file"
+              else
+                git restore --staged -- "$file" 2>/dev/null || true
+                rm -f -- "$file"
+              fi
+            done <<< "$blocked_files"
+          fi
+          if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+            echo "Only blocked files changed; restored them and skipping PR."
+            exit 0
+          fi
           git add -A
           git commit -m "chore(deps): bump uv to $UV_VERSION"
           git push -u origin "$BRANCH"
