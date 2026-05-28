@@ -357,3 +357,14 @@ examples:
                 assert description.get("non_empty") is True, (
                     f"{example['id']} must reject empty save_prompt.description"
                 )
+
+    def test_loads_documentation_links_dataset(self) -> None:
+        dataset = load_dataset("documentation_links")
+        assert dataset.dataset_name == "documentation_links"
+        assert len(dataset.examples) == 5
+        assert dataset.evaluators == ["documentation_tools_used", "documentation_links_valid"]
+        assert all(
+            example["expected"]["links"]["canonical_docs_domain"]
+            == "https://arize.com/docs/phoenix"
+            for example in dataset.examples
+        )
