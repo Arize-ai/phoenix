@@ -52,20 +52,31 @@ capabilities in the prompt playground.
 PXI accelerates the loop you already run. Evals, experiments, and human
 review still belong at the end of it — PXI just gets you there faster.
 
-## Disabling PXI
+## Access and settings
 
-PXI is **on by default**. To turn it off, set the following environment
-variable on the Phoenix server and restart:
+PXI is **on by default**. Access is controlled in three layers:
 
-```bash
-PHOENIX_DISABLE_AGENT_ASSISTANT=true
-```
+- **Deployment setting.** To turn PXI off for the whole deployment, set the
+  following environment variable on the Phoenix server and restart:
+
+  ```bash
+  PHOENIX_DISABLE_AGENT_ASSISTANT=true
+  ```
+
+- **System settings.** Administrators can open **Settings → Assistant →
+  System settings** and turn **Assistant access** off for everyone using the
+  Phoenix instance. This does not require a restart.
+- **Personal settings.** Each user can open **Settings → Assistant →
+  Personal settings** and turn **Use assistant** off for their browser.
 
 <Note>
 PXI gives an LLM the ability to read Phoenix data the signed-in user can
 already see, and to call tools that modify UI state. If that trade-off is
-not acceptable for your deployment, disable PXI with the variable above.
+not acceptable for your deployment, disable PXI with
+`PHOENIX_DISABLE_AGENT_ASSISTANT=true`.
 </Note>
+
+The old `PHOENIX_DANGEROUSLY_ENABLE_AGENTS` opt-in flag is no longer used.
 
 PXI needs a model to talk to. Configure credentials for at least one provider
 via environment variables or Phoenix secrets:
@@ -94,9 +105,10 @@ Other built-in or custom-provider models can be selected from the model menu,
 but they are untested with PXI and may fail to invoke tools correctly. If you
 swap in a non-curated model, expect rougher behavior.
 
-The first time a user opens PXI they are shown a consent gate that explains
-what gets recorded and where it is sent. Acknowledging the gate enables the
-chat surface for that user.
+The first time a user opens PXI, they are shown a consent gate that asks them
+to review the available assistant session trace settings. Acknowledging the
+gate enables the chat surface for that browser; it does not override system
+settings.
 
 ## How it works
 
@@ -106,10 +118,10 @@ Cursor, or Codex — but pointed at Phoenix instead of a code editor. It has:
 - A **harness of tools** for taking action in the product (set the time range,
   apply a spans filter, read a span, edit a playground prompt, render
   generative UI, ask the user a question).
-- An **MCP server** that exposes the Phoenix docs to the agent — served by
-  Mintlify, the same provider that hosts the public Phoenix documentation —
-  so PXI can look up product behavior the same way a coding agent looks up
-  library docs.
+- An **MCP server** that exposes the Phoenix docs to the agent when external
+  resources are allowed — served by Mintlify, the same provider that hosts the
+  public Phoenix documentation — so PXI can look up product behavior the same
+  way a coding agent looks up library docs.
 - **Skills** — reusable, multi-step playbooks for common investigations. The
   first built-in skill is `debug_trace`, which walks a failing trace and
   proposes root causes.
@@ -174,8 +186,8 @@ sandbox, PXI uses the **phoenix-gql** CLI to query the Phoenix **GraphQL API**
 on the server, the same authenticated endpoint a logged-in user hits from the
 UI. The server hosts the PXI agent along with its model-facing surface —
 **tools**, **skills**, and an **MCP** client — and calls your LLM provider
-with your API key. The only external dependency is the Mintlify-hosted
-Phoenix docs MCP, reached through the server's MCP client.
+with your API key. When external resources are allowed, the server also reaches
+the Mintlify-hosted Phoenix docs MCP through its MCP client.
 
 ### Runs entirely on your Phoenix
 
@@ -186,29 +198,49 @@ PXI runs **inside the Phoenix process you are already running**. Concretely:
 - The LLM behind PXI is **your model provider**, called with **your API key**
   (OpenAI, Anthropic, Google, Bedrock, or a custom provider you configured).
   Arize is not in the request path.
-- Documentation lookups go to the **Mintlify-hosted Phoenix docs MCP server**,
-  the same public docs surface you can read in a browser. It serves docs only.
-- Arize receives PXI session traces **only if you explicitly opt in** under
-  **Settings → Agents** ("Share PXI session traces with the team improving
-  PXI"), and that opt-in is only available when a remote collector has been
-  configured for your instance. If you never enable it, Arize never sees your
-  traces, prompts, or tool outputs.
+- Documentation lookups go to the **Mintlify-hosted Phoenix docs MCP server**
+  when external resources are allowed. It is the same public docs surface you
+  can read in a browser, and it serves docs only. Set
+  `PHOENIX_ALLOW_EXTERNAL_RESOURCES=false` to disable external docs lookups and
+  web access, or set `PHOENIX_AGENTS_DISABLE_WEB_ACCESS=true` to disable PXI's
+  native web search and fetch tools while leaving other external resources
+  available.
+- Remote trace export happens **only if all required gates are enabled**: a
+  remote collector is configured for the instance, an administrator allows
+  trace export in **Settings → Assistant → System settings**, and the user
+  enables trace export in **Settings → Assistant → Personal settings**. If any
+  gate is off, PXI traces, prompts, and tool outputs are not exported.
+  Configure the collector with `PHOENIX_AGENTS_COLLECTOR_ENDPOINT` and,
+  if needed, `PHOENIX_AGENTS_COLLECTOR_API_KEY`.
 
 ## Privacy and observability
 
-Every PXI conversation is captured as a Phoenix trace. By default these traces
-are written to a dedicated PXI project in the Phoenix instance you are using —
-no data leaves your deployment.
+PXI can capture conversations as Phoenix traces. Trace recording is controlled
+by both system settings and per-browser user preferences.
 
-From **Settings → Agents** you can:
+From **Settings → Assistant**, administrators can:
 
-- Turn local PXI tracing on or off.
-- Opt into sharing PXI session traces with the team building PXI (only
-  available when a remote collector is configured).
+- Turn **Assistant access** on or off for everyone.
+- Allow users to save assistant session traces in this Phoenix instance.
+- Allow users to export assistant session traces to the configured remote
+  collector, when one is configured.
 
-Tool inputs and outputs are recorded on the corresponding spans, which makes it
-easy to audit what PXI did during a session and to evaluate PXI the same way
-you evaluate any other agent in Phoenix.
+From **Settings → Assistant**, each user can:
+
+- Show or hide the assistant in their browser.
+- Save assistant session traces in this Phoenix instance when an administrator
+  allows local trace recording.
+- Export assistant session traces to the configured remote collector when an
+  administrator allows remote export.
+
+By default, the system trace-recording settings do not allow local persistence
+or remote export. Local traces are written to the
+`assistant_agent` project unless `PHOENIX_AGENTS_ASSISTANT_PROJECT_NAME` is set
+to a different project name.
+
+When trace recording is enabled, tool inputs and outputs are recorded on the
+corresponding spans. This makes it easy to audit what PXI did during a session
+and to evaluate PXI the same way you evaluate any other agent in Phoenix.
 
 ## Safety
 
