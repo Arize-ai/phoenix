@@ -67,7 +67,12 @@ const sideNavCSS = css`
 `;
 
 const navLinkCSS = css`
+  --nav-link-icon-size: calc(
+    var(--nav-collapsed-width) - var(--global-dimension-static-size-200)
+  );
+
   width: 100%;
+  min-height: var(--nav-link-icon-size);
   color: var(--global-color-gray-500);
   background-color: transparent;
   border-radius: var(--global-rounding-small);
@@ -90,8 +95,14 @@ const navLinkCSS = css`
     background-color: var(--global-color-gray-200);
   }
   & > .icon-wrap {
+    box-sizing: border-box;
+    width: var(--nav-link-icon-size);
+    height: var(--nav-link-icon-size);
+    flex: 0 0 var(--nav-link-icon-size);
     padding: var(--global-dimension-size-100);
-    display: inline-block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   .text {
     padding-inline-start: var(--global-dimension-size-50);
