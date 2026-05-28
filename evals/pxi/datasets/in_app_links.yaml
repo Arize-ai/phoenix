@@ -2,56 +2,77 @@ dataset_name: in_app_links
 description: PXI server-side eval suite for root-relative Phoenix UI markdown links.
 evaluators:
   - in_app_links_valid
+  - correct_tools_called
 examples:
   - id: agent-settings-link
     splits: [regression]
     input:
-      query: Link me to the Phoenix agent settings page.
+      messages:
+        - role: user
+          content: Link me to the Phoenix agent settings page.
     expected:
       tools:
         required: []
       links:
         required_in_app:
           - /settings/agents
-    metadata:
-      category: settings
+    metadata: {}
   - id: ai-provider-settings-link
     splits: [regression]
     input:
-      query: Where can I configure AI providers in Phoenix? Include a link.
+      messages:
+        - role: user
+          content: Where can I configure AI providers in Phoenix? Include a link.
     expected:
       tools:
         required: []
+        forbidden: [bash]
       links:
         required_in_app:
           - /settings/providers
-    metadata:
-      category: settings
+    metadata: {}
   - id: general-settings-link
     splits: [regression]
     input:
-      query: Link me to the Phoenix general settings page.
+      messages:
+        - role: user
+          content: Link me to the Phoenix general settings page.
     expected:
       tools:
         required: []
       links:
         required_in_app:
           - /settings/general
-    metadata:
-      category: settings
+    metadata: {}
   - id: dataset-resource-link
-    splits: [dev]
+    # Page context provides the dataset relay id needed to compose the URL.
+    splits: [regression]
     input:
-      query: Link me to where I can see experiments for my PXI link evals dataset.
-      resource:
-        type: dataset
-        name: PXI link evals
-        id: RGF0YXNldDox
+      messages:
+        - role: user
+          content: Link me to where I can see experiments for my PXI link evals dataset.
+        - role: assistant
+          tool_calls:
+            - id: t1
+              name: bash
+              args:
+                command: cat /phoenix/page-context.json
+        - role: tool
+          tool_call_id: t1
+          name: bash
+          content: |
+            {
+              "page": "dataset_details",
+              "dataset": {
+                "id": "RGF0YXNldDox",
+                "name": "PXI link evals",
+                "exampleCount": 12
+              }
+            }
     expected:
       tools:
         required: []
       links:
         required_in_app:
           - /datasets/RGF0YXNldDox/experiments
-    metadata:
-      category: dynamic-resource
+    metadata: {}

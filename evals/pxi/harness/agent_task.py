@@ -3,10 +3,20 @@ from __future__ import annotations
 import json
 import os
 import sys
+from datetime import datetime, timezone
 from typing import Any, Literal, cast
 
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.mcp import MCPServerStreamableHTTP
+from pydantic_ai.messages import (
+    ModelMessage,
+    ModelRequest,
+    ModelResponse,
+    TextPart,
+    ToolCallPart,
+    ToolReturnPart,
+    UserPromptPart,
+)
 from pydantic_ai.models import Model as PydanticAIModel
 
 from phoenix.config import (
@@ -15,7 +25,12 @@ from phoenix.config import (
 )
 from phoenix.server.agents.agent_factory import build_agent
 from phoenix.server.agents.capabilities import MintlifyDocsMCPServer
-from phoenix.server.agents.context import ProjectContext, ResolvedContexts
+from phoenix.server.agents.context import (
+    ChatContext,
+    ProjectContext,
+    ResolvedContexts,
+    resolve_contexts,
+)
 from phoenix.server.agents.model_factory import (
     _build_openai_model as build_openai_model,
 )
@@ -138,7 +153,7 @@ def build_shared_docs_mcp_server() -> MCPServerStreamableHTTP | None:
     return MintlifyDocsMCPServer()
 
 
-def _build_dependencies() -> AgentDependencies:
+def _default_contexts() -> ResolvedContexts:
     contexts = ResolvedContexts(
         project=ProjectContext(
             type="project",
@@ -147,7 +162,235 @@ def _build_dependencies() -> AgentDependencies:
             root_spans_only=False,
         )
     )
+    return contexts
+
+
+def _build_contexts(input: dict[str, Any]) -> ResolvedContexts:
+    raw_contexts = input.get("contexts")
+    if raw_contexts is None:
+        return _default_contexts()
+    if not isinstance(raw_contexts, list):
+        raise ValueError("PXI eval input.contexts must be a list when provided")
+    return resolve_contexts([ChatContext.model_validate(context) for context in raw_contexts])
+
+
+def _build_dependencies(input: dict[str, Any]) -> AgentDependencies:
+    contexts = _build_contexts(input)
     return AgentDependencies(contexts=contexts)
+
+
+def _build_run_inputs(
+    input: dict[str, Any],
+) -> tuple[str | None, list[ModelMessage] | None]:
+    """Translate ``input.messages`` into ``(user_prompt, message_history)``.
+
+    Datasets describe an example as a single ``messages`` list -- the full
+    conversation prefix the agent should enter the run with. The trailing
+    entry drives which step of the agent loop is being scored:
+
+    - **Last entry is ``role: user``.** That user turn is the new user prompt
+      for this run; everything before it is replayed as ``message_history``.
+    - **Last entry is ``role: tool``.** The harness invokes ``agent.run``
+      with ``user_prompt=None`` and the full ``messages`` list as
+      ``message_history``, so the agent picks up mid-loop from the primed
+      tool return. The action it emits next is what gets scored.
+    - **Last entry is ``role: assistant``.** Rejected: nothing remains for
+      the agent to do.
+    """
+    raw_messages = input.get("messages")
+    if not isinstance(raw_messages, list) or not raw_messages:
+        raise ValueError("PXI eval input.messages must be a non-empty list")
+    if not isinstance(raw_messages[-1], dict):
+        raise ValueError("PXI eval input.messages[-1] must be an object")
+    last_role = raw_messages[-1].get("role")
+    if last_role == "user":
+        content = raw_messages[-1].get("content")
+        if not isinstance(content, str) or not content:
+            raise ValueError(
+                "PXI eval input.messages: final user turn must have non-empty string content"
+            )
+        prefix_messages = (
+            _materialize_messages(raw_messages[:-1]) if len(raw_messages) > 1 else None
+        )
+        return content, prefix_messages
+    if last_role == "tool":
+        return None, _materialize_messages(raw_messages)
+    raise ValueError(
+        "PXI eval input.messages must end with a user turn (new prompt) or a tool "
+        f"return (mid-loop continuation); got role={last_role!r}"
+    )
+
+
+def _materialize_messages(raw_messages: list[Any]) -> list[ModelMessage]:
+    """Translate raw message dicts into pydantic_ai ``ModelMessage`` objects.
+
+    Supports four entry shapes so an example can simulate a multi-turn session
+    in which the agent has already executed tools, without the harness having
+    to actually run those tools:
+
+    1. ``{role: user, content: <str>}`` -- a user turn.
+    2. ``{role: assistant, content: <str>}`` -- an assistant text turn.
+    3. ``{role: assistant, tool_calls: [{id, name, args}, ...], content?: <str>}``
+       -- an assistant turn that issued one or more tool calls (with optional
+       accompanying text). ``id`` is a local string used to pair with the
+       matching ``tool`` return below; it is passed through to pydantic_ai
+       verbatim as the ``tool_call_id``.
+    4. ``{role: tool, tool_call_id: <id>, name: <tool>, content: <str>}`` -- a
+       tool return that the model previously observed. ``tool_call_id`` MUST
+       reference an ``id`` declared on an earlier assistant ``tool_calls``
+       entry in the same history; ``name`` MUST match.
+
+    Primed tool calls + returns are exactly the same message shape pydantic_ai
+    builds for genuinely-executed tools, so the model cannot tell the
+    difference. This lets datasets isolate one step of agent behavior (e.g.
+    "given a known latest-trace date, did set_spans_filter get the right
+    args?") from the upstream discovery steps that would normally precede it.
+    """
+    if not isinstance(raw_messages, list):
+        raise ValueError("PXI eval input.messages must be a list")
+
+    messages: list[ModelMessage] = []
+    # Tracks (tool_call_id -> tool_name) declared by prior assistant tool_calls
+    # entries that have not yet been paired with a tool return.
+    pending_tool_calls: dict[str, str] = {}
+    # Tracks every tool_call_id ever declared (pending or already consumed) so a
+    # later assistant turn can't reuse the same id even after it was returned.
+    seen_tool_call_ids: set[str] = set()
+
+    for index, item in enumerate(raw_messages):
+        if not isinstance(item, dict):
+            raise ValueError(f"PXI eval input.messages[{index}] must be an object")
+        role = item.get("role")
+        if role == "user":
+            messages.append(_build_user_turn(item, index))
+        elif role in {"assistant", "ai"}:
+            messages.append(
+                _build_assistant_turn(item, index, pending_tool_calls, seen_tool_call_ids)
+            )
+        elif role == "tool":
+            messages.append(_build_tool_return_turn(item, index, pending_tool_calls))
+        else:
+            raise ValueError(
+                f"PXI eval input.messages[{index}].role must be user, assistant, or tool"
+            )
+
+    if pending_tool_calls:
+        raise ValueError(
+            "PXI eval input.messages primed tool calls without matching tool returns: "
+            f"{sorted(pending_tool_calls)}"
+        )
+    return messages
+
+
+def _build_user_turn(item: dict[str, Any], index: int) -> ModelMessage:
+    content = item.get("content")
+    if not isinstance(content, str):
+        raise ValueError(
+            f"PXI eval input.messages[{index}].content must be a string for user turns"
+        )
+    return ModelRequest(parts=[UserPromptPart(content=content)])
+
+
+def _build_assistant_turn(
+    item: dict[str, Any],
+    index: int,
+    pending_tool_calls: dict[str, str],
+    seen_tool_call_ids: set[str],
+) -> ModelMessage:
+    content = item.get("content")
+    raw_tool_calls = item.get("tool_calls")
+    if content is None and raw_tool_calls is None:
+        raise ValueError(
+            f"PXI eval input.messages[{index}] assistant turn must have content or tool_calls"
+        )
+    if content is not None and not isinstance(content, str):
+        raise ValueError(f"PXI eval input.messages[{index}].content must be a string when provided")
+
+    parts: list[Any] = []
+    if isinstance(content, str):
+        parts.append(TextPart(content=content))
+
+    if raw_tool_calls is not None:
+        if not isinstance(raw_tool_calls, list) or not raw_tool_calls:
+            raise ValueError(
+                f"PXI eval input.messages[{index}].tool_calls must be a non-empty list of objects"
+            )
+        for call_index, call in enumerate(raw_tool_calls):
+            if not isinstance(call, dict):
+                raise ValueError(
+                    f"PXI eval input.messages[{index}].tool_calls[{call_index}] must be an object"
+                )
+            tool_call_id = call.get("id")
+            tool_name = call.get("name")
+            args = call.get("args", {})
+            if not isinstance(tool_call_id, str) or not tool_call_id:
+                raise ValueError(
+                    f"PXI eval input.messages[{index}].tool_calls[{call_index}].id "
+                    "must be a non-empty string"
+                )
+            if not isinstance(tool_name, str) or not tool_name:
+                raise ValueError(
+                    f"PXI eval input.messages[{index}].tool_calls[{call_index}].name "
+                    "must be a non-empty string"
+                )
+            if not isinstance(args, (dict, str)):
+                raise ValueError(
+                    f"PXI eval input.messages[{index}].tool_calls[{call_index}].args "
+                    "must be an object or a JSON string"
+                )
+            if tool_call_id in seen_tool_call_ids:
+                raise ValueError(
+                    f"PXI eval input.messages[{index}].tool_calls[{call_index}].id "
+                    f"{tool_call_id!r} was already used earlier in the history"
+                )
+            seen_tool_call_ids.add(tool_call_id)
+            pending_tool_calls[tool_call_id] = tool_name
+            parts.append(ToolCallPart(tool_name=tool_name, args=args, tool_call_id=tool_call_id))
+
+    return ModelResponse(parts=parts)
+
+
+def _build_tool_return_turn(
+    item: dict[str, Any],
+    index: int,
+    pending_tool_calls: dict[str, str],
+) -> ModelMessage:
+    tool_call_id = item.get("tool_call_id")
+    tool_name = item.get("name")
+    content = item.get("content")
+    if not isinstance(tool_call_id, str) or not tool_call_id:
+        raise ValueError(
+            f"PXI eval input.messages[{index}].tool_call_id must be a non-empty string"
+        )
+    if not isinstance(tool_name, str) or not tool_name:
+        raise ValueError(
+            f"PXI eval input.messages[{index}].name must be a non-empty string for tool turns"
+        )
+    if not isinstance(content, str):
+        raise ValueError(
+            f"PXI eval input.messages[{index}].content must be a string for tool turns"
+        )
+    expected_name = pending_tool_calls.pop(tool_call_id, None)
+    if expected_name is None:
+        raise ValueError(
+            f"PXI eval input.messages[{index}] tool return references unknown "
+            f"tool_call_id {tool_call_id!r}; declare it on a prior assistant tool_calls entry"
+        )
+    if expected_name != tool_name:
+        raise ValueError(
+            f"PXI eval input.messages[{index}] tool return name {tool_name!r} "
+            f"does not match prior tool call name {expected_name!r} for id {tool_call_id!r}"
+        )
+    return ModelRequest(
+        parts=[
+            ToolReturnPart(
+                tool_name=tool_name,
+                content=content,
+                tool_call_id=tool_call_id,
+                timestamp=datetime.now(timezone.utc),
+            )
+        ]
+    )
 
 
 def _serialize_new_messages(result: AgentRunResult[AgentOutput]) -> list[dict[str, Any]]:
@@ -174,12 +417,21 @@ def agent_task_output(result: AgentRunResult[AgentOutput]) -> dict[str, Any]:
     output = result.output
     messages = _serialize_new_messages(result)
     assistant_text = _assistant_text_from_messages(messages)
+    if assistant_text is None and isinstance(output, str):
+        assistant_text = output
 
     return {
-        "assistant_text": assistant_text or output if isinstance(output, str) else assistant_text,
+        "assistant_text": assistant_text,
         "messages": messages,
         "raw_output_type": type(output).__name__,
     }
+
+
+def _example_input(example: dict[str, Any]) -> dict[str, Any]:
+    input_value = example["input"]
+    if not isinstance(input_value, dict):
+        raise ValueError("PXI eval example.input must be an object")
+    return input_value
 
 
 def make_task(
@@ -196,12 +448,9 @@ def make_task(
     """
 
     async def task(example: dict[str, Any]) -> dict[str, Any]:
-        input_value = example["input"]
-        query = input_value.get("query")
-        if not isinstance(query, str):
-            raise ValueError("PXI eval examples must define input.query")
+        input_value = _example_input(example)
         return await run_pxi_example(
-            {"query": query},
+            input_value,
             stable_example_id=example.get("id"),
             docs_mcp_server=docs_mcp_server,
         )
@@ -217,11 +466,7 @@ async def task(example: dict[str, Any]) -> dict[str, Any]:
     toolset and for backwards compatibility with the original
     ``from evals.pxi.harness.agent_task import task`` import.
     """
-    input_value = example["input"]
-    query = input_value.get("query")
-    if not isinstance(query, str):
-        raise ValueError("PXI eval examples must define input.query")
-    return await run_pxi_example({"query": query}, stable_example_id=example.get("id"))
+    return await run_pxi_example(_example_input(example), stable_example_id=example.get("id"))
 
 
 async def run_pxi_example(
@@ -232,10 +477,14 @@ async def run_pxi_example(
 ) -> dict[str, Any]:
     """Run a single PXI agent turn imperatively.
 
-    ``input`` is an example input dict; only ``input["query"]`` is
-    consumed. Failures anywhere in setup or in ``agent.run`` are caught and
-    returned with ``error`` set, so the failure report can still resolve a
-    stable example ID for the row.
+    ``input`` is an example input dict. ``input["messages"]`` is the full
+    conversation prefix; the last entry decides whether the harness invokes
+    the agent with a fresh user prompt or as a mid-loop continuation off a
+    primed tool return (see :func:`_build_run_inputs`). Optional ``contexts``
+    inject realistic Phoenix page state without launching a browser.
+    Failures anywhere in setup or in ``agent.run`` are caught and returned
+    with ``error`` set, so the failure report can still resolve a stable
+    example ID for the row.
 
     ``docs_mcp_server`` should be a single shared, already-entered
     :class:`MCPServerStreamableHTTP` (built via
@@ -248,10 +497,14 @@ async def run_pxi_example(
     avoid pasting credentials into request URLs while debugging.
     """
     try:
-        query = input["query"]
+        user_prompt, message_history = _build_run_inputs(input)
         model = await _build_model()
         agent = build_agent(model=model, docs_mcp_server=docs_mcp_server)
-        result = await agent.run(query, deps=_build_dependencies())
+        result = await agent.run(
+            user_prompt,
+            deps=_build_dependencies(input),
+            message_history=message_history,
+        )
         output = agent_task_output(result)
     except Exception as exc:
         message = str(exc)

@@ -378,13 +378,29 @@ async def _run_async(config: ExperimentConfig) -> int:
                 ),
                 uploaded_splits,
             )
+            # Phoenix's ``get_dataset(splits=[...])`` returns 404 for any split
+            # name that has no examples on this dataset, which crashes the run.
+            # Pre-filter the requested splits to ones actually present on the
+            # uploaded dataset so empty splits are skipped, not fatal.
+            requested = tuple(split for split in config.splits if split in uploaded_splits)
+            missing = [split for split in config.splits if split not in uploaded_splits]
+            if missing:
+                print(
+                    f"Skipping splits with no examples on dataset "
+                    f"{dataset.dataset_name}: {', '.join(missing)}",
+                    file=sys.stderr,
+                )
+            if not requested:
+                print(f"No examples matched requested splits: {', '.join(config.splits)}")
+                experiment = _empty_experiment(phoenix_dataset)
+                return 0
             experiment_dataset = await _get_split_filtered_dataset(
                 client,
                 phoenix_dataset,
-                config.splits,
+                requested,
             )
             if not experiment_dataset.examples:
-                print(f"No examples matched requested splits: {', '.join(config.splits)}")
+                print(f"No examples matched requested splits: {', '.join(requested)}")
                 experiment = _empty_experiment(experiment_dataset)
                 return 0
             name = _experiment_name(dataset, config)

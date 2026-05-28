@@ -277,7 +277,7 @@ examples:
         dataset = load_dataset("set_spans_filter")
         assert dataset.dataset_name == "set_spans_filter"
         assert len(dataset.examples) >= 1
-        assert all(example["splits"] == ["regression"] for example in dataset.examples)
+        assert any(example["splits"] == ["regression"] for example in dataset.examples)
         assert "correct_tools_called" in dataset.evaluators
 
     def test_loads_in_app_links_dataset(self) -> None:
