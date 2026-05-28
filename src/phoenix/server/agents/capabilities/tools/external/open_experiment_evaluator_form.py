@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from jinja2 import Template
 from pydantic_ai import RunContext
 from pydantic_ai.tools import SystemPromptFunc, ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
@@ -33,48 +34,19 @@ TOOL_DEFINITION = ToolDefinition(
     kind="external",
 )
 
-INSTRUCTIONS = "\n".join(
-    (
-        '<tool name="open_experiment_evaluator_form">',
-        "  <description>Open the mounted playground's dataset-backed "
-        "code-evaluator form in place. The browser remains on the "
-        "current playground route and keeps the playground/dataset state "
-        "intact.</description>",
-        "  <when_to_use>",
-        "    - The user is in a dataset-backed playground and asks to create, "
-        "author, or iterate on a code evaluator for experiment scoring.",
-        "    - The create/edit code-evaluator form is not already mounted, so "
-        "`read_code_evaluator_draft` is not yet available.",
-        "  </when_to_use>",
-        "  <user_facing_language>",
-        "    - The tool name is internal. In replies to users, call the "
-        "opened surface the code-evaluator form or evaluator form.",
-        "    - Do not describe creating as approving a diff. The user creates "
-        "with the form's Create action when ready.",
-        "  </user_facing_language>",
-        "  <workflow>",
-        "    - Call `open_experiment_evaluator_form` first, then wait for "
-        "the code-evaluator context and draft tools to appear.",
-        "    - After the form is mounted, call `read_code_evaluator_draft`, "
-        "then propose changes with `edit_code_evaluator_draft`.",
-        "    - After the user accepts a populated draft, offer to run "
-        "`test_code_evaluator_draft` before they click Create.",
-        "    - Do not promise that the evaluator has been created. Persistence "
-        "stays behind the user-visible Create action in the form.",
-        "  </workflow>",
-        "</tool>",
-    )
-)
-
 
 @dataclass
 class OpenExperimentEvaluatorFormCapability(AbstractDynamicCapability[AgentDependencies]):
+    instructions: Template
+
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
 
     def get_dynamic_instructions(self) -> SystemPromptFunc[AgentDependencies]:
+        instructions = self.instructions
+
         def _instructions(ctx: RunContext[AgentDependencies]) -> str:
-            return INSTRUCTIONS
+            return instructions.render()
 
         return _instructions
 

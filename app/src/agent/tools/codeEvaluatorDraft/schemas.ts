@@ -188,7 +188,7 @@ export const editCodeEvaluatorDraftOperationSchema = z.preprocess(
       sourceCode: ["source_code"],
       sandboxConfigId: ["sandbox_config_id"],
       inputMapping: ["input_mapping"],
-      testPayload: ["test_payload", "mapping_source", "mappingSource"],
+      testPayload: ["test_payload"],
       outputConfigs: ["output_configs"],
     }),
   z.discriminatedUnion("type", [
@@ -227,6 +227,3 @@ export const editCodeEvaluatorDraftActionContextSchema = z
     ),
   })
   .transform((context) => context);
-
-export const createCodeEvaluatorActionContextSchema =
-  editCodeEvaluatorDraftActionContextSchema;

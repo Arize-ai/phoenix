@@ -116,8 +116,8 @@ export function PlaygroundExperimentToolbar({
             onEvaluatorCreated={onEvaluatorCreated}
             query={query}
             isDisabled={isRunning}
-            isCreateCodeEvaluatorOpen={isExperimentEvaluatorFormOpen}
-            onCreateCodeEvaluatorOpenChange={
+            isExperimentEvaluatorFormOpen={isExperimentEvaluatorFormOpen}
+            onExperimentEvaluatorFormOpenChange={
               onExperimentEvaluatorFormOpenChange
             }
           />

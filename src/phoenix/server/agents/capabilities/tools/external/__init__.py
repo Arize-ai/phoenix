@@ -140,10 +140,12 @@ def get_external_tool_capability_function(
         WritePromptToolsCapability(instructions=prompts.write_prompt_tools_tool),
         RunPlaygroundCapability(instructions=prompts.run_playground_tool),
         SetVariableValuesCapability(instructions=prompts.set_variable_values_tool),
-        OpenExperimentEvaluatorFormCapability(),
+        OpenExperimentEvaluatorFormCapability(
+            instructions=prompts.open_experiment_evaluator_form_tool
+        ),
         ReadCodeEvaluatorDraftCapability(instructions=prompts.read_code_evaluator_draft_tool),
         EditCodeEvaluatorDraftCapability(instructions=prompts.edit_code_evaluator_draft_tool),
-        TestCodeEvaluatorDraftCapability(),
+        TestCodeEvaluatorDraftCapability(instructions=prompts.test_code_evaluator_draft_tool),
     ]
 
     def _build(ctx: RunContext[AgentDependencies]) -> AbstractCapability[AgentDependencies]:

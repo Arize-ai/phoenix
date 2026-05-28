@@ -3,7 +3,6 @@ export * from "./timeConstants";
 export * from "./numberConstants";
 export * from "./promptConstants";
 export * from "./feedbackConstants";
-export * from "./searchParams";
 export * from "./uriConstants";
 export * from "./secretsConstants";
 export * from "./annotationConstants";

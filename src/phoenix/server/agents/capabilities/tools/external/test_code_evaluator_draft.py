@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from jinja2 import Template
 from pydantic_ai import RunContext
 from pydantic_ai.tools import SystemPromptFunc, ToolDefinition
 from pydantic_ai.toolsets import AgentToolset
@@ -42,41 +43,19 @@ TOOL_DEFINITION = ToolDefinition(
     kind="external",
 )
 
-INSTRUCTIONS = "\n".join(
-    (
-        '<tool name="test_code_evaluator_draft">',
-        "  <description>Run the current code-evaluator draft in the mounted "
-        "form preview path and return the preview result to PXI.</description>",
-        "  <when_to_use>",
-        "    - After reading the draft and the user asks for or agrees to a preview test.",
-        "    - When you need execution feedback before deciding whether to revise "
-        "the evaluator or test payload again.",
-        "  </when_to_use>",
-        "  <preflight>",
-        "    - Always call `read_code_evaluator_draft` first and pass its "
-        "`revision` back as `expectedRevision`.",
-        "    - If the test is rejected as stale, re-read the draft and retry "
-        "with the new revision.",
-        "  </preflight>",
-        "  <guidelines>",
-        "    - Treat preview failures as iteration signals: inspect the "
-        "error/result, revise the source or `testPayload`, and test again.",
-        "    - This tool does not create or update an evaluator. The user must "
-        "still click Create or Update from the form when they are satisfied.",
-        "  </guidelines>",
-        "</tool>",
-    )
-)
-
 
 @dataclass
 class TestCodeEvaluatorDraftCapability(AbstractDynamicCapability[AgentDependencies]):
+    instructions: Template
+
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
         return ExternalToolset[AgentDependencies]([TOOL_DEFINITION])
 
     def get_dynamic_instructions(self) -> SystemPromptFunc[AgentDependencies]:
+        instructions = self.instructions
+
         def _instructions(ctx: RunContext[AgentDependencies]) -> str:
-            return INSTRUCTIONS
+            return instructions.render()
 
         return _instructions
 

@@ -1,6 +1,7 @@
+from collections.abc import Callable
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Any, Optional, cast
+from typing import Optional, cast
 
 import strawberry
 from fastapi import Request
@@ -130,7 +131,7 @@ async def _validate_code_evaluator_sandbox_config(
     *,
     sandbox_config_global_id: GlobalID,
     language: str,
-    decrypt: Any,
+    decrypt: Callable[[bytes], bytes],
     action: str,
 ) -> int:
     sandbox_config_id = from_global_id_with_expected_type(

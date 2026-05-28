@@ -115,10 +115,9 @@ class DatasetContext(_ChatContextBase):
     """Dataset the user is currently viewing or has bound to a workflow.
 
     Carries the dataset's relay node id and, when known, the active version
-    node id. The agent uses these IDs as a persistence/routing signal — when
-    creating a code evaluator the dataset binding is chained onto the create
-    mutation; the dataset schema itself is open and the router may add a small
-    sample of active examples as prompt context.
+    node id. These IDs scope the create-form handoff link and the sampling of
+    active dataset examples used as prompt context; the dataset schema itself
+    is open.
     """
 
     type: Literal["dataset"]
