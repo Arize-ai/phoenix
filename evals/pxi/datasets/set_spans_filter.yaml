@@ -78,9 +78,6 @@ examples:
       annotation:
         agreement: high
         n_opinions: 3
-        notes: >-
-          Backfill: Latency filter doesn't target nested spans per spec;
-          rootSpansOnly is not mandated. Omitted per "unsure -> omit" rule.
   - id: slow-llm-spans
     # Multi-clause AND: ``contains_all`` is order-invariant so the model
     # can emit clauses in either order. Both clauses must appear.
@@ -117,7 +114,6 @@ examples:
       annotation:
         agreement: high
         n_opinions: 3
-        notes: trace_id filter doesn't target nested spans; rootSpansOnly omitted.
   - id: span-name
     splits: [regression]
     input:
@@ -139,8 +135,7 @@ examples:
     # The Phoenix DSL only supports Python's ``in`` operator for substring
     # matching (``'<needle>' in input.value``); the parser maps it to a
     # ``TextContains`` call. There is no ``.contains()`` form. This matcher
-    # passes for any rendering of the canonical spelling by checking both
-    # the needle and the ``input.value`` column appear.
+    # pins the DSL's ``in input.value`` form while allowing quote/spacing drift.
     splits: [regression]
     input:
       messages:
@@ -152,7 +147,8 @@ examples:
       tool_call_args:
         set_spans_filter:
           condition:
-            contains_all: ["refund policy", "input.value"]
+            contains_all: ["refund policy", "in input.value"]
+            not_contains: [".contains("]
           rootSpansOnly: false
     metadata:
       annotation:
@@ -337,7 +333,6 @@ examples:
       annotation:
         agreement: medium
         n_opinions: 3
-        notes: Timestamp filter doesn't target nested spans; rootSpansOnly omitted.
   # Original query "Show me span <id>" was unstable: the agent sometimes
   # called bash + phoenix-gql to look up a single span by ID rather than
   # filtering the table. Re-phrased to lock filter intent.
@@ -357,7 +352,6 @@ examples:
       annotation:
         agreement: medium
         n_opinions: 3
-        notes: span_id query doesn't determine root vs nested scope.
   - id: children-of-parent
     splits: [regression]
     input:
@@ -412,9 +406,6 @@ examples:
       annotation:
         agreement: medium
         n_opinions: 3
-        notes: >-
-          Either "error code 502" or just "502" is an acceptable substring; the
-          matcher accepts any spelling that mentions "502" against output.value.
   - id: metadata-access
     splits: [regression]
     input:
@@ -431,7 +422,6 @@ examples:
       annotation:
         agreement: medium
         n_opinions: 3
-        notes: Metadata filter doesn't target a non-CHAIN/AGENT span_kind; rootSpansOnly omitted.
   - id: agent-spans
     splits: [regression]
     input:
@@ -481,7 +471,6 @@ examples:
       annotation:
         agreement: medium
         n_opinions: 3
-        notes: rootSpansOnly genuinely ambiguous; majority omits it.
   - id: fast-spans-under-100ms
     # "under 100ms" pins the threshold; the operator (<, <=) and whitespace
     # are free. ``not_contains`` rules out the inverted ``latency_ms >`` form.
@@ -633,7 +622,6 @@ examples:
       annotation:
         agreement: low
         n_opinions: 3
-        notes: Backfill annotation diverged; matcher loosened to accept any "fast" threshold.
   - id: ambiguous-tools-or-retrievers
     splits: [regression]
     input:
@@ -653,7 +641,6 @@ examples:
       annotation:
         agreement: medium
         n_opinions: 3
-        notes: Accepts both ``or`` and ``in`` spellings via substring match on the kinds.
   # Original bare fragment "everything except tool calls" sometimes read as
   # a description rather than a filter request. Re-phrased imperatively.
   - id: ambiguous-not-tool-spans
@@ -687,7 +674,6 @@ examples:
       annotation:
         agreement: high
         n_opinions: 3
-        notes: Pure chitchat; no tools should be called.
   - id: negative-capabilities-question
     splits: [regression]
     input:
@@ -702,7 +688,6 @@ examples:
       annotation:
         agreement: high
         n_opinions: 3
-        notes: Capabilities chitchat; no tools should be called.
   - id: negative-thanks
     splits: [regression]
     input:
@@ -749,7 +734,6 @@ examples:
       annotation:
         agreement: high
         n_opinions: 3
-        notes: No clone-prompt tool available in this PXI context.
   - id: negative-how-to-question
     splits: [regression]
     input:
@@ -764,7 +748,6 @@ examples:
       annotation:
         agreement: high
         n_opinions: 3
-        notes: Docs-style question; should not trigger set_spans_filter.
   - id: negative-summarize-ask
     splits: [regression]
     input:
@@ -835,7 +818,6 @@ examples:
       annotation:
         agreement: medium
         n_opinions: 3
-        notes: Analytical question; set_spans_filter does not compute averages.
   - id: negative-delete-trace
     splits: [regression]
     input:
@@ -850,7 +832,6 @@ examples:
       annotation:
         agreement: high
         n_opinions: 3
-        notes: Destructive intent with no matching tool exposed.
   # ----- contextual dev examples (primed page state / tool history) -----
   - id: contextual-latest-root-traces
     # Primes a prior bash tool call + return so the agent enters mid-loop

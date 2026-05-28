@@ -18,13 +18,7 @@ examples:
           - /settings/agents
     metadata: {}
   - id: ai-provider-settings-link
-    # Currently fails because the agent dispatches `bash` (deferred) in
-    # parallel with `search_phoenix`, which terminates the agent run on
-    # DeferredToolRequests before any text answer is composed. The
-    # forbidden-bash assertion documents the desired behavior: answer
-    # from knowledge / docs search, no bash. See notes.md for the
-    # pydantic_ai deferred-tool semantics that drive this.
-    splits: [dev]
+    splits: [regression]
     input:
       messages:
         - role: user
@@ -51,14 +45,8 @@ examples:
           - /settings/general
     metadata: {}
   - id: dataset-resource-link
-    # Tests that the agent can compose a dataset-experiments URL from
-    # primed page-context filesystem content. Production PXI populates
-    # /phoenix/page-context.json when the user is on a dataset page;
-    # this example simulates that by priming a bash `cat` of that file
-    # so the agent enters mid-loop with the dataset's relay id visible.
-    # Without that priming, the agent has no way to discover the id and
-    # spins on tool calls. See notes.md.
-    splits: [dev]
+    # Page context provides the dataset relay id needed to compose the URL.
+    splits: [regression]
     input:
       messages:
         - role: user
