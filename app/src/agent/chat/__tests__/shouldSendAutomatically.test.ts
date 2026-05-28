@@ -6,6 +6,10 @@ import {
   USER_INTERRUPT_ERROR,
 } from "@phoenix/agent/chat/shouldSendAutomatically";
 import {
+  EDIT_CODE_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR,
+  EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+} from "@phoenix/agent/tools/codeEvaluatorDraft";
+import {
   EDIT_PROMPT_NAVIGATION_CANCEL_ERROR,
   EDIT_PROMPT_TOOL_NAME,
   READ_PROMPT_TOOL_NAME,
@@ -108,6 +112,26 @@ describe("shouldSendAutomaticallyAfterToolOutput", () => {
             state: "output-error",
             input: {},
             errorText: EDIT_PROMPT_NAVIGATION_CANCEL_ERROR,
+          },
+        ],
+      }),
+    ];
+
+    expect(shouldSendAutomaticallyAfterToolOutput({ messages })).toBe(false);
+  });
+
+  it("does not continue after navigation-cancelled edit_code_evaluator_draft", () => {
+    const messages = [
+      createMessage({
+        id: "assistant-1",
+        role: "assistant",
+        parts: [
+          {
+            type: `tool-${EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME}`,
+            toolCallId: "tool-call-1",
+            state: "output-error",
+            input: {},
+            errorText: EDIT_CODE_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR,
           },
         ],
       }),

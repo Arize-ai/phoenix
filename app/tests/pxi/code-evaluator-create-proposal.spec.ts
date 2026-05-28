@@ -11,7 +11,7 @@ import { assertPxiOutcome, evaluatePxiOutcome } from "./outcome";
 import { createWasmPythonSandboxConfig } from "./utils";
 
 const JUDGE_SYSTEM =
-  "You are judging a Phoenix PXI E2E answer about the create_code_evaluator handoff flow on the dataset evaluators tab. PXI must explain what evaluator it intends to author, call create_code_evaluator to render an inline preview with Confirm and Reject buttons, and then hand off to the dataset's Create Code Evaluator slideover where the user clicks Save to persist via Relay. No GraphQL mutation may run before the slideover Save. Return a label, score, and brief explanation.";
+  "You are judging a Phoenix PXI E2E answer about the dataset-surface handoff flow for authoring a code evaluator. PXI must explain what evaluator it intends to author, link the user to the dataset's Create Code Evaluator slideover without claiming persistence, then use the draft read/edit tools after the form is open. Persistence happens only when the user clicks Save in the slideover. Return a label, score, and brief explanation.";
 
 async function seedDataset(
   request: APIRequestContext
@@ -119,14 +119,14 @@ async function openDatasetEvaluatorsAndPxi(
   return messageInput;
 }
 
-async function waitForCreateChip(page: Page) {
+async function waitForPendingDraftEditChip(page: Page) {
   const chip = page
     .locator(".tool-part", {
       has: page.locator(".tool-part__title-text", {
-        hasText: "create_code_evaluator",
+        hasText: "edit_code_evaluator_draft",
       }),
     })
-    .first();
+    .last();
   await expect(chip).toBeVisible({ timeout: 60000 });
   await expect(chip.getByText(/Awaiting approval/i)).toBeVisible({
     timeout: 60000,
@@ -176,31 +176,68 @@ test.describe("PXI create code-evaluator proposal smoke", () => {
     const renderedPrompt = example.prompt.replace("${name}", evaluatorName);
 
     const startedAt = Date.now();
-    await messageInput.fill(renderedPrompt);
+    const handoffTurn = await pxi.askAndWait(renderedPrompt);
+    const calledTools: string[] = [...handoffTurn.calledTools];
+
+    const createLink = page
+      .locator(".chat__messages")
+      .getByRole("link", { name: /create code evaluator/i })
+      .last();
+    await expect(createLink).toBeVisible({ timeout: 60000 });
+    await createLink.click();
+
+    const dialog = page.getByTestId("dialog");
+    await expect(
+      dialog.getByRole("heading", { name: "Create Code Evaluator" })
+    ).toBeVisible({ timeout: 60000 });
+
+    const draftPrompt = [
+      "The Create Code Evaluator form is open.",
+      `Read the draft, then propose a Python evaluator named ${evaluatorName}.`,
+      "Define `evaluate(output, reference)` that returns 1.0 when output equals reference case-insensitively after trimming, and 0.0 otherwise.",
+      "Use an available Python sandbox config, set a continuous score output config named score, and wait for me to accept the edit before making changes.",
+    ].join(" ");
+    await messageInput.fill(draftPrompt);
     await page.getByRole("button", { name: "Send message" }).click();
 
-    const calledTools: string[] = [];
+    await expect(
+      page.getByText("read_code_evaluator_draft").first()
+    ).toBeVisible({ timeout: 60000 });
+    calledTools.push("read_code_evaluator_draft");
+    const editChip = await waitForPendingDraftEditChip(page);
+    calledTools.push("edit_code_evaluator_draft");
+    const draftTurn = await pxi.getLatestAssistantTurn();
+    calledTools.push(...draftTurn.calledTools);
+
+    const assistantText = [handoffTurn.assistantText, draftTurn.assistantText]
+      .filter(Boolean)
+      .join("\n\n");
 
     const rubric = [
-      "The assistant first explained what evaluator it intends to author, then called create_code_evaluator on the dataset evaluators tab and rendered an inline preview with a Confirm button.",
-      "Clicking Confirm opened the dataset code-evaluator slideover prefilled with the proposal.",
-      "After the user clicked Save in the slideover, both createCodeEvaluator and createDatasetCodeEvaluator ran via Relay and the tool output resolved as accepted with the dataset evaluator id.",
+      "The assistant first explained what evaluator it intended to author and linked to the dataset Create Code Evaluator surface without claiming the evaluator was already saved.",
+      "After the form opened, the assistant read the draft and proposed the requested code evaluator through edit_code_evaluator_draft, waiting for user approval before applying changes.",
+      "The accepted draft preserved the requested evaluator name, source behavior, sandbox selection, and score output config so the slideover Save could persist and bind it to the dataset.",
     ];
 
     const outcome = await evaluatePxiOutcome({
       assertions: async () => {
         await pxi.expectNoAgentError();
-        calledTools.push("create_code_evaluator");
-        const chip = await waitForCreateChip(page);
-        await chip.getByRole("button", { name: "Confirm" }).click();
-
-        const slideoverSave = page.getByRole("button", { name: "Save" });
-        await expect(slideoverSave).toBeVisible({ timeout: 60000 });
-        await slideoverSave.click();
-
-        await expect(chip.getByText(/Accepted/i)).toBeVisible({
+        await editChip.getByRole("button", { name: "Accept" }).click();
+        await expect(editChip.getByText(/Accepted/i)).toBeVisible({
           timeout: 60000,
         });
+
+        await expect(dialog.getByLabel("Name")).toHaveValue(evaluatorName, {
+          timeout: 60000,
+        });
+        await expect(dialog.locator(".cm-content").first()).toContainText(
+          "def evaluate(output, reference)"
+        );
+
+        const slideoverSave = dialog.getByRole("button", { name: "Save" });
+        await expect(slideoverSave).toBeVisible({ timeout: 60000 });
+        await slideoverSave.click();
+        await expect(dialog).not.toBeVisible({ timeout: 60000 });
 
         const datasetEvaluators = await fetchDatasetEvaluators(
           request,
@@ -217,7 +254,7 @@ test.describe("PXI create code-evaluator proposal smoke", () => {
       judgeInput: {
         system: JUDGE_SYSTEM,
         prompt: renderedPrompt,
-        assistantText: `Explained intent; proposed create_code_evaluator with name=${evaluatorName}; user Confirmed in chat; user Saved in slideover; chained Relay mutations bound the evaluator to dataset ${datasetId}.`,
+        assistantText,
         rubric,
       },
     });
@@ -227,7 +264,7 @@ test.describe("PXI create code-evaluator proposal smoke", () => {
       request,
       record: {
         example,
-        assistantText: `Create proposal happy path: explain, preview, confirm, slideover Save, and dataset binding for ${evaluatorName}.`,
+        assistantText,
         calledTools: [...new Set(calledTools)],
         url: page.url(),
         durationMs,

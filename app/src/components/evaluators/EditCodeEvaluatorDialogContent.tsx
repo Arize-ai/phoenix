@@ -157,8 +157,11 @@ export const EditCodeEvaluatorDialogContent = ({
   // Track initial store state for dirty checking
   const initialStoreStateRef = useRef<{
     name: string;
+    globalName: string;
+    description: string;
     outputConfigs: string;
     inputMapping: string;
+    evaluatorMappingSource: string;
   } | null>(null);
 
   // Track last reported dirty state to avoid redundant callbacks
@@ -169,8 +172,11 @@ export const EditCodeEvaluatorDialogContent = ({
     const state = store.getState();
     initialStoreStateRef.current = {
       name: state.evaluator.name,
+      globalName: state.evaluator.globalName,
+      description: state.evaluator.description,
       outputConfigs: JSON.stringify(state.outputConfigs),
       inputMapping: JSON.stringify(state.evaluator.inputMapping),
+      evaluatorMappingSource: JSON.stringify(state.evaluatorMappingSource),
     };
   }, [store]);
 
@@ -189,18 +195,27 @@ export const EditCodeEvaluatorDialogContent = ({
     const languageChanged = language !== initialLanguage;
     const sandboxChanged = sandboxConfigId !== (initialSandboxConfigId ?? null);
     const nameChanged = state.evaluator.name !== initial.name;
+    const globalNameChanged = state.evaluator.globalName !== initial.globalName;
+    const descriptionChanged =
+      state.evaluator.description !== initial.description;
     const outputConfigsChanged =
       JSON.stringify(state.outputConfigs) !== initial.outputConfigs;
     const inputMappingChanged =
       JSON.stringify(state.evaluator.inputMapping) !== initial.inputMapping;
+    const evaluatorMappingSourceChanged =
+      JSON.stringify(state.evaluatorMappingSource) !==
+      initial.evaluatorMappingSource;
 
     const isDirty =
       codeChanged ||
       languageChanged ||
       sandboxChanged ||
       nameChanged ||
+      globalNameChanged ||
+      descriptionChanged ||
       outputConfigsChanged ||
-      inputMappingChanged;
+      inputMappingChanged ||
+      evaluatorMappingSourceChanged;
 
     if (isDirty !== lastDirtyRef.current) {
       lastDirtyRef.current = isDirty;
@@ -299,6 +314,11 @@ export const EditCodeEvaluatorDialogContent = ({
       const proposed = previewOperations(current, operations);
       if (!proposed.ok) return proposed;
       const next = proposed.output;
+      localFieldsRef.current = {
+        sourceCode: next.sourceCode,
+        language: next.language,
+        sandboxConfigId: next.sandboxConfigId,
+      };
       if (next.sourceCode !== current.sourceCode) {
         setSourceCode(next.sourceCode);
       }
@@ -312,8 +332,11 @@ export const EditCodeEvaluatorDialogContent = ({
       const currentStoredName =
         state.evaluator.name || state.evaluator.globalName;
       const proposedOutputConfigName = next.outputConfigs[0]?.name ?? "";
+      const hasExplicitNameOperation = operations.some(
+        (operation) => operation.type === "set_name"
+      );
       const nextStoredName =
-        mode === "create" && !currentStoredName
+        mode === "create" && !currentStoredName && !hasExplicitNameOperation
           ? proposedOutputConfigName || next.name
           : next.name;
       if (nextStoredName && nextStoredName !== currentStoredName) {
@@ -348,7 +371,7 @@ export const EditCodeEvaluatorDialogContent = ({
       ) {
         state.setEvaluatorMappingSource(next.testPayload);
       }
-      return { ok: true as const, output: next };
+      return { ok: true as const, output: buildSnapshot() };
     };
 
     const host: CodeEvaluatorDraftHost = {

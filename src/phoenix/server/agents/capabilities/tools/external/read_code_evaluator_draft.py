@@ -16,7 +16,7 @@ NAME = "read_code_evaluator_draft"
 
 DESCRIPTION = (
     "Read the open code-evaluator draft. Returns the draft's name, description, "
-    "language, source_code, sandbox_config_id, input_mapping, output_configs, "
+    "language, sourceCode, sandboxConfigId, inputMapping, outputConfigs, "
     "testPayload, form mode (`create` or `edit`), and a `revision` token. "
     "Always call this before `edit_code_evaluator_draft` or "
     "`test_code_evaluator_draft` and pass the returned `revision` back as "

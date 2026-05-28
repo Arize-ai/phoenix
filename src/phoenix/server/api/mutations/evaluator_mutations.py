@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from secrets import token_hex
-from typing import Optional, cast
+from typing import Any, Optional, cast
 
 import strawberry
 from fastapi import Request
@@ -54,8 +54,14 @@ from phoenix.server.api.types.Evaluator import (
 )
 from phoenix.server.api.types.node import from_global_id, from_global_id_with_expected_type
 from phoenix.server.api.types.PromptVersion import PromptVersion
-from phoenix.server.api.types.SandboxConfig import Language, SandboxConfig
+from phoenix.server.api.types.SandboxConfig import (
+    Language,
+    SandboxBackendStatus,
+    SandboxConfig,
+    get_sandbox_backend_info,
+)
 from phoenix.server.bearer_auth import PhoenixUser
+from phoenix.server.sandbox import SecretsContext
 
 
 def _output_config_input_to_pydantic(input: AnnotationConfigInput) -> OutputConfigType:
@@ -117,6 +123,58 @@ def _raise_on_uninferable_evaluate_signature(source_code: str, language: Languag
         error_message = f"Unsupported code evaluator language: {language.value}"
     if error_message is not None:
         raise BadRequest(error_message)
+
+
+async def _validate_code_evaluator_sandbox_config(
+    session: AsyncSession,
+    *,
+    sandbox_config_global_id: GlobalID,
+    language: str,
+    decrypt: Any,
+    action: str,
+) -> int:
+    sandbox_config_id = from_global_id_with_expected_type(
+        sandbox_config_global_id, SandboxConfig.__name__
+    )
+    target_cfg = await session.get(models.SandboxConfig, sandbox_config_id)
+    if target_cfg is None:
+        raise BadRequest(f"Sandbox config not found: {sandbox_config_global_id}")
+    if not target_cfg.enabled:
+        raise BadRequest(
+            f"Sandbox configuration '{target_cfg.name}' is disabled. Enable it before {action}."
+        )
+
+    provider = await session.get(models.SandboxProvider, target_cfg.backend_type)
+    if provider is None:
+        raise BadRequest(f"Sandbox provider for configuration '{target_cfg.name}' was not found")
+    if not provider.enabled:
+        raise BadRequest(
+            f"Sandbox provider '{provider.backend_type}' is disabled. Enable it before {action}."
+        )
+
+    if target_cfg.language != language:
+        raise BadRequest("Evaluator language does not match sandbox config language")
+
+    backend_infos = await get_sandbox_backend_info(
+        secrets=SecretsContext(session=session, decrypt=decrypt),
+    )
+    backend_info = next(
+        (info for info in backend_infos if info.backend_type.value == target_cfg.backend_type),
+        None,
+    )
+    if backend_info is None or backend_info.status is not SandboxBackendStatus.AVAILABLE:
+        status = backend_info.status.value if backend_info else "UNKNOWN"
+        detail = (
+            f" ({backend_info.status_detail})"
+            if backend_info and backend_info.status_detail
+            else ""
+        )
+        raise BadRequest(
+            f"Sandbox backend '{target_cfg.backend_type}' is unavailable ({status}){detail}. "
+            f"Enable it before {action}."
+        )
+
+    return sandbox_config_id
 
 
 async def _generate_unique_evaluator_name(
@@ -1270,14 +1328,13 @@ class EvaluatorMutationMixin:
 
         try:
             async with info.context.db() as session:
-                sandbox_config_id = from_global_id_with_expected_type(
-                    input.sandbox_config_id, SandboxConfig.__name__
+                sandbox_config_id = await _validate_code_evaluator_sandbox_config(
+                    session,
+                    sandbox_config_global_id=input.sandbox_config_id,
+                    language=input.language.value,
+                    decrypt=info.context.decrypt,
+                    action="creating this evaluator",
                 )
-                target_cfg = await session.get(models.SandboxConfig, sandbox_config_id)
-                if target_cfg is None:
-                    raise BadRequest(f"Sandbox config not found: {input.sandbox_config_id}")
-                if target_cfg.language != input.language.value:
-                    raise BadRequest("Evaluator language does not match sandbox config language")
 
                 row = models.CodeEvaluator(
                     name=validated_name,
@@ -1339,14 +1396,13 @@ class EvaluatorMutationMixin:
                     if input.sandbox_config_id is None:
                         row.sandbox_config_id = None
                     else:
-                        sandbox_config_id = from_global_id_with_expected_type(
-                            input.sandbox_config_id, SandboxConfig.__name__
+                        sandbox_config_id = await _validate_code_evaluator_sandbox_config(
+                            session,
+                            sandbox_config_global_id=input.sandbox_config_id,
+                            language=row.language,
+                            decrypt=info.context.decrypt,
+                            action="patching this evaluator",
                         )
-                        target_cfg = await session.get(models.SandboxConfig, sandbox_config_id)
-                        if target_cfg is not None and target_cfg.language != row.language:
-                            raise BadRequest(
-                                "Evaluator language does not match sandbox config language"
-                            )
                         row.sandbox_config_id = sandbox_config_id
 
                 if input.input_mapping is not UNSET and input.input_mapping is not None:

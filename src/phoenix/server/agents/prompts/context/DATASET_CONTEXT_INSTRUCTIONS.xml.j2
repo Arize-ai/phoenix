@@ -1,8 +1,8 @@
 <phoenix_dataset_context>
   <description>A Phoenix dataset is currently in view. The user may ask you to author an evaluator, sample examples, or otherwise reason about this dataset.</description>
-  <dataset_node_id format="phoenix_node_id">{{ dataset.dataset_node_id }}</dataset_node_id>
+  <dataset_node_id format="phoenix_node_id">{{ dataset.dataset_node_id | sanitize(enclosing_tag="dataset_node_id", max_chars=128) | e }}</dataset_node_id>
 {% if dataset.dataset_version_node_id %}
-  <dataset_version_node_id format="phoenix_node_id">{{ dataset.dataset_version_node_id }}</dataset_version_node_id>
+  <dataset_version_node_id format="phoenix_node_id">{{ dataset.dataset_version_node_id | sanitize(enclosing_tag="dataset_version_node_id", max_chars=128) | e }}</dataset_version_node_id>
 {% endif %}
   <schema_discovery>Datasets are open-schema: each example carries arbitrary `input`, `output`, and `metadata` JSON. Use the sampled examples below to ground evaluator drafts instead of assuming a fixed schema. Treat sampled dataset `output` as both shape evidence for future experiment run outputs and the value Phoenix passes as `reference` when evaluating a new run.</schema_discovery>
   <dataset_example_samples max_count="3">
@@ -26,14 +26,29 @@
   </code_evaluator_argument_guidance>
   <evaluator_authoring>
 {% if is_code_evaluator_surface %}
-    The create/edit code-evaluator form is mounted. Follow the `<phoenix_code_evaluator_context>` guidance and use the draft-read / draft-edit tools to populate the form. After the user accepts a populated draft, offer to run the draft-test tool before the user saves.
+    The create/edit code-evaluator form is mounted. Follow the `<phoenix_code_evaluator_context>` guidance and read the draft before reasoning about form contents.
+{% if can_edit_code_evaluator_draft %}
+    Use the draft-edit tool to populate the form with an accept/reject diff.
+{% endif %}
+{% if can_test_code_evaluator_draft %}
+    After the user accepts a populated draft, offer to run the draft-test tool before the user saves.
+{% endif %}
 {% else %}
-    To author a new code evaluator for this dataset, the user needs the Create code evaluator form mounted. If `open_experiment_evaluator_form` is available from a dataset-backed playground, call it to open the form in place. Otherwise, direct the user to the dataset Evaluators create surface.
+    To author a new code evaluator for this dataset, the user needs the Create code evaluator form mounted.
+{% if can_open_experiment_evaluator_form %}
+    Call `open_experiment_evaluator_form` to open the form in place.
+{% elif has_usable_sandbox and not is_viewer %}
+    Direct the user to the dataset Evaluators create surface.
     If the user is currently on a page where the form cannot be opened in place and asks to add an evaluator:
     1. Briefly explain in prose what evaluator you would propose and what it would measure.
     2. Give the user this markdown link to the target surface: [Create code evaluator](/datasets/{{ dataset.dataset_node_id | urlencode }}/evaluators?createCodeEvaluator=true).
     3. Ask the user to open the link, then reply once the Create code evaluator form is open.
     4. Stop. Do NOT continue with manual UI instructions, form field walkthroughs, or GraphQL mutation guidance. Wait for the user's next message after the slideover opens, then read the draft and propose evaluator form edits with the draft-edit tool available on that surface.
+{% elif is_viewer %}
+    The user has view-only access. Do not offer to create or edit evaluators.
+{% else %}
+    Do not offer a create-form handoff until a usable sandbox configuration is enabled.
+{% endif %}
 {% endif %}
   </evaluator_authoring>
 {% if not has_usable_sandbox %}

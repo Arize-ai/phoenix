@@ -87,10 +87,10 @@ export const PXI_EXPERIMENT_EXAMPLES = {
     prompt:
       "Create a Python code evaluator named ${name} for this dataset. Define `evaluate(output, reference)` that returns 1.0 when output equals reference (case-insensitive, trimmed) and 0.0 otherwise. Pick a Python sandbox config.",
     expectedOutput:
-      "On a dataset surface, PXI proposes a PendingCodeEvaluatorCreate; confirming the proposal opens the Create Code Evaluator slideover, and Save creates a global CodeEvaluator AND attaches it to the active dataset via createDatasetCodeEvaluator. The dataset's evaluators tab shows the new row.",
+      "On a dataset surface, PXI explains the evaluator, links to the Create Code Evaluator slideover, then uses read_code_evaluator_draft and edit_code_evaluator_draft after the form opens. Save creates a global CodeEvaluator and attaches it to the active dataset via createDatasetCodeEvaluator.",
     experimentNamePrefix: "pxi-e2e-create-code-evaluator-proposal-dataset",
     experimentDescription:
-      "PXI create_code_evaluator proposal flow: on a dataset surface, Confirm opens the slideover and Save fires the chained createCodeEvaluator -> createDatasetCodeEvaluator path.",
+      "PXI dataset-surface code-evaluator authoring flow: link to the slideover, populate it with draft tools, and Save through the chained createCodeEvaluator -> createDatasetCodeEvaluator path.",
   },
 } as const;
 

@@ -6,6 +6,10 @@ import {
 } from "ai";
 
 import {
+  EDIT_CODE_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR,
+  EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+} from "@phoenix/agent/tools/codeEvaluatorDraft";
+import {
   EDIT_PROMPT_NAVIGATION_CANCEL_ERROR,
   EDIT_PROMPT_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPrompt";
@@ -37,7 +41,7 @@ export function shouldSendAutomaticallyAfterToolOutput({
   if (hasInterruptedToolCall({ messages, errorText: SYSTEM_INTERRUPT_ERROR })) {
     return false;
   }
-  if (hasPromptEditNavigationCancel(messages)) {
+  if (hasPendingEditNavigationCancel(messages)) {
     return false;
   }
   return lastAssistantMessageIsCompleteWithToolCalls({ messages });
@@ -63,13 +67,13 @@ function hasInterruptedToolCall({
 }
 
 /**
- * Detects the `edit_prompt_instance` lifecycle cancellation emitted when the
- * playground route unmounts before the user accepts or rejects a proposed prompt
- * edit. This terminal tool result is useful for the transcript, but it should
- * not trigger an automatic follow-up model request because the user did not
- * provide an approval decision or a new instruction.
+ * Detects pending-edit lifecycle cancellations emitted when the owning route
+ * unmounts before the user accepts or rejects a proposed edit. This terminal
+ * tool result is useful for the transcript, but it should not trigger an
+ * automatic follow-up model request because the user did not provide an
+ * approval decision or a new instruction.
  */
-function hasPromptEditNavigationCancel(messages: UIMessage[]): boolean {
+function hasPendingEditNavigationCancel(messages: UIMessage[]): boolean {
   const message = messages[messages.length - 1];
   if (!message || message.role !== "assistant") {
     return false;
@@ -78,10 +82,15 @@ function hasPromptEditNavigationCancel(messages: UIMessage[]): boolean {
     if (!isToolUIPart(part)) {
       return false;
     }
+    if (part.state !== "output-error") {
+      return false;
+    }
+    const toolName = getToolName(part);
     return (
-      getToolName(part) === EDIT_PROMPT_TOOL_NAME &&
-      part.state === "output-error" &&
-      part.errorText === EDIT_PROMPT_NAVIGATION_CANCEL_ERROR
+      (toolName === EDIT_PROMPT_TOOL_NAME &&
+        part.errorText === EDIT_PROMPT_NAVIGATION_CANCEL_ERROR) ||
+      (toolName === EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME &&
+        part.errorText === EDIT_CODE_EVALUATOR_DRAFT_NAVIGATION_CANCEL_ERROR)
     );
   });
 }

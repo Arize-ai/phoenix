@@ -239,4 +239,10 @@ class EditCodeEvaluatorDraftCapability(AbstractDynamicCapability[AgentDependenci
         return _instructions
 
     def include_for_run(self, ctx: RunContext[AgentDependencies]) -> bool:
-        return ctx.deps.contexts.code_evaluator is not None and not ctx.deps.is_viewer
+        code_evaluator = ctx.deps.contexts.code_evaluator
+        if code_evaluator is None or ctx.deps.is_viewer:
+            return False
+        return (
+            code_evaluator.evaluator_node_id is not None
+            or ctx.deps.sandbox_availability.has_usable
+        )

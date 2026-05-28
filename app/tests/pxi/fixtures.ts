@@ -13,6 +13,10 @@ import { expectOK, getSpanToolName, getUiMessageToolNames } from "./utils";
 
 export type { PxiTurn } from "./types";
 
+type LatestAssistantTurn = Omit<PxiTurn, "durationMs"> & {
+  parts: unknown[];
+};
+
 function getAssistantProvider() {
   return process.env.PXI_E2E_ASSISTANT_PROVIDER ?? DEFAULT_ASSISTANT_PROVIDER;
 }
@@ -131,6 +135,14 @@ export class PxiDriver {
     const startedAt = Date.now();
     await this.page.getByLabel("Message input").fill(message);
     await this.page.getByRole("button", { name: "Send message" }).click();
+    const turn = await this.getLatestAssistantTurn();
+    return {
+      ...turn,
+      durationMs: Date.now() - startedAt,
+    };
+  }
+
+  async getLatestAssistantTurn(): Promise<LatestAssistantTurn> {
     const turnHandle = await this.page.waitForFunction(() => {
       const stored = localStorage.getItem("arize-phoenix-assistant");
       if (!stored) {
@@ -192,7 +204,6 @@ export class PxiDriver {
     return {
       ...turn,
       calledTools: [...new Set([...calledTools, ...uiCalledTools])],
-      durationMs: Date.now() - startedAt,
     };
   }
 

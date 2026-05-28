@@ -103,6 +103,12 @@ test.describe("PXI code-evaluator draft smoke", () => {
       "After acceptance, the assistant used test_code_evaluator_draft and surfaced the evaluator preview result.",
       "The assistant did not require or claim backend TOOL spans for these client-executed tools.",
     ];
+    const judgeInput = {
+      system: JUDGE_SYSTEM,
+      prompt: previewExample.prompt,
+      assistantText: "",
+      rubric: previewRubric,
+    };
 
     const outcome = await evaluatePxiOutcome({
       assertions: async () => {
@@ -156,14 +162,11 @@ test.describe("PXI code-evaluator draft smoke", () => {
           timeout: 60000,
         });
         expect(page.url()).toBe(playgroundUrl);
+        const turn = await pxi.getLatestAssistantTurn();
+        judgeInput.assistantText = turn.assistantText;
+        calledTools.push(...turn.calledTools);
       },
-      judgeInput: {
-        system: JUDGE_SYSTEM,
-        prompt: previewExample.prompt,
-        assistantText:
-          "Used open_experiment_evaluator_form on the dataset-backed playground, read and edited the draft, waited for approval, then ran test_code_evaluator_draft and displayed the evaluator preview result without leaving the playground URL.",
-        rubric: previewRubric,
-      },
+      judgeInput,
     });
 
     const durationMs = Date.now() - startedAt;
@@ -172,8 +175,7 @@ test.describe("PXI code-evaluator draft smoke", () => {
       request,
       record: {
         example: previewExample,
-        assistantText:
-          "Used open_experiment_evaluator_form, read_code_evaluator_draft, edit_code_evaluator_draft, and test_code_evaluator_draft from a dataset-backed playground. User accepted the edit and the preview rendered.",
+        assistantText: judgeInput.assistantText,
         calledTools: [...new Set(calledTools)],
         url: page.url(),
         durationMs,
