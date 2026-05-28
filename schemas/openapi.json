@@ -11073,6 +11073,25 @@
         "type": "object",
         "title": "OtlpStatus"
       },
+      "PlaygroundBuiltinModelContext": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "modelName": {
+            "type": "string",
+            "title": "Modelname"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider",
+          "modelName"
+        ],
+        "title": "PlaygroundBuiltinModelContext",
+        "description": "Built-in model target available from the playground model menu."
+      },
       "PlaygroundContext": {
         "properties": {
           "type": {
@@ -11086,15 +11105,116 @@
             },
             "type": "array",
             "title": "Instanceids"
+          },
+          "instances": {
+            "items": {
+              "$ref": "#/components/schemas/PlaygroundInstanceContext"
+            },
+            "type": "array",
+            "title": "Instances"
+          },
+          "availableBuiltinModels": {
+            "items": {
+              "$ref": "#/components/schemas/PlaygroundBuiltinModelContext"
+            },
+            "type": "array",
+            "title": "Availablebuiltinmodels"
+          },
+          "availableCustomModels": {
+            "items": {
+              "$ref": "#/components/schemas/PlaygroundCustomProviderModelContext"
+            },
+            "type": "array",
+            "title": "Availablecustommodels"
           }
         },
         "type": "object",
         "required": [
-          "type",
-          "instanceIds"
+          "type"
         ],
         "title": "PlaygroundContext",
         "description": "Playground prompt editor state mounted in the current browser route."
+      },
+      "PlaygroundCustomProviderModelContext": {
+        "properties": {
+          "customProviderId": {
+            "type": "string",
+            "title": "Customproviderid"
+          },
+          "customProviderName": {
+            "type": "string",
+            "title": "Customprovidername"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "modelName": {
+            "type": "string",
+            "title": "Modelname"
+          }
+        },
+        "type": "object",
+        "required": [
+          "customProviderId",
+          "customProviderName",
+          "provider",
+          "modelName"
+        ],
+        "title": "PlaygroundCustomProviderModelContext",
+        "description": "Custom provider model target available from the playground model menu."
+      },
+      "PlaygroundInstanceContext": {
+        "properties": {
+          "instanceId": {
+            "type": "integer",
+            "title": "Instanceid"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "modelName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modelname"
+          },
+          "customProviderId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customproviderid"
+          },
+          "customProviderName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customprovidername"
+          }
+        },
+        "type": "object",
+        "required": [
+          "instanceId",
+          "provider"
+        ],
+        "title": "PlaygroundInstanceContext",
+        "description": "One mounted playground instance and its current model selection."
       },
       "Project": {
         "properties": {

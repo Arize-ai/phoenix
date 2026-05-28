@@ -1,5 +1,5 @@
-import type { GenerativeProviderKey } from "@phoenix/components/generative/__generated__/ModelMenuQuery.graphql";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
+import type { GenerativeProviderKey } from "@phoenix/components/generative/useModelMenuData";
 
 export type AgentBuiltInModelSelection = {
   provider: GenerativeProviderKey;

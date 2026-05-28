@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<fb8f44b7428aba24b23ae8473c543bfc>>
+ * @generated SignedSource<<ec9eb0976f460143dcd59f4d1cdc5200>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,8 +11,8 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type GenerativeModelSDK = "ANTHROPIC" | "AWS_BEDROCK" | "AZURE_OPENAI" | "GOOGLE_GENAI" | "OPENAI";
 export type GenerativeProviderKey = "ANTHROPIC" | "AWS" | "AZURE_OPENAI" | "CEREBRAS" | "DEEPSEEK" | "FIREWORKS" | "GOOGLE" | "GROQ" | "MOONSHOT" | "OLLAMA" | "OPENAI" | "PERPLEXITY" | "TOGETHER" | "XAI";
-export type ModelMenuQuery$variables = Record<PropertyKey, never>;
-export type ModelMenuQuery$data = {
+export type useModelMenuDataQuery$variables = Record<PropertyKey, never>;
+export type useModelMenuDataQuery$data = {
   readonly generativeModelCustomProviders: {
     readonly edges: ReadonlyArray<{
       readonly node: {
@@ -33,9 +33,9 @@ export type ModelMenuQuery$data = {
     readonly providerKey: GenerativeProviderKey;
   }>;
 };
-export type ModelMenuQuery = {
-  response: ModelMenuQuery$data;
-  variables: ModelMenuQuery$variables;
+export type useModelMenuDataQuery = {
+  response: useModelMenuDataQuery$data;
+  variables: useModelMenuDataQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -153,7 +153,7 @@ return {
     "argumentDefinitions": [],
     "kind": "Fragment",
     "metadata": null,
-    "name": "ModelMenuQuery",
+    "name": "useModelMenuDataQuery",
     "selections": (v1/*: any*/),
     "type": "Query",
     "abstractKey": null
@@ -162,20 +162,20 @@ return {
   "operation": {
     "argumentDefinitions": [],
     "kind": "Operation",
-    "name": "ModelMenuQuery",
+    "name": "useModelMenuDataQuery",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "fbc5c763256fede25fb3f8cc0cc9f60d",
+    "cacheID": "f9d27416a4c2066b612954c379d0c239",
     "id": null,
     "metadata": {},
-    "name": "ModelMenuQuery",
+    "name": "useModelMenuDataQuery",
     "operationKind": "query",
-    "text": "query ModelMenuQuery {\n  generativeModelCustomProviders {\n    edges {\n      node {\n        id\n        name\n        sdk\n        modelNames\n      }\n    }\n  }\n  modelProviders {\n    key\n    name\n    dependenciesInstalled\n  }\n  playgroundModels {\n    name\n    providerKey\n  }\n}\n"
+    "text": "query useModelMenuDataQuery {\n  generativeModelCustomProviders {\n    edges {\n      node {\n        id\n        name\n        sdk\n        modelNames\n      }\n    }\n  }\n  modelProviders {\n    key\n    name\n    dependenciesInstalled\n  }\n  playgroundModels {\n    name\n    providerKey\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "656fd764c70299c13142bc527235b0b8";
+(node as any).hash = "1ec4959065e34cebe6ce1b7fd75fe810";
 
 export default node;

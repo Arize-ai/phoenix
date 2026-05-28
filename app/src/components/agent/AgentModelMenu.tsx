@@ -1,7 +1,6 @@
 import { css } from "@emotion/react";
 import { useCallback, useMemo } from "react";
 import { MenuSection } from "react-aria-components";
-import { graphql, useLazyLoadQuery } from "react-relay";
 
 import {
   Button,
@@ -17,19 +16,20 @@ import {
 } from "@phoenix/components";
 import { GenerativeProviderIcon } from "@phoenix/components/generative/GenerativeProviderIcon";
 import type {
-  CustomProviderInfo,
   ModelMenuProps,
   ModelMenuValue,
 } from "@phoenix/components/generative/ModelMenu";
+import { ProviderModelMenuItems } from "@phoenix/components/generative/ModelMenu";
 import {
   getModelsByProvider,
-  ProviderModelMenuItems,
-} from "@phoenix/components/generative/ModelMenu";
+  type CustomProviderInfo,
+  type ModelProviderInfo,
+  useModelMenuData,
+} from "@phoenix/components/generative/useModelMenuData";
 import { usePreferencesContext } from "@phoenix/contexts";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
-import type { AgentModelMenuQuery } from "./__generated__/AgentModelMenuQuery.graphql";
 import {
   getCuratedBuiltInModels,
   isAgentCuratedBuiltInModel,
@@ -83,7 +83,7 @@ function CuratedAndOtherModelMenuSections({
   curatedBuiltInModels: ModelMenuValue[];
   modelsByProvider: Map<string, string[]>;
   customProviders: CustomProviderInfo[];
-  modelProviders: AgentModelMenuQuery["response"]["modelProviders"];
+  modelProviders: readonly ModelProviderInfo[];
   onChange?: (model: ModelMenuValue) => void;
 }) {
   return (
@@ -158,52 +158,11 @@ export function AgentModelMenu({
     [onChange, awsBedrockModelPrefix]
   );
 
-  const data = useLazyLoadQuery<AgentModelMenuQuery>(
-    graphql`
-      query AgentModelMenuQuery {
-        generativeModelCustomProviders {
-          edges {
-            node {
-              id
-              name
-              sdk
-              modelNames
-            }
-          }
-        }
-        playgroundModels {
-          name
-          providerKey
-        }
-        modelProviders {
-          key
-          name
-          dependenciesInstalled
-        }
-      }
-    `,
-    {},
-    { fetchPolicy: "store-and-network" }
-  );
+  const { customProviders, data } = useModelMenuData();
 
   const curatedBuiltInModels = useMemo(
     () => getCuratedBuiltInModels(data.playgroundModels),
     [data.playgroundModels]
-  );
-
-  const customProviders = useMemo(
-    (): CustomProviderInfo[] =>
-      data.generativeModelCustomProviders.edges.map(
-        (
-          edge: AgentModelMenuQuery["response"]["generativeModelCustomProviders"]["edges"][number]
-        ) => ({
-          id: edge.node.id,
-          name: edge.node.name,
-          sdk: edge.node.sdk,
-          modelNames: edge.node.modelNames,
-        })
-      ),
-    [data.generativeModelCustomProviders]
   );
 
   const modelsByProvider = useMemo(

@@ -3118,6 +3118,16 @@ export interface components {
             message?: string | null;
         };
         /**
+         * PlaygroundBuiltinModelContext
+         * @description Built-in model target available from the playground model menu.
+         */
+        PlaygroundBuiltinModelContext: {
+            /** Provider */
+            provider: string;
+            /** Modelname */
+            modelName: string;
+        };
+        /**
          * PlaygroundContext
          * @description Playground prompt editor state mounted in the current browser route.
          */
@@ -3128,7 +3138,43 @@ export interface components {
              */
             type: "playground";
             /** Instanceids */
-            instanceIds: number[];
+            instanceIds?: number[];
+            /** Instances */
+            instances?: components["schemas"]["PlaygroundInstanceContext"][];
+            /** Availablebuiltinmodels */
+            availableBuiltinModels?: components["schemas"]["PlaygroundBuiltinModelContext"][];
+            /** Availablecustommodels */
+            availableCustomModels?: components["schemas"]["PlaygroundCustomProviderModelContext"][];
+        };
+        /**
+         * PlaygroundCustomProviderModelContext
+         * @description Custom provider model target available from the playground model menu.
+         */
+        PlaygroundCustomProviderModelContext: {
+            /** Customproviderid */
+            customProviderId: string;
+            /** Customprovidername */
+            customProviderName: string;
+            /** Provider */
+            provider: string;
+            /** Modelname */
+            modelName: string;
+        };
+        /**
+         * PlaygroundInstanceContext
+         * @description One mounted playground instance and its current model selection.
+         */
+        PlaygroundInstanceContext: {
+            /** Instanceid */
+            instanceId: number;
+            /** Provider */
+            provider: string;
+            /** Modelname */
+            modelName?: string | null;
+            /** Customproviderid */
+            customProviderId?: string | null;
+            /** Customprovidername */
+            customProviderName?: string | null;
         };
         /** Project */
         Project: {

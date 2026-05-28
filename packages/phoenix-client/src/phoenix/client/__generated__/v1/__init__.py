@@ -313,9 +313,24 @@ class OtlpStatus(TypedDict):
     message: NotRequired[str]
 
 
-class PlaygroundContext(TypedDict):
-    type: Literal["playground"]
-    instanceIds: Sequence[int]
+class PlaygroundBuiltinModelContext(TypedDict):
+    provider: str
+    modelName: str
+
+
+class PlaygroundCustomProviderModelContext(TypedDict):
+    customProviderId: str
+    customProviderName: str
+    provider: str
+    modelName: str
+
+
+class PlaygroundInstanceContext(TypedDict):
+    instanceId: int
+    provider: str
+    modelName: NotRequired[str]
+    customProviderId: NotRequired[str]
+    customProviderName: NotRequired[str]
 
 
 class Project(TypedDict):
@@ -1212,6 +1227,14 @@ class GetViewerResponseBody(TypedDict):
 
 class HTTPValidationError(TypedDict):
     detail: NotRequired[Sequence[ValidationError]]
+
+
+class PlaygroundContext(TypedDict):
+    type: Literal["playground"]
+    instanceIds: NotRequired[Sequence[int]]
+    instances: NotRequired[Sequence[PlaygroundInstanceContext]]
+    availableBuiltinModels: NotRequired[Sequence[PlaygroundBuiltinModelContext]]
+    availableCustomModels: NotRequired[Sequence[PlaygroundCustomProviderModelContext]]
 
 
 class PromptAnthropicInvocationParametersContent(TypedDict):

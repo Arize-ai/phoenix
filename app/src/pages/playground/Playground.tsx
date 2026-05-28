@@ -25,6 +25,10 @@ import {
   TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import {
+  createSetPlaygroundModelClientAction,
+  SET_PLAYGROUND_MODEL_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundModel";
+import {
   createReadPlaygroundOutputClientAction,
   READ_PLAYGROUND_OUTPUT_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundOutput";
@@ -68,6 +72,7 @@ import {
   View,
 } from "@phoenix/components";
 import { ConfirmNavigationDialog } from "@phoenix/components/ConfirmNavigation";
+import { useModelMenuData } from "@phoenix/components/generative";
 import { compactResizeHandleCSS } from "@phoenix/components/resize";
 import { StopPropagation } from "@phoenix/components/StopPropagation";
 import { TemplateFormats } from "@phoenix/components/templateEditor/constants";
@@ -298,6 +303,29 @@ function PlaygroundContent() {
   const anyDirtyPromptInstances = usePlaygroundContext((state) =>
     Object.values(state.dirtyInstances).some((dirty) => dirty)
   );
+  const playgroundInstancesForAgent = usePlaygroundContext(
+    (state) =>
+      state.instances.map((instance) => ({
+        instanceId: instance.id,
+        provider: instance.model.provider,
+        modelName: instance.model.modelName,
+        customProviderId: instance.model.customProvider?.id ?? null,
+        customProviderName: instance.model.customProvider?.name ?? null,
+      })),
+    (left, right) =>
+      left.length === right.length &&
+      left.every((leftInstance, index) => {
+        const rightInstance = right[index];
+        return (
+          rightInstance != null &&
+          leftInstance.instanceId === rightInstance.instanceId &&
+          leftInstance.provider === rightInstance.provider &&
+          leftInstance.modelName === rightInstance.modelName &&
+          leftInstance.customProviderId === rightInstance.customProviderId &&
+          leftInstance.customProviderName === rightInstance.customProviderName
+        );
+      })
+  );
   const instanceIds = usePlaygroundContext(
     (state) => state.instances.map((instance) => instance.id),
     // only re-render when the instance ids change, not when the array is re-created
@@ -305,10 +333,30 @@ function PlaygroundContent() {
       left.length === right.length &&
       left.every((id, index) => id === right[index])
   );
+  const modelConfigByProvider = usePreferencesContext(
+    (state) => state.modelConfigByProvider
+  );
+  const awsBedrockModelPrefix = usePreferencesContext(
+    (state) => state.awsBedrockModelPrefix
+  );
+
+  const { availableBuiltinModels, availableCustomModels, modelCatalog } =
+    useModelMenuData();
 
   const advertisedPlaygroundContext = useMemo(
-    () => ({ type: "playground" as const, instanceIds }),
-    [instanceIds]
+    () => ({
+      type: "playground" as const,
+      instanceIds,
+      instances: playgroundInstancesForAgent,
+      availableBuiltinModels,
+      availableCustomModels,
+    }),
+    [
+      availableBuiltinModels,
+      availableCustomModels,
+      instanceIds,
+      playgroundInstancesForAgent,
+    ]
   );
   useAdvertiseAgentContext(advertisedPlaygroundContext);
 
@@ -378,6 +426,15 @@ function PlaygroundContent() {
       WRITE_PROMPT_TOOLS_TOOL_NAME,
       createWritePromptToolsClientAction({ playgroundStore })
     );
+    registerClientAction(
+      SET_PLAYGROUND_MODEL_TOOL_NAME,
+      createSetPlaygroundModelClientAction({
+        playgroundStore,
+        modelCatalog,
+        modelConfigByProvider,
+        awsBedrockModelPrefix,
+      })
+    );
     return () => {
       unregisterClientAction(READ_PROMPT_TOOL_NAME);
       unregisterClientAction(CLONE_PROMPT_INSTANCE_TOOL_NAME);
@@ -388,6 +445,7 @@ function PlaygroundContent() {
       unregisterClientAction(SET_VARIABLE_VALUES_TOOL_NAME);
       unregisterClientAction(READ_PROMPT_TOOLS_TOOL_NAME);
       unregisterClientAction(WRITE_PROMPT_TOOLS_TOOL_NAME);
+      unregisterClientAction(SET_PLAYGROUND_MODEL_TOOL_NAME);
       for (const pendingEdit of Object.values(
         agentStore.getState().pendingPromptEditsByToolCallId
       )) {
@@ -403,7 +461,13 @@ function PlaygroundContent() {
         }
       }
     };
-  }, [agentStore, playgroundStore]);
+  }, [
+    agentStore,
+    awsBedrockModelPrefix,
+    modelCatalog,
+    modelConfigByProvider,
+    playgroundStore,
+  ]);
 
   useEffect(() => {
     const { registerClientAction, unregisterClientAction } =

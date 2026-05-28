@@ -32,7 +32,10 @@ from phoenix.server.agents.capabilities import (
 from phoenix.server.agents.context import (
     CodeEvaluatorContext,
     DatasetContext,
+    PlaygroundBuiltinModelContext,
     PlaygroundContext,
+    PlaygroundCustomProviderModelContext,
+    PlaygroundInstanceContext,
     ProjectContext,
     ResolvedContexts,
 )
@@ -55,6 +58,7 @@ STATIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
 DYNAMIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
     {
         _DEFAULT_PROMPTS.set_spans_filter_tool.render(),
+        _DEFAULT_PROMPTS.set_playground_model_tool.render(),
         _DEFAULT_PROMPTS.read_prompt_instance_tool.render(),
         _DEFAULT_PROMPTS.read_playground_output_tool.render(),
         _DEFAULT_PROMPTS.clone_prompt_instance_tool.render(),
@@ -349,6 +353,51 @@ class TestSystemBlockCacheBoundary:
 
 
 class TestUIContextInstructions:
+    async def test_playground_context_includes_models_and_available_targets(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=PlaygroundContext(
+                    type="playground",
+                    instances=[
+                        PlaygroundInstanceContext(
+                            instanceId=7,
+                            provider="OPENAI",
+                            modelName="gpt-5",
+                        )
+                    ],
+                    availableBuiltinModels=[
+                        PlaygroundBuiltinModelContext(
+                            provider="OPENAI",
+                            modelName="gpt-5",
+                        )
+                    ],
+                    availableCustomModels=[
+                        PlaygroundCustomProviderModelContext(
+                            customProviderId="custom-provider-id",
+                            customProviderName="Custom OpenAI",
+                            provider="OPENAI",
+                            modelName="custom-model",
+                        )
+                    ],
+                )
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        system_text = "\n".join(_get_system_texts(captured_request.body))
+        assert '<instance label="A" instanceId="7" provider="OPENAI" modelName="gpt-5"/>' in (
+            system_text
+        )
+        assert '<model provider="OPENAI" modelName="gpt-5"/>' in system_text
+        assert 'customProviderId="custom-provider-id"' in system_text
+        assert "set_playground_model" in system_text
+
     async def test_ui_context_instructions_are_outside_cache_boundary(
         self,
         anthropic_model: AnthropicModel,
@@ -430,6 +479,7 @@ class TestPlaygroundTools:
         assert "read_playground_output" not in _get_tool_names(captured_request.body)
         assert "save_prompt" not in _get_tool_names(captured_request.body)
         assert "set_variable_values" not in _get_tool_names(captured_request.body)
+        assert "set_playground_model" not in _get_tool_names(captured_request.body)
 
     async def test_run_playground_tool_is_advertised_with_playground_context(
         self,
@@ -439,8 +489,17 @@ class TestPlaygroundTools:
         agent = build_agent(model=anthropic_model)
         deps = AgentDependencies(
             contexts=ResolvedContexts(
-                playground=PlaygroundContext(type="playground", instance_ids=[1]),
-            ),
+                playground=PlaygroundContext(
+                    type="playground",
+                    instances=[
+                        PlaygroundInstanceContext(
+                            instanceId=1,
+                            provider="OPENAI",
+                            modelName="gpt-5",
+                        )
+                    ],
+                )
+            )
         )
 
         await agent.run("hello", deps=deps)
@@ -449,6 +508,7 @@ class TestPlaygroundTools:
         assert "read_playground_output" in _get_tool_names(captured_request.body)
         assert "save_prompt" in _get_tool_names(captured_request.body)
         assert "set_variable_values" in _get_tool_names(captured_request.body)
+        assert "set_playground_model" in _get_tool_names(captured_request.body)
 
 
 class TestDocsMCPToolset:

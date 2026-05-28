@@ -97,11 +97,46 @@ class AppContext(_ChatContextBase):
     time_zone: str = Field(alias="timeZone")
 
 
+class PlaygroundInstanceContext(_ChatContextBase):
+    """One mounted playground instance and its current model selection."""
+
+    instance_id: int = Field(alias="instanceId")
+    provider: str
+    model_name: str | None = Field(default=None, alias="modelName")
+    custom_provider_id: str | None = Field(default=None, alias="customProviderId")
+    custom_provider_name: str | None = Field(default=None, alias="customProviderName")
+
+
+class PlaygroundBuiltinModelContext(_ChatContextBase):
+    """Built-in model target available from the playground model menu."""
+
+    provider: str
+    model_name: str = Field(alias="modelName")
+
+
+class PlaygroundCustomProviderModelContext(_ChatContextBase):
+    """Custom provider model target available from the playground model menu."""
+
+    custom_provider_id: str = Field(alias="customProviderId")
+    custom_provider_name: str = Field(alias="customProviderName")
+    provider: str
+    model_name: str = Field(alias="modelName")
+
+
 class PlaygroundContext(_ChatContextBase):
     """Playground prompt editor state mounted in the current browser route."""
 
     type: Literal["playground"]
-    instance_ids: list[int] = Field(alias="instanceIds")
+    instance_ids: list[int] = Field(default_factory=list, alias="instanceIds")
+    instances: list[PlaygroundInstanceContext] = Field(default_factory=list)
+    available_builtin_models: list[PlaygroundBuiltinModelContext] = Field(
+        default_factory=list,
+        alias="availableBuiltinModels",
+    )
+    available_custom_models: list[PlaygroundCustomProviderModelContext] = Field(
+        default_factory=list,
+        alias="availableCustomModels",
+    )
 
 
 class CodeEvaluatorContext(_ChatContextBase):

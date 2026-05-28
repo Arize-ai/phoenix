@@ -24,6 +24,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     run_code_evaluator_draft,
     run_playground,
     save_prompt,
+    set_playground_model,
     set_spans_filter,
     set_time_range,
     set_variable_values,
@@ -68,6 +69,9 @@ from phoenix.server.agents.capabilities.tools.external.run_playground import (
     RunPlaygroundCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.save_prompt import SavePromptCapability
+from phoenix.server.agents.capabilities.tools.external.set_playground_model import (
+    SetPlaygroundModelCapability,
+)
 from phoenix.server.agents.capabilities.tools.external.set_spans_filter import (
     SetSpansFilterCapability,
 )
@@ -101,6 +105,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         run_code_evaluator_draft.TOOL_DEFINITION,
         run_playground.TOOL_DEFINITION,
         save_prompt.TOOL_DEFINITION,
+        set_playground_model.TOOL_DEFINITION,
         set_spans_filter.TOOL_DEFINITION,
         set_time_range.TOOL_DEFINITION,
         set_variable_values.TOOL_DEFINITION,
@@ -131,6 +136,7 @@ def get_external_tool_capability_function(
     ]
     dynamic_capabilities: list[AbstractDynamicCapability[AgentDependencies]] = [
         SetSpansFilterCapability(instructions=prompts.set_spans_filter_tool),
+        SetPlaygroundModelCapability(instructions=prompts.set_playground_model_tool),
         ReadPromptInstanceCapability(instructions=prompts.read_prompt_instance_tool),
         ReadPromptToolsCapability(instructions=prompts.read_prompt_tools_tool),
         ReadPlaygroundOutputCapability(instructions=prompts.read_playground_output_tool),
@@ -168,6 +174,7 @@ __all__ = [
     "RenderGenerativeUICapability",
     "RunPlaygroundCapability",
     "SavePromptCapability",
+    "SetPlaygroundModelCapability",
     "SetSpansFilterCapability",
     "SetTimeRangeCapability",
     "SetVariableValuesCapability",

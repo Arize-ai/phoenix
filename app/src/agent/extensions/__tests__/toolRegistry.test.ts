@@ -6,6 +6,7 @@ import {
   SET_TIME_RANGE_TOOL_NAME,
   TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
 } from "@phoenix/agent/extensions/toolRegistry";
+import { SET_PLAYGROUND_MODEL_TOOL_NAME } from "@phoenix/agent/tools/playgroundModel";
 import { READ_PLAYGROUND_OUTPUT_TOOL_NAME } from "@phoenix/agent/tools/playgroundOutput";
 import {
   CLONE_PROMPT_INSTANCE_TOOL_NAME,
@@ -379,6 +380,52 @@ describe("toolRegistry", () => {
         state: "output-available",
         tool: SET_VARIABLE_VALUES_TOOL_NAME,
         output: "updated",
+      })
+    );
+  });
+
+  it("dispatches set_playground_model to the registered client action", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const action = vi.fn().mockResolvedValue({
+      ok: true,
+      output: "model updated",
+    });
+    store
+      .getState()
+      .registerClientAction(SET_PLAYGROUND_MODEL_TOOL_NAME, action);
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-set-playground-model",
+        toolName: SET_PLAYGROUND_MODEL_TOOL_NAME,
+        input: {
+          instanceId: 0,
+          target: {
+            type: "builtin",
+            provider: "OPENAI",
+            modelName: "gpt-5",
+          },
+        },
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(action).toHaveBeenCalledWith({
+      instanceId: 0,
+      target: {
+        type: "builtin",
+        provider: "OPENAI",
+        modelName: "gpt-5",
+      },
+    });
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-available",
+        tool: SET_PLAYGROUND_MODEL_TOOL_NAME,
+        output: "model updated",
       })
     );
   });
