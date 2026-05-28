@@ -1,9 +1,10 @@
 ---
 title: "PXI"
+sidebarTitle: "PXI Agent"
 description: >-
-  PXI is the in-app agent built into Phoenix. It helps you investigate
-  traces, iterate on prompts, and navigate the product without leaving the page
-  you are working on.
+  PXI is an agent built into Phoenix. It helps you investigate traces,
+  iterate on prompts, and navigate the product without leaving the page you
+  are working on.
 ---
 
 <Frame>
@@ -19,33 +20,37 @@ data. Review the [Privacy and observability](#privacy-and-observability) and
 
 ## What PXI is
 
-PXI (pronounced *"pixie"*) is an agent that lives inside the Phoenix UI. It
-sees what you are looking at — the current project, span, trace, time range, or
-playground prompt — and can take action on your behalf:
+PXI (pronounced *"pixie"*) is an agent built into Phoenix. It sees what you
+are looking at and acts on your behalf:
 
-- Navigate to traces, filter spans, and adjust the active time range.
-- Read, edit, and clone playground prompt instances.
-- Investigate failures using the built-in **debug trace** skill.
-- Run sandboxed bash commands for ad-hoc analysis.
-- Look up Phoenix documentation and, when the model supports it, search the web.
+- **Drives the product.** PXI navigates, filters, and pivots through your
+  Phoenix data the same way you would — only faster.
+- **Iterates with you on prompts and traces.** It reads, edits, and explores
+  prompts, spans, and traces directly in context.
+- **Investigates failures.** Built-in skills walk failing traces and propose
+  root causes instead of leaving you to grep through spans.
+- **Reasons over your data.** A sandboxed runtime lets PXI query your
+  Phoenix instance to answer questions evals and dashboards cannot.
+- **Knows the product.** Phoenix's own documentation is wired in as a
+  first-class source, so answers are grounded rather than guessed.
 
-PXI is grounded in your current context. The tools it can call change depending
-on the page you are on, so suggestions on a trace page differ from suggestions
-in the prompt playground.
+Because PXI is grounded in your current context, what it can do adapts to the
+page you are on — its capabilities on a trace are different from its
+capabilities in the prompt playground.
 
 ## When to use it
 
-- **Triaging failures** — ask PXI to inspect a failing trace and propose what
-  went wrong.
-- **Building a filter** — describe what you want to see and let PXI set the
-  spans filter and time range.
-- **Iterating on a prompt** — have PXI propose edits to a playground prompt
-  instance, then review and accept the diff.
-- **Onboarding** — ask product questions and let PXI pull answers from the
-  Phoenix docs.
+- **Debugging.** Hand off a failing trace and get a root-cause hypothesis,
+  not a list of spans to read.
+- **Exploring data.** Describe the view you want and let PXI set up the
+  filters, time range, and pivots.
+- **Sharpening prompts.** Co-iterate on playground prompts with diffs you
+  review before anything lands.
+- **Learning Phoenix.** Ask product questions and get answers grounded in
+  the live docs, not in training-data folklore.
 
-PXI is not a replacement for evals, experiments, or human review. It is a
-faster way to move through the product and a starting point for investigation.
+PXI accelerates the loop you already run. Evals, experiments, and human
+review still belong at the end of it — PXI just gets you there faster.
 
 ## Enabling PXI
 
