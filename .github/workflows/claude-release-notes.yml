@@ -58,7 +58,7 @@ jobs:
             When done, write a PR body to `.scratch/pr-body.md`. Do not commit,
             push, or open a PR; the workflow handles publishing.
             The workflow will open a PR titled "docs: Add Phoenix release notes".
-          claude_args: '--model claude-opus-4-7 --allowedTools Skill,Read,Write,Edit,Glob,Grep,Agent,"Bash(git fetch:*)","Bash(git log:*)","Bash(git diff:*)","Bash(git show:*)","Bash(mkdir:*)","Bash(ls:*)","Bash(date:*)"'
+          claude_args: '--model claude-opus-4-8 --allowedTools Skill,Read,Write,Edit,Glob,Grep,Agent,"Bash(git fetch:*)","Bash(git log:*)","Bash(git diff:*)","Bash(git show:*)","Bash(mkdir:*)","Bash(ls:*)","Bash(date:*)"'
 
       - name: Commit and open pull request
         if: steps.claude.outcome == 'success'

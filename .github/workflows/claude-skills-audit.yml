@@ -95,7 +95,7 @@ jobs:
             even if there are no changes to apply. If there are no user-facing changes
             (only deps, refactors, frontend, feature flags), still write the summary file
             and have its first line be exactly: NO_CHANGES
-          claude_args: '--model claude-opus-4-7 --allowedTools Skill,Read,Glob,Grep,Edit,Write,Agent,"Bash(git fetch:*)","Bash(git log:*)","Bash(git diff:*)","Bash(git show:*)","Bash(date:*)","Bash(ls:*)"'
+          claude_args: '--model claude-opus-4-8 --allowedTools Skill,Read,Glob,Grep,Edit,Write,Agent,"Bash(git fetch:*)","Bash(git log:*)","Bash(git diff:*)","Bash(git show:*)","Bash(date:*)","Bash(ls:*)"'
 
       - name: Check for changes
         id: changes

@@ -59,7 +59,7 @@ jobs:
 
             When done, write a PR body to `.scratch/pr-body.md`. Do not commit,
             push, or open a PR; the workflow handles publishing.
-          claude_args: '--model claude-opus-4-7 --allowedTools Skill,Read,Write,Edit,Glob,Grep,Agent,"Bash(git status:*)","Bash(git diff:*)","Bash(find:*)","Bash(comm:*)","Bash(sort:*)","Bash(wc:*)","Bash(mkdir:*)","Bash(ls:*)","Bash(date:*)"'
+          claude_args: '--model claude-opus-4-8 --allowedTools Skill,Read,Write,Edit,Glob,Grep,Agent,"Bash(git status:*)","Bash(git diff:*)","Bash(find:*)","Bash(comm:*)","Bash(sort:*)","Bash(wc:*)","Bash(mkdir:*)","Bash(ls:*)","Bash(date:*)"'
 
       - name: Commit and open pull request
         if: steps.claude.outcome == 'success'
