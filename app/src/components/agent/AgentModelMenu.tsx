@@ -34,6 +34,20 @@ import {
   getCuratedBuiltInModels,
   isAgentCuratedBuiltInModel,
 } from "./agentCuratedModels";
+import {
+  AgentWebSearchMenu,
+  AgentWebSearchTriggerIcon,
+  useAgentWebSearch,
+} from "./AgentWebSearchControl";
+import type { AgentModelSelection } from "./useGenerateSessionSummary";
+
+const triggerWebSearchCSS = css`
+  gap: var(--global-dimension-static-size-50);
+
+  .agent-model-menu-trigger__separator {
+    color: var(--global-text-color-300);
+  }
+`;
 
 const menuWidthCSS = css`
   min-width: 350px;
@@ -42,6 +56,17 @@ const menuWidthCSS = css`
     outline: none;
   }
 `;
+
+/**
+ * Inert model selection fed to `useAgentWebSearch` when no real selection is
+ * provided, so the hook can run unconditionally without issuing a request
+ * (web search is suppressed in that case).
+ */
+const PLACEHOLDER_MODEL_SELECTION: AgentModelSelection = {
+  providerType: "builtin",
+  provider: "OPENAI",
+  modelName: "",
+};
 
 function applyBedrockPrefix(modelName: string, prefix: string): string {
   const prefixDot = `${prefix}.`;
@@ -126,8 +151,21 @@ export function AgentModelMenu({
   shouldFlip,
   variant = "default",
   limitToCuratedModels = true,
+  sessionId = null,
+  modelSelection,
 }: Omit<ModelMenuProps, "isDisabled"> & {
   limitToCuratedModels?: boolean;
+  /**
+   * Active session whose web-access override the in-menu web search toggle
+   * reads and writes. When omitted (e.g. in settings), the web search section
+   * is not rendered.
+   */
+  sessionId?: string | null;
+  /**
+   * Current model selection used to resolve provider-native web search
+   * support. Required to render the web search section.
+   */
+  modelSelection?: AgentModelSelection;
 }) {
   const isDisabled = useAgentContext((state) =>
     Object.values(state.chatStatusBySessionId).some(
@@ -157,6 +195,15 @@ export function AgentModelMenu({
     },
     [onChange, awsBedrockModelPrefix]
   );
+
+  // The web search toggle only applies to an active chat session. `useAgentWebSearch`
+  // must run unconditionally (hooks rule), so feed it a stable placeholder when no
+  // selection is provided (e.g. in settings) and suppress the UI below.
+  const webSearch = useAgentWebSearch({
+    sessionId: modelSelection ? sessionId : null,
+    modelSelection: modelSelection ?? PLACEHOLDER_MODEL_SELECTION,
+  });
+  const showWebSearch = Boolean(modelSelection) && webSearch.show;
 
   const data = useLazyLoadQuery<AgentModelMenuQuery>(
     graphql`
@@ -227,6 +274,7 @@ export function AgentModelMenu({
         variant={variant}
         isDisabled={isDisabled}
         aria-label={triggerAriaLabel}
+        css={showWebSearch ? triggerWebSearchCSS : undefined}
       >
         {value ? (
           <Flex direction="row" gap="size-100" alignItems="center">
@@ -238,6 +286,17 @@ export function AgentModelMenu({
         ) : (
           <Text color="text-700">Select a model</Text>
         )}
+        {showWebSearch ? (
+          <>
+            <span
+              className="agent-model-menu-trigger__separator"
+              aria-hidden="true"
+            >
+              {"\u2022"}
+            </span>
+            <AgentWebSearchTriggerIcon iconState={webSearch.iconState} />
+          </>
+        ) : null}
         {variant !== "quiet" && <SelectChevronUpDownIcon />}
       </Button>
       <MenuContainer
@@ -264,6 +323,14 @@ export function AgentModelMenu({
             />
           )}
         </Menu>
+        {showWebSearch ? (
+          <AgentWebSearchMenu
+            support={webSearch.support}
+            canToggle={webSearch.canToggle}
+            effectiveWebAccess={webSearch.effectiveWebAccess}
+            setEnabled={webSearch.setEnabled}
+          />
+        ) : null}
       </MenuContainer>
     </MenuTrigger>
   );

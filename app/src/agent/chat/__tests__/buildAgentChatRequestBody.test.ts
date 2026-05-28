@@ -27,6 +27,7 @@ describe("buildAgentChatRequestBody", () => {
         provider: "OPENAI",
         modelName: "gpt-4o-mini",
       },
+      webAccessEnabled: false,
     });
 
     expect(body).toMatchObject({
@@ -48,9 +49,8 @@ describe("buildAgentChatRequestBody", () => {
     expect(body).not.toHaveProperty("system");
   });
 
-  it("forwards the user's web access toggle as a context entry", () => {
+  it("forwards the effective web access value as a context entry", () => {
     const capabilities = createDefaultAgentCapabilities();
-    capabilities["web.access"] = true;
 
     const body = buildAgentChatRequestBody({
       body: undefined,
@@ -72,6 +72,7 @@ describe("buildAgentChatRequestBody", () => {
         provider: "OPENAI",
         modelName: "gpt-4o-mini",
       },
+      webAccessEnabled: true,
     });
 
     expect(body.contexts).toContainEqual({

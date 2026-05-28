@@ -257,6 +257,8 @@ function AgentChatController({
           handleElicitationCancel={handleElicitationCancel}
           modelMenuValue={menuValue}
           onModelChange={handleModelChange}
+          sessionId={activeSessionId}
+          modelSelection={modelSelection}
         >
           {activeSessionId ? (
             <ChatSessionUsage sessionId={activeSessionId} />

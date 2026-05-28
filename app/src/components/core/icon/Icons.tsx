@@ -1376,6 +1376,82 @@ export const GitBranchOutline = () => (
   </svg>
 );
 
+export const Globe = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <circle cx="12" cy="12" r="10" fill="none"></circle>
+    <path
+      d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"
+      fill="none"
+    ></path>
+    <path d="M2 12h20" fill="none"></path>
+  </svg>
+);
+
+export const GlobeOff = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path
+      d="M10.114 4.462A14.5 14.5 0 0 1 12 2a10 10 0 0 1 9.313 13.643"
+      fill="none"
+    ></path>
+    <path
+      d="M15.557 15.556A14.5 14.5 0 0 1 12 22 10 10 0 0 1 4.929 4.929"
+      fill="none"
+    ></path>
+    <path
+      d="M15.892 10.234A14.5 14.5 0 0 0 12 2a10 10 0 0 0-3.643.687"
+      fill="none"
+    ></path>
+    <path d="M17.656 12H22" fill="none"></path>
+    <path
+      d="M19.071 19.071A10 10 0 0 1 12 22 14.5 14.5 0 0 1 8.44 8.45"
+      fill="none"
+    ></path>
+    <path d="M2 12h10" fill="none"></path>
+    <path d="m2 2 20 20" fill="none"></path>
+  </svg>
+);
+
+export const GlobeX = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="m16 3 5 5" fill="none"></path>
+    <path
+      d="M2 12h20A10 10 0 1 1 12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 4-10"
+      fill="none"
+    ></path>
+    <path d="m21 3-5 5" fill="none"></path>
+  </svg>
+);
+
 export const GitHub = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"

@@ -22,6 +22,7 @@ import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
 import { authFetch } from "@phoenix/authFetch";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
+import { selectEffectiveWebAccess } from "@phoenix/store";
 
 import {
   useGenerateSessionSummary,
@@ -109,6 +110,10 @@ export function useAgentChat({
                     ),
                     contexts: selectActiveContexts(store.getState()),
                     modelSelection: modelSelectionRef.current,
+                    webAccessEnabled: selectEffectiveWebAccess(
+                      store.getState(),
+                      sessionId
+                    ),
                   }),
                 }),
               }),

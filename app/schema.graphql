@@ -77,6 +77,18 @@ input AddSpansToDatasetInput {
   datasetVersionMetadata: JSON
 }
 
+type AgentModelCapabilitiesPayload {
+  """
+  Whether the selected model exposes provider-native web search. False when the model does not support it or its capabilities could not be resolved (e.g. missing credentials).
+  """
+  supportsWebSearch: Boolean!
+}
+
+input AgentModelSelectionInput @oneOf {
+  builtin: BuiltInProviderModelSelectionInput
+  custom: CustomProviderModelSelectionInput
+}
+
 type AgentsConfig {
   """
   The collector endpoint used by the server-side agents to export traces. Resolved from the PHOENIX_AGENTS_COLLECTOR_ENDPOINT environment variable.
@@ -356,6 +368,12 @@ type BuiltInEvaluator implements Evaluator & Node {
 }
 
 union BuiltInEvaluatorOutputConfig = CategoricalAnnotationConfig | ContinuousAnnotationConfig | FreeformAnnotationConfig
+
+input BuiltInProviderModelSelectionInput {
+  provider: GenerativeProviderKey!
+  modelName: String!
+  openaiApiType: OpenAIApiType! = RESPONSES
+}
 
 type CategoricalAnnotationConfig implements Node & AnnotationConfigBase {
   """The Globally Unique ID of this object"""
@@ -857,6 +875,11 @@ input CreateUserInput {
 scalar CronExpression
 
 union CustomProviderConfig = OpenAICustomProviderConfig | AzureOpenAICustomProviderConfig | AnthropicCustomProviderConfig | AWSBedrockCustomProviderConfig | GoogleGenAICustomProviderConfig | UnparsableConfig
+
+input CustomProviderModelSelectionInput {
+  providerId: ID!
+  modelName: String!
+}
 
 type Dataset implements Node {
   """The Globally Unique ID of this object"""
@@ -2261,6 +2284,7 @@ type Mutation {
   createUserApiKey(input: CreateUserApiKeyInput!): CreateUserApiKeyMutationPayload!
   deleteSystemApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
   deleteUserApiKey(input: DeleteApiKeyInput!): DeleteApiKeyMutationPayload!
+  agentModelCapabilities(model: AgentModelSelectionInput!): AgentModelCapabilitiesPayload!
   evaluatorPreviews(input: EvaluatorPreviewsInput!): EvaluatorPreviewsPayload!
   createDatasetLabel(input: CreateDatasetLabelInput!): CreateDatasetLabelMutationPayload!
   deleteDatasetLabels(input: DeleteDatasetLabelsInput!): DeleteDatasetLabelsMutationPayload!

@@ -111,6 +111,13 @@ export type AgentSession = {
   context: string[];
   /** Model configuration scoped to this session. */
   modelConfig: ModelConfig;
+  /**
+   * Per-session override for the `web.access` capability. When `undefined`,
+   * the session inherits the global `capabilities["web.access"]` value.
+   * Set explicitly to opt this session in or out of provider-native web
+   * search independent of the global default.
+   */
+  webAccess?: boolean;
   /** Unix timestamp (ms) when the session was created. 0 for legacy sessions. */
   createdAt: number;
   /** Usage metrics returned as metadata from llm invocations */
@@ -187,6 +194,11 @@ export interface AgentState extends AgentProps {
     sessionId: string,
     patch: Partial<ModelConfig>
   ) => void;
+  /**
+   * Override the `web.access` capability for a single session. Pass `null`
+   * to clear the override and fall back to the global default.
+   */
+  setSessionWebAccess: (sessionId: string, enabled: boolean | null) => void;
   addSessionContext: (sessionId: string, context: string) => void;
   removeSessionContext: (sessionId: string, context: string) => void;
   setSessionMessages: (sessionId: string, messages: AgentUIMessage[]) => void;
@@ -488,6 +500,28 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         },
         false,
         { type: "updateSessionModelConfig" }
+      );
+    },
+    setSessionWebAccess: (sessionId, enabled) => {
+      set(
+        (state) => {
+          const session = state.sessionMap[sessionId];
+          if (!session) return state;
+          const nextSession = { ...session };
+          if (enabled === null) {
+            delete nextSession.webAccess;
+          } else {
+            nextSession.webAccess = enabled;
+          }
+          return {
+            sessionMap: {
+              ...state.sessionMap,
+              [sessionId]: nextSession,
+            },
+          };
+        },
+        false,
+        { type: "setSessionWebAccess" }
       );
     },
     addSessionContext: (sessionId, context) => {
@@ -888,3 +922,22 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
 };
 
 export type AgentStore = ReturnType<typeof createAgentStore>;
+
+/**
+ * Resolve the effective `web.access` value for a session.
+ *
+ * A session's explicit override (if set) wins; otherwise the global
+ * capability default applies. This is the value forwarded to the backend as
+ * the per-turn web access context.
+ */
+export function selectEffectiveWebAccess(
+  state: Pick<AgentProps, "sessionMap" | "capabilities">,
+  sessionId: string | null
+): boolean {
+  const globalDefault = state.capabilities["web.access"];
+  if (sessionId === null) {
+    return globalDefault;
+  }
+  const session = state.sessionMap[sessionId];
+  return session?.webAccess ?? globalDefault;
+}

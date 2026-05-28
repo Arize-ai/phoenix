@@ -293,6 +293,8 @@ export function Chat({
       onModelChange={onModelChange}
       emptyStateSubtext={emptyStateSubtext}
       emptyStateQuickActions={emptyStateQuickActions}
+      sessionId={sessionId}
+      modelSelection={modelSelection}
     >
       {sessionId ? <ChatSessionUsage sessionId={sessionId} /> : null}
     </ChatView>
@@ -317,6 +319,8 @@ export function ChatView({
   children,
   emptyStateSubtext,
   emptyStateQuickActions,
+  sessionId,
+  modelSelection,
 }: PropsWithChildren<{
   messages: AgentUIMessage[];
   sendMessage: (message: { text: string }) => void;
@@ -330,6 +334,8 @@ export function ChatView({
   onModelChange: (model: ModelMenuValue) => void;
   emptyStateSubtext?: ReactNode;
   emptyStateQuickActions?: EmptyStateQuickAction[];
+  sessionId: string | null;
+  modelSelection: AgentModelSelection;
 }>) {
   const { theme } = useTheme();
   const { contentRef, scrollRef, scrollToBottom } = useStickToBottom({
@@ -502,6 +508,8 @@ export function ChatView({
                     placement="top start"
                     shouldFlip
                     variant="quiet"
+                    sessionId={sessionId}
+                    modelSelection={modelSelection}
                   />
                 </PromptInputTools>
 

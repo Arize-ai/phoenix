@@ -13,6 +13,9 @@ from phoenix.db.types.annotation_configs import (
     ContinuousOutputConfig,
     FreeformOutputConfig,
 )
+from phoenix.server.agents.exceptions import AgentError
+from phoenix.server.agents.model_factory import build_model
+from phoenix.server.agents.web_access import build_web_search_capability
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.evaluators import (
@@ -30,6 +33,9 @@ from phoenix.server.api.helpers.evaluators import (
 from phoenix.server.api.helpers.playground_clients import (
     get_playground_client,
     initialize_playground_clients,
+)
+from phoenix.server.api.input_types.AgentModelSelectionInput import (
+    AgentModelSelectionInput,
 )
 from phoenix.server.api.input_types.EvaluatorPreviewInput import (
     EvaluatorPreviewsInput,
@@ -65,6 +71,24 @@ class EvaluationResult:
 @strawberry.type
 class EvaluatorPreviewsPayload:
     results: list[EvaluationResult]
+
+
+@strawberry.type
+class AgentModelCapabilitiesPayload:
+    """Resolved capabilities of an agent chat model selection.
+
+    A general report of what the selected model can do when used by the agent.
+    Additional capability fields will be added here over time; consumers should
+    read only the fields they need.
+    """
+
+    supports_web_search: bool = strawberry.field(
+        description=(
+            "Whether the selected model exposes provider-native web search. "
+            "False when the model does not support it or its capabilities "
+            "could not be resolved (e.g. missing credentials)."
+        ),
+    )
 
 
 def _to_annotation(eval_result: EvaluationResultDict) -> ExperimentRunAnnotation:
@@ -178,6 +202,38 @@ async def _resolve_inline_code_evaluator_backend(
 
 @strawberry.type
 class ChatCompletionMutationMixin:
+    @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
+    async def agent_model_capabilities(
+        self,
+        info: Info[Context, None],
+        model: AgentModelSelectionInput,
+    ) -> AgentModelCapabilitiesPayload:
+        """Resolve the capabilities of an agent chat model selection.
+
+        Builds the selected model the same way the ``/chat`` endpoint does and
+        inspects its pydantic-ai profile to report what the model can do (e.g.
+        provider-native web search; more capabilities may be reported over
+        time). This decrypts provider secrets, so it is a mutation behind auth
+        rather than a query. No network call is made; the model client is only
+        instantiated, not invoked.
+
+        Capability-resolution failures (missing credentials, unknown provider)
+        are treated as "capability unavailable" rather than surfaced as errors,
+        so the UI can render a stable state.
+        """
+        model_selection = model.to_pydantic()
+        try:
+            async with info.context.db() as session:
+                built_model = await build_model(
+                    model_selection,
+                    session=session,
+                    decrypt=info.context.decrypt,
+                )
+            supports_web_search = build_web_search_capability(built_model) is not None
+        except AgentError:
+            supports_web_search = False
+        return AgentModelCapabilitiesPayload(supports_web_search=supports_web_search)
+
     @strawberry.mutation(permission_classes=[IsNotReadOnly, IsNotViewer, IsLocked])  # type: ignore
     @classmethod
     async def evaluator_previews(

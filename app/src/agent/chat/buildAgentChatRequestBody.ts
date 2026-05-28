@@ -33,6 +33,12 @@ type BuildAgentChatRequestBodyOptions = {
   contexts: AgentContext[];
   /** Provider + model selection for this turn. */
   modelSelection: AgentModelSelection;
+  /**
+   * Effective web-access value for this turn, after composing the global
+   * `web.access` capability with any per-session override. Forwarded to the
+   * backend as the web access context.
+   */
+  webAccessEnabled: boolean;
 };
 
 type BuildAgentChatRequestBodyResult = components["schemas"]["ChatRequest"];
@@ -68,14 +74,15 @@ function buildGraphQLContext(capabilities: AgentCapabilities): AgentContext {
 }
 
 /**
- * Build web access context from the current capability snapshot.
+ * Build web access context from the effective web-access value.
  *
- * Forwards the user's web access toggle to the backend as a typed context.
+ * Forwards the user's effective web access decision (global capability
+ * composed with any per-session override) to the backend as a typed context.
  */
-function buildWebAccessContext(capabilities: AgentCapabilities): AgentContext {
+function buildWebAccessContext(webAccessEnabled: boolean): AgentContext {
   return {
     type: "web_access",
-    enabled: capabilities["web.access"],
+    enabled: webAccessEnabled,
   };
 }
 
@@ -95,11 +102,12 @@ export function buildAgentChatRequestBody({
   hasRemoteCollector,
   contexts,
   modelSelection,
+  webAccessEnabled,
 }: BuildAgentChatRequestBodyOptions): BuildAgentChatRequestBodyResult {
   const requestContexts = [
     buildCurrentAppContext(),
     buildGraphQLContext(capabilities),
-    buildWebAccessContext(capabilities),
+    buildWebAccessContext(webAccessEnabled),
     ...contexts,
   ];
   return {
