@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { ReactNode } from "react";
+import type { ReactNode, RefObject } from "react";
 import { createPortal } from "react-dom";
 import { Panel, Separator } from "react-resizable-panels";
 
@@ -26,9 +26,9 @@ import { ResizableFloatingPanel } from "./ResizableFloatingPanel";
 import { SessionListMenu } from "./SessionListMenu";
 
 const PANEL_HEADER_Z_INDEX = 3;
-const FLOATING_PANEL_WIDTH_PX = 420;
+const FLOATING_PANEL_WIDTH_PX = 520;
 const FLOATING_PANEL_HEIGHT_PX = 720;
-const FLOATING_PANEL_MIN_WIDTH_PX = 360;
+const FLOATING_PANEL_MIN_WIDTH_PX = 480;
 const FLOATING_PANEL_MIN_HEIGHT_PX = 520;
 
 export const DEFAULT_FLOATING_AGENT_CHAT_SIZE: Size = {
@@ -87,6 +87,7 @@ export function AgentChatHeader({
   activeSessionId,
   showSessionHistory,
   position,
+  isPositionChangeDisabled = false,
   onSelectSession,
   onDeleteSession,
   onCreateSession,
@@ -98,6 +99,7 @@ export function AgentChatHeader({
   activeSessionId: string | null;
   showSessionHistory: boolean;
   position?: AgentPosition;
+  isPositionChangeDisabled?: boolean;
   onSelectSession: (sessionId: string | null) => void;
   onDeleteSession: (sessionId: string) => void;
   onCreateSession: () => void;
@@ -111,7 +113,7 @@ export function AgentChatHeader({
       : "Pin assistant to side";
 
   return (
-    <div css={panelHeaderCSS}>
+    <div className="agent-chat-panel__header" css={panelHeaderCSS}>
       <Flex direction="row" alignItems="center" gap="size-50" minWidth={0}>
         <PxiGlyph
           fill="var(--global-text-color-900)"
@@ -144,21 +146,6 @@ export function AgentChatHeader({
           onPress={onCreateSession}
           leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
         />
-        {position != null && onPositionChange != null ? (
-          <Button
-            variant="quiet"
-            size="S"
-            aria-label={positionToggleLabel}
-            onPress={() => onPositionChange(nextPosition)}
-            leadingVisual={
-              <Icon
-                svg={
-                  position === "pinned" ? <Icons.SlideOut /> : <Icons.SlideIn />
-                }
-              />
-            }
-          />
-        ) : null}
         <LinkButton
           variant="quiet"
           size="S"
@@ -166,6 +153,31 @@ export function AgentChatHeader({
           aria-label="Agent settings"
           leadingVisual={<Icon svg={<Icons.OptionsOutline />} />}
         />
+        {position != null && onPositionChange != null ? (
+          <Button
+            variant="quiet"
+            size="S"
+            aria-label={positionToggleLabel}
+            isDisabled={isPositionChangeDisabled}
+            onPress={() => {
+              if (isPositionChangeDisabled) {
+                return;
+              }
+              onPositionChange(nextPosition);
+            }}
+            leadingVisual={
+              <Icon
+                svg={
+                  position === "pinned" ? (
+                    <Icons.CollapseOutline />
+                  ) : (
+                    <Icons.SidebarAttachRight />
+                  )
+                }
+              />
+            }
+          />
+        ) : null}
         <Button
           variant="quiet"
           size="S"
@@ -226,12 +238,14 @@ export function DockedAgentChatFrame({ children }: { children: ReactNode }) {
  * Presentational shell for the floating assistant panel.
  */
 export function FloatingAgentChatFrame({
+  boundaryRef,
   children,
   layer = "content",
   placement,
   size = DEFAULT_FLOATING_AGENT_CHAT_SIZE,
   onSizeChange,
 }: {
+  boundaryRef?: RefObject<HTMLElement | null>;
   children: ReactNode;
   layer?: "content" | "modal";
   placement: AgentFabPlacement;
@@ -241,6 +255,7 @@ export function FloatingAgentChatFrame({
   const activeModalPortalContainer = useActiveModalPortalContainerElement();
   const panel = (
     <ResizableFloatingPanel
+      boundaryRef={boundaryRef}
       layer={layer}
       minSize={MIN_FLOATING_AGENT_CHAT_SIZE}
       placement={placement}

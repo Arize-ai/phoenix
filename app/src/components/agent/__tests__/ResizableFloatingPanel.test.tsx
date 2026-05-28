@@ -1,19 +1,19 @@
-import { act, useState } from "react";
+import { act, useState, type RefObject } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AgentFabPlacement } from "@phoenix/store/agentStore";
-import type { Size } from "@phoenix/types/geometry";
+import type { Bounds, Size } from "@phoenix/types/geometry";
 
 import { ResizableFloatingPanel } from "../ResizableFloatingPanel";
 
 const DEFAULT_SIZE: Size = {
-  width: 420,
+  width: 520,
   height: 720,
 };
 
 const MIN_SIZE: Size = {
-  width: 360,
+  width: 480,
   height: 520,
 };
 
@@ -34,18 +34,20 @@ function dispatchPointerEvent(
   element.dispatchEvent(event);
 }
 
-function mockRect(element: Element, rect: Partial<DOMRect>) {
-  vi.spyOn(element, "getBoundingClientRect").mockReturnValue({
-    bottom: rect.bottom ?? 0,
-    height: rect.height ?? 0,
-    left: rect.left ?? 0,
-    right: rect.right ?? 0,
-    top: rect.top ?? 0,
-    width: rect.width ?? 0,
-    x: rect.x ?? rect.left ?? 0,
-    y: rect.y ?? rect.top ?? 0,
+function createBoundaryRef(bounds: Bounds): RefObject<HTMLElement | null> {
+  const boundary = document.createElement("div");
+  vi.spyOn(boundary, "getBoundingClientRect").mockReturnValue({
+    bottom: bounds.top + bounds.height,
+    height: bounds.height,
+    left: bounds.left,
+    right: bounds.left + bounds.width,
+    top: bounds.top,
+    width: bounds.width,
+    x: bounds.left,
+    y: bounds.top,
     toJSON: () => ({}),
   } as DOMRect);
+  return { current: boundary };
 }
 
 describe("ResizableFloatingPanel", () => {
@@ -54,6 +56,14 @@ describe("ResizableFloatingPanel", () => {
 
   beforeEach(() => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1200,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: 1000,
+    });
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -75,18 +85,25 @@ describe("ResizableFloatingPanel", () => {
   });
 
   function renderResizablePanel({
-    onSizeChange = vi.fn(),
+    boundaryBounds,
     layer = "content",
+    onSizeChange = vi.fn(),
     placement = "bottom-end",
   }: {
+    boundaryBounds?: Bounds;
     layer?: "content" | "modal";
     onSizeChange?: (size: Size) => void;
     placement?: AgentFabPlacement;
   } = {}) {
+    const boundaryRef = boundaryBounds
+      ? createBoundaryRef(boundaryBounds)
+      : undefined;
+
     function ResizablePanelHarness() {
       const [size, setSize] = useState(() => ({ ...DEFAULT_SIZE }));
       return (
         <ResizableFloatingPanel
+          boundaryRef={boundaryRef}
           layer={layer}
           minSize={MIN_SIZE}
           placement={placement}
@@ -96,6 +113,7 @@ describe("ResizableFloatingPanel", () => {
             onSizeChange(nextSize);
           }}
         >
+          <div className="agent-chat-panel__header">PXI header</div>
           <span>PXI content</span>
         </ResizableFloatingPanel>
       );
@@ -106,40 +124,41 @@ describe("ResizableFloatingPanel", () => {
     });
 
     const panel = container.querySelector(".resizable-floating-panel");
-    const widthHandle = container.querySelector(
-      '[aria-label="Resize assistant width"]'
+    const resizeHandles = Array.from(
+      container.querySelectorAll(".resizable-floating-panel__resize-handle")
     );
-    const heightHandle = container.querySelector(
-      '[aria-label="Resize assistant height"]'
-    );
+    const getResizeHandle = (edge: string) =>
+      resizeHandles.find((handle) => handle.getAttribute("data-edge") === edge);
 
     expect(panel).not.toBeNull();
-    expect(widthHandle).not.toBeNull();
-    expect(heightHandle).not.toBeNull();
+    expect(resizeHandles).toHaveLength(8);
+    expect(getResizeHandle("top-left")).not.toBeUndefined();
 
     return {
-      heightHandle: heightHandle!,
       panel: panel!,
-      widthHandle: widthHandle!,
+      resizeHandle: getResizeHandle("top-left")!,
+      resizeHandles,
+      getResizeHandle,
     };
   }
 
-  it("places resize handles on the bottom-end panel's inner edges", () => {
-    const { heightHandle, widthHandle } = renderResizablePanel({
+  it("places a resize handle on each panel side and corner", () => {
+    const { resizeHandles } = renderResizablePanel({
       placement: "bottom-end",
     });
 
-    expect(widthHandle.getAttribute("data-edge")).toBe("left");
-    expect(heightHandle.getAttribute("data-edge")).toBe("top");
-  });
-
-  it("places resize handles on the top-start panel's inner edges", () => {
-    const { heightHandle, widthHandle } = renderResizablePanel({
-      placement: "top-start",
-    });
-
-    expect(widthHandle.getAttribute("data-edge")).toBe("right");
-    expect(heightHandle.getAttribute("data-edge")).toBe("bottom");
+    expect(
+      resizeHandles.map((handle) => handle.getAttribute("data-edge"))
+    ).toEqual([
+      "top",
+      "right",
+      "bottom",
+      "left",
+      "top-left",
+      "top-right",
+      "bottom-left",
+      "bottom-right",
+    ]);
   });
 
   it("uses fixed positioning in the modal layer", () => {
@@ -149,95 +168,400 @@ describe("ResizableFloatingPanel", () => {
     expect(getComputedStyle(panel).position).toBe("fixed");
   });
 
-  it("resizes horizontally from the bottom-end panel's left edge", () => {
-    const onSizeChange = vi.fn();
-    const { panel, widthHandle } = renderResizablePanel({ onSizeChange });
-    mockRect(container, {
-      bottom: 900,
-      height: 900,
-      left: 0,
-      right: 1000,
-      top: 0,
-      width: 1000,
-    });
-    mockRect(panel, {
-      bottom: 884,
-      height: 720,
-      left: 564,
-      right: 984,
-      top: 164,
-      width: 420,
-    });
-    Object.assign(widthHandle, {
-      hasPointerCapture: vi.fn(() => true),
-      releasePointerCapture: vi.fn(),
-      setPointerCapture: vi.fn(),
+  it("places content-layer geometry inside the content boundary", () => {
+    const { panel } = renderResizablePanel({
+      boundaryBounds: {
+        height: 850,
+        left: 128,
+        top: 64,
+        width: 960,
+      },
+      placement: "top-start",
     });
 
-    act(() => {
-      dispatchPointerEvent(widthHandle, "pointerdown", {
-        clientX: 564,
-        clientY: 500,
-      });
-      dispatchPointerEvent(widthHandle, "pointermove", {
-        clientX: 514,
-        clientY: 500,
-      });
-      dispatchPointerEvent(widthHandle, "pointerup", {
-        clientX: 514,
-        clientY: 500,
-      });
-    });
-
-    expect(onSizeChange).toHaveBeenLastCalledWith({
-      height: 720,
-      width: 470,
-    });
+    expect(
+      (panel as HTMLElement).style.getPropertyValue(
+        "--resizable-floating-panel-x"
+      )
+    ).toBe("152px");
+    expect(
+      (panel as HTMLElement).style.getPropertyValue(
+        "--resizable-floating-panel-y"
+      )
+    ).toBe("88px");
   });
 
-  it("resizes vertically from the bottom-end panel's top edge", () => {
+  it("uses viewport geometry in the modal layer", () => {
+    const { panel } = renderResizablePanel({
+      boundaryBounds: {
+        height: 850,
+        left: 128,
+        top: 64,
+        width: 960,
+      },
+      layer: "modal",
+      placement: "top-start",
+    });
+
+    expect(
+      (panel as HTMLElement).style.getPropertyValue(
+        "--resizable-floating-panel-x"
+      )
+    ).toBe("24px");
+    expect(
+      (panel as HTMLElement).style.getPropertyValue(
+        "--resizable-floating-panel-y"
+      )
+    ).toBe("24px");
+  });
+
+  it("re-clamps the panel when the viewport changes", () => {
+    const { panel } = renderResizablePanel({
+      placement: "bottom-end",
+    });
+
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 900,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: 800,
+    });
+
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+
+    expect(
+      (panel as HTMLElement).style.getPropertyValue(
+        "--resizable-floating-panel-x"
+      )
+    ).toBe("356px");
+    expect(
+      (panel as HTMLElement).style.getPropertyValue(
+        "--resizable-floating-panel-y"
+      )
+    ).toBe("56px");
+  });
+
+  it("resizes from the panel's top-left corner", () => {
     const onSizeChange = vi.fn();
-    const { heightHandle, panel } = renderResizablePanel({ onSizeChange });
-    mockRect(container, {
-      bottom: 900,
-      height: 900,
-      left: 0,
-      right: 1000,
-      top: 0,
-      width: 1000,
-    });
-    mockRect(panel, {
-      bottom: 884,
-      height: 720,
-      left: 564,
-      right: 984,
-      top: 164,
-      width: 420,
-    });
-    Object.assign(heightHandle, {
+    const { resizeHandle } = renderResizablePanel({ onSizeChange });
+    Object.assign(resizeHandle, {
       hasPointerCapture: vi.fn(() => true),
       releasePointerCapture: vi.fn(),
       setPointerCapture: vi.fn(),
     });
 
     act(() => {
-      dispatchPointerEvent(heightHandle, "pointerdown", {
-        clientX: 800,
-        clientY: 164,
+      dispatchPointerEvent(resizeHandle, "pointerdown", {
+        clientX: 656,
+        clientY: 256,
       });
-      dispatchPointerEvent(heightHandle, "pointermove", {
-        clientX: 800,
-        clientY: 124,
+      dispatchPointerEvent(resizeHandle, "pointermove", {
+        clientX: 606,
+        clientY: 216,
       });
-      dispatchPointerEvent(heightHandle, "pointerup", {
-        clientX: 800,
-        clientY: 124,
+      dispatchPointerEvent(resizeHandle, "pointerup", {
+        clientX: 606,
+        clientY: 216,
       });
     });
 
     expect(onSizeChange).toHaveBeenLastCalledWith({
       height: 760,
-      width: 420,
+      width: 570,
     });
+  });
+
+  it.each([
+    {
+      edge: "top-right",
+      placement: "bottom-start",
+      pointerDown: { clientX: 544, clientY: 256 },
+      pointerMove: { clientX: 594, clientY: 216 },
+      expectedPosition: { x: "24px", y: "216px" },
+    },
+    {
+      edge: "bottom-left",
+      placement: "top-end",
+      pointerDown: { clientX: 656, clientY: 744 },
+      pointerMove: { clientX: 606, clientY: 784 },
+      expectedPosition: { x: "606px", y: "24px" },
+    },
+    {
+      edge: "bottom-right",
+      placement: "top-start",
+      pointerDown: { clientX: 544, clientY: 744 },
+      pointerMove: { clientX: 594, clientY: 784 },
+      expectedPosition: { x: "24px", y: "24px" },
+    },
+  ] satisfies {
+    edge: string;
+    expectedPosition: { x: string; y: string };
+    placement: AgentFabPlacement;
+    pointerDown: { clientX: number; clientY: number };
+    pointerMove: { clientX: number; clientY: number };
+  }[])(
+    "resizes from the panel's $edge corner",
+    ({ edge, expectedPosition, placement, pointerDown, pointerMove }) => {
+      const onSizeChange = vi.fn();
+      const { getResizeHandle, panel } = renderResizablePanel({
+        onSizeChange,
+        placement,
+      });
+      const resizeHandle = getResizeHandle(edge);
+      expect(resizeHandle).not.toBeUndefined();
+      Object.assign(resizeHandle!, {
+        hasPointerCapture: vi.fn(() => true),
+        releasePointerCapture: vi.fn(),
+        setPointerCapture: vi.fn(),
+      });
+
+      act(() => {
+        dispatchPointerEvent(resizeHandle!, "pointerdown", pointerDown);
+        dispatchPointerEvent(resizeHandle!, "pointermove", pointerMove);
+        dispatchPointerEvent(resizeHandle!, "pointerup", pointerMove);
+      });
+
+      expect(onSizeChange).toHaveBeenLastCalledWith({
+        height: 760,
+        width: 570,
+      });
+      expect(
+        (panel as HTMLElement).style.getPropertyValue(
+          "--resizable-floating-panel-x"
+        )
+      ).toBe(expectedPosition.x);
+      expect(
+        (panel as HTMLElement).style.getPropertyValue(
+          "--resizable-floating-panel-y"
+        )
+      ).toBe(expectedPosition.y);
+    }
+  );
+
+  it.each([
+    {
+      edge: "top",
+      placement: "bottom-start",
+      pointerDown: { clientX: 284, clientY: 256 },
+      pointerMove: { clientX: 334, clientY: 216 },
+      expectedPosition: { x: "24px", y: "216px" },
+      expectedSize: { height: 760, width: 520 },
+    },
+    {
+      edge: "right",
+      placement: "top-start",
+      pointerDown: { clientX: 544, clientY: 384 },
+      pointerMove: { clientX: 594, clientY: 430 },
+      expectedPosition: { x: "24px", y: "24px" },
+      expectedSize: { height: 720, width: 570 },
+    },
+    {
+      edge: "bottom",
+      placement: "top-start",
+      pointerDown: { clientX: 284, clientY: 744 },
+      pointerMove: { clientX: 334, clientY: 784 },
+      expectedPosition: { x: "24px", y: "24px" },
+      expectedSize: { height: 760, width: 520 },
+    },
+    {
+      edge: "left",
+      placement: "top-end",
+      pointerDown: { clientX: 656, clientY: 384 },
+      pointerMove: { clientX: 606, clientY: 430 },
+      expectedPosition: { x: "606px", y: "24px" },
+      expectedSize: { height: 720, width: 570 },
+    },
+  ] satisfies {
+    edge: string;
+    expectedPosition: { x: string; y: string };
+    expectedSize: Size;
+    placement: AgentFabPlacement;
+    pointerDown: { clientX: number; clientY: number };
+    pointerMove: { clientX: number; clientY: number };
+  }[])(
+    "resizes from the panel's $edge edge",
+    ({
+      edge,
+      expectedPosition,
+      expectedSize,
+      placement,
+      pointerDown,
+      pointerMove,
+    }) => {
+      const onSizeChange = vi.fn();
+      const { getResizeHandle, panel } = renderResizablePanel({
+        onSizeChange,
+        placement,
+      });
+      const resizeHandle = getResizeHandle(edge);
+      expect(resizeHandle).not.toBeUndefined();
+      Object.assign(resizeHandle!, {
+        hasPointerCapture: vi.fn(() => true),
+        releasePointerCapture: vi.fn(),
+        setPointerCapture: vi.fn(),
+      });
+
+      act(() => {
+        dispatchPointerEvent(resizeHandle!, "pointerdown", pointerDown);
+        dispatchPointerEvent(resizeHandle!, "pointermove", pointerMove);
+        dispatchPointerEvent(resizeHandle!, "pointerup", pointerMove);
+      });
+
+      expect(onSizeChange).toHaveBeenLastCalledWith(expectedSize);
+      expect(
+        (panel as HTMLElement).style.getPropertyValue(
+          "--resizable-floating-panel-x"
+        )
+      ).toBe(expectedPosition.x);
+      expect(
+        (panel as HTMLElement).style.getPropertyValue(
+          "--resizable-floating-panel-y"
+        )
+      ).toBe(expectedPosition.y);
+    }
+  );
+
+  it("resizes with the keyboard when the resize handle is focused", () => {
+    const onSizeChange = vi.fn();
+    const { resizeHandle } = renderResizablePanel({ onSizeChange });
+
+    act(() => {
+      (resizeHandle as HTMLElement).focus();
+    });
+
+    expect(document.activeElement).toBe(resizeHandle);
+
+    act(() => {
+      resizeHandle.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "ArrowLeft" })
+      );
+    });
+
+    expect(onSizeChange).toHaveBeenLastCalledWith({
+      height: 720,
+      width: 544,
+    });
+  });
+
+  it("moves the panel by dragging the header without persisting size", () => {
+    const onSizeChange = vi.fn();
+    const { panel } = renderResizablePanel({ onSizeChange });
+    const header = container.querySelector(".agent-chat-panel__header");
+    expect(header).not.toBeNull();
+    Object.assign(panel, {
+      hasPointerCapture: vi.fn(() => true),
+      releasePointerCapture: vi.fn(),
+      setPointerCapture: vi.fn(),
+    });
+
+    act(() => {
+      dispatchPointerEvent(header!, "pointerdown", {
+        clientX: 800,
+        clientY: 300,
+      });
+      dispatchPointerEvent(panel, "pointermove", {
+        clientX: 760,
+        clientY: 270,
+      });
+      dispatchPointerEvent(panel, "pointerup", {
+        clientX: 760,
+        clientY: 270,
+      });
+    });
+
+    expect(onSizeChange).not.toHaveBeenCalled();
+    expect(
+      (panel as HTMLElement).style.getPropertyValue(
+        "--resizable-floating-panel-x"
+      )
+    ).toBe("616px");
+  });
+
+  it("keeps the panel location after resizing a moved panel", () => {
+    const onSizeChange = vi.fn();
+    const { panel, resizeHandle } = renderResizablePanel({
+      onSizeChange,
+    });
+    const header = container.querySelector(".agent-chat-panel__header");
+    expect(header).not.toBeNull();
+    Object.assign(panel, {
+      hasPointerCapture: vi.fn(() => true),
+      releasePointerCapture: vi.fn(),
+      setPointerCapture: vi.fn(),
+    });
+    Object.assign(resizeHandle, {
+      hasPointerCapture: vi.fn(() => true),
+      releasePointerCapture: vi.fn(),
+      setPointerCapture: vi.fn(),
+    });
+
+    act(() => {
+      dispatchPointerEvent(header!, "pointerdown", {
+        clientX: 800,
+        clientY: 300,
+      });
+      dispatchPointerEvent(panel, "pointermove", {
+        clientX: 760,
+        clientY: 270,
+      });
+      dispatchPointerEvent(panel, "pointerup", {
+        clientX: 760,
+        clientY: 270,
+      });
+    });
+
+    act(() => {
+      dispatchPointerEvent(resizeHandle, "pointerdown", {
+        clientX: 616,
+        clientY: 226,
+      });
+      dispatchPointerEvent(resizeHandle, "pointermove", {
+        clientX: 566,
+        clientY: 186,
+      });
+      dispatchPointerEvent(resizeHandle, "pointerup", {
+        clientX: 566,
+        clientY: 186,
+      });
+    });
+
+    expect(onSizeChange).toHaveBeenLastCalledWith({
+      height: 760,
+      width: 570,
+    });
+    expect(
+      (panel as HTMLElement).style.getPropertyValue(
+        "--resizable-floating-panel-x"
+      )
+    ).toBe("566px");
+  });
+
+  it("commits movement when pointer capture is lost", () => {
+    const { panel } = renderResizablePanel();
+    const header = container.querySelector(".agent-chat-panel__header");
+    expect(header).not.toBeNull();
+    Object.assign(panel, {
+      hasPointerCapture: vi.fn(() => false),
+      releasePointerCapture: vi.fn(),
+      setPointerCapture: vi.fn(),
+    });
+
+    act(() => {
+      dispatchPointerEvent(header!, "pointerdown", {
+        clientX: 800,
+        clientY: 300,
+      });
+      dispatchPointerEvent(panel, "pointermove", {
+        clientX: 840,
+        clientY: 330,
+      });
+      panel.dispatchEvent(new Event("lostpointercapture", { bubbles: true }));
+    });
+
+    expect(panel.getAttribute("data-moving")).toBeNull();
   });
 });

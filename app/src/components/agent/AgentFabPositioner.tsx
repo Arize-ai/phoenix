@@ -78,6 +78,12 @@ type DragSession = {
   startPointer: Point;
 };
 
+type FinishDragSessionOptions = {
+  activateOnClick: boolean;
+  point?: Point;
+  releaseTarget?: HTMLElement | null;
+};
+
 export type AgentFabPositionerProps = {
   boundaryRef?: RefObject<HTMLElement | null>;
   children: ReactNode;
@@ -218,6 +224,9 @@ export function AgentFabPositioner({
   const animationFrameIdRef = useRef<number | null>(null);
   const pendingPointerRef = useRef<Point | null>(null);
   const lastDragPositionRef = useRef<Point | null>(null);
+  const finishDragSessionRef = useRef<
+    (options: FinishDragSessionOptions) => void
+  >(() => {});
   const hasDraggedRef = useRef(false);
   const suppressNextClickRef = useRef(false);
   const suppressClickResetTimeoutIdRef = useRef<number | null>(null);
@@ -305,6 +314,67 @@ export function AgentFabPositioner({
     applyPosition(nextPosition);
   };
 
+  finishDragSessionRef.current = ({
+    activateOnClick,
+    point,
+    releaseTarget,
+  }: FinishDragSessionOptions) => {
+    const session = dragSessionRef.current;
+    if (!session) return;
+
+    if (animationFrameIdRef.current != null) {
+      window.cancelAnimationFrame(animationFrameIdRef.current);
+      animationFrameIdRef.current = null;
+    }
+
+    const finalPointer =
+      pendingPointerRef.current ?? (hasDraggedRef.current ? point : undefined);
+    if (finalPointer) {
+      const nextPosition = getDragPosition({
+        pointer: finalPointer,
+        session,
+      });
+      pendingPointerRef.current = null;
+      lastDragPositionRef.current = nextPosition;
+      applyPosition(nextPosition);
+    }
+
+    dragSessionRef.current = null;
+    setIsDragging(false);
+
+    if (
+      session.hasPointerCapture &&
+      releaseTarget?.hasPointerCapture(session.pointerId)
+    ) {
+      releaseTarget.releasePointerCapture(session.pointerId);
+    }
+
+    if (!hasDraggedRef.current) {
+      positionerRef.current?.style.removeProperty("transition");
+      if (activateOnClick) {
+        onActivate?.();
+      }
+      return;
+    }
+
+    suppressNextClickRef.current = true;
+    scheduleSuppressClickReset();
+
+    const dropPosition = lastDragPositionRef.current;
+    invariant(dropPosition, "drag finished without a recorded position");
+    const nextPlacement = getNearestFabPlacement({
+      point: dropPosition,
+      bounds: session.bounds,
+      size: session.size,
+    });
+
+    snapTo({ placement: nextPlacement, session });
+
+    if (nextPlacement !== placement) {
+      onPlacementChange(nextPlacement);
+    }
+  };
+
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== PRIMARY_POINTER_BUTTON) return;
 
@@ -376,63 +446,21 @@ export function AgentFabPositioner({
   };
 
   const finishDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const session = dragSessionRef.current;
-    if (!session) return;
-
-    if (animationFrameIdRef.current != null) {
-      window.cancelAnimationFrame(animationFrameIdRef.current);
-      animationFrameIdRef.current = null;
-    }
-
-    if (pendingPointerRef.current) {
-      const nextPosition = getDragPosition({
-        pointer: pendingPointerRef.current,
-        session,
-      });
-      pendingPointerRef.current = null;
-      lastDragPositionRef.current = nextPosition;
-      applyPosition(nextPosition);
-    }
-
-    dragSessionRef.current = null;
-    setIsDragging(false);
-
-    if (
-      session.hasPointerCapture &&
-      event.currentTarget.hasPointerCapture(session.pointerId)
-    ) {
-      event.currentTarget.releasePointerCapture(session.pointerId);
-    }
-
-    if (!hasDraggedRef.current) {
-      // Pure click — no transform changes, just clear any leftover transition
-      // override so the next render is in the default state.
-      positionerRef.current?.style.removeProperty("transition");
-      if (event.type === "pointerup") {
-        onActivate?.();
-      }
-      return;
-    }
-
-    suppressNextClickRef.current = true;
-    scheduleSuppressClickReset();
-
-    // When `hasDraggedRef.current` is true, the code path above guarantees
-    // `lastDragPositionRef.current` was set — either by the rAF callback or
-    // by the pendingPointer flush at the top of this function.
-    const dropPosition = lastDragPositionRef.current;
-    invariant(dropPosition, "drag finished without a recorded position");
-    const nextPlacement = getNearestFabPlacement({
-      point: dropPosition,
-      bounds: session.bounds,
-      size: session.size,
+    finishDragSessionRef.current({
+      activateOnClick: event.type === "pointerup",
+      point: { x: event.clientX, y: event.clientY },
+      releaseTarget: event.currentTarget,
     });
+  };
 
-    snapTo({ placement: nextPlacement, session });
-
-    if (nextPlacement !== placement) {
-      onPlacementChange(nextPlacement);
-    }
+  const handleLostPointerCapture = (
+    event: ReactPointerEvent<HTMLDivElement>
+  ) => {
+    finishDragSessionRef.current({
+      activateOnClick: false,
+      point: { x: event.clientX, y: event.clientY },
+      releaseTarget: event.currentTarget,
+    });
   };
 
   const handleClickCapture = (event: ReactMouseEvent<HTMLDivElement>) => {
@@ -516,13 +544,21 @@ export function AgentFabPositioner({
     if (resolvedBoundary && observer) {
       observer.observe(resolvedBoundary);
     }
+    const handleWindowBlur = () => {
+      finishDragSessionRef.current({
+        activateOnClick: false,
+        releaseTarget: positionerRef.current,
+      });
+    };
     window.visualViewport?.addEventListener("resize", syncPinnedPosition);
     window.visualViewport?.addEventListener("scroll", syncPinnedPosition);
+    window.addEventListener("blur", handleWindowBlur);
 
     return () => {
       observer?.disconnect();
       window.visualViewport?.removeEventListener("resize", syncPinnedPosition);
       window.visualViewport?.removeEventListener("scroll", syncPinnedPosition);
+      window.removeEventListener("blur", handleWindowBlur);
 
       if (animationFrameIdRef.current != null) {
         window.cancelAnimationFrame(animationFrameIdRef.current);
@@ -547,6 +583,7 @@ export function AgentFabPositioner({
       ref={positionerRef}
       onClick={stopModalLayerPropagation}
       onClickCapture={handleClickCapture}
+      onLostPointerCaptureCapture={handleLostPointerCapture}
       onPointerCancel={stopModalLayerPropagation}
       onPointerCancelCapture={finishDrag}
       onPointerDown={stopModalLayerPropagation}

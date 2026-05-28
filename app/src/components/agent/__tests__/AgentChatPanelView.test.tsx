@@ -102,6 +102,43 @@ describe("AgentChatHeader", () => {
     expect(onPositionChange).toHaveBeenCalledWith("pinned");
   });
 
+  it("disables docking when position changes are unavailable", () => {
+    const onPositionChange = vi.fn();
+
+    act(() => {
+      root.render(
+        <MemoryRouter>
+          <AgentChatHeader
+            sessionDisplayName="PXI"
+            orderedSessions={[]}
+            activeSessionId={null}
+            showSessionHistory={false}
+            position="detached"
+            isPositionChangeDisabled
+            onSelectSession={vi.fn()}
+            onDeleteSession={vi.fn()}
+            onCreateSession={vi.fn()}
+            onPositionChange={onPositionChange}
+            onClose={vi.fn()}
+          />
+        </MemoryRouter>
+      );
+    });
+
+    const toggleButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Pin assistant to side"]'
+    );
+
+    expect(toggleButton).not.toBeNull();
+    expect(toggleButton?.disabled).toBe(true);
+
+    act(() => {
+      toggleButton!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(onPositionChange).not.toHaveBeenCalled();
+  });
+
   it("portals the floating panel into the modal portal container", () => {
     const overlay = document.createElement("div");
     const modalRoot = document.createElement("div");
