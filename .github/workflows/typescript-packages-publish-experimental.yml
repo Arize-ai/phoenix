@@ -1,7 +1,7 @@
 name: Publish Any Pull Request
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  pull-requests: read
 # TODO: Only publish on pull requests by arize team members
 on:
   pull_request:
@@ -46,6 +46,9 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.phoenix-client == 'true' || needs.changes.outputs.phoenix-mcp == 'true' || needs.changes.outputs.phoenix-evals == 'true' || needs.changes.outputs.phoenix-otel == 'true' || needs.changes.outputs.phoenix-cli == 'true' || needs.changes.outputs.workflow_file == 'true' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write # pkg-pr-new comments preview install URLs on the PR
 
     steps:
       - name: Checkout code

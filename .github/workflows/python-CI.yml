@@ -37,6 +37,8 @@ jobs:
       json_canonicalization_schema: ${{ steps.filter.outputs.json_canonicalization_schema }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
         id: filter
         with:
@@ -71,17 +73,28 @@ jobs:
               - "**/pyproject.toml"
               - "uv.lock"
       - name: Print Filters
+        env:
+          IPYNB: ${{ steps.filter.outputs.ipynb }}
+          IPYNB_FILES: ${{ steps.filter.outputs.ipynb_files }}
+          PROMPTS: ${{ steps.filter.outputs.prompts }}
+          PHOENIX: ${{ steps.filter.outputs.phoenix }}
+          PHOENIX_CLIENT: ${{ steps.filter.outputs.phoenix_client }}
+          PHOENIX_EVALS: ${{ steps.filter.outputs.phoenix_evals }}
+          PHOENIX_OTEL: ${{ steps.filter.outputs.phoenix_otel }}
+          MIGRATIONS: ${{ steps.filter.outputs.migrations }}
+          UV_LOCK: ${{ steps.filter.outputs.uv_lock }}
+          JSON_CANONICALIZATION_SCHEMA: ${{ steps.filter.outputs.json_canonicalization_schema }}
         run: |
-          echo "ipynb: ${{ steps.filter.outputs.ipynb }}"
-          echo "ipynb_files: ${{ steps.filter.outputs.ipynb_files }}"
-          echo "prompts: ${{ steps.filter.outputs.prompts }}"
-          echo "phoenix: ${{ steps.filter.outputs.phoenix }}"
-          echo "phoenix_client: ${{ steps.filter.outputs.phoenix_client }}"
-          echo "phoenix_evals: ${{ steps.filter.outputs.phoenix_evals }}"
-          echo "phoenix_otel: ${{ steps.filter.outputs.phoenix_otel }}"
-          echo "migrations: ${{ steps.filter.outputs.migrations }}"
-          echo "uv_lock: ${{ steps.filter.outputs.uv_lock }}"
-          echo "json_canonicalization_schema: ${{ steps.filter.outputs.json_canonicalization_schema }}"
+          echo "ipynb: $IPYNB"
+          echo "ipynb_files: $IPYNB_FILES"
+          echo "prompts: $PROMPTS"
+          echo "phoenix: $PHOENIX"
+          echo "phoenix_client: $PHOENIX_CLIENT"
+          echo "phoenix_evals: $PHOENIX_EVALS"
+          echo "phoenix_otel: $PHOENIX_OTEL"
+          echo "migrations: $MIGRATIONS"
+          echo "uv_lock: $UV_LOCK"
+          echo "json_canonicalization_schema: $JSON_CANONICALIZATION_SCHEMA"
 
   phoenix-client:
     name: Phoenix Client
@@ -94,6 +107,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          persist-credentials: false
           sparse-checkout: |
             requirements/
             packages/phoenix-client/
@@ -118,6 +132,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          persist-credentials: false
           sparse-checkout: |
             requirements/
             packages/phoenix-evals/
@@ -140,6 +155,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          persist-credentials: false
           sparse-checkout: |
             requirements/
             packages/phoenix-otel/
@@ -209,6 +225,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -233,6 +251,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -257,6 +277,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -281,6 +303,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -307,6 +331,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -329,6 +355,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Set up Python ${{ matrix.py }}
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -357,6 +385,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          persist-credentials: false
           sparse-checkout: |
             Makefile
             scripts/ci/
@@ -394,6 +423,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          persist-credentials: false
           sparse-checkout: |
             requirements/
             src/phoenix/
@@ -454,6 +484,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          persist-credentials: false
           sparse-checkout: |
             requirements/
             src/phoenix/
@@ -539,6 +570,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          persist-credentials: false
           sparse-checkout: src/phoenix/
       - name: Install Phoenix from current branch
         run: |
@@ -574,6 +606,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          persist-credentials: false
           sparse-checkout: |
             requirements/
             packages/phoenix-client/
