@@ -3586,9 +3586,25 @@ type Span implements Node {
   """Metadata as a JSON string"""
   metadata: String
   numDocuments: Int
+
+  """
+  Total LLM token count for this span only (prompt plus completion). Typically populated on LLM spans.
+  """
   tokenCountTotal: Int
+
+  """
+  Prompt token count for this span only. Typically populated on LLM spans.
+  """
   tokenCountPrompt: Int
+
+  """
+  Completion token count for this span only. Typically populated on LLM spans.
+  """
   tokenCountCompletion: Int
+
+  """
+  Breakdown of this span's prompt tokens by kind (e.g., cache reads, cache writes, audio). These counts are a decomposition of `tokenCountPrompt`, not additive on top of it, and are typically used for cost analysis.
+  """
   tokenPromptDetails: TokenCountPromptDetails!
   input: SpanIOValue
   output: SpanIOValue
@@ -3600,12 +3616,12 @@ type Span implements Node {
   cumulativeTokenCountTotal: Float
 
   """
-  Cumulative (prompt) token count from self and all descendant spans (children, grandchildren, etc.)
+  Cumulative prompt token count from self and all descendant spans (children, grandchildren, etc.)
   """
   cumulativeTokenCountPrompt: Float
 
   """
-  Cumulative (completion) token count from self and all descendant spans (children, grandchildren, etc.)
+  Cumulative completion token count from self and all descendant spans (children, grandchildren, etc.)
   """
   cumulativeTokenCountCompletion: Float
 
@@ -3948,9 +3964,17 @@ type TimeSeriesDataPoint {
   value: Float
 }
 
+"""
+Breakdown of an LLM span's prompt tokens by kind. These counts are a decomposition of the span's prompt token count, not additive on top of it, and are typically used for cost analysis.
+"""
 type TokenCountPromptDetails {
+  """Prompt tokens served from the provider's prompt cache."""
   cacheRead: Int
+
+  """Prompt tokens written into the provider's prompt cache."""
   cacheWrite: Int
+
+  """Prompt tokens that were audio tokens."""
   audio: Int
 }
 
