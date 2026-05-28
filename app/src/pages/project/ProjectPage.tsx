@@ -3,6 +3,7 @@ import {
   startTransition,
   Suspense,
   useCallback,
+  useDeferredValue,
   useEffect,
   useMemo,
 } from "react";
@@ -64,6 +65,7 @@ const mainCSS = css`
 export function ProjectPage() {
   const { projectId } = useParams();
   const { timeRange } = useTimeRange();
+  const deferredTimeRange = useDeferredValue(timeRange);
   return (
     <>
       <TopNavActions>
@@ -71,8 +73,9 @@ export function ProjectPage() {
       </TopNavActions>
       <Suspense fallback={<Loading />}>
         <ProjectPageContent
+          key={projectId}
           projectId={projectId as string}
-          timeRange={timeRange}
+          timeRange={deferredTimeRange}
         />
       </Suspense>
     </>
@@ -148,21 +151,18 @@ function ProjectPageContentBody({
       fetchKey: `${projectId}-${timeRangeVariable.start}-${timeRangeVariable.end}`,
     }
   );
-  const [tracesQueryReference, loadTracesQuery, disposeTracesQuery] =
+  const [tracesQueryReference, loadTracesQuery] =
     useQueryLoader<ProjectPageTracesQueryType>(ProjectPageQueriesTracesQuery);
-  const [spansQueryReference, loadSpansQuery, disposeSpansQuery] =
+  const [spansQueryReference, loadSpansQuery] =
     useQueryLoader<ProjectPageSpansQueryType>(ProjectPageQueriesSpansQuery);
-  const [sessionsQueryReference, loadSessionsQuery, disposeSessionsQuery] =
+  const [sessionsQueryReference, loadSessionsQuery] =
     useQueryLoader<ProjectPageSessionsQueryType>(
       ProjectPageQueriesSessionsQuery
     );
-  const [
-    projectConfigQueryReference,
-    loadProjectConfigQuery,
-    disposeProjectConfigQuery,
-  ] = useQueryLoader<ProjectPageProjectConfigQueryType>(
-    ProjectPageQueriesProjectConfigQuery
-  );
+  const [projectConfigQueryReference, loadProjectConfigQuery] =
+    useQueryLoader<ProjectPageProjectConfigQueryType>(
+      ProjectPageQueriesProjectConfigQuery
+    );
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
   useEffect(() => {
     startTransition(() => {
@@ -188,25 +188,14 @@ function ProjectPageContentBody({
         });
       }
     });
-
-    return () => {
-      disposeSpansQuery();
-      disposeSessionsQuery();
-      disposeTracesQuery();
-      disposeProjectConfigQuery();
-    };
   }, [
     loadTracesQuery,
     projectId,
     timeRangeVariable,
     tabIndex,
-    disposeSpansQuery,
-    disposeSessionsQuery,
-    disposeTracesQuery,
     loadSpansQuery,
     loadSessionsQuery,
     loadProjectConfigQuery,
-    disposeProjectConfigQuery,
     treatOrphansAsRoots,
   ]);
 
