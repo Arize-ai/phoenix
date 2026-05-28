@@ -218,11 +218,11 @@ export type SetTimeRangeInput = {
   endTime?: string;
 };
 
-export const OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME =
-  "open_experiment_evaluator_form";
+export const OPEN_CODE_EVALUATOR_FORM_TOOL_NAME =
+  "open_code_evaluator_form";
 export { TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME };
 
-export type OpenExperimentEvaluatorFormInput = Record<string, never>;
+export type OpenCodeEvaluatorFormInput = Record<string, never>;
 
 export type RenderGenerativeUIInput = {
   /**
@@ -271,9 +271,9 @@ function parseSetSpansFilterInput(input: unknown): SetSpansFilterInput | null {
   };
 }
 
-function parseOpenExperimentEvaluatorFormInput(
+function parseOpenCodeEvaluatorFormInput(
   input: unknown
-): OpenExperimentEvaluatorFormInput | null {
+): OpenCodeEvaluatorFormInput | null {
   if (typeof input !== "object" || input === null || Array.isArray(input)) {
     return null;
   }
@@ -968,20 +968,20 @@ const editCodeEvaluatorDraftAgentTool =
     },
   });
 
-const openExperimentEvaluatorFormAgentTool =
-  createRegisteredAgentTool<OpenExperimentEvaluatorFormInput>({
-    name: OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME,
-    parseInput: parseOpenExperimentEvaluatorFormInput,
-    invalidInputErrorText: `Invalid ${OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME} input. Expected {}.`,
+const openCodeEvaluatorFormAgentTool =
+  createRegisteredAgentTool<OpenCodeEvaluatorFormInput>({
+    name: OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
+    parseInput: parseOpenCodeEvaluatorFormInput,
+    invalidInputErrorText: `Invalid ${OPEN_CODE_EVALUATOR_FORM_TOOL_NAME} input. Expected {}.`,
     execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
       const action =
         agentStore.getState().registeredClientActions[
-          OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME
+          OPEN_CODE_EVALUATOR_FORM_TOOL_NAME
         ];
       if (!action) {
         await addToolOutput({
           state: "output-error",
-          tool: OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME,
+          tool: OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
           toolCallId: toolCall.toolCallId,
           errorText:
             "The dataset-backed playground is not mounted; cannot open the evaluator form.",
@@ -992,14 +992,14 @@ const openExperimentEvaluatorFormAgentTool =
       if (result.ok) {
         await addToolOutput({
           state: "output-available",
-          tool: OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME,
+          tool: OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
           toolCallId: toolCall.toolCallId,
-          output: result.output ?? "Experiment evaluator form opened.",
+          output: result.output ?? "Code-evaluator form opened.",
         });
       } else {
         await addToolOutput({
           state: "output-error",
-          tool: OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME,
+          tool: OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
           toolCallId: toolCall.toolCallId,
           errorText: result.error,
         });
@@ -1063,7 +1063,7 @@ const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   readPlaygroundOutputAgentTool as RegisteredAgentTool<unknown>,
   setVariableValuesAgentTool as RegisteredAgentTool<unknown>,
   batchSpanAnnotateAgentTool as RegisteredAgentTool<unknown>,
-  openExperimentEvaluatorFormAgentTool as RegisteredAgentTool<unknown>,
+  openCodeEvaluatorFormAgentTool as RegisteredAgentTool<unknown>,
   readCodeEvaluatorDraftAgentTool as RegisteredAgentTool<unknown>,
   editCodeEvaluatorDraftAgentTool as RegisteredAgentTool<unknown>,
   testCodeEvaluatorDraftAgentTool as RegisteredAgentTool<unknown>,

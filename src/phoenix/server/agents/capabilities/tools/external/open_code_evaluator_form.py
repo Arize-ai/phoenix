@@ -12,12 +12,12 @@ from pydantic_ai.toolsets.external import ExternalToolset
 from phoenix.server.agents.capabilities.base import AbstractDynamicCapability
 from phoenix.server.agents.types import AgentDependencies
 
-NAME = "open_experiment_evaluator_form"
+NAME = "open_code_evaluator_form"
 
 DESCRIPTION = (
     "Open the dataset-backed code-evaluator form from the current playground "
     "without navigating away. Use this when a dataset is mounted in the playground "
-    "and the user wants to author an experiment evaluator. This opens the existing "
+    "and the user wants to author a code evaluator. This opens the existing "
     "create-code-evaluator form; it does not persist or create an evaluator."
 )
 
@@ -36,7 +36,7 @@ TOOL_DEFINITION = ToolDefinition(
 
 
 @dataclass
-class OpenExperimentEvaluatorFormCapability(AbstractDynamicCapability[AgentDependencies]):
+class OpenCodeEvaluatorFormCapability(AbstractDynamicCapability[AgentDependencies]):
     instructions: Template
 
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:

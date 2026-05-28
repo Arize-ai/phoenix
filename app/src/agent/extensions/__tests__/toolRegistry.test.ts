@@ -1,7 +1,7 @@
 import {
   getAgentToolUIBehavior,
   handleRegisteredAgentToolCall,
-  OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME,
+  OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
   SET_TIME_RANGE_TOOL_NAME,
   TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
 } from "@phoenix/agent/extensions/toolRegistry";
@@ -208,7 +208,7 @@ describe("toolRegistry", () => {
     );
   });
 
-  it("dispatches open_experiment_evaluator_form to the registered client action", async () => {
+  it("dispatches open_code_evaluator_form to the registered client action", async () => {
     const store = createAgentStore();
     const addToolOutput = vi.fn().mockResolvedValue(undefined);
     const action = vi
@@ -216,12 +216,12 @@ describe("toolRegistry", () => {
       .mockResolvedValue({ ok: true, output: "opened form" });
     store
       .getState()
-      .registerClientAction(OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME, action);
+      .registerClientAction(OPEN_CODE_EVALUATOR_FORM_TOOL_NAME, action);
 
     await handleRegisteredAgentToolCall({
       toolCall: {
         toolCallId: "tool-call-open-evaluator-form",
-        toolName: OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME,
+        toolName: OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
         input: {},
       },
       sessionId: "session-1",
@@ -233,20 +233,20 @@ describe("toolRegistry", () => {
     expect(addToolOutput).toHaveBeenCalledWith(
       expect.objectContaining({
         state: "output-available",
-        tool: OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME,
+        tool: OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
         output: "opened form",
       })
     );
   });
 
-  it("returns an error when open_experiment_evaluator_form has no mounted action", async () => {
+  it("returns an error when open_code_evaluator_form has no mounted action", async () => {
     const store = createAgentStore();
     const addToolOutput = vi.fn().mockResolvedValue(undefined);
 
     await handleRegisteredAgentToolCall({
       toolCall: {
         toolCallId: "tool-call-open-evaluator-form-missing",
-        toolName: OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME,
+        toolName: OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
         input: {},
       },
       sessionId: "session-1",
@@ -257,7 +257,7 @@ describe("toolRegistry", () => {
     expect(addToolOutput).toHaveBeenCalledWith(
       expect.objectContaining({
         state: "output-error",
-        tool: OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME,
+        tool: OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
         toolCallId: "tool-call-open-evaluator-form-missing",
         errorText:
           "The dataset-backed playground is not mounted; cannot open the evaluator form.",

@@ -15,7 +15,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     clone_prompt_instance,
     edit_code_evaluator_draft,
     edit_prompt_instance,
-    open_experiment_evaluator_form,
+    open_code_evaluator_form,
     read_code_evaluator_draft,
     read_playground_output,
     read_prompt_instance,
@@ -43,8 +43,8 @@ from phoenix.server.agents.capabilities.tools.external.edit_code_evaluator_draft
 from phoenix.server.agents.capabilities.tools.external.edit_prompt_instance import (
     EditPromptInstanceCapability,
 )
-from phoenix.server.agents.capabilities.tools.external.open_experiment_evaluator_form import (
-    OpenExperimentEvaluatorFormCapability,
+from phoenix.server.agents.capabilities.tools.external.open_code_evaluator_form import (
+    OpenCodeEvaluatorFormCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.read_code_evaluator_draft import (
     ReadCodeEvaluatorDraftCapability,
@@ -92,7 +92,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         clone_prompt_instance.TOOL_DEFINITION,
         edit_code_evaluator_draft.TOOL_DEFINITION,
         edit_prompt_instance.TOOL_DEFINITION,
-        open_experiment_evaluator_form.TOOL_DEFINITION,
+        open_code_evaluator_form.TOOL_DEFINITION,
         read_code_evaluator_draft.TOOL_DEFINITION,
         read_prompt_instance.TOOL_DEFINITION,
         read_prompt_tools.TOOL_DEFINITION,
@@ -140,9 +140,7 @@ def get_external_tool_capability_function(
         WritePromptToolsCapability(instructions=prompts.write_prompt_tools_tool),
         RunPlaygroundCapability(instructions=prompts.run_playground_tool),
         SetVariableValuesCapability(instructions=prompts.set_variable_values_tool),
-        OpenExperimentEvaluatorFormCapability(
-            instructions=prompts.open_experiment_evaluator_form_tool
-        ),
+        OpenCodeEvaluatorFormCapability(instructions=prompts.open_code_evaluator_form_tool),
         ReadCodeEvaluatorDraftCapability(instructions=prompts.read_code_evaluator_draft_tool),
         EditCodeEvaluatorDraftCapability(instructions=prompts.edit_code_evaluator_draft_tool),
         TestCodeEvaluatorDraftCapability(instructions=prompts.test_code_evaluator_draft_tool),
@@ -162,7 +160,7 @@ __all__ = [
     "ClonePromptInstanceCapability",
     "EditCodeEvaluatorDraftCapability",
     "EditPromptInstanceCapability",
-    "OpenExperimentEvaluatorFormCapability",
+    "OpenCodeEvaluatorFormCapability",
     "ReadCodeEvaluatorDraftCapability",
     "ReadPromptInstanceCapability",
     "ReadPromptToolsCapability",

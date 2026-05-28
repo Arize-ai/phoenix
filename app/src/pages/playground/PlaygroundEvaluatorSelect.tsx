@@ -38,8 +38,8 @@ type PlaygroundEvaluatorSelectProps = {
   onEvaluatorCreated?: (datasetEvaluatorId: string) => void;
   query: PlaygroundEvaluatorSelect_query$key;
   isDisabled?: boolean;
-  isExperimentEvaluatorFormOpen: boolean;
-  onExperimentEvaluatorFormOpenChange: (isOpen: boolean) => void;
+  isCodeEvaluatorFormOpen: boolean;
+  onCodeEvaluatorFormOpenChange: (isOpen: boolean) => void;
 };
 
 export function PlaygroundEvaluatorSelect(
@@ -54,8 +54,8 @@ export function PlaygroundEvaluatorSelect(
     onEvaluatorCreated,
     query,
     isDisabled,
-    isExperimentEvaluatorFormOpen,
-    onExperimentEvaluatorFormOpenChange,
+    isCodeEvaluatorFormOpen,
+    onCodeEvaluatorFormOpenChange,
   } = props;
 
   const data = useFragment<PlaygroundEvaluatorSelect_query$key>(
@@ -162,7 +162,7 @@ export function PlaygroundEvaluatorSelect(
               setCreateLLMEvaluatorDialogInitialState(true)
             }
             onCreateCodeEvaluator={() =>
-              onExperimentEvaluatorFormOpenChange(true)
+              onCodeEvaluatorFormOpenChange(true)
             }
             onSelectBuiltInCodeEvaluator={setBuiltinEvaluatorIdToAssociate}
             onSelectBuiltInLLMEvaluator={(initialState) => {
@@ -223,8 +223,8 @@ export function PlaygroundEvaluatorSelect(
         updateConnectionIds={updateConnectionIds}
       />
       <CreateCodeDatasetEvaluatorSlideover
-        isOpen={isExperimentEvaluatorFormOpen}
-        onOpenChange={onExperimentEvaluatorFormOpenChange}
+        isOpen={isCodeEvaluatorFormOpen}
+        onOpenChange={onCodeEvaluatorFormOpenChange}
         datasetId={datasetId}
         updateConnectionIds={updateConnectionIds}
         onEvaluatorCreated={onEvaluatorCreated}

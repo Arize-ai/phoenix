@@ -519,7 +519,7 @@ class TestSkillsCapability:
         assert "read_skill_resource" in tool_names
 
 
-class TestExperimentEvaluatorFormToolGates:
+class TestCodeEvaluatorFormToolGates:
     @staticmethod
     def _sandbox_availability() -> SandboxAvailability:
         return SandboxAvailability(
@@ -550,7 +550,7 @@ class TestExperimentEvaluatorFormToolGates:
         await agent.run("hello", deps=deps)
 
         tool_names = _get_tool_names(captured_request.body)
-        assert "open_experiment_evaluator_form" in tool_names
+        assert "open_code_evaluator_form" in tool_names
         assert "read_code_evaluator_draft" not in tool_names
         assert "edit_code_evaluator_draft" not in tool_names
         assert "test_code_evaluator_draft" not in tool_names
@@ -573,7 +573,7 @@ class TestExperimentEvaluatorFormToolGates:
         await agent.run("hello", deps=deps)
 
         tool_names = _get_tool_names(captured_request.body)
-        assert "open_experiment_evaluator_form" not in tool_names
+        assert "open_code_evaluator_form" not in tool_names
 
     async def test_open_form_hidden_without_usable_sandbox(
         self,
@@ -592,7 +592,7 @@ class TestExperimentEvaluatorFormToolGates:
         await agent.run("hello", deps=deps)
 
         tool_names = _get_tool_names(captured_request.body)
-        assert "open_experiment_evaluator_form" not in tool_names
+        assert "open_code_evaluator_form" not in tool_names
 
     async def test_form_tools_advertised_for_mounted_code_evaluator_form(
         self,
@@ -613,7 +613,7 @@ class TestExperimentEvaluatorFormToolGates:
         await agent.run("hello", deps=deps)
 
         tool_names = _get_tool_names(captured_request.body)
-        assert "open_experiment_evaluator_form" not in tool_names
+        assert "open_code_evaluator_form" not in tool_names
         assert "read_code_evaluator_draft" in tool_names
         assert "edit_code_evaluator_draft" in tool_names
         assert "test_code_evaluator_draft" in tool_names

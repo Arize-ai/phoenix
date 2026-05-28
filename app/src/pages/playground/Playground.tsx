@@ -18,7 +18,7 @@ import type { BlockerFunction } from "react-router";
 import { useBlocker, useSearchParams } from "react-router";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
-import { OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME } from "@phoenix/agent/extensions/toolRegistry";
+import { OPEN_CODE_EVALUATOR_FORM_TOOL_NAME } from "@phoenix/agent/extensions/toolRegistry";
 import {
   EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
@@ -282,11 +282,11 @@ function PlaygroundContent() {
   }, [serializedSplitIds]);
   const isDatasetMode = datasetId != null;
   const [
-    experimentEvaluatorFormDatasetId,
-    setExperimentEvaluatorFormDatasetId,
+    codeEvaluatorFormDatasetId,
+    setCodeEvaluatorFormDatasetId,
   ] = useState<string | null>(null);
-  const isExperimentEvaluatorFormOpen =
-    datasetId != null && experimentEvaluatorFormDatasetId === datasetId;
+  const isCodeEvaluatorFormOpen =
+    datasetId != null && codeEvaluatorFormDatasetId === datasetId;
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
   );
@@ -413,7 +413,7 @@ function PlaygroundContent() {
       return;
     }
     registerClientAction(
-      OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME,
+      OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
       async (): Promise<AgentClientActionResult> => {
         if (isRunning) {
           return {
@@ -422,7 +422,7 @@ function PlaygroundContent() {
               "The playground is running an experiment; wait for it to finish before opening the code-evaluator form.",
           };
         }
-        setExperimentEvaluatorFormDatasetId(datasetId);
+        setCodeEvaluatorFormDatasetId(datasetId);
         const isReady = await waitForRegisteredClientActions({
           agentStore,
           names: [
@@ -446,7 +446,7 @@ function PlaygroundContent() {
       }
     );
     return () => {
-      unregisterClientAction(OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME);
+      unregisterClientAction(OPEN_CODE_EVALUATOR_FORM_TOOL_NAME);
     };
   }, [agentStore, datasetId, isRunning]);
 
@@ -583,9 +583,9 @@ function PlaygroundContent() {
                 key={datasetId} // reset evaluator selection when dataset changes
                 datasetId={datasetId}
                 splitIds={splitIds}
-                isExperimentEvaluatorFormOpen={isExperimentEvaluatorFormOpen}
-                onExperimentEvaluatorFormOpenChange={(isOpen) =>
-                  setExperimentEvaluatorFormDatasetId(isOpen ? datasetId : null)
+                isCodeEvaluatorFormOpen={isCodeEvaluatorFormOpen}
+                onCodeEvaluatorFormOpenChange={(isOpen) =>
+                  setCodeEvaluatorFormDatasetId(isOpen ? datasetId : null)
                 }
               />
             </Suspense>

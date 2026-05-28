@@ -167,7 +167,7 @@ class TestDatasetContextCapabilityRender:
             )
         )
         content = _render(capability, ctx)
-        assert "open_experiment_evaluator_form" in content
+        assert "open_code_evaluator_form" in content
         assert (
             "[Create code evaluator](/datasets/RGF0YXNldDox%3D%3D/evaluators"
             "?createCodeEvaluator=true)"
@@ -305,7 +305,7 @@ class TestPlaygroundContextCapabilityRender:
         )
         content = _render(capability, ctx)
         assert "<dataset_evaluator_authoring>" in content
-        assert "open_experiment_evaluator_form" in content
+        assert "open_code_evaluator_form" in content
         assert "read_code_evaluator_draft" in content
         assert "test_code_evaluator_draft" in content
         assert "offer to run" in content
