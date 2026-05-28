@@ -88,7 +88,10 @@ async function fetchLatestVersion({
         dataset: node(id: $datasetId) {
           id
           ... on Dataset {
-            latestVersions: versions(first: 1, sort: { col: createdAt, dir: desc }) {
+            latestVersions: versions(
+              first: 1
+              sort: { col: createdAt, dir: desc }
+            ) {
               edges {
                 version: node {
                   id

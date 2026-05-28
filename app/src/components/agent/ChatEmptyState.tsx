@@ -69,7 +69,10 @@ const actionCSS = css`
 
   &:hover {
     background: var(--global-color-gray-100);
-    border-color: var(--global-border-color-hover, var(--global-color-gray-300));
+    border-color: var(
+      --global-border-color-hover,
+      var(--global-color-gray-300)
+    );
     color: var(--global-text-color-900);
   }
 
@@ -89,39 +92,58 @@ const actionIconCSS = css`
 
 export function ChatEmptyState({
   subtext,
+  children,
   quickActions = DEFAULT_QUICK_ACTIONS,
   onQuickAction,
-}: {
+}: React.PropsWithChildren<{
   subtext?: ReactNode;
   quickActions?: EmptyStateQuickAction[];
   onQuickAction: (prompt: string) => void;
-}) {
+}>) {
   return (
     <div css={emptyStateCSS} className="chat__empty">
       <ChatEmptyShaderHero subtext={subtext} />
-      {quickActions.length > 0 && (
-        <div css={actionsCSS} className="chat__empty-actions">
-          {quickActions.map((action, index) => (
-            <button
-              key={action.label}
-              type="button"
-              css={actionCSS}
-              className="chat__empty-action"
-              style={
-                {
-                  "--chat-empty-action-delay": `${400 + index * 80}ms`,
-                } as CSSProperties
-              }
-              onClick={() => onQuickAction(action.prompt)}
-            >
-              <span css={actionIconCSS} className="chat__empty-action-icon">
-                <Icon svg={action.icon} />
-              </span>
-              <span>{action.label}</span>
-            </button>
-          ))}
-        </div>
+      {children ?? (
+        <ChatEmptyStateQuickActions
+          quickActions={quickActions}
+          onQuickAction={onQuickAction}
+        />
       )}
+    </div>
+  );
+}
+
+export function ChatEmptyStateQuickActions({
+  quickActions = DEFAULT_QUICK_ACTIONS,
+  onQuickAction,
+}: {
+  quickActions?: EmptyStateQuickAction[];
+  onQuickAction: (prompt: string) => void;
+}) {
+  if (quickActions.length === 0) {
+    return null;
+  }
+  return (
+    <div css={actionsCSS} className="chat__empty-actions">
+      {quickActions.map((action, index) => (
+        <button
+          key={action.label}
+          type="button"
+          css={actionCSS}
+          className="chat__empty-action"
+          style={
+            {
+              "--chat-empty-action-delay": `${400 + index * 80}ms`,
+            } as CSSProperties
+          }
+          onClick={() => onQuickAction(action.prompt)}
+        >
+          <span css={actionIconCSS} className="chat__empty-action-icon">
+            <Icon svg={action.icon} />
+          </span>
+          <span>{action.label}</span>
+        </button>
+      ))}
     </div>
   );
 }

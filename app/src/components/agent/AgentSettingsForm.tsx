@@ -1,13 +1,14 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 
-import { Button, Flex, Label } from "@phoenix/components";
+import { Alert, Button, Flex, Label } from "@phoenix/components";
 import { fieldBaseCSS } from "@phoenix/components/core/field/styles";
 import type { ModelMenuValue } from "@phoenix/components/generative/ModelMenu";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 import type { ModelConfig } from "@phoenix/store/playground/types";
 
+import { isAgentCuratedModelSelection } from "./agentCuratedModels";
 import { AgentModelMenu } from "./AgentModelMenu";
 
 function defaultModelConfigToMenuValue(config: ModelConfig): ModelMenuValue {
@@ -39,6 +40,8 @@ export function AgentSettingsForm({ children }: { children?: ReactNode }) {
         model: defaultModelConfigToMenuValue(defaultModelConfig),
       },
     });
+  const selectedModel = useWatch({ control, name: "model" });
+  const isRecommendedModel = isAgentCuratedModelSelection(selectedModel);
 
   const onSubmit = (data: AgentSettingsFormValues) => {
     const { defaultModelConfig: current } = store.getState();
@@ -66,9 +69,24 @@ export function AgentSettingsForm({ children }: { children?: ReactNode }) {
           name="model"
           control={control}
           render={({ field }) => (
-            <AgentModelMenu value={field.value} onChange={field.onChange} />
+            <AgentModelMenu
+              value={field.value}
+              onChange={field.onChange}
+              limitToCuratedModels={false}
+            />
           )}
         />
+        {!isRecommendedModel && (
+          <Alert
+            variant="warning"
+            css={css`
+              margin-top: var(--global-dimension-size-100);
+            `}
+          >
+            This model has not been verified with PXI and may fail or behave
+            poorly.
+          </Alert>
+        )}
       </div>
       {children}
       <Flex direction="row" gap="size-100" justifyContent="end" width="100%">

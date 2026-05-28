@@ -2,7 +2,6 @@ import { graphql, useLazyLoadQuery } from "react-relay";
 import type { TooltipContentProps } from "recharts";
 import {
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -13,15 +12,18 @@ import {
 
 import { Text } from "@phoenix/components";
 import {
+  ChartEmptyStateOverlay,
   ChartTooltip,
   ChartTooltipItem,
-  useBinInterval,
+  InteractiveLegend,
+  TimeRangeChartBrush,
   useBinTimeTickFormatter,
+  useInteractiveLegend,
 } from "@phoenix/components/chart";
 import {
   defaultCartesianGridProps,
   defaultLegendProps,
-  defaultXAxisProps,
+  defaultTimeXAxisProps,
   defaultYAxisProps,
 } from "@phoenix/components/chart/defaults";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
@@ -40,7 +42,7 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
       <ChartTooltip>
         {label && (
           <Text weight="heavy" size="S">{`${fullTimeFormatter(
-            new Date(String(label))
+            new Date(Number(label))
           )}`}</Text>
         )}
         {payload.map((entry, index) => {
@@ -62,7 +64,13 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
   return null;
 }
 
-function AnnotationLine({ name }: { name: string }) {
+function AnnotationLine({
+  isHidden,
+  name,
+}: {
+  isHidden: boolean;
+  name: string;
+}) {
   const color = useWordColor(name);
   return (
     <Line
@@ -72,6 +80,7 @@ function AnnotationLine({ name }: { name: string }) {
       strokeWidth={2}
       dot={{ r: 2 }}
       activeDot={{ r: 4 }}
+      hide={isHidden}
       name={name}
     />
   );
@@ -80,6 +89,7 @@ function AnnotationLine({ name }: { name: string }) {
 export function SpanAnnotationScoreTimeSeries({
   projectId,
   timeRange,
+  onTimeRangeSelected,
 }: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
@@ -129,8 +139,8 @@ export function SpanAnnotationScoreTimeSeries({
 
   // Transform the data to have one property per annotation label
   const chartData = timeSeriesData.map((datum) => {
-    const transformed: Record<string, string | number | Date> = {
-      timestamp: new Date(datum.timestamp),
+    const transformed: Record<string, string | number> = {
+      timestamp: new Date(datum.timestamp).getTime(),
     };
 
     datum.scoresWithLabels.forEach((scoreWithLabel) => {
@@ -141,47 +151,70 @@ export function SpanAnnotationScoreTimeSeries({
   });
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
-  const interval = useBinInterval({ scale });
+  const hasData = annotationNames.length > 0;
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+    useInteractiveLegend();
 
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart
-        data={chartData}
-        margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
-        syncId={"projectMetrics"}
-      >
-        <XAxis
-          {...defaultXAxisProps}
-          dataKey="timestamp"
-          tickFormatter={(x) => timeTickFormatter(x)}
-          interval={interval}
-        />
-        <YAxis
-          width={55}
-          tickFormatter={(x) => formatFloat(x)}
-          label={{
-            value: "Score",
-            angle: -90,
-            dx: -28,
-            style: {
-              textAnchor: "middle",
-              fill: "var(--chart-axis-label-color)",
-            },
-          }}
-          {...defaultYAxisProps}
-        />
-        <CartesianGrid vertical={false} {...defaultCartesianGridProps} />
-        <Tooltip
-          content={TooltipContent}
-          cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
-        />
+    <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
+      {({ chartProps }) => (
+        <ChartEmptyStateOverlay
+          isEmpty={!hasData}
+          message="No data in this time range"
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={chartData}
+              margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
+              syncId={"projectMetrics"}
+              {...chartProps}
+            >
+              <XAxis
+                {...defaultTimeXAxisProps}
+                domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
+                tickFormatter={(x) => timeTickFormatter(new Date(x))}
+              />
+              <YAxis
+                width={55}
+                tickFormatter={(x) => formatFloat(x)}
+                label={{
+                  value: "Score",
+                  angle: -90,
+                  dx: -28,
+                  style: {
+                    textAnchor: "middle",
+                    fill: "var(--chart-axis-label-color)",
+                  },
+                }}
+                {...defaultYAxisProps}
+              />
+              <CartesianGrid vertical={false} {...defaultCartesianGridProps} />
+              <Tooltip
+                content={TooltipContent}
+                cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+              />
 
-        {annotationNames.map((name) => {
-          return <AnnotationLine key={name} name={name} />;
-        })}
+              {annotationNames.map((name) => {
+                return (
+                  <AnnotationLine
+                    isHidden={isDataKeyHidden(name)}
+                    key={name}
+                    name={name}
+                  />
+                );
+              })}
 
-        <Legend {...defaultLegendProps} iconType="line" iconSize={8} />
-      </LineChart>
-    </ResponsiveContainer>
+              <InteractiveLegend
+                {...defaultLegendProps}
+                hiddenDataKeys={hiddenDataKeys}
+                iconType="line"
+                iconSize={8}
+                onToggleDataKey={toggleDataKey}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartEmptyStateOverlay>
+      )}
+    </TimeRangeChartBrush>
   );
 }

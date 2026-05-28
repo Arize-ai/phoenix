@@ -71,6 +71,8 @@ class TestProjectSession:
                     attributes={"input": {"value": "123"}, "output": {"value": "321"}},
                     cumulative_llm_token_count_prompt=1,
                     cumulative_llm_token_count_completion=2,
+                    llm_token_count_prompt=1,
+                    llm_token_count_completion=2,
                     cumulative_error_count=2,
                 )
             )
@@ -89,6 +91,8 @@ class TestProjectSession:
                     attributes={"input": {"value": "1234"}, "output": {"value": "4321"}},
                     cumulative_llm_token_count_prompt=3,
                     cumulative_llm_token_count_completion=4,
+                    llm_token_count_prompt=3,
+                    llm_token_count_completion=4,
                 )
             )
 

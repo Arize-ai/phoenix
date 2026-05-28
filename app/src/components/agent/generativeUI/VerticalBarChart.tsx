@@ -9,7 +9,10 @@ import {
   YAxis,
 } from "recharts";
 
-import { useGrayscaleCategoricalColors } from "@phoenix/components/chart";
+import {
+  ChartEmptyStateOverlay,
+  useGrayscaleCategoricalColors,
+} from "@phoenix/components/chart";
 
 import { ChartFrame } from "./ChartFrame";
 import type { VerticalBarDatum } from "./types";
@@ -111,67 +114,62 @@ export function VerticalBarChart({
     ),
     20
   );
-
-  if (data.length === 0) {
-    return (
-      <ChartFrame title={title}>
-        <NoData />
-      </ChartFrame>
-    );
-  }
+  const hasData = data.length > 0;
 
   return (
     <ChartFrame title={title}>
-      <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-        <RechartsBarChart data={chartData} margin={CHART_MARGINS}>
-          <CartesianGrid
-            horizontal
-            vertical={false}
-            stroke="var(--global-color-gray-200)"
-          />
-          <YAxis
-            width={yAxisWidth}
-            axisLine={false}
-            tickLine={false}
-            tick={{ fontSize: 9, fill: "var(--global-text-color-700)" }}
-            tickCount={3}
-            domain={[0, "dataMax"]}
-          />
-          <XAxis
-            dataKey="label"
-            axisLine={false}
-            tickLine={false}
-            tick={<CustomXAxisTick />}
-            interval="preserveStartEnd"
-            minTickGap={20}
-          />
-          {hasHighlight ? (
-            <>
+      <ChartEmptyStateOverlay isEmpty={!hasData}>
+        <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+          <RechartsBarChart data={chartData} margin={CHART_MARGINS}>
+            <CartesianGrid
+              horizontal
+              vertical={false}
+              stroke="var(--global-color-gray-200)"
+            />
+            <YAxis
+              width={yAxisWidth}
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 9, fill: "var(--global-text-color-700)" }}
+              tickCount={3}
+              domain={[0, "dataMax"]}
+            />
+            <XAxis
+              dataKey="label"
+              axisLine={false}
+              tickLine={false}
+              tick={<CustomXAxisTick />}
+              interval="preserveStartEnd"
+              minTickGap={20}
+            />
+            {hasHighlight ? (
+              <>
+                <Bar
+                  dataKey="baseValue"
+                  stackId="verticalBarChart"
+                  fill={baseColor}
+                  maxBarSize={MAX_BAR_SIZE}
+                  radius={[2, 2, 0, 0]}
+                />
+                <Bar
+                  dataKey="highlightValue"
+                  stackId="verticalBarChart"
+                  fill={highlightColor}
+                  maxBarSize={MAX_BAR_SIZE}
+                  radius={[2, 2, 0, 0]}
+                />
+              </>
+            ) : (
               <Bar
                 dataKey="baseValue"
-                stackId="verticalBarChart"
                 fill={baseColor}
                 maxBarSize={MAX_BAR_SIZE}
                 radius={[2, 2, 0, 0]}
               />
-              <Bar
-                dataKey="highlightValue"
-                stackId="verticalBarChart"
-                fill={highlightColor}
-                maxBarSize={MAX_BAR_SIZE}
-                radius={[2, 2, 0, 0]}
-              />
-            </>
-          ) : (
-            <Bar
-              dataKey="baseValue"
-              fill={baseColor}
-              maxBarSize={MAX_BAR_SIZE}
-              radius={[2, 2, 0, 0]}
-            />
-          )}
-        </RechartsBarChart>
-      </ResponsiveContainer>
+            )}
+          </RechartsBarChart>
+        </ResponsiveContainer>
+      </ChartEmptyStateOverlay>
       {hasHighlight && baseLabel && highlightLabel && (
         <div css={legendRowCSS}>
           <div css={legendCSS}>
@@ -191,8 +189,4 @@ export function VerticalBarChart({
       )}
     </ChartFrame>
   );
-}
-
-function NoData() {
-  return <span style={{ color: "var(--global-text-color-500)" }}>No data</span>;
 }

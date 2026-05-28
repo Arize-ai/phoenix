@@ -57,6 +57,10 @@
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
   </url>
   <url>
+    <loc>https://arize.com/docs/phoenix/pxi</loc>
+    <lastmod>2026-05-28T01:36:38+00:00</lastmod>
+  </url>
+  <url>
     <loc>https://arize.com/docs/phoenix/tracing/tutorial</loc>
     <lastmod>2026-02-08T18:56:43+00:00</lastmod>
   </url>
@@ -1823,6 +1827,14 @@
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes</loc>
     <lastmod>2026-01-27T22:36:31+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/05-2026/05-27-2026-drag-to-zoom</loc>
+    <lastmod>2026-05-27T21:04:26+00:00</lastmod>
+  </url>
+  <url>
+    <loc>https://arize.com/docs/phoenix/release-notes/05-2026/05-21-2026-code-evaluators</loc>
+    <lastmod>2026-05-27T21:04:26+00:00</lastmod>
   </url>
   <url>
     <loc>https://arize.com/docs/phoenix/release-notes/05-2026/05-15-2026-otel-semconv-conversion</loc>

@@ -4,18 +4,27 @@ import type {
   KeyboardEvent as ReactKeyboardEvent,
   PointerEvent as ReactPointerEvent,
   ReactNode,
+  SyntheticEvent as ReactSyntheticEvent,
 } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 
-import { NON_MODAL_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
+import {
+  MODAL_FLOATING_UI_Z_INDEX,
+  NON_MODAL_FLOATING_Z_INDEX,
+} from "@phoenix/components/core/zIndex";
 import type { AgentFabPlacement } from "@phoenix/store/agentStore";
 import type { Point, Size } from "@phoenix/types/geometry";
+import { clampNumber } from "@phoenix/utils/numberUtils";
+
+import { useModalFloatingLayerInteractivity } from "./useModalFloatingLayerInteractivity";
 
 const FULLSCREEN_BREAKPOINT_PX = 600;
 const KEYBOARD_RESIZE_STEP_PX = 24;
 const PRIMARY_POINTER_BUTTON = 0;
 const RESIZE_HANDLE_SIZE_PX = 6;
 const RESIZE_HANDLE_Z_INDEX = 4;
+
+type FloatingPanelLayer = "content" | "modal";
 
 type ResizeAxis = "horizontal" | "vertical";
 
@@ -44,15 +53,12 @@ type ResizeSession = {
 
 export type ResizableFloatingPanelProps = {
   children: ReactNode;
+  layer?: FloatingPanelLayer;
   minSize: Size;
   placement: AgentFabPlacement;
   size: Size;
   onSizeChange?: (size: Size) => void;
 };
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
-}
 
 function getResizeHandles(placement: AgentFabPlacement): ResizeHandleConfig[] {
   return [
@@ -81,20 +87,33 @@ function getFallbackResizeLimits(minSize: Size): ResizeLimits {
   };
 }
 
-function getPanelBoundaryRect(panel: HTMLElement): DOMRect {
+function getViewportRect(): DOMRect {
+  return new DOMRect(0, 0, window.innerWidth, window.innerHeight);
+}
+
+function getPanelBoundaryRect(
+  panel: HTMLElement,
+  layer: FloatingPanelLayer
+): DOMRect {
+  if (layer === "modal") {
+    return getViewportRect();
+  }
+
   const boundary = panel.offsetParent ?? panel.parentElement;
   return boundary instanceof HTMLElement
     ? boundary.getBoundingClientRect()
-    : new DOMRect(0, 0, window.innerWidth, window.innerHeight);
+    : getViewportRect();
 }
 
 function getResizeLimits({
   minSize,
   panel,
+  layer,
   placement,
 }: {
   minSize: Size;
   panel: HTMLElement | null;
+  layer: FloatingPanelLayer;
   placement: AgentFabPlacement;
 }): ResizeLimits {
   if (!panel) {
@@ -102,7 +121,7 @@ function getResizeLimits({
   }
 
   const panelRect = panel.getBoundingClientRect();
-  const boundaryRect = getPanelBoundaryRect(panel);
+  const boundaryRect = getPanelBoundaryRect(panel, layer);
   const horizontalInset = placement.endsWith("end")
     ? Math.max(boundaryRect.right - panelRect.right, 0)
     : Math.max(panelRect.left - boundaryRect.left, 0);
@@ -161,21 +180,21 @@ function getResizedPanelSize({
       session.edge === "left"
         ? session.startPointer.x - pointer.x
         : pointer.x - session.startPointer.x;
-    nextSize.width = clamp(
-      session.startSize.width + delta,
-      session.limits.minWidth,
-      session.limits.maxWidth
-    );
+    nextSize.width = clampNumber({
+      value: session.startSize.width + delta,
+      min: session.limits.minWidth,
+      max: session.limits.maxWidth,
+    });
   } else {
     const delta =
       session.edge === "top"
         ? session.startPointer.y - pointer.y
         : pointer.y - session.startPointer.y;
-    nextSize.height = clamp(
-      session.startSize.height + delta,
-      session.limits.minHeight,
-      session.limits.maxHeight
-    );
+    nextSize.height = clampNumber({
+      value: session.startSize.height + delta,
+      min: session.limits.minHeight,
+      max: session.limits.maxHeight,
+    });
   }
 
   return nextSize;
@@ -220,9 +239,7 @@ function getKeyboardResizeDelta({
 }
 
 const resizableFloatingPanelCSS = css`
-  --resizable-floating-panel-viewport-margin: var(
-    --global-dimension-size-400
-  );
+  --resizable-floating-panel-viewport-margin: var(--global-dimension-size-400);
 
   position: absolute;
   z-index: ${NON_MODAL_FLOATING_Z_INDEX};
@@ -251,6 +268,11 @@ const resizableFloatingPanelCSS = css`
 
   &[data-resizing="true"] {
     user-select: none;
+  }
+
+  &[data-layer="modal"] {
+    position: fixed;
+    z-index: ${MODAL_FLOATING_UI_Z_INDEX};
   }
 
   &[data-placement^="top"] {
@@ -359,7 +381,8 @@ const resizableFloatingPanelCSS = css`
     bottom: 0;
   }
 
-  @media (max-width: ${FULLSCREEN_BREAKPOINT_PX}px), (max-height: ${FULLSCREEN_BREAKPOINT_PX}px) {
+  @media (max-width: ${FULLSCREEN_BREAKPOINT_PX}px),
+    (max-height: ${FULLSCREEN_BREAKPOINT_PX}px) {
     inset: var(--global-dimension-size-100);
     width: auto;
     height: auto;
@@ -376,6 +399,7 @@ const resizableFloatingPanelCSS = css`
 
 export function ResizableFloatingPanel({
   children,
+  layer = "content",
   minSize,
   placement,
   size,
@@ -387,8 +411,10 @@ export function ResizableFloatingPanel({
   const pendingSizeRef = useRef<Size | null>(null);
   const animationFrameIdRef = useRef<number | null>(null);
   const [resizingEdge, setResizingEdge] = useState<ResizeEdge | null>(null);
+  useModalFloatingLayerInteractivity(panelRef, layer === "modal");
 
   const resizeLimits = getResizeLimits({
+    layer,
     minSize,
     panel: panelRef.current,
     placement,
@@ -397,14 +423,23 @@ export function ResizableFloatingPanel({
   const commitSize = (
     nextSize: Size,
     limits = getResizeLimits({
+      layer,
       minSize,
       panel: panelRef.current,
       placement,
     })
   ) => {
     onSizeChange?.({
-      height: clamp(nextSize.height, limits.minHeight, limits.maxHeight),
-      width: clamp(nextSize.width, limits.minWidth, limits.maxWidth),
+      height: clampNumber({
+        value: nextSize.height,
+        min: limits.minHeight,
+        max: limits.maxHeight,
+      }),
+      width: clampNumber({
+        value: nextSize.width,
+        min: limits.minWidth,
+        max: limits.maxWidth,
+      }),
     });
   };
   const flushPendingSize = () => {
@@ -427,7 +462,7 @@ export function ResizableFloatingPanel({
     resizeSessionRef.current = {
       axis,
       edge,
-      limits: getResizeLimits({ minSize, panel, placement }),
+      limits: getResizeLimits({ layer, minSize, panel, placement }),
       pointerId: event.pointerId,
       startPointer: { x: event.clientX, y: event.clientY },
       startSize: getPanelSizeFromElement({
@@ -482,6 +517,7 @@ export function ResizableFloatingPanel({
     { axis, edge }: ResizeHandleConfig
   ) => {
     const limits = getResizeLimits({
+      layer,
       minSize,
       panel: panelRef.current,
       placement,
@@ -533,14 +569,28 @@ export function ResizableFloatingPanel({
     };
   }, []);
 
+  const stopModalLayerPropagation = (
+    event: ReactSyntheticEvent<HTMLDivElement>
+  ) => {
+    if (layer === "modal") {
+      event.stopPropagation();
+    }
+  };
+
   return (
     <div
       id={panelId}
       className="resizable-floating-panel"
       css={resizableFloatingPanelCSS}
+      data-layer={layer}
       data-placement={placement}
       data-resizing={resizingEdge == null ? undefined : "true"}
       ref={panelRef}
+      onClick={stopModalLayerPropagation}
+      onPointerCancel={stopModalLayerPropagation}
+      onPointerDown={stopModalLayerPropagation}
+      onPointerMove={stopModalLayerPropagation}
+      onPointerUp={stopModalLayerPropagation}
       style={
         {
           "--resizable-floating-panel-height": `${size.height}px`,

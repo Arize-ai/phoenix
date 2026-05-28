@@ -4,7 +4,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -16,12 +15,14 @@ import type { SequentialChartColors } from "@phoenix/components/chart";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  InteractiveLegend,
+  SEQUENTIAL_CHART_COLORS,
   defaultBarChartTooltipProps,
   defaultCartesianGridProps,
   defaultLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
-  SEQUENTIAL_CHART_COLORS,
+  useInteractiveLegend,
   useSequentialChartColors,
   useTimeTickFormatter,
 } from "@phoenix/components/chart";
@@ -149,18 +150,9 @@ const highVolumeData = [
 ];
 
 function TooltipContent({ active, payload, label }: TooltipContentProps) {
-  const chartColors = useSequentialChartColors();
   const { fullTimeFormatter } = useTimeFormatters();
 
   if (active && payload && payload.length) {
-    const metricValue = payload[1]?.value ?? null;
-    const count = payload[0]?.value ?? null;
-    const metricString =
-      typeof metricValue === "number"
-        ? numberFormatter.format(metricValue)
-        : "--";
-    const predictionCountString =
-      typeof count === "number" ? numberFormatter.format(count) : "--";
     return (
       <ChartTooltip>
         {label && (
@@ -168,18 +160,22 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
             new Date(label)
           )}`}</Text>
         )}
-        <ChartTooltipItem
-          color={chartColors.red300}
-          shape="circle"
-          name="error"
-          value={metricString}
-        />
-        <ChartTooltipItem
-          color={chartColors.default}
-          shape="circle"
-          name="ok"
-          value={predictionCountString}
-        />
+        {payload.map((entry) => {
+          const name = String(entry.dataKey ?? entry.name ?? "unknown");
+          return (
+            <ChartTooltipItem
+              color={entry.color ?? "transparent"}
+              key={name}
+              shape="circle"
+              name={name}
+              value={
+                typeof entry.value === "number"
+                  ? numberFormatter.format(entry.value)
+                  : "--"
+              }
+            />
+          );
+        })}
       </ChartTooltip>
     );
   }
@@ -215,6 +211,8 @@ function StackedBarChart({
   });
 
   const colors = useSequentialChartColors();
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+    useInteractiveLegend();
 
   return (
     <div style={{ width: "100%", height }}>
@@ -245,18 +243,26 @@ function StackedBarChart({
 
           <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
           <Tooltip {...defaultBarChartTooltipProps} content={TooltipContent} />
-          <Bar dataKey="error" stackId="a" fill={colors[firstColor]} />
+          <Bar
+            dataKey="error"
+            stackId="a"
+            fill={colors[firstColor]}
+            hide={isDataKeyHidden("error")}
+          />
           <Bar
             dataKey="ok"
             stackId="a"
             fill={colors[secondColor]}
+            hide={isDataKeyHidden("ok")}
             radius={[2, 2, 0, 0]}
           />
 
-          <Legend
+          <InteractiveLegend
             align="left"
+            hiddenDataKeys={hiddenDataKeys}
             iconType="circle"
             iconSize={8}
+            onToggleDataKey={toggleDataKey}
             {...defaultLegendProps}
           />
         </BarChart>

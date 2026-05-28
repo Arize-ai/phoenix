@@ -78,7 +78,7 @@ async def data_for_testing_dataloaders(
                                 span_id=f"proj{i}_sess{l}_trace{j}_span{k}",
                                 parent_id=None,
                                 name=f"proj{i}_sess{l}_trace{j}_span{k}",
-                                span_kind="UNKNOWN",
+                                span_kind="LLM",
                                 start_time=start_time,
                                 end_time=end_time,
                                 attributes={

@@ -1,5 +1,6 @@
 import type { AgentFabPlacement } from "@phoenix/store/agentStore";
 import type { Bounds, Inset, Point, Size } from "@phoenix/types/geometry";
+import { clampNumber } from "@phoenix/utils/numberUtils";
 
 // FAB dimensions derived from the animated motion.div in AgentChatWidget's
 // `AgentChatWidgetButton`. Both axes are content-box width plus horizontal
@@ -40,10 +41,6 @@ const FAB_PLACEMENTS: AgentFabPlacement[] = [
   "bottom-end",
 ];
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
-}
-
 function resolveAxisPosition({
   min,
   max,
@@ -59,7 +56,7 @@ function resolveAxisPosition({
   if (max < min) {
     return min + (max - min) / 2;
   }
-  return clamp(value, min, max);
+  return clampNumber({ value, min, max });
 }
 
 export function clampFabPosition({

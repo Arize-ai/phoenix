@@ -29,6 +29,7 @@ import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 import { useFunctionality } from "@phoenix/contexts/FunctionalityContext";
 import { usePreferencesContext } from "@phoenix/contexts/PreferencesContext";
+import { useHasOpenModal } from "@phoenix/hooks/useHasOpenModal";
 import { prependBasename } from "@phoenix/utils/routingUtils";
 
 import type { LayoutLoaderData } from "./layoutLoader";
@@ -44,15 +45,24 @@ const mainViewCSS = css`
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
+  min-width: 0;
   height: 100%;
   overflow: hidden;
 `;
+
+const layoutContentPanelCSS = css`
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+`;
+
 const contentCSS = css`
   position: relative;
   flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  height: 100%;
   overflow: hidden;
   box-sizing: border-box;
   border-left: 1px solid var(--global-border-color-default);
@@ -85,16 +95,18 @@ export function Layout() {
     (state) => state.activePanelLocation
   );
   const agentPosition = useAgentContext((state) => state.position);
+  const hasOpenModal = useHasOpenModal();
   const shouldShowDockedAgentPanel =
     isAgentsEnabled &&
     isAgentPanelOpen &&
     activePanelLocation === "docked" &&
-    agentPosition === "pinned";
+    agentPosition === "pinned" &&
+    !hasOpenModal;
   const shouldShowFloatingAgentPanel =
     isAgentsEnabled &&
     isAgentPanelOpen &&
     activePanelLocation === "docked" &&
-    agentPosition === "detached";
+    (agentPosition === "detached" || hasOpenModal);
   const panelIds = shouldShowDockedAgentPanel
     ? ["layout-content", "agent-chat"]
     : ["layout-content"];
@@ -110,22 +122,24 @@ export function Layout() {
         <NavTitle />
         <SideNav />
         <div css={mainViewCSS}>
-          <TopNavbar>
-            <SideNavToggleButton />
-            <NavBreadcrumb />
-            <TopNavActionsSlot />
-          </TopNavbar>
           <Group
             id="layout-panels"
             orientation="horizontal"
             defaultLayout={defaultLayout}
             onLayoutChanged={onLayoutChanged}
           >
-            <Panel id="layout-content">
+            <Panel id="layout-content" css={layoutContentPanelCSS}>
+              <TopNavbar>
+                <SideNavToggleButton />
+                <NavBreadcrumb />
+                <TopNavActionsSlot />
+              </TopNavbar>
               <div data-testid="content" css={contentCSS} ref={contentRef}>
                 <AgentChatWidget boundaryRef={contentRef} />
                 {shouldShowFloatingAgentPanel ? (
-                  <FloatingAgentChatPanel />
+                  <FloatingAgentChatPanel
+                    layer={hasOpenModal ? "modal" : "content"}
+                  />
                 ) : null}
                 <Suspense fallback={<Loading />}>
                   <Outlet />
@@ -164,6 +178,14 @@ function SideNav() {
                   <Counter variant="quiet">{loaderData.projectCount}</Counter>
                 ) : undefined
               }
+              isExpanded={isSideNavExpanded}
+            />
+          </li>
+          <li key="dashboards">
+            <NavLink
+              to="/dashboards"
+              text="Dashboards"
+              leadingVisual={<Icon svg={<Icons.GridOutline />} />}
               isExpanded={isSideNavExpanded}
             />
           </li>

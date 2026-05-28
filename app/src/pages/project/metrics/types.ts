@@ -4,4 +4,5 @@ export interface ProjectMetricViewProps {
    * The closed time range to query metrics for
    */
   timeRange: TimeRange;
+  onTimeRangeSelected?: (timeRange: TimeRange) => void;
 }

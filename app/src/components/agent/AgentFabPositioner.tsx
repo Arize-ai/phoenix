@@ -4,12 +4,16 @@ import type {
   PointerEvent as ReactPointerEvent,
   ReactNode,
   RefObject,
+  SyntheticEvent as ReactSyntheticEvent,
   TransitionEvent as ReactTransitionEvent,
 } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 import invariant from "tiny-invariant";
 
-import { NON_MODAL_FLOATING_Z_INDEX } from "@phoenix/components/core/zIndex";
+import {
+  MODAL_FLOATING_UI_Z_INDEX,
+  NON_MODAL_FLOATING_Z_INDEX,
+} from "@phoenix/components/core/zIndex";
 import type { AgentFabPlacement } from "@phoenix/store/agentStore";
 import type { Bounds, Point, Size } from "@phoenix/types/geometry";
 
@@ -19,6 +23,7 @@ import {
   getFabPinnedPosition,
   getNearestFabPlacement,
 } from "./agentFabPositioning";
+import { useModalFloatingLayerInteractivity } from "./useModalFloatingLayerInteractivity";
 
 // Number of pixels the pointer must travel after pointerdown before we treat
 // the gesture as a drag instead of a click. Compared as squared distance to
@@ -49,9 +54,18 @@ const positionerCSS = css`
     visibility: visible;
   }
 
+  &[data-hidden="true"] {
+    pointer-events: none;
+    visibility: hidden;
+  }
+
   &[data-dragging="true"],
   &[data-dragging="true"] * {
     cursor: grabbing;
+  }
+
+  &[data-layer="modal"] {
+    z-index: ${MODAL_FLOATING_UI_Z_INDEX};
   }
 `;
 
@@ -67,6 +81,8 @@ type DragSession = {
 export type AgentFabPositionerProps = {
   boundaryRef?: RefObject<HTMLElement | null>;
   children: ReactNode;
+  isHidden?: boolean;
+  layer?: "content" | "modal";
   placement: AgentFabPlacement;
   size?: Size;
   onActivate?: () => void;
@@ -190,6 +206,8 @@ function applyElementPinnedPosition({
 export function AgentFabPositioner({
   boundaryRef,
   children,
+  isHidden = false,
+  layer = "content",
   placement,
   size,
   onActivate,
@@ -205,6 +223,10 @@ export function AgentFabPositioner({
   const suppressClickResetTimeoutIdRef = useRef<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const requiresBoundary = Boolean(boundaryRef);
+  const [resolvedBoundary, setResolvedBoundary] = useState<HTMLElement | null>(
+    () => boundaryRef?.current ?? null
+  );
+  useModalFloatingLayerInteractivity(positionerRef, layer === "modal");
 
   // After a drag, an unwanted `click` event can still fire on pointerup. We
   // swallow exactly one click immediately following a drag. A zero-delay
@@ -223,7 +245,7 @@ export function AgentFabPositioner({
   const getBounds = (): Bounds => {
     return (
       getPositioningBounds({
-        boundary: boundaryRef?.current,
+        boundary: resolvedBoundary,
         requiresBoundary,
       }) ?? getViewportBounds()
     );
@@ -424,6 +446,14 @@ export function AgentFabPositioner({
     event.stopPropagation();
   };
 
+  const stopModalLayerPropagation = (
+    event: ReactSyntheticEvent<HTMLDivElement>
+  ) => {
+    if (layer === "modal") {
+      event.stopPropagation();
+    }
+  };
+
   const handleTransitionEnd = (event: ReactTransitionEvent<HTMLDivElement>) => {
     // Once the snap-to-corner animation finishes, clear the inline transition
     // so the next drag starts without an animated transform.
@@ -433,10 +463,37 @@ export function AgentFabPositioner({
   };
 
   useLayoutEffect(() => {
+    if (!requiresBoundary) {
+      setResolvedBoundary(null);
+      return;
+    }
+
+    let animationFrameId: number | null = null;
+    const syncBoundaryElement = () => {
+      const nextBoundary = boundaryRef?.current ?? null;
+      setResolvedBoundary((currentBoundary) =>
+        currentBoundary === nextBoundary ? currentBoundary : nextBoundary
+      );
+
+      if (!nextBoundary) {
+        animationFrameId = window.requestAnimationFrame(syncBoundaryElement);
+      }
+    };
+
+    syncBoundaryElement();
+
+    return () => {
+      if (animationFrameId != null) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [boundaryRef, requiresBoundary]);
+
+  useLayoutEffect(() => {
     const syncPinnedPosition = () => {
       if (!dragSessionRef.current) {
         applyElementPinnedPosition({
-          boundary: boundaryRef?.current,
+          boundary: resolvedBoundary,
           element: positionerRef.current,
           placement,
           requiresBoundary,
@@ -447,18 +504,17 @@ export function AgentFabPositioner({
 
     syncPinnedPosition();
 
-    const boundary = boundaryRef?.current;
     // ResizeObserver covers boundary-driven changes (panel resize, sidebar
     // toggle). visualViewport.resize covers viewport-level changes that don't
     // resize the boundary (mobile URL bar collapse, virtual keyboard).
     // visualViewport.scroll covers pinch-zoom scrolling on mobile, which
     // shifts where the boundary appears on screen.
     const observer =
-      boundary && typeof ResizeObserver === "function"
+      resolvedBoundary && typeof ResizeObserver === "function"
         ? new ResizeObserver(syncPinnedPosition)
         : null;
-    if (boundary && observer) {
-      observer.observe(boundary);
+    if (resolvedBoundary && observer) {
+      observer.observe(resolvedBoundary);
     }
     window.visualViewport?.addEventListener("resize", syncPinnedPosition);
     window.visualViewport?.addEventListener("scroll", syncPinnedPosition);
@@ -477,19 +533,27 @@ export function AgentFabPositioner({
         suppressClickResetTimeoutIdRef.current = null;
       }
     };
-  }, [boundaryRef, placement, requiresBoundary, size]);
+  }, [placement, requiresBoundary, resolvedBoundary, size]);
 
   return (
     <div
       className="agent-chat-widget-positioner"
       css={positionerCSS}
+      aria-hidden={isHidden ? true : undefined}
       data-dragging={isDragging ? "true" : undefined}
+      data-hidden={isHidden ? "true" : undefined}
+      data-layer={layer}
       data-placement={placement}
       ref={positionerRef}
+      onClick={stopModalLayerPropagation}
       onClickCapture={handleClickCapture}
+      onPointerCancel={stopModalLayerPropagation}
       onPointerCancelCapture={finishDrag}
+      onPointerDown={stopModalLayerPropagation}
       onPointerDownCapture={handlePointerDown}
+      onPointerMove={stopModalLayerPropagation}
       onPointerMoveCapture={handlePointerMove}
+      onPointerUp={stopModalLayerPropagation}
       onPointerUpCapture={finishDrag}
       onTransitionEnd={handleTransitionEnd}
     >

@@ -8380,6 +8380,17 @@
             "type": "string",
             "title": "Toolcallid"
           },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
           "state": {
             "type": "string",
             "const": "approval-requested",
@@ -8388,6 +8399,17 @@
           },
           "input": {
             "title": "Input"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
           },
           "callProviderMetadata": {
             "anyOf": [
@@ -8445,6 +8467,17 @@
             "type": "string",
             "title": "Toolcallid"
           },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
           "state": {
             "type": "string",
             "const": "approval-responded",
@@ -8453,6 +8486,17 @@
           },
           "input": {
             "title": "Input"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
           },
           "callProviderMetadata": {
             "anyOf": [
@@ -8510,6 +8554,17 @@
             "type": "string",
             "title": "Toolcallid"
           },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
           "state": {
             "type": "string",
             "const": "input-available",
@@ -8518,6 +8573,17 @@
           },
           "input": {
             "title": "Input"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
           },
           "callProviderMetadata": {
             "anyOf": [
@@ -8575,6 +8641,17 @@
             "type": "string",
             "title": "Toolcallid"
           },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
           "state": {
             "type": "string",
             "const": "input-streaming",
@@ -8589,6 +8666,17 @@
               }
             ],
             "title": "Input"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
           },
           "callProviderMetadata": {
             "anyOf": [
@@ -8645,6 +8733,17 @@
             "type": "string",
             "title": "Toolcallid"
           },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
           "state": {
             "type": "string",
             "const": "output-available",
@@ -8656,6 +8755,17 @@
           },
           "output": {
             "title": "Output"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
           },
           "callProviderMetadata": {
             "anyOf": [
@@ -8725,6 +8835,17 @@
             "type": "string",
             "title": "Toolcallid"
           },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
           "state": {
             "type": "string",
             "const": "output-denied",
@@ -8733,6 +8854,17 @@
           },
           "input": {
             "title": "Input"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
           },
           "callProviderMetadata": {
             "anyOf": [
@@ -8790,6 +8922,17 @@
             "type": "string",
             "title": "Toolcallid"
           },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
           "state": {
             "type": "string",
             "const": "output-error",
@@ -8802,6 +8945,17 @@
           "errorText": {
             "type": "string",
             "title": "Errortext"
+          },
+          "providerExecuted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Providerexecuted"
           },
           "callProviderMetadata": {
             "anyOf": [
@@ -13997,6 +14151,17 @@
             "type": "string",
             "title": "Toolcallid"
           },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
           "state": {
             "type": "string",
             "const": "approval-requested",
@@ -14103,6 +14268,17 @@
           "toolCallId": {
             "type": "string",
             "title": "Toolcallid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
           },
           "state": {
             "type": "string",
@@ -14240,6 +14416,17 @@
             "type": "string",
             "title": "Toolcallid"
           },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
           "state": {
             "type": "string",
             "const": "input-available",
@@ -14316,6 +14503,17 @@
             "type": "string",
             "title": "Toolcallid"
           },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
           "state": {
             "type": "string",
             "const": "input-streaming",
@@ -14391,6 +14589,17 @@
           "toolCallId": {
             "type": "string",
             "title": "Toolcallid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
           },
           "state": {
             "type": "string",
@@ -14488,6 +14697,17 @@
             "type": "string",
             "title": "Toolcallid"
           },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
           "state": {
             "type": "string",
             "const": "output-denied",
@@ -14563,6 +14783,17 @@
           "toolCallId": {
             "type": "string",
             "title": "Toolcallid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
           },
           "state": {
             "type": "string",

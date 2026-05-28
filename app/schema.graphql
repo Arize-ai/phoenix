@@ -2174,7 +2174,6 @@ input InternetAccessInput {
 enum InternetAccessMode {
   NONE
   BOOLEAN
-  ALLOWLIST
 }
 
 """

@@ -4,7 +4,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -13,15 +12,18 @@ import {
 
 import { Text } from "@phoenix/components";
 import {
+  ChartEmptyStateOverlay,
   ChartTooltip,
   ChartTooltipItem,
+  InteractiveLegend,
+  TimeRangeChartBrush,
   defaultCartesianGridProps,
   defaultLegendProps,
-  defaultXAxisProps,
+  defaultTimeXAxisProps,
   defaultYAxisProps,
-  useBinInterval,
   useBinTimeTickFormatter,
   useCategoryChartColors,
+  useInteractiveLegend,
 } from "@phoenix/components/chart";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
@@ -35,37 +37,31 @@ import {
 import type { TraceTokenCountTimeSeriesQuery } from "./__generated__/TraceTokenCountTimeSeriesQuery.graphql";
 
 function TooltipContent({ active, payload, label }: TooltipContentProps) {
-  const chartColors = useCategoryChartColors();
   const { fullTimeFormatter } = useTimeFormatters();
   if (active && payload && payload.length) {
-    // For stacked bar charts, payload[0] is the first bar (prompt), payload[1] is the second bar (completion)
-    const promptValue = payload[0]?.value ?? null;
-    const completionValue = payload[1]?.value ?? null;
-    const promptString =
-      typeof promptValue === "number" ? intFormatter(promptValue) : "--";
-    const completionString =
-      typeof completionValue === "number"
-        ? intFormatter(completionValue)
-        : "--";
     return (
       <ChartTooltip>
         {label && (
           <Text weight="heavy" size="S">{`${fullTimeFormatter(
-            new Date(label)
+            new Date(Number(label))
           )}`}</Text>
         )}
-        <ChartTooltipItem
-          color={chartColors.category1}
-          shape="circle"
-          name="prompt"
-          value={promptString}
-        />
-        <ChartTooltipItem
-          color={chartColors.category2}
-          shape="circle"
-          name="completion"
-          value={completionString}
-        />
+        {payload.map((entry) => {
+          const name = String(entry.dataKey ?? entry.name ?? "unknown");
+          return (
+            <ChartTooltipItem
+              color={entry.color ?? "transparent"}
+              key={name}
+              shape="circle"
+              name={name}
+              value={
+                typeof entry.value === "number"
+                  ? intFormatter(entry.value)
+                  : "--"
+              }
+            />
+          );
+        })}
       </ChartTooltip>
     );
   }
@@ -76,6 +72,7 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
 export function TraceTokenCountTimeSeries({
   projectId,
   timeRange,
+  onTimeRangeSelected,
 }: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
@@ -119,61 +116,85 @@ export function TraceTokenCountTimeSeries({
 
   const chartData = (data.project.traceTokenCountTimeSeries?.data ?? []).map(
     (datum) => ({
-      timestamp: datum.timestamp,
+      timestamp: new Date(datum.timestamp).getTime(),
       prompt: datum.promptTokenCount ?? 0,
       completion: datum.completionTokenCount ?? 0,
+      total: datum.totalTokenCount,
     })
   );
+  const hasData = chartData.some((datum) => typeof datum.total === "number");
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
-  const interval = useBinInterval({ scale });
 
   const colors = useCategoryChartColors();
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+    useInteractiveLegend();
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <BarChart
-        data={chartData}
-        margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
-        barSize={10}
-        syncId={"projectMetrics"}
-      >
-        <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
-        <XAxis
-          {...defaultXAxisProps}
-          dataKey="timestamp"
-          interval={interval}
-          tickFormatter={(x) => timeTickFormatter(new Date(x))}
-        />
-        <YAxis
-          {...defaultYAxisProps}
-          width={70}
-          tickFormatter={(x) => intShortFormatter(x)}
-          label={{
-            value: "Tokens",
-            angle: -90,
-            dx: -28,
-            style: {
-              textAnchor: "middle",
-              fill: "var(--chart-axis-label-color)",
-            },
-          }}
-          style={{ fill: "var(--global-text-color-700)" }}
-        />
-        <Tooltip
-          content={TooltipContent}
-          // TODO formalize this
-          cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
-        />
-        <Bar dataKey="prompt" stackId="a" fill={colors.category1} />
-        <Bar
-          dataKey="completion"
-          stackId="a"
-          fill={colors.category2}
-          radius={[2, 2, 0, 0]}
-        />
+    <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
+      {({ chartProps }) => (
+        <ChartEmptyStateOverlay
+          isEmpty={!hasData}
+          message="No data in this time range"
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={chartData}
+              margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
+              barSize={10}
+              syncId={"projectMetrics"}
+              {...chartProps}
+            >
+              <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
+              <XAxis
+                {...defaultTimeXAxisProps}
+                domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
+                tickFormatter={(x) => timeTickFormatter(new Date(x))}
+              />
+              <YAxis
+                {...defaultYAxisProps}
+                width={70}
+                tickFormatter={(x) => intShortFormatter(x)}
+                label={{
+                  value: "Tokens",
+                  angle: -90,
+                  dx: -28,
+                  style: {
+                    textAnchor: "middle",
+                    fill: "var(--chart-axis-label-color)",
+                  },
+                }}
+                style={{ fill: "var(--global-text-color-700)" }}
+              />
+              <Tooltip
+                content={TooltipContent}
+                // TODO formalize this
+                cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+              />
+              <Bar
+                dataKey="prompt"
+                stackId="a"
+                fill={colors.category1}
+                hide={isDataKeyHidden("prompt")}
+              />
+              <Bar
+                dataKey="completion"
+                stackId="a"
+                fill={colors.category2}
+                hide={isDataKeyHidden("completion")}
+                radius={[2, 2, 0, 0]}
+              />
 
-        <Legend {...defaultLegendProps} iconType="circle" iconSize={8} />
-      </BarChart>
-    </ResponsiveContainer>
+              <InteractiveLegend
+                {...defaultLegendProps}
+                hiddenDataKeys={hiddenDataKeys}
+                iconType="circle"
+                iconSize={8}
+                onToggleDataKey={toggleDataKey}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartEmptyStateOverlay>
+      )}
+    </TimeRangeChartBrush>
   );
 }

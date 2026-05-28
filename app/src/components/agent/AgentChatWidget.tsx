@@ -16,7 +16,7 @@ import {
 } from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
-import { useHasOpenModal } from "@phoenix/hooks/useHasOpenModal";
+import { useActiveModalPortalContainerElement } from "@phoenix/hooks/useHasOpenModal";
 import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 
 import { AgentFabPositioner } from "./AgentFabPositioner";
@@ -68,6 +68,18 @@ const hoverWipe = keyframes`
     opacity: 0;
     -webkit-mask-position: -60% center;
     mask-position: -60% center;
+  }
+`;
+
+const hoverRingOpacity = keyframes`
+  0%, 100% {
+    opacity: 0;
+  }
+  8%, 40% {
+    opacity: 0.95;
+  }
+  55% {
+    opacity: 0;
   }
 `;
 
@@ -125,8 +137,10 @@ const darkThemeThinkingGlowCSS = css`
   &[data-theme="dark"] {
     --agent-chat-widget-glow-outer-rest:
       0 0 2px 1px rgba(248, 242, 255, 0.78),
-      0 0 4px 2px rgba(154, 102, 255, 0.68), 0 0 8px 4px rgba(52, 128, 255, 0.52),
-      0 0 13px 5px rgba(198, 72, 255, 0.4), 0 0 17px 6px rgba(44, 216, 255, 0.26);
+      0 0 4px 2px rgba(154, 102, 255, 0.68),
+      0 0 8px 4px rgba(52, 128, 255, 0.52),
+      0 0 13px 5px rgba(198, 72, 255, 0.4),
+      0 0 17px 6px rgba(44, 216, 255, 0.26);
     --agent-chat-widget-glow-outer-strong:
       0 0 3px 2px rgba(250, 244, 255, 0.88),
       0 0 7px 3px rgba(160, 108, 255, 0.82),
@@ -140,7 +154,8 @@ const lightThemeThinkingGlowCSS = css`
   &[data-theme="light"] {
     --agent-chat-widget-glow-outer-rest:
       0 0 3px 1px rgba(245, 249, 255, 0.88),
-      0 0 5px 2px rgba(199, 190, 242, 0.56), 0 0 9px 4px rgba(88, 152, 255, 0.54),
+      0 0 5px 2px rgba(199, 190, 242, 0.56),
+      0 0 9px 4px rgba(88, 152, 255, 0.54),
       0 0 14px 5px rgba(200, 150, 236, 0.23),
       0 0 20px 7px rgba(116, 212, 255, 0.17);
     --agent-chat-widget-glow-outer-strong:
@@ -312,6 +327,35 @@ const restingHoverWipeCSS = css`
   }
 `;
 
+const entranceHoverWipeCSS = css`
+  @media (prefers-reduced-motion: no-preference) {
+    &[data-entrance-animation="true"] .agent-chat-widget__hover-shimmer {
+      animation: ${hoverWipe} 2400ms linear 1;
+    }
+
+    &[data-entrance-animation="true"]
+      .agent-chat-widget__hover-shimmer::before {
+      animation:
+        ${ringBreathe} 2400ms ease-in-out 1,
+        ${hoverRingOpacity} 2400ms linear 1;
+    }
+
+    &[data-entrance-animation="true"] .agent-chat-widget__content {
+      opacity: 1;
+    }
+
+    &[data-entrance-animation="true"]:hover .agent-chat-widget__hover-shimmer {
+      animation: ${hoverWipe} 2400ms linear infinite;
+    }
+
+    &[data-entrance-animation="true"]:hover
+      .agent-chat-widget__hover-shimmer::before {
+      opacity: 0.95;
+      animation: ${ringBreathe} 2400ms ease-in-out 1 both;
+    }
+  }
+`;
+
 const thinkingGlyphPulseCSS = css`
   .agent-chat-widget__content {
     animation: ${glyphBreathe} 2400ms ease-in-out infinite;
@@ -340,6 +384,7 @@ export function AgentChatWidgetButton({
   ...buttonProps
 }: AgentChatWidgetButtonProps) {
   const { theme } = useTheme();
+  const shouldShowEntranceAnimation = !isStreaming;
   return (
     <AriaButton
       ref={ref}
@@ -360,10 +405,14 @@ export function AgentChatWidgetButton({
           darkThemeThinkingGlowCSS,
           lightThemeThinkingGlowCSS,
           !isStreaming ? [thinkingBorderCSS, restingHoverWipeCSS] : undefined,
+          shouldShowEntranceAnimation ? entranceHoverWipeCSS : undefined,
           isStreaming ? thinkingBorderCSS : undefined,
           isStreaming ? thinkingGlyphPulseCSS : undefined,
         ]}
         data-theme={theme}
+        data-entrance-animation={
+          shouldShowEntranceAnimation ? "true" : undefined
+        }
         initial={false}
         animate={{
           width: isStreaming ? 40 : 58,
@@ -430,7 +479,8 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
   const fabPlacement = useAgentContext((state) => state.fabPlacement);
   const setFabPlacement = useAgentContext((state) => state.setFabPlacement);
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
-  const hasOpenModal = useHasOpenModal();
+  const activeModalPortalContainer = useActiveModalPortalContainerElement();
+  const hasOpenModal = activeModalPortalContainer !== null;
   const isStreaming = useAgentContext((state) =>
     activeSessionId
       ? state.chatStatusBySessionId[activeSessionId] === "streaming"
@@ -445,21 +495,23 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
       toggleOpen();
     },
     {
-      enabled: isAssistantAgentEnabled && !hasOpenModal,
+      enabled: isAssistantAgentEnabled,
       preventDefault: true,
     },
-    [isAssistantAgentEnabled, hasOpenModal, toggleOpen]
+    [isAssistantAgentEnabled, toggleOpen]
   );
 
-  // Use contextual entrypoints inside modals (e.g. trace slideover header)
-  // instead of letting the global FAB compete with overlay hit-testing.
-  if (!isAssistantAgentEnabled || isOpen || hasOpenModal) {
+  if (!isAssistantAgentEnabled) {
     return null;
   }
 
+  const portalContainer = activeModalPortalContainer ?? document.body;
+
   return createPortal(
     <AgentFabPositioner
-      boundaryRef={boundaryRef}
+      boundaryRef={hasOpenModal ? undefined : boundaryRef}
+      isHidden={isOpen}
+      layer={hasOpenModal ? "modal" : "content"}
       placement={fabPlacement}
       size={isStreaming ? FAB_STREAMING_SIZE : FAB_RESTING_SIZE}
       onActivate={toggleOpen}
@@ -482,7 +534,7 @@ export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
         <AgentChatWidgetTooltip />
       </TooltipTrigger>
     </AgentFabPositioner>,
-    document.body
+    portalContainer ?? document.body
   );
 }
 

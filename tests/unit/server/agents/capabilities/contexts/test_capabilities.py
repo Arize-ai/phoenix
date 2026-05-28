@@ -12,10 +12,10 @@ from phoenix.server.agents.context import (
     ProjectContext,
     ResolvedContexts,
 )
-from phoenix.server.agents.prompts import AgentInstructions
+from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.types import AgentDependencies
 
-_DEFAULT_INSTRUCTIONS = AgentInstructions()
+_DEFAULT_PROMPTS = AgentPrompts()
 
 
 def _get_run_context(contexts: ResolvedContexts) -> RunContext[AgentDependencies]:
@@ -42,7 +42,7 @@ def _render(
 
 class TestAppContextCapabilityRender:
     def test_sanitizes_browser_clock_fields(self) -> None:
-        capability = AppContextCapability(instructions=_DEFAULT_INSTRUCTIONS.app_context)
+        capability = AppContextCapability(instructions=_DEFAULT_PROMPTS.app_context)
         ctx = _get_run_context(
             ResolvedContexts(
                 app=AppContext(
@@ -62,7 +62,7 @@ class TestAppContextCapabilityRender:
 
 class TestProjectContextCapabilityRender:
     def test_sanitizes_span_filter_condition(self) -> None:
-        capability = ProjectContextCapability(instructions=_DEFAULT_INSTRUCTIONS.project_context)
+        capability = ProjectContextCapability(instructions=_DEFAULT_PROMPTS.project_context)
         ctx = _get_run_context(
             ResolvedContexts(
                 project=ProjectContext(
@@ -80,7 +80,7 @@ class TestProjectContextCapabilityRender:
 
     def test_truncates_oversize_span_filter_condition(self) -> None:
         long_condition = "x" * 1000
-        capability = ProjectContextCapability(instructions=_DEFAULT_INSTRUCTIONS.project_context)
+        capability = ProjectContextCapability(instructions=_DEFAULT_PROMPTS.project_context)
         ctx = _get_run_context(
             ResolvedContexts(
                 project=ProjectContext(

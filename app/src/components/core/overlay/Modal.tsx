@@ -12,6 +12,11 @@ import {
 } from "@phoenix/components/core/zIndex";
 import { classNames } from "@phoenix/utils/classNames";
 
+import {
+  MODAL_OVERLAY_CLASS_NAME,
+  MODAL_PORTAL_CONTAINER_ATTR,
+} from "./constants";
+
 const modalSlideover = keyframes`
   from {
     transform: translateX(100%);
@@ -144,6 +149,7 @@ function Modal({ ref, ...props }: ModalProps & { ref?: Ref<HTMLDivElement> }) {
   return (
     <AriaModal
       {...rest}
+      {...{ [MODAL_PORTAL_CONTAINER_ATTR]: "" }}
       data-size={size}
       data-variant={variant}
       ref={ref}
@@ -178,7 +184,7 @@ function ModalOverlay({
       {...props}
       data-testid="modal-overlay"
       css={modalOverlayCSS}
-      className={classNames(props.className, "react-aria-ModalOverlay")}
+      className={classNames(props.className, MODAL_OVERLAY_CLASS_NAME)}
       // default to true, but allow for override
       isDismissable={props.isDismissable ?? true}
       ref={ref}

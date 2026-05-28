@@ -8,17 +8,6 @@ from _pytest.monkeypatch import MonkeyPatch
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
-from phoenix.config import (
-    ENV_PHOENIX_ADMINS,
-    ENV_PHOENIX_DISABLE_BASIC_AUTH,
-    ENV_PHOENIX_LDAP_BIND_DN,
-    ENV_PHOENIX_LDAP_BIND_PASSWORD,
-    ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS,
-    ENV_PHOENIX_LDAP_HOST,
-    ENV_PHOENIX_LDAP_PORT,
-    ENV_PHOENIX_LDAP_USER_SEARCH_BASE_DNS,
-    ENV_PHOENIX_LDAP_USER_SEARCH_FILTER,
-)
 from phoenix.db import models
 from phoenix.db.enums import ENUM_COLUMNS
 from phoenix.db.facilitator import (
@@ -72,7 +61,7 @@ class TestEnsureStartupAdmins:
         email_sending_fails: bool,
     ) -> None:
         monkeypatch.setenv(
-            ENV_PHOENIX_ADMINS,
+            "PHOENIX_ADMINS",
             (
                 "Washington, George, Jr.=george@example.com;"
                 "Franklin, Benjamin=benjamin@example.com;"
@@ -148,18 +137,18 @@ class TestEnsureStartupAdmins:
         """When PHOENIX_DISABLE_BASIC_AUTH=true and LDAP is configured (no OAuth2),
         startup admins should be created as LDAP users."""
         # Configure admins and disable basic auth
-        monkeypatch.setenv(ENV_PHOENIX_ADMINS, "LDAP Admin=ldap_admin@example.com")
-        monkeypatch.setenv(ENV_PHOENIX_DISABLE_BASIC_AUTH, "true")
+        monkeypatch.setenv("PHOENIX_ADMINS", "LDAP Admin=ldap_admin@example.com")
+        monkeypatch.setenv("PHOENIX_DISABLE_BASIC_AUTH", "true")
 
         # Configure minimal LDAP settings (required for LDAPConfig.from_env() to return non-None)
-        monkeypatch.setenv(ENV_PHOENIX_LDAP_HOST, "ldap.example.com")
-        monkeypatch.setenv(ENV_PHOENIX_LDAP_PORT, "389")
-        monkeypatch.setenv(ENV_PHOENIX_LDAP_BIND_DN, "cn=admin,dc=example,dc=com")
-        monkeypatch.setenv(ENV_PHOENIX_LDAP_BIND_PASSWORD, "secret")
-        monkeypatch.setenv(ENV_PHOENIX_LDAP_USER_SEARCH_BASE_DNS, '["ou=users,dc=example,dc=com"]')
-        monkeypatch.setenv(ENV_PHOENIX_LDAP_USER_SEARCH_FILTER, "(uid=%s)")
+        monkeypatch.setenv("PHOENIX_LDAP_HOST", "ldap.example.com")
+        monkeypatch.setenv("PHOENIX_LDAP_PORT", "389")
+        monkeypatch.setenv("PHOENIX_LDAP_BIND_DN", "cn=admin,dc=example,dc=com")
+        monkeypatch.setenv("PHOENIX_LDAP_BIND_PASSWORD", "secret")
+        monkeypatch.setenv("PHOENIX_LDAP_USER_SEARCH_BASE_DNS", '["ou=users,dc=example,dc=com"]')
+        monkeypatch.setenv("PHOENIX_LDAP_USER_SEARCH_FILTER", "(uid=%s)")
         monkeypatch.setenv(
-            ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS, '[{"group_dn": "*", "role": "MEMBER"}]'
+            "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS", '[{"group_dn": "*", "role": "MEMBER"}]'
         )
 
         # Initialize enums and create admin
@@ -188,8 +177,8 @@ class TestEnsureStartupAdmins:
         """When PHOENIX_DISABLE_BASIC_AUTH=true and OAuth2 is configured,
         startup admins should be created as OAuth2 users (not LDAP)."""
         # Configure admins and disable basic auth
-        monkeypatch.setenv(ENV_PHOENIX_ADMINS, "OAuth2 Admin=oauth_admin@example.com")
-        monkeypatch.setenv(ENV_PHOENIX_DISABLE_BASIC_AUTH, "true")
+        monkeypatch.setenv("PHOENIX_ADMINS", "OAuth2 Admin=oauth_admin@example.com")
+        monkeypatch.setenv("PHOENIX_DISABLE_BASIC_AUTH", "true")
 
         # Configure OAuth2 (this takes priority over LDAP)
         monkeypatch.setenv("PHOENIX_OAUTH2_IDP1_CLIENT_ID", "test-client-id")
@@ -197,14 +186,14 @@ class TestEnsureStartupAdmins:
         monkeypatch.setenv("PHOENIX_OAUTH2_IDP1_OIDC_CONFIG_URL", "https://example.com/.well-known")
 
         # Also configure LDAP to verify OAuth2 takes priority
-        monkeypatch.setenv(ENV_PHOENIX_LDAP_HOST, "ldap.example.com")
-        monkeypatch.setenv(ENV_PHOENIX_LDAP_PORT, "389")
-        monkeypatch.setenv(ENV_PHOENIX_LDAP_BIND_DN, "cn=admin,dc=example,dc=com")
-        monkeypatch.setenv(ENV_PHOENIX_LDAP_BIND_PASSWORD, "secret")
-        monkeypatch.setenv(ENV_PHOENIX_LDAP_USER_SEARCH_BASE_DNS, '["ou=users,dc=example,dc=com"]')
-        monkeypatch.setenv(ENV_PHOENIX_LDAP_USER_SEARCH_FILTER, "(uid=%s)")
+        monkeypatch.setenv("PHOENIX_LDAP_HOST", "ldap.example.com")
+        monkeypatch.setenv("PHOENIX_LDAP_PORT", "389")
+        monkeypatch.setenv("PHOENIX_LDAP_BIND_DN", "cn=admin,dc=example,dc=com")
+        monkeypatch.setenv("PHOENIX_LDAP_BIND_PASSWORD", "secret")
+        monkeypatch.setenv("PHOENIX_LDAP_USER_SEARCH_BASE_DNS", '["ou=users,dc=example,dc=com"]')
+        monkeypatch.setenv("PHOENIX_LDAP_USER_SEARCH_FILTER", "(uid=%s)")
         monkeypatch.setenv(
-            ENV_PHOENIX_LDAP_GROUP_ROLE_MAPPINGS, '[{"group_dn": "*", "role": "MEMBER"}]'
+            "PHOENIX_LDAP_GROUP_ROLE_MAPPINGS", '[{"group_dn": "*", "role": "MEMBER"}]'
         )
 
         # Initialize enums and create admin

@@ -15,18 +15,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      contents: write
-      pull-requests: write
-      id-token: write
-    env:
-      GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+      contents: read
+      id-token: write # Required: claude-code-action requests a GitHub OIDC token at startup
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
-          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          persist-credentials: false
 
       - name: Create branch
         run: |
@@ -34,19 +31,69 @@ jobs:
           BRANCH="claude/release-notes-$DATE"
           git checkout -b "$BRANCH"
           echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
+          mkdir -p .scratch
 
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@094bd24d575e7b30ac1576024817bf1a97c81262 # v1.0.80
+        uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
+        env:
+          CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
-          model: claude-opus-4-6
           prompt: |
             /phoenix-release-notes
 
             If there are no undocumented releases with user-facing changes, exit without making changes.
 
-            When done, commit all changes, push the branch, and open a PR via `gh pr create`.
-            Title the PR: "docs: Add Phoenix release notes for <date range covered>"
-          claude_args: '--allowedTools Skill,Read,Write,Edit,Glob,Grep,Agent,"Bash(git:*)","Bash(gh:*)","Bash(mkdir:*)","Bash(ls:*)","Bash(date:*)"'
+            When done, write a PR body to `.scratch/pr-body.md`. Do not commit,
+            push, or open a PR; the workflow handles publishing.
+            The workflow will open a PR titled "docs: Add Phoenix release notes".
+          claude_args: '--model claude-opus-4-7 --allowedTools Skill,Read,Write,Edit,Glob,Grep,Agent,"Bash(git fetch:*)","Bash(git log:*)","Bash(git diff:*)","Bash(git show:*)","Bash(mkdir:*)","Bash(ls:*)","Bash(date:*)"'
+
+      - name: Commit and open pull request
+        if: steps.claude.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+        run: |
+          if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+            echo "No release notes changes — exiting cleanly."
+            exit 0
+          fi
+          TODAY=$(date -u +%Y-%m-%d)
+          gh auth setup-git
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          blocked_files=$(git diff --name-only | awk '
+            /^\.github\// ||
+            /^\.cursor\// ||
+            /^\.claude\// ||
+            /^\.agents\// ||
+            /(^|\/)AGENTS\.md$/ ||
+            /(^|\/)CLAUDE\.md$/
+          ')
+          if [ -n "$blocked_files" ]; then
+            echo "::warning::Release notes audit changed automation or agent-instruction files; restoring them from origin/main."
+            printf '%s\n' "$blocked_files"
+            while IFS= read -r file; do
+              if git cat-file -e "origin/main:$file" 2>/dev/null; then
+                git restore --source=origin/main --worktree --staged -- "$file"
+              else
+                git restore --staged -- "$file" 2>/dev/null || true
+                rm -f -- "$file"
+              fi
+            done <<< "$blocked_files"
+          fi
+          git add -A
+          git commit -m "docs: add Phoenix release notes"
+          git push -u origin "$BRANCH"
+          if [ -s .scratch/pr-body.md ]; then
+            BODY_FILE=.scratch/pr-body.md
+          else
+            BODY_FILE=$(mktemp)
+            echo "Automated weekly release notes update." > "$BODY_FILE"
+          fi
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "docs: Add Phoenix release notes — $TODAY" \
+            --body-file "$BODY_FILE"

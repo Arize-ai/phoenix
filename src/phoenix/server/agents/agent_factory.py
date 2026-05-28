@@ -15,16 +15,19 @@ from pydantic_ai.models.anthropic import AnthropicModel
 from phoenix.server.agents.capabilities import (
     AnthropicPromptCacheCapability,
     MintlifyDocsMCPCapability,
+    SkillsCapability,
     get_context_capability_function,
 )
+from phoenix.server.agents.capabilities.skills import SkillsToolset
 from phoenix.server.agents.capabilities.tools.external import (
     get_external_tool_capability_function,
 )
-from phoenix.server.agents.prompts import AgentInstructions
+from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.pydantic_ai import (
     OpenInferenceAgentWrapper,
     OpenInferenceCapabilityWrapper,
 )
+from phoenix.server.agents.skills import build_skills
 from phoenix.server.agents.types import AgentDependencies, AgentOutput
 from phoenix.server.agents.web_access import (
     build_web_fetch_capability,
@@ -35,12 +38,12 @@ from phoenix.server.agents.web_access import (
 def build_agent(
     *,
     model: Model,
-    instructions: AgentInstructions | None = None,
+    prompts: AgentPrompts | None = None,
     docs_mcp_server: MCPServerStreamableHTTP | None = None,
     enable_web_access: bool = False,
     tracer_provider: TracerProvider | None = None,
 ) -> OpenInferenceAgentWrapper[AgentDependencies, AgentOutput]:
-    resolved_instructions = instructions or AgentInstructions()
+    resolved_prompts = prompts or AgentPrompts()
     provider = tracer_provider or NoOpTracerProvider()
     tracer: Tracer = OITracer(
         provider.get_tracer("phoenix.server.agents"),
@@ -49,11 +52,20 @@ def build_agent(
     capabilities: list[AbstractCapability[AgentDependencies]] = [
         DynamicCapability(
             capability_func=get_external_tool_capability_function(
-                instructions=resolved_instructions,
+                prompts=resolved_prompts,
             ),
         ),
         DynamicCapability(
-            capability_func=get_context_capability_function(instructions=resolved_instructions),
+            capability_func=get_context_capability_function(prompts=resolved_prompts),
+        ),
+        SkillsCapability(
+            toolset=SkillsToolset(
+                skills=build_skills(),
+                load_skill_template=resolved_prompts.load_skill,
+                load_skill_tool_template=resolved_prompts.load_skill_tool,
+                read_skill_resource_tool_template=resolved_prompts.read_skill_resource_tool,
+            ),
+            instructions=resolved_prompts.skills,
         ),
     ]
     if isinstance(model, AnthropicModel):
@@ -62,7 +74,7 @@ def build_agent(
         capabilities.append(
             MintlifyDocsMCPCapability(
                 mcp_server=docs_mcp_server,
-                instructions=resolved_instructions.docs_tool,
+                instructions=resolved_prompts.docs_tool,
             )
         )
     if enable_web_access:
@@ -81,7 +93,7 @@ def build_agent(
         name="PXIAgent",
         deps_type=AgentDependencies,
         output_type=[str, DeferredToolRequests],
-        instructions=resolved_instructions.base.render(),
+        instructions=resolved_prompts.base.render(),
         capabilities=[traced_capability],
     )
     return OpenInferenceAgentWrapper(agent, tracer=tracer)

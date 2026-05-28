@@ -46,8 +46,8 @@ function CopyInput({
         align-items: center;
         width: 100%;
         --copy-button-size: calc(
-          var(--textfield-input-height) - 2 * var(--textfield-vertical-padding) +
-            var(--global-dimension-size-50)
+          var(--textfield-input-height) - 2 *
+            var(--textfield-vertical-padding) + var(--global-dimension-size-50)
         );
 
         & > input {

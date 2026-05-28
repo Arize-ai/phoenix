@@ -1019,7 +1019,7 @@ class Query:
             backend_type = global_id.node_id
             if backend_type not in SANDBOX_BACKEND_TYPES:
                 raise NotFound(f"Unknown sandbox backend type: {backend_type}")
-            return SandboxProvider(id=type_cast(models.SandboxBackendType, backend_type))
+            return SandboxProvider(id=backend_type)
         node_id = int(global_id.node_id)
         if type_name == "Dimension" or type_name == "EmbeddingDimension":
             raise NotFound(f"Unknown node type: {type_name}")

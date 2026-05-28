@@ -1,193 +1,108 @@
 import { css } from "@emotion/react";
-import type { ColumnDef } from "@tanstack/react-table";
+import { Suspense } from "react";
 import {
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
-import { useMemo, useRef } from "react";
-import { useLoaderData } from "react-router";
+  Navigate,
+  Outlet,
+  useLoaderData,
+  useNavigate,
+  useParams,
+} from "react-router";
+import invariant from "tiny-invariant";
 
-import {
-  Flex,
-  Icon,
-  Icons,
-  LazyTabPanel,
-  Link,
-  LinkButton,
-  PageHeader,
-  Tab,
-  TabList,
-  Tabs,
-} from "@phoenix/components";
-import { selectableTableCSS } from "@phoenix/components/table/styles";
-import { TableEmpty } from "@phoenix/components/table/TableEmpty";
-import { TimestampCell } from "@phoenix/components/table/TimestampCell";
+import { Empty, Flex, Loading } from "@phoenix/components";
+import { ConnectedTimeRangeSelector } from "@phoenix/components/datetime";
+import { ProjectMenu } from "@phoenix/components/project";
+import { usePreferencesContext } from "@phoenix/contexts";
 import { useOwnedPreloadedQuery } from "@phoenix/hooks";
 
 import type { dashboardsLoaderQuery as DashboardsLoaderQuery } from "./__generated__/dashboardsLoaderQuery.graphql";
 import type { DashboardsLoaderData } from "./dashboardsLoader";
 import { dashboardsLoaderQuery } from "./dashboardsLoader";
-import { ProjectDashboardsTable } from "./ProjectDashboardsTable";
 
-// Inline DashboardsTable component
-export type Dashboard = {
-  id: string;
-  name: string;
-  description: string;
-  createdAt: string;
-  lastUpdatedAt: string;
-};
+const dashboardsPageCSS = css`
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+`;
 
-function DashboardsTable({ dashboards }: { dashboards: Dashboard[] }) {
-  const tableContainerRef = useRef<HTMLDivElement>(null);
+const toolbarCSS = css`
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--global-dimension-size-200);
+  padding: var(--global-dimension-size-200);
+  border-bottom: 1px solid var(--global-border-color-default);
+  background-color: var(--global-color-gray-50);
+`;
 
-  type TableRow = Dashboard;
-  const columns = useMemo<ColumnDef<TableRow>[]>(
-    () => [
-      {
-        header: "name",
-        accessorKey: "name",
-        cell: ({ row }) => (
-          <Link to={`/dashboards/${row.original.id}`}>{row.original.name}</Link>
-        ),
-      },
-      {
-        header: "description",
-        accessorKey: "description",
-      },
-      {
-        header: "created at",
-        accessorKey: "createdAt",
-        cell: TimestampCell,
-      },
-      {
-        header: "last updated",
-        accessorKey: "lastUpdatedAt",
-        cell: TimestampCell,
-      },
-    ],
-    []
-  );
-  // eslint-disable-next-line react-hooks-js/incompatible-library
-  const table = useReactTable({
-    columns,
-    data: dashboards,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-  });
-  const rows = table.getRowModel().rows;
-  const isEmpty = rows.length === 0;
-  return (
-    <div
-      css={css`
-        flex: 1 1 auto;
-        overflow: auto;
-      `}
-      ref={tableContainerRef}
-    >
-      <table css={selectableTableCSS}>
-        <thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th colSpan={header.colSpan} key={header.id}>
-                  {header.isPlaceholder ? null : (
-                    <div>
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-                    </div>
-                  )}
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        {isEmpty ? (
-          <TableEmpty />
-        ) : (
-          <tbody>
-            {rows.map((row) => (
-              <tr
-                key={row.id}
-                onClick={() =>
-                  window.location.assign(`/dashboards/${row.original.id}`)
-                }
-                css={css`
-                  cursor: pointer;
-                `}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <td
-                    key={cell.id}
-                    align={cell.column.columnDef.meta?.textAlign}
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        )}
-      </table>
-    </div>
-  );
-}
+const projectMenuCSS = css`
+  flex: 0 1 320px;
+  min-width: 220px;
+  max-width: 360px;
+  width: 100%;
+`;
+
+const contentCSS = css`
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+`;
 
 export function DashboardsPage() {
-  "use no memo";
   const loaderData = useLoaderData<DashboardsLoaderData>();
+  invariant(loaderData, "loaderData is required");
+  const navigate = useNavigate();
+  const { projectId } = useParams();
+  const setLastSelectedDashboardProjectId = usePreferencesContext(
+    (state) => state.setLastSelectedDashboardProjectId
+  );
   const data = useOwnedPreloadedQuery<DashboardsLoaderQuery>({
     query: dashboardsLoaderQuery,
     queryRef: loaderData.queryRef,
   });
-  // For now, use mock data for dashboards
-  const dashboards = [
-    {
-      id: "1",
-      name: "Sales Dashboard",
-      description: "Tracks sales KPIs",
-      createdAt: new Date().toISOString(),
-      lastUpdatedAt: new Date().toISOString(),
-    },
-    {
-      id: "2",
-      name: "Marketing Dashboard",
-      description: "Monitors marketing campaigns",
-      createdAt: new Date().toISOString(),
-      lastUpdatedAt: new Date().toISOString(),
-    },
-  ];
+
   return (
-    <Flex direction="column" height="100%">
-      <PageHeader
-        title="Dashboards"
-        extra={
-          <LinkButton
-            size="M"
-            leadingVisual={<Icon svg={<Icons.BarChartOutline />} />}
-            variant="primary"
-            to="#"
-          >
-            Create Dashboard
-          </LinkButton>
-        }
+    <div css={dashboardsPageCSS}>
+      <div css={toolbarCSS}>
+        <ProjectMenu
+          css={projectMenuCSS}
+          query={data}
+          selectedProjectId={projectId}
+          size="S"
+          onProjectChange={(projectId) => {
+            setLastSelectedDashboardProjectId(projectId);
+            navigate(`/dashboards/projects/${projectId}`);
+          }}
+        />
+        <ConnectedTimeRangeSelector size="S" />
+      </div>
+      <div css={contentCSS}>
+        <Suspense fallback={<Loading />}>
+          <Outlet />
+        </Suspense>
+      </div>
+    </div>
+  );
+}
+
+export function DashboardsEmptyPage() {
+  const lastSelectedDashboardProjectId = usePreferencesContext(
+    (state) => state.lastSelectedDashboardProjectId
+  );
+  if (lastSelectedDashboardProjectId) {
+    return (
+      <Navigate
+        to={`/dashboards/projects/${lastSelectedDashboardProjectId}`}
+        replace
       />
-      <Tabs>
-        <TabList>
-          <Tab id="project-dashboards">Project Dashboards</Tab>
-          <Tab id="user-dashboards">Custom Dashboards</Tab>
-        </TabList>
-        <LazyTabPanel id="project-dashboards">
-          <ProjectDashboardsTable query={data} />
-        </LazyTabPanel>
-        <LazyTabPanel id="user-dashboards">
-          <DashboardsTable dashboards={dashboards} />
-        </LazyTabPanel>
-      </Tabs>
+    );
+  }
+  return (
+    <Flex height="100%" alignItems="center" justifyContent="center">
+      <Empty message="No project selected" />
     </Flex>
   );
 }

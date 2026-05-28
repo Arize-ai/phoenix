@@ -5,7 +5,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -14,17 +13,20 @@ import {
 
 import { Text } from "@phoenix/components";
 import {
+  ChartEmptyStateOverlay,
   ChartTooltip,
   ChartTooltipItem,
+  InteractiveLegend,
+  TimeRangeChartBrush,
   defaultCartesianGridProps,
   defaultLegendProps,
-  defaultXAxisProps,
+  defaultTimeXAxisProps,
   defaultYAxisProps,
   useBinTimeTickFormatter,
+  useInteractiveLegend,
   useSemanticChartColors,
   useSequentialChartColors,
 } from "@phoenix/components/chart";
-import { useBinInterval } from "@phoenix/components/chart/useBinInterval";
 import { useTimeBinScale } from "@phoenix/hooks/useTimeBin";
 import { useTimeFormatters } from "@phoenix/hooks/useTimeFormatters";
 import { useUTCOffsetMinutes } from "@phoenix/hooks/useUTCOffsetMinutes";
@@ -36,32 +38,25 @@ import type { TraceCountTimeSeriesQuery } from "./__generated__/TraceCountTimeSe
 function TooltipContent({ active, payload, label }: TooltipContentProps) {
   const { fullTimeFormatter } = useTimeFormatters();
   if (active && payload && payload.length) {
-    // For stacked bar charts, payload[0] is the first bar (error), payload[1] is the second bar (ok)
-    const errorValue = payload[0]?.value ?? null;
-    const errorColor = payload[0]?.color ?? null;
-    const okValue = payload[1]?.value ?? null;
-    const okColor = payload[1]?.color ?? null;
-    const okString = intFormatter(Number(okValue));
-    const errorString = intFormatter(Number(errorValue));
     return (
       <ChartTooltip>
         {label && (
           <Text weight="heavy" size="S">{`${fullTimeFormatter(
-            new Date(String(label))
+            new Date(Number(label))
           )}`}</Text>
         )}
-        <ChartTooltipItem
-          color={errorColor ?? "transparent"}
-          shape="circle"
-          name="error"
-          value={errorString}
-        />
-        <ChartTooltipItem
-          color={okColor ?? "transparent"}
-          shape="circle"
-          name="ok"
-          value={okString}
-        />
+        {payload.map((entry) => {
+          const name = String(entry.dataKey ?? entry.name ?? "unknown");
+          return (
+            <ChartTooltipItem
+              color={entry.color ?? "transparent"}
+              key={name}
+              shape="circle"
+              name={name}
+              value={intFormatter(Number(entry.value))}
+            />
+          );
+        })}
       </ChartTooltip>
     );
   }
@@ -72,6 +67,7 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
 export function TraceCountTimeSeries({
   projectId,
   timeRange,
+  onTimeRangeSelected,
 }: ProjectMetricViewProps) {
   const scale = useTimeBinScale({ timeRange });
   const utcOffsetMinutes = useUTCOffsetMinutes();
@@ -93,6 +89,7 @@ export function TraceCountTimeSeries({
                 timestamp
                 okCount
                 errorCount
+                totalCount
               }
             }
           }
@@ -115,62 +112,86 @@ export function TraceCountTimeSeries({
   const chartData = useMemo(
     () =>
       (data.project.traceCountByStatusTimeSeries?.data ?? []).map((datum) => ({
-        timestamp: new Date(datum.timestamp),
+        timestamp: new Date(datum.timestamp).getTime(),
         ok: datum.okCount,
         error: datum.errorCount,
+        total: datum.totalCount,
       })),
     [data.project.traceCountByStatusTimeSeries?.data]
   );
+  const hasData = chartData.some((datum) => datum.total > 0);
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
-  const interval = useBinInterval({ scale });
 
   const colors = useSequentialChartColors();
   const SemanticChartColors = useSemanticChartColors();
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+    useInteractiveLegend();
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <BarChart
-        data={chartData}
-        margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
-        barSize={10}
-        syncId={"projectMetrics"}
-      >
-        <XAxis
-          {...defaultXAxisProps}
-          dataKey="timestamp"
-          interval={interval}
-          tickFormatter={(x) => timeTickFormatter(new Date(x))}
-        />
-        <YAxis
-          {...defaultYAxisProps}
-          width={55}
-          tickFormatter={(x) => intFormatter(x)}
-          label={{
-            value: "Count",
-            angle: -90,
-            dx: -28,
-            style: {
-              textAnchor: "middle",
-              fill: "var(--chart-axis-label-color)",
-            },
-          }}
-        />
-        <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
-        <Tooltip
-          content={TooltipContent}
-          // TODO formalize this
-          cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
-        />
-        <Bar dataKey="error" stackId="a" fill={SemanticChartColors.danger} />
-        <Bar
-          dataKey="ok"
-          stackId="a"
-          fill={colors.gray300}
-          radius={[2, 2, 0, 0]}
-        />
+    <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
+      {({ chartProps }) => (
+        <ChartEmptyStateOverlay
+          isEmpty={!hasData}
+          message="No data in this time range"
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={chartData}
+              margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
+              barSize={10}
+              syncId={"projectMetrics"}
+              {...chartProps}
+            >
+              <XAxis
+                {...defaultTimeXAxisProps}
+                domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
+                tickFormatter={(x) => timeTickFormatter(new Date(x))}
+              />
+              <YAxis
+                {...defaultYAxisProps}
+                width={55}
+                tickFormatter={(x) => intFormatter(x)}
+                label={{
+                  value: "Count",
+                  angle: -90,
+                  dx: -28,
+                  style: {
+                    textAnchor: "middle",
+                    fill: "var(--chart-axis-label-color)",
+                  },
+                }}
+              />
+              <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
+              <Tooltip
+                content={TooltipContent}
+                // TODO formalize this
+                cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+              />
+              <Bar
+                dataKey="error"
+                stackId="a"
+                fill={SemanticChartColors.danger}
+                hide={isDataKeyHidden("error")}
+              />
+              <Bar
+                dataKey="ok"
+                stackId="a"
+                fill={colors.gray300}
+                hide={isDataKeyHidden("ok")}
+                radius={[2, 2, 0, 0]}
+              />
 
-        <Legend iconType="circle" iconSize={8} {...defaultLegendProps} />
-      </BarChart>
-    </ResponsiveContainer>
+              <InteractiveLegend
+                iconType="circle"
+                iconSize={8}
+                {...defaultLegendProps}
+                hiddenDataKeys={hiddenDataKeys}
+                onToggleDataKey={toggleDataKey}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartEmptyStateOverlay>
+      )}
+    </TimeRangeChartBrush>
   );
 }

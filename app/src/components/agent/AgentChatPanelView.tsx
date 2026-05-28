@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Panel, Separator } from "react-resizable-panels";
 
 import {
@@ -12,6 +13,7 @@ import {
 } from "@phoenix/components";
 import { fadedDividerBottomCSS } from "@phoenix/components/core/layout";
 import { compactResizeHandleCSS } from "@phoenix/components/resize/styles";
+import { useActiveModalPortalContainerElement } from "@phoenix/hooks/useHasOpenModal";
 import type {
   AgentFabPlacement,
   AgentPosition,
@@ -41,16 +43,21 @@ const MIN_FLOATING_AGENT_CHAT_SIZE: Size = {
 
 const panelHeaderCSS = css`
   ${fadedDividerBottomCSS}
+  box-sizing: border-box;
+  flex: none;
   z-index: ${PANEL_HEADER_Z_INDEX};
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
+  column-gap: var(--global-dimension-size-100);
+  min-height: var(--global-dimension-size-600);
   padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
   background: var(--global-background-color-default);
 `;
 
 const panelHeaderActionsCSS = css`
-  flex-shrink: 0;
+  justify-self: end;
+  min-width: max-content;
 `;
 
 const sessionHeadingCSS = css`
@@ -72,7 +79,7 @@ const panelContentCSS = css`
 `;
 
 /**
- * Shared header for PXI chat surfaces.
+ * Shared header for assistant chat surfaces.
  */
 export function AgentChatHeader({
   sessionDisplayName,
@@ -172,7 +179,7 @@ export function AgentChatHeader({
 }
 
 /**
- * Shared content frame for the docked and embedded PXI surfaces.
+ * Shared content frame for the docked and embedded assistant surfaces.
  */
 function AgentChatFrame({
   panelId,
@@ -216,21 +223,25 @@ export function DockedAgentChatFrame({ children }: { children: ReactNode }) {
 }
 
 /**
- * Presentational shell for the floating PXI panel.
+ * Presentational shell for the floating assistant panel.
  */
 export function FloatingAgentChatFrame({
   children,
+  layer = "content",
   placement,
   size = DEFAULT_FLOATING_AGENT_CHAT_SIZE,
   onSizeChange,
 }: {
   children: ReactNode;
+  layer?: "content" | "modal";
   placement: AgentFabPlacement;
   size?: Size;
   onSizeChange?: (size: Size) => void;
 }) {
-  return (
+  const activeModalPortalContainer = useActiveModalPortalContainerElement();
+  const panel = (
     <ResizableFloatingPanel
+      layer={layer}
       minSize={MIN_FLOATING_AGENT_CHAT_SIZE}
       placement={placement}
       size={size}
@@ -239,6 +250,12 @@ export function FloatingAgentChatFrame({
       {children}
     </ResizableFloatingPanel>
   );
+
+  if (layer !== "modal") {
+    return panel;
+  }
+
+  return createPortal(panel, activeModalPortalContainer ?? document.body);
 }
 
 const tracePanelContentCSS = css`
@@ -253,7 +270,7 @@ const tracePanelContentCSS = css`
 `;
 
 /**
- * Presentational shell for the trace slideover's embedded PXI panel.
+ * Presentational shell for the trace slideover's embedded assistant panel.
  */
 export function TraceAgentChatFrame({ children }: { children: ReactNode }) {
   return (

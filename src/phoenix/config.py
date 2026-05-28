@@ -804,6 +804,13 @@ Accepted values: WASM, E2B, DAYTONA, VERCEL, DENO, MODAL. Case-insensitive.
 When not set, all providers are allowed. To disable all sandbox providers, set to NONE.
 Example: PHOENIX_ALLOWED_SANDBOX_PROVIDERS=WASM,DENO
 """
+ENV_PHOENIX_WASM_BINARY_PATH = "PHOENIX_WASM_BINARY_PATH"
+"""
+Override path to a pre-downloaded CPython WASM binary used by the WASM sandbox
+provider. When set, the binary at this path is used as-is (no SHA verification,
+no download). When unset, the binary is downloaded on first use under
+PHOENIX_WORKING_DIR/wasm. Primarily used in CI to point at a cached binary.
+"""
 
 
 @dataclass(frozen=True)
@@ -1280,6 +1287,27 @@ def validate_env_allowed_sandbox_providers() -> None:
             f"{', '.join(sorted(names))}. "
             f"Valid names are: {', '.join(sorted(SANDBOX_BACKEND_TYPES))}"
         )
+
+
+def get_env_wasm_binary_path() -> Optional[Path]:
+    """Operator-supplied path to a pre-downloaded CPython WASM binary, if set."""
+    value = getenv(ENV_PHOENIX_WASM_BINARY_PATH)
+    return Path(value) if value else None
+
+
+def validate_env_wasm_binary_path() -> None:
+    """Raise ValueError if PHOENIX_WASM_BINARY_PATH is set but is not a readable, non-empty file."""
+    path = get_env_wasm_binary_path()
+    if path is None:
+        return
+    try:
+        _validate_file_exists_and_is_readable(path, description="WASM binary")
+    except ValueError as exc:
+        raise ValueError(
+            f"{ENV_PHOENIX_WASM_BINARY_PATH}={path} is invalid: {exc}. "
+            f"Either pre-download the CPython WASM binary to that path or unset the env "
+            f"var to fall back to the default download location under PHOENIX_WORKING_DIR."
+        ) from exc
 
 
 def get_env_disable_brute_force_login_protection() -> bool:
@@ -3436,6 +3464,7 @@ def verify_server_environment_variables() -> None:
     validate_env_allowed_providers()
     validate_env_allowed_sandbox_providers()
     validate_env_default_model_provider()
+    validate_env_wasm_binary_path()
 
     # Notify users about deprecated environment variables if they are being used.
     if os.getenv("PHOENIX_ENABLE_WEBSOCKETS") is not None:

@@ -12,12 +12,9 @@ from starlette.requests import Request
 from strawberry.relay import GlobalID
 
 from phoenix.db import models
-from phoenix.db.helpers import SupportedSQLDialect
+from phoenix.db.helpers import SupportedSQLDialect, token_counts_by_session
 from phoenix.db.insertion.helpers import as_kv, insert_on_conflict
 from phoenix.server.api.helpers.annotations import get_note_identifier
-from phoenix.server.api.helpers.cumulative_token_count_queries import (
-    cumulative_token_counts_by_session,
-)
 from phoenix.server.api.routers.v1.models import V1RoutesBaseModel
 from phoenix.server.api.routers.v1.utils import (
     PaginatedResponseBody,
@@ -218,9 +215,7 @@ async def get_session(
             .order_by(models.Trace.start_time.asc())
         )
         traces = list((await db_session.scalars(traces_stmt)).all())
-        token_counts_rows = await db_session.execute(
-            cumulative_token_counts_by_session([project_session.id])
-        )
+        token_counts_rows = await db_session.execute(token_counts_by_session([project_session.id]))
         token_counts: dict[int, tuple[int, int]] = {
             row.id_: (row.prompt, row.completion) for row in token_counts_rows
         }
@@ -412,9 +407,7 @@ async def list_project_sessions(
             if trace.project_session_rowid is not None:
                 traces_by_session[trace.project_session_rowid].append(trace)
 
-        token_counts_rows = await db_session.execute(
-            cumulative_token_counts_by_session(session_ids)
-        )
+        token_counts_rows = await db_session.execute(token_counts_by_session(session_ids))
         token_counts: dict[int, tuple[int, int]] = {
             row.id_: (row.prompt, row.completion) for row in token_counts_rows
         }

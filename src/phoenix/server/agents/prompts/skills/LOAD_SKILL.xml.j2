@@ -1,0 +1,18 @@
+<skill>
+  <name>{{ skill.name | sanitize(enclosing_tag="skill", max_chars=128) }}</name>
+  <description>{{ skill.description | sanitize(enclosing_tag="skill", preserve_newlines=True) }}</description>
+
+  <resources>
+    {% if skill.resources %}
+      {% for r in skill.resources %}
+    <resource name="{{ r.name | sanitize(enclosing_tag="skill", max_chars=128) }}"{% if r.description %} description="{{ r.description | sanitize(enclosing_tag="skill", max_chars=512) }}"{% endif %}{% if r.function_schema is defined %} parameters={{ r.function_schema.json_schema | tojson | tojson }}{% endif %} />
+      {% endfor %}
+    {% else %}
+    <!-- No resources -->
+    {% endif %}
+  </resources>
+
+  <instructions>
+{{ skill.content | sanitize(enclosing_tag="skill", preserve_newlines=True) }}
+  </instructions>
+</skill>

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<40a407ecc2288b28869dd5e2a96f00a0>>
+ * @generated SignedSource<<14ff25380b1ade07375796a583c4acf8>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -31,6 +31,7 @@ export type ToolSpanCountTimeSeriesQuery$data = {
         readonly errorCount: number | null;
         readonly okCount: number | null;
         readonly timestamp: string;
+        readonly totalCount: number | null;
         readonly unsetCount: number | null;
       }>;
     };
@@ -131,6 +132,13 @@ v5 = {
               "kind": "ScalarField",
               "name": "unsetCount",
               "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "totalCount",
+              "storageKey": null
             }
           ],
           "storageKey": null
@@ -210,16 +218,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "0a5e4bdb5bcce53751043c0baded7246",
+    "cacheID": "ba44ceb51f7535384ba5f52ec2b75800",
     "id": null,
     "metadata": {},
     "name": "ToolSpanCountTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query ToolSpanCountTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n  $filterCondition: String!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spanCountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig, filterCondition: $filterCondition) {\n        data {\n          timestamp\n          okCount\n          errorCount\n          unsetCount\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query ToolSpanCountTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n  $filterCondition: String!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      spanCountTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig, filterCondition: $filterCondition) {\n        data {\n          timestamp\n          okCount\n          errorCount\n          unsetCount\n          totalCount\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "3eccaa798cffe752af3f941b03e3047d";
+(node as any).hash = "91c3113c1baf69f4da181dbc4892e1c3";
 
 export default node;

@@ -934,13 +934,13 @@ const baseTokensCSS = (theme: Theme) => css`
 
     --text-color-placeholder: var(--global-color-gray-400);
 
-    --global-overlay-shadow-color: ${
-      theme === "dark" ? "rgba(0, 0, 0, 0.8)" : "rgba(0, 0, 0, 0.1)"
-    };
+    --global-overlay-shadow-color: ${theme === "dark"
+      ? "rgba(0, 0, 0, 0.8)"
+      : "rgba(0, 0, 0, 0.1)"};
 
-    --global-overlay-backdrop-color: ${
-      theme === "dark" ? "rgba(0, 0, 0, 0.8)" : "rgba(0, 0, 0, 0.4)"
-    };
+    --global-overlay-backdrop-color: ${theme === "dark"
+      ? "rgba(0, 0, 0, 0.8)"
+      : "rgba(0, 0, 0, 0.4)"};
   }
 `;
 
@@ -1008,9 +1008,9 @@ const checkboxCSS = (theme: Theme) => css`
 const disclosureCSS = (theme: Theme) => css`
   :root,
   .theme--${theme} {
-    --global-disclosure-background-color-active: ${
-      theme === "dark" ? "rgba(255, 255, 255, 0.07)" : "rgba(0, 0, 0, 0.03)"
-    };
+    --global-disclosure-background-color-active: ${theme === "dark"
+      ? "rgba(255, 255, 255, 0.07)"
+      : "rgba(0, 0, 0, 0.03)"};
   }
 `;
 
@@ -1027,16 +1027,12 @@ const cardCSS = (theme: Theme) => css`
   .theme--${theme} {
     --global-card-border-color: var(--global-border-color-default);
     --global-card-header-height: 46px;
-    --global-card-header-background-color: ${
-      theme === "light"
-        ? "var(--global-color-gray-100)"
-        : "var(--global-color-gray-75)"
-    };
-    --global-card-header-background-color-hover: ${
-      theme === "light"
-        ? "var(--global-color-gray-200)"
-        : "var(--global-color-gray-100)"
-    };
+    --global-card-header-background-color: ${theme === "light"
+      ? "var(--global-color-gray-100)"
+      : "var(--global-color-gray-75)"};
+    --global-card-header-background-color-hover: ${theme === "light"
+      ? "var(--global-color-gray-200)"
+      : "var(--global-color-gray-100)"};
   }
 `;
 
@@ -1384,17 +1380,34 @@ const codeMirrorOverridesCSS = css`
 
 const chartCSS = css`
   .theme {
-    --chart-cartesian-grid-stroke-color: var(--global-color-gray-300);
+    --chart-cartesian-grid-stroke-color: rgba(
+      var(--global-color-gray-500-rgb),
+      0.24
+    );
     --chart-axis-stroke-color: var(--global-color-gray-300);
     --chart-axis-text-color: var(--global-text-color-700);
     --chart-axis-label-color: var(--global-text-color-700);
     --chart-legend-text-color: var(--global-text-color-900);
+    --chart-time-range-brush-fill-color: var(--global-color-primary-100);
+    --chart-empty-state-overlay-background-color: rgba(
+      var(--global-color-gray-75-rgb),
+      0.84
+    );
+    --chart-empty-state-text-color: var(--global-text-color-500);
   }
   .theme--dark {
-    --chart-tooltip-cursor-fill-color: rgba(255, 255, 255, 0.2);
+    --chart-tooltip-cursor-fill-color: rgba(255, 255, 255, 0.05);
+    --chart-empty-state-text-color: var(--global-text-color-700);
   }
   .theme--light {
-    --chart-tooltip-cursor-fill-color: rgba(0, 0, 0, 0.05);
+    --chart-tooltip-cursor-fill-color: rgba(0, 0, 0, 0.02);
+  }
+  .recharts-surface:focus:not(:focus-visible) {
+    outline: none;
+  }
+  .recharts-surface:focus-visible {
+    outline: 2px solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
   }
 `;
 

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<a8a22d4e700bcf71d45240f63e0bb5ac>>
+ * @generated SignedSource<<355d44f49e3b75ef64d79155c6060536>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -30,6 +30,7 @@ export type TraceCountTimeSeriesQuery$data = {
         readonly errorCount: number;
         readonly okCount: number;
         readonly timestamp: string;
+        readonly totalCount: number;
       }>;
     };
   };
@@ -112,6 +113,13 @@ v4 = {
               "kind": "ScalarField",
               "name": "errorCount",
               "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "totalCount",
+              "storageKey": null
             }
           ],
           "storageKey": null
@@ -189,16 +197,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "8a15201a8fa5e84fe8ead9a696d5db46",
+    "cacheID": "eae33be75948df6608bc20d9eacf4298",
     "id": null,
     "metadata": {},
     "name": "TraceCountTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query TraceCountTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      traceCountByStatusTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          okCount\n          errorCount\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query TraceCountTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      traceCountByStatusTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          okCount\n          errorCount\n          totalCount\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "eaa82065496e0128142e6922554d0ddf";
+(node as any).hash = "f793529abd50aadd85049f7ac4390424";
 
 export default node;

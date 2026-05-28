@@ -5,12 +5,16 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
-import os
 import urllib.request
 from pathlib import Path
 from typing import Optional
 
-from phoenix.config import _no_local_storage, get_working_dir
+from phoenix.config import (
+    ENV_PHOENIX_WASM_BINARY_PATH,
+    _no_local_storage,
+    get_env_wasm_binary_path,
+    get_working_dir,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +27,6 @@ _WASM_URL = f"{_WASM_RELEASE_BASE}/{_WASM_FILENAME}"
 
 # Operator-supplied paths are trusted as-is and NOT hash-checked.
 _WASM_SHA256 = "e5dc5a398b07b54ea8fdb503bf68fb583d533f10ec3f930963e02b9505f7a763"
-
-PHOENIX_WASM_BINARY_PATH_ENV = "PHOENIX_WASM_BINARY_PATH"
 
 
 _NO_LOCAL_STORAGE_LONG_FORM = (
@@ -55,12 +57,9 @@ def resolve_wasm_binary_if_present(
     filename: str = _WASM_FILENAME,
 ) -> Optional[Path]:
     """Return the resolved WASM binary path WITHOUT any downloads or writes."""
-    override = os.environ.get(PHOENIX_WASM_BINARY_PATH_ENV)
-    if override:
-        candidate = Path(override)
-        if candidate.is_file():
-            return candidate
-        return None
+    override = get_env_wasm_binary_path()
+    if override is not None:
+        return override if override.is_file() else None
 
     if _no_local_storage():
         return None
@@ -80,13 +79,12 @@ def ensure_wasm_binary(
     expected_sha256: Optional[str] = None,
 ) -> Path:
     """Return the path to the CPython WASM binary, downloading it if absent."""
-    override = os.environ.get(PHOENIX_WASM_BINARY_PATH_ENV)
-    if override:
-        candidate = Path(override)
-        if candidate.is_file():
-            return candidate
+    override = get_env_wasm_binary_path()
+    if override is not None:
+        if override.is_file():
+            return override
         raise WASMBinaryUnavailable(
-            f"{PHOENIX_WASM_BINARY_PATH_ENV}={override} is set but the file "
+            f"{ENV_PHOENIX_WASM_BINARY_PATH}={override} is set but the file "
             f"does not exist. Either pre-download the CPython WASM binary to "
             f"that path or unset the env var to fall back to the default "
             f"download location under PHOENIX_WORKING_DIR."

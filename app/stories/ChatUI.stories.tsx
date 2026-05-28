@@ -21,7 +21,8 @@ const chatContainerCSS = css`
   height: var(--global-dimension-size-5000);
   width: 100%;
   max-width: var(--global-dimension-size-6000);
-  border: var(--global-border-size-thin) solid var(--global-border-color-default);
+  border: var(--global-border-size-thin) solid
+    var(--global-border-color-default);
   border-radius: var(--global-rounding-medium);
   overflow: hidden;
   background-color: var(--global-background-color-default);

@@ -286,6 +286,8 @@ px api graphql '{ projectCount datasetCount promptCount evaluatorCount }'
 px api graphql '{ projects { edges { node { name traceCount tokenCountTotal } } } }' | jq '.data.projects.edges[].node'
 px api graphql '{ datasets { edges { node { name exampleCount experimentCount } } } }' | jq '.data.datasets.edges[].node'
 px api graphql '{ evaluators { edges { node { name kind } } } }' | jq '.data.evaluators.edges[].node'
+# evaluator kind values: "LLM" | "CODE" | "BUILTIN"
+# CODE = server-side code evaluator running in a sandbox; BUILTIN = pre-built server evaluator
 
 # Introspect any type
 px api graphql '{ __type(name: "Project") { fields { name type { name } } } }' | jq '.data.__type.fields[]'

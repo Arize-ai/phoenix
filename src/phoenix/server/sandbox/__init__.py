@@ -61,7 +61,7 @@ class AdapterMetadata:
     supports_dependencies: bool = False
     hosting_type: Literal["local", "hosted"] = "hosted"
     supports_env_vars: bool = False
-    internet_access_capability: Literal["none", "boolean", "allowlist"] = "none"
+    internet_access_capability: Literal["none", "boolean"] = "none"
 
     @classmethod
     def from_cls(cls, adapter_cls: type[SandboxAdapter[Any, Any, Any]]) -> "AdapterMetadata":
@@ -136,9 +136,7 @@ class _AllowlistGatedAdapterRegistry(
         return sum(1 for v in self._adapters.values() if v.backend_type in allowed)
 
     def __contains__(self, key: object) -> bool:
-        return key in self._adapters and self._allowed(
-            self._adapters[cast(SandboxBackendType, key)]
-        )
+        return key in self._adapters and self._allowed(self._adapters[key])
 
 
 _SANDBOX_ADAPTERS: MutableMapping[SandboxBackendType, SandboxAdapter[Any, Any, Any]] = (
