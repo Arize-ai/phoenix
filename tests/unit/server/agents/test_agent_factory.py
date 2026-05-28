@@ -365,23 +365,23 @@ class TestUIContextInstructions:
                     type="playground",
                     instances=[
                         PlaygroundInstanceContext(
-                            instanceId=7,
+                            instance_id=7,
                             provider="OPENAI",
-                            modelName="gpt-5",
+                            model_name="gpt-5",
                         )
                     ],
                     availableBuiltinModels=[
                         PlaygroundBuiltinModelContext(
                             provider="OPENAI",
-                            modelName="gpt-5",
+                            model_name="gpt-5",
                         )
                     ],
                     availableCustomModels=[
                         PlaygroundCustomProviderModelContext(
-                            customProviderId="custom-provider-id",
-                            customProviderName="Custom OpenAI",
+                            custom_provider_id="custom-provider-id",
+                            custom_provider_name="Custom OpenAI",
                             provider="OPENAI",
-                            modelName="custom-model",
+                            model_name="custom-model",
                         )
                     ],
                 )
@@ -493,9 +493,9 @@ class TestPlaygroundTools:
                     type="playground",
                     instances=[
                         PlaygroundInstanceContext(
-                            instanceId=1,
+                            instance_id=1,
                             provider="OPENAI",
-                            modelName="gpt-5",
+                            model_name="gpt-5",
                         )
                     ],
                 )

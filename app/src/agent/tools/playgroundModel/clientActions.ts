@@ -2,7 +2,7 @@ import { getInstanceLabel } from "@phoenix/agent/tools/playgroundPrompt";
 import {
   applyBedrockModelPrefix,
   getProviderKeyForGenerativeModelSDK,
-} from "@phoenix/components/generative";
+} from "@phoenix/components/generative/modelProviderUtils";
 import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
 import { parseSetPlaygroundModelInput } from "./parsers";
