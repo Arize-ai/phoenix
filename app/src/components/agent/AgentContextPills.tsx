@@ -103,6 +103,22 @@ function spanFilterAttachmentData(
   };
 }
 
+function isAuxiliaryFormContext({
+  context,
+  contexts,
+}: {
+  context: AgentContext;
+  contexts: AgentContext[];
+}): boolean {
+  if (context.type !== "code_evaluator") {
+    return false;
+  }
+  return contexts.some(
+    (candidate) =>
+      candidate.type === "playground" || candidate.type === "dataset"
+  );
+}
+
 /**
  * Renders the active agent contexts as non-removable attachments above the
  * chat input so the user can see, at a glance, what Phoenix state the agent
@@ -110,7 +126,8 @@ function spanFilterAttachmentData(
  * filter).
  *
  * Reads from the same `selectActiveContexts` selector used to populate the
- * chat request payload, so what the user sees is what the agent receives.
+ * chat request payload. Auxiliary form contexts may be omitted from the
+ * visible pill list when a page-level context already orients the user.
  */
 export function AgentContextPills() {
   const contexts = useAgentContext(selectActiveContexts);
@@ -123,7 +140,8 @@ export function AgentContextPills() {
     if (
       context.type === "app" ||
       context.type === "graphql" ||
-      context.type === "web_access"
+      context.type === "web_access" ||
+      isAuxiliaryFormContext({ context, contexts })
     ) {
       return [];
     }
@@ -132,6 +150,10 @@ export function AgentContextPills() {
       ? [toAttachmentData(context), filterPill]
       : [toAttachmentData(context)];
   });
+
+  if (items.length === 0) {
+    return null;
+  }
 
   return (
     <Attachments

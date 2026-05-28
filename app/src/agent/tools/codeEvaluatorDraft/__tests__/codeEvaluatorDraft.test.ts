@@ -8,6 +8,7 @@ import {
   type EditCodeEvaluatorDraftOperation,
   type PendingCodeEvaluatorEdit,
   parseEditCodeEvaluatorDraftInput,
+  parseTestCodeEvaluatorDraftInput,
   type SandboxConfigIndex,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
 
@@ -23,6 +24,12 @@ function makeSnapshot(
     sourceCode: "def evaluate(output):\n    return 1.0",
     sandboxConfigId: "py-sandbox",
     inputMapping: { pathMapping: {}, literalMapping: {} },
+    testPayload: {
+      input: { question: "Which answer used a tool?" },
+      output: { messages: [{ role: "assistant", content: "Used search" }] },
+      reference: { expectedTool: "search" },
+      metadata: { split: "validation" },
+    },
     outputConfigs: [],
     ...overrides,
   };
@@ -234,6 +241,15 @@ describe("code evaluator draft agent tools", () => {
           },
         },
         {
+          type: "set_test_payload",
+          test_payload: {
+            input: { question: "Was a tool used?" },
+            output: { answer: "yes" },
+            reference: { expected: true },
+            metadata: { source: "fixture" },
+          },
+        },
+        {
           type: "set_output_configs",
           output_configs: [
             {
@@ -258,6 +274,15 @@ describe("code evaluator draft agent tools", () => {
       },
     });
     expect(parsed!.operations[1]).toEqual({
+      type: "set_test_payload",
+      testPayload: {
+        input: { question: "Was a tool used?" },
+        output: { answer: "yes" },
+        reference: { expected: true },
+        metadata: { source: "fixture" },
+      },
+    });
+    expect(parsed!.operations[2]).toEqual({
       type: "set_output_configs",
       outputConfigs: [
         {
@@ -270,6 +295,43 @@ describe("code evaluator draft agent tools", () => {
         },
       ],
     });
+  });
+
+  it("applies set_test_payload and includes it in the revision hash", () => {
+    const initial = makeSnapshot({
+      testPayload: {
+        input: { prompt: "old" },
+        output: { answer: "old" },
+        reference: {},
+        metadata: {},
+      },
+    });
+    const result = applyDraftOperations({
+      snapshot: initial,
+      operations: [
+        {
+          type: "set_test_payload",
+          testPayload: {
+            input: { prompt: "new" },
+            output: { answer: "new" },
+            reference: { rubric: "match answer" },
+            metadata: { split: "eval" },
+          },
+        },
+      ],
+      sandboxConfigs: {
+        "py-sandbox": { language: "PYTHON" },
+      },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.output.testPayload).toEqual({
+      input: { prompt: "new" },
+      output: { answer: "new" },
+      reference: { rubric: "match answer" },
+      metadata: { split: "eval" },
+    });
+    expect(result.output.revision).not.toBe(initial.revision);
   });
 
   it("accepts a single top-level operation next to expectedRevision", () => {
@@ -308,6 +370,19 @@ describe("code evaluator draft agent tools", () => {
         },
       ],
     });
+  });
+
+  it("accepts revision aliases for test_code_evaluator_draft", () => {
+    expect(
+      parseTestCodeEvaluatorDraftInput({
+        revision: "code-evaluator-draft-abc",
+      })
+    ).toEqual({ expectedRevision: "code-evaluator-draft-abc" });
+    expect(
+      parseTestCodeEvaluatorDraftInput({
+        expected_revision: "code-evaluator-draft-def",
+      })
+    ).toEqual({ expectedRevision: "code-evaluator-draft-def" });
   });
 
   it("rejects the propose-time edit when expectedRevision is stale", async () => {
@@ -477,6 +552,60 @@ describe("code evaluator draft agent tools", () => {
     );
     await pending!.accept!();
     expect(snapshotRef.current.description).toBe("accepted");
+    expect(outputs[0]).toMatchObject({ state: "output-available" });
+  });
+
+  it("applies accepted test payload edits through the pending edit path", async () => {
+    const initial = makeSnapshot({
+      testPayload: {
+        input: { prompt: "initial" },
+        output: { answer: "initial" },
+        reference: {},
+        metadata: {},
+      },
+    });
+    const { host, snapshotRef } = makeHost(initial);
+    let pending: PendingCodeEvaluatorEdit | null = null;
+    const outputs: Array<Record<string, unknown>> = [];
+    const action = createEditCodeEvaluatorDraftClientAction({
+      getDraftHost: () => host,
+      setPendingCodeEvaluatorEdit: (_, edit) => {
+        pending = edit;
+      },
+    });
+    await action(
+      {
+        expectedRevision: initial.revision,
+        operations: [
+          {
+            type: "set_test_payload",
+            testPayload: {
+              input: { prompt: "updated" },
+              output: { answer: "updated" },
+              reference: { expected: "updated" },
+              metadata: { split: "smoke" },
+            },
+          },
+        ],
+      },
+      {
+        toolCallId: "tc",
+        sessionId: "s",
+        addToolOutput: async (payload: Record<string, unknown>) => {
+          outputs.push(payload);
+        },
+      }
+    );
+    expect(pending).not.toBeNull();
+    expect(pending!.after.testPayload.output).toEqual({ answer: "updated" });
+
+    await pending!.accept!();
+    expect(snapshotRef.current.testPayload).toEqual({
+      input: { prompt: "updated" },
+      output: { answer: "updated" },
+      reference: { expected: "updated" },
+      metadata: { split: "smoke" },
+    });
     expect(outputs[0]).toMatchObject({ state: "output-available" });
   });
 

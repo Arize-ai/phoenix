@@ -106,10 +106,41 @@ const inputMappingSchema = z
     literalMapping: value.literalMapping ?? {},
   }));
 
+const testPayloadSchema = z
+  .preprocess(
+    (input) =>
+      normalizeAliases(input, {
+        input: ["inputs"],
+        output: ["outputs"],
+      }),
+    z.object({
+      input: z.record(z.string(), z.unknown()).optional(),
+      output: z.record(z.string(), z.unknown()).optional(),
+      reference: z.record(z.string(), z.unknown()).optional(),
+      metadata: z.record(z.string(), z.unknown()).optional(),
+    })
+  )
+  .transform((value) => ({
+    input: value.input ?? {},
+    output: value.output ?? {},
+    reference: value.reference ?? {},
+    metadata: value.metadata ?? {},
+  }));
+
 export const readCodeEvaluatorDraftInputSchema = z
   .object({})
   .passthrough()
   .transform(() => ({}));
+
+export const testCodeEvaluatorDraftInputSchema = z.preprocess(
+  (input) =>
+    normalizeAliases(input, {
+      expectedRevision: ["expected_revision", "revision"],
+    }),
+  z.object({
+    expectedRevision: z.string(),
+  })
+);
 
 const setSourceCodeOperationSchema = z.object({
   type: z.literal("set_source_code"),
@@ -129,6 +160,11 @@ const setSandboxConfigOperationSchema = z.object({
 const setInputMappingOperationSchema = z.object({
   type: z.literal("set_input_mapping"),
   inputMapping: inputMappingSchema,
+});
+
+const setTestPayloadOperationSchema = z.object({
+  type: z.literal("set_test_payload"),
+  testPayload: testPayloadSchema,
 });
 
 const setDescriptionOperationSchema = z.object({
@@ -152,6 +188,7 @@ export const editCodeEvaluatorDraftOperationSchema = z.preprocess(
       sourceCode: ["source_code"],
       sandboxConfigId: ["sandbox_config_id"],
       inputMapping: ["input_mapping"],
+      testPayload: ["test_payload", "mapping_source", "mappingSource"],
       outputConfigs: ["output_configs"],
     }),
   z.discriminatedUnion("type", [
@@ -159,6 +196,7 @@ export const editCodeEvaluatorDraftOperationSchema = z.preprocess(
     setLanguageOperationSchema,
     setSandboxConfigOperationSchema,
     setInputMappingOperationSchema,
+    setTestPayloadOperationSchema,
     setDescriptionOperationSchema,
     setNameOperationSchema,
     setOutputConfigsOperationSchema,

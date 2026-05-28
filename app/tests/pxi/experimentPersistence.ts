@@ -82,6 +82,16 @@ export const PXI_EXPERIMENT_EXAMPLES = {
     experimentDescription:
       "PXI code-evaluator draft tools smoke test: read_code_evaluator_draft + edit_code_evaluator_draft with accept flow.",
   },
+  codeEvaluatorDraftPreviewFormSmoke: {
+    id: "pxi-code-evaluator-draft-smoke:playground-open-edit-test-v1",
+    prompt:
+      "I'm on a dataset-backed playground. Open the experiment evaluator form without navigating away, read the code-evaluator draft, then propose a Python evaluator named pxi_preview_accuracy that returns 1.0 when output and reference match after trim/lowercase and 0.0 otherwise. Use an available Python sandbox config, set a score output config, wait for me to accept the edit, then test the draft.",
+    expectedOutput:
+      "PXI opens the evaluator form in place from the playground, reads and edits the draft, waits for user approval, then runs test_code_evaluator_draft and leaves the playground URL/state intact.",
+    experimentNamePrefix: "pxi-e2e-code-evaluator-draft-preview-form",
+    experimentDescription:
+      "PXI code-evaluator draft smoke test: open_experiment_evaluator_form + read/edit/test_code_evaluator_draft from a dataset-backed playground.",
+  },
   codeEvaluatorDraftRejectSmoke: {
     id: "pxi-code-evaluator-draft-smoke:reject-leaves-form-v1",
     prompt:

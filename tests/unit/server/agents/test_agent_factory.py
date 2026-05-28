@@ -30,12 +30,18 @@ from phoenix.server.agents.capabilities import (
     MintlifyDocsMCPServer,
 )
 from phoenix.server.agents.context import (
+    CodeEvaluatorContext,
+    DatasetContext,
     PlaygroundContext,
     ProjectContext,
     ResolvedContexts,
 )
 from phoenix.server.agents.prompts import AgentPrompts
-from phoenix.server.agents.types import AgentDependencies
+from phoenix.server.agents.types import (
+    AgentDependencies,
+    SandboxAvailability,
+    SandboxConfigCapabilities,
+)
 
 _DEFAULT_PROMPTS = AgentPrompts()
 
@@ -496,6 +502,7 @@ class TestSkillsCapability:
         assert "<name>debug-trace</name>" in cached_text
         assert "<name>annotate-spans</name>" in cached_text
         assert "<name>playground</name>" not in cached_text
+        assert "<name>experiments</name>" not in cached_text
 
     async def test_skill_tools_are_advertised(
         self,
@@ -510,6 +517,91 @@ class TestSkillsCapability:
         tool_names = _get_tool_names(captured_request.body)
         assert "load_skill" in tool_names
         assert "read_skill_resource" in tool_names
+
+
+class TestExperimentEvaluatorFormToolGates:
+    @staticmethod
+    def _sandbox_availability() -> SandboxAvailability:
+        return SandboxAvailability(
+            configs=[
+                SandboxConfigCapabilities(
+                    sandbox_config_id="U2FuZGJveENvbmZpZzox",
+                    name="default-python",
+                    language="PYTHON",
+                    internet_access="unset",
+                )
+            ]
+        )
+
+    async def test_open_form_advertised_for_dataset_backed_playground(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=PlaygroundContext(type="playground", instance_ids=[1]),
+                dataset=DatasetContext(type="dataset", dataset_node_id="RGF0YXNldDox"),
+            ),
+            sandbox_availability=self._sandbox_availability(),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "open_experiment_evaluator_form" in tool_names
+        assert "read_code_evaluator_draft" not in tool_names
+        assert "edit_code_evaluator_draft" not in tool_names
+        assert "test_code_evaluator_draft" not in tool_names
+
+    async def test_form_tools_advertised_for_mounted_code_evaluator_form(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                code_evaluator=CodeEvaluatorContext(
+                    type="code_evaluator",
+                    evaluator_node_id=None,
+                ),
+            ),
+            sandbox_availability=self._sandbox_availability(),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "open_experiment_evaluator_form" not in tool_names
+        assert "read_code_evaluator_draft" in tool_names
+        assert "edit_code_evaluator_draft" in tool_names
+        assert "test_code_evaluator_draft" in tool_names
+
+    async def test_write_and_preview_tools_hidden_for_viewers(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                code_evaluator=CodeEvaluatorContext(
+                    type="code_evaluator",
+                    evaluator_node_id=None,
+                ),
+            ),
+            is_viewer=True,
+            sandbox_availability=self._sandbox_availability(),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "read_code_evaluator_draft" in tool_names
+        assert "edit_code_evaluator_draft" not in tool_names
+        assert "test_code_evaluator_draft" not in tool_names
 
 
 class TestCapabilityInstructionsOverride:

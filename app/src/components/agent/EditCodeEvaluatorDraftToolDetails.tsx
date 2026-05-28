@@ -198,6 +198,7 @@ function draftSnapshotToText(snapshot: CodeEvaluatorDraftSnapshot): string {
     `language: ${snapshot.language}`,
     `sandboxConfigId: ${snapshot.sandboxConfigId ?? "null"}`,
     `inputMapping: ${JSON.stringify(snapshot.inputMapping, null, 2)}`,
+    `testPayload: ${JSON.stringify(snapshot.testPayload, null, 2)}`,
     `outputConfigs: ${JSON.stringify(snapshot.outputConfigs, null, 2)}`,
     `sourceCode:\n${snapshot.sourceCode}`,
   ].join("\n\n");

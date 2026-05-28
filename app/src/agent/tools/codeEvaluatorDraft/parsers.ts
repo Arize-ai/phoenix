@@ -2,11 +2,13 @@ import {
   editCodeEvaluatorDraftActionContextSchema,
   editCodeEvaluatorDraftInputSchema,
   readCodeEvaluatorDraftInputSchema,
+  testCodeEvaluatorDraftInputSchema,
 } from "./schemas";
 import type {
   EditCodeEvaluatorDraftActionContext,
   EditCodeEvaluatorDraftInput,
   ReadCodeEvaluatorDraftInput,
+  TestCodeEvaluatorDraftInput,
 } from "./types";
 
 export function parseReadCodeEvaluatorDraftInput(
@@ -19,6 +21,12 @@ export function parseEditCodeEvaluatorDraftInput(
   input: unknown
 ): EditCodeEvaluatorDraftInput | null {
   return editCodeEvaluatorDraftInputSchema.safeParse(input).data ?? null;
+}
+
+export function parseTestCodeEvaluatorDraftInput(
+  input: unknown
+): TestCodeEvaluatorDraftInput | null {
+  return testCodeEvaluatorDraftInputSchema.safeParse(input).data ?? null;
 }
 
 export function parseEditCodeEvaluatorDraftActionContext(

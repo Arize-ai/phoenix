@@ -1,5 +1,12 @@
 import { css } from "@emotion/react";
-import { Fragment, Suspense, useCallback, useEffect, useMemo } from "react";
+import {
+  Fragment,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { graphql, useLazyLoadQuery } from "react-relay";
 import {
   Group,
@@ -11,6 +18,7 @@ import type { BlockerFunction } from "react-router";
 import { useBlocker, useSearchParams } from "react-router";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
+import { OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME } from "@phoenix/agent/extensions/toolRegistry";
 import {
   createReadPlaygroundOutputClientAction,
   READ_PLAYGROUND_OUTPUT_TOOL_NAME,
@@ -70,6 +78,7 @@ import { PlaygroundExamplePage } from "@phoenix/pages/playground/PlaygroundExamp
 import type { PromptParam } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
 import { setPromptParams } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
 import type { PlaygroundProps } from "@phoenix/store";
+import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 
 import type { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
@@ -264,6 +273,12 @@ function PlaygroundContent() {
     return serializedSplitIds.split("\0");
   }, [serializedSplitIds]);
   const isDatasetMode = datasetId != null;
+  const [
+    experimentEvaluatorFormDatasetId,
+    setExperimentEvaluatorFormDatasetId,
+  ] = useState<string | null>(null);
+  const isExperimentEvaluatorFormOpen =
+    datasetId != null && experimentEvaluatorFormDatasetId === datasetId;
   const isRunning = usePlaygroundContext((state) =>
     state.instances.some((instance) => instance.activeRunId != null)
   );
@@ -382,6 +397,35 @@ function PlaygroundContent() {
       }
     };
   }, [agentStore, playgroundStore]);
+
+  useEffect(() => {
+    const { registerClientAction, unregisterClientAction } =
+      agentStore.getState();
+    if (!datasetId) {
+      return;
+    }
+    registerClientAction(
+      OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME,
+      async (): Promise<AgentClientActionResult> => {
+        if (isRunning) {
+          return {
+            ok: false,
+            error:
+              "The playground is running an experiment; wait for it to finish before opening the code-evaluator form.",
+          };
+        }
+        setExperimentEvaluatorFormDatasetId(datasetId);
+        return {
+          ok: true,
+          output:
+            "Code-evaluator form opened for the current playground dataset.",
+        };
+      }
+    );
+    return () => {
+      unregisterClientAction(OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME);
+    };
+  }, [agentStore, datasetId, isRunning]);
 
   const playgroundDatasetStateByDatasetId = usePlaygroundContext(
     (state) => state.stateByDatasetId
@@ -516,6 +560,10 @@ function PlaygroundContent() {
                 key={datasetId} // reset evaluator selection when dataset changes
                 datasetId={datasetId}
                 splitIds={splitIds}
+                isExperimentEvaluatorFormOpen={isExperimentEvaluatorFormOpen}
+                onExperimentEvaluatorFormOpenChange={(isOpen) =>
+                  setExperimentEvaluatorFormDatasetId(isOpen ? datasetId : null)
+                }
               />
             </Suspense>
           ) : (

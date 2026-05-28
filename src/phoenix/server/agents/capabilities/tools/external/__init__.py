@@ -15,6 +15,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     clone_prompt_instance,
     edit_code_evaluator_draft,
     edit_prompt_instance,
+    open_experiment_evaluator_form,
     read_code_evaluator_draft,
     read_playground_output,
     read_prompt_instance,
@@ -25,6 +26,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     set_spans_filter,
     set_time_range,
     set_variable_values,
+    test_code_evaluator_draft,
     write_prompt_tools,
 )
 from phoenix.server.agents.capabilities.tools.external.ask_user import AskUserCapability
@@ -40,6 +42,9 @@ from phoenix.server.agents.capabilities.tools.external.edit_code_evaluator_draft
 )
 from phoenix.server.agents.capabilities.tools.external.edit_prompt_instance import (
     EditPromptInstanceCapability,
+)
+from phoenix.server.agents.capabilities.tools.external.open_experiment_evaluator_form import (
+    OpenExperimentEvaluatorFormCapability,
 )
 from phoenix.server.agents.capabilities.tools.external.read_code_evaluator_draft import (
     ReadCodeEvaluatorDraftCapability,
@@ -69,6 +74,9 @@ from phoenix.server.agents.capabilities.tools.external.set_time_range import (
 from phoenix.server.agents.capabilities.tools.external.set_variable_values import (
     SetVariableValuesCapability,
 )
+from phoenix.server.agents.capabilities.tools.external.test_code_evaluator_draft import (
+    TestCodeEvaluatorDraftCapability,
+)
 from phoenix.server.agents.capabilities.tools.external.write_prompt_tools import (
     WritePromptToolsCapability,
 )
@@ -84,6 +92,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         clone_prompt_instance.TOOL_DEFINITION,
         edit_code_evaluator_draft.TOOL_DEFINITION,
         edit_prompt_instance.TOOL_DEFINITION,
+        open_experiment_evaluator_form.TOOL_DEFINITION,
         read_code_evaluator_draft.TOOL_DEFINITION,
         read_prompt_instance.TOOL_DEFINITION,
         read_prompt_tools.TOOL_DEFINITION,
@@ -94,6 +103,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         set_spans_filter.TOOL_DEFINITION,
         set_time_range.TOOL_DEFINITION,
         set_variable_values.TOOL_DEFINITION,
+        test_code_evaluator_draft.TOOL_DEFINITION,
         write_prompt_tools.TOOL_DEFINITION,
     )
 }
@@ -130,8 +140,10 @@ def get_external_tool_capability_function(
         WritePromptToolsCapability(instructions=prompts.write_prompt_tools_tool),
         RunPlaygroundCapability(instructions=prompts.run_playground_tool),
         SetVariableValuesCapability(instructions=prompts.set_variable_values_tool),
+        OpenExperimentEvaluatorFormCapability(),
         ReadCodeEvaluatorDraftCapability(instructions=prompts.read_code_evaluator_draft_tool),
         EditCodeEvaluatorDraftCapability(instructions=prompts.edit_code_evaluator_draft_tool),
+        TestCodeEvaluatorDraftCapability(),
     ]
 
     def _build(ctx: RunContext[AgentDependencies]) -> AbstractCapability[AgentDependencies]:
@@ -148,6 +160,7 @@ __all__ = [
     "ClonePromptInstanceCapability",
     "EditCodeEvaluatorDraftCapability",
     "EditPromptInstanceCapability",
+    "OpenExperimentEvaluatorFormCapability",
     "ReadCodeEvaluatorDraftCapability",
     "ReadPromptInstanceCapability",
     "ReadPromptToolsCapability",
@@ -158,6 +171,7 @@ __all__ = [
     "SetSpansFilterCapability",
     "SetTimeRangeCapability",
     "SetVariableValuesCapability",
+    "TestCodeEvaluatorDraftCapability",
     "WritePromptToolsCapability",
     "get_external_tool_capability_function",
     "get_external_tool_definition",

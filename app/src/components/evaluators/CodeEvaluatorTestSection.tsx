@@ -1,6 +1,10 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
+import {
+  parseTestCodeEvaluatorDraftInput,
+  TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+} from "@phoenix/agent/tools/codeEvaluatorDraft";
 import {
   Alert,
   Button,
@@ -22,7 +26,9 @@ import { JSONBlock } from "@phoenix/components/code";
 import type { CodeEvaluatorTestSectionMutation } from "@phoenix/components/evaluators/__generated__/CodeEvaluatorTestSectionMutation.graphql";
 import { buildOutputConfigsInput } from "@phoenix/components/evaluators/utils";
 import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
+import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
+import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -30,6 +36,9 @@ import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtil
 type EvaluationPreviewResult =
   | { kind: "success"; annotation: Annotation }
   | { kind: "error"; evaluatorName: string; message: string };
+
+type EvaluatorPreviewsOutput =
+  CodeEvaluatorTestSectionMutation["response"]["evaluatorPreviews"];
 
 /**
  * Computes whether an annotation score represents a positive optimization result
@@ -102,6 +111,33 @@ function computePositiveOptimization({
   });
 }
 
+function buildPreviewResults(
+  response: CodeEvaluatorTestSectionMutation["response"]
+): EvaluationPreviewResult[] {
+  return response.evaluatorPreviews.results.map((result) => {
+    if (result.error != null) {
+      return {
+        kind: "error" as const,
+        evaluatorName: result.evaluatorName,
+        message: result.error,
+      };
+    } else if (result.annotation != null) {
+      return {
+        kind: "success" as const,
+        annotation: {
+          id: result.annotation.id,
+          name: result.annotation.name,
+          label: result.annotation.label,
+          score: result.annotation.score,
+          explanation: result.annotation.explanation,
+        },
+      };
+    } else {
+      throw new Error("Unknown error: no annotation or error returned");
+    }
+  });
+}
+
 export type CodeEvaluatorTestSectionProps = {
   /** The evaluator's source code */
   sourceCode: string;
@@ -109,6 +145,8 @@ export type CodeEvaluatorTestSectionProps = {
   language: CodeEvaluatorLanguage;
   /** The sandbox config Relay ID if selected */
   sandboxConfigId: string | null;
+  /** Returns the latest draft revision from the parent draft host. */
+  getDraftRevision: () => string | null;
 };
 
 /**
@@ -119,6 +157,7 @@ export const CodeEvaluatorTestSection = ({
   sourceCode,
   language,
   sandboxConfigId,
+  getDraftRevision,
 }: CodeEvaluatorTestSectionProps) => {
   const [error, setError] = useState<string | null>(null);
   const [previewResults, setPreviewResults] = useState<
@@ -160,93 +199,137 @@ export const CodeEvaluatorTestSection = ({
       }
     `);
 
-  const onTestEvaluator = () => {
+  const runEvaluatorPreview = useCallback(async (): Promise<
+    { ok: true; output: EvaluatorPreviewsOutput } | { ok: false; error: string }
+  > => {
     setError(null);
     setPreviewResults([]);
 
     if (!sourceCode.trim()) {
-      setError("Source code is required");
-      return;
+      const errorMessage = "Source code is required";
+      setError(errorMessage);
+      return { ok: false, error: errorMessage };
     }
 
     if (outputConfigs.length === 0) {
-      setError("At least one output configuration is required");
-      return;
+      const errorMessage = "At least one output configuration is required";
+      setError(errorMessage);
+      return { ok: false, error: errorMessage };
     }
 
     if (sandboxConfigId == null) {
-      setError("Please select a sandbox configuration to test the evaluator");
-      return;
+      const errorMessage =
+        "Please select a sandbox configuration to test the evaluator";
+      setError(errorMessage);
+      return { ok: false, error: errorMessage };
     }
 
     const gqlOutputConfigs = buildOutputConfigsInput(outputConfigs);
-    testEvaluator({
-      variables: {
-        input: {
-          previews: [
-            {
-              context: evaluatorMappingSource,
-              evaluator: {
-                inlineCodeEvaluator: {
-                  name: evaluatorName,
-                  description: evaluatorDescription || null,
-                  language,
-                  sourceCode,
-                  outputConfigs: gqlOutputConfigs,
-                  sandboxConfigId,
+    return new Promise((resolve) => {
+      testEvaluator({
+        variables: {
+          input: {
+            previews: [
+              {
+                context: evaluatorMappingSource,
+                evaluator: {
+                  inlineCodeEvaluator: {
+                    name: evaluatorName,
+                    description: evaluatorDescription || null,
+                    language,
+                    sourceCode,
+                    outputConfigs: gqlOutputConfigs,
+                    sandboxConfigId,
+                  },
                 },
+                inputMapping,
               },
-              inputMapping,
-            },
-          ],
+            ],
+          },
         },
-      },
-      onCompleted(response, errors) {
-        if (errors) {
-          const errorMessages = getErrorMessagesFromRelayMutationError(errors);
+        onCompleted(response, errors) {
+          if (errors) {
+            const errorMessages =
+              getErrorMessagesFromRelayMutationError(errors);
+            const errorMessage =
+              errorMessages?.join("\n") ??
+              errors[0]?.message ??
+              "An unknown error occurred";
+            setError(errorMessage);
+            resolve({ ok: false, error: errorMessage });
+          } else {
+            const results = buildPreviewResults(response);
+            setPreviewResults(results);
+            resolve({ ok: true, output: response.evaluatorPreviews });
+          }
+        },
+        onError(error) {
+          const errorMessages = getErrorMessagesFromRelayMutationError(error);
           const errorMessage =
             errorMessages?.join("\n") ??
-            errors[0]?.message ??
+            error.message ??
             "An unknown error occurred";
           setError(errorMessage);
-        } else {
-          const results: EvaluationPreviewResult[] =
-            response.evaluatorPreviews.results.map((result) => {
-              if (result.error != null) {
-                return {
-                  kind: "error" as const,
-                  evaluatorName: result.evaluatorName,
-                  message: result.error,
-                };
-              } else if (result.annotation != null) {
-                return {
-                  kind: "success" as const,
-                  annotation: {
-                    id: result.annotation.id,
-                    name: result.annotation.name,
-                    label: result.annotation.label,
-                    score: result.annotation.score,
-                    explanation: result.annotation.explanation,
-                  },
-                };
-              } else {
-                throw new Error(
-                  "Unknown error: no annotation or error returned"
-                );
-              }
-            });
-          setPreviewResults(results);
-        }
-      },
-      onError(error) {
-        const errorMessages = getErrorMessagesFromRelayMutationError(error);
-        const errorMessage =
-          errorMessages?.join("\n") ??
-          error.message ??
-          "An unknown error occurred";
-        setError(errorMessage);
-      },
+          resolve({ ok: false, error: errorMessage });
+        },
+      });
     });
+  }, [
+    evaluatorDescription,
+    evaluatorMappingSource,
+    evaluatorName,
+    inputMapping,
+    language,
+    outputConfigs,
+    sandboxConfigId,
+    sourceCode,
+    testEvaluator,
+  ]);
+
+  const agentStore = useAgentStore();
+  useEffect(() => {
+    const { registerClientAction, unregisterClientAction } =
+      agentStore.getState();
+    registerClientAction(
+      TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+      async (input: unknown): Promise<AgentClientActionResult> => {
+        const parsed = parseTestCodeEvaluatorDraftInput(input);
+        if (!parsed) {
+          return {
+            ok: false,
+            error:
+              "Invalid test_code_evaluator_draft input. Expected { expectedRevision: string }.",
+          };
+        }
+        const currentRevision = getDraftRevision();
+        if (currentRevision == null) {
+          return {
+            ok: false,
+            error:
+              "The code-evaluator form is not mounted; cannot test the draft.",
+          };
+        }
+        if (currentRevision !== parsed.expectedRevision) {
+          return {
+            ok: false,
+            error:
+              "The code-evaluator draft has changed since it was last viewed by PXI.",
+          };
+        }
+        const result = await runEvaluatorPreview();
+        if (!result.ok) {
+          return result;
+        }
+        return { ok: true, output: JSON.stringify(result.output, null, 2) };
+      }
+    );
+    return () => {
+      unregisterClientAction(TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME);
+    };
+  }, [agentStore, getDraftRevision, runEvaluatorPreview]);
+
+  const onTestEvaluator = () => {
+    void runEvaluatorPreview();
   };
 
   const isShowingPreview =

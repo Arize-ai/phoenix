@@ -167,12 +167,13 @@ class TestDatasetContextCapabilityRender:
             )
         )
         content = _render(capability, ctx)
+        assert "open_experiment_evaluator_form" in content
         assert (
             "[Create code evaluator](/datasets/RGF0YXNldDox%3D%3D/evaluators"
             "?createCodeEvaluator=true)"
         ) in content
         assert "Stop. Do NOT continue with manual UI instructions" in content
-        assert "reply once the create-code-evaluator slideover is open" in content
+        assert "reply once the Create code evaluator form is open" in content
 
     def test_renders_sampled_examples_as_output_context(self) -> None:
         capability = DatasetContextCapability(
@@ -233,6 +234,7 @@ class TestDatasetContextCapabilityRender:
         content = _render(capability, ctx)
         assert "<phoenix_code_evaluator_context>" in content
         assert "draft-read / draft-edit tools" in content
+        assert "offer to run the draft-test tool" in content
         assert "[Create code evaluator]" not in content
 
 
@@ -258,6 +260,9 @@ class TestCodeEvaluatorContextCapabilityRender:
         assert "sampled dataset examples as shape evidence" in content
         assert "chat-style `messages` arrays" in content
         assert "do not assume the signal is at a top-level key" in content
+        assert "testPayload" in content
+        assert "test_code_evaluator_draft" in content
+        assert "offer to run" in content
         assert "preserve it and do not emit a sandbox edit" in content
         assert "<available_sandbox_configs>" in content
         assert 'id="U2FuZGJveENvbmZpZzox"' in content
@@ -300,12 +305,13 @@ class TestPlaygroundContextCapabilityRender:
         )
         content = _render(capability, ctx)
         assert "<dataset_evaluator_authoring>" in content
-        assert (
-            "[Create code evaluator](/datasets/RGF0YXNldDox%3D%3D/evaluators"
-            "?createCodeEvaluator=true)"
-        ) in content
+        assert "open_experiment_evaluator_form" in content
+        assert "read_code_evaluator_draft" in content
+        assert "test_code_evaluator_draft" in content
+        assert "offer to run" in content
+        assert "[Create code evaluator]" not in content
         assert "do not give a manual form walkthrough" in content
-        assert "Do NOT include evaluator source code" in content
+        assert "Do NOT use GraphQL mutations" in content
 
     def test_dataset_evaluator_authoring_without_dataset_asks_to_load_dataset(self) -> None:
         capability = PlaygroundContextCapability(

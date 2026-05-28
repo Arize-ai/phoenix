@@ -20,10 +20,13 @@ import {
   EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   parseEditCodeEvaluatorDraftInput,
   parseReadCodeEvaluatorDraftInput,
+  parseTestCodeEvaluatorDraftInput,
   READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+  TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   type EditCodeEvaluatorDraftActionContext,
   type EditCodeEvaluatorDraftInput,
   type ReadCodeEvaluatorDraftInput,
+  type TestCodeEvaluatorDraftInput,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { parseElicitToolInput } from "@phoenix/agent/tools/elicit";
 import type { ElicitToolInput } from "@phoenix/agent/tools/elicit";
@@ -215,6 +218,12 @@ export type SetTimeRangeInput = {
   endTime?: string;
 };
 
+export const OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME =
+  "open_experiment_evaluator_form";
+export { TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME };
+
+export type OpenExperimentEvaluatorFormInput = Record<string, never>;
+
 export type RenderGenerativeUIInput = {
   /**
    * Complete json-render flat spec describing the UI tree to render.
@@ -260,6 +269,15 @@ function parseSetSpansFilterInput(input: unknown): SetSpansFilterInput | null {
     condition: candidate.condition,
     rootSpansOnly: candidate.rootSpansOnly,
   };
+}
+
+function parseOpenExperimentEvaluatorFormInput(
+  input: unknown
+): OpenExperimentEvaluatorFormInput | null {
+  if (typeof input !== "object" || input === null || Array.isArray(input)) {
+    return null;
+  }
+  return {};
 }
 
 const setSpansFilterAgentTool = createRegisteredAgentTool<SetSpansFilterInput>({
@@ -950,6 +968,84 @@ const editCodeEvaluatorDraftAgentTool =
     },
   });
 
+const openExperimentEvaluatorFormAgentTool =
+  createRegisteredAgentTool<OpenExperimentEvaluatorFormInput>({
+    name: OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME,
+    parseInput: parseOpenExperimentEvaluatorFormInput,
+    invalidInputErrorText: `Invalid ${OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME} input. Expected {}.`,
+    execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+      const action =
+        agentStore.getState().registeredClientActions[
+          OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME
+        ];
+      if (!action) {
+        await addToolOutput({
+          state: "output-error",
+          tool: OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText:
+            "The dataset-backed playground is not mounted; cannot open the evaluator form.",
+        });
+        return;
+      }
+      const result = await action(input);
+      if (result.ok) {
+        await addToolOutput({
+          state: "output-available",
+          tool: OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          output: result.output ?? "Experiment evaluator form opened.",
+        });
+      } else {
+        await addToolOutput({
+          state: "output-error",
+          tool: OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText: result.error,
+        });
+      }
+    },
+  });
+
+const testCodeEvaluatorDraftAgentTool =
+  createRegisteredAgentTool<TestCodeEvaluatorDraftInput>({
+    name: TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+    parseInput: parseTestCodeEvaluatorDraftInput,
+    invalidInputErrorText: `Invalid ${TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME} input. Expected { expectedRevision: string }.`,
+    execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+      const action =
+        agentStore.getState().registeredClientActions[
+          TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME
+        ];
+      if (!action) {
+        await addToolOutput({
+          state: "output-error",
+          tool: TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText:
+            "The code-evaluator test section is not mounted; cannot test the draft.",
+        });
+        return;
+      }
+      const result = await action(input);
+      if (result.ok) {
+        await addToolOutput({
+          state: "output-available",
+          tool: TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          output: result.output ?? "Code-evaluator draft tested.",
+        });
+      } else {
+        await addToolOutput({
+          state: "output-error",
+          tool: TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText: result.error,
+        });
+      }
+    },
+  });
+
 /** Ordered registry of all frontend-executable tools. */
 const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   bashAgentTool as RegisteredAgentTool<unknown>,
@@ -967,8 +1063,10 @@ const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   readPlaygroundOutputAgentTool as RegisteredAgentTool<unknown>,
   setVariableValuesAgentTool as RegisteredAgentTool<unknown>,
   batchSpanAnnotateAgentTool as RegisteredAgentTool<unknown>,
+  openExperimentEvaluatorFormAgentTool as RegisteredAgentTool<unknown>,
   readCodeEvaluatorDraftAgentTool as RegisteredAgentTool<unknown>,
   editCodeEvaluatorDraftAgentTool as RegisteredAgentTool<unknown>,
+  testCodeEvaluatorDraftAgentTool as RegisteredAgentTool<unknown>,
 ];
 
 /** Fast lookup map for runtime tool dispatch by name. */

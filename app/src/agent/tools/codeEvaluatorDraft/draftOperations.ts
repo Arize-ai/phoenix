@@ -85,6 +85,10 @@ export function applyDraftOperations({
         next = { ...next, inputMapping: operation.inputMapping };
         break;
       }
+      case "set_test_payload": {
+        next = { ...next, testPayload: operation.testPayload };
+        break;
+      }
       case "set_description": {
         next = { ...next, description: operation.description };
         break;

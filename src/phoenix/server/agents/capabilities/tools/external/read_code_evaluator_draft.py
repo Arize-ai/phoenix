@@ -17,9 +17,11 @@ NAME = "read_code_evaluator_draft"
 DESCRIPTION = (
     "Read the open code-evaluator draft. Returns the draft's name, description, "
     "language, source_code, sandbox_config_id, input_mapping, output_configs, "
-    "form mode (`create` or `edit`), and a `revision` token. Always call this "
-    "before `edit_code_evaluator_draft` and pass the returned `revision` back as "
-    "`expectedRevision`; the edit will be rejected if the form changed in between."
+    "testPayload, form mode (`create` or `edit`), and a `revision` token. "
+    "Always call this before `edit_code_evaluator_draft` or "
+    "`test_code_evaluator_draft` and pass the returned `revision` back as "
+    "`expectedRevision`; stale draft operations will be rejected if the form "
+    "changed in between."
 )
 
 PARAMETERS: dict[str, Any] = {

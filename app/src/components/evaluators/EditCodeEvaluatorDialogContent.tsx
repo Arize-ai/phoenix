@@ -3,7 +3,14 @@ import { python } from "@codemirror/lang-python";
 import { indentUnit } from "@codemirror/language";
 import { css } from "@emotion/react";
 import CodeMirror from "@uiw/react-codemirror";
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Group, Panel, Separator } from "react-resizable-panels";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
@@ -242,6 +249,10 @@ export const EditCodeEvaluatorDialogContent = ({
   }, [sandboxConfigIndex]);
 
   const draftHostRef = useRef<CodeEvaluatorDraftHost | null>(null);
+  const getDraftRevision = useCallback(
+    () => draftHostRef.current?.getSnapshot().revision ?? null,
+    []
+  );
 
   useEffect(() => {
     const buildSnapshot = (): CodeEvaluatorDraftSnapshot => {
@@ -264,6 +275,7 @@ export const EditCodeEvaluatorDialogContent = ({
         sourceCode: local.sourceCode,
         sandboxConfigId: local.sandboxConfigId,
         inputMapping: state.evaluator.inputMapping,
+        testPayload: state.evaluatorMappingSource,
         outputConfigs: toOutputConfigDrafts(state.outputConfigs),
       };
       return {
@@ -330,6 +342,11 @@ export const EditCodeEvaluatorDialogContent = ({
         JSON.stringify(current.inputMapping.literalMapping)
       ) {
         state.setLiteralMapping(next.inputMapping.literalMapping);
+      }
+      if (
+        JSON.stringify(next.testPayload) !== JSON.stringify(current.testPayload)
+      ) {
+        state.setEvaluatorMappingSource(next.testPayload);
       }
       return { ok: true as const, output: next };
     };
@@ -555,6 +572,7 @@ export const EditCodeEvaluatorDialogContent = ({
                   selectedSandboxConfigId={selectedSandboxConfigId}
                   sourceCode={sourceCode}
                   language={language}
+                  getDraftRevision={getDraftRevision}
                 />
               </div>
             </Panel>
@@ -620,11 +638,13 @@ const ConfiguratorSidebar = ({
   selectedSandboxConfigId,
   sourceCode,
   language,
+  getDraftRevision,
 }: {
   selectedSandboxConfig: SandboxConfigOption | null;
   selectedSandboxConfigId: string | null;
   sourceCode: string;
   language: CodeEvaluatorLanguage;
+  getDraftRevision: () => string | null;
 }) => {
   return (
     <>
@@ -641,6 +661,7 @@ const ConfiguratorSidebar = ({
               sourceCode={sourceCode}
               language={language}
               sandboxConfigId={selectedSandboxConfigId}
+              getDraftRevision={getDraftRevision}
             />
           </View>
           <View paddingX="size-200" paddingTop="size-50">

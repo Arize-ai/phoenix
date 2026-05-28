@@ -26,10 +26,35 @@ DESCRIPTION = (
     '{"type":"set_source_code","sourceCode":"def evaluate(output):\\n    return 1.0"}; '
     '{"type":"set_language","language":"PYTHON"}; '
     '{"type":"set_sandbox_config","sandboxConfigId":"U2FuZGJveENvbmZpZzox"}; '
-    '{"type":"set_input_mapping","inputMapping":{"pathMapping":{},"literalMapping":{}}}. '
+    '{"type":"set_input_mapping","inputMapping":{"pathMapping":{},"literalMapping":{}}}; '
+    '{"type":"set_test_payload","testPayload":{"input":{},'
+    '"output":{"messages":[{"role":"assistant","content":"ok"}]},'
+    '"reference":{},"metadata":{}}}. '
     "Do not emit `set_sandbox_config` when the read draft already has a compatible "
     "sandbox and the user did not ask to change it."
 )
+
+JSON_RECORD_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "description": "JSON object with arbitrary JSON-safe values.",
+    "additionalProperties": True,
+}
+
+TEST_PAYLOAD_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "description": (
+        "Replacement evaluator preview payload. The shape matches the form "
+        "mapping source: input, output, reference, and metadata JSON objects."
+    ),
+    "properties": {
+        "input": JSON_RECORD_SCHEMA,
+        "output": JSON_RECORD_SCHEMA,
+        "reference": JSON_RECORD_SCHEMA,
+        "metadata": JSON_RECORD_SCHEMA,
+    },
+    "required": ["input", "output", "reference", "metadata"],
+    "additionalProperties": False,
+}
 
 OUTPUT_CONFIG_DRAFT_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -77,7 +102,8 @@ OPERATION_SCHEMA: dict[str, Any] = {
         "(must be non-null in create mode; may be null only in edit mode to clear); "
         "set_input_mapping requires inputMapping; "
         "set_description requires description; set_name requires name; "
-        "set_output_configs requires outputConfigs (whole-list replace)."
+        "set_output_configs requires outputConfigs (whole-list replace); "
+        "set_test_payload requires testPayload."
     ),
     "properties": {
         "type": {
@@ -90,6 +116,7 @@ OPERATION_SCHEMA: dict[str, Any] = {
                 "set_description",
                 "set_name",
                 "set_output_configs",
+                "set_test_payload",
             ],
             "description": "The operation kind.",
         },
@@ -151,6 +178,15 @@ OPERATION_SCHEMA: dict[str, Any] = {
                 "Each entry follows the kind-discriminated OutputConfigDraft."
             ),
             "items": OUTPUT_CONFIG_DRAFT_SCHEMA,
+        },
+        "testPayload": {
+            **TEST_PAYLOAD_SCHEMA,
+            "description": (
+                "Replacement mapping source used by the evaluator preview/test section. "
+                "For dataset-backed evaluators, shape `output` like a representative "
+                "future experiment run output; relational evaluators can compare it "
+                "to `reference`."
+            ),
         },
     },
     "required": ["type"],

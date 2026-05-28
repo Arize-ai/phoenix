@@ -3,6 +3,7 @@ import type { z } from "zod";
 import type {
   CodeEvaluatorLanguage,
   EvaluatorInputMapping,
+  EvaluatorMappingSource,
   EvaluatorOptimizationDirection,
 } from "@phoenix/types";
 
@@ -12,6 +13,7 @@ import type {
   editCodeEvaluatorDraftInputSchema,
   editCodeEvaluatorDraftOperationSchema,
   readCodeEvaluatorDraftInputSchema,
+  testCodeEvaluatorDraftInputSchema,
 } from "./schemas";
 
 export type { CodeEvaluatorEditToolOutputSender } from "./schemas";
@@ -26,6 +28,10 @@ export type EditCodeEvaluatorDraftOperation = z.output<
 
 export type EditCodeEvaluatorDraftInput = z.output<
   typeof editCodeEvaluatorDraftInputSchema
+>;
+
+export type TestCodeEvaluatorDraftInput = z.output<
+  typeof testCodeEvaluatorDraftInputSchema
 >;
 
 export type EditCodeEvaluatorDraftActionContext = z.output<
@@ -81,6 +87,7 @@ export type CodeEvaluatorDraftSnapshot = {
   sourceCode: string;
   sandboxConfigId: string | null;
   inputMapping: EvaluatorInputMapping;
+  testPayload: EvaluatorMappingSource;
   outputConfigs: OutputConfigDraft[];
   revision: string;
 };
