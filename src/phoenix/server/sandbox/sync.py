@@ -111,6 +111,7 @@ async def sync_sandbox_default_configs(
     )
     from phoenix.server.sandbox import SANDBOX_ADAPTERS  # noqa: PLC0415
 
+    rows_to_insert: list[dict[str, Any]] = []
     for backend_type, meta in adapter_metadata.items():
         if not getattr(meta, "auto_seedable", False):
             continue
@@ -125,20 +126,34 @@ async def sync_sandbox_default_configs(
             )
             if existing is not None:
                 continue
-            session.add(
-                models.SandboxConfig(
-                    backend_type=backend_type,
-                    language=language,
-                    name=Identifier(f"default-{backend_type.lower()}-{language.lower()}"),
-                    description=f"Default {meta.display_name} ({language.title()})",
-                    config={"language": language},
-                    timeout=DEFAULT_SANDBOX_TIMEOUT_SECONDS,
-                    enabled=True,
-                    user_id=None,
-                )
+            rows_to_insert.append(
+                {
+                    "backend_type": backend_type,
+                    "language": language,
+                    "name": Identifier(f"default-{backend_type.lower()}-{language.lower()}"),
+                    "description": f"Default {meta.display_name} ({language.title()})",
+                    "config": {"language": language},
+                    "timeout": DEFAULT_SANDBOX_TIMEOUT_SECONDS,
+                    "enabled": True,
+                    "user_id": None,
+                }
             )
             logger.info(
                 f"Inserted default sandbox_configs row: backend_type={backend_type!r}, "
                 f"language={language!r}"
             )
+
+    if rows_to_insert:
+        # ON CONFLICT DO NOTHING guards the check-then-insert race: two processes
+        # running the facilitator concurrently (multi-replica / HA first-startup) can
+        # both pass the SELECT above, so the unique (backend_type, name) constraint
+        # makes the seed idempotent instead of raising IntegrityError.
+        stmt = _on_conflict_do_nothing(
+            session,
+            models.SandboxConfig,
+            rows_to_insert,
+            unique_columns=["backend_type", "name"],
+        )
+        await session.execute(stmt)
+
     await session.flush()
