@@ -87,9 +87,6 @@ examples:
           timeRangeKey: "30d"
     metadata: {}
   - id: custom-explicit-utc-range
-    # Prompt names exact UTC timestamps with Z; expected pins the literal
-    # canonical form. The model can still drift on offset rendering, but
-    # this example is here to detect that drift.
     splits: [regression]
     input:
       messages:
@@ -248,7 +245,7 @@ examples:
     metadata:
       negative: true
   - id: negative-read-current-prompt
-    splits: [regression]
+    splits: [dev]
     input:
       messages:
         - role: user
@@ -284,7 +281,7 @@ examples:
     metadata:
       negative: true
   - id: negative-greeting
-    splits: [regression]
+    splits: [dev]
     input:
       messages:
         - role: user
