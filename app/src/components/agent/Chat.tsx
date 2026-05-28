@@ -45,12 +45,42 @@ import {
   type PendingElicitationDraft,
 } from "./ElicitationDraftContext";
 import { PxiGlyph } from "./PxiGlyph";
+import { isToolUIPart } from "./toolPartTypes";
 import { useAgentChat } from "./useAgentChat";
 import type { AgentModelSelection } from "./useGenerateSessionSummary";
 
 export type { EmptyStateQuickAction } from "./ChatEmptyState";
 
 const CHAT_SIDEBAR_INSET_CSS = "var(--global-dimension-size-200)";
+
+/**
+ * Keeps the trailing Thinking indicator visible for the initial request wait
+ * and while the latest assistant turn ends in a tool call.
+ */
+function shouldShowThinkingIndicator({
+  status,
+  messages,
+}: {
+  status: ChatStatus;
+  messages: AgentUIMessage[];
+}): boolean {
+  if (status === "submitted") {
+    return true;
+  }
+  if (status !== "streaming") {
+    return false;
+  }
+
+  const latestMessage = messages.at(-1);
+  if (latestMessage?.role !== "assistant") {
+    return false;
+  }
+
+  const latestRelevantPart = latestMessage.parts.findLast(
+    (part) => part.type !== "text" || part.text.trim() !== ""
+  );
+  return latestRelevantPart != null && isToolUIPart(latestRelevantPart);
+}
 
 function createPendingElicitationDraft(
   toolCallId: string
@@ -303,6 +333,10 @@ export function ChatView({
     status === "submitted" || status === "streaming";
   const isSendDisabledForMissingCredentials =
     !isWaitingForAssistant && Boolean(missingCredentialsProvider);
+  const showThinkingIndicator = shouldShowThinkingIndicator({
+    status,
+    messages,
+  });
   const resolvedElicitationDraft =
     pendingElicitation &&
     elicitationDraft?.toolCallId !== pendingElicitation.toolCallId
@@ -361,7 +395,7 @@ export function ChatView({
                   />
                 );
               })}
-              {status === "submitted" && <Loading />}
+              {showThinkingIndicator && <Loading />}
               {error && <ErrorMessage error={error} />}
             </div>
           </div>
