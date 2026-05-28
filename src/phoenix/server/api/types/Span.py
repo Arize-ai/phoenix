@@ -338,8 +338,7 @@ class Span(Node):
         return cast(Optional[int], value)
 
     @strawberry.field(
-        description="Prompt token count for this span only. "
-        "Typically populated on LLM spans."
+        description="Prompt token count for this span only. Typically populated on LLM spans."
     )  # type: ignore
     async def token_count_prompt(
         self,
@@ -353,8 +352,7 @@ class Span(Node):
         return cast(Optional[int], value)
 
     @strawberry.field(
-        description="Completion token count for this span only. "
-        "Typically populated on LLM spans."
+        description="Completion token count for this span only. Typically populated on LLM spans."
     )  # type: ignore
     async def token_count_completion(
         self,
