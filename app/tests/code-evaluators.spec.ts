@@ -447,6 +447,7 @@ test.describe.serial("Code Evaluators", () => {
     const dialog = page.getByTestId("dialog");
     const nameInput = dialog.getByRole("textbox", {
       name: /^Name(\s*\*)?$/,
+      disabled: false,
     });
     await expect(nameInput).toHaveValue(pythonEvaluatorName);
 
