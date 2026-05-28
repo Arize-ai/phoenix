@@ -53,6 +53,7 @@ services:
       - PHOENIX_LOG_LEVEL=DEBUG
       - PHOENIX_HOST_ROOT_PATH=/phoenix
       - PHOENIX_ROOT_URL=http://localhost:18273/phoenix
+      - PHOENIX_DANGEROUSLY_ENABLE_AGENTS=true
       - PYTHONDONTWRITEBYTECODE=1
       - PYTHONUNBUFFERED=1
       # OIDC Authentication
