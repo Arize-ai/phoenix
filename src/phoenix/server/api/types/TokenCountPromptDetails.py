@@ -6,7 +6,7 @@ import strawberry
 @strawberry.type(
     description=(
         "Breakdown of an LLM span's prompt tokens by kind. These counts are a "
-        "decomposition of the span's total prompt token count, not additive on top "
+        "decomposition of the span's prompt token count, not additive on top "
         "of it, and are typically used for cost analysis."
     ),
 )
@@ -20,6 +20,6 @@ class TokenCountPromptDetails:
         default=None,
     )
     audio: Optional[int] = strawberry.field(
-        description="Prompt tokens that were audio input.",
+        description="Prompt tokens that were audio tokens.",
         default=None,
     )
