@@ -72,6 +72,11 @@ jobs:
           echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
           mkdir -p .scratch
 
+      - name: Install bubblewrap
+        if: steps.guard.outputs.ready == 'true'
+        # Required by CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1 for subprocess isolation.
+        run: sudo apt-get update && sudo apt-get install -y bubblewrap
+
       - name: Run Claude Code
         if: steps.guard.outputs.ready == 'true'
         id: claude
