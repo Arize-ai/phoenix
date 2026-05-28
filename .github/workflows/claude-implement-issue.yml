@@ -69,6 +69,7 @@ jobs:
           BRANCH="claude/issue-$ISSUE_NUMBER"
           git checkout -b "$BRANCH"
           echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
+          mkdir -p .scratch
 
       - name: Run Claude Code
         if: steps.guard.outputs.ready == 'true'

@@ -30,6 +30,7 @@ jobs:
           BRANCH="claude/llms-txt-$DATE"
           git checkout -b "$BRANCH"
           echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
+          mkdir -p .scratch
 
       - name: Run Claude Code
         id: claude

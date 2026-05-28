@@ -73,6 +73,7 @@ jobs:
           BRANCH="claude/bump-uv-$UV_VERSION-$DATE"
           git checkout -b "$BRANCH"
           echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
+          mkdir -p .scratch
 
       - name: Install target uv version
         if: steps.dependabot.outputs.version != steps.repo.outputs.version && steps.existing_pr.outputs.count == '0'
