@@ -157,11 +157,14 @@ jobs:
     steps:
       - name: Check if package needs building
         id: check
+        env:
+          PACKAGE_PATHS: ${{ needs.list-python-packages.outputs.package_paths }}
+          MATRIX_PATH: ${{ matrix.path }}
         run: |
-          if echo '${{ needs.list-python-packages.outputs.package_paths }}' | jq -e --arg p "${{ matrix.path }}" 'index($p)' > /dev/null 2>&1; then
+          if echo "$PACKAGE_PATHS" | jq -e --arg p "$MATRIX_PATH" 'index($p)' > /dev/null 2>&1; then
             echo "needed=true" >> $GITHUB_OUTPUT
           else
-            echo "Skipping ${{ matrix.path }} — already on PyPI"
+            echo "Skipping $MATRIX_PATH — already on PyPI"
             echo "needed=false" >> $GITHUB_OUTPUT
           fi
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -228,8 +231,11 @@ jobs:
     steps:
       - name: Check if package needs publishing
         id: check
+        env:
+          PACKAGE_PATHS: ${{ needs.list-python-packages.outputs.package_paths }}
+          MATRIX_PATH: ${{ matrix.path }}
         run: |
-          if echo '${{ needs.list-python-packages.outputs.package_paths }}' | jq -e --arg p "${{ matrix.path }}" 'index($p)' > /dev/null 2>&1; then
+          if echo "$PACKAGE_PATHS" | jq -e --arg p "$MATRIX_PATH" 'index($p)' > /dev/null 2>&1; then
             echo "needed=true" >> $GITHUB_OUTPUT
           else
             echo "needed=false" >> $GITHUB_OUTPUT
@@ -263,8 +269,11 @@ jobs:
     steps:
       - name: Check if package was published
         id: check
+        env:
+          PACKAGE_PATHS: ${{ needs.list-python-packages.outputs.package_paths }}
+          MATRIX_PATH: ${{ matrix.path }}
         run: |
-          if echo '${{ needs.list-python-packages.outputs.package_paths }}' | jq -e --arg p "${{ matrix.path }}" 'index($p)' > /dev/null 2>&1; then
+          if echo "$PACKAGE_PATHS" | jq -e --arg p "$MATRIX_PATH" 'index($p)' > /dev/null 2>&1; then
             echo "needed=true" >> $GITHUB_OUTPUT
           else
             echo "needed=false" >> $GITHUB_OUTPUT
