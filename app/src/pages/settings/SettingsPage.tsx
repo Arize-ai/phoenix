@@ -32,7 +32,7 @@ const TABS: { id: string; label: string }[] = [
   { id: "annotations", label: "Annotations" },
   { id: "prompts", label: "Prompts" },
   { id: "data", label: "Data Retention" },
-  { id: "agents", label: "Agents" },
+  { id: "agents", label: "Assistant" },
 ];
 
 export function SettingsPage() {

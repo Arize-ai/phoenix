@@ -64,7 +64,7 @@ export function AgentSettingsForm({ children }: { children?: ReactNode }) {
       `}
     >
       <div css={fieldBaseCSS}>
-        <Label>Agent Model</Label>
+        <Label>Assistant model</Label>
         <Controller
           name="model"
           control={control}
@@ -83,8 +83,8 @@ export function AgentSettingsForm({ children }: { children?: ReactNode }) {
               margin-top: var(--global-dimension-size-100);
             `}
           >
-            This model has not been verified with PXI and may fail or behave
-            poorly.
+            This model has not been verified with the assistant and may fail or
+            behave poorly.
           </Alert>
         )}
       </div>

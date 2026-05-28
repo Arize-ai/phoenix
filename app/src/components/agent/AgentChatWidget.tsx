@@ -378,7 +378,7 @@ export interface AgentChatWidgetButtonProps extends Omit<
 export function AgentChatWidgetButton({
   ref,
   isStreaming = false,
-  ariaLabel = "Open agent chat",
+  ariaLabel = "Open assistant",
   isDragHandle = false,
   glyphAnimation = "wave-reveal",
   ...buttonProps

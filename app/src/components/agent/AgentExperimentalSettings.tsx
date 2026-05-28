@@ -1,13 +1,21 @@
 import { css } from "@emotion/react";
 
-import { getAgentCapabilitiesForControlSurface } from "@phoenix/agent/extensions/capabilities";
-import { Alert, Flex, Switch, Text, View } from "@phoenix/components";
+import {
+  getAgentCapabilitiesForControlSurface,
+  getAgentCapabilityDefinition,
+} from "@phoenix/agent/extensions/capabilities";
+import { Flex, Switch, Text } from "@phoenix/components";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
 
-const settingsCSS = css`
+import { SystemSettingsWarning } from "./SystemSettingsWarning";
+
+const settingsListCSS = css`
   display: flex;
   flex-direction: column;
   gap: var(--global-dimension-size-150);
+  list-style: none;
+  margin: 0;
+  padding: 0;
 `;
 
 const settingRowCSS = css`
@@ -34,12 +42,6 @@ const settingSwitchCSS = css`
   }
 `;
 
-const detailsCSS = css`
-  summary {
-    cursor: pointer;
-  }
-`;
-
 export function AgentExperimentalSettings() {
   const store = useAgentStore();
   const capabilities = useAgentContext((state) => state.capabilities);
@@ -52,39 +54,61 @@ export function AgentExperimentalSettings() {
   }
 
   return (
-    <details css={detailsCSS}>
-      <summary>Experimental Features</summary>
-      <View paddingTop="size-150">
-        <Flex direction="column" gap="size-200">
-          <Alert variant="warning" title="Experimental">
-            These features are under active development and may change or be
-            removed at any time.
-          </Alert>
-          <div css={settingsCSS}>
-            {experimentalCapabilities.map((definition) => (
-              <div key={definition.key} css={settingRowCSS}>
-                <Switch
-                  isSelected={capabilities[definition.key]}
-                  onChange={(enabled) => {
-                    store
-                      .getState()
-                      .setCapability({ key: definition.key, enabled });
-                  }}
-                  labelPlacement="start"
-                  css={settingSwitchCSS}
-                >
-                  <span className="agent-settings__label">
-                    <Text weight="heavy" size="M">
-                      {definition.label}
-                    </Text>
-                    <Text color="text-500">{definition.description}</Text>
-                  </span>
-                </Switch>
-              </div>
-            ))}
-          </div>
-        </Flex>
-      </View>
-    </details>
+    <Flex direction="column" gap="size-200">
+      <ul css={settingsListCSS}>
+        {experimentalCapabilities.map((definition) => (
+          <li key={definition.key} css={settingRowCSS}>
+            <Switch
+              isSelected={capabilities[definition.key]}
+              onChange={(enabled) => {
+                store.getState().setCapability({ key: definition.key, enabled });
+              }}
+              labelPlacement="start"
+              css={settingSwitchCSS}
+            >
+              <span className="agent-settings__label">
+                <Text weight="heavy" size="M">
+                  {definition.label}
+                </Text>
+                <Text color="text-500">{definition.description}</Text>
+              </span>
+            </Switch>
+          </li>
+        ))}
+      </ul>
+    </Flex>
+  );
+}
+
+export function AgentWebAccessSettings() {
+  const store = useAgentStore();
+  const capabilities = useAgentContext((state) => state.capabilities);
+  const isWebAccessEnabled = useAgentContext(
+    (state) => state.agentsConfig.webAccessEnabled
+  );
+  const definition = getAgentCapabilityDefinition("web.access");
+
+  return (
+    <ul css={settingsListCSS}>
+      <li css={settingRowCSS}>
+        <Switch
+          isSelected={isWebAccessEnabled && capabilities[definition.key]}
+          isDisabled={!isWebAccessEnabled}
+          onChange={(enabled) => {
+            store.getState().setCapability({ key: definition.key, enabled });
+          }}
+          labelPlacement="start"
+          css={settingSwitchCSS}
+        >
+          <span className="agent-settings__label">
+            <Text weight="heavy" size="M">
+              {definition.label}
+            </Text>
+            <Text color="text-500">{definition.description}</Text>
+          </span>
+        </Switch>
+        {!isWebAccessEnabled ? <SystemSettingsWarning /> : null}
+      </li>
+    </ul>
   );
 }

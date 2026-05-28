@@ -64,7 +64,7 @@ export const AGENT_CAPABILITY_DEFINITIONS: AgentCapabilityDefinition[] = [
     key: "web.access",
     label: "Web search",
     description:
-      "Lets PXI use provider-native web search and URL fetching when the selected model supports it.",
+      "Lets the assistant use provider-native web search and URL fetching when the selected model supports it.",
     defaultValue: false,
     scope: "global",
   },

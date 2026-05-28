@@ -1,12 +1,23 @@
 import { css } from "@emotion/react";
 
-import { Switch, Text } from "@phoenix/components";
+import { ContextualHelp, Switch, Text } from "@phoenix/components";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
-const settingsCSS = css`
+import { SystemSettingsWarning } from "./SystemSettingsWarning";
+
+const settingsContainerCSS = css`
   display: flex;
   flex-direction: column;
   gap: var(--global-dimension-size-150);
+`;
+
+const settingsListCSS = css`
+  display: flex;
+  flex-direction: column;
+  gap: var(--global-dimension-size-150);
+  list-style: none;
+  margin: 0;
+  padding: 0;
 `;
 
 const settingRowCSS = css`
@@ -31,11 +42,18 @@ const settingSwitchCSS = css`
     gap: var(--global-dimension-size-75);
     min-width: 0;
   }
-`;
 
-const footerNoteCSS = css`
-  display: block;
-  color: var(--global-text-color-500);
+  .agent-observability__title {
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-50);
+    min-width: 0;
+  }
+
+  .agent-observability__help {
+    display: inline-flex;
+    flex: 0 0 auto;
+  }
 `;
 
 const codeCSS = css`
@@ -45,7 +63,37 @@ const codeCSS = css`
   font-size: 0.95em;
 `;
 
-const DISABLED_BY_ADMIN_NOTE = "Disabled by your workspace admin.";
+const traceDetailsTooltipCSS = css`
+  max-width: 320px;
+`;
+
+function TraceExportInfoTip({
+  collectorEndpoint,
+}: {
+  collectorEndpoint: string;
+}) {
+  return (
+    <span
+      className="agent-observability__help"
+      onClick={(event) => {
+        event.stopPropagation();
+      }}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+      }}
+    >
+      <ContextualHelp
+        variant="info"
+        placement="top"
+        css={traceDetailsTooltipCSS}
+      >
+        Exported traces are unredacted and include prompts, replies, tool calls,
+        tool results, and any Phoenix data the assistant read. They are sent to{" "}
+        <code css={codeCSS}>{collectorEndpoint}</code>.
+      </ContextualHelp>
+    </span>
+  );
+}
 
 export function AgentObservabilitySettings() {
   const agentsConfig = useAgentContext((state) => state.agentsConfig);
@@ -60,69 +108,70 @@ export function AgentObservabilitySettings() {
   const remoteExportDisabledByAdmin = !agentsConfig.allowRemoteExport;
 
   return (
-    <div css={settingsCSS}>
-      <div css={settingRowCSS}>
-        <Switch
-          isSelected={
-            !localTracesDisabledByAdmin && observability.storeLocalTraces
-          }
-          isDisabled={localTracesDisabledByAdmin}
-          onChange={(storeLocalTraces) => {
-            setObservability({ storeLocalTraces });
-          }}
-          labelPlacement="start"
-          css={settingSwitchCSS}
-        >
-          <span className="agent-observability__label">
-            <Text weight="heavy" size="M">
-              Save PXI session traces in this Phoenix app
-            </Text>
-            <Text color="text-500">
-              Stores full, unredacted session recordings (prompts, replies, tool
-              calls, tool results, and any Phoenix data PXI read) in the{" "}
-              <code css={codeCSS}>{agentsConfig.assistantProjectName}</code>{" "}
-              project, visible to anyone with project access. Browser-only
-              setting.
-              {localTracesDisabledByAdmin ? ` ${DISABLED_BY_ADMIN_NOTE}` : ""}
-            </Text>
-          </span>
-        </Switch>
-      </div>
-      {isRemoteCollectorConfigured ? (
-        <div css={settingRowCSS}>
+    <div css={settingsContainerCSS}>
+      <ul css={settingsListCSS}>
+        <li css={settingRowCSS}>
           <Switch
             isSelected={
-              isRemoteCollectorConfigured &&
-              !remoteExportDisabledByAdmin &&
-              observability.exportRemoteTraces
+              !localTracesDisabledByAdmin && observability.storeLocalTraces
             }
-            isDisabled={remoteExportDisabledByAdmin}
-            onChange={(exportRemoteTraces) => {
-              setObservability({ exportRemoteTraces });
+            isDisabled={localTracesDisabledByAdmin}
+            onChange={(storeLocalTraces) => {
+              setObservability({ storeLocalTraces });
             }}
             labelPlacement="start"
             css={settingSwitchCSS}
           >
             <span className="agent-observability__label">
               <Text weight="heavy" size="M">
-                Share PXI session traces with the team improving PXI
+                Save assistant session traces in this Phoenix instance
               </Text>
               <Text color="text-500">
-                Transmits the same unredacted traces to{" "}
-                <code css={codeCSS}>{agentsConfig.collectorEndpoint}</code>.
-                Browser-only setting.
-                {remoteExportDisabledByAdmin
-                  ? ` ${DISABLED_BY_ADMIN_NOTE}`
-                  : ""}
+                Stores full, unredacted traces (prompts, replies, tool calls,
+                tool results, and any Phoenix data the assistant read) in the{" "}
+                <code css={codeCSS}>{agentsConfig.assistantProjectName}</code>{" "}
+                project. Anyone with access to that project can view them. This
+                setting applies only to this browser.
               </Text>
             </span>
           </Switch>
-        </div>
-      ) : null}
-      <Text css={footerNoteCSS} size="S">
-        Trace links and feedback buttons only work when traces are saved in this
-        Phoenix app.
-      </Text>
+          {localTracesDisabledByAdmin ? <SystemSettingsWarning /> : null}
+        </li>
+        {isRemoteCollectorConfigured ? (
+          <li css={settingRowCSS}>
+            <Switch
+              isSelected={
+                isRemoteCollectorConfigured &&
+                !remoteExportDisabledByAdmin &&
+                observability.exportRemoteTraces
+              }
+              isDisabled={remoteExportDisabledByAdmin}
+              onChange={(exportRemoteTraces) => {
+                setObservability({ exportRemoteTraces });
+              }}
+              labelPlacement="start"
+              css={settingSwitchCSS}
+            >
+              <span className="agent-observability__label">
+                <span className="agent-observability__title">
+                  <Text weight="heavy" size="M">
+                    Exporting traces
+                  </Text>
+                  <TraceExportInfoTip
+                    collectorEndpoint={agentsConfig.collectorEndpoint ?? ""}
+                  />
+                </span>
+                <Text color="text-500">
+                  Exports assistant session traces to{" "}
+                  <code css={codeCSS}>{agentsConfig.collectorEndpoint}</code>.
+                  This setting applies only to this browser.
+                </Text>
+              </span>
+            </Switch>
+            {remoteExportDisabledByAdmin ? <SystemSettingsWarning /> : null}
+          </li>
+        ) : null}
+      </ul>
     </div>
   );
 }
