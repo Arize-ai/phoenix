@@ -5,6 +5,7 @@ from string import ascii_uppercase
 from typing import Any
 
 from jinja2 import Template
+from markupsafe import escape
 from pydantic_ai import RunContext
 from pydantic_ai.tools import SystemPromptFunc
 
@@ -22,11 +23,14 @@ from phoenix.server.agents.types import AgentDependencies
 def _sanitize_playground_value(value: str | None) -> str:
     if value is None:
         return ""
-    return sanitize_untrusted_value(
+    sanitized = sanitize_untrusted_value(
         value,
         enclosing_tag="phoenix_playground_context",
         max_chars=200,
     )
+    # Playground values are rendered in XML attributes, so also escape quotes
+    # and angle brackets after applying the standard prompt-context sanitizer.
+    return str(escape(sanitized))
 
 
 def _serialize_instance(

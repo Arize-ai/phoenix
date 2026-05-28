@@ -418,6 +418,34 @@ function PlaygroundContent() {
       SET_VARIABLE_VALUES_TOOL_NAME,
       createSetVariableValuesClientAction({ playgroundStore })
     );
+    return () => {
+      unregisterClientAction(READ_PROMPT_TOOL_NAME);
+      unregisterClientAction(CLONE_PROMPT_INSTANCE_TOOL_NAME);
+      unregisterClientAction(EDIT_PROMPT_TOOL_NAME);
+      unregisterClientAction(SAVE_PROMPT_TOOL_NAME);
+      unregisterClientAction(RUN_PLAYGROUND_TOOL_NAME);
+      unregisterClientAction(READ_PLAYGROUND_OUTPUT_TOOL_NAME);
+      unregisterClientAction(SET_VARIABLE_VALUES_TOOL_NAME);
+      for (const pendingEdit of Object.values(
+        agentStore.getState().pendingPromptEditsByToolCallId
+      )) {
+        if (pendingEdit) {
+          void pendingEdit.cancel?.();
+        }
+      }
+      for (const pendingSave of Object.values(
+        agentStore.getState().pendingSavePromptsByToolCallId
+      )) {
+        if (pendingSave) {
+          void pendingSave.cancel?.();
+        }
+      }
+    };
+  }, [agentStore, playgroundStore]);
+
+  useEffect(() => {
+    const { registerClientAction, unregisterClientAction } =
+      agentStore.getState();
     registerClientAction(
       READ_PROMPT_TOOLS_TOOL_NAME,
       createReadPromptToolsClientAction({ playgroundStore })
@@ -436,30 +464,9 @@ function PlaygroundContent() {
       })
     );
     return () => {
-      unregisterClientAction(READ_PROMPT_TOOL_NAME);
-      unregisterClientAction(CLONE_PROMPT_INSTANCE_TOOL_NAME);
-      unregisterClientAction(EDIT_PROMPT_TOOL_NAME);
-      unregisterClientAction(SAVE_PROMPT_TOOL_NAME);
-      unregisterClientAction(RUN_PLAYGROUND_TOOL_NAME);
-      unregisterClientAction(READ_PLAYGROUND_OUTPUT_TOOL_NAME);
-      unregisterClientAction(SET_VARIABLE_VALUES_TOOL_NAME);
       unregisterClientAction(READ_PROMPT_TOOLS_TOOL_NAME);
       unregisterClientAction(WRITE_PROMPT_TOOLS_TOOL_NAME);
       unregisterClientAction(SET_PLAYGROUND_MODEL_TOOL_NAME);
-      for (const pendingEdit of Object.values(
-        agentStore.getState().pendingPromptEditsByToolCallId
-      )) {
-        if (pendingEdit) {
-          void pendingEdit.cancel?.();
-        }
-      }
-      for (const pendingSave of Object.values(
-        agentStore.getState().pendingSavePromptsByToolCallId
-      )) {
-        if (pendingSave) {
-          void pendingSave.cancel?.();
-        }
-      }
     };
   }, [
     agentStore,
