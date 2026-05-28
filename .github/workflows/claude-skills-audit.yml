@@ -62,6 +62,12 @@ jobs:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Setting additional_permissions triggers the action to explicitly request
+          # contents/pull_requests/issues: write on the OIDC-minted app token, which
+          # the post-action "Commit and push" / "Open pull request" steps use via
+          # steps.claude.outputs.github_token.
+          additional_permissions: |
+            contents: write
           prompt: |
             /phoenix-skills-audit
 
@@ -108,7 +114,9 @@ jobs:
       - name: Commit and push
         if: steps.changes.outputs.has_changes == 'true'
         env:
-          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          # App token minted by the claude-code-action OIDC exchange — short-lived,
+          # auto-revoked at job end, and (unlike GITHUB_TOKEN) triggers downstream CI.
+          GH_TOKEN: ${{ steps.claude.outputs.github_token }}
           AUDIT_DATE: ${{ steps.branch.outputs.date }}
           AUDIT_BRANCH: ${{ steps.branch.outputs.branch }}
         run: |
@@ -120,7 +128,7 @@ jobs:
       - name: Open pull request
         if: steps.changes.outputs.has_changes == 'true'
         env:
-          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          GH_TOKEN: ${{ steps.claude.outputs.github_token }}
           AUDIT_DATE: ${{ steps.branch.outputs.date }}
           AUDIT_BRANCH: ${{ steps.branch.outputs.branch }}
           SUMMARY_FILE: ${{ steps.summary.outputs.path }}

@@ -20,9 +20,10 @@ jobs:
 
     runs-on: ubuntu-latest
     permissions:
+      # PR/issue read+write goes through the Claude App token minted by the
+      # OIDC exchange below — the workflow GITHUB_TOKEN is only used for the
+      # initial checkout, so contents:read is all it needs.
       contents: read
-      pull-requests: read
-      issues: read
       id-token: write # Required: claude-code-action requests a GitHub OIDC token at startup
 
     steps:
@@ -42,7 +43,6 @@ jobs:
         env:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
-          github_token: ${{ github.token }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           allowed_bots: 'claude, cursor, codex, gitbook-bot, github-actions, dependabot[bot], cursoragent, mintlify[bot]'
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'

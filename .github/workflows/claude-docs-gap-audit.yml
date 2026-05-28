@@ -39,6 +39,12 @@ jobs:
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Setting additional_permissions triggers the action to explicitly request
+          # contents/pull_requests/issues: write on the OIDC-minted app token, which
+          # the post-action "Create docs gap issue" step uses via
+          # steps.claude.outputs.github_token.
+          additional_permissions: |
+            contents: write
           prompt: |
             /phoenix-docs-gap-audit
 
@@ -64,7 +70,9 @@ jobs:
 
       - name: Create docs gap issue
         env:
-          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          # App token minted by the claude-code-action OIDC exchange — short-lived
+          # and auto-revoked at job end.
+          GH_TOKEN: ${{ steps.claude.outputs.github_token }}
         run: |
           if [ ! -s .scratch/docs-gap-issue.md ]; then
             echo "No docs gap issue body written — exiting cleanly."
