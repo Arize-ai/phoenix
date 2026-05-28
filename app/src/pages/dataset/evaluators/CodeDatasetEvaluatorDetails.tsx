@@ -344,8 +344,6 @@ function getInternetAccessLabel(
   switch (internetAccess) {
     case "BOOLEAN":
       return "Configurable";
-    case "ALLOWLIST":
-      return "Allowlist";
     case "NONE":
       return "Not supported";
     default:

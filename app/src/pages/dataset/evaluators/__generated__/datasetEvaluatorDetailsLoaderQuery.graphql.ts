@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<ca3b6a617e87739e4d3dccda7b2e0c73>>
+ * @generated SignedSource<<e487a5627240430c032fd01fcc4c11ea>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
-export type InternetAccessMode = "ALLOWLIST" | "BOOLEAN" | "NONE";
+export type InternetAccessMode = "BOOLEAN" | "NONE";
 export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "VERCEL" | "WASM";
 export type datasetEvaluatorDetailsLoaderQuery$variables = {
   datasetEvaluatorId: string;
