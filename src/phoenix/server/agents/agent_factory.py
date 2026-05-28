@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from openinference.instrumentation import OITracer, TraceConfig
 from opentelemetry.trace import NoOpTracerProvider, Tracer, TracerProvider
-from pydantic_ai import Agent, DeferredToolRequests
+from pydantic_ai import Agent, DeferredToolRequests, RunContext
 from pydantic_ai.capabilities import (
     AbstractCapability,
+    CapabilityFunc,
     CombinedCapability,
     DynamicCapability,
 )
@@ -35,6 +36,24 @@ from phoenix.server.agents.web_access import (
 )
 
 
+def get_skills_capability_function(
+    *,
+    prompts: AgentPrompts,
+) -> CapabilityFunc[AgentDependencies]:
+    def _build(ctx: RunContext[AgentDependencies]) -> AbstractCapability[AgentDependencies]:
+        return SkillsCapability(
+            toolset=SkillsToolset(
+                skills=build_skills(include_playground=ctx.deps.contexts.playground is not None),
+                load_skill_template=prompts.load_skill,
+                load_skill_tool_template=prompts.load_skill_tool,
+                read_skill_resource_tool_template=prompts.read_skill_resource_tool,
+            ),
+            instructions=prompts.skills,
+        )
+
+    return _build
+
+
 def build_agent(
     *,
     model: Model,
@@ -58,14 +77,10 @@ def build_agent(
         DynamicCapability(
             capability_func=get_context_capability_function(prompts=resolved_prompts),
         ),
-        SkillsCapability(
-            toolset=SkillsToolset(
-                skills=build_skills(),
-                load_skill_template=resolved_prompts.load_skill,
-                load_skill_tool_template=resolved_prompts.load_skill_tool,
-                read_skill_resource_tool_template=resolved_prompts.read_skill_resource_tool,
+        DynamicCapability(
+            capability_func=get_skills_capability_function(
+                prompts=resolved_prompts,
             ),
-            instructions=resolved_prompts.skills,
         ),
     ]
     if isinstance(model, AnthropicModel):

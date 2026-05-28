@@ -1,9 +1,9 @@
 <phoenix_playground_context>
-  <description>The playground prompt editor is mounted. Use the alphabetic `label` (A, B, C, D) when discussing instances with the user, and pass the numeric `instance_id` when calling tools.</description>
+  <description>The playground prompt editor is mounted. Use the alphabetic `label` (A, B, C, D) when discussing instances with the user, and pass the numeric `instanceId` when calling tools.</description>
   <instances>
 {% for instance_id in playground.instance_ids %}
-    <instance label="{{ instance_labels[loop.index0] }}" instance_id="{{ instance_id }}"/>
+    <instance label="{{ instance_labels[loop.index0] }}" instanceId="{{ instance_id }}"/>
 {% endfor %}
   </instances>
-  <guidance>Call `read_prompt_instance` before proposing edits, `clone_prompt_instance` to create comparison variants, `edit_prompt_instance` to show the user an approval diff before changing prompt messages, `set_variable_values` when the user wants to populate playground variable inputs, `run_playground` when the user wants to run the mounted playground, and `read_playground_output` after a run finishes when you need the raw output or traceId.</guidance>
+  <guidance>Call `read_prompt_instance` before proposing edits, `clone_prompt_instance` to create comparison variants, `edit_prompt_instance` to show the user an approval diff before changing prompt messages, `set_variable_values` when the user wants to populate manual playground variable inputs, `run_playground` when the user wants to run the mounted playground, and `read_playground_output` after a manual run finishes when you need the raw output or traceId. For dataset-backed experiment results, use `bash` with `phoenix-gql` instead of `read_playground_output`.</guidance>
 </phoenix_playground_context>

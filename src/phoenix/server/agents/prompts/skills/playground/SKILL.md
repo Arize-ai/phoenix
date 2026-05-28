@@ -45,8 +45,9 @@ they are comparing prompt variants using evaluator results.
    relevant variables, output format, and any constraints needed for consistent evaluation.
 3. Run the playground over the dataset. Each prompt instance run over a dataset is captured as an
    experiment, with outputs and evaluator annotations available for review.
-4. Review the experiment outputs and annotations to find recurring failure patterns. Separate model
-   randomness from prompt issues when possible.
+4. Review the experiment outputs and annotations to find recurring failure patterns. Use `bash` with
+   `phoenix-gql` to inspect dataset-backed experiment results when needed; `read_playground_output`
+   only reads manual playground runs. Separate model randomness from prompt issues when possible.
 5. Use or add evaluators when they make issue detection more systematic, especially for failures
    that are hard to spot by manual review alone.
 6. Form a specific hypothesis for improving the prompt, then use `edit_prompt_instance` or
