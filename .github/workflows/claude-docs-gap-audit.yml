@@ -66,7 +66,7 @@ jobs:
 
             Do not commit, push, open a PR, or create the issue yourself. The workflow
             handles publishing after you write the issue body file.
-          claude_args: '--model claude-opus-4-7 --allowedTools Skill,Read,Glob,Grep,Agent,Write,"Bash(git fetch:*)","Bash(git log:*)","Bash(git diff:*)","Bash(git show:*)","Bash(date:*)","Bash(ls:*)","Bash(mkdir:*)"'
+          claude_args: '--model claude-opus-4-8 --allowedTools Skill,Read,Glob,Grep,Agent,Write,"Bash(git fetch:*)","Bash(git log:*)","Bash(git diff:*)","Bash(git show:*)","Bash(date:*)","Bash(ls:*)","Bash(mkdir:*)"'
 
       - name: Create docs gap issue
         env:
