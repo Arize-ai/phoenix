@@ -51,9 +51,17 @@ jobs:
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
           echo "date=$DATE" >> "$GITHUB_OUTPUT"
 
-      - name: Install bubblewrap
-        # Required by CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1 for subprocess isolation.
-        run: sudo apt-get update && sudo apt-get install -y bubblewrap
+      - name: Install subprocess isolation deps
+        # Required by CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1. The Claude CLI sandbox
+        # needs both bubblewrap AND socat, and Ubuntu 24.04+ blocks the unprivileged
+        # user namespaces it relies on by default. Mirrors the upstream action's
+        # install step (which only runs when allowed_non_write_users is set).
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends bubblewrap socat
+          if [ -f /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
 
       - name: Run Claude Code
         id: claude
