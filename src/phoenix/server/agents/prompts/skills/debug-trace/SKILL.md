@@ -48,8 +48,17 @@ Use this journal as the input to axial-coding.
 ### Output Format
 
 - **Analysis scope** — brief summary of what was analyzed: number of traces examined, time range if relevant, any filters applied
-- **Findings table** — one row per issue category with: label, short description, occurrence count, one or two representative trace links
+- **Findings table** — one row per issue category with: label, short description, occurrence count, one or two representative span (or trace) links — see Linking to Findings below
 - **Recommendations** — for each issue, a concrete suggested fix (prompt change, parameter adjustment, tool fix, instrumentation improvement, etc.), if one can be identified
+
+### Linking to Findings
+
+Prefer linking to the specific span that exhibits the issue over the parent trace whenever possible — span links land the user on the exact node, while a trace link forces them to hunt for the relevant span. Fall back to a trace link only when no single span captures the issue (e.g., a trajectory problem spanning many spans).
+
+Use Phoenix's root-relative redirect URLs with the OpenTelemetry IDs returned by GraphQL — no project lookup required. Read the OTel IDs from the `spanId` and `traceId` GraphQL fields (the hex OTel IDs), **not** the `id` field (which is a Relay node ID and will not resolve):
+
+- Span: `[short description](/redirects/spans/<spanId>)`
+- Trace: `[short description](/redirects/traces/<traceId>)`
 
 ### Caveats and Pitfalls
 
