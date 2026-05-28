@@ -72,16 +72,6 @@ export const PXI_EXPERIMENT_EXAMPLES = {
     experimentDescription:
       "PXI ingest-traces smoke test: confirms chat + summary traces persist locally.",
   },
-  codeEvaluatorDraftEditSmoke: {
-    id: "pxi-code-evaluator-draft-smoke:edit-source-v1",
-    prompt:
-      "I'm on the Create Code Evaluator dialog. Read the current draft, then edit it to replace the body of the evaluate function so it returns 1.0 instead of whatever placeholder is there. Wait for me to accept or reject the change.",
-    expectedOutput:
-      "PXI reads the code-evaluator draft, proposes an edit with a diff preview, and waits for user approval before the source editor is updated.",
-    experimentNamePrefix: "pxi-e2e-code-evaluator-draft-edit-smoke",
-    experimentDescription:
-      "PXI code-evaluator draft tools smoke test: read_code_evaluator_draft + edit_code_evaluator_draft with accept flow.",
-  },
   codeEvaluatorDraftPreviewFormSmoke: {
     id: "pxi-code-evaluator-draft-smoke:playground-open-edit-test-v1",
     prompt:
@@ -92,85 +82,15 @@ export const PXI_EXPERIMENT_EXAMPLES = {
     experimentDescription:
       "PXI code-evaluator draft smoke test: open_experiment_evaluator_form + read/edit/test_code_evaluator_draft from a dataset-backed playground.",
   },
-  codeEvaluatorDraftRejectSmoke: {
-    id: "pxi-code-evaluator-draft-smoke:reject-leaves-form-v1",
-    prompt:
-      "Edit the code-evaluator draft to replace the evaluate function body with a comment that says '# PXI REJECT MARKER'. Wait for me to review the diff before applying.",
-    expectedOutput:
-      "PXI proposes an edit that the user rejects; the source editor is unchanged after rejection.",
-    experimentNamePrefix: "pxi-e2e-code-evaluator-draft-reject-smoke",
-    experimentDescription:
-      "PXI code-evaluator draft tools smoke test: edit_code_evaluator_draft with reject flow leaves source editor unchanged.",
-  },
-  codeEvaluatorDraftStaleProposeSmoke: {
-    id: "pxi-code-evaluator-draft-smoke:stale-propose-v1",
-    prompt:
-      "Read the current code-evaluator draft, then edit it to add a comment '# stale propose marker' at the top of the evaluate function body. Wait for me to accept or reject.",
-    expectedOutput:
-      "PXI's proposed edit is rejected at propose-time because the draft revision changed between read and propose; the propose-time error string is surfaced to the user.",
-    experimentNamePrefix: "pxi-e2e-code-evaluator-draft-stale-propose-smoke",
-    experimentDescription:
-      "PXI code-evaluator draft tools smoke test: propose-time stale-revision guard surfaces the canonical error string.",
-  },
-  codeEvaluatorDraftStaleAcceptSmoke: {
-    id: "pxi-code-evaluator-draft-smoke:stale-accept-v1",
-    prompt:
-      "Read the current code-evaluator draft, then edit it to add a comment '# stale accept marker' at the top of the evaluate function body. Wait for me to accept or reject the change.",
-    expectedOutput:
-      "PXI proposes the edit; when the user bumps the draft revision before clicking Accept, the accept-time guard surfaces the canonical error string and the source editor is not updated to the proposed text.",
-    experimentNamePrefix: "pxi-e2e-code-evaluator-draft-stale-accept-smoke",
-    experimentDescription:
-      "PXI code-evaluator draft tools smoke test: accept-time stale-revision guard surfaces the canonical error string.",
-  },
-  codeEvaluatorDraftToolsAbsentSmoke: {
-    id: "pxi-code-evaluator-draft-smoke:tools-absent-v1",
-    prompt:
-      "Read the current code-evaluator draft and tell me what its evaluate function does.",
-    expectedOutput:
-      "With no code-evaluator form open, PXI does not invoke read_code_evaluator_draft or edit_code_evaluator_draft and explains it cannot read a draft because none is open.",
-    experimentNamePrefix: "pxi-e2e-code-evaluator-draft-tools-absent-smoke",
-    experimentDescription:
-      "PXI code-evaluator draft tools smoke test: draft tools are absent when no code-evaluator form is mounted.",
-  },
-  createCodeEvaluatorToolAbsentSmoke: {
-    id: "pxi-create-code-evaluator-smoke:tool-absent-v1",
-    prompt:
-      "Create a new Python code evaluator named pxi-tool-absent-marker that returns 1.0 for every input.",
-    expectedOutput:
-      "create_code_evaluator is absent from the tool list while a code-evaluator form is open; PXI uses edit_code_evaluator_draft instead.",
-    experimentNamePrefix: "pxi-e2e-create-code-evaluator-tool-absent",
-    experimentDescription:
-      "PXI create-code-evaluator tool gate: create_code_evaluator is absent when the code-evaluator form is mounted.",
-  },
   createCodeEvaluatorProposalDatasetSmoke: {
     id: "pxi-create-code-evaluator-proposal:dataset-surface-v1",
     prompt:
       "Create a Python code evaluator named ${name} for this dataset. Define `evaluate(output, reference)` that returns 1.0 when output equals reference (case-insensitive, trimmed) and 0.0 otherwise. Pick a Python sandbox config.",
     expectedOutput:
-      "On a dataset surface, PXI proposes a PendingCodeEvaluatorCreate; clicking Accept persists a global CodeEvaluator AND attaches it to the active dataset via createDatasetCodeEvaluator. The dataset's evaluators tab shows the new row.",
+      "On a dataset surface, PXI proposes a PendingCodeEvaluatorCreate; confirming the proposal opens the Create Code Evaluator slideover, and Save creates a global CodeEvaluator AND attaches it to the active dataset via createDatasetCodeEvaluator. The dataset's evaluators tab shows the new row.",
     experimentNamePrefix: "pxi-e2e-create-code-evaluator-proposal-dataset",
     experimentDescription:
-      "PXI create_code_evaluator proposal flow: on a dataset surface the proposal accept fires the chained createCodeEvaluator -> createDatasetCodeEvaluator path.",
-  },
-  createCodeEvaluatorViewerGateSmoke: {
-    id: "pxi-create-code-evaluator-gate:viewer-v1",
-    prompt:
-      "Create a Python code evaluator named ${name} that returns 1.0 for non-empty output. Pick any Python sandbox config.",
-    expectedOutput:
-      "Signed in as a viewer, PXI does not advertise create_code_evaluator. The assistant explains it does not have the affordance; no proposal renders and no mutation fires.",
-    experimentNamePrefix: "pxi-e2e-create-code-evaluator-viewer-gate",
-    experimentDescription:
-      "PXI capability gate: viewer role silently strips create_code_evaluator from the advertised toolset.",
-  },
-  createCodeEvaluatorNoSandboxGateSmoke: {
-    id: "pxi-create-code-evaluator-gate:no-sandbox-v1",
-    prompt:
-      "Create a Python code evaluator named ${name} on this dataset. Define `evaluate(output)` that returns 1.0 for non-empty output.",
-    expectedOutput:
-      "With no usable sandbox config enabled, PXI does not advertise create_code_evaluator. The dataset context instruction template tells the assistant to direct the user to /settings/sandboxes.",
-    experimentNamePrefix: "pxi-e2e-create-code-evaluator-no-sandbox-gate",
-    experimentDescription:
-      "PXI capability gate: with no enabled sandbox config the create tool is hidden and the dataset context advises /settings/sandboxes.",
+      "PXI create_code_evaluator proposal flow: on a dataset surface, Confirm opens the slideover and Save fires the chained createCodeEvaluator -> createDatasetCodeEvaluator path.",
   },
 } as const;
 

@@ -73,41 +73,6 @@ export async function createWasmPythonSandboxConfig({
   return data.createSandboxConfig.sandboxConfig.id;
 }
 
-export async function disableAllSandboxConfigs(
-  request: APIRequestContext
-): Promise<void> {
-  const data = await postGraphQL<{
-    sandboxProviders: Array<{
-      configs: Array<{ id: string; enabled: boolean }>;
-    }>;
-  }>({
-    request,
-    query: `query PxiSandboxConfigs {
-      sandboxProviders {
-        configs { id enabled }
-      }
-    }`,
-  });
-  const enabledConfigIds = data.sandboxProviders.flatMap((provider) =>
-    provider.configs
-      .filter((config) => config.enabled)
-      .map((config) => config.id)
-  );
-  for (const id of enabledConfigIds) {
-    await postGraphQL<{
-      updateSandboxConfig: { sandboxConfig: { id: string } };
-    }>({
-      request,
-      query: `mutation DisablePxiSandboxConfig($input: UpdateSandboxConfigInput!) {
-        updateSandboxConfig(input: $input) {
-          sandboxConfig { id }
-        }
-      }`,
-      variables: { input: { id, enabled: false } },
-    });
-  }
-}
-
 export function getSpanToolName(span: unknown): string | null {
   if (typeof span !== "object" || span === null) {
     return null;
