@@ -168,8 +168,6 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[list[str]])
             "metadata['is_empty'] is not False",
             "attributes[['metadata', 'is_empty']].as_boolean() != False",
         ),
-        # span_kind comparisons normalize the string literal to uppercase
-        # so users can filter using the lowercase values shown in the UI.
         (
             "span_kind == 'chain'",
             "span_kind == 'CHAIN'",
