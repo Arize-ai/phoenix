@@ -301,6 +301,24 @@ def _is_string_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
     return isinstance(node, ast.Constant) and isinstance(node.value, str)
 
 
+def _is_span_kind(node: typing.Any) -> TypeGuard[ast.Name]:
+    return isinstance(node, ast.Name) and node.id == "span_kind"
+
+
+def _convert_to_uppercase(node: ast.expr) -> ast.expr:
+    """Converts constants and lists/ tuples of constants to uppercase."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return ast.Constant(value=node.value.upper(), kind=node.kind)
+    if isinstance(node, (ast.List, ast.Tuple)):
+        new_elts = [_convert_to_uppercase(elt) for elt in node.elts]
+        if isinstance(node, ast.List):
+            return ast.List(elts=new_elts, ctx=node.ctx)
+        if isinstance(node, ast.Tuple):
+            return ast.Tuple(elts=new_elts, ctx=node.ctx)
+        assert_never(node)
+    return node
+
+
 def _is_float_constant(node: typing.Any) -> TypeGuard[ast.Constant]:
     return (
         isinstance(node, ast.Constant)
@@ -503,6 +521,10 @@ class _FilterTranslator(_ProjectionTranslator):
                 left = comparator
             return ast.Call(func=ast.Name(id="and_", ctx=ast.Load()), args=args, keywords=[])
         left, op, right = self.visit(node.left), node.ops[0], self.visit(node.comparators[0])
+        if _is_span_kind(left):
+            right = _convert_to_uppercase(right)
+        elif _is_span_kind(right):
+            left = _convert_to_uppercase(left)
         if _is_subscript(left, "attributes"):
             left = (
                 _as_bool_attribute(left) if _is_bool_constant(right) else _cast_as("String", left)

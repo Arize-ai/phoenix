@@ -168,6 +168,34 @@ def test_get_attribute_keys_list(expression: str, expected: Optional[list[str]])
             "metadata['is_empty'] is not False",
             "attributes[['metadata', 'is_empty']].as_boolean() != False",
         ),
+        (
+            "span_kind == 'chain'",
+            "span_kind == 'CHAIN'",
+        ),
+        (
+            "span_kind == 'Chain'",
+            "span_kind == 'CHAIN'",
+        ),
+        (
+            "'chain' == span_kind",
+            "'CHAIN' == span_kind",
+        ),
+        (
+            "span_kind != 'llm'",
+            "span_kind != 'LLM'",
+        ),
+        (
+            "span_kind in ('chain', 'LLM')",
+            "span_kind.in_(('CHAIN', 'LLM'))",
+        ),
+        (
+            "span_kind not in ['chain', 'tool']",
+            "span_kind.not_in(['CHAIN', 'TOOL'])",
+        ),
+        (
+            "'cha' in span_kind",
+            "TextContains(span_kind, 'CHA')",
+        ),
     ],
 )
 async def test_filter_translated(
