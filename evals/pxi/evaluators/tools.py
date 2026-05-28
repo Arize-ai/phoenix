@@ -337,9 +337,7 @@ def _matcher_passes(observed: Any, matcher: dict[str, Any]) -> bool:
             return False
     if "not_contains" in matcher:
         if not isinstance(observed, str):
-            # No string means no forbidden substrings; this is vacuously OK
-            # unless the matcher also requires a string via contains_*/equals.
-            return True
+            return False
         if any(needle in observed for needle in matcher["not_contains"]):
             return False
     return True

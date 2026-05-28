@@ -93,7 +93,7 @@ Datasets live in `evals/pxi/datasets/*.yaml`. Each file has:
 Each example needs a stable `id`, exactly one split in a list-shaped `splits`
 field, and whatever `input`, `expected`, and `metadata` shape its evaluators
 consume. For the current tool-call evaluators, examples commonly use
-`input.query`, `expected.tools`, and expected tool arguments under
+`input.messages`, `expected.tools`, and expected tool arguments under
 `expected.tool_call_args`.
 
 Example IDs must be unique because the runner uses them for stable upserts.
@@ -107,7 +107,9 @@ examples:
   - id: llm-spans
     splits: [regression]
     input:
-      query: Show me only LLM spans.
+      messages:
+        - role: user
+          content: Show me only LLM spans.
 ```
 
 Split meanings:
@@ -233,8 +235,8 @@ exact shell syntax.
 observed tool sequence must equal the required sequence" (no extras, no
 duplicates, same order).
 
-`expected.tool_call_args` holds at most one expected arg map per tool name. The
-match is intentionally permissive in two ways:
+`expected.tool_call_args` holds either one expected arg map per tool name or a
+list of acceptable arg maps. The match is intentionally permissive in three ways:
 
 1. **Subset match per call.** A call passes when *all* expected `(key, value)`
    pairs are present; the observed call may carry extra arg keys that the
@@ -242,10 +244,13 @@ match is intentionally permissive in two ways:
 2. **Any-of match across multiple calls.** When a tool is called more than once
    in a turn, the check passes if *any* of those calls satisfies the expected
    pairs.
+3. **Variant match across expected shapes.** When a tool has a list of expected
+   arg maps, any variant can satisfy the expectation.
 
-String values that contain ` and ` are normalized as order-independent
-conjunctions, so `latency_ms >= 5000 and span_kind == 'LLM'` matches
-`span_kind == 'LLM' and latency_ms >= 5000`.
+Literal values compare with `==`. For order-invariant string matching, use the
+matcher vocabulary above. For example, `contains_all: ["span_kind == 'LLM'",
+"latency_ms >= 5000"]` accepts either clause order without making every string
+literal order-insensitive.
 
 Tool arg keys must match the tool's exact JSON schema, including camelCase. For
 `set_spans_filter` that means `condition` and `rootSpansOnly`;

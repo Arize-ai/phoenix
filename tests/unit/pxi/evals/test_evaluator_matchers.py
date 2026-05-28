@@ -129,6 +129,15 @@ class TestNotContains:
         }
         assert evaluate_tool_call_args(output, expected)["score"] == 0.0
 
+    def test_fails_when_key_absent(self) -> None:
+        output = _output_with_tool_call("set_spans_filter", {})
+        expected = {
+            "tool_call_args": {
+                "set_spans_filter": {"condition": {"not_contains": ["latency_ms < "]}}
+            }
+        }
+        assert evaluate_tool_call_args(output, expected)["score"] == 0.0
+
 
 class TestAnyMatcher:
     def test_passes_when_key_present(self) -> None:
