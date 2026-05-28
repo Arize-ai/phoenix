@@ -26,11 +26,12 @@ jobs:
       )
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      pull-requests: write
-      issues: write
+      # Writes to PRs/issues and pushes from Claude go through the App token
+      # minted by the OIDC exchange below — the workflow GITHUB_TOKEN is only
+      # used for the initial checkout and the github_ci MCP server.
+      contents: read
       id-token: write # Required: claude-code-action requests a GitHub OIDC token at startup
-      actions: read # Required for Claude to read CI results on PRs
+      actions: read # Used by the action's github_ci MCP server (workflow token, not app token) to read CI results on PRs
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
