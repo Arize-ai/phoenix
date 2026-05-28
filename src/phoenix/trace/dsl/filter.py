@@ -305,20 +305,17 @@ def _is_span_kind(node: typing.Any) -> TypeGuard[ast.Name]:
     return isinstance(node, ast.Name) and node.id == "span_kind"
 
 
-def _upper_string_literal(node: ast.expr) -> ast.expr:
-    """
-    Uppercase a string `ast.Constant`, or each string `ast.Constant` inside an
-    `ast.List`/`ast.Tuple`. Other nodes are returned unchanged. Used to
-    normalize literals compared against `span_kind`, whose stored values are
-    canonical uppercase (see `SpanKind` in `phoenix.trace.schemas`).
-    """
+def _convert_to_uppercase(node: ast.expr) -> ast.expr:
+    """Converts constants and lists/ tuples of constants to uppercase."""
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
         return ast.Constant(value=node.value.upper(), kind=node.kind)
     if isinstance(node, (ast.List, ast.Tuple)):
-        new_elts = [_upper_string_literal(elt) for elt in node.elts]
+        new_elts = [_convert_to_uppercase(elt) for elt in node.elts]
         if isinstance(node, ast.List):
             return ast.List(elts=new_elts, ctx=node.ctx)
-        return ast.Tuple(elts=new_elts, ctx=node.ctx)
+        if isinstance(node, ast.Tuple):
+            return ast.Tuple(elts=new_elts, ctx=node.ctx)
+        assert_never(node)
     return node
 
 
@@ -524,13 +521,10 @@ class _FilterTranslator(_ProjectionTranslator):
                 left = comparator
             return ast.Call(func=ast.Name(id="and_", ctx=ast.Load()), args=args, keywords=[])
         left, op, right = self.visit(node.left), node.ops[0], self.visit(node.comparators[0])
-        # span_kind is stored in canonical uppercase (see `SpanKind` in
-        # phoenix.trace.schemas); uppercase string literals compared against it
-        # so the UI's lowercase display values can be used directly in filters.
         if _is_span_kind(left):
-            right = _upper_string_literal(right)
+            right = _convert_to_uppercase(right)
         elif _is_span_kind(right):
-            left = _upper_string_literal(left)
+            left = _convert_to_uppercase(left)
         if _is_subscript(left, "attributes"):
             left = (
                 _as_bool_attribute(left) if _is_bool_constant(right) else _cast_as("String", left)
