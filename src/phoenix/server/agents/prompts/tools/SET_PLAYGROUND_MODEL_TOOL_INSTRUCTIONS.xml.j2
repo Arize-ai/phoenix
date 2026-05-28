@@ -9,7 +9,6 @@
     - If there is exactly one playground instance, `instanceId` may be omitted. With multiple comparison instances, pass the specific `instanceId`.
     - For built-in providers, call with `target: {"type":"builtin","provider":"OPENAI","modelName":"gpt-5"}` using one of the available built-in provider keys.
     - For custom providers, call with `target: {"type":"custom","customProviderId":"...","modelName":"..."}` using the custom provider ID shown in context.
-    - Prefer the latest available model version from each provider unless the user specifies otherwise.
     - This tool applies immediately and does not show an approval diff. Ask the user first only when the requested target is ambiguous.
   </guidelines>
 </tool>
