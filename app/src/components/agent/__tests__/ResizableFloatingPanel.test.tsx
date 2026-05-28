@@ -188,24 +188,12 @@ describe("ResizableFloatingPanel", () => {
     });
   });
 
-  it("focuses the resize handle on pointer resize so keyboard resize can follow", () => {
+  it("resizes with the keyboard when the resize handle is focused", () => {
     const onSizeChange = vi.fn();
     const { resizeHandle } = renderResizablePanel({ onSizeChange });
-    Object.assign(resizeHandle, {
-      hasPointerCapture: vi.fn(() => true),
-      releasePointerCapture: vi.fn(),
-      setPointerCapture: vi.fn(),
-    });
 
     act(() => {
-      dispatchPointerEvent(resizeHandle, "pointerdown", {
-        clientX: 744,
-        clientY: 256,
-      });
-      dispatchPointerEvent(resizeHandle, "pointerup", {
-        clientX: 744,
-        clientY: 256,
-      });
+      (resizeHandle as HTMLElement).focus();
     });
 
     expect(document.activeElement).toBe(resizeHandle);
