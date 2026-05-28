@@ -821,8 +821,10 @@ class TestCrossProviderIsolation:
             c["name"] for c in providers[_provider_global_id(e2b.backend_type)]["configs"]
         ]
 
-        assert set(wasm_config_names) == set(wasm_names)
-        assert set(e2b_config_names) == set(e2b_names)
+        # Each provider exposes the configs created against it (alongside any
+        # auto-seeded default configs), and config names never leak across providers.
+        assert set(wasm_names) <= set(wasm_config_names)
+        assert set(e2b_names) <= set(e2b_config_names)
         assert not set(wasm_config_names) & set(e2b_config_names)
 
 
