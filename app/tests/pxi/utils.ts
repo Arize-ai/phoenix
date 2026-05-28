@@ -1,4 +1,4 @@
-import type { APIRequestContext, APIResponse } from "@playwright/test";
+import type { APIResponse } from "@playwright/test";
 
 export async function expectOK(response: APIResponse) {
   if (!response.ok()) {
@@ -7,70 +7,6 @@ export async function expectOK(response: APIResponse) {
     );
   }
   return response.json() as Promise<{ data: unknown }>;
-}
-
-type GraphQLResponse<TData> = {
-  data?: TData | null;
-  errors?: Array<{ message?: string }>;
-};
-
-async function postGraphQL<TData>({
-  request,
-  query,
-  variables,
-}: {
-  request: APIRequestContext;
-  query: string;
-  variables?: Record<string, unknown>;
-}): Promise<TData> {
-  const response = await request.post("/graphql", {
-    headers: { "Content-Type": "application/json" },
-    data: { query, variables },
-  });
-  if (!response.ok()) {
-    throw new Error(
-      `Phoenix GraphQL request failed: ${response.status()} ${await response.text()}`
-    );
-  }
-  const payload = (await response.json()) as GraphQLResponse<TData>;
-  if (payload.errors?.length) {
-    throw new Error(
-      `Phoenix GraphQL request failed: ${payload.errors
-        .map((error) => error.message ?? "Unknown error")
-        .join("; ")}`
-    );
-  }
-  if (!payload.data) {
-    throw new Error("Phoenix GraphQL request returned no data.");
-  }
-  return payload.data;
-}
-
-export async function createWasmPythonSandboxConfig({
-  request,
-  name,
-}: {
-  request: APIRequestContext;
-  name: string;
-}): Promise<string> {
-  const data = await postGraphQL<{
-    createSandboxConfig: { sandboxConfig: { id: string } };
-  }>({
-    request,
-    query: `mutation CreatePxiSandboxConfig($input: CreateSandboxConfigInput!) {
-      createSandboxConfig(input: $input) {
-        sandboxConfig { id }
-      }
-    }`,
-    variables: {
-      input: {
-        name,
-        config: { wasm: { language: "PYTHON" } },
-        enabled: true,
-      },
-    },
-  });
-  return data.createSandboxConfig.sandboxConfig.id;
 }
 
 export function getSpanToolName(span: unknown): string | null {

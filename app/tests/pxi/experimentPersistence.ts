@@ -72,26 +72,6 @@ export const PXI_EXPERIMENT_EXAMPLES = {
     experimentDescription:
       "PXI ingest-traces smoke test: confirms chat + summary traces persist locally.",
   },
-  codeEvaluatorDraftPreviewFormSmoke: {
-    id: "pxi-code-evaluator-draft-smoke:playground-open-edit-test-v1",
-    prompt:
-      "I'm on a dataset-backed playground. Open the experiment evaluator form without navigating away, read the code-evaluator draft, then propose a Python evaluator named pxi_preview_accuracy that returns 1.0 when output and reference match after trim/lowercase and 0.0 otherwise. Use an available Python sandbox config, set a score output config, wait for me to accept the edit, then test the draft.",
-    expectedOutput:
-      "PXI opens the evaluator form in place from the playground, reads and edits the draft, waits for user approval, then runs test_code_evaluator_draft and leaves the playground URL/state intact.",
-    experimentNamePrefix: "pxi-e2e-code-evaluator-draft-preview-form",
-    experimentDescription:
-      "PXI code-evaluator draft smoke test: open_experiment_evaluator_form + read/edit/test_code_evaluator_draft from a dataset-backed playground.",
-  },
-  createCodeEvaluatorProposalDatasetSmoke: {
-    id: "pxi-create-code-evaluator-proposal:dataset-surface-v1",
-    prompt:
-      "Create a Python code evaluator named ${name} for this dataset. Define `evaluate(output, reference)` that returns 1.0 when output equals reference (case-insensitive, trimmed) and 0.0 otherwise. Pick a Python sandbox config.",
-    expectedOutput:
-      "On a dataset surface, PXI explains the evaluator, links to the Create Code Evaluator slideover, then uses read_code_evaluator_draft and edit_code_evaluator_draft after the form opens. Save creates a global CodeEvaluator and attaches it to the active dataset via createDatasetCodeEvaluator.",
-    experimentNamePrefix: "pxi-e2e-create-code-evaluator-proposal-dataset",
-    experimentDescription:
-      "PXI dataset-surface code-evaluator authoring flow: link to the slideover, populate it with draft tools, and Save through the chained createCodeEvaluator -> createDatasetCodeEvaluator path.",
-  },
 } as const;
 
 type PxiExperimentExample =

@@ -20,6 +20,11 @@ import { useBlocker, useSearchParams } from "react-router";
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import { OPEN_EXPERIMENT_EVALUATOR_FORM_TOOL_NAME } from "@phoenix/agent/extensions/toolRegistry";
 import {
+  EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+  READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+  TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+} from "@phoenix/agent/tools/codeEvaluatorDraft";
+import {
   createReadPlaygroundOutputClientAction,
   READ_PLAYGROUND_OUTPUT_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundOutput";
@@ -78,7 +83,10 @@ import { PlaygroundExamplePage } from "@phoenix/pages/playground/PlaygroundExamp
 import type { PromptParam } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
 import { setPromptParams } from "@phoenix/pages/playground/playgroundURLSearchParamsUtils";
 import type { PlaygroundProps } from "@phoenix/store";
-import type { AgentClientActionResult } from "@phoenix/store/agentStore";
+import {
+  type AgentClientActionResult,
+  waitForRegisteredClientActions,
+} from "@phoenix/store/agentStore";
 
 import type { PlaygroundQuery } from "./__generated__/PlaygroundQuery.graphql";
 import { NUM_MAX_PLAYGROUND_INSTANCES } from "./constants";
@@ -415,10 +423,25 @@ function PlaygroundContent() {
           };
         }
         setExperimentEvaluatorFormDatasetId(datasetId);
+        const isReady = await waitForRegisteredClientActions({
+          agentStore,
+          names: [
+            READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+            EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+            TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+          ],
+        });
+        if (!isReady) {
+          return {
+            ok: false,
+            error:
+              "The code-evaluator form opened, but its draft tools did not finish loading. Try opening the form again before reading the draft.",
+          };
+        }
         return {
           ok: true,
           output:
-            "Code-evaluator form opened for the current playground dataset.",
+            "Code-evaluator form opened for the current playground dataset; draft tools are ready.",
         };
       }
     );

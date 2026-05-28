@@ -17,7 +17,7 @@ DESCRIPTION = (
     "Open the dataset-backed code-evaluator form from the current playground "
     "without navigating away. Use this when a dataset is mounted in the playground "
     "and the user wants to author an experiment evaluator. This opens the existing "
-    "create-code-evaluator form; it does not save or create an evaluator."
+    "create-code-evaluator form; it does not persist or create an evaluator."
 )
 
 PARAMETERS: dict[str, Any] = {
@@ -49,8 +49,8 @@ INSTRUCTIONS = "\n".join(
         "  <user_facing_language>",
         "    - The tool name is internal. In replies to users, call the "
         "opened surface the code-evaluator form or evaluator form.",
-        "    - Do not describe saving as approving a diff. The user saves "
-        "with the form's Save action when ready.",
+        "    - Do not describe creating as approving a diff. The user creates "
+        "with the form's Create action when ready.",
         "  </user_facing_language>",
         "  <workflow>",
         "    - Call `open_experiment_evaluator_form` first, then wait for "
@@ -58,9 +58,9 @@ INSTRUCTIONS = "\n".join(
         "    - After the form is mounted, call `read_code_evaluator_draft`, "
         "then propose changes with `edit_code_evaluator_draft`.",
         "    - After the user accepts a populated draft, offer to run "
-        "`test_code_evaluator_draft` before they save.",
-        "    - Do not promise that the evaluator has been saved. Persistence "
-        "stays behind the user-visible Save action in the form.",
+        "`test_code_evaluator_draft` before they click Create.",
+        "    - Do not promise that the evaluator has been created. Persistence "
+        "stays behind the user-visible Create action in the form.",
         "  </workflow>",
         "</tool>",
     )

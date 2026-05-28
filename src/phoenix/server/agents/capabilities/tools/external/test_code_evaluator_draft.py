@@ -18,7 +18,7 @@ DESCRIPTION = (
     "the form preview path. Always call `read_code_evaluator_draft` first "
     "and pass the returned `revision` as `expectedRevision`; the test is rejected "
     "if the form changed since that read. This previews the draft only and does "
-    "not save or create an evaluator."
+    "not persist, create, or update an evaluator."
 )
 
 PARAMETERS: dict[str, Any] = {
@@ -61,8 +61,8 @@ INSTRUCTIONS = "\n".join(
         "  <guidelines>",
         "    - Treat preview failures as iteration signals: inspect the "
         "error/result, revise the source or `testPayload`, and test again.",
-        "    - This tool does not save or create an evaluator. The user must "
-        "still save from the form when they are satisfied.",
+        "    - This tool does not create or update an evaluator. The user must "
+        "still click Create or Update from the form when they are satisfied.",
         "  </guidelines>",
         "</tool>",
     )

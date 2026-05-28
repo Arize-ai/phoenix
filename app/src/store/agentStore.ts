@@ -998,3 +998,48 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
 };
 
 export type AgentStore = ReturnType<typeof createAgentStore>;
+
+export async function waitForRegisteredClientActions({
+  agentStore,
+  names,
+  timeoutMs = 5000,
+}: {
+  agentStore: AgentStore;
+  names: readonly string[];
+  timeoutMs?: number;
+}): Promise<boolean> {
+  const hasAllActions = (
+    registeredClientActions: Record<string, AgentClientAction>
+  ) => names.every((name) => name in registeredClientActions);
+
+  if (hasAllActions(agentStore.getState().registeredClientActions)) {
+    return true;
+  }
+
+  return new Promise((resolve) => {
+    let isSettled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const settle = (isReady: boolean) => {
+      if (isSettled) return;
+      isSettled = true;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      unsubscribe();
+      resolve(isReady);
+    };
+
+    const unsubscribe = agentStore.subscribe((state) => {
+      if (hasAllActions(state.registeredClientActions)) {
+        settle(true);
+      }
+    });
+
+    timeoutId = setTimeout(() => settle(false), timeoutMs);
+
+    if (hasAllActions(agentStore.getState().registeredClientActions)) {
+      settle(true);
+    }
+  });
+}

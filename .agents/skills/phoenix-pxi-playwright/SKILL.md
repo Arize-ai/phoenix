@@ -39,7 +39,6 @@ The current harness provides these abstractions:
 - `evaluatePxiOutcome({ assertions, judgeInput })`: runs deterministic assertions and LLM judging while preserving failed post-turn outcomes for experiment persistence.
 - `assertPxiOutcome(outcome)`: fails the Playwright test after persistence, preferring the original deterministic assertion failure when one exists.
 - `persistPxiExperiment({ request, record })`: stores the PXI interaction, judge result, and metadata as a Phoenix experiment.
-- `createWasmPythonSandboxConfig({ request, name })` in `utils.ts`: creates an enabled WASM Python sandbox config for specs that need evaluator authoring.
 
 ## Authoring Workflow
 

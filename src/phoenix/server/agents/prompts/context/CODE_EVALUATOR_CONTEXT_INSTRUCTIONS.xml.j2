@@ -45,10 +45,10 @@
     This create-mode form has no usable sandbox configuration. Do not propose form edits; direct the user to `/settings/sandboxes` to enable a sandbox provider first.
 {% endif %}
 {% if can_test_draft %}
-    After the user accepts a populated draft, offer to run `test_code_evaluator_draft` before they save; if the user agrees, call it with the latest revision and use the preview result to iterate.
+    After the user accepts a populated draft, offer to run `test_code_evaluator_draft` before they click {% if code_evaluator.evaluator_node_id %}Update{% else %}Create{% endif %}; if the user agrees, call it with the latest revision and use the preview result to iterate.
 {% else %}
     Do not offer a draft test unless `test_code_evaluator_draft` is available.
 {% endif %}
-    Do not claim the evaluator is saved; persistence remains the user's Save action in the form.
+    Do not claim the evaluator is persisted; persistence remains the user's {% if code_evaluator.evaluator_node_id %}Update{% else %}Create{% endif %} action in the form.
   </guidance>
 </phoenix_code_evaluator_context>
