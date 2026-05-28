@@ -193,6 +193,30 @@ describe("AgentFabPositioner", () => {
     expect(onActivate).toHaveBeenCalledTimes(1);
   });
 
+  it("does not move on click jitter below the drag threshold", () => {
+    const onActivate = vi.fn();
+    const { button, positioner } = renderPositioner({ onActivate });
+    const initialTransform = (positioner as HTMLElement).style.transform;
+
+    act(() => {
+      dispatchPointerEvent(button, "pointerdown", {
+        clientX: 1135,
+        clientY: 958,
+      });
+      dispatchPointerEvent(button, "pointermove", {
+        clientX: 1137,
+        clientY: 960,
+      });
+      dispatchPointerEvent(button, "pointerup", {
+        clientX: 1138,
+        clientY: 960,
+      });
+    });
+
+    expect(onActivate).toHaveBeenCalledTimes(1);
+    expect((positioner as HTMLElement).style.transform).toBe(initialTransform);
+  });
+
   it("does not activate after a drag", () => {
     const onActivate = vi.fn();
     const { button } = renderPositioner({ onActivate });

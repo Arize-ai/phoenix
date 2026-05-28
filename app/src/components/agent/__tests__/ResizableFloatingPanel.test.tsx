@@ -1,19 +1,19 @@
-import { act, useState, type ReactNode } from "react";
+import { act, useState, type RefObject } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AgentFabPlacement } from "@phoenix/store/agentStore";
-import type { Size } from "@phoenix/types/geometry";
+import type { Bounds, Size } from "@phoenix/types/geometry";
 
 import { ResizableFloatingPanel } from "../ResizableFloatingPanel";
 
 const DEFAULT_SIZE: Size = {
-  width: 420,
+  width: 520,
   height: 720,
 };
 
 const MIN_SIZE: Size = {
-  width: 360,
+  width: 480,
   height: 520,
 };
 
@@ -32,6 +32,22 @@ function dispatchPointerEvent(
     value: init.pointerId ?? 1,
   });
   element.dispatchEvent(event);
+}
+
+function createBoundaryRef(bounds: Bounds): RefObject<HTMLElement | null> {
+  const boundary = document.createElement("div");
+  vi.spyOn(boundary, "getBoundingClientRect").mockReturnValue({
+    bottom: bounds.top + bounds.height,
+    height: bounds.height,
+    left: bounds.left,
+    right: bounds.left + bounds.width,
+    top: bounds.top,
+    width: bounds.width,
+    x: bounds.left,
+    y: bounds.top,
+    toJSON: () => ({}),
+  } as DOMRect);
+  return { current: boundary };
 }
 
 describe("ResizableFloatingPanel", () => {
@@ -69,21 +85,25 @@ describe("ResizableFloatingPanel", () => {
   });
 
   function renderResizablePanel({
-    floatingAction,
+    boundaryBounds,
     layer = "content",
     onSizeChange = vi.fn(),
     placement = "bottom-end",
   }: {
-    floatingAction?: ReactNode;
+    boundaryBounds?: Bounds;
     layer?: "content" | "modal";
     onSizeChange?: (size: Size) => void;
     placement?: AgentFabPlacement;
   } = {}) {
+    const boundaryRef = boundaryBounds
+      ? createBoundaryRef(boundaryBounds)
+      : undefined;
+
     function ResizablePanelHarness() {
       const [size, setSize] = useState(() => ({ ...DEFAULT_SIZE }));
       return (
         <ResizableFloatingPanel
-          floatingAction={floatingAction}
+          boundaryRef={boundaryRef}
           layer={layer}
           minSize={MIN_SIZE}
           placement={placement}
@@ -104,25 +124,41 @@ describe("ResizableFloatingPanel", () => {
     });
 
     const panel = container.querySelector(".resizable-floating-panel");
-    const resizeHandle = container.querySelector(
-      '[aria-label="Resize assistant"]'
+    const resizeHandles = Array.from(
+      container.querySelectorAll(".resizable-floating-panel__resize-handle")
     );
+    const getResizeHandle = (edge: string) =>
+      resizeHandles.find((handle) => handle.getAttribute("data-edge") === edge);
 
     expect(panel).not.toBeNull();
-    expect(resizeHandle).not.toBeNull();
+    expect(resizeHandles).toHaveLength(8);
+    expect(getResizeHandle("top-left")).not.toBeUndefined();
 
     return {
       panel: panel!,
-      resizeHandle: resizeHandle!,
+      resizeHandle: getResizeHandle("top-left")!,
+      resizeHandles,
+      getResizeHandle,
     };
   }
 
-  it("places a resize handle on the panel's top-left corner", () => {
-    const { resizeHandle } = renderResizablePanel({
+  it("places a resize handle on each panel side and corner", () => {
+    const { resizeHandles } = renderResizablePanel({
       placement: "bottom-end",
     });
 
-    expect(resizeHandle.getAttribute("data-edge")).toBe("top-left");
+    expect(
+      resizeHandles.map((handle) => handle.getAttribute("data-edge"))
+    ).toEqual([
+      "top",
+      "right",
+      "bottom",
+      "left",
+      "top-left",
+      "top-right",
+      "bottom-left",
+      "bottom-right",
+    ]);
   });
 
   it("uses fixed positioning in the modal layer", () => {
@@ -132,30 +168,81 @@ describe("ResizableFloatingPanel", () => {
     expect(getComputedStyle(panel).position).toBe("fixed");
   });
 
-  it("renders the floating action attached below the panel", () => {
-    renderResizablePanel({
-      floatingAction: <button aria-label="Close assistant">PXI</button>,
-    });
-
-    const floatingAction = container.querySelector(
-      ".resizable-floating-panel__floating-action"
-    );
-    expect(floatingAction).not.toBeNull();
-    expect(
-      floatingAction?.querySelector('button[aria-label="Close assistant"]')
-    ).not.toBeNull();
-  });
-
-  it("clamps the panel so the lower floating action stays onscreen", () => {
+  it("places content-layer geometry inside the content boundary", () => {
     const { panel } = renderResizablePanel({
-      floatingAction: <button aria-label="Close assistant">PXI</button>,
+      boundaryBounds: {
+        height: 850,
+        left: 128,
+        top: 64,
+        width: 960,
+      },
+      placement: "top-start",
     });
 
     expect(
       (panel as HTMLElement).style.getPropertyValue(
+        "--resizable-floating-panel-x"
+      )
+    ).toBe("152px");
+    expect(
+      (panel as HTMLElement).style.getPropertyValue(
         "--resizable-floating-panel-y"
       )
-    ).toBe("212px");
+    ).toBe("88px");
+  });
+
+  it("uses viewport geometry in the modal layer", () => {
+    const { panel } = renderResizablePanel({
+      boundaryBounds: {
+        height: 850,
+        left: 128,
+        top: 64,
+        width: 960,
+      },
+      layer: "modal",
+      placement: "top-start",
+    });
+
+    expect(
+      (panel as HTMLElement).style.getPropertyValue(
+        "--resizable-floating-panel-x"
+      )
+    ).toBe("24px");
+    expect(
+      (panel as HTMLElement).style.getPropertyValue(
+        "--resizable-floating-panel-y"
+      )
+    ).toBe("24px");
+  });
+
+  it("re-clamps the panel when the viewport changes", () => {
+    const { panel } = renderResizablePanel({
+      placement: "bottom-end",
+    });
+
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 900,
+    });
+    Object.defineProperty(window, "innerHeight", {
+      configurable: true,
+      value: 800,
+    });
+
+    act(() => {
+      window.dispatchEvent(new Event("resize"));
+    });
+
+    expect(
+      (panel as HTMLElement).style.getPropertyValue(
+        "--resizable-floating-panel-x"
+      )
+    ).toBe("356px");
+    expect(
+      (panel as HTMLElement).style.getPropertyValue(
+        "--resizable-floating-panel-y"
+      )
+    ).toBe("56px");
   });
 
   it("resizes from the panel's top-left corner", () => {
@@ -169,24 +256,174 @@ describe("ResizableFloatingPanel", () => {
 
     act(() => {
       dispatchPointerEvent(resizeHandle, "pointerdown", {
-        clientX: 744,
+        clientX: 656,
         clientY: 256,
       });
       dispatchPointerEvent(resizeHandle, "pointermove", {
-        clientX: 694,
+        clientX: 606,
         clientY: 216,
       });
       dispatchPointerEvent(resizeHandle, "pointerup", {
-        clientX: 694,
+        clientX: 606,
         clientY: 216,
       });
     });
 
     expect(onSizeChange).toHaveBeenLastCalledWith({
       height: 760,
-      width: 470,
+      width: 570,
     });
   });
+
+  it.each([
+    {
+      edge: "top-right",
+      placement: "bottom-start",
+      pointerDown: { clientX: 544, clientY: 256 },
+      pointerMove: { clientX: 594, clientY: 216 },
+      expectedPosition: { x: "24px", y: "216px" },
+    },
+    {
+      edge: "bottom-left",
+      placement: "top-end",
+      pointerDown: { clientX: 656, clientY: 744 },
+      pointerMove: { clientX: 606, clientY: 784 },
+      expectedPosition: { x: "606px", y: "24px" },
+    },
+    {
+      edge: "bottom-right",
+      placement: "top-start",
+      pointerDown: { clientX: 544, clientY: 744 },
+      pointerMove: { clientX: 594, clientY: 784 },
+      expectedPosition: { x: "24px", y: "24px" },
+    },
+  ] satisfies {
+    edge: string;
+    expectedPosition: { x: string; y: string };
+    placement: AgentFabPlacement;
+    pointerDown: { clientX: number; clientY: number };
+    pointerMove: { clientX: number; clientY: number };
+  }[])(
+    "resizes from the panel's $edge corner",
+    ({ edge, expectedPosition, placement, pointerDown, pointerMove }) => {
+      const onSizeChange = vi.fn();
+      const { getResizeHandle, panel } = renderResizablePanel({
+        onSizeChange,
+        placement,
+      });
+      const resizeHandle = getResizeHandle(edge);
+      expect(resizeHandle).not.toBeUndefined();
+      Object.assign(resizeHandle!, {
+        hasPointerCapture: vi.fn(() => true),
+        releasePointerCapture: vi.fn(),
+        setPointerCapture: vi.fn(),
+      });
+
+      act(() => {
+        dispatchPointerEvent(resizeHandle!, "pointerdown", pointerDown);
+        dispatchPointerEvent(resizeHandle!, "pointermove", pointerMove);
+        dispatchPointerEvent(resizeHandle!, "pointerup", pointerMove);
+      });
+
+      expect(onSizeChange).toHaveBeenLastCalledWith({
+        height: 760,
+        width: 570,
+      });
+      expect(
+        (panel as HTMLElement).style.getPropertyValue(
+          "--resizable-floating-panel-x"
+        )
+      ).toBe(expectedPosition.x);
+      expect(
+        (panel as HTMLElement).style.getPropertyValue(
+          "--resizable-floating-panel-y"
+        )
+      ).toBe(expectedPosition.y);
+    }
+  );
+
+  it.each([
+    {
+      edge: "top",
+      placement: "bottom-start",
+      pointerDown: { clientX: 284, clientY: 256 },
+      pointerMove: { clientX: 334, clientY: 216 },
+      expectedPosition: { x: "24px", y: "216px" },
+      expectedSize: { height: 760, width: 520 },
+    },
+    {
+      edge: "right",
+      placement: "top-start",
+      pointerDown: { clientX: 544, clientY: 384 },
+      pointerMove: { clientX: 594, clientY: 430 },
+      expectedPosition: { x: "24px", y: "24px" },
+      expectedSize: { height: 720, width: 570 },
+    },
+    {
+      edge: "bottom",
+      placement: "top-start",
+      pointerDown: { clientX: 284, clientY: 744 },
+      pointerMove: { clientX: 334, clientY: 784 },
+      expectedPosition: { x: "24px", y: "24px" },
+      expectedSize: { height: 760, width: 520 },
+    },
+    {
+      edge: "left",
+      placement: "top-end",
+      pointerDown: { clientX: 656, clientY: 384 },
+      pointerMove: { clientX: 606, clientY: 430 },
+      expectedPosition: { x: "606px", y: "24px" },
+      expectedSize: { height: 720, width: 570 },
+    },
+  ] satisfies {
+    edge: string;
+    expectedPosition: { x: string; y: string };
+    expectedSize: Size;
+    placement: AgentFabPlacement;
+    pointerDown: { clientX: number; clientY: number };
+    pointerMove: { clientX: number; clientY: number };
+  }[])(
+    "resizes from the panel's $edge edge",
+    ({
+      edge,
+      expectedPosition,
+      expectedSize,
+      placement,
+      pointerDown,
+      pointerMove,
+    }) => {
+      const onSizeChange = vi.fn();
+      const { getResizeHandle, panel } = renderResizablePanel({
+        onSizeChange,
+        placement,
+      });
+      const resizeHandle = getResizeHandle(edge);
+      expect(resizeHandle).not.toBeUndefined();
+      Object.assign(resizeHandle!, {
+        hasPointerCapture: vi.fn(() => true),
+        releasePointerCapture: vi.fn(),
+        setPointerCapture: vi.fn(),
+      });
+
+      act(() => {
+        dispatchPointerEvent(resizeHandle!, "pointerdown", pointerDown);
+        dispatchPointerEvent(resizeHandle!, "pointermove", pointerMove);
+        dispatchPointerEvent(resizeHandle!, "pointerup", pointerMove);
+      });
+
+      expect(onSizeChange).toHaveBeenLastCalledWith(expectedSize);
+      expect(
+        (panel as HTMLElement).style.getPropertyValue(
+          "--resizable-floating-panel-x"
+        )
+      ).toBe(expectedPosition.x);
+      expect(
+        (panel as HTMLElement).style.getPropertyValue(
+          "--resizable-floating-panel-y"
+        )
+      ).toBe(expectedPosition.y);
+    }
+  );
 
   it("resizes with the keyboard when the resize handle is focused", () => {
     const onSizeChange = vi.fn();
@@ -206,7 +443,7 @@ describe("ResizableFloatingPanel", () => {
 
     expect(onSizeChange).toHaveBeenLastCalledWith({
       height: 720,
-      width: 444,
+      width: 544,
     });
   });
 
@@ -241,7 +478,7 @@ describe("ResizableFloatingPanel", () => {
       (panel as HTMLElement).style.getPropertyValue(
         "--resizable-floating-panel-x"
       )
-    ).toBe("704px");
+    ).toBe("616px");
   });
 
   it("keeps the panel location after resizing a moved panel", () => {
@@ -279,49 +516,28 @@ describe("ResizableFloatingPanel", () => {
 
     act(() => {
       dispatchPointerEvent(resizeHandle, "pointerdown", {
-        clientX: 704,
+        clientX: 616,
         clientY: 226,
       });
       dispatchPointerEvent(resizeHandle, "pointermove", {
-        clientX: 654,
+        clientX: 566,
         clientY: 186,
       });
       dispatchPointerEvent(resizeHandle, "pointerup", {
-        clientX: 654,
+        clientX: 566,
         clientY: 186,
       });
     });
 
     expect(onSizeChange).toHaveBeenLastCalledWith({
       height: 760,
-      width: 470,
+      width: 570,
     });
     expect(
       (panel as HTMLElement).style.getPropertyValue(
         "--resizable-floating-panel-x"
       )
-    ).toBe("654px");
-  });
-
-  it("lets the attached floating action handle clicks", () => {
-    const onClose = vi.fn();
-    renderResizablePanel({
-      floatingAction: (
-        <button aria-label="Close assistant" onClick={onClose}>
-          PXI
-        </button>
-      ),
-    });
-    const closeButton = container.querySelector(
-      'button[aria-label="Close assistant"]'
-    );
-    expect(closeButton).not.toBeNull();
-
-    act(() => {
-      closeButton!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-
-    expect(onClose).toHaveBeenCalledTimes(1);
+    ).toBe("566px");
   });
 
   it("commits movement when pointer capture is lost", () => {

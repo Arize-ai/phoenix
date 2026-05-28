@@ -1,5 +1,5 @@
 import { css } from "@emotion/react";
-import type { ReactNode } from "react";
+import type { ReactNode, RefObject } from "react";
 import { createPortal } from "react-dom";
 import { Panel, Separator } from "react-resizable-panels";
 
@@ -26,9 +26,9 @@ import { ResizableFloatingPanel } from "./ResizableFloatingPanel";
 import { SessionListMenu } from "./SessionListMenu";
 
 const PANEL_HEADER_Z_INDEX = 3;
-const FLOATING_PANEL_WIDTH_PX = 420;
+const FLOATING_PANEL_WIDTH_PX = 520;
 const FLOATING_PANEL_HEIGHT_PX = 720;
-const FLOATING_PANEL_MIN_WIDTH_PX = 360;
+const FLOATING_PANEL_MIN_WIDTH_PX = 480;
 const FLOATING_PANEL_MIN_HEIGHT_PX = 520;
 
 export const DEFAULT_FLOATING_AGENT_CHAT_SIZE: Size = {
@@ -87,6 +87,7 @@ export function AgentChatHeader({
   activeSessionId,
   showSessionHistory,
   position,
+  isPositionChangeDisabled = false,
   onSelectSession,
   onDeleteSession,
   onCreateSession,
@@ -98,6 +99,7 @@ export function AgentChatHeader({
   activeSessionId: string | null;
   showSessionHistory: boolean;
   position?: AgentPosition;
+  isPositionChangeDisabled?: boolean;
   onSelectSession: (sessionId: string | null) => void;
   onDeleteSession: (sessionId: string) => void;
   onCreateSession: () => void;
@@ -156,7 +158,13 @@ export function AgentChatHeader({
             variant="quiet"
             size="S"
             aria-label={positionToggleLabel}
-            onPress={() => onPositionChange(nextPosition)}
+            isDisabled={isPositionChangeDisabled}
+            onPress={() => {
+              if (isPositionChangeDisabled) {
+                return;
+              }
+              onPositionChange(nextPosition);
+            }}
             leadingVisual={
               <Icon
                 svg={
@@ -230,15 +238,15 @@ export function DockedAgentChatFrame({ children }: { children: ReactNode }) {
  * Presentational shell for the floating assistant panel.
  */
 export function FloatingAgentChatFrame({
+  boundaryRef,
   children,
-  floatingAction,
   layer = "content",
   placement,
   size = DEFAULT_FLOATING_AGENT_CHAT_SIZE,
   onSizeChange,
 }: {
+  boundaryRef?: RefObject<HTMLElement | null>;
   children: ReactNode;
-  floatingAction?: ReactNode;
   layer?: "content" | "modal";
   placement: AgentFabPlacement;
   size?: Size;
@@ -247,7 +255,7 @@ export function FloatingAgentChatFrame({
   const activeModalPortalContainer = useActiveModalPortalContainerElement();
   const panel = (
     <ResizableFloatingPanel
-      floatingAction={floatingAction}
+      boundaryRef={boundaryRef}
       layer={layer}
       minSize={MIN_FLOATING_AGENT_CHAT_SIZE}
       placement={placement}

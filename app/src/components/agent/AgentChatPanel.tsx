@@ -1,9 +1,10 @@
-import { Suspense, useState, type ReactNode } from "react";
+import { Suspense, useState, type ReactNode, type RefObject } from "react";
 
 import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
 import { Loading } from "@phoenix/components/core";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
+import type { AgentPosition } from "@phoenix/store/agentStore";
 
 import {
   AgentChatHeader,
@@ -11,7 +12,6 @@ import {
   DockedAgentChatFrame,
   FloatingAgentChatFrame,
 } from "./AgentChatPanelView";
-import { AgentChatWidgetButton } from "./AgentChatWidget";
 import { ChatView } from "./Chat";
 import {
   EMPTY_SESSION_DISPLAY_NAME,
@@ -25,6 +25,11 @@ type AgentChatPanelLayer = "content" | "modal";
 
 type FloatingAgentChatPanelProps = {
   /**
+   * Optional element that scopes the panel's default position and clamping.
+   * When omitted, the panel falls back to the visual viewport.
+   */
+  boundaryRef?: RefObject<HTMLElement | null>;
+  /**
    * Controls which stacking and interaction layer owns the floating panel.
    *
    * - `content` is the normal floating assistant surface rendered over page
@@ -35,24 +40,25 @@ type FloatingAgentChatPanelProps = {
    *   so React Aria keeps the assistant interactive instead of marking it inert.
    */
   layer?: AgentChatPanelLayer;
+  /**
+   * Whether an active overlay is temporarily forcing the assistant into the
+   * floating layout regardless of the user's saved panel preference.
+   */
+  isForcedFloating?: boolean;
 };
 
 type AgentChatSurfaceProps = {
-  renderFrame: (
-    children: ReactNode,
-    options: { floatingAction?: ReactNode }
-  ) => ReactNode;
+  renderFrame: (children: ReactNode) => ReactNode;
   /**
-   * Whether the header should expose controls for switching between pinned and
-   * detached assistant layouts.
-   *
-   * Modal-layer panels intentionally hide these controls because that layer is
-   * forced by the currently active modal, not by the user's saved layout
-   * preference. Showing the pin/detach toggle there would imply the user can
-   * dock the assistant behind the modal, which would move it out of the active
-   * modal scope and make it unavailable again.
+   * Visible panel position to show in the header when the rendered surface is
+   * temporarily different from the user's saved preference.
    */
-  showPositionControls?: boolean;
+  positionOverride?: AgentPosition;
+  /**
+   * Whether the header position toggle should be disabled because the visible
+   * layout is controlled by another surface, such as a modal or drawer.
+   */
+  isPositionChangeDisabled?: boolean;
 };
 
 /**
@@ -77,17 +83,20 @@ export function AgentChatPanel() {
  * setting.
  */
 export function FloatingAgentChatPanel({
+  boundaryRef,
   layer = "content",
+  isForcedFloating = false,
 }: FloatingAgentChatPanelProps) {
   const fabPlacement = useAgentContext((state) => state.fabPlacement);
   const [panelSize, setPanelSize] = useState(DEFAULT_FLOATING_AGENT_CHAT_SIZE);
 
   return (
     <AgentChatSurface
-      showPositionControls={layer !== "modal"}
-      renderFrame={(children, { floatingAction }) => (
+      isPositionChangeDisabled={isForcedFloating}
+      positionOverride={isForcedFloating ? "detached" : undefined}
+      renderFrame={(children) => (
         <FloatingAgentChatFrame
-          floatingAction={floatingAction}
+          boundaryRef={boundaryRef}
           layer={layer}
           placement={fabPlacement}
           size={panelSize}
@@ -102,7 +111,8 @@ export function FloatingAgentChatPanel({
 
 function AgentChatSurface({
   renderFrame,
-  showPositionControls = true,
+  positionOverride,
+  isPositionChangeDisabled = false,
 }: AgentChatSurfaceProps) {
   const isAgentsEnabled = useFeatureFlag("agents");
   const {
@@ -148,8 +158,9 @@ function AgentChatSurface({
       setActiveSession={setActiveSession}
       deleteSession={deleteSession}
       closePanel={closePanel}
-      position={showPositionControls ? position : undefined}
-      setPosition={showPositionControls ? setPosition : undefined}
+      position={positionOverride ?? position}
+      setPosition={setPosition}
+      isPositionChangeDisabled={isPositionChangeDisabled}
       handleModelChange={handleModelChange}
       renderFrame={renderFrame}
     />
@@ -171,6 +182,7 @@ function AgentChatController({
   closePanel,
   position,
   setPosition,
+  isPositionChangeDisabled,
   handleModelChange,
   renderFrame,
 }: {
@@ -192,13 +204,11 @@ function AgentChatController({
   closePanel: ReturnType<typeof useAgentChatPanelState>["closePanel"];
   position?: ReturnType<typeof useAgentChatPanelState>["position"];
   setPosition?: ReturnType<typeof useAgentChatPanelState>["setPosition"];
+  isPositionChangeDisabled?: boolean;
   handleModelChange: ReturnType<
     typeof useAgentChatPanelState
   >["handleModelChange"];
-  renderFrame: (
-    children: ReactNode,
-    options: { floatingAction?: ReactNode }
-  ) => ReactNode;
+  renderFrame: (children: ReactNode) => ReactNode;
 }) {
   const {
     messages,
@@ -227,6 +237,7 @@ function AgentChatController({
         activeSessionId={activeSessionId}
         showSessionHistory={showSessionHistory}
         position={position}
+        isPositionChangeDisabled={isPositionChangeDisabled}
         onSelectSession={setActiveSession}
         onDeleteSession={deleteSession}
         onCreateSession={createSession}
@@ -252,15 +263,6 @@ function AgentChatController({
           ) : null}
         </ChatView>
       </Suspense>
-    </>,
-    {
-      floatingAction:
-        position === "detached" ? (
-          <AgentChatWidgetButton
-            ariaLabel="Close assistant"
-            onPress={closePanel}
-          />
-        ) : undefined,
-    }
+    </>
   );
 }

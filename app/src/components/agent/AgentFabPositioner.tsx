@@ -327,7 +327,8 @@ export function AgentFabPositioner({
       animationFrameIdRef.current = null;
     }
 
-    const finalPointer = pendingPointerRef.current ?? point;
+    const finalPointer =
+      pendingPointerRef.current ?? (hasDraggedRef.current ? point : undefined);
     if (finalPointer) {
       const nextPosition = getDragPosition({
         pointer: finalPointer,

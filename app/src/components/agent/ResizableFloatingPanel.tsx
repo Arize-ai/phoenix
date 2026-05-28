@@ -4,27 +4,26 @@ import type {
   KeyboardEvent as ReactKeyboardEvent,
   PointerEvent as ReactPointerEvent,
   ReactNode,
+  RefObject,
   SyntheticEvent as ReactSyntheticEvent,
 } from "react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 
 import {
   MODAL_FLOATING_UI_Z_INDEX,
   NON_MODAL_FLOATING_Z_INDEX,
 } from "@phoenix/components/core/zIndex";
 import type { AgentFabPlacement } from "@phoenix/store/agentStore";
-import type { Point, Size } from "@phoenix/types/geometry";
+import type { Bounds, Point, Size } from "@phoenix/types/geometry";
 
-import { FAB_INSET, FAB_RESTING_SIZE } from "./agentFabPositioning";
+import { FAB_INSET } from "./agentFabPositioning";
 import { useModalFloatingLayerInteractivity } from "./useModalFloatingLayerInteractivity";
 
 const FULLSCREEN_BREAKPOINT_PX = 600;
 const KEYBOARD_RESIZE_STEP_PX = 24;
 const PRIMARY_POINTER_BUTTON = 0;
-const RESIZE_HANDLE_SIZE_PX = 14;
-const FLOATING_ACTION_WIDTH_PX = FAB_RESTING_SIZE.width;
-const FLOATING_ACTION_HEIGHT_PX = FAB_RESTING_SIZE.height;
-const FLOATING_ACTION_GAP_PX = 8;
+const RESIZE_CORNER_HANDLE_SIZE_PX = 20;
+const RESIZE_EDGE_HANDLE_THICKNESS_PX = 8;
 const VIEWPORT_MARGIN_PX = FAB_INSET.horizontal;
 const VIEWPORT_VERTICAL_MARGIN_PX = FAB_INSET.vertical;
 
@@ -37,7 +36,26 @@ type FloatingPanelGeometry = {
   height: number;
 };
 
-type ResizeEdge = "top-left";
+type ResizeEdge =
+  | "top"
+  | "right"
+  | "bottom"
+  | "left"
+  | "top-left"
+  | "top-right"
+  | "bottom-left"
+  | "bottom-right";
+
+const RESIZE_EDGES: ResizeEdge[] = [
+  "top",
+  "right",
+  "bottom",
+  "left",
+  "top-left",
+  "top-right",
+  "bottom-left",
+  "bottom-right",
+];
 
 type ResizeLimits = {
   maxHeight: number;
@@ -47,6 +65,7 @@ type ResizeLimits = {
 };
 
 type ResizeSession = {
+  edge: ResizeEdge;
   pointerId: number;
   startGeometry: FloatingPanelGeometry;
 };
@@ -58,8 +77,8 @@ type MoveSession = {
 };
 
 export type ResizableFloatingPanelProps = {
+  boundaryRef?: RefObject<HTMLElement | null>;
   children: ReactNode;
-  floatingAction?: ReactNode;
   layer?: FloatingPanelLayer;
   minSize: Size;
   placement: AgentFabPlacement;
@@ -71,11 +90,137 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
 }
 
+function isLeftResizeEdge(edge: ResizeEdge) {
+  return edge.endsWith("left");
+}
+
+function isRightResizeEdge(edge: ResizeEdge) {
+  return edge.endsWith("right");
+}
+
+function isTopResizeEdge(edge: ResizeEdge) {
+  return edge.startsWith("top");
+}
+
+function isBottomResizeEdge(edge: ResizeEdge) {
+  return edge.startsWith("bottom");
+}
+
+function canResizeWidth(edge: ResizeEdge) {
+  return (
+    isLeftResizeEdge(edge) ||
+    isRightResizeEdge(edge) ||
+    edge === "left" ||
+    edge === "right"
+  );
+}
+
+function canResizeHeight(edge: ResizeEdge) {
+  return (
+    isTopResizeEdge(edge) ||
+    isBottomResizeEdge(edge) ||
+    edge === "top" ||
+    edge === "bottom"
+  );
+}
+
+function getResizeHandleAriaLabel(edge: ResizeEdge) {
+  switch (edge) {
+    case "top":
+      return "Resize assistant from top edge";
+    case "right":
+      return "Resize assistant from right edge";
+    case "bottom":
+      return "Resize assistant from bottom edge";
+    case "left":
+      return "Resize assistant from left edge";
+    case "top-left":
+      return "Resize assistant from top left";
+    case "top-right":
+      return "Resize assistant from top right";
+    case "bottom-left":
+      return "Resize assistant from bottom left";
+    case "bottom-right":
+      return "Resize assistant from bottom right";
+  }
+}
+
 function getViewportSize(): Size {
   if (typeof window === "undefined") {
     return { height: 0, width: 0 };
   }
   return { height: window.innerHeight, width: window.innerWidth };
+}
+
+function getViewportBounds(): Bounds {
+  if (typeof window === "undefined") {
+    return { height: 0, left: 0, top: 0, width: 0 };
+  }
+
+  const visualViewport = window.visualViewport;
+  if (visualViewport) {
+    return {
+      height: visualViewport.height,
+      left: visualViewport.offsetLeft,
+      top: visualViewport.offsetTop,
+      width: visualViewport.width,
+    };
+  }
+
+  return {
+    height: window.innerHeight,
+    left: 0,
+    top: 0,
+    width: window.innerWidth,
+  };
+}
+
+function getBoundaryBounds(
+  boundary: HTMLElement | null | undefined
+): Bounds | null {
+  if (!boundary) return null;
+  const rect = boundary.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return null;
+  return {
+    height: rect.height,
+    left: rect.left,
+    top: rect.top,
+    width: rect.width,
+  };
+}
+
+function getPanelBounds({
+  boundary,
+  layer,
+}: {
+  boundary: HTMLElement | null | undefined;
+  layer: FloatingPanelLayer;
+}): Bounds {
+  if (layer === "content") {
+    return getBoundaryBounds(boundary) ?? getViewportBounds();
+  }
+  return getViewportBounds();
+}
+
+function areBoundsEqual(bounds: Bounds, nextBounds: Bounds) {
+  return (
+    bounds.height === nextBounds.height &&
+    bounds.left === nextBounds.left &&
+    bounds.top === nextBounds.top &&
+    bounds.width === nextBounds.width
+  );
+}
+
+function areGeometriesEqual(
+  geometry: FloatingPanelGeometry,
+  nextGeometry: FloatingPanelGeometry
+) {
+  return (
+    geometry.height === nextGeometry.height &&
+    geometry.width === nextGeometry.width &&
+    geometry.x === nextGeometry.x &&
+    geometry.y === nextGeometry.y
+  );
 }
 
 function isFullscreenFloatingPanel() {
@@ -86,11 +231,16 @@ function isFullscreenFloatingPanel() {
   );
 }
 
-function getGeometryLimits(minSize: Size): ResizeLimits {
-  const viewport = getViewportSize();
-  const maxWidth = Math.max(viewport.width - VIEWPORT_MARGIN_PX * 2, 0);
+function getGeometryLimits({
+  bounds,
+  minSize,
+}: {
+  bounds: Bounds;
+  minSize: Size;
+}): ResizeLimits {
+  const maxWidth = Math.max(bounds.width - VIEWPORT_MARGIN_PX * 2, 0);
   const maxHeight = Math.max(
-    viewport.height - VIEWPORT_VERTICAL_MARGIN_PX * 2,
+    bounds.height - VIEWPORT_VERTICAL_MARGIN_PX * 2,
     0
   );
 
@@ -103,129 +253,201 @@ function getGeometryLimits(minSize: Size): ResizeLimits {
 }
 
 function getDefaultGeometry({
-  hasFloatingAction,
+  bounds,
   minSize,
   placement,
   size,
 }: {
-  hasFloatingAction: boolean;
+  bounds: Bounds;
   minSize: Size;
   placement: AgentFabPlacement;
   size: Size;
 }): FloatingPanelGeometry {
-  const limits = getGeometryLimits(minSize);
+  const limits = getGeometryLimits({ bounds, minSize });
   const width = clamp(size.width, limits.minWidth, limits.maxWidth);
   const height = clamp(size.height, limits.minHeight, limits.maxHeight);
   const x = placement.endsWith("end")
-    ? getViewportSize().width - width - VIEWPORT_MARGIN_PX
-    : VIEWPORT_MARGIN_PX;
+    ? bounds.left + bounds.width - width - VIEWPORT_MARGIN_PX
+    : bounds.left + VIEWPORT_MARGIN_PX;
   const y = placement.startsWith("bottom")
-    ? getViewportSize().height -
-      height -
-      (hasFloatingAction
-        ? FLOATING_ACTION_GAP_PX + FLOATING_ACTION_HEIGHT_PX
-        : 0) -
-      VIEWPORT_VERTICAL_MARGIN_PX
-    : VIEWPORT_VERTICAL_MARGIN_PX;
+    ? bounds.top + bounds.height - height - VIEWPORT_VERTICAL_MARGIN_PX
+    : bounds.top + VIEWPORT_VERTICAL_MARGIN_PX;
 
   return clampGeometry({
+    bounds,
     geometry: { height, width, x, y },
-    hasFloatingAction,
     minSize,
   });
 }
 
 function clampGeometry({
+  bounds,
   geometry,
-  hasFloatingAction,
   minSize,
 }: {
+  bounds: Bounds;
   geometry: FloatingPanelGeometry;
-  hasFloatingAction: boolean;
   minSize: Size;
 }): FloatingPanelGeometry {
-  const limits = getGeometryLimits(minSize);
+  const limits = getGeometryLimits({ bounds, minSize });
   const width = clamp(geometry.width, limits.minWidth, limits.maxWidth);
   const height = clamp(geometry.height, limits.minHeight, limits.maxHeight);
-  const bottomAttachmentHeight = hasFloatingAction
-    ? FLOATING_ACTION_GAP_PX + FLOATING_ACTION_HEIGHT_PX
-    : 0;
+  const minX = bounds.left + VIEWPORT_MARGIN_PX;
+  const minY = bounds.top + VIEWPORT_VERTICAL_MARGIN_PX;
   const maxX = Math.max(
-    getViewportSize().width - width - VIEWPORT_MARGIN_PX,
-    VIEWPORT_MARGIN_PX
+    bounds.left + bounds.width - width - VIEWPORT_MARGIN_PX,
+    minX
   );
   const maxY = Math.max(
-    getViewportSize().height -
-      height -
-      bottomAttachmentHeight -
-      VIEWPORT_VERTICAL_MARGIN_PX,
-    VIEWPORT_VERTICAL_MARGIN_PX
+    bounds.top + bounds.height - height - VIEWPORT_VERTICAL_MARGIN_PX,
+    minY
   );
 
   return {
     height,
     width,
-    x: clamp(geometry.x, VIEWPORT_MARGIN_PX, maxX),
-    y: clamp(geometry.y, VIEWPORT_VERTICAL_MARGIN_PX, maxY),
+    x: clamp(geometry.x, minX, maxX),
+    y: clamp(geometry.y, minY, maxY),
   };
 }
 
-function getResizedGeometry({
-  hasFloatingAction,
-  minSize,
-  pointer,
-  session,
+function getResizeBounds({
+  bounds,
+  edge,
+  geometry,
+  limits,
 }: {
-  hasFloatingAction: boolean;
+  bounds: Bounds;
+  edge: ResizeEdge;
+  geometry: FloatingPanelGeometry;
+  limits: ResizeLimits;
+}): Size {
+  const maxWidth = isLeftResizeEdge(edge)
+    ? geometry.x + geometry.width - bounds.left - VIEWPORT_MARGIN_PX
+    : bounds.left + bounds.width - VIEWPORT_MARGIN_PX - geometry.x;
+  const maxHeight = isTopResizeEdge(edge)
+    ? geometry.y + geometry.height - bounds.top - VIEWPORT_VERTICAL_MARGIN_PX
+    : bounds.top + bounds.height - VIEWPORT_VERTICAL_MARGIN_PX - geometry.y;
+
+  return {
+    height: Math.min(limits.maxHeight, maxHeight),
+    width: Math.min(limits.maxWidth, maxWidth),
+  };
+}
+
+function getResizeGeometryFromSize({
+  bounds,
+  edge,
+  height,
+  minSize,
+  startGeometry,
+  width,
+}: {
+  bounds: Bounds;
+  edge: ResizeEdge;
+  height: number;
   minSize: Size;
-  pointer: Point;
-  session: ResizeSession;
+  startGeometry: FloatingPanelGeometry;
+  width: number;
 }): FloatingPanelGeometry {
-  const start = session.startGeometry;
-  const limits = getGeometryLimits(minSize);
-  const widthDelta = start.x - pointer.x;
-  const heightDelta = start.y - pointer.y;
-  const maxWidth = Math.min(
-    limits.maxWidth,
-    start.x + start.width - VIEWPORT_MARGIN_PX
-  );
-  const maxHeight = Math.min(
-    limits.maxHeight,
-    start.y + start.height - VIEWPORT_VERTICAL_MARGIN_PX
-  );
-  const width = clamp(start.width + widthDelta, limits.minWidth, maxWidth);
-  const height = clamp(start.height + heightDelta, limits.minHeight, maxHeight);
+  const isLeftEdge = isLeftResizeEdge(edge);
+  const isTopEdge = isTopResizeEdge(edge);
+  const nextWidth = canResizeWidth(edge) ? width : startGeometry.width;
+  const nextHeight = canResizeHeight(edge) ? height : startGeometry.height;
 
   return clampGeometry({
+    bounds,
     geometry: {
-      ...start,
-      height,
-      width,
-      x: start.x + start.width - width,
-      y: start.y + start.height - height,
+      ...startGeometry,
+      height: nextHeight,
+      width: nextWidth,
+      x: isLeftEdge
+        ? startGeometry.x + startGeometry.width - nextWidth
+        : startGeometry.x,
+      y: isTopEdge
+        ? startGeometry.y + startGeometry.height - nextHeight
+        : startGeometry.y,
     },
-    hasFloatingAction,
     minSize,
   });
 }
 
 function getKeyboardResizeDelta({
+  edge,
   key,
 }: {
+  edge: ResizeEdge;
   key: string;
 }): { height: number; width: number } | null {
+  const horizontalStep = isLeftResizeEdge(edge)
+    ? -KEYBOARD_RESIZE_STEP_PX
+    : KEYBOARD_RESIZE_STEP_PX;
+  const verticalStep = isTopResizeEdge(edge)
+    ? -KEYBOARD_RESIZE_STEP_PX
+    : KEYBOARD_RESIZE_STEP_PX;
+
   switch (key) {
     case "ArrowLeft":
-      return { height: 0, width: KEYBOARD_RESIZE_STEP_PX };
+      return canResizeWidth(edge)
+        ? { height: 0, width: -horizontalStep }
+        : null;
     case "ArrowRight":
-      return { height: 0, width: -KEYBOARD_RESIZE_STEP_PX };
+      return canResizeWidth(edge) ? { height: 0, width: horizontalStep } : null;
     case "ArrowDown":
-      return { height: -KEYBOARD_RESIZE_STEP_PX, width: 0 };
+      return canResizeHeight(edge) ? { height: verticalStep, width: 0 } : null;
     case "ArrowUp":
-      return { height: KEYBOARD_RESIZE_STEP_PX, width: 0 };
+      return canResizeHeight(edge) ? { height: -verticalStep, width: 0 } : null;
     default:
       return null;
   }
+}
+
+function getResizedGeometry({
+  bounds,
+  minSize,
+  pointer,
+  session,
+}: {
+  bounds: Bounds;
+  minSize: Size;
+  pointer: Point;
+  session: ResizeSession;
+}): FloatingPanelGeometry {
+  const startGeometry = session.startGeometry;
+  const limits = getGeometryLimits({ bounds, minSize });
+  const resizeBounds = getResizeBounds({
+    bounds,
+    edge: session.edge,
+    geometry: startGeometry,
+    limits,
+  });
+  const width = clamp(
+    canResizeWidth(session.edge)
+      ? isLeftResizeEdge(session.edge)
+        ? startGeometry.x + startGeometry.width - pointer.x
+        : pointer.x - startGeometry.x
+      : startGeometry.width,
+    limits.minWidth,
+    resizeBounds.width
+  );
+  const height = clamp(
+    canResizeHeight(session.edge)
+      ? isTopResizeEdge(session.edge)
+        ? startGeometry.y + startGeometry.height - pointer.y
+        : pointer.y - startGeometry.y
+      : startGeometry.height,
+    limits.minHeight,
+    resizeBounds.height
+  );
+
+  return getResizeGeometryFromSize({
+    bounds,
+    edge: session.edge,
+    height,
+    minSize,
+    startGeometry,
+    width,
+  });
 }
 
 function isHeaderDragTarget(target: EventTarget | null) {
@@ -290,10 +512,6 @@ const resizableFloatingPanelCSS = css`
     cursor: grabbing;
   }
 
-  .resizable-floating-panel__resize-handle {
-    display: none;
-  }
-
   @media (max-width: ${FULLSCREEN_BREAKPOINT_PX}px),
     (max-height: ${FULLSCREEN_BREAKPOINT_PX}px) {
     inset: var(--global-dimension-size-100);
@@ -308,10 +526,6 @@ const resizableFloatingPanelCSS = css`
       cursor: default;
       touch-action: auto;
     }
-
-    .resizable-floating-panel__resize-handle {
-      display: none;
-    }
   }
 `;
 
@@ -322,34 +536,7 @@ const resizeHandleCSS = css`
   outline: none;
   padding: 0;
   background: transparent;
-  color: var(--global-color-gray-300);
   touch-action: none;
-  transition: color 150ms ease-out;
-
-  &::before,
-  &::after {
-    content: "";
-    position: absolute;
-    left: 4px;
-    height: 1.5px;
-    border-radius: 999px;
-    background-color: currentColor;
-
-    pointer-events: none;
-    transform: rotate(-45deg);
-    transform-origin: left center;
-    transition: opacity 150ms ease-out;
-  }
-
-  &::before {
-    top: 9px;
-    width: 7px;
-  }
-
-  &::after {
-    top: 12px;
-    width: 11px;
-  }
 
   &:focus-visible {
     outline: 2px solid var(--global-color-primary);
@@ -360,27 +547,109 @@ const resizeHandleCSS = css`
     z-index: ${MODAL_FLOATING_UI_Z_INDEX + 1};
   }
 
+  &[data-edge] {
+    width: ${RESIZE_CORNER_HANDLE_SIZE_PX}px;
+    height: ${RESIZE_CORNER_HANDLE_SIZE_PX}px;
+  }
+
+  &[data-edge="top"] {
+    top: var(--resizable-floating-panel-y);
+    left: calc(
+      var(--resizable-floating-panel-x) + ${RESIZE_CORNER_HANDLE_SIZE_PX}px
+    );
+    width: calc(
+      var(--resizable-floating-panel-width) -
+        ${RESIZE_CORNER_HANDLE_SIZE_PX * 2}px
+    );
+    height: ${RESIZE_EDGE_HANDLE_THICKNESS_PX}px;
+    cursor: ns-resize;
+  }
+
+  &[data-edge="right"] {
+    top: calc(
+      var(--resizable-floating-panel-y) + ${RESIZE_CORNER_HANDLE_SIZE_PX}px
+    );
+    left: calc(
+      var(--resizable-floating-panel-x) +
+        var(--resizable-floating-panel-width) -
+        ${RESIZE_EDGE_HANDLE_THICKNESS_PX}px
+    );
+    width: ${RESIZE_EDGE_HANDLE_THICKNESS_PX}px;
+    height: calc(
+      var(--resizable-floating-panel-height) -
+        ${RESIZE_CORNER_HANDLE_SIZE_PX * 2}px
+    );
+    cursor: ew-resize;
+  }
+
+  &[data-edge="bottom"] {
+    top: calc(
+      var(--resizable-floating-panel-y) +
+        var(--resizable-floating-panel-height) -
+        ${RESIZE_EDGE_HANDLE_THICKNESS_PX}px
+    );
+    left: calc(
+      var(--resizable-floating-panel-x) + ${RESIZE_CORNER_HANDLE_SIZE_PX}px
+    );
+    width: calc(
+      var(--resizable-floating-panel-width) -
+        ${RESIZE_CORNER_HANDLE_SIZE_PX * 2}px
+    );
+    height: ${RESIZE_EDGE_HANDLE_THICKNESS_PX}px;
+    cursor: ns-resize;
+  }
+
+  &[data-edge="left"] {
+    top: calc(
+      var(--resizable-floating-panel-y) + ${RESIZE_CORNER_HANDLE_SIZE_PX}px
+    );
+    left: var(--resizable-floating-panel-x);
+    width: ${RESIZE_EDGE_HANDLE_THICKNESS_PX}px;
+    height: calc(
+      var(--resizable-floating-panel-height) -
+        ${RESIZE_CORNER_HANDLE_SIZE_PX * 2}px
+    );
+    cursor: ew-resize;
+  }
+
   &[data-edge="top-left"] {
     top: var(--resizable-floating-panel-y);
     left: var(--resizable-floating-panel-x);
-    width: ${RESIZE_HANDLE_SIZE_PX + 6}px;
-    height: ${RESIZE_HANDLE_SIZE_PX + 6}px;
     cursor: nwse-resize;
   }
 
-  &:hover,
-  &[data-resizing="true"],
-  &:focus-visible {
-    color: var(--global-resize-handle-indicator-color-hover);
+  &[data-edge="top-right"] {
+    top: var(--resizable-floating-panel-y);
+    left: calc(
+      var(--resizable-floating-panel-x) +
+        var(--resizable-floating-panel-width) -
+        ${RESIZE_CORNER_HANDLE_SIZE_PX}px
+    );
+    cursor: nesw-resize;
   }
 
-  &:hover::before,
-  &:hover::after,
-  &[data-resizing="true"]::before,
-  &[data-resizing="true"]::after,
-  &:focus-visible::before,
-  &:focus-visible::after {
-    opacity: 1;
+  &[data-edge="bottom-left"] {
+    top: calc(
+      var(--resizable-floating-panel-y) +
+        var(--resizable-floating-panel-height) -
+        ${RESIZE_CORNER_HANDLE_SIZE_PX}px
+    );
+    left: var(--resizable-floating-panel-x);
+    cursor: nesw-resize;
+  }
+
+  &[data-edge="bottom-right"] {
+    top: calc(
+      var(--resizable-floating-panel-y) +
+        var(--resizable-floating-panel-height) -
+        ${RESIZE_CORNER_HANDLE_SIZE_PX}px
+    );
+    left: calc(
+      var(--resizable-floating-panel-x) +
+        var(--resizable-floating-panel-width) -
+        ${RESIZE_CORNER_HANDLE_SIZE_PX}px
+    );
+    cursor: nwse-resize;
   }
 
   @media (max-width: ${FULLSCREEN_BREAKPOINT_PX}px),
@@ -389,34 +658,9 @@ const resizeHandleCSS = css`
   }
 `;
 
-const floatingActionCSS = css`
-  position: fixed;
-  top: calc(
-    var(--resizable-floating-panel-y) + var(--resizable-floating-panel-height) +
-      ${FLOATING_ACTION_GAP_PX}px
-  );
-  left: calc(
-    var(--resizable-floating-panel-x) + var(--resizable-floating-panel-width) -
-      ${FLOATING_ACTION_WIDTH_PX}px
-  );
-  z-index: ${NON_MODAL_FLOATING_Z_INDEX};
-
-  &[data-layer="modal"] {
-    z-index: ${MODAL_FLOATING_UI_Z_INDEX};
-  }
-
-  @media (max-width: ${FULLSCREEN_BREAKPOINT_PX}px),
-    (max-height: ${FULLSCREEN_BREAKPOINT_PX}px) {
-    right: var(--global-dimension-size-200);
-    bottom: var(--global-dimension-size-200);
-    top: auto;
-    left: auto;
-  }
-`;
-
 export function ResizableFloatingPanel({
+  boundaryRef,
   children,
-  floatingAction,
   layer = "content",
   minSize,
   placement,
@@ -425,27 +669,36 @@ export function ResizableFloatingPanel({
 }: ResizableFloatingPanelProps) {
   const panelId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
-  const floatingActionRef = useRef<HTMLDivElement>(null);
   const resizeSessionRef = useRef<ResizeSession | null>(null);
   const moveSessionRef = useRef<MoveSession | null>(null);
   const pendingGeometryRef = useRef<FloatingPanelGeometry | null>(null);
   const latestGeometryRef = useRef<FloatingPanelGeometry | null>(null);
   const animationFrameIdRef = useRef<number | null>(null);
+  const previousLayerRef = useRef(layer);
+  const previousPlacementRef = useRef(placement);
   const [resizingEdge, setResizingEdge] = useState<ResizeEdge | null>(null);
   const [isMoving, setIsMoving] = useState(false);
   const [isResizeHandleHovered, setIsResizeHandleHovered] = useState(false);
-  const hasFloatingAction = Boolean(floatingAction);
+  const [resolvedBoundary, setResolvedBoundary] = useState<HTMLElement | null>(
+    () => boundaryRef?.current ?? null
+  );
+  const [currentBounds, setCurrentBounds] = useState(() =>
+    getPanelBounds({ boundary: boundaryRef?.current ?? null, layer })
+  );
   const [currentGeometry, setCurrentGeometry] = useState(() =>
-    getDefaultGeometry({ hasFloatingAction, minSize, placement, size })
+    getDefaultGeometry({
+      bounds: getPanelBounds({ boundary: boundaryRef?.current ?? null, layer }),
+      minSize,
+      placement,
+      size,
+    })
   );
   useModalFloatingLayerInteractivity(panelRef, layer === "modal");
-  useModalFloatingLayerInteractivity(floatingActionRef, layer === "modal");
 
-  const resizeLimits = getGeometryLimits(minSize);
-  const resizeHandles: ResizeEdge[] = ["top-left"];
+  const resizeLimits = getGeometryLimits({ bounds: currentBounds, minSize });
   const displayedGeometry = clampGeometry({
+    bounds: currentBounds,
     geometry: currentGeometry,
-    hasFloatingAction,
     minSize,
   });
   const isResizeHandleHighlighted =
@@ -460,8 +713,8 @@ export function ResizableFloatingPanel({
   };
   const scheduleGeometryUpdate = (nextGeometry: FloatingPanelGeometry) => {
     const clampedGeometry = clampGeometry({
+      bounds: currentBounds,
       geometry: nextGeometry,
-      hasFloatingAction,
       minSize,
     });
     pendingGeometryRef.current = clampedGeometry;
@@ -484,8 +737,8 @@ export function ResizableFloatingPanel({
     shouldCommitSize: boolean;
   }) => {
     const clampedGeometry = clampGeometry({
+      bounds: currentBounds,
       geometry: nextGeometry,
-      hasFloatingAction,
       minSize,
     });
     latestGeometryRef.current = clampedGeometry;
@@ -509,6 +762,7 @@ export function ResizableFloatingPanel({
 
     event.currentTarget.setPointerCapture(event.pointerId);
     resizeSessionRef.current = {
+      edge,
       pointerId: event.pointerId,
       startGeometry: displayedGeometry,
     };
@@ -523,7 +777,7 @@ export function ResizableFloatingPanel({
 
     scheduleGeometryUpdate(
       getResizedGeometry({
-        hasFloatingAction,
+        bounds: currentBounds,
         minSize,
         pointer: { x: event.clientX, y: event.clientY },
         session,
@@ -538,7 +792,7 @@ export function ResizableFloatingPanel({
     cancelPendingGeometryUpdate();
     commitGeometry({
       nextGeometry: getResizedGeometry({
-        hasFloatingAction,
+        bounds: currentBounds,
         minSize,
         pointer: { x: event.clientX, y: event.clientY },
         session,
@@ -592,12 +846,12 @@ export function ResizableFloatingPanel({
 
     scheduleGeometryUpdate(
       clampGeometry({
+        bounds: currentBounds,
         geometry: {
           ...session.startGeometry,
           x: session.startGeometry.x + event.clientX - session.startPointer.x,
           y: session.startGeometry.y + event.clientY - session.startPointer.y,
         },
-        hasFloatingAction,
         minSize,
       })
     );
@@ -610,12 +864,12 @@ export function ResizableFloatingPanel({
     cancelPendingGeometryUpdate();
     commitGeometry({
       nextGeometry: clampGeometry({
+        bounds: currentBounds,
         geometry: {
           ...session.startGeometry,
           x: session.startGeometry.x + event.clientX - session.startPointer.x,
           y: session.startGeometry.y + event.clientY - session.startPointer.y,
         },
-        hasFloatingAction,
         minSize,
       }),
       shouldCommitSize: false,
@@ -638,74 +892,156 @@ export function ResizableFloatingPanel({
     moveSessionRef.current = null;
     setIsMoving(false);
   };
-  const handleResizeKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+  const handleResizeKeyDown = (
+    event: ReactKeyboardEvent<HTMLDivElement>,
+    edge: ResizeEdge
+  ) => {
+    const isHome = event.key === "Home";
+    const isEnd = event.key === "End";
     const delta =
-      event.key === "Home" || event.key === "End"
-        ? null
-        : getKeyboardResizeDelta({ key: event.key });
-    if (delta == null && event.key !== "Home" && event.key !== "End") return;
+      isHome || isEnd ? null : getKeyboardResizeDelta({ edge, key: event.key });
+    if (!isHome && !isEnd && delta == null) return;
 
     event.preventDefault();
 
-    const maxWidth =
-      displayedGeometry.x + displayedGeometry.width - VIEWPORT_MARGIN_PX;
-    const maxHeight =
-      displayedGeometry.y +
-      displayedGeometry.height -
-      VIEWPORT_VERTICAL_MARGIN_PX;
-    const width =
-      event.key === "Home"
-        ? resizeLimits.minWidth
-        : event.key === "End"
-          ? maxWidth
-          : displayedGeometry.width + delta!.width;
-    const height =
-      event.key === "Home"
-        ? resizeLimits.minHeight
-        : event.key === "End"
-          ? maxHeight
-          : displayedGeometry.height + delta!.height;
+    const resizeBounds = getResizeBounds({
+      bounds: currentBounds,
+      edge,
+      geometry: displayedGeometry,
+      limits: resizeLimits,
+    });
+    const targetWidth = isHome
+      ? resizeLimits.minWidth
+      : isEnd
+        ? resizeBounds.width
+        : displayedGeometry.width + (delta?.width ?? 0);
+    const targetHeight = isHome
+      ? resizeLimits.minHeight
+      : isEnd
+        ? resizeBounds.height
+        : displayedGeometry.height + (delta?.height ?? 0);
     const nextWidth = clamp(
-      width,
+      targetWidth,
       resizeLimits.minWidth,
-      Math.min(resizeLimits.maxWidth, maxWidth)
+      Math.min(resizeLimits.maxWidth, resizeBounds.width)
     );
     const nextHeight = clamp(
-      height,
+      targetHeight,
       resizeLimits.minHeight,
-      Math.min(resizeLimits.maxHeight, maxHeight)
+      Math.min(resizeLimits.maxHeight, resizeBounds.height)
     );
 
     commitGeometry({
-      nextGeometry: {
-        ...displayedGeometry,
+      nextGeometry: getResizeGeometryFromSize({
+        bounds: currentBounds,
+        edge,
         height: nextHeight,
+        minSize,
+        startGeometry: displayedGeometry,
         width: nextWidth,
-        x: displayedGeometry.x + displayedGeometry.width - nextWidth,
-        y: displayedGeometry.y + displayedGeometry.height - nextHeight,
-      },
+      }),
       shouldCommitSize: true,
     });
   };
 
+  useLayoutEffect(() => {
+    if (layer !== "content") {
+      setResolvedBoundary(null);
+      return;
+    }
+
+    let animationFrameId: number | null = null;
+    const syncBoundaryElement = () => {
+      const nextBoundary = boundaryRef?.current ?? null;
+      setResolvedBoundary((currentBoundary) =>
+        currentBoundary === nextBoundary ? currentBoundary : nextBoundary
+      );
+
+      if (boundaryRef && !nextBoundary) {
+        animationFrameId = window.requestAnimationFrame(syncBoundaryElement);
+      }
+    };
+
+    syncBoundaryElement();
+
+    return () => {
+      if (animationFrameId != null) {
+        window.cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [boundaryRef, layer]);
+
+  useLayoutEffect(() => {
+    const syncPanelBounds = () => {
+      const nextBounds = getPanelBounds({
+        boundary: resolvedBoundary,
+        layer,
+      });
+      setCurrentBounds((bounds) =>
+        areBoundsEqual(bounds, nextBounds) ? bounds : nextBounds
+      );
+      setCurrentGeometry((geometry) => {
+        const clampedGeometry = clampGeometry({
+          bounds: nextBounds,
+          geometry,
+          minSize,
+        });
+        latestGeometryRef.current = clampedGeometry;
+        return areGeometriesEqual(geometry, clampedGeometry)
+          ? geometry
+          : clampedGeometry;
+      });
+    };
+
+    syncPanelBounds();
+
+    const observer =
+      layer === "content" &&
+      resolvedBoundary &&
+      typeof ResizeObserver === "function"
+        ? new ResizeObserver(syncPanelBounds)
+        : null;
+    if (resolvedBoundary && observer) {
+      observer.observe(resolvedBoundary);
+    }
+    window.addEventListener("resize", syncPanelBounds);
+    window.visualViewport?.addEventListener("resize", syncPanelBounds);
+    window.visualViewport?.addEventListener("scroll", syncPanelBounds);
+
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", syncPanelBounds);
+      window.visualViewport?.removeEventListener("resize", syncPanelBounds);
+      window.visualViewport?.removeEventListener("scroll", syncPanelBounds);
+    };
+  }, [layer, minSize, resolvedBoundary]);
+
   useEffect(() => {
     setCurrentGeometry((geometry) =>
       clampGeometry({
+        bounds: currentBounds,
         geometry: {
           ...geometry,
           height: size.height,
           width: size.width,
         },
-        hasFloatingAction,
         minSize,
       })
     );
-  }, [hasFloatingAction, minSize, size]);
+  }, [currentBounds, minSize, size]);
 
   useEffect(() => {
+    const hasLayerChanged = previousLayerRef.current !== layer;
+    const hasPlacementChanged = previousPlacementRef.current !== placement;
+    if (!hasLayerChanged && !hasPlacementChanged) {
+      return;
+    }
+
+    previousLayerRef.current = layer;
+    previousPlacementRef.current = placement;
     setCurrentGeometry((geometry) =>
       getDefaultGeometry({
-        hasFloatingAction,
+        bounds: currentBounds,
         minSize,
         placement,
         size: {
@@ -714,7 +1050,7 @@ export function ResizableFloatingPanel({
         },
       })
     );
-  }, [hasFloatingAction, minSize, placement]);
+  }, [currentBounds, layer, minSize, placement]);
 
   useEffect(() => {
     return cancelPendingGeometryUpdate;
@@ -739,13 +1075,13 @@ export function ResizableFloatingPanel({
 
   return (
     <>
-      {resizeHandles.map((edge) => (
+      {RESIZE_EDGES.map((edge) => (
         <div
           key={edge}
           role="separator"
           tabIndex={0}
           aria-controls={panelId}
-          aria-label="Resize assistant"
+          aria-label={getResizeHandleAriaLabel(edge)}
           aria-valuemax={Math.round(
             Math.min(resizeLimits.maxWidth, resizeLimits.maxHeight)
           )}
@@ -761,7 +1097,7 @@ export function ResizableFloatingPanel({
           data-edge={edge}
           data-resizing={resizingEdge === edge ? "true" : undefined}
           style={floatingPanelStyle}
-          onKeyDown={handleResizeKeyDown}
+          onKeyDown={(event) => handleResizeKeyDown(event, edge)}
           onLostPointerCapture={handleResizeLostPointerCapture}
           onPointerEnter={() => setIsResizeHandleHovered(true)}
           onPointerLeave={() => setIsResizeHandleHovered(false)}
@@ -805,22 +1141,6 @@ export function ResizableFloatingPanel({
       >
         {children}
       </div>
-      {floatingAction ? (
-        <div
-          className="resizable-floating-panel__floating-action"
-          css={floatingActionCSS}
-          data-layer={layer}
-          ref={floatingActionRef}
-          style={floatingPanelStyle}
-          onClick={stopModalLayerPropagation}
-          onPointerCancel={stopModalLayerPropagation}
-          onPointerDown={stopModalLayerPropagation}
-          onPointerMove={stopModalLayerPropagation}
-          onPointerUp={stopModalLayerPropagation}
-        >
-          {floatingAction}
-        </div>
-      ) : null}
     </>
   );
 }

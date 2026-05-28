@@ -138,6 +138,8 @@ export function Layout() {
                 <AgentChatWidget boundaryRef={contentRef} />
                 {shouldShowFloatingAgentPanel ? (
                   <FloatingAgentChatPanel
+                    boundaryRef={contentRef}
+                    isForcedFloating={shouldForceFloatingAgentPanel}
                     layer={hasOpenModal ? "modal" : "content"}
                   />
                 ) : null}
