@@ -644,7 +644,6 @@ function SandboxConfigDialogContent(props: SandboxConfigDialogContentProps) {
                 </Text>
               </Flex>
             ) : null}
-            {/* "ALLOWLIST" mode is reserved for future use — not user-selectable here. */}
             {activeBackend?.internetAccess === "BOOLEAN" ? (
               <Controller
                 name="internetAccessEnabled"

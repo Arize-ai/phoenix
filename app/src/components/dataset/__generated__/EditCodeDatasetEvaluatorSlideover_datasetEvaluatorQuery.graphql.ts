@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<17ff36e3b325f879d3cec9dd4b928d5a>>
+ * @generated SignedSource<<c3cf27951b6e6d3790f88b11dc30ce56>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -11,7 +11,7 @@
 import { ConcreteRequest } from 'relay-runtime';
 export type EvaluatorKind = "BUILTIN" | "CODE" | "LLM";
 export type InternetAccessChoice = "ALLOW" | "DENY";
-export type InternetAccessMode = "ALLOWLIST" | "BOOLEAN" | "NONE";
+export type InternetAccessMode = "BOOLEAN" | "NONE";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type OptimizationDirection = "MAXIMIZE" | "MINIMIZE" | "NONE";
 export type SandboxBackendStatus = "AVAILABLE" | "DISABLED" | "MISSING_CREDENTIALS" | "NOT_INSTALLED" | "UNAVAILABLE";

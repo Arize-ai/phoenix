@@ -61,7 +61,7 @@ class AdapterMetadata:
     supports_dependencies: bool = False
     hosting_type: Literal["local", "hosted"] = "hosted"
     supports_env_vars: bool = False
-    internet_access_capability: Literal["none", "boolean", "allowlist"] = "none"
+    internet_access_capability: Literal["none", "boolean"] = "none"
 
     @classmethod
     def from_cls(cls, adapter_cls: type[SandboxAdapter[Any, Any, Any]]) -> "AdapterMetadata":

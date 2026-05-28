@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<18f468bcb4196b93256217886590e55b>>
+ * @generated SignedSource<<7204aa058652346c35570d70df076ab9>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,7 +10,7 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 export type InternetAccessChoice = "ALLOW" | "DENY";
-export type InternetAccessMode = "ALLOWLIST" | "BOOLEAN" | "NONE";
+export type InternetAccessMode = "BOOLEAN" | "NONE";
 export type Language = "PYTHON" | "TYPESCRIPT";
 export type SandboxBackendStatus = "AVAILABLE" | "DISABLED" | "MISSING_CREDENTIALS" | "NOT_INSTALLED" | "UNAVAILABLE";
 export type SandboxBackendType = "DAYTONA" | "DENO" | "E2B" | "MODAL" | "VERCEL" | "WASM";
