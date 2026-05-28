@@ -28,6 +28,7 @@ import { SessionListMenu } from "./SessionListMenu";
 const PANEL_HEADER_Z_INDEX = 3;
 const FLOATING_PANEL_WIDTH_PX = 420;
 const FLOATING_PANEL_HEIGHT_PX = 720;
+const FLOATING_PANEL_MAX_WIDTH_PX = 650;
 const FLOATING_PANEL_MIN_WIDTH_PX = 360;
 const FLOATING_PANEL_MIN_HEIGHT_PX = 520;
 
@@ -269,6 +270,7 @@ export function FloatingAgentChatFrame({
       boundaryRef={boundaryRef}
       floatingAction={floatingAction}
       layer={layer}
+      maxWidth={FLOATING_PANEL_MAX_WIDTH_PX}
       minSize={MIN_FLOATING_AGENT_CHAT_SIZE}
       onPlacementChange={onPlacementChange}
       placement={placement}

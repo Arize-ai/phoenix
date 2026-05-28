@@ -7,7 +7,14 @@ import type {
   RefObject,
   SyntheticEvent as ReactSyntheticEvent,
 } from "react";
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 import {
   MODAL_FLOATING_UI_Z_INDEX,
@@ -20,7 +27,6 @@ import {
   FAB_INSET,
   FAB_RESTING_SIZE,
   getFabPinnedPosition,
-  getNearestFabPlacement,
 } from "./agentFabPositioning";
 import {
   getPositioningBounds,
@@ -83,6 +89,7 @@ export type ResizableFloatingPanelProps = {
   children: ReactNode;
   floatingAction?: ReactNode;
   layer?: FloatingPanelLayer;
+  maxWidth?: number;
   minSize: Size;
   onPlacementChange?: (placement: AgentFabPlacement) => void;
   placement: AgentFabPlacement;
@@ -174,13 +181,17 @@ function getMaxPanelY({
 function getGeometryLimits({
   bounds,
   hasFloatingAction,
+  maxWidth,
   minSize,
 }: {
   bounds: Bounds;
   hasFloatingAction: boolean;
+  maxWidth?: number;
   minSize: Size;
 }): ResizeLimits {
-  const maxWidth = Math.max(bounds.width - VIEWPORT_MARGIN_PX * 2, 0);
+  const viewportMaxWidth = Math.max(bounds.width - VIEWPORT_MARGIN_PX * 2, 0);
+  const effectiveMaxWidth =
+    maxWidth == null ? viewportMaxWidth : Math.min(viewportMaxWidth, maxWidth);
   const maxHeight = Math.max(
     bounds.height - VIEWPORT_VERTICAL_MARGIN_PX * 2 - getAttachmentHeight(hasFloatingAction),
     0
@@ -188,9 +199,9 @@ function getGeometryLimits({
 
   return {
     maxHeight,
-    maxWidth,
+    maxWidth: effectiveMaxWidth,
     minHeight: Math.min(minSize.height, maxHeight),
-    minWidth: Math.min(minSize.width, maxWidth),
+    minWidth: Math.min(minSize.width, effectiveMaxWidth),
   };
 }
 
@@ -214,17 +225,24 @@ function getFloatingActionPosition({
 function getPinnedGeometry({
   bounds,
   hasFloatingAction,
+  maxWidth,
   minSize,
   placement,
   size,
 }: {
   bounds: Bounds;
   hasFloatingAction: boolean;
+  maxWidth?: number;
   minSize: Size;
   placement: AgentFabPlacement;
   size: Size;
 }): FloatingPanelGeometry {
-  const limits = getGeometryLimits({ bounds, hasFloatingAction, minSize });
+  const limits = getGeometryLimits({
+    bounds,
+    hasFloatingAction,
+    maxWidth,
+    minSize,
+  });
   const width = clamp(size.width, limits.minWidth, limits.maxWidth);
   const height = clamp(size.height, limits.minHeight, limits.maxHeight);
   if (!hasFloatingAction) {
@@ -239,6 +257,7 @@ function getPinnedGeometry({
       bounds,
       geometry: { height, width, x, y },
       hasFloatingAction,
+      maxWidth,
       minSize,
       placement,
     });
@@ -264,6 +283,7 @@ function getPinnedGeometry({
     bounds,
     geometry: { height, width, x, y },
     hasFloatingAction,
+    maxWidth,
     minSize,
     placement,
   });
@@ -273,16 +293,23 @@ function clampGeometry({
   bounds,
   geometry,
   hasFloatingAction,
+  maxWidth,
   minSize,
   placement,
 }: {
   bounds: Bounds;
   geometry: FloatingPanelGeometry;
   hasFloatingAction: boolean;
+  maxWidth?: number;
   minSize: Size;
   placement: AgentFabPlacement;
 }): FloatingPanelGeometry {
-  const limits = getGeometryLimits({ bounds, hasFloatingAction, minSize });
+  const limits = getGeometryLimits({
+    bounds,
+    hasFloatingAction,
+    maxWidth,
+    minSize,
+  });
   const width = clamp(geometry.width, limits.minWidth, limits.maxWidth);
   const height = clamp(geometry.height, limits.minHeight, limits.maxHeight);
   const minX = getMinPanelX(bounds);
@@ -306,30 +333,49 @@ function clampGeometry({
 function getNearestPlacementForGeometry({
   bounds,
   geometry,
+  hasFloatingAction,
+  maxWidth,
+  minSize,
 }: {
   bounds: Bounds;
   geometry: FloatingPanelGeometry;
+  hasFloatingAction: boolean;
+  maxWidth?: number;
+  minSize: Size;
 }): AgentFabPlacement {
   let nearestPlacement = FLOATING_PANEL_PLACEMENTS[0];
   let nearestSquaredDistance = Number.POSITIVE_INFINITY;
 
   for (const candidatePlacement of FLOATING_PANEL_PLACEMENTS) {
-    const candidateActionPoint = getFloatingActionPosition({
-      geometry,
-      placement: candidatePlacement,
-    });
-    const pinnedActionPoint = getFabPinnedPosition({
-      placement: candidatePlacement,
+    const candidatePinnedGeometry = getPinnedGeometry({
       bounds,
+      hasFloatingAction,
+      maxWidth,
+      minSize,
+      placement: candidatePlacement,
       size: {
-        height: FLOATING_ACTION_HEIGHT_PX,
-        width: FLOATING_ACTION_WIDTH_PX,
+        height: geometry.height,
+        width: geometry.width,
       },
-      inset: FAB_INSET,
     });
+    const currentSnapPoint = hasFloatingAction
+      ? getFloatingActionPosition({
+          geometry,
+          placement: candidatePlacement,
+        })
+      : { x: geometry.x, y: geometry.y };
+    const pinnedSnapPoint = hasFloatingAction
+      ? getFloatingActionPosition({
+          geometry: candidatePinnedGeometry,
+          placement: candidatePlacement,
+        })
+      : {
+          x: candidatePinnedGeometry.x,
+          y: candidatePinnedGeometry.y,
+        };
     const squaredDistance =
-      (candidateActionPoint.x - pinnedActionPoint.x) ** 2 +
-      (candidateActionPoint.y - pinnedActionPoint.y) ** 2;
+      (currentSnapPoint.x - pinnedSnapPoint.x) ** 2 +
+      (currentSnapPoint.y - pinnedSnapPoint.y) ** 2;
 
     if (squaredDistance < nearestSquaredDistance) {
       nearestSquaredDistance = squaredDistance;
@@ -343,6 +389,7 @@ function getNearestPlacementForGeometry({
 function getResizedGeometry({
   bounds,
   hasFloatingAction,
+  maxWidth,
   minSize,
   placement,
   pointer,
@@ -350,13 +397,19 @@ function getResizedGeometry({
 }: {
   bounds: Bounds;
   hasFloatingAction: boolean;
+  maxWidth?: number;
   minSize: Size;
   placement: AgentFabPlacement;
   pointer: Point;
   session: ResizeSession;
 }): FloatingPanelGeometry {
   const start = session.startGeometry;
-  const limits = getGeometryLimits({ bounds, hasFloatingAction, minSize });
+  const limits = getGeometryLimits({
+    bounds,
+    hasFloatingAction,
+    maxWidth,
+    minSize,
+  });
   const isLeftEdge = session.edge.endsWith("left");
   const isTopEdge = session.edge.startsWith("top");
   const widthDelta = isLeftEdge
@@ -365,7 +418,7 @@ function getResizedGeometry({
   const heightDelta = isTopEdge
     ? start.y - pointer.y
     : pointer.y - (start.y + start.height);
-  const maxWidth = Math.min(
+  const maxAllowedWidth = Math.min(
     limits.maxWidth,
     isLeftEdge
       ? start.x + start.width - getMinPanelX(bounds)
@@ -381,7 +434,11 @@ function getResizedGeometry({
           : 0) -
         start.y
   );
-  const width = clamp(start.width + widthDelta, limits.minWidth, maxWidth);
+  const width = clamp(
+    start.width + widthDelta,
+    limits.minWidth,
+    maxAllowedWidth
+  );
   const height = clamp(start.height + heightDelta, limits.minHeight, maxHeight);
 
   return clampGeometry({
@@ -394,6 +451,7 @@ function getResizedGeometry({
       y: isTopEdge ? start.y + start.height - height : start.y,
     },
     hasFloatingAction,
+    maxWidth,
     minSize,
     placement,
   });
@@ -450,10 +508,6 @@ function isHeaderDragTarget(target: EventTarget | null) {
 }
 
 const resizableFloatingPanelCSS = css`
-  --resizable-floating-panel-viewport-margin: var(
-    --global-dimension-size-400
-  );
-
   position: fixed;
   z-index: ${NON_MODAL_FLOATING_Z_INDEX};
   top: var(--resizable-floating-panel-y);
@@ -463,16 +517,10 @@ const resizableFloatingPanelCSS = css`
   box-sizing: border-box;
   width: var(--resizable-floating-panel-width);
   height: var(--resizable-floating-panel-height);
-  max-width: calc(100vw - var(--resizable-floating-panel-viewport-margin));
-  max-height: calc(100vh - var(--resizable-floating-panel-viewport-margin));
-  min-width: min(
-    var(--resizable-floating-panel-min-width),
-    calc(100vw - var(--resizable-floating-panel-viewport-margin))
-  );
-  min-height: min(
-    var(--resizable-floating-panel-min-height),
-    calc(100vh - var(--resizable-floating-panel-viewport-margin))
-  );
+  max-width: var(--resizable-floating-panel-max-width);
+  max-height: var(--resizable-floating-panel-max-height);
+  min-width: var(--resizable-floating-panel-min-width);
+  min-height: var(--resizable-floating-panel-min-height);
   overflow: hidden;
   border: 1px solid var(--global-border-color-default);
   border-radius: var(--global-rounding-medium);
@@ -696,6 +744,7 @@ export function ResizableFloatingPanel({
   children,
   floatingAction,
   layer = "content",
+  maxWidth,
   minSize,
   onPlacementChange,
   placement,
@@ -730,6 +779,7 @@ export function ResizableFloatingPanel({
           requiresBoundary: Boolean(boundaryRef),
         }) ?? getViewportBounds(),
       hasFloatingAction,
+      maxWidth,
       minSize,
       placement,
       size,
@@ -738,22 +788,28 @@ export function ResizableFloatingPanel({
   useModalFloatingLayerInteractivity(panelRef, layer === "modal");
   useModalFloatingLayerInteractivity(floatingActionRef, layer === "modal");
 
-  const getBounds = (): Bounds =>
-    getPositioningBounds({
-      boundary: resolvedBoundary,
-      requiresBoundary,
-    }) ?? getViewportBounds();
+  const getBounds = useCallback(
+    (): Bounds =>
+      getPositioningBounds({
+        boundary: resolvedBoundary,
+        requiresBoundary,
+      }) ?? getViewportBounds(),
+    [requiresBoundary, resolvedBoundary]
+  );
 
   const resizeLimits = getGeometryLimits({
     bounds: getBounds(),
     hasFloatingAction,
+    maxWidth,
     minSize,
   });
+  const isFullscreen = isFullscreenFloatingPanel();
   const resizeHandles: ResizeEdge[] = [getResizeEdge(placement)];
   const displayedGeometry = clampGeometry({
     bounds: getBounds(),
     geometry: currentGeometry,
     hasFloatingAction,
+    maxWidth,
     minSize,
     placement,
   });
@@ -772,6 +828,7 @@ export function ResizableFloatingPanel({
       bounds: getBounds(),
       geometry: nextGeometry,
       hasFloatingAction,
+      maxWidth,
       minSize,
       placement,
     });
@@ -798,6 +855,7 @@ export function ResizableFloatingPanel({
       bounds: getBounds(),
       geometry: nextGeometry,
       hasFloatingAction,
+      maxWidth,
       minSize,
       placement,
     });
@@ -852,6 +910,7 @@ export function ResizableFloatingPanel({
       getResizedGeometry({
         bounds: getBounds(),
         hasFloatingAction,
+        maxWidth,
         minSize,
         placement,
         pointer: { x: event.clientX, y: event.clientY },
@@ -869,6 +928,7 @@ export function ResizableFloatingPanel({
       nextGeometry: getResizedGeometry({
         bounds: getBounds(),
         hasFloatingAction,
+        maxWidth,
         minSize,
         placement,
         pointer: { x: event.clientX, y: event.clientY },
@@ -955,6 +1015,7 @@ export function ResizableFloatingPanel({
           y: session.startGeometry.y + event.clientY - session.startPointer.y,
         },
         hasFloatingAction,
+        maxWidth,
         minSize,
         placement,
       })
@@ -981,32 +1042,24 @@ export function ResizableFloatingPanel({
         y: session.startGeometry.y + event.clientY - session.startPointer.y,
       },
       hasFloatingAction,
+      maxWidth,
       minSize,
       placement,
     });
-    const nextPlacement = hasFloatingAction
-      ? getNearestPlacementForGeometry({
-          bounds: session.bounds,
-          geometry: draggedGeometry,
-        })
-      : getNearestFabPlacement({
-          point: {
-            x: draggedGeometry.x,
-            y: draggedGeometry.y,
-          },
-          bounds: session.bounds,
-          size: {
-            height: FLOATING_ACTION_HEIGHT_PX,
-            width: FLOATING_ACTION_WIDTH_PX,
-          },
-          inset: FAB_INSET,
-        });
+    const nextPlacement = getNearestPlacementForGeometry({
+      bounds: session.bounds,
+      geometry: draggedGeometry,
+      hasFloatingAction,
+      maxWidth,
+      minSize,
+    });
 
     cancelPendingGeometryUpdate();
     commitGeometry({
       nextGeometry: getPinnedGeometry({
         bounds: session.bounds,
         hasFloatingAction,
+        maxWidth,
         minSize,
         placement: nextPlacement,
         size: {
@@ -1161,11 +1214,19 @@ export function ResizableFloatingPanel({
           width: size.width,
         },
         hasFloatingAction,
+        maxWidth,
         minSize,
         placement,
       })
     );
-  }, [hasFloatingAction, minSize, size]);
+  }, [
+    getBounds,
+    hasFloatingAction,
+    maxWidth,
+    minSize,
+    placement,
+    size,
+  ]);
 
   useLayoutEffect(() => {
     const syncPinnedGeometry = () => {
@@ -1178,6 +1239,7 @@ export function ResizableFloatingPanel({
         getPinnedGeometry({
           bounds,
           hasFloatingAction,
+          maxWidth,
           minSize,
           placement,
           size: {
@@ -1206,7 +1268,9 @@ export function ResizableFloatingPanel({
       window.visualViewport?.removeEventListener("scroll", syncPinnedGeometry);
     };
   }, [
+    getBounds,
     hasFloatingAction,
+    maxWidth,
     minSize,
     placement,
     requiresBoundary,
@@ -1233,8 +1297,10 @@ export function ResizableFloatingPanel({
 
   const floatingPanelStyle = {
     "--resizable-floating-panel-height": `${displayedGeometry.height}px`,
-    "--resizable-floating-panel-min-height": `${minSize.height}px`,
-    "--resizable-floating-panel-min-width": `${minSize.width}px`,
+    "--resizable-floating-panel-max-height": `${resizeLimits.maxHeight}px`,
+    "--resizable-floating-panel-max-width": `${resizeLimits.maxWidth}px`,
+    "--resizable-floating-panel-min-height": `${resizeLimits.minHeight}px`,
+    "--resizable-floating-panel-min-width": `${resizeLimits.minWidth}px`,
     "--resizable-floating-panel-width": `${displayedGeometry.width}px`,
     "--resizable-floating-panel-x": `${displayedGeometry.x}px`,
     "--resizable-floating-panel-y": `${displayedGeometry.y}px`,
@@ -1242,7 +1308,9 @@ export function ResizableFloatingPanel({
 
   return (
     <>
-      {resizeHandles.map((edge) => (
+      {isFullscreen
+        ? null
+        : resizeHandles.map((edge) => (
         <div
           key={edge}
           role="separator"
@@ -1273,7 +1341,7 @@ export function ResizableFloatingPanel({
           onPointerMove={handleResizePointerMove}
           onPointerUp={finishResize}
         />
-      ))}
+          ))}
       <div
         id={panelId}
         className="resizable-floating-panel"

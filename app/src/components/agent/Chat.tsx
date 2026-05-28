@@ -157,8 +157,7 @@ const chatCSS = css`
 
   .chat__messages {
     box-sizing: border-box;
-    max-width: 780px;
-    margin: 0 auto;
+    width: 100%;
     position: relative;
     z-index: 2;
     display: flex;
@@ -183,14 +182,11 @@ const chatCSS = css`
 
   .chat__input {
     flex-shrink: 0;
-    margin: 0 auto;
+    box-sizing: border-box;
+    width: 100%;
     position: relative;
     z-index: 2;
-    /* Respects sidebar inset until the sidebar is wider than the max input size. */
-    width: min(
-      var(--global-dimension-size-8500),
-      max(0px, calc(100% - (2 * var(--chat-sidebar-inset))))
-    );
+    padding-inline: var(--chat-sidebar-inset);
     padding-top: var(--global-dimension-size-100);
     padding-bottom: var(--global-dimension-size-250);
     animation: ${chatInputFadeUp} 280ms ease-out;
