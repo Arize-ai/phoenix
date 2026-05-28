@@ -4,7 +4,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -15,12 +14,14 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  InteractiveLegend,
   TimeRangeChartBrush,
   defaultCartesianGridProps,
   defaultLegendProps,
   defaultTimeXAxisProps,
   defaultYAxisProps,
   useBinTimeTickFormatter,
+  useInteractiveLegend,
   useSemanticChartColors,
   useSequentialChartColors,
 } from "@phoenix/components/chart";
@@ -38,15 +39,6 @@ import type { ToolSpanCountTimeSeriesQuery } from "./__generated__/ToolSpanCount
 function TooltipContent({ active, payload, label }: TooltipContentProps) {
   const { fullTimeFormatter } = useTimeFormatters();
   if (active && payload && payload.length) {
-    const errorValue = payload[0]?.value ?? null;
-    const errorColor = payload[0]?.color ?? null;
-    const unsetValue = payload[1]?.value ?? null;
-    const unsetColor = payload[1]?.color ?? null;
-    const okValue = payload[2]?.value ?? null;
-    const okColor = payload[2]?.color ?? null;
-    const okString = intFormatter(Number(okValue));
-    const unsetString = intFormatter(Number(unsetValue));
-    const errorString = intFormatter(Number(errorValue));
     return (
       <ChartTooltip>
         {label && (
@@ -54,24 +46,18 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
             new Date(Number(label))
           )}`}</Text>
         )}
-        <ChartTooltipItem
-          color={errorColor ?? "transparent"}
-          shape="circle"
-          name="error"
-          value={errorString}
-        />
-        <ChartTooltipItem
-          color={unsetColor ?? "transparent"}
-          shape="circle"
-          name="unset"
-          value={unsetString}
-        />
-        <ChartTooltipItem
-          color={okColor ?? "transparent"}
-          shape="circle"
-          name="ok"
-          value={okString}
-        />
+        {payload.map((entry) => {
+          const name = String(entry.dataKey ?? entry.name ?? "unknown");
+          return (
+            <ChartTooltipItem
+              color={entry.color ?? "transparent"}
+              key={name}
+              shape="circle"
+              name={name}
+              value={intFormatter(Number(entry.value))}
+            />
+          );
+        })}
       </ChartTooltip>
     );
   }
@@ -139,6 +125,8 @@ export function ToolSpanCountTimeSeries({
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
   const colors = useSequentialChartColors();
   const SemanticChartColors = useSemanticChartColors();
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+    useInteractiveLegend();
   return (
     <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
       {({ chartProps }) => (
@@ -179,15 +167,28 @@ export function ToolSpanCountTimeSeries({
               dataKey="error"
               stackId="a"
               fill={SemanticChartColors.danger}
+              hide={isDataKeyHidden("error")}
             />
-            <Bar dataKey="unset" stackId="a" fill={colors.gray500} />
+            <Bar
+              dataKey="unset"
+              stackId="a"
+              fill={colors.gray500}
+              hide={isDataKeyHidden("unset")}
+            />
             <Bar
               dataKey="ok"
               stackId="a"
               fill={colors.gray300}
+              hide={isDataKeyHidden("ok")}
               radius={[2, 2, 0, 0]}
             />
-            <Legend {...defaultLegendProps} iconType="circle" iconSize={8} />
+            <InteractiveLegend
+              {...defaultLegendProps}
+              hiddenDataKeys={hiddenDataKeys}
+              iconType="circle"
+              iconSize={8}
+              onToggleDataKey={toggleDataKey}
+            />
           </BarChart>
         </ResponsiveContainer>
       )}

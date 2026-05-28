@@ -5,7 +5,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -16,12 +15,14 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  InteractiveLegend,
   defaultCartesianGridProps,
   defaultLegendProps,
   defaultXAxisProps,
   defaultYAxisProps,
   truncateModelName,
   useCategoryChartColors,
+  useInteractiveLegend,
 } from "@phoenix/components/chart";
 import type { ProjectMetricViewProps } from "@phoenix/pages/project/metrics/types";
 import { intFormatter } from "@phoenix/utils/numberFormatUtils";
@@ -29,12 +30,7 @@ import { intFormatter } from "@phoenix/utils/numberFormatUtils";
 import type { TopModelsByTokenQuery } from "./__generated__/TopModelsByTokenQuery.graphql";
 
 function TooltipContent({ active, payload, label }: TooltipContentProps) {
-  const colors = useCategoryChartColors();
-
   if (active && payload && payload.length) {
-    const promptTokens = payload[0]?.value ?? null;
-    const completionTokens = payload[1]?.value ?? null;
-
     return (
       <ChartTooltip>
         {label && (
@@ -42,18 +38,15 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
             {String(label)}
           </Text>
         )}
-        <ChartTooltipItem
-          color={colors.category1}
-          shape="circle"
-          name="Prompt tokens"
-          value={intFormatter(Number(promptTokens))}
-        />
-        <ChartTooltipItem
-          color={colors.category2}
-          shape="circle"
-          name="Completion tokens"
-          value={intFormatter(Number(completionTokens))}
-        />
+        {payload.map((entry) => (
+          <ChartTooltipItem
+            color={entry.color ?? "transparent"}
+            key={String(entry.dataKey ?? entry.name)}
+            shape="circle"
+            name={String(entry.name ?? entry.dataKey ?? "unknown")}
+            value={intFormatter(Number(entry.value))}
+          />
+        ))}
       </ChartTooltip>
     );
   }
@@ -66,6 +59,8 @@ export function TopModelsByToken({
   timeRange,
 }: ProjectMetricViewProps) {
   const colors = useCategoryChartColors();
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+    useInteractiveLegend();
   const data = useLazyLoadQuery<TopModelsByTokenQuery>(
     graphql`
       query TopModelsByTokenQuery($projectId: ID!, $timeRange: TimeRange!) {
@@ -145,15 +140,25 @@ export function TopModelsByToken({
           dataKey="prompt_tokens"
           stackId="a"
           fill={colors.category1}
+          hide={isDataKeyHidden("prompt_tokens")}
+          name="Prompt tokens"
           radius={[2, 0, 0, 2]}
         />
         <Bar
           dataKey="completion_tokens"
           stackId="a"
           fill={colors.category2}
+          hide={isDataKeyHidden("completion_tokens")}
+          name="Completion tokens"
           radius={[0, 2, 2, 0]}
         />
-        <Legend {...defaultLegendProps} iconType="circle" iconSize={8} />
+        <InteractiveLegend
+          {...defaultLegendProps}
+          hiddenDataKeys={hiddenDataKeys}
+          iconType="circle"
+          iconSize={8}
+          onToggleDataKey={toggleDataKey}
+        />
       </BarChart>
     </ResponsiveContainer>
   );

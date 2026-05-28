@@ -5,7 +5,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -16,12 +15,14 @@ import { Text } from "@phoenix/components";
 import {
   ChartTooltip,
   ChartTooltipItem,
+  InteractiveLegend,
   TimeRangeChartBrush,
   defaultCartesianGridProps,
   defaultLegendProps,
   defaultTimeXAxisProps,
   defaultYAxisProps,
   useBinTimeTickFormatter,
+  useInteractiveLegend,
   useSemanticChartColors,
   useSequentialChartColors,
 } from "@phoenix/components/chart";
@@ -36,13 +37,6 @@ import type { TraceCountTimeSeriesQuery } from "./__generated__/TraceCountTimeSe
 function TooltipContent({ active, payload, label }: TooltipContentProps) {
   const { fullTimeFormatter } = useTimeFormatters();
   if (active && payload && payload.length) {
-    // For stacked bar charts, payload[0] is the first bar (error), payload[1] is the second bar (ok)
-    const errorValue = payload[0]?.value ?? null;
-    const errorColor = payload[0]?.color ?? null;
-    const okValue = payload[1]?.value ?? null;
-    const okColor = payload[1]?.color ?? null;
-    const okString = intFormatter(Number(okValue));
-    const errorString = intFormatter(Number(errorValue));
     return (
       <ChartTooltip>
         {label && (
@@ -50,18 +44,18 @@ function TooltipContent({ active, payload, label }: TooltipContentProps) {
             new Date(Number(label))
           )}`}</Text>
         )}
-        <ChartTooltipItem
-          color={errorColor ?? "transparent"}
-          shape="circle"
-          name="error"
-          value={errorString}
-        />
-        <ChartTooltipItem
-          color={okColor ?? "transparent"}
-          shape="circle"
-          name="ok"
-          value={okString}
-        />
+        {payload.map((entry) => {
+          const name = String(entry.dataKey ?? entry.name ?? "unknown");
+          return (
+            <ChartTooltipItem
+              color={entry.color ?? "transparent"}
+              key={name}
+              shape="circle"
+              name={name}
+              value={intFormatter(Number(entry.value))}
+            />
+          );
+        })}
       </ChartTooltip>
     );
   }
@@ -127,6 +121,8 @@ export function TraceCountTimeSeries({
 
   const colors = useSequentialChartColors();
   const SemanticChartColors = useSemanticChartColors();
+  const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
+    useInteractiveLegend();
   return (
     <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
       {({ chartProps }) => (
@@ -167,15 +163,23 @@ export function TraceCountTimeSeries({
               dataKey="error"
               stackId="a"
               fill={SemanticChartColors.danger}
+              hide={isDataKeyHidden("error")}
             />
             <Bar
               dataKey="ok"
               stackId="a"
               fill={colors.gray300}
+              hide={isDataKeyHidden("ok")}
               radius={[2, 2, 0, 0]}
             />
 
-            <Legend iconType="circle" iconSize={8} {...defaultLegendProps} />
+            <InteractiveLegend
+              iconType="circle"
+              iconSize={8}
+              {...defaultLegendProps}
+              hiddenDataKeys={hiddenDataKeys}
+              onToggleDataKey={toggleDataKey}
+            />
           </BarChart>
         </ResponsiveContainer>
       )}
