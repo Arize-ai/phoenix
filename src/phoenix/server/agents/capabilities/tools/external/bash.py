@@ -22,6 +22,7 @@ General purpose network access is disabled, so curl/wget and remote package inst
 should not be assumed to work.
 Built-in just-bash commands are available; do not assume apt, brew, pnpm, uv, git, \
 or other host binaries exist unless the sandbox reports them.
+Language runtimes such as python, python3, and node are not available.
 The user has no access to the filesystem. You can use the filesystem for your own \
 purposes, but if you want to share something with the user, you must display the \
 content in the rich markdown rendered chat.
