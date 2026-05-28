@@ -28,6 +28,8 @@ import {
   getSandboxConfigSettings,
   LanguageWithIcon,
   SandboxHostingTypeBadge,
+  shouldShowRuntimeUnavailableBadge,
+  StatusText,
 } from "./utils";
 
 export function SandboxConfigsCard({
@@ -133,10 +135,23 @@ export function SandboxConfigsCard({
                         alignItems="center"
                         justifyContent="space-between"
                       >
-                        <ConfigEnabledSwitch
-                          config={config}
-                          canEnable={provider.enabled}
-                        />
+                        <Flex
+                          direction="column"
+                          gap="size-50"
+                          alignItems="start"
+                        >
+                          <ConfigEnabledSwitch
+                            config={config}
+                            canEnable={provider.enabled}
+                          />
+                          {shouldShowRuntimeUnavailableBadge(backend) ? (
+                            <StatusText
+                              status={backend.status}
+                              detail={backend.statusDetail}
+                              dependencyHints={backend.dependencyHints}
+                            />
+                          ) : null}
+                        </Flex>
                         <Flex
                           justifyContent="end"
                           gap="size-100"
