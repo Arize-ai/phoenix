@@ -16,25 +16,24 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
-      issues: write
-      id-token: write
-    env:
-      GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
-          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          persist-credentials: false
+
+      - name: Prepare scratch directory
+        run: mkdir -p .scratch
 
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@094bd24d575e7b30ac1576024817bf1a97c81262 # v1.0.80
+        uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
+        env:
+          CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
-          model: claude-opus-4-6
           prompt: |
             /phoenix-docs-gap-audit
 
@@ -45,14 +44,32 @@ jobs:
             in real code.
 
             If there are no user-facing gaps (the audit window contains only dep bumps,
-            internal refactors, or fully-documented features), exit without creating an
-            issue.
+            internal refactors, or fully-documented features), write exactly `NO_CHANGES`
+            as the first line of `.scratch/docs-gap-issue.md` and exit.
 
-            Otherwise, create a GitHub issue via `gh issue create` with:
+            Otherwise, write the full issue body markdown to `.scratch/docs-gap-issue.md`.
+            The workflow will create a GitHub issue with:
               - Title: "docs: Weekly docs gap audit — <YYYY-MM-DD>" (today's UTC date)
               - Body: the full gap report markdown produced by the skill
               - Label: "documentation"
 
-            Do not commit or push anything. Do not open a PR. The output of this workflow
-            is the GitHub issue and nothing else.
-          claude_args: '--allowedTools Skill,Read,Glob,Grep,Agent,"Bash(git:*)","Bash(gh:*)","Bash(date:*)","Bash(ls:*)"'
+            Do not commit, push, open a PR, or create the issue yourself. The workflow
+            handles publishing after you write the issue body file.
+          claude_args: '--model claude-opus-4-7 --allowedTools Skill,Read,Glob,Grep,Agent,Write,"Bash(git fetch:*)","Bash(git log:*)","Bash(git diff:*)","Bash(git show:*)","Bash(date:*)","Bash(ls:*)","Bash(mkdir:*)"'
+
+      - name: Create docs gap issue
+        env:
+          GH_TOKEN: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+        run: |
+          if [ ! -s .scratch/docs-gap-issue.md ]; then
+            echo "No docs gap issue body written — exiting cleanly."
+            exit 0
+          fi
+          if [ "$(head -n 1 .scratch/docs-gap-issue.md)" = "NO_CHANGES" ]; then
+            echo "No docs gaps found — exiting cleanly."
+            exit 0
+          fi
+          gh issue create \
+            --title "docs: Weekly docs gap audit — $(date -u +%Y-%m-%d)" \
+            --body-file .scratch/docs-gap-issue.md \
+            --label "documentation"
