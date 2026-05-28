@@ -1,0 +1,17 @@
+Load complete instructions and capabilities for a specific skill.
+
+A skill contains detailed instructions and supplementary resources (like templates
+or reference docs). Load a skill when you need to perform a task within its domain.
+
+Returns:
+Structured documentation containing:
+- Skill name, description, and source location
+- Available resources: supplementary files with their parameters
+- Detailed instructions: step-by-step guidance for using the skill
+
+Important:
+- Read the entire instructions section before taking action
+- Call this before using `read_skill_resource` for this skill
+- Resource names are authoritative - use exact names from the output
+- Do NOT infer or guess resource names
+- Check parameter schemas if resources require arguments

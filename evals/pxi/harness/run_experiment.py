@@ -17,6 +17,10 @@ from urllib.parse import urljoin
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
+from phoenix.client import AsyncClient
+from phoenix.client.resources.experiments.types import ExperimentEvaluationRun, RanExperiment
+from phoenix.client.utils.config import get_base_url, get_env_phoenix_api_key
+
 from evals.pxi.evaluators import EVALUATORS_BY_NAME
 from evals.pxi.harness.agent_task import (
     DEFAULT_ASSISTANT_MODEL,
@@ -30,9 +34,6 @@ from evals.pxi.harness.datasets import (
     EvalDataset,
     load_dataset,
 )
-from phoenix.client import AsyncClient
-from phoenix.client.resources.experiments.types import ExperimentEvaluationRun, RanExperiment
-from phoenix.client.utils.config import get_base_url, get_env_phoenix_api_key
 
 DEFAULT_BASE_URL = "http://localhost:6006"
 PASSING_SCORE = 1.0

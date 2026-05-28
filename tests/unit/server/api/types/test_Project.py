@@ -1688,6 +1688,7 @@ class TestProject:
                     traces[-1],
                     attributes=attributes,
                     cumulative_llm_token_count_prompt=1,
+                    llm_token_count_prompt=1,
                 )
             )
             attributes = {"input": {"value": "i\"'j"}, "output": {"value": "k\"'l"}}
@@ -1700,6 +1701,7 @@ class TestProject:
                     session,
                     traces[-1],
                     cumulative_llm_token_count_completion=2,
+                    llm_token_count_completion=2,
                 )
             )
             traces.append(await _add_trace(session, projects[-1], project_sessions[-1]))
@@ -1714,6 +1716,7 @@ class TestProject:
                     traces[-1],
                     attributes=attributes,
                     cumulative_llm_token_count_completion=1,
+                    llm_token_count_completion=1,
                 )
             )
             spans.append(await _add_span(session, traces[-1]))

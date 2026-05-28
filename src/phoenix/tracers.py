@@ -377,10 +377,11 @@ def _get_cumulative_counts(spans: Sequence[models.Span]) -> list[CumulativeCount
             if span.parent_id not in parent_to_children_ids:
                 parent_to_children_ids[span.parent_id] = []
             parent_to_children_ids[span.parent_id].append(span.span_id)
+        is_llm_span = (span.span_kind or "").upper() == "LLM"
         counts_by_span_id[span.span_id] = CumulativeCount(
             errors=int(span.status_code == "ERROR"),
-            prompt_tokens=span.llm_token_count_prompt or 0,
-            completion_tokens=span.llm_token_count_completion or 0,
+            prompt_tokens=(span.llm_token_count_prompt or 0) if is_llm_span else 0,
+            completion_tokens=(span.llm_token_count_completion or 0) if is_llm_span else 0,
         )
 
     # iterative post-order traversal

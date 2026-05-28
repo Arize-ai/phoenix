@@ -1,8 +1,8 @@
-import { Suspense } from "react";
-import { DialogTrigger } from "react-aria-components";
 import { useNavigate, useParams } from "react-router";
 
-import { Loading, Modal, ModalOverlay } from "@phoenix/components";
+import { Drawer } from "@phoenix/components";
+import { DRAWER_DEFAULT_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
+import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
 
 import { ExampleDetailsDialog } from "./ExampleDetailsDialog";
 
@@ -12,22 +12,19 @@ import { ExampleDetailsDialog } from "./ExampleDetailsDialog";
 export function ExamplePage() {
   const { exampleId, datasetId } = useParams();
   const navigate = useNavigate();
+  const { defaultSize, onSizeChange } = useDefaultDrawerSize({
+    id: "example-details",
+  });
+
   return (
-    <DialogTrigger
+    <Drawer
       isOpen
-      onOpenChange={(isOpen) => {
-        if (!isOpen) {
-          navigate(`/datasets/${datasetId}/examples`);
-        }
-      }}
+      onClose={() => navigate(`/datasets/${datasetId}/examples`)}
+      defaultSize={defaultSize}
+      minSize={DRAWER_DEFAULT_MIN_SIZE}
+      onResize={onSizeChange}
     >
-      <ModalOverlay>
-        <Modal variant="slideover" size="L">
-          <Suspense fallback={<Loading />}>
-            <ExampleDetailsDialog exampleId={exampleId as string} />
-          </Suspense>
-        </Modal>
-      </ModalOverlay>
-    </DialogTrigger>
+      <ExampleDetailsDialog exampleId={exampleId as string} />
+    </Drawer>
   );
 }

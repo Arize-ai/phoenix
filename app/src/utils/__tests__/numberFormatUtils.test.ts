@@ -40,18 +40,14 @@ describe("formatLatencyMs", () => {
   it("formats latency in milliseconds", () => {
     expect(formatLatencyMs(0)).toEqual("0ms");
     expect(formatLatencyMs(11)).toEqual("11ms");
-    expect(formatLatencyMs(1 * ONE_SECOND_MS)).toEqual("1s");
-    expect(formatLatencyMs(1 * ONE_SECOND_MS + 100)).toEqual("1.1s");
-    expect(formatLatencyMs(1 * ONE_MINUTE_MS)).toEqual("1m");
-    expect(formatLatencyMs(1 * ONE_HOUR_MS)).toEqual("1h");
-    expect(formatLatencyMs(1 * ONE_HOUR_MS + 1 * ONE_MINUTE_MS)).toEqual(
-      "1h 1m"
-    );
-    expect(formatLatencyMs(2 * ONE_HOUR_MS + 1 * ONE_SECOND_MS)).toEqual(
-      "2h 1s"
-    );
+    expect(formatLatencyMs(ONE_SECOND_MS)).toEqual("1s");
+    expect(formatLatencyMs(ONE_SECOND_MS + 100)).toEqual("1.1s");
+    expect(formatLatencyMs(ONE_MINUTE_MS)).toEqual("1m");
+    expect(formatLatencyMs(ONE_HOUR_MS)).toEqual("1h");
+    expect(formatLatencyMs(ONE_HOUR_MS + ONE_MINUTE_MS)).toEqual("1h 1m");
+    expect(formatLatencyMs(2 * ONE_HOUR_MS + ONE_SECOND_MS)).toEqual("2h 1s");
     expect(
-      formatLatencyMs(1 * ONE_HOUR_MS + 15 * ONE_MINUTE_MS + 27 * ONE_SECOND_MS)
+      formatLatencyMs(ONE_HOUR_MS + 15 * ONE_MINUTE_MS + 27 * ONE_SECOND_MS)
     ).toEqual("1h 15m 27s");
   });
 });

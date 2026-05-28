@@ -1,9 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": [
-    "import",
-    "typescript"
-  ],
+  "plugins": ["import", "typescript"],
   "rules": {
     "no-console": "off",
     "import/no-duplicates": "error",
@@ -14,12 +11,9 @@
     "typescript/consistent-return": "error",
     "typescript/consistent-type-imports": "error",
     "typescript/no-unsafe-type-assertion": "error",
-    "eqeqeq": [
-      "error",
-      "smart"
-    ],
+    "eqeqeq": ["error", "smart"],
     "eslint/prefer-const": "error",
-    "eslint/no-implicit-conversion": [
+    "eslint/no-implicit-coercion": [
       "error",
       {
         "boolean": false,
@@ -37,9 +31,5 @@
       }
     ]
   },
-  "ignorePatterns": [
-    "dist/**",
-    "node_modules/**",
-    "dashboard/**"
-  ]
+  "ignorePatterns": ["dist/**", "node_modules/**", "dashboard/**"]
 }

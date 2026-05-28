@@ -12,7 +12,7 @@ from pydantic_ai.models import Model, ModelRequestParameters
 from pydantic_ai.tools import ToolDefinition
 
 from phoenix.server.agents.exceptions import SummarizationError
-from phoenix.server.agents.prompts import SUMMARIZATION_SYSTEM_PROMPT
+from phoenix.server.agents.prompts import SUMMARIZATION_INSTRUCTIONS_TEMPLATE
 
 SUMMARY_TOOL_NAME = "summary"
 
@@ -39,7 +39,7 @@ async def summarize_messages(
         output_mode="tool",
         allow_text_output=False,
         instruction_parts=[
-            InstructionPart(content=SUMMARIZATION_SYSTEM_PROMPT, dynamic=False),
+            InstructionPart(content=SUMMARIZATION_INSTRUCTIONS_TEMPLATE.render(), dynamic=False),
         ],
     )
     final_request = ModelRequest(

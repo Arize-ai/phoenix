@@ -118,6 +118,10 @@ export interface PreferencesProps {
    */
   projectSortOrder: ProjectSortOrder;
   /**
+   * The last project selected on the dashboards page.
+   */
+  lastSelectedDashboardProjectId?: string;
+  /**
    * Whether the side nav is open or closed
    * @default true
    */
@@ -210,6 +214,10 @@ export interface PreferencesState extends PreferencesProps {
    * Setter for the project sort order
    */
   setProjectSortOrder: (projectSortOrder: ProjectSortOrder) => void;
+  /**
+   * Setter for the last project selected on the dashboards page.
+   */
+  setLastSelectedDashboardProjectId: (projectId: string) => void;
   /**
    * Setter for the side nav open state
    */
@@ -321,6 +329,12 @@ export const createPreferencesStore = (
     },
     setProjectSortOrder: (projectSortOrder) => {
       set({ projectSortOrder }, false, { type: "setProjectSortOrder" });
+    },
+    lastSelectedDashboardProjectId: undefined,
+    setLastSelectedDashboardProjectId: (projectId) => {
+      set({ lastSelectedDashboardProjectId: projectId }, false, {
+        type: "setLastSelectedDashboardProjectId",
+      });
     },
     isSideNavExpanded: true,
     setIsSideNavExpanded: (isSideNavExpanded) => {

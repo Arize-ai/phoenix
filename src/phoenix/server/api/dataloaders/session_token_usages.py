@@ -1,9 +1,7 @@
 from strawberry.dataloader import DataLoader
 from typing_extensions import TypeAlias
 
-from phoenix.server.api.helpers.cumulative_token_count_queries import (
-    cumulative_token_counts_by_session,
-)
+from phoenix.db.helpers import token_counts_by_session
 from phoenix.server.types import DbSessionFactory
 from phoenix.trace.schemas import TokenUsage
 
@@ -17,7 +15,7 @@ class SessionTokenUsagesDataLoader(DataLoader[Key, Result]):
         self._db = db
 
     async def _load_fn(self, keys: list[Key]) -> list[Result]:
-        stmt = cumulative_token_counts_by_session(keys)
+        stmt = token_counts_by_session(keys)
         async with self._db.read() as session:
             result: dict[Key, TokenUsage] = {
                 id_: TokenUsage(prompt=prompt, completion=completion)

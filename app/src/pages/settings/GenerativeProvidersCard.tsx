@@ -6,17 +6,10 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { Suspense, useCallback, useMemo, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
-import {
-  graphql,
-  useFragment,
-  useLazyLoadQuery,
-  useMutation,
-} from "react-relay";
+import { useCallback, useMemo, useState } from "react";
+import { graphql, useFragment } from "react-relay";
 
 import {
-  Alert,
   Button,
   Card,
   CredentialField,
@@ -35,15 +28,17 @@ import {
   Label,
   Modal,
   ModalOverlay,
-  RedactedCredentialField,
   Text,
   ToggleButton,
   ToggleButtonGroup,
   View,
 } from "@phoenix/components";
-import { GenerativeProviderIcon } from "@phoenix/components/generative";
+import {
+  GenerativeProviderIcon,
+  ProviderServerCredentialsPanel,
+} from "@phoenix/components/generative";
 import { tableCSS } from "@phoenix/components/table/styles";
-import { useNotifySuccess, useViewer } from "@phoenix/contexts";
+import { useViewer } from "@phoenix/contexts";
 import { useCredentialsContext } from "@phoenix/contexts/CredentialsContext";
 import { isModelProvider } from "@phoenix/utils/generativeUtils";
 
@@ -51,11 +46,6 @@ import type {
   GenerativeProvidersCard_data$data,
   GenerativeProvidersCard_data$key,
 } from "./__generated__/GenerativeProvidersCard_data.graphql";
-import type { GenerativeProvidersCardSecretsQuery } from "./__generated__/GenerativeProvidersCardSecretsQuery.graphql";
-import type { GenerativeProvidersCardUpsertOrDeleteSecretsMutation } from "./__generated__/GenerativeProvidersCardUpsertOrDeleteSecretsMutation.graphql";
-
-// Form values type for react-hook-form
-type ServerCredentialsFormValues = Record<string, string>;
 
 export function GenerativeProvidersCard({
   query,
@@ -310,19 +300,7 @@ function ProviderCredentialsDialog({
                 </>
               )}
               {credentialView === "secrets" && (
-                <>
-                  <View paddingBottom="size-100">
-                    <Text size="XS" color="text-700">
-                      Credentials stored in the database. These are shared
-                      across all users and override environment variables.
-                    </Text>
-                  </View>
-                  <Suspense fallback={<Text color="text-700">Loading...</Text>}>
-                    <Form>
-                      <ServerCredentials provider={provider} />
-                    </Form>
-                  </Suspense>
-                </>
+                <ProviderServerCredentialsPanel provider={provider} />
               )}
             </Flex>
           ) : (
@@ -406,263 +384,6 @@ function BrowserCredentials({
       >
         Clear Local Credentials
       </Button>
-    </Flex>
-  );
-}
-
-function ServerCredentials({
-  provider,
-}: {
-  provider: GenerativeProvidersCard_data$data["modelProviders"][number];
-}) {
-  const notifySuccess = useNotifySuccess();
-  const [error, setError] = useState<string | null>(null);
-
-  // Lazy load secrets only when this component mounts (admin opens secrets tab)
-  const secretKeys = useMemo(
-    () => provider.credentialRequirements.map((c) => c.envVarName),
-    [provider.credentialRequirements]
-  );
-
-  // Used to trigger refetch after mutations
-  const [fetchKey, setFetchKey] = useState(0);
-
-  const secretsData = useLazyLoadQuery<GenerativeProvidersCardSecretsQuery>(
-    graphql`
-      query GenerativeProvidersCardSecretsQuery($secretKeys: [String!]!) {
-        secrets(keys: $secretKeys) {
-          edges {
-            node {
-              key
-              value {
-                __typename
-                ... on DecryptedSecret {
-                  value
-                }
-                ... on UnparsableSecret {
-                  parseError
-                }
-              }
-            }
-          }
-        }
-      }
-    `,
-    { secretKeys },
-    { fetchKey, fetchPolicy: "store-and-network" }
-  );
-
-  // Process secrets from query
-  const { serverSecretMap, unparsableSecrets } = useMemo(() => {
-    const map = new Map<string, string>();
-    const errors = new Map<string, string>();
-    for (const { node } of secretsData.secrets.edges) {
-      const { value } = node;
-      switch (value.__typename) {
-        case "UnparsableSecret":
-          errors.set(node.key, value.parseError);
-          break;
-        case "DecryptedSecret": {
-          const secretValue = value.value;
-          if (secretValue?.trim()) {
-            map.set(node.key, secretValue.trim());
-          }
-          break;
-        }
-        case "%other":
-        default:
-          // Unknown secret type from server - treat as inaccessible
-          errors.set(
-            node.key,
-            "Secret type not supported by this client version"
-          );
-          break;
-      }
-    }
-    return { serverSecretMap: map, unparsableSecrets: errors };
-  }, [secretsData.secrets.edges]);
-
-  // Current secret values saved on the server (only successfully decrypted ones)
-  const savedServerValues = useMemo(() => {
-    const values: ServerCredentialsFormValues = {};
-    provider.credentialRequirements.forEach(({ envVarName }) => {
-      values[envVarName] = serverSecretMap.get(envVarName) ?? "";
-    });
-    return values;
-  }, [provider, serverSecretMap]);
-
-  const { control, handleSubmit, reset } = useForm<ServerCredentialsFormValues>(
-    {
-      defaultValues: savedServerValues,
-      values: savedServerValues, // Syncs form when server data changes after refetch
-      mode: "onChange",
-    }
-  );
-
-  const [commit, isCommitting] =
-    useMutation<GenerativeProvidersCardUpsertOrDeleteSecretsMutation>(graphql`
-      mutation GenerativeProvidersCardUpsertOrDeleteSecretsMutation(
-        $input: UpsertOrDeleteSecretsMutationInput!
-      ) {
-        upsertOrDeleteSecrets(input: $input) {
-          __typename
-        }
-      }
-    `);
-
-  const onSubmit = useCallback(
-    (formValues: ServerCredentialsFormValues) => {
-      // Build list of secrets to upsert: value for save, null for delete
-      const secretsToUpsert = provider.credentialRequirements
-        .map((config) => {
-          const newValue = formValues[config.envVarName]?.trim() || null;
-          const savedValue =
-            savedServerValues[config.envVarName]?.trim() || null;
-          if (newValue === savedValue) return null; // No change
-          return { key: config.envVarName, value: newValue };
-        })
-        .filter((s): s is { key: string; value: string | null } => s !== null);
-
-      if (secretsToUpsert.length === 0) return;
-
-      commit({
-        variables: { input: { secrets: secretsToUpsert } },
-        onCompleted: () => {
-          setFetchKey((k) => k + 1);
-          notifySuccess({
-            title: "Secrets updated",
-            message: `${secretsToUpsert.length} secret(s) updated`,
-          });
-        },
-        onError: (error) => {
-          setError(error instanceof Error ? error.message : String(error));
-        },
-      });
-    },
-    [provider.credentialRequirements, savedServerValues, commit, notifySuccess]
-  );
-
-  // Get keys that have values on the server (including unparsable secrets)
-  const existingSecretKeys = useMemo(
-    () => [
-      ...Object.entries(savedServerValues)
-        .filter(([, value]) => value.trim())
-        .map(([key]) => key),
-      ...unparsableSecrets.keys(),
-    ],
-    [savedServerValues, unparsableSecrets]
-  );
-
-  const handleDelete = useCallback(() => {
-    if (existingSecretKeys.length === 0) return;
-
-    const secretsToDelete = existingSecretKeys.map((key) => ({
-      key,
-      value: null,
-    }));
-    commit({
-      variables: { input: { secrets: secretsToDelete } },
-      onCompleted: () => {
-        setFetchKey((k) => k + 1);
-        const emptyValues: ServerCredentialsFormValues = {};
-        provider.credentialRequirements.forEach(({ envVarName }) => {
-          emptyValues[envVarName] = "";
-        });
-        reset(emptyValues);
-        notifySuccess({
-          title: "Secrets deleted",
-          message: `${existingSecretKeys.length} secret(s) removed`,
-        });
-      },
-      onError: (error) => {
-        setError(error instanceof Error ? error.message : String(error));
-      },
-    });
-  }, [
-    existingSecretKeys,
-    commit,
-    provider.credentialRequirements,
-    reset,
-    notifySuccess,
-  ]);
-
-  const providerUnparsableSecrets = provider.credentialRequirements
-    .filter(({ envVarName }) => unparsableSecrets.has(envVarName))
-    .map(({ envVarName }) => ({
-      envVarName,
-      parseError: unparsableSecrets.get(envVarName)!,
-    }));
-
-  if (provider.credentialRequirements.length === 0) {
-    return (
-      <Text color="text-700">
-        Server-side credentials are not available for this provider.
-      </Text>
-    );
-  }
-
-  return (
-    <Flex direction="column" gap="size-100">
-      {error && <Alert variant="danger">{error}</Alert>}
-      {providerUnparsableSecrets.map(({ envVarName, parseError }) => (
-        <Alert key={envVarName} variant="danger" title={envVarName}>
-          {parseError}
-        </Alert>
-      ))}
-      {provider.credentialRequirements.map((credentialConfig) => (
-        <Controller
-          key={credentialConfig.envVarName}
-          name={credentialConfig.envVarName}
-          control={control}
-          rules={{
-            validate: credentialConfig.isRequired
-              ? (value) =>
-                  !!value?.trim() ||
-                  `${credentialConfig.envVarName} is required`
-              : undefined,
-          }}
-          render={({
-            field: { name, onChange, onBlur, value },
-            fieldState: { error },
-          }) => (
-            <RedactedCredentialField
-              label={credentialConfig.envVarName}
-              isRequired={credentialConfig.isRequired}
-              name={name}
-              value={value ?? ""}
-              onChange={onChange}
-              onBlur={onBlur}
-              errorMessage={error?.message}
-            />
-          )}
-        />
-      ))}
-      <Flex
-        direction="row"
-        gap="size-100"
-        css={css`
-          align-self: flex-start;
-          margin-top: var(--global-dimension-size-100);
-        `}
-      >
-        <Button
-          variant="primary"
-          isDisabled={isCommitting}
-          isPending={isCommitting}
-          onPress={() => handleSubmit(onSubmit)()}
-        >
-          Save
-        </Button>
-        {existingSecretKeys.length > 0 && (
-          <Button
-            variant="danger"
-            isDisabled={isCommitting}
-            onPress={handleDelete}
-          >
-            Delete
-          </Button>
-        )}
-      </Flex>
     </Flex>
   );
 }

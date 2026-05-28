@@ -104,6 +104,8 @@ async def _add_span(
     cumulative_error_count: int = 0,
     cumulative_llm_token_count_prompt: int = 0,
     cumulative_llm_token_count_completion: int = 0,
+    llm_token_count_prompt: Optional[int] = None,
+    llm_token_count_completion: Optional[int] = None,
 ) -> models.Span:
     start_time = start_time or datetime.now(timezone.utc)
     end_time = end_time or (start_time + timedelta(seconds=10))
@@ -128,6 +130,8 @@ async def _add_span(
         cumulative_error_count=cumulative_error_count,
         cumulative_llm_token_count_prompt=cumulative_llm_token_count_prompt,
         cumulative_llm_token_count_completion=cumulative_llm_token_count_completion,
+        llm_token_count_prompt=llm_token_count_prompt,
+        llm_token_count_completion=llm_token_count_completion,
         attributes=attributes or {},
         trace_rowid=trace_rowid,
     )

@@ -1,13 +1,30 @@
 import { css, keyframes } from "@emotion/react";
 import { AnimatePresence, motion } from "motion/react";
+import type { Ref, RefObject } from "react";
+import type { ButtonProps as AriaButtonProps } from "react-aria-components";
+import { Button as AriaButton } from "react-aria-components";
 import { createPortal } from "react-dom";
+import { useHotkeys } from "react-hotkeys-hook";
 
+import {
+  Flex,
+  Keyboard,
+  Tooltip,
+  TooltipArrow,
+  TooltipTrigger,
+  VisuallyHidden,
+} from "@phoenix/components";
 import { useTheme } from "@phoenix/contexts";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
-import { useHasOpenModal } from "@phoenix/hooks/useHasOpenModal";
+import { useActiveModalPortalContainerElement } from "@phoenix/hooks/useHasOpenModal";
+import { useModifierKey } from "@phoenix/hooks/useModifierKey";
 
+import { AgentFabPositioner } from "./AgentFabPositioner";
+import { FAB_RESTING_SIZE, FAB_STREAMING_SIZE } from "./agentFabPositioning";
 import { PxiGlyph, type PxiGlyphAnimation } from "./PxiGlyph";
 import { useAssistantAgentEnabled } from "./useAssistantAgentEnabled";
+
+const OPEN_AGENT_HOTKEY = "mod+i";
 
 const thinkingBorderWipe = keyframes`
   0% {
@@ -54,6 +71,18 @@ const hoverWipe = keyframes`
   }
 `;
 
+const hoverRingOpacity = keyframes`
+  0%, 100% {
+    opacity: 0;
+  }
+  8%, 40% {
+    opacity: 0.95;
+  }
+  55% {
+    opacity: 0;
+  }
+`;
+
 const glyphBreathe = keyframes`
   0%, 100% {
     color: var(--agent-chat-widget-glyph-rest-color);
@@ -76,15 +105,16 @@ const buttonCSS = css`
   justify-content: flex-end;
 `;
 
-const floatingButtonCSS = css`
-  position: fixed;
-  bottom: 24px;
-  right: 36px;
-  z-index: 1000;
-`;
-
 const inlineButtonCSS = css`
   position: relative;
+`;
+
+// Applied when the button is used as a drag handle inside the FAB positioner.
+// The positioner owns the cursor (pointer / grabbing) and consumes touch
+// gestures itself, so the button only needs to opt out of both.
+const draggableButtonCSS = css`
+  cursor: inherit;
+  touch-action: none;
 `;
 
 const darkThemeGlyphThemeCSS = css`
@@ -107,8 +137,10 @@ const darkThemeThinkingGlowCSS = css`
   &[data-theme="dark"] {
     --agent-chat-widget-glow-outer-rest:
       0 0 2px 1px rgba(248, 242, 255, 0.78),
-      0 0 4px 2px rgba(154, 102, 255, 0.68), 0 0 8px 4px rgba(52, 128, 255, 0.52),
-      0 0 13px 5px rgba(198, 72, 255, 0.4), 0 0 17px 6px rgba(44, 216, 255, 0.26);
+      0 0 4px 2px rgba(154, 102, 255, 0.68),
+      0 0 8px 4px rgba(52, 128, 255, 0.52),
+      0 0 13px 5px rgba(198, 72, 255, 0.4),
+      0 0 17px 6px rgba(44, 216, 255, 0.26);
     --agent-chat-widget-glow-outer-strong:
       0 0 3px 2px rgba(250, 244, 255, 0.88),
       0 0 7px 3px rgba(160, 108, 255, 0.82),
@@ -122,7 +154,8 @@ const lightThemeThinkingGlowCSS = css`
   &[data-theme="light"] {
     --agent-chat-widget-glow-outer-rest:
       0 0 3px 1px rgba(245, 249, 255, 0.88),
-      0 0 5px 2px rgba(199, 190, 242, 0.56), 0 0 9px 4px rgba(88, 152, 255, 0.54),
+      0 0 5px 2px rgba(199, 190, 242, 0.56),
+      0 0 9px 4px rgba(88, 152, 255, 0.54),
       0 0 14px 5px rgba(200, 150, 236, 0.23),
       0 0 20px 7px rgba(116, 212, 255, 0.17);
     --agent-chat-widget-glow-outer-strong:
@@ -294,6 +327,35 @@ const restingHoverWipeCSS = css`
   }
 `;
 
+const entranceHoverWipeCSS = css`
+  @media (prefers-reduced-motion: no-preference) {
+    &[data-entrance-animation="true"] .agent-chat-widget__hover-shimmer {
+      animation: ${hoverWipe} 2400ms linear 1;
+    }
+
+    &[data-entrance-animation="true"]
+      .agent-chat-widget__hover-shimmer::before {
+      animation:
+        ${ringBreathe} 2400ms ease-in-out 1,
+        ${hoverRingOpacity} 2400ms linear 1;
+    }
+
+    &[data-entrance-animation="true"] .agent-chat-widget__content {
+      opacity: 1;
+    }
+
+    &[data-entrance-animation="true"]:hover .agent-chat-widget__hover-shimmer {
+      animation: ${hoverWipe} 2400ms linear infinite;
+    }
+
+    &[data-entrance-animation="true"]:hover
+      .agent-chat-widget__hover-shimmer::before {
+      opacity: 0.95;
+      animation: ${ringBreathe} 2400ms ease-in-out 1 both;
+    }
+  }
+`;
+
 const thinkingGlyphPulseCSS = css`
   .agent-chat-widget__content {
     animation: ${glyphBreathe} 2400ms ease-in-out infinite;
@@ -302,31 +364,37 @@ const thinkingGlyphPulseCSS = css`
 
 export type { PxiGlyphAnimation } from "./PxiGlyph";
 
-export interface AgentChatWidgetButtonProps {
+export interface AgentChatWidgetButtonProps extends Omit<
+  AriaButtonProps,
+  "aria-label" | "children" | "type"
+> {
+  ref?: Ref<HTMLButtonElement>;
   isStreaming?: boolean;
-  onClick?: () => void;
   ariaLabel?: string;
-  isFloating?: boolean;
+  isDragHandle?: boolean;
   glyphAnimation?: PxiGlyphAnimation;
 }
 
 export function AgentChatWidgetButton({
+  ref,
   isStreaming = false,
-  onClick,
   ariaLabel = "Open agent chat",
-  isFloating = false,
+  isDragHandle = false,
   glyphAnimation = "wave-reveal",
+  ...buttonProps
 }: AgentChatWidgetButtonProps) {
   const { theme } = useTheme();
+  const shouldShowEntranceAnimation = !isStreaming;
   return (
-    <button
+    <AriaButton
+      ref={ref}
       type="button"
-      css={
-        isFloating
-          ? [buttonCSS, floatingButtonCSS]
-          : [buttonCSS, inlineButtonCSS]
-      }
-      onClick={onClick}
+      css={[
+        buttonCSS,
+        inlineButtonCSS,
+        isDragHandle ? draggableButtonCSS : undefined,
+      ]}
+      {...buttonProps}
       aria-label={ariaLabel}
     >
       <motion.div
@@ -337,10 +405,14 @@ export function AgentChatWidgetButton({
           darkThemeThinkingGlowCSS,
           lightThemeThinkingGlowCSS,
           !isStreaming ? [thinkingBorderCSS, restingHoverWipeCSS] : undefined,
+          shouldShowEntranceAnimation ? entranceHoverWipeCSS : undefined,
           isStreaming ? thinkingBorderCSS : undefined,
           isStreaming ? thinkingGlyphPulseCSS : undefined,
         ]}
         data-theme={theme}
+        data-entrance-animation={
+          shouldShowEntranceAnimation ? "true" : undefined
+        }
         initial={false}
         animate={{
           width: isStreaming ? 40 : 58,
@@ -392,34 +464,96 @@ export function AgentChatWidgetButton({
           </AnimatePresence>
         </div>
       </motion.div>
-    </button>
+    </AriaButton>
   );
 }
 
-export function AgentChatWidget() {
+export type AgentChatWidgetProps = {
+  boundaryRef?: RefObject<HTMLElement | null>;
+};
+
+export function AgentChatWidget({ boundaryRef }: AgentChatWidgetProps = {}) {
   const isAssistantAgentEnabled = useAssistantAgentEnabled();
   const isOpen = useAgentContext((state) => state.isOpen);
   const toggleOpen = useAgentContext((state) => state.toggleOpen);
+  const fabPlacement = useAgentContext((state) => state.fabPlacement);
+  const setFabPlacement = useAgentContext((state) => state.setFabPlacement);
   const activeSessionId = useAgentContext((state) => state.activeSessionId);
-  const hasOpenModal = useHasOpenModal();
+  const activeModalPortalContainer = useActiveModalPortalContainerElement();
+  const hasOpenModal = activeModalPortalContainer !== null;
   const isStreaming = useAgentContext((state) =>
     activeSessionId
       ? state.chatStatusBySessionId[activeSessionId] === "streaming"
       : false
   );
 
-  // Use contextual entrypoints inside modals (e.g. trace slideover header)
-  // instead of letting the global FAB compete with overlay hit-testing.
-  if (!isAssistantAgentEnabled || isOpen || hasOpenModal) {
+  useHotkeys(
+    OPEN_AGENT_HOTKEY,
+    (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleOpen();
+    },
+    {
+      enabled: isAssistantAgentEnabled,
+      preventDefault: true,
+    },
+    [isAssistantAgentEnabled, toggleOpen]
+  );
+
+  if (!isAssistantAgentEnabled) {
     return null;
   }
 
+  const portalContainer = activeModalPortalContainer ?? document.body;
+
   return createPortal(
-    <AgentChatWidgetButton
-      isStreaming={isStreaming}
-      onClick={toggleOpen}
-      isFloating
-    />,
-    document.body
+    <AgentFabPositioner
+      boundaryRef={hasOpenModal ? undefined : boundaryRef}
+      isHidden={isOpen}
+      layer={hasOpenModal ? "modal" : "content"}
+      placement={fabPlacement}
+      size={isStreaming ? FAB_STREAMING_SIZE : FAB_RESTING_SIZE}
+      onActivate={toggleOpen}
+      onPlacementChange={setFabPlacement}
+    >
+      <TooltipTrigger delay={1000} closeDelay={0}>
+        <AgentChatWidgetButton
+          ariaLabel="Open assistant"
+          isDragHandle
+          isStreaming={isStreaming}
+          onPress={(event) => {
+            if (
+              event.pointerType === "keyboard" ||
+              event.pointerType === "virtual"
+            ) {
+              toggleOpen();
+            }
+          }}
+        />
+        <AgentChatWidgetTooltip />
+      </TooltipTrigger>
+    </AgentFabPositioner>,
+    portalContainer ?? document.body
+  );
+}
+
+function AgentChatWidgetTooltip() {
+  const modifierKey = useModifierKey();
+  const modifierGlyph = modifierKey === "Cmd" ? "⌘" : "Ctrl";
+
+  return (
+    <Tooltip placement="top" offset={6}>
+      <TooltipArrow />
+      <Flex direction="row" gap="size-100" alignItems="center">
+        <span>Open assistant</span>
+        <Keyboard>
+          <VisuallyHidden>{modifierKey}</VisuallyHidden>
+          <span aria-hidden="true">{modifierGlyph}</span>
+          <VisuallyHidden>i</VisuallyHidden>
+          <span aria-hidden="true">I</span>
+        </Keyboard>
+      </Flex>
+    </Tooltip>
   );
 }

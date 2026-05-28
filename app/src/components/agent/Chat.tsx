@@ -32,6 +32,10 @@ import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import { AgentConsentGate } from "./AgentConsentGate";
 import { AgentContextPills } from "./AgentContextPills";
+import {
+  AgentModelCredentialForm,
+  useAgentModelCredentialStatus,
+} from "./AgentModelCredentialForm";
 import { AgentModelMenu } from "./AgentModelMenu";
 import { ChatEmptyState, type EmptyStateQuickAction } from "./ChatEmptyState";
 import { ChatLantern } from "./ChatLantern";
@@ -40,6 +44,7 @@ import {
   ElicitationDraftProvider,
   type PendingElicitationDraft,
 } from "./ElicitationDraftContext";
+import { PxiGlyph } from "./PxiGlyph";
 import { useAgentChat } from "./useAgentChat";
 import type { AgentModelSelection } from "./useGenerateSessionSummary";
 
@@ -114,13 +119,6 @@ const chatCSS = css`
     overflow: hidden;
   }
 
-  &.chat--empty-bleed {
-    .chat__scroll-frame,
-    .chat__scroll {
-      overflow: visible;
-    }
-  }
-
   .chat__scroll {
     flex: 1;
     min-height: 0;
@@ -150,11 +148,12 @@ const chatCSS = css`
 
   .chat__empty-action {
     opacity: 0;
-    animation: ${chatEmptyItemFadeUp} 500ms ease-out var(--chat-empty-action-delay, 700ms)
-      forwards;
+    animation: ${chatEmptyItemFadeUp} 500ms ease-out
+      var(--chat-empty-action-delay, 700ms) forwards;
   }
 
   .chat__messages {
+    box-sizing: border-box;
     max-width: 780px;
     margin: 0 auto;
     position: relative;
@@ -162,10 +161,20 @@ const chatCSS = css`
     display: flex;
     flex-direction: column;
     gap: var(--global-dimension-size-100);
-    padding: var(--global-dimension-size-200)
-      var(--chat-sidebar-inset);
+    padding: var(--global-dimension-size-200) var(--chat-sidebar-inset);
     font-size: var(--global-font-size-s);
     line-height: var(--global-line-height-s);
+  }
+
+  &.chat--empty {
+    .chat__messages {
+      min-height: 100%;
+      width: 100%;
+    }
+
+    .chat__empty {
+      margin-block: auto;
+    }
   }
 
   .chat__input {
@@ -276,7 +285,9 @@ export function ChatView({
   emptyStateQuickActions?: EmptyStateQuickAction[];
 }>) {
   const { theme } = useTheme();
-  const { contentRef, scrollRef, scrollToBottom } = useStickToBottom();
+  const { contentRef, scrollRef, scrollToBottom } = useStickToBottom({
+    initial: "instant",
+  });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [inputValue, setInputValue] = useState("");
   const [elicitationDraft, setElicitationDraft] =
@@ -285,7 +296,13 @@ export function ChatView({
     (state) => state.observability.hasAcknowledgedConsent
   );
   const showsEmptyState = messages.length === 0;
-  const chatClassName = showsEmptyState ? "chat--empty chat--empty-bleed" : "";
+  const chatClassName = showsEmptyState ? "chat--empty" : "";
+  const { missingCredentialsProvider, refreshCredentialStatus } =
+    useAgentModelCredentialStatus(modelMenuValue);
+  const isWaitingForAssistant =
+    status === "submitted" || status === "streaming";
+  const isSendDisabledForMissingCredentials =
+    !isWaitingForAssistant && Boolean(missingCredentialsProvider);
   const resolvedElicitationDraft =
     pendingElicitation &&
     elicitationDraft?.toolCallId !== pendingElicitation.toolCallId
@@ -318,7 +335,15 @@ export function ChatView({
                   subtext={emptyStateSubtext}
                   quickActions={emptyStateQuickActions}
                   onQuickAction={handleQuickAction}
-                />
+                >
+                  {missingCredentialsProvider ? (
+                    <AgentModelCredentialForm
+                      modelName={modelMenuValue.modelName}
+                      onCredentialsUpdated={refreshCredentialStatus}
+                      provider={missingCredentialsProvider}
+                    />
+                  ) : undefined}
+                </ChatEmptyState>
               )}
               {messages.map((message, index) => {
                 if (message.role === "user") {
@@ -406,6 +431,9 @@ export function ChatView({
 
                 <PromptInputActions>
                   <PromptInputSubmit
+                    isDisabled={
+                      isSendDisabledForMissingCredentials || undefined
+                    }
                     onPress={() => {
                       void stop();
                     }}
@@ -421,9 +449,23 @@ export function ChatView({
   );
 }
 
+const loadingCSS = css`
+  display: inline-flex;
+  align-items: center;
+  gap: var(--global-dimension-size-100);
+  color: var(--global-text-color-700);
+`;
+
 /** Loading affordance shown while the assistant response is pending. */
 function Loading() {
-  return <Shimmer size="M">Thinking...</Shimmer>;
+  return (
+    <div css={loadingCSS}>
+      <PxiGlyph animation="wave-hold" size={12} />
+      <Shimmer size="S" weight="heavy">
+        Thinking...
+      </Shimmer>
+    </div>
+  );
 }
 
 /** Inline request error banner for the active chat turn. */

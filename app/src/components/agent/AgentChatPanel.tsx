@@ -1,10 +1,16 @@
-import { Suspense } from "react";
+import { Suspense, useState, type ReactNode } from "react";
 
 import { ChatSessionUsage } from "@phoenix/components/agent/ChatSessionUsage";
 import { Loading } from "@phoenix/components/core";
+import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { useFeatureFlag } from "@phoenix/contexts/FeatureFlagsContext";
 
-import { AgentChatHeader, DockedAgentChatFrame } from "./AgentChatPanelView";
+import {
+  AgentChatHeader,
+  DEFAULT_FLOATING_AGENT_CHAT_SIZE,
+  DockedAgentChatFrame,
+  FloatingAgentChatFrame,
+} from "./AgentChatPanelView";
 import { ChatView } from "./Chat";
 import {
   EMPTY_SESSION_DISPLAY_NAME,
@@ -14,15 +20,89 @@ import { useAgentChat } from "./useAgentChat";
 import { useAgentChatPanelState } from "./useAgentChatPanelState";
 import type { AgentModelSelection } from "./useGenerateSessionSummary";
 
+type AgentChatPanelLayer = "content" | "modal";
+
+type FloatingAgentChatPanelProps = {
+  /**
+   * Controls which stacking and interaction layer owns the floating panel.
+   *
+   * - `content` is the normal floating assistant surface rendered over page
+   *   content. It reflects the user's persisted pinned/detached preference and
+   *   may expose controls that change that preference.
+   * - `modal` is a temporary modal-scoped surface used while a modal or
+   *   slideover is active. It portals into the active modal's portal container
+   *   so React Aria keeps the assistant interactive instead of marking it inert.
+   */
+  layer?: AgentChatPanelLayer;
+};
+
+type AgentChatSurfaceProps = {
+  renderFrame: (children: ReactNode) => ReactNode;
+  /**
+   * Whether the header should expose controls for switching between pinned and
+   * detached assistant layouts.
+   *
+   * Modal-layer panels intentionally hide these controls because that layer is
+   * forced by the currently active modal, not by the user's saved layout
+   * preference. Showing the pin/detach toggle there would imply the user can
+   * dock the assistant behind the modal, which would move it out of the active
+   * modal scope and make it unavailable again.
+   */
+  showPositionControls?: boolean;
+};
+
 /**
- * Always-mounted controller for the agent chat. The panel UI is conditional,
- * but the underlying chat hook stays mounted so in-flight streams survive
- * when the panel is closed.
+ * Controller for the pinned side-panel agent chat.
  */
 export function AgentChatPanel() {
+  return (
+    <AgentChatSurface
+      renderFrame={(children) => (
+        <DockedAgentChatFrame>{children}</DockedAgentChatFrame>
+      )}
+    />
+  );
+}
+
+/**
+ * Controller for the assistant's floating chat surface.
+ *
+ * The `modal` layer is used only as an accessibility escape hatch while an
+ * overlay is active. It keeps the assistant above the modal mask and inside the
+ * modal's interaction scope without mutating the user's normal pinned/detached
+ * setting.
+ */
+export function FloatingAgentChatPanel({
+  layer = "content",
+}: FloatingAgentChatPanelProps) {
+  const fabPlacement = useAgentContext((state) => state.fabPlacement);
+  const [panelSize, setPanelSize] = useState(DEFAULT_FLOATING_AGENT_CHAT_SIZE);
+
+  return (
+    <AgentChatSurface
+      showPositionControls={layer !== "modal"}
+      renderFrame={(children) => (
+        <FloatingAgentChatFrame
+          layer={layer}
+          placement={fabPlacement}
+          size={panelSize}
+          onSizeChange={setPanelSize}
+        >
+          {children}
+        </FloatingAgentChatFrame>
+      )}
+    />
+  );
+}
+
+function AgentChatSurface({
+  renderFrame,
+  showPositionControls = true,
+}: AgentChatSurfaceProps) {
   const isAgentsEnabled = useFeatureFlag("agents");
   const {
     isOpen,
+    position,
     activeSessionId,
     orderedSessions,
     showSessionHistory,
@@ -33,6 +113,7 @@ export function AgentChatPanel() {
     setActiveSession,
     deleteSession,
     closePanel,
+    setPosition,
     handleModelChange,
   } = useAgentChatPanelState();
 
@@ -62,7 +143,10 @@ export function AgentChatPanel() {
       setActiveSession={setActiveSession}
       deleteSession={deleteSession}
       closePanel={closePanel}
+      position={showPositionControls ? position : undefined}
+      setPosition={showPositionControls ? setPosition : undefined}
       handleModelChange={handleModelChange}
+      renderFrame={renderFrame}
     />
   );
 }
@@ -80,7 +164,10 @@ function AgentChatController({
   setActiveSession,
   deleteSession,
   closePanel,
+  position,
+  setPosition,
   handleModelChange,
+  renderFrame,
 }: {
   isOpen: boolean;
   activeSessionId: string | null;
@@ -98,9 +185,12 @@ function AgentChatController({
   >["setActiveSession"];
   deleteSession: ReturnType<typeof useAgentChatPanelState>["deleteSession"];
   closePanel: ReturnType<typeof useAgentChatPanelState>["closePanel"];
+  position?: ReturnType<typeof useAgentChatPanelState>["position"];
+  setPosition?: ReturnType<typeof useAgentChatPanelState>["setPosition"];
   handleModelChange: ReturnType<
     typeof useAgentChatPanelState
   >["handleModelChange"];
+  renderFrame: (children: ReactNode) => ReactNode;
 }) {
   const {
     messages,
@@ -121,16 +211,18 @@ function AgentChatController({
     return null;
   }
 
-  return (
-    <DockedAgentChatFrame>
+  return renderFrame(
+    <>
       <AgentChatHeader
         sessionDisplayName={sessionDisplayName}
         orderedSessions={orderedSessions}
         activeSessionId={activeSessionId}
         showSessionHistory={showSessionHistory}
+        position={position}
         onSelectSession={setActiveSession}
         onDeleteSession={deleteSession}
         onCreateSession={createSession}
+        onPositionChange={setPosition}
         onClose={closePanel}
       />
       {/* Catch runaway suspense triggers that aren't handled locally */}
@@ -152,6 +244,6 @@ function AgentChatController({
           ) : null}
         </ChatView>
       </Suspense>
-    </DockedAgentChatFrame>
+    </>
   );
 }

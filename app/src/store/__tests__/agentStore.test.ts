@@ -155,6 +155,32 @@ describe("agentStore", () => {
     });
   });
 
+  describe("setPosition", () => {
+    it("defaults to the pinned side panel", () => {
+      const store = createAgentStore();
+
+      expect(store.getState().position).toBe("pinned");
+    });
+
+    it("updates the panel display mode", () => {
+      const store = createAgentStore();
+
+      store.getState().setPosition("detached");
+
+      expect(store.getState().position).toBe("detached");
+    });
+  });
+
+  describe("setFabPlacement", () => {
+    it("updates the pinned FAB corner", () => {
+      const store = createAgentStore();
+
+      store.getState().setFabPlacement("top-start");
+
+      expect(store.getState().fabPlacement).toBe("top-start");
+    });
+  });
+
   describe("observability", () => {
     it("updates observability settings without clobbering other fields", () => {
       const store = createAgentStore();
@@ -168,6 +194,7 @@ describe("agentStore", () => {
         exportRemoteTraces: false,
         hasAcknowledgedConsent: false,
       });
+      expect(store.getState().fabPlacement).toBe("bottom-end");
     });
 
     it("acknowledges consent without changing trace toggles", () => {
@@ -284,6 +311,25 @@ describe("agentStore", () => {
       await store.persist.rehydrate();
 
       expect(store.getState().pendingPromptEditsByToolCallId).toEqual({});
+    });
+
+    it("migrates legacy detached position to pinned", async () => {
+      localStorage.setItem(
+        "arize-phoenix-agent",
+        JSON.stringify({
+          state: {
+            position: "detached",
+            sessions: [],
+            sessionMap: {},
+          },
+          version: 7,
+        })
+      );
+
+      const store = createAgentStore();
+      await store.persist.rehydrate();
+
+      expect(store.getState().position).toBe("pinned");
     });
   });
 });

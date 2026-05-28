@@ -42,6 +42,9 @@ import type {
 import {
   AuthenticatedRoot,
   authenticatedRootLoader,
+  dashboardsLoader,
+  DashboardsEmptyPage,
+  DashboardsRoot,
   datasetLoader,
   DatasetPage,
   DatasetsPage,
@@ -210,6 +213,19 @@ const router = createBrowserRouter(
                 <Route path="metrics" element={<ProjectMetricsPage />} />
               </Route>
             </Route>
+          </Route>
+          <Route
+            path="/dashboards"
+            handle={{ crumb: () => "Dashboards" }}
+            element={<DashboardsRoot />}
+            loader={dashboardsLoader}
+            shouldRevalidate={revalidateOnPathChange}
+          >
+            <Route index element={<DashboardsEmptyPage />} />
+            <Route
+              path="projects/:projectId"
+              element={<ProjectMetricsPage />}
+            />
           </Route>
           <Route path="/datasets" handle={{ crumb: () => "Datasets" }}>
             <Route index element={<DatasetsPage />} />

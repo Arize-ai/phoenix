@@ -15,7 +15,7 @@ import {
   useState,
 } from "react";
 import { graphql, usePaginationFragment } from "react-relay";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
 
 import { CopyToClipboardButton, Truncate } from "@phoenix/components";
 import { Link } from "@phoenix/components/core/Link";
@@ -63,6 +63,7 @@ export function ExamplesTable({
     setExamplesCache,
   } = useExamplesFilterContext();
   const navigate = useNavigate();
+  const { exampleId: selectedExampleId } = useParams();
   const latestVersion = useDatasetContext((state) => state.latestVersion);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const lastSelectedRowIndexRef = useRef<number | null>(null);
@@ -437,41 +438,52 @@ export function ExamplesTable({
           <TableEmpty />
         ) : (
           <tbody>
-            {rows.map((row) => (
-              <tr key={row.id} onClick={() => navigate(`${row.original.id}`)}>
-                {row.getVisibleCells().map((cell) => {
-                  const colSizeVar = `--col-${makeSafeColumnId(cell.column.id)}-size`;
-                  return (
-                    <td
-                      key={cell.id}
-                      onClick={(e) => {
-                        // prevent the row click event from firing on the select cell
-                        if (cell.column.columnDef.id === "select") {
-                          e.stopPropagation();
-                          handleRowSelection(e, row.index, row.toggleSelected);
-                        }
-                      }}
-                      style={{
-                        ...getCommonPinningStyles(cell.column),
-                        width: `calc(var(${colSizeVar}) * 1px)`,
-                        maxWidth: `calc(var(${colSizeVar}) * 1px)`,
-                        overflowWrap: "anywhere",
-                        // prevent text selection on the select cell
-                        userSelect:
-                          cell.column.columnDef.id === "select"
-                            ? "none"
-                            : undefined,
-                      }}
-                    >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
+            {rows.map((row) => {
+              const isSelected = row.original.id === selectedExampleId;
+              return (
+                <tr
+                  key={row.id}
+                  data-selected={isSelected}
+                  onClick={() => navigate(`${row.original.id}`)}
+                >
+                  {row.getVisibleCells().map((cell) => {
+                    const colSizeVar = `--col-${makeSafeColumnId(cell.column.id)}-size`;
+                    return (
+                      <td
+                        key={cell.id}
+                        onClick={(e) => {
+                          // prevent the row click event from firing on the select cell
+                          if (cell.column.columnDef.id === "select") {
+                            e.stopPropagation();
+                            handleRowSelection(
+                              e,
+                              row.index,
+                              row.toggleSelected
+                            );
+                          }
+                        }}
+                        style={{
+                          ...getCommonPinningStyles(cell.column),
+                          width: `calc(var(${colSizeVar}) * 1px)`,
+                          maxWidth: `calc(var(${colSizeVar}) * 1px)`,
+                          overflowWrap: "anywhere",
+                          // prevent text selection on the select cell
+                          userSelect:
+                            cell.column.columnDef.id === "select"
+                              ? "none"
+                              : undefined,
+                        }}
+                      >
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
         )}
       </table>

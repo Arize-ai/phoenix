@@ -1,8 +1,8 @@
-import { Suspense } from "react";
-import { DialogTrigger } from "react-aria-components";
 import { useSearchParams } from "react-router";
 
-import { Loading, Modal, ModalOverlay } from "@phoenix/components";
+import { Drawer } from "@phoenix/components";
+import { DRAWER_DEFAULT_MIN_SIZE } from "@phoenix/components/core/overlay/constants";
+import { useDefaultDrawerSize } from "@phoenix/components/core/overlay/useDefaultDrawerSize";
 
 import { ExampleDetailsDialog } from "../example/ExampleDetailsDialog";
 
@@ -13,28 +13,45 @@ export function PlaygroundExamplePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const exampleId = searchParams.get("exampleId");
   const datasetId = searchParams.get("datasetId");
+
   if (!exampleId || !datasetId) {
     return null;
   }
+
   return (
-    <DialogTrigger
-      isOpen
-      onOpenChange={(isOpen) => {
-        if (!isOpen) {
-          setSearchParams((prev) => {
-            prev.delete("exampleId");
-            return prev;
-          });
-        }
+    <PlaygroundExampleDrawer
+      exampleId={exampleId}
+      onClose={() => {
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("exampleId");
+          return next;
+        });
       }}
+    />
+  );
+}
+
+function PlaygroundExampleDrawer({
+  exampleId,
+  onClose,
+}: {
+  exampleId: string;
+  onClose: () => void;
+}) {
+  const { defaultSize, onSizeChange } = useDefaultDrawerSize({
+    id: "playground-example-details",
+  });
+
+  return (
+    <Drawer
+      isOpen
+      onClose={onClose}
+      defaultSize={defaultSize}
+      minSize={DRAWER_DEFAULT_MIN_SIZE}
+      onResize={onSizeChange}
     >
-      <ModalOverlay>
-        <Modal variant="slideover" size="L">
-          <Suspense fallback={<Loading />}>
-            <ExampleDetailsDialog exampleId={exampleId as string} />
-          </Suspense>
-        </Modal>
-      </ModalOverlay>
-    </DialogTrigger>
+      <ExampleDetailsDialog exampleId={exampleId} />
+    </Drawer>
   );
 }

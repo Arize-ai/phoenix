@@ -34,25 +34,25 @@ from phoenix.server.agents.context import (
     ProjectContext,
     ResolvedContexts,
 )
-from phoenix.server.agents.prompts import AgentInstructions
+from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.types import AgentDependencies
 
-_DEFAULT_INSTRUCTIONS = AgentInstructions()
+_DEFAULT_PROMPTS = AgentPrompts()
 
 STATIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
     {
-        _DEFAULT_INSTRUCTIONS.bash_tool.render(),
-        _DEFAULT_INSTRUCTIONS.ask_user_tool.render(),
-        _DEFAULT_INSTRUCTIONS.set_time_range_tool.render(),
+        _DEFAULT_PROMPTS.bash_tool.render(),
+        _DEFAULT_PROMPTS.ask_user_tool.render(),
+        _DEFAULT_PROMPTS.set_time_range_tool.render(),
     }
 )
 
 DYNAMIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
     {
-        _DEFAULT_INSTRUCTIONS.set_spans_filter_tool.render(),
-        _DEFAULT_INSTRUCTIONS.read_prompt_instance_tool.render(),
-        _DEFAULT_INSTRUCTIONS.clone_prompt_instance_tool.render(),
-        _DEFAULT_INSTRUCTIONS.edit_prompt_instance_tool.render(),
+        _DEFAULT_PROMPTS.set_spans_filter_tool.render(),
+        _DEFAULT_PROMPTS.read_prompt_instance_tool.render(),
+        _DEFAULT_PROMPTS.clone_prompt_instance_tool.render(),
+        _DEFAULT_PROMPTS.edit_prompt_instance_tool.render(),
     }
 )
 
@@ -211,6 +211,17 @@ def _get_concatenated_text(blocks: list[BetaTextBlockParam]) -> str:
     return "\n".join(block["text"] for block in blocks if block.get("type") == "text")
 
 
+def _get_tool_names(body: MessageCreateParams) -> set[str]:
+    """Return the set of tool names advertised on the Anthropic request."""
+    tools = body.get("tools") or []
+    names: set[str] = set()
+    for tool in tools:
+        raw_name = tool.get("name")
+        if isinstance(raw_name, str):
+            names.add(raw_name)
+    return names
+
+
 class TestSystemBlockCacheBoundary:
     """Every system block lands on the correct side of the cache breakpoint."""
 
@@ -225,7 +236,7 @@ class TestSystemBlockCacheBoundary:
         await agent.run("hello", deps=deps)
 
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
-        assert _DEFAULT_INSTRUCTIONS.base.render() in _get_concatenated_text(cached_blocks)
+        assert _DEFAULT_PROMPTS.base.render() in _get_concatenated_text(cached_blocks)
 
     async def test_static_tool_instructions_are_inside_cache_boundary(
         self,
@@ -295,7 +306,7 @@ class TestSystemBlockCacheBoundary:
         cached_text = _get_concatenated_text(cached_blocks)
         uncached_text = _get_concatenated_text(uncached_blocks)
 
-        assert _DEFAULT_INSTRUCTIONS.base.render() in cached_text
+        assert _DEFAULT_PROMPTS.base.render() in cached_text
         for static_prompt in STATIC_TOOL_INSTRUCTIONS:
             assert static_prompt in cached_text
             assert static_prompt not in uncached_text
@@ -411,7 +422,7 @@ class TestDocsMCPToolset:
         await agent.run("hello", deps=deps)
 
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
-        assert _DEFAULT_INSTRUCTIONS.docs_tool.render() in _get_concatenated_text(cached_blocks)
+        assert _DEFAULT_PROMPTS.docs_tool.render() in _get_concatenated_text(cached_blocks)
 
     async def test_docs_tool_instructions_are_absent_when_docs_mcp_server_is_omitted(
         self,
@@ -423,9 +434,40 @@ class TestDocsMCPToolset:
 
         await agent.run("hello", deps=deps)
 
-        assert _DEFAULT_INSTRUCTIONS.docs_tool.render() not in "\n".join(
+        assert _DEFAULT_PROMPTS.docs_tool.render() not in "\n".join(
             _get_system_texts(captured_request.body)
         )
+
+
+class TestSkillsCapability:
+    async def test_bundled_debug_trace_skill_advertised_inside_cache_boundary(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
+        cached_text = _get_concatenated_text(cached_blocks)
+        assert "<available_skills>" in cached_text
+        assert "<name>debug-trace</name>" in cached_text
+
+    async def test_skill_tools_are_advertised(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        tool_names = _get_tool_names(captured_request.body)
+        assert "load_skill" in tool_names
+        assert "read_skill_resource" in tool_names
 
 
 class TestCapabilityInstructionsOverride:
@@ -434,8 +476,8 @@ class TestCapabilityInstructionsOverride:
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
     ) -> None:
-        custom = AgentInstructions(base=Template("CUSTOM_STATIC_SENTINEL"))
-        agent = build_agent(model=anthropic_model, instructions=custom)
+        custom = AgentPrompts(base=Template("CUSTOM_STATIC_SENTINEL"))
+        agent = build_agent(model=anthropic_model, prompts=custom)
         deps = AgentDependencies(contexts=ResolvedContexts())
 
         await agent.run("hello", deps=deps)
@@ -443,22 +485,22 @@ class TestCapabilityInstructionsOverride:
         cached_blocks, _ = _partition_system_blocks_by_cache_breakpoint(captured_request.body)
         cached_text = _get_concatenated_text(cached_blocks)
         assert "CUSTOM_STATIC_SENTINEL" in cached_text
-        assert _DEFAULT_INSTRUCTIONS.base.render() not in cached_text
+        assert _DEFAULT_PROMPTS.base.render() not in cached_text
 
     async def test_overridden_tool_instruction_replaces_default_in_system_blocks(
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
     ) -> None:
-        custom = AgentInstructions(bash_tool=Template("CUSTOM_BASH_SENTINEL"))
-        agent = build_agent(model=anthropic_model, instructions=custom)
+        custom = AgentPrompts(bash_tool=Template("CUSTOM_BASH_SENTINEL"))
+        agent = build_agent(model=anthropic_model, prompts=custom)
         deps = AgentDependencies(contexts=ResolvedContexts())
 
         await agent.run("hello", deps=deps)
 
         joined_system = "\n".join(_get_system_texts(captured_request.body))
         assert "CUSTOM_BASH_SENTINEL" in joined_system
-        assert _DEFAULT_INSTRUCTIONS.bash_tool.render() not in joined_system
+        assert _DEFAULT_PROMPTS.bash_tool.render() not in joined_system
 
 
 class TestWebAccessCapabilities:

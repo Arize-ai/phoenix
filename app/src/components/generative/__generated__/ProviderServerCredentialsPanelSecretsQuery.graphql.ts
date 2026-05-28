@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<10d8ac0e0def14fc7a01dc30d71eac42>>
+ * @generated SignedSource<<8b29008d744f30ea49ebfd691cb96d84>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -9,10 +9,10 @@
 // @ts-nocheck
 
 import { ConcreteRequest } from 'relay-runtime';
-export type GenerativeProvidersCardSecretsQuery$variables = {
+export type ProviderServerCredentialsPanelSecretsQuery$variables = {
   secretKeys: ReadonlyArray<string>;
 };
-export type GenerativeProvidersCardSecretsQuery$data = {
+export type ProviderServerCredentialsPanelSecretsQuery$data = {
   readonly secrets: {
     readonly edges: ReadonlyArray<{
       readonly node: {
@@ -32,9 +32,9 @@ export type GenerativeProvidersCardSecretsQuery$data = {
     }>;
   };
 };
-export type GenerativeProvidersCardSecretsQuery = {
-  response: GenerativeProvidersCardSecretsQuery$data;
-  variables: GenerativeProvidersCardSecretsQuery$variables;
+export type ProviderServerCredentialsPanelSecretsQuery = {
+  response: ProviderServerCredentialsPanelSecretsQuery$data;
+  variables: ProviderServerCredentialsPanelSecretsQuery$variables;
 };
 
 const node: ConcreteRequest = (function(){
@@ -110,7 +110,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "GenerativeProvidersCardSecretsQuery",
+    "name": "ProviderServerCredentialsPanelSecretsQuery",
     "selections": [
       {
         "alias": null,
@@ -155,7 +155,7 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "GenerativeProvidersCardSecretsQuery",
+    "name": "ProviderServerCredentialsPanelSecretsQuery",
     "selections": [
       {
         "alias": null,
@@ -202,16 +202,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "c3f0dc5189bf23c19ca47f7620e3b72a",
+    "cacheID": "8ad50d7bc3e7cc20678d5cfc8b7584b4",
     "id": null,
     "metadata": {},
-    "name": "GenerativeProvidersCardSecretsQuery",
+    "name": "ProviderServerCredentialsPanelSecretsQuery",
     "operationKind": "query",
-    "text": "query GenerativeProvidersCardSecretsQuery(\n  $secretKeys: [String!]!\n) {\n  secrets(keys: $secretKeys) {\n    edges {\n      node {\n        key\n        value {\n          __typename\n          ... on DecryptedSecret {\n            value\n          }\n          ... on UnparsableSecret {\n            parseError\n          }\n        }\n        id\n      }\n    }\n  }\n}\n"
+    "text": "query ProviderServerCredentialsPanelSecretsQuery(\n  $secretKeys: [String!]!\n) {\n  secrets(keys: $secretKeys) {\n    edges {\n      node {\n        key\n        value {\n          __typename\n          ... on DecryptedSecret {\n            value\n          }\n          ... on UnparsableSecret {\n            parseError\n          }\n        }\n        id\n      }\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "201c1ef7fedb96bca4e8070328713f13";
+(node as any).hash = "76249629a41742e8efbd25a0370219b7";
 
 export default node;

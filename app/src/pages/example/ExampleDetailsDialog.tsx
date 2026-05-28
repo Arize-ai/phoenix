@@ -244,10 +244,13 @@ function ExampleDetailsDialogContent({
   return (
     <>
       <DialogHeader>
-        <TitleWithID
-          title="Example"
-          id={data.example.externalId ?? exampleId}
-        />
+        <Flex direction="row" gap="size-200" alignItems="center">
+          <DialogCloseButton />
+          <TitleWithID
+            title="Example"
+            id={data.example.externalId ?? exampleId}
+          />
+        </Flex>
         <DialogTitleExtra>
           <DatasetSplits labels={datasetSplits} />
           {sourceSpanInfo ? (
@@ -274,7 +277,6 @@ function ExampleDetailsDialogContent({
               setFetchKey((key) => key + 1);
             }}
           />
-          <DialogCloseButton />
         </DialogTitleExtra>
       </DialogHeader>
       <Group orientation="vertical">
@@ -375,10 +377,12 @@ function ExampleDetailsHeaderSkeleton({ exampleId }: { exampleId: string }) {
   return (
     <>
       <DialogHeader>
-        <TitleWithID title="Example" id={exampleId} />
+        <Flex direction="row" gap="size-200" alignItems="center">
+          <DialogCloseButton />
+          <TitleWithID title="Example" id={exampleId} />
+        </Flex>
         <DialogTitleExtra>
           <Skeleton width={60} height={24} animation="wave" />
-          <DialogCloseButton />
         </DialogTitleExtra>
       </DialogHeader>
       <ExampleDetailsDialogSkeleton />

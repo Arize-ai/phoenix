@@ -747,6 +747,8 @@ async def _insert_session_with_token_spans(
                 cumulative_error_count=0,
                 cumulative_llm_token_count_prompt=prompt,
                 cumulative_llm_token_count_completion=completion,
+                llm_token_count_prompt=prompt,
+                llm_token_count_completion=completion,
                 attributes={},
                 trace_rowid=trace.id,
             )

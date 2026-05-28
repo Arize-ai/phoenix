@@ -23,8 +23,8 @@ export function ColorSwatch({
   const isCSSVariable = typeof color === "string" && color.startsWith("var");
   const additionalCSS = isCSSVariable
     ? css`
-          background-color: ${color} !important;
-        `
+        background-color: ${color} !important;
+      `
     : undefined;
   return (
     <AriaColorSwatch

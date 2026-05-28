@@ -35,7 +35,7 @@ import {
   Icon,
   Icons,
   Link,
-  Loading,
+  Skeleton,
   Text,
   TextErrorBoundaryFallback,
   ToggleButton,
@@ -76,6 +76,10 @@ import type { SpansTableSpansQuery } from "./__generated__/SpansTableSpansQuery.
 import { DEFAULT_PAGE_SIZE } from "./constants";
 import { ProjectFilterConfigButton } from "./ProjectFilterConfigButton";
 import { ProjectTableEmpty } from "./ProjectTableEmpty";
+import {
+  ProjectTraceCountSparkline,
+  ProjectTraceCountSparklineSkeleton,
+} from "./ProjectTraceCountSparkline";
 import { RetrievalEvaluationLabel } from "./RetrievalEvaluationLabel";
 import { getVisibleSpanAnnotationColumnNames } from "./spanAnnotationUtils";
 import { SpanColumnSelector } from "./SpanColumnSelector";
@@ -180,6 +184,23 @@ export const MemoizedTableBody = React.memo(
   (prev, next) => prev.table.options.data === next.table.options.data
 ) as typeof TableBody;
 
+function SpansTableAsideSkeleton() {
+  return (
+    <View padding="size-200" overflow="hidden" height="100%" aria-hidden="true">
+      <Flex direction="column" gap="size-200" minWidth="size-3400">
+        <Skeleton width={96} height={20} animation="wave" />
+        <Skeleton width="100%" height={32} animation="wave" />
+        <Skeleton width={72} height={20} animation="wave" />
+        <Skeleton width={96} height={24} animation="wave" />
+        <Skeleton width={84} height={20} animation="wave" />
+        <Skeleton width={72} height={24} animation="wave" />
+        <Skeleton width={84} height={20} animation="wave" />
+        <Skeleton width={80} height={24} animation="wave" />
+      </Flex>
+    </View>
+  );
+}
+
 export function SpansTable(props: SpansTableProps) {
   const { fetchKey } = useStreamState();
   //we need a reference to the scrolling element for logic down below
@@ -231,7 +252,10 @@ export function SpansTable(props: SpansTableProps) {
           after: { type: "String", defaultValue: null }
           first: { type: "Int", defaultValue: 30 }
           rootSpansOnly: { type: "Boolean", defaultValue: true }
-          sort: { type: "SpanSort", defaultValue: { col: startTime, dir: desc } }
+          sort: {
+            type: "SpanSort"
+            defaultValue: { col: startTime, dir: desc }
+          }
           filterCondition: { type: "String", defaultValue: null }
         ) {
           name
@@ -848,6 +872,20 @@ export function SpansTable(props: SpansTableProps) {
       <Panel>
         <div css={spansTableCSS}>
           <View
+            paddingStart="size-200"
+            paddingEnd="size-200"
+            paddingTop="size-200"
+            paddingBottom="size-50"
+            flex="none"
+            overflow="visible"
+            position="relative"
+            zIndex={2}
+          >
+            <Suspense fallback={<ProjectTraceCountSparklineSkeleton />}>
+              <ProjectTraceCountSparkline />
+            </Suspense>
+          </View>
+          <View
             paddingTop="size-100"
             paddingBottom="size-100"
             paddingStart="size-200"
@@ -1041,7 +1079,7 @@ export function SpansTable(props: SpansTableProps) {
       >
         {showTableAside ? (
           <ErrorBoundary fallback={TextErrorBoundaryFallback}>
-            <Suspense fallback={<Loading size="S" />}>
+            <Suspense fallback={<SpansTableAsideSkeleton />}>
               <SpansTableAside filterCondition={filterCondition} />
             </Suspense>
           </ErrorBoundary>

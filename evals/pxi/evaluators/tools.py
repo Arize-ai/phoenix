@@ -353,7 +353,7 @@ def _pair_passes(observed_args: dict[str, Any], key: str, expected_value: Any) -
     if _is_matcher_dict(expected_value):
         observed = observed_args[key] if key in observed_args else _MISSING
         return _matcher_passes(observed, expected_value)
-    return observed_args.get(key) == expected_value
+    return bool(observed_args.get(key) == expected_value)
 
 
 def _matcher_validation_failures(variants: list[dict[str, Any]]) -> dict[str, str]:

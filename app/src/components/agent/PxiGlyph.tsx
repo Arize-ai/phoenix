@@ -118,39 +118,93 @@ const waveHoldBackground = keyframes`
 `;
 
 const waveRevealGlyphCSS = css`
-  > span:nth-of-type(1) { animation: ${waveRevealMain} 4s ease-in-out infinite 0s; }
-  > span:nth-of-type(2) { animation: ${waveRevealBackground} 4s ease-in-out infinite 0.08s; }
-  > span:nth-of-type(3) { animation: ${waveRevealMain} 4s ease-in-out infinite 0.16s; }
-  > span:nth-of-type(4) { animation: ${waveRevealBackground} 4s ease-in-out infinite 0.24s; }
-  > span:nth-of-type(5) { animation: ${waveRevealMain} 4s ease-in-out infinite 0.32s; }
-  > span:nth-of-type(6) { animation: ${waveRevealBackground} 4s ease-in-out infinite 0.4s; }
-  > span:nth-of-type(7) { animation: ${waveRevealMain} 4s ease-in-out infinite 0.48s; }
-  > span:nth-of-type(8) { animation: ${waveRevealBackground} 4s ease-in-out infinite 0.56s; }
-  > span:nth-of-type(9) { animation: ${waveRevealMain} 4s ease-in-out infinite 0.64s; }
+  > span:nth-of-type(1) {
+    animation: ${waveRevealMain} 4s ease-in-out infinite 0s;
+  }
+  > span:nth-of-type(2) {
+    animation: ${waveRevealBackground} 4s ease-in-out infinite 0.08s;
+  }
+  > span:nth-of-type(3) {
+    animation: ${waveRevealMain} 4s ease-in-out infinite 0.16s;
+  }
+  > span:nth-of-type(4) {
+    animation: ${waveRevealBackground} 4s ease-in-out infinite 0.24s;
+  }
+  > span:nth-of-type(5) {
+    animation: ${waveRevealMain} 4s ease-in-out infinite 0.32s;
+  }
+  > span:nth-of-type(6) {
+    animation: ${waveRevealBackground} 4s ease-in-out infinite 0.4s;
+  }
+  > span:nth-of-type(7) {
+    animation: ${waveRevealMain} 4s ease-in-out infinite 0.48s;
+  }
+  > span:nth-of-type(8) {
+    animation: ${waveRevealBackground} 4s ease-in-out infinite 0.56s;
+  }
+  > span:nth-of-type(9) {
+    animation: ${waveRevealMain} 4s ease-in-out infinite 0.64s;
+  }
 `;
 
 const orbitRevealGlyphCSS = css`
-  > span:nth-of-type(1) { animation: ${orbitRevealCorner} 4s ease-in-out infinite 0s; }
-  > span:nth-of-type(2) { animation: ${orbitRevealEdge} 4s ease-in-out infinite 0.15s; }
-  > span:nth-of-type(3) { animation: ${orbitRevealCorner} 4s ease-in-out infinite 0.3s; }
-  > span:nth-of-type(4) { animation: ${orbitRevealEdge} 4s ease-in-out infinite 1.05s; }
-  > span:nth-of-type(5) { animation: ${orbitRevealCenter} 4s ease-in-out infinite; }
-  > span:nth-of-type(6) { animation: ${orbitRevealEdge} 4s ease-in-out infinite 0.45s; }
-  > span:nth-of-type(7) { animation: ${orbitRevealCorner} 4s ease-in-out infinite 0.9s; }
-  > span:nth-of-type(8) { animation: ${orbitRevealEdge} 4s ease-in-out infinite 0.75s; }
-  > span:nth-of-type(9) { animation: ${orbitRevealCorner} 4s ease-in-out infinite 0.6s; }
+  > span:nth-of-type(1) {
+    animation: ${orbitRevealCorner} 4s ease-in-out infinite 0s;
+  }
+  > span:nth-of-type(2) {
+    animation: ${orbitRevealEdge} 4s ease-in-out infinite 0.15s;
+  }
+  > span:nth-of-type(3) {
+    animation: ${orbitRevealCorner} 4s ease-in-out infinite 0.3s;
+  }
+  > span:nth-of-type(4) {
+    animation: ${orbitRevealEdge} 4s ease-in-out infinite 1.05s;
+  }
+  > span:nth-of-type(5) {
+    animation: ${orbitRevealCenter} 4s ease-in-out infinite;
+  }
+  > span:nth-of-type(6) {
+    animation: ${orbitRevealEdge} 4s ease-in-out infinite 0.45s;
+  }
+  > span:nth-of-type(7) {
+    animation: ${orbitRevealCorner} 4s ease-in-out infinite 0.9s;
+  }
+  > span:nth-of-type(8) {
+    animation: ${orbitRevealEdge} 4s ease-in-out infinite 0.75s;
+  }
+  > span:nth-of-type(9) {
+    animation: ${orbitRevealCorner} 4s ease-in-out infinite 0.6s;
+  }
 `;
 
 const twinkleRevealGlyphCSS = css`
-  > span:nth-of-type(1) { animation: ${twinkleRevealMain} 4s ease-in-out infinite 0s; }
-  > span:nth-of-type(2) { animation: ${twinkleRevealBackground} 4s ease-in-out infinite 0.2s; }
-  > span:nth-of-type(3) { animation: ${twinkleRevealMain} 4s ease-in-out infinite 0.5s; }
-  > span:nth-of-type(4) { animation: ${twinkleRevealBackground} 4s ease-in-out infinite 0.1s; }
-  > span:nth-of-type(5) { animation: ${twinkleRevealMain} 4s ease-in-out infinite 0.3s; }
-  > span:nth-of-type(6) { animation: ${twinkleRevealBackground} 4s ease-in-out infinite 0.6s; }
-  > span:nth-of-type(7) { animation: ${twinkleRevealMain} 4s ease-in-out infinite 0.4s; }
-  > span:nth-of-type(8) { animation: ${twinkleRevealBackground} 4s ease-in-out infinite 0.35s; }
-  > span:nth-of-type(9) { animation: ${twinkleRevealMain} 4s ease-in-out infinite 0.25s; }
+  > span:nth-of-type(1) {
+    animation: ${twinkleRevealMain} 4s ease-in-out infinite 0s;
+  }
+  > span:nth-of-type(2) {
+    animation: ${twinkleRevealBackground} 4s ease-in-out infinite 0.2s;
+  }
+  > span:nth-of-type(3) {
+    animation: ${twinkleRevealMain} 4s ease-in-out infinite 0.5s;
+  }
+  > span:nth-of-type(4) {
+    animation: ${twinkleRevealBackground} 4s ease-in-out infinite 0.1s;
+  }
+  > span:nth-of-type(5) {
+    animation: ${twinkleRevealMain} 4s ease-in-out infinite 0.3s;
+  }
+  > span:nth-of-type(6) {
+    animation: ${twinkleRevealBackground} 4s ease-in-out infinite 0.6s;
+  }
+  > span:nth-of-type(7) {
+    animation: ${twinkleRevealMain} 4s ease-in-out infinite 0.4s;
+  }
+  > span:nth-of-type(8) {
+    animation: ${twinkleRevealBackground} 4s ease-in-out infinite 0.35s;
+  }
+  > span:nth-of-type(9) {
+    animation: ${twinkleRevealMain} 4s ease-in-out infinite 0.25s;
+  }
 `;
 
 const waveHoldGlyphCSS = css`
@@ -162,10 +216,18 @@ const waveHoldGlyphCSS = css`
     animation: ${waveHoldMain} 3s ease-in-out infinite;
   }
 
-  > span:nth-of-type(2) { animation: ${waveHoldBackground} 3s ease-in-out infinite 0s; }
-  > span:nth-of-type(4) { animation: ${waveHoldBackground} 3s ease-in-out infinite 0.15s; }
-  > span:nth-of-type(6) { animation: ${waveHoldBackground} 3s ease-in-out infinite 0.3s; }
-  > span:nth-of-type(8) { animation: ${waveHoldBackground} 3s ease-in-out infinite 0.45s; }
+  > span:nth-of-type(2) {
+    animation: ${waveHoldBackground} 3s ease-in-out infinite 0s;
+  }
+  > span:nth-of-type(4) {
+    animation: ${waveHoldBackground} 3s ease-in-out infinite 0.15s;
+  }
+  > span:nth-of-type(6) {
+    animation: ${waveHoldBackground} 3s ease-in-out infinite 0.3s;
+  }
+  > span:nth-of-type(8) {
+    animation: ${waveHoldBackground} 3s ease-in-out infinite 0.45s;
+  }
 `;
 
 const thinkingGlyphAnimationCSS: Record<
@@ -179,7 +241,7 @@ const thinkingGlyphAnimationCSS: Record<
 };
 
 /**
- * PXI brand glyph. When `animation` is set, renders an animated 3x3 grid;
+ * Assistant brand glyph. When `animation` is set, renders an animated 3x3 grid;
  * otherwise renders the static rounded-square 5-cell brand mark.
  */
 export function PxiGlyph({

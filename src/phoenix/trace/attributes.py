@@ -256,7 +256,7 @@ class _Trie(defaultdict[Union[str, int], "_Trie"]):
 
     def add_branch(self, branch: Union[str, int]) -> "_Trie":
         if branch in self.indices:
-            self.indices.discard(cast(int, branch))
+            self.indices.discard(branch)
         self.branches.add(branch)
         return self[branch]
 

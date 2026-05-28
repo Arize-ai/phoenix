@@ -6,7 +6,16 @@ import {
   ModalOverlay as AriaModalOverlay,
 } from "react-aria-components";
 
+import {
+  MODAL_DIALOG_Z_INDEX,
+  MODAL_OVERLAY_Z_INDEX,
+} from "@phoenix/components/core/zIndex";
 import { classNames } from "@phoenix/utils/classNames";
+
+import {
+  MODAL_OVERLAY_CLASS_NAME,
+  MODAL_PORTAL_CONTAINER_ATTR,
+} from "./constants";
 
 const modalSlideover = keyframes`
   from {
@@ -96,7 +105,7 @@ const modalCSS = css`
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      z-index: 1001;
+      z-index: ${MODAL_DIALOG_Z_INDEX};
       // 90% gives a decent amount of padding around the dialog when it would
       // otherwise be cut off by the edges of the screen
       max-height: calc(100% - var(--global-dimension-size-800));
@@ -140,6 +149,7 @@ function Modal({ ref, ...props }: ModalProps & { ref?: Ref<HTMLDivElement> }) {
   return (
     <AriaModal
       {...rest}
+      {...{ [MODAL_PORTAL_CONTAINER_ATTR]: "" }}
       data-size={size}
       data-variant={variant}
       ref={ref}
@@ -152,7 +162,7 @@ const modalOverlayCSS = css`
   position: fixed;
   inset: 0;
   background: var(--global-overlay-backdrop-color);
-  z-index: 1000;
+  z-index: ${MODAL_OVERLAY_Z_INDEX};
 
   &[data-entering] {
     // ensure overlay animation is longer than child animations
@@ -174,7 +184,7 @@ function ModalOverlay({
       {...props}
       data-testid="modal-overlay"
       css={modalOverlayCSS}
-      className={classNames(props.className, "react-aria-ModalOverlay")}
+      className={classNames(props.className, MODAL_OVERLAY_CLASS_NAME)}
       // default to true, but allow for override
       isDismissable={props.isDismissable ?? true}
       ref={ref}

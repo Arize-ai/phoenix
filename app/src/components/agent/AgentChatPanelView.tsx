@@ -1,5 +1,6 @@
 import { css } from "@emotion/react";
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Panel, Separator } from "react-resizable-panels";
 
 import {
@@ -12,22 +13,51 @@ import {
 } from "@phoenix/components";
 import { fadedDividerBottomCSS } from "@phoenix/components/core/layout";
 import { compactResizeHandleCSS } from "@phoenix/components/resize/styles";
-import type { AgentSession } from "@phoenix/store/agentStore";
+import { useActiveModalPortalContainerElement } from "@phoenix/hooks/useHasOpenModal";
+import type {
+  AgentFabPlacement,
+  AgentPosition,
+  AgentSession,
+} from "@phoenix/store/agentStore";
+import type { Size } from "@phoenix/types/geometry";
 
 import { PxiGlyph } from "./PxiGlyph";
+import { ResizableFloatingPanel } from "./ResizableFloatingPanel";
 import { SessionListMenu } from "./SessionListMenu";
+
+const PANEL_HEADER_Z_INDEX = 3;
+const FLOATING_PANEL_WIDTH_PX = 420;
+const FLOATING_PANEL_HEIGHT_PX = 720;
+const FLOATING_PANEL_MIN_WIDTH_PX = 360;
+const FLOATING_PANEL_MIN_HEIGHT_PX = 520;
+
+export const DEFAULT_FLOATING_AGENT_CHAT_SIZE: Size = {
+  width: FLOATING_PANEL_WIDTH_PX,
+  height: FLOATING_PANEL_HEIGHT_PX,
+};
+
+const MIN_FLOATING_AGENT_CHAT_SIZE: Size = {
+  width: FLOATING_PANEL_MIN_WIDTH_PX,
+  height: FLOATING_PANEL_MIN_HEIGHT_PX,
+};
 
 const panelHeaderCSS = css`
   ${fadedDividerBottomCSS}
-  z-index: 2;
-  display: flex;
+  box-sizing: border-box;
+  flex: none;
+  z-index: ${PANEL_HEADER_Z_INDEX};
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
+  column-gap: var(--global-dimension-size-100);
+  min-height: var(--global-dimension-size-600);
   padding: var(--global-dimension-size-100) var(--global-dimension-size-150);
+  background: var(--global-background-color-default);
 `;
 
 const panelHeaderActionsCSS = css`
-  flex-shrink: 0;
+  justify-self: end;
+  min-width: max-content;
 `;
 
 const sessionHeadingCSS = css`
@@ -49,27 +79,37 @@ const panelContentCSS = css`
 `;
 
 /**
- * Shared header for PXI chat surfaces.
+ * Shared header for assistant chat surfaces.
  */
 export function AgentChatHeader({
   sessionDisplayName,
   orderedSessions,
   activeSessionId,
   showSessionHistory,
+  position,
   onSelectSession,
   onDeleteSession,
   onCreateSession,
+  onPositionChange,
   onClose,
 }: {
   sessionDisplayName: string;
   orderedSessions: AgentSession[];
   activeSessionId: string | null;
   showSessionHistory: boolean;
+  position?: AgentPosition;
   onSelectSession: (sessionId: string | null) => void;
   onDeleteSession: (sessionId: string) => void;
   onCreateSession: () => void;
+  onPositionChange?: (position: AgentPosition) => void;
   onClose: () => void;
 }) {
+  const nextPosition = position === "pinned" ? "detached" : "pinned";
+  const positionToggleLabel =
+    position === "pinned"
+      ? "Switch assistant to floating panel"
+      : "Pin assistant to side";
+
   return (
     <div css={panelHeaderCSS}>
       <Flex direction="row" alignItems="center" gap="size-50" minWidth={0}>
@@ -104,6 +144,21 @@ export function AgentChatHeader({
           onPress={onCreateSession}
           leadingVisual={<Icon svg={<Icons.PlusOutline />} />}
         />
+        {position != null && onPositionChange != null ? (
+          <Button
+            variant="quiet"
+            size="S"
+            aria-label={positionToggleLabel}
+            onPress={() => onPositionChange(nextPosition)}
+            leadingVisual={
+              <Icon
+                svg={
+                  position === "pinned" ? <Icons.SlideOut /> : <Icons.SlideIn />
+                }
+              />
+            }
+          />
+        ) : null}
         <LinkButton
           variant="quiet"
           size="S"
@@ -124,7 +179,7 @@ export function AgentChatHeader({
 }
 
 /**
- * Shared content frame for the docked and embedded PXI surfaces.
+ * Shared content frame for the docked and embedded assistant surfaces.
  */
 function AgentChatFrame({
   panelId,
@@ -167,6 +222,42 @@ export function DockedAgentChatFrame({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Presentational shell for the floating assistant panel.
+ */
+export function FloatingAgentChatFrame({
+  children,
+  layer = "content",
+  placement,
+  size = DEFAULT_FLOATING_AGENT_CHAT_SIZE,
+  onSizeChange,
+}: {
+  children: ReactNode;
+  layer?: "content" | "modal";
+  placement: AgentFabPlacement;
+  size?: Size;
+  onSizeChange?: (size: Size) => void;
+}) {
+  const activeModalPortalContainer = useActiveModalPortalContainerElement();
+  const panel = (
+    <ResizableFloatingPanel
+      layer={layer}
+      minSize={MIN_FLOATING_AGENT_CHAT_SIZE}
+      placement={placement}
+      size={size}
+      onSizeChange={onSizeChange}
+    >
+      {children}
+    </ResizableFloatingPanel>
+  );
+
+  if (layer !== "modal") {
+    return panel;
+  }
+
+  return createPortal(panel, activeModalPortalContainer ?? document.body);
+}
+
 const tracePanelContentCSS = css`
   display: flex;
   flex-direction: column;
@@ -179,7 +270,7 @@ const tracePanelContentCSS = css`
 `;
 
 /**
- * Presentational shell for the trace slideover's embedded PXI panel.
+ * Presentational shell for the trace slideover's embedded assistant panel.
  */
 export function TraceAgentChatFrame({ children }: { children: ReactNode }) {
   return (

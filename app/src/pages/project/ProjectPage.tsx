@@ -24,7 +24,6 @@ import type { ProjectPageQueriesSessionsQuery as ProjectPageSessionsQueryType } 
 import type { ProjectPageQueriesSpansQuery as ProjectPageSpansQueryType } from "./__generated__/ProjectPageQueriesSpansQuery.graphql";
 import type { ProjectPageQueriesTracesQuery as ProjectPageTracesQueryType } from "./__generated__/ProjectPageQueriesTracesQuery.graphql";
 import type { ProjectPageQuery as ProjectPageQueryType } from "./__generated__/ProjectPageQuery.graphql";
-import { ProjectPageHeader } from "./ProjectPageHeader";
 import {
   ProjectPageQueriesProjectConfigQuery,
   ProjectPageQueriesSessionsQuery,
@@ -166,27 +165,29 @@ function ProjectPageContentBody({
   );
   const tabIndex = isTab(tab) ? TAB_INDEX_MAP[tab] : 0;
   useEffect(() => {
-    if (tabIndex === TAB_INDEX_MAP.spans) {
-      loadSpansQuery({
-        id: projectId as string,
-        timeRange: timeRangeVariable,
-        orphanSpanAsRootSpan: treatOrphansAsRoots,
-      });
-    } else if (tabIndex === TAB_INDEX_MAP.traces) {
-      loadTracesQuery({
-        id: projectId as string,
-        timeRange: timeRangeVariable,
-      });
-    } else if (tabIndex === TAB_INDEX_MAP.sessions) {
-      loadSessionsQuery({
-        id: projectId as string,
-        timeRange: timeRangeVariable,
-      });
-    } else if (tabIndex === TAB_INDEX_MAP.config) {
-      loadProjectConfigQuery({
-        id: projectId as string,
-      });
-    }
+    startTransition(() => {
+      if (tabIndex === TAB_INDEX_MAP.spans) {
+        loadSpansQuery({
+          id: projectId as string,
+          timeRange: timeRangeVariable,
+          orphanSpanAsRootSpan: treatOrphansAsRoots,
+        });
+      } else if (tabIndex === TAB_INDEX_MAP.traces) {
+        loadTracesQuery({
+          id: projectId as string,
+          timeRange: timeRangeVariable,
+        });
+      } else if (tabIndex === TAB_INDEX_MAP.sessions) {
+        loadSessionsQuery({
+          id: projectId as string,
+          timeRange: timeRangeVariable,
+        });
+      } else if (tabIndex === TAB_INDEX_MAP.config) {
+        loadProjectConfigQuery({
+          id: projectId as string,
+        });
+      }
+    });
 
     return () => {
       disposeSpansQuery();
@@ -238,7 +239,6 @@ function ProjectPageContentBody({
       <TopNavActions order={-1}>
         <StreamToggle project={data.project} />
       </TopNavActions>
-      <ProjectPageHeader />
       <ProjectPageQueryReferenceContext.Provider
         value={{
           spansQueryReference: spansQueryReference ?? null,

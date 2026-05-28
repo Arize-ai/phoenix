@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<170b0ae01df983830e7f33b3f5fe8e63>>
+ * @generated SignedSource<<020d227ba0037644c53fbf1f7292123e>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -10,9 +10,12 @@
 
 import { ConcreteRequest } from 'relay-runtime';
 import { FragmentRefs } from "relay-runtime";
-export type dashboardsLoaderQuery$variables = Record<PropertyKey, never>;
+export type dashboardsLoaderQuery$variables = {
+  hasSelectedProject: boolean;
+  projectId: string;
+};
 export type dashboardsLoaderQuery$data = {
-  readonly " $fragmentSpreads": FragmentRefs<"ProjectDashboardsTable_projects">;
+  readonly " $fragmentSpreads": FragmentRefs<"ProjectMenu_projects">;
 };
 export type dashboardsLoaderQuery = {
   response: dashboardsLoaderQuery$data;
@@ -22,29 +25,66 @@ export type dashboardsLoaderQuery = {
 const node: ConcreteRequest = (function(){
 var v0 = [
   {
-    "kind": "Literal",
-    "name": "first",
-    "value": 50
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "hasSelectedProject"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "projectId"
   }
 ],
 v1 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
   "name": "id",
   "storageKey": null
-};
+},
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "name",
+  "storageKey": null
+},
+v4 = [
+  {
+    "kind": "Literal",
+    "name": "first",
+    "value": 50
+  }
+];
 return {
   "fragment": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "dashboardsLoaderQuery",
     "selections": [
       {
-        "args": null,
+        "args": [
+          {
+            "kind": "Variable",
+            "name": "hasSelectedProject",
+            "variableName": "hasSelectedProject"
+          },
+          {
+            "kind": "Variable",
+            "name": "selectedProjectId",
+            "variableName": "projectId"
+          }
+        ],
         "kind": "FragmentSpread",
-        "name": "ProjectDashboardsTable_projects"
+        "name": "ProjectMenu_projects"
       }
     ],
     "type": "Query",
@@ -52,13 +92,47 @@ return {
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "dashboardsLoaderQuery",
     "selections": [
       {
+        "condition": "hasSelectedProject",
+        "kind": "Condition",
+        "passingValue": true,
+        "selections": [
+          {
+            "alias": "selectedProject",
+            "args": [
+              {
+                "kind": "Variable",
+                "name": "id",
+                "variableName": "projectId"
+              }
+            ],
+            "concreteType": null,
+            "kind": "LinkedField",
+            "name": "node",
+            "plural": false,
+            "selections": [
+              (v1/*: any*/),
+              (v2/*: any*/),
+              {
+                "kind": "InlineFragment",
+                "selections": [
+                  (v3/*: any*/)
+                ],
+                "type": "Project",
+                "abstractKey": null
+              }
+            ],
+            "storageKey": null
+          }
+        ]
+      },
+      {
         "alias": null,
-        "args": (v0/*: any*/),
+        "args": (v4/*: any*/),
         "concreteType": "ProjectConnection",
         "kind": "LinkedField",
         "name": "projects",
@@ -80,14 +154,8 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  (v1/*: any*/),
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "name",
-                    "storageKey": null
-                  }
+                  (v2/*: any*/),
+                  (v3/*: any*/)
                 ],
                 "storageKey": null
               },
@@ -106,14 +174,8 @@ return {
                 "name": "node",
                 "plural": false,
                 "selections": [
-                  {
-                    "alias": null,
-                    "args": null,
-                    "kind": "ScalarField",
-                    "name": "__typename",
-                    "storageKey": null
-                  },
-                  (v1/*: any*/)
+                  (v1/*: any*/),
+                  (v2/*: any*/)
                 ],
                 "storageKey": null
               }
@@ -150,26 +212,28 @@ return {
       },
       {
         "alias": null,
-        "args": (v0/*: any*/),
-        "filters": null,
+        "args": (v4/*: any*/),
+        "filters": [
+          "filter"
+        ],
         "handle": "connection",
-        "key": "ProjectDashboardsTable_projects",
+        "key": "ProjectMenu_projects",
         "kind": "LinkedHandle",
         "name": "projects"
       }
     ]
   },
   "params": {
-    "cacheID": "4644a4f13fed205537d5cc9e1b4f1df8",
+    "cacheID": "89e19deac736ecf151ba7fa5227f7b69",
     "id": null,
     "metadata": {},
     "name": "dashboardsLoaderQuery",
     "operationKind": "query",
-    "text": "query dashboardsLoaderQuery {\n  ...ProjectDashboardsTable_projects\n}\n\nfragment ProjectDashboardsTable_projects on Query {\n  projects(first: 50) {\n    edges {\n      project: node {\n        id\n        name\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
+    "text": "query dashboardsLoaderQuery(\n  $hasSelectedProject: Boolean!\n  $projectId: ID!\n) {\n  ...ProjectMenu_projects_4wy0JP\n}\n\nfragment ProjectMenu_projects_4wy0JP on Query {\n  selectedProject: node(id: $projectId) @include(if: $hasSelectedProject) {\n    __typename\n    id\n    ... on Project {\n      name\n    }\n  }\n  projects(first: 50) {\n    edges {\n      project: node {\n        id\n        name\n      }\n      cursor\n      node {\n        __typename\n        id\n      }\n    }\n    pageInfo {\n      endCursor\n      hasNextPage\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "93dabaadd9674b38d8c9c7051a25a8b1";
+(node as any).hash = "6fe56c8cb343694b5f9427aa7eadacc7";
 
 export default node;
