@@ -12,6 +12,10 @@ import { useBlocker, useSearchParams } from "react-router";
 
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import {
+  createReadPlaygroundOutputClientAction,
+  READ_PLAYGROUND_OUTPUT_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundOutput";
+import {
   CLONE_PROMPT_INSTANCE_TOOL_NAME,
   createClonePromptInstanceClientAction,
   createEditPromptClientAction,
@@ -19,6 +23,14 @@ import {
   EDIT_PROMPT_TOOL_NAME,
   READ_PROMPT_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPrompt";
+import {
+  createRunPlaygroundClientAction,
+  RUN_PLAYGROUND_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundRun";
+import {
+  createSetVariableValuesClientAction,
+  SET_VARIABLE_VALUES_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundVariableValues";
 import {
   Button,
   Disclosure,
@@ -286,10 +298,25 @@ function PlaygroundContent() {
       EDIT_PROMPT_TOOL_NAME,
       createEditPromptClientAction({ playgroundStore, setPendingPromptEdit })
     );
+    registerClientAction(
+      RUN_PLAYGROUND_TOOL_NAME,
+      createRunPlaygroundClientAction({ playgroundStore })
+    );
+    registerClientAction(
+      READ_PLAYGROUND_OUTPUT_TOOL_NAME,
+      createReadPlaygroundOutputClientAction({ playgroundStore })
+    );
+    registerClientAction(
+      SET_VARIABLE_VALUES_TOOL_NAME,
+      createSetVariableValuesClientAction({ playgroundStore })
+    );
     return () => {
       unregisterClientAction(READ_PROMPT_TOOL_NAME);
       unregisterClientAction(CLONE_PROMPT_INSTANCE_TOOL_NAME);
       unregisterClientAction(EDIT_PROMPT_TOOL_NAME);
+      unregisterClientAction(RUN_PLAYGROUND_TOOL_NAME);
+      unregisterClientAction(READ_PLAYGROUND_OUTPUT_TOOL_NAME);
+      unregisterClientAction(SET_VARIABLE_VALUES_TOOL_NAME);
       for (const pendingEdit of Object.values(
         agentStore.getState().pendingPromptEditsByToolCallId
       )) {

@@ -20,11 +20,18 @@ _SET_SPANS_FILTER_TOOL_INSTRUCTIONS = get_template(
 _READ_PROMPT_INSTANCE_TOOL_INSTRUCTIONS = get_template(
     "tools/READ_PROMPT_INSTANCE_TOOL_INSTRUCTIONS.xml.j2"
 )
+_READ_PLAYGROUND_OUTPUT_TOOL_INSTRUCTIONS = get_template(
+    "tools/READ_PLAYGROUND_OUTPUT_TOOL_INSTRUCTIONS.xml.j2"
+)
 _CLONE_PROMPT_INSTANCE_TOOL_INSTRUCTIONS = get_template(
     "tools/CLONE_PROMPT_INSTANCE_TOOL_INSTRUCTIONS.xml.j2"
 )
 _EDIT_PROMPT_INSTANCE_TOOL_INSTRUCTIONS = get_template(
     "tools/EDIT_PROMPT_INSTANCE_TOOL_INSTRUCTIONS.xml.j2"
+)
+_RUN_PLAYGROUND_TOOL_INSTRUCTIONS = get_template("tools/RUN_PLAYGROUND_TOOL_INSTRUCTIONS.xml.j2")
+_SET_VARIABLE_VALUES_TOOL_INSTRUCTIONS = get_template(
+    "tools/SET_VARIABLE_VALUES_TOOL_INSTRUCTIONS.xml.j2"
 )
 _APP_CONTEXT_TEMPLATE = get_template("context/APP_CONTEXT_INSTRUCTIONS.xml.j2")
 _PROJECT_CONTEXT_TEMPLATE = get_template("context/PROJECT_CONTEXT_INSTRUCTIONS.xml.j2")
@@ -54,8 +61,11 @@ class AgentPrompts:
     render_generative_ui_tool: Template = _RENDER_GENERATIVE_UI_TOOL_INSTRUCTIONS
     set_spans_filter_tool: Template = _SET_SPANS_FILTER_TOOL_INSTRUCTIONS
     read_prompt_instance_tool: Template = _READ_PROMPT_INSTANCE_TOOL_INSTRUCTIONS
+    read_playground_output_tool: Template = _READ_PLAYGROUND_OUTPUT_TOOL_INSTRUCTIONS
     clone_prompt_instance_tool: Template = _CLONE_PROMPT_INSTANCE_TOOL_INSTRUCTIONS
     edit_prompt_instance_tool: Template = _EDIT_PROMPT_INSTANCE_TOOL_INSTRUCTIONS
+    run_playground_tool: Template = _RUN_PLAYGROUND_TOOL_INSTRUCTIONS
+    set_variable_values_tool: Template = _SET_VARIABLE_VALUES_TOOL_INSTRUCTIONS
     app_context: Template = _APP_CONTEXT_TEMPLATE
     project_context: Template = _PROJECT_CONTEXT_TEMPLATE
     trace_context: Template = _TRACE_CONTEXT_TEMPLATE

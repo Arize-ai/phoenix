@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<2bbfd49d87d84e43495f63d590e607d6>>
+ * @generated SignedSource<<5fe6cd8522c4373f8e05b91d455d93b7>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -239,6 +239,9 @@ export type PlaygroundOutputSubscription$data = {
     readonly repetitionNumber: number | null;
     readonly span?: {
       readonly id: string;
+      readonly trace: {
+        readonly traceId: string;
+      };
     } | null;
   };
 };
@@ -255,133 +258,157 @@ var v0 = [
     "name": "input"
   }
 ],
-v1 = {
+v1 = [
+  {
+    "kind": "Variable",
+    "name": "input",
+    "variableName": "input"
+  }
+],
+v2 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "__typename",
+  "storageKey": null
+},
+v3 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "repetitionNumber",
+  "storageKey": null
+},
+v4 = {
+  "kind": "InlineFragment",
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "content",
+      "storageKey": null
+    }
+  ],
+  "type": "TextChunk",
+  "abstractKey": null
+},
+v5 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "id",
   "storageKey": null
 },
-v2 = [
-  {
-    "alias": null,
-    "args": [
-      {
-        "kind": "Variable",
-        "name": "input",
-        "variableName": "input"
-      }
-    ],
-    "concreteType": null,
-    "kind": "LinkedField",
-    "name": "chatCompletion",
-    "plural": false,
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "__typename",
-        "storageKey": null
-      },
-      {
-        "alias": null,
-        "args": null,
-        "kind": "ScalarField",
-        "name": "repetitionNumber",
-        "storageKey": null
-      },
-      {
-        "kind": "InlineFragment",
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "content",
-            "storageKey": null
-          }
-        ],
-        "type": "TextChunk",
-        "abstractKey": null
-      },
-      {
-        "kind": "InlineFragment",
-        "selections": [
-          (v1/*: any*/),
-          {
-            "alias": null,
-            "args": null,
-            "concreteType": "FunctionCallChunk",
-            "kind": "LinkedField",
-            "name": "function",
-            "plural": false,
-            "selections": [
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "name",
-                "storageKey": null
-              },
-              {
-                "alias": null,
-                "args": null,
-                "kind": "ScalarField",
-                "name": "arguments",
-                "storageKey": null
-              }
-            ],
-            "storageKey": null
-          }
-        ],
-        "type": "ToolCallChunk",
-        "abstractKey": null
-      },
-      {
-        "kind": "InlineFragment",
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "concreteType": "Span",
-            "kind": "LinkedField",
-            "name": "span",
-            "plural": false,
-            "selections": [
-              (v1/*: any*/)
-            ],
-            "storageKey": null
-          }
-        ],
-        "type": "ChatCompletionSubscriptionResult",
-        "abstractKey": null
-      },
-      {
-        "kind": "InlineFragment",
-        "selections": [
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "message",
-            "storageKey": null
-          }
-        ],
-        "type": "ChatCompletionSubscriptionError",
-        "abstractKey": null
-      }
-    ],
-    "storageKey": null
-  }
-];
+v6 = {
+  "kind": "InlineFragment",
+  "selections": [
+    (v5/*: any*/),
+    {
+      "alias": null,
+      "args": null,
+      "concreteType": "FunctionCallChunk",
+      "kind": "LinkedField",
+      "name": "function",
+      "plural": false,
+      "selections": [
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "name",
+          "storageKey": null
+        },
+        {
+          "alias": null,
+          "args": null,
+          "kind": "ScalarField",
+          "name": "arguments",
+          "storageKey": null
+        }
+      ],
+      "storageKey": null
+    }
+  ],
+  "type": "ToolCallChunk",
+  "abstractKey": null
+},
+v7 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "traceId",
+  "storageKey": null
+},
+v8 = {
+  "kind": "InlineFragment",
+  "selections": [
+    {
+      "alias": null,
+      "args": null,
+      "kind": "ScalarField",
+      "name": "message",
+      "storageKey": null
+    }
+  ],
+  "type": "ChatCompletionSubscriptionError",
+  "abstractKey": null
+};
 return {
   "fragment": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
     "name": "PlaygroundOutputSubscription",
-    "selections": (v2/*: any*/),
+    "selections": [
+      {
+        "alias": null,
+        "args": (v1/*: any*/),
+        "concreteType": null,
+        "kind": "LinkedField",
+        "name": "chatCompletion",
+        "plural": false,
+        "selections": [
+          (v2/*: any*/),
+          (v3/*: any*/),
+          (v4/*: any*/),
+          (v6/*: any*/),
+          {
+            "kind": "InlineFragment",
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "Span",
+                "kind": "LinkedField",
+                "name": "span",
+                "plural": false,
+                "selections": [
+                  (v5/*: any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "Trace",
+                    "kind": "LinkedField",
+                    "name": "trace",
+                    "plural": false,
+                    "selections": [
+                      (v7/*: any*/)
+                    ],
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": null
+              }
+            ],
+            "type": "ChatCompletionSubscriptionResult",
+            "abstractKey": null
+          },
+          (v8/*: any*/)
+        ],
+        "storageKey": null
+      }
+    ],
     "type": "Subscription",
     "abstractKey": null
   },
@@ -390,19 +417,68 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
     "name": "PlaygroundOutputSubscription",
-    "selections": (v2/*: any*/)
+    "selections": [
+      {
+        "alias": null,
+        "args": (v1/*: any*/),
+        "concreteType": null,
+        "kind": "LinkedField",
+        "name": "chatCompletion",
+        "plural": false,
+        "selections": [
+          (v2/*: any*/),
+          (v3/*: any*/),
+          (v4/*: any*/),
+          (v6/*: any*/),
+          {
+            "kind": "InlineFragment",
+            "selections": [
+              {
+                "alias": null,
+                "args": null,
+                "concreteType": "Span",
+                "kind": "LinkedField",
+                "name": "span",
+                "plural": false,
+                "selections": [
+                  (v5/*: any*/),
+                  {
+                    "alias": null,
+                    "args": null,
+                    "concreteType": "Trace",
+                    "kind": "LinkedField",
+                    "name": "trace",
+                    "plural": false,
+                    "selections": [
+                      (v7/*: any*/),
+                      (v5/*: any*/)
+                    ],
+                    "storageKey": null
+                  }
+                ],
+                "storageKey": null
+              }
+            ],
+            "type": "ChatCompletionSubscriptionResult",
+            "abstractKey": null
+          },
+          (v8/*: any*/)
+        ],
+        "storageKey": null
+      }
+    ]
   },
   "params": {
-    "cacheID": "e74612af0887018cc61d185ed2105c5c",
+    "cacheID": "492e03d2e13daa952983f382e32009b3",
     "id": null,
     "metadata": {},
     "name": "PlaygroundOutputSubscription",
     "operationKind": "subscription",
-    "text": "subscription PlaygroundOutputSubscription(\n  $input: ChatCompletionInput!\n) {\n  chatCompletion(input: $input) {\n    __typename\n    repetitionNumber\n    ... on TextChunk {\n      content\n    }\n    ... on ToolCallChunk {\n      id\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      span {\n        id\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      message\n    }\n  }\n}\n"
+    "text": "subscription PlaygroundOutputSubscription(\n  $input: ChatCompletionInput!\n) {\n  chatCompletion(input: $input) {\n    __typename\n    repetitionNumber\n    ... on TextChunk {\n      content\n    }\n    ... on ToolCallChunk {\n      id\n      function {\n        name\n        arguments\n      }\n    }\n    ... on ChatCompletionSubscriptionResult {\n      span {\n        id\n        trace {\n          traceId\n          id\n        }\n      }\n    }\n    ... on ChatCompletionSubscriptionError {\n      message\n    }\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "964992cecd018dc17131050b7553a3d1";
+(node as any).hash = "44701c74231e54286f41785c4fc3a530";
 
 export default node;

@@ -351,6 +351,27 @@ describe("setRepetitionSpanId", () => {
   });
 });
 
+describe("setRepetitionTraceId", () => {
+  it("should set repetition trace id", () => {
+    const initialProps: InitialPlaygroundState = {
+      modelConfigByProvider: {},
+      datasetId: null,
+    };
+    const store = createPlaygroundStore(initialProps);
+    store.getState().runPlaygroundInstances();
+    const instanceId = store.getState().instances[0].id;
+
+    expect(store.getState().instances[0].repetitions[1]!.traceId).toBe(
+      undefined
+    );
+
+    store.getState().setRepetitionTraceId(instanceId, 1, "trace-abc-123");
+    expect(store.getState().instances[0].repetitions[1]!.traceId).toBe(
+      "trace-abc-123"
+    );
+  });
+});
+
 describe("addRepetitionPartialToolCall", () => {
   it("should add new tool call and concatenate arguments to existing tool call", () => {
     const initialProps: InitialPlaygroundState = {
@@ -1031,6 +1052,26 @@ describe("updateModelSupportedInvocationParameters", () => {
     store.getState().deleteResponseFormat({ instanceId });
 
     expect(store.getState().instances[0].model.responseFormat).toBeUndefined();
+  });
+});
+
+describe("setVariableValues", () => {
+  it("should set multiple variable values without clearing existing values", () => {
+    const store = createPlaygroundStore({
+      modelConfigByProvider: {},
+      datasetId: null,
+    });
+
+    store.getState().setVariableValue("question", "old question");
+    store.getState().setVariableValues([
+      { key: "question", value: "new question" },
+      { key: "answer", value: "new answer" },
+    ]);
+
+    expect(store.getState().input.variablesValueCache).toEqual({
+      question: "new question",
+      answer: "new answer",
+    });
   });
 });
 

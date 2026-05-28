@@ -1,0 +1,13 @@
+<tool name="run_playground">
+  <description>Start a playground run using the current browser UI state.</description>
+  <when_to_use>
+    - The user asks to run, try, execute, test, or compare the current playground prompt.
+    - After a user-approved prompt edit when the user wants to see the result.
+  </when_to_use>
+  <guidelines>
+    - This tool has no arguments. The browser decides what to run from the current playground UI state.
+    - It runs all currently visible comparison instances together. If the user asks for only one instance, explain that the current UI action runs all visible instances.
+    - Do not call this while a playground run is already active; wait for the current run to finish or ask the user whether to stop it.
+    - After the run finishes, call `read_playground_output` to inspect the raw output and retrieve traceId values.
+  </guidelines>
+</tool>

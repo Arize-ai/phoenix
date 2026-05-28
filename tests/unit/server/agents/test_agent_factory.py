@@ -51,8 +51,11 @@ DYNAMIC_TOOL_INSTRUCTIONS: frozenset[str] = frozenset(
     {
         _DEFAULT_PROMPTS.set_spans_filter_tool.render(),
         _DEFAULT_PROMPTS.read_prompt_instance_tool.render(),
+        _DEFAULT_PROMPTS.read_playground_output_tool.render(),
         _DEFAULT_PROMPTS.clone_prompt_instance_tool.render(),
         _DEFAULT_PROMPTS.edit_prompt_instance_tool.render(),
+        _DEFAULT_PROMPTS.run_playground_tool.render(),
+        _DEFAULT_PROMPTS.set_variable_values_tool.render(),
     }
 )
 
@@ -406,6 +409,40 @@ class TestUIContextInstructions:
         assert "<phoenix_gql_mutations_policy>" not in cached_texts
 
 
+class TestPlaygroundTools:
+    async def test_run_playground_tool_is_absent_without_playground_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(contexts=ResolvedContexts())
+
+        await agent.run("hello", deps=deps)
+
+        assert "run_playground" not in _get_tool_names(captured_request.body)
+        assert "read_playground_output" not in _get_tool_names(captured_request.body)
+        assert "set_variable_values" not in _get_tool_names(captured_request.body)
+
+    async def test_run_playground_tool_is_advertised_with_playground_context(
+        self,
+        anthropic_model: AnthropicModel,
+        captured_request: CapturedRequest,
+    ) -> None:
+        agent = build_agent(model=anthropic_model)
+        deps = AgentDependencies(
+            contexts=ResolvedContexts(
+                playground=PlaygroundContext(type="playground", instance_ids=[1]),
+            ),
+        )
+
+        await agent.run("hello", deps=deps)
+
+        assert "run_playground" in _get_tool_names(captured_request.body)
+        assert "read_playground_output" in _get_tool_names(captured_request.body)
+        assert "set_variable_values" in _get_tool_names(captured_request.body)
+
+
 class TestDocsMCPToolset:
     """The optional docs MCP toolset is wired into the system blocks only
     when supplied by the caller."""
@@ -440,7 +477,7 @@ class TestDocsMCPToolset:
 
 
 class TestSkillsCapability:
-    async def test_bundled_debug_trace_skill_advertised_inside_cache_boundary(
+    async def test_global_bundled_skills_advertised_inside_cache_boundary(
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
@@ -454,6 +491,7 @@ class TestSkillsCapability:
         cached_text = _get_concatenated_text(cached_blocks)
         assert "<available_skills>" in cached_text
         assert "<name>debug-trace</name>" in cached_text
+        assert "<name>playground</name>" not in cached_text
 
     async def test_skill_tools_are_advertised(
         self,
