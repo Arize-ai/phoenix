@@ -1,4 +1,3 @@
-import json
 import logging
 from collections.abc import AsyncGenerator, AsyncIterator, Callable, Iterable
 from contextlib import aclosing
@@ -57,8 +56,6 @@ from phoenix.server.agents.summarization import summarize_messages
 from phoenix.server.agents.types import (
     AgentDependencies,
     AgentOutput,
-    DatasetExampleSample,
-    DatasetExampleSamples,
     SandboxAvailability,
     SandboxConfigCapabilities,
 )
@@ -80,8 +77,6 @@ from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer, detached_otel_context
 
 _PHOENIX_PROVIDER_METADATA_KEY = "phoenix"
-_DATASET_EXAMPLE_SAMPLE_LIMIT = 3
-_DATASET_EXAMPLE_SAMPLE_MAX_CHARS = 2000
 
 ToolExecutionEnvironment = Literal["client", "server"]
 
@@ -466,80 +461,8 @@ def _decode_context_node_id(node_id: str | None, expected_type_name: str) -> int
         return None
 
 
-def _dump_dataset_example_value(value: Any) -> str:
-    try:
-        rendered = json.dumps(value, ensure_ascii=False, sort_keys=True, default=str)
-    except TypeError:
-        rendered = repr(value)
-    if len(rendered) > _DATASET_EXAMPLE_SAMPLE_MAX_CHARS:
-        return rendered[:_DATASET_EXAMPLE_SAMPLE_MAX_CHARS] + "... [truncated]"
-    return rendered
-
-
 def _contexts_need_sandbox_availability(contexts: ResolvedContexts) -> bool:
     return contexts.dataset is not None or contexts.code_evaluator is not None
-
-
-async def _load_dataset_example_samples(
-    session: AsyncSession,
-    contexts: ResolvedContexts,
-) -> DatasetExampleSamples:
-    dataset_context = contexts.dataset
-    if dataset_context is None:
-        return DatasetExampleSamples()
-
-    dataset_id = _decode_context_node_id(
-        dataset_context.dataset_node_id,
-        models.Dataset.__name__,
-    )
-    if dataset_id is None:
-        return DatasetExampleSamples()
-
-    dataset_version_id = _decode_context_node_id(
-        dataset_context.dataset_version_node_id,
-        models.DatasetVersion.__name__,
-    )
-    if dataset_context.dataset_version_node_id is None:
-        dataset_version_id = await session.scalar(
-            select(models.DatasetVersion.id)
-            .where(models.DatasetVersion.dataset_id == dataset_id)
-            .order_by(models.DatasetVersion.created_at.desc(), models.DatasetVersion.id.desc())
-            .limit(1)
-        )
-    if dataset_version_id is None:
-        return DatasetExampleSamples()
-
-    stmt = (
-        select(
-            models.DatasetExample.id,
-            models.DatasetExampleRevision.input,
-            models.DatasetExampleRevision.output,
-            models.DatasetExampleRevision.metadata_,
-        )
-        .join(
-            models.DatasetExample,
-            models.DatasetExample.id == models.DatasetExampleRevision.dataset_example_id,
-        )
-        .where(models.DatasetExample.dataset_id == dataset_id)
-        .where(models.DatasetExampleRevision.dataset_version_id == dataset_version_id)
-        .where(models.DatasetExampleRevision.revision_kind != "DELETE")
-        .order_by(func.random())
-        .limit(_DATASET_EXAMPLE_SAMPLE_LIMIT)
-    )
-    rows = (await session.execute(stmt)).all()
-    return DatasetExampleSamples(
-        samples=[
-            DatasetExampleSample(
-                dataset_example_id=str(
-                    GlobalID(models.DatasetExample.__name__, str(dataset_example_id))
-                ),
-                input_json=_dump_dataset_example_value(input_),
-                output_json=_dump_dataset_example_value(output),
-                metadata_json=_dump_dataset_example_value(metadata_),
-            )
-            for dataset_example_id, input_, output, metadata_ in rows
-        ]
-    )
 
 
 async def _ensure_project_exists(db: DbSessionFactory, project_name: str) -> int:
@@ -677,10 +600,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
                         session,
                         available_backend_types=available_backend_types,
                     )
-                dataset_example_samples = await _load_dataset_example_samples(
-                    session,
-                    resolved_contexts,
-                )
         except AgentError as exc:
             raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
@@ -717,7 +636,6 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             edit_permission=body.edit_permission,
             is_viewer=is_viewer,
             sandbox_availability=sandbox_availability,
-            dataset_example_samples=dataset_example_samples,
         )
 
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:

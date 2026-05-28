@@ -27,7 +27,6 @@ class DatasetContextCapability(AbstractDynamicCapability[AgentDependencies]):
                 is_code_evaluator_form_mounted=code_evaluator is not None,
                 has_usable_sandbox=ctx.deps.sandbox_availability.has_usable,
                 is_viewer=ctx.deps.is_viewer,
-                dataset_example_samples=ctx.deps.dataset_example_samples.samples,
             )
 
         return _instructions
