@@ -12,6 +12,7 @@ import {
 
 import { Text } from "@phoenix/components";
 import {
+  ChartEmptyStateOverlay,
   ChartTooltip,
   ChartTooltipItem,
   InteractiveLegend,
@@ -150,63 +151,69 @@ export function SpanAnnotationScoreTimeSeries({
   });
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
+  const hasData = annotationNames.length > 0;
   const { hiddenDataKeys, isDataKeyHidden, toggleDataKey } =
     useInteractiveLegend();
 
   return (
     <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
       {({ chartProps }) => (
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart
-            data={chartData}
-            margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
-            syncId={"projectMetrics"}
-            {...chartProps}
-          >
-            <XAxis
-              {...defaultTimeXAxisProps}
-              domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
-              tickFormatter={(x) => timeTickFormatter(new Date(x))}
-            />
-            <YAxis
-              width={55}
-              tickFormatter={(x) => formatFloat(x)}
-              label={{
-                value: "Score",
-                angle: -90,
-                dx: -28,
-                style: {
-                  textAnchor: "middle",
-                  fill: "var(--chart-axis-label-color)",
-                },
-              }}
-              {...defaultYAxisProps}
-            />
-            <CartesianGrid vertical={false} {...defaultCartesianGridProps} />
-            <Tooltip
-              content={TooltipContent}
-              cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
-            />
+        <ChartEmptyStateOverlay
+          isEmpty={!hasData}
+          message="No data in this time range"
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={chartData}
+              margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
+              syncId={"projectMetrics"}
+              {...chartProps}
+            >
+              <XAxis
+                {...defaultTimeXAxisProps}
+                domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
+                tickFormatter={(x) => timeTickFormatter(new Date(x))}
+              />
+              <YAxis
+                width={55}
+                tickFormatter={(x) => formatFloat(x)}
+                label={{
+                  value: "Score",
+                  angle: -90,
+                  dx: -28,
+                  style: {
+                    textAnchor: "middle",
+                    fill: "var(--chart-axis-label-color)",
+                  },
+                }}
+                {...defaultYAxisProps}
+              />
+              <CartesianGrid vertical={false} {...defaultCartesianGridProps} />
+              <Tooltip
+                content={TooltipContent}
+                cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+              />
 
-            {annotationNames.map((name) => {
-              return (
-                <AnnotationLine
-                  isHidden={isDataKeyHidden(name)}
-                  key={name}
-                  name={name}
-                />
-              );
-            })}
+              {annotationNames.map((name) => {
+                return (
+                  <AnnotationLine
+                    isHidden={isDataKeyHidden(name)}
+                    key={name}
+                    name={name}
+                  />
+                );
+              })}
 
-            <InteractiveLegend
-              {...defaultLegendProps}
-              hiddenDataKeys={hiddenDataKeys}
-              iconType="line"
-              iconSize={8}
-              onToggleDataKey={toggleDataKey}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+              <InteractiveLegend
+                {...defaultLegendProps}
+                hiddenDataKeys={hiddenDataKeys}
+                iconType="line"
+                iconSize={8}
+                onToggleDataKey={toggleDataKey}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartEmptyStateOverlay>
       )}
     </TimeRangeChartBrush>
   );

@@ -1389,9 +1389,15 @@ const chartCSS = css`
     --chart-axis-label-color: var(--global-text-color-700);
     --chart-legend-text-color: var(--global-text-color-900);
     --chart-time-range-brush-fill-color: var(--global-color-primary-100);
+    --chart-empty-state-overlay-background-color: rgba(
+      var(--global-color-gray-75-rgb),
+      0.84
+    );
+    --chart-empty-state-text-color: var(--global-text-color-500);
   }
   .theme--dark {
     --chart-tooltip-cursor-fill-color: rgba(255, 255, 255, 0.05);
+    --chart-empty-state-text-color: var(--global-text-color-700);
   }
   .theme--light {
     --chart-tooltip-cursor-fill-color: rgba(0, 0, 0, 0.02);

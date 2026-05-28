@@ -12,6 +12,7 @@ import {
 
 import { Text } from "@phoenix/components";
 import {
+  ChartEmptyStateOverlay,
   ChartTooltip,
   ChartTooltipItem,
   InteractiveLegend,
@@ -114,12 +115,15 @@ export function TraceTokenCostTimeSeries({
       timestamp: string;
       promptCost: number | null;
       completionCost: number | null;
+      totalCost: number | null;
     }) => ({
       timestamp: new Date(datum.timestamp).getTime(),
       prompt: datum.promptCost,
       completion: datum.completionCost,
+      total: datum.totalCost,
     })
   );
+  const hasData = chartData.some((datum) => typeof datum.total === "number");
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
 
@@ -129,62 +133,67 @@ export function TraceTokenCostTimeSeries({
   return (
     <TimeRangeChartBrush onTimeRangeSelected={onTimeRangeSelected}>
       {({ chartProps }) => (
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={chartData}
-            margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
-            barSize={10}
-            syncId={"projectMetrics"}
-            {...chartProps}
-          >
-            <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
-            <XAxis
-              {...defaultTimeXAxisProps}
-              domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
-              tickFormatter={(x) => timeTickFormatter(new Date(x))}
-            />
-            <YAxis
-              {...defaultYAxisProps}
-              width={70}
-              tickFormatter={(x) => floatShortFormatter(x)}
-              label={{
-                value: "Cost (USD)",
-                angle: -90,
-                dx: -28,
-                style: {
-                  textAnchor: "middle",
-                  fill: "var(--chart-axis-label-color)",
-                },
-              }}
-            />
-            <Tooltip
-              content={TooltipContent}
-              // TODO formalize this
-              cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
-            />
-            <Bar
-              dataKey="prompt"
-              stackId="a"
-              fill={colors.category1}
-              hide={isDataKeyHidden("prompt")}
-            />
-            <Bar
-              dataKey="completion"
-              stackId="a"
-              fill={colors.category2}
-              hide={isDataKeyHidden("completion")}
-              radius={[2, 2, 0, 0]}
-            />
+        <ChartEmptyStateOverlay
+          isEmpty={!hasData}
+          message="No data in this time range"
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={chartData}
+              margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
+              barSize={10}
+              syncId={"projectMetrics"}
+              {...chartProps}
+            >
+              <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
+              <XAxis
+                {...defaultTimeXAxisProps}
+                domain={[timeRange.start.getTime(), timeRange.end.getTime()]}
+                tickFormatter={(x) => timeTickFormatter(new Date(x))}
+              />
+              <YAxis
+                {...defaultYAxisProps}
+                width={70}
+                tickFormatter={(x) => floatShortFormatter(x)}
+                label={{
+                  value: "Cost (USD)",
+                  angle: -90,
+                  dx: -28,
+                  style: {
+                    textAnchor: "middle",
+                    fill: "var(--chart-axis-label-color)",
+                  },
+                }}
+              />
+              <Tooltip
+                content={TooltipContent}
+                // TODO formalize this
+                cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+              />
+              <Bar
+                dataKey="prompt"
+                stackId="a"
+                fill={colors.category1}
+                hide={isDataKeyHidden("prompt")}
+              />
+              <Bar
+                dataKey="completion"
+                stackId="a"
+                fill={colors.category2}
+                hide={isDataKeyHidden("completion")}
+                radius={[2, 2, 0, 0]}
+              />
 
-            <InteractiveLegend
-              {...defaultLegendProps}
-              hiddenDataKeys={hiddenDataKeys}
-              iconType="circle"
-              iconSize={8}
-              onToggleDataKey={toggleDataKey}
-            />
-          </BarChart>
-        </ResponsiveContainer>
+              <InteractiveLegend
+                {...defaultLegendProps}
+                hiddenDataKeys={hiddenDataKeys}
+                iconType="circle"
+                iconSize={8}
+                onToggleDataKey={toggleDataKey}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartEmptyStateOverlay>
       )}
     </TimeRangeChartBrush>
   );

@@ -1,5 +1,5 @@
 /**
- * @generated SignedSource<<f80a4a2bb9a4d45bc82dc995e7c65fac>>
+ * @generated SignedSource<<09227f0f5daeccc0801e369ca7094011>>
  * @lightSyntaxTransform
  * @nogrep
  */
@@ -29,6 +29,7 @@ export type TraceErrorsTimeSeriesQuery$data = {
       readonly data: ReadonlyArray<{
         readonly errorCount: number;
         readonly timestamp: string;
+        readonly totalCount: number;
       }>;
     };
   };
@@ -103,6 +104,13 @@ v4 = {
               "args": null,
               "kind": "ScalarField",
               "name": "errorCount",
+              "storageKey": null
+            },
+            {
+              "alias": null,
+              "args": null,
+              "kind": "ScalarField",
+              "name": "totalCount",
               "storageKey": null
             }
           ],
@@ -181,16 +189,16 @@ return {
     ]
   },
   "params": {
-    "cacheID": "14406c9b74559086ef4c1a390d71c30a",
+    "cacheID": "af40f7805883aad1b7c55dd4122fbd9f",
     "id": null,
     "metadata": {},
     "name": "TraceErrorsTimeSeriesQuery",
     "operationKind": "query",
-    "text": "query TraceErrorsTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      traceCountByStatusTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          errorCount\n        }\n      }\n    }\n    id\n  }\n}\n"
+    "text": "query TraceErrorsTimeSeriesQuery(\n  $projectId: ID!\n  $timeRange: TimeRange!\n  $timeBinConfig: TimeBinConfig!\n) {\n  project: node(id: $projectId) {\n    __typename\n    ... on Project {\n      traceCountByStatusTimeSeries(timeRange: $timeRange, timeBinConfig: $timeBinConfig) {\n        data {\n          timestamp\n          errorCount\n          totalCount\n        }\n      }\n    }\n    id\n  }\n}\n"
   }
 };
 })();
 
-(node as any).hash = "e200b36b8a75e09ce855dc7230a68ec1";
+(node as any).hash = "654925c22f25366d4cc7c22c323d1044";
 
 export default node;

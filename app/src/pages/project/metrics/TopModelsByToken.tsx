@@ -13,6 +13,7 @@ import {
 
 import { Text } from "@phoenix/components";
 import {
+  ChartEmptyStateOverlay,
   ChartTooltip,
   ChartTooltipItem,
   InteractiveLegend,
@@ -108,58 +109,64 @@ export function TopModelsByToken({
       };
     });
   }, [data]);
+  const hasData = chartData.length > 0;
 
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <BarChart
-        data={chartData}
-        margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
-        layout="vertical"
-        barSize={10}
-      >
-        <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
-        <Tooltip
-          content={TooltipContent}
-          // TODO formalize this
-          cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
-        />
-        <XAxis
-          {...defaultXAxisProps}
-          type="number"
-          tickLine={false}
-          tickFormatter={intFormatter}
-        />
-        <YAxis
-          {...defaultYAxisProps}
-          dataKey="model"
-          type="category"
-          width={120}
-          tickFormatter={truncateModelName}
-        />
-        <Bar
-          dataKey="prompt_tokens"
-          stackId="a"
-          fill={colors.category1}
-          hide={isDataKeyHidden("prompt_tokens")}
-          name="Prompt tokens"
-          radius={[2, 0, 0, 2]}
-        />
-        <Bar
-          dataKey="completion_tokens"
-          stackId="a"
-          fill={colors.category2}
-          hide={isDataKeyHidden("completion_tokens")}
-          name="Completion tokens"
-          radius={[0, 2, 2, 0]}
-        />
-        <InteractiveLegend
-          {...defaultLegendProps}
-          hiddenDataKeys={hiddenDataKeys}
-          iconType="circle"
-          iconSize={8}
-          onToggleDataKey={toggleDataKey}
-        />
-      </BarChart>
-    </ResponsiveContainer>
+    <ChartEmptyStateOverlay
+      isEmpty={!hasData}
+      message="No data in this time range"
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          data={chartData}
+          margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
+          layout="vertical"
+          barSize={10}
+        >
+          <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
+          <Tooltip
+            content={TooltipContent}
+            // TODO formalize this
+            cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+          />
+          <XAxis
+            {...defaultXAxisProps}
+            type="number"
+            tickLine={false}
+            tickFormatter={intFormatter}
+          />
+          <YAxis
+            {...defaultYAxisProps}
+            dataKey="model"
+            type="category"
+            width={120}
+            tickFormatter={truncateModelName}
+          />
+          <Bar
+            dataKey="prompt_tokens"
+            stackId="a"
+            fill={colors.category1}
+            hide={isDataKeyHidden("prompt_tokens")}
+            name="Prompt tokens"
+            radius={[2, 0, 0, 2]}
+          />
+          <Bar
+            dataKey="completion_tokens"
+            stackId="a"
+            fill={colors.category2}
+            hide={isDataKeyHidden("completion_tokens")}
+            name="Completion tokens"
+            radius={[0, 2, 2, 0]}
+          />
+          <InteractiveLegend
+            {...defaultLegendProps}
+            hiddenDataKeys={hiddenDataKeys}
+            iconType="circle"
+            iconSize={8}
+            onToggleDataKey={toggleDataKey}
+          />
+        </BarChart>
+      </ResponsiveContainer>
+    </ChartEmptyStateOverlay>
   );
 }

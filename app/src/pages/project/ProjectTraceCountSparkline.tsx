@@ -15,6 +15,7 @@ import {
 
 import { Text } from "@phoenix/components";
 import {
+  ChartEmptyStateOverlay,
   ChartTooltip,
   ChartTooltipItem,
   SparklineSkeleton,
@@ -51,6 +52,7 @@ type TraceCountSparklineDatum = {
   timestamp: number;
   ok: number;
   error: number;
+  total: number;
 };
 
 function getTraceCountSparklineDatumTimestamp({
@@ -175,9 +177,11 @@ export function ProjectTraceCountSparkline() {
         timestamp: new Date(datum.timestamp).getTime(),
         ok: datum.okCount,
         error: datum.errorCount,
+        total: datum.okCount + datum.errorCount,
       })),
     [data.project.traceCountByStatusTimeSeries?.data]
   );
+  const hasData = chartData.some((datum) => datum.total > 0);
 
   const timeTickFormatter = useBinTimeTickFormatter({ scale });
   const xAxisTicks = useTimeAxisTicks({
@@ -194,49 +198,57 @@ export function ProjectTraceCountSparkline() {
     <div ref={sparklineRef} css={sparklineCSS}>
       <TimeRangeChartBrush onTimeRangeSelected={setCustomTimeRange}>
         {({ chartProps }) => (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={chartData}
-              margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
-              barSize={10}
-              {...chartProps}
-            >
-              <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
-              <XAxis
-                {...defaultTimeXAxisProps}
-                domain={[
-                  startBoundedTimeRange.start.getTime(),
-                  startBoundedTimeRange.end?.getTime() ?? "dataMax",
-                ]}
-                tickFormatter={(x) => timeTickFormatter(new Date(x))}
-                tickSize={3}
-                tickMargin={2}
-                ticks={xAxisTicks}
-                interval={0}
-                padding={{
-                  left: SPARKLINE_X_AXIS_EDGE_PADDING,
-                  right: SPARKLINE_X_AXIS_EDGE_PADDING,
-                }}
-                height={16}
-                style={SPARKLINE_AXIS_STYLE}
-              />
-              <YAxis hide />
-              <Tooltip
-                content={TooltipContent}
-                cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
-                allowEscapeViewBox={{ x: false, y: false }}
-                reverseDirection={{ y: true }}
-                wrapperStyle={defaultChartTooltipWrapperStyle}
-              />
-              <Bar dataKey="error" stackId="a" fill={semanticColors.danger} />
-              <Bar
-                dataKey="ok"
-                stackId="a"
-                fill={colors.gray300}
-                radius={[2, 2, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
+          <ChartEmptyStateOverlay
+            isEmpty={!hasData}
+            message="No data in this time range"
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={chartData}
+                margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
+                barSize={10}
+                {...chartProps}
+              >
+                <CartesianGrid
+                  {...defaultCartesianGridProps}
+                  vertical={false}
+                />
+                <XAxis
+                  {...defaultTimeXAxisProps}
+                  domain={[
+                    startBoundedTimeRange.start.getTime(),
+                    startBoundedTimeRange.end?.getTime() ?? "dataMax",
+                  ]}
+                  tickFormatter={(x) => timeTickFormatter(new Date(x))}
+                  tickSize={3}
+                  tickMargin={2}
+                  ticks={xAxisTicks}
+                  interval={0}
+                  padding={{
+                    left: SPARKLINE_X_AXIS_EDGE_PADDING,
+                    right: SPARKLINE_X_AXIS_EDGE_PADDING,
+                  }}
+                  height={16}
+                  style={SPARKLINE_AXIS_STYLE}
+                />
+                <YAxis hide />
+                <Tooltip
+                  content={TooltipContent}
+                  cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+                  allowEscapeViewBox={{ x: false, y: false }}
+                  reverseDirection={{ y: true }}
+                  wrapperStyle={defaultChartTooltipWrapperStyle}
+                />
+                <Bar dataKey="error" stackId="a" fill={semanticColors.danger} />
+                <Bar
+                  dataKey="ok"
+                  stackId="a"
+                  fill={colors.gray300}
+                  radius={[2, 2, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartEmptyStateOverlay>
         )}
       </TimeRangeChartBrush>
     </div>

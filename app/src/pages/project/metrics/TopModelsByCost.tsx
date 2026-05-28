@@ -13,6 +13,7 @@ import {
 
 import { Text } from "@phoenix/components";
 import {
+  ChartEmptyStateOverlay,
   ChartTooltip,
   ChartTooltipItem,
   InteractiveLegend,
@@ -106,57 +107,63 @@ export function TopModelsByCost({
       };
     });
   }, [data]);
+  const hasData = chartData.length > 0;
 
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <BarChart
-        data={chartData}
-        margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
-        layout="vertical"
-        barSize={10}
-      >
-        <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
-        <Tooltip
-          content={TooltipContent}
-          cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
-        />
-        <XAxis
-          {...defaultXAxisProps}
-          type="number"
-          tickLine={false}
-          tickFormatter={costFormatter}
-        />
-        <YAxis
-          {...defaultYAxisProps}
-          dataKey="model"
-          type="category"
-          width={120}
-          tickFormatter={truncateModelName}
-        />
-        <Bar
-          dataKey="prompt_cost"
-          fill={colors.category1}
-          hide={isDataKeyHidden("prompt_cost")}
-          name="Prompt cost"
-          stackId="a"
-          radius={[2, 0, 0, 2]}
-        />
-        <Bar
-          dataKey="completion_cost"
-          fill={colors.category2}
-          hide={isDataKeyHidden("completion_cost")}
-          name="Completion cost"
-          stackId="a"
-          radius={[0, 2, 2, 0]}
-        />
-        <InteractiveLegend
-          {...defaultLegendProps}
-          hiddenDataKeys={hiddenDataKeys}
-          iconType="circle"
-          iconSize={8}
-          onToggleDataKey={toggleDataKey}
-        />
-      </BarChart>
-    </ResponsiveContainer>
+    <ChartEmptyStateOverlay
+      isEmpty={!hasData}
+      message="No data in this time range"
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          data={chartData}
+          margin={{ top: 0, right: 18, left: 8, bottom: 0 }}
+          layout="vertical"
+          barSize={10}
+        >
+          <CartesianGrid {...defaultCartesianGridProps} vertical={false} />
+          <Tooltip
+            content={TooltipContent}
+            cursor={{ fill: "var(--chart-tooltip-cursor-fill-color)" }}
+          />
+          <XAxis
+            {...defaultXAxisProps}
+            type="number"
+            tickLine={false}
+            tickFormatter={costFormatter}
+          />
+          <YAxis
+            {...defaultYAxisProps}
+            dataKey="model"
+            type="category"
+            width={120}
+            tickFormatter={truncateModelName}
+          />
+          <Bar
+            dataKey="prompt_cost"
+            fill={colors.category1}
+            hide={isDataKeyHidden("prompt_cost")}
+            name="Prompt cost"
+            stackId="a"
+            radius={[2, 0, 0, 2]}
+          />
+          <Bar
+            dataKey="completion_cost"
+            fill={colors.category2}
+            hide={isDataKeyHidden("completion_cost")}
+            name="Completion cost"
+            stackId="a"
+            radius={[0, 2, 2, 0]}
+          />
+          <InteractiveLegend
+            {...defaultLegendProps}
+            hiddenDataKeys={hiddenDataKeys}
+            iconType="circle"
+            iconSize={8}
+            onToggleDataKey={toggleDataKey}
+          />
+        </BarChart>
+      </ResponsiveContainer>
+    </ChartEmptyStateOverlay>
   );
 }
