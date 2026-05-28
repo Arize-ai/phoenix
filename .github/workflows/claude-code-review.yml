@@ -23,6 +23,7 @@ jobs:
       contents: read
       pull-requests: read
       issues: read
+      id-token: write # Required: claude-code-action requests a GitHub OIDC token at startup
 
     steps:
       - name: Checkout repository

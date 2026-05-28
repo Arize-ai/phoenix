@@ -12,6 +12,7 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: read
+      id-token: write # Required: claude-code-action requests a GitHub OIDC token at startup
     env:
       GH_REPO: ${{ github.repository }}
       ISSUE_NUMBER: ${{ github.event.issue.number }}
