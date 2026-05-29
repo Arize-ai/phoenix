@@ -3,27 +3,39 @@ name: Claude Code Review
 on:
   pull_request:
     types: [opened, synchronize, ready_for_review, reopened]
-    # Optional: Only run on specific file changes
-    # paths:
-    #   - "src/**/*.ts"
-    #   - "src/**/*.tsx"
-    #   - "src/**/*.js"
-    #   - "src/**/*.jsx"
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      - '.github/**'
+      - '**/*.lock'
+      - 'pnpm-lock.yaml'
+      - 'uv.lock'
+
+# Coalesce rapid pushes: only review the latest commit, cancel in-flight runs.
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   claude-review:
-    # Optional: Filter by PR author
-    # if: |
-    #   github.event.pull_request.user.login == 'external-contributor' ||
-    #   github.event.pull_request.user.login == 'new-developer' ||
-    #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
+    # Skip drafts (plugin bails on them anyway, but only after paying for setup
+    # and the gate-check subagent), bot-authored PRs, and the bot-managed branch
+    # families. Marking a draft as ready fires `ready_for_review` and is not
+    # gated here because at that moment `draft` is already false.
+    if: |
+      !github.event.pull_request.draft &&
+      !contains(fromJSON('["release-please[bot]", "dependabot[bot]", "mintlify[bot]", "github-actions[bot]", "claude[bot]"]'), github.event.pull_request.user.login) &&
+      !startsWith(github.event.pull_request.head.ref, 'release-please--') &&
+      !startsWith(github.event.pull_request.head.ref, 'claude/') &&
+      !startsWith(github.event.pull_request.head.ref, 'skills-audit/')
 
     runs-on: ubuntu-latest
     permissions:
-      # PR/issue read+write goes through the Claude App token minted by the
-      # OIDC exchange below — the workflow GITHUB_TOKEN is only used for the
-      # initial checkout, so contents:read is all it needs.
+      # PR write goes through the Claude App token minted by the OIDC exchange
+      # in the action. The workflow GITHUB_TOKEN is used only for checkout and
+      # the pre-fetch step (PR data is already public on a public repo).
       contents: read
+      pull-requests: read
       id-token: write # Required: claude-code-action requests a GitHub OIDC token at startup
 
     steps:
@@ -45,6 +57,21 @@ jobs:
             sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           fi
 
+      - name: Pre-fetch PR data
+        # Pre-fetching the diff / metadata / prior comments avoids the gh CLI
+        # subprocess-sandbox roundtrips Claude would otherwise do for each
+        # subagent. The orchestrator (see prompt below) is told to read these
+        # files via the Read tool instead of running gh commands.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUM: ${{ github.event.pull_request.number }}
+        run: |
+          mkdir -p .scratch
+          gh pr diff "$PR_NUM" > .scratch/pr-diff.patch
+          gh pr view "$PR_NUM" --json title,body,author,files,headRefOid,baseRefOid,baseRefName,headRefName > .scratch/pr-meta.json
+          gh pr view "$PR_NUM" --comments --json comments > .scratch/pr-comments.json
+          wc -l .scratch/pr-diff.patch
+
       - name: Run Claude Code Review
         id: claude-review
         uses: anthropics/claude-code-action@787c5a0ce96a9a6cfb050ea0c8f4c05f2447c251 # v1.0.133
@@ -55,14 +82,35 @@ jobs:
           allowed_bots: 'claude, cursor, codex, gitbook-bot, github-actions, dependabot[bot], cursoragent, mintlify[bot]'
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
-          # show_full_output exposes the full Claude SDK message stream in the step
-          # log. For this workflow the content is derived from a public PR diff and
-          # is not sensitive; turning it on lets us see denied-tool details
-          # (sanitized output otherwise collapses permission_denials to a count).
-          show_full_output: 'true'
           prompt: |
+            PR #${{ github.event.pull_request.number }} data is pre-fetched at:
+              - `.scratch/pr-diff.patch` — full PR diff
+              - `.scratch/pr-meta.json`  — title, body, author, files, refs
+              - `.scratch/pr-comments.json` — top-level comments (for idempotency)
+            Read these files via the Read tool instead of running `gh pr diff` / `gh pr view`.
+
+            Review guidelines for this repository:
+            - Reserve "Important" for findings that would break behavior, leak data,
+              or block a rollback: incorrect logic, unscoped DB queries, missing
+              async/await, race conditions, PII in logs, non-reversible migrations,
+              breaking API changes. Style, naming, and refactoring suggestions are
+              Nits at most.
+            - Report at most 3 Nits per review. If you found more, say
+              "plus N similar items" in the summary instead of posting them inline.
+              If everything you found is a Nit, lead the summary with
+              "No blocking issues."
+            - After the first review on this PR, post Important findings only;
+              do not re-flag prior Nits on subsequent pushes. Use the pre-fetched
+              `pr-comments.json` to see what has already been flagged.
+            - Do not report: anything CI enforces (ruff, mypy, oxlint, oxfmt),
+              generated files (**/*_pb2.py, **/generated/**), lockfiles, or
+              docs-only changes under `docs/`.
+            - Always check: migrations are reversible (or noted), new REST endpoints
+              have authentication, GraphQL resolvers handle the unauthenticated
+              case, new async functions are awaited at call sites.
+
             /code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }} --comment
           claude_args: |
-            --allowedTools "Agent,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(git fetch *),Bash(git diff *),Bash(git log *),Bash(git show *)"
+            --model claude-sonnet-4-6 --max-turns 30 --allowedTools "Agent,Read,Glob,Grep,mcp__github_inline_comment__create_inline_comment,Bash(gh pr:*),Bash(git:*)"
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
