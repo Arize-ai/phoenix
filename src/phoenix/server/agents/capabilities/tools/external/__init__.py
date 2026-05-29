@@ -18,6 +18,7 @@ from phoenix.server.agents.capabilities.tools.external import (
     read_prompt_instance,
     render_generative_ui,
     run_playground,
+    save_prompt,
     set_spans_filter,
     set_time_range,
     set_variable_values,
@@ -45,6 +46,7 @@ from phoenix.server.agents.capabilities.tools.external.render_generative_ui impo
 from phoenix.server.agents.capabilities.tools.external.run_playground import (
     RunPlaygroundCapability,
 )
+from phoenix.server.agents.capabilities.tools.external.save_prompt import SavePromptCapability
 from phoenix.server.agents.capabilities.tools.external.set_spans_filter import (
     SetSpansFilterCapability,
 )
@@ -69,6 +71,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         read_playground_output.TOOL_DEFINITION,
         render_generative_ui.RENDER_GENERATIVE_UI_TOOL_DEFINITION,
         run_playground.TOOL_DEFINITION,
+        save_prompt.TOOL_DEFINITION,
         set_spans_filter.TOOL_DEFINITION,
         set_time_range.TOOL_DEFINITION,
         set_variable_values.TOOL_DEFINITION,
@@ -102,6 +105,7 @@ def get_external_tool_capability_function(
         ReadPlaygroundOutputCapability(instructions=prompts.read_playground_output_tool),
         ClonePromptInstanceCapability(instructions=prompts.clone_prompt_instance_tool),
         EditPromptInstanceCapability(instructions=prompts.edit_prompt_instance_tool),
+        SavePromptCapability(instructions=prompts.save_prompt_tool),
         RunPlaygroundCapability(instructions=prompts.run_playground_tool),
         SetVariableValuesCapability(instructions=prompts.set_variable_values_tool),
     ]
@@ -123,6 +127,7 @@ __all__ = [
     "ReadPlaygroundOutputCapability",
     "RenderGenerativeUICapability",
     "RunPlaygroundCapability",
+    "SavePromptCapability",
     "SetSpansFilterCapability",
     "SetTimeRangeCapability",
     "SetVariableValuesCapability",

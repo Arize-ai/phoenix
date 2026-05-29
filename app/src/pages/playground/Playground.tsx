@@ -28,6 +28,10 @@ import {
   RUN_PLAYGROUND_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundRun";
 import {
+  createSavePromptClientAction,
+  SAVE_PROMPT_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundSavePrompt";
+import {
   createSetVariableValuesClientAction,
   SET_VARIABLE_VALUES_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundVariableValues";
@@ -304,6 +308,10 @@ function PlaygroundContent() {
       })
     );
     registerClientAction(
+      SAVE_PROMPT_TOOL_NAME,
+      createSavePromptClientAction({ playgroundStore })
+    );
+    registerClientAction(
       RUN_PLAYGROUND_TOOL_NAME,
       createRunPlaygroundClientAction({ playgroundStore })
     );
@@ -319,6 +327,7 @@ function PlaygroundContent() {
       unregisterClientAction(READ_PROMPT_TOOL_NAME);
       unregisterClientAction(CLONE_PROMPT_INSTANCE_TOOL_NAME);
       unregisterClientAction(EDIT_PROMPT_TOOL_NAME);
+      unregisterClientAction(SAVE_PROMPT_TOOL_NAME);
       unregisterClientAction(RUN_PLAYGROUND_TOOL_NAME);
       unregisterClientAction(READ_PLAYGROUND_OUTPUT_TOOL_NAME);
       unregisterClientAction(SET_VARIABLE_VALUES_TOOL_NAME);

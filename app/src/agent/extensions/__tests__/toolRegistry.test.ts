@@ -9,6 +9,7 @@ import {
   EDIT_PROMPT_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPrompt";
 import { RUN_PLAYGROUND_TOOL_NAME } from "@phoenix/agent/tools/playgroundRun";
+import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { SET_VARIABLE_VALUES_TOOL_NAME } from "@phoenix/agent/tools/playgroundVariableValues";
 import { GENERATIVE_UI_TOOL_NAME } from "@phoenix/components/agent/generativeUICatalog";
 import { createAgentStore } from "@phoenix/store/agentStore";
@@ -317,6 +318,35 @@ describe("toolRegistry", () => {
         state: "output-available",
         tool: SET_VARIABLE_VALUES_TOOL_NAME,
         output: "updated",
+      })
+    );
+  });
+
+  it("dispatches save_prompt to the registered client action", async () => {
+    const store = createAgentStore();
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const action = vi.fn().mockResolvedValue({ ok: true, output: "saved" });
+    store.getState().registerClientAction(SAVE_PROMPT_TOOL_NAME, action);
+
+    const input = { instanceId: 0, description: "Improve instructions" };
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-save-prompt",
+        toolName: SAVE_PROMPT_TOOL_NAME,
+        input,
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(action).toHaveBeenCalledWith(input);
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-available",
+        tool: SAVE_PROMPT_TOOL_NAME,
+        output: "saved",
       })
     );
   });
