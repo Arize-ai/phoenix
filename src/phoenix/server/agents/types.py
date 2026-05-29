@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import TypeAlias
+from typing import Literal, TypeAlias
 
 from pydantic_ai import DeferredToolRequests
 

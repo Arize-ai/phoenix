@@ -2,7 +2,7 @@ import {
   EDIT_PROMPT_TOOL_NAME,
   parseEditPromptInput,
   type PendingPromptEdit,
-  type PromptEditSummary,
+  type PromptSnapshot,
   promptSnapshotToText,
 } from "@phoenix/agent/tools/playgroundPrompt";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
@@ -37,9 +37,6 @@ export function EditPromptToolDetails({ part }: { part: ToolInvocationPart }) {
     (state) => state.pendingPromptEditsByToolCallId[part.toolCallId] ?? null
   );
   const input = parseEditPromptInput(part.input);
-  const isResolved = part.state === "output-available";
-  const isRejected = isResolved && getOutputStatus(part.output) === "rejected";
-  const summary = isResolved ? getEditSummary(part.output) : null;
 
   return (
     <DiffAcceptRejectToolDetails<PromptSnapshot, PendingPromptEdit>
@@ -88,26 +85,4 @@ function getAcceptedBy(output: unknown): string | null {
 function isAutoAccepted(output: unknown): boolean {
   const acceptedBy = getAcceptedBy(output);
   return acceptedBy === "auto" || acceptedBy === "system";
-}
-
-/** Reads the persisted edit summary of a resolved tool output. */
-function getEditSummary(output: unknown): PromptEditSummary | null {
-  if (typeof output !== "object" || output === null) return null;
-  const candidate = (output as { summary?: unknown }).summary;
-  if (typeof candidate !== "object" || candidate === null) return null;
-  const summary = candidate as Partial<PromptEditSummary>;
-  if (
-    typeof summary.instanceIndex !== "number" ||
-    typeof summary.instanceLabel !== "string" ||
-    typeof summary.additions !== "number" ||
-    typeof summary.deletions !== "number"
-  ) {
-    return null;
-  }
-  return {
-    instanceIndex: summary.instanceIndex,
-    instanceLabel: summary.instanceLabel,
-    additions: summary.additions,
-    deletions: summary.deletions,
-  };
 }
