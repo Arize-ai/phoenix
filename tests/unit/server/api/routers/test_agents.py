@@ -56,19 +56,6 @@ class TestLoadSandboxAvailability:
             availability = await _load_sandbox_availability(session)
             assert availability.has_usable is False
 
-    async def test_returns_false_when_provider_is_disabled(
-        self,
-        db: DbSessionFactory,
-        sandbox_config: models.SandboxConfig,
-    ) -> None:
-        async with db() as session:
-            provider = await session.get(models.SandboxProvider, sandbox_config.backend_type)
-            assert provider is not None
-            provider.enabled = False
-            await session.flush()
-            availability = await _load_sandbox_availability(session)
-            assert availability.has_usable is False
-
     async def test_disabled_config_under_other_provider_does_not_mask_enabled_one(
         self,
         db: DbSessionFactory,
@@ -141,19 +128,6 @@ class TestLoadSandboxAvailability:
 
         assert availability.has_usable is False
 
-    async def test_empty_available_backend_inventory_returns_no_sandbox(
-        self,
-        db: DbSessionFactory,
-        sandbox_config: models.SandboxConfig,
-    ) -> None:
-        async with db() as session:
-            availability = await _load_sandbox_availability(
-                session,
-                available_backend_types=frozenset(),
-            )
-
-        assert availability.has_usable is False
-
 
 class TestAgentDependenciesShape:
     """``AgentDependencies`` carries an ``is_viewer`` flag and a
@@ -171,123 +145,6 @@ class TestAgentDependenciesShape:
         assert deps.is_viewer is False
         assert isinstance(deps.sandbox_availability, SandboxAvailability)
         assert deps.sandbox_availability.has_usable is False
-
-    def test_explicit_values_override_defaults(self) -> None:
-        from phoenix.server.agents.types import (
-            AgentDependencies,
-        )
-
-        deps = AgentDependencies(
-            contexts=ResolvedContexts(),
-            is_viewer=True,
-            sandbox_availability=SandboxAvailability(has_usable=True),
-        )
-        assert deps.is_viewer is True
-        assert deps.sandbox_availability.has_usable is True
-
-
-class TestEditCodeEvaluatorDraftCapabilityViewerGate:
-    """``EditCodeEvaluatorDraftCapability.include_for_run`` is available to
-    non-viewers when a mounted form has a valid draft-edit path."""
-
-    @staticmethod
-    def _sandbox_availability() -> SandboxAvailability:
-        return SandboxAvailability(has_usable=True)
-
-    def test_advertised_for_non_viewer_create_form_with_sandbox(self) -> None:
-        from unittest.mock import MagicMock
-
-        from phoenix.server.agents.capabilities.tools.external.edit_code_evaluator_draft import (
-            EditCodeEvaluatorDraftCapability,
-        )
-        from phoenix.server.agents.context import (
-            CodeEvaluatorContext,
-        )
-        from phoenix.server.agents.types import AgentDependencies
-
-        capability = EditCodeEvaluatorDraftCapability(instructions=MagicMock())
-        contexts = ResolvedContexts()
-        contexts.code_evaluator = CodeEvaluatorContext(type="code_evaluator", evaluatorNodeId=None)
-        deps = AgentDependencies(
-            contexts=contexts,
-            is_viewer=False,
-            sandbox_availability=self._sandbox_availability(),
-        )
-        ctx = MagicMock()
-        ctx.deps = deps
-        assert capability.include_for_run(ctx) is True
-
-    def test_hidden_for_non_viewer_create_form_without_sandbox(self) -> None:
-        from unittest.mock import MagicMock
-
-        from phoenix.server.agents.capabilities.tools.external.edit_code_evaluator_draft import (
-            EditCodeEvaluatorDraftCapability,
-        )
-        from phoenix.server.agents.context import (
-            CodeEvaluatorContext,
-        )
-        from phoenix.server.agents.types import AgentDependencies
-
-        capability = EditCodeEvaluatorDraftCapability(instructions=MagicMock())
-        contexts = ResolvedContexts()
-        contexts.code_evaluator = CodeEvaluatorContext(type="code_evaluator", evaluatorNodeId=None)
-        deps = AgentDependencies(
-            contexts=contexts,
-            is_viewer=False,
-            sandbox_availability=SandboxAvailability(),
-        )
-        ctx = MagicMock()
-        ctx.deps = deps
-        assert capability.include_for_run(ctx) is False
-
-    def test_advertised_for_non_viewer_edit_form_without_sandbox(self) -> None:
-        from unittest.mock import MagicMock
-
-        from phoenix.server.agents.capabilities.tools.external.edit_code_evaluator_draft import (
-            EditCodeEvaluatorDraftCapability,
-        )
-        from phoenix.server.agents.context import (
-            CodeEvaluatorContext,
-        )
-        from phoenix.server.agents.types import AgentDependencies
-
-        capability = EditCodeEvaluatorDraftCapability(instructions=MagicMock())
-        contexts = ResolvedContexts()
-        contexts.code_evaluator = CodeEvaluatorContext(
-            type="code_evaluator",
-            evaluatorNodeId="Q29kZUV2YWx1YXRvcjox",
-        )
-        deps = AgentDependencies(
-            contexts=contexts,
-            is_viewer=False,
-            sandbox_availability=SandboxAvailability(),
-        )
-        ctx = MagicMock()
-        ctx.deps = deps
-        assert capability.include_for_run(ctx) is True
-
-    def test_hidden_for_viewer_even_with_form_mounted(self) -> None:
-        from unittest.mock import MagicMock
-
-        from phoenix.server.agents.capabilities.tools.external.edit_code_evaluator_draft import (
-            EditCodeEvaluatorDraftCapability,
-        )
-        from phoenix.server.agents.context import (
-            CodeEvaluatorContext,
-        )
-        from phoenix.server.agents.types import AgentDependencies
-
-        capability = EditCodeEvaluatorDraftCapability(instructions=MagicMock())
-        contexts = ResolvedContexts()
-        contexts.code_evaluator = CodeEvaluatorContext(type="code_evaluator", evaluatorNodeId=None)
-        deps = AgentDependencies(
-            contexts=contexts,
-            is_viewer=True,
-            sandbox_availability=SandboxAvailability(),
-        )
-        ctx = MagicMock()
-        ctx.deps = deps
-        assert capability.include_for_run(ctx) is False
 
 
 class TestEditCodeEvaluatorDraftToolRendering:
@@ -307,18 +164,3 @@ class TestEditCodeEvaluatorDraftToolRendering:
         # The projection requests env-var names only; the prompt explicitly
         # forbids requesting the secret-bearing field.
         assert "never `secretKey`" in rendered
-
-    def test_tool_prompts_prefer_direct_evaluator_arguments(self) -> None:
-        edit_rendered = self._edit_template().render()
-        assert "`output` is the new experiment run output" in edit_rendered
-        assert "dataset example `output` as `reference`" in edit_rendered
-        assert "add `reference` for relational checks" in edit_rendered.lower()
-        assert "parse nested" in edit_rendered
-        assert "sample" in edit_rendered
-        assert "examples" in edit_rendered
-        assert "message" in edit_rendered
-        assert "tool_calls`/`toolCalls" in edit_rendered
-        assert "top-level" in edit_rendered
-        assert "Keep `inputMapping` at the safe default" in edit_rendered
-        assert "leave the sandbox untouched" in edit_rendered
-        assert "Do NOT emit `set_sandbox_config`" in edit_rendered

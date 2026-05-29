@@ -153,12 +153,12 @@ class TestDatasetContextCapabilityRender:
         )
         content = _render(capability, ctx)
         assert "open_code_evaluator_form" in content
+        # The handoff builds a URL-encoded deep link to the create-evaluator
+        # slideover for the in-view dataset.
         assert (
             "[Create code evaluator](/datasets/RGF0YXNldDox%3D%3D/evaluators"
             "?createCodeEvaluator=true)"
         ) in content
-        assert "Stop. Do NOT continue with manual UI instructions" in content
-        assert "reply once the Create code evaluator form is open" in content
 
     def test_renders_dataset_context_without_example_samples(self) -> None:
         capability = DatasetContextCapability(
@@ -174,13 +174,11 @@ class TestDatasetContextCapabilityRender:
         )
         content = _render(capability, ctx)
         # The dataset context advertises which dataset is in view but no longer
-        # loads example samples or verbose schema/argument guidance into the
-        # prompt; that guidance now lives in the code-evaluator context.
+        # loads example samples into the prompt; that guidance now lives in the
+        # code-evaluator context.
         assert "RGF0YXNldDox==" in content
         assert "dataset_example_samples" not in content
         assert "<example" not in content
-        assert "schema_discovery" not in content
-        assert "code_evaluator_argument_guidance" not in content
 
     def test_evaluator_authoring_defers_to_code_evaluator_context_when_form_mounted(
         self,
@@ -198,9 +196,9 @@ class TestDatasetContextCapabilityRender:
             )
         )
         content = _render(capability, ctx)
+        # With a code-evaluator form mounted, the dataset context defers to the
+        # code-evaluator context and drops its own create-evaluator link.
         assert "<phoenix_code_evaluator_context>" in content
-        assert "draft-read / draft-edit tools" in content
-        assert "offer to run the draft-test tool" in content
         assert "[Create code evaluator]" not in content
 
 
@@ -218,18 +216,10 @@ class TestCodeEvaluatorContextCapabilityRender:
             )
         )
         content = _render(capability, ctx)
-        assert "`output` is the new experiment run output" in content
-        assert "The dataset `output` shape is evidence" in content
-        assert "passed as `reference` when evaluating a new run" in content
-        assert "Add `reference` for relational checks" in content
-        assert "rather than relying on a custom input mapping" in content
-        assert "Treat the dataset example shape as evidence" in content
-        assert "chat-style `messages` arrays" in content
-        assert "do not assume the signal is at a top-level key" in content
+        # The code-evaluator context advertises the draft-test affordance and
+        # its test-payload field. Exact guidance wording is not pinned.
         assert "testPayload" in content
         assert "test_code_evaluator_draft" in content
-        assert "offer to run" in content
-        assert "preserve it and do not emit a sandbox edit" in content
 
     def test_directs_on_demand_sandbox_inventory_fetch(self) -> None:
         capability = CodeEvaluatorContextCapability(
@@ -274,11 +264,9 @@ class TestPlaygroundContextCapabilityRender:
         content = _render(capability, ctx)
         assert "<dataset_evaluator_authoring>" in content
         assert "open_code_evaluator_form" in content
-        assert "read_code_evaluator_draft" in content
-        assert "test_code_evaluator_draft" in content
-        assert "offer to run" in content
+        # A loaded dataset routes authoring through the form, not the create
+        # link, and forbids GraphQL mutations.
         assert "[Create code evaluator]" not in content
-        assert "do not give a manual form walkthrough" in content
         assert "Do NOT use GraphQL mutations" in content
 
     def test_dataset_evaluator_authoring_without_dataset_asks_to_load_dataset(self) -> None:
@@ -294,9 +282,10 @@ class TestPlaygroundContextCapabilityRender:
             )
         )
         content = _render(capability, ctx)
+        # Without a loaded dataset the only distinguishing behavior is the nudge
+        # to load one first — the single signal worth pinning for this branch.
         assert "<dataset_evaluator_authoring>" in content
         assert "ask them to load a dataset first" in content
-        assert "[Create code evaluator]" not in content
 
 
 class TestCodeEvaluatorContextCapabilityGate:

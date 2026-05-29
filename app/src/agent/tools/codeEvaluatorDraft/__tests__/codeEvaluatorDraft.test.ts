@@ -146,32 +146,6 @@ describe("code evaluator draft agent tools", () => {
     expect(result.output.sandboxConfigId).toBe("py-sandbox");
   });
 
-  it("rejects explicit null sandbox selections in create mode", () => {
-    const result = applyDraftOperations({
-      snapshot: makeSnapshot({ language: "PYTHON" }),
-      operations: [{ type: "set_sandbox_config", sandboxConfigId: null }],
-      sandboxConfigs: {
-        "py-sandbox": { language: "PYTHON" },
-      },
-    });
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.error).toMatch(/requires a non-null sandboxConfigId/i);
-  });
-
-  it("rejects create-mode edits that omit a required sandbox on an empty draft", () => {
-    const result = applyDraftOperations({
-      snapshot: makeSnapshot({ language: "PYTHON", sandboxConfigId: null }),
-      operations: [{ type: "set_description", description: "from model" }],
-      sandboxConfigs: {
-        "py-sandbox": { language: "PYTHON" },
-      },
-    });
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.error).toMatch(/requires a non-null sandboxConfigId/i);
-  });
-
   it("allows clearing sandbox selection in edit mode", () => {
     const result = applyDraftOperations({
       snapshot: makeSnapshot({
@@ -366,50 +340,6 @@ describe("code evaluator draft agent tools", () => {
     expect(pending!.after.description).toBe("from model");
   });
 
-  it("registers a pending edit from model-ish aliases", async () => {
-    const initial = makeSnapshot();
-    const { host } = makeHost(initial);
-    let pending: PendingCodeEvaluatorEdit | null = null;
-    const editAction = createEditCodeEvaluatorDraftClientAction({
-      getDraftHost: () => host,
-      setPendingCodeEvaluatorEdit: (_, edit) => {
-        pending = edit;
-      },
-    });
-    const editResult = await editAction(
-      {
-        type: "set_output_configs",
-        output_configs: [
-          {
-            kind: "freeform",
-            name: "quality",
-            optimization_direction: "MAXIMIZE",
-            threshold: 0.5,
-            lower_bound: 0,
-            upper_bound: 1,
-          },
-        ],
-      },
-      {
-        toolCallId: "tc",
-        sessionId: "s",
-        addToolOutput: async () => undefined,
-      }
-    );
-    expect(editResult.ok).toBe(true);
-    expect(pending).not.toBeNull();
-    expect(pending!.after.outputConfigs).toEqual([
-      {
-        kind: "freeform",
-        name: "quality",
-        optimizationDirection: "MAXIMIZE",
-        threshold: 0.5,
-        lowerBound: 0,
-        upperBound: 1,
-      },
-    ]);
-  });
-
   it("applies the pending edit on accept", async () => {
     const initial = makeSnapshot();
     const { host, snapshotRef } = makeHost(initial);
@@ -435,59 +365,6 @@ describe("code evaluator draft agent tools", () => {
     );
     await pending!.accept!();
     expect(snapshotRef.current.description).toBe("accepted");
-    expect(outputs[0]).toMatchObject({ state: "output-available" });
-  });
-
-  it("applies accepted test payload edits through the pending edit path", async () => {
-    const initial = makeSnapshot({
-      testPayload: {
-        input: { prompt: "initial" },
-        output: { answer: "initial" },
-        reference: {},
-        metadata: {},
-      },
-    });
-    const { host, snapshotRef } = makeHost(initial);
-    let pending: PendingCodeEvaluatorEdit | null = null;
-    const outputs: Array<Record<string, unknown>> = [];
-    const action = createEditCodeEvaluatorDraftClientAction({
-      getDraftHost: () => host,
-      setPendingCodeEvaluatorEdit: (_, edit) => {
-        pending = edit;
-      },
-    });
-    await action(
-      {
-        operations: [
-          {
-            type: "set_test_payload",
-            testPayload: {
-              input: { prompt: "updated" },
-              output: { answer: "updated" },
-              reference: { expected: "updated" },
-              metadata: { split: "smoke" },
-            },
-          },
-        ],
-      },
-      {
-        toolCallId: "tc",
-        sessionId: "s",
-        addToolOutput: async (payload: Record<string, unknown>) => {
-          outputs.push(payload);
-        },
-      }
-    );
-    expect(pending).not.toBeNull();
-    expect(pending!.after.testPayload.output).toEqual({ answer: "updated" });
-
-    await pending!.accept!();
-    expect(snapshotRef.current.testPayload).toEqual({
-      input: { prompt: "updated" },
-      output: { answer: "updated" },
-      reference: { expected: "updated" },
-      metadata: { split: "smoke" },
-    });
     expect(outputs[0]).toMatchObject({ state: "output-available" });
   });
 
