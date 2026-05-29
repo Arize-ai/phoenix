@@ -36,8 +36,7 @@ export function createReadCodeEvaluatorDraftClientAction({
 }
 
 /**
- * Validates the proposed edit against the current revision, previews the
- * resulting snapshot, and registers a pending edit for accept/reject.
+ * Previews the proposed edit and registers a pending edit for accept/reject.
  */
 export function createEditCodeEvaluatorDraftClientAction({
   getDraftHost,
@@ -76,13 +75,6 @@ export function createEditCodeEvaluatorDraftClientAction({
       };
     }
     const before = host.getSnapshot();
-    if (before.revision !== parsed.expectedRevision) {
-      return {
-        ok: false,
-        error:
-          "The code-evaluator draft has changed since it was last viewed by PXI.",
-      };
-    }
     const proposed = host.previewOperations(before, parsed.operations);
     if (!proposed.ok) return proposed;
 
@@ -90,7 +82,6 @@ export function createEditCodeEvaluatorDraftClientAction({
       pendingEdit: {
         toolCallId: editContext.toolCallId,
         sessionId: editContext.sessionId,
-        expectedRevision: parsed.expectedRevision,
         before,
         after: proposed.output,
         operations: parsed.operations,

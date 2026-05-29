@@ -5,8 +5,7 @@
     - When you need execution feedback before deciding whether to revise the evaluator or test payload again.
   </when_to_use>
   <preflight>
-    - Always call `read_code_evaluator_draft` first and pass its `revision` back as `expectedRevision`.
-    - If the test is rejected as stale, re-read the draft and retry with the new revision.
+    - Call `read_code_evaluator_draft` first if you want to confirm the current draft before testing.
   </preflight>
   <guidelines>
     - Treat preview failures as iteration signals: inspect the error/result, revise the source or `testPayload`, and test again.

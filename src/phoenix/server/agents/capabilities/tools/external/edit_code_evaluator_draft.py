@@ -19,9 +19,8 @@ LANGUAGE_ENUM = ["PYTHON", "TYPESCRIPT"]
 DESCRIPTION = (
     "Propose edits to the open code-evaluator draft. This tool does not change "
     "the form immediately: the browser renders an inline diff and the user must "
-    "accept or reject it. Always call `read_code_evaluator_draft` first, then "
-    "pass its `revision` as `expectedRevision`. Edits are rejected if the draft "
-    "changed since that read. "
+    "accept or reject it. Call `read_code_evaluator_draft` first to see the "
+    "current draft before proposing edits. "
     "Use camelCase field names exactly as shown. Common valid examples: "
     '{"type":"set_source_code","sourceCode":"def evaluate(output):\\n    return 1.0"}; '
     '{"type":"set_language","language":"PYTHON"}; '
@@ -196,12 +195,6 @@ OPERATION_SCHEMA: dict[str, Any] = {
 PARAMETERS: dict[str, Any] = {
     "type": "object",
     "properties": {
-        "expectedRevision": {
-            "type": "string",
-            "description": (
-                "The exact revision returned by the latest `read_code_evaluator_draft` call."
-            ),
-        },
         "operations": {
             "type": "array",
             "description": "Ordered edit operations to propose for the draft.",
@@ -209,7 +202,7 @@ PARAMETERS: dict[str, Any] = {
             "minItems": 1,
         },
     },
-    "required": ["expectedRevision", "operations"],
+    "required": ["operations"],
     "additionalProperties": False,
 }
 

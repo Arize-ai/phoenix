@@ -915,7 +915,7 @@ const editCodeEvaluatorDraftAgentTool =
   createRegisteredAgentTool<EditCodeEvaluatorDraftInput>({
     name: EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
     parseInput: parseEditCodeEvaluatorDraftInput,
-    invalidInputErrorText: `Invalid ${EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME} input. Expected { expectedRevision: string, operations: EditCodeEvaluatorDraftOperation[] }.`,
+    invalidInputErrorText: `Invalid ${EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME} input. Expected { operations: EditCodeEvaluatorDraftOperation[] }.`,
     uiBehavior: {
       autoOpen: true,
       scrollIntoViewOnMount: true,
@@ -1011,7 +1011,7 @@ const testCodeEvaluatorDraftAgentTool =
   createRegisteredAgentTool<TestCodeEvaluatorDraftInput>({
     name: TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
     parseInput: parseTestCodeEvaluatorDraftInput,
-    invalidInputErrorText: `Invalid ${TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME} input. Expected { expectedRevision: string }.`,
+    invalidInputErrorText: `Invalid ${TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME} input.`,
     execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
       const action =
         agentStore.getState().registeredClientActions[

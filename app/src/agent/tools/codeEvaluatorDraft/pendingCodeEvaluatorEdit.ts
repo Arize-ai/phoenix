@@ -18,17 +18,6 @@ export function bindPendingCodeEvaluatorEditActions({
     ...pendingEdit,
     accept: async () => {
       setPendingCodeEvaluatorEdit(pendingEdit.toolCallId, null);
-      const current = draftHost.getSnapshot();
-      if (current.revision !== pendingEdit.expectedRevision) {
-        await addToolOutput({
-          state: "output-error",
-          tool: EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-          toolCallId: pendingEdit.toolCallId,
-          errorText:
-            "The code-evaluator draft changed after this edit was proposed, so it can no longer be applied.",
-        });
-        return;
-      }
       const applied = draftHost.applyOperations(pendingEdit.operations);
       if (!applied.ok) {
         await addToolOutput({
@@ -45,7 +34,6 @@ export function bindPendingCodeEvaluatorEditActions({
         toolCallId: pendingEdit.toolCallId,
         output: {
           status: "accepted",
-          revision: applied.output.revision,
           message: "Code-evaluator draft edit applied.",
         },
       });

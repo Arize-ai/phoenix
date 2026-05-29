@@ -29,7 +29,6 @@ function normalizeOutputConfigAliases(input: unknown): unknown {
 
 function normalizeEditCodeEvaluatorDraftInput(input: unknown): unknown {
   const normalized = normalizeAliases(input, {
-    expectedRevision: ["expected_revision", "revision"],
     operations: ["operation"],
   });
   if (
@@ -42,11 +41,9 @@ function normalizeEditCodeEvaluatorDraftInput(input: unknown): unknown {
   const candidate = normalized as Record<string, unknown>;
   if (
     candidate.operations === undefined &&
-    typeof candidate.expectedRevision === "string" &&
     typeof candidate.type === "string"
   ) {
-    const { expectedRevision: _expectedRevision, ...operation } = candidate;
-    return { ...candidate, operations: [operation] };
+    return { operations: [candidate] };
   }
   return normalized;
 }
@@ -132,15 +129,10 @@ export const readCodeEvaluatorDraftInputSchema = z
   .passthrough()
   .transform(() => ({}));
 
-export const testCodeEvaluatorDraftInputSchema = z.preprocess(
-  (input) =>
-    normalizeAliases(input, {
-      expectedRevision: ["expected_revision", "revision"],
-    }),
-  z.object({
-    expectedRevision: z.string(),
-  })
-);
+export const testCodeEvaluatorDraftInputSchema = z
+  .object({})
+  .passthrough()
+  .transform(() => ({}));
 
 const setSourceCodeOperationSchema = z.object({
   type: z.literal("set_source_code"),
@@ -212,7 +204,6 @@ export const editCodeEvaluatorDraftInputSchema = z
   .preprocess(
     normalizeEditCodeEvaluatorDraftInput,
     z.object({
-      expectedRevision: z.string(),
       operations: editCodeEvaluatorDraftOperationsSchema,
     })
   )

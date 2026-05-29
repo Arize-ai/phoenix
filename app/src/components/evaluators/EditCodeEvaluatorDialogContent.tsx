@@ -16,7 +16,6 @@ import { Group, Panel, Separator } from "react-resizable-panels";
 import { useAdvertiseAgentContext } from "@phoenix/agent/context/useAdvertiseAgentContext";
 import {
   applyDraftOperations,
-  buildDraftRevision,
   type CodeEvaluatorDraftHost,
   type CodeEvaluatorDraftSnapshot,
   createEditCodeEvaluatorDraftClientAction,
@@ -264,8 +263,8 @@ export const EditCodeEvaluatorDialogContent = ({
   }, [sandboxConfigIndex]);
 
   const draftHostRef = useRef<CodeEvaluatorDraftHost | null>(null);
-  const getDraftRevision = useCallback(
-    () => draftHostRef.current?.getSnapshot().revision ?? null,
+  const isDraftMounted = useCallback(
+    () => draftHostRef.current != null,
     []
   );
 
@@ -278,10 +277,7 @@ export const EditCodeEvaluatorDialogContent = ({
         state.evaluator.name ||
         state.evaluator.globalName ||
         firstOutputConfigName;
-      const snapshotWithoutRevision: Omit<
-        CodeEvaluatorDraftSnapshot,
-        "revision"
-      > = {
+      return {
         mode: mode === "create" ? "create" : "edit",
         evaluatorNodeId: evaluatorNodeId ?? null,
         name: draftName,
@@ -292,10 +288,6 @@ export const EditCodeEvaluatorDialogContent = ({
         inputMapping: state.evaluator.inputMapping,
         testPayload: state.evaluatorMappingSource,
         outputConfigs: toOutputConfigDrafts(state.outputConfigs),
-      };
-      return {
-        ...snapshotWithoutRevision,
-        revision: buildDraftRevision(snapshotWithoutRevision),
       };
     };
 
@@ -595,7 +587,7 @@ export const EditCodeEvaluatorDialogContent = ({
                   selectedSandboxConfigId={selectedSandboxConfigId}
                   sourceCode={sourceCode}
                   language={language}
-                  getDraftRevision={getDraftRevision}
+                  isDraftMounted={isDraftMounted}
                 />
               </div>
             </Panel>
@@ -661,13 +653,13 @@ const ConfiguratorSidebar = ({
   selectedSandboxConfigId,
   sourceCode,
   language,
-  getDraftRevision,
+  isDraftMounted,
 }: {
   selectedSandboxConfig: SandboxConfigOption | null;
   selectedSandboxConfigId: string | null;
   sourceCode: string;
   language: CodeEvaluatorLanguage;
-  getDraftRevision: () => string | null;
+  isDraftMounted: () => boolean;
 }) => {
   return (
     <>
@@ -684,7 +676,7 @@ const ConfiguratorSidebar = ({
               sourceCode={sourceCode}
               language={language}
               sandboxConfigId={selectedSandboxConfigId}
-              getDraftRevision={getDraftRevision}
+              isDraftMounted={isDraftMounted}
             />
           </View>
           <View paddingX="size-200" paddingTop="size-50">

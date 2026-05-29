@@ -109,21 +109,5 @@ export function applyDraftOperations({
       error: getMissingCreateSandboxConfigError(next.language),
     };
   }
-  next = { ...next, revision: buildDraftRevision(next) };
   return { ok: true, output: next };
-}
-
-/** Djb2 content hash over the snapshot (excluding any prior revision). */
-export function buildDraftRevision(
-  snapshot: Omit<CodeEvaluatorDraftSnapshot, "revision"> & {
-    revision?: string;
-  }
-): string {
-  const { revision: _ignored, ...rest } = snapshot;
-  const serialized = JSON.stringify(rest);
-  let hash = 5381;
-  for (let index = 0; index < serialized.length; index++) {
-    hash = (hash * 33) ^ serialized.charCodeAt(index);
-  }
-  return `code-evaluator-draft-${(hash >>> 0).toString(16)}`;
 }

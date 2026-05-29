@@ -5,8 +5,7 @@
     - You want to suggest a concrete change rather than describing it in chat.
   </when_to_use>
   <preflight>
-    - Always call `read_code_evaluator_draft` first to obtain the latest `revision`.
-    - Pass that `revision` back as `expectedRevision`. If the draft changed since the read, the edit is rejected; re-read and retry.
+    - Call `read_code_evaluator_draft` first to see the current draft before proposing edits.
   </preflight>
   <operations>
     - `operations` must always be an array, even for a single edit. Operations apply in order.
@@ -76,6 +75,6 @@
     - Emit operations ONLY for fields you intend to change. If a field already has the value you want, do not include an op for it — redundant ops produce noisy diff previews and waste tokens.
     - Keep edits small and focused so the user can read the diff. Group related field changes together when they form one logical intent.
     - After proposing the edit, briefly summarize what the diff will show so the user knows what they are accepting or rejecting.
-    - After the user accepts relevant edits, offer to run `test_code_evaluator_draft` with the latest revision so they can inspect the preview result before clicking Create or Update.
+    - After the user accepts relevant edits, offer to run `test_code_evaluator_draft` so they can inspect the preview result before clicking Create or Update.
   </guidelines>
 </tool>

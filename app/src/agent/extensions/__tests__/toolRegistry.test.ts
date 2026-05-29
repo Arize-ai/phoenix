@@ -279,16 +279,14 @@ describe("toolRegistry", () => {
       toolCall: {
         toolCallId: "tool-call-code-evaluator-test",
         toolName: TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-        input: { expectedRevision: "code-evaluator-draft-1" },
+        input: {},
       },
       sessionId: "session-1",
       addToolOutput,
       agentStore: store,
     });
 
-    expect(action).toHaveBeenCalledWith({
-      expectedRevision: "code-evaluator-draft-1",
-    });
+    expect(action).toHaveBeenCalledWith({});
     expect(addToolOutput).toHaveBeenCalledWith(
       expect.objectContaining({
         state: "output-available",
@@ -306,7 +304,7 @@ describe("toolRegistry", () => {
       toolCall: {
         toolCallId: "tool-call-code-evaluator-test-missing",
         toolName: TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-        input: { expectedRevision: "code-evaluator-draft-1" },
+        input: {},
       },
       sessionId: "session-1",
       addToolOutput,

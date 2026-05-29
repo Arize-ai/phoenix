@@ -16,23 +16,13 @@ NAME = "test_code_evaluator_draft"
 
 DESCRIPTION = (
     "Run the open code-evaluator draft against its current test payload through "
-    "the form preview path. Always call `read_code_evaluator_draft` first "
-    "and pass the returned `revision` as `expectedRevision`; the test is rejected "
-    "if the form changed since that read. This previews the draft only and does "
+    "the form preview path. This previews the draft only and does "
     "not persist, create, or update an evaluator."
 )
 
 PARAMETERS: dict[str, Any] = {
     "type": "object",
-    "properties": {
-        "expectedRevision": {
-            "type": "string",
-            "description": (
-                "The exact revision returned by the latest `read_code_evaluator_draft` call."
-            ),
-        },
-    },
-    "required": ["expectedRevision"],
+    "properties": {},
     "additionalProperties": False,
 }
 

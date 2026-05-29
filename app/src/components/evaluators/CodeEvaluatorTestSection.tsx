@@ -145,8 +145,8 @@ export type CodeEvaluatorTestSectionProps = {
   language: CodeEvaluatorLanguage;
   /** The sandbox config Relay ID if selected */
   sandboxConfigId: string | null;
-  /** Returns the latest draft revision from the parent draft host. */
-  getDraftRevision: () => string | null;
+  /** Whether the code-evaluator draft form is currently mounted. */
+  isDraftMounted: () => boolean;
 };
 
 /**
@@ -157,7 +157,7 @@ export const CodeEvaluatorTestSection = ({
   sourceCode,
   language,
   sandboxConfigId,
-  getDraftRevision,
+  isDraftMounted,
 }: CodeEvaluatorTestSectionProps) => {
   const [error, setError] = useState<string | null>(null);
   const [previewResults, setPreviewResults] = useState<
@@ -297,23 +297,14 @@ export const CodeEvaluatorTestSection = ({
         if (!parsed) {
           return {
             ok: false,
-            error:
-              "Invalid test_code_evaluator_draft input. Expected { expectedRevision: string }.",
+            error: "Invalid test_code_evaluator_draft input.",
           };
         }
-        const currentRevision = getDraftRevision();
-        if (currentRevision == null) {
+        if (!isDraftMounted()) {
           return {
             ok: false,
             error:
               "The code-evaluator form is not mounted; cannot test the draft.",
-          };
-        }
-        if (currentRevision !== parsed.expectedRevision) {
-          return {
-            ok: false,
-            error:
-              "The code-evaluator draft has changed since it was last viewed by PXI.",
           };
         }
         const result = await runEvaluatorPreview();
@@ -326,7 +317,7 @@ export const CodeEvaluatorTestSection = ({
     return () => {
       unregisterClientAction(TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME);
     };
-  }, [agentStore, getDraftRevision, runEvaluatorPreview]);
+  }, [agentStore, isDraftMounted, runEvaluatorPreview]);
 
   const onTestEvaluator = () => {
     void runEvaluatorPreview();

@@ -45,8 +45,8 @@ export type CodeEvaluatorFormMode = "create" | "edit";
  *
  * The form's `AnnotationConfig` union ships UI/Relay-adjacent state; this
  * draft shape strips that and discriminates explicitly on `kind` so the
- * agent's tool JSON schemas, the revision hash, and the diff serializer
- * can all consume one stable shape.
+ * agent's tool JSON schemas and the diff serializer can all consume one
+ * stable shape.
  */
 export type ClassificationOutputConfigDraft = {
   kind: "classification";
@@ -77,7 +77,7 @@ export type OutputConfigDraft =
   | ContinuousOutputConfigDraft
   | FreeformOutputConfigDraft;
 
-/** Snapshot of the open code-evaluator form; `revision` is a content hash over the rest. */
+/** Snapshot of the open code-evaluator form. */
 export type CodeEvaluatorDraftSnapshot = {
   mode: CodeEvaluatorFormMode;
   evaluatorNodeId: string | null;
@@ -89,7 +89,6 @@ export type CodeEvaluatorDraftSnapshot = {
   inputMapping: EvaluatorInputMapping;
   testPayload: EvaluatorMappingSource;
   outputConfigs: OutputConfigDraft[];
-  revision: string;
 };
 
 export type CodeEvaluatorActionResult<TOutput> =
@@ -112,7 +111,6 @@ export type CodeEvaluatorDraftHost = {
 export type PendingCodeEvaluatorEdit = {
   toolCallId: string;
   sessionId: string;
-  expectedRevision: string;
   before: CodeEvaluatorDraftSnapshot;
   after: CodeEvaluatorDraftSnapshot;
   operations: EditCodeEvaluatorDraftOperation[];

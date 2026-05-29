@@ -36,7 +36,7 @@
 {% endif %}
   </available_sandbox_configs>
   <guidance>
-    Call `read_code_evaluator_draft` before proposing edits to capture the latest draft snapshot, `testPayload`, and revision.
+    Call `read_code_evaluator_draft` before proposing edits to capture the latest draft snapshot and `testPayload`.
 {% if can_edit_draft %}
     Call `edit_code_evaluator_draft` to show the user an accept/reject diff before changing the form, including `set_test_payload` when the preview payload should change.
 {% elif is_viewer %}
@@ -45,7 +45,7 @@
     This create-mode form has no usable sandbox configuration. Do not propose form edits; direct the user to `/settings/sandboxes` to enable a sandbox provider first.
 {% endif %}
 {% if can_test_draft %}
-    After the user accepts a populated draft, offer to run `test_code_evaluator_draft` before they click {% if code_evaluator.evaluator_node_id %}Update{% else %}Create{% endif %}; if the user agrees, call it with the latest revision and use the preview result to iterate.
+    After the user accepts a populated draft, offer to run `test_code_evaluator_draft` before they click {% if code_evaluator.evaluator_node_id %}Update{% else %}Create{% endif %}; if the user agrees, call it and use the preview result to iterate.
 {% else %}
     Do not offer a draft test unless `test_code_evaluator_draft` is available.
 {% endif %}

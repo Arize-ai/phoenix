@@ -1,6 +1,5 @@
 import {
   applyDraftOperations,
-  buildDraftRevision,
   type CodeEvaluatorDraftHost,
   type CodeEvaluatorDraftSnapshot,
   createEditCodeEvaluatorDraftClientAction,
@@ -8,14 +7,13 @@ import {
   type EditCodeEvaluatorDraftOperation,
   type PendingCodeEvaluatorEdit,
   parseEditCodeEvaluatorDraftInput,
-  parseTestCodeEvaluatorDraftInput,
   type SandboxConfigIndex,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
 
 function makeSnapshot(
-  overrides: Partial<Omit<CodeEvaluatorDraftSnapshot, "revision">> = {}
+  overrides: Partial<CodeEvaluatorDraftSnapshot> = {}
 ): CodeEvaluatorDraftSnapshot {
-  const base: Omit<CodeEvaluatorDraftSnapshot, "revision"> = {
+  return {
     mode: "create",
     evaluatorNodeId: null,
     name: "hallucination",
@@ -33,7 +31,6 @@ function makeSnapshot(
     outputConfigs: [],
     ...overrides,
   };
-  return { ...base, revision: buildDraftRevision(base) };
 }
 
 function makeHost(
@@ -65,7 +62,7 @@ function makeHost(
 }
 
 describe("code evaluator draft agent tools", () => {
-  it("reads a snapshot with a content-hash revision", async () => {
+  it("reads the current draft snapshot", async () => {
     const { host } = makeHost(makeSnapshot());
     const action = createReadCodeEvaluatorDraftClientAction({
       getDraftHost: () => host,
@@ -76,7 +73,6 @@ describe("code evaluator draft agent tools", () => {
     const snapshot = JSON.parse(
       result.output ?? ""
     ) as CodeEvaluatorDraftSnapshot;
-    expect(snapshot.revision).toMatch(/^code-evaluator-draft-/);
     expect(snapshot.mode).toBe("create");
   });
 
@@ -209,7 +205,6 @@ describe("code evaluator draft agent tools", () => {
 
   it("rejects set_output_configs operations with blank output config names", () => {
     const parsed = parseEditCodeEvaluatorDraftInput({
-      expectedRevision: "code-evaluator-draft-abc",
       operations: [
         {
           type: "set_output_configs",
@@ -231,7 +226,6 @@ describe("code evaluator draft agent tools", () => {
 
   it("normalizes snake_case aliases in draft edit operations", () => {
     const parsed = parseEditCodeEvaluatorDraftInput({
-      expected_revision: "code-evaluator-draft-abc",
       operations: [
         {
           type: "set_input_mapping",
@@ -265,7 +259,6 @@ describe("code evaluator draft agent tools", () => {
       ],
     });
     expect(parsed).not.toBeNull();
-    expect(parsed!.expectedRevision).toBe("code-evaluator-draft-abc");
     expect(parsed!.operations[0]).toEqual({
       type: "set_input_mapping",
       inputMapping: {
@@ -297,7 +290,7 @@ describe("code evaluator draft agent tools", () => {
     });
   });
 
-  it("applies set_test_payload and includes it in the revision hash", () => {
+  it("applies set_test_payload", () => {
     const initial = makeSnapshot({
       testPayload: {
         input: { prompt: "old" },
@@ -331,17 +324,14 @@ describe("code evaluator draft agent tools", () => {
       reference: { rubric: "match answer" },
       metadata: { split: "eval" },
     });
-    expect(result.output.revision).not.toBe(initial.revision);
   });
 
-  it("accepts a single top-level operation next to expectedRevision", () => {
+  it("accepts a single top-level operation", () => {
     const parsed = parseEditCodeEvaluatorDraftInput({
-      expectedRevision: "code-evaluator-draft-abc",
       type: "set_description",
       description: "Scores whether the output includes a tool call.",
     });
     expect(parsed).toEqual({
-      expectedRevision: "code-evaluator-draft-abc",
       operations: [
         {
           type: "set_description",
@@ -349,65 +339,6 @@ describe("code evaluator draft agent tools", () => {
         },
       ],
     });
-  });
-
-  it("accepts the read snapshot revision field as the expected revision", () => {
-    const parsed = parseEditCodeEvaluatorDraftInput({
-      revision: "code-evaluator-draft-abc",
-      operations: [
-        {
-          type: "set_description",
-          description: "Scores whether the output includes a tool call.",
-        },
-      ],
-    });
-    expect(parsed).toEqual({
-      expectedRevision: "code-evaluator-draft-abc",
-      operations: [
-        {
-          type: "set_description",
-          description: "Scores whether the output includes a tool call.",
-        },
-      ],
-    });
-  });
-
-  it("accepts revision aliases for test_code_evaluator_draft", () => {
-    expect(
-      parseTestCodeEvaluatorDraftInput({
-        revision: "code-evaluator-draft-abc",
-      })
-    ).toEqual({ expectedRevision: "code-evaluator-draft-abc" });
-    expect(
-      parseTestCodeEvaluatorDraftInput({
-        expected_revision: "code-evaluator-draft-def",
-      })
-    ).toEqual({ expectedRevision: "code-evaluator-draft-def" });
-  });
-
-  it("rejects the propose-time edit when expectedRevision is stale", async () => {
-    const initial = makeSnapshot();
-    const { host, snapshotRef } = makeHost(initial);
-    snapshotRef.current = makeSnapshot({ description: "drifted" });
-
-    const action = createEditCodeEvaluatorDraftClientAction({
-      getDraftHost: () => host,
-      setPendingCodeEvaluatorEdit: () => undefined,
-    });
-    const result = await action(
-      {
-        expectedRevision: initial.revision,
-        operations: [{ type: "set_description", description: "from model" }],
-      },
-      {
-        toolCallId: "tc",
-        sessionId: "s",
-        addToolOutput: async () => undefined,
-      }
-    );
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.error).toMatch(/changed since it was last viewed/i);
   });
 
   it("registers a pending edit when the propose-time gate passes", async () => {
@@ -422,7 +353,6 @@ describe("code evaluator draft agent tools", () => {
     });
     const result = await action(
       {
-        expectedRevision: initial.revision,
         operations: [{ type: "set_description", description: "from model" }],
       },
       {
@@ -434,22 +364,11 @@ describe("code evaluator draft agent tools", () => {
     expect(result.ok).toBe(true);
     expect(pending).not.toBeNull();
     expect(pending!.after.description).toBe("from model");
-    expect(pending!.before.revision).toBe(initial.revision);
   });
 
-  it("registers a pending edit from a read revision and model-ish aliases", async () => {
+  it("registers a pending edit from model-ish aliases", async () => {
     const initial = makeSnapshot();
     const { host } = makeHost(initial);
-    const readAction = createReadCodeEvaluatorDraftClientAction({
-      getDraftHost: () => host,
-    });
-    const readResult = await readAction({});
-    expect(readResult.ok).toBe(true);
-    if (!readResult.ok) return;
-    const readSnapshot = JSON.parse(
-      readResult.output ?? ""
-    ) as CodeEvaluatorDraftSnapshot;
-
     let pending: PendingCodeEvaluatorEdit | null = null;
     const editAction = createEditCodeEvaluatorDraftClientAction({
       getDraftHost: () => host,
@@ -459,7 +378,6 @@ describe("code evaluator draft agent tools", () => {
     });
     const editResult = await editAction(
       {
-        revision: readSnapshot.revision,
         type: "set_output_configs",
         output_configs: [
           {
@@ -492,7 +410,7 @@ describe("code evaluator draft agent tools", () => {
     ]);
   });
 
-  it("rejects accept when the draft revision drifted after propose", async () => {
+  it("applies the pending edit on accept", async () => {
     const initial = makeSnapshot();
     const { host, snapshotRef } = makeHost(initial);
     let pending: PendingCodeEvaluatorEdit | null = null;
@@ -505,41 +423,6 @@ describe("code evaluator draft agent tools", () => {
     });
     await action(
       {
-        expectedRevision: initial.revision,
-        operations: [{ type: "set_description", description: "from model" }],
-      },
-      {
-        toolCallId: "tc",
-        sessionId: "s",
-        addToolOutput: async (payload: Record<string, unknown>) => {
-          outputs.push(payload);
-        },
-      }
-    );
-    expect(pending).not.toBeNull();
-    snapshotRef.current = makeSnapshot({ description: "user edit" });
-
-    await pending!.accept!();
-    expect(outputs).toHaveLength(1);
-    expect(outputs[0]).toMatchObject({ state: "output-error" });
-    expect(String(outputs[0].errorText)).toMatch(/changed after this edit/i);
-    expect(snapshotRef.current.description).toBe("user edit");
-  });
-
-  it("applies the pending edit on accept when revision still matches", async () => {
-    const initial = makeSnapshot();
-    const { host, snapshotRef } = makeHost(initial);
-    let pending: PendingCodeEvaluatorEdit | null = null;
-    const outputs: Array<Record<string, unknown>> = [];
-    const action = createEditCodeEvaluatorDraftClientAction({
-      getDraftHost: () => host,
-      setPendingCodeEvaluatorEdit: (_, edit) => {
-        pending = edit;
-      },
-    });
-    await action(
-      {
-        expectedRevision: initial.revision,
         operations: [{ type: "set_description", description: "accepted" }],
       },
       {
@@ -575,7 +458,6 @@ describe("code evaluator draft agent tools", () => {
     });
     await action(
       {
-        expectedRevision: initial.revision,
         operations: [
           {
             type: "set_test_payload",
@@ -622,7 +504,6 @@ describe("code evaluator draft agent tools", () => {
     });
     await action(
       {
-        expectedRevision: initial.revision,
         operations: [{ type: "set_description", description: "from model" }],
       },
       {
