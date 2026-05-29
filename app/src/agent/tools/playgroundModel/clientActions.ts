@@ -30,6 +30,12 @@ function resolveInstanceId({
           error: `Playground instance ${input.instanceId} was not found.`,
         };
   }
+  if (instanceIds.length === 0) {
+    return {
+      ok: false,
+      error: "No playground instances are mounted.",
+    };
+  }
   if (instanceIds.length === 1 && instanceIds[0] != null) {
     return { ok: true, instanceId: instanceIds[0] };
   }
