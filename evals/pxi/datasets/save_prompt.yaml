@@ -101,11 +101,22 @@ examples:
       tools:
         required: [save_prompt]
       tool_call_args:
+        # "Keep the current tag" on an instance that already has one means
+        # "do not promote that tag onto the new version." The tool treats an
+        # omitted `tags` and an explicit `tags: []` identically
+        # (`requestedTags ?? []`), and the tool instructions direct the model
+        # to pass `tags: []` in exactly this case, so accept either form. The
+        # core assertion of this example is unchanged: promptId and name must
+        # be omitted because the prompt is inferred from the instance context.
         save_prompt:
-          promptId: { absent: true }
-          name: { absent: true }
-          description: { non_empty: true }
-          tags: { absent: true }
+          - promptId: { absent: true }
+            name: { absent: true }
+            description: { non_empty: true }
+            tags: { equals: [] }
+          - promptId: { absent: true }
+            name: { absent: true }
+            description: { non_empty: true }
+            tags: { absent: true }
       budgets:
         max_tool_calls: 2
     metadata:

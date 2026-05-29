@@ -296,9 +296,18 @@ examples:
             save_prompt_args = expected.get("tool_call_args", {}).get("save_prompt")
             if save_prompt_args is None:
                 continue
-            description = save_prompt_args.get("description")
-            assert description is not None, f"{example['id']} must assert save_prompt.description"
-            assert isinstance(description, dict)
-            assert description.get("non_empty") is True, (
-                f"{example['id']} must reject empty save_prompt.description"
+            # `save_prompt` may be a single arg-matcher dict or a list of
+            # independently-acceptable variants; every variant must require a
+            # non-empty description.
+            variants = (
+                save_prompt_args if isinstance(save_prompt_args, list) else [save_prompt_args]
             )
+            for variant in variants:
+                description = variant.get("description")
+                assert description is not None, (
+                    f"{example['id']} must assert save_prompt.description"
+                )
+                assert isinstance(description, dict)
+                assert description.get("non_empty") is True, (
+                    f"{example['id']} must reject empty save_prompt.description"
+                )
