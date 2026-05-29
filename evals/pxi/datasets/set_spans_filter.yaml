@@ -627,7 +627,7 @@ examples:
     input:
       messages:
         - role: user
-          content: tools or retrievers only
+          content: show me tool or retriever spans only
     expected:
       tools:
         required: [set_spans_filter]
