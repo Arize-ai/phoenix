@@ -388,6 +388,8 @@ export const EditCodeEvaluatorDialogContent = ({
       createEditCodeEvaluatorDraftClientAction({
         getDraftHost,
         setPendingCodeEvaluatorEdit,
+        shouldAutoAccept: () =>
+          agentStore.getState().permissions.edits === "bypass",
       })
     );
     return () => {

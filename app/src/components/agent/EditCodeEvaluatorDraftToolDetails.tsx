@@ -26,7 +26,8 @@ export function formatEditCodeEvaluatorDraftState(
       return "Awaiting approval";
     case "output-available": {
       const status = getOutputStatus(part.output);
-      return status === "rejected" ? "Rejected" : "Accepted";
+      if (status === "rejected") return "Rejected";
+      return isAutoAccepted(part.output) ? "Auto-approved" : "Accepted";
     }
     default:
       return formatToolState(part.state);
@@ -88,4 +89,15 @@ function getOutputStatus(output: unknown): string | null {
   if (typeof output !== "object" || output === null) return null;
   const candidate = output as { status?: unknown };
   return typeof candidate.status === "string" ? candidate.status : null;
+}
+
+function getAcceptedBy(output: unknown): string | null {
+  if (typeof output !== "object" || output === null) return null;
+  const candidate = output as { acceptedBy?: unknown };
+  return typeof candidate.acceptedBy === "string" ? candidate.acceptedBy : null;
+}
+
+function isAutoAccepted(output: unknown): boolean {
+  const acceptedBy = getAcceptedBy(output);
+  return acceptedBy === "auto" || acceptedBy === "system";
 }

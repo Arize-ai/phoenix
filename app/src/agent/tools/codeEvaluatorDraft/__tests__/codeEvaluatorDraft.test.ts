@@ -398,4 +398,42 @@ describe("code evaluator draft agent tools", () => {
       output: expect.objectContaining({ status: "rejected" }),
     });
   });
+
+  it("auto-applies the edit without surfacing a confirmation when shouldAutoAccept is true", async () => {
+    const initial = makeSnapshot({ description: "original" });
+    const { host, snapshotRef } = makeHost(initial);
+    let surfacedPending = false;
+    const outputs: Array<Record<string, unknown>> = [];
+    const action = createEditCodeEvaluatorDraftClientAction({
+      getDraftHost: () => host,
+      setPendingCodeEvaluatorEdit: (_, edit) => {
+        if (edit) surfacedPending = true;
+      },
+      shouldAutoAccept: () => true,
+    });
+    const result = await action(
+      {
+        operations: [{ type: "set_description", description: "auto" }],
+      },
+      {
+        toolCallId: "tc",
+        sessionId: "s",
+        addToolOutput: async (payload: Record<string, unknown>) => {
+          outputs.push(payload);
+        },
+      }
+    );
+    expect(result.ok).toBe(true);
+    // Auto-mode must never surface the accept/reject confirmation dialog.
+    expect(surfacedPending).toBe(false);
+    // The edit is applied immediately and stamped as auto-approved.
+    expect(snapshotRef.current.description).toBe("auto");
+    expect(outputs[0]).toMatchObject({
+      state: "output-available",
+      output: expect.objectContaining({
+        status: "accepted",
+        acceptedBy: "auto",
+      }),
+    });
+  });
 });

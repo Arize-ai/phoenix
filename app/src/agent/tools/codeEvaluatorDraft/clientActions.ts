@@ -46,12 +46,14 @@ export function createReadCodeEvaluatorDraftClientAction({
 export function createEditCodeEvaluatorDraftClientAction({
   getDraftHost,
   setPendingCodeEvaluatorEdit,
+  shouldAutoAccept = () => false,
 }: {
   getDraftHost: () => CodeEvaluatorDraftHost | null;
   setPendingCodeEvaluatorEdit: (
     toolCallId: string,
     edit: PendingCodeEvaluatorEdit | null
   ) => void;
+  shouldAutoAccept?: () => boolean;
 }) {
   return async (
     input: unknown,
@@ -95,6 +97,14 @@ export function createEditCodeEvaluatorDraftClientAction({
       addToolOutput: editContext.addToolOutput,
       setPendingCodeEvaluatorEdit,
     });
+
+    // Auto-mode ("bypass" edit permission): apply immediately without surfacing
+    // the accept/reject confirmation dialog.
+    if (shouldAutoAccept()) {
+      await pendingEdit.accept?.({ approvalSource: "auto" });
+      return { ok: true };
+    }
+
     setPendingCodeEvaluatorEdit(editContext.toolCallId, pendingEdit);
     return { ok: true };
   };

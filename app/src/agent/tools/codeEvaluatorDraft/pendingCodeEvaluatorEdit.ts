@@ -18,7 +18,7 @@ export function bindPendingCodeEvaluatorEditActions({
 }: BindPendingCodeEvaluatorEditOptions): PendingCodeEvaluatorEdit {
   return {
     ...pendingEdit,
-    accept: async () => {
+    accept: async ({ approvalSource = "user" } = {}) => {
       setPendingCodeEvaluatorEdit(pendingEdit.toolCallId, null);
       const applied = draftHost.applyOperations(pendingEdit.operations);
       if (!applied.ok) {
@@ -36,7 +36,11 @@ export function bindPendingCodeEvaluatorEditActions({
         toolCallId: pendingEdit.toolCallId,
         output: {
           status: "accepted",
-          message: "Code-evaluator draft edit applied.",
+          acceptedBy: approvalSource,
+          message:
+            approvalSource === "auto"
+              ? "Code-evaluator draft edit auto-approved."
+              : "Code-evaluator draft edit applied.",
         },
       });
     },
