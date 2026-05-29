@@ -74,12 +74,14 @@ export function createClonePromptInstanceClientAction({
 export function createEditPromptClientAction({
   playgroundStore,
   setPendingPromptEdit,
+  shouldAutoAccept = () => false,
 }: {
   playgroundStore: PlaygroundStore;
   setPendingPromptEdit: (
     toolCallId: string,
     edit: PendingPromptEdit | null
   ) => void;
+  shouldAutoAccept?: () => boolean;
 }) {
   return async (
     input: unknown,
@@ -127,6 +129,12 @@ export function createEditPromptClientAction({
       addToolOutput: editContext.addToolOutput,
       setPendingPromptEdit,
     });
+
+    if (shouldAutoAccept()) {
+      await pendingEdit.accept?.({ approvalSource: "auto" });
+      return { ok: true };
+    }
+
     setPendingPromptEdit(editContext.toolCallId, pendingEdit);
     return { ok: true };
   };

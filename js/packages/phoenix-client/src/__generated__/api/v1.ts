@@ -1639,6 +1639,12 @@ export interface components {
             exportRemoteTraces?: boolean;
             /** Contexts */
             contexts?: components["schemas"]["ChatContext"][];
+            /**
+             * Editpermission
+             * @default manual
+             * @enum {string}
+             */
+            editPermission?: "manual" | "bypass";
             /** Model */
             model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
         } & {
@@ -1675,6 +1681,12 @@ export interface components {
             exportRemoteTraces?: boolean;
             /** Contexts */
             contexts?: components["schemas"]["ChatContext"][];
+            /**
+             * Editpermission
+             * @default manual
+             * @enum {string}
+             */
+            editPermission?: "manual" | "bypass";
             /** Model */
             model: components["schemas"]["CustomProviderModelSelection"] | components["schemas"]["BuiltInProviderModelSelection"];
         } & {

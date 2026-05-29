@@ -2,6 +2,7 @@ import {
   EDIT_PROMPT_NAVIGATION_CANCEL_ERROR,
   EDIT_PROMPT_TOOL_NAME,
 } from "./constants";
+import { computePromptEditSummary } from "./diffSummary";
 import { applyPromptOperations, getPromptSnapshot } from "./promptStore";
 import type { BindPendingPromptEditOptions, PendingPromptEdit } from "./types";
 
@@ -17,7 +18,7 @@ export function bindPendingPromptEditActions({
 }: BindPendingPromptEditOptions): PendingPromptEdit {
   return {
     ...pendingEdit,
-    accept: async () => {
+    accept: async ({ approvalSource = "user" } = {}) => {
       setPendingPromptEdit(pendingEdit.toolCallId, null);
       const current = getPromptSnapshot({
         playgroundStore,
@@ -51,17 +52,26 @@ export function bindPendingPromptEditActions({
         playgroundStore,
         instanceId: pendingEdit.instanceId,
       });
+      const summary = computePromptEditSummary(
+        pendingEdit.before,
+        afterApply.ok ? afterApply.output : pendingEdit.after
+      );
       await addToolOutput({
         state: "output-available",
         tool: EDIT_PROMPT_TOOL_NAME,
         toolCallId: pendingEdit.toolCallId,
         output: {
           status: "accepted",
+          acceptedBy: approvalSource,
           instanceId: pendingEdit.instanceId,
           revision: afterApply.ok
             ? afterApply.output.revision
             : pendingEdit.after.revision,
-          message: "Prompt edit applied.",
+          summary,
+          message:
+            approvalSource === "auto"
+              ? "Prompt edit auto-approved."
+              : "Prompt edit applied.",
         },
       });
     },

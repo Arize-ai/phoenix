@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TypeAlias
+from typing import Literal, TypeAlias
 
 from pydantic_ai import DeferredToolRequests
 
@@ -11,3 +11,4 @@ AgentOutput: TypeAlias = str | DeferredToolRequests
 @dataclass
 class AgentDependencies:
     contexts: ResolvedContexts
+    edit_permission: Literal["manual", "bypass"] = "manual"

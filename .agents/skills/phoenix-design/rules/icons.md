@@ -16,6 +16,7 @@ Phoenix has a curated icon set in `app/src/components/core/icon/Icons.tsx`. Use 
 | Image | `Icons.ImageOutline` | Image-typed file attachments. |
 | Video | `Icons.PlayCircleOutline` | Video-typed file attachments (no dedicated `Video*` icon). |
 | Context (generic) | `Icons.InfoOutline` | Default for an `AttachmentContextData` whose category has no canonical icon yet. |
+| Bypass / unguarded approvals | `Icons.ShieldOutline` | Warning shield for bypass/auto-approval modes where approvals are skipped. |
 
 ## When you need an icon
 

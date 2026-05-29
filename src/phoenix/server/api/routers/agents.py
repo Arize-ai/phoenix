@@ -161,6 +161,10 @@ class _ChatMessageMixin(_ObservabilityMixin):
     )
 
     contexts: list[ChatContext] = Field(default_factory=list)
+    edit_permission: Literal["manual", "bypass"] = Field(
+        default="manual",
+        alias="editPermission",
+    )
     messages: list[AssistantMetadataUIMessage]
     model: AgentModelSelection
 
@@ -481,7 +485,10 @@ def create_agents_router(authentication_enabled: bool) -> APIRouter:
             run_input=body,
             accept=request.headers.get("accept"),
         )
-        deps = AgentDependencies(contexts=resolved_contexts)
+        deps = AgentDependencies(
+            contexts=resolved_contexts,
+            edit_permission=body.edit_permission,
+        )
 
         async def _on_complete(result: AgentRunResult[Any]) -> AsyncIterator[BaseChunk]:
             yield _build_message_metadata_chunk(

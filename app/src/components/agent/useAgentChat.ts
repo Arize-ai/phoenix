@@ -13,6 +13,7 @@ import {
 } from "@phoenix/agent/chat/shouldSendAutomatically";
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
 import { selectActiveContexts } from "@phoenix/agent/context/selectors";
+import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import type {
   ElicitToolOutput,
   PendingElicitation,
@@ -102,6 +103,7 @@ export function useAgentChat({
                     messageId,
                     capabilities: store.getState().capabilities,
                     observability: store.getState().observability,
+                    permissions: store.getState().permissions,
                     hasRemoteCollector: Boolean(
                       store.getState().agentsConfig.collectorEndpoint
                     ),
@@ -186,6 +188,9 @@ export function useAgentChat({
         // The generic interruption output resolves the AI SDK tool call; clear
         // the live approval state too so stale Accept/Reject actions disappear.
         store.getState().setPendingPromptEdit(toolCall.toolCallId, null);
+      }
+      if (toolCall.tool === BATCH_SPAN_ANNOTATE_TOOL_NAME) {
+        store.getState().setPendingBatchSpanAnnotate(toolCall.toolCallId, null);
       }
     });
 

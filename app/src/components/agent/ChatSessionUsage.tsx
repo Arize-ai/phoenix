@@ -19,7 +19,6 @@ const chatSessionUsageCSS = css`
   justify-content: flex-end;
   align-items: center;
   gap: var(--global-dimension-static-size-100);
-  padding: 0 var(--global-dimension-static-size-200);
 `;
 
 type ChatSessionUsage = {

@@ -7,6 +7,7 @@ import {
   type PropsWithChildren,
   useState,
 } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import { useStickToBottom } from "use-stick-to-bottom";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
@@ -32,6 +33,10 @@ import { useAgentContext } from "@phoenix/contexts/AgentContext";
 
 import { AgentConsentGate } from "./AgentConsentGate";
 import { AgentContextPills } from "./AgentContextPills";
+import {
+  AgentEditPermissionMenu,
+  getNextEditPermissionMode,
+} from "./AgentEditPermissionMenu";
 import {
   AgentModelCredentialForm,
   useAgentModelCredentialStatus,
@@ -125,20 +130,28 @@ const chatCSS = css`
   overflow: visible;
   position: relative;
 
-  .chat__children {
+  .chat__input-meta {
+    box-sizing: border-box;
     width: 100%;
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: var(--global-dimension-static-size-100);
+    /* Match the prompt input footer's horizontal inset so the permission
+       selector and token usage line up with the tools/submit row above. */
     padding: var(--global-dimension-size-100) 0;
   }
 
-  &:has(.chat__children > *) {
+  &:has(.chat__input-meta) {
     .chat__input {
-      /* Remove bottom padding from chat input when children are present. */
+      /* Remove bottom padding when metadata is rendered below the prompt. */
       padding-bottom: 0;
     }
+  }
+
+  .chat__children {
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   .chat__scroll-frame {
@@ -224,6 +237,10 @@ const chatCSS = css`
 
   .chat__loading {
     color: var(--global-text-color-300);
+  }
+
+  .chat__edit-permissions {
+    flex: none;
   }
 
   .chat__error {
@@ -325,6 +342,10 @@ export function ChatView({
   const hasAcknowledgedConsent = useAgentContext(
     (state) => state.observability.hasAcknowledgedConsent
   );
+  const editPermissionMode = useAgentContext(
+    (state) => state.permissions.edits
+  );
+  const setPermissions = useAgentContext((state) => state.setPermissions);
   const showsEmptyState = messages.length === 0;
   const chatClassName = showsEmptyState ? "chat--empty" : "";
   const { missingCredentialsProvider, refreshCredentialStatus } =
@@ -342,6 +363,27 @@ export function ChatView({
     elicitationDraft?.toolCallId !== pendingElicitation.toolCallId
       ? createPendingElicitationDraft(pendingElicitation.toolCallId)
       : elicitationDraft;
+  const canToggleEditPermission = hasAcknowledgedConsent && !pendingElicitation;
+
+  const toggleEditPermission = () => {
+    setPermissions({ edits: getNextEditPermissionMode(editPermissionMode) });
+  };
+
+  useHotkeys(
+    "ctrl+t",
+    (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleEditPermission();
+    },
+    {
+      enabled: canToggleEditPermission,
+      enableOnFormTags: true,
+      enableOnContentEditable: true,
+      preventDefault: true,
+    },
+    [canToggleEditPermission, editPermissionMode, setPermissions]
+  );
 
   const handleQuickAction = (prompt: string) => {
     setInputValue(prompt);
@@ -476,7 +518,20 @@ export function ChatView({
               </PromptInputFooter>
             </PromptInput>
           )}
-          {children ? <div className="chat__children">{children}</div> : null}
+          {canToggleEditPermission ? (
+            <div className="chat__input-meta">
+              <div className="chat__edit-permissions">
+                <AgentEditPermissionMenu />
+              </div>
+              {children ? (
+                <div className="chat__children">{children}</div>
+              ) : null}
+            </div>
+          ) : children ? (
+            <div className="chat__input-meta">
+              <div className="chat__children">{children}</div>
+            </div>
+          ) : null}
         </div>
       </div>
     </ElicitationDraftProvider>

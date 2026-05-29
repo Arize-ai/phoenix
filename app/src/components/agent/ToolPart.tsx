@@ -3,6 +3,7 @@ import { getToolName } from "ai";
 import { useEffect, useRef, useState } from "react";
 
 import { getAgentToolUIBehavior } from "@phoenix/agent/extensions/toolRegistry";
+import { BATCH_SPAN_ANNOTATE_TOOL_NAME } from "@phoenix/agent/tools/batchSpanAnnotate";
 import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
 import { Icon, Icons } from "@phoenix/components";
 
@@ -12,6 +13,11 @@ import {
   getAskUserToolPreview,
 } from "./AskUserToolDetails";
 import { BashToolDetails, getBashToolPreview } from "./BashToolDetails";
+import {
+  BatchSpanAnnotateToolDetails,
+  formatBatchSpanAnnotateState,
+  getBatchSpanAnnotateToolPreview,
+} from "./BatchSpanAnnotateToolDetails";
 import {
   DocsToolDetails,
   formatDocsToolState,
@@ -309,6 +315,56 @@ export function ToolPart({ part }: { part: MessagePart }) {
   return <ToolInvocationPartDetails part={part} />;
 }
 
+/**
+ * Walks up the DOM from `element` to find the closest ancestor that can scroll
+ * vertically — i.e. one whose `overflow-y` is `auto`/`scroll` and whose content
+ * actually overflows. This is the container we want to move when revealing a
+ * descendant, rather than letting the browser scroll every ancestor.
+ *
+ * @param element - The element whose scroll container to locate.
+ * @returns The nearest vertically scrollable ancestor, or `null` if none exists.
+ */
+function getScrollableParent(element: HTMLElement): HTMLElement | null {
+  let current = element.parentElement;
+  while (current) {
+    const { overflowY } = getComputedStyle(current);
+    const isScrollable = overflowY === "auto" || overflowY === "scroll";
+    if (isScrollable && current.scrollHeight > current.clientHeight) {
+      return current;
+    }
+    current = current.parentElement;
+  }
+  return null;
+}
+
+/**
+ * Smoothly scrolls `element` to the vertical center of its nearest scrollable
+ * ancestor, scrolling only that container.
+ *
+ * Unlike the native `Element.scrollIntoView`, which scrolls every scrollable
+ * ancestor (and can move the whole page/layout), this confines the scroll to
+ * the chat message list. The native behavior previously bubbled up to the
+ * floating panel's `overflow: hidden` flex column, clipping the panel header
+ * and leaving a gap beneath the footer when a tool part auto-opened for
+ * approval. Does nothing when no scrollable ancestor is found.
+ *
+ * @param element - The element to bring into view within its scroll container.
+ */
+function scrollElementIntoViewWithinScrollParent(element: HTMLElement): void {
+  const scrollParent = getScrollableParent(element);
+  if (!scrollParent) {
+    return;
+  }
+  const parentRect = scrollParent.getBoundingClientRect();
+  const elementRect = element.getBoundingClientRect();
+  // Distance to scroll so the element sits centered in the scroll viewport.
+  const delta =
+    elementRect.top -
+    parentRect.top -
+    (scrollParent.clientHeight - elementRect.height) / 2;
+  scrollParent.scrollBy({ top: delta, behavior: "smooth" });
+}
+
 function ToolInvocationPartDetails({ part }: { part: ToolInvocationPart }) {
   const toolName = getToolName(part);
   const uiBehavior = getAgentToolUIBehavior(toolName);
@@ -331,10 +387,9 @@ function ToolInvocationPartDetails({ part }: { part: ToolInvocationPart }) {
       return;
     }
     requestAnimationFrame(() => {
-      detailsRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
+      if (detailsRef.current) {
+        scrollElementIntoViewWithinScrollParent(detailsRef.current);
+      }
     });
   }, [shouldAutoOpen, uiBehavior?.scrollIntoViewOnMount]);
 
@@ -568,6 +623,13 @@ function getToolPresentation(
         stateLabel: formatEditPromptState(part),
         statusVariant,
         details: <EditPromptToolDetails part={part} />,
+      };
+    case BATCH_SPAN_ANNOTATE_TOOL_NAME:
+      return {
+        preview: getBatchSpanAnnotateToolPreview(part),
+        stateLabel: formatBatchSpanAnnotateState(part),
+        statusVariant,
+        details: <BatchSpanAnnotateToolDetails part={part} />,
       };
     case NATIVE_WEB_SEARCH_TOOL_NAME:
     case NATIVE_WEB_FETCH_TOOL_NAME: {

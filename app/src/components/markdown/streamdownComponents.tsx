@@ -268,6 +268,7 @@ const tableCellCSS = css`
   padding: var(--global-table-cell-padding-y) var(--global-table-cell-padding-x);
   text-align: left;
   vertical-align: top;
+  overflow-wrap: break-word;
 `;
 
 const tableHeaderCellCSS = css`
@@ -275,6 +276,7 @@ const tableHeaderCellCSS = css`
   background: var(--global-table-header-background-color);
   color: var(--global-text-color-900);
   font-weight: var(--global-font-weight-semibold);
+  white-space: nowrap;
 `;
 
 // ---------------------------------------------------------------------------
