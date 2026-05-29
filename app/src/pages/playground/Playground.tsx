@@ -296,7 +296,12 @@ function PlaygroundContent() {
     );
     registerClientAction(
       EDIT_PROMPT_TOOL_NAME,
-      createEditPromptClientAction({ playgroundStore, setPendingPromptEdit })
+      createEditPromptClientAction({
+        playgroundStore,
+        setPendingPromptEdit,
+        shouldAutoAccept: () =>
+          agentStore.getState().permissions.edits === "bypass",
+      })
     );
     registerClientAction(
       RUN_PLAYGROUND_TOOL_NAME,

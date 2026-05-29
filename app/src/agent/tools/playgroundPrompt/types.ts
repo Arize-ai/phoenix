@@ -1,5 +1,6 @@
 import type { z } from "zod";
 
+import type { ApprovalSource } from "@phoenix/agent/tools/approval";
 import type { ChatMessage, PlaygroundStore } from "@phoenix/store/playground";
 
 import type {
@@ -77,6 +78,22 @@ export type MaterializedEditPromptOperation =
   | DeletePromptMessageOperation
   | ReorderPromptMessagesOperation;
 
+/**
+ * GitHub-style summary of an applied prompt edit, persisted onto the tool
+ * output so the accepted result can be rendered after the live before/after
+ * snapshots have been cleared from the store.
+ */
+export type PromptEditSummary = {
+  /** Zero-based instance position used to render the A/B/C… badge. */
+  instanceIndex: number;
+  /** Human-readable instance label (e.g. the prompt name). */
+  instanceLabel: string;
+  /** Count of added lines in the diff. */
+  additions: number;
+  /** Count of removed lines in the diff. */
+  deletions: number;
+};
+
 export type PendingPromptEdit = {
   toolCallId: string;
   /** Agent session that owns the unresolved edit_prompt_instance tool call. */
@@ -86,7 +103,7 @@ export type PendingPromptEdit = {
   before: PromptSnapshot;
   after: PromptSnapshot;
   operations: MaterializedEditPromptOperation[];
-  accept?: () => Promise<void>;
+  accept?: (options?: { approvalSource?: ApprovalSource }) => Promise<void>;
   reject?: () => Promise<void>;
   cancel?: () => Promise<void>;
 };

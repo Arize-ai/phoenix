@@ -13,6 +13,7 @@ import {
   type AgentCapabilities,
   type AgentCapabilityKey,
 } from "@phoenix/agent/extensions/capabilities";
+import type { PendingBatchSpanAnnotate } from "@phoenix/agent/tools/batchSpanAnnotate";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
 import type { PendingPromptEdit } from "@phoenix/agent/tools/playgroundPrompt";
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
@@ -57,6 +58,25 @@ export type AgentObservabilitySettings = {
   exportRemoteTraces: boolean;
   /** Whether the user has acknowledged the PXI consent gate. */
   hasAcknowledgedConsent: boolean;
+};
+
+export type AgentEditPermissionMode = "manual" | "bypass";
+
+const AGENT_EDIT_PERMISSION_MODES: readonly AgentEditPermissionMode[] = [
+  "manual",
+  "bypass",
+];
+
+/** Narrows an unknown persisted value to a recognized edit-permission mode. */
+function isAgentEditPermissionMode(
+  value: unknown
+): value is AgentEditPermissionMode {
+  return AGENT_EDIT_PERMISSION_MODES.includes(value as AgentEditPermissionMode);
+}
+
+export type AgentPermissions = {
+  /** How user-visible edit approvals should be resolved. */
+  edits: AgentEditPermissionMode;
 };
 
 /**
@@ -115,6 +135,10 @@ const DEFAULT_AGENT_OBSERVABILITY_SETTINGS: AgentObservabilitySettings = {
   hasAcknowledgedConsent: false,
 };
 
+const DEFAULT_AGENT_PERMISSIONS: AgentPermissions = {
+  edits: "manual",
+};
+
 const MAX_STORED_AGENT_SESSIONS = 3;
 
 /**
@@ -140,6 +164,8 @@ export interface AgentProps {
   agentsConfig: AgentServerConfig;
   /** Per-user PXI observability preferences and consent acknowledgement state. */
   observability: AgentObservabilitySettings;
+  /** Per-user permissions for approval-gated tool actions. */
+  permissions: AgentPermissions;
   /** Typed runtime capabilities that influence tool and session behavior. */
   capabilities: AgentCapabilities;
 }
@@ -166,6 +192,7 @@ export interface AgentState extends AgentProps {
   setSessionMessages: (sessionId: string, messages: AgentUIMessage[]) => void;
   setDefaultModelConfig: (config: ModelConfig) => void;
   setObservability: (patch: Partial<AgentObservabilitySettings>) => void;
+  setPermissions: (patch: Partial<AgentPermissions>) => void;
   acknowledgeConsent: () => void;
   clearAllSessions: () => void;
   setCapability: (params: {
@@ -234,6 +261,13 @@ export interface AgentState extends AgentProps {
   setPendingPromptEdit: (
     toolCallId: string,
     edit: PendingPromptEdit | null
+  ) => void;
+  pendingBatchSpanAnnotatesByToolCallId: Partial<
+    Record<string, PendingBatchSpanAnnotate>
+  >;
+  setPendingBatchSpanAnnotate: (
+    toolCallId: string,
+    annotation: PendingBatchSpanAnnotate | null
   ) => void;
 }
 
@@ -331,10 +365,12 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     defaultModelConfig: { ...DEFAULT_MODEL_CONFIG },
     agentsConfig: DEFAULT_AGENT_SERVER_CONFIG,
     observability: DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
+    permissions: DEFAULT_AGENT_PERMISSIONS,
     capabilities: createDefaultAgentCapabilities(),
     routeContexts: [],
     mountedContexts: {},
     pendingPromptEditsByToolCallId: {},
+    pendingBatchSpanAnnotatesByToolCallId: {},
     setIsOpen: (isOpen) => {
       set({ isOpen }, false, { type: "setIsOpen" });
     },
@@ -520,6 +556,15 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         }),
         false,
         { type: "setObservability" }
+      );
+    },
+    setPermissions: (patch) => {
+      set(
+        (state) => ({
+          permissions: { ...state.permissions, ...patch },
+        }),
+        false,
+        { type: "setPermissions" }
       );
     },
     acknowledgeConsent: () => {
@@ -734,6 +779,22 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       );
     },
 
+    setPendingBatchSpanAnnotate: (toolCallId, annotation) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingBatchSpanAnnotatesByToolCallId };
+          if (annotation) {
+            next[toolCallId] = annotation;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingBatchSpanAnnotatesByToolCallId: next };
+        },
+        false,
+        { type: "setPendingBatchSpanAnnotate" }
+      );
+    },
+
     ...initialProps,
   });
 
@@ -745,6 +806,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         const state = persisted as Partial<AgentProps> & {
           capabilities?: Partial<AgentCapabilities>;
           observability?: Partial<AgentObservabilitySettings>;
+          permissions?: Partial<AgentPermissions>;
           debug?: {
             retainInactiveBashSessions?: boolean;
             dangerouslyEnableMutations?: boolean;
@@ -795,8 +857,18 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
             ...DEFAULT_AGENT_OBSERVABILITY_SETTINGS,
             ...(state.observability ?? {}),
           },
+          permissions: {
+            ...DEFAULT_AGENT_PERMISSIONS,
+            ...(state.permissions ?? {}),
+            // Drop any persisted edit mode that is no longer recognized (e.g.
+            // the legacy "ask"/"auto_accept" values) so it resets to default.
+            edits: isAgentEditPermissionMode(state.permissions?.edits)
+              ? state.permissions.edits
+              : DEFAULT_AGENT_PERMISSIONS.edits,
+          },
           capabilities: migratedCapabilities,
           pendingPromptEditsByToolCallId: {},
+          pendingBatchSpanAnnotatesByToolCallId: {},
         } as AgentState;
       },
       partialize: (state) => ({
@@ -808,6 +880,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
         sessionMap: state.sessionMap,
         defaultModelConfig: state.defaultModelConfig,
         observability: state.observability,
+        permissions: state.permissions,
         capabilities: state.capabilities,
       }),
     })

@@ -7372,6 +7372,15 @@
             "type": "array",
             "title": "Contexts"
           },
+          "editPermission": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "bypass"
+            ],
+            "title": "Editpermission",
+            "default": "manual"
+          },
           "model": {
             "oneOf": [
               {
@@ -7456,6 +7465,15 @@
             },
             "type": "array",
             "title": "Contexts"
+          },
+          "editPermission": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "bypass"
+            ],
+            "title": "Editpermission",
+            "default": "manual"
           },
           "model": {
             "oneOf": [

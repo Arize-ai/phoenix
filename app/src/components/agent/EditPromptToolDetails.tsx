@@ -7,10 +7,10 @@ import {
   EDIT_PROMPT_TOOL_NAME,
   parseEditPromptInput,
   type PendingPromptEdit,
-  type PromptSnapshot,
-  type PromptMessageSnapshot,
+  type PromptEditSummary,
+  promptSnapshotToText,
 } from "@phoenix/agent/tools/playgroundPrompt";
-import { Button, Flex, View } from "@phoenix/components";
+import { Button, Flex, Text, View } from "@phoenix/components";
 import { AlphabeticIndexIcon } from "@phoenix/components/AlphabeticIndexIcon";
 import { useTheme } from "@phoenix/contexts";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
@@ -46,6 +46,42 @@ const editPromptToolDetailsCSS = css`
     font-family: var(--ac-global-font-family-sans);
     white-space: normal;
   }
+
+  .edit-prompt__summary {
+    display: flex;
+    align-items: center;
+    gap: var(--global-dimension-size-100);
+    min-width: 0;
+    padding: var(--global-dimension-size-50) var(--global-dimension-size-250)
+      var(--global-dimension-size-125);
+    font-family: var(--ac-global-font-family-sans);
+    white-space: normal;
+  }
+
+  .edit-prompt__summary-icon {
+    flex-shrink: 0;
+  }
+
+  .edit-prompt__summary-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .edit-prompt__summary-stat {
+    flex-shrink: 0;
+    font-family: var(--ac-global-font-family-code);
+    font-size: var(--global-font-size-xs);
+  }
+
+  .edit-prompt__summary-stat[data-kind="additions"] {
+    color: var(--global-color-success);
+  }
+
+  .edit-prompt__summary-stat[data-kind="deletions"] {
+    color: var(--global-color-danger);
+  }
 `;
 
 export function getEditPromptToolPreview(part: ToolInvocationPart): string {
@@ -60,7 +96,8 @@ export function formatEditPromptState(part: ToolInvocationPart): string {
       return "Awaiting approval";
     case "output-available": {
       const status = getOutputStatus(part.output);
-      return status === "rejected" ? "Rejected" : "Accepted";
+      if (status === "rejected") return "Rejected";
+      return isAutoAccepted(part.output) ? "Auto-approved" : "Accepted";
     }
     default:
       return formatToolState(part.state);
@@ -72,17 +109,27 @@ export function EditPromptToolDetails({ part }: { part: ToolInvocationPart }) {
     (state) => state.pendingPromptEditsByToolCallId[part.toolCallId] ?? null
   );
   const input = parseEditPromptInput(part.input);
+  const isResolved = part.state === "output-available";
+  const isRejected = isResolved && getOutputStatus(part.output) === "rejected";
+  const summary = isResolved ? getEditSummary(part.output) : null;
 
   return (
     <div className="tool-part__body" css={editPromptToolDetailsCSS}>
       {pendingEdit ? <PendingEditPromptDiff pendingEdit={pendingEdit} /> : null}
-      {part.state === "output-available" ? (
-        <>
-          <ToolPartLabel>Result</ToolPartLabel>
-          <ToolPartCodeBlock>
-            {stringifyToolValue(part.output)}
-          </ToolPartCodeBlock>
-        </>
+      {isResolved && !isRejected ? (
+        summary ? (
+          <EditPromptSummary summary={summary} />
+        ) : (
+          <>
+            <ToolPartLabel>Result</ToolPartLabel>
+            <ToolPartCodeBlock>
+              {stringifyToolValue(part.output)}
+            </ToolPartCodeBlock>
+          </>
+        )
+      ) : null}
+      {isRejected ? (
+        <ToolPartLabel variant="warning">Edit rejected</ToolPartLabel>
       ) : null}
       {part.state === "output-error" ? (
         <>
@@ -95,6 +142,33 @@ export function EditPromptToolDetails({ part }: { part: ToolInvocationPart }) {
           <ToolPartLabel>{EDIT_PROMPT_TOOL_NAME}</ToolPartLabel>
           <ToolPartCodeBlock>Preparing prompt edit diff...</ToolPartCodeBlock>
         </>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Compact summary shown after a prompt edit is applied: the
+ * edited instance (A/B/C…) and the added/removed line counts.
+ */
+function EditPromptSummary({ summary }: { summary: PromptEditSummary }) {
+  return (
+    <div className="edit-prompt__summary">
+      <div className="edit-prompt__summary-icon">
+        <AlphabeticIndexIcon index={summary.instanceIndex} size="XS" />
+      </div>
+      <Text size="XS" className="edit-prompt__summary-label">
+        Instance {summary.instanceLabel} edited
+      </Text>
+      {summary.additions > 0 ? (
+        <span className="edit-prompt__summary-stat" data-kind="additions">
+          +{summary.additions}
+        </span>
+      ) : null}
+      {summary.deletions > 0 ? (
+        <span className="edit-prompt__summary-stat" data-kind="deletions">
+          −{summary.deletions}
+        </span>
       ) : null}
     </div>
   );
@@ -192,24 +266,41 @@ function PendingEditPromptDiff({
   );
 }
 
-function promptSnapshotToText(snapshot: PromptSnapshot): string {
-  return snapshot.messages.map(formatMessage).join("\n\n");
-}
-
-function formatMessage(message: PromptMessageSnapshot): string {
-  return [
-    `role: ${message.role}`,
-    message.content !== undefined ? `content:\n${message.content}` : null,
-    message.toolCalls !== undefined
-      ? `toolCalls:\n${JSON.stringify(message.toolCalls, null, 2)}`
-      : null,
-  ]
-    .filter((line): line is string => line != null)
-    .join("\n\n");
-}
-
 function getOutputStatus(output: unknown): string | null {
   if (typeof output !== "object" || output === null) return null;
   const candidate = output as { status?: unknown };
   return typeof candidate.status === "string" ? candidate.status : null;
+}
+
+function getAcceptedBy(output: unknown): string | null {
+  if (typeof output !== "object" || output === null) return null;
+  const candidate = output as { acceptedBy?: unknown };
+  return typeof candidate.acceptedBy === "string" ? candidate.acceptedBy : null;
+}
+
+function isAutoAccepted(output: unknown): boolean {
+  const acceptedBy = getAcceptedBy(output);
+  return acceptedBy === "auto" || acceptedBy === "system";
+}
+
+/** Reads the persisted edit summary of a resolved tool output. */
+function getEditSummary(output: unknown): PromptEditSummary | null {
+  if (typeof output !== "object" || output === null) return null;
+  const candidate = (output as { summary?: unknown }).summary;
+  if (typeof candidate !== "object" || candidate === null) return null;
+  const summary = candidate as Partial<PromptEditSummary>;
+  if (
+    typeof summary.instanceIndex !== "number" ||
+    typeof summary.instanceLabel !== "string" ||
+    typeof summary.additions !== "number" ||
+    typeof summary.deletions !== "number"
+  ) {
+    return null;
+  }
+  return {
+    instanceIndex: summary.instanceIndex,
+    instanceLabel: summary.instanceLabel,
+    additions: summary.additions,
+    deletions: summary.deletions,
+  };
 }

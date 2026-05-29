@@ -2,7 +2,10 @@ import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import type { AgentCapabilities } from "@phoenix/agent/extensions/capabilities";
 import type { components } from "@phoenix/api/__generated__/v1";
 import type { AgentModelSelection } from "@phoenix/components/agent/useGenerateSessionSummary";
-import type { AgentObservabilitySettings } from "@phoenix/store/agentStore";
+import type {
+  AgentObservabilitySettings,
+  AgentPermissions,
+} from "@phoenix/store/agentStore";
 import { getTimeZone, toLocalISOWithOffset } from "@phoenix/utils/timeUtils";
 
 import type { AgentUIMessage } from "./types";
@@ -22,6 +25,8 @@ type BuildAgentChatRequestBodyOptions = {
   capabilities: AgentCapabilities;
   /** Per-user PXI observability settings for this request. */
   observability: AgentObservabilitySettings;
+  /** Per-user PXI approval permission settings for this request. */
+  permissions: AgentPermissions;
   /** Whether a remote collector is configured for this Phoenix instance. */
   hasRemoteCollector: boolean;
   /** Typed page and mounted UI contexts for the current turn. */
@@ -86,6 +91,7 @@ export function buildAgentChatRequestBody({
   messageId,
   capabilities,
   observability,
+  permissions,
   hasRemoteCollector,
   contexts,
   modelSelection,
@@ -104,6 +110,7 @@ export function buildAgentChatRequestBody({
     messageId,
     ingestTraces: observability.storeLocalTraces,
     exportRemoteTraces: observability.exportRemoteTraces && hasRemoteCollector,
+    editPermission: permissions.edits,
     contexts: requestContexts,
     model: modelSelection,
   };

@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Literal
 
 from pydantic_ai import RunContext
 from pydantic_ai.models.test import TestModel
@@ -18,9 +18,13 @@ from phoenix.server.agents.types import AgentDependencies
 _DEFAULT_PROMPTS = AgentPrompts()
 
 
-def _get_run_context(contexts: ResolvedContexts) -> RunContext[AgentDependencies]:
+def _get_run_context(
+    contexts: ResolvedContexts,
+    *,
+    edit_permission: Literal["manual", "bypass"] = "manual",
+) -> RunContext[AgentDependencies]:
     return RunContext(
-        deps=AgentDependencies(contexts=contexts),
+        deps=AgentDependencies(contexts=contexts, edit_permission=edit_permission),
         model=TestModel(),
         usage=RunUsage(),
     )
@@ -58,6 +62,21 @@ class TestAppContextCapabilityRender:
         assert content.count("</phoenix_app_context>") == 1
         assert "[/phoenix_app_context]" in content
         assert "<time_zone>America/Los_Angeles</time_zone>" in content
+
+    def test_renders_top_level_edit_permission(self) -> None:
+        capability = AppContextCapability(instructions=_DEFAULT_PROMPTS.app_context)
+        ctx = _get_run_context(
+            ResolvedContexts(
+                app=AppContext(
+                    type="app",
+                    current_date_time="2026-05-05T09:30:00-07:00",
+                    time_zone="America/Los_Angeles",
+                ),
+            ),
+            edit_permission="bypass",
+        )
+        content = _render(capability, ctx)
+        assert "<edit_permission>bypass</edit_permission>" in content
 
 
 class TestProjectContextCapabilityRender:

@@ -19,6 +19,7 @@ describe("buildAgentChatRequestBody", () => {
         exportRemoteTraces: false,
         hasAcknowledgedConsent: false,
       },
+      permissions: { edits: "manual" },
       hasRemoteCollector: false,
       contexts: [],
       modelSelection: {
@@ -31,6 +32,7 @@ describe("buildAgentChatRequestBody", () => {
     expect(body).toMatchObject({
       existing: true,
       trigger: "submit-message",
+      editPermission: "manual",
       model: {
         providerType: "builtin",
         provider: "OPENAI",
@@ -42,6 +44,7 @@ describe("buildAgentChatRequestBody", () => {
       currentDateTime: expect.any(String),
       timeZone: expect.any(String),
     });
+    expect(body.contexts?.[0]).not.toHaveProperty("editPermission");
     expect(body).not.toHaveProperty("system");
   });
 
@@ -61,6 +64,7 @@ describe("buildAgentChatRequestBody", () => {
         exportRemoteTraces: false,
         hasAcknowledgedConsent: false,
       },
+      permissions: { edits: "bypass" },
       hasRemoteCollector: false,
       contexts: [],
       modelSelection: {

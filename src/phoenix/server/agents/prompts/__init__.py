@@ -33,6 +33,9 @@ _RUN_PLAYGROUND_TOOL_INSTRUCTIONS = get_template("tools/RUN_PLAYGROUND_TOOL_INST
 _SET_VARIABLE_VALUES_TOOL_INSTRUCTIONS = get_template(
     "tools/SET_VARIABLE_VALUES_TOOL_INSTRUCTIONS.xml.j2"
 )
+_BATCH_SPAN_ANNOTATE_TOOL_INSTRUCTIONS = get_template(
+    "tools/BATCH_SPAN_ANNOTATE_TOOL_INSTRUCTIONS.xml.j2"
+)
 _APP_CONTEXT_TEMPLATE = get_template("context/APP_CONTEXT_INSTRUCTIONS.xml.j2")
 _PROJECT_CONTEXT_TEMPLATE = get_template("context/PROJECT_CONTEXT_INSTRUCTIONS.xml.j2")
 _TRACE_CONTEXT_TEMPLATE = get_template("context/TRACE_CONTEXT_INSTRUCTIONS.xml.j2")
@@ -66,6 +69,7 @@ class AgentPrompts:
     edit_prompt_instance_tool: Template = _EDIT_PROMPT_INSTANCE_TOOL_INSTRUCTIONS
     run_playground_tool: Template = _RUN_PLAYGROUND_TOOL_INSTRUCTIONS
     set_variable_values_tool: Template = _SET_VARIABLE_VALUES_TOOL_INSTRUCTIONS
+    batch_span_annotate_tool: Template = _BATCH_SPAN_ANNOTATE_TOOL_INSTRUCTIONS
     app_context: Template = _APP_CONTEXT_TEMPLATE
     project_context: Template = _PROJECT_CONTEXT_TEMPLATE
     trace_context: Template = _TRACE_CONTEXT_TEMPLATE

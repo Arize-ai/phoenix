@@ -706,6 +706,7 @@ class ToolApprovalResponded(TypedDict):
 class ToolApprovalRespondedPart(TypedDict):
     type: str
     toolCallId: str
+    title: NotRequired[str]
     state: NotRequired[str]
     input: NotRequired[Any]
     providerExecuted: NotRequired[bool]
@@ -722,6 +723,7 @@ class ToolCallFunction(TypedDict):
 class ToolInputAvailablePart(TypedDict):
     type: str
     toolCallId: str
+    title: NotRequired[str]
     state: NotRequired[str]
     input: NotRequired[Any]
     providerExecuted: NotRequired[bool]
@@ -732,6 +734,7 @@ class ToolInputAvailablePart(TypedDict):
 class ToolInputStreamingPart(TypedDict):
     type: str
     toolCallId: str
+    title: NotRequired[str]
     state: NotRequired[str]
     input: NotRequired[Any]
     providerExecuted: NotRequired[bool]
@@ -742,6 +745,7 @@ class ToolInputStreamingPart(TypedDict):
 class ToolOutputAvailablePart(TypedDict):
     type: str
     toolCallId: str
+    title: NotRequired[str]
     state: NotRequired[str]
     input: NotRequired[Any]
     output: NotRequired[Any]
@@ -754,6 +758,7 @@ class ToolOutputAvailablePart(TypedDict):
 class ToolOutputDeniedPart(TypedDict):
     type: str
     toolCallId: str
+    title: NotRequired[str]
     state: NotRequired[str]
     input: NotRequired[Any]
     providerExecuted: NotRequired[bool]
@@ -765,6 +770,7 @@ class ToolOutputErrorPart(TypedDict):
     type: str
     toolCallId: str
     errorText: str
+    title: NotRequired[str]
     state: NotRequired[str]
     input: NotRequired[Any]
     rawInput: NotRequired[Any]
@@ -1041,7 +1047,9 @@ class DynamicToolApprovalRequestedPart(TypedDict):
     toolName: str
     toolCallId: str
     input: Any
+    title: NotRequired[str]
     state: NotRequired[str]
+    providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
 
@@ -1051,7 +1059,9 @@ class DynamicToolApprovalRespondedPart(TypedDict):
     toolName: str
     toolCallId: str
     input: Any
+    title: NotRequired[str]
     state: NotRequired[str]
+    providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
 
@@ -1061,7 +1071,9 @@ class DynamicToolInputAvailablePart(TypedDict):
     toolName: str
     toolCallId: str
     input: Any
+    title: NotRequired[str]
     state: NotRequired[str]
+    providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
 
@@ -1070,8 +1082,10 @@ class DynamicToolInputStreamingPart(TypedDict):
     type: Literal["dynamic-tool"]
     toolName: str
     toolCallId: str
+    title: NotRequired[str]
     state: NotRequired[str]
     input: NotRequired[Any]
+    providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
 
@@ -1082,7 +1096,9 @@ class DynamicToolOutputAvailablePart(TypedDict):
     toolCallId: str
     input: Any
     output: Any
+    title: NotRequired[str]
     state: NotRequired[str]
+    providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     preliminary: NotRequired[bool]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
@@ -1093,7 +1109,9 @@ class DynamicToolOutputDeniedPart(TypedDict):
     toolName: str
     toolCallId: str
     input: Any
+    title: NotRequired[str]
     state: NotRequired[str]
+    providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
 
@@ -1104,7 +1122,9 @@ class DynamicToolOutputErrorPart(TypedDict):
     toolCallId: str
     input: Any
     errorText: str
+    title: NotRequired[str]
     state: NotRequired[str]
+    providerExecuted: NotRequired[bool]
     callProviderMetadata: NotRequired[Mapping[str, Mapping[str, Any]]]
     approval: NotRequired[Union[ToolApprovalRequested, ToolApprovalResponded]]
 
@@ -1332,6 +1352,7 @@ class SpansResponseBody(TypedDict):
 class ToolApprovalRequestedPart(TypedDict):
     type: str
     toolCallId: str
+    title: NotRequired[str]
     state: NotRequired[str]
     input: NotRequired[Any]
     providerExecuted: NotRequired[bool]
@@ -1461,6 +1482,7 @@ class ChatRegenerateMessage(TypedDict):
             ]
         ]
     ]
+    editPermission: NotRequired[Literal["manual", "bypass"]]
 
 
 class ChatSubmitMessage(TypedDict):
@@ -1483,6 +1505,7 @@ class ChatSubmitMessage(TypedDict):
             ]
         ]
     ]
+    editPermission: NotRequired[Literal["manual", "bypass"]]
 
 
 class CreateAnnotationConfigResponseBody(TypedDict):

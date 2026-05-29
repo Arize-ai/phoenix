@@ -11,6 +11,7 @@ from phoenix.server.agents.capabilities.base import (
 from phoenix.server.agents.capabilities.tools.external import (
     ask_user,
     bash,
+    batch_span_annotate,
     clone_prompt_instance,
     edit_prompt_instance,
     read_playground_output,
@@ -23,6 +24,9 @@ from phoenix.server.agents.capabilities.tools.external import (
 )
 from phoenix.server.agents.capabilities.tools.external.ask_user import AskUserCapability
 from phoenix.server.agents.capabilities.tools.external.bash import BashCapability
+from phoenix.server.agents.capabilities.tools.external.batch_span_annotate import (
+    BatchSpanAnnotateCapability,
+)
 from phoenix.server.agents.capabilities.tools.external.clone_prompt_instance import (
     ClonePromptInstanceCapability,
 )
@@ -57,6 +61,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
     tool_def.name: tool_def
     for tool_def in (
         ask_user.TOOL_DEFINITION,
+        batch_span_annotate.TOOL_DEFINITION,
         bash.TOOL_DEFINITION,
         clone_prompt_instance.TOOL_DEFINITION,
         edit_prompt_instance.TOOL_DEFINITION,
@@ -87,6 +92,7 @@ def get_external_tool_capability_function(
     static_capabilities: list[AbstractStaticCapability[AgentDependencies]] = [
         BashCapability(instructions=prompts.bash_tool),
         AskUserCapability(instructions=prompts.ask_user_tool),
+        BatchSpanAnnotateCapability(instructions=prompts.batch_span_annotate_tool),
         SetTimeRangeCapability(instructions=prompts.set_time_range_tool),
         RenderGenerativeUICapability(instructions=prompts.render_generative_ui_tool),
     ]
@@ -109,6 +115,7 @@ def get_external_tool_capability_function(
 
 __all__ = [
     "AskUserCapability",
+    "BatchSpanAnnotateCapability",
     "BashCapability",
     "ClonePromptInstanceCapability",
     "EditPromptInstanceCapability",
