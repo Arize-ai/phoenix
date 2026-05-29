@@ -82,6 +82,12 @@ jobs:
           allowed_bots: 'claude, cursor, codex, gitbook-bot, github-actions, dependabot[bot], cursoragent, mintlify[bot]'
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
+          # Keep on while the workflow is still being tuned: with sanitizer-only
+          # output, permission_denials collapses to a count, which isn't enough
+          # to debug regressions. Phoenix is a public repo and the action masks
+          # secrets via core.setSecret, so nothing meaningful leaks. Revisit
+          # once the workflow has been stable and unchanged for ≥4 weeks.
+          show_full_output: 'true'
           prompt: |
             PR #${{ github.event.pull_request.number }} data is pre-fetched at:
               - `.scratch/pr-diff.patch` — full PR diff
