@@ -195,6 +195,26 @@ function getGeneratedPromptName(snapshot: PromptSnapshot): string {
 }
 
 /**
+ * Resolves the prompt name for a create. A user/agent-supplied name is a
+ * human-readable string (e.g. "Customer Escalation Router"), but the backend
+ * `name` is an identifier (`^[a-z0-9]([_a-z0-9-]*[a-z0-9])?$`), so it must be
+ * slugified the same way generated names are. Falls back to a name derived
+ * from the prompt content when no name is given or it slugifies to empty.
+ */
+function getCreatePromptName(
+  requestedName: string | undefined,
+  snapshot: PromptSnapshot
+): string {
+  if (requestedName != null) {
+    const identifier = getIdentifier(requestedName);
+    if (identifier) {
+      return identifier;
+    }
+  }
+  return getGeneratedPromptName(snapshot);
+}
+
+/**
  * Builds the effective save target and metadata that will be used if the user
  * approves the save_prompt call.
  */
@@ -229,7 +249,7 @@ export function getSavePromptPreview({
   const promptName =
     mode === "update"
       ? (input.name ?? instance.prompt?.name ?? "Selected prompt")
-      : (input.name ?? getGeneratedPromptName(snapshot.output));
+      : getCreatePromptName(input.name, snapshot.output);
 
   return {
     ok: true,

@@ -181,6 +181,42 @@ describe("playground save prompt agent tool", () => {
     });
   });
 
+  it("slugifies a human-readable name into a valid identifier when creating", async () => {
+    const playgroundStore = createPlaygroundStore({
+      datasetId: null,
+      modelConfigByProvider: {},
+    });
+    const commitPrompt: SavePromptMutationCommitter = vi
+      .fn()
+      .mockResolvedValue({
+        promptId: "created-prompt-id",
+        promptName: "customer-escalation-router",
+        promptVersionId: "created-version-id",
+      });
+
+    const result = await savePlaygroundPrompt({
+      playgroundStore,
+      input: {
+        name: "Customer Escalation Router",
+        description: "Create initial prompt version",
+        tags: [],
+      },
+      commitPrompt,
+    });
+
+    expect(result.ok).toBe(true);
+    // The backend `name` is an identifier; the free-form name must be
+    // slugified rather than sent verbatim (which the backend would reject).
+    expect(commitPrompt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: "create",
+        input: expect.objectContaining({
+          name: "customer-escalation-router",
+        }),
+      })
+    );
+  });
+
   it("derives a prompt name when saving an unsaved instance without a name", async () => {
     const playgroundStore = createPlaygroundStore({
       datasetId: null,
