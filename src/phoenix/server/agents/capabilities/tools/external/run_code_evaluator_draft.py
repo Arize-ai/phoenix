@@ -12,6 +12,8 @@ from pydantic_ai.toolsets.external import ExternalToolset
 from phoenix.server.agents.capabilities.base import AbstractDynamicCapability
 from phoenix.server.agents.types import AgentDependencies
 
+# Model-facing tool name stays `test_code_evaluator_draft` (test-run the draft);
+# the module and class use `run` so pytest does not collect this as a test.
 NAME = "test_code_evaluator_draft"
 
 DESCRIPTION = (
@@ -35,7 +37,7 @@ TOOL_DEFINITION = ToolDefinition(
 
 
 @dataclass
-class TestCodeEvaluatorDraftCapability(AbstractDynamicCapability[AgentDependencies]):
+class RunCodeEvaluatorDraftCapability(AbstractDynamicCapability[AgentDependencies]):
     instructions: Template
 
     def get_toolset(self) -> AgentToolset[AgentDependencies] | None:
