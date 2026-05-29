@@ -22,10 +22,13 @@ import type {
   CreatePromptResponse,
   CreatePromptVersionResponse,
   SavePlaygroundPromptParams,
+  SavePlaygroundPromptPreviewParams,
+  SavePromptMode,
   SavePromptMutationCommitter,
   SavePromptMutationInput,
   SavePromptMutationResult,
   SavePromptOutput,
+  SavePromptPreview,
 } from "./types";
 
 const DEFAULT_PROMPT_NAME = "playground_prompt";
@@ -33,6 +36,10 @@ const MAX_GENERATED_PROMPT_NAME_BASE_LENGTH = 72;
 
 type SavePromptResult =
   | { ok: true; output: SavePromptOutput }
+  | { ok: false; error: string };
+
+type SavePromptPreviewResult =
+  | { ok: true; output: SavePromptPreview }
   | { ok: false; error: string };
 
 const createPromptMutation = graphql`
@@ -135,15 +142,10 @@ function getMutationFailureMessage(error: unknown): string {
 
 function getTagsForSave({
   requestedTags,
-  currentTag,
 }: {
   requestedTags: readonly string[] | undefined;
-  currentTag: string | null | undefined;
 }) {
-  if (requestedTags !== undefined) {
-    return requestedTags;
-  }
-  return currentTag ? [currentTag] : [];
+  return requestedTags ?? [];
 }
 
 function getFirstContentLine(content: string | undefined): string | null {
@@ -193,15 +195,13 @@ function getGeneratedPromptName(snapshot: PromptSnapshot): string {
 }
 
 /**
- * Saves the current playground instance by creating either a new Prompt or a
- * new PromptVersion. The active browser state is converted through the same
- * prompt-version serializer used by the Save Prompt dialog.
+ * Builds the effective save target and metadata that will be used if the user
+ * approves the save_prompt call.
  */
-export async function savePlaygroundPrompt({
+export function getSavePromptPreview({
   playgroundStore,
   input,
-  commitPrompt = commitSavePromptMutation,
-}: SavePlaygroundPromptParams): Promise<SavePromptResult> {
+}: SavePlaygroundPromptPreviewParams): SavePromptPreviewResult {
   const snapshot = getPromptSnapshot({
     playgroundStore,
     instanceId: input.instanceId,
@@ -223,13 +223,51 @@ export async function savePlaygroundPrompt({
 
   const shouldCreatePrompt = input.promptId == null && input.name != null;
   const promptId =
-    input.promptId ?? (shouldCreatePrompt ? null : instance.prompt?.id);
-  const promptName = input.name ?? getGeneratedPromptName(snapshot.output);
+    input.promptId ??
+    (shouldCreatePrompt ? null : (instance.prompt?.id ?? null));
+  const mode: SavePromptMode = promptId ? "update" : "create";
+  const promptName =
+    mode === "update"
+      ? (input.name ?? instance.prompt?.name ?? "Selected prompt")
+      : (input.name ?? getGeneratedPromptName(snapshot.output));
+
+  return {
+    ok: true,
+    output: {
+      mode,
+      instanceId: snapshot.output.instanceId,
+      label: snapshot.output.label,
+      promptId,
+      promptName,
+      description: input.description,
+      tags: [...getTagsForSave({ requestedTags: input.tags })],
+      dirtyBeforeSave: snapshot.output.dirty,
+    },
+  };
+}
+
+/**
+ * Saves the current playground instance by creating either a new Prompt or a
+ * new PromptVersion. The active browser state is converted through the same
+ * prompt-version serializer used by the Save Prompt dialog.
+ */
+export async function savePlaygroundPrompt({
+  playgroundStore,
+  input,
+  commitPrompt = commitSavePromptMutation,
+}: SavePlaygroundPromptParams): Promise<SavePromptResult> {
+  const preview = getSavePromptPreview({
+    playgroundStore,
+    input,
+  });
+  if (!preview.ok) {
+    return preview;
+  }
 
   let promptParams: ReturnType<typeof getInstancePromptParamsFromStore>;
   try {
     promptParams = getInstancePromptParamsFromStore(
-      snapshot.output.instanceId,
+      preview.output.instanceId,
       playgroundStore
     );
   } catch (error) {
@@ -239,10 +277,7 @@ export async function savePlaygroundPrompt({
     };
   }
 
-  const tags = getTagsForSave({
-    requestedTags: input.tags,
-    currentTag: instance.prompt?.tag,
-  });
+  const { promptId, promptName, tags } = preview.output;
   const tagInputs = toPromptVersionTagInputs(tags);
   try {
     const saveMutation: SavePromptMutationInput = promptId
@@ -252,9 +287,7 @@ export async function savePlaygroundPrompt({
             promptId,
             promptVersion: {
               ...promptParams.promptInput,
-              ...(input.description !== undefined
-                ? { description: input.description }
-                : {}),
+              description: input.description,
             },
             tags: tagInputs,
           },
@@ -263,17 +296,16 @@ export async function savePlaygroundPrompt({
           mode: "create",
           input: {
             name: promptName,
-            ...(input.description !== undefined
-              ? { description: input.description }
-              : {}),
+            description: input.description,
             promptVersion: promptParams.promptInput,
             tags: tagInputs,
           },
         };
     const result = await commitPrompt(saveMutation);
 
+    const state = playgroundStore.getState();
     state.updateInstance({
-      instanceId: snapshot.output.instanceId,
+      instanceId: preview.output.instanceId,
       patch: {
         prompt: {
           id: result.promptId,
@@ -290,13 +322,13 @@ export async function savePlaygroundPrompt({
       output: {
         status: "saved",
         mode: saveMutation.mode,
-        instanceId: snapshot.output.instanceId,
-        label: snapshot.output.label,
+        instanceId: preview.output.instanceId,
+        label: preview.output.label,
         promptId: result.promptId,
         promptName: result.promptName,
         promptVersionId: result.promptVersionId,
         tag: tags[0] ?? null,
-        dirtyBeforeSave: snapshot.output.dirty,
+        dirtyBeforeSave: preview.output.dirtyBeforeSave,
         message:
           saveMutation.mode === "create"
             ? "Prompt created from playground instance."

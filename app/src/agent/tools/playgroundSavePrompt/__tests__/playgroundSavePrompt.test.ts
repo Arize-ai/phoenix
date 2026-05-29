@@ -1,4 +1,5 @@
 import {
+  getSavePromptPreview,
   parseSavePromptInput,
   savePlaygroundPrompt,
   type SavePromptMutationCommitter,
@@ -20,16 +21,32 @@ describe("playground save prompt agent tool", () => {
       parseSavePromptInput({
         instance_id: 3,
         prompt_name: "candidate_prompt",
+        description: "Save current candidate",
         tag_names: ["staging"],
       })
     ).toEqual({
       instanceId: 3,
       name: "candidate_prompt",
+      description: "Save current candidate",
       tags: ["staging"],
     });
   });
 
-  it("saves the mounted instance to its associated prompt and clears dirty state", async () => {
+  it("requires a non-empty description", () => {
+    expect(
+      parseSavePromptInput({
+        name: "candidate_prompt",
+      })
+    ).toBeNull();
+    expect(
+      parseSavePromptInput({
+        name: "candidate_prompt",
+        description: "   ",
+      })
+    ).toBeNull();
+  });
+
+  it("saves the mounted instance to its associated prompt without promoting tags by default", async () => {
     const playgroundStore = createPlaygroundStore({
       datasetId: null,
       modelConfigByProvider: {},
@@ -69,12 +86,7 @@ describe("playground save prompt agent tool", () => {
           promptVersion: expect.objectContaining({
             description: "Tighten instructions",
           }),
-          tags: [
-            {
-              name: "development",
-              description: "The version deployed for development",
-            },
-          ],
+          tags: null,
         }),
       })
     );
@@ -84,7 +96,46 @@ describe("playground save prompt agent tool", () => {
       id: "prompt-id",
       name: "existing_prompt",
       version: "new-version-id",
-      tag: "development",
+      tag: null,
+    });
+  });
+
+  it("builds a save preview with prompt name, description, and requested tags", () => {
+    const playgroundStore = createPlaygroundStore({
+      datasetId: null,
+      modelConfigByProvider: {},
+    });
+    playgroundStore.getState().updateInstance({
+      instanceId: 0,
+      patch: {
+        prompt: {
+          id: "prompt-id",
+          name: "existing_prompt",
+          version: "old-version-id",
+          tag: "development",
+        },
+      },
+      dirty: true,
+    });
+
+    const preview = getSavePromptPreview({
+      playgroundStore,
+      input: {
+        description: "Tighten instructions",
+        tags: ["production"],
+      },
+    });
+
+    expect(preview).toEqual({
+      ok: true,
+      output: expect.objectContaining({
+        mode: "update",
+        promptId: "prompt-id",
+        promptName: "existing_prompt",
+        description: "Tighten instructions",
+        tags: ["production"],
+        dirtyBeforeSave: true,
+      }),
     });
   });
 
@@ -103,7 +154,11 @@ describe("playground save prompt agent tool", () => {
 
     const result = await savePlaygroundPrompt({
       playgroundStore,
-      input: { name: "created_prompt", tags: [] },
+      input: {
+        name: "created_prompt",
+        description: "Create initial prompt version",
+        tags: [],
+      },
       commitPrompt,
     });
 
@@ -113,6 +168,7 @@ describe("playground save prompt agent tool", () => {
         mode: "create",
         input: expect.objectContaining({
           name: "created_prompt",
+          description: "Create initial prompt version",
           tags: null,
         }),
       })
@@ -147,7 +203,7 @@ describe("playground save prompt agent tool", () => {
 
     const result = await savePlaygroundPrompt({
       playgroundStore,
-      input: {},
+      input: { description: "Create initial recipe assistant prompt" },
       commitPrompt,
     });
 
@@ -157,6 +213,7 @@ describe("playground save prompt agent tool", () => {
         mode: "create",
         input: expect.objectContaining({
           name: "recipe-creation-assistant_0",
+          description: "Create initial recipe assistant prompt",
         }),
       })
     );

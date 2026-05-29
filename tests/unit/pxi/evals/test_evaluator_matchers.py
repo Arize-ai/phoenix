@@ -168,6 +168,42 @@ class TestAnyMatcher:
         assert evaluate_tool_call_args(output, expected)["score"] == 0.0
 
 
+class TestNonEmptyMatcher:
+    def test_passes_when_string_contains_non_whitespace_text(self) -> None:
+        output = _output_with_tool_call(
+            "save_prompt", {"description": "Tighten routing instructions"}
+        )
+        expected = {"tool_call_args": {"save_prompt": {"description": {"non_empty": True}}}}
+        assert evaluate_tool_call_args(output, expected)["score"] == 1.0
+
+    @pytest.mark.parametrize("description", ["", "   ", "\n\t"])
+    def test_fails_when_string_is_blank(self, description: str) -> None:
+        output = _output_with_tool_call("save_prompt", {"description": description})
+        expected = {"tool_call_args": {"save_prompt": {"description": {"non_empty": True}}}}
+        assert evaluate_tool_call_args(output, expected)["score"] == 0.0
+
+    def test_fails_when_key_absent(self) -> None:
+        output = _output_with_tool_call("save_prompt", {"instanceId": 1})
+        expected = {"tool_call_args": {"save_prompt": {"description": {"non_empty": True}}}}
+        assert evaluate_tool_call_args(output, expected)["score"] == 0.0
+
+    def test_can_be_combined_with_contains_all(self) -> None:
+        output = _output_with_tool_call(
+            "save_prompt", {"description": "Adds stricter handoff criteria"}
+        )
+        expected = {
+            "tool_call_args": {
+                "save_prompt": {
+                    "description": {
+                        "non_empty": True,
+                        "contains_all": ["stricter", "handoff"],
+                    }
+                }
+            }
+        }
+        assert evaluate_tool_call_args(output, expected)["score"] == 1.0
+
+
 class TestEqualsMatcher:
     def test_explicit_equals_matcher(self) -> None:
         output = _output_with_tool_call("set_time_range", {"timeRangeKey": "1h"})
@@ -193,6 +229,7 @@ class TestMatcherSchemaErrors:
             {"contains_any": [1, 2]},
             {"not_contains": None},
             {"any": False},
+            {"non_empty": False},
         ],
     )
     def test_malformed_matcher_fails_with_error(self, matcher: dict[str, Any]) -> None:

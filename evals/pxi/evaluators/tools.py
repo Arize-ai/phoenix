@@ -278,8 +278,10 @@ def bash_command_substrings_match(output: Any, expected: Any) -> dict[str, Any]:
 # - ``not_contains: [<substr>, ...]`` -- observed must be a string containing
 #   none of the substrings.
 # - ``any: true`` -- the key must be present in observed args; value is free.
+# - ``non_empty: true`` -- the key must be present and contain non-whitespace text.
+# - ``absent: true`` -- the key must not be present in observed args.
 _MATCHER_KEYS: frozenset[str] = frozenset(
-    {"equals", "contains_all", "contains_any", "not_contains", "any"}
+    {"equals", "contains_all", "contains_any", "not_contains", "any", "non_empty", "absent"}
 )
 # Sentinel meaning "the key was not present at all in the observed call args."
 # Distinct from a literal ``None`` value so the ``any`` matcher (presence-only
@@ -306,6 +308,13 @@ def _matcher_value_error(matcher: dict[str, Any]) -> str | None:
     """Validate a matcher dict; return an error string if malformed."""
     if "any" in matcher and matcher["any"] is not True:
         return "matcher 'any' must be true"
+    if "non_empty" in matcher and matcher["non_empty"] is not True:
+        return "matcher 'non_empty' must be true"
+    if "absent" in matcher:
+        if matcher["absent"] is not True:
+            return "matcher 'absent' must be true"
+        if len(matcher) > 1:
+            return "matcher 'absent' cannot be combined with other matchers"
     for key in ("contains_all", "contains_any", "not_contains"):
         if key in matcher and _string_list_or_none(matcher[key]) is None:
             return f"matcher {key!r} must be a list of strings"
@@ -323,6 +332,11 @@ def _matcher_passes(observed: Any, matcher: dict[str, Any]) -> bool:
         if observed is _MISSING:
             return False
         # All other matcher keys still apply if combined with ``any``.
+    if "absent" in matcher:
+        return observed is _MISSING
+    if "non_empty" in matcher:
+        if not isinstance(observed, str) or not observed.strip():
+            return False
     if "equals" in matcher and observed != matcher["equals"]:
         return False
     if "contains_all" in matcher:
@@ -491,10 +505,12 @@ def tool_call_args_match(output: Any, expected: Any) -> dict[str, Any]:
     - Literal values compare with ``==``.
     - A dict whose top-level keys are all in the matcher vocabulary
       (``equals``, ``contains_all``, ``contains_any``, ``not_contains``,
-      ``any``) is treated as a matcher object. Matchers cover the cases
+      ``any``, ``non_empty``, ``absent``) is treated as a matcher object. Matchers cover the cases
       where exact equality is too strict -- commutative DSL clauses
       ("filter must mention both ``start_time`` and ``2026-04-03`` in any
       order"), free-form values (``{any: true}`` asserts presence only),
-      and negative constraints (``not_contains``).
+      required string content (``{non_empty: true}`` rejects blank text), absent
+      values (``{absent: true}`` asserts the key was omitted), and negative
+      constraints (``not_contains``).
     """
     return evaluate_tool_call_args(output, expected)

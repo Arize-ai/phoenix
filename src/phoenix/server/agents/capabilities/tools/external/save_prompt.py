@@ -18,13 +18,17 @@ DESCRIPTION = (
     "Save the active changes for one mounted playground prompt instance. "
     "Use this only when the user explicitly asks to save the current playground prompt, "
     "or after they explicitly accept that the current prompt should become a saved prompt "
-    "version. If the instance is already associated with a prompt, omit `name` and "
+    "version. In manual approval mode, the browser asks the user to approve before "
+    "committing the save; approval is bypassed only when edit_permission is bypass. "
+    "If the instance is already associated with a prompt, omit `name` and "
     "`promptId` to save a new version on that prompt. If the instance is not associated "
     "with a prompt and `name` is omitted, the browser derives a valid prompt name from "
     "the current prompt content and creates a new prompt. Pass `name` only when the user "
     "provided a desired prompt name or explicitly asked to save as a new prompt. Pass "
-    "`promptId` only when saving a new version on a specific existing prompt. If tags are "
-    "omitted, the browser keeps the mounted instance's current prompt tag when one is present."
+    "`promptId` only when saving a new version on a specific existing prompt. Always pass "
+    "a clear, short, concise `description` that states the change or intention. Tags work "
+    "like releases: pass tags only when the user explicitly asks to tag, release, or "
+    "promote this version."
 )
 
 PARAMETERS: dict[str, Any] = {
@@ -54,21 +58,25 @@ PARAMETERS: dict[str, Any] = {
         },
         "description": {
             "type": "string",
+            "minLength": 1,
             "description": (
-                "Optional prompt description when creating a prompt, or change description "
-                "when saving a version on an existing prompt."
+                "Required prompt description when creating a prompt, or change description "
+                "when saving a version on an existing prompt. Write it like a short, clear "
+                "git commit message that states the change or intention."
             ),
         },
         "tags": {
             "type": "array",
             "items": {"type": "string"},
             "description": (
-                "Optional version tag names to apply to the saved version. Omit to preserve "
-                "the mounted instance's current tag when one exists; pass an empty array to "
-                "save without tags."
+                "Optional version tag names to apply to the saved version. Tags work like "
+                "releases; pass them only when the user explicitly asks to tag, release, or "
+                "promote this version. Pass an empty array when the mounted instance has a "
+                "current tag but the user did not ask to move it."
             ),
         },
     },
+    "required": ["description"],
     "additionalProperties": False,
 }
 

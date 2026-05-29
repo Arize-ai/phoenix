@@ -1,0 +1,277 @@
+dataset_name: save_prompt
+description: >-
+  PXI eval suite for mounted playground save_prompt behavior. Covers first-time
+  saves, save-as, explicit existing prompt IDs, associated-prompt version saves,
+  multi-instance routing, tag handling, and negative requests that mention
+  saving but should use another playground tool.
+evaluators:
+  - correct_tools_called
+  - tool_call_args_match
+  - tool_call_count_within_limit
+examples:
+  - id: unsaved-single-derive-name
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          instanceIds: [101]
+      messages:
+        - role: user
+          content: This prompt is ready. Save it.
+    expected:
+      tools:
+        required: [save_prompt]
+      tool_call_args:
+        save_prompt:
+          promptId: { absent: true }
+          name: { absent: true }
+          description: { non_empty: true }
+          tags: { absent: true }
+      budgets:
+        max_tool_calls: 2
+    metadata:
+      category: first_time_save_derive_name
+      difficulty: obvious
+      polarity: positive
+
+  - id: save-as-with-description
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          instanceIds: [102]
+      messages:
+        - role: user
+          content: Save this as "Customer Escalation Router"; note that it adds stricter handoff criteria.
+    expected:
+      tools:
+        required: [save_prompt]
+      tool_call_args:
+        save_prompt:
+          promptId: { absent: true }
+          name: Customer Escalation Router
+          description:
+            non_empty: true
+            contains_all: [stricter, handoff]
+          tags: { absent: true }
+      budgets:
+        max_tool_calls: 2
+    metadata:
+      category: save_as_name_description
+      difficulty: moderate
+      polarity: positive
+
+  - id: associated-prompt-omit-prompt-id
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          instanceIds: [201]
+      messages:
+        - role: user
+          content: Check prompt A before I save it.
+        - role: assistant
+          tool_calls:
+            - id: read-a
+              name: read_prompt_instance
+              args: { instanceId: 201 }
+        - role: tool
+          tool_call_id: read-a
+          name: read_prompt_instance
+          content: |
+            {
+              "instanceId": 201,
+              "index": 0,
+              "label": "A",
+              "revision": "prompt-201-r4",
+              "dirty": true,
+              "prompt": {
+                "id": "UHJvbXB0OjIwMQ==",
+                "version": "UHJvbXB0VmVyc2lvbjoyMDE=",
+                "tag": "staging"
+              },
+              "messages": [
+                { "id": 1, "role": "system", "content": "Answer with citations." },
+                { "id": 2, "role": "user", "content": "{{question}}" }
+              ]
+            }
+        - role: user
+          content: Looks good. Save this version and keep the current tag.
+    expected:
+      tools:
+        required: [save_prompt]
+      tool_call_args:
+        save_prompt:
+          promptId: { absent: true }
+          name: { absent: true }
+          description: { non_empty: true }
+          tags: { absent: true }
+      budgets:
+        max_tool_calls: 2
+    metadata:
+      category: associated_prompt_implicit_version
+      difficulty: tricky
+      polarity: positive
+
+  - id: explicit-existing-prompt-id
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          instanceIds: [202]
+      messages:
+        - role: user
+          content: Save the current playground state as a new version on prompt UHJvbXB0Ojk5 with note "adds retrieval citations".
+    expected:
+      tools:
+        required: [save_prompt]
+      tool_call_args:
+        save_prompt:
+          promptId: UHJvbXB0Ojk5
+          name: { absent: true }
+          description:
+            non_empty: true
+            contains_all: [retrieval, citations]
+          tags: { absent: true }
+      budgets:
+        max_tool_calls: 2
+    metadata:
+      category: explicit_prompt_id
+      difficulty: moderate
+      polarity: positive
+
+  - id: multi-instance-save-b
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          instanceIds: [301, 302]
+      messages:
+        - role: user
+          content: Save comparison B as the new version. Do not create a separate prompt.
+    expected:
+      tools:
+        required: [save_prompt]
+      tool_call_args:
+        save_prompt:
+          instanceId: 302
+          promptId: { absent: true }
+          name: { absent: true }
+          description: { non_empty: true }
+          tags: { absent: true }
+      budgets:
+        max_tool_calls: 2
+    metadata:
+      category: multi_instance_target
+      difficulty: moderate
+      polarity: positive
+
+  - id: explicit-tags
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          instanceIds: [401]
+      messages:
+        - role: user
+          content: Publish this prompt and tag it production and v3.
+    expected:
+      tools:
+        required: [save_prompt]
+      tool_call_args:
+        save_prompt:
+          promptId: { absent: true }
+          name: { absent: true }
+          description: { non_empty: true }
+          tags: [production, v3]
+      budgets:
+        max_tool_calls: 2
+    metadata:
+      category: explicit_tags
+      difficulty: moderate
+      polarity: positive
+
+  - id: save-without-tags
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          instanceIds: [402]
+      messages:
+        - role: user
+          content: Save this version with no tags.
+    expected:
+      tools:
+        required: [save_prompt]
+      tool_call_args:
+        save_prompt:
+          promptId: { absent: true }
+          name: { absent: true }
+          description: { non_empty: true }
+          tags: []
+      budgets:
+        max_tool_calls: 2
+    metadata:
+      category: explicit_empty_tags
+      difficulty: moderate
+      polarity: positive
+
+  - id: negative-run-not-save
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          instanceIds: [501]
+      messages:
+        - role: user
+          content: Try it on the current inputs; don't save anything yet.
+    expected:
+      tools:
+        required: [run_playground]
+        forbidden: [save_prompt]
+      budgets:
+        max_tool_calls: 2
+    metadata:
+      category: negative_run_request
+      difficulty: obvious
+      polarity: negative
+
+  - id: negative-edit-not-save
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          instanceIds: [601]
+      messages:
+        - role: user
+          content: Make the system message more concise, but don't save it yet.
+    expected:
+      tools:
+        required: [read_prompt_instance]
+        forbidden: [save_prompt]
+      budgets:
+        max_tool_calls: 2
+    metadata:
+      category: negative_edit_request
+      difficulty: moderate
+      polarity: negative
+
+  - id: negative-save-idiom-set-variables
+    splits: [regression]
+    input:
+      contexts:
+        - type: playground
+          instanceIds: [701]
+      messages:
+        - role: user
+          content: "Save me from typing these in manually: set topic to refunds and tone to concise."
+    expected:
+      tools:
+        required: [set_variable_values]
+        forbidden: [save_prompt]
+      budgets:
+        max_tool_calls: 2
+    metadata:
+      category: negative_idiom_wrong_tool
+      difficulty: tricky
+      polarity: negative

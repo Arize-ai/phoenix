@@ -9,10 +9,14 @@ import {
   EDIT_PROMPT_TOOL_NAME,
 } from "@phoenix/agent/tools/playgroundPrompt";
 import { RUN_PLAYGROUND_TOOL_NAME } from "@phoenix/agent/tools/playgroundRun";
-import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
+import {
+  createSavePromptClientAction,
+  SAVE_PROMPT_TOOL_NAME,
+} from "@phoenix/agent/tools/playgroundSavePrompt";
 import { SET_VARIABLE_VALUES_TOOL_NAME } from "@phoenix/agent/tools/playgroundVariableValues";
 import { GENERATIVE_UI_TOOL_NAME } from "@phoenix/components/agent/generativeUICatalog";
 import { createAgentStore } from "@phoenix/store/agentStore";
+import { createPlaygroundStore } from "@phoenix/store/playground";
 
 describe("toolRegistry", () => {
   beforeEach(() => {
@@ -322,13 +326,25 @@ describe("toolRegistry", () => {
     );
   });
 
-  it("dispatches save_prompt to the registered client action", async () => {
+  it("requires approval before dispatching save_prompt to the registered client action", async () => {
     const store = createAgentStore();
+    const playgroundStore = createPlaygroundStore({
+      datasetId: null,
+      modelConfigByProvider: {},
+    });
     const addToolOutput = vi.fn().mockResolvedValue(undefined);
-    const action = vi.fn().mockResolvedValue({ ok: true, output: "saved" });
+    const savePrompt = vi.fn().mockResolvedValue({
+      ok: true,
+      output: { status: "saved", promptId: "prompt-id" },
+    });
+    const action = createSavePromptClientAction({
+      playgroundStore,
+      setPendingSavePrompt: store.getState().setPendingSavePrompt,
+      savePrompt,
+    });
     store.getState().registerClientAction(SAVE_PROMPT_TOOL_NAME, action);
 
-    const input = { instanceId: 0, description: "Improve instructions" };
+    const input = { description: "Improve instructions" };
 
     await handleRegisteredAgentToolCall({
       toolCall: {
@@ -341,12 +357,97 @@ describe("toolRegistry", () => {
       agentStore: store,
     });
 
-    expect(action).toHaveBeenCalledWith(input);
+    expect(savePrompt).not.toHaveBeenCalled();
+    expect(addToolOutput).not.toHaveBeenCalled();
+    const pendingSave =
+      store.getState().pendingSavePromptsByToolCallId["tool-call-save-prompt"];
+    expect(pendingSave).toEqual(
+      expect.objectContaining({
+        toolCallId: "tool-call-save-prompt",
+        sessionId: "session-1",
+        input,
+        preview: expect.objectContaining({
+          description: "Improve instructions",
+          tags: [],
+        }),
+      })
+    );
+
+    await pendingSave?.accept?.();
+
+    expect(savePrompt).toHaveBeenCalledWith({
+      playgroundStore,
+      input,
+    });
     expect(addToolOutput).toHaveBeenCalledWith(
       expect.objectContaining({
         state: "output-available",
         tool: SAVE_PROMPT_TOOL_NAME,
-        output: "saved",
+        output: expect.objectContaining({
+          status: "saved",
+          promptId: "prompt-id",
+          approvalStatus: "accepted",
+          acceptedBy: "user",
+        }),
+      })
+    );
+    expect(
+      store.getState().pendingSavePromptsByToolCallId["tool-call-save-prompt"]
+    ).toBeUndefined();
+  });
+
+  it("auto-approves save_prompt only when edit approvals are bypassed", async () => {
+    const store = createAgentStore();
+    const playgroundStore = createPlaygroundStore({
+      datasetId: null,
+      modelConfigByProvider: {},
+    });
+    const addToolOutput = vi.fn().mockResolvedValue(undefined);
+    const savePrompt = vi.fn().mockResolvedValue({
+      ok: true,
+      output: { status: "saved", promptId: "prompt-id" },
+    });
+    const action = createSavePromptClientAction({
+      playgroundStore,
+      setPendingSavePrompt: store.getState().setPendingSavePrompt,
+      shouldAutoAccept: () => store.getState().permissions.edits === "bypass",
+      savePrompt,
+    });
+    store.getState().registerClientAction(SAVE_PROMPT_TOOL_NAME, action);
+    store.getState().setPermissions({ edits: "bypass" });
+
+    const input = { description: "Improve instructions" };
+
+    await handleRegisteredAgentToolCall({
+      toolCall: {
+        toolCallId: "tool-call-save-prompt-bypass",
+        toolName: SAVE_PROMPT_TOOL_NAME,
+        input,
+      },
+      sessionId: "session-1",
+      addToolOutput,
+      agentStore: store,
+    });
+
+    expect(savePrompt).toHaveBeenCalledWith({
+      playgroundStore,
+      input,
+    });
+    expect(
+      store.getState().pendingSavePromptsByToolCallId[
+        "tool-call-save-prompt-bypass"
+      ]
+    ).toBeUndefined();
+    expect(addToolOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        state: "output-available",
+        tool: SAVE_PROMPT_TOOL_NAME,
+        output: expect.objectContaining({
+          status: "saved",
+          promptId: "prompt-id",
+          approvalStatus: "accepted",
+          acceptedBy: "auto",
+        }),
       })
     );
   });
@@ -569,6 +670,10 @@ describe("toolRegistry", () => {
 
   it("declares edit_prompt_instance as an auto-focused tool", () => {
     expect(getAgentToolUIBehavior(EDIT_PROMPT_TOOL_NAME)).toEqual({
+      autoOpen: true,
+      scrollIntoViewOnMount: true,
+    });
+    expect(getAgentToolUIBehavior(SAVE_PROMPT_TOOL_NAME)).toEqual({
       autoOpen: true,
       scrollIntoViewOnMount: true,
     });

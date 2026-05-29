@@ -289,6 +289,7 @@ function PlaygroundContent() {
       registerClientAction,
       unregisterClientAction,
       setPendingPromptEdit,
+      setPendingSavePrompt,
     } = agentStore.getState();
     registerClientAction(
       READ_PROMPT_TOOL_NAME,
@@ -309,7 +310,12 @@ function PlaygroundContent() {
     );
     registerClientAction(
       SAVE_PROMPT_TOOL_NAME,
-      createSavePromptClientAction({ playgroundStore })
+      createSavePromptClientAction({
+        playgroundStore,
+        setPendingSavePrompt,
+        shouldAutoAccept: () =>
+          agentStore.getState().permissions.edits === "bypass",
+      })
     );
     registerClientAction(
       RUN_PLAYGROUND_TOOL_NAME,
@@ -336,6 +342,13 @@ function PlaygroundContent() {
       )) {
         if (pendingEdit) {
           void pendingEdit.cancel?.();
+        }
+      }
+      for (const pendingSave of Object.values(
+        agentStore.getState().pendingSavePromptsByToolCallId
+      )) {
+        if (pendingSave) {
+          void pendingSave.cancel?.();
         }
       }
     };

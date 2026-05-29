@@ -19,6 +19,7 @@ import type {
   PendingElicitation,
 } from "@phoenix/agent/tools/elicit";
 import { EDIT_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundPrompt";
+import { SAVE_PROMPT_TOOL_NAME } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { authFetch } from "@phoenix/authFetch";
 import { useAgentChatRuntime } from "@phoenix/contexts/AgentChatRuntimeContext";
 import { useAgentContext, useAgentStore } from "@phoenix/contexts/AgentContext";
@@ -191,6 +192,9 @@ export function useAgentChat({
       }
       if (toolCall.tool === BATCH_SPAN_ANNOTATE_TOOL_NAME) {
         store.getState().setPendingBatchSpanAnnotate(toolCall.toolCallId, null);
+      }
+      if (toolCall.tool === SAVE_PROMPT_TOOL_NAME) {
+        store.getState().setPendingSavePrompt(toolCall.toolCallId, null);
       }
     });
 

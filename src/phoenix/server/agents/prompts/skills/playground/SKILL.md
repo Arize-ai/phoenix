@@ -34,6 +34,8 @@ dataset-backed evaluation loop is in scope.
 9. Call `save_prompt` only when the user explicitly asks to save or confirms that the current
    prompt should be persisted. For a first-time save of an unsaved prompt, omit `name` unless the
    user provided one; the tool will derive a valid Phoenix prompt name from the prompt content.
+   Always pass a save description; it should read like a clear, short git commit message. Treat
+   tags like releases and do not promote tags unless the user asks.
 10. Inspect the output with the user, identify the next concrete improvement, and repeat the edit or
    comparison loop until the prompt is useful for the task.
 
@@ -57,8 +59,9 @@ they are comparing prompt variants using evaluator results.
    `clone_prompt_instance` to create the next candidate.
 7. Rerun the playground and compare experiments. Look for evaluator improvements, fewer repeated
    failure modes, and acceptable tradeoffs in output quality.
-8. Use `save_prompt` to save a prompt snapshot only after the evidence shows an improvement or the
-   user explicitly accepts the tradeoff. For unsaved prompts, the tool can create the Phoenix prompt
-   directly without asking for a name unless the user cares about the exact name.
+8. Use `save_prompt` to save a prompt as a new version only after the evidence shows an
+   improvement or the user explicitly accepts the tradeoff. For unsaved prompts, the tool can
+   create the Phoenix prompt directly without asking for a name unless the user cares about the
+   exact name.
 9. Continue the hypothesis, edit, run, compare loop until the dataset-backed results satisfy the
    user's goal.

@@ -15,7 +15,7 @@ export const savePromptInputSchema = z
       instanceId: z.number().int().optional(),
       promptId: z.string().trim().min(1).optional(),
       name: z.string().trim().min(1).optional(),
-      description: z.string().optional(),
+      description: z.string().trim().min(1),
       tags: z.array(z.string().trim().min(1)).optional(),
     })
   )
@@ -23,6 +23,6 @@ export const savePromptInputSchema = z
     ...(typeof instanceId === "number" ? { instanceId } : {}),
     ...(promptId !== undefined ? { promptId } : {}),
     ...(name !== undefined ? { name } : {}),
-    ...(description !== undefined ? { description } : {}),
+    description,
     ...(tags !== undefined ? { tags } : {}),
   }));

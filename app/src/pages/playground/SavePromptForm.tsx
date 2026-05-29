@@ -33,9 +33,13 @@ export type SavePromptSubmitHandler = (
 export type SavePromptFormParams = {
   promptId?: string;
   name: string;
-  description?: string;
+  description: string;
   metadata?: string;
   tags?: string[];
+};
+
+type SavePromptFormValues = Omit<SavePromptFormParams, "description"> & {
+  description?: string;
 };
 
 export function SavePromptForm({
@@ -103,7 +107,7 @@ export function SavePromptForm({
     setValue,
     getValues,
     formState: { isDirty, isValid },
-  } = useForm<SavePromptFormParams>({
+  } = useForm<SavePromptFormValues>({
     values: {
       promptId: selectedPromptId ?? undefined,
       name:
@@ -123,11 +127,19 @@ export function SavePromptForm({
   });
 
   const onSubmit = useCallback(
-    (params: SavePromptFormParams) => {
+    (params: SavePromptFormValues) => {
+      const description = params.description?.trim();
+      if (!description) {
+        return;
+      }
+      const normalizedParams: SavePromptFormParams = {
+        ...params,
+        description,
+      };
       if (mode === "create") {
-        onCreate(params, onClose);
+        onCreate(normalizedParams, onClose);
       } else {
-        onUpdate(params, onClose);
+        onUpdate(normalizedParams, onClose);
       }
     },
     [onCreate, onUpdate, mode, onClose]
@@ -173,6 +185,11 @@ export function SavePromptForm({
             <Controller
               name="description"
               control={control}
+              rules={{
+                required: "Description is required",
+                validate: (value) =>
+                  (value ?? "").trim().length > 0 || "Description is required",
+              }}
               render={({
                 field: { onChange, onBlur, value },
                 fieldState: { invalid, error },
@@ -181,8 +198,9 @@ export function SavePromptForm({
                   isInvalid={invalid}
                   onChange={onChange}
                   onBlur={onBlur}
-                  value={value}
+                  value={value ?? ""}
                   size="S"
+                  isRequired
                 >
                   <Label>
                     {mode === "create"
@@ -195,8 +213,8 @@ export function SavePromptForm({
                   ) : (
                     <Text slot="description">
                       {mode === "create"
-                        ? "A description of your prompt (optional)"
-                        : "A description of your changes to the prompt (optional)"}
+                        ? "A short description of this prompt"
+                        : "A short description of the changes in this version"}
                     </Text>
                   )}
                 </TextField>

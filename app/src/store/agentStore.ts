@@ -16,6 +16,7 @@ import {
 import type { PendingBatchSpanAnnotate } from "@phoenix/agent/tools/batchSpanAnnotate";
 import type { PendingElicitation } from "@phoenix/agent/tools/elicit";
 import type { PendingPromptEdit } from "@phoenix/agent/tools/playgroundPrompt";
+import type { PendingSavePrompt } from "@phoenix/agent/tools/playgroundSavePrompt";
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
 import { generateUUID } from "@phoenix/utils/uuidUtils";
 
@@ -253,10 +254,10 @@ export interface AgentState extends AgentProps {
   registerClientAction: (name: string, action: AgentClientAction) => void;
   unregisterClientAction: (name: string) => void;
 
-  // -- Prompt edit approvals advertised by edit_prompt_instance tool calls --
-  // TODO(pending-tool-rehydration): Replace this edit_prompt_instance-specific state
-  // with a generic pending tool state map keyed by toolCallId. The tool
-  // registry should own each tool's serializer and runtime rebinder.
+  // -- Approval-gated tool proposals advertised by agent tool calls --
+  // TODO(pending-tool-rehydration): Replace these tool-specific slices with a
+  // generic pending tool state map keyed by toolCallId. The tool registry
+  // should own each tool's serializer and runtime rebinder.
   pendingPromptEditsByToolCallId: Partial<Record<string, PendingPromptEdit>>;
   setPendingPromptEdit: (
     toolCallId: string,
@@ -268,6 +269,11 @@ export interface AgentState extends AgentProps {
   setPendingBatchSpanAnnotate: (
     toolCallId: string,
     annotation: PendingBatchSpanAnnotate | null
+  ) => void;
+  pendingSavePromptsByToolCallId: Partial<Record<string, PendingSavePrompt>>;
+  setPendingSavePrompt: (
+    toolCallId: string,
+    pendingSave: PendingSavePrompt | null
   ) => void;
 }
 
@@ -371,6 +377,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
     mountedContexts: {},
     pendingPromptEditsByToolCallId: {},
     pendingBatchSpanAnnotatesByToolCallId: {},
+    pendingSavePromptsByToolCallId: {},
     setIsOpen: (isOpen) => {
       set({ isOpen }, false, { type: "setIsOpen" });
     },
@@ -795,6 +802,22 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
       );
     },
 
+    setPendingSavePrompt: (toolCallId, pendingSave) => {
+      set(
+        (state) => {
+          const next = { ...state.pendingSavePromptsByToolCallId };
+          if (pendingSave) {
+            next[toolCallId] = pendingSave;
+          } else {
+            delete next[toolCallId];
+          }
+          return { pendingSavePromptsByToolCallId: next };
+        },
+        false,
+        { type: "setPendingSavePrompt" }
+      );
+    },
+
     ...initialProps,
   });
 
@@ -869,6 +892,7 @@ export const createAgentStore = (initialProps?: Partial<AgentProps>) => {
           capabilities: migratedCapabilities,
           pendingPromptEditsByToolCallId: {},
           pendingBatchSpanAnnotatesByToolCallId: {},
+          pendingSavePromptsByToolCallId: {},
         } as AgentState;
       },
       partialize: (state) => ({

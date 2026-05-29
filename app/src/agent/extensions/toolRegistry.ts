@@ -544,8 +544,18 @@ const editPromptAgentTool = createRegisteredAgentTool<EditPromptInput>({
 const savePromptAgentTool = createRegisteredAgentTool<SavePromptInput>({
   name: SAVE_PROMPT_TOOL_NAME,
   parseInput: parseSavePromptInput,
-  invalidInputErrorText: `Invalid ${SAVE_PROMPT_TOOL_NAME} input. Expected { instanceId?: number, promptId?: string, name?: string, description?: string, tags?: string[] }.`,
-  execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+  invalidInputErrorText: `Invalid ${SAVE_PROMPT_TOOL_NAME} input. Expected { description: string, instanceId?: number, promptId?: string, name?: string, tags?: string[] }.`,
+  uiBehavior: {
+    autoOpen: true,
+    scrollIntoViewOnMount: true,
+  },
+  execute: async ({
+    toolCall,
+    input,
+    sessionId,
+    addToolOutput,
+    agentStore,
+  }) => {
     const action =
       agentStore.getState().registeredClientActions[SAVE_PROMPT_TOOL_NAME];
     if (!action) {
@@ -558,15 +568,21 @@ const savePromptAgentTool = createRegisteredAgentTool<SavePromptInput>({
       });
       return;
     }
-    const result = await action(input);
-    if (result.ok) {
+    if (!sessionId) {
       await addToolOutput({
-        state: "output-available",
+        state: "output-error",
         tool: SAVE_PROMPT_TOOL_NAME,
         toolCallId: toolCall.toolCallId,
-        output: result.output ?? "Prompt saved.",
+        errorText: "Cannot save prompts without an active session.",
       });
-    } else {
+      return;
+    }
+    const result = await action(input, {
+      toolCallId: toolCall.toolCallId,
+      sessionId,
+      addToolOutput,
+    });
+    if (!result.ok) {
       await addToolOutput({
         state: "output-error",
         tool: SAVE_PROMPT_TOOL_NAME,
