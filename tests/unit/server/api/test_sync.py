@@ -153,10 +153,39 @@ class TestSyncSandboxDefaultConfigs:
                 f"default-{row.backend_type.lower()}-{row.language.lower()}"
             )
             assert row.description == f"Default {meta.display_name} ({row.language.title()})"
-            assert row.config == {"language": row.language}
+            # Seeded config is built through the Pydantic model, so it carries the
+            # backend_type discriminator and round-trips through SANDBOX_CONFIG_ADAPTER,
+            # identical to a user-created row.
+            assert row.config == {
+                "backend_type": row.backend_type,
+                "language": row.language,
+            }
             assert row.enabled is True
             assert row.user_id is None
             assert row.timeout == 300
+
+    async def test_seeded_config_round_trips_through_adapter(
+        self,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        # Regression: the seeded config must validate through the same adapter the
+        # read path uses, so it parses back to the matching config model instead of
+        # failing the backend_type discriminator and silently degrading.
+        from phoenix.server.sandbox.types import SANDBOX_CONFIG_ADAPTER
+
+        async with db() as session:
+            await sync_sandbox_default_configs(session, SANDBOX_ADAPTER_METADATA)
+
+        async with db() as session:
+            rows = list(await session.scalars(select(models.SandboxConfig)))
+
+        if not rows:
+            pytest.skip("No auto-seedable adapter is present in the live registry")
+        for row in rows:
+            cfg = SANDBOX_CONFIG_ADAPTER.validate_python(row.config)
+            assert cfg.backend_type == row.backend_type
+            assert cfg.language == row.language
 
     async def test_idempotent(
         self,

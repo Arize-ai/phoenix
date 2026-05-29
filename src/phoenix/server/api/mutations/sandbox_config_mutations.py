@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-import sqlalchemy as sa
 import strawberry
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError as PostgreSQLIntegrityError
@@ -420,11 +419,24 @@ class SandboxConfigMutationMixin:
         info: Info[Context, None],
         input: DeleteSandboxConfigInput,
     ) -> DeleteSandboxConfigPayload:
-        """Delete a SandboxConfig by GlobalID. Idempotent: missing rows are a no-op."""
+        """Delete a SandboxConfig by GlobalID. Idempotent: missing rows are a no-op.
+
+        Built-in defaults (rows the startup seeder owns) cannot be deleted: the
+        seeder would recreate them on the next restart, so deletion is refused
+        and the operator is steered to disable the row instead.
+        """
+        from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA  # noqa: PLC0415
+        from phoenix.server.sandbox.sync import is_seeded_default_config  # noqa: PLC0415
+
         async with info.context.db() as session:
-            await session.execute(
-                sa.delete(models.SandboxConfig).where(models.SandboxConfig.id == input.row_id)
-            )
+            row = await session.get(models.SandboxConfig, input.row_id)
+            if row is not None:
+                if is_seeded_default_config(row, SANDBOX_ADAPTER_METADATA):
+                    raise Conflict(
+                        f"Sandbox config {row.name.root!r} is a built-in default and cannot "
+                        "be deleted; disable it instead (set enabled to false)."
+                    )
+                await session.delete(row)
         return DeleteSandboxConfigPayload(deleted_id=input.id, query=Query())
 
     @strawberry.mutation(

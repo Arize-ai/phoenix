@@ -295,6 +295,35 @@ class TestDeleteSandboxConfig:
         )
         assert not result.errors
 
+    async def test_delete_seeded_default_is_rejected(
+        self,
+        gql_client: AsyncGraphQLClient,
+        db: DbSessionFactory,
+        seed_sandbox_providers: None,
+    ) -> None:
+        # Seed real defaults, then confirm one cannot be deleted via the API: the
+        # seeder owns it and would recreate it, so deletion is refused.
+        from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA
+        from phoenix.server.sandbox.sync import sync_sandbox_default_configs
+
+        async with db() as session:
+            await sync_sandbox_default_configs(session, SANDBOX_ADAPTER_METADATA)
+
+        async with db() as session:
+            row = await session.scalar(select(models.SandboxConfig))
+        if row is None:
+            pytest.skip("No auto-seedable adapter is present in the live registry")
+        row_id = row.id
+
+        result = await gql_client.execute(
+            _DELETE, variables={"input": {"id": _config_global_id(row_id)}}
+        )
+        assert result.errors, "deleting a built-in default should be rejected"
+        assert "cannot" in str(result.errors).lower()
+
+        async with db() as session:
+            assert await session.get(models.SandboxConfig, row_id) is not None
+
 
 class TestUpdateSandboxProvider:
     async def test_updates_provider_enabled(
