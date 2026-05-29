@@ -1,11 +1,12 @@
 import { Chat, useChat } from "@ai-sdk/react";
 import type { ChatStatus } from "ai";
-import { DefaultChatTransport, isToolUIPart } from "ai";
-import { useEffect, useRef } from "react";
+import { DefaultChatTransport, getToolName, isToolUIPart } from "ai";
+import { useCallback, useEffect, useRef } from "react";
 
 import { buildAgentChatRequestBody } from "@phoenix/agent/chat/buildAgentChatRequestBody";
 import { handleAgentToolCall } from "@phoenix/agent/chat/handleAgentToolCall";
 import { getUnresolvedToolCalls } from "@phoenix/agent/chat/interruptToolCalls";
+import { rewindMessages } from "@phoenix/agent/chat/rewindMessages";
 import {
   shouldSendAutomaticallyAfterToolOutput,
   SYSTEM_INTERRUPT_ERROR,
@@ -274,6 +275,88 @@ export function useAgentChat({
     store.getState().setPendingElicitation(sessionId, null);
   };
 
+  // Releases approval/elicitation state owned by tool calls dropped by a rewind
+  // or fork, so stale Accept/Reject affordances don't dangle against tool calls
+  // the transcript no longer contains.
+  const clearDroppedToolState = useCallback(
+    ({ previous, next }: { previous: AgentUIMessage[]; next: AgentUIMessage[] }) => {
+      if (!sessionId) {
+        return;
+      }
+      const retained = new Set(
+        next.flatMap((message) =>
+          message.parts.filter(isToolUIPart).map((part) => part.toolCallId)
+        )
+      );
+      const state = store.getState();
+      for (const message of previous) {
+        for (const part of message.parts) {
+          if (!isToolUIPart(part) || retained.has(part.toolCallId)) {
+            continue;
+          }
+          const toolName = getToolName(part);
+          if (toolName === EDIT_PROMPT_TOOL_NAME) {
+            state.setPendingPromptEdit(part.toolCallId, null);
+          } else if (toolName === BATCH_SPAN_ANNOTATE_TOOL_NAME) {
+            state.setPendingBatchSpanAnnotate(part.toolCallId, null);
+          } else if (pendingElicitation?.toolCallId === part.toolCallId) {
+            state.setPendingElicitation(sessionId, null);
+          }
+        }
+      }
+    },
+    [pendingElicitation, sessionId, store]
+  );
+
+  // Rewinds the active session in place to the chosen message, truncating the
+  // transcript and releasing stale tool state. Returns the user message text to
+  // restore into the input (user target) or null (assistant target / no-op).
+  const rewindToMessage = useCallback(
+    (messageId: string): string | null => {
+      if (!sessionId || !chatInstance || isRequestActive(chatInstance.status)) {
+        return null;
+      }
+      const result = rewindMessages({
+        messages: chatInstance.messages,
+        messageId,
+      });
+      if (!result) {
+        return null;
+      }
+      clearDroppedToolState({
+        previous: chatInstance.messages,
+        next: result.messages,
+      });
+      setMessages(result.messages);
+      store.getState().setSessionMessages(sessionId, result.messages);
+      return result.restoredInput;
+    },
+    [chatInstance, clearDroppedToolState, sessionId, setMessages, store]
+  );
+
+  // Forks the active session into a new session truncated to the chosen
+  // message, leaving the current session untouched. Returns the new session id.
+  const forkFromMessage = useCallback(
+    (messageId: string): string | null => {
+      if (!sessionId || !chatInstance) {
+        return null;
+      }
+      const result = rewindMessages({
+        messages: chatInstance.messages,
+        messageId,
+      });
+      if (!result) {
+        return null;
+      }
+      return store.getState().forkSession({
+        sourceSessionId: sessionId,
+        messages: result.messages,
+        restoredInput: result.restoredInput,
+      });
+    },
+    [chatInstance, sessionId, store]
+  );
+
   return {
     messages,
     sendMessage: handleSendMessage,
@@ -283,6 +366,8 @@ export function useAgentChat({
     pendingElicitation,
     handleElicitationSubmit,
     handleElicitationCancel,
+    rewindToMessage,
+    forkFromMessage,
   } as {
     messages: AgentUIMessage[];
     sendMessage: (message: { text: string }) => void;
@@ -292,6 +377,8 @@ export function useAgentChat({
     pendingElicitation: PendingElicitation | null;
     handleElicitationSubmit: (output: ElicitToolOutput) => void;
     handleElicitationCancel: () => void;
+    rewindToMessage: (messageId: string) => string | null;
+    forkFromMessage: (messageId: string) => string | null;
   };
 }
 

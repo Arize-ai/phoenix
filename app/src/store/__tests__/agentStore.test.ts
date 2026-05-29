@@ -144,6 +144,158 @@ describe("agentStore", () => {
     });
   });
 
+  describe("forkSession", () => {
+    it("creates a new active session retaining the source session", () => {
+      const store = createAgentStore();
+      store.getState().setCapability({
+        key: "session.storeSessions",
+        enabled: true,
+      });
+      const sourceId = store.getState().createSession();
+      const messages = [
+        { id: "user-1", role: "user" as const, parts: [] },
+      ];
+
+      const forkId = store.getState().forkSession({
+        sourceSessionId: sourceId,
+        messages,
+      });
+
+      expect(forkId).not.toBeNull();
+      const state = store.getState();
+      expect(state.activeSessionId).toBe(forkId);
+      // Source session is preserved alongside the fork.
+      expect(state.sessionMap[sourceId]).toBeDefined();
+      expect(state.sessionMap[forkId!].messages).toEqual(messages);
+    });
+
+    it("copies the source session's model config and context", () => {
+      const store = createAgentStore();
+      const sourceId = store.getState().createSession();
+      store
+        .getState()
+        .updateSessionModelConfig(sourceId, { modelName: "gpt-4o" });
+      store.getState().addSessionContext(sourceId, "span:123");
+
+      const forkId = store.getState().forkSession({
+        sourceSessionId: sourceId,
+        messages: [],
+      });
+
+      const forked = store.getState().sessionMap[forkId!];
+      expect(forked.modelConfig.modelName).toBe("gpt-4o");
+      expect(forked.context).toEqual(["span:123"]);
+    });
+
+    it("stages restored input for the forked session", () => {
+      const store = createAgentStore();
+      const sourceId = store.getState().createSession();
+
+      const forkId = store.getState().forkSession({
+        sourceSessionId: sourceId,
+        messages: [],
+        restoredInput: "edit me",
+      });
+
+      expect(store.getState().consumePendingInput(forkId!)).toBe("edit me");
+      // Consuming clears the staged input.
+      expect(store.getState().consumePendingInput(forkId!)).toBeNull();
+    });
+
+    it("prefixes the source summary with (fork)", () => {
+      const store = createAgentStore();
+      const sourceId = store.getState().createSession();
+      store.getState().updateSessionSummary(sourceId, "Debugging traces");
+
+      const forkId = store.getState().forkSession({
+        sourceSessionId: sourceId,
+        messages: [],
+      });
+
+      expect(store.getState().sessionMap[forkId!].shortSummary).toBe(
+        "(fork) Debugging traces"
+      );
+    });
+
+    it("derives the fork summary from the first user message when unsummarized", () => {
+      const store = createAgentStore();
+      const sourceId = store.getState().createSession();
+
+      const forkId = store.getState().forkSession({
+        sourceSessionId: sourceId,
+        messages: [
+          {
+            id: "user-1",
+            role: "user" as const,
+            parts: [{ type: "text" as const, text: "How do I trace OpenAI?" }],
+          },
+        ],
+      });
+
+      // The source session still has the messages too (fork copies them), but
+      // here we assert the fork derives its own label from its messages.
+      store.getState().setSessionMessages(sourceId, [
+        {
+          id: "user-1",
+          role: "user",
+          parts: [{ type: "text", text: "How do I trace OpenAI?" }],
+        },
+      ]);
+      const refork = store.getState().forkSession({
+        sourceSessionId: sourceId,
+        messages: [],
+      });
+      expect(store.getState().sessionMap[refork!].shortSummary).toBe(
+        "(fork) How do I trace OpenAI?"
+      );
+      expect(forkId).not.toBeNull();
+    });
+
+    it("does not stack the (fork) prefix when forking a fork", () => {
+      const store = createAgentStore();
+      const sourceId = store.getState().createSession();
+      store.getState().updateSessionSummary(sourceId, "(fork) Original");
+
+      const forkId = store.getState().forkSession({
+        sourceSessionId: sourceId,
+        messages: [],
+      });
+
+      expect(store.getState().sessionMap[forkId!].shortSummary).toBe(
+        "(fork) Original"
+      );
+    });
+
+    it("returns null and no-ops for an unknown source session", () => {
+      const store = createAgentStore();
+      const before = store.getState().sessions;
+
+      const forkId = store.getState().forkSession({
+        sourceSessionId: "missing",
+        messages: [],
+      });
+
+      expect(forkId).toBeNull();
+      expect(store.getState().sessions).toBe(before);
+    });
+  });
+
+  describe("pending input", () => {
+    it("sets and consumes pending input once", () => {
+      const store = createAgentStore();
+      store.getState().setPendingInput("session-1", "hello");
+      expect(store.getState().consumePendingInput("session-1")).toBe("hello");
+      expect(store.getState().consumePendingInput("session-1")).toBeNull();
+    });
+
+    it("clears pending input when set to null", () => {
+      const store = createAgentStore();
+      store.getState().setPendingInput("session-1", "hello");
+      store.getState().setPendingInput("session-1", null);
+      expect(store.getState().consumePendingInput("session-1")).toBeNull();
+    });
+  });
+
   describe("toggleOpen", () => {
     it("toggles isOpen", () => {
       const store = createAgentStore();

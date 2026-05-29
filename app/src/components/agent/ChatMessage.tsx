@@ -2,14 +2,35 @@ import { css } from "@emotion/react";
 import { isTextUIPart } from "ai";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
-import { Message, MessageContent } from "@phoenix/components/ai/message";
+import {
+  Message,
+  MessageActions,
+  MessageContent,
+  MessageToolbar,
+} from "@phoenix/components/ai/message";
 import { MarkdownBlock } from "@phoenix/components/markdown";
 
 import { AssistantMessageActions } from "./AssistantMessageActions";
 import { GenerativeUI } from "./generativeUI";
 import { groupMessageParts } from "./groupMessageParts";
+import { MessageRewindActions } from "./MessageRewindActions";
+import type {
+  MessageRewindMode,
+  MessageRewindRole,
+} from "./MessageRewindDialog";
 import { ToolPart } from "./ToolPart";
 import { ToolPartGroup } from "./ToolPartGroup";
+
+/**
+ * Reports a rewind/fork request from a message's controls up to the chat view,
+ * which owns the single confirmation dialog. Optional so messages can render
+ * without the controls (e.g. while streaming) by omitting the prop entirely.
+ */
+export type MessageRewindRequest = (request: {
+  mode: MessageRewindMode;
+  messageId: string;
+  role: MessageRewindRole;
+}) => void;
 
 const assistantMessageCSS = css`
   align-self: flex-start;
@@ -21,9 +42,18 @@ const assistantMessageCSS = css`
 // Components
 // ---------------------------------------------------------------------------
 
-/** Renders a user message bubble (right-aligned, primary colour). */
-export function UserMessage({ parts }: { parts: AgentUIMessage["parts"] }) {
-  const text = parts
+/**
+ * Renders a user message bubble (right-aligned, primary colour). When
+ * `rewindHandlers` is provided a rewind/fork toolbar is shown below the bubble.
+ */
+export function UserMessage({
+  message,
+  onRewindRequest,
+}: {
+  message: AgentUIMessage;
+  onRewindRequest?: MessageRewindRequest;
+}) {
+  const text = message.parts
     .filter(isTextUIPart)
     .map((p) => p.text)
     .join("");
@@ -31,6 +61,17 @@ export function UserMessage({ parts }: { parts: AgentUIMessage["parts"] }) {
   return (
     <Message from="user">
       <MessageContent>{text}</MessageContent>
+      {onRewindRequest ? (
+        <MessageToolbar>
+          <MessageActions>
+            <MessageRewindActions
+              messageId={message.id}
+              role="user"
+              onRequest={onRewindRequest}
+            />
+          </MessageActions>
+        </MessageToolbar>
+      ) : null}
     </Message>
   );
 }
@@ -48,9 +89,11 @@ export function UserMessage({ parts }: { parts: AgentUIMessage["parts"] }) {
 export function AssistantMessage({
   message,
   showActions = true,
+  onRewindRequest,
 }: {
   message: AgentUIMessage;
   showActions?: boolean;
+  onRewindRequest?: MessageRewindRequest;
 }) {
   const grouped = groupMessageParts(message.parts);
 
@@ -95,7 +138,17 @@ export function AssistantMessage({
           })}
         </div>
       </MessageContent>
-      {showActions ? <AssistantMessageActions message={message} /> : null}
+      {showActions ? (
+        <AssistantMessageActions message={message}>
+          {onRewindRequest ? (
+            <MessageRewindActions
+              messageId={message.id}
+              role="assistant"
+              onRequest={onRewindRequest}
+            />
+          ) : null}
+        </AssistantMessageActions>
+      ) : null}
     </Message>
   );
 }
