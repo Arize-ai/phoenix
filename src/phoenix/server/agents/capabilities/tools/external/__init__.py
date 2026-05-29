@@ -16,12 +16,14 @@ from phoenix.server.agents.capabilities.tools.external import (
     edit_prompt_instance,
     read_playground_output,
     read_prompt_instance,
+    read_prompt_tools,
     render_generative_ui,
     run_playground,
     save_prompt,
     set_spans_filter,
     set_time_range,
     set_variable_values,
+    write_prompt_tools,
 )
 from phoenix.server.agents.capabilities.tools.external.ask_user import AskUserCapability
 from phoenix.server.agents.capabilities.tools.external.bash import BashCapability
@@ -40,6 +42,9 @@ from phoenix.server.agents.capabilities.tools.external.read_playground_output im
 from phoenix.server.agents.capabilities.tools.external.read_prompt_instance import (
     ReadPromptInstanceCapability,
 )
+from phoenix.server.agents.capabilities.tools.external.read_prompt_tools import (
+    ReadPromptToolsCapability,
+)
 from phoenix.server.agents.capabilities.tools.external.render_generative_ui import (
     RenderGenerativeUICapability,
 )
@@ -56,6 +61,9 @@ from phoenix.server.agents.capabilities.tools.external.set_time_range import (
 from phoenix.server.agents.capabilities.tools.external.set_variable_values import (
     SetVariableValuesCapability,
 )
+from phoenix.server.agents.capabilities.tools.external.write_prompt_tools import (
+    WritePromptToolsCapability,
+)
 from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.types import AgentDependencies
 
@@ -68,6 +76,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         clone_prompt_instance.TOOL_DEFINITION,
         edit_prompt_instance.TOOL_DEFINITION,
         read_prompt_instance.TOOL_DEFINITION,
+        read_prompt_tools.TOOL_DEFINITION,
         read_playground_output.TOOL_DEFINITION,
         render_generative_ui.RENDER_GENERATIVE_UI_TOOL_DEFINITION,
         run_playground.TOOL_DEFINITION,
@@ -75,6 +84,7 @@ _EXTERNAL_TOOL_DEFINITIONS_BY_NAME: dict[str, ToolDefinition] = {
         set_spans_filter.TOOL_DEFINITION,
         set_time_range.TOOL_DEFINITION,
         set_variable_values.TOOL_DEFINITION,
+        write_prompt_tools.TOOL_DEFINITION,
     )
 }
 
@@ -102,10 +112,12 @@ def get_external_tool_capability_function(
     dynamic_capabilities: list[AbstractDynamicCapability[AgentDependencies]] = [
         SetSpansFilterCapability(instructions=prompts.set_spans_filter_tool),
         ReadPromptInstanceCapability(instructions=prompts.read_prompt_instance_tool),
+        ReadPromptToolsCapability(instructions=prompts.read_prompt_tools_tool),
         ReadPlaygroundOutputCapability(instructions=prompts.read_playground_output_tool),
         ClonePromptInstanceCapability(instructions=prompts.clone_prompt_instance_tool),
         EditPromptInstanceCapability(instructions=prompts.edit_prompt_instance_tool),
         SavePromptCapability(instructions=prompts.save_prompt_tool),
+        WritePromptToolsCapability(instructions=prompts.write_prompt_tools_tool),
         RunPlaygroundCapability(instructions=prompts.run_playground_tool),
         SetVariableValuesCapability(instructions=prompts.set_variable_values_tool),
     ]
@@ -124,6 +136,7 @@ __all__ = [
     "ClonePromptInstanceCapability",
     "EditPromptInstanceCapability",
     "ReadPromptInstanceCapability",
+    "ReadPromptToolsCapability",
     "ReadPlaygroundOutputCapability",
     "RenderGenerativeUICapability",
     "RunPlaygroundCapability",
@@ -131,6 +144,7 @@ __all__ = [
     "SetSpansFilterCapability",
     "SetTimeRangeCapability",
     "SetVariableValuesCapability",
+    "WritePromptToolsCapability",
     "get_external_tool_capability_function",
     "get_external_tool_definition",
 ]

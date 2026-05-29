@@ -36,6 +36,14 @@ import {
   type ReadPromptInput,
 } from "@phoenix/agent/tools/playgroundPrompt";
 import {
+  parseReadPromptToolsInput,
+  parseWritePromptToolsInput,
+  READ_PROMPT_TOOLS_TOOL_NAME,
+  type ReadPromptToolsInput,
+  WRITE_PROMPT_TOOLS_TOOL_NAME,
+  type WritePromptToolsInput,
+} from "@phoenix/agent/tools/playgroundPromptTools";
+import {
   parseRunPlaygroundInput,
   RUN_PLAYGROUND_TOOL_NAME,
   type RunPlaygroundInput,
@@ -760,6 +768,83 @@ const batchSpanAnnotateAgentTool =
     },
   });
 
+const readPromptToolsAgentTool =
+  createRegisteredAgentTool<ReadPromptToolsInput>({
+    name: READ_PROMPT_TOOLS_TOOL_NAME,
+    parseInput: parseReadPromptToolsInput,
+    invalidInputErrorText: `Invalid ${READ_PROMPT_TOOLS_TOOL_NAME} input. Expected { instanceId?: number }.`,
+    execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+      const action =
+        agentStore.getState().registeredClientActions[
+          READ_PROMPT_TOOLS_TOOL_NAME
+        ];
+      if (!action) {
+        await addToolOutput({
+          state: "output-error",
+          tool: READ_PROMPT_TOOLS_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText: "The playground is not mounted; cannot read prompt tools.",
+        });
+        return;
+      }
+      const result = await action(input);
+      if (result.ok) {
+        await addToolOutput({
+          state: "output-available",
+          tool: READ_PROMPT_TOOLS_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          output: result.output ?? "Prompt tools read.",
+        });
+      } else {
+        await addToolOutput({
+          state: "output-error",
+          tool: READ_PROMPT_TOOLS_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText: result.error,
+        });
+      }
+    },
+  });
+
+const writePromptToolsAgentTool =
+  createRegisteredAgentTool<WritePromptToolsInput>({
+    name: WRITE_PROMPT_TOOLS_TOOL_NAME,
+    parseInput: parseWritePromptToolsInput,
+    invalidInputErrorText: `Invalid ${WRITE_PROMPT_TOOLS_TOOL_NAME} input. Expected { instanceId: number, expectedRevision: string, tools?: Array<{ id?: number | null, name: string, description?: string | null, parameters?: object | null, strict?: boolean | null }>, deleteToolIds?: number[] } with at least one tool to write or delete.`,
+    execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
+      const action =
+        agentStore.getState().registeredClientActions[
+          WRITE_PROMPT_TOOLS_TOOL_NAME
+        ];
+      if (!action) {
+        await addToolOutput({
+          state: "output-error",
+          tool: WRITE_PROMPT_TOOLS_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText:
+            "The playground is not mounted; cannot write prompt tools.",
+        });
+        return;
+      }
+      const result = await action(input);
+      if (result.ok) {
+        await addToolOutput({
+          state: "output-available",
+          tool: WRITE_PROMPT_TOOLS_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          output: result.output ?? "Prompt tools written.",
+        });
+      } else {
+        await addToolOutput({
+          state: "output-error",
+          tool: WRITE_PROMPT_TOOLS_TOOL_NAME,
+          toolCallId: toolCall.toolCallId,
+          errorText: result.error,
+        });
+      }
+    },
+  });
+
 /** Ordered registry of all frontend-executable tools. */
 const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   bashAgentTool as RegisteredAgentTool<unknown>,
@@ -771,6 +856,8 @@ const agentToolRegistry: RegisteredAgentTool<unknown>[] = [
   clonePromptInstanceAgentTool as RegisteredAgentTool<unknown>,
   editPromptAgentTool as RegisteredAgentTool<unknown>,
   savePromptAgentTool as RegisteredAgentTool<unknown>,
+  readPromptToolsAgentTool as RegisteredAgentTool<unknown>,
+  writePromptToolsAgentTool as RegisteredAgentTool<unknown>,
   runPlaygroundAgentTool as RegisteredAgentTool<unknown>,
   readPlaygroundOutputAgentTool as RegisteredAgentTool<unknown>,
   setVariableValuesAgentTool as RegisteredAgentTool<unknown>,
