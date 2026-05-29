@@ -5,6 +5,10 @@ import {
   createPlaygroundStore,
 } from "@phoenix/store/playground";
 
+import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
+
+installTestStorage();
+
 describe("playground run agent tool", () => {
   beforeEach(() => {
     _resetInstanceId();
@@ -61,20 +65,16 @@ describe("playground run agent tool", () => {
     );
   });
 
-  it("rejects unexpected input fields", async () => {
+  it("ignores stray input fields on this no-argument tool", async () => {
     const playgroundStore = createPlaygroundStore({
       datasetId: null,
       modelConfigByProvider: {},
     });
+    playgroundStore.getState().addInstance();
     const action = createRunPlaygroundClientAction({ playgroundStore });
 
     const result = await action({ instanceId: 0 });
 
-    expect(result).toEqual(
-      expect.objectContaining({
-        ok: false,
-        error: "Invalid run_playground input.",
-      })
-    );
+    expect(result.ok).toBe(true);
   });
 });

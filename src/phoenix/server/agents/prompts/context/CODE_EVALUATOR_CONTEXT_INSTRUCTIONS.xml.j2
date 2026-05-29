@@ -15,25 +15,7 @@
     - The selected sandboxConfigId must match the draft language. In create mode, the draft must keep a non-null sandboxConfigId. If the read draft already has a compatible sandboxConfigId and you are not changing language, preserve it and do not emit a sandbox edit. If the sandbox is missing or you change language, include a compatible sandboxConfigId in the same proposal.
   </draft_contract>
   <available_sandbox_configs>
-{% if available_sandbox_configs %}
-{% for cfg in available_sandbox_configs %}
-    <config id="{{ cfg.sandbox_config_id | sanitize(enclosing_tag="available_sandbox_configs", max_chars=128) | e }}" name="{{ cfg.name | sanitize(enclosing_tag="available_sandbox_configs", max_chars=128) | e }}" language="{{ cfg.language | e }}">
-      <internet_access setting="{{ cfg.internet_access | e }}" backend_capability="{{ cfg.internet_access_mode | e }}"/>
-      <dependencies supported="{{ 'true' if cfg.supports_dependencies else 'false' }}">
-{% for pkg in cfg.dependencies %}
-        <package>{{ pkg | sanitize(enclosing_tag="package", max_chars=256) | e }}</package>
-{% endfor %}
-      </dependencies>
-      <env_vars supported="{{ 'true' if cfg.supports_env_vars else 'false' }}">
-{% for name in cfg.env_var_names %}
-        <name>{{ name | sanitize(enclosing_tag="name", max_chars=128) | e }}</name>
-{% endfor %}
-      </env_vars>
-    </config>
-{% endfor %}
-{% else %}
-    <none>No selectable sandbox configs are available for this code-evaluator form.</none>
-{% endif %}
+    The selectable sandbox inventory is not inlined here. When you need to pick a `sandboxConfigId`, fetch it on-demand with the `bash` tool's `phoenix-gql` command and filter to the selectable set yourself. Query `sandboxBackends { backendType status }` and `sandboxProviders { backendType enabled configs { id name language enabled config { envVars { name } internetAccess { mode } dependencies { packages } } } }`, then keep only configs where the provider `enabled` is true, the config `enabled` is true, and the config's backend has `status` `AVAILABLE`. The remaining `config.id` values are the only valid `sandboxConfigId` choices, and each config's `language` must match the draft language. Request only `envVars { name }` — never `secretKey`.
   </available_sandbox_configs>
   <guidance>
     Call `read_code_evaluator_draft` before proposing edits to capture the latest draft snapshot and `testPayload`.

@@ -225,9 +225,7 @@ class EditCodeEvaluatorDraftCapability(AbstractDynamicCapability[AgentDependenci
         instructions = self.instructions
 
         def _instructions(ctx: RunContext[AgentDependencies]) -> str:
-            return instructions.render(
-                available_sandbox_configs=ctx.deps.sandbox_availability.configs,
-            )
+            return instructions.render()
 
         return _instructions
 

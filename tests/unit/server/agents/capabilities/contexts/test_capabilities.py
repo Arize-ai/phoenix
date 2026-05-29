@@ -24,26 +24,15 @@ from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.types import (
     AgentDependencies,
     SandboxAvailability,
-    SandboxConfigCapabilities,
 )
 
 _DEFAULT_PROMPTS = AgentPrompts()
 
 
 def _usable_sandbox_availability() -> SandboxAvailability:
-    """A single-config availability snapshot used by the create-code-evaluator
-    gate tests. The gate predicate only inspects `has_usable`, so the exact
-    field values don't matter — they just have to satisfy the dataclass."""
-    return SandboxAvailability(
-        configs=[
-            SandboxConfigCapabilities(
-                sandbox_config_id="U2FuZGJveENvbmZpZzox",
-                name="default-python",
-                language="PYTHON",
-                internet_access="unset",
-            )
-        ]
-    )
+    """A usable-sandbox snapshot for the create-code-evaluator gate tests. The
+    gate predicate only inspects `has_usable`."""
+    return SandboxAvailability(has_usable=True)
 
 
 def _get_run_context(
@@ -241,11 +230,8 @@ class TestCodeEvaluatorContextCapabilityRender:
         assert "test_code_evaluator_draft" in content
         assert "offer to run" in content
         assert "preserve it and do not emit a sandbox edit" in content
-        assert "<available_sandbox_configs>" in content
-        assert 'id="U2FuZGJveENvbmZpZzox"' in content
-        assert 'language="PYTHON"' in content
 
-    def test_renders_no_sandbox_message_when_inventory_is_empty(self) -> None:
+    def test_directs_on_demand_sandbox_inventory_fetch(self) -> None:
         capability = CodeEvaluatorContextCapability(
             instructions=_DEFAULT_PROMPTS.code_evaluator_context,
         )
@@ -256,11 +242,16 @@ class TestCodeEvaluatorContextCapabilityRender:
                     evaluator_node_id=None,
                 ),
             ),
-            sandbox_availability=SandboxAvailability(),
+            sandbox_availability=SandboxAvailability(has_usable=False),
         )
         content = _render(capability, ctx)
-        assert "<available_sandbox_configs>" in content
-        assert "No selectable sandbox configs are available" in content
+        # The inventory is no longer inlined; the prompt directs an on-demand
+        # phoenix-gql fetch that filters to the selectable set and forbids
+        # requesting the secret-bearing field.
+        assert "phoenix-gql" in content
+        assert "sandboxProviders" in content
+        assert "envVars { name }" in content
+        assert "never `secretKey`" in content
 
 
 class TestPlaygroundContextCapabilityRender:

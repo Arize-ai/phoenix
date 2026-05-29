@@ -1,5 +1,3 @@
-import { z } from "zod";
+import { emptyToolInputSchema } from "@phoenix/agent/tools/emptyToolInput";
 
-export const runPlaygroundInputSchema = z
-  .preprocess((input) => (input == null ? {} : input), z.object({}).strict())
-  .transform(() => ({}));
+export const runPlaygroundInputSchema = emptyToolInputSchema;

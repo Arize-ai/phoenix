@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import logging
-from xml.etree import ElementTree
-
 from jinja2 import Template
 
 from phoenix.db import models
@@ -11,7 +8,6 @@ from phoenix.server.agents.context import ResolvedContexts
 from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.types import (
     SandboxAvailability,
-    SandboxConfigCapabilities,
 )
 from phoenix.server.api.routers.agents import (
     _load_sandbox_availability,
@@ -21,22 +17,22 @@ from phoenix.server.types import DbSessionFactory
 
 class TestLoadSandboxAvailability:
     """``_load_sandbox_availability`` is the one-shot pre-flight the agents
-    router runs to populate ``AgentDependencies.sandbox_availability``. The
-    code-evaluator authoring prompts read ``has_usable`` from this, and the
-    draft-edit prompt template enumerates ``configs`` — so
-    both the ``enabled AND provider.enabled`` AND semantics and the per-row
-    inventory shape must hold."""
+    router runs to populate ``AgentDependencies.sandbox_availability``. It
+    computes only the pre-turn ``has_usable`` gate (any enabled config under an
+    enabled provider on an available backend); the selectable inventory is
+    fetched on-demand by the agent via ``phoenix-gql``. The ``enabled AND
+    provider.enabled`` AND semantics and the available-backend-types filter must
+    hold."""
 
-    async def test_returns_empty_with_no_sandbox_rows(
+    async def test_returns_false_with_no_sandbox_rows(
         self,
         db: DbSessionFactory,
     ) -> None:
         async with db() as session:
             availability = await _load_sandbox_availability(session)
             assert availability.has_usable is False
-            assert availability.configs == []
 
-    async def test_returns_one_when_enabled_config_under_enabled_provider(
+    async def test_returns_true_when_enabled_config_under_enabled_provider(
         self,
         db: DbSessionFactory,
         sandbox_config: models.SandboxConfig,
@@ -46,16 +42,8 @@ class TestLoadSandboxAvailability:
         async with db() as session:
             availability = await _load_sandbox_availability(session)
             assert availability.has_usable is True
-            assert len(availability.configs) == 1
-            cfg = availability.configs[0]
-            assert cfg.language == sandbox_config.language
-            assert cfg.name == str(sandbox_config.name)
-            assert (
-                cfg.sandbox_config_id.startswith("U2FuZGJveENvbmZpZzo")
-                or "SandboxConfig" in cfg.sandbox_config_id
-            )  # GlobalID is base64-encoded "SandboxConfig:<id>"
 
-    async def test_returns_empty_when_config_is_disabled(
+    async def test_returns_false_when_config_is_disabled(
         self,
         db: DbSessionFactory,
         sandbox_config: models.SandboxConfig,
@@ -67,9 +55,8 @@ class TestLoadSandboxAvailability:
             await session.flush()
             availability = await _load_sandbox_availability(session)
             assert availability.has_usable is False
-            assert availability.configs == []
 
-    async def test_returns_empty_when_provider_is_disabled(
+    async def test_returns_false_when_provider_is_disabled(
         self,
         db: DbSessionFactory,
         sandbox_config: models.SandboxConfig,
@@ -81,7 +68,6 @@ class TestLoadSandboxAvailability:
             await session.flush()
             availability = await _load_sandbox_availability(session)
             assert availability.has_usable is False
-            assert availability.configs == []
 
     async def test_disabled_config_under_other_provider_does_not_mask_enabled_one(
         self,
@@ -124,24 +110,15 @@ class TestLoadSandboxAvailability:
             await session.flush()
             availability = await _load_sandbox_availability(session)
             assert availability.has_usable is True
-            assert len(availability.configs) == 1
-            assert availability.configs[0].name == "enabled-e2b"
 
-    async def test_filters_configs_for_unavailable_backends_when_backend_inventory_is_supplied(
+    async def test_available_backend_types_filter_excludes_unavailable_backends(
         self,
         db: DbSessionFactory,
         seed_sandbox_providers: None,
     ) -> None:
+        # Only an E2B config is enabled, but E2B is not in the available-backend
+        # set, so the gate must be False under the form's backend-status filter.
         async with db() as session:
-            wasm_cfg = models.SandboxConfig(
-                backend_type="WASM",
-                language="PYTHON",
-                name=Identifier("enabled-wasm"),
-                description=None,
-                config={},
-                timeout=30,
-                enabled=True,
-            )
             e2b_cfg = models.SandboxConfig(
                 backend_type="E2B",
                 language="PYTHON",
@@ -151,7 +128,7 @@ class TestLoadSandboxAvailability:
                 timeout=30,
                 enabled=True,
             )
-            session.add_all([wasm_cfg, e2b_cfg])
+            session.add(e2b_cfg)
             e2b = await session.get(models.SandboxProvider, "E2B")
             assert e2b is not None
             e2b.enabled = True
@@ -162,10 +139,9 @@ class TestLoadSandboxAvailability:
                 available_backend_types=frozenset({"WASM"}),
             )
 
-        assert availability.has_usable is True
-        assert {config.name for config in availability.configs} == {"enabled-wasm"}
+        assert availability.has_usable is False
 
-    async def test_empty_available_backend_inventory_returns_no_sandbox_rows(
+    async def test_empty_available_backend_inventory_returns_no_sandbox(
         self,
         db: DbSessionFactory,
         sandbox_config: models.SandboxConfig,
@@ -177,59 +153,13 @@ class TestLoadSandboxAvailability:
             )
 
         assert availability.has_usable is False
-        assert availability.configs == []
-
-    async def test_malformed_row_is_logged_and_skipped(
-        self,
-        db: DbSessionFactory,
-        seed_sandbox_providers: None,
-        caplog: object,  # pytest's caplog fixture
-    ) -> None:
-        # One enabled row with a structurally invalid ``config`` blob and one
-        # well-formed row under the same provider. The loader must skip the
-        # bad row with a warning instead of 500ing the agent request, and
-        # the surviving row must appear in the returned snapshot.
-        async with db() as session:
-            bad_row = models.SandboxConfig(
-                backend_type="WASM",
-                language="PYTHON",
-                name=Identifier("malformed"),
-                description=None,
-                config={"backend_type": "WASM", "language": "PYTHON", "env_vars": "not-a-dict"},
-                timeout=30,
-                enabled=True,
-            )
-            good_row = models.SandboxConfig(
-                backend_type="WASM",
-                language="PYTHON",
-                name=Identifier("well-formed"),
-                description=None,
-                config={},
-                timeout=30,
-                enabled=True,
-            )
-            session.add(bad_row)
-            session.add(good_row)
-            await session.flush()
-
-            with caplog.at_level(logging.WARNING, logger="phoenix.server.api.routers.agents"):  # type: ignore[attr-defined]
-                availability = await _load_sandbox_availability(session)
-
-            surviving_names = {cfg.name for cfg in availability.configs}
-            assert "well-formed" in surviving_names
-            assert "malformed" not in surviving_names
-            assert any(
-                "malformed" in record.getMessage()
-                or "Skipping sandbox config" in record.getMessage()
-                for record in caplog.records  # type: ignore[attr-defined]
-            )
 
 
 class TestAgentDependenciesShape:
     """``AgentDependencies`` carries an ``is_viewer`` flag and a
     ``SandboxAvailability`` snapshot. Both default to safe-fail values so any
     constructor that omits them (auth-off mode, legacy call site) gets the
-    conservative answer: viewer=False, no usable configs (advertise nothing
+    conservative answer: viewer=False, no usable sandbox (advertise nothing
     tool-side)."""
 
     def test_defaults_are_safe_fail(self) -> None:
@@ -241,18 +171,6 @@ class TestAgentDependenciesShape:
         assert deps.is_viewer is False
         assert isinstance(deps.sandbox_availability, SandboxAvailability)
         assert deps.sandbox_availability.has_usable is False
-        assert deps.sandbox_availability.configs == []
-
-    def test_default_factory_does_not_share_mutable_list(self) -> None:
-        # ``sandbox_availability`` uses ``field(default_factory=...)``; two
-        # default-constructed instances must not share the same ``configs``
-        # list, or appending to one would leak to the other.
-        from phoenix.server.agents.types import AgentDependencies
-
-        deps_a = AgentDependencies(contexts=ResolvedContexts())
-        deps_b = AgentDependencies(contexts=ResolvedContexts())
-        assert deps_a.sandbox_availability is not deps_b.sandbox_availability
-        assert deps_a.sandbox_availability.configs is not deps_b.sandbox_availability.configs
 
     def test_explicit_values_override_defaults(self) -> None:
         from phoenix.server.agents.types import (
@@ -262,20 +180,10 @@ class TestAgentDependenciesShape:
         deps = AgentDependencies(
             contexts=ResolvedContexts(),
             is_viewer=True,
-            sandbox_availability=SandboxAvailability(
-                configs=[
-                    SandboxConfigCapabilities(
-                        sandbox_config_id="U2FuZGJveENvbmZpZzox",
-                        name="example",
-                        language="PYTHON",
-                        internet_access="allow",
-                    )
-                ]
-            ),
+            sandbox_availability=SandboxAvailability(has_usable=True),
         )
         assert deps.is_viewer is True
         assert deps.sandbox_availability.has_usable is True
-        assert len(deps.sandbox_availability.configs) == 1
 
 
 class TestEditCodeEvaluatorDraftCapabilityViewerGate:
@@ -284,16 +192,7 @@ class TestEditCodeEvaluatorDraftCapabilityViewerGate:
 
     @staticmethod
     def _sandbox_availability() -> SandboxAvailability:
-        return SandboxAvailability(
-            configs=[
-                SandboxConfigCapabilities(
-                    sandbox_config_id="U2FuZGJveENvbmZpZzox",
-                    name="default-python",
-                    language="PYTHON",
-                    internet_access="unset",
-                )
-            ]
-        )
+        return SandboxAvailability(has_usable=True)
 
     def test_advertised_for_non_viewer_create_form_with_sandbox(self) -> None:
         from unittest.mock import MagicMock
@@ -391,42 +290,26 @@ class TestEditCodeEvaluatorDraftCapabilityViewerGate:
         assert capability.include_for_run(ctx) is False
 
 
-class TestAvailableSandboxConfigsRendering:
-    """The code-evaluator draft-edit tool template renders an
-    ``<available_sandbox_configs>`` inventory inside ``<sandbox_config>``. The
-    block is empty (self-closing) when no configs are present, and dynamic
-    values flow through both ``| sanitize`` and ``| e`` so XML-sensitive
-    characters (e.g. ``<`` in ``httpx>=0.27,<1``) cannot corrupt the
-    surrounding XML-like prompt."""
+class TestEditCodeEvaluatorDraftToolRendering:
+    """The code-evaluator draft-edit tool template no longer inlines a sandbox
+    inventory. It renders without any ``available_sandbox_configs`` variable and
+    directs the agent to fetch the selectable set on-demand via ``phoenix-gql``,
+    requesting env-var names but never ``secretKey``."""
 
     def _edit_template(self) -> Template:
         return AgentPrompts().edit_code_evaluator_draft_tool
 
-    def test_edit_template_renders_block_when_configs_present(self) -> None:
-        configs = [
-            SandboxConfigCapabilities(
-                sandbox_config_id="U2FuZGJveENvbmZpZzoy",
-                name="ts-default",
-                language="TYPESCRIPT",
-                internet_access="deny",
-                dependencies=[],
-                env_var_names=[],
-                internet_access_mode="boolean",
-                supports_env_vars=True,
-                supports_dependencies=True,
-            )
-        ]
-        rendered = self._edit_template().render(available_sandbox_configs=configs)
-        assert "<available_sandbox_configs>" in rendered
-        assert "U2FuZGJveENvbmZpZzoy" in rendered
-        assert "ts-default" in rendered
-
-    def test_edit_template_renders_empty_block_when_no_configs(self) -> None:
-        rendered = self._edit_template().render(available_sandbox_configs=[])
-        assert "<available_sandbox_configs/>" in rendered
+    def test_directs_on_demand_sandbox_inventory_fetch(self) -> None:
+        rendered = self._edit_template().render()
+        assert "phoenix-gql" in rendered
+        assert "sandboxProviders" in rendered
+        assert "envVars { name }" in rendered
+        # The projection requests env-var names only; the prompt explicitly
+        # forbids requesting the secret-bearing field.
+        assert "never `secretKey`" in rendered
 
     def test_tool_prompts_prefer_direct_evaluator_arguments(self) -> None:
-        edit_rendered = self._edit_template().render(available_sandbox_configs=[])
+        edit_rendered = self._edit_template().render()
         assert "`output` is the new experiment run output" in edit_rendered
         assert "dataset example `output` as `reference`" in edit_rendered
         assert "add `reference` for relational checks" in edit_rendered.lower()
@@ -439,35 +322,3 @@ class TestAvailableSandboxConfigsRendering:
         assert "Keep `inputMapping` at the safe default" in edit_rendered
         assert "leave the sandbox untouched" in edit_rendered
         assert "Do NOT emit `set_sandbox_config`" in edit_rendered
-
-    def test_dependency_with_xml_sensitive_characters_is_escaped(self) -> None:
-        # PEP 440 version specifiers use ``<`` (e.g. ``httpx>=0.27,<1``).
-        # ``autoescape=False`` is set on the Jinja env, so the template must
-        # explicitly pipe dependency strings through both ``| sanitize`` and
-        # ``| e`` — otherwise the raw ``<1`` would be parsed as the start of a
-        # new tag and the surrounding ``<available_sandbox_configs>`` block
-        # would no longer be well-formed XML.
-        configs = [
-            SandboxConfigCapabilities(
-                sandbox_config_id="U2FuZGJveENvbmZpZzox",
-                name="python-default",
-                language="PYTHON",
-                internet_access="allow",
-                dependencies=["httpx>=0.27,<1"],
-                env_var_names=[],
-                internet_access_mode="boolean",
-                supports_env_vars=True,
-                supports_dependencies=True,
-            )
-        ]
-        rendered = self._edit_template().render(available_sandbox_configs=configs)
-        # The escaped form must appear ...
-        assert "httpx&gt;=0.27,&lt;1" in rendered
-        # ... and the raw ``<1`` must not.
-        assert "<1" not in rendered
-        # The block must parse as well-formed XML. Skip past the prose
-        # references (in backticks) to the actual block opening tag,
-        # which is the only one followed by a newline.
-        start = rendered.index("<available_sandbox_configs>\n")
-        end = rendered.index("</available_sandbox_configs>") + len("</available_sandbox_configs>")
-        ElementTree.fromstring(rendered[start:end])

@@ -23,7 +23,6 @@ class CodeEvaluatorContextCapability(AbstractDynamicCapability[AgentDependencies
                 return None
             return instructions.render(
                 code_evaluator=code_evaluator,
-                available_sandbox_configs=ctx.deps.sandbox_availability.configs,
                 can_edit_draft=(
                     not ctx.deps.is_viewer
                     and (

@@ -1,10 +1,12 @@
 import type { z } from "zod";
 
 import type {
+  ClassificationEvaluatorAnnotationConfig,
   CodeEvaluatorLanguage,
+  ContinuousEvaluatorAnnotationConfig,
   EvaluatorInputMapping,
   EvaluatorMappingSource,
-  EvaluatorOptimizationDirection,
+  FreeformEvaluatorAnnotationConfig,
 } from "@phoenix/types";
 
 import type {
@@ -40,36 +42,31 @@ export type EditCodeEvaluatorDraftActionContext = z.output<
 
 export type CodeEvaluatorFormMode = "create" | "edit";
 
+/** `open_code_evaluator_form` takes no arguments. */
+export type OpenCodeEvaluatorFormInput = Record<string, never>;
+
 /**
- * JSON-safe wire shape for one code-evaluator output config.
- *
- * The form's `AnnotationConfig` union ships UI/Relay-adjacent state; this
- * draft shape strips that and discriminates explicitly on `kind` so the
- * agent's tool JSON schemas and the diff serializer can all consume one
- * stable shape.
+ * JSON-safe wire shape for one code-evaluator output config: the canonical
+ * `@phoenix/types` annotation-config element of `CodeEvaluator.output_configs`
+ * plus an explicit `kind` discriminant the draft union carries (the canonical
+ * union is undiscriminated). `null` is accepted on optional numerics because
+ * the converter normalizes absent values to JSON-`null`.
  */
-export type ClassificationOutputConfigDraft = {
+export type ClassificationOutputConfigDraft = Omit<
+  ClassificationEvaluatorAnnotationConfig,
+  "values"
+> & {
   kind: "classification";
-  name: string;
-  optimizationDirection: EvaluatorOptimizationDirection;
   values: { label: string; score?: number | null }[];
 };
 
-export type ContinuousOutputConfigDraft = {
-  kind: "continuous";
-  name: string;
-  optimizationDirection: EvaluatorOptimizationDirection;
-  lowerBound?: number | null;
-  upperBound?: number | null;
-};
+export type ContinuousOutputConfigDraft =
+  ContinuousEvaluatorAnnotationConfig & {
+    kind: "continuous";
+  };
 
-export type FreeformOutputConfigDraft = {
+export type FreeformOutputConfigDraft = FreeformEvaluatorAnnotationConfig & {
   kind: "freeform";
-  name: string;
-  optimizationDirection: EvaluatorOptimizationDirection;
-  threshold?: number | null;
-  lowerBound?: number | null;
-  upperBound?: number | null;
 };
 
 export type OutputConfigDraft =

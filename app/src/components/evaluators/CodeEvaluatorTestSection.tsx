@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { graphql, useMutation } from "react-relay";
 
 import {
-  parseTestCodeEvaluatorDraftInput,
+  createTestCodeEvaluatorDraftClientAction,
   TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import {
@@ -28,7 +28,6 @@ import { buildOutputConfigsInput } from "@phoenix/components/evaluators/utils";
 import { ExperimentAnnotationButton } from "@phoenix/components/experiment/ExperimentAnnotationButton";
 import { useAgentStore } from "@phoenix/contexts/AgentContext";
 import { useEvaluatorStore } from "@phoenix/contexts/EvaluatorContext";
-import type { AgentClientActionResult } from "@phoenix/store/agentStore";
 import type { AnnotationConfig } from "@phoenix/store/evaluatorStore";
 import type { CodeEvaluatorLanguage } from "@phoenix/types";
 import { getErrorMessagesFromRelayMutationError } from "@phoenix/utils/errorUtils";
@@ -292,27 +291,10 @@ export const CodeEvaluatorTestSection = ({
       agentStore.getState();
     registerClientAction(
       TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-      async (input: unknown): Promise<AgentClientActionResult> => {
-        const parsed = parseTestCodeEvaluatorDraftInput(input);
-        if (!parsed) {
-          return {
-            ok: false,
-            error: "Invalid test_code_evaluator_draft input.",
-          };
-        }
-        if (!isDraftMounted()) {
-          return {
-            ok: false,
-            error:
-              "The code-evaluator form is not mounted; cannot test the draft.",
-          };
-        }
-        const result = await runEvaluatorPreview();
-        if (!result.ok) {
-          return result;
-        }
-        return { ok: true, output: JSON.stringify(result.output, null, 2) };
-      }
+      createTestCodeEvaluatorDraftClientAction({
+        isDraftMounted,
+        runEvaluatorPreview,
+      })
     );
     return () => {
       unregisterClientAction(TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME);

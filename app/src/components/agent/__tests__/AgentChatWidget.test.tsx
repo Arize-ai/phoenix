@@ -11,7 +11,11 @@ import { FeatureFlagsContext } from "@phoenix/contexts/FeatureFlagsContext";
 import { PreferencesProvider } from "@phoenix/contexts/PreferencesContext";
 import { ThemeProvider } from "@phoenix/contexts/ThemeContext";
 
+import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
+
 import { AgentChatWidget } from "../AgentChatWidget";
+
+installTestStorage();
 
 function AgentOpenState() {
   const isOpen = useAgentContext((state) => state.isOpen);

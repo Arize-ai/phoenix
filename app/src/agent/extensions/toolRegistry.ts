@@ -18,6 +18,7 @@ import {
 } from "@phoenix/agent/tools/batchSpanAnnotate";
 import {
   EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+  OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
   parseEditCodeEvaluatorDraftInput,
   parseReadCodeEvaluatorDraftInput,
   parseTestCodeEvaluatorDraftInput,
@@ -25,10 +26,12 @@ import {
   TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
   type EditCodeEvaluatorDraftActionContext,
   type EditCodeEvaluatorDraftInput,
+  type OpenCodeEvaluatorFormInput,
   type ReadCodeEvaluatorDraftInput,
   type TestCodeEvaluatorDraftInput,
 } from "@phoenix/agent/tools/codeEvaluatorDraft";
 import { parseElicitToolInput } from "@phoenix/agent/tools/elicit";
+import { parseEmptyToolInput } from "@phoenix/agent/tools/emptyToolInput";
 import type { ElicitToolInput } from "@phoenix/agent/tools/elicit";
 import {
   parseReadPlaygroundOutputInput,
@@ -218,11 +221,10 @@ export type SetTimeRangeInput = {
   endTime?: string;
 };
 
-export const OPEN_CODE_EVALUATOR_FORM_TOOL_NAME =
-  "open_code_evaluator_form";
-export { TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME };
-
-export type OpenCodeEvaluatorFormInput = Record<string, never>;
+export {
+  OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
+  TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
+};
 
 export type RenderGenerativeUIInput = {
   /**
@@ -269,22 +271,6 @@ function parseSetSpansFilterInput(input: unknown): SetSpansFilterInput | null {
     condition: candidate.condition,
     rootSpansOnly: candidate.rootSpansOnly,
   };
-}
-
-/**
- * Satisfies the registry `parseInput` contract for a no-argument tool: the
- * server advertises `open_code_evaluator_form` with an empty parameter object,
- * so any plain object validates and normalizes to `{}`. The check rejects
- * non-objects/arrays only to surface a malformed call as invalid input; there
- * are intentionally no fields to extract.
- */
-function parseOpenCodeEvaluatorFormInput(
-  input: unknown
-): OpenCodeEvaluatorFormInput | null {
-  if (typeof input !== "object" || input === null || Array.isArray(input)) {
-    return null;
-  }
-  return {};
 }
 
 const setSpansFilterAgentTool = createRegisteredAgentTool<SetSpansFilterInput>({
@@ -984,7 +970,7 @@ const editCodeEvaluatorDraftAgentTool =
 const openCodeEvaluatorFormAgentTool =
   createRegisteredAgentTool<OpenCodeEvaluatorFormInput>({
     name: OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
-    parseInput: parseOpenCodeEvaluatorFormInput,
+    parseInput: parseEmptyToolInput,
     invalidInputErrorText: `Invalid ${OPEN_CODE_EVALUATOR_FORM_TOOL_NAME} input. Expected {}.`,
     execute: async ({ toolCall, input, addToolOutput, agentStore }) => {
       const action =

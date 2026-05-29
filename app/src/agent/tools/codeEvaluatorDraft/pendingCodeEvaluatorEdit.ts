@@ -7,6 +7,8 @@ import type {
   PendingCodeEvaluatorEdit,
 } from "./types";
 
+// The bound edit is stored in agentStore.pendingCodeEvaluatorEditsByToolCallId,
+// where EditCodeEvaluatorDraftToolDetails reads it to render the accept/reject diff.
 /** Attaches accept/reject/cancel callbacks to a pending code-evaluator edit. */
 export function bindPendingCodeEvaluatorEditActions({
   pendingEdit,

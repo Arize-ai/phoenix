@@ -20,6 +20,10 @@ import { GENERATIVE_UI_TOOL_NAME } from "@phoenix/components/agent/generativeUIC
 import { createAgentStore } from "@phoenix/store/agentStore";
 import { createPlaygroundStore } from "@phoenix/store/playground";
 
+import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
+
+installTestStorage();
+
 describe("toolRegistry", () => {
   beforeEach(() => {
     localStorage.removeItem("arize-phoenix-assistant");

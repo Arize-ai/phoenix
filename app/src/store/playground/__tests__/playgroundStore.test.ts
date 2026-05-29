@@ -4,6 +4,8 @@ import {
 } from "@phoenix/constants/generativeConstants";
 import { getDefaultInvocationConfig } from "@phoenix/pages/playground/providerAdapters";
 
+import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
+
 import {
   _resetInstanceId,
   createNormalizedPlaygroundInstance,
@@ -13,6 +15,8 @@ import {
   getInitialInstances,
 } from "../playgroundStore";
 import type { CanonicalResponseFormat, InitialPlaygroundState } from "../types";
+
+installTestStorage();
 
 const TEST_RESPONSE_FORMAT: CanonicalResponseFormat = {
   type: "json_schema",

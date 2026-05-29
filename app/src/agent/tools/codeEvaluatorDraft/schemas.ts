@@ -2,11 +2,14 @@ import type { Chat } from "@ai-sdk/react";
 import type { UIMessage } from "ai";
 import { z } from "zod";
 
+import { emptyToolInputSchema } from "@phoenix/agent/tools/emptyToolInput";
 import { normalizeAliases } from "@phoenix/agent/tools/playgroundPrompt";
 import {
   CODE_EVALUATOR_LANGUAGES,
   EVALUATOR_OPTIMIZATION_DIRECTIONS,
 } from "@phoenix/types";
+
+import type { OutputConfigDraft } from "./types";
 
 export type CodeEvaluatorEditToolOutputSender =
   Chat<UIMessage>["addToolOutput"];
@@ -20,6 +23,8 @@ const codeEvaluatorLanguageSchema = z.enum(CODE_EVALUATOR_LANGUAGES);
 const optimizationDirectionSchema = z.enum(EVALUATOR_OPTIMIZATION_DIRECTIONS);
 const outputConfigNameSchema = z.string().trim().min(1);
 
+// The `normalize*` helpers map the model's snake_case keys onto the camelCase
+// field names these schemas expect (see normalizeAliases).
 function normalizeInputMappingAliases(input: unknown): unknown {
   return normalizeAliases(input, {
     pathMapping: ["path_mapping"],
@@ -85,11 +90,13 @@ const freeformOutputConfigDraftSchema = z.object({
   upperBound: z.number().nullish(),
 });
 
+// `satisfies` ties the runtime validator to the canonical-derived draft type so
+// the two cannot drift (a missing/renamed field fails to compile here).
 const outputConfigDraftUnionSchema = z.discriminatedUnion("kind", [
   classificationOutputConfigDraftSchema,
   continuousOutputConfigDraftSchema,
   freeformOutputConfigDraftSchema,
-]);
+]) satisfies z.ZodType<OutputConfigDraft>;
 
 export const outputConfigDraftSchema = z.preprocess(
   normalizeOutputConfigAliases,
@@ -132,15 +139,9 @@ const testPayloadSchema = z
     metadata: value.metadata ?? {},
   }));
 
-export const readCodeEvaluatorDraftInputSchema = z
-  .object({})
-  .passthrough()
-  .transform(() => ({}));
+export const readCodeEvaluatorDraftInputSchema = emptyToolInputSchema;
 
-export const testCodeEvaluatorDraftInputSchema = z
-  .object({})
-  .passthrough()
-  .transform(() => ({}));
+export const testCodeEvaluatorDraftInputSchema = emptyToolInputSchema;
 
 const setSourceCodeOperationSchema = z.object({
   type: z.literal("set_source_code"),

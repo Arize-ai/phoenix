@@ -11,7 +11,7 @@ from opentelemetry.context import Context
 from opentelemetry.sdk.trace import Span as SDKSpan
 from opentelemetry.sdk.trace import SpanProcessor
 from opentelemetry.trace import SpanContext, format_span_id, format_trace_id
-from pydantic import BaseModel, ConfigDict, Field, RootModel, ValidationError, field_validator
+from pydantic import BaseModel, ConfigDict, Field, RootModel, field_validator
 from pydantic.alias_generators import to_camel
 from pydantic_ai import AgentRunResult, RunUsage
 from pydantic_ai.ui.vercel_ai import VercelAIAdapter
@@ -26,7 +26,7 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     ProviderMetadata,
     ToolInputAvailableChunk,
 )
-from sqlalchemy import Insert, func, select
+from sqlalchemy import Insert, exists, func, select
 from sqlalchemy.dialects.postgresql import insert as insert_postgresql
 from sqlalchemy.dialects.sqlite import insert as insert_sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -57,7 +57,6 @@ from phoenix.server.agents.types import (
     AgentDependencies,
     AgentOutput,
     SandboxAvailability,
-    SandboxConfigCapabilities,
 )
 from phoenix.server.api.openapi.registry import register_openapi_schema
 from phoenix.server.api.types.node import from_global_id_with_expected_type
@@ -66,13 +65,7 @@ from phoenix.server.api.types.SandboxConfig import (
     get_sandbox_backend_info,
 )
 from phoenix.server.bearer_auth import PhoenixUser, is_authenticated
-from phoenix.server.sandbox import SANDBOX_ADAPTER_METADATA, SecretsContext
-from phoenix.server.sandbox.types import (
-    SANDBOX_CONFIG_ADAPTER,
-    SupportsDependencies,
-    SupportsEnvVars,
-    SupportsInternetAccess,
-)
+from phoenix.server.sandbox import SecretsContext
 from phoenix.server.types import DbSessionFactory
 from phoenix.tracers import Tracer, detached_otel_context
 
@@ -373,80 +366,24 @@ async def _load_sandbox_availability(
     *,
     available_backend_types: frozenset[models.SandboxBackendType] | None = None,
 ) -> SandboxAvailability:
-    """Load every enabled sandbox config sitting under an enabled provider
-    into a ``SandboxAvailability`` snapshot the agent uses to (a) gate the
-    create/edit code-evaluator capabilities and (b) render the available
-    inventory into the prompt. When ``available_backend_types`` is supplied, it
-    mirrors the code-evaluator form's backend-status filter so the model only
-    sees sandbox configs the mounted form can select.
+    """Compute the pre-turn ``has_usable`` gate for sandbox-backed capabilities.
 
-    Malformed rows are logged and skipped rather than failing the entire
-    agent request — same graceful-degradation contract used by
-    ``SandboxConfigData.from_stored``."""
-    stmt = (
-        select(models.SandboxConfig)
-        .join(
-            models.SandboxProvider,
-            models.SandboxProvider.backend_type == models.SandboxConfig.backend_type,
-        )
-        .where(models.SandboxConfig.enabled.is_(True))
-        .where(models.SandboxProvider.enabled.is_(True))
+    ``has_usable`` is true when at least one enabled ``SandboxConfig`` sits
+    under an enabled provider. When ``available_backend_types`` is supplied it
+    mirrors the code-evaluator form's backend-status filter, so the gate matches
+    the set the mounted form can actually select. The selectable inventory is
+    fetched on-demand by the agent via ``phoenix-gql``, not loaded here."""
+    if available_backend_types is not None and not available_backend_types:
+        return SandboxAvailability(has_usable=False)
+    condition = (
+        models.SandboxConfig.enabled.is_(True)
+        & models.SandboxProvider.enabled.is_(True)
+        & (models.SandboxProvider.backend_type == models.SandboxConfig.backend_type)
     )
     if available_backend_types is not None:
-        if not available_backend_types:
-            return SandboxAvailability()
-        stmt = stmt.where(models.SandboxConfig.backend_type.in_(available_backend_types))
-    rows = (await session.scalars(stmt)).all()
-    configs: list[SandboxConfigCapabilities] = []
-    for row in rows:
-        adapter_metadata = SANDBOX_ADAPTER_METADATA.get(row.backend_type)
-        if adapter_metadata is None:
-            logger.warning(
-                "Skipping sandbox config %r: no adapter metadata for backend %r",
-                row.id,
-                row.backend_type,
-            )
-            continue
-        stored_blob: dict[str, Any] = dict(row.config or {})
-        # Stored ``config`` blobs do not necessarily carry the discriminator
-        # columns (``backend_type``, ``language``) — those live on the row.
-        # Merge them in so the discriminated-union validator can pick the
-        # right per-backend ``_Config`` model.
-        stored_blob.setdefault("backend_type", row.backend_type)
-        stored_blob.setdefault("language", row.language)
-        try:
-            parsed = SANDBOX_CONFIG_ADAPTER.validate_python(stored_blob)
-        except ValidationError as exc:
-            logger.warning(
-                "Skipping sandbox config %r (backend=%r): malformed config blob: %s",
-                row.id,
-                row.backend_type,
-                exc,
-            )
-            continue
-        internet_access: Literal["allow", "deny", "unset"] = "unset"
-        if isinstance(parsed, SupportsInternetAccess) and parsed.internet_access is not None:
-            internet_access = parsed.internet_access.mode
-        dependencies: list[str] = []
-        if isinstance(parsed, SupportsDependencies) and parsed.dependencies is not None:
-            dependencies = list(parsed.dependencies.packages)
-        env_var_names: list[str] = []
-        if isinstance(parsed, SupportsEnvVars):
-            env_var_names = list(parsed.env_vars.keys())
-        configs.append(
-            SandboxConfigCapabilities(
-                sandbox_config_id=str(GlobalID("SandboxConfig", str(row.id))),
-                name=str(row.name),
-                language=row.language,
-                internet_access=internet_access,
-                dependencies=dependencies,
-                env_var_names=env_var_names,
-                internet_access_mode=adapter_metadata.internet_access_capability,
-                supports_env_vars=adapter_metadata.supports_env_vars,
-                supports_dependencies=adapter_metadata.supports_dependencies,
-            )
-        )
-    return SandboxAvailability(configs=configs)
+        condition &= models.SandboxConfig.backend_type.in_(available_backend_types)
+    has_usable = bool(await session.scalar(select(exists().where(condition))))
+    return SandboxAvailability(has_usable=has_usable)
 
 
 def _decode_context_node_id(node_id: str | None, expected_type_name: str) -> int | None:

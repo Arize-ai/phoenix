@@ -4,9 +4,14 @@ import {
   parseEditCodeEvaluatorDraftActionContext,
   parseEditCodeEvaluatorDraftInput,
   parseReadCodeEvaluatorDraftInput,
+  parseTestCodeEvaluatorDraftInput,
 } from "./parsers";
 import { bindPendingCodeEvaluatorEditActions } from "./pendingCodeEvaluatorEdit";
-import type { CodeEvaluatorDraftHost, PendingCodeEvaluatorEdit } from "./types";
+import type {
+  CodeEvaluatorActionResult,
+  CodeEvaluatorDraftHost,
+  PendingCodeEvaluatorEdit,
+} from "./types";
 
 /**
  * Returns the current draft snapshot as a JSON string for `read_code_evaluator_draft`.
@@ -92,5 +97,38 @@ export function createEditCodeEvaluatorDraftClientAction({
     });
     setPendingCodeEvaluatorEdit(editContext.toolCallId, pendingEdit);
     return { ok: true };
+  };
+}
+
+/**
+ * Runs the mounted draft against its test payload for `test_code_evaluator_draft`,
+ * returning the preview result as a JSON string.
+ */
+export function createTestCodeEvaluatorDraftClientAction({
+  isDraftMounted,
+  runEvaluatorPreview,
+}: {
+  isDraftMounted: () => boolean;
+  runEvaluatorPreview: () => Promise<CodeEvaluatorActionResult<unknown>>;
+}) {
+  return async (input: unknown): Promise<AgentClientActionResult> => {
+    const parsed = parseTestCodeEvaluatorDraftInput(input);
+    if (!parsed) {
+      return {
+        ok: false,
+        error: "Invalid test_code_evaluator_draft input.",
+      };
+    }
+    if (!isDraftMounted()) {
+      return {
+        ok: false,
+        error: "The code-evaluator form is not mounted; cannot test the draft.",
+      };
+    }
+    const result = await runEvaluatorPreview();
+    if (!result.ok) {
+      return result;
+    }
+    return { ok: true, output: JSON.stringify(result.output, null, 2) };
   };
 }

@@ -12,6 +12,10 @@ import {
   createPlaygroundStore,
 } from "@phoenix/store/playground";
 
+import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
+
+installTestStorage();
+
 describe("playground prompt agent tools", () => {
   beforeEach(() => {
     localStorage.removeItem("arize-phoenix-assistant");

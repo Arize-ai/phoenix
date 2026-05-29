@@ -5,6 +5,10 @@ import {
   createPlaygroundStore,
 } from "@phoenix/store/playground";
 
+import { installTestStorage } from "@phoenix/__tests__/installTestStorage";
+
+installTestStorage();
+
 describe("playground output agent tool", () => {
   beforeEach(() => {
     _resetInstanceId();

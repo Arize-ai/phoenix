@@ -40,7 +40,6 @@ from phoenix.server.agents.prompts import AgentPrompts
 from phoenix.server.agents.types import (
     AgentDependencies,
     SandboxAvailability,
-    SandboxConfigCapabilities,
 )
 
 _DEFAULT_PROMPTS = AgentPrompts()
@@ -522,16 +521,7 @@ class TestSkillsCapability:
 class TestCodeEvaluatorFormToolGates:
     @staticmethod
     def _sandbox_availability() -> SandboxAvailability:
-        return SandboxAvailability(
-            configs=[
-                SandboxConfigCapabilities(
-                    sandbox_config_id="U2FuZGJveENvbmZpZzox",
-                    name="default-python",
-                    language="PYTHON",
-                    internet_access="unset",
-                )
-            ]
-        )
+        return SandboxAvailability(has_usable=True)
 
     async def test_open_form_advertised_for_dataset_backed_playground(
         self,
