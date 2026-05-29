@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 import type { AgentContext } from "@phoenix/agent/context/agentContextTypes";
 import { agentContextKey } from "@phoenix/agent/context/agentContextTypes";
 import { selectActiveContexts } from "@phoenix/agent/context/selectors";
@@ -23,6 +25,7 @@ function truncate(value: string, max: number): string {
   return value.length > max ? `${value.slice(0, max)}...` : value;
 }
 
+/** The context type, shown as the chip's always-visible label. */
 function contextLabel(context: AgentContext): string {
   switch (context.type) {
     case "app":
@@ -36,14 +39,30 @@ function contextLabel(context: AgentContext): string {
     case "project":
       return "Project";
     case "trace":
-      return `Trace: ${truncateId(context.otelTraceId)}`;
+      return "Trace";
+    case "span":
+      return "Span";
+  }
+}
+
+/**
+ * The id/identifier for a context, shown dimmed beside the label and revealed
+ * only when the stack is expanded. Returns undefined for contexts that have no
+ * meaningful identifier to show (e.g. project, playground).
+ */
+function contextDetail(context: AgentContext): string | undefined {
+  switch (context.type) {
+    case "trace":
+      return truncateId(context.otelTraceId);
     case "span": {
       const spanId = context.spanNodeId ?? context.otelSpanId;
       if (spanId == null) {
         throw new Error("span context must have spanNodeId or otelSpanId");
       }
-      return `Span: ${truncateId(spanId)}`;
+      return truncateId(spanId);
     }
+    default:
+      return undefined;
   }
 }
 
@@ -53,6 +72,7 @@ function toAttachmentData(context: AgentContext): AttachmentContextData {
     id: agentContextKey(context),
     category: context.type,
     label: contextLabel(context),
+    detail: contextDetail(context),
   };
 }
 
@@ -72,7 +92,8 @@ function spanFilterAttachmentData(
     type: "context",
     id,
     category: "span_filter",
-    label: `Filter: ${truncate(context.spanFilter, MAX_CONDITION_CHARS)}`,
+    label: "Filter",
+    detail: truncate(context.spanFilter, MAX_CONDITION_CHARS),
   };
 }
 
@@ -107,7 +128,17 @@ export function AgentContextPills() {
   });
 
   return (
-    <Attachments variant="inline">
+    <Attachments
+      variant="inline"
+      collapsible
+      // The pills sit on the prompt input surface; match the stack seam to it.
+      style={
+        {
+          "--attachment-stack-separator-color":
+            "var(--prompt-input-background-color)",
+        } as CSSProperties
+      }
+    >
       {items.map((data) => (
         <Attachment key={data.id} data={data}>
           <AttachmentPreview />

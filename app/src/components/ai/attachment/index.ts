@@ -8,6 +8,7 @@ export { useAttachmentContext } from "./AttachmentContext";
 export {
   getMediaCategory,
   getAttachmentLabel,
+  getAttachmentDetail,
   getDefaultAttachmentIcon,
 } from "./utils";
 export type {

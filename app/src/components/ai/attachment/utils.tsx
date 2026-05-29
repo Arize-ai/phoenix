@@ -40,6 +40,15 @@ export function getAttachmentLabel(data: AttachmentData): string {
   );
 }
 
+/**
+ * Optional secondary detail for an attachment (e.g. a context's trace id or
+ * filter condition), used by `<AttachmentInfo>`. Only context attachments
+ * carry a detail today.
+ */
+export function getAttachmentDetail(data: AttachmentData): string | undefined {
+  return data.type === "context" ? data.detail : undefined;
+}
+
 /** Default icon for a context category, used when no `data.icon` is set. */
 function getContextCategoryIcon(category: string | undefined): ReactNode {
   switch (category) {
