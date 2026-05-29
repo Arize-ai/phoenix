@@ -70,9 +70,17 @@ function getWebSearchIconState({
 export function useAgentWebSearch({
   sessionId,
   modelSelection,
+  hasSelection = true,
 }: {
   sessionId: string | null;
   modelSelection: AgentModelSelection;
+  /**
+   * Whether `modelSelection` is a real selection rather than a placeholder.
+   * When false, the support request is skipped so callers can run the hook
+   * unconditionally (hooks rule) without issuing a wasteful, always-failing
+   * mutation for a placeholder model.
+   */
+  hasSelection?: boolean;
 }) {
   // Instance-level gate: the Phoenix deployment must permit web access at all.
   const isWebAccessAvailable = useAgentContext(
@@ -95,7 +103,7 @@ export function useAgentWebSearch({
   const show = isWebAccessAvailable && isWebAccessEnabledGlobally;
 
   const support = useAgentModelWebSearchSupport(modelSelection, {
-    enabled: show,
+    enabled: show && hasSelection,
   });
 
   const canToggle = support === "supported" && sessionId !== null;

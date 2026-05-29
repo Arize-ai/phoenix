@@ -1,6 +1,6 @@
 import { createDefaultAgentCapabilities } from "@phoenix/agent/extensions/capabilities";
 
-import { createAgentStore } from "../agentStore";
+import { createAgentStore, selectEffectiveWebAccess } from "../agentStore";
 
 describe("agentStore", () => {
   beforeEach(() => {
@@ -330,6 +330,74 @@ describe("agentStore", () => {
       await store.persist.rehydrate();
 
       expect(store.getState().position).toBe("pinned");
+    });
+  });
+
+  describe("setSessionWebAccess", () => {
+    it("sets a per-session override to true", () => {
+      const store = createAgentStore();
+      const sessionId = store.getState().createSession();
+      store.getState().setSessionWebAccess(sessionId, true);
+      expect(store.getState().sessionMap[sessionId].webAccess).toBe(true);
+    });
+
+    it("sets a per-session override to false", () => {
+      const store = createAgentStore();
+      const sessionId = store.getState().createSession();
+      store.getState().setSessionWebAccess(sessionId, false);
+      expect(store.getState().sessionMap[sessionId].webAccess).toBe(false);
+    });
+
+    it("clears the override when passed null so the global default applies", () => {
+      const store = createAgentStore();
+      const sessionId = store.getState().createSession();
+      store.getState().setSessionWebAccess(sessionId, true);
+      store.getState().setSessionWebAccess(sessionId, null);
+      expect("webAccess" in store.getState().sessionMap[sessionId]).toBe(false);
+    });
+
+    it("no-ops for an unknown session", () => {
+      const store = createAgentStore();
+      const before = store.getState();
+      store.getState().setSessionWebAccess("nonexistent", true);
+      expect(store.getState().sessionMap).toBe(before.sessionMap);
+    });
+  });
+
+  describe("selectEffectiveWebAccess", () => {
+    it("returns the global default when sessionId is null", () => {
+      const store = createAgentStore();
+      store.getState().setCapability({ key: "web.access", enabled: true });
+      expect(selectEffectiveWebAccess(store.getState(), null)).toBe(true);
+    });
+
+    it("returns the global default for a session without an override", () => {
+      const store = createAgentStore();
+      const sessionId = store.getState().createSession();
+      store.getState().setCapability({ key: "web.access", enabled: true });
+      expect(selectEffectiveWebAccess(store.getState(), sessionId)).toBe(true);
+    });
+
+    it("returns the session override over the global default", () => {
+      const store = createAgentStore();
+      const sessionId = store.getState().createSession();
+      // Global default disabled, but the session opts in.
+      store.getState().setSessionWebAccess(sessionId, true);
+      expect(store.getState().capabilities["web.access"]).toBe(false);
+      expect(selectEffectiveWebAccess(store.getState(), sessionId)).toBe(true);
+
+      // Global default enabled, but the session opts out.
+      store.getState().setCapability({ key: "web.access", enabled: true });
+      store.getState().setSessionWebAccess(sessionId, false);
+      expect(selectEffectiveWebAccess(store.getState(), sessionId)).toBe(false);
+    });
+
+    it("falls back to the global default for an unknown session", () => {
+      const store = createAgentStore();
+      store.getState().setCapability({ key: "web.access", enabled: true });
+      expect(selectEffectiveWebAccess(store.getState(), "nonexistent")).toBe(
+        true
+      );
     });
   });
 });

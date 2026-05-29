@@ -59,8 +59,9 @@ const menuWidthCSS = css`
 
 /**
  * Inert model selection fed to `useAgentWebSearch` when no real selection is
- * provided, so the hook can run unconditionally without issuing a request
- * (web search is suppressed in that case).
+ * provided, so the hook can run unconditionally (hooks rule). Callers pass
+ * `hasSelection: false` alongside it so the support request is skipped and
+ * web search is suppressed in that case.
  */
 const PLACEHOLDER_MODEL_SELECTION: AgentModelSelection = {
   providerType: "builtin",
@@ -198,10 +199,12 @@ export function AgentModelMenu({
 
   // The web search toggle only applies to an active chat session. `useAgentWebSearch`
   // must run unconditionally (hooks rule), so feed it a stable placeholder when no
-  // selection is provided (e.g. in settings) and suppress the UI below.
+  // selection is provided (e.g. in settings). `hasSelection: false` skips the
+  // support request for that placeholder and the UI below is suppressed.
   const webSearch = useAgentWebSearch({
     sessionId: modelSelection ? sessionId : null,
     modelSelection: modelSelection ?? PLACEHOLDER_MODEL_SELECTION,
+    hasSelection: Boolean(modelSelection),
   });
   const showWebSearch = Boolean(modelSelection) && webSearch.show;
 
