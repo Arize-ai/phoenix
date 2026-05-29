@@ -353,7 +353,7 @@ class TestSystemBlockCacheBoundary:
 
 
 class TestUIContextInstructions:
-    async def test_playground_context_includes_models_and_available_targets(
+    async def test_playground_context_models_and_targets_are_outside_cache_boundary(
         self,
         anthropic_model: AnthropicModel,
         captured_request: CapturedRequest,
@@ -393,13 +393,20 @@ class TestUIContextInstructions:
 
         await agent.run("hello", deps=deps)
 
-        system_text = "\n".join(_get_system_texts(captured_request.body))
-        assert '<instance label="A" instanceId="7" provider="OPENAI" modelName="gpt-5"/>' in (
-            system_text
+        cached_blocks, uncached_blocks = _partition_system_blocks_by_cache_breakpoint(
+            captured_request.body
         )
-        assert '<model provider="OPENAI" modelName="gpt-5"/>' in system_text
-        assert 'customProviderId="custom-provider-id"' in system_text
-        assert "set_playground_model" in system_text
+        cached_text = _get_concatenated_text(cached_blocks)
+        uncached_text = _get_concatenated_text(uncached_blocks)
+        playground_context_fragments = (
+            '<instance label="A" instanceId="7" provider="OPENAI" modelName="gpt-5"/>',
+            '<model provider="OPENAI" modelName="gpt-5"/>',
+            'customProviderId="custom-provider-id"',
+            "set_playground_model",
+        )
+        for fragment in playground_context_fragments:
+            assert fragment in uncached_text
+            assert fragment not in cached_text
 
     async def test_ui_context_instructions_are_outside_cache_boundary(
         self,
