@@ -1,19 +1,20 @@
+{% macro safe_attr(value) -%}{{ value | sanitize(enclosing_tag="phoenix_playground_context", max_chars=200) | e }}{%- endmacro %}
 <phoenix_playground_context>
   <description>The playground prompt editor is mounted. Use the alphabetic `label` (A, B, C, D) when discussing instances with the user, and pass the numeric `instanceId` when calling tools.</description>
   <instances>
 {% for instance in playground.instances %}
-    <instance label="{{ instance.label }}" instanceId="{{ instance.instance_id }}"{% if instance.has_model %} provider="{{ instance.provider }}" modelName="{{ instance.model_name }}"{% if instance.custom_provider_id %} customProviderId="{{ instance.custom_provider_id }}" customProviderName="{{ instance.custom_provider_name }}"{% endif %}{% endif %}/>
+    <instance label="{{ labels[loop.index0] }}" instanceId="{{ instance.instance_id }}"{% if instance.model %} provider="{{ safe_attr(instance.model.provider) }}" modelName="{{ safe_attr(instance.model.model_name) }}"{% if instance.model.type == "custom" %} customProviderId="{{ safe_attr(instance.model.custom_provider_id) }}" customProviderName="{{ safe_attr(instance.model.custom_provider_name) }}"{% endif %}{% endif %}/>
 {% endfor %}
   </instances>
   <available_model_targets>
     <builtin_models>
 {% for model in playground.available_builtin_models %}
-      <model provider="{{ model.provider }}" modelName="{{ model.model_name }}"/>
+      <model provider="{{ safe_attr(model.provider) }}" modelName="{{ safe_attr(model.model_name) }}"/>
 {% endfor %}
     </builtin_models>
     <custom_provider_models>
 {% for model in playground.available_custom_models %}
-      <model customProviderId="{{ model.custom_provider_id }}" customProviderName="{{ model.custom_provider_name }}" provider="{{ model.provider }}" modelName="{{ model.model_name }}"/>
+      <model customProviderId="{{ safe_attr(model.custom_provider_id) }}" customProviderName="{{ safe_attr(model.custom_provider_name) }}" provider="{{ safe_attr(model.provider) }}" modelName="{{ safe_attr(model.model_name) }}"/>
 {% endfor %}
     </custom_provider_models>
   </available_model_targets>
