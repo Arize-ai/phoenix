@@ -14,10 +14,8 @@ import type { OutputConfigDraft } from "./types";
 export type CodeEvaluatorEditToolOutputSender =
   Chat<UIMessage>["addToolOutput"];
 
-// These enums derive from the canonical `@phoenix/types` tuples so the Zod
-// validator and the TypeScript union cannot drift. The Python tool schema
-// (agents/tools/*) remains the model-facing source of truth for the enums the
-// model actually sees; this TS layer only validates what the client dispatches.
+// The Python tool schema (agents/tools/*) is the model-facing source of truth
+// for these enums; this TS layer only validates what the client dispatches.
 const codeEvaluatorLanguageSchema = z.enum(CODE_EVALUATOR_LANGUAGES);
 
 const optimizationDirectionSchema = z.enum(EVALUATOR_OPTIMIZATION_DIRECTIONS);
