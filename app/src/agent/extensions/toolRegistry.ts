@@ -271,6 +271,13 @@ function parseSetSpansFilterInput(input: unknown): SetSpansFilterInput | null {
   };
 }
 
+/**
+ * Satisfies the registry `parseInput` contract for a no-argument tool: the
+ * server advertises `open_code_evaluator_form` with an empty parameter object,
+ * so any plain object validates and normalizes to `{}`. The check rejects
+ * non-objects/arrays only to surface a malformed call as invalid input; there
+ * are intentionally no fields to extract.
+ */
 function parseOpenCodeEvaluatorFormInput(
   input: unknown
 ): OpenCodeEvaluatorFormInput | null {
@@ -872,6 +879,7 @@ const writePromptToolsAgentTool =
     },
   });
 
+/** Reads the current code-evaluator draft from the mounted form. */
 const readCodeEvaluatorDraftAgentTool =
   createRegisteredAgentTool<ReadCodeEvaluatorDraftInput>({
     name: READ_CODE_EVALUATOR_DRAFT_TOOL_NAME,
@@ -911,6 +919,10 @@ const readCodeEvaluatorDraftAgentTool =
     },
   });
 
+/**
+ * Proposes edits to the mounted code-evaluator draft as a pending change the
+ * user accepts or rejects; requires an active session to attribute the edit.
+ */
 const editCodeEvaluatorDraftAgentTool =
   createRegisteredAgentTool<EditCodeEvaluatorDraftInput>({
     name: EDIT_CODE_EVALUATOR_DRAFT_TOOL_NAME,
@@ -968,6 +980,7 @@ const editCodeEvaluatorDraftAgentTool =
     },
   });
 
+/** Opens the code-evaluator form in the mounted dataset-backed playground. */
 const openCodeEvaluatorFormAgentTool =
   createRegisteredAgentTool<OpenCodeEvaluatorFormInput>({
     name: OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
@@ -1007,6 +1020,7 @@ const openCodeEvaluatorFormAgentTool =
     },
   });
 
+/** Runs the mounted code-evaluator draft against its test payload. */
 const testCodeEvaluatorDraftAgentTool =
   createRegisteredAgentTool<TestCodeEvaluatorDraftInput>({
     name: TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,

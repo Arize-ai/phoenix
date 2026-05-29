@@ -62,9 +62,12 @@ function contextDetail(context: AgentContext): string | undefined {
       return truncateId(spanId);
     }
     case "code_evaluator":
+      // Task-role context: labeled as the action the user is taking so the
+      // surface-vs-task distinction reads through the label rather than a
+      // hide rule.
       return context.evaluatorNodeId
-        ? truncateId(context.evaluatorNodeId)
-        : "new";
+        ? `Editing evaluator: ${truncateId(context.evaluatorNodeId)}`
+        : "New evaluator";
     case "dataset":
       return truncateId(context.datasetNodeId);
     default:
@@ -103,31 +106,18 @@ function spanFilterAttachmentData(
   };
 }
 
-function isAuxiliaryFormContext({
-  context,
-  contexts,
-}: {
-  context: AgentContext;
-  contexts: AgentContext[];
-}): boolean {
-  if (context.type !== "code_evaluator") {
-    return false;
-  }
-  return contexts.some(
-    (candidate) =>
-      candidate.type === "playground" || candidate.type === "dataset"
-  );
-}
-
 /**
  * Renders the active agent contexts as non-removable attachments above the
  * chat input so the user can see, at a glance, what Phoenix state the agent
  * is aware of for the next turn (project, trace, selected span, active span
- * filter).
+ * filter, the form being edited).
  *
  * Reads from the same `selectActiveContexts` selector used to populate the
- * chat request payload. Auxiliary form contexts may be omitted from the
- * visible pill list when a page-level context already orients the user.
+ * chat request payload, and renders every active context as a pill — the
+ * only contexts without a pill are request-only runtime metadata (app,
+ * graphql, web_access) that have no user-visible label. Each context type
+ * plugs in through the single `contextLabel` switch; nothing is hidden or
+ * capped here, so the pills stay a faithful 1:1 view of the payload.
  */
 export function AgentContextPills() {
   const contexts = useAgentContext(selectActiveContexts);
@@ -140,8 +130,7 @@ export function AgentContextPills() {
     if (
       context.type === "app" ||
       context.type === "graphql" ||
-      context.type === "web_access" ||
-      isAuxiliaryFormContext({ context, contexts })
+      context.type === "web_access"
     ) {
       return [];
     }

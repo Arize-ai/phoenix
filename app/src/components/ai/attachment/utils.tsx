@@ -64,6 +64,10 @@ function getContextCategoryIcon(category: string | undefined): ReactNode {
       return <Icon svg={<Icons.DatabaseOutline />} />;
     case "playground":
       return <Icon svg={<Icons.PlayCircleOutline />} />;
+    case "code_evaluator":
+      // Task-role context (a form the user is editing) — an edit glyph reads
+      // as an action, distinct from the entity icons used by surface pills.
+      return <Icon svg={<Icons.EditOutline />} />;
     default:
       return <Icon svg={<Icons.InfoOutline />} />;
   }

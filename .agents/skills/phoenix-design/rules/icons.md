@@ -15,6 +15,7 @@ Phoenix has a curated icon set in `app/src/components/core/icon/Icons.tsx`. Use 
 | File (generic / unknown) | `Icons.FileOutline` | Default file fallback when the media type is not specifically handled. |
 | Image | `Icons.ImageOutline` | Image-typed file attachments. |
 | Video | `Icons.PlayCircleOutline` | Video-typed file attachments (no dedicated `Video*` icon). |
+| Code-evaluator form | `Icons.EditOutline` | Task-role context pill for the code-evaluator create/edit form the user is working in. The edit glyph reads as an action, distinct from entity icons used by surface pills. |
 | Context (generic) | `Icons.InfoOutline` | Default for an `AttachmentContextData` whose category has no canonical icon yet. |
 | Bypass / unguarded approvals | `Icons.ShieldOutline` | Warning shield for bypass/auto-approval modes where approvals are skipped. |
 | Undo / rewind | `Icons.RotateCcwOutline` | Counterclockwise arrow for reverting/undoing an action (e.g. rewinding a chat). Distinct from `HistoryOutline` (clock = history/session list). |

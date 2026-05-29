@@ -3,13 +3,21 @@ import type { UIMessage } from "ai";
 import { z } from "zod";
 
 import { normalizeAliases } from "@phoenix/agent/tools/playgroundPrompt";
+import {
+  CODE_EVALUATOR_LANGUAGES,
+  EVALUATOR_OPTIMIZATION_DIRECTIONS,
+} from "@phoenix/types";
 
 export type CodeEvaluatorEditToolOutputSender =
   Chat<UIMessage>["addToolOutput"];
 
-const codeEvaluatorLanguageSchema = z.enum(["PYTHON", "TYPESCRIPT"]);
+// These enums derive from the canonical `@phoenix/types` tuples so the Zod
+// validator and the TypeScript union cannot drift. The Python tool schema
+// (agents/tools/*) remains the model-facing source of truth for the enums the
+// model actually sees; this TS layer only validates what the client dispatches.
+const codeEvaluatorLanguageSchema = z.enum(CODE_EVALUATOR_LANGUAGES);
 
-const optimizationDirectionSchema = z.enum(["MINIMIZE", "MAXIMIZE", "NONE"]);
+const optimizationDirectionSchema = z.enum(EVALUATOR_OPTIMIZATION_DIRECTIONS);
 const outputConfigNameSchema = z.string().trim().min(1);
 
 function normalizeInputMappingAliases(input: unknown): unknown {

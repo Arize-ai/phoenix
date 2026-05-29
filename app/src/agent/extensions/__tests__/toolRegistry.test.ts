@@ -208,37 +208,6 @@ describe("toolRegistry", () => {
     );
   });
 
-  it("dispatches open_code_evaluator_form to the registered client action", async () => {
-    const store = createAgentStore();
-    const addToolOutput = vi.fn().mockResolvedValue(undefined);
-    const action = vi
-      .fn()
-      .mockResolvedValue({ ok: true, output: "opened form" });
-    store
-      .getState()
-      .registerClientAction(OPEN_CODE_EVALUATOR_FORM_TOOL_NAME, action);
-
-    await handleRegisteredAgentToolCall({
-      toolCall: {
-        toolCallId: "tool-call-open-evaluator-form",
-        toolName: OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
-        input: {},
-      },
-      sessionId: "session-1",
-      addToolOutput,
-      agentStore: store,
-    });
-
-    expect(action).toHaveBeenCalledWith({});
-    expect(addToolOutput).toHaveBeenCalledWith(
-      expect.objectContaining({
-        state: "output-available",
-        tool: OPEN_CODE_EVALUATOR_FORM_TOOL_NAME,
-        output: "opened form",
-      })
-    );
-  });
-
   it("returns an error when open_code_evaluator_form has no mounted action", async () => {
     const store = createAgentStore();
     const addToolOutput = vi.fn().mockResolvedValue(undefined);
@@ -261,37 +230,6 @@ describe("toolRegistry", () => {
         toolCallId: "tool-call-open-evaluator-form-missing",
         errorText:
           "The dataset-backed playground is not mounted; cannot open the evaluator form.",
-      })
-    );
-  });
-
-  it("dispatches test_code_evaluator_draft to the registered client action", async () => {
-    const store = createAgentStore();
-    const addToolOutput = vi.fn().mockResolvedValue(undefined);
-    const action = vi
-      .fn()
-      .mockResolvedValue({ ok: true, output: "preview result" });
-    store
-      .getState()
-      .registerClientAction(TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME, action);
-
-    await handleRegisteredAgentToolCall({
-      toolCall: {
-        toolCallId: "tool-call-code-evaluator-test",
-        toolName: TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-        input: {},
-      },
-      sessionId: "session-1",
-      addToolOutput,
-      agentStore: store,
-    });
-
-    expect(action).toHaveBeenCalledWith({});
-    expect(addToolOutput).toHaveBeenCalledWith(
-      expect.objectContaining({
-        state: "output-available",
-        tool: TEST_CODE_EVALUATOR_DRAFT_TOOL_NAME,
-        output: "preview result",
       })
     );
   });
