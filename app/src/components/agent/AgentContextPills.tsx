@@ -45,11 +45,7 @@ function contextLabel(context: AgentContext): string {
   }
 }
 
-/**
- * The id/identifier for a context, shown dimmed beside the label and revealed
- * only when the stack is expanded. Returns undefined for contexts that have no
- * meaningful identifier to show (e.g. project, playground).
- */
+/** The id shown dimmed beside the label, or undefined when there is none. */
 function contextDetail(context: AgentContext): string | undefined {
   switch (context.type) {
     case "trace":

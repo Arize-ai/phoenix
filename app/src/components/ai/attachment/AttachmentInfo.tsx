@@ -1,3 +1,5 @@
+import { classNames } from "@phoenix/utils/classNames";
+
 import { useAttachmentContext } from "./AttachmentContext";
 import { attachmentInfoCSS } from "./styles";
 import type { AttachmentInfoProps } from "./types";
@@ -32,11 +34,9 @@ export function AttachmentInfo({
     <div
       ref={ref}
       css={attachmentInfoCSS}
-      className={
-        detail
-          ? "attachment-info attachment-info--with-detail"
-          : "attachment-info"
-      }
+      className={classNames("attachment-info", {
+        "attachment-info--with-detail": detail,
+      })}
       {...restProps}
     >
       <span className="attachment-info__label">{label}</span>

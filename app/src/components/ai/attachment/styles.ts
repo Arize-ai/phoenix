@@ -26,24 +26,13 @@ export const attachmentsCSS = css`
     width: 100%;
   }
 
-  /* -------------------------------------------------------------------------
-   * Collapsible inline stack — "deck of cards"
-   *
-   * At rest only the front (last) chip is fully visible, showing its icon and
-   * label. The chips behind it stack like a deck of cards: each is pulled
-   * almost entirely under the chip in front of it, peeking out by just a thin
-   * rounded sliver on the left. Hovering or focusing the group fans the deck
-   * out into a wrapping row, restoring each chip to full size and revealing its
-   * detail (id / condition). Driven entirely by CSS state, so the full labels
-   * stay in the accessibility tree even while visually clipped.
-   * ---------------------------------------------------------------------- */
+  /* Collapsible inline stack: at rest only the front chip shows, the rest tuck
+     behind it as a deck peeking out by a sliver; hover/focus fans it out. */
   &[data-variant="inline"][data-collapsible] {
-    /* Surface color the chips sit on, used to draw a seam between cards. */
     --attachment-stack-separator-color: var(--global-background-color-default);
-    /* Width of the rounded sliver each card behind the front peeks out by. */
+    /* Sliver each card behind the front peeks out by, and the width of a
+       collapsed card before it is overlapped. */
     --attachment-stack-peek: var(--global-dimension-size-50);
-    /* Width a collapsed card occupies before it is overlapped — wide enough
-       to show its rounded corner in the peeking sliver. */
     --attachment-stack-card: var(--global-dimension-size-200);
 
     flex-wrap: nowrap;
@@ -61,11 +50,7 @@ export const attachmentsCSS = css`
         margin-left 0.2s ease;
     }
 
-    /*
-     * Collapse every chip but the front one to a narrow, full-height card:
-     * fixed width with its contents clipped + faded so only the card's surface
-     * and rounded corner show in the peeking sliver.
-     */
+    /* Collapse every chip but the front to a narrow card with clipped contents. */
     > [data-attachment]:not(:last-child) {
       width: var(--attachment-stack-card);
       min-width: var(--attachment-stack-card);
@@ -78,26 +63,17 @@ export const attachmentsCSS = css`
       transition: opacity 0.2s ease;
     }
 
-    /*
-     * Slide every card after the first back under its predecessor, leaving only
-     * the peek sliver showing. Later cards paint on top, so the front chip ends
-     * up fully covering the deck with each card behind peeking on its left.
-     */
+    /* Slide each card under its predecessor; later cards paint on top. */
     > [data-attachment] + [data-attachment] {
       margin-left: calc(
         var(--attachment-stack-peek) - var(--attachment-stack-card)
       );
     }
 
-    /* At rest no chip shows its detail. */
     .attachment-info__detail {
       max-width: 0;
       opacity: 0;
       margin-left: 0;
-    }
-
-    .attachment-info,
-    .attachment-info__detail {
       transition:
         max-width 0.2s ease,
         opacity 0.2s ease,
@@ -110,7 +86,6 @@ export const attachmentsCSS = css`
     flex-wrap: wrap;
     gap: var(--global-dimension-size-75);
 
-    /* Restore every collapsed card to its natural size and fan the deck out. */
     > [data-attachment]:not(:last-child) {
       width: auto;
       min-width: 0;
@@ -269,11 +244,7 @@ export const attachmentInfoCSS = css`
     font-size: var(--global-font-size-xs);
   }
 
-  /*
-   * Context chips that carry a secondary detail (e.g. a trace id) lay the type
-   * label and the dimmed detail out on a single baseline-aligned row. Files use
-   * the default stacked label + media-type layout above.
-   */
+  /* Chips with a secondary detail lay label + dimmed detail on one row. */
   &.attachment-info--with-detail {
     display: inline-flex;
     align-items: baseline;
