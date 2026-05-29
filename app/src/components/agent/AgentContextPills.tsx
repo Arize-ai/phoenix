@@ -62,9 +62,7 @@ function contextDetail(context: AgentContext): string | undefined {
       return truncateId(spanId);
     }
     case "code_evaluator":
-      // Task-role context: labeled as the action the user is taking so the
-      // surface-vs-task distinction reads through the label rather than a
-      // hide rule.
+      // Labeled by action, not entity, so it reads distinctly from surface pills.
       return context.evaluatorNodeId
         ? `Editing evaluator: ${truncateId(context.evaluatorNodeId)}`
         : "New evaluator";
@@ -86,9 +84,8 @@ function toAttachmentData(context: AgentContext): AttachmentContextData {
 }
 
 /**
- * Render a project's active span filter as its own pill so the user can see
- * the filter the agent is aware of, even though the filter rides as a field
- * on the project context rather than its own context type.
+ * Renders a project's span filter as its own pill, though the filter rides as a
+ * field on the project context rather than a context type of its own.
  */
 function spanFilterAttachmentData(
   context: AgentContext
@@ -106,19 +103,7 @@ function spanFilterAttachmentData(
   };
 }
 
-/**
- * Renders the active agent contexts as non-removable attachments above the
- * chat input so the user can see, at a glance, what Phoenix state the agent
- * is aware of for the next turn (project, trace, selected span, active span
- * filter, the form being edited).
- *
- * Reads from the same `selectActiveContexts` selector used to populate the
- * chat request payload, and renders every active context as a pill — the
- * only contexts without a pill are request-only runtime metadata (app,
- * graphql, web_access) that have no user-visible label. Each context type
- * plugs in through the single `contextLabel` switch; nothing is hidden or
- * capped here, so the pills stay a faithful 1:1 view of the payload.
- */
+/** Renders the active agent contexts as non-removable pills above the chat input. */
 export function AgentContextPills() {
   const contexts = useAgentContext(selectActiveContexts);
 

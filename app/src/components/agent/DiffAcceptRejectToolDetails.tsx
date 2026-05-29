@@ -40,9 +40,8 @@ const diffAcceptRejectToolDetailsCSS = css`
 `;
 
 /**
- * The accept/reject contract every pending-edit kind satisfies. The generic
- * only ever touches these four fields plus the injected snapshot serializer;
- * domain-specific data lives on `T` and is reached through `snapshotToText`.
+ * The accept/reject contract every pending-edit kind satisfies; domain data
+ * lives on `T`, reached via `snapshotToText`.
  */
 type PendingDiffEdit<T> = {
   before: T;
@@ -75,12 +74,9 @@ type DiffAcceptRejectToolDetailsProps<T, P extends PendingDiffEdit<T>> = {
 };
 
 /**
- * Shared renderer for pending-edit tool details that show a proposed diff with
- * accept/reject controls (prompt-instance edits, code-evaluator draft edits).
- * It owns the diff render, the accept/reject footer, the result/error/preparing
- * blocks, and the `diff-accept-reject__*` CSS namespace; wrappers inject only
- * the domain content. The `pending` edit is passed in — this component never
- * reads context or the store.
+ * Shared renderer for pending-edit tool details: a proposed diff with
+ * accept/reject controls. Wrappers inject the domain content; the `pending`
+ * edit is passed in and this component never reads context or the store.
  */
 export function DiffAcceptRejectToolDetails<T, P extends PendingDiffEdit<T>>({
   part,

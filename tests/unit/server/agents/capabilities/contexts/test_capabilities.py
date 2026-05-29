@@ -173,9 +173,8 @@ class TestDatasetContextCapabilityRender:
             ),
         )
         content = _render(capability, ctx)
-        # The dataset context advertises which dataset is in view but no longer
-        # loads example samples into the prompt; that guidance now lives in the
-        # code-evaluator context.
+        # The dataset context advertises the in-view dataset but not example
+        # samples; that guidance belongs to the code-evaluator context.
         assert "RGF0YXNldDox==" in content
         assert "dataset_example_samples" not in content
         assert "<example" not in content
@@ -196,8 +195,8 @@ class TestDatasetContextCapabilityRender:
             )
         )
         content = _render(capability, ctx)
-        # With a code-evaluator form mounted, the dataset context defers to the
-        # code-evaluator context and drops its own create-evaluator link.
+        # A mounted code-evaluator form replaces the create link with the
+        # code-evaluator context block.
         assert "<phoenix_code_evaluator_context>" in content
         assert "[Create code evaluator]" not in content
 
@@ -216,8 +215,6 @@ class TestCodeEvaluatorContextCapabilityRender:
             )
         )
         content = _render(capability, ctx)
-        # The code-evaluator context advertises the draft-test affordance and
-        # its test-payload field. Exact guidance wording is not pinned.
         assert "testPayload" in content
         assert "test_code_evaluator_draft" in content
 
@@ -235,9 +232,9 @@ class TestCodeEvaluatorContextCapabilityRender:
             sandbox_availability=SandboxAvailability(has_usable=False),
         )
         content = _render(capability, ctx)
-        # The inventory is no longer inlined; the prompt directs an on-demand
-        # phoenix-gql fetch that filters to the selectable set and forbids
-        # requesting the secret-bearing field.
+        # The prompt does not inline the inventory; it directs an on-demand
+        # phoenix-gql fetch for the selectable set and forbids requesting the
+        # secret-bearing field.
         assert "phoenix-gql" in content
         assert "sandboxProviders" in content
         assert "envVars { name }" in content
@@ -282,8 +279,8 @@ class TestPlaygroundContextCapabilityRender:
             )
         )
         content = _render(capability, ctx)
-        # Without a loaded dataset the only distinguishing behavior is the nudge
-        # to load one first — the single signal worth pinning for this branch.
+        # No dataset: the load-first nudge is the only signal distinguishing this
+        # branch from the loaded-dataset case, so it is asserted directly.
         assert "<dataset_evaluator_authoring>" in content
         assert "ask them to load a dataset first" in content
 

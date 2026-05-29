@@ -9,11 +9,9 @@ import type { OutputConfigDraft } from "./types";
  * Convert the form's `AnnotationConfig` to a wire-stable `OutputConfigDraft`,
  * the single place the `kind` discriminant is assigned.
  *
- * The variant detection must stay a runtime structural check: the canonical
- * `AnnotationConfig` union carries no discriminator and `continuous` is a
- * structural near-supertype of the others, so neither `assertNever` nor a
- * type-level guard catches a new member — a new variant would fall through to
- * `continuous` until the canonical type gains its own discriminator.
+ * Variant detection is a runtime structural check, not `assertNever`: the
+ * canonical `AnnotationConfig` union has no discriminant, so a new variant
+ * silently falls through to `continuous` until that union gains one.
  */
 function toOutputConfigDraft(config: AnnotationConfig): OutputConfigDraft {
   if ("values" in config) {

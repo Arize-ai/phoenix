@@ -46,10 +46,9 @@ export type CodeEvaluatorFormMode = "create" | "edit";
 export type OpenCodeEvaluatorFormInput = Record<string, never>;
 
 /**
- * JSON-safe wire shape for one code-evaluator output config: the canonical
- * `@phoenix/types` annotation-config element of `CodeEvaluator.output_configs`
- * plus an explicit `kind` discriminant the draft union carries (the canonical
- * union is undiscriminated). `null` is accepted on optional numerics because
+ * JSON-safe wire shape for one output config: the canonical `@phoenix/types`
+ * element of `CodeEvaluator.output_configs` plus an explicit `kind` (the
+ * canonical union is undiscriminated). Optional numerics accept `null` because
  * the converter normalizes absent values to JSON-`null`.
  */
 export type ClassificationOutputConfigDraft = Omit<
