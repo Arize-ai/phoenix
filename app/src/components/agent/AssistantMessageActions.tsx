@@ -1,5 +1,4 @@
 import { isTextUIPart } from "ai";
-import copy from "copy-to-clipboard";
 import { type ReactNode, useState } from "react";
 
 import type { AgentUIMessage } from "@phoenix/agent/chat/types";
@@ -13,6 +12,8 @@ import {
 import { useViewer } from "@phoenix/contexts";
 import { useAgentContext } from "@phoenix/contexts/AgentContext";
 import { prependBasename } from "@phoenix/utils/routingUtils";
+
+import { MessageCopyAction } from "./MessageCopyAction";
 
 /**
  * Annotation name used for both span- and trace-level user feedback on
@@ -150,13 +151,6 @@ export function AssistantMessageActions({
     return null;
   }
 
-  const handleCopy = () => {
-    if (!hasMessageText) {
-      return;
-    }
-    copy(messageText);
-  };
-
   const handleOpenTrace = () => {
     if (!canOpenTrace || !metadata?.trace) {
       return;
@@ -250,15 +244,7 @@ export function AssistantMessageActions({
             />
           </MessageAction>
         ) : null}
-        {hasMessageText ? (
-          <MessageAction
-            label="Copy"
-            tooltip="Copy this response"
-            onPress={handleCopy}
-          >
-            <Icon svg={<Icons.DuplicateOutline />} />
-          </MessageAction>
-        ) : null}
+        {hasMessageText ? <MessageCopyAction text={messageText} /> : null}
         {canOpenTrace ? (
           <MessageAction
             label="Trace"

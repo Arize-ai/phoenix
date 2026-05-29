@@ -13,6 +13,7 @@ import { MarkdownBlock } from "@phoenix/components/markdown";
 import { AssistantMessageActions } from "./AssistantMessageActions";
 import { GenerativeUI } from "./generativeUI";
 import { groupMessageParts } from "./groupMessageParts";
+import { MessageCopyAction } from "./MessageCopyAction";
 import { MessageRewindActions } from "./MessageRewindActions";
 import type {
   MessageRewindMode,
@@ -43,8 +44,9 @@ const assistantMessageCSS = css`
 // ---------------------------------------------------------------------------
 
 /**
- * Renders a user message bubble (right-aligned, primary colour). When
- * `rewindHandlers` is provided a rewind/fork toolbar is shown below the bubble.
+ * Renders a user message bubble (right-aligned, primary colour) with a toolbar
+ * for copying the message and, when `onRewindRequest` is provided, rewinding or
+ * forking the conversation from it.
  */
 export function UserMessage({
   message,
@@ -57,18 +59,22 @@ export function UserMessage({
     .filter(isTextUIPart)
     .map((p) => p.text)
     .join("");
+  const hasText = text.trim().length > 0;
 
   return (
     <Message from="user">
       <MessageContent>{text}</MessageContent>
-      {onRewindRequest ? (
+      {hasText || onRewindRequest ? (
         <MessageToolbar>
           <MessageActions>
-            <MessageRewindActions
-              messageId={message.id}
-              role="user"
-              onRequest={onRewindRequest}
-            />
+            <MessageCopyAction text={text} />
+            {onRewindRequest ? (
+              <MessageRewindActions
+                messageId={message.id}
+                role="user"
+                onRequest={onRewindRequest}
+              />
+            ) : null}
           </MessageActions>
         </MessageToolbar>
       ) : null}
