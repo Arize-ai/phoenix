@@ -54,6 +54,7 @@ class SpanAnnotationMutationMixin:
         processed_annotations_map: dict[int, models.SpanAnnotation] = {}
 
         span_rowids = []
+        span_ids_by_rowid: dict[int, list[str]] = {}
         for idx, annotation_input in enumerate(input):
             try:
                 span_rowid = from_global_id_with_expected_type(annotation_input.span_id, "Span")
@@ -62,8 +63,22 @@ class SpanAnnotationMutationMixin:
                     f"Invalid span ID for annotation at index {idx}: {annotation_input.span_id}"
                 )
             span_rowids.append(span_rowid)
+            span_ids_by_rowid.setdefault(span_rowid, []).append(str(annotation_input.span_id))
 
         async with info.context.db() as session:
+            span_rowid_result = await session.scalars(
+                select(models.Span.id).where(models.Span.id.in_(tuple(span_ids_by_rowid)))
+            )
+            existing_span_rowids = set(span_rowid_result.all())
+            missing_span_ids = [
+                span_id
+                for span_rowid, span_ids in span_ids_by_rowid.items()
+                if span_rowid not in existing_span_rowids
+                for span_id in span_ids
+            ]
+            if missing_span_ids:
+                raise NotFound(f"Could not find spans with IDs: {', '.join(missing_span_ids)}")
+
             for idx, (span_rowid, annotation_input) in enumerate(zip(span_rowids, input)):
                 resolved_identifier = ""
                 if isinstance(annotation_input.identifier, str):

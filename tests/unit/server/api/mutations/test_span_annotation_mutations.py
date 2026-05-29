@@ -242,6 +242,32 @@ class TestSpanAnnotationMutations:
             "Use the createSpanNote mutation or POST /v1/span_notes instead."
         ) in response.errors[0].message
 
+    async def test_create_span_annotations_reports_missing_span(
+        self,
+        gql_client: AsyncGraphQLClient,
+    ) -> None:
+        missing_span_id = str(GlobalID("Span", "999"))
+        response = await gql_client.execute(
+            self.CREATE_SPAN_ANNOTATIONS_MUTATION,
+            {
+                "input": [
+                    {
+                        "spanId": missing_span_id,
+                        "name": "missing_span",
+                        "explanation": "This should fail with a clear error",
+                        "annotatorKind": AnnotatorKind.HUMAN.name,
+                        "metadata": {},
+                        "identifier": "",
+                        "source": AnnotationSource.API.name,
+                    }
+                ]
+            },
+        )
+
+        assert response.data is None
+        assert response.errors
+        assert response.errors[0].message == f"Could not find spans with IDs: {missing_span_id}"
+
     async def test_create_span_note_uses_uuidv4_identifier(
         self,
         gql_client: AsyncGraphQLClient,
