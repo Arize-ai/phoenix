@@ -25,6 +25,16 @@ Explore a few existing components to match the established file structure (compo
 
 React Compiler is enabled — do NOT use `useMemo`, `useCallback`, or `React.memo`. The compiler handles memoization automatically. This includes callback props passed to children; define them inline without wrapping in `useCallback`.
 
+## Conditional class names
+
+Build conditional `className` strings with `classNames` from `@phoenix/utils/classNames` (a re-export of `clsx`) — do NOT hand-roll ternaries or template literals that repeat the base class. Pass the base class as a string and toggles as an object:
+
+```tsx
+className={classNames("attachment-info", {
+  "attachment-info--with-detail": detail,
+})}
+```
+
 ## Refs
 
 React 19 treats `ref` as a regular prop — do NOT use `forwardRef`. Instead, accept `ref` directly in the props type and destructure it like any other prop. Add `ref?: Ref<ElementType>` to the props interface.
